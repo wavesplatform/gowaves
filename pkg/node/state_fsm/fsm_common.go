@@ -6,6 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 )
@@ -55,7 +56,7 @@ func handleScore(fsm FSM, info BaseInfo, p Peer, score *proto.Score) (FSM, Async
 		return fsm, nil, err
 	}
 
-	locked := info.storage.Mutex().Lock()
+	locked := info.storage.Mutex().RLock()
 	myScore, err := info.storage.CurrentScore()
 	locked.Unlock()
 	if err != nil {
@@ -66,6 +67,19 @@ func handleScore(fsm FSM, info BaseInfo, p Peer, score *proto.Score) (FSM, Async
 		return NewIdleToSyncTransition(info, p)
 	}
 	return fsm, nil, nil
+}
+
+func sendScore(p Peer, storage state.State) {
+	rlocked := storage.Mutex().RLock()
+	curScore, err := storage.CurrentScore()
+	rlocked.Unlock()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	bts := curScore.Bytes()
+	p.SendMessage(&proto.ScoreMessage{Score: bts})
 }
 
 // TODO send micro block

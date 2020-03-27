@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
@@ -25,17 +26,17 @@ type Emit struct {
 }
 
 type SchedulerImpl struct {
-	seeder     seeder
-	mine       chan Emit
-	cancel     []func()
-	settings   *settings.BlockchainSettings
-	mu         sync.Mutex
-	internal   internal
-	emits      []Emit
-	state      state.State
-	tm         types.Time
-	consensus  types.MinerConsensus
-	minerDelay proto.Timestamp
+	seeder        seeder
+	mine          chan Emit
+	cancel        []func()
+	settings      *settings.BlockchainSettings
+	mu            sync.Mutex
+	internal      internal
+	emits         []Emit
+	state         state.State
+	tm            types.Time
+	consensus     types.MinerConsensus
+	outdatePeriod proto.Timestamp
 }
 
 type internal interface {
@@ -69,7 +70,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		return fairPosActivated, vrfActivated, nil
 	}()
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Error("scheduler, internalImpl", err)
 		return nil
 	}
 
@@ -84,11 +85,11 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 	}
 	hitSourceHeader, err := state.HeaderByHeight(pos.HeightForHit(confirmedBlockHeight))
 	if err != nil {
-		zap.S().Error(err)
+		zap.S().Error("scheduler, internalImpl HeaderByHeight", err)
 		return nil
 	}
 
-	zap.S().Infof("Scheduler: confirmedBlock: sig %s, gensig: %s, confirmedHeight: %d", confirmedBlock.BlockSignature, confirmedBlock.GenSignature, confirmedBlockHeight)
+	zap.S().Infof("Scheduler: topBlock: sig %s, gensig: %s, topBlockHeight: %d", confirmedBlock.BlockSignature, confirmedBlock.GenSignature, confirmedBlockHeight)
 
 	var out []Emit
 	for _, keyPair := range keyPairs {
@@ -100,42 +101,46 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		}
 		genSig, err := gsp.GenerationSignature(key, genSigBlock.GenSignature)
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Error("scheduler, internalImpl", err)
 			continue
 		}
 		source, err := gsp.HitSource(key, hitSourceHeader.GenSignature)
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Error("scheduler, internalImpl HitSource", err)
 			continue
 		}
 		hit, err := consensus.GenHit(source)
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Error("scheduler, internalImpl GenHit", err)
 			continue
 		}
 
 		addr, err := keyPair.Addr(schema)
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Error("scheduler, internalImpl keyPair.Addr", err)
 			continue
 		}
+		var startHeight proto.Height = 1
+		if confirmedBlockHeight > 1000 {
+			startHeight = confirmedBlockHeight - 1000
+		}
 		locked := state.Mutex().RLock()
-		effectiveBalance, err := state.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), confirmedBlockHeight-1000, confirmedBlockHeight)
+		effectiveBalance, err := state.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
 		locked.Unlock()
 		if err != nil {
-			zap.S().Error(err)
+			//zap.S().Error("scheduler, internalImpl state.EffectiveBalanceStable ", err, " addr: ", addr, " pub: ", keyPair.Public)
 			continue
 		}
 
 		delay, err := pos.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, effectiveBalance)
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Error("scheduler, internalImpl pos.CalculateDelay", err)
 			continue
 		}
 
 		baseTarget, err := pos.CalculateBaseTarget(AverageBlockDelaySeconds, confirmedBlockHeight, confirmedBlock.BlockHeader.BaseTarget, confirmedBlock.Timestamp, greatGrandParentTimestamp, delay+confirmedBlock.Timestamp)
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Error("scheduler, internalImpl pos.CalculateBaseTarget", err)
 			continue
 		}
 
@@ -163,15 +168,15 @@ func newScheduler(internal internal, state state.State, seeder seeder, settings 
 		seeder = wallet.NewWallet()
 	}
 	return &SchedulerImpl{
-		seeder:     seeder,
-		mine:       make(chan Emit, 1),
-		settings:   settings,
-		internal:   internal,
-		state:      state,
-		mu:         sync.Mutex{},
-		tm:         tm,
-		consensus:  consensus,
-		minerDelay: minerDelay,
+		seeder:        seeder,
+		mine:          make(chan Emit, 1),
+		settings:      settings,
+		internal:      internal,
+		state:         state,
+		mu:            sync.Mutex{},
+		tm:            tm,
+		consensus:     consensus,
+		outdatePeriod: minerDelay,
 	}
 }
 
@@ -181,16 +186,21 @@ func (a *SchedulerImpl) Mine() chan Emit {
 
 func (a *SchedulerImpl) Reschedule() {
 	if len(a.seeder.Seeds()) == 0 {
+		zap.S().Info("SchedulerImpl Reschedule len(a.seeder.Seeds()) == 0")
 		return
 	}
 
+	zap.S().Info("*SchedulerImpl) Reschedule() ", util.Bts2Str(a.seeder.Seeds()))
+
 	if !a.consensus.IsMiningAllowed() {
+		zap.S().Info("SchedulerImpl Reschedule mining is not allowed")
 		return
 	}
 
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
-	if currentTimestamp-lastKnownBlock.Timestamp > a.minerDelay {
+	if currentTimestamp-lastKnownBlock.Timestamp > a.outdatePeriod {
+		zap.S().Info("SchedulerImpl Reschedule mining disallow cause outdate period")
 		return
 	}
 

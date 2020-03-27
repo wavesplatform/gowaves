@@ -17,6 +17,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/miner"
@@ -62,6 +63,7 @@ var (
 	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
 	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
 	limitConnectionsS = flag.String("limit-connections", "30", "N incoming and outgoing connections")
+	minPeersMining    = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining")
 	profiler          = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
 )
 
@@ -241,6 +243,7 @@ func main() {
 		LoggableRunner:     logRunner,
 		Time:               ntptm,
 		Wallet:             wal,
+		MicroBlockCache:    microblock_cache.NewMicroblockCache(),
 	}
 
 	utxClean := utxpool.NewCleaner(services)
@@ -250,9 +253,9 @@ func main() {
 		scoreSender.Run(ctx)
 	})
 
-	mine := miner.NewMicroblockMiner(services, cfg.AddressSchemeCharacter, features, reward, parent.MessageCh)
+	mine := miner.NewMicroblockMiner(services, features, reward)
 	peerManager.SetConnectPeers(!(*connectPeers == "false"))
-	go miner.Run(ctx, mine, scheduler)
+	go miner.Run(ctx, mine, scheduler, services.InternalChannel)
 
 	//stateSync := node.NewStateSync(services, scoreSender, blocks_applier.NewBlocksApplier(state, ntptm))
 
@@ -265,7 +268,7 @@ func main() {
 	stateChanged.AddHandler(utxClean)
 
 	n := node.NewNode(services, declAddr, bindAddr)
-	go n.Run(ctx, parent)
+	go n.Run(ctx, parent, services.InternalChannel)
 
 	go scheduler.Reschedule()
 

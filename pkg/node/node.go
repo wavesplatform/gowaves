@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
@@ -35,7 +36,7 @@ type Node struct {
 	utx       types.UtxPool
 	services  services.Services
 
-	microblockCache *MicroblockCache
+	//microblockCache *MicroblockCache
 }
 
 func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr) *Node {
@@ -43,22 +44,18 @@ func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.
 		bindAddr = declAddr
 	}
 	return &Node{
-		state:           services.State,
-		peers:           services.Peers,
-		declAddr:        declAddr,
-		bindAddr:        bindAddr,
-		scheduler:       services.Scheduler,
-		utx:             services.UtxPool,
-		services:        services,
-		microblockCache: NewMicroblockCache(),
+		state:     services.State,
+		peers:     services.Peers,
+		declAddr:  declAddr,
+		bindAddr:  bindAddr,
+		scheduler: services.Scheduler,
+		utx:       services.UtxPool,
+		services:  services,
 	}
 }
 
 func (a *Node) Close() {
-	a.peers.Close()
-	locked := a.state.Mutex().Lock()
-	a.state.Close()
-	locked.Unlock()
+	a.services.InternalChannel <- messages.NewHaltMessage()
 }
 
 func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
@@ -101,7 +98,7 @@ func (a *Node) Serve(ctx context.Context) error {
 	}
 }
 
-func (a *Node) Run(ctx context.Context, p peer.Parent) {
+func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan messages.InternalMessage) {
 	go func() {
 		for {
 			a.SpawnOutgoingConnections(ctx)
@@ -120,7 +117,6 @@ func (a *Node) Run(ctx context.Context, p peer.Parent) {
 	}()
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
-	InternalMessageCh := NewInternalChannel()
 
 	// TODO hardcode
 	outDatePeriod := 3600 /* hour */ * 4 * 1000 /* milliseconds */
@@ -140,8 +136,10 @@ func (a *Node) Run(ctx context.Context, p peer.Parent) {
 			return
 		case internalMess := <-InternalMessageCh:
 			switch t := internalMess.(type) {
-			case *MinedBlockInternalMessage:
+			case *messages.MinedBlockInternalMessage:
 				fsm, async, err = fsm.MinedBlock(t.Block, t.Limits, t.KeyPair)
+			case *messages.HaltMessage:
+				fsm, async, err = fsm.Halt()
 			default:
 				zap.S().Errorf("unknown internalMess %T", t)
 				continue
@@ -157,6 +155,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent) {
 				fsm, async, err = fsm.PeerError(m.Peer, t)
 			}
 		case mess := <-p.MessageCh:
+			zap.S().Debugf("received proto Message %T", mess.Message)
 			action, ok := actions[reflect.TypeOf(mess.Message)]
 			if !ok {
 				zap.S().Errorf("unknown proto Message %T", mess.Message)
@@ -183,8 +182,4 @@ func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner
 			})
 		}(t)
 	}
-}
-
-func NewInternalChannel() chan InternalMessage {
-	return make(chan InternalMessage, 100)
 }

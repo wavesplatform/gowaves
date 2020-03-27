@@ -108,6 +108,9 @@ type MineMicroTask struct {
 }
 
 func NewMineMicroTask(timeout time.Duration, block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair) MineMicroTask {
+	if block == nil {
+		panic("NewMineMicroTask block eq nil")
+	}
 	return MineMicroTask{
 		timeout: timeout,
 		MineMicroTaskData: MineMicroTaskData{

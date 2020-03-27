@@ -18,8 +18,12 @@ type IdleFsm struct {
 	baseInfo BaseInfo
 }
 
-func (a *IdleFsm) MinedBlock(_ *proto.Block, _ proto.MiningLimits, _ proto.KeyPair) (FSM, Async, error) {
-	return noop(a)
+func (a *IdleFsm) Halt() (FSM, Async, error) {
+	return HaltTransition(a.baseInfo)
+}
+
+func (a *IdleFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair) (FSM, Async, error) {
+	return MinedBlockNgTransition(a.baseInfo, block, limits, keyPair)
 }
 
 func (a *IdleFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error) {
@@ -33,6 +37,8 @@ func (a *IdleFsm) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Asy
 func (a *IdleFsm) Task(task AsyncTask) (FSM, Async, error) {
 	zap.S().Debugf("IdleFsm Task: got task type %d, data %+v", task.TaskType, task.Data)
 	switch task.TaskType {
+	case PING:
+		return noop(a)
 	case ASK_PEERS:
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil

@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/miner"
@@ -21,12 +22,12 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/scoresender"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -50,10 +51,11 @@ var (
 	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
 	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
-	minerDelayParam   = flag.String("miner-delay", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
+	outdateS          = flag.String("outdate", "4h", "Interval between last applied block and current time. If greater than no mining, no transaction accepted. Example 1d4h30m")
 	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
 	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
 	limitConnectionsS = flag.String("limit-connections", "30", "N incoming and outgoing connections")
+	minPeersMining    = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining")
 )
 
 func init() {
@@ -66,6 +68,9 @@ func main() {
 		zap.S().Error("Please provide path to blockchain config JSON file")
 		return
 	}
+
+	util.SetupLogger(*logLevel)
+
 	zap.S().Info(os.Args)
 	zap.S().Info(os.Environ())
 	zap.S().Info(os.LookupEnv("WAVES_OPTS"))
@@ -100,6 +105,8 @@ func main() {
 		return
 	}
 
+	zap.S().Info("custom.AddressSchemeCharacter ", custom.AddressSchemeCharacter)
+
 	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), custom.AddressSchemeCharacter)
 	if *walletPassword != "" {
 		err := wal.Load([]byte(*walletPassword))
@@ -130,7 +137,7 @@ func main() {
 		return
 	}
 
-	minerDelaySecond, err := util.ParseDuration(*minerDelayParam)
+	minerDelaySecond, err := util.ParseDuration(*outdateS)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -188,7 +195,7 @@ func main() {
 		wal,
 		custom,
 		ntptm,
-		scheduler2.NewMinerConsensus(peerManager, 1),
+		scheduler2.NewMinerConsensus(peerManager, *minPeersMining),
 		proto.NewTimestampFromUSeconds(minerDelaySecond),
 	)
 
@@ -196,6 +203,11 @@ func main() {
 
 	stateChanged := state_changed.NewStateChanged()
 	blockApplier := blocks_applier.NewBlocksApplier()
+
+	async := runner.NewAsync()
+	logRunner := runner.NewLogRunner(async)
+
+	InternalCh := messages.NewInternalChannel()
 
 	services := services.Services{
 		State:              state,
@@ -206,6 +218,14 @@ func main() {
 		Scheme:             custom.AddressSchemeCharacter,
 		BlockAddedNotifier: stateChanged,
 		InvRequester:       ng.NewInvRequester(),
+
+		LoggableRunner: logRunner,
+
+		MicroBlockCache: microblock_cache.NewMicroblockCache(),
+
+		InternalChannel: InternalCh,
+
+		Time: ntptm,
 	}
 
 	utxClean := utxpool.NewCleaner(services)
@@ -215,8 +235,8 @@ func main() {
 
 	Miner := miner.NewMicroblockMiner(services, features, reward)
 
-	async := runner.NewAsync()
-	scoreSender := scoresender.New(peerManager, state, 4*time.Second, async)
+	//async := runner.NewAsync()
+	//scoreSender := scoresender.New(peerManager, state, 4*time.Second, async)
 
 	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
 		scheduler.Reschedule()
@@ -226,17 +246,17 @@ func main() {
 	//}))
 	stateChanged.AddHandler(utxClean)
 
-	async.Go(func() {
-		scoreSender.Run(ctx)
-	})
+	//async.Go(func() {
+	//	scoreSender.Run(ctx)
+	//})
 	//stateSync := node.NewStateSync(services, scoreSender, blockApplier)
 
-	go miner.Run(ctx, Miner, scheduler)
+	go miner.Run(ctx, Miner, scheduler, InternalCh)
 	go scheduler.Reschedule()
 
 	n := node.NewNode(services, declAddr, declAddr)
 
-	go n.Run(ctx, parent)
+	go n.Run(ctx, parent, InternalCh)
 
 	if len(conf.Addresses) > 0 {
 		adrs := strings.Split(conf.Addresses, ",")

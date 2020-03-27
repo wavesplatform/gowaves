@@ -113,13 +113,31 @@ func (a *SyncFsm) Block(p Peer, block *proto.Block) (FSM, Async, error) {
 	return a.applyBlocks(a.baseInfo, a.conf.Now(), internal)
 }
 
+// TODO score, send block
 func (a *SyncFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair) (FSM, Async, error) {
 	err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
 	if err != nil {
 		return a, nil, err
 	}
 	a.baseInfo.Reschedule()
+
+	// first we should send block
+	a.baseInfo.actions.SendBlock(block)
+
+	rlocked := a.baseInfo.storage.Mutex().RLock()
+	score, err := a.baseInfo.storage.CurrentScore()
+	rlocked.Unlock()
+	if err != nil {
+		return NewIdleFsm(a.baseInfo), nil, err
+	}
+
+	// after score
+	a.baseInfo.actions.SendScore(score)
 	return a, Tasks(NewMineMicroTask(5*time.Second, block, limits, keyPair)), nil
+}
+
+func (a *SyncFsm) Halt() (FSM, Async, error) {
+	return HaltTransition(a.baseInfo)
 }
 
 // TODO suspend peer on state error
@@ -136,7 +154,7 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	}
 	a.baseInfo.Reschedule()
 	if eof {
-		return NewIdleFsm(a.baseInfo), nil, nil
+		return NewNGFsm(a.baseInfo), nil, nil
 	}
 	return newSyncFsm(baseInfo, conf, internal), nil, nil
 }

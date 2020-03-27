@@ -15,7 +15,7 @@ import (
 
 type Action func(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error)
 
-func ScoreAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+func ScoreAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	b := new(big.Int)
 	b.SetBytes(mess.Message.(*proto.ScoreMessage).Score)
 	return fsm.Score(mess.ID, b)
@@ -122,7 +122,9 @@ func MicroBlockInvAction(services services.Services, mess peer.ProtoMessage, fsm
 // our miner mined microblock, sent MicroblockInv to other nodes, they asked us about Microblock
 func MicroBlockRequestAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	micro, ok := services.MicroBlockCache.Get(mess.Message.(*proto.MicroBlockRequestMessage).Body)
+	zap.S().Info("MicroBlockRequestAction, micro total ", micro.TotalResBlockSigField)
 	if ok {
+		zap.S().Info("MicroBlockRequestAction, micro total ", micro.TotalResBlockSigField, " found")
 		bts, err := micro.MarshalBinary()
 		if err != nil {
 			return fsm, nil, err
@@ -143,13 +145,14 @@ func MicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm st
 }
 
 // arrived protobuf block
-func PBBlockAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	b := &proto.Block{}
 	err := b.UnmarshalFromProtobuf(mess.Message.(*proto.PBBlockMessage).PBBlockBytes)
 	if err != nil {
 		zap.S().Debug(err)
 		return fsm, nil, err
 	}
+	zap.S().Info("PBBlockAction ", b.BlockSignature)
 	return fsm.Block(mess.ID, b)
 }
 

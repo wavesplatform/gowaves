@@ -1,4 +1,4 @@
-package node
+package microblock_cache
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"

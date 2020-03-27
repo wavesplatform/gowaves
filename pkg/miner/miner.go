@@ -5,6 +5,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -340,13 +341,18 @@ func blockVersion(state state.State) (proto.BlockVersion, error) {
 	return proto.NgBlockVersion, nil
 }
 
-func Run(ctx context.Context, a types.Miner, s *scheduler.SchedulerImpl) {
+func Run(ctx context.Context, a types.Miner, s *scheduler.SchedulerImpl, internalCh chan messages.InternalMessage) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case v := <-s.Mine():
-			a.MineKeyBlock(ctx, v.Timestamp, v.KeyPair, v.ParentBlockSignature, v.BaseTarget, v.GenSignature)
+			block, limits, err := a.MineKeyBlock(ctx, v.Timestamp, v.KeyPair, v.ParentBlockSignature, v.BaseTarget, v.GenSignature)
+			if err != nil {
+				zap.S().Error(err)
+				continue
+			}
+			internalCh <- messages.NewMinedBlockInternalMessage(block, limits, v.KeyPair)
 		}
 	}
 }

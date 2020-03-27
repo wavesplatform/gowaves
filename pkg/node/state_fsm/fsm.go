@@ -55,6 +55,8 @@ type BaseInfo struct {
 	microMiner *miner.MicroMiner
 
 	MicroBlockCache services.MicroBlockCache
+
+	actions Actions
 }
 
 type FromBaseInfo interface {
@@ -76,13 +78,15 @@ type FSM interface {
 	// micro
 	MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error)
 	MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Async, error)
+
+	//
+	Halt() (FSM, Async, error)
 }
 
 func NewFsm(
 	services services.Services,
 	outdatePeriod proto.Timestamp,
 	blockCreator types.BlockCreator,
-
 ) (FSM, Async, error) {
 	b := BaseInfo{
 		peers:         services.Peers,
@@ -100,9 +104,17 @@ func NewFsm(
 		d: DefaultImpl{},
 
 		//
+		Scheduler: services.Scheduler,
+
+		//
+		microMiner: miner.NewMicroMiner(services),
 
 		MicroBlockCache: services.MicroBlockCache,
+
+		actions: &ActionsImpl{services: services},
 	}
+
+	b.Scheduler.Reschedule()
 
 	// default tasks
 	tasks := Async{

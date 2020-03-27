@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 type Blocks []interface{}
@@ -36,6 +37,15 @@ func (a Blocks) AddBlock(block *proto.Block) (Blocks, error) {
 		}
 	}
 	return a, errors.Errorf("parent %s not found", block.Parent.String())
+}
+
+func (a Blocks) ForceAddBlock(block *proto.Block) Blocks {
+	new, err := a.AddBlock(block)
+	if err != nil {
+		zap.S().Warnf("a block ForceAddBlock err %q", err)
+		return NewBlocksFromBlock(block)
+	}
+	return new
 }
 
 // always first elemnt block

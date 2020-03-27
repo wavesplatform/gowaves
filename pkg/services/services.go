@@ -2,6 +2,7 @@ package services
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -31,4 +32,5 @@ type Services struct {
 	Time               types.Time
 	Wallet             types.EmbeddedWallet
 	MicroBlockCache    MicroBlockCache
+	InternalChannel    chan messages.InternalMessage
 }

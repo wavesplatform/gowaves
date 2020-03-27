@@ -149,3 +149,11 @@ func ParseDuration(str string) (uint64, error) {
 	}
 	return total, nil
 }
+
+func Bts2Str(bts [][]byte) []string {
+	out := []string{}
+	for _, b := range bts {
+		out = append(out, string(b))
+	}
+	return out
+}

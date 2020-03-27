@@ -237,17 +237,16 @@ func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {
 }
 
 func (a *MicroBlockMessage) MarshalBinary() ([]byte, error) {
-	//buf := bytebufferpool.Get()
-	//defer bytebufferpool.Put(buf)
-	//
-	//_, err := a.WriteTo(buf)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//out := make([]byte, buf.Len())
-	//copy(out, buf.B)
-	//return out, nil
-	panic("MicroBlockMessage implement me")
+	buf := bytebufferpool.Get()
+	defer bytebufferpool.Put(buf)
+
+	_, err := a.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]byte, buf.Len())
+	copy(out, buf.B)
+	return out, nil
 }
 
 type MicroBlockInvMessage struct {
