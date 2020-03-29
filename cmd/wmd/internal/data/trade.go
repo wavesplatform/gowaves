@@ -28,14 +28,14 @@ type Trade struct {
 func NewTradeFromExchangeWithSig(scheme byte, tx *proto.ExchangeWithSig) (Trade, error) {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to convert ExchangeWithSig to Trade") }
 	orderType := 1
-	if tx.BuyOrder.Timestamp > tx.SellOrder.Timestamp {
+	if tx.Order1.Timestamp > tx.Order2.Timestamp {
 		orderType = 0
 	}
-	b, err := proto.NewAddressFromPublicKey(scheme, tx.BuyOrder.SenderPK)
+	b, err := proto.NewAddressFromPublicKey(scheme, tx.Order1.SenderPK)
 	if err != nil {
 		return Trade{}, wrapError(err)
 	}
-	s, err := proto.NewAddressFromPublicKey(scheme, tx.SellOrder.SenderPK)
+	s, err := proto.NewAddressFromPublicKey(scheme, tx.Order2.SenderPK)
 	if err != nil {
 		return Trade{}, wrapError(err)
 	}
@@ -44,8 +44,8 @@ func NewTradeFromExchangeWithSig(scheme byte, tx *proto.ExchangeWithSig) (Trade,
 		return Trade{}, wrapError(err)
 	}
 	return Trade{
-		AmountAsset:   tx.BuyOrder.AssetPair.AmountAsset.ID,
-		PriceAsset:    tx.BuyOrder.AssetPair.PriceAsset.ID,
+		AmountAsset:   tx.Order1.AssetPair.AmountAsset.ID,
+		PriceAsset:    tx.Order1.AssetPair.PriceAsset.ID,
 		TransactionID: *tx.ID,
 		OrderType:     proto.OrderType(orderType),
 		Buyer:         b,
@@ -64,7 +64,15 @@ func NewTradeFromExchangeWithProofs(scheme byte, tx *proto.ExchangeWithProofs) (
 	var err error
 	var amountAsset, priceAsset crypto.Digest
 
-	ap, pk, buyTS, err := extractOrderParameters(tx.BuyOrder)
+	bo, err := tx.GetBuyOrder()
+	if err != nil {
+		return Trade{}, wrapError(err)
+	}
+	so, err := tx.GetSellOrder()
+	if err != nil {
+		return Trade{}, wrapError(err)
+	}
+	ap, pk, buyTS, err := extractOrderParameters(bo)
 	if err != nil {
 		return Trade{}, wrapError(err)
 	}
@@ -73,7 +81,7 @@ func NewTradeFromExchangeWithProofs(scheme byte, tx *proto.ExchangeWithProofs) (
 		return Trade{}, wrapError(err)
 	}
 
-	ap, pk, sellTS, err = extractOrderParameters(tx.SellOrder)
+	ap, pk, sellTS, err = extractOrderParameters(so)
 	if err != nil {
 		return Trade{}, wrapError(err)
 	}

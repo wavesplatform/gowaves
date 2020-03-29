@@ -2,7 +2,6 @@ package state
 
 import (
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -53,7 +52,7 @@ func newAliases(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyS
 	return &aliases{db, dbBatch, hs}, nil
 }
 
-func (a *aliases) createAlias(aliasStr string, info *aliasInfo, blockID crypto.Signature) error {
+func (a *aliases) createAlias(aliasStr string, info *aliasInfo, blockID proto.BlockID) error {
 	key := aliasKey{aliasStr}
 	r := aliasRecord{*info}
 	recordBytes, err := r.marshalBinary()

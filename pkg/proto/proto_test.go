@@ -192,7 +192,7 @@ var tests = []protocolMarshallingTest{
 		"00000051  12345678      15         00000044         5e0c8bee    00000001 13000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
 	},
 	{
-		&GetBlockMessage{crypto.Signature{0x15, 0x12}},
+		&GetBlockMessage{NewBlockIDFromSignature(crypto.Signature{0x15, 0x12})},
 		//P. Len |    Magic | ContentID | Payload Length | PayloadCsum | Payload
 		"0000004d  12345678      16         00000040          01d5a895   15120000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
 	},
@@ -475,4 +475,40 @@ func TestVersionsSort(t *testing.T) {
 		{1, 2, 3},
 	}
 	assert.Equal(t, expected, []Version(v))
+}
+
+func TestGetSignaturesMessageRoundTrip(t *testing.T) {
+	msg := GetSignaturesMessage{Blocks: []crypto.Signature{{0x1}, {0x2}}}
+	msgBytes, err := msg.MarshalBinary()
+	assert.NoError(t, err)
+	var res GetSignaturesMessage
+	err = res.UnmarshalBinary(msgBytes)
+	assert.NoError(t, err)
+	assert.Equal(t, res, msg)
+}
+
+func TestGetBlockIdsMessageRoundTrip(t *testing.T) {
+	id0 := NewBlockIDFromSignature(crypto.Signature{0x1})
+	id1 := NewBlockIDFromSignature(crypto.Signature{0x2})
+	id2 := NewBlockIDFromDigest(crypto.Digest{0x3})
+	msg := GetBlockIdsMessage{Blocks: []BlockID{id0, id1, id2}}
+	msgBytes, err := msg.MarshalBinary()
+	assert.NoError(t, err)
+	var res GetBlockIdsMessage
+	err = res.UnmarshalBinary(msgBytes)
+	assert.NoError(t, err)
+	assert.Equal(t, res, msg)
+}
+
+func TestBlockIdsMessageRoundTrip(t *testing.T) {
+	id0 := NewBlockIDFromSignature(crypto.Signature{0x1})
+	id1 := NewBlockIDFromSignature(crypto.Signature{0x2})
+	id2 := NewBlockIDFromDigest(crypto.Digest{0x3})
+	msg := BlockIdsMessage{Blocks: []BlockID{id0, id1, id2}}
+	msgBytes, err := msg.MarshalBinary()
+	assert.NoError(t, err)
+	var res BlockIdsMessage
+	err = res.UnmarshalBinary(msgBytes)
+	assert.NoError(t, err)
+	assert.Equal(t, res, msg)
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
+	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
@@ -17,6 +18,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"go.uber.org/zap"
 )
 
@@ -35,8 +37,6 @@ type Node struct {
 	scheduler types.Scheduler
 	utx       types.UtxPool
 	services  services.Services
-
-	//microblockCache *MicroblockCache
 }
 
 func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr) *Node {
@@ -57,6 +57,13 @@ func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.
 func (a *Node) Close() {
 	a.services.InternalChannel <- messages.NewHaltMessage()
 }
+
+/*
+	case *proto.GetBlockIdsMessage:
+		a.handleGetBlockIdsMessage(mess.ID, t)
+	case *proto.BlockIdsMessage:
+		a.handleBlockIdsMessage(mess.ID, t)
+ */
 
 func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
 	a.peers.SpawnOutgoingConnections(ctx)
@@ -171,6 +178,27 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 	}
 }
 
+type BlockIds struct {
+	ids    []proto.BlockID
+	unique map[proto.BlockID]struct{}
+}
+
+func (a *BlockIds) Ids() []proto.BlockID {
+	return a.ids
+}
+
+func NewBlockIds(ids ...proto.BlockID) *BlockIds {
+	unique := make(map[proto.BlockID]struct{})
+	for _, v := range ids {
+		unique[v] = struct{}{}
+	}
+
+	return &BlockIds{
+		ids:    ids,
+		unique: unique,
+	}
+}
+
 func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner, a state_fsm.Async) {
 	for _, t := range a {
 		func(t tasks.Task) {
@@ -181,5 +209,15 @@ func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner
 				}
 			})
 		}(t)
+func (a *BlockIds) Exists(id proto.BlockID) bool {
+	_, ok := a.unique[id]
+	return ok
+}
+
+func (a *BlockIds) Revert() *BlockIds {
+	out := make([]proto.BlockID, len(a.ids))
+	for k, v := range a.ids {
+		out[len(a.ids)-1-k] = v
 	}
+	return NewBlockIds(out...)
 }

@@ -111,10 +111,10 @@ func TestApplyInvokeScriptWithProofsPaymentsAndData(t *testing.T) {
 	// Invoke applier object.
 	ia := to.state.appender.ia
 	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		block:  &proto.BlockHeader{BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
 		height: 1,
 	}
-	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	err := to.state.stateDB.addBlock(info.block.BlockID())
 	assert.NoError(t, err)
 	dir, err := getLocalDir()
 	assert.NoError(t, err, "getLocalDir() failed")
@@ -191,10 +191,10 @@ func TestApplyInvokeScriptWithProofsTransfers(t *testing.T) {
 	// Invoke applier object.
 	ia := to.state.appender.ia
 	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{BlockSignature: blockID0, Timestamp: to.state.settings.CheckTempNegativeAfterTime},
+		block:  &proto.BlockHeader{BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
 		height: 1,
 	}
-	err := to.state.stateDB.addBlock(info.block.BlockSignature)
+	err := to.state.stateDB.addBlock(info.block.BlockID())
 	assert.NoError(t, err)
 	dir, err := getLocalDir()
 	assert.NoError(t, err, "getLocalDir() failed")

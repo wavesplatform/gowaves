@@ -7,10 +7,11 @@ import (
 )
 
 func Genesis(timestamp proto.Timestamp, transactions proto.Transactions, scheme proto.Scheme) (*proto.Block, error) {
+	id := proto.NewBlockIDFromSignature(crypto.MustSignatureFromBase58("67rpwLCuS5DGA8KGZXKsVQ7dnPb9goRLoKfgGbLfQg9WoLUgNY77E2jT11fem3coV9nAkguBACzrU1iyZM4B8roQ"))
 	block, err := proto.CreateBlock(
 		transactions,
 		timestamp,
-		crypto.MustSignatureFromBase58("67rpwLCuS5DGA8KGZXKsVQ7dnPb9goRLoKfgGbLfQg9WoLUgNY77E2jT11fem3coV9nAkguBACzrU1iyZM4B8roQ"),
+		id,
 		crypto.PublicKey{},
 		proto.NxtConsensus{
 			BaseTarget:   153722867,

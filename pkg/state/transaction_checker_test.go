@@ -12,7 +12,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
+)
+
+var (
+	genSig = crypto.MustSignatureFromBase58(genesisSignature)
 )
 
 type checkerTestObjects struct {
@@ -24,10 +28,10 @@ type checkerTestObjects struct {
 func createCheckerTestObjects(t *testing.T) (*checkerTestObjects, []string) {
 	stor, path, err := createStorageObjects()
 	assert.NoError(t, err, "createStorageObjects() failed")
-	tc, err := newTransactionChecker(crypto.MustSignatureFromBase58(genesisSignature), stor.entities, settings.MainNetSettings)
+	tc, err := newTransactionChecker(proto.NewBlockIDFromSignature(genSig), stor.entities, settings.MainNetSettings)
 	assert.NoError(t, err, "newTransactionChecker() failed")
 	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-	assert.NoError(t, err, "newTransactionPerormer() failed")
+	assert.NoError(t, err, "newTransactionPerformer() failed")
 	return &checkerTestObjects{stor, tc, tp}, path
 }
 
@@ -41,14 +45,14 @@ func TestCheckGenesis(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	tx := createGenesis(t)
 	info := defaultCheckerInfo(t)
 	_, err := to.tc.checkGenesis(tx, info)
-	info.blockID = crypto.MustSignatureFromBase58(genesisSignature)
+	info.blockID = proto.NewBlockIDFromSignature(genSig)
 	assert.Error(t, err, "checkGenesis accepted genesis tx in non-initialisation mode")
 	info.initialisation = true
 	_, err = to.tc.checkGenesis(tx, info)
@@ -64,7 +68,7 @@ func TestCheckPayment(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -88,7 +92,7 @@ func TestCheckTransferWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -132,7 +136,7 @@ func TestCheckTransferWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -183,7 +187,7 @@ func TestCheckIsValidUtf8(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -208,7 +212,7 @@ func TestCheckIssueWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -228,7 +232,7 @@ func TestCheckIssueWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -250,7 +254,7 @@ func TestCheckReissueWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -298,7 +302,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -352,7 +356,7 @@ func TestCheckBurnWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -392,7 +396,7 @@ func TestCheckBurnWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -437,7 +441,7 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -454,7 +458,7 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	// Set script.
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.recipientInfo.addr
-	err = to.stor.entities.scriptsStorage.setAccountScript(addr, proto.Script(testGlobal.scriptBytes), blockID0)
+	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, blockID0)
 	assert.NoError(t, err)
 
 	_, err = to.tc.checkExchangeWithSig(tx, info)
@@ -465,7 +469,7 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	assert.NoError(t, err, "checkExchangeWithSig failed with valid exchange")
 
 	// Make one of involved assets smart.
-	smartAsset := tx.BuyOrder.AssetPair.AmountAsset.ID
+	smartAsset := tx.Order1.AssetPair.AmountAsset.ID
 	to.stor.createSmartAsset(t, smartAsset)
 
 	_, err = to.tc.checkExchangeWithSig(tx, info)
@@ -482,25 +486,25 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	assert.Equal(t, smartAsset, smartAssets[0])
 
 	// Now overfill volume and make sure check fails.
-	tx.Amount = tx.SellOrder.Amount + 1
+	tx.Amount = tx.Order2.Amount + 1
 	_, err = to.tc.checkExchangeWithSig(tx, info)
 	assert.Error(t, err, "checkExchangeWithSig did not fail with exchange that overfills sell order amount volume")
-	tx.Amount = tx.SellOrder.Amount
+	tx.Amount = tx.Order2.Amount
 
-	tx.BuyMatcherFee = tx.SellOrder.MatcherFee + 1
+	tx.BuyMatcherFee = tx.Order2.MatcherFee + 1
 	_, err = to.tc.checkExchangeWithSig(tx, info)
 	assert.Error(t, err, "checkExchangeWithSig did not fail with exchange that overfills sell order matcher fee volume")
-	tx.BuyMatcherFee = tx.SellOrder.MatcherFee
+	tx.BuyMatcherFee = tx.Order2.MatcherFee
 
-	tx.BuyMatcherFee = tx.BuyOrder.MatcherFee + 1
+	tx.BuyMatcherFee = tx.Order1.MatcherFee + 1
 	_, err = to.tc.checkExchangeWithSig(tx, info)
 	assert.Error(t, err, "checkExchangeWithSig did not fail with exchange that overfills buy order matcher fee volume")
-	tx.BuyMatcherFee = tx.BuyOrder.MatcherFee
+	tx.BuyMatcherFee = tx.Order1.MatcherFee
 
-	tx.Amount = tx.BuyOrder.Amount + 1
+	tx.Amount = tx.Order1.Amount + 1
 	_, err = to.tc.checkExchangeWithSig(tx, info)
 	assert.Error(t, err, "checkExchangeWithSig did not fail with exchange that overfills buy order amount volume")
-	tx.Amount = tx.BuyOrder.Amount
+	tx.Amount = tx.Order1.Amount
 }
 
 func TestCheckExchangeWithProofs(t *testing.T) {
@@ -509,7 +513,7 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -534,7 +538,7 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	assert.NoError(t, err, "checkExchangeWithProofs failed with valid exchange")
 
 	// Make one of involved assets smart.
-	smartAsset := txOV2.GetBuyOrderFull().GetAssetPair().AmountAsset.ID
+	smartAsset := txOV2.GetOrder1().GetAssetPair().AmountAsset.ID
 	to.stor.createSmartAsset(t, smartAsset)
 
 	_, err = to.tc.checkExchangeWithProofs(txOV2, info)
@@ -564,7 +568,7 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	txOV3 := createExchangeWithProofsWithOrdersV3(t)
 
 	// Matcher fee asset should not be added to the list of smart assets even if it is smart.
-	smartAsset2 := txOV3.GetBuyOrderFull().GetMatcherFeeAsset().ID
+	smartAsset2 := txOV3.GetOrder1().GetMatcherFeeAsset().ID
 	to.stor.createSmartAsset(t, smartAsset2)
 
 	_, err = to.tc.checkExchangeWithProofs(txOV3, info)
@@ -576,8 +580,8 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	assert.ElementsMatch(t, []crypto.Digest{smartAsset}, smartAssets)
 
 	// Now overfill volume and make sure check fails.
-	bo := txOV2.GetBuyOrderFull()
-	so := txOV2.GetSellOrderFull()
+	bo := txOV2.GetOrder1()
+	so := txOV2.GetOrder2()
 	txOV2.Amount = so.GetAmount() + 1
 	_, err = to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.Error(t, err, "checkExchangeWithProofs did not fail with exchange that overfills sell order amount volume")
@@ -599,13 +603,65 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	txOV2.Amount = bo.GetAmount()
 }
 
+func TestCheckUnorderedExchangeV2WithProofs(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createUnorderedExchangeWithProofs(t, 2)
+	info := defaultCheckerInfo(t)
+
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset2.asset.ID)
+
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
+	to.stor.activateFeature(t, int16(settings.OrderV3))
+	to.stor.activateFeature(t, int16(settings.BlockV5))
+
+	_, err := to.tc.checkExchangeWithProofs(tx, info)
+	assert.Errorf(t, err, "have to fail on incorrect order of orders after activation of BlockV5")
+}
+
+func TestCheckUnorderedExchangeV3WithProofs(t *testing.T) {
+	to, path := createCheckerTestObjects(t)
+
+	defer func() {
+		to.stor.close(t)
+
+		err := common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	tx := createUnorderedExchangeWithProofs(t, 3)
+	info := defaultCheckerInfo(t)
+
+	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
+	to.stor.createAsset(t, testGlobal.asset2.asset.ID)
+
+	to.stor.activateFeature(t, int16(settings.SmartAccountTrading))
+	to.stor.activateFeature(t, int16(settings.SmartAssets))
+	to.stor.activateFeature(t, int16(settings.OrderV3))
+	to.stor.activateFeature(t, int16(settings.BlockV5))
+
+	_, err := to.tc.checkExchangeWithProofs(tx, info)
+	assert.NoErrorf(t, err, "failed on with incorrect order of orders after activation of BlockV5")
+}
+
 func TestCheckLeaseWithSig(t *testing.T) {
 	to, path := createCheckerTestObjects(t)
 
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -626,7 +682,7 @@ func TestCheckLeaseWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -653,7 +709,7 @@ func TestCheckLeaseCancelWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -688,7 +744,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -730,7 +786,7 @@ func TestCheckCreateAliasWithSig(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -760,7 +816,7 @@ func TestCheckCreateAliasWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -795,7 +851,7 @@ func TestCheckMassTransferWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -832,7 +888,7 @@ func TestCheckDataWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -860,7 +916,7 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -910,7 +966,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -945,7 +1001,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
 	assert.NoError(t, err)
 	prevScript := tx.Script
-	tx.Script = proto.Script(scriptBytes)
+	tx.Script = scriptBytes
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkSetScriptWithProofs did not fail with Script V3 before Ride4DApps activation")
 	tx.Script = prevScript
@@ -957,7 +1013,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	assert.NoError(t, err)
 	scriptBytes, err = reader.ScriptBytesFromBase64(scriptBase64)
 	assert.NoError(t, err)
-	tx.Script = proto.Script(scriptBytes)
+	tx.Script = scriptBytes
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkSetScriptWithProofs did not fail with Script that exceeds complexity limit")
 	tx.Script = prevScript
@@ -976,7 +1032,7 @@ func TestCheckSetAssetScriptWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -1016,7 +1072,7 @@ func TestCheckInvokeScriptWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -1061,7 +1117,7 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err := util.CleanTemporaryDirs(path)
+		err := common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 

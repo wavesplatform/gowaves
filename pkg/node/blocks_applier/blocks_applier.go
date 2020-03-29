@@ -6,11 +6,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	//"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type innerBlocksApplier struct {
-	//state state.State
 }
 
 func (a *innerBlocksApplier) apply(storage state.State, blocks []*proto.Block) (*proto.Block, proto.Height, error) {
@@ -19,9 +18,9 @@ func (a *innerBlocksApplier) apply(storage state.State, blocks []*proto.Block) (
 	}
 	firstBlock := blocks[0]
 	// check first block if exists
-	_, err := storage.Block(firstBlock.BlockSignature)
+	_, err := storage.Block(firstBlock.BlockID())
 	if err == nil {
-		return nil, 0, errors.Errorf("first block %s exists", firstBlock.BlockSignature.String())
+		return nil, 0, errors.Errorf("first block %s exists", firstBlock.BlockID().String())
 	}
 	if !state.IsNotFound(err) {
 		return nil, 0, errors.Wrap(err, "unknown error")
@@ -40,7 +39,7 @@ func (a *innerBlocksApplier) apply(storage state.State, blocks []*proto.Block) (
 	// try to find parent. If not - we can't add blocks, skip it
 	parentHeight, err := storage.BlockIDToHeight(firstBlock.Parent)
 	if err != nil {
-		return nil, 0, errors.Wrapf(err, "BlockApplier: failed get parent height, firstBlock sig %s, for firstBlock %s", firstBlock.Parent, firstBlock.BlockSignature)
+		return nil, 0, errors.Wrapf(err, "BlocksApplier: failed get parent height, firstBlock id %s, for firstBlock %s", firstBlock.Parent.String(), firstBlock.BlockID().String())
 	}
 	// calculate score of all passed blocks
 	score, err := calcMultipleScore(blocks)
@@ -94,23 +93,18 @@ func (a *innerBlocksApplier) apply(storage state.State, blocks []*proto.Block) (
 		if err2 != nil {
 			return nil, 0, errors.Wrap(err2, "failed rollback deserialized blocks")
 		}
-		return nil, 0, errors.Wrapf(err, "failed add deserialized blocks, first block sig %q", firstBlock.BlockSignature)
+		return nil, 0, errors.Wrapf(err, "failed add deserialized blocks, first block id %s", firstBlock.BlockID().String())
 	}
 	return newBlock, parentHeight + proto.Height(len(blocks)), nil
 }
 
 type BlocksApplier struct {
-	//state state.State
 	inner innerBlocksApplier
-	//tm    types.Time
 }
 
 func NewBlocksApplier() *BlocksApplier {
 	return &BlocksApplier{
-		//state: state,
-		//tm:    tm,
 		inner: innerBlocksApplier{
-			//state: state,
 		},
 	}
 }
@@ -118,9 +112,6 @@ func NewBlocksApplier() *BlocksApplier {
 // 1) notify peers about score
 // 2) reshedule
 func (a *BlocksApplier) Apply(state state.State, blocks []*proto.Block) error {
-	//locked := a.state.Mutex().Lock()
-	//defer locked.Unlock()
-
 	_, _, err := a.inner.apply(state, blocks)
 	if err != nil {
 		return err

@@ -183,15 +183,6 @@ func (c *ProtobufConverter) publicKey(pk []byte) crypto.PublicKey {
 	return r
 }
 
-func (c *ProtobufConverter) script(script *g.Script) Script {
-	if c.err != nil {
-		return nil
-	}
-	resBytes := make([]byte, len(script.Bytes))
-	copy(resBytes, script.Bytes)
-	return Script(resBytes)
-}
-
 func (c *ProtobufConverter) alias(scheme byte, alias string) Alias {
 	if c.err != nil {
 		return Alias{}
@@ -243,7 +234,7 @@ func (c *ProtobufConverter) proofs(proofs [][]byte) *ProofsV1 {
 	}
 	r := NewProofs()
 	for _, proof := range proofs {
-		r.Proofs = append(r.Proofs, B58Bytes(proof))
+		r.Proofs = append(r.Proofs, proof)
 	}
 	return r
 }
@@ -264,6 +255,18 @@ func (c *ProtobufConverter) proof(proofs [][]byte) *crypto.Signature {
 	return &sig
 }
 
+func (c *ProtobufConverter) blockID(data []byte, v BlockVersion) BlockID {
+	if c.err != nil {
+		return BlockID{}
+	}
+	id, err := NewBlockIDFromBytes(data)
+	if err != nil {
+		c.err = err
+		return BlockID{}
+	}
+	return id
+}
+
 func (c *ProtobufConverter) signature(data []byte) crypto.Signature {
 	if c.err != nil {
 		return crypto.Signature{}
@@ -276,67 +279,53 @@ func (c *ProtobufConverter) signature(data []byte) crypto.Signature {
 	return sig
 }
 
-func (c *ProtobufConverter) extractOrder(orders []*g.Order, side g.Order_Side) Order {
+func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 	if c.err != nil {
 		return nil
 	}
-	for _, o := range orders {
-		if o.OrderSide == side {
-			var order Order
-			body := OrderBody{
-				SenderPK:   c.publicKey(o.SenderPublicKey),
-				MatcherPK:  c.publicKey(o.MatcherPublicKey),
-				AssetPair:  c.assetPair(o.AssetPair),
-				OrderType:  c.orderType(o.OrderSide),
-				Price:      c.uint64(o.Price),
-				Amount:     c.uint64(o.Amount),
-				Timestamp:  c.uint64(o.Timestamp),
-				Expiration: c.uint64(o.Expiration),
-				MatcherFee: c.amount(o.MatcherFee),
-			}
-			switch o.Version {
-			case 4:
-				order = &OrderV4{
-					Version:         c.byte(o.Version),
-					Proofs:          c.proofs(o.Proofs),
-					OrderBody:       body,
-					MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
-				}
-			case 3:
-				order = &OrderV3{
-					Version:         c.byte(o.Version),
-					Proofs:          c.proofs(o.Proofs),
-					OrderBody:       body,
-					MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
-				}
-			case 2:
-				order = &OrderV2{
-					Version:   c.byte(o.Version),
-					Proofs:    c.proofs(o.Proofs),
-					OrderBody: body,
-				}
-			default:
-				order = &OrderV1{
-					Signature: c.proof(o.Proofs),
-					OrderBody: body,
-				}
-			}
-			if err := order.GenerateID(byte(o.ChainId)); err != nil {
-				c.err = err
-			}
-			return order
+	var order Order
+	body := OrderBody{
+		SenderPK:   c.publicKey(o.SenderPublicKey),
+		MatcherPK:  c.publicKey(o.MatcherPublicKey),
+		AssetPair:  c.assetPair(o.AssetPair),
+		OrderType:  c.orderType(o.OrderSide),
+		Price:      c.uint64(o.Price),
+		Amount:     c.uint64(o.Amount),
+		Timestamp:  c.uint64(o.Timestamp),
+		Expiration: c.uint64(o.Expiration),
+		MatcherFee: c.amount(o.MatcherFee),
+	}
+	switch o.Version {
+	case 4:
+		order = &OrderV4{
+			Version:         c.byte(o.Version),
+			Proofs:          c.proofs(o.Proofs),
+			OrderBody:       body,
+			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
+		}
+	case 3:
+		order = &OrderV3{
+			Version:         c.byte(o.Version),
+			Proofs:          c.proofs(o.Proofs),
+			OrderBody:       body,
+			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
+		}
+	case 2:
+		order = &OrderV2{
+			Version:   c.byte(o.Version),
+			Proofs:    c.proofs(o.Proofs),
+			OrderBody: body,
+		}
+	default:
+		order = &OrderV1{
+			Signature: c.proof(o.Proofs),
+			OrderBody: body,
 		}
 	}
-	c.err = errors.Errorf("no order of side %s", side.String())
-	return nil
-}
-
-func (c *ProtobufConverter) buyOrder(orders []*g.Order) Order {
-	return c.extractOrder(orders, g.Order_BUY)
-}
-
-func (c *ProtobufConverter) sellOrder(orders []*g.Order) Order {
-	return c.extractOrder(orders, g.Order_SELL)
+	if err := order.GenerateID(byte(o.ChainId)); err != nil {
+		c.err = err
+	}
+	return order
 }
 
 func (c *ProtobufConverter) transfers(scheme byte, transfers []*g.MassTransferTransactionData_Transfer) []MassTransferEntry {
@@ -426,6 +415,17 @@ func (c *ProtobufConverter) Entry(entry *g.DataTransactionData_DataEntry) (DataE
 		return nil, err
 	}
 	return e, nil
+}
+
+func (c *ProtobufConverter) script(script []byte) Script {
+	if c.err != nil {
+		return Script{}
+	}
+	res := Script{}
+	if script != nil {
+		res = Script(script)
+	}
+	return res
 }
 
 func (c *ProtobufConverter) entries(entries []*g.DataTransactionData_DataEntry) DataEntries {
@@ -631,15 +631,19 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 
 	case *g.Transaction_Exchange:
 		fee := c.amount(tx.Fee)
-		bo := c.buyOrder(d.Exchange.Orders)
-		so := c.sellOrder(d.Exchange.Orders)
+		if n := len(d.Exchange.Orders); n != 2 {
+			c.reset()
+			return nil, errors.Errorf("invalid number (%d) of orders in exchange transaction", n)
+		}
+		o1 := c.extractOrder(d.Exchange.Orders[0])
+		o2 := c.extractOrder(d.Exchange.Orders[1])
 		if tx.Version >= 2 {
 			rtx = &ExchangeWithProofs{
 				Type:           ExchangeTransaction,
 				Version:        v,
 				SenderPK:       c.publicKey(tx.SenderPublicKey),
-				BuyOrder:       bo,
-				SellOrder:      so,
+				Order1:         o1,
+				Order2:         o2,
 				Price:          c.uint64(d.Exchange.Price),
 				Amount:         c.uint64(d.Exchange.Amount),
 				BuyMatcherFee:  c.uint64(d.Exchange.BuyMatcherFee),
@@ -648,27 +652,26 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 				Timestamp:      ts,
 			}
 		} else {
-			if bo != nil && so != nil && (bo.GetVersion() != 1 || so.GetVersion() != 1) {
+			if o1 != nil && o2 != nil && (o1.GetVersion() != 1 || o2.GetVersion() != 1) {
 				c.reset()
 				return nil, errors.New("unsupported order version")
 			}
-			bo1, ok := bo.(*OrderV1)
+			o1v1, ok := o1.(*OrderV1)
 			if !ok {
 				c.reset()
 				return nil, errors.New("invalid pointer to OrderV1")
 			}
-			so1, ok := so.(*OrderV1)
+			o2v1, ok := o2.(*OrderV1)
 			if !ok {
 				c.reset()
 				return nil, errors.New("invalid pointer to OrderV1")
 			}
-
 			rtx = &ExchangeWithSig{
 				Type:           ExchangeTransaction,
 				Version:        v,
 				SenderPK:       c.publicKey(tx.SenderPublicKey),
-				BuyOrder:       bo1,
-				SellOrder:      so1,
+				Order1:         o1v1,
+				Order2:         o2v1,
 				Price:          c.uint64(d.Exchange.Price),
 				Amount:         c.uint64(d.Exchange.Amount),
 				BuyMatcherFee:  c.uint64(d.Exchange.BuyMatcherFee),
@@ -996,9 +999,10 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 	if err != nil {
 		return MicroBlock{}, err
 	}
+	v := c.byte(mb.MicroBlock.Version)
 	res := MicroBlock{
-		VersionField:          c.byte(mb.MicroBlock.Version),
-		PrevResBlockSigField:  c.signature(mb.MicroBlock.Reference),
+		VersionField:          v,
+		Reference:             c.blockID(mb.MicroBlock.Reference, BlockVersion(v)),
 		TotalResBlockSigField: c.signature(mb.MicroBlock.UpdatedBlockSignature),
 		TransactionCount:      uint32(len(mb.MicroBlock.Transactions)),
 		Transactions:          txs,
@@ -1070,10 +1074,11 @@ func (c *ProtobufConverter) consensus(header *g.Block_Header) NxtConsensus {
 func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 	features := c.features(block.Header.FeatureVotes)
 	consensus := c.consensus(block.Header)
+	v := BlockVersion(c.byte(block.Header.Version))
 	header := BlockHeader{
-		Version:              BlockVersion(c.byte(block.Header.Version)),
+		Version:              v,
 		Timestamp:            c.uint64(block.Header.Timestamp),
-		Parent:               c.signature(block.Header.Reference),
+		Parent:               c.blockID(block.Header.Reference, v),
 		FeaturesCount:        len(features),
 		Features:             features,
 		RewardVote:           block.Header.RewardVote,
@@ -1084,13 +1089,12 @@ func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 		BlockSignature:       c.signature(block.Signature),
 		TransactionsRoot:     block.Header.TransactionsRoot,
 	}
-	if header.Version < NgBlockVersion {
-		// For compatibility with custom format unmarshal.
-		header.Features = nil
-	}
 	if c.err != nil {
 		err := c.err
 		c.reset()
+		return BlockHeader{}, err
+	}
+	if err := header.GenerateBlockID(byte(block.Header.ChainId)); err != nil {
 		return BlockHeader{}, err
 	}
 	return header, nil

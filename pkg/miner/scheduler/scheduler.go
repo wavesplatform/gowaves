@@ -18,11 +18,11 @@ import (
 )
 
 type Emit struct {
-	Timestamp            uint64
-	KeyPair              proto.KeyPair
-	GenSignature         []byte
-	BaseTarget           types.BaseTarget
-	ParentBlockSignature crypto.Signature
+	Timestamp    uint64
+	KeyPair      proto.KeyPair
+	GenSignature []byte
+	BaseTarget   types.BaseTarget
+	Parent       proto.BlockID
 }
 
 type SchedulerImpl struct {
@@ -89,7 +89,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		return nil
 	}
 
-	zap.S().Infof("Scheduler: topBlock: sig %s, gensig: %s, topBlockHeight: %d", confirmedBlock.BlockSignature, confirmedBlock.GenSignature, confirmedBlockHeight)
+	zap.S().Infof("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d", confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight)
 
 	var out []Emit
 	for _, keyPair := range keyPairs {
@@ -145,11 +145,11 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		}
 
 		out = append(out, Emit{
-			Timestamp:            confirmedBlock.Timestamp + delay + 10,
-			KeyPair:              keyPair,
-			GenSignature:         genSig,
-			BaseTarget:           baseTarget,
-			ParentBlockSignature: confirmedBlock.BlockSignature,
+			Timestamp:    confirmedBlock.Timestamp + delay + 10,
+			KeyPair:      keyPair,
+			GenSignature: genSig,
+			BaseTarget:   baseTarget,
+			Parent:       confirmedBlock.BlockID(),
 		})
 	}
 	return out

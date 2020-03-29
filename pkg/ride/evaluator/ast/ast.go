@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const InstanceFieldName = "$instance"
@@ -743,7 +743,7 @@ func (a *InvalidAddressExpr) InstanceOf() string {
 func (a *InvalidAddressExpr) Get(name string) (Expr, error) {
 	switch name {
 	case "bytes":
-		return NewBytes(util.Dup(a.Value)), nil
+		return NewBytes(common.Dup(a.Value)), nil
 	default:
 		return nil, errors.Errorf("unknown fields '%s' on InvalidAddressExpr", name)
 	}
@@ -965,7 +965,7 @@ func (a *AddressExpr) InstanceOf() string {
 func (a *AddressExpr) Get(name string) (Expr, error) {
 	switch name {
 	case "bytes":
-		return NewBytes(util.Dup(proto.Address(*a).Bytes())), nil
+		return NewBytes(common.Dup(proto.Address(*a).Bytes())), nil
 	default:
 		return nil, errors.Errorf("unknown fields '%s' on AddressExpr", name)
 	}

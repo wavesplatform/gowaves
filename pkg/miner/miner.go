@@ -3,7 +3,6 @@ package miner
 import (
 	"context"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
@@ -28,8 +27,6 @@ type MicroblockMiner struct {
 	features Features
 	// reward vote 600000000
 	reward int64
-	//
-	//messageCH chan peer.ProtoMessage
 }
 
 func NewMicroblockMiner(services services.Services, features Features, reward int64) *MicroblockMiner {
@@ -54,7 +51,7 @@ func (a *MicroblockMiner) MineKeyBlock(
 	ctx context.Context,
 	t proto.Timestamp,
 	k proto.KeyPair,
-	parent crypto.Signature,
+	parent proto.BlockID,
 	baseTarget types.BaseTarget,
 	GenSignature []byte) (*proto.Block, proto.MiningLimits, error) {
 
@@ -94,6 +91,7 @@ func (a *MicroblockMiner) MineKeyBlock(
 	//	zap.S().Errorf("Miner: applying created block: %q, timestamp %d", err, t)
 	//	return
 	//}
+	zap.S().Debugf("Miner: generated new block id: %s, time: %d", b.BlockID().String(), t)
 
 	//locked := a.state.Mutex().RLock()
 	//curScore, err := a.state.CurrentScore()
@@ -168,7 +166,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest proto.MiningLimits
 		return
 	}
 
-	if topBlock.BlockSignature != minedBlock.BlockSignature {
+	if topBlock.BlockID() != minedBlock.BlockID() {
 		// block changed, exit
 		return
 	}
@@ -236,11 +234,11 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest proto.MiningLimits
 		return
 	}
 
-	var lastsig crypto.Signature
+	var ref proto.BlockID
 	if len(row.MicroBlocks) > 0 {
-		lastsig = row.MicroBlocks[len(row.MicroBlocks)-1].TotalResBlockSigField
+		ref = row.MicroBlocks[len(row.MicroBlocks)-1].TotalBlockID
 	} else {
-		lastsig = row.KeyBlock.BlockSignature
+		ref = row.KeyBlock.BlockID()
 	}
 
 	newTransactions := minedBlock.Transactions.Join(transactions)
@@ -279,12 +277,13 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest proto.MiningLimits
 	}
 
 	micro := proto.MicroBlock{
-		VersionField:          3,
+		VersionField:          byte(newBlock.Version),
 		SenderPK:              keyPair.Public,
 		Transactions:          transactions,
 		TransactionCount:      uint32(cnt),
-		PrevResBlockSigField:  lastsig,
+		Reference:             ref,
 		TotalResBlockSigField: newBlock.BlockSignature,
+		TotalBlockID:          newBlock.BlockID(),
 	}
 
 	err = micro.Sign(sk)
@@ -293,7 +292,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest proto.MiningLimits
 		return
 	}
 
-	inv := proto.NewUnsignedMicroblockInv(micro.SenderPK, micro.TotalResBlockSigField, micro.PrevResBlockSigField)
+	inv := proto.NewUnsignedMicroblockInv(micro.SenderPK, micro.TotalBlockID, micro.Reference)
 	err = inv.Sign(sk, a.scheme)
 	if err != nil {
 		zap.S().Error(err)
@@ -347,7 +346,7 @@ func Run(ctx context.Context, a types.Miner, s *scheduler.SchedulerImpl, interna
 		case <-ctx.Done():
 			return
 		case v := <-s.Mine():
-			block, limits, err := a.MineKeyBlock(ctx, v.Timestamp, v.KeyPair, v.ParentBlockSignature, v.BaseTarget, v.GenSignature)
+			block, limits, err := a.MineKeyBlock(ctx, v.Timestamp, v.KeyPair, v.Parent, v.BaseTarget, v.GenSignature)
 			if err != nil {
 				zap.S().Error(err)
 				continue

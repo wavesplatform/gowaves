@@ -26,7 +26,7 @@ var mainNetInvalidBlocks = map[string]uint64{
 	"5uZoDnRKeWZV9Thu2nvJVZ5dBvPB7k2gvpzFD618FMXCbBVBMN2rRyvKBZBhAGnGdgeh2LXEeSr9bJqruJxngsE7": 813207,
 }
 
-func isInvalidMainNetBlock(blockID crypto.Signature, height uint64) bool {
+func isInvalidMainNetBlock(blockID proto.BlockID, height uint64) bool {
 	if h, ok := mainNetInvalidBlocks[blockID.String()]; ok {
 		return h == height
 	}
@@ -323,7 +323,7 @@ func (cv *ConsensusValidator) validBlockDelay(height uint64, key crypto.PublicKe
 }
 
 func (cv *ConsensusValidator) validateBlockDelay(height uint64, header *proto.BlockHeader) error {
-	if cv.settings.Type == settings.MainNet && isInvalidMainNetBlock(header.BlockSignature, height) {
+	if cv.settings.Type == settings.MainNet && isInvalidMainNetBlock(header.BlockID(), height) {
 		return nil
 	}
 	parent, err := cv.headerByHeight(height)

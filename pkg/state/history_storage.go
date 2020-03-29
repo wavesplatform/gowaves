@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 var errEmptyHist = errors.New("empty history for this record")
@@ -340,7 +340,7 @@ func newHistoryStorage(
 	}, nil
 }
 
-func (hs *historyStorage) addNewEntry(entityType blockchainEntity, key, value []byte, blockID crypto.Signature) error {
+func (hs *historyStorage) addNewEntry(entityType blockchainEntity, key, value []byte, blockID proto.BlockID) error {
 	blockNum, err := hs.stateDB.blockIdToNum(blockID)
 	if err != nil {
 		return err
@@ -469,19 +469,19 @@ func (hs *historyStorage) freshLatestEntryData(key []byte, filter bool) ([]byte,
 }
 
 // freshBlockOfTheLatestEntry() returns block ID of the latest fresh (mem or DB) entry.
-func (hs *historyStorage) freshBlockOfTheLatestEntry(key []byte, filter bool) (crypto.Signature, error) {
+func (hs *historyStorage) freshBlockOfTheLatestEntry(key []byte, filter bool) (proto.BlockID, error) {
 	entry, err := hs.freshLatestEntry(key, filter)
 	if err != nil {
-		return crypto.Signature{}, err
+		return proto.BlockID{}, err
 	}
 	return hs.stateDB.blockNumToId(entry.blockNum)
 }
 
 // blockOfTheLatestEntry() returns block ID of the latest entry from DB.
-func (hs *historyStorage) blockOfTheLatestEntry(key []byte, filter bool) (crypto.Signature, error) {
+func (hs *historyStorage) blockOfTheLatestEntry(key []byte, filter bool) (proto.BlockID, error) {
 	entry, err := hs.latestEntry(key, filter)
 	if err != nil {
-		return crypto.Signature{}, err
+		return proto.BlockID{}, err
 	}
 	return hs.stateDB.blockNumToId(entry.blockNum)
 }

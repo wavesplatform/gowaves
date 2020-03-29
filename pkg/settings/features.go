@@ -43,6 +43,6 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	ReduceNFTFee:                    {true, "Reduce NFT fee"},
 	BlockReward:                     {true, "Block Reward and Community Driven Monetary Policy"},
 	BlockV5:                         {true, "VRF and Protobuf"},
-	MultiPaymentInvokeScript:        {false, "Ride V4 and multiple attached payments for Invoke Script Transaction"},
+	MultiPaymentInvokeScript:        {true, "Ride V4 and multiple attached payments for Invoke Script Transaction"},
 	LeaseExpiration:                 {false, "Lease Expiration"},
 }

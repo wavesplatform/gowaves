@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/seiflotfy/cuckoofilter"
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -68,9 +67,9 @@ func NewDrawer(storage *storage) (*drawer, error) {
 	defer it.close()
 	count := 0
 	for it.next() {
-		from, to, sig := it.value()
+		from, to, id := it.value()
 		g.edge(from, to)
-		f.insert(sig[:])
+		f.insert(id.Bytes())
 		count++
 	}
 	zap.S().Infof("State restored, %d blocks loaded in %s", count, time.Since(start))
@@ -82,21 +81,21 @@ func NewDrawer(storage *storage) (*drawer, error) {
 	}, nil
 }
 
-func (d *drawer) front(peer net.IP) ([]crypto.Signature, error) {
+func (d *drawer) front(peer net.IP) ([]proto.BlockID, error) {
 	zap.S().Debugf("[DRA] Requesting front blocks for %s", peer.String())
 	return d.storage.frontBlocks(peer, blocksBatchSize)
 }
 
-func (d *drawer) movePeer(peer net.IP, signature crypto.Signature) error {
-	zap.S().Debugf("[DRA] Moving peer '%s' to '%s'", peer.String(), signature.String())
-	return d.storage.movePeerLeash(peer, signature)
+func (d *drawer) movePeer(peer net.IP, id proto.BlockID) error {
+	zap.S().Debugf("[DRA] Moving peer '%s' to '%s'", peer.String(), id.String())
+	return d.storage.movePeerLeash(peer, id)
 }
 
-func (d *drawer) hasBlock(signature crypto.Signature) (bool, error) {
-	if !d.filter.lookup(signature[:]) { // A block with such signature is definitely unseen
+func (d *drawer) hasBlock(id proto.BlockID) (bool, error) {
+	if !d.filter.lookup(id.Bytes()) { // A block with such id is definitely unseen
 		return false, nil
 	}
-	_, ok, err := d.storage.block(signature)
+	_, ok, err := d.storage.block(id)
 	if err != nil {
 		return false, err
 	}
@@ -104,7 +103,7 @@ func (d *drawer) hasBlock(signature crypto.Signature) (bool, error) {
 }
 
 func (d *drawer) appendBlock(block *proto.Block) error {
-	zap.S().Debugf("[DRA] Appending block '%s'", block.BlockSignature.String())
+	zap.S().Debugf("[DRA] Appending block '%s'", block.BlockID().String())
 	from, to, err := d.storage.appendBlock(block)
 	if err != nil {
 		return err
@@ -113,7 +112,7 @@ func (d *drawer) appendBlock(block *proto.Block) error {
 	d.graph.edge(from, to)
 	d.st.blocks++
 	d.mu.Unlock()
-	d.filter.insert(block.BlockSignature[:])
+	d.filter.insert(block.BlockID().Bytes())
 	return nil
 }
 
@@ -155,9 +154,9 @@ func (d *drawer) combineForks(forks []fork, peersByBlocks map[uint32][]net.IP) (
 		fork := Fork{
 			Longest:          i == 0,
 			Height:           int(head.height),
-			HeadBlock:        head.signature,
+			HeadBlock:        head.id,
 			LastCommonHeight: int(common.height),
-			LastCommonBlock:  common.signature,
+			LastCommonBlock:  common.id,
 			Length:           f.length,
 			Peers:            peers,
 		}

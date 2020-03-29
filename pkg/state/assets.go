@@ -140,7 +140,7 @@ func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage)
 	}, nil
 }
 
-func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord, blockID crypto.Signature) error {
+func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord, blockID proto.BlockID) error {
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal record: %v\n", err)
@@ -150,7 +150,7 @@ func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord,
 	return a.hs.addNewEntry(asset, histKey.bytes(), recordBytes, blockID)
 }
 
-func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo, blockID crypto.Signature) error {
+func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo, blockID proto.BlockID) error {
 	assetConstBytes, err := asset.assetConstInfo.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal asset const info: %v\n", err)
@@ -167,7 +167,7 @@ type assetReissueChange struct {
 	diff       int64
 }
 
-func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, blockID crypto.Signature, filter bool) error {
+func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, blockID proto.BlockID, filter bool) error {
 	info, err := a.newestChangeableInfo(assetID, filter)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
@@ -183,7 +183,7 @@ type assetBurnChange struct {
 	diff int64
 }
 
-func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange, blockID crypto.Signature, filter bool) error {
+func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange, blockID proto.BlockID, filter bool) error {
 	info, err := a.newestChangeableInfo(assetID, filter)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
@@ -203,7 +203,7 @@ type assetInfoChange struct {
 	newHeight      uint64
 }
 
-func (a *assets) updateAssetInfo(assetID crypto.Digest, ch *assetInfoChange, blockID crypto.Signature, filter bool) error {
+func (a *assets) updateAssetInfo(assetID crypto.Digest, ch *assetInfoChange, blockID proto.BlockID, filter bool) error {
 	info, err := a.newestChangeableInfo(assetID, filter)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)

@@ -32,16 +32,16 @@ type TransactionIterator interface {
 type StateInfo interface {
 	// Block getters.
 	TopBlock() *proto.Block
-	Block(blockID crypto.Signature) (*proto.Block, error)
+	Block(blockID proto.BlockID) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
 	// Header getters.
-	Header(blockID crypto.Signature) (*proto.BlockHeader, error)
+	Header(blockID proto.BlockID) (*proto.BlockHeader, error)
 	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	// Height returns current blockchain height.
 	Height() (proto.Height, error)
 	// Height <---> blockID converters.
-	BlockIDToHeight(blockID crypto.Signature) (proto.Height, error)
-	HeightToBlockID(height proto.Height) (crypto.Signature, error)
+	BlockIDToHeight(blockID proto.BlockID) (proto.Height, error)
+	HeightToBlockID(height proto.Height) (proto.BlockID, error)
 	// FullWavesBalance returns complete Waves balance record.
 	FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
 	EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
@@ -134,7 +134,7 @@ type StateModifier interface {
 	AddOldDeserializedBlocks(blocks []*proto.Block) error
 	// Rollback functionality.
 	RollbackToHeight(height proto.Height) error
-	RollbackTo(removalEdge crypto.Signature) error
+	RollbackTo(removalEdge proto.BlockID) error
 
 	// -------------------------
 	// Validation functionality (for UTX).

@@ -24,10 +24,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
-
-	//"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node"
-	//"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -36,12 +33,12 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
 
-var version = proto.Version{Major: 1, Minor: 1, Patch: 5}
+var version = proto.Version{Major: 1, Minor: 2, Patch: 3}
 
 var (
 	logLevel          = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
@@ -96,7 +93,7 @@ func main() {
 	}
 	flag.Parse()
 
-	util.SetupLogger(*logLevel)
+	common.SetupLogger(*logLevel)
 
 	if *profiler {
 		zap.S().Infof("Starting built-in profiler on 'http://localhost:6060/debug/pprof/'")
@@ -142,7 +139,7 @@ func main() {
 
 	path := *statePath
 	if path == "" {
-		path, err = util.GetStatePath()
+		path, err = common.GetStatePath()
 		if err != nil {
 			zap.S().Error(err)
 			return
@@ -161,7 +158,7 @@ func main() {
 		return
 	}
 
-	outdatePeriod, err := util.ParseDuration(*minerDelayParam)
+	outdatePeriod, err := common.ParseDuration(*minerDelayParam)
 	if err != nil {
 		zap.S().Error(err)
 		return

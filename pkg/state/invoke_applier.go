@@ -200,7 +200,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	}
 	if ia.buildApiData {
 		// Save invoke reasult for extended API.
-		if err := ia.stor.invokeResults.saveResult(*tx.ID, scriptRes, info.block.BlockSignature); err != nil {
+		if err := ia.stor.invokeResults.saveResult(*tx.ID, scriptRes, info.block.BlockID()); err != nil {
 			return txBalanceChanges{}, errors.Wrap(err, "failed to save script result")
 		}
 	}
@@ -220,7 +220,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 		// TODO: when UTX transactions are validated, there is no block,
 		// and we can not perform state changes.
 		for _, entry := range scriptRes.Writes {
-			if err := ia.stor.accountsDataStor.appendEntry(*scriptAddr, entry, info.block.BlockSignature); err != nil {
+			if err := ia.stor.accountsDataStor.appendEntry(*scriptAddr, entry, info.block.BlockID()); err != nil {
 				return txBalanceChanges{}, err
 			}
 		}

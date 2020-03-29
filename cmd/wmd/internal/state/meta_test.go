@@ -6,6 +6,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,12 +33,15 @@ func TestBlocks(t *testing.T) {
 	db, closeDB := openDB(t, "wmd-blocks-state-db")
 	defer closeDB()
 
-	b1, err := crypto.NewSignatureFromBase58("4nCQbL7D8UZEUiZJxriGDSAY2YwyjLB4h6xCwCkm9Y5DDPKexta9aYR4vCtKsMK4VmovGa6wHGA4kVWCfRvkU87e")
+	sig1, err := crypto.NewSignatureFromBase58("4nCQbL7D8UZEUiZJxriGDSAY2YwyjLB4h6xCwCkm9Y5DDPKexta9aYR4vCtKsMK4VmovGa6wHGA4kVWCfRvkU87e")
 	require.NoError(t, err)
-	b2, err := crypto.NewSignatureFromBase58("2iNPrfoUyF6CRxHrTFAT3H7dut1PQ3nJxuhNsuYbd3nCtaHvoXBdw5NqV77CGk6X8xmKkmKd1YsB4czzrWXZbusD")
+	b1 := proto.NewBlockIDFromSignature(sig1)
+	sig2, err := crypto.NewSignatureFromBase58("2iNPrfoUyF6CRxHrTFAT3H7dut1PQ3nJxuhNsuYbd3nCtaHvoXBdw5NqV77CGk6X8xmKkmKd1YsB4czzrWXZbusD")
 	require.NoError(t, err)
-	b3, err := crypto.NewSignatureFromBase58("297ogBEykGSTASsAn5LUDoA58egcQ2JxPK9BV6jXh6oyoPcqrC2PjqwnqcP9ZD8fwvG9epCA7hJFN7syt8u1Cwa3")
+	b2 := proto.NewBlockIDFromSignature(sig2)
+	sig3, err := crypto.NewSignatureFromBase58("297ogBEykGSTASsAn5LUDoA58egcQ2JxPK9BV6jXh6oyoPcqrC2PjqwnqcP9ZD8fwvG9epCA7hJFN7syt8u1Cwa3")
 	require.NoError(t, err)
+	b3 := proto.NewBlockIDFromSignature(sig3)
 
 	batch := new(leveldb.Batch)
 	err = putBlock(batch, 1, b1)
@@ -51,7 +55,7 @@ func TestBlocks(t *testing.T) {
 		b, ok, err := block(snapshot, 1)
 		require.NoError(t, err)
 		assert.True(t, ok)
-		assert.ElementsMatch(t, b1[:], b[:])
+		assert.Equal(t, b1, b)
 	}
 
 	batch = new(leveldb.Batch)
@@ -66,11 +70,11 @@ func TestBlocks(t *testing.T) {
 		b, ok, err := block(snapshot, 1)
 		require.NoError(t, err)
 		assert.True(t, ok)
-		assert.ElementsMatch(t, b1[:], b[:])
+		assert.Equal(t, b1, b)
 		b, ok, err = block(snapshot, 2)
 		require.NoError(t, err)
 		assert.True(t, ok)
-		assert.ElementsMatch(t, b2[:], b[:])
+		assert.Equal(t, b2, b)
 	}
 
 	batch = new(leveldb.Batch)
@@ -85,15 +89,15 @@ func TestBlocks(t *testing.T) {
 		b, ok, err := block(snapshot, 1)
 		require.NoError(t, err)
 		assert.True(t, ok)
-		assert.ElementsMatch(t, b1[:], b[:])
+		assert.Equal(t, b1, b)
 		b, ok, err = block(snapshot, 2)
 		require.NoError(t, err)
 		assert.True(t, ok)
-		assert.ElementsMatch(t, b2[:], b[:])
+		assert.Equal(t, b2, b)
 		b, ok, err = block(snapshot, 3)
 		require.NoError(t, err)
 		assert.True(t, ok)
-		assert.ElementsMatch(t, b3[:], b[:])
+		assert.Equal(t, b3, b)
 	}
 
 	snapshot, err := db.GetSnapshot()
@@ -110,11 +114,11 @@ func TestBlocks(t *testing.T) {
 		b, ok, err := block(snapshot, 1)
 		require.NoError(t, err)
 		assert.True(t, ok)
-		assert.ElementsMatch(t, b1[:], b[:])
-		b, ok, err = block(snapshot, 2)
+		assert.Equal(t, b1, b)
+		_, ok, err = block(snapshot, 2)
 		require.NoError(t, err)
 		assert.False(t, ok)
-		b, ok, err = block(snapshot, 3)
+		_, ok, err = block(snapshot, 3)
 		require.NoError(t, err)
 		assert.False(t, ok)
 	}

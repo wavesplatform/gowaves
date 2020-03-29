@@ -25,11 +25,11 @@ type ConnHandler struct {
 	newConnectionCh   chan<- *Conn
 	closeConnectionCh chan<- *Conn
 	scoreCh           chan<- *Conn
-	signaturesCh      chan<- signaturesEvent
+	idsCh             chan<- idsEvent
 	blockCh           chan<- blockEvent
 }
 
-func NewConnHandler(scheme byte, name string, nonce uint64, addr net.TCPAddr, registry *Registry, newConn, closeConn, score chan<- *Conn, signatures chan<- signaturesEvent, blocks chan<- blockEvent) *ConnHandler {
+func NewConnHandler(scheme byte, name string, nonce uint64, addr net.TCPAddr, registry *Registry, newConn, closeConn, score chan<- *Conn, ids chan<- idsEvent, blocks chan<- blockEvent) *ConnHandler {
 	return &ConnHandler{
 		scheme:            scheme,
 		name:              name,
@@ -39,7 +39,7 @@ func NewConnHandler(scheme byte, name string, nonce uint64, addr net.TCPAddr, re
 		newConnectionCh:   newConn,
 		closeConnectionCh: closeConn,
 		scoreCh:           score,
-		signaturesCh:      signatures,
+		idsCh:             ids,
 		blockCh:           blocks,
 	}
 }
@@ -254,7 +254,11 @@ func (h *ConnHandler) OnReceive(conn *Conn, buf []byte) {
 			zap.S().Warnf("[%s] Failed to unmarshal Signatures message: %v", conn.RawConn.RemoteAddr(), err)
 			return
 		}
-		h.signaturesCh <- newSignaturesEvent(conn, m.Signatures)
+		ids := make([]proto.BlockID, len(m.Signatures))
+		for i, sig := range m.Signatures {
+			ids[i] = proto.NewBlockIDFromSignature(sig)
+		}
+		h.idsCh <- newIdsEvent(conn, ids)
 	case proto.ContentIDBlock:
 		var m proto.BlockMessage
 		err = m.UnmarshalBinary(buf)

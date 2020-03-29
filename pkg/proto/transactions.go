@@ -1463,10 +1463,10 @@ func (b *Burn) UnmarshalBinary(data []byte) error {
 type Exchange interface {
 	GetID(scheme Scheme) ([]byte, error)
 	GetSenderPK() crypto.PublicKey
-	GetBuyOrder() (OrderBody, error)
-	GetSellOrder() (OrderBody, error)
-	GetBuyOrderFull() Order
-	GetSellOrderFull() Order
+	GetBuyOrder() (Order, error)
+	GetSellOrder() (Order, error)
+	GetOrder1() Order
+	GetOrder2() Order
 	GetPrice() uint64
 	GetAmount() uint64
 	GetBuyMatcherFee() uint64

@@ -131,7 +131,7 @@ func (mr *MockStateInfoMockRecorder) TopBlock() *gomock.Call {
 }
 
 // Block mocks base method
-func (m *MockStateInfo) Block(blockID crypto.Signature) (*proto.Block, error) {
+func (m *MockStateInfo) Block(blockID proto.BlockID) (*proto.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Block", blockID)
 	ret0, _ := ret[0].(*proto.Block)
@@ -161,7 +161,7 @@ func (mr *MockStateInfoMockRecorder) BlockByHeight(height interface{}) *gomock.C
 }
 
 // Header mocks base method
-func (m *MockStateInfo) Header(blockID crypto.Signature) (*proto.BlockHeader, error) {
+func (m *MockStateInfo) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Header", blockID)
 	ret0, _ := ret[0].(*proto.BlockHeader)
@@ -206,7 +206,7 @@ func (mr *MockStateInfoMockRecorder) Height() *gomock.Call {
 }
 
 // BlockIDToHeight mocks base method
-func (m *MockStateInfo) BlockIDToHeight(blockID crypto.Signature) (proto.Height, error) {
+func (m *MockStateInfo) BlockIDToHeight(blockID proto.BlockID) (proto.Height, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BlockIDToHeight", blockID)
 	ret0, _ := ret[0].(proto.Height)
@@ -221,10 +221,10 @@ func (mr *MockStateInfoMockRecorder) BlockIDToHeight(blockID interface{}) *gomoc
 }
 
 // HeightToBlockID mocks base method
-func (m *MockStateInfo) HeightToBlockID(height proto.Height) (crypto.Signature, error) {
+func (m *MockStateInfo) HeightToBlockID(height proto.Height) (proto.BlockID, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HeightToBlockID", height)
-	ret0, _ := ret[0].(crypto.Signature)
+	ret0, _ := ret[0].(proto.BlockID)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -899,7 +899,7 @@ func (mr *MockStateModifierMockRecorder) RollbackToHeight(height interface{}) *g
 }
 
 // RollbackTo mocks base method
-func (m *MockStateModifier) RollbackTo(removalEdge crypto.Signature) error {
+func (m *MockStateModifier) RollbackTo(removalEdge proto.BlockID) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RollbackTo", removalEdge)
 	ret0, _ := ret[0].(error)
@@ -1018,7 +1018,7 @@ func (mr *MockStateMockRecorder) TopBlock() *gomock.Call {
 }
 
 // Block mocks base method
-func (m *MockState) Block(blockID crypto.Signature) (*proto.Block, error) {
+func (m *MockState) Block(blockID proto.BlockID) (*proto.Block, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Block", blockID)
 	ret0, _ := ret[0].(*proto.Block)
@@ -1048,7 +1048,7 @@ func (mr *MockStateMockRecorder) BlockByHeight(height interface{}) *gomock.Call 
 }
 
 // Header mocks base method
-func (m *MockState) Header(blockID crypto.Signature) (*proto.BlockHeader, error) {
+func (m *MockState) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Header", blockID)
 	ret0, _ := ret[0].(*proto.BlockHeader)
@@ -1093,7 +1093,7 @@ func (mr *MockStateMockRecorder) Height() *gomock.Call {
 }
 
 // BlockIDToHeight mocks base method
-func (m *MockState) BlockIDToHeight(blockID crypto.Signature) (proto.Height, error) {
+func (m *MockState) BlockIDToHeight(blockID proto.BlockID) (proto.Height, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BlockIDToHeight", blockID)
 	ret0, _ := ret[0].(proto.Height)
@@ -1108,10 +1108,10 @@ func (mr *MockStateMockRecorder) BlockIDToHeight(blockID interface{}) *gomock.Ca
 }
 
 // HeightToBlockID mocks base method
-func (m *MockState) HeightToBlockID(height proto.Height) (crypto.Signature, error) {
+func (m *MockState) HeightToBlockID(height proto.Height) (proto.BlockID, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HeightToBlockID", height)
-	ret0, _ := ret[0].(crypto.Signature)
+	ret0, _ := ret[0].(proto.BlockID)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1763,7 +1763,7 @@ func (mr *MockStateMockRecorder) RollbackToHeight(height interface{}) *gomock.Ca
 }
 
 // RollbackTo mocks base method
-func (m *MockState) RollbackTo(removalEdge crypto.Signature) error {
+func (m *MockState) RollbackTo(removalEdge proto.BlockID) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RollbackTo", removalEdge)
 	ret0, _ := ret[0].(error)

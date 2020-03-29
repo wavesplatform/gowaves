@@ -13,15 +13,22 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
 
+const (
+	MicroBlockInvSizeSig  = crypto.PublicKeySize + crypto.SignatureSize*3
+	MicroBlockInvSizeHash = crypto.PublicKeySize + crypto.DigestSize*2 + crypto.SignatureSize
+)
+
 type MicroBlock struct {
 	VersionField byte
-	// reference for previous keyblock or microblock
-	PrevResBlockSigField  crypto.Signature
+	// Reference for previous block.
+	Reference             BlockID
 	TotalResBlockSigField crypto.Signature
 	TransactionCount      uint32
 	Transactions          Transactions
 	SenderPK              crypto.PublicKey
 	Signature             crypto.Signature
+
+	TotalBlockID BlockID
 }
 
 type MicroblockTotalSig = crypto.Signature
@@ -53,10 +60,7 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 	if err != nil {
 		return nil, err
 	}
-	ref, err := a.PrevResBlockSigField.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
+	ref := a.Reference.Bytes()
 	total, err := a.TotalResBlockSigField.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -86,9 +90,19 @@ func (a *MicroBlock) UnmarshalBinary(b []byte, scheme Scheme) error {
 		return errors.Wrap(err, "failed to unmarshal microblock version")
 	}
 
-	a.PrevResBlockSigField, err = d.Signature()
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal microblock prevResBlockSigField")
+	hashId := a.VersionField >= byte(ProtoBlockVersion)
+	if hashId {
+		ref, err := d.Digest()
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal reference")
+		}
+		a.Reference = NewBlockIDFromDigest(ref)
+	} else {
+		sig, err := d.Signature()
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal reference")
+		}
+		a.Reference = NewBlockIDFromSignature(sig)
 	}
 
 	a.TotalResBlockSigField, err = d.Signature()
@@ -163,7 +177,7 @@ func (a *MicroBlock) WriteTo(w io.Writer) (int64, error) {
 func (a *MicroBlock) WriteWithoutSignature(w io.Writer) (int64, error) {
 	s := serializer.NewNonFallable(w)
 	s.Byte(a.VersionField)
-	s.Bytes(a.PrevResBlockSigField[:])
+	s.Bytes(a.Reference.Bytes())
 	s.Bytes(a.TotalResBlockSigField[:])
 	s.Uint32(uint32(a.Transactions.BinarySize() + 4))
 	s.Uint32(a.TransactionCount)
@@ -180,7 +194,7 @@ func (a *MicroBlock) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), err
 }
 
-// MicroBlockMessage represents a MicroBlock message
+// MicroBlockMessage represents a MicroBlock message.
 type MicroBlockMessage struct {
 	Body []byte
 }
@@ -190,7 +204,6 @@ func (*MicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
 }
 
 func (a *MicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
-	//panic("implement me")
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
@@ -355,46 +368,32 @@ func (a *MicroBlockRequestMessage) UnmarshalBinary(data []byte) error {
 }
 
 type MicroBlockRequest struct {
-	TotalBlockSig crypto.Signature
-}
-
-func (a *MicroBlockRequest) ReadFrom(r io.Reader) (int64, error) {
-	body := make([]byte, crypto.SignatureSize)
-	n, err := r.Read(body)
-	if err != nil {
-		return int64(n), err
-	}
-	sig, err := crypto.NewSignatureFromBytes(body)
-	if err != nil {
-		return int64(n), err
-	}
-	a.TotalBlockSig = sig
-	return int64(n), nil
+	TotalBlockID BlockID
 }
 
 func (a *MicroBlockRequest) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(a.TotalBlockSig[:])
+	n, err := w.Write(a.TotalBlockID.Bytes())
 	return int64(n), err
 }
 
 func (a *MicroBlockRequest) UnmarshalBinary(data []byte) error {
-	sig, err := crypto.NewSignatureFromBytes(data)
+	id, err := NewBlockIDFromBytes(data)
 	if err != nil {
 		return err
 	}
-	a.TotalBlockSig = sig
+	a.TotalBlockID = id
 	return nil
 }
 
 func (a *MicroBlockRequest) MarshalBinary() ([]byte, error) {
-	return a.TotalBlockSig[:], nil
+	return a.TotalBlockID.Bytes(), nil
 }
 
 type MicroBlockInv struct {
-	PublicKey     crypto.PublicKey
-	TotalBlockSig crypto.Signature
-	PrevBlockSig  crypto.Signature
-	Signature     crypto.Signature
+	PublicKey    crypto.PublicKey
+	TotalBlockID BlockID
+	Reference    BlockID
+	Signature    crypto.Signature
 }
 
 func (a *MicroBlockInv) MarshalBinary() ([]byte, error) {
@@ -411,23 +410,40 @@ func (a *MicroBlockInv) MarshalBinary() ([]byte, error) {
 }
 
 func (a *MicroBlockInv) UnmarshalBinary(data []byte) error {
+	sigId := len(data) == MicroBlockInvSizeSig
+	hashId := len(data) == MicroBlockInvSizeHash
+	if !sigId && !hashId {
+		return errors.New("invalid data size")
+	}
 	var err error
 	d := deserializer.NewDeserializer(data)
 	a.PublicKey, err = d.PublicKey()
 	if err != nil {
 		return err
 	}
-
-	a.TotalBlockSig, err = d.Signature()
-	if err != nil {
-		return err
+	if hashId {
+		totalId, err := d.Digest()
+		if err != nil {
+			return err
+		}
+		a.TotalBlockID = NewBlockIDFromDigest(totalId)
+		ref, err := d.Digest()
+		if err != nil {
+			return err
+		}
+		a.Reference = NewBlockIDFromDigest(ref)
+	} else if sigId {
+		sig, err := d.Signature()
+		if err != nil {
+			return err
+		}
+		a.TotalBlockID = NewBlockIDFromSignature(sig)
+		ref, err := d.Signature()
+		if err != nil {
+			return err
+		}
+		a.Reference = NewBlockIDFromSignature(ref)
 	}
-
-	a.PrevBlockSig, err = d.Signature()
-	if err != nil {
-		return err
-	}
-
 	a.Signature, err = d.Signature()
 	if err != nil {
 		return err
@@ -438,8 +454,8 @@ func (a *MicroBlockInv) UnmarshalBinary(data []byte) error {
 func (a *MicroBlockInv) WriteTo(w io.Writer) (int64, error) {
 	s := serializer.NewNonFallable(w)
 	s.Bytes(a.PublicKey.Bytes())
-	s.Bytes(a.TotalBlockSig.Bytes())
-	s.Bytes(a.PrevBlockSig.Bytes())
+	s.Bytes(a.TotalBlockID.Bytes())
+	s.Bytes(a.Reference.Bytes())
 	s.Bytes(a.Signature.Bytes())
 	return s.N(), nil
 }
@@ -465,8 +481,8 @@ func (a *MicroBlockInv) signableBytes(w io.Writer, schema Scheme) error {
 	}
 	s := serializer.NewNonFallable(w)
 	s.Bytes(addr.Bytes())
-	s.Bytes(a.TotalBlockSig.Bytes())
-	s.Bytes(a.PrevBlockSig.Bytes())
+	s.Bytes(a.TotalBlockID.Bytes())
+	s.Bytes(a.Reference.Bytes())
 	return nil
 }
 
@@ -482,13 +498,13 @@ func (a *MicroBlockInv) Verify(schema Scheme) (bool, error) {
 
 func NewUnsignedMicroblockInv(
 	PublicKey crypto.PublicKey,
-	TotalBlockSig crypto.Signature,
-	PrevBlockSig crypto.Signature) *MicroBlockInv {
+	TotalBlockID BlockID,
+	Reference BlockID) *MicroBlockInv {
 
 	return &MicroBlockInv{
-		PublicKey:     PublicKey,
-		TotalBlockSig: TotalBlockSig,
-		PrevBlockSig:  PrevBlockSig,
+		PublicKey:    PublicKey,
+		TotalBlockID: TotalBlockID,
+		Reference:    Reference,
 	}
 }
 
@@ -507,9 +523,11 @@ func (a *MicroBlockInvMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// PBMicroBlockMessage represents a Protobuf MicroBlock message
+// PBMicroBlockMessage represents a Protobuf MicroBlock message.
 type PBMicroBlockMessage struct {
+	// TODO: replace separate ID field with new Protobuf message later.
 	MicroBlockBytes Bytes
+	TotalBlockID    Bytes
 }
 
 func (*PBMicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
@@ -523,6 +541,10 @@ func (a *PBMicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	n, err := a.MicroBlockBytes.WriteTo(buf)
 	if err != nil {
 		return n, err
+	}
+	m, err := a.TotalBlockID.WriteTo(buf)
+	if err != nil {
+		return n + m, err
 	}
 
 	h, err := MakeHeader(ContentIDPBMicroBlock, buf.Bytes())
@@ -550,13 +572,20 @@ func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
 	if h.ContentID != ContentIDPBMicroBlock {
 		return errors.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
+	if h.PayloadLength < crypto.DigestSize {
+		return errors.New("invalid data size")
+	}
 	data = data[17:]
 
 	if uint32(len(data)) < h.PayloadLength {
 		return errors.New("invalid data size")
 	}
-	a.MicroBlockBytes = make([]byte, len(data[:h.PayloadLength]))
-	copy(a.MicroBlockBytes, data)
+	mbBytes := data[:h.PayloadLength-crypto.DigestSize]
+	a.MicroBlockBytes = make([]byte, len(mbBytes))
+	copy(a.MicroBlockBytes, mbBytes)
+	idBytes := data[h.PayloadLength-crypto.DigestSize : h.PayloadLength]
+	a.TotalBlockID = make([]byte, crypto.DigestSize)
+	copy(a.TotalBlockID, idBytes)
 	return nil
 }
 

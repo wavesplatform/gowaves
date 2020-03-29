@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func createBlockDiff(blockID crypto.Signature) blockDiff {
+func createBlockDiff(blockID proto.BlockID) blockDiff {
 	return blockDiff{
 		minerDiff: txDiff{testGlobal.minerInfo.wavesKey: balanceDiff{minBalance: 60, balance: 60, blockID: blockID}},
 		txDiffs: []txDiff{

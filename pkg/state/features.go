@@ -3,8 +3,8 @@ package state
 import (
 	"encoding/binary"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"go.uber.org/zap"
 )
@@ -88,7 +88,7 @@ func newFeatures(
 }
 
 // addVote adds vote for feature by its featureID at given blockID.
-func (f *features) addVote(featureID int16, blockID crypto.Signature) error {
+func (f *features) addVote(featureID int16, blockID proto.BlockID) error {
 	key := votesFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
@@ -179,7 +179,7 @@ func (f *features) printActivationLog(featureID int16) {
 	}
 }
 
-func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord, blockID crypto.Signature) error {
+func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
 	key := activatedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
@@ -291,7 +291,7 @@ func (f *features) printApprovalLog(featureID int16) {
 	}
 }
 
-func (f *features) approveFeature(featureID int16, r *approvedFeaturesRecord, blockID crypto.Signature) error {
+func (f *features) approveFeature(featureID int16, r *approvedFeaturesRecord, blockID proto.BlockID) error {
 	key := approvedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
@@ -354,7 +354,7 @@ func (f *features) isElected(height uint64, featureID int16) (bool, error) {
 	return votes >= f.settings.VotesForFeatureElection(height), nil
 }
 
-func (f *features) resetVotes(blockID crypto.Signature) error {
+func (f *features) resetVotes(blockID proto.BlockID) error {
 	iter, err := f.db.NewKeyIterator([]byte{votesFeaturesKeyPrefix})
 	if err != nil {
 		return err
@@ -383,7 +383,7 @@ func (f *features) resetVotes(blockID crypto.Signature) error {
 }
 
 // Check voting results, update approval list, reset voting list.
-func (f *features) approveFeatures(curHeight uint64, blockID crypto.Signature) error {
+func (f *features) approveFeatures(curHeight uint64, blockID proto.BlockID) error {
 	iter, err := f.db.NewKeyIterator([]byte{votesFeaturesKeyPrefix})
 	if err != nil {
 		return err
@@ -425,7 +425,7 @@ func (f *features) approveFeatures(curHeight uint64, blockID crypto.Signature) e
 }
 
 // Update activation list.
-func (f *features) activateFeatures(curHeight uint64, blockID crypto.Signature) error {
+func (f *features) activateFeatures(curHeight uint64, blockID proto.BlockID) error {
 	iter, err := f.db.NewKeyIterator([]byte{approvedFeaturesKeyPrefix})
 	if err != nil {
 		return err
@@ -469,7 +469,7 @@ func (f *features) activateFeatures(curHeight uint64, blockID crypto.Signature) 
 	return nil
 }
 
-func (f *features) finishVoting(curHeight uint64, blockID crypto.Signature) error {
+func (f *features) finishVoting(curHeight uint64, blockID proto.BlockID) error {
 	if err := f.activateFeatures(curHeight, blockID); err != nil {
 		return err
 	}

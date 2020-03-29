@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -41,7 +41,7 @@ func TestAddFeatureVote(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -67,7 +67,7 @@ func TestApproveFeature(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -94,7 +94,7 @@ func TestActivateFeature(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -122,7 +122,7 @@ func TestFinishVoting(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
@@ -147,15 +147,15 @@ func TestFinishVoting(t *testing.T) {
 		to.stor.addBlock(t, nextBlockId)
 		err = to.features.resetVotes(nextBlockId)
 		assert.NoError(t, err, "resetVotes() failed")
-		// NewConnection required amount of votes first.
+		// Add required amount of votes first.
 		for i := uint64(0); i < tc.votesNum; i++ {
 			to.stor.addBlock(t, ids[heightCounter])
 			err = to.features.addVote(featureID, ids[heightCounter])
 			assert.NoError(t, err, "addVote() failed")
 			heightCounter++
 		}
-		var lastBlockId crypto.Signature
-		// NewConnection remaining blocks until curHeight.
+		var lastBlockId proto.BlockID
+		// Add remaining blocks until curHeight.
 		for ; heightCounter < tc.curHeight; heightCounter++ {
 			to.stor.addBlock(t, ids[heightCounter])
 			lastBlockId = ids[heightCounter]
@@ -204,7 +204,7 @@ func TestAllFeatures(t *testing.T) {
 	defer func() {
 		to.stor.close(t)
 
-		err = util.CleanTemporaryDirs(path)
+		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 

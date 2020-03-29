@@ -4,10 +4,9 @@ import (
 	"encoding/binary"
 	"math"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +22,7 @@ type balanceProfile struct {
 }
 
 func (bp *balanceProfile) effectiveBalance() (uint64, error) {
-	val, err := util.AddInt64(int64(bp.balance), bp.leaseIn)
+	val, err := common.AddInt64(int64(bp.balance), bp.leaseIn)
 	if err != nil {
 		return 0, err
 	}
@@ -83,7 +82,7 @@ func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage) (*balances, err
 	return &balances{db, hs}, nil
 }
 
-func (s *balances) cancelAllLeases(blockID crypto.Signature) error {
+func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
 	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
 	if err != nil {
 		return err
@@ -119,7 +118,7 @@ func (s *balances) cancelAllLeases(blockID crypto.Signature) error {
 	return nil
 }
 
-func (s *balances) cancelLeaseOverflows(blockID crypto.Signature) (map[proto.Address]struct{}, error) {
+func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.Address]struct{}, error) {
 	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
 	if err != nil {
 		return nil, err
@@ -154,7 +153,7 @@ func (s *balances) cancelLeaseOverflows(blockID crypto.Signature) (map[proto.Add
 	return overflowedAddresses, err
 }
 
-func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64, blockID crypto.Signature) error {
+func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64, blockID proto.BlockID) error {
 	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
 	if err != nil {
 		return err
@@ -345,7 +344,7 @@ func (s *balances) wavesBalance(addr proto.Address, filter bool) (*balanceProfil
 	return s.wavesBalanceImpl(key.bytes(), filter)
 }
 
-func (s *balances) setAssetBalance(addr proto.Address, asset []byte, balance uint64, blockID crypto.Signature) error {
+func (s *balances) setAssetBalance(addr proto.Address, asset []byte, balance uint64, blockID proto.BlockID) error {
 	key := assetBalanceKey{address: addr, asset: asset}
 	record := &assetBalanceRecord{balance}
 	recordBytes, err := record.marshalBinary()
@@ -355,7 +354,7 @@ func (s *balances) setAssetBalance(addr proto.Address, asset []byte, balance uin
 	return s.hs.addNewEntry(assetBalance, key.bytes(), recordBytes, blockID)
 }
 
-func (s *balances) setWavesBalanceImpl(key []byte, record *wavesBalanceRecord, blockID crypto.Signature) error {
+func (s *balances) setWavesBalanceImpl(key []byte, record *wavesBalanceRecord, blockID proto.BlockID) error {
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
@@ -363,7 +362,7 @@ func (s *balances) setWavesBalanceImpl(key []byte, record *wavesBalanceRecord, b
 	return s.hs.addNewEntry(wavesBalance, key, recordBytes, blockID)
 }
 
-func (s *balances) setWavesBalance(addr proto.Address, profile *balanceProfile, blockID crypto.Signature) error {
+func (s *balances) setWavesBalance(addr proto.Address, profile *balanceProfile, blockID proto.BlockID) error {
 	key := wavesBalanceKey{address: addr}
 	record := &wavesBalanceRecord{*profile}
 	return s.setWavesBalanceImpl(key.bytes(), record, blockID)

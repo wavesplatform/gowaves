@@ -1,30 +1,28 @@
 package internal
 
 import (
-	"bytes"
 	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
 type requestQueue struct {
 	picked      int
-	blocks      []crypto.Signature
-	connections map[crypto.Signature][]*Conn
+	blocks      []proto.BlockID
+	connections map[proto.BlockID][]*Conn
 	once        sync.Once
 	rnd         *rand.Rand
 }
 
 func (q *requestQueue) init() {
 	q.picked = -1
-	q.blocks = make([]crypto.Signature, 0)
-	q.connections = make(map[crypto.Signature][]*Conn)
+	q.blocks = make([]proto.BlockID, 0)
+	q.connections = make(map[proto.BlockID][]*Conn)
 	q.rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 
@@ -54,7 +52,7 @@ func (q *requestQueue) String() string {
 	return sb.String()
 }
 
-func (q *requestQueue) enqueue(block crypto.Signature, conn *Conn) {
+func (q *requestQueue) enqueue(block proto.BlockID, conn *Conn) {
 	q.once.Do(q.init)
 
 	if conn == nil {
@@ -72,15 +70,15 @@ func (q *requestQueue) enqueue(block crypto.Signature, conn *Conn) {
 	q.connections[block] = list
 }
 
-func (q *requestQueue) pickRandomly(exclusion []*Conn) (crypto.Signature, *Conn, bool) {
+func (q *requestQueue) pickRandomly(exclusion []*Conn) (proto.BlockID, *Conn, bool) {
 	q.once.Do(q.init)
 
 	if q.picked == len(q.blocks)-1 {
-		return crypto.Signature{}, nil, false
+		return proto.BlockID{}, nil, false
 	}
 	q.picked++
-	sig := q.blocks[q.picked]
-	connections, ok := q.connections[sig]
+	id := q.blocks[q.picked]
+	connections, ok := q.connections[id]
 	if !ok {
 		zap.S().Fatalf("Failure to locate enqueued connection")
 	}
@@ -89,10 +87,10 @@ func (q *requestQueue) pickRandomly(exclusion []*Conn) (crypto.Signature, *Conn,
 		filtered = connections
 	}
 	conn := filtered[q.rnd.Intn(len(filtered))]
-	return sig, conn, true
+	return id, conn, true
 }
 
-func (q *requestQueue) dequeue(block crypto.Signature) {
+func (q *requestQueue) dequeue(block proto.BlockID) {
 	q.once.Do(q.init)
 
 	ok, pos := contains(q.blocks, block)
@@ -132,7 +130,7 @@ func (q *requestQueue) contains(connections []*Conn, conn *Conn) bool {
 }
 
 type pendingItem struct {
-	sig   crypto.Signature
+	id    proto.BlockID
 	conn  *Conn
 	block *proto.Block
 }
@@ -148,7 +146,7 @@ func (q *pendingQueue) String() string {
 		if i != 0 {
 			sb.WriteRune(' ')
 		}
-		sb.WriteString(pi.sig.ShortString())
+		sb.WriteString(pi.id.ShortString())
 		if pi.block != nil {
 			sb.WriteRune('(')
 			sb.WriteRune(0x2713)
@@ -175,8 +173,8 @@ func (q *pendingQueue) connections() []*Conn {
 	return r
 }
 
-func (q *pendingQueue) enqueue(sig crypto.Signature, conn *Conn) {
-	q.items = append(q.items, pendingItem{sig: sig, conn: conn})
+func (q *pendingQueue) enqueue(id proto.BlockID, conn *Conn) {
+	q.items = append(q.items, pendingItem{id: id, conn: conn})
 }
 
 func (q *pendingQueue) dequeue() (*proto.Block, bool) {
@@ -190,7 +188,7 @@ func (q *pendingQueue) dequeue() (*proto.Block, bool) {
 
 func (q *pendingQueue) update(block *proto.Block) {
 	for i := 0; i < len(q.items); i++ {
-		if bytes.Equal(q.items[i].sig[:], block.BlockSignature[:]) {
+		if q.items[i].id == block.BlockID() {
 			q.items[i].block = block
 			break
 		}
