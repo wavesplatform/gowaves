@@ -14,10 +14,9 @@ import (
 )
 
 type txInfo struct {
-	tx      proto.Transaction
-	txBytes []byte
-	height  uint64
-	offset  uint64
+	tx     proto.Transaction
+	height uint64
+	offset uint64
 }
 
 type recentTransactions struct {
@@ -66,16 +65,6 @@ func (r *recentTransactions) offsetById(id []byte) (uint64, error) {
 		return 0, errors.New("invalid pos")
 	}
 	return r.stor[pos].offset, nil
-}
-
-func (r *recentTransactions) writeDataToBuffer(buf *bufio.Writer) error {
-	for _, txInfo := range r.stor {
-		if _, err := buf.Write(txInfo.txBytes); err != nil {
-			return err
-		}
-	}
-	r.reset()
-	return nil
 }
 
 func (r *recentTransactions) reset() {
@@ -351,10 +340,9 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction) error {
 	}
 	// Save tx to local storage.
 	info := &txInfo{
-		tx:      tx,
-		txBytes: txBytes,
-		height:  rw.height + 1,
-		offset:  rw.blockchainLen,
+		tx:     tx,
+		height: rw.height + 1,
+		offset: rw.blockchainLen,
 	}
 	if err := rw.rtx.appendTx(txID, info); err != nil {
 		return err
@@ -372,6 +360,10 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction) error {
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, rw.height+1)
 	rw.dbBatch.Put(heightKey.bytes(), heightBytes)
+	// Write tx itself.
+	if _, err := rw.blockchainBuf.Write(txBytes); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -852,17 +844,14 @@ func (rw *blockReadWriter) rollback(removalEdge proto.BlockID, cleanIDs bool) er
 func (rw *blockReadWriter) reset() {
 	rw.rtx.reset()
 	rw.blockchainBuf.Reset(rw.blockchain)
-	rw.headersBuf.Reset(rw.headers)
 	rw.rheaders = make(map[proto.BlockID]proto.BlockHeader)
+	rw.headersBuf.Reset(rw.headers)
 	rw.height2IDCache = make(map[uint64]proto.BlockID)
 	rw.blockHeight2IDBuf.Reset(rw.blockHeight2ID)
 	rw.blockInfo = make(map[blockOffsetKey][]byte)
 }
 
 func (rw *blockReadWriter) flush() error {
-	if err := rw.rtx.writeDataToBuffer(rw.blockchainBuf); err != nil {
-		return err
-	}
 	if err := rw.blockchainBuf.Flush(); err != nil {
 		return err
 	}
