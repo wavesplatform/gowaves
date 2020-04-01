@@ -22,10 +22,10 @@ func makeBlock(sig crypto.Signature) *proto.Block {
 
 func TestOrderedBlocks(t *testing.T) {
 	o := ordered_blocks.NewOrderedBlocks()
-	o.Add(sig1)
+	o.Add(proto.NewBlockIDFromSignature(sig1))
 	require.Len(t, o.PopAll(), 0)
 
-	o.Add(sig2)
+	o.Add(proto.NewBlockIDFromSignature(sig2))
 	require.Len(t, o.PopAll(), 0)
 
 	// second block arrived first, no sequence right now
@@ -41,8 +41,8 @@ func TestOrderedBlocks(t *testing.T) {
 
 func TestOrderedBlocks_AvailableCount(t *testing.T) {
 	o := ordered_blocks.NewOrderedBlocks()
-	o.Add(sig1)
-	o.Add(sig2)
+	o.Add(proto.NewBlockIDFromSignature(sig1))
+	o.Add(proto.NewBlockIDFromSignature(sig2))
 	require.Equal(t, 0, o.AvailableCount())
 
 	o.SetBlock(makeBlock(sig1))

@@ -56,6 +56,8 @@ type BaseInfo struct {
 	MicroBlockCache services.MicroBlockCache
 
 	actions Actions
+
+	utx types.UtxPool
 }
 
 type FromBaseInfo interface {
@@ -64,9 +66,9 @@ type FromBaseInfo interface {
 
 type FSM interface {
 	NewPeer(p peer.Peer) (FSM, Async, error)
-	PeerError(peer.Peer, error) (FSM, Async, error)
+	PeerError(p peer.Peer, e error) (FSM, Async, error)
 	Score(p peer.Peer, score *proto.Score) (FSM, Async, error)
-	Block(peer peer.Peer, block *proto.Block) (FSM, Async, error)
+	Block(p peer.Peer, block *proto.Block) (FSM, Async, error)
 	MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair) (FSM, Async, error)
 
 	// Received signatures after asking by GetSignatures
@@ -76,6 +78,8 @@ type FSM interface {
 	// micro
 	MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error)
 	MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Async, error)
+
+	Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error)
 
 	//
 	Halt() (FSM, Async, error)
@@ -110,6 +114,8 @@ func NewFsm(
 		MicroBlockCache: services.MicroBlockCache,
 
 		actions: &ActionsImpl{services: services},
+
+		utx: services.UtxPool,
 	}
 
 	b.Scheduler.Reschedule()

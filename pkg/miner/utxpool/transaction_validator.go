@@ -29,7 +29,7 @@ func (a *ValidatorImpl) Validate(t proto.Transaction) error {
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
 	if currentTimestamp-lastKnownBlock.Timestamp > DELTA {
-		return errors.New("state in sync, transaction not accepted")
+		return errors.New("state outdate, transaction not accepted")
 	}
 
 	mu := a.state.Mutex()

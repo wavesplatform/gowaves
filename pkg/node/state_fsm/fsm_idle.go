@@ -10,11 +10,16 @@ import (
 )
 
 type InvRequester interface {
-	Request(p types.MessageSender, blockID proto.BlockID)
+	Request(p types.MessageSender, id []byte)
 }
 
 type IdleFsm struct {
 	baseInfo BaseInfo
+}
+
+func (a *IdleFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
+	err := a.baseInfo.utx.Add(t)
+	return a, nil, err
 }
 
 func (a *IdleFsm) Halt() (FSM, Async, error) {

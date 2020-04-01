@@ -130,9 +130,7 @@ func TestMicroBlockRequest_Marshaling(t *testing.T) {
 	sig := crypto.MustSignatureFromBase58("rBA7qj1nvXCnD8puLzWBWDoyHVkm3TzooDJgwbiaum9oV3vGhxGs45DfqwoM9qAyu4xfP6j8gQL6avub1wrB2zX")
 
 	mess := MicroBlockRequestMessage{
-		Body: &MicroBlockRequest{
-			TotalBlockID: NewBlockIDFromSignature(sig),
-		},
+		TotalBlockSig: sig,
 	}
 
 	bts, err := mess.MarshalBinary()
@@ -143,7 +141,7 @@ func TestMicroBlockRequest_Marshaling(t *testing.T) {
 	require.NoError(t, err)
 
 	mreq := &MicroBlockRequest{}
-	require.NoError(t, mreq.UnmarshalBinary(mess2.Body.(Bytes)))
+	require.NoError(t, mreq.UnmarshalBinary(mess2.TotalBlockSig.Bytes()))
 
-	require.Equal(t, mess.Body, mreq)
+	require.Equal(t, mess.TotalBlockSig, mreq)
 }

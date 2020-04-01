@@ -10,6 +10,10 @@ import (
 type HaltFSM struct {
 }
 
+func (a HaltFSM) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
+	return noop(a)
+}
+
 func (a HaltFSM) Halt() (FSM, Async, error) {
 	return noop(a)
 }

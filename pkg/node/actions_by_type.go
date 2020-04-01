@@ -152,7 +152,7 @@ func MicroBlockInvAction(services services.Services, mess peer.ProtoMessage, fsm
 
 // our miner mined microblock, sent MicroblockInv to other nodes, they asked us about Microblock
 func MicroBlockRequestAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
-	blockID, err := proto.NewBlockIDFromBytes(mess.Message.(*proto.MicroBlockRequestMessage).Body)
+	blockID, err := proto.NewBlockIDFromBytes(mess.Message.(*proto.MicroBlockRequestMessage).TotalBlockSig)
 	if err != nil {
 		return fsm, nil, err
 	}
@@ -219,6 +219,16 @@ func BlockIdsAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.F
 	return fsm.BlockIDs(mess.ID, mess.Message.(*proto.BlockIdsMessage).Blocks)
 }
 
+// TODO broadcast
+func TransactionAction(s services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+	tbts := mess.Message.(*proto.TransactionMessage).Transaction
+	t, err := proto.BytesToTransaction(tbts, s.Scheme)
+	if err != nil {
+		return fsm, nil, err
+	}
+	return fsm.Transaction(mess.ID, t)
+}
+
 func CreateActions() map[reflect.Type]Action {
 	return map[reflect.Type]Action{
 		reflect.TypeOf(&proto.ScoreMessage{}):             ScoreAction,
@@ -234,5 +244,7 @@ func CreateActions() map[reflect.Type]Action {
 		reflect.TypeOf(&proto.PBMicroBlockMessage{}):      PBMicroBlockAction,
 		reflect.TypeOf(&proto.GetBlockIdsMessage{}):       GetBlockIdsAction,
 		reflect.TypeOf(&proto.BlockIdsMessage{}):          BlockIdsAction,
+
+		reflect.TypeOf(&proto.TransactionMessage{}): TransactionAction,
 	}
 }

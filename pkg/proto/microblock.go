@@ -304,8 +304,9 @@ func (a *MicroBlockInvMessage) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
+// ?? total block sig or id
 type MicroBlockRequestMessage struct {
-	Body []byte
+	TotalBlockSig []byte
 }
 
 func (a *MicroBlockRequestMessage) ReadFrom(r io.Reader) (n int64, err error) {
@@ -315,11 +316,11 @@ func (a *MicroBlockRequestMessage) ReadFrom(r io.Reader) (n int64, err error) {
 func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
 	//bts := a.Body.Bytes()
 	var h Header
-	h.Length = MaxHeaderLength + uint32(len(a.Body)) - 4
+	h.Length = MaxHeaderLength + uint32(len(a.TotalBlockSig)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDMicroblockRequest
-	h.PayloadLength = uint32(len(a.Body))
-	dig, err := crypto.FastHash(a.Body)
+	h.PayloadLength = uint32(len(a.TotalBlockSig))
+	dig, err := crypto.FastHash(a.TotalBlockSig)
 	if err != nil {
 		return 0, err
 	}
@@ -329,7 +330,7 @@ func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
 		return 0, err
 	}
 
-	n3, err := w.Write(a.Body)
+	n3, err := w.Write(a.TotalBlockSig)
 	if err != nil {
 		return 0, err
 	}
@@ -363,7 +364,7 @@ func (a *MicroBlockRequestMessage) UnmarshalBinary(data []byte) error {
 	//if err != nil {
 	//	return err
 	//}
-	a.Body = body
+	a.TotalBlockSig = body
 	return nil
 }
 

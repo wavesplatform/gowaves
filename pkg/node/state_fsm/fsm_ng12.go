@@ -18,6 +18,11 @@ type NGFsm12 struct {
 	//blocks ng.Blocks
 }
 
+func (a *NGFsm12) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
+	err := a.utx.Add(t)
+	return a, nil, err
+}
+
 func (a *NGFsm12) Task(task AsyncTask) (FSM, Async, error) {
 	switch task.TaskType {
 	case PING:
@@ -94,14 +99,13 @@ func (a *NGFsm12) GetPeers(peer peer.Peer) (FSM, Async, error) {
 }
 
 func (a *NGFsm12) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error) {
+	// TODO check if it really need
 	defer a.Reschedule()
-
 	if micro.Reference.IsSignature() {
-
+		return a.microBlockBySignature(micro)
 	} else {
 		return a.microBlockByID(micro)
 	}
-
 }
 
 //func (a *NGFsm12) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, blocks ng.Blocks, keyPair proto.KeyPair) (FSM, Async, error) {
@@ -237,7 +241,7 @@ func (a *NGFsm12) microBlockBySignature(micro *proto.MicroBlock) (FSM, Async, er
 
 func (a *NGFsm12) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Async, error) {
 	zap.S().Info("got inv, requesting microblock")
-	a.invRequester.Request(p, inv.TotalBlockID)
+	a.invRequester.Request(p, inv.TotalBlockID.Bytes())
 	return a, nil, nil
 }
 

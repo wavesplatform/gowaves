@@ -17,13 +17,13 @@ func NewInvRequester() *InvRequesterImpl {
 	}
 }
 
-func (a *InvRequesterImpl) Request(p types.MessageSender, id proto.BlockID) {
-	if a.cache.Exists(id.Bytes()) {
+func (a *InvRequesterImpl) Request(p types.MessageSender, id []byte) {
+	if a.cache.Exists(id) {
 		return
 	}
-	a.cache.Add2(id.Bytes(), struct{}{})
+	a.cache.Add2(id, struct{}{})
 
 	p.SendMessage(&proto.MicroBlockRequestMessage{
-		Body: id.Bytes(),
+		TotalBlockSig: id,
 	})
 }

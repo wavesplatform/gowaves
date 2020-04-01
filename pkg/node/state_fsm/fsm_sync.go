@@ -35,6 +35,11 @@ type SyncFsm struct {
 	internal sync_internal.Internal
 }
 
+func (a *SyncFsm) Transaction(p Peer, t proto.Transaction) (FSM, Async, error) {
+	err := a.baseInfo.utx.Add(t)
+	return a, nil, err
+}
+
 // ignore microblocks
 func (a *SyncFsm) MicroBlock(_ Peer, _ *proto.MicroBlock) (FSM, Async, error) {
 	return a.baseInfo.d.Noop(a)

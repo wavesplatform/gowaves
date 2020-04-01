@@ -53,7 +53,11 @@ func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.
 }
 
 func (a *Node) Close() {
-	a.services.InternalChannel <- messages.NewHaltMessage()
+	ch := make(chan struct{})
+	a.services.InternalChannel <- messages.NewHaltMessage(ch)
+	zap.S().Debugf("start waiting <-ch")
+	<-ch
+	zap.S().Debugf("done waiting <-ch")
 }
 
 func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
@@ -130,8 +134,6 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 
 	for {
 		select {
-		case <-ctx.Done():
-			return
 		case internalMess := <-InternalMessageCh:
 
 			zap.S().Infof("got internalMess.(type) %T", internalMess)
@@ -141,6 +143,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 				fsm, async, err = fsm.MinedBlock(t.Block, t.Limits, t.KeyPair)
 			case *messages.HaltMessage:
 				fsm, async, err = fsm.Halt()
+				t.Complete()
 			default:
 				zap.S().Errorf("unknown internalMess %T", t)
 				continue
@@ -152,7 +155,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 			case *peer.Connected:
 				fsm, async, err = fsm.NewPeer(t.Peer)
 			case error:
-				zap.S().Error(m.Peer, t)
+				zap.S().Error("infoCH error ", m.Peer, t)
 				fsm, async, err = fsm.PeerError(m.Peer, t)
 			}
 		case mess := <-p.MessageCh:
