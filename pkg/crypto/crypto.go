@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"fmt"
+	"hash"
 	"strings"
 
 	"github.com/mr-tron/base58/base58"
@@ -304,6 +305,10 @@ func Keccak256(data []byte) (Digest, error) {
 	}
 	h.Sum(d[:0])
 	return d, nil
+}
+
+func NewFastHash() (hash.Hash, error) {
+	return blake2b.New256(nil)
 }
 
 func FastHash(data []byte) (Digest, error) {
