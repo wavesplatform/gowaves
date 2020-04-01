@@ -23,8 +23,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
-	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node"
+	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -241,6 +242,8 @@ func main() {
 		Time:               ntptm,
 		Wallet:             wal,
 		MicroBlockCache:    microblock_cache.NewMicroblockCache(),
+
+		InternalChannel: messages.NewInternalChannel(),
 	}
 
 	utxClean := utxpool.NewCleaner(services)
@@ -311,8 +314,8 @@ func main() {
 	sig := <-gracefulStop
 	zap.S().Infow("Caught signal, stopping", "signal", sig)
 	cancel()
-	<-time.After(2 * time.Second)
 	n.Close()
+	//<-time.After(2 * time.Second)
 
 	<-time.After(2 * time.Second)
 }

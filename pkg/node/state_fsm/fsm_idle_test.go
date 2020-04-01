@@ -36,7 +36,7 @@ func TestIdleFsm_Signatures(t *testing.T) {
 	idle := NewIdleFsm(BaseInfo{d: def})
 
 	def.EXPECT().Noop(gomock.Any())
-	_, _, _ = idle.Signatures(nil, nil)
+	_, _, _ = idle.BlockIDs(nil, nil)
 }
 
 // check it just call default
@@ -47,5 +47,5 @@ func TestIdleFsm_PeerError(t *testing.T) {
 	idle := NewIdleFsm(BaseInfo{d: def})
 
 	def.EXPECT().Noop(gomock.Any())
-	_, _, _ = idle.Signatures(nil, nil)
+	_, _, _ = idle.BlockIDs(nil, nil)
 }

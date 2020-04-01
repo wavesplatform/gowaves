@@ -17,8 +17,14 @@ func mapAsync(a Async) []int {
 	return out
 }
 
+type noopReschedule struct {
+}
+
+func (noopReschedule) Reschedule() {
+}
+
 func TestNewFsm(t *testing.T) {
-	fsm, async, err := NewFsm(services.Services{}, 1000, proto.BlockCreatorImpl{})
+	fsm, async, err := NewFsm(services.Services{Scheduler: noopReschedule{}}, 1000, proto.BlockCreatorImpl{})
 
 	require.NoError(t, err)
 	require.Equal(t, []int{tasks.ASK_PEERS, tasks.PING}, mapAsync(async))

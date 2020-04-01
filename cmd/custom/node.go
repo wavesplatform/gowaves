@@ -69,7 +69,7 @@ func main() {
 		return
 	}
 
-	util.SetupLogger(*logLevel)
+	common.SetupLogger(*logLevel)
 
 	zap.S().Info(os.Args)
 	zap.S().Info(os.Environ())

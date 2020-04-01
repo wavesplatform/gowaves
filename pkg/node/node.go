@@ -9,7 +9,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
-	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
@@ -18,7 +17,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"go.uber.org/zap"
 )
 
@@ -57,13 +55,6 @@ func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.
 func (a *Node) Close() {
 	a.services.InternalChannel <- messages.NewHaltMessage()
 }
-
-/*
-	case *proto.GetBlockIdsMessage:
-		a.handleGetBlockIdsMessage(mess.ID, t)
-	case *proto.BlockIdsMessage:
-		a.handleBlockIdsMessage(mess.ID, t)
- */
 
 func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
 	a.peers.SpawnOutgoingConnections(ctx)
@@ -142,6 +133,9 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 		case <-ctx.Done():
 			return
 		case internalMess := <-InternalMessageCh:
+
+			zap.S().Infof("got internalMess.(type) %T", internalMess)
+
 			switch t := internalMess.(type) {
 			case *messages.MinedBlockInternalMessage:
 				fsm, async, err = fsm.MinedBlock(t.Block, t.Limits, t.KeyPair)
@@ -209,6 +203,9 @@ func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner
 				}
 			})
 		}(t)
+	}
+}
+
 func (a *BlockIds) Exists(id proto.BlockID) bool {
 	_, ok := a.unique[id]
 	return ok

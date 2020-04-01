@@ -65,7 +65,12 @@ func GetBlockAction(services services.Services, mess peer.ProtoMessage, fsm stat
 
 // received asked earlier signatures
 func SignaturesAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
-	return fsm.Signatures(mess.ID, mess.Message.(*proto.SignaturesMessage).Signatures)
+	sigs := mess.Message.(*proto.SignaturesMessage).Signatures
+	blockIDs := make([]proto.BlockID, len(sigs))
+	for i, sig := range sigs {
+		blockIDs[i] = proto.NewBlockIDFromSignature(sig)
+	}
+	return fsm.BlockIDs(mess.ID, blockIDs)
 }
 
 // peers asks us about our signatures
@@ -73,7 +78,7 @@ func GetSignaturesAction(services services.Services, mess peer.ProtoMessage, fsm
 	locked := services.State.Mutex().RLock()
 	defer locked.Unlock()
 	for _, sig := range mess.Message.(*proto.GetSignaturesMessage).Signatures {
-		block, err := services.State.Header(sig)
+		block, err := services.State.Header(proto.NewBlockIDFromSignature(sig))
 		if err != nil {
 			continue
 		}
@@ -84,7 +89,7 @@ func GetSignaturesAction(services services.Services, mess peer.ProtoMessage, fsm
 }
 
 func sendSignatures(services services.Services, block *proto.BlockHeader, p peer.Peer) {
-	height, err := services.State.BlockIDToHeight(block.BlockSignature)
+	height, err := services.State.BlockIDToHeight(block.BlockID())
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -109,6 +114,32 @@ func sendSignatures(services services.Services, block *proto.BlockHeader, p peer
 	}
 }
 
+func sendBlockIds(services services.Services, block *proto.BlockHeader, p peer.Peer) {
+	height, err := services.State.BlockIDToHeight(block.BlockID())
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	var out []proto.BlockID
+	out = append(out, block.BlockID())
+
+	for i := 1; i < 101; i++ {
+		b, err := services.State.HeaderByHeight(height + uint64(i))
+		if err != nil {
+			break
+		}
+		out = append(out, b.BlockID())
+	}
+
+	// if we put smth except first block
+	if len(out) > 1 {
+		p.SendMessage(&proto.BlockIdsMessage{
+			Blocks: out,
+		})
+	}
+}
+
 // remote node mined microblock and sent us info about it.
 func MicroBlockInvAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	inv := &proto.MicroBlockInv{}
@@ -121,7 +152,11 @@ func MicroBlockInvAction(services services.Services, mess peer.ProtoMessage, fsm
 
 // our miner mined microblock, sent MicroblockInv to other nodes, they asked us about Microblock
 func MicroBlockRequestAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
-	micro, ok := services.MicroBlockCache.Get(mess.Message.(*proto.MicroBlockRequestMessage).Body)
+	blockID, err := proto.NewBlockIDFromBytes(mess.Message.(*proto.MicroBlockRequestMessage).Body)
+	if err != nil {
+		return fsm, nil, err
+	}
+	micro, ok := services.MicroBlockCache.Get(blockID)
 	zap.S().Info("MicroBlockRequestAction, micro total ", micro.TotalResBlockSigField)
 	if ok {
 		zap.S().Info("MicroBlockRequestAction, micro total ", micro.TotalResBlockSigField, " found")
@@ -166,6 +201,24 @@ func PBMicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm 
 	return fsm.MicroBlock(mess.ID, micro)
 }
 
+func GetBlockIdsAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+	locked := services.State.Mutex().RLock()
+	defer locked.Unlock()
+	for _, sig := range mess.Message.(*proto.GetBlockIdsMessage).Blocks {
+		block, err := services.State.Header(sig)
+		if err != nil {
+			continue
+		}
+		sendBlockIds(services, block, mess.ID)
+		break
+	}
+	return fsm, nil, nil
+}
+
+func BlockIdsAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+	return fsm.BlockIDs(mess.ID, mess.Message.(*proto.BlockIdsMessage).Blocks)
+}
+
 func CreateActions() map[reflect.Type]Action {
 	return map[reflect.Type]Action{
 		reflect.TypeOf(&proto.ScoreMessage{}):             ScoreAction,
@@ -179,5 +232,7 @@ func CreateActions() map[reflect.Type]Action {
 		reflect.TypeOf(&proto.MicroBlockMessage{}):        MicroBlockAction,
 		reflect.TypeOf(&proto.PBBlockMessage{}):           PBBlockAction,
 		reflect.TypeOf(&proto.PBMicroBlockMessage{}):      PBMicroBlockAction,
+		reflect.TypeOf(&proto.GetBlockIdsMessage{}):       GetBlockIdsAction,
+		reflect.TypeOf(&proto.BlockIdsMessage{}):          BlockIdsAction,
 	}
 }

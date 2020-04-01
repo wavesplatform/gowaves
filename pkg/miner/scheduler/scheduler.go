@@ -11,8 +11,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
@@ -190,7 +190,7 @@ func (a *SchedulerImpl) Reschedule() {
 		return
 	}
 
-	zap.S().Info("*SchedulerImpl) Reschedule() ", util.Bts2Str(a.seeder.Seeds()))
+	zap.S().Info("*SchedulerImpl) Reschedule() ", common.Bts2Str(a.seeder.Seeds()))
 
 	if !a.consensus.IsMiningAllowed() {
 		zap.S().Info("SchedulerImpl Reschedule mining is not allowed")

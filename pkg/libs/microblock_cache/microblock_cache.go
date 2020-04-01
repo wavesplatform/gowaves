@@ -19,7 +19,7 @@ func (a *MicroblockCache) Add(micro *proto.MicroBlock) {
 	a.cache.Add2(micro.TotalResBlockSigField.Bytes(), micro)
 }
 
-func (a *MicroblockCache) Get(sig proto.MicroblockTotalSig) (*proto.MicroBlock, bool) {
+func (a *MicroblockCache) Get(sig proto.BlockID) (*proto.MicroBlock, bool) {
 	rs, ok := a.cache.Get(sig.Bytes())
 	if !ok {
 		return nil, false

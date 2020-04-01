@@ -1,10 +1,10 @@
 package state_fsm
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 type HaltFSM struct {
@@ -34,7 +34,7 @@ func (a HaltFSM) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPa
 	return noop(a)
 }
 
-func (a HaltFSM) Signatures(peer peer.Peer, sigs []crypto.Signature) (FSM, Async, error) {
+func (a HaltFSM) BlockIDs(peer peer.Peer, sigs []proto.BlockID) (FSM, Async, error) {
 	return noop(a)
 }
 
@@ -51,9 +51,14 @@ func (a HaltFSM) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Asyn
 }
 
 func HaltTransition(info BaseInfo) (FSM, Async, error) {
+	zap.S().Debugf("started HaltTransition ")
 	info.peers.Close()
+	zap.S().Debugf("started HaltTransition peers closed")
 	locked := info.storage.Mutex().Lock()
+	zap.S().Debugf("storage mutex locked")
 	info.storage.Close()
+	zap.S().Debugf("storage closed")
 	locked.Unlock()
+	zap.S().Debugf("storage mutex unlocked")
 	return HaltFSM{}, nil, nil
 }

@@ -727,14 +727,14 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockI
 	if version <= RewardBlockVersion {
 		b.TransactionBlockLength = uint32(transactions.BinarySize() + 4)
 	}
-	if err := b.GenerateBlockID(scheme); err != nil {
-		return nil, errors.Wrap(err, "failed to generate block ID")
-	}
 	if version >= ProtoBlockVersion {
 		err := b.SetTransactionsRoot(scheme)
 		if err != nil {
 			return nil, err
 		}
+	}
+	if err := b.GenerateBlockID(scheme); err != nil {
+		return nil, errors.Wrap(err, "failed to generate block ID")
 	}
 	return b, nil
 }

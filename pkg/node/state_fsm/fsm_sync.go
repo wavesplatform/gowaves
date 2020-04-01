@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
@@ -77,11 +76,11 @@ func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
 	return NewIdleFsm(a.baseInfo), nil, nil
 }
 
-func (a *SyncFsm) Signatures(peer Peer, sigs []crypto.Signature) (FSM, Async, error) {
+func (a *SyncFsm) BlockIDs(peer Peer, sigs []proto.BlockID) (FSM, Async, error) {
 	if a.conf.peerSyncWith != peer {
 		return a, nil, nil
 	}
-	internal, err := a.internal.Signatures(peer, sigs)
+	internal, err := a.internal.BlockIDs(sync_internal.NewPeerWrapper(peer), sigs)
 	if err != nil {
 		return newSyncFsm(a.baseInfo, a.conf, internal), nil, err
 	}
@@ -154,7 +153,7 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	}
 	a.baseInfo.Reschedule()
 	if eof {
-		return NewNGFsm(a.baseInfo), nil, nil
+		return NewNGFsm12(a.baseInfo), nil, nil
 	}
 	return newSyncFsm(baseInfo, conf, internal), nil, nil
 }
@@ -172,11 +171,11 @@ func newSyncFsm(baseInfo BaseInfo, conf2 conf, internal sync_internal.Internal) 
 }
 
 func NewIdleToSyncTransition(baseInfo BaseInfo, p Peer) (FSM, Async, error) {
-	lastSigs, err := signatures.LastSignaturesImpl{}.LastSignatures(baseInfo.storage)
+	lastSigs, err := signatures.LastSignaturesImpl{}.LastBlockIDs(baseInfo.storage)
 	if err != nil {
 		return NewIdleFsm(baseInfo), nil, err
 	}
-	internal := sync_internal.InternalFromLastSignatures(p, lastSigs)
+	internal := sync_internal.InternalFromLastSignatures(sync_internal.NewPeerWrapper(p), lastSigs)
 	c := conf{
 		peerSyncWith: p,
 		timeout:      30 * time.Second,

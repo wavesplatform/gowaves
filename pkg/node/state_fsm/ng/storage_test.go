@@ -8,31 +8,31 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-var sig1 = crypto.MustSignatureFromBase58("5djHxGcrueh8tP2aA1UUgcvGQ1Up5e9u65wTvap2P4igbUo1oFn5cV6rSNGzo15mxhEMY7JPnA3M645jLPES93ZC")
-var sig2 = crypto.MustSignatureFromBase58("Me1vXm5e7jKoHQ165vHKvZLwU5xL7Y6PVKRmbKrD7T15hLnLvpkGukVUTVHsNzrLL9H7kqsrR38dVUA98V6qUdB")
-var sig3 = crypto.MustSignatureFromBase58("3yAvQJGneoczXz6aQPHKFE3z3DEuWp7MoSVqxz8y57huufanv3RJPncmaZWZN3hDc7can994ET2UxSbLNesKV29H")
-var sig4 = crypto.MustSignatureFromBase58("3k9YkeXviV4edXuBizn5pP8vRbHeyGHaRQwrVzTX6pHTCvUymRj4n3Ye1hWG1JwCypc4P34uHvag1uCTH9HRazUw")
+var sig1 = proto.NewBlockIDFromSignature(crypto.MustSignatureFromBase58("5djHxGcrueh8tP2aA1UUgcvGQ1Up5e9u65wTvap2P4igbUo1oFn5cV6rSNGzo15mxhEMY7JPnA3M645jLPES93ZC"))
+var sig2 = proto.NewBlockIDFromSignature(crypto.MustSignatureFromBase58("Me1vXm5e7jKoHQ165vHKvZLwU5xL7Y6PVKRmbKrD7T15hLnLvpkGukVUTVHsNzrLL9H7kqsrR38dVUA98V6qUdB"))
+var sig3 = proto.NewBlockIDFromSignature(crypto.MustSignatureFromBase58("3yAvQJGneoczXz6aQPHKFE3z3DEuWp7MoSVqxz8y57huufanv3RJPncmaZWZN3hDc7can994ET2UxSbLNesKV29H"))
+var sig4 = proto.NewBlockIDFromSignature(crypto.MustSignatureFromBase58("3k9YkeXviV4edXuBizn5pP8vRbHeyGHaRQwrVzTX6pHTCvUymRj4n3Ye1hWG1JwCypc4P34uHvag1uCTH9HRazUw"))
 var emptySig = crypto.Signature{}
 
-func newBlock(sig crypto.Signature, parent crypto.Signature) *proto.Block {
+func newBlock(sig proto.BlockID, parent proto.BlockID) *proto.Block {
 	return &proto.Block{
 		BlockHeader: proto.BlockHeader{
-			BlockSignature: sig,
-			Parent:         parent,
+			ID:     sig,
+			Parent: parent,
 		},
 		Transactions: proto.Transactions(nil),
 	}
 }
 
-func newMicro(sig crypto.Signature, parent crypto.Signature) *proto.MicroBlock {
+func newMicro(sig crypto.Signature, parent proto.BlockID) *proto.MicroBlock {
 	return &proto.MicroBlock{
 		TotalResBlockSigField: sig,
-		PrevResBlockSigField:  parent,
+		Reference:             parent,
 	}
 }
 
 func TestBlockSequence_NoSideEffects(t *testing.T) {
-	rs1 := NewBlocksFromBlock(newBlock(sig1, emptySig))
+	rs1 := NewBlocksFromBlock(newBlock(sig1, proto.NewBlockIDFromSignature(emptySig)))
 	require.Equal(t, 1, rs1.Len())
 
 	rs2, err := rs1.AddMicro(newMicro(sig2, sig1))

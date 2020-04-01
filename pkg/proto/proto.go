@@ -155,6 +155,28 @@ type Version struct {
 	Major, Minor, Patch uint32
 }
 
+func (a Version) Cmp(other Version) int {
+	if a.Major < other.Major {
+		return -1
+	}
+	if a.Major > other.Major {
+		return 1
+	}
+	if a.Minor < other.Minor {
+		return -1
+	}
+	if a.Minor > other.Minor {
+		return 1
+	}
+	if a.Patch < other.Patch {
+		return -1
+	}
+	if a.Patch > other.Patch {
+		return 1
+	}
+	return 0
+}
+
 func NewVersionFromString(version string) (*Version, error) {
 	parts := strings.Split(version, ".")
 	if l := len(parts); l <= 0 || l > 3 {
@@ -1219,19 +1241,19 @@ func (m *GetBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
-func MessageByMicroBlock(mb *MicroBlock, scheme Scheme) (Message, error) {
-	if BlockVersion(mb.VersionField) >= ProtoBlockVersion {
-		bts, err := mb.MarshalToProtobuf(scheme)
-		if err != nil {
-			return nil, err
-		}
-		idBytes := mb.TotalBlockID.Bytes()
-		return &PBMicroBlockMessage{MicroBlockBytes: bts, TotalBlockID: idBytes}, nil
-	} else {
-		panic("MessageByMicroBlock unimplemented ")
-		//return &MicroBlockMessage{mb}, nil
-	}
-}
+//func MessageByMicroBlock(mb *MicroBlock, scheme Scheme) (Message, error) {
+//	if BlockVersion(mb.VersionField) >= ProtoBlockVersion {
+//		bts, err := mb.MarshalToProtobuf(scheme)
+//		if err != nil {
+//			return nil, err
+//		}
+//		idBytes := mb.TotalBlockID.Bytes()
+//		return &PBMicroBlockMessage{MicroBlockBytes: bts, TotalBlockID: idBytes}, nil
+//	} else {
+//		panic("MessageByMicroBlock unimplemented ")
+//		//return &MicroBlockMessage{mb}, nil
+//	}
+//}
 
 func MessageByBlock(block *Block, scheme Scheme) (Message, error) {
 	bts, err := block.Marshal(scheme)

@@ -24,8 +24,6 @@ func (a *InvRequesterImpl) Request(p types.MessageSender, id proto.BlockID) {
 	a.cache.Add2(id.Bytes(), struct{}{})
 
 	p.SendMessage(&proto.MicroBlockRequestMessage{
-		Body: &proto.MicroBlockRequest{
-			TotalBlockID: id,
-		},
+		Body: id.Bytes(),
 	})
 }

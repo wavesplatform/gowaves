@@ -3,7 +3,6 @@ package state_fsm
 import (
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
@@ -71,8 +70,7 @@ type FSM interface {
 	MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair) (FSM, Async, error)
 
 	// Received signatures after asking by GetSignatures
-	Signatures(peer peer.Peer, sigs []crypto.Signature) (FSM, Async, error)
-	//GetPeers(peer peer.Peer) (FSM, Async, error)
+	BlockIDs(peer.Peer, []proto.BlockID) (FSM, Async, error)
 	Task(task AsyncTask) (FSM, Async, error)
 
 	// micro

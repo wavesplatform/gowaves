@@ -10,7 +10,7 @@ type kvMicro struct {
 }
 
 func (a kvMicro) Key() []byte {
-	return a.m.TotalBlockID.Bytes()
+	return a.m.TotalResBlockSigField.Bytes()
 }
 
 func (a kvMicro) Value() interface{} {
@@ -77,19 +77,19 @@ func (a *InvCache) Inv(id proto.BlockID) (*proto.MicroBlockInv, bool) {
 	return nil, false
 }
 
-// blocks, that we already tried to apply
-type knownBlocks []proto.BlockID
-
-func (a *knownBlocks) add(block *proto.Block) (added bool) {
-	blockID := block.BlockID()
-	for _, b := range *a {
-		if b == blockID {
-			return false
-		}
-	}
-	*a = append(*a, blockID)
-	if len(*a) > 4 {
-		*a = (*a)[1:]
-	}
-	return true
-}
+//// blocks, that we already tried to apply
+//type knownBlocks []proto.BlockID
+//
+//func (a *knownBlocks) add(block *proto.Block) (added bool) {
+//	blockID := block.BlockID()
+//	for _, b := range *a {
+//		if b == blockID {
+//			return false
+//		}
+//	}
+//	*a = append(*a, blockID)
+//	if len(*a) > 4 {
+//		*a = (*a)[1:]
+//	}
+//	return true
+//}

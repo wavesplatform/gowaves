@@ -2,7 +2,6 @@ package state_fsm
 
 import (
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -11,7 +10,7 @@ import (
 )
 
 type InvRequester interface {
-	Request(p types.MessageSender, inv *proto.MicroBlockInv)
+	Request(p types.MessageSender, blockID proto.BlockID)
 }
 
 type IdleFsm struct {
@@ -51,7 +50,7 @@ func (a *IdleFsm) PeerError(p peer.Peer, e error) (FSM, Async, error) {
 	return a.baseInfo.d.PeerError(a, p, a.baseInfo, e)
 }
 
-func (a *IdleFsm) Signatures(_ peer.Peer, _ []crypto.Signature) (FSM, Async, error) {
+func (a *IdleFsm) BlockIDs(_ peer.Peer, _ []proto.BlockID) (FSM, Async, error) {
 	return a.baseInfo.d.Noop(a)
 }
 

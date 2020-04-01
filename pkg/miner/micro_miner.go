@@ -3,7 +3,6 @@ package miner
 import (
 	"errors"
 
-	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -31,18 +30,17 @@ func NewMicroMiner(services services.Services) *MicroMiner {
 func (a *MicroMiner) Micro(
 	minedBlock *proto.Block,
 	rest proto.MiningLimits,
-	blocks ng.Blocks,
-	keyPair proto.KeyPair) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, ng.Blocks, error) {
+	keyPair proto.KeyPair) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
 
 	// way to stop mine microblocks
 	if minedBlock == nil {
-		return nil, nil, rest, blocks, errors.New("no block provided")
+		return nil, nil, rest, errors.New("no block provided")
 	}
 
 	topBlock := a.state.TopBlock()
 	if topBlock.BlockSignature != minedBlock.BlockSignature {
 		// block changed, exit
-		return nil, nil, rest, blocks, StateChangedErr
+		return nil, nil, rest, StateChangedErr
 	}
 
 	//height, err := a.state.Height()
@@ -61,14 +59,14 @@ func (a *MicroMiner) Micro(
 	height, err := a.state.Height()
 	rlocked.Unlock()
 	if err != nil {
-		return nil, nil, rest, blocks, err
+		return nil, nil, rest, err
 	}
 
 	parentTimestamp := topBlock.Timestamp
 	if height > 1 {
 		parent, err := a.state.BlockByHeight(height - 1)
 		if err != nil {
-			return nil, nil, rest, blocks, err
+			return nil, nil, rest, err
 		}
 		parentTimestamp = parent.Timestamp
 	}
@@ -117,12 +115,12 @@ func (a *MicroMiner) Micro(
 
 	// no transactions applied, skip
 	if cnt == 0 {
-		return nil, nil, rest, blocks, NoTransactionsErr
+		return nil, nil, rest, NoTransactionsErr
 	}
-	row := blocks.Row()
-	lastsig := row.LastSignature()
+	//row := blocks.Row()
+	//lastsig := row.LastSignature()
 
-	zap.S().Debugf("micro_miner last sig %s", lastsig)
+	//zap.S().Debugf("micro_miner last sig %s", lastsig)
 	zap.S().Debugf("micro_miner top block sig %s", a.state.TopBlock().BlockSignature)
 
 	newTransactions := minedBlock.Transactions.Join(transactions)
@@ -139,13 +137,21 @@ func (a *MicroMiner) Micro(
 		a.scheme,
 	)
 	if err != nil {
-		return nil, nil, rest, blocks, err
+		return nil, nil, rest, err
 	}
-
 	sk := keyPair.Secret
+
+	err = newBlock.SetTransactionsRoot(a.scheme)
+	if err != nil {
+		return nil, nil, rest, err
+	}
 	err = newBlock.Sign(a.scheme, keyPair.Secret)
 	if err != nil {
-		return nil, nil, rest, blocks, err
+		return nil, nil, rest, err
+	}
+	err = newBlock.GenerateBlockID(a.scheme)
+	if err != nil {
+		return nil, nil, rest, err
 	}
 
 	//locked = mu.Lock()
@@ -159,25 +165,25 @@ func (a *MicroMiner) Micro(
 	//}
 
 	micro := proto.MicroBlock{
-		VersionField:          3,
+		VersionField:          5, // protobuf version
 		SenderPK:              keyPair.Public,
 		Transactions:          transactions,
 		TransactionCount:      uint32(cnt),
-		PrevResBlockSigField:  lastsig,
+		Reference:             a.state.TopBlock().BlockID(),
 		TotalResBlockSigField: newBlock.BlockSignature,
 	}
 
 	err = micro.Sign(sk)
 	if err != nil {
-		return nil, nil, rest, blocks, err
+		return nil, nil, rest, err
 	}
 
 	zap.S().Debugf("micro_miner mined %+v", micro)
 
-	inv := proto.NewUnsignedMicroblockInv(micro.SenderPK, micro.TotalResBlockSigField, micro.PrevResBlockSigField)
+	inv := proto.NewUnsignedMicroblockInv(micro.SenderPK, newBlock.BlockID(), micro.Reference)
 	err = inv.Sign(sk, a.scheme)
 	if err != nil {
-		return nil, nil, rest, blocks, err
+		return nil, nil, rest, err
 	}
 
 	newRest := proto.MiningLimits{
@@ -187,12 +193,10 @@ func (a *MicroMiner) Micro(
 		MaxTxsSizeInBytes:           rest.MaxTxsSizeInBytes - binSize,
 	}
 
-	newBlocks, err := blocks.AddMicro(&micro)
-	if err != nil {
-		return nil, nil, rest, blocks, err
-	}
+	//newBlocks, err := blocks.AddMicro(&micro)
+	//if err != nil {
+	//	return nil, nil, rest, err
+	//}
 
-	return newBlock, &micro, newRest, newBlocks, nil
-
-	//go a.mineMicro(ctx, newRest, newBlock, newBlocks, keyPair)
+	return newBlock, &micro, newRest, nil
 }

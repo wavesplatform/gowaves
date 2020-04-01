@@ -1,43 +1,42 @@
 package ordered_blocks
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type OrderedBlocks struct {
-	sigSequence    []crypto.Signature
-	uniqSignatures map[crypto.Signature]*proto.Block
+	sigSequence  []proto.BlockID
+	uniqBlockIDs map[proto.BlockID]*proto.Block
 }
 
 func NewOrderedBlocks() *OrderedBlocks {
 	return &OrderedBlocks{
-		sigSequence:    nil,
-		uniqSignatures: make(map[crypto.Signature]*proto.Block),
+		sigSequence:  nil,
+		uniqBlockIDs: make(map[proto.BlockID]*proto.Block),
 	}
 }
 
-func (a *OrderedBlocks) Contains(sig crypto.Signature) bool {
-	_, ok := a.uniqSignatures[sig]
+func (a *OrderedBlocks) Contains(sig proto.BlockID) bool {
+	_, ok := a.uniqBlockIDs[sig]
 	return ok
 }
 
 func (a *OrderedBlocks) SetBlock(b *proto.Block) {
-	a.uniqSignatures[b.BlockSignature] = b
+	a.uniqBlockIDs[b.BlockID()] = b
 }
 
-func (a *OrderedBlocks) pop() (crypto.Signature, *proto.Block, bool) {
+func (a *OrderedBlocks) pop() (proto.BlockID, *proto.Block, bool) {
 	if len(a.sigSequence) == 0 {
-		return crypto.Signature{}, nil, false
+		return proto.BlockID{}, nil, false
 	}
 	firstSig := a.sigSequence[0]
-	bts := a.uniqSignatures[firstSig]
+	bts := a.uniqBlockIDs[firstSig]
 	if bts != nil {
-		delete(a.uniqSignatures, firstSig)
+		delete(a.uniqBlockIDs, firstSig)
 		a.sigSequence = a.sigSequence[1:]
 		return firstSig, bts, true
 	}
-	return crypto.Signature{}, nil, false
+	return proto.BlockID{}, nil, false
 }
 
 func (a *OrderedBlocks) PopAll() []*proto.Block {
@@ -52,13 +51,13 @@ func (a *OrderedBlocks) PopAll() []*proto.Block {
 }
 
 // true - added, false - not added
-func (a *OrderedBlocks) Add(sig crypto.Signature) bool {
+func (a *OrderedBlocks) Add(sig proto.BlockID) bool {
 	// already contains
-	if _, ok := a.uniqSignatures[sig]; ok {
+	if _, ok := a.uniqBlockIDs[sig]; ok {
 		return false
 	}
 	a.sigSequence = append(a.sigSequence, sig)
-	a.uniqSignatures[sig] = nil
+	a.uniqBlockIDs[sig] = nil
 	return true
 }
 
@@ -69,7 +68,7 @@ func (a *OrderedBlocks) WaitingCount() int {
 // blocks count available for pop
 func (a *OrderedBlocks) AvailableCount() int {
 	for i, sig := range a.sigSequence {
-		if a.uniqSignatures[sig] == nil {
+		if a.uniqBlockIDs[sig] == nil {
 			return i
 		}
 	}

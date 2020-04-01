@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type innerBlocksApplier struct {
@@ -104,8 +103,7 @@ type BlocksApplier struct {
 
 func NewBlocksApplier() *BlocksApplier {
 	return &BlocksApplier{
-		inner: innerBlocksApplier{
-		},
+		inner: innerBlocksApplier{},
 	}
 }
 

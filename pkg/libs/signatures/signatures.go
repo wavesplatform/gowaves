@@ -1,62 +1,62 @@
 package signatures
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	storage "github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 )
 
 // from small to big by height
-type NaturalOrdering = Signatures
-type ReverseOrdering = Signatures
+type NaturalOrdering = BlockIDs
+type ReverseOrdering = BlockIDs
 
-type Signatures struct {
-	signatures []crypto.Signature
-	unique     map[crypto.Signature]struct{}
+type BlockIDs struct {
+	signatures []proto.BlockID
+	unique     map[proto.BlockID]struct{}
 }
 
-func (a *Signatures) Signatures() []crypto.Signature {
+func (a *BlockIDs) BlockIDS() []proto.BlockID {
 	return a.signatures
 }
 
-func NewSignatures(signatures ...crypto.Signature) *NaturalOrdering {
-	unique := make(map[crypto.Signature]struct{})
+func NewSignatures(signatures ...proto.BlockID) *NaturalOrdering {
+	unique := make(map[proto.BlockID]struct{})
 	for _, v := range signatures {
 		unique[v] = struct{}{}
 	}
 
-	return &Signatures{
+	return &BlockIDs{
 		signatures: signatures,
 		unique:     unique,
 	}
 }
 
-func (a *Signatures) Exists(sig crypto.Signature) bool {
+func (a *BlockIDs) Exists(sig proto.BlockID) bool {
 	_, ok := a.unique[sig]
 	return ok
 }
 
-func (a *Signatures) Revert() *ReverseOrdering {
-	out := make([]crypto.Signature, len(a.signatures))
+func (a *BlockIDs) Revert() *ReverseOrdering {
+	out := make([]proto.BlockID, len(a.signatures))
 	for k, v := range a.signatures {
 		out[len(a.signatures)-1-k] = v
 	}
 	return NewSignatures(out...)
 }
 
-func (a *Signatures) Len() int {
+func (a *BlockIDs) Len() int {
 	return len(a.signatures)
 }
 
 type LastSignatures interface {
-	LastSignatures(state storage.State) (*ReverseOrdering, error)
+	LastBlockIDs(state storage.State) (*ReverseOrdering, error)
 }
 
 type LastSignaturesImpl struct {
 }
 
-func (LastSignaturesImpl) LastSignatures(state storage.State) (*ReverseOrdering, error) {
-	var signatures []crypto.Signature
+func (LastSignaturesImpl) LastBlockIDs(state storage.State) (*ReverseOrdering, error) {
+	var signatures []proto.BlockID
 
 	height, err := state.Height()
 	if err != nil {

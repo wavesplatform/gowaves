@@ -85,8 +85,8 @@ func (PingTask) Run(ctx context.Context, output chan AsyncTask) error {
 	defer t.Stop()
 	for {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		//case <-ctx.Done():
+		//	return ctx.Err()
 		case <-t.C:
 			output <- AsyncTask{
 				TaskType: PING,

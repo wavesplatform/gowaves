@@ -131,7 +131,7 @@ func (s *synchronizer) requestIds() {
 		zap.S().Fatalf("[%s][SYN] Failed to request ids: %v", s.conn.RawConn.RemoteAddr(), err)
 		return
 	}
-	m := proto.GetBlockIdsMessage{Signatures: ids}
+	m := proto.GetBlockIdsMessage{Blocks: ids}
 	buf := new(bytes.Buffer)
 	_, err = m.WriteTo(buf)
 	if err != nil {

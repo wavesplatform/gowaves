@@ -28,7 +28,7 @@ type MicroBlock struct {
 	SenderPK              crypto.PublicKey
 	Signature             crypto.Signature
 
-	TotalBlockID BlockID
+	//TotalBlockID BlockID
 }
 
 type MicroblockTotalSig = crypto.Signature
@@ -305,7 +305,7 @@ func (a *MicroBlockInvMessage) MarshalBinary() ([]byte, error) {
 }
 
 type MicroBlockRequestMessage struct {
-	Body crypto.Signature
+	Body []byte
 }
 
 func (a *MicroBlockRequestMessage) ReadFrom(r io.Reader) (n int64, err error) {
@@ -313,13 +313,13 @@ func (a *MicroBlockRequestMessage) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
-	bts := a.Body.Bytes()
+	//bts := a.Body.Bytes()
 	var h Header
-	h.Length = MaxHeaderLength + uint32(len(bts)) - 4
+	h.Length = MaxHeaderLength + uint32(len(a.Body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDMicroblockRequest
-	h.PayloadLength = uint32(len(bts))
-	dig, err := crypto.FastHash(bts)
+	h.PayloadLength = uint32(len(a.Body))
+	dig, err := crypto.FastHash(a.Body)
 	if err != nil {
 		return 0, err
 	}
@@ -329,7 +329,7 @@ func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
 		return 0, err
 	}
 
-	n3, err := w.Write(bts)
+	n3, err := w.Write(a.Body)
 	if err != nil {
 		return 0, err
 	}
@@ -359,11 +359,11 @@ func (a *MicroBlockRequestMessage) UnmarshalBinary(data []byte) error {
 	data = data[17:]
 	body := make([]byte, h.PayloadLength)
 	copy(body, data)
-	sig, err := crypto.NewSignatureFromBytes(body)
-	if err != nil {
-		return err
-	}
-	a.Body = sig
+	//sig, err := crypto.NewSignatureFromBytes(body)
+	//if err != nil {
+	//	return err
+	//}
+	a.Body = body
 	return nil
 }
 

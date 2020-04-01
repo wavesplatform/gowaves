@@ -15,20 +15,28 @@ import (
 var sig1 = crypto.MustSignatureFromBase58("5syuWANDSgk8KyPxq2yQs2CYV23QfnrBoZMSv2LaciycxDYfBw6cLA2SqVnonnh1nFiFumzTgy2cPETnE7ZaZg5P")
 var sig2 = crypto.MustSignatureFromBase58("3kvbjSovZWLg1zdMyW5vGsCj1DR1jkHY3ALtu5VxoqscrXQq3nH2vS2V5dhVo6ff9bxtbFAkUkVQQqCFUAHmwnpX")
 
+func blocksFromSigs(sigs ...crypto.Signature) []proto.BlockID {
+	var out []proto.BlockID
+	for _, s := range sigs {
+		out = append(out, proto.NewBlockIDFromSignature(s))
+	}
+	return out
+}
+
 func TestSigFSM_Signatures(t *testing.T) {
 	or := ordered_blocks.NewOrderedBlocks()
 	sigs := signatures.NewSignatures()
 
 	t.Run("error on receive unexpected signatures", func(t *testing.T) {
 		fsm := NewInternal(or, sigs, NoSignaturesExpected, false)
-		rs2, err := fsm.Signatures(nil, []crypto.Signature{sig1, sig2})
+		rs2, err := fsm.BlockIDs(nil, blocksFromSigs(sig1, sig2))
 		require.Equal(t, NoSignaturesExpectedErr, err)
 		require.NotNil(t, rs2)
 	})
 
 	t.Run("successful receive signatures", func(t *testing.T) {
 		fsm := NewInternal(or, sigs, WaitingForSignatures, false)
-		rs2, err := fsm.Signatures(mock.NoOpPeer{}, []crypto.Signature{sig1, sig2})
+		rs2, err := fsm.BlockIDs(mock.NoOpPeer{}, blocksFromSigs(sig1, sig2))
 		require.NoError(t, err)
 		require.NotNil(t, rs2)
 		require.True(t, rs2.NearEnd())
@@ -48,7 +56,7 @@ func TestSigFSM_Block(t *testing.T) {
 	or := ordered_blocks.NewOrderedBlocks()
 	sigs := signatures.NewSignatures()
 	fsm := NewInternal(or, sigs, WaitingForSignatures, false)
-	fsm, _ = fsm.Signatures(mock.NoOpPeer{}, []crypto.Signature{sig1, sig2})
+	fsm, _ = fsm.BlockIDs(mock.NoOpPeer{}, blocksFromSigs(sig1, sig2))
 
 	fsm, _ = fsm.Block(block(sig1))
 	fsm, _ = fsm.Block(block(sig2))
