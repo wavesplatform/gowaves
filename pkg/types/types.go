@@ -85,7 +85,7 @@ type MessageSender interface {
 }
 
 type InvRequester interface {
-	Request(MessageSender, proto.BlockID)
+	Request(MessageSender, []byte)
 }
 
 type BaseTarget = uint64

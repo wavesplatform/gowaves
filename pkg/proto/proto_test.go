@@ -478,7 +478,7 @@ func TestVersionsSort(t *testing.T) {
 }
 
 func TestGetSignaturesMessageRoundTrip(t *testing.T) {
-	msg := GetSignaturesMessage{Blocks: []crypto.Signature{{0x1}, {0x2}}}
+	msg := GetSignaturesMessage{Signatures: []crypto.Signature{{0x1}, {0x2}}}
 	msgBytes, err := msg.MarshalBinary()
 	assert.NoError(t, err)
 	var res GetSignaturesMessage
@@ -511,4 +511,10 @@ func TestBlockIdsMessageRoundTrip(t *testing.T) {
 	err = res.UnmarshalBinary(msgBytes)
 	assert.NoError(t, err)
 	assert.Equal(t, res, msg)
+}
+
+func TestVersion_Cmp(t *testing.T) {
+	require.Equal(t, 0, Version{1, 2, 1}.Cmp(Version{1, 2, 1}))
+	require.Equal(t, 1, Version{2, 2, 1}.Cmp(Version{1, 2, 1}))
+	require.Equal(t, -1, Version{1, 2, 0}.Cmp(Version{1, 2, 1}))
 }

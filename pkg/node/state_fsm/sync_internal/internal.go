@@ -6,7 +6,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/ordered_blocks"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/types"
+	//"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type Blocks []*proto.Block
@@ -78,7 +78,7 @@ func (a Internal) Block(block *proto.Block) (Internal, error) {
 	return a, nil
 }
 
-func (a Internal) Blocks(p types.MessageSender) (Internal, Blocks, Eof) {
+func (a Internal) Blocks(p PeerWrapper) (Internal, Blocks, Eof) {
 	if a.nearEnd {
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, NoSignaturesExpected, a.nearEnd),
 			a.orderedBlocks.PopAll(),
@@ -92,7 +92,7 @@ func (a Internal) Blocks(p types.MessageSender) (Internal, Blocks, Eof) {
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures, a.nearEnd), blocks, false
 	}
 	if a.orderedBlocks.WaitingCount() < 100 {
-		p.SendMessage(&proto.GetBlockIdsMessage{Blocks: a.respondedSignatures.BlockIDS()})
+		p.AskBlocksIDs(a.respondedSignatures.BlockIDS())
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, WaitingForSignatures, a.nearEnd), blocks, false
 	}
 	return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures, a.nearEnd), blocks, false

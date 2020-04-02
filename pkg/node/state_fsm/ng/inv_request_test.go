@@ -20,10 +20,10 @@ func TestInvRequesterImpl_Request(t *testing.T) {
 	buf := &messSender{}
 	n := NewInvRequester()
 
-	n.Request(buf, proto.NewBlockIDFromSignature(crypto.Signature{}))
+	n.Request(buf, proto.NewBlockIDFromSignature(crypto.Signature{}).Bytes())
 	require.Equal(t, 1, len(buf.messages))
 
-	n.Request(buf, proto.NewBlockIDFromSignature(crypto.Signature{}))
+	n.Request(buf, proto.NewBlockIDFromSignature(crypto.Signature{}).Bytes())
 	require.Equal(t, 1, len(buf.messages))
 
 }

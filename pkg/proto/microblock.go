@@ -368,27 +368,28 @@ func (a *MicroBlockRequestMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-type MicroBlockRequest struct {
-	TotalBlockID BlockID
-}
-
-func (a *MicroBlockRequest) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(a.TotalBlockID.Bytes())
-	return int64(n), err
-}
-
-func (a *MicroBlockRequest) UnmarshalBinary(data []byte) error {
-	id, err := NewBlockIDFromBytes(data)
-	if err != nil {
-		return err
-	}
-	a.TotalBlockID = id
-	return nil
-}
-
-func (a *MicroBlockRequest) MarshalBinary() ([]byte, error) {
-	return a.TotalBlockID.Bytes(), nil
-}
+// TODO looks like it useless
+//type MicroBlockRequest struct {
+//	TotalBlockID BlockID
+//}
+//
+//func (a *MicroBlockRequest) WriteTo(w io.Writer) (int64, error) {
+//	n, err := w.Write(a.TotalBlockID.Bytes())
+//	return int64(n), err
+//}
+//
+//func (a *MicroBlockRequest) UnmarshalBinary(data []byte) error {
+//	id, err := NewBlockIDFromBytes(data)
+//	if err != nil {
+//		return err
+//	}
+//	a.TotalBlockID = id
+//	return nil
+//}
+//
+//func (a *MicroBlockRequest) MarshalBinary() ([]byte, error) {
+//	return a.TotalBlockID.Bytes(), nil
+//}
 
 type MicroBlockInv struct {
 	PublicKey    crypto.PublicKey

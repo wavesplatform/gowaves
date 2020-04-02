@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
-	"github.com/wavesplatform/gowaves/pkg/mock"
+	//"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -67,10 +67,19 @@ func (a *SyncFsm) Task(task AsyncTask) (FSM, Async, error) {
 	}
 }
 
+type noopWrapper struct {
+}
+
+func (noopWrapper) AskBlocksIDs([]proto.BlockID) {
+}
+
+func (noopWrapper) AskBlock(proto.BlockID) {
+}
+
 func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
 	a.baseInfo.peers.Disconnect(p)
 	if a.conf.peerSyncWith == p {
-		_, blocks, _ := a.internal.Blocks(mock.NoOpPeer{})
+		_, blocks, _ := a.internal.Blocks(noopWrapper{})
 		if len(blocks) > 0 {
 			err := a.baseInfo.storage.Mutex().Map(func() error {
 				return a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, blocks)
@@ -146,7 +155,7 @@ func (a *SyncFsm) Halt() (FSM, Async, error) {
 
 // TODO suspend peer on state error
 func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) (FSM, Async, error) {
-	internal, blocks, eof := internal.Blocks(conf.peerSyncWith)
+	internal, blocks, eof := internal.Blocks(sync_internal.NewPeerWrapper(conf.peerSyncWith))
 	if len(blocks) == 0 {
 		return newSyncFsm(baseInfo, conf, internal), nil, nil
 	}
