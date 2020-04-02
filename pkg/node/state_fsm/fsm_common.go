@@ -56,9 +56,7 @@ func handleScore(fsm FSM, info BaseInfo, p Peer, score *proto.Score) (FSM, Async
 		return fsm, nil, err
 	}
 
-	locked := info.storage.Mutex().RLock()
 	myScore, err := info.storage.CurrentScore()
-	locked.Unlock()
 	if err != nil {
 		return NewIdleFsm(info), nil, err
 	}
@@ -70,9 +68,7 @@ func handleScore(fsm FSM, info BaseInfo, p Peer, score *proto.Score) (FSM, Async
 }
 
 func sendScore(p Peer, storage state.State) {
-	rlocked := storage.Mutex().RLock()
 	curScore, err := storage.CurrentScore()
-	rlocked.Unlock()
 	if err != nil {
 		zap.S().Error(err)
 		return

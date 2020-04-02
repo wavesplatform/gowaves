@@ -1,21 +1,16 @@
 package state_fsm
 
 import (
-	//"time"
-
 	"github.com/pkg/errors"
-	//"github.com/wavesplatform/gowaves/pkg/miner"
-	//"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 )
 
 type NGFsm12 struct {
 	BaseInfo
-
-	//blocks ng.Blocks
 }
 
 func (a *NGFsm12) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
@@ -30,6 +25,7 @@ func (a *NGFsm12) Task(task AsyncTask) (FSM, Async, error) {
 	case ASK_PEERS:
 		a.peers.AskPeers()
 		return a, nil, nil
+	// TODO handle this
 	//case MINE_MICRO:
 	//	t := task.Data.(MineMicroTaskData)
 	//	return a.mineMicro(t.Block, t.Limits, a.blocks, t.KeyPair)
@@ -171,8 +167,8 @@ func (a *NGFsm12) microBlockByID(micro *proto.MicroBlock) (FSM, Async, error) {
 	if !ok {
 		return a, nil, errors.New("incorrect signature for applied microblock")
 	}
-	err = a.storage.Mutex().Map(func() error {
-		return a.blocksApplier.Apply(a.storage, []*proto.Block{b})
+	err = a.storage.Map(func(state state.State) error {
+		return a.blocksApplier.Apply(state, []*proto.Block{b})
 	})
 	if err != nil {
 		return a, nil, errors.Wrap(err, "failed to apply created from micro block")
@@ -230,8 +226,8 @@ func (a *NGFsm12) microBlockBySignature(micro *proto.MicroBlock) (FSM, Async, er
 	if !ok {
 		return a, nil, errors.New("incorrect signature for applied microblock")
 	}
-	err = a.storage.Mutex().Map(func() error {
-		return a.blocksApplier.Apply(a.storage, []*proto.Block{b})
+	err = a.storage.Map(func(state state.NonThreadSafeState) error {
+		return a.blocksApplier.Apply(state, []*proto.Block{b})
 	})
 	if err != nil {
 		return a, nil, errors.Wrap(err, "failed to apply created from micro block")

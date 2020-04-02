@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -32,12 +33,9 @@ func (a *ValidatorImpl) Validate(t proto.Transaction) error {
 		return errors.New("state outdate, transaction not accepted")
 	}
 
-	mu := a.state.Mutex()
-	locked := mu.Lock()
-	err := a.state.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version)
-	a.state.ResetValidationList()
-	locked.Unlock()
-	return err
+	return a.state.TxValidation(func(validation state.TxValidation) error {
+		return validation.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version)
+	})
 }
 
 type NoOpValidator struct {

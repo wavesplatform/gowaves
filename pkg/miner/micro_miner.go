@@ -43,21 +43,7 @@ func (a *MicroMiner) Micro(
 		return nil, nil, rest, StateChangedErr
 	}
 
-	//height, err := a.state.Height()
-	//if err != nil {
-	//	zap.S().Error(err)
-	//	return
-	//}
-	//
-	//topBlock, err := a.state.BlockByHeight(height)
-	//if err != nil {
-	//	zap.S().Error(err)
-	//	return
-	//}
-
-	rlocked := a.state.Mutex().RLock()
 	height, err := a.state.Height()
-	rlocked.Unlock()
 	if err != nil {
 		return nil, nil, rest, err
 	}
@@ -77,9 +63,6 @@ func (a *MicroMiner) Micro(
 	binSize := 0
 
 	var unAppliedTransactions []*types.TransactionWithBytes
-
-	mu := a.state.Mutex()
-	locked := mu.Lock()
 
 	// 255 is max transactions count in microblock
 	for i := 0; i < 255; i++ {
@@ -106,7 +89,6 @@ func (a *MicroMiner) Micro(
 	}
 
 	a.state.ResetValidationList()
-	locked.Unlock()
 
 	// return unapplied transactions
 	for _, unapplied := range unAppliedTransactions {
@@ -117,10 +99,7 @@ func (a *MicroMiner) Micro(
 	if cnt == 0 {
 		return nil, nil, rest, NoTransactionsErr
 	}
-	//row := blocks.Row()
-	//lastsig := row.LastSignature()
 
-	//zap.S().Debugf("micro_miner last sig %s", lastsig)
 	zap.S().Debugf("micro_miner top block sig %s", a.state.TopBlock().BlockSignature)
 
 	newTransactions := minedBlock.Transactions.Join(transactions)

@@ -60,13 +60,12 @@ func (a *MicroblockMiner) MineKeyBlock(
 		GenSignature: GenSignature,
 	}
 
-	b, err := func() (*proto.Block, error) {
-		defer a.state.Mutex().RLock().Unlock()
+	bi, err := a.state.MapR(func(info state.StateInfo) (interface{}, error) {
 		v, err := blockVersion(a.state)
 		if err != nil {
 			return nil, err
 		}
-		validatedFeatured, err := ValidateFeaturesWithoutLock(a.state, a.features)
+		validatedFeatured, err := ValidateFeatures(a.state, a.features)
 		if err != nil {
 			return nil, err
 		}
@@ -75,22 +74,11 @@ func (a *MicroblockMiner) MineKeyBlock(
 			return nil, err
 		}
 		return b, nil
-	}()
+	})
 	if err != nil {
 		return nil, proto.MiningLimits{}, err
 	}
-
-	//blockBytes, err := b.MarshalBinary()
-	//if err != nil {
-	//	zap.S().Error(err)
-	//	return
-	//}
-
-	//err = a.services.BlocksApplier.Apply(a.state, []*proto.Block{b})
-	//if err != nil {
-	//	zap.S().Errorf("Miner: applying created block: %q, timestamp %d", err, t)
-	//	return
-	//}
+	b := bi.(*proto.Block)
 	zap.S().Debugf("Miner: generated new block id: %s, time: %d", b.BlockID().String(), t)
 
 	//locked := a.state.Mutex().RLock()

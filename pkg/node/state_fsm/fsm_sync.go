@@ -5,11 +5,11 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
-	//"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 )
 
@@ -81,8 +81,8 @@ func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
 	if a.conf.peerSyncWith == p {
 		_, blocks, _ := a.internal.Blocks(noopWrapper{})
 		if len(blocks) > 0 {
-			err := a.baseInfo.storage.Mutex().Map(func() error {
-				return a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, blocks)
+			err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+				return a.baseInfo.blocksApplier.Apply(s, blocks)
 			})
 			return NewIdleFsm(a.baseInfo), nil, err
 		}
@@ -137,9 +137,7 @@ func (a *SyncFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyP
 	// first we should send block
 	a.baseInfo.actions.SendBlock(block)
 
-	rlocked := a.baseInfo.storage.Mutex().RLock()
 	score, err := a.baseInfo.storage.CurrentScore()
-	rlocked.Unlock()
 	if err != nil {
 		return NewIdleFsm(a.baseInfo), nil, err
 	}
@@ -159,8 +157,8 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	if len(blocks) == 0 {
 		return newSyncFsm(baseInfo, conf, internal), nil, nil
 	}
-	err := a.baseInfo.storage.Mutex().Map(func() error {
-		return a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, blocks)
+	err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+		return a.baseInfo.blocksApplier.Apply(s, blocks)
 	})
 	if err != nil {
 		return NewIdleFsm(a.baseInfo), nil, err

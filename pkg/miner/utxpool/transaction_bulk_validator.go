@@ -2,6 +2,7 @@ package utxpool
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 )
@@ -41,22 +42,21 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 	}
 	var transactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
-	mu := a.state.Mutex()
-	locked := mu.Lock()
-	defer locked.Unlock()
-
 	lastKnownBlock := a.state.TopBlock()
 
-	for {
-		t := a.utx.Pop()
-		if t == nil {
-			break
+	_ = a.state.TxValidation(func(validation state.TxValidation) error {
+		for {
+			t := a.utx.Pop()
+			if t == nil {
+				break
+			}
+			if err := a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version); err == nil {
+				transactions = append(transactions, t)
+			}
 		}
-		if err := a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version); err == nil {
-			transactions = append(transactions, t)
-		}
-	}
-	a.state.ResetValidationList()
+		return nil
+	})
+
 	return transactions, nil
 }
 

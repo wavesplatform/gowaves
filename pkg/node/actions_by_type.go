@@ -49,9 +49,7 @@ func BlockAction(services services.Services, mess peer.ProtoMessage, fsm state_f
 }
 
 func GetBlockAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
-	locked := services.State.Mutex().RLock()
 	block, err := services.State.Block(mess.Message.(*proto.GetBlockMessage).BlockID)
-	locked.Unlock()
 	if err != nil {
 		return fsm, nil, err
 	}
@@ -75,8 +73,6 @@ func SignaturesAction(services services.Services, mess peer.ProtoMessage, fsm st
 
 // peers asks us about our signatures
 func GetSignaturesAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
-	locked := services.State.Mutex().RLock()
-	defer locked.Unlock()
 	for _, sig := range mess.Message.(*proto.GetSignaturesMessage).Signatures {
 		block, err := services.State.Header(proto.NewBlockIDFromSignature(sig))
 		if err != nil {
@@ -202,8 +198,6 @@ func PBMicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm 
 }
 
 func GetBlockIdsAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
-	locked := services.State.Mutex().RLock()
-	defer locked.Unlock()
 	for _, sig := range mess.Message.(*proto.GetBlockIdsMessage).Blocks {
 		block, err := services.State.Header(sig)
 		if err != nil {

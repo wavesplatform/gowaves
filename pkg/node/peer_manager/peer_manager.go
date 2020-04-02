@@ -307,14 +307,11 @@ func (a *PeerManagerImpl) UpdateKnownPeers(known []proto.TCPAddr) error {
 	if len(known) == 0 {
 		return nil
 	}
-	defer a.state.Mutex().Lock().Unlock()
 	return a.state.SavePeers(known)
 }
 
 func (a *PeerManagerImpl) KnownPeers() ([]proto.TCPAddr, error) {
-	locked := a.state.Mutex().RLock()
 	rs, err := a.state.Peers()
-	locked.Unlock()
 	if err != nil {
 		return nil, err
 	}

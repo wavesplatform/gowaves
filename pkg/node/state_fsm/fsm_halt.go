@@ -58,11 +58,7 @@ func HaltTransition(info BaseInfo) (FSM, Async, error) {
 	zap.S().Debugf("started HaltTransition ")
 	info.peers.Close()
 	zap.S().Debugf("started HaltTransition peers closed")
-	locked := info.storage.Mutex().Lock()
-	zap.S().Debugf("storage mutex locked")
 	info.storage.Close()
 	zap.S().Debugf("storage closed")
-	locked.Unlock()
-	zap.S().Debugf("storage mutex unlocked")
 	return HaltFSM{}, nil, nil
 }

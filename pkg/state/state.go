@@ -317,6 +317,18 @@ func (s *stateManager) setGenesisBlock(genesisBlock proto.Block) error {
 	return nil
 }
 
+func (s *stateManager) TxValidation(func(TxValidation) error) error {
+	panic("call TxValidation method on non thread safe state")
+}
+
+func (s *stateManager) MapR(func(StateInfo) (interface{}, error)) (interface{}, error) {
+	panic("call MapR on non thread safe state")
+}
+
+func (s *stateManager) Map(func(State) error) error {
+	panic("call Map on non thread safe state")
+}
+
 func (s *stateManager) addGenesisBlock() error {
 	// NewConnection score of genesis block.
 	ctx, cancel := context.WithCancel(context.Background())
