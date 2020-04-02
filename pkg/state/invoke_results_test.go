@@ -47,7 +47,7 @@ func TestSaveResult(t *testing.T) {
 	invokeID := crypto.MustDigestFromBase58(invokeId)
 	to.stor.addBlock(t, blockID0)
 	savedRes := &proto.ScriptResult{
-		DataEntries: []proto.DataEntryScriptAction{
+		DataEntries: []*proto.DataEntryScriptAction{
 			{Entry: &proto.IntegerDataEntry{Key: "some key", Value: 12345}},
 			{Entry: &proto.BooleanDataEntry{Key: "negative value", Value: false}},
 			{Entry: &proto.StringDataEntry{Key: "some key", Value: "some value string"}},
@@ -57,14 +57,14 @@ func TestSaveResult(t *testing.T) {
 			{Entry: &proto.StringDataEntry{Key: "some key143", Value: "some value2 string"}},
 			{Entry: &proto.BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
 		},
-		Transfers: []proto.TransferScriptAction{
+		Transfers: []*proto.TransferScriptAction{
 			{Amount: 100500, Asset: *testGlobal.asset0.asset, Recipient: rcp},
 			{Amount: 10, Asset: *testGlobal.asset1.asset, Recipient: rcp},
 			{Amount: 0, Asset: *testGlobal.asset2.asset, Recipient: rcp},
 		},
-		Issues:   make([]proto.IssueScriptAction, 0),
-		Reissues: make([]proto.ReissueScriptAction, 0),
-		Burns:    make([]proto.BurnScriptAction, 0),
+		Issues:   make([]*proto.IssueScriptAction, 0),
+		Reissues: make([]*proto.ReissueScriptAction, 0),
+		Burns:    make([]*proto.BurnScriptAction, 0),
 	}
 	err = to.invokeResults.saveResult(invokeID, savedRes, blockID0)
 	assert.NoError(t, err)

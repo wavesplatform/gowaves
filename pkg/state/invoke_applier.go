@@ -77,7 +77,7 @@ type payment struct {
 	asset    proto.OptionalAsset
 }
 
-func (ia *invokeApplier) newPaymentFromTransferScriptAction(scriptAddr proto.Address, action proto.TransferScriptAction) (*payment, error) {
+func (ia *invokeApplier) newPaymentFromTransferScriptAction(scriptAddr *proto.Address, action *proto.TransferScriptAction) (*payment, error) {
 	if action.Recipient.Address == nil {
 		return nil, errors.New("transfer has unresolved aliases")
 	}
@@ -85,7 +85,7 @@ func (ia *invokeApplier) newPaymentFromTransferScriptAction(scriptAddr proto.Add
 		return nil, errors.New("negative transfer amount")
 	}
 	return &payment{
-		sender:   scriptAddr,
+		sender:   *scriptAddr,
 		receiver: *action.Recipient.Address,
 		amount:   uint64(action.Amount),
 		asset:    action.Asset,
@@ -111,7 +111,7 @@ func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediat
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.Address, action proto.TransferScriptAction, info *invokeAddlInfo) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr *proto.Address, action *proto.TransferScriptAction, info *invokeAddlInfo) (txDiff, error) {
 	pmt, err := ia.newPaymentFromTransferScriptAction(scriptAddr, action)
 	if err != nil {
 		return txDiff{}, err
@@ -121,9 +121,9 @@ func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.Address, a
 	return ia.newTxDiffFromPayment(pmt, false, info)
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptIssue(scriptAddr proto.Address, action proto.IssueScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptIssue(scriptAddr *proto.Address, action *proto.IssueScriptAction) (txDiff, error) {
 	diff := newTxDiff()
-	senderAssetKey := assetBalanceKey{address: scriptAddr, asset: action.ID[:]}
+	senderAssetKey := assetBalanceKey{address: *scriptAddr, asset: action.ID[:]}
 	senderAssetBalanceDiff := int64(action.Quantity)
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
@@ -131,9 +131,9 @@ func (ia *invokeApplier) newTxDiffFromScriptIssue(scriptAddr proto.Address, acti
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptReissue(scriptAddr proto.Address, action proto.ReissueScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptReissue(scriptAddr *proto.Address, action *proto.ReissueScriptAction) (txDiff, error) {
 	diff := newTxDiff()
-	senderAssetKey := assetBalanceKey{address: scriptAddr, asset: action.AssetID[:]}
+	senderAssetKey := assetBalanceKey{address: *scriptAddr, asset: action.AssetID[:]}
 	senderAssetBalanceDiff := action.Quantity
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
@@ -141,9 +141,9 @@ func (ia *invokeApplier) newTxDiffFromScriptReissue(scriptAddr proto.Address, ac
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptBurn(scriptAddr proto.Address, action proto.BurnScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptBurn(scriptAddr *proto.Address, action *proto.BurnScriptAction) (txDiff, error) {
 	diff := newTxDiff()
-	senderAssetKey := assetBalanceKey{address: scriptAddr, asset: action.AssetID[:]}
+	senderAssetKey := assetBalanceKey{address: *scriptAddr, asset: action.AssetID[:]}
 	senderAssetBalanceDiff := -action.Quantity
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
@@ -294,7 +294,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	scriptRuns := info.previousScriptRuns
 	for _, action := range scriptActions {
 		switch a := action.(type) {
-		case proto.DataEntryScriptAction:
+		case *proto.DataEntryScriptAction:
 			// Perform data storage writes.
 			if !info.validatingUtx {
 				// TODO: when UTX transactions are validated, there is no block,
@@ -304,7 +304,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 				}
 			}
 
-		case proto.TransferScriptAction:
+		case *proto.TransferScriptAction:
 			// Perform transfers.
 			addr := a.Recipient.Address
 			totalChanges.appendAddr(*addr)
@@ -328,7 +328,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 				scriptRuns++
 			}
 			// Perform transfer.
-			txDiff, err := ia.newTxDiffFromScriptTransfer(*scriptAddr, a, info)
+			txDiff, err := ia.newTxDiffFromScriptTransfer(scriptAddr, a, info)
 			if err != nil {
 				return txBalanceChanges{}, err
 			}
@@ -344,7 +344,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 				}
 			}
 
-		case proto.IssueScriptAction:
+		case *proto.IssueScriptAction:
 			// Create asset's info
 			assetInfo := &assetInfo{
 				assetConstInfo: assetConstInfo{
@@ -364,7 +364,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 				}
 			}
 
-			txDiff, err := ia.newTxDiffFromScriptIssue(*scriptAddr, a)
+			txDiff, err := ia.newTxDiffFromScriptIssue(scriptAddr, a)
 			if err != nil {
 				return txBalanceChanges{}, err
 			}
@@ -380,7 +380,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 				}
 			}
 
-		case proto.ReissueScriptAction:
+		case *proto.ReissueScriptAction:
 			// Check validity of reissue
 			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
 			if err != nil {
@@ -412,7 +412,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 					return txBalanceChanges{}, err
 				}
 			}
-			txDiff, err := ia.newTxDiffFromScriptReissue(*scriptAddr, a)
+			txDiff, err := ia.newTxDiffFromScriptReissue(scriptAddr, a)
 			if err != nil {
 				return txBalanceChanges{}, err
 			}
@@ -427,7 +427,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 					return txBalanceChanges{}, err
 				}
 			}
-		case proto.BurnScriptAction:
+		case *proto.BurnScriptAction:
 			// Check burn
 			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
 			if err != nil {
@@ -457,7 +457,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 					return txBalanceChanges{}, errors.Wrap(err, "failed to burn asset")
 				}
 			}
-			txDiff, err := ia.newTxDiffFromScriptBurn(*scriptAddr, a)
+			txDiff, err := ia.newTxDiffFromScriptBurn(scriptAddr, a)
 			if err != nil {
 				return txBalanceChanges{}, err
 			}

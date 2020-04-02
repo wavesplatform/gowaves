@@ -477,18 +477,18 @@ func (c *ProtobufConverter) payments(payments []*g.Amount) ScriptPayments {
 	return result
 }
 
-func (c *ProtobufConverter) TransferScriptActions(scheme byte, payments []*g.InvokeScriptResult_Payment) ([]TransferScriptAction, error) {
+func (c *ProtobufConverter) TransferScriptActions(scheme byte, payments []*g.InvokeScriptResult_Payment) ([]*TransferScriptAction, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
-	res := make([]TransferScriptAction, len(payments))
+	res := make([]*TransferScriptAction, len(payments))
 	for i, p := range payments {
 		asset, amount := c.convertAmount(p.Amount)
 		addr, err := c.Address(scheme, p.Address)
 		if err != nil {
 			return nil, c.err
 		}
-		res[i] = TransferScriptAction{
+		res[i] = &TransferScriptAction{
 			Recipient: NewRecipientFromAddress(addr),
 			Amount:    int64(amount),
 			Asset:     asset,
@@ -497,13 +497,13 @@ func (c *ProtobufConverter) TransferScriptActions(scheme byte, payments []*g.Inv
 	return res, nil
 }
 
-func (c *ProtobufConverter) IssueScriptActions(issues []*g.InvokeScriptResult_Issue) ([]IssueScriptAction, error) {
+func (c *ProtobufConverter) IssueScriptActions(issues []*g.InvokeScriptResult_Issue) ([]*IssueScriptAction, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
-	res := make([]IssueScriptAction, len(issues))
+	res := make([]*IssueScriptAction, len(issues))
 	for i, x := range issues {
-		res[i] = IssueScriptAction{
+		res[i] = &IssueScriptAction{
 			ID:          c.digest(x.AssetId),
 			Name:        x.Name,
 			Description: x.Description,
@@ -520,13 +520,13 @@ func (c *ProtobufConverter) IssueScriptActions(issues []*g.InvokeScriptResult_Is
 	return res, nil
 }
 
-func (c *ProtobufConverter) ReissueScriptActions(reissues []*g.InvokeScriptResult_Reissue) ([]ReissueScriptAction, error) {
+func (c *ProtobufConverter) ReissueScriptActions(reissues []*g.InvokeScriptResult_Reissue) ([]*ReissueScriptAction, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
-	res := make([]ReissueScriptAction, len(reissues))
+	res := make([]*ReissueScriptAction, len(reissues))
 	for i, x := range reissues {
-		res[i] = ReissueScriptAction{
+		res[i] = &ReissueScriptAction{
 			AssetID:    c.digest(x.AssetId),
 			Quantity:   x.Amount,
 			Reissuable: x.IsReissuable,
@@ -538,13 +538,13 @@ func (c *ProtobufConverter) ReissueScriptActions(reissues []*g.InvokeScriptResul
 	return res, nil
 }
 
-func (c *ProtobufConverter) BurnScriptActions(burns []*g.InvokeScriptResult_Burn) ([]BurnScriptAction, error) {
+func (c *ProtobufConverter) BurnScriptActions(burns []*g.InvokeScriptResult_Burn) ([]*BurnScriptAction, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
-	res := make([]BurnScriptAction, len(burns))
+	res := make([]*BurnScriptAction, len(burns))
 	for i, x := range burns {
-		res[i] = BurnScriptAction{
+		res[i] = &BurnScriptAction{
 			AssetID:  c.digest(x.AssetId),
 			Quantity: x.Amount,
 		}

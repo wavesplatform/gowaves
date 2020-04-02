@@ -20,6 +20,7 @@ type Emit struct {
 	Timestamp    uint64
 	KeyPair      proto.KeyPair
 	GenSignature []byte
+	VRF          []byte
 	BaseTarget   types.BaseTarget
 	Parent       proto.BlockID
 }
@@ -94,7 +95,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 	for _, keyPair := range keyPairs {
 		var key [crypto.KeySize]byte = keyPair.Public
 		genSigBlock := confirmedBlock.BlockHeader
-		if vrfActivated {
+		if vrfActivated { // In case of VRF generation signature we need a SK of miner to produce it
 			key = keyPair.Secret
 			genSigBlock = *hitSourceHeader
 		}
@@ -107,6 +108,10 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		if err != nil {
 			zap.S().Error(err)
 			continue
+		}
+		var vrf []byte = nil
+		if vrfActivated {
+			vrf = source
 		}
 		hit, err := consensus.GenHit(source)
 		if err != nil {
@@ -143,6 +148,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			Timestamp:    confirmedBlock.Timestamp + delay + 10,
 			KeyPair:      keyPair,
 			GenSignature: genSig,
+			VRF:          vrf,
 			BaseTarget:   baseTarget,
 			Parent:       confirmedBlock.BlockID(),
 		})

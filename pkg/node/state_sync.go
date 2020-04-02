@@ -101,9 +101,9 @@ func (a *StateSync) run(ctx context.Context) {
 		if err != nil {
 			return
 		}
-		zap.S().Infof("[%s] StateSync: Starting synchronization with %s", p.ID(), p.ID())
+		zap.S().Debugf("[%s] StateSync: Starting synchronization with %s", p.ID(), p.ID())
 		err = a.sync(ctx, p)
-		zap.S().Infof("[%s] StateSync: Ended with code %q", p.ID(), err)
+		zap.S().Debugf("[%s] StateSync: Ended with code %v", p.ID(), err)
 		if err != nil {
 			<-time.After(10 * time.Second)
 			continue
@@ -162,7 +162,7 @@ func (a *StateSync) getPeerWithHighestScore() (Peer, error) {
 	p, score, ok := a.peerManager.PeerWithHighestScore()
 	if !ok || score.String() == "0" {
 		// no peers, skip
-		zap.S().Infof("StateSync: no peers, skip %s", score.String())
+		zap.S().Debugf("StateSync: no peers, skip %s", score.String())
 		return nil, errors.Errorf("no score found")
 	}
 
@@ -208,7 +208,7 @@ func (a *StateSync) downloadBlocks(ctx context.Context, idsCh chan nullable.Bloc
 				case <-ctx.Done():
 					return
 				case <-time.After(30 * time.Second):
-					zap.S().Infof("[%s] StateSync: DownloadBlocks: timeout waiting for SignaturesMessage or BlockIdsMessage", p.ID())
+					zap.S().Debugf("[%s] StateSync: DownloadBlocks: timeout waiting for SignaturesMessage or BlockIdsMessage", p.ID())
 					errCh <- TimeoutErr
 					return
 				case id := <-idsCh:
@@ -281,7 +281,7 @@ func createBulkWorker(ctx context.Context, blockCnt int, receivedBlocksCh chan b
 		case bts := <-receivedBlocksCh:
 			// it means that we at the end. halt
 			if bts.bytes == nil {
-				zap.S().Infof("[%s] StateSync: CreateBulk: exit with null bytes")
+				zap.S().Debug("StateSync: CreateBulk: exit with null bytes")
 				out := make([]*proto.Block, len(blocks))
 				copy(out, blocks)
 				blocksBulk <- out
@@ -315,12 +315,12 @@ func createBulkWorker2(blockCnt int, receivedBlocksCh channel.Channel, blocksBul
 	for {
 		rs, ok := receivedBlocksCh.Receive()
 		if !ok {
-			zap.S().Infof("[%s] StateSync: CreateBulk: exit with closed channel")
+			zap.S().Debug("StateSync: CreateBulk: exit with closed channel")
 			return nil
 		}
 		bts := rs.(blockBytes)
 		if bts.bytes == nil {
-			zap.S().Infof("[%s] StateSync: CreateBulk: exit with null bytes")
+			zap.S().Debug("StateSync: CreateBulk: exit with null bytes")
 			out := make([]*proto.Block, len(blocks))
 			copy(out, blocks)
 			blocksBulk <- out

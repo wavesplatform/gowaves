@@ -358,7 +358,7 @@ func functionsV4() map[string]Expr {
 	// New functions
 	s["contains"] = FunctionFromPredefined(Contains, 2)
 	s["valueOrElse"] = FunctionFromPredefined(ValueOrElse, 2)
-	s["calculateAssetId"] = FunctionFromPredefined(CalculateAssetID, 1)
+	s["1080"] = FunctionFromPredefined(CalculateAssetID, 1)
 	s["1101"] = FunctionFromPredefined(AppendToList, 2)
 	s["1102"] = FunctionFromPredefined(Concat, 2)
 	s["405"] = FunctionFromPredefined(Median, 1)

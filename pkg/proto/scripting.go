@@ -135,31 +135,31 @@ func (a *BurnScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
 }
 
 type ScriptResult struct {
-	DataEntries []DataEntryScriptAction
-	Transfers   []TransferScriptAction
-	Issues      []IssueScriptAction
-	Reissues    []ReissueScriptAction
-	Burns       []BurnScriptAction
+	DataEntries []*DataEntryScriptAction
+	Transfers   []*TransferScriptAction
+	Issues      []*IssueScriptAction
+	Reissues    []*ReissueScriptAction
+	Burns       []*BurnScriptAction
 }
 
 // NewScriptResult creates correct representation of invocation actions for storage and API.
 func NewScriptResult(actions []ScriptAction) (*ScriptResult, error) {
-	entries := make([]DataEntryScriptAction, 0)
-	transfers := make([]TransferScriptAction, 0)
-	issues := make([]IssueScriptAction, 0)
-	reissues := make([]ReissueScriptAction, 0)
-	burns := make([]BurnScriptAction, 0)
+	entries := make([]*DataEntryScriptAction, 0)
+	transfers := make([]*TransferScriptAction, 0)
+	issues := make([]*IssueScriptAction, 0)
+	reissues := make([]*ReissueScriptAction, 0)
+	burns := make([]*BurnScriptAction, 0)
 	for _, a := range actions {
 		switch ta := a.(type) {
-		case DataEntryScriptAction:
+		case *DataEntryScriptAction:
 			entries = append(entries, ta)
-		case TransferScriptAction:
+		case *TransferScriptAction:
 			transfers = append(transfers, ta)
-		case IssueScriptAction:
+		case *IssueScriptAction:
 			issues = append(issues, ta)
-		case ReissueScriptAction:
+		case *ReissueScriptAction:
 			reissues = append(reissues, ta)
-		case BurnScriptAction:
+		case *BurnScriptAction:
 			burns = append(burns, ta)
 		default:
 			return nil, errors.Errorf("unsupported action type '%T'", a)
@@ -213,13 +213,13 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 		return errors.New("empty protobuf message")
 	}
 	c := ProtobufConverter{}
-	data := make([]DataEntryScriptAction, len(msg.Data))
+	data := make([]*DataEntryScriptAction, len(msg.Data))
 	for i, e := range msg.Data {
 		de, err := c.Entry(e)
 		if err != nil {
 			return err
 		}
-		data[i] = DataEntryScriptAction{Entry: de}
+		data[i] = &DataEntryScriptAction{Entry: de}
 	}
 	sr.DataEntries = data
 	var err error
@@ -253,7 +253,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 	otherActionsCount := 0
 	for _, a := range actions {
 		switch ta := a.(type) {
-		case DataEntryScriptAction:
+		case *DataEntryScriptAction:
 			dataEntriesCount++
 			if dataEntriesCount > maxDataEntryScriptActions {
 				return errors.Errorf("number of data entries produced by script is more than allowed %d", maxDataEntryScriptActions)
@@ -266,7 +266,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 				return errors.Errorf("total size of data entries produced by script is more than %d bytes", maxDataEntryScriptActionsSizeInBytes)
 			}
 
-		case TransferScriptAction:
+		case *TransferScriptAction:
 			otherActionsCount++
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
@@ -280,7 +280,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 				}
 			}
 
-		case IssueScriptAction:
+		case *IssueScriptAction:
 			otherActionsCount++
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
@@ -298,7 +298,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 				return errors.New("invalid asset's description")
 			}
 
-		case ReissueScriptAction:
+		case *ReissueScriptAction:
 			otherActionsCount++
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
@@ -307,7 +307,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 				return errors.New("negative or zero quantity")
 			}
 
-		case BurnScriptAction:
+		case *BurnScriptAction:
 			otherActionsCount++
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)

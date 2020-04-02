@@ -162,7 +162,7 @@ func (a *MockStateManager) EffectiveBalanceStable(account proto.Recipient, start
 	panic("implement me")
 }
 
-func (a *MockStateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion) error {
+func (a *MockStateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, vrf []byte) error {
 	panic("implement me")
 }
 
@@ -342,6 +342,14 @@ func (a *MockStateManager) AllFeatures() ([]int16, error) {
 
 func (a *MockStateManager) StartProvidingExtendedApi() error {
 	panic("implement me")
+}
+
+func (a *MockStateManager) HitSourceAtHeight(height proto.Height) ([]byte, error) {
+	panic("not implemented")
+}
+
+func (a *MockStateManager) BlockVRF(header *proto.BlockHeader, height proto.Height) ([]byte, error) {
+	return nil, nil
 }
 
 func newMockStateWithGenesis() *MockStateManager {

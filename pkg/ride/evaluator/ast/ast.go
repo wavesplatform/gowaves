@@ -60,6 +60,10 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	if !a.IsDapp() {
 		return nil, errors.New("can't call Script.CallFunction on non DApp")
 	}
+	txObj, err := NewVariablesFromTransaction(scheme, tx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert transaction")
+	}
 	name := tx.FunctionCall.Name
 	if name == "" && tx.FunctionCall.Default {
 		name = "default"
@@ -80,6 +84,7 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	scope.SetThis(this)
 	scope.SetLastBlockInfo(lastBlock)
 	scope.SetHeight(height)
+	scope.SetTransaction(txObj)
 
 	// assign of global vars and function
 	for _, expr := range a.DApp.Declarations {
@@ -975,13 +980,13 @@ func (a *DataEntryExpr) Get(name string) (Expr, error) {
 func (a *DataEntryExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error) {
 	switch v := a.value.(type) {
 	case *LongExpr:
-		return proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: a.key, Value: v.Value}}, nil
+		return &proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: a.key, Value: v.Value}}, nil
 	case *BooleanExpr:
-		return proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: a.key, Value: v.Value}}, nil
+		return &proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: a.key, Value: v.Value}}, nil
 	case *BytesExpr:
-		return proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: a.key, Value: v.Value}}, nil
+		return &proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: a.key, Value: v.Value}}, nil
 	case *StringExpr:
-		return proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: a.key, Value: v.Value}}, nil
+		return &proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: a.key, Value: v.Value}}, nil
 	default:
 		return nil, errors.New("unsupported DataEntryExpr type")
 	}
@@ -1968,7 +1973,7 @@ func (a *ScriptTransferExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error
 	default:
 		return nil, errors.New("invalid type for asset expr")
 	}
-	return proto.TransferScriptAction{
+	return &proto.TransferScriptAction{
 		Recipient: a.recipient.Recipient(),
 		Amount:    a.amount.Value,
 		Asset:     *oa,
@@ -2067,7 +2072,7 @@ func (a *IssueExpr) ToAction(parent *crypto.Digest) (proto.ScriptAction, error) 
 		return nil, errors.New("empty parent for IssueExpr")
 	}
 	id := proto.GenerateIssueScriptActionID(a.Name, a.Description, a.Decimals, a.Quantity, a.Reissuable, a.Nonce, *parent)
-	return proto.IssueScriptAction{
+	return &proto.IssueScriptAction{
 		ID:          id,
 		Name:        a.Name,
 		Description: a.Description,
@@ -2139,7 +2144,7 @@ func (a *ReissueExpr) InstanceOf() string {
 }
 
 func (a *ReissueExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error) {
-	return proto.ReissueScriptAction{
+	return &proto.ReissueScriptAction{
 		AssetID:    a.AssetID,
 		Quantity:   a.Quantity,
 		Reissuable: a.Reissuable,
@@ -2196,7 +2201,7 @@ func (a *BurnExpr) InstanceOf() string {
 }
 
 func (a *BurnExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error) {
-	return proto.BurnScriptAction{
+	return &proto.BurnScriptAction{
 		AssetID:  a.AssetID,
 		Quantity: a.Quantity,
 	}, nil

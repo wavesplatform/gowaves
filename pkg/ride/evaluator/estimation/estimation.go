@@ -690,7 +690,7 @@ func NewCatalogueV4() *Catalogue {
 	c.user["Burn"] = 2
 	c.user["contains"] = 20
 	c.user["valueOrElse"] = 13
-	c.user["calculateAssetId"] = 10
+	c.user["1080"] = 10
 	c.user["1101"] = 3
 	c.user["1102"] = 10
 	c.user["405"] = 10

@@ -3372,7 +3372,7 @@ type FullScriptTransfer struct {
 	ID        *crypto.Digest
 }
 
-func NewFullScriptTransfer(action TransferScriptAction, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+func NewFullScriptTransfer(action *TransferScriptAction, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,

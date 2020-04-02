@@ -129,7 +129,7 @@ message SetAssetScriptTransactionData {
 };
 
 message SetScriptTransactionData {
-    bytes script = 2;
+    bytes script = 1;
 };
 
 message ExchangeTransactionData {

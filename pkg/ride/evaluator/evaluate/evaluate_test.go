@@ -659,14 +659,14 @@ func verify() = {
 	require.NoError(t, err)
 	require.EqualValues(t,
 		&proto.ScriptResult{
-			DataEntries: []proto.DataEntryScriptAction{
+			DataEntries: []*proto.DataEntryScriptAction{
 				{Entry: &proto.StringDataEntry{Key: "abc_q", Value: "abc"}},
 				{Entry: &proto.StringDataEntry{Key: "abc_a", Value: "abc"}},
 			},
-			Transfers: make([]proto.TransferScriptAction, 0),
-			Issues:    make([]proto.IssueScriptAction, 0),
-			Reissues:  make([]proto.ReissueScriptAction, 0),
-			Burns:     make([]proto.BurnScriptAction, 0),
+			Transfers: make([]*proto.TransferScriptAction, 0),
+			Issues:    make([]*proto.IssueScriptAction, 0),
+			Reissues:  make([]*proto.ReissueScriptAction, 0),
+			Burns:     make([]*proto.BurnScriptAction, 0),
 		},
 		sr,
 	)
@@ -725,14 +725,14 @@ func verify() = {
 	require.NoError(t, err)
 	require.EqualValues(t,
 		&proto.ScriptResult{
-			DataEntries: []proto.DataEntryScriptAction{
+			DataEntries: []*proto.DataEntryScriptAction{
 				{Entry: &proto.StringDataEntry{Key: "a", Value: "b"}},
 				{Entry: &proto.BinaryDataEntry{Key: "sender", Value: addr.Bytes()}},
 			},
-			Transfers: make([]proto.TransferScriptAction, 0),
-			Issues:    make([]proto.IssueScriptAction, 0),
-			Reissues:  make([]proto.ReissueScriptAction, 0),
-			Burns:     make([]proto.BurnScriptAction, 0),
+			Transfers: make([]*proto.TransferScriptAction, 0),
+			Issues:    make([]*proto.IssueScriptAction, 0),
+			Reissues:  make([]*proto.ReissueScriptAction, 0),
+			Burns:     make([]*proto.BurnScriptAction, 0),
 		},
 		sr,
 	)
@@ -855,11 +855,11 @@ func tellme(question: String) = {
 	require.NoError(t, err)
 	require.EqualValues(t,
 		&proto.ScriptResult{
-			DataEntries: make([]proto.DataEntryScriptAction, 0),
-			Transfers:   []proto.TransferScriptAction{scriptTransfer},
-			Issues:      make([]proto.IssueScriptAction, 0),
-			Reissues:    make([]proto.ReissueScriptAction, 0),
-			Burns:       make([]proto.BurnScriptAction, 0),
+			DataEntries: make([]*proto.DataEntryScriptAction, 0),
+			Transfers:   []*proto.TransferScriptAction{&scriptTransfer},
+			Issues:      make([]*proto.IssueScriptAction, 0),
+			Reissues:    make([]*proto.ReissueScriptAction, 0),
+			Burns:       make([]*proto.BurnScriptAction, 0),
 		},
 		sr,
 	)
@@ -906,11 +906,11 @@ func tellme(question: String) = {
 	}
 	require.Equal(t,
 		&proto.ScriptResult{
-			DataEntries: []proto.DataEntryScriptAction{{Entry: &proto.IntegerDataEntry{Key: "key", Value: 100}}},
-			Transfers:   []proto.TransferScriptAction{scriptTransfer},
-			Issues:      make([]proto.IssueScriptAction, 0),
-			Reissues:    make([]proto.ReissueScriptAction, 0),
-			Burns:       make([]proto.BurnScriptAction, 0),
+			DataEntries: []*proto.DataEntryScriptAction{{Entry: &proto.IntegerDataEntry{Key: "key", Value: 100}}},
+			Transfers:   []*proto.TransferScriptAction{&scriptTransfer},
+			Issues:      make([]*proto.IssueScriptAction, 0),
+			Reissues:    make([]*proto.ReissueScriptAction, 0),
+			Burns:       make([]*proto.BurnScriptAction, 0),
 		},
 		sr,
 	)
@@ -1172,17 +1172,17 @@ func TestWhaleDApp(t *testing.T) {
 	require.NoError(t, err)
 	sr, err := proto.NewScriptResult(actions)
 	require.NoError(t, err)
-	expectedDataWrites := []proto.DataEntryScriptAction{
+	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "wl_ref_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "3P8Fvy1yDwNHvVrabe4ek5b9dAwxFjDKV7R"}},
 		{Entry: &proto.StringDataEntry{Key: "wl_bio_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: `{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}`}},
 		{Entry: &proto.StringDataEntry{Key: "wl_sts_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "invited"}},
 	}
 	expectedResult := &proto.ScriptResult{
 		DataEntries: expectedDataWrites,
-		Transfers:   make([]proto.TransferScriptAction, 0),
-		Issues:      make([]proto.IssueScriptAction, 0),
-		Reissues:    make([]proto.ReissueScriptAction, 0),
-		Burns:       make([]proto.BurnScriptAction, 0),
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1259,7 +1259,7 @@ func TestExchangeDApp(t *testing.T) {
 
 	ev, err := base64.StdEncoding.DecodeString("AAAAAAABhqAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLw==")
 	require.NoError(t, err)
-	expectedDataWrites := []proto.DataEntryScriptAction{
+	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.BinaryDataEntry{Key: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6", Value: ev}},
 	}
 	ra, err := proto.NewAddressFromString("3P8WrXSDDyNC11dm8XANKeDcJricefgTRyZ")
@@ -1267,7 +1267,7 @@ func TestExchangeDApp(t *testing.T) {
 	rcp := proto.NewRecipientFromAddress(ra)
 	asset, err := crypto.NewDigestFromBase58("78tZbyEovK6DLyqfmswMDtxb3bytTX7H5p6hYpGhYtBV")
 	require.NoError(t, err)
-	expectedTransfers := []proto.TransferScriptAction{
+	expectedTransfers := []*proto.TransferScriptAction{
 		{
 			Recipient: rcp,
 			Amount:    1,
@@ -1277,9 +1277,9 @@ func TestExchangeDApp(t *testing.T) {
 	expectedResult := &proto.ScriptResult{
 		Transfers:   expectedTransfers,
 		DataEntries: expectedDataWrites,
-		Issues:      make([]proto.IssueScriptAction, 0),
-		Reissues:    make([]proto.ReissueScriptAction, 0),
-		Burns:       make([]proto.BurnScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1458,16 +1458,16 @@ func TestLigaDApp1(t *testing.T) {
 	sr, err := proto.NewScriptResult(actions)
 	require.NoError(t, err)
 
-	expectedDataWrites := []proto.DataEntryScriptAction{
+	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "STAGE", Value: 2}},
 		{Entry: &proto.IntegerDataEntry{Key: "BALANCE_SNAPSHOT", Value: 98750005}},
 	}
 	expectedResult := &proto.ScriptResult{
 		DataEntries: expectedDataWrites,
-		Transfers:   make([]proto.TransferScriptAction, 0),
-		Issues:      make([]proto.IssueScriptAction, 0),
-		Reissues:    make([]proto.ReissueScriptAction, 0),
-		Burns:       make([]proto.BurnScriptAction, 0),
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 
@@ -1560,7 +1560,7 @@ func TestLigaDApp1(t *testing.T) {
 	sr, err = proto.NewScriptResult(actions)
 	require.NoError(t, err)
 
-	expectedDataWrites = []proto.DataEntryScriptAction{
+	expectedDataWrites = []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "STAGE", Value: 31}},
 		{Entry: &proto.IntegerDataEntry{Key: "PRIZE_POOL", Value: 94800004}},
 		{Entry: &proto.BinaryDataEntry{Key: "WINNER", Value: av}},
@@ -1568,10 +1568,10 @@ func TestLigaDApp1(t *testing.T) {
 	}
 	expectedResult = &proto.ScriptResult{
 		DataEntries: expectedDataWrites,
-		Transfers:   make([]proto.TransferScriptAction, 0),
-		Issues:      make([]proto.IssueScriptAction, 0),
-		Reissues:    make([]proto.ReissueScriptAction, 0),
-		Burns:       make([]proto.BurnScriptAction, 0),
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1649,15 +1649,15 @@ func TestTestingDApp(t *testing.T) {
 	sr, err := proto.NewScriptResult(actions)
 	require.NoError(t, err)
 
-	expectedDataWrites := []proto.DataEntryScriptAction{
+	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "mainLog", Value: "1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY - 3N4XM8G5WXzdkLXYDL6X229Entc5Hqgz7DM - 1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY -> 3NBQxw1ZzTfWbrLjWj2euMwizncrGG4nXJX"}},
 	}
 	expectedResult := &proto.ScriptResult{
 		DataEntries: expectedDataWrites,
-		Transfers:   make([]proto.TransferScriptAction, 0),
-		Issues:      make([]proto.IssueScriptAction, 0),
-		Reissues:    make([]proto.ReissueScriptAction, 0),
-		Burns:       make([]proto.BurnScriptAction, 0),
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1730,15 +1730,15 @@ func TestDropElementDApp(t *testing.T) {
 	sr, err := proto.NewScriptResult(actions)
 	require.NoError(t, err)
 
-	expectedDataWrites := []proto.DataEntryScriptAction{
+	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "1", Value: "aaa,bbb,ccc - ccc = aaa,bbb"}},
 	}
 	expectedResult := &proto.ScriptResult{
 		DataEntries: expectedDataWrites,
-		Transfers:   make([]proto.TransferScriptAction, 0),
-		Issues:      make([]proto.IssueScriptAction, 0),
-		Reissues:    make([]proto.ReissueScriptAction, 0),
-		Burns:       make([]proto.BurnScriptAction, 0),
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1816,7 +1816,7 @@ func TestMathDApp(t *testing.T) {
 	sr, err := proto.NewScriptResult(actions)
 	require.NoError(t, err)
 
-	expectedDataWrites := []proto.DataEntryScriptAction{
+	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "deltaT", Value: 6301369}},
 		{Entry: &proto.IntegerDataEntry{Key: "sqrtDeltaT", Value: 25102528}},
 		{Entry: &proto.IntegerDataEntry{Key: "up", Value: 105148668}},
@@ -1828,10 +1828,10 @@ func TestMathDApp(t *testing.T) {
 	}
 	expectedResult := &proto.ScriptResult{
 		DataEntries: expectedDataWrites,
-		Transfers:   make([]proto.TransferScriptAction, 0),
-		Issues:      make([]proto.IssueScriptAction, 0),
-		Reissues:    make([]proto.ReissueScriptAction, 0),
-		Burns:       make([]proto.BurnScriptAction, 0),
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1903,15 +1903,15 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 	sr, err := proto.NewScriptResult(actions)
 	require.NoError(t, err)
 
-	expectedDataWrites := []proto.DataEntryScriptAction{
+	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "3MwT5r4YSyG4QAiqi8VNZkL9eP9e354DXfE_waves", Value: 7012000}},
 	}
 	expectedResult := &proto.ScriptResult{
 		DataEntries: expectedDataWrites,
-		Transfers:   make([]proto.TransferScriptAction, 0),
-		Issues:      make([]proto.IssueScriptAction, 0),
-		Reissues:    make([]proto.ReissueScriptAction, 0),
-		Burns:       make([]proto.BurnScriptAction, 0),
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }

@@ -22,14 +22,14 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 	addr0, err := NewAddressFromString("3PQ8bp1aoqHQo3icNqFv6VM36V1jzPeaG1v")
 	require.NoError(t, err)
 	rcp := NewRecipientFromAddress(addr0)
-	emptyDataEntries := make([]DataEntryScriptAction, 0)
-	emptyTransfers := make([]TransferScriptAction, 0)
-	emptyIssues := make([]IssueScriptAction, 0)
-	emptyReissues := make([]ReissueScriptAction, 0)
-	emptyBurns := make([]BurnScriptAction, 0)
+	emptyDataEntries := make([]*DataEntryScriptAction, 0)
+	emptyTransfers := make([]*TransferScriptAction, 0)
+	emptyIssues := make([]*IssueScriptAction, 0)
+	emptyReissues := make([]*ReissueScriptAction, 0)
+	emptyBurns := make([]*BurnScriptAction, 0)
 	for i, test := range []ScriptResult{
 		{
-			DataEntries: []DataEntryScriptAction{
+			DataEntries: []*DataEntryScriptAction{
 				{&IntegerDataEntry{"some key", 12345}},
 				{&BooleanDataEntry{"negative value", false}},
 				{&StringDataEntry{"some key", "some value string"}},
@@ -40,7 +40,7 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 				{&BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
 				{&DeleteDataEntry{Key: "xxx"}},
 			},
-			Transfers: []TransferScriptAction{
+			Transfers: []*TransferScriptAction{
 				{Amount: math.MaxInt64, Asset: *waves, Recipient: rcp},
 				{Amount: 10, Asset: *asset0, Recipient: rcp},
 				{Amount: 100500, Asset: *waves, Recipient: rcp},
@@ -51,7 +51,7 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			Burns:    emptyBurns,
 		},
 		{
-			DataEntries: []DataEntryScriptAction{
+			DataEntries: []*DataEntryScriptAction{
 				{&IntegerDataEntry{"some key", 12345}},
 			},
 			Transfers: emptyTransfers,
@@ -61,7 +61,7 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 		},
 		{
 			DataEntries: emptyDataEntries,
-			Transfers: []TransferScriptAction{
+			Transfers: []*TransferScriptAction{
 				{Amount: 100500, Asset: *waves, Recipient: rcp},
 				{Amount: 10, Asset: *asset0, Recipient: rcp},
 				{Amount: 0, Asset: *asset1, Recipient: rcp},
@@ -73,7 +73,7 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 		{
 			DataEntries: emptyDataEntries,
 			Transfers:   emptyTransfers,
-			Issues: []IssueScriptAction{
+			Issues: []*IssueScriptAction{
 				{ID: asset0.ID, Name: "xxx1", Description: "some asset", Quantity: 10000000, Decimals: 2, Reissuable: false, Script: Script{}, Nonce: 0},
 				{ID: asset1.ID, Name: strings.Repeat("x", 100), Description: strings.Repeat("s", 1000), Quantity: math.MaxUint32, Decimals: 0, Reissuable: true, Script: Script{}, Nonce: math.MaxInt64},
 			},
@@ -83,11 +83,11 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 		{
 			DataEntries: emptyDataEntries,
 			Transfers:   emptyTransfers,
-			Issues: []IssueScriptAction{
+			Issues: []*IssueScriptAction{
 				{ID: asset1.ID, Name: "xxx1", Description: "some asset", Quantity: 10000000, Decimals: 2, Reissuable: false, Script: Script{}, Nonce: 0},
 				{ID: asset0.ID, Name: strings.Repeat("x", 100), Description: strings.Repeat("s", 1000), Quantity: math.MaxUint32, Decimals: 0, Reissuable: true, Script: Script{}, Nonce: math.MaxInt64},
 			},
-			Reissues: []ReissueScriptAction{
+			Reissues: []*ReissueScriptAction{
 				{AssetID: asset0.ID, Quantity: 100000, Reissuable: false},
 				{AssetID: asset1.ID, Quantity: 1234567890, Reissuable: true},
 			},
@@ -97,11 +97,11 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			DataEntries: emptyDataEntries,
 			Transfers:   emptyTransfers,
 			Issues:      emptyIssues,
-			Reissues: []ReissueScriptAction{
+			Reissues: []*ReissueScriptAction{
 				{AssetID: asset0.ID, Quantity: 100000, Reissuable: false},
 				{AssetID: asset1.ID, Quantity: 1234567890, Reissuable: true},
 			},
-			Burns: []BurnScriptAction{
+			Burns: []*BurnScriptAction{
 				{AssetID: asset1.ID, Quantity: 12345},
 				{AssetID: asset0.ID, Quantity: 0},
 			},
@@ -131,25 +131,25 @@ func TestActionsValidation(t *testing.T) {
 		valid        bool
 	}{
 		{actions: []ScriptAction{
-			DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
-			DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
-			DataEntryScriptAction{Entry: &StringDataEntry{"some key143", "some value2 string"}},
-			DataEntryScriptAction{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
-			DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
-			TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
+			&DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
+			&DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
+			&DataEntryScriptAction{Entry: &StringDataEntry{"some key143", "some value2 string"}},
+			&DataEntryScriptAction{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
+			&DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
+			&TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
 		}, restrictions: ActionsValidationRestrictions{}, valid: true},
 		{actions: []ScriptAction{
-			DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
-			TransferScriptAction{Recipient: rcp0, Amount: -100, Asset: OptionalAsset{}},
-			DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
+			&DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
+			&TransferScriptAction{Recipient: rcp0, Amount: -100, Asset: OptionalAsset{}},
+			&DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
 		}, restrictions: ActionsValidationRestrictions{}, valid: false},
 		{actions: []ScriptAction{
-			DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
-			DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
-			DataEntryScriptAction{Entry: &StringDataEntry{"some key143", "some value2 string"}},
-			DataEntryScriptAction{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
-			DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
-			TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
+			&DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
+			&DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
+			&DataEntryScriptAction{Entry: &StringDataEntry{"some key143", "some value2 string"}},
+			&DataEntryScriptAction{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
+			&DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
+			&TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
 		}, restrictions: ActionsValidationRestrictions{DisableSelfTransfers: true, ScriptAddress: addr0}, valid: false},
 	} {
 		err := ValidateActions(test.actions, test.restrictions)

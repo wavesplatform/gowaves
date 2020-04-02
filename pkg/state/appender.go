@@ -219,13 +219,9 @@ func (a *txAppender) currentBlockInfo() (*proto.BlockInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	var hs []byte = nil
-	if curHeader.Version >= proto.ProtoBlockVersion {
-		hs, err = a.state.HitSource(height)
-		if err != nil {
-			return nil, err
-		}
-
+	hs, err := a.state.BlockVRF(curHeader, height)
+	if err != nil {
+		return nil, err
 	}
 	return proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, height, hs)
 }
@@ -353,13 +349,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	curHeight := params.height + 1
-	var hs []byte = nil
-	if params.block.Version >= proto.ProtoBlockVersion {
-		hs, err = a.state.HitSource(curHeight)
-		if err != nil {
-			return err
-		}
-	}
 	scriptsRuns := uint64(0)
 	blockInfo, err := a.currentBlockInfo()
 	if err != nil {
@@ -434,7 +423,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 				initialisation:     params.initialisation,
 				block:              params.block,
 				height:             curHeight,
-				hitSource:          hs,
+				hitSource:          blockInfo.VRF,
 				validatingUtx:      false,
 			}
 			txChanges, err = a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo)
@@ -443,7 +432,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			}
 		} else {
 			// Create balance diff of this tx.
-			txChanges, err = a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, hs, params.initialisation)
+			txChanges, err = a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, blockInfo.VRF, params.initialisation)
 			if err != nil {
 				return err
 			}
@@ -538,7 +527,7 @@ func (a *txAppender) resetValidationList() {
 }
 
 // For UTX validation.
-func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion) error {
+func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, vrf []byte) error {
 	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, currentTimestamp); err != nil {
 		return err
 	}
@@ -561,13 +550,6 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return err
 	}
-	var hs []byte = nil
-	if version >= proto.ProtoBlockVersion {
-		hs, err = a.state.HitSource(height)
-		if err != nil {
-			return err
-		}
-	}
 	checkerInfo := &checkerInfo{
 		initialisation:   false,
 		currentTimestamp: currentTimestamp,
@@ -581,7 +563,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return err
 	}
-	blockInfo, err := proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, block, height, hs)
+	blockInfo, err := proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, block, height, vrf)
 	if err != nil {
 		return err
 	}

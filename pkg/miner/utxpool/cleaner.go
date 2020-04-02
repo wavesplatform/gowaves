@@ -47,7 +47,8 @@ func (a *Cleaner) work() {
 type stateWrapper interface {
 	Height() (proto.Height, error)
 	TopBlock() *proto.Block
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion) error
+	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, vrf []byte) error
 	ResetValidationList()
 	Mutex() *lock.RwMutex
 }
