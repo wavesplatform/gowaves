@@ -121,6 +121,12 @@ build-importer-windows:
 
 release-importer: ver build-importer-linux build-importer-darwin build-importer-windows
 
+dist-importer: release-importer
+	@mkdir -p build/dist
+	@cd ./build/; zip -j ./dist/importer_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/importer*
+	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_Linux-64bit.tar.gz ./importer*
+	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_macOS-64bit.tar.gz ./importer*
+
 build-wallet-linux:
 	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/wallet ./cmd/wallet
 build-wallet-darwin:
@@ -130,13 +136,13 @@ build-wallet-windows:
 
 release-wallet: ver build-wallet-linux build-wallet-darwin build-wallet-windows
 
-dist-importer: release-importer
+dist-wallet: release-wallet
 	@mkdir -p build/dist
-	@cd ./build/; zip -j ./dist/importer_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/importer*
-	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_Linux-64bit.tar.gz ./importer*
-	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_macOS-64bit.tar.gz ./importer*
+	@cd ./build/; zip -j ./dist/wallet_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/wallet*
+	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/wallet_$(VERSION)_Linux-64bit.tar.gz ./wallet*
+	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/wallet_$(VERSION)_macOS-64bit.tar.gz ./wallet*
 
-dist: clean dist-chaincmp dist-wmd dist-importer dist-node
+dist: clean dist-chaincmp dist-wmd dist-importer dist-node dist-wallet
 
 mock:
 	mockgen -source pkg/miner/utxpool/cleaner.go -destination pkg/miner/utxpool/mock.go -package utxpool stateWrapper
