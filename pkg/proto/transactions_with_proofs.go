@@ -3014,7 +3014,7 @@ func NewUnsignedData(v byte, senderPK crypto.PublicKey, fee, timestamp uint64) *
 	return &DataWithProofs{Type: DataTransaction, Version: v, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx DataWithProofs) Valid() (bool, error) {
+func (tx *DataWithProofs) Valid() (bool, error) {
 	if tx.Version < 1 || tx.Version > MaxDataTransactionVersion {
 		return false, errors.Errorf("unexpected version %d for DataWithProofs", tx.Version)
 	}
@@ -3023,6 +3023,9 @@ func (tx DataWithProofs) Valid() (bool, error) {
 	}
 	keys := make(map[string]struct{})
 	for _, e := range tx.Entries {
+		if !IsProtobufTx(tx) && e.GetValueType() == DataDelete {
+			return false, errors.New("delete supported only for protobuf transaction")
+		}
 		ok, err := e.Valid()
 		if !ok {
 			return false, errors.Wrap(err, "at least one of the DataWithProofs entry is not valid")

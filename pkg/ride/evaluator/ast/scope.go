@@ -1,6 +1,8 @@
 package ast
 
 import (
+	"strconv"
+
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -76,8 +78,11 @@ func NewScope(version int, scheme byte, state types.SmartState) *ScopeImpl {
 	case 2:
 		e = expressionsV2()
 		return out.withExprs(e)
-	default:
+	case 3:
 		e = expressionsV3()
+		return out.withExprs(e)
+	default:
+		e = expressionsV4()
 		return out.withExprs(e)
 	}
 }
@@ -131,6 +136,7 @@ func (a *ScopeImpl) Scheme() byte {
 
 func (a *ScopeImpl) SetTransaction(transaction map[string]Expr) {
 	a.expressions["tx"] = NewObject(transaction)
+	a.expressions["txId"] = transaction["id"]
 }
 
 func (a *ScopeImpl) SetHeight(height uint64) {
@@ -202,10 +208,10 @@ func functionsV2() map[string]Expr {
 	fns["420"] = FunctionFromPredefined(NativeLongToString, 1)
 	fns["421"] = FunctionFromPredefined(NativeBooleanToString, 1)
 
-	fns["500"] = FunctionFromPredefined(NativeSigVerify, 3)
-	fns["501"] = FunctionFromPredefined(NativeKeccak256, 1)
-	fns["502"] = FunctionFromPredefined(NativeBlake2b256, 1)
-	fns["503"] = FunctionFromPredefined(NativeSha256, 1)
+	fns["500"] = FunctionFromPredefined(limitedSigVerify(0), 3)
+	fns["501"] = FunctionFromPredefined(limitedKeccak256(0), 1)
+	fns["502"] = FunctionFromPredefined(limitedBlake2b256(0), 1)
+	fns["503"] = FunctionFromPredefined(limitedSha256(0), 1)
 
 	fns["600"] = FunctionFromPredefined(NativeToBase58, 1)
 	fns["601"] = FunctionFromPredefined(NativeFromBase58, 1)
@@ -264,7 +270,7 @@ func functionsV3() map[string]Expr {
 	s["108"] = FunctionFromPredefined(NativePowLong, 6)
 	s["109"] = FunctionFromPredefined(NativeLogLong, 6)
 
-	s["504"] = FunctionFromPredefined(NativeRSAVerify, 4)
+	s["504"] = FunctionFromPredefined(limitedRSAVerify(0), 4)
 	s["604"] = FunctionFromPredefined(NativeToBase16, 1)
 	s["605"] = FunctionFromPredefined(NativeFromBase16, 1)
 	s["700"] = FunctionFromPredefined(NativeCheckMerkleProof, 3)
@@ -273,7 +279,6 @@ func functionsV3() map[string]Expr {
 	s["1005"] = FunctionFromPredefined(NativeBlockInfoByHeight, 1)
 	s["1006"] = FunctionFromPredefined(NativeTransferTransactionByID, 1)
 	s["1061"] = FunctionFromPredefined(NativeAddressToString, 1)
-	s["1070"] = FunctionFromPredefined(NativeParseBlockHeader, 1) // RIDE v4
 	s["1100"] = FunctionFromPredefined(NativeCreateList, 2)
 	s["1200"] = FunctionFromPredefined(NativeBytesToUTF8String, 1)
 	s["1201"] = FunctionFromPredefined(NativeBytesToLong, 1)
@@ -332,6 +337,49 @@ func functionsV3() map[string]Expr {
 	return s
 }
 
+func functionsV4() map[string]Expr {
+	s := functionsV3()
+	// Remove obsolete constructors
+	delete(s, "ScriptResult")
+	delete(s, "WriteSet")
+	delete(s, "TransferSet")
+	delete(s, "DataEntry")
+
+	// New constructors
+	s["IntegerEntry"] = FunctionFromPredefined(DataEntry, 2)
+	s["BooleanEntry"] = FunctionFromPredefined(DataEntry, 2)
+	s["BinaryEntry"] = FunctionFromPredefined(DataEntry, 2)
+	s["StringEntry"] = FunctionFromPredefined(DataEntry, 2)
+	s["DeleteEntry"] = FunctionFromPredefined(DeleteEntry, 1)
+	s["Issue"] = FunctionFromPredefined(Issue, 7)
+	s["Reissue"] = FunctionFromPredefined(Reissue, 3)
+	s["Burn"] = FunctionFromPredefined(Burn, 2)
+
+	// New functions
+	s["contains"] = FunctionFromPredefined(Contains, 2)
+	s["valueOrElse"] = FunctionFromPredefined(ValueOrElse, 2)
+	s["1080"] = FunctionFromPredefined(CalculateAssetID, 1)
+	s["1101"] = FunctionFromPredefined(AppendToList, 2)
+	s["1102"] = FunctionFromPredefined(Concat, 2)
+	s["405"] = FunctionFromPredefined(Median, 1)
+	s["1100"] = FunctionFromPredefined(LimitedCreateList, 2)
+	s["800"] = FunctionFromPredefined(limitedGroth16Verify(0), 3)
+	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
+		s[strconv.Itoa(2400+i)] = FunctionFromPredefined(limitedGroth16Verify(l), 3)
+	}
+	for i, l := range []int{16, 32, 64, 128} {
+		s[strconv.Itoa(2500+i)] = FunctionFromPredefined(limitedSigVerify(l), 3)
+		s[strconv.Itoa(2600+i)] = FunctionFromPredefined(limitedRSAVerify(l), 4)
+		s[strconv.Itoa(2700+i)] = FunctionFromPredefined(limitedKeccak256(l), 1)
+		s[strconv.Itoa(2800+i)] = FunctionFromPredefined(limitedBlake2b256(l), 1)
+		s[strconv.Itoa(2900+i)] = FunctionFromPredefined(limitedSha256(l), 1)
+	}
+	s["1070"] = FunctionFromPredefined(TransferFromProtobuf, 1)
+	delete(s, "700") // remove CheckMerkleProof
+	s["701"] = FunctionFromPredefined(RebuildMerkleRoot, 3)
+	return s
+}
+
 func VariablesV1() map[string]Expr {
 	return map[string]Expr{"tx": NewUnit(), "unit": NewUnit()}
 }
@@ -372,6 +420,10 @@ func VariablesV3() map[string]Expr {
 	return v
 }
 
+func VariablesV4() map[string]Expr {
+	return VariablesV3()
+}
+
 func merge(x map[string]Expr, y map[string]Expr) map[string]Expr {
 	out := make(map[string]Expr)
 	for k, v := range x {
@@ -393,4 +445,8 @@ func expressionsV2() map[string]Expr {
 
 func expressionsV3() map[string]Expr {
 	return merge(VariablesV3(), functionsV3())
+}
+
+func expressionsV4() map[string]Expr {
+	return merge(VariablesV4(), functionsV4())
 }

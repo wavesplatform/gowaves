@@ -6,21 +6,11 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	//"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 type Scheduler interface {
 	Reschedule()
 }
-
-//type BlocksApplier interface {
-//	Apply(state state.State, block []*proto.Block) error
-//}
-
-//// notify state that it must run synchronization
-//type StateHistorySynchronizer interface {
-//	Sync()
-//}
 
 // Abstract handler that called when event happens
 type Handler interface {
@@ -62,6 +52,7 @@ type SmartState interface {
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 
 	IsNotFound(err error) bool
+	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 }
 
 type ID interface {
@@ -91,7 +82,7 @@ type InvRequester interface {
 type BaseTarget = uint64
 
 type Miner interface {
-	MineKeyBlock(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget BaseTarget, GenSignature []byte) (*proto.Block, proto.MiningLimits, error)
+	MineKeyBlock(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget BaseTarget, gs []byte, vrf []byte) (*proto.Block, proto.MiningLimits, error)
 }
 
 type Time interface {

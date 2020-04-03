@@ -13,72 +13,62 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type bytesInfo struct {
-	pos    int
+type txInfo struct {
+	tx     proto.Transaction
 	height uint64
 	offset uint64
 }
 
-type recentDataStorage struct {
-	id2Pos map[string]bytesInfo
-	stor   [][]byte
+type recentTransactions struct {
+	id2Pos map[string]int
+	stor   []txInfo
 }
 
-func newRecentDataStorage() *recentDataStorage {
-	return &recentDataStorage{id2Pos: make(map[string]bytesInfo)}
+func newRecentTransactions() *recentTransactions {
+	return &recentTransactions{id2Pos: make(map[string]int)}
 }
 
-func (r *recentDataStorage) appendBytes(id, data []byte) error {
-	r.id2Pos[string(id)] = bytesInfo{pos: len(r.stor)}
-	r.stor = append(r.stor, data)
+func (r *recentTransactions) appendTx(id []byte, inf *txInfo) error {
+	r.id2Pos[string(id)] = len(r.stor)
+	r.stor = append(r.stor, *inf)
 	return nil
 }
 
-func (r *recentDataStorage) appendBytesWithInfo(id, data []byte, height, offset uint64) error {
-	r.id2Pos[string(id)] = bytesInfo{pos: len(r.stor), height: height, offset: offset}
-	r.stor = append(r.stor, data)
-	return nil
-}
-
-func (r *recentDataStorage) bytesById(id []byte) ([]byte, error) {
-	info, ok := r.id2Pos[string(id)]
+func (r *recentTransactions) txById(id []byte) (proto.Transaction, error) {
+	pos, ok := r.id2Pos[string(id)]
 	if !ok {
 		return nil, errNotFound
 	}
-	if info.pos < 0 || info.pos >= len(r.stor) {
+	if pos < 0 || pos >= len(r.stor) {
 		return nil, errors.New("invalid pos")
 	}
-	return r.stor[info.pos], nil
+	return r.stor[pos].tx, nil
 }
 
-func (r *recentDataStorage) heightById(id []byte) (uint64, error) {
-	info, ok := r.id2Pos[string(id)]
+func (r *recentTransactions) heightById(id []byte) (uint64, error) {
+	pos, ok := r.id2Pos[string(id)]
 	if !ok {
 		return 0, errNotFound
 	}
-	return info.height, nil
+	if pos < 0 || pos >= len(r.stor) {
+		return 0, errors.New("invalid pos")
+	}
+	return r.stor[pos].height, nil
 }
 
-func (r *recentDataStorage) offsetById(id []byte) (uint64, error) {
-	info, ok := r.id2Pos[string(id)]
+func (r *recentTransactions) offsetById(id []byte) (uint64, error) {
+	pos, ok := r.id2Pos[string(id)]
 	if !ok {
 		return 0, errNotFound
 	}
-	return info.offset, nil
-}
-
-func (r *recentDataStorage) writeDataToBuffer(buf *bufio.Writer) error {
-	for _, data := range r.stor {
-		if _, err := buf.Write(data); err != nil {
-			return err
-		}
+	if pos < 0 || pos >= len(r.stor) {
+		return 0, errors.New("invalid pos")
 	}
-	r.reset()
-	return nil
+	return r.stor[pos].offset, nil
 }
 
-func (r *recentDataStorage) reset() {
-	r.id2Pos = make(map[string]bytesInfo)
+func (r *recentTransactions) reset() {
+	r.id2Pos = make(map[string]int)
 	r.stor = nil
 }
 
@@ -124,8 +114,8 @@ type blockReadWriter struct {
 	blockHeight2IDBuf *bufio.Writer
 
 	// Storages for recent data that is not in persistent storage yet.
-	rtx            *recentDataStorage
-	rheaders       *recentDataStorage
+	rtx            *recentTransactions
+	rheaders       map[proto.BlockID]proto.BlockHeader
 	height2IDCache map[uint64]proto.BlockID
 	blockInfo      map[blockOffsetKey][]byte
 
@@ -230,8 +220,8 @@ func newBlockReadWriter(
 		blockchainBuf:     bufio.NewWriter(blockchain),
 		headersBuf:        bufio.NewWriter(headers),
 		blockHeight2IDBuf: bufio.NewWriter(blockHeight2ID),
-		rtx:               newRecentDataStorage(),
-		rheaders:          newRecentDataStorage(),
+		rtx:               newRecentTransactions(),
+		rheaders:          make(map[proto.BlockID]proto.BlockHeader),
 		height2IDCache:    make(map[uint64]proto.BlockID),
 		blockInfo:         make(map[blockOffsetKey][]byte),
 		txStarts:          make([]byte, offsetLen),
@@ -313,23 +303,18 @@ func (rw *blockReadWriter) finishBlock(blockID proto.BlockID) error {
 	return nil
 }
 
-func (rw *blockReadWriter) writeTransaction(tx proto.Transaction) error {
-	rw.mtx.Lock()
-	defer rw.mtx.Unlock()
-	txID, err := tx.GetID(rw.scheme)
-	if err != nil {
-		return err
-	}
+func (rw *blockReadWriter) marshalTranasction(tx proto.Transaction) ([]byte, error) {
 	var txBytes []byte
+	var err error
 	if rw.protobufActivated {
 		txBytes, err = tx.MarshalSignedToProtobuf(rw.scheme)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		txBytes, err = tx.MarshalBinary()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	// Append tx size at the beginning.
@@ -339,13 +324,32 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction) error {
 	txBytesTotal := make([]byte, 4+txSize)
 	copy(txBytesTotal[:4], txSizeBytes)
 	copy(txBytesTotal[4:], txBytes)
+	return txBytesTotal, nil
+}
+
+func (rw *blockReadWriter) writeTransaction(tx proto.Transaction) error {
+	rw.mtx.Lock()
+	defer rw.mtx.Unlock()
+	txID, err := tx.GetID(rw.scheme)
+	if err != nil {
+		return err
+	}
+	txBytes, err := rw.marshalTranasction(tx)
+	if err != nil {
+		return err
+	}
 	// Save tx to local storage.
-	if err := rw.rtx.appendBytesWithInfo(txID, txBytesTotal, rw.height+1, rw.blockchainLen); err != nil {
+	info := &txInfo{
+		tx:     tx,
+		height: rw.height + 1,
+		offset: rw.blockchainLen,
+	}
+	if err := rw.rtx.appendTx(txID, info); err != nil {
 		return err
 	}
 	// Write tx start pos to DB batch.
 	binary.LittleEndian.PutUint64(rw.txStarts[:rw.offsetLen], rw.blockchainLen)
-	rw.blockchainLen += uint64(len(txBytesTotal))
+	rw.blockchainLen += uint64(len(txBytes))
 	if rw.blockchainLen > rw.offsetEnd {
 		return errors.Errorf("offsetLen is not enough for this offset: %d > %d", rw.blockchainLen, rw.offsetEnd)
 	}
@@ -356,34 +360,41 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction) error {
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, rw.height+1)
 	rw.dbBatch.Put(heightKey.bytes(), heightBytes)
+	// Write tx itself.
+	if _, err := rw.blockchainBuf.Write(txBytes); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (rw *blockReadWriter) marshalHeader(h *proto.BlockHeader) ([]byte, error) {
+	if !rw.protobufActivated {
+		return h.MarshalHeaderToBinary()
+	}
+	protoBytes, err := h.MarshalHeaderToProtobuf(rw.scheme)
+	if err != nil {
+		return nil, err
+	}
+	// Put addl info that is missing in Protobuf.
+	headerBytes := make([]byte, 8+len(protoBytes))
+	binary.BigEndian.PutUint32(headerBytes[:4], uint32(h.TransactionCount))
+	binary.BigEndian.PutUint32(headerBytes[4:8], uint32(h.TransactionBlockLength))
+	copy(headerBytes[8:], protoBytes)
+	return headerBytes, nil
 }
 
 func (rw *blockReadWriter) writeBlockHeader(header *proto.BlockHeader) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	blockID := header.BlockID()
-	var err error
-	var headerBytes []byte
-	if rw.protobufActivated {
-		protoBytes, err := header.MarshalHeaderToProtobuf(rw.scheme)
-		if err != nil {
-			return err
-		}
-		// Put addl info that is missing in Protobuf.
-		headerBytes = make([]byte, 8+len(protoBytes))
-		binary.BigEndian.PutUint32(headerBytes[:4], uint32(header.TransactionCount))
-		binary.BigEndian.PutUint32(headerBytes[4:8], uint32(header.TransactionBlockLength))
-		copy(headerBytes[8:], protoBytes)
-	} else {
-		headerBytes, err = header.MarshalHeaderToBinary()
-		if err != nil {
-			return err
-		}
-	}
-	if err := rw.rheaders.appendBytes(blockID.Bytes(), headerBytes); err != nil {
+	headerBytes, err := rw.marshalHeader(header)
+	if err != nil {
 		return err
 	}
+	if _, err := rw.headersBuf.Write(headerBytes); err != nil {
+		return err
+	}
+	rw.rheaders[blockID] = *header
 	rw.headersLen += uint64(len(headerBytes))
 	if rw.headersLen > rw.offsetEnd {
 		return errors.Errorf("offsetLen is not enough for this offset: %d > %d", rw.headersLen, rw.offsetEnd)
@@ -540,14 +551,11 @@ func (rw *blockReadWriter) readTransactionSize(offset uint64) (uint32, error) {
 func (rw *blockReadWriter) readNewestTransaction(txID []byte) (proto.Transaction, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	txBytes, err := rw.rtx.bytesById(txID)
+	tx, err := rw.rtx.txById(txID)
 	if err != nil {
 		return rw.readTransactionImpl(txID)
 	}
-	if len(txBytes) < 4 {
-		return nil, errors.New("invalid tx size")
-	}
-	return rw.txFromBytes(txBytes[4:], rw.protobufActivated)
+	return tx, nil
 }
 
 func (rw *blockReadWriter) readTransaction(txID []byte) (proto.Transaction, error) {
@@ -584,11 +592,12 @@ func (rw *blockReadWriter) readTransactionByOffsetImpl(offset uint64) (proto.Tra
 func (rw *blockReadWriter) readNewestBlockHeader(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	headerBytes, err := rw.rheaders.bytesById(blockID.Bytes())
-	if err != nil {
+	header, ok := rw.rheaders[blockID]
+	if !ok {
 		return rw.readBlockHeaderImpl(blockID)
 	}
-	return rw.headerFromBytes(headerBytes, rw.protobufActivated)
+	cp := header
+	return &cp, nil
 }
 
 func (rw *blockReadWriter) readBlockHeader(blockID proto.BlockID) (*proto.BlockHeader, error) {
@@ -835,7 +844,7 @@ func (rw *blockReadWriter) rollback(removalEdge proto.BlockID, cleanIDs bool) er
 func (rw *blockReadWriter) reset() {
 	rw.rtx.reset()
 	rw.blockchainBuf.Reset(rw.blockchain)
-	rw.rheaders.reset()
+	rw.rheaders = make(map[proto.BlockID]proto.BlockHeader)
 	rw.headersBuf.Reset(rw.headers)
 	rw.height2IDCache = make(map[uint64]proto.BlockID)
 	rw.blockHeight2IDBuf.Reset(rw.blockHeight2ID)
@@ -843,13 +852,7 @@ func (rw *blockReadWriter) reset() {
 }
 
 func (rw *blockReadWriter) flush() error {
-	if err := rw.rtx.writeDataToBuffer(rw.blockchainBuf); err != nil {
-		return err
-	}
 	if err := rw.blockchainBuf.Flush(); err != nil {
-		return err
-	}
-	if err := rw.rheaders.writeDataToBuffer(rw.headersBuf); err != nil {
 		return err
 	}
 	if err := rw.headersBuf.Flush(); err != nil {

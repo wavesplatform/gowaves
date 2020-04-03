@@ -6,7 +6,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
-	//"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -19,10 +18,7 @@ type MicroblockMiner struct {
 	utx         types.UtxPool
 	state       state.State
 	peer        peer_manager.PeerManager
-	scheduler   types.Scheduler
 	constraints Constraints
-	//ngRuntime   ng.Runtime
-	scheme   proto.Scheme
 	services services.Services
 	features Features
 	// reward vote 600000000
@@ -31,33 +27,20 @@ type MicroblockMiner struct {
 
 func NewMicroblockMiner(services services.Services, features Features, reward int64) *MicroblockMiner {
 	return &MicroblockMiner{
-		scheduler:   services.Scheduler,
 		utx:         services.UtxPool,
 		state:       services.State,
 		peer:        services.Peers,
 		constraints: DefaultConstraints(),
-		//ngRuntime:   ngRuntime,
-		scheme:   services.Scheme,
 		services: services,
 		features: features,
 		reward:   reward,
-
-		//
-		//messageCH: messageCH,
 	}
 }
 
-func (a *MicroblockMiner) MineKeyBlock(
-	ctx context.Context,
-	t proto.Timestamp,
-	k proto.KeyPair,
-	parent proto.BlockID,
-	baseTarget types.BaseTarget,
-	GenSignature []byte) (*proto.Block, proto.MiningLimits, error) {
-
+func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget types.BaseTarget, gs []byte, vrf []byte) (*proto.Block, proto.MiningLimits, error){
 	nxt := proto.NxtConsensus{
 		BaseTarget:   baseTarget,
-		GenSignature: GenSignature,
+		GenSignature: gs,
 	}
 
 	bi, err := a.state.MapR(func(info state.StateInfo) (interface{}, error) {
@@ -118,10 +101,16 @@ func (a *MicroblockMiner) MineKeyBlock(
 		MaxTxsSizeInBytes:           a.constraints.MaxTxsSizeInBytes - 4,
 	}
 	//_ = rest
-	//go a.mineMicro(ctx, rest, b, ng.NewBlocksFromBlock(b), k)
+	//go a.mineMicro(ctx, rest, b, ng.NewBlocksFromBlock(b), k, vrf)
 	return b, rest, nil
 }
 
+//func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockApplyOn *proto.Block, blocks ng.Blocks, keyPair proto.KeyPair, vrf []byte) {
+//	select {
+//	case <-ctx.Done():
+//		return
+//	case <-time.After(5 * time.Second):
+//	}
 //func (a *MicroblockMiner) mineMicro(ctx context.Context, rest proto.MiningLimits, minedBlock *proto.Block, keyPair proto.KeyPair) {
 //	//select {
 //	//case <-ctx.Done():
@@ -334,12 +323,12 @@ func Run(ctx context.Context, a types.Miner, s *scheduler.SchedulerImpl, interna
 		case <-ctx.Done():
 			return
 		case v := <-s.Mine():
-			block, limits, err := a.MineKeyBlock(ctx, v.Timestamp, v.KeyPair, v.Parent, v.BaseTarget, v.GenSignature)
+			block, limits, err := a.MineKeyBlock(ctx, v.Timestamp, v.KeyPair, v.Parent, v.BaseTarget, v.GenSignature, v.VRF)
 			if err != nil {
 				zap.S().Error(err)
 				continue
 			}
-			internalCh <- messages.NewMinedBlockInternalMessage(block, limits, v.KeyPair)
+			internalCh <- messages.NewMinedBlockInternalMessage(block, limits, v.KeyPair, v.VRF)
 		}
 	}
 }

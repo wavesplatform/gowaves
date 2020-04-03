@@ -31,11 +31,6 @@ func TestSellExpr_Eq(t *testing.T) {
 	require.True(t, eq)
 }
 
-func TestBlockHeaderExprIsObject(t *testing.T) {
-	var e Expr = NewBlockHeader(nil)
-	_ = e.(Getable)
-}
-
 func TestAttachedPaymentExprIsObject(t *testing.T) {
 	var e Expr = NewAttachedPaymentExpr(nil, nil)
 	_ = e.(Getable)

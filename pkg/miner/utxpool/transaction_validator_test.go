@@ -28,8 +28,9 @@ func TestValidatorImpl_Validate(t *testing.T) {
 	v := NewValidator(m, tm(now))
 
 	m.EXPECT().TopBlock().Return(emptyBlock)
+	m.EXPECT().BlockVRF(gomock.Any(), gomock.Any()).Return(nil, nil)
 	m.EXPECT().
-		TxValidation(gomock.Any())
+		TxValidation(gomock.Any(), gomock.Any())
 
 	err := v.Validate(byte_helpers.BurnWithSig.Transaction)
 	require.NoError(t, err)

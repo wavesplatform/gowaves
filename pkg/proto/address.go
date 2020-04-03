@@ -179,6 +179,10 @@ func (a Address) Bytes() []byte {
 	return a[:]
 }
 
+func (a *Address) Eq(b Address) bool {
+	return bytes.Equal(a.Bytes(), b.Bytes())
+}
+
 func addressChecksum(b []byte) ([]byte, error) {
 	h, err := crypto.SecureHash(b)
 	if err != nil {
@@ -386,7 +390,7 @@ func NewRecipientFromString(s string) (Recipient, error) {
 }
 
 func (r Recipient) Eq(r2 Recipient) bool {
-	res := (r.len == r2.len)
+	res := r.len == r2.len
 	if r.Address != nil && r2.Address != nil {
 		res = res && (*r.Address == *r2.Address)
 	} else {

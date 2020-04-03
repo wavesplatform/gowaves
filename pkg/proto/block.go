@@ -718,9 +718,9 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockI
 			Features:             features,
 			RewardVote:           rewardVote,
 			ConsensusBlockLength: uint32(consensusLength),
+			NxtConsensus:         nxtConsensus,
 			TransactionCount:     transactions.Count(),
 			GenPublicKey:         publicKey,
-			NxtConsensus:         nxtConsensus,
 		},
 		Transactions: transactions,
 	}

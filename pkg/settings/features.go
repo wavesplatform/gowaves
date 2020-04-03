@@ -13,12 +13,12 @@ const (
 	FairPoS
 	SmartAssets
 	SmartAccountTrading
-	Ride4DApps
+	Ride4DApps // RIDE V3
 	OrderV3
 	ReduceNFTFee
 	BlockReward // 14
 	BlockV5
-	MultiPaymentInvokeScript
+	MultiPaymentInvokeScript // RIDE V4
 	LeaseExpiration
 )
 

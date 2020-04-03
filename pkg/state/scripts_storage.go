@@ -1,6 +1,8 @@
 package state
 
 import (
+	"errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
@@ -23,18 +25,28 @@ func scriptBytesToAst(script proto.Script) (ast.Script, error) {
 }
 
 type scriptRecord struct {
+	pk     crypto.PublicKey
 	script proto.Script
 }
 
 func (r *scriptRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, len(r.script))
-	copy(res, r.script)
+	res := make([]byte, crypto.KeySize+len(r.script))
+	copy(res, r.pk[:])
+	copy(res[crypto.KeySize:], r.script)
 	return res, nil
 }
 
 func (r *scriptRecord) unmarshalBinary(data []byte) error {
-	scriptBytes := make([]byte, len(data))
-	copy(scriptBytes, data)
+	if len(data) < crypto.KeySize {
+		return errors.New("insufficient data for scriptRecord")
+	}
+	pk, err := crypto.NewPublicKeyFromBytes(data[:crypto.KeySize])
+	if err != nil {
+		return err
+	}
+	r.pk = pk
+	scriptBytes := make([]byte, len(data)-crypto.KeySize)
+	copy(scriptBytes, data[crypto.KeySize:])
 	r.script = proto.Script(scriptBytes)
 	return nil
 }
@@ -85,16 +97,17 @@ func (ss *scriptsStorage) scriptBytesByKey(key []byte, filter bool) (proto.Scrip
 	return record.script, nil
 }
 
-func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (ast.Script, error) {
+func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (ast.Script, crypto.PublicKey, error) {
 	var record scriptRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return ast.Script{}, err
+		return ast.Script{}, crypto.PublicKey{}, err
 	}
 	if len(record.script) == 0 {
 		// Empty script = no script.
-		return ast.Script{}, proto.ErrNotFound
+		return ast.Script{}, crypto.PublicKey{}, proto.ErrNotFound
 	}
-	return scriptBytesToAst(record.script)
+	script, err := scriptBytesToAst(record.script)
+	return script, record.pk, err
 }
 
 func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (ast.Script, error) {
@@ -102,7 +115,8 @@ func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (ast.Scr
 	if err != nil {
 		return ast.Script{}, err
 	}
-	return ss.scriptAstFromRecordBytes(recordBytes)
+	script, _, err := ss.scriptAstFromRecordBytes(recordBytes)
+	return script, err
 }
 
 func (ss *scriptsStorage) scriptAstByKey(key []byte, filter bool) (ast.Script, error) {
@@ -110,12 +124,13 @@ func (ss *scriptsStorage) scriptAstByKey(key []byte, filter bool) (ast.Script, e
 	if err != nil {
 		return ast.Script{}, err
 	}
-	return ss.scriptAstFromRecordBytes(recordBytes)
+	script, _, err := ss.scriptAstFromRecordBytes(recordBytes)
+	return script, err
 }
 
-func (ss *scriptsStorage) setAssetScript(assetID crypto.Digest, script proto.Script, blockID proto.BlockID) error {
+func (ss *scriptsStorage) setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
 	key := assetScriptKey{assetID}
-	record := scriptRecord{script}
+	record := scriptRecord{pk: pk, script: script}
 	return ss.setScript(assetScript, key.bytes(), record, blockID)
 }
 
@@ -129,7 +144,7 @@ func (ss *scriptsStorage) newestIsSmartAsset(assetID crypto.Digest, filter bool)
 	if err != nil {
 		return false, nil
 	}
-	return len(recordBytes) != 0, nil
+	return len(recordBytes) > crypto.KeySize, nil
 }
 
 func (ss *scriptsStorage) isSmartAsset(assetID crypto.Digest, filter bool) (bool, error) {
@@ -138,7 +153,7 @@ func (ss *scriptsStorage) isSmartAsset(assetID crypto.Digest, filter bool) (bool
 	if err != nil {
 		return false, nil
 	}
-	return len(recordBytes) != 0, nil
+	return len(recordBytes) > crypto.KeySize, nil
 }
 
 func (ss *scriptsStorage) newestScriptByAsset(assetID crypto.Digest, filter bool) (ast.Script, error) {
@@ -165,9 +180,9 @@ func (ss *scriptsStorage) scriptBytesByAsset(assetID crypto.Digest, filter bool)
 	return ss.scriptBytesByKey(key.bytes(), filter)
 }
 
-func (ss *scriptsStorage) setAccountScript(addr proto.Address, script proto.Script, blockID proto.BlockID) error {
+func (ss *scriptsStorage) setAccountScript(addr proto.Address, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
 	key := accountScriptKey{addr}
-	record := scriptRecord{script}
+	record := scriptRecord{pk: pk, script: script}
 	return ss.setScript(accountScript, key.bytes(), record, blockID)
 }
 
@@ -204,7 +219,7 @@ func (ss *scriptsStorage) newestAccountHasScript(addr proto.Address, filter bool
 	if err != nil {
 		return false, nil
 	}
-	return len(recordBytes) != 0, nil
+	return len(recordBytes) > crypto.KeySize, nil
 }
 
 func (ss *scriptsStorage) accountHasScript(addr proto.Address, filter bool) (bool, error) {
@@ -213,7 +228,7 @@ func (ss *scriptsStorage) accountHasScript(addr proto.Address, filter bool) (boo
 	if err != nil {
 		return false, nil
 	}
-	return len(recordBytes) != 0, nil
+	return len(recordBytes) > crypto.KeySize, nil
 }
 
 func (ss *scriptsStorage) newestScriptByAddr(addr proto.Address, filter bool) (ast.Script, error) {
@@ -228,6 +243,16 @@ func (ss *scriptsStorage) newestScriptByAddr(addr proto.Address, filter bool) (a
 	}
 	ss.cache.set(keyBytes, script, scriptSize)
 	return script, nil
+}
+
+func (ss *scriptsStorage) newestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
+	key := accountScriptKey{addr}
+	recordBytes, err := ss.hs.freshLatestEntryData(key.bytes(), filter)
+	if err != nil {
+		return crypto.PublicKey{}, err
+	}
+	_, pk, err := ss.scriptAstFromRecordBytes(recordBytes)
+	return pk, err
 }
 
 func (ss *scriptsStorage) scriptByAddr(addr proto.Address, filter bool) (ast.Script, error) {

@@ -262,6 +262,8 @@ func (k *KeyVal) Close() error {
 	err := storeBloomFilter(k.filter)
 	if err != nil {
 		zap.S().Errorf("Failed to save bloom filter: %v", err)
+	} else {
+		zap.S().Info("Bloom filter stored successfully")
 	}
 	return k.db.Close()
 }

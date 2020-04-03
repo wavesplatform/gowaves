@@ -677,3 +677,61 @@ func NewCatalogueV3() *Catalogue {
 	c.user["ScriptResult"] = 2
 	return c
 }
+
+func NewCatalogueV4() *Catalogue {
+	c := NewCatalogueV3()
+	c.user["IntegerEntry"] = 2
+	c.user["BooleanEntry"] = 2
+	c.user["BinaryEntry"] = 2
+	c.user["StringEntry"] = 2
+	c.user["DeleteEntry"] = 1
+	c.user["Issue"] = 7
+	c.user["Reissue"] = 3
+	c.user["Burn"] = 2
+	c.user["contains"] = 20
+	c.user["valueOrElse"] = 13
+	c.user["1080"] = 10
+	c.user["1101"] = 3
+	c.user["1102"] = 10
+	c.user["405"] = 10
+	c.user["1100"] = 2
+	c.user["800"] = 3900
+	c.user["2400"] = 1900
+	c.user["2401"] = 2000
+	c.user["2402"] = 2150
+	c.user["2403"] = 2300
+	c.user["2404"] = 2450
+	c.user["2405"] = 2550
+	c.user["2406"] = 2700
+	c.user["2407"] = 2900
+	c.user["2408"] = 3000
+	c.user["2409"] = 3150
+	c.user["2410"] = 3250
+	c.user["2411"] = 3400
+	c.user["2412"] = 3500
+	c.user["2413"] = 3650
+	c.user["2414"] = 3750
+	c.user["2500"] = 100
+	c.user["2501"] = 110
+	c.user["2502"] = 125
+	c.user["2503"] = 150
+	c.user["2600"] = 100
+	c.user["2601"] = 500
+	c.user["2602"] = 550
+	c.user["2603"] = 625
+	c.user["2700"] = 10
+	c.user["2701"] = 25
+	c.user["2702"] = 50
+	c.user["2703"] = 100
+	c.user["2800"] = 10
+	c.user["2801"] = 25
+	c.user["2802"] = 50
+	c.user["2803"] = 100
+	c.user["2900"] = 10
+	c.user["2901"] = 25
+	c.user["2902"] = 50
+	c.user["2903"] = 100
+	c.user["1070"] = 5
+	c.user["701"] = 30
+	return c
+}

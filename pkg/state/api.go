@@ -111,6 +111,12 @@ type StateInfo interface {
 
 	// Map on readable state. Way to apply multiple operations under same lock
 	MapR(func(StateInfo) (interface{}, error)) (interface{}, error)
+
+	// HitSourceAtHeight reads hit source stored in state
+	HitSourceAtHeight(height proto.Height) ([]byte, error)
+
+	//BlockVRF calculates VRF for given block
+	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.
@@ -143,7 +149,7 @@ type StateModifier interface {
 	// that were added using ValidateNextTx() until you call ResetValidationList().
 	// Does not change state.
 	// Returns TxValidationError or nil.
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion) error
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte) error
 	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
 	ResetValidationList()
 

@@ -44,13 +44,18 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
 
+	vrf, err := a.state.BlockVRF(&lastKnownBlock.BlockHeader, stateHeight)
+	if err != nil {
+		return nil, err
+	}
+
 	_ = a.state.TxValidation(func(validation state.TxValidation) error {
 		for {
 			t := a.utx.Pop()
 			if t == nil {
 				break
 			}
-			if err := a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version); err == nil {
+			if err := a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, vrf); err == nil {
 				transactions = append(transactions, t)
 			}
 		}

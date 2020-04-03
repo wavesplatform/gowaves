@@ -54,7 +54,7 @@ var (
 	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
 	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	bindAddress       = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
-	connectPeers      = flag.String("connect-peers", "true", "Spawn outgoing connections")
+	disableOutgoingConnections = flag.Bool("no-connections", false, "Disable outgoing network connections to peers. Default value is false.")
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
 	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
 	minerDelayParam   = flag.String("miner-delay", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
@@ -254,7 +254,7 @@ func main() {
 	})
 
 	mine := miner.NewMicroblockMiner(services, features, reward)
-	peerManager.SetConnectPeers(!(*connectPeers == "false"))
+	peerManager.SetConnectPeers(!*disableOutgoingConnections)
 	go miner.Run(ctx, mine, scheduler, services.InternalChannel)
 
 	//stateSync := node.NewStateSync(services, scoreSender, blocks_applier.NewBlocksApplier(state, ntptm))
@@ -315,9 +315,7 @@ func main() {
 	zap.S().Infow("Caught signal, stopping", "signal", sig)
 	cancel()
 	n.Close()
-	//<-time.After(2 * time.Second)
-
-	<-time.After(2 * time.Second)
+	<-time.After(1 * time.Second)
 }
 
 func FromArgs(scheme proto.Scheme) func(s *settings.NodeSettings) error {

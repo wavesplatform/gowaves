@@ -219,7 +219,11 @@ func (a *txAppender) currentBlockInfo() (*proto.BlockInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, height)
+	hs, err := a.state.BlockVRF(curHeader, height)
+	if err != nil {
+		return nil, err
+	}
+	return proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, height, hs)
 }
 
 func (a *txAppender) checkProtobufVersion(tx proto.Transaction) error {
@@ -419,6 +423,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 				initialisation:     params.initialisation,
 				block:              params.block,
 				height:             curHeight,
+				hitSource:          blockInfo.VRF,
 				validatingUtx:      false,
 			}
 			txChanges, err = a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo)
@@ -427,7 +432,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			}
 		} else {
 			// Create balance diff of this tx.
-			txChanges, err = a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, params.initialisation)
+			txChanges, err = a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, blockInfo.VRF, params.initialisation)
 			if err != nil {
 				return err
 			}
@@ -522,7 +527,7 @@ func (a *txAppender) resetValidationList() {
 }
 
 // For UTX validation.
-func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion) error {
+func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, vrf []byte) error {
 	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, currentTimestamp); err != nil {
 		return err
 	}
@@ -558,7 +563,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return err
 	}
-	blockInfo, err := proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, block, height)
+	blockInfo, err := proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, block, height, vrf)
 	if err != nil {
 		return err
 	}

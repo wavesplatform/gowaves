@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
+	"go.uber.org/zap"
 )
 
 func TestAssetScriptExtraFee(t *testing.T) {
@@ -25,7 +26,7 @@ func TestAssetScriptExtraFee(t *testing.T) {
 	// Set script.
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.stor.entities.scriptsStorage.setAccountScript(addr, proto.Script(testGlobal.scriptBytes), blockID0)
+	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err)
 
 	// Burn.
@@ -63,7 +64,7 @@ func TestAccountScriptExtraFee(t *testing.T) {
 	// Set script.
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.stor.entities.scriptsStorage.setAccountScript(addr, proto.Script(testGlobal.scriptBytes), blockID0)
+	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err)
 
 	// Burn.
@@ -206,4 +207,43 @@ func TestNFTMinFee(t *testing.T) {
 
 	require.NoError(t, checkMinFeeWaves(nftA1, params))
 	require.NoError(t, checkMinFeeWaves(nftA2, params))
+}
+
+func TestReissueFeeReduction(t *testing.T) {
+	//TODO: move logging initialization o package init level
+	logger, err := zap.NewDevelopment()
+	require.NoError(t, err)
+	zap.ReplaceGlobals(logger)
+	storage, path, err := createStorageObjects()
+	require.NoError(t, err)
+
+	defer func() {
+		storage.close(t)
+		err = common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	params := &feeValidationParams{
+		stor:           storage.entities,
+		settings:       settings.MainNetSettings,
+		initialisation: false,
+		txAssets:       &txAssets{feeAsset: proto.OptionalAsset{Present: false}},
+	}
+
+	reissueA1 := createReissueWithSig(t, 1)
+	reissueA2 := createReissueWithProofs(t, 1)
+	reissueB1 := createReissueWithSig(t, 1000)
+	reissueB2 := createReissueWithProofs(t, 1000)
+
+	require.Error(t, checkMinFeeWaves(reissueA1, params))
+	require.Error(t, checkMinFeeWaves(reissueA2, params))
+	require.NoError(t, checkMinFeeWaves(reissueB1, params))
+	require.NoError(t, checkMinFeeWaves(reissueB2, params))
+
+	storage.activateFeature(t, int16(settings.MultiPaymentInvokeScript))
+
+	require.NoError(t, checkMinFeeWaves(reissueA1, params))
+	require.NoError(t, checkMinFeeWaves(reissueA2, params))
+	require.NoError(t, checkMinFeeWaves(reissueB1, params))
+	require.NoError(t, checkMinFeeWaves(reissueB2, params))
 }

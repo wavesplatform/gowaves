@@ -105,8 +105,6 @@ func main() {
 		return
 	}
 
-	zap.S().Info("custom.AddressSchemeCharacter ", custom.AddressSchemeCharacter)
-
 	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), custom.AddressSchemeCharacter)
 	if *walletPassword != "" {
 		err := wal.Load([]byte(*walletPassword))
