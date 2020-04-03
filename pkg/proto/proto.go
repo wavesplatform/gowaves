@@ -155,6 +155,14 @@ type Version struct {
 	Major, Minor, Patch uint32
 }
 
+func NewVersion(Major, Minor, Patch uint32) Version {
+	return Version{
+		Major: Major,
+		Minor: Minor,
+		Patch: Patch,
+	}
+}
+
 func (a Version) Cmp(other Version) int {
 	if a.Major < other.Major {
 		return -1

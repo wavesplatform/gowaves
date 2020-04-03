@@ -30,6 +30,10 @@ func (a *MockStateManager) HeaderBytes(blockID proto.BlockID) ([]byte, error) {
 	panic("implement me")
 }
 
+func (a *MockStateManager) Map(func(state.State) error) error {
+	panic("not impl")
+}
+
 func (a *MockStateManager) HeaderBytesByHeight(height uint64) ([]byte, error) {
 	panic("implement me")
 }

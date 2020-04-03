@@ -22,7 +22,7 @@ func TestSyncFsm_Sync(t *testing.T) {
 
 	mockState.EXPECT().Height().Return(proto.Height(0), nil)
 
-	mockPeer.EXPECT().Handshake().Return(proto.Handshake{Version: proto.Version{1, 2, 0}})
+	mockPeer.EXPECT().Handshake().Return(proto.Handshake{Version: proto.NewVersion(1, 2, 0)})
 	mockPeer.EXPECT().SendMessage(gomock.Any())
 
 	fsm, async, err := NewIdleToSyncTransition(

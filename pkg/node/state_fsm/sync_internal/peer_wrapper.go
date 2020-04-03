@@ -22,7 +22,7 @@ func NewPeerWrapper(p peer.Peer) PeerWrapper {
 }
 
 func (a PeerWrapperImpl) AskBlocksIDs(ids []proto.BlockID) {
-	if a.p.Handshake().Version.Cmp(proto.Version{1, 2, 0}) < 0 {
+	if a.p.Handshake().Version.Cmp(proto.NewVersion(1, 2, 0)) < 0 {
 		sigs := make([]crypto.Signature, len(ids))
 		for i, b := range ids {
 			sigs[i] = b.Signature()

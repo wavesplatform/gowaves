@@ -3,16 +3,19 @@ package api
 import (
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
+	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 )
 
 func TestApp_PeersAll(t *testing.T) {
-	s := &blocks_applier.MockStateManager{
-		Peers_: []proto.TCPAddr{proto.NewTCPAddrFromString("127.0.0.1:6868")},
-	}
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	s := mock.NewMockState(ctrl)
+	s.EXPECT().Peers().Return([]proto.TCPAddr{proto.NewTCPAddrFromString("127.0.0.1:6868")}, nil)
 
 	app, err := NewApp("key", nil, services.Services{State: s})
 	require.NoError(t, err)

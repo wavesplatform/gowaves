@@ -11,7 +11,17 @@ import (
 type innerBlocksApplier struct {
 }
 
-func (a *innerBlocksApplier) apply(storage state.State, blocks []*proto.Block) (*proto.Block, proto.Height, error) {
+type innerState interface {
+	Block(blockID proto.BlockID) (*proto.Block, error)
+	Height() (proto.Height, error)
+	ScoreAtHeight(height proto.Height) (*big.Int, error)
+	BlockIDToHeight(blockID proto.BlockID) (proto.Height, error)
+	AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
+	BlockByHeight(height proto.Height) (*proto.Block, error)
+	RollbackToHeight(height proto.Height) error
+}
+
+func (a *innerBlocksApplier) apply(storage innerState, blocks []*proto.Block) (*proto.Block, proto.Height, error) {
 	if len(blocks) == 0 {
 		return nil, 0, errors.New("empty blocks")
 	}
