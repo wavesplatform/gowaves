@@ -922,6 +922,48 @@ func TestStringDataEntryJSONRoundTrip(t *testing.T) {
 	}
 }
 
+func TestDeleteDataEntryBinaryRoundTrip(t *testing.T) {
+	for _, test := range []string{
+		"some key",
+		"empty value",
+		"",
+		strings.Repeat("key-", 10),
+	} {
+		v := DeleteDataEntry{test}
+		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+			assert.Equal(t, byte(0xff), b[len(b)-1])
+			var av DeleteDataEntry
+			if err := av.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.Equal(t, test, av.Key)
+				assert.Equal(t, test, av.GetKey())
+				assert.Equal(t, DataDelete, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestDeleteDataEntryJSONRoundTrip(t *testing.T) {
+	for _, test := range []string{
+		"some key",
+		"empty value",
+		"",
+		strings.Repeat("key-", 10),
+	} {
+		v := DeleteDataEntry{test}
+		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
+			js := string(b)
+			ejs := fmt.Sprintf("{\"key\":\"%s\",\"type\":\"delete\",\"value\":null}", test)
+			assert.Equal(t, ejs, js)
+			var av DeleteDataEntry
+			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
+				assert.Equal(t, test, av.Key)
+				assert.Equal(t, test, av.GetKey())
+				assert.Equal(t, DataDelete, av.GetValueType())
+			}
+		}
+	}
+}
+
 func TestDataEntriesUnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		json     string
@@ -1102,6 +1144,21 @@ func TestStringArgumentBinarySize(t *testing.T) {
 
 }
 
+func TestArrayArgumentBinarySize(t *testing.T) {
+	for _, test := range []struct {
+		args []Argument
+		size int
+	}{
+		{nil, 1 + 4},
+		{[]Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}}, 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1},
+		{[]Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}, 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1 + 1 + 4 + 6},
+		{[]Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}, &ArrayArgument{Items: []Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}}}, 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1 + 1 + 4 + 6 + 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1 + 1 + 4 + 6},
+	} {
+		v := ArrayArgument{Items: test.args}
+		assert.Equal(t, test.size, v.BinarySize())
+	}
+}
+
 func TestIntegerArgumentBinaryRoundTrip(t *testing.T) {
 	tests := []int64{12345, -9876543210, 1234567890, 0}
 	for _, tc := range tests {
@@ -1225,6 +1282,44 @@ func TestStringArgumentJSONRoundTrip(t *testing.T) {
 			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
 				assert.Equal(t, tc, av.Value)
 				assert.Equal(t, ArgumentString, av.GetValueType())
+			}
+		}
+	}
+}
+
+func TestArrayArgumentBinaryRoundTrip(t *testing.T) {
+	for _, test := range []Arguments{
+		nil,
+		{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}},
+		{&IntegerArgument{0}, &StringArgument{""}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{}}},
+		{&IntegerArgument{math.MaxInt32}, &StringArgument{strings.Repeat("12345", 100)}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}, &ArrayArgument{Items: []Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}}},
+	} {
+		v := ArrayArgument{Items: test}
+		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
+			var aa ArrayArgument
+			if err := aa.UnmarshalBinary(b); assert.NoError(t, err) {
+				assert.NotNil(t, aa)
+				assert.Equal(t, test, aa.Items)
+				assert.Equal(t, ArgumentArray, aa.GetValueType())
+			}
+		}
+	}
+}
+
+func TestArrayArgumentJSONRoundTrip(t *testing.T) {
+	for _, test := range []Arguments{
+		nil,
+		{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}},
+		{&IntegerArgument{0}, &StringArgument{""}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{}}},
+		{&IntegerArgument{math.MaxInt32}, &StringArgument{strings.Repeat("12345", 100)}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}, &ArrayArgument{Items: []Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}}},
+	} {
+		v := ArrayArgument{Items: test}
+		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
+			var aa ArrayArgument
+			if err := aa.UnmarshalJSON(b); assert.NoError(t, err) {
+				assert.NotNil(t, aa)
+				assert.Equal(t, test, aa.Items)
+				assert.Equal(t, ArgumentArray, aa.GetValueType())
 			}
 		}
 	}
@@ -1424,63 +1519,4 @@ func TestFunctionCallJSONRoundTrip(t *testing.T) {
 			}
 		}
 	}
-}
-
-func TestScriptResultBinaryRoundTrip(t *testing.T) {
-	waves, err := NewOptionalAssetFromString("WAVES")
-	assert.NoError(t, err)
-	asset0, err := NewOptionalAssetFromString("Ft8X1v1LTa1ABafufpaCWyVj8KkaxUWE6xBhW6sNFJck")
-	assert.NoError(t, err)
-	asset1, err := NewOptionalAssetFromString("Ft5X1v1LTa1ABafufpaCWyVj7KkaxUWE6xBhW6sNFJck")
-	assert.NoError(t, err)
-	addr0, err := NewAddressFromString("3PQ8bp1aoqHQo3icNqFv6VM36V1jzPeaG1v")
-	assert.NoError(t, err)
-	rcp := NewRecipientFromAddress(addr0)
-	tests := []ScriptResult{
-		{
-			Writes: []DataEntry{
-				&IntegerDataEntry{"some key", 12345},
-				&BooleanDataEntry{"negative value", false},
-				&StringDataEntry{"some key", "some value string"},
-				&BinaryDataEntry{Key: "k3", Value: []byte{0x24, 0x7f, 0x71, 0x14, 0x1d}},
-				&IntegerDataEntry{"some key2", -12345},
-				&BooleanDataEntry{"negative value2", true},
-				&StringDataEntry{"some key143", "some value2 string"},
-				&BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}},
-			},
-			Transfers: []ScriptResultTransfer{
-				{Amount: math.MaxInt64, Asset: *waves, Recipient: rcp},
-				{Amount: 100500, Asset: *waves, Recipient: rcp},
-				{Amount: -10, Asset: *asset0, Recipient: rcp},
-				{Amount: 0, Asset: *asset1, Recipient: rcp},
-			},
-		},
-		{
-			Writes: []DataEntry{
-				&IntegerDataEntry{"some key", 12345},
-			},
-		},
-		{
-			Transfers: []ScriptResultTransfer{
-				{Amount: 100500, Asset: *waves, Recipient: rcp},
-				{Amount: -10, Asset: *asset0, Recipient: rcp},
-				{Amount: 0, Asset: *asset1, Recipient: rcp},
-			},
-		},
-	}
-	for _, tc := range tests {
-		if b, err := tc.MarshalWithAddresses(); assert.NoError(t, err) {
-			sr := ScriptResult{}
-			if err := sr.UnmarshalWithAddresses(b); assert.NoError(t, err) {
-				assert.Equal(t, tc, sr)
-			}
-		}
-	}
-	// Should not work with alias recipients.
-	alias, err := NewAliasFromString("alias:T:blah-blah-blah")
-	assert.NoError(t, err)
-	sr := tests[0]
-	sr.Transfers[0].Recipient = NewRecipientFromAlias(*alias)
-	_, err = sr.MarshalWithAddresses()
-	assert.Error(t, err)
 }

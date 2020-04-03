@@ -115,6 +115,9 @@ const (
 
 	// Stores protobuf-related info for blockReadWriter.
 	rwProtobufInfoKeyPrefix
+
+	// Hit source data
+	hitSourceKeyPrefix
 )
 
 var (

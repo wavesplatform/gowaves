@@ -7,36 +7,44 @@ import (
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 
+type flags struct {
+	blockV2 bool
+	arrays  bool
+}
+
 func BuildScript(r *BytesReader) (*Script, error) {
+	f := flags{}
 	version, err := r.ReadByte()
 	if err != nil {
 		return nil, errors.Wrap(err, "parser: failed to read script version")
 	}
 
 	if version == 0 {
-		dapp, err := parseDApp(r)
+		dapp, err := f.parseDApp(r)
 		if err != nil {
 			return nil, err
 		}
 		return &Script{
-			Version:    3,
-			HasBlockV2: false,
+			Version:    int(dapp.LibVersion),
+			HasBlockV2: f.blockV2,
+			HasArrays:  f.arrays,
 			Verifier:   nil,
 			DApp:       dapp,
 			dApp:       true,
 		}, nil
 	}
 
-	if version < 1 || version > 3 {
+	if version < 1 || version > 4 {
 		return nil, errors.Errorf("parser: unsupported script version %d", version)
 	}
-	exp, err := Walk(r)
+	exp, err := f.walk(r)
 	if err != nil {
 		return nil, errors.Wrap(err, "parser")
 	}
 	script := Script{
 		Version:    int(version),
-		HasBlockV2: false,
+		HasBlockV2: f.blockV2,
+		HasArrays:  f.arrays,
 		Verifier:   exp,
 	}
 	return &script, nil
@@ -56,7 +64,7 @@ type DappMeta struct {
 	Bytes   []byte
 }
 
-func parseDApp(r *BytesReader) (DApp, error) {
+func (f *flags) parseDApp(r *BytesReader) (DApp, error) {
 	dApp := DApp{}
 	dApp.DAppVersion = r.Next()
 	dApp.LibVersion = r.Next()
@@ -70,7 +78,7 @@ func parseDApp(r *BytesReader) (DApp, error) {
 	declarations := Exprs{}
 	cnt := r.ReadInt()
 	for i := int32(0); i < cnt; i++ {
-		d, err := deserializeDeclaration(r)
+		d, err := f.deserializeDeclaration(r)
 		if err != nil {
 			return dApp, err
 		}
@@ -85,7 +93,7 @@ func parseDApp(r *BytesReader) (DApp, error) {
 		rest := r.Rest()
 		_ = rest
 		annotationInvokeName := r.ReadString()
-		d, err := deserializeDeclaration(r)
+		d, err := f.deserializeDeclaration(r)
 		if err != nil {
 			return dApp, err
 		}
@@ -105,7 +113,7 @@ func parseDApp(r *BytesReader) (DApp, error) {
 	_ = cnt
 	if cnt != 0 {
 		annotationInvokeName := r.ReadString()
-		d, err := deserializeDeclaration(r)
+		d, err := f.deserializeDeclaration(r)
 		if err != nil {
 			return dApp, err
 		}
@@ -127,13 +135,12 @@ type DappCallableFunc struct {
 	FuncDecl             *FuncDeclaration
 }
 
-func Walk(iter *BytesReader) (Expr, error) {
+func (f *flags) walk(iter *BytesReader) (Expr, error) {
 	if iter.Eof() {
 		return nil, ErrUnexpectedEOF
 	}
 
 	next := iter.Next()
-
 	switch next {
 	case E_LONG:
 		return &LongExpr{
@@ -144,9 +151,9 @@ func Walk(iter *BytesReader) (Expr, error) {
 	case E_STRING:
 		return NewString(iter.ReadString()), nil
 	case E_IF:
-		return readIf(iter)
+		return f.readIf(iter)
 	case E_BLOCK:
-		return readBlock(iter)
+		return f.readBlock(iter)
 	case E_REF:
 		return &RefExpr{
 			Name: iter.ReadString(),
@@ -156,24 +163,36 @@ func Walk(iter *BytesReader) (Expr, error) {
 	case E_FALSE:
 		return NewBoolean(false), nil
 	case E_GETTER:
-		return readGetter(iter)
+		return f.readGetter(iter)
 	case E_FUNCALL:
-		return readFuncCAll(iter)
+		return f.readFuncCAll(iter)
 	case E_BLOCK_V2:
-		return readBlockV2(iter)
+		b, err := f.readBlockV2(iter)
+		if err != nil {
+			return nil, err
+		}
+		f.blockV2 = true
+		return b, nil
+	case E_ARR:
+		a, err := f.readArray(iter)
+		if err != nil {
+			return nil, err
+		}
+		f.arrays = true
+		return a, nil
 	default:
 		return nil, errors.Errorf("invalid byte %d", next)
 	}
 }
 
-func readBlock(r *BytesReader) (*Block, error) {
+func (f *flags) readBlock(r *BytesReader) (*Block, error) {
 	letName := r.ReadString()
-	letValue, err := Walk(r)
+	letValue, err := f.walk(r)
 	if err != nil {
 		return nil, err
 	}
 
-	body, err := Walk(r)
+	body, err := f.walk(r)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +203,7 @@ func readBlock(r *BytesReader) (*Block, error) {
 	}, nil
 }
 
-func deserializeDeclaration(r *BytesReader) (Expr, error) {
+func (f *flags) deserializeDeclaration(r *BytesReader) (Expr, error) {
 	declType, err := r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -192,7 +211,7 @@ func deserializeDeclaration(r *BytesReader) (Expr, error) {
 	switch declType {
 	case DEC_LET:
 		name := r.ReadString()
-		body, err := Walk(r)
+		body, err := f.walk(r)
 		if err != nil {
 			return nil, err
 		}
@@ -204,7 +223,7 @@ func deserializeDeclaration(r *BytesReader) (Expr, error) {
 		for i := int32(0); i < argc; i++ {
 			args[i] = r.ReadString()
 		}
-		body, err := Walk(r)
+		body, err := f.walk(r)
 		if err != nil {
 			return nil, err
 		}
@@ -219,13 +238,13 @@ func deserializeDeclaration(r *BytesReader) (Expr, error) {
 	}
 }
 
-func readBlockV2(r *BytesReader) (*BlockV2, error) {
-	rs, err := deserializeDeclaration(r)
+func (f *flags) readBlockV2(r *BytesReader) (*BlockV2, error) {
+	rs, err := f.deserializeDeclaration(r)
 	if err != nil {
 		return nil, err
 	}
 
-	body, err := Walk(r)
+	body, err := f.walk(r)
 	if err != nil {
 		return nil, err
 	}
@@ -236,20 +255,38 @@ func readBlockV2(r *BytesReader) (*BlockV2, error) {
 	}, nil
 }
 
-func readFuncCAll(iter *BytesReader) (*FuncCallExpr, error) {
+func (f *flags) readArray(r *BytesReader) (*ArrayExpr, error) {
+	cnt := r.ReadInt()
+	items := make([]Expr, cnt)
+	for i := 0; i < int(cnt); i++ {
+		item, err := f.walk(r)
+		if err != nil {
+			return nil, err
+		}
+		switch item.(type) {
+		case *LongExpr, *BooleanExpr, *StringExpr, *BytesExpr:
+			items[i] = item
+		default:
+			return nil, errors.New("unsupported type of array item")
+		}
+	}
+	return NewArray(items), nil
+}
+
+func (f *flags) readFuncCAll(iter *BytesReader) (*FuncCallExpr, error) {
 	nativeOrUser, err := iter.ReadByte()
 	if err != nil {
 		return nil, err
 	}
 	switch nativeOrUser {
 	case FH_NATIVE:
-		f, err := readNativeFunction(iter)
+		f, err := f.readNativeFunction(iter)
 		if err != nil {
 			return nil, err
 		}
 		return NewFuncCall(f), nil
 	case FH_USER:
-		f, err := readUserFunction(iter)
+		f, err := f.readUserFunction(iter)
 		if err != nil {
 			return nil, err
 		}
@@ -260,14 +297,14 @@ func readFuncCAll(iter *BytesReader) (*FuncCallExpr, error) {
 
 }
 
-func readNativeFunction(iter *BytesReader) (*FunctionCall, error) {
+func (f *flags) readNativeFunction(iter *BytesReader) (*FunctionCall, error) {
 	funcNumber := iter.ReadShort()
 	name := strconv.Itoa(int(funcNumber))
 	argc := iter.ReadInt()
 	argv := make([]Expr, argc)
 
 	for i := int32(0); i < argc; i++ {
-		v, err := Walk(iter)
+		v, err := f.walk(iter)
 		if err != nil {
 			return nil, err
 		}
@@ -276,12 +313,12 @@ func readNativeFunction(iter *BytesReader) (*FunctionCall, error) {
 	return NewFunctionCall(name, argv), nil
 }
 
-func readUserFunction(iter *BytesReader) (*FunctionCall, error) {
+func (f *flags) readUserFunction(iter *BytesReader) (*FunctionCall, error) {
 	name := iter.ReadString()
 	argc := iter.ReadInt()
 	argv := make([]Expr, argc)
 	for i := int32(0); i < argc; i++ {
-		v, err := Walk(iter)
+		v, err := f.walk(iter)
 		if err != nil {
 			return nil, err
 		}
@@ -291,16 +328,16 @@ func readUserFunction(iter *BytesReader) (*FunctionCall, error) {
 	return NewFunctionCall(name, argv), nil
 }
 
-func readIf(r *BytesReader) (*IfExpr, error) {
-	cond, err := Walk(r)
+func (f *flags) readIf(r *BytesReader) (*IfExpr, error) {
+	cond, err := f.walk(r)
 	if err != nil {
 		return nil, err
 	}
-	True, err := Walk(r)
+	True, err := f.walk(r)
 	if err != nil {
 		return nil, err
 	}
-	False, err := Walk(r)
+	False, err := f.walk(r)
 	if err != nil {
 		return nil, err
 	}
@@ -311,8 +348,8 @@ func readBytes(r *BytesReader) (*BytesExpr, error) {
 	return NewBytes(r.ReadBytes()), nil
 }
 
-func readGetter(r *BytesReader) (*GetterExpr, error) {
-	a, err := Walk(r)
+func (f *flags) readGetter(r *BytesReader) (*GetterExpr, error) {
+	a, err := f.walk(r)
 	if err != nil {
 		return nil, err
 	}

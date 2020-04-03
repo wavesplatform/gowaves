@@ -37,7 +37,7 @@ type MicroblockMiner struct {
 	reward int64
 }
 
-func NewMicroblockMiner(services services.Services, ngRuntime ng.Runtime, scheme proto.Scheme, features Features, reward int64) *MicroblockMiner {
+func NewMicroblockMiner(services services.Services, ngRuntime ng.Runtime, features Features, reward int64) *MicroblockMiner {
 	return &MicroblockMiner{
 		scheduler:   services.Scheduler,
 		utx:         services.UtxPool,
@@ -45,19 +45,19 @@ func NewMicroblockMiner(services services.Services, ngRuntime ng.Runtime, scheme
 		peer:        services.Peers,
 		constraints: DefaultConstraints(),
 		ngRuntime:   ngRuntime,
-		scheme:      scheme,
+		scheme:      services.Scheme,
 		services:    services,
 		features:    features,
 		reward:      reward,
 	}
 }
 
-func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget types.BaseTarget, GenSignature []byte) {
+func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget types.BaseTarget, gs []byte, vrf []byte) {
 	defer a.scheduler.Reschedule()
 
 	nxt := proto.NxtConsensus{
 		BaseTarget:   baseTarget,
-		GenSignature: GenSignature,
+		GenSignature: gs,
 	}
 
 	b, err := func() (*proto.Block, error) {
@@ -117,10 +117,10 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		ClassicAmountOfTxsInBlock:   a.constraints.ClassicAmountOfTxsInBlock,
 		MaxTxsSizeInBytes:           a.constraints.MaxTxsSizeInBytes - 4,
 	}
-	go a.mineMicro(ctx, rest, b, ng.NewBlocksFromBlock(b), k)
+	go a.mineMicro(ctx, rest, b, ng.NewBlocksFromBlock(b), k, vrf)
 }
 
-func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockApplyOn *proto.Block, blocks ng.Blocks, keyPair proto.KeyPair) {
+func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockApplyOn *proto.Block, blocks ng.Blocks, keyPair proto.KeyPair, vrf []byte) {
 	select {
 	case <-ctx.Done():
 		return
@@ -180,8 +180,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 			unAppliedTransactions = append(unAppliedTransactions, t)
 			continue
 		}
-
-		err = a.state.ValidateNextTx(t.T, blockApplyOn.Timestamp, parentTimestamp, blockApplyOn.Version)
+		err = a.state.ValidateNextTx(t.T, blockApplyOn.Timestamp, parentTimestamp, blockApplyOn.Version, vrf)
 		if err != nil {
 			unAppliedTransactions = append(unAppliedTransactions, t)
 			continue
@@ -202,7 +201,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 
 	// no transactions applied, skip
 	if cnt == 0 {
-		go a.mineMicro(ctx, rest, blockApplyOn, blocks, keyPair)
+		go a.mineMicro(ctx, rest, blockApplyOn, blocks, keyPair, vrf)
 		return
 	}
 
@@ -292,7 +291,7 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 		return
 	}
 
-	go a.mineMicro(ctx, newRest, newBlock, newBlocks, keyPair)
+	go a.mineMicro(ctx, newRest, newBlock, newBlocks, keyPair, vrf)
 }
 
 func blockVersion(state state.State) (proto.BlockVersion, error) {
@@ -323,7 +322,7 @@ func Run(ctx context.Context, a types.Miner, s *scheduler.SchedulerImpl) {
 		case <-ctx.Done():
 			return
 		case v := <-s.Mine():
-			a.Mine(ctx, v.Timestamp, v.KeyPair, v.Parent, v.BaseTarget, v.GenSignature)
+			a.Mine(ctx, v.Timestamp, v.KeyPair, v.Parent, v.BaseTarget, v.GenSignature, v.VRF)
 		}
 	}
 }

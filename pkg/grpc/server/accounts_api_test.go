@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -19,37 +20,38 @@ import (
 
 func TestGetBalances(t *testing.T) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	params := defaultStateParams()
 	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	err = server.initServer(st, nil, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
 	defer func() {
 		cancel()
-		conn.Close()
+		err := conn.Close()
+		require.NoError(t, err)
 		err = st.Close()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}()
 
 	cl := g.NewAccountsApiClient(conn)
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	addrBody, err := addr.Body()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req := &g.BalancesRequest{
 		Address: addrBody,
 		Assets:  [][]byte{{}},
 	}
 	stream, err := cl.GetBalances(ctx, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	res, err := stream.Recv()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	correctBalance := &g.BalanceResponse_Waves{Waves: &g.BalanceResponse_WavesBalances{
 		Regular:    9999999500000000,
 		Generating: 9999999500000000,
@@ -65,14 +67,14 @@ func TestGetBalances(t *testing.T) {
 
 func TestGetActiveLeases(t *testing.T) {
 	genesisPath, err := globalPathFromLocal("testdata/genesis/lease_genesis.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	st, stateCloser := stateWithCustomGenesis(t, genesisPath)
 	sets, err := st.BlockchainSettings()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createWallet(ctx, st, sets)
 	err = server.initServer(st, nil, sch)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
 	defer func() {
@@ -83,22 +85,22 @@ func TestGetActiveLeases(t *testing.T) {
 
 	cl := g.NewAccountsApiClient(conn)
 	addr, err := proto.NewAddressFromString("3Fv3jiLvLS4c4N1ZvSLac3HBGUzaHDMvjN1")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	addrBody, err := addr.Body()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req := &g.AccountRequest{
 		Address: addrBody,
 	}
 	stream, err := cl.GetActiveLeases(ctx, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	res, err := stream.Recv()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	txId, err := crypto.NewDigestFromBase58("ADXuoPsKMJ59HyLMGzLBbNQD8p2eJ93dciuBPJp3Qhx")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	tx, err := st.TransactionByID(txId.Bytes())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	correctRes, err := server.transactionToTransactionResponse(tx, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, correctRes, res)
 	_, err = stream.Recv()
 	assert.Equal(t, io.EOF, err)
@@ -106,19 +108,20 @@ func TestGetActiveLeases(t *testing.T) {
 
 func TestResolveAlias(t *testing.T) {
 	genesisPath, err := globalPathFromLocal("testdata/genesis/alias_genesis.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	st, stateCloser := stateWithCustomGenesis(t, genesisPath)
 	sets, err := st.BlockchainSettings()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createWallet(ctx, st, sets)
 	err = server.initServer(st, nil, sch)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)
 	defer func() {
 		cancel()
-		conn.Close()
+		err := conn.Close()
+		require.NoError(t, err)
 		stateCloser()
 	}()
 
@@ -127,10 +130,10 @@ func TestResolveAlias(t *testing.T) {
 	aliasStr := "nodes"
 	alias := proto.NewAlias('W', aliasStr)
 	correctAddr, err := st.AddrByAlias(*alias)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	correctAddrBody, err := correctAddr.Body()
+	require.NoError(t, err)
 	addr, err := cl.ResolveAlias(ctx, &wrappers.StringValue{Value: aliasStr})
-	assert.NoError(t, err)
-	correctBody, err := correctAddr.Body()
-	assert.NoError(t, err)
-	assert.True(t, bytes.Equal(correctBody, addr.Value))
+	require.NoError(t, err)
+	assert.True(t, bytes.Equal(correctAddrBody, addr.Value))
 }

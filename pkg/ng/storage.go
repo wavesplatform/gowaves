@@ -224,6 +224,7 @@ func (a *storage) fromRow(seq Row) (*proto.Block, error) {
 func (a *storage) newFromBlock(block *proto.Block) *storage {
 	return &storage{
 		curState: NewBlocksFromBlock(block),
+		scheme:   a.scheme,
 		//validator: a.validator,
 	}
 }

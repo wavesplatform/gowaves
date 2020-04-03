@@ -56,6 +56,7 @@ type blockchainEntitiesStorage struct {
 	scriptsStorage    *scriptsStorage
 	scriptsComplexity *scriptsComplexity
 	invokeResults     *invokeResults
+	hitSources        *hitSources
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter) (*blockchainEntitiesStorage, error) {
@@ -115,22 +116,27 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
+	hitSources, err := newHitSources(hs.db, hs.dbBatch)
+	if err != nil {
+		return nil, err
+	}
 	return &blockchainEntitiesStorage{
-		hs,
-		aliases,
-		assets,
-		leases,
-		scores,
-		blocksInfo,
-		balances,
-		features,
-		monetaryPolicy,
-		ordersVolumes,
-		accountsDataStor,
-		sponsoredAssets,
-		scriptsStorage,
-		scriptsComplexity,
-		invokeResults,
+		hs:                hs,
+		aliases:           aliases,
+		assets:            assets,
+		leases:            leases,
+		scores:            scores,
+		blocksInfo:        blocksInfo,
+		balances:          balances,
+		features:          features,
+		monetaryPolicy:    monetaryPolicy,
+		ordersVolumes:     ordersVolumes,
+		accountsDataStor:  accountsDataStor,
+		sponsoredAssets:   sponsoredAssets,
+		scriptsStorage:    scriptsStorage,
+		scriptsComplexity: scriptsComplexity,
+		invokeResults:     invokeResults,
+		hitSources:        hitSources,
 	}, nil
 }
 
@@ -328,6 +334,9 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.stor.scores.addScore(&big.Int{}, genesisScore, 1); err != nil {
 		return err
 	}
+	if err := s.stor.hitSources.saveHitSource(s.genesis.GenSignature, 1); err != nil {
+		return err
+	}
 	chans := newVerifierChans()
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 	if err := s.addNewBlock(&s.genesis, nil, true, chans, 0); err != nil {
@@ -424,6 +433,23 @@ func (s *stateManager) loadLastBlock() error {
 
 func (s *stateManager) TopBlock() *proto.Block {
 	return (*proto.Block)(atomic.LoadPointer(&s.lastBlock))
+}
+
+func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+	var vrf []byte = nil
+	if blockHeader.Version >= proto.ProtoBlockVersion {
+		pos := &consensus.FairPosCalculator{}
+		gsp := &consensus.VRFGenerationSignatureProvider{}
+		hitSourceHeader, err := s.NewestHeaderByHeight(pos.HeightForHit(height))
+		if err != nil {
+			return nil, err
+		}
+		_, vrf, err = gsp.VerifyGenerationSignature(blockHeader.GenPublicKey, hitSourceHeader.GenSignature.Bytes(), blockHeader.GenSignature)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return vrf, nil
 }
 
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
@@ -1239,7 +1265,9 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	if blocksToFinish != nil {
 		return s.handleBreak(blocksToFinish, initialisation, breakerInfo)
 	}
-	zap.S().Infof("State: blocks to height %d added, block id: %s", height+uint64(blocksNumber), lastBlock.BlockID().String())
+	if lastBlock != nil {
+		zap.S().Infof("Height: %d; Block ID: %s", height+uint64(blocksNumber), lastBlock.BlockID().String())
+	}
 	return lastBlock, nil
 }
 
@@ -1316,6 +1344,9 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	if err := s.stor.scores.rollback(newHeight, oldHeight); err != nil {
 		return wrapErr(RollbackError, err)
 	}
+	if err := s.stor.hitSources.rollback(newHeight, oldHeight); err != nil {
+		return wrapErr(RollbackError, err)
+	}
 	// Clear scripts cache.
 	if err := s.stor.scriptsStorage.clear(); err != nil {
 		return wrapErr(RollbackError, err)
@@ -1349,6 +1380,32 @@ func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return score, nil
+}
+
+func (s *stateManager) HitSourceAtHeight(height uint64) ([]byte, error) {
+	maxHeight, err := s.Height()
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	if height < 1 || height > maxHeight {
+		return nil, wrapErr(InvalidInputError,
+			errors.Errorf("HitSourceAtHeight: height %d out of valid range [%d, %d]", height, 1, maxHeight))
+	}
+	hs, err := s.stor.hitSources.hitSource(height)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return hs, nil
+}
+
+func (s *stateManager) SaveHitSources(startHeight uint64, hitSources [][]byte) error {
+	for i, hs := range hitSources {
+		err := s.stor.hitSources.saveHitSource(hs, uint64(i+1)+startHeight)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *stateManager) CurrentScore() (*big.Int, error) {
@@ -1412,8 +1469,8 @@ func (s *stateManager) ResetValidationList() {
 }
 
 // For UTX validation.
-func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion) error {
-	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v); err != nil {
+func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, vrf []byte) error {
+	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, vrf); err != nil {
 		return wrapErr(TxValidationError, err)
 	}
 	return nil
@@ -1874,7 +1931,7 @@ func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptRe
 	if !hasData {
 		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for invoke results"))
 	}
-	res, err := s.stor.invokeResults.invokeResult(invokeID, true)
+	res, err := s.stor.invokeResults.invokeResult(s.settings.AddressSchemeCharacter, invokeID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

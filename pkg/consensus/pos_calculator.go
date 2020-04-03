@@ -57,7 +57,7 @@ type GenerationSignatureProvider interface {
 
 	// VerifyGenerationSignature checks that generation signature is valid for given message and generator's public key.
 	// It returns verification result and error if any.
-	VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, error)
+	VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, []byte, error)
 }
 
 // NXTGenerationSignatureProvider implements the original NXT way to create generation signature using generator's
@@ -71,7 +71,11 @@ func (p *NXTGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize
 }
 
 func (p *NXTGenerationSignatureProvider) HitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
-	return p.signature(key, msg)
+	hs, err := p.signature(key, msg)
+	if err != nil {
+		return nil, err
+	}
+	return hs, nil
 }
 
 func (p *NXTGenerationSignatureProvider) signature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
@@ -88,15 +92,15 @@ func (p *NXTGenerationSignatureProvider) signature(key [crypto.KeySize]byte, msg
 	return d[:], nil
 }
 
-func (p *NXTGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, error) {
+func (p *NXTGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, []byte, error) {
 	calculated, err := p.GenerationSignature(pk, msg)
 	if err != nil {
-		return false, errors.Wrap(err, "NXT generation signature provider")
+		return false, nil, errors.Wrap(err, "NXT generation signature provider")
 	}
 	if !bytes.Equal(sig, calculated) {
-		return false, nil
+		return false, nil, nil
 	}
-	return true, nil
+	return true, calculated, nil
 }
 
 // VRFGenerationSignatureProvider implements generation of VRF pseudo-random value calculated from generation signature
@@ -114,16 +118,16 @@ func (p *VRFGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize
 
 func (p *VRFGenerationSignatureProvider) HitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
 	vrf := crypto.ComputeVRF(key, msg)
-	return vrf[:], nil
+	return vrf, nil
 }
 
 // Verify checks that provided signature is valid against given generator's public key and message.
-func (p *VRFGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, error) {
-	ok, _, err := crypto.VerifyVRF(pk, msg[:], sig[:])
+func (p *VRFGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, []byte, error) {
+	ok, hs, err := crypto.VerifyVRF(pk, msg[:], sig[:])
 	if err != nil {
-		return false, errors.Wrap(err, "VRF generation signature provider")
+		return false, nil, errors.Wrap(err, "VRF generation signature provider")
 	}
-	return ok, nil
+	return ok, hs, nil
 }
 
 func GenHit(source []byte) (*Hit, error) {

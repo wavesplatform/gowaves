@@ -47,27 +47,30 @@ func TestSaveResult(t *testing.T) {
 	invokeID := crypto.MustDigestFromBase58(invokeId)
 	to.stor.addBlock(t, blockID0)
 	savedRes := &proto.ScriptResult{
-		Writes: []proto.DataEntry{
-			&proto.IntegerDataEntry{Key: "some key", Value: 12345},
-			&proto.BooleanDataEntry{Key: "negative value", Value: false},
-			&proto.StringDataEntry{Key: "some key", Value: "some value string"},
-			&proto.BinaryDataEntry{Key: "k3", Value: []byte{0x24, 0x7f, 0x71, 0x14, 0x1d}},
-			&proto.IntegerDataEntry{Key: "some key2", Value: -12345},
-			&proto.BooleanDataEntry{Key: "negative value2", Value: true},
-			&proto.StringDataEntry{Key: "some key143", Value: "some value2 string"},
-			&proto.BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}},
+		DataEntries: []*proto.DataEntryScriptAction{
+			{Entry: &proto.IntegerDataEntry{Key: "some key", Value: 12345}},
+			{Entry: &proto.BooleanDataEntry{Key: "negative value", Value: false}},
+			{Entry: &proto.StringDataEntry{Key: "some key", Value: "some value string"}},
+			{Entry: &proto.BinaryDataEntry{Key: "k3", Value: []byte{0x24, 0x7f, 0x71, 0x14, 0x1d}}},
+			{Entry: &proto.IntegerDataEntry{Key: "some key2", Value: -12345}},
+			{Entry: &proto.BooleanDataEntry{Key: "negative value2", Value: true}},
+			{Entry: &proto.StringDataEntry{Key: "some key143", Value: "some value2 string"}},
+			{Entry: &proto.BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
 		},
-		Transfers: []proto.ScriptResultTransfer{
+		Transfers: []*proto.TransferScriptAction{
 			{Amount: 100500, Asset: *testGlobal.asset0.asset, Recipient: rcp},
-			{Amount: -10, Asset: *testGlobal.asset1.asset, Recipient: rcp},
+			{Amount: 10, Asset: *testGlobal.asset1.asset, Recipient: rcp},
 			{Amount: 0, Asset: *testGlobal.asset2.asset, Recipient: rcp},
 		},
+		Issues:   make([]*proto.IssueScriptAction, 0),
+		Reissues: make([]*proto.ReissueScriptAction, 0),
+		Burns:    make([]*proto.BurnScriptAction, 0),
 	}
 	err = to.invokeResults.saveResult(invokeID, savedRes, blockID0)
 	assert.NoError(t, err)
 	// Flush.
 	to.stor.flush(t)
-	res, err := to.invokeResults.invokeResult(invokeID, true)
+	res, err := to.invokeResults.invokeResult('W', invokeID, true)
 	assert.NoError(t, err)
-	assert.Equal(t, savedRes, res)
+	assert.EqualValues(t, savedRes, res)
 }

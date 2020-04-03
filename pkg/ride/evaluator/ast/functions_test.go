@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -155,22 +156,23 @@ func TestNativeSigVerify(t *testing.T) {
 	pk, err := hex.DecodeString("ba9e7203ca62efbaa49098ec408bdf8a3dfed5a7fa7c200ece40aade905e535f")
 	require.NoError(t, err)
 
-	rs, err := NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
+	f := limitedSigVerify(0)
+	rs, err := f(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(true), rs)
-	rs, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(bad), NewBytes(pk)))
+	rs, err = f(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(bad), NewBytes(pk)))
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(false), rs)
 
-	_, err = NativeSigVerify(newEmptyScopeV1(), nil)
+	_, err = f(newEmptyScopeV1(), nil)
 	require.Error(t, err)
-	_, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewString("BAD"), NewBytes(sig), NewBytes(pk)))
+	_, err = f(newEmptyScopeV1(), NewExprs(NewString("BAD"), NewBytes(sig), NewBytes(pk)))
 	require.Error(t, err)
-	_, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewString("BAD"), NewBytes(pk)))
+	_, err = f(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewString("BAD"), NewBytes(pk)))
 	require.Error(t, err)
-	_, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewString("BAD")))
+	_, err = f(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewString("BAD")))
 	require.Error(t, err)
-	rs, err = NativeSigVerify(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk[:10])))
+	rs, err = f(newEmptyScopeV1(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk[:10])))
 	require.NoError(t, err)
 	assert.Equal(t, NewBoolean(false), rs)
 }
@@ -179,7 +181,8 @@ func TestNativeSigVerifyLengthCheck(t *testing.T) {
 	msg := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE}, 8193)
 	sig := bytes.Repeat([]byte{0xDE, 0xAD, 0xBE, 0xEF}, 8)
 	pk := bytes.Repeat([]byte{0x01}, 32)
-	_, err := NativeSigVerify(newEmptyScopeV3(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
+	f := limitedSigVerify(0)
+	_, err := f(newEmptyScopeV3(), NewExprs(NewBytes(msg), NewBytes(sig), NewBytes(pk)))
 	assert.Error(t, err, "NativeSigVerify: invalid message length")
 }
 
@@ -188,7 +191,8 @@ func TestNativeKeccak256(t *testing.T) {
 	data, err := hex.DecodeString(str)
 	require.NoError(t, err)
 	result := "8f54f1c2d0eb5771cd5bf67a6689fcd6eed9444d91a39e5ef32a9b4ae5ca14ff"
-	rs, err := NativeKeccak256(newEmptyScopeV1(), NewExprs(NewBytes(data)))
+	f := limitedKeccak256(0)
+	rs, err := f(newEmptyScopeV1(), NewExprs(NewBytes(data)))
 	require.NoError(t, err)
 
 	expected, err := hex.DecodeString(result)
@@ -201,7 +205,8 @@ func TestNativeBlake2b256(t *testing.T) {
 	data, err := hex.DecodeString(str)
 	require.NoError(t, err)
 	result := "a035872d6af8639ede962dfe7536b0c150b590f3234a922fb7064cd11971b58e"
-	rs, err := NativeBlake2b256(newEmptyScopeV1(), NewExprs(NewBytes(data)))
+	f := limitedBlake2b256(0)
+	rs, err := f(newEmptyScopeV1(), NewExprs(NewBytes(data)))
 	require.NoError(t, err)
 
 	expected, err := hex.DecodeString(result)
@@ -212,7 +217,8 @@ func TestNativeBlake2b256(t *testing.T) {
 func TestNativeSha256(t *testing.T) {
 	data := "123"
 	result := "A665A45920422F9D417E4867EFDC4FB8A04A1F3FFF1FA07E998E86F7F7A27AE3"
-	rs, err := NativeSha256(newEmptyScopeV1(), NewExprs(NewBytes([]byte(data))))
+	f := limitedSha256(0)
+	rs, err := f(newEmptyScopeV1(), NewExprs(NewBytes([]byte(data))))
 	require.NoError(t, err)
 
 	expected, err := hex.DecodeString(result)
@@ -860,7 +866,8 @@ func TestNativeRSAVerify(t *testing.T) {
 		require.NoError(t, err)
 		sig, err := base64.StdEncoding.DecodeString(test.sig)
 		require.NoErrorf(t, err, "#%d", i)
-		r, err := NativeRSAVerify(newEmptyScopeV1(), NewExprs(test.alg, NewBytes(msg), NewBytes(sig), NewBytes(pk)))
+		f := limitedRSAVerify(0)
+		r, err := f(newEmptyScopeV1(), NewExprs(test.alg, NewBytes(msg), NewBytes(sig), NewBytes(pk)))
 		require.NoErrorf(t, err, "#%d", i)
 		assert.Equalf(t, NewBoolean(test.ok), r, "#%d", i)
 	}
@@ -1304,43 +1311,6 @@ func TestNativeAssetInfo(t *testing.T) {
 	assert.Equal(t, NewUnit(), rs2)
 }
 
-func TestNativeParseBlockHeader(t *testing.T) {
-	_, publicKey, _ := crypto.GenerateKeyPair([]byte("test"))
-	parentSig := crypto.MustSignatureFromBase58("4sukfbjbbkBnFevQrGN7VvpBSwvufsuqvq5fmfiMdp1pBDMF5TanbFejRHhsiUQSWPkvWRdagwWD3oxnX3eEqzvM")
-	signa := crypto.MustSignatureFromBase58("5X76YVeG8T6iTxFmD5WNSaR13hxtsgJPQ2oELeZUsrQfZWSXtnUbq1kRqqMjfBngPvaEKVVV2FSujdTXm3hTW172")
-	gensig := crypto.MustBytesFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")
-	parent := proto.NewBlockIDFromSignature(parentSig)
-	h := proto.BlockHeader{
-		Version:       3,
-		Timestamp:     1567506205718,
-		Parent:        parent,
-		FeaturesCount: 2,
-		Features:      []int16{7, 99},
-		NxtConsensus: proto.NxtConsensus{
-			BaseTarget:   1310,
-			GenSignature: gensig,
-		},
-		TransactionCount:       12,
-		GenPublicKey:           publicKey,
-		BlockSignature:         signa,
-		Height:                 659687,
-		TransactionBlockLength: 4,
-	}
-	state := mockstate.State{
-		BlockHeaderByHeight: &h,
-	}
-	s := newScopeWithState(state)
-	bts, err := h.MarshalHeaderToBinary()
-	require.NoError(t, err)
-
-	rs, err := NativeParseBlockHeader(s, Params(NewBytes(bts)))
-	require.NoError(t, err)
-
-	v := rs.(Getable)
-
-	require.Equal(t, NewLong(1567506205718), ok(v.Get("timestamp")))
-}
-
 func TestNativeList(t *testing.T) {
 	for _, test := range []struct {
 		expressions Exprs
@@ -1385,4 +1355,327 @@ func TestDataTransaction(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, test.result, r)
 	}
+}
+
+func TestContains(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		result      Expr
+	}{
+		{NewExprs(NewString("ride"), NewString("ide")), NewBoolean(true)},
+		{NewExprs(NewString("string"), NewString("substring")), NewBoolean(false)},
+		{NewExprs(NewString(""), NewString("")), NewBoolean(true)},
+		{NewExprs(NewString("ride"), NewString("")), NewBoolean(true)},
+		{NewExprs(NewString(""), NewString("ride")), NewBoolean(false)},
+	} {
+		r, err := Contains(newEmptyScopeV4(), test.expressions)
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestValueOrElse(t *testing.T) {
+	for _, test := range []struct {
+		expressions Exprs
+		result      Expr
+	}{
+		{NewExprs(NewString("ride"), NewString("ide")), NewString("ride")},
+		{NewExprs(NewString("string"), NewLong(12345)), NewString("string")},
+		{NewExprs(NewBoolean(true), NewString("xxx")), NewBoolean(true)},
+		{NewExprs(NewLong(12345), NewBoolean(true)), NewLong(12345)},
+		{NewExprs(NewUnit(), NewString("ide")), NewString("ide")},
+		{NewExprs(NewUnit(), NewLong(12345)), NewLong(12345)},
+		{NewExprs(NewUnit(), NewString("xxx")), NewString("xxx")},
+		{NewExprs(NewUnit(), NewBoolean(true)), NewBoolean(true)},
+	} {
+		r, err := ValueOrElse(newEmptyScopeV4(), test.expressions)
+		require.NoError(t, err)
+		assert.Equal(t, test.result, r)
+	}
+}
+
+func TestCalculateAssetID(t *testing.T) {
+	for _, test := range []struct {
+		txID        string
+		name        string
+		description string
+		decimals    int64
+		quantity    int64
+		reissuable  bool
+		nonce       int64
+	}{
+		{"2K2XASvPkwdePyWaKDKpKT1X7u2uzu6FJASJ34nuTdEi", "asset", "test asset", 2, 100000, false, 0},
+		{"F2fxqoTg3PvEwBshxhwKY9BrbqHvi1RZfyFJ4VmRmokZ", "somerset", "this asset is summer set", 8, 100000000000000, true, 1234567890},
+		{"AafWgQtRaLm915tNf1fhFdmRr7g6Y9YxyeaJRYuhioRX", "some", "this asset is awesome", 0, 1000000000, true, 987654321},
+	} {
+		txID, err := crypto.NewDigestFromBase58(test.txID)
+		require.NoError(t, err)
+		s := newEmptyScopeV4()
+		s.AddValue("txId", NewBytes(txID.Bytes()))
+		r, err := CalculateAssetID(s, NewExprs(NewIssueExpr(test.name, test.description, test.quantity, test.decimals, test.reissuable, test.nonce)))
+		require.NoError(t, err)
+		id := proto.GenerateIssueScriptActionID(test.name, test.description, test.decimals, test.quantity, test.reissuable, test.nonce, txID)
+		assert.Equal(t, NewBytes(id.Bytes()), r)
+	}
+}
+
+func TestLimitedCreateList(t *testing.T) {
+	for _, test := range []struct {
+		expression  Expr
+		repetitions int
+		error       bool
+	}{
+		{NewString("ride"), 100, false},
+		{NewString("ride"), 1001, true},
+		{NewBoolean(true), 100, false},
+		{NewBoolean(true), 1001, true},
+		{NewLong(12345), 100, false},
+		{NewLong(12345), 1001, true},
+	} {
+		r := NewExprs()
+		var ok bool
+		s := newEmptyScopeV4()
+		for i := 0; i < test.repetitions-1; i++ {
+			res, err := LimitedCreateList(s, NewExprs(test.expression, r))
+			require.NoError(t, err)
+			r, ok = res.(Exprs)
+			require.True(t, ok)
+		}
+		res, err := LimitedCreateList(s, NewExprs(test.expression, r))
+		if test.error {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			l, ok := res.(Exprs)
+			require.True(t, ok)
+			assert.Equal(t, test.repetitions, len(l))
+		}
+	}
+}
+
+func TestAppendToList(t *testing.T) {
+	for _, test := range []struct {
+		expression  Expr
+		repetitions int
+		error       bool
+	}{
+		{NewString("ride"), 100, false},
+		{NewString("ride"), 1001, true},
+		{NewBoolean(true), 100, false},
+		{NewBoolean(true), 1001, true},
+		{NewLong(12345), 100, false},
+		{NewLong(12345), 1001, true},
+	} {
+		r := NewExprs()
+		var ok bool
+		s := newEmptyScopeV4()
+		for i := 0; i < test.repetitions-1; i++ {
+			res, err := AppendToList(s, NewExprs(r, test.expression))
+			require.NoError(t, err)
+			r, ok = res.(Exprs)
+			require.True(t, ok)
+		}
+		res, err := AppendToList(s, NewExprs(r, test.expression))
+		if test.error {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			l, ok := res.(Exprs)
+			require.True(t, ok)
+			assert.Equal(t, test.repetitions, len(l))
+		}
+	}
+}
+
+func TestConcat(t *testing.T) {
+	list500 := NewExprs()
+	for i := 0; i < 500; i++ {
+		list500 = append(list500, NewBoolean(true))
+	}
+	list600 := NewExprs()
+	for i := 0; i < 600; i++ {
+		list600 = append(list600, NewBoolean(true))
+	}
+	for _, test := range []struct {
+		expressions Exprs
+		error       bool
+		size        int
+	}{
+		{NewExprs(NewExprs(NewString("RIDE"), NewString("RIDE")), NewExprs(NewString("RIDE"), NewString("RIDE"))), false, 4},
+		{NewExprs(NewExprs(NewString("RIDE"), NewLong(12345)), NewExprs(NewBoolean(true))), false, 3},
+		{NewExprs(NewExprs(), NewExprs(NewString("RIDE"), NewString("RIDE"))), false, 2},
+		{NewExprs(NewExprs(NewString("RIDE"), NewString("RIDE")), NewExprs()), false, 2},
+		{NewExprs(list500, list500), false, 1000},
+		{NewExprs(list600, list500), true, 0},
+		{NewExprs(list500, list600), true, 0},
+		{NewExprs(list600, list600), true, 0},
+	} {
+		res, err := Concat(newEmptyScopeV4(), test.expressions)
+		if test.error {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			list, ok := res.(Exprs)
+			require.True(t, ok)
+			assert.Equal(t, test.size, len(list))
+		}
+	}
+}
+
+func TestMedian(t *testing.T) {
+	list1000 := make([]int, 1000)
+	for i := 0; i < len(list1000); i++ {
+		list1000[i] = rand.Int()
+	}
+	for _, test := range []struct {
+		items  []int
+		error  bool
+		median Expr
+	}{
+		{[]int{1, 2, 3, 4, 5}, false, NewLong(3)},
+		{[]int{1, 2, 3, 4}, false, NewLong(2)},
+		{[]int{1, 2}, false, NewLong(1)},
+		{[]int{0, 0, 0, 0, 0, 0, 0, 0, 1}, false, NewLong(0)},
+		{append(list1000, 1), true, NewUnit()},
+		{[]int{1}, true, NewUnit()},
+		{[]int{}, true, NewUnit()},
+	} {
+		e := NewExprs()
+		for _, x := range test.items {
+			e = append(e, NewLong(int64(x)))
+		}
+		res, err := Median(newEmptyScopeV4(), NewExprs(e))
+		if test.error {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+			assert.Equal(t, test.median, res)
+		}
+	}
+}
+
+func TestGroth16VerifyLimits(t *testing.T) {
+	vk := bytes.Repeat([]byte{0x01}, 48)
+	proof := bytes.Repeat([]byte{0x02}, 192)
+	inp := bytes.Repeat([]byte{0x03}, 32)
+	for i := 1; i <= 15; i++ {
+		f := limitedGroth16Verify(i)
+		inputs := bytes.Repeat(inp, i)
+		key := bytes.Repeat(vk, i+8)
+		res, err := f(newEmptyScopeV4(), NewExprs(NewBytes(key), NewBytes(proof), NewBytes(inputs)))
+		assert.NoError(t, err)
+		assert.Equal(t, NewBoolean(true), res)
+		inputs = append(inputs, inp...)
+		res, err = f(newEmptyScopeV4(), NewExprs(NewBytes(key), NewBytes(proof), NewBytes(inputs)))
+		msg := fmt.Sprintf("Groth16Verify_%dinputs: invalid size of inputs %d bytes, must not exceed %d bytes", i, len(inputs), i*32)
+		assert.EqualError(t, err, msg)
+		assert.Nil(t, res)
+	}
+}
+
+func TestSigVerifyLimits(t *testing.T) {
+	pk := bytes.Repeat([]byte{0x01}, 32)
+	sig := bytes.Repeat([]byte{0x02}, 64)
+	kb := bytes.Repeat([]byte{0x03}, 1024)
+	for _, l := range []int{16, 32, 64, 128} {
+		f := limitedSigVerify(l)
+		data := bytes.Repeat(kb, l+1)
+		res, err := f(newEmptyScopeV4(), NewExprs(NewBytes(data), NewBytes(pk), NewBytes(sig)))
+		msg := fmt.Sprintf("SigVerify_%dKb: invalid message size %d", l, len(data))
+		assert.EqualError(t, err, msg)
+		assert.Nil(t, res)
+	}
+}
+
+func TestRSAVerifyLimits(t *testing.T) {
+	pk := bytes.Repeat([]byte{0x01}, 32)
+	sig := bytes.Repeat([]byte{0x02}, 64)
+	kb := bytes.Repeat([]byte{0x03}, 1024)
+	for _, l := range []int{16, 32, 64, 128} {
+		f := limitedRSAVerify(l)
+		data := bytes.Repeat(kb, l+1)
+		res, err := f(newEmptyScopeV4(), NewExprs(&NoAlgExpr{}, NewBytes(data), NewBytes(sig), NewBytes(pk)))
+		msg := fmt.Sprintf("RSAVerify_%dKb: invalid message size %d bytes", l, len(data))
+		assert.EqualError(t, err, msg)
+		assert.Nil(t, res)
+	}
+}
+
+func TestKeccak256Limits(t *testing.T) {
+	kb := bytes.Repeat([]byte{0x03}, 1024)
+	for _, l := range []int{16, 32, 64, 128} {
+		f := limitedKeccak256(l)
+		data := bytes.Repeat(kb, l+1)
+		res, err := f(newEmptyScopeV4(), NewExprs(NewBytes(data)))
+		msg := fmt.Sprintf("Keccak256_%dKb: invalid size of data %d bytes", l, len(data))
+		assert.EqualError(t, err, msg)
+		assert.Nil(t, res)
+	}
+}
+func TestBlake2b256Limits(t *testing.T) {
+	kb := bytes.Repeat([]byte{0x03}, 1024)
+	for _, l := range []int{16, 32, 64, 128} {
+		f := limitedBlake2b256(l)
+		data := bytes.Repeat(kb, l+1)
+		res, err := f(newEmptyScopeV4(), NewExprs(NewBytes(data)))
+		msg := fmt.Sprintf("Blake2b256_%dKb: invalid data size %d bytes", l, len(data))
+		assert.EqualError(t, err, msg)
+		assert.Nil(t, res)
+	}
+}
+func TestSha256Limits(t *testing.T) {
+	kb := bytes.Repeat([]byte{0x03}, 1024)
+	for _, l := range []int{16, 32, 64, 128} {
+		f := limitedSha256(l)
+		data := bytes.Repeat(kb, l+1)
+		res, err := f(newEmptyScopeV4(), NewExprs(NewBytes(data)))
+		msg := fmt.Sprintf("Sha256_%dKb: invalid data size %d bytes", l, len(data))
+		assert.EqualError(t, err, msg)
+		assert.Nil(t, res)
+	}
+}
+
+func TestTransferFromProtobuf(t *testing.T) {
+	scope := newEmptyScopeV4()
+	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
+	require.NoError(t, err)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	ts := uint64(time.Now().UnixNano() / 1000000)
+	addr, err := proto.NewAddressFromPublicKey(scope.Scheme(), pk)
+	require.NoError(t, err)
+	rcp := proto.NewRecipientFromAddress(addr)
+	att := proto.StringAttachment{Value: "some attachment"}
+	tx := proto.NewUnsignedTransferWithProofs(3, pk, proto.OptionalAsset{}, proto.OptionalAsset{}, ts, 1234500000000, 100000, rcp, &att)
+	err = tx.GenerateID(scope.Scheme())
+	require.NoError(t, err)
+	err = tx.Sign(scope.Scheme(), sk)
+	require.NoError(t, err)
+	bts, err := tx.MarshalSignedToProtobuf(scope.Scheme())
+	require.NoError(t, err)
+	expressions := NewExprs(NewBytes(bts))
+	rs, err := TransferFromProtobuf(scope, expressions)
+	require.NoError(t, err)
+	require.Equal(t, "TransferTransaction", rs.InstanceOf())
+}
+
+func TestRebuildMerkleRoot(t *testing.T) {
+	scope := newEmptyScopeV4()
+	leaf, err := base58.Decode("7jsrwD9Xi7TjVoksaV1CDDUWYhFaz7HQmAoWwLEiZa6D")
+	require.NoError(t, err)
+	root, err := base58.Decode("6tt3obq44UqC4QwLhrKX2KsXV9GRBfhiNvzor2BQfgYZ")
+	require.NoError(t, err)
+	p1, err := base58.Decode("q1u2PJhro1cwZw5mUuujXm94f245tGS5vbP5yNwLbEv")
+	require.NoError(t, err)
+	p2, err := base58.Decode("75Aaexax3uEQNg5HAb137jC3TK64RG1S6xrBGvuupWXp")
+	require.NoError(t, err)
+	p3, err := base58.Decode("GemGCop1arCvTY447FLH8tDQF7knvzNCocNTHqKQBus9")
+	require.NoError(t, err)
+	args := NewExprs(NewExprs(NewBytes(p1), NewBytes(p2), NewBytes(p3)), NewBytes(leaf), NewLong(3))
+	res, err := RebuildMerkleRoot(scope, args)
+	assert.NoError(t, err)
+	assert.Equal(t, "ByteVector", res.InstanceOf())
+	r, ok := res.(*BytesExpr)
+	assert.True(t, ok)
+	assert.ElementsMatch(t, root, r.Value)
 }

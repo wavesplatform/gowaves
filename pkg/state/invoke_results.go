@@ -1,8 +1,10 @@
 package state
 
 import (
+	pb "github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -11,16 +13,20 @@ type invokeResultRecord struct {
 }
 
 func (r *invokeResultRecord) marshalBinary() ([]byte, error) {
-	resBytes, err := r.res.MarshalWithAddresses()
+	msg, err := r.res.ToProtobuf()
 	if err != nil {
 		return nil, err
 	}
-	return resBytes, nil
+	return pb.Marshal(msg)
 }
 
-func (r *invokeResultRecord) unmarshalBinary(data []byte) error {
+func (r *invokeResultRecord) unmarshalBinary(scheme byte, data []byte) error {
+	msg := new(g.InvokeScriptResult)
+	if err := pb.Unmarshal(data, msg); err != nil {
+		return err
+	}
 	var res proto.ScriptResult
-	if err := res.UnmarshalWithAddresses(data); err != nil {
+	if err := res.FromProtobuf(scheme, msg); err != nil {
 		return err
 	}
 	r.res = &res
@@ -36,14 +42,14 @@ func newInvokeResults(hs *historyStorage, aliases *aliases) (*invokeResults, err
 	return &invokeResults{hs, aliases}, nil
 }
 
-func (ir *invokeResults) invokeResult(invokeID crypto.Digest, filter bool) (*proto.ScriptResult, error) {
+func (ir *invokeResults) invokeResult(scheme byte, invokeID crypto.Digest, filter bool) (*proto.ScriptResult, error) {
 	key := invokeResultKey{invokeID}
 	recordBytes, err := ir.hs.latestEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
 	var record invokeResultRecord
-	if err := record.unmarshalBinary(recordBytes); err != nil {
+	if err := record.unmarshalBinary(scheme, recordBytes); err != nil {
 		return nil, errors.Errorf("failed to unmarshal invoke result: %v\n", err)
 	}
 	return record.res, nil

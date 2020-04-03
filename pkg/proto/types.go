@@ -31,22 +31,21 @@ const (
 	orderV1MinLen        = crypto.SignatureSize + orderLen
 	orderV2MinLen        = orderV2FixedBodyLen + proofsMinLen
 	orderV3MinLen        = orderV3FixedBodyLen + proofsMinLen
-	OrderProtobufVersion = 4
 	jsonNull             = "null"
 	integerArgumentLen   = 1 + 8
 	booleanArgumentLen   = 1
 	binaryArgumentMinLen = 1 + 4
 	stringArgumentMinLen = 1 + 4
+	arrayArgumentMinLen  = 1 + 4
 	PriceConstant        = 100000000
 	MaxOrderAmount       = 100 * PriceConstant * PriceConstant
 	MaxOrderTTL          = uint64((30 * 24 * time.Hour) / time.Millisecond)
 	maxKeySize           = 100
 	maxValueSize         = 32767
 
-	maxInvokeTransfers           = 10
-	maxInvokeWrites              = 100
-	maxInvokeWriteKeySizeInBytes = 100
-	maxWriteSetSizeInBytes       = 5 * 1024
+	maxScriptActions                     = 10
+	maxDataEntryScriptActions            = 100
+	maxDataEntryScriptActionsSizeInBytes = 5 * 1024
 )
 
 type Timestamp = uint64
@@ -270,6 +269,10 @@ func (a *OptionalAsset) ToID() []byte {
 		return a.ID[:]
 	}
 	return nil
+}
+
+func (a OptionalAsset) Eq(b OptionalAsset) bool {
+	return a.Present == b.Present && a.ID == b.ID
 }
 
 // Attachment represents the additional data stored in Transfer and MassTransfer transactions.
@@ -1867,6 +1870,8 @@ func (vt DataValueType) String() string {
 		return "binary"
 	case DataString:
 		return "string"
+	case DataDelete:
+		return "delete"
 	default:
 		return ""
 	}
@@ -1878,38 +1883,7 @@ const (
 	DataBoolean
 	DataBinary
 	DataString
-)
-
-// ValueType is an alias for byte that encodes the value type.
-type ArgumentValueType byte
-
-// String translates ValueType value to human readable name.
-func (vt ArgumentValueType) String() string {
-	switch vt {
-	case ArgumentInteger:
-		return "integer"
-	case ArgumentBoolean:
-		return "boolean"
-	case ArgumentBinary:
-		return "binary"
-	case ArgumentString:
-		return "string"
-	default:
-		return ""
-	}
-}
-
-const (
-	ArgumentInteger ArgumentValueType = iota
-	ArgumentBinary
-	ArgumentString
-	ArgumentBoolean
-)
-
-//Special values to represent Boolean value
-const (
-	BooleanTrue  = 6
-	BooleanFalse = 7
+	DataDelete = DataValueType(0xff)
 )
 
 //DataEntry is a common interface of all types of data entries.
@@ -2479,6 +2453,119 @@ func (e *StringDataEntry) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+//DeleteDataEntry structure stores the key that should be removed from state storage.
+type DeleteDataEntry struct {
+	Key string
+}
+
+func (e DeleteDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
+	return &g.DataTransactionData_DataEntry{
+		Key:   e.Key,
+		Value: nil,
+	}
+}
+
+func (e DeleteDataEntry) Valid() (bool, error) {
+	if len(e.Key) == 0 {
+		return false, errors.New("empty entry key")
+	}
+	if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		return false, errors.New("key is too large")
+	}
+	return true, nil
+}
+
+//GetKey returns the key of key-value pair.
+func (e DeleteDataEntry) GetKey() string {
+	return e.Key
+}
+
+//SetKey sets the key of data entry.
+func (e *DeleteDataEntry) SetKey(key string) {
+	e.Key = key
+}
+
+//GetValueType returns the type of value in key-value entry.
+func (e DeleteDataEntry) GetValueType() DataValueType {
+	return DataDelete
+}
+
+func (e DeleteDataEntry) BinarySize() int {
+	return 2 + len(e.Key) + 1
+}
+
+//MarshalValue converts the data entry value to its byte representation.
+func (e DeleteDataEntry) MarshalValue() ([]byte, error) {
+	return []byte{byte(DataDelete)}, nil
+}
+
+//UnmarshalValue checks DeleteDataEntry value type is set.
+func (e *DeleteDataEntry) UnmarshalValue(data []byte) error {
+	const minLen = 1
+	if l := len(data); l < minLen {
+		return errors.Errorf("invalid data length for DeleteDataEntry value, expected not less than %d, received %d", minLen, l)
+	}
+	if t := data[0]; t != byte(DataDelete) {
+		return errors.Errorf("unexpected value type %d for DeleteDataEntry value, expected %d", t, DataDelete)
+	}
+	return nil
+}
+
+//MarshalBinary converts the data entry to its byte representation.
+func (e DeleteDataEntry) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, e.BinarySize())
+	pos := 0
+	PutStringWithUInt16Len(buf[pos:], e.Key)
+	pos += 2 + len(e.Key)
+	valueBytes, err := e.MarshalValue()
+	if err != nil {
+		return nil, err
+	}
+	copy(buf[pos:], valueBytes)
+	return buf, nil
+}
+
+//UnmarshalBinary reads StringDataEntry structure from bytes.
+func (e *DeleteDataEntry) UnmarshalBinary(data []byte) error {
+	const minLen = 2 + 1
+	if l := len(data); l < minLen {
+		return errors.Errorf("invalid data length for DeleteDataEntry, expected not less than %d, received %d", minLen, l)
+	}
+	k, err := StringWithUInt16Len(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal DeleteDataEntry from bytes")
+	}
+	e.Key = k
+	kl := 2 + len(k)
+	if err := e.UnmarshalValue(data[kl:]); err != nil {
+		return err
+	}
+	return nil
+}
+
+//MarshalJSON writes the entry to its JSON representation.
+func (e DeleteDataEntry) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		K string  `json:"key"`
+		T string  `json:"type"`
+		V *string `json:"value"`
+	}{e.Key, e.GetValueType().String(), nil})
+}
+
+//UnmarshalJSON reads the entry from JSON.
+func (e *DeleteDataEntry) UnmarshalJSON(value []byte) error {
+	tmp := struct {
+		K string `json:"key"`
+		T string `json:"type"`
+		V string `json:"value"`
+	}{}
+	if err := json.Unmarshal(value, &tmp); err != nil {
+		return errors.Wrap(err, "failed to deserialize string data entry from JSON")
+	}
+	e.Key = tmp.K
+	return nil
+}
+
 //DataEntryType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
 type DataEntryType struct {
 	Type string `json:"type"`
@@ -2495,6 +2582,8 @@ func guessDataEntryType(dataEntryType DataEntryType) (DataEntry, error) {
 		r = &BinaryDataEntry{}
 	case "string":
 		r = &StringDataEntry{}
+	case "delete":
+		r = &DeleteDataEntry{}
 	}
 	if r == nil {
 		return nil, errors.Errorf("unknown value type '%s' of DataEntry", dataEntryType.Type)
@@ -2608,6 +2697,37 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+// ValueType is an alias for byte that encodes the value type.
+type ArgumentValueType byte
+
+// String translates ValueType value to human readable name.
+func (vt ArgumentValueType) String() string {
+	switch vt {
+	case ArgumentInteger:
+		return "integer"
+	case ArgumentBoolean:
+		return "boolean"
+	case ArgumentBinary:
+		return "binary"
+	case ArgumentString:
+		return "string"
+	case ArgumentArray:
+		return "array"
+	default:
+		return ""
+	}
+}
+
+const (
+	ArgumentInteger    = ArgumentValueType(reader.E_LONG)
+	ArgumentBinary     = ArgumentValueType(reader.E_BYTES)
+	ArgumentString     = ArgumentValueType(reader.E_STRING)
+	ArgumentBoolean    = ArgumentValueType(99) // Nonexistent RIDE type is used
+	ArgumentValueTrue  = ArgumentValueType(reader.E_TRUE)
+	ArgumentValueFalse = ArgumentValueType(reader.E_FALSE)
+	ArgumentArray      = ArgumentValueType(reader.E_ARR)
+)
+
 type Argument interface {
 	GetValueType() ArgumentValueType
 	MarshalBinary() ([]byte, error)
@@ -2631,6 +2751,8 @@ func guessArgumentType(argumentType ArgumentType) (Argument, error) {
 		r = &BinaryArgument{}
 	case "string":
 		r = &StringArgument{}
+	case "array":
+		r = &ArrayArgument{}
 	}
 	if r == nil {
 		return nil, errors.Errorf("unknown value type '%s' of Argument", argumentType.Type)
@@ -2716,7 +2838,7 @@ func (a *Arguments) UnmarshalBinary(data []byte) error {
 			var ia IntegerArgument
 			err = ia.UnmarshalBinary(data)
 			arg = &ia
-		case BooleanTrue, BooleanFalse:
+		case ArgumentValueTrue, ArgumentValueFalse:
 			var ba BooleanArgument
 			err = ba.UnmarshalBinary(data)
 			arg = &ba
@@ -2728,6 +2850,10 @@ func (a *Arguments) UnmarshalBinary(data []byte) error {
 			var sa StringArgument
 			err = sa.UnmarshalBinary(data)
 			arg = &sa
+		case ArgumentArray:
+			var aa ArrayArgument
+			err = aa.UnmarshalBinary(data)
+			arg = &aa
 		default:
 			return errors.Errorf("unsupported argument type %d", data[0])
 		}
@@ -2839,9 +2965,9 @@ func (a BooleanArgument) BinarySize() int {
 func (a BooleanArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	if a.Value {
-		buf[0] = BooleanTrue
+		buf[0] = byte(ArgumentValueTrue)
 	} else {
-		buf[0] = BooleanFalse
+		buf[0] = byte(ArgumentValueFalse)
 	}
 	return buf, nil
 }
@@ -2850,9 +2976,9 @@ func (a BooleanArgument) MarshalBinary() ([]byte, error) {
 func (a BooleanArgument) Serialize(s *serializer.Serializer) error {
 	buf := byte(0)
 	if a.Value {
-		buf = BooleanTrue
+		buf = byte(ArgumentValueTrue)
 	} else {
-		buf = BooleanFalse
+		buf = byte(ArgumentValueFalse)
 	}
 	return s.Byte(buf)
 }
@@ -2863,9 +2989,9 @@ func (a *BooleanArgument) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("invalid data length for BooleanArgument, expected not less than %d, received %d", booleanArgumentLen, l)
 	}
 	switch data[0] {
-	case BooleanTrue:
+	case byte(ArgumentValueTrue):
 		a.Value = true
-	case BooleanFalse:
+	case byte(ArgumentValueFalse):
 		a.Value = false
 	default:
 		return errors.Errorf("unexpected value (%d) for BooleanArgument", data[0])
@@ -3042,6 +3168,85 @@ func (a *StringArgument) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+type ArrayArgument struct {
+	Items Arguments
+}
+
+func NewArrayArgument(items Arguments) *ArrayArgument {
+	return &ArrayArgument{Items: items}
+}
+
+//GetValueType returns the type of value of the argument.
+func (a ArrayArgument) GetValueType() ArgumentValueType {
+	return ArgumentArray
+}
+
+func (a ArrayArgument) BinarySize() int {
+	return 1 + a.Items.BinarySize()
+}
+
+//MarshalBinary converts the argument to its byte representation.
+func (a ArrayArgument) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, a.BinarySize())
+	pos := 0
+	buf[pos] = byte(ArgumentArray)
+	pos++
+	b, err := a.Items.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	copy(buf[pos:], b)
+	return buf, nil
+}
+
+//Serialize argument to its byte representation.
+func (a ArrayArgument) Serialize(s *serializer.Serializer) error {
+	err := s.Byte(byte(ArgumentArray))
+	if err != nil {
+		return err
+	}
+	return a.Items.Serialize(s)
+}
+
+//UnmarshalBinary reads an StringArgument structure from bytes.
+func (a *ArrayArgument) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < arrayArgumentMinLen {
+		return errors.Errorf("invalid data length for ArrayArgument, expected not less than %d, received %d", arrayArgumentMinLen, l)
+	}
+	if t := data[0]; t != byte(ArgumentArray) {
+		return errors.Errorf("unexpected value type %d for ArrayArgument, expected %d", t, ArgumentArray)
+	}
+	data = data[1:]
+	args := new(Arguments)
+	err := args.UnmarshalBinary(data)
+	if err != nil {
+		return err
+	}
+	a.Items = *args
+	return nil
+}
+
+//MarshalJSON writes the entry to its JSON representation.
+func (a ArrayArgument) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		T string     `json:"type"`
+		V []Argument `json:"value"`
+	}{a.GetValueType().String(), a.Items})
+}
+
+//UnmarshalJSON reads the entry from JSON.
+func (a *ArrayArgument) UnmarshalJSON(value []byte) error {
+	tmp := struct {
+		T string    `json:"type"`
+		V Arguments `json:"value"`
+	}{}
+	if err := json.Unmarshal(value, &tmp); err != nil {
+		return errors.Wrap(err, "failed to deserialize string data entry from JSON")
+	}
+	a.Items = tmp.V
+	return nil
+}
+
 // FunctionCall structure represents the description of function called in the InvokeScript transaction.
 type FunctionCall struct {
 	Default   bool
@@ -3158,299 +3363,27 @@ func (c FunctionCall) BinarySize() int {
 	return 1 + 1 + 1 + 4 + len(c.Name) + c.Arguments.BinarySize()
 }
 
-type ScriptResult struct {
-	Transfers TransferSet
-	Writes    WriteSet
-}
-
-func (sr *ScriptResult) MarshalWithAddresses() ([]byte, error) {
-	transfersBytes, err := sr.Transfers.MarshalWithAddresses()
-	if err != nil {
-		return nil, err
-	}
-	writesBytes, err := sr.Writes.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	res := make([]byte, len(transfersBytes)+len(writesBytes)+8)
-	pos := 0
-	transfersSize := uint32(len(transfersBytes))
-	binary.BigEndian.PutUint32(res[pos:], transfersSize)
-	pos += 4
-	copy(res[pos:], transfersBytes)
-	pos += len(transfersBytes)
-	writesSize := uint32(len(writesBytes))
-	binary.BigEndian.PutUint32(res[pos:], writesSize)
-	pos += 4
-	copy(res[pos:], writesBytes)
-	return res, nil
-}
-
-func (sr *ScriptResult) UnmarshalWithAddresses(data []byte) error {
-	pos := 4
-	if len(data) < pos {
-		return errors.New("invalid data size")
-	}
-	transfersSize := binary.BigEndian.Uint32(data[:pos])
-	pos += int(transfersSize)
-	if len(data) < pos {
-		return errors.New("invalid data size")
-	}
-	var ts TransferSet
-	if err := ts.UnmarshalWithAddresses(data[4:pos]); err != nil {
-		return err
-	}
-	if len(data) < pos {
-		return errors.New("invalid data size")
-	}
-	writesSize := binary.BigEndian.Uint32(data[pos:])
-	pos += 4
-	if len(data) < pos {
-		return errors.New("invalid data size")
-	}
-	var ws WriteSet
-	if err := ws.UnmarshalBinary(data[pos:]); err != nil {
-		return err
-	}
-	pos += int(writesSize)
-	if pos != len(data) {
-		return errors.New("invalid data size")
-	}
-	sr.Transfers = ts
-	sr.Writes = ws
-	return nil
-}
-
-func (sr *ScriptResult) Valid() error {
-	if err := sr.Transfers.Valid(); err != nil {
-		return err
-	}
-	if err := sr.Writes.Valid(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
-	transfers, err := sr.Transfers.ToProtobuf()
-	if err != nil {
-		return nil, err
-	}
-	return &g.InvokeScriptResult{
-		Data:      sr.Writes.ToProtobuf(),
-		Transfers: transfers,
-	}, nil
-}
-
-type TransferSet []ScriptResultTransfer
-
-func (ts *TransferSet) BinarySize() int {
-	totalSize := 0
-	for _, tr := range *ts {
-		totalSize += tr.BinarySize()
-	}
-	return totalSize
-}
-
-func (ts *TransferSet) MarshalWithAddresses() ([]byte, error) {
-	res := make([]byte, ts.BinarySize())
-	pos := 0
-	for _, tr := range *ts {
-		trBytes, err := tr.MarshalWithAddress()
-		if err != nil {
-			return nil, err
-		}
-		if pos+len(trBytes) > len(res) {
-			return nil, errors.New("invalid data size")
-		}
-		copy(res[pos:], trBytes)
-		pos += len(trBytes)
-	}
-	return res, nil
-}
-
-func (ts *TransferSet) UnmarshalWithAddresses(data []byte) error {
-	pos := 0
-	for pos < len(data) {
-		var tr ScriptResultTransfer
-		if err := tr.UnmarshalWithAddress(data[pos:]); err != nil {
-			return err
-		}
-		pos += tr.BinarySize()
-		*ts = append(*ts, tr)
-	}
-	return nil
-}
-
-func (ts *TransferSet) Valid() error {
-	if len(*ts) > maxInvokeTransfers {
-		return errors.Errorf("transfer set of size %d is greater than allowed maximum of %d\n", len(*ts), maxInvokeTransfers)
-	}
-	for _, tr := range *ts {
-		if tr.Amount < 0 {
-			return errors.New("transfer amount is < 0")
-		}
-	}
-	return nil
-}
-
-func (ts *TransferSet) ToProtobuf() ([]*g.InvokeScriptResult_Payment, error) {
-	res := make([]*g.InvokeScriptResult_Payment, len(*ts))
-	var err error
-	for i, tr := range *ts {
-		res[i], err = tr.ToProtobuf()
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-type WriteSet []DataEntry
-
-func (ws *WriteSet) BinarySize() int {
-	totalSize := 0
-	for _, entry := range *ws {
-		totalSize += entry.BinarySize()
-	}
-	return totalSize
-}
-
-func (ws *WriteSet) MarshalBinary() ([]byte, error) {
-	res := make([]byte, ws.BinarySize())
-	pos := 0
-	for _, entry := range *ws {
-		entryBytes, err := entry.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		if pos+len(entryBytes) > len(res) {
-			return nil, errors.New("invalid data size")
-		}
-		copy(res[pos:], entryBytes)
-		pos += len(entryBytes)
-	}
-	return res, nil
-}
-
-func (ws *WriteSet) UnmarshalBinary(data []byte) error {
-	pos := 0
-	for pos < len(data) {
-		entry, err := NewDataEntryFromBytes(data[pos:])
-		if err != nil {
-			return err
-		}
-		pos += entry.BinarySize()
-		*ws = append(*ws, entry)
-	}
-	return nil
-}
-
-func (ws *WriteSet) Valid() error {
-	if len(*ws) > maxInvokeWrites {
-		return errors.Errorf("write set of size %d is greater than allowed maximum of %d\n", len(*ws), maxInvokeWrites)
-	}
-	totalSize := 0
-	for _, entry := range *ws {
-		if len(utf16.Encode([]rune(entry.GetKey()))) > maxInvokeWriteKeySizeInBytes {
-			return errors.New("key is too large")
-		}
-		totalSize += entry.BinarySize()
-	}
-	if totalSize > maxWriteSetSizeInBytes {
-		return errors.Errorf("total write set size %d is greater than maximum %d\n", totalSize, maxWriteSetSizeInBytes)
-	}
-	return nil
-}
-
-func (ws *WriteSet) ToProtobuf() []*g.DataTransactionData_DataEntry {
-	res := make([]*g.DataTransactionData_DataEntry, len(*ws))
-	for i, entry := range *ws {
-		res[i] = entry.ToProtobuf()
-	}
-	return res
-}
-
 type FullScriptTransfer struct {
-	ScriptResultTransfer
+	Amount    uint64
+	Asset     OptionalAsset
+	Recipient Recipient
 	Sender    Address
 	Timestamp uint64
 	ID        *crypto.Digest
 }
 
-func NewFullScriptTransfer(scheme byte, tr *ScriptResultTransfer, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+func NewFullScriptTransfer(action *TransferScriptAction, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
-		ScriptResultTransfer: *tr,
-		Sender:               *tx.ScriptRecipient.Address,
-		Timestamp:            tx.Timestamp,
-		ID:                   tx.ID,
+		Amount:    uint64(action.Amount),
+		Asset:     action.Asset,
+		Recipient: action.Recipient,
+		Sender:    *tx.ScriptRecipient.Address,
+		Timestamp: tx.Timestamp,
+		ID:        tx.ID,
 	}, nil
 }
 
-type ScriptResultTransfer struct {
-	Recipient Recipient
-	Amount    int64
-	Asset     OptionalAsset
-}
-
-func (tr *ScriptResultTransfer) BinarySize() int {
-	return AddressSize + 8 + tr.Asset.BinarySize()
-}
-
-func (tr *ScriptResultTransfer) MarshalWithAddress() ([]byte, error) {
-	if tr.Recipient.Address == nil {
-		return nil, errors.New("can't marshal Recipient with no address set")
-	}
-	recipientBytes := tr.Recipient.Address.Bytes()
-	if len(recipientBytes) != AddressSize {
-		return nil, errors.New("invalid address size")
-	}
-	amountBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(amountBytes, uint64(tr.Amount))
-	assetBytes, err := tr.Asset.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	res := make([]byte, tr.BinarySize())
-	copy(res, amountBytes)
-	copy(res[len(amountBytes):], assetBytes)
-	copy(res[len(amountBytes)+len(assetBytes):], recipientBytes)
-	return res, nil
-}
-
-func (tr *ScriptResultTransfer) UnmarshalWithAddress(data []byte) error {
-	if len(data) < 8 {
-		return errors.New("invalid data size")
-	}
-	tr.Amount = int64(binary.BigEndian.Uint64(data[:8]))
-	var asset OptionalAsset
-	if err := asset.UnmarshalBinary(data[8:]); err != nil {
-		return err
-	}
-	tr.Asset = asset
-	pos := 8 + asset.BinarySize()
-	addr, err := NewAddressFromBytes(data[pos:])
-	if err != nil {
-		return err
-	}
-	tr.Recipient = NewRecipientFromAddress(addr)
-	return nil
-}
-
-func (tr *ScriptResultTransfer) ToProtobuf() (*g.InvokeScriptResult_Payment, error) {
-	if tr.Recipient.Address == nil {
-		return nil, errors.New("script transfer has alias recipient, protobuf needs address")
-	}
-	addrBody, err := tr.Recipient.Address.Body()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get address body")
-	}
-	return &g.InvokeScriptResult_Payment{
-		Amount:  &g.Amount{AssetId: tr.Asset.ToID(), Amount: tr.Amount},
-		Address: addrBody,
-	}, nil
-}
-
+// ScriptPayment part of InvokeScriptTransaction that describes attached payments that comes in with invoke.
 type ScriptPayment struct {
 	Amount uint64        `json:"amount"`
 	Asset  OptionalAsset `json:"assetId"`
@@ -3511,6 +3444,7 @@ func (p *ScriptPayment) BinarySize() int {
 	return 2 + 8 + p.Asset.BinarySize()
 }
 
+// ScriptPayments list of payments attached to InvokeScriptTransaction.
 type ScriptPayments []ScriptPayment
 
 func (sps *ScriptPayments) Append(sp ScriptPayment) {

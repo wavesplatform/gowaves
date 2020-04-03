@@ -317,8 +317,8 @@ func TestCreateDiffIssueWithProofs(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
-func createReissueWithSig(t *testing.T) *proto.ReissueWithSig {
-	tx := proto.NewUnsignedReissueWithSig(testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, defaultFee)
+func createReissueWithSig(t *testing.T, feeUnits int) *proto.ReissueWithSig {
+	tx := proto.NewUnsignedReissueWithSig(testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, uint64(feeUnits*FeeUnit))
 	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -334,7 +334,7 @@ func TestCreateDiffReissueWithSig(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createReissueWithSig(t)
+	tx := createReissueWithSig(t, 1000)
 	ch, err := to.td.createDiffReissueWithSig(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffReissueWithSig() failed")
 
@@ -350,8 +350,8 @@ func TestCreateDiffReissueWithSig(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
-func createReissueWithProofs(t *testing.T) *proto.ReissueWithProofs {
-	tx := proto.NewUnsignedReissueWithProofs(2, 'W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, defaultFee)
+func createReissueWithProofs(t *testing.T, feeUnits int) *proto.ReissueWithProofs {
+	tx := proto.NewUnsignedReissueWithProofs(2, 'W', testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, false, defaultTimestamp, uint64(feeUnits*FeeUnit))
 	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -367,7 +367,7 @@ func TestCreateDiffReissueWithProofs(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createReissueWithProofs(t)
+	tx := createReissueWithProofs(t, 1000)
 	ch, err := to.td.createDiffReissueWithProofs(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffReissueWithProofs() failed")
 
@@ -1164,14 +1164,14 @@ func TestCreateDiffSetAssetScriptWithProofs(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
-func createInvokeScriptWithProofs(t *testing.T, pmts proto.ScriptPayments, fc proto.FunctionCall, fee uint64) *proto.InvokeScriptWithProofs {
+func createInvokeScriptWithProofs(t *testing.T, pmts proto.ScriptPayments, fc proto.FunctionCall, feeAsset proto.OptionalAsset, fee uint64) *proto.InvokeScriptWithProofs {
 	tx := proto.NewUnsignedInvokeScriptWithProofs(1,
 		'W',
 		testGlobal.senderInfo.pk,
 		proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr),
 		fc,
 		pmts,
-		*testGlobal.asset0.asset,
+		feeAsset,
 		fee,
 		defaultTimestamp,
 	)
@@ -1202,7 +1202,7 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 	}
 	totalAssetAmount := paymentAmount0 + paymentAmount2
 	totalWavesAmount := paymentAmount1
-	tx := createInvokeScriptWithProofs(t, pmts, proto.FunctionCall{}, feeConst*FeeUnit)
+	tx := createInvokeScriptWithProofs(t, pmts, proto.FunctionCall{}, *testGlobal.asset0.asset, feeConst*FeeUnit)
 
 	assetId := tx.FeeAsset.ID
 	to.stor.createAsset(t, assetId)

@@ -132,7 +132,7 @@ func (s *stateDB) syncRw() error {
 		return err
 	}
 	rwHeight := binary.LittleEndian.Uint64(rwHeightBytes)
-	zap.S().Infof("Synced to initial height %d", dbHeight)
+	zap.S().Infof("Synced to state height %d", dbHeight)
 	if rwHeight < dbHeight {
 		// This should never happen, because we update block storage before writing changes into DB.
 		zap.S().Fatal("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node")

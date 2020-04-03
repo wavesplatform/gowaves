@@ -46,13 +46,20 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 	defer locked.Unlock()
 
 	lastKnownBlock := a.state.TopBlock()
-
+	stateHeight, err := a.state.Height()
+	if err != nil {
+		return nil, err
+	}
+	vrf, err := a.state.BlockVRF(&lastKnownBlock.BlockHeader, stateHeight)
+	if err != nil {
+		return nil, err
+	}
 	for {
 		t := a.utx.Pop()
 		if t == nil {
 			break
 		}
-		if err := a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version); err == nil {
+		if err := a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, vrf); err == nil {
 			transactions = append(transactions, t)
 		}
 	}

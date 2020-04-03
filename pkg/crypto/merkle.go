@@ -14,12 +14,6 @@ var (
 	}
 )
 
-type TransactionProof struct {
-	ID      Digest   `json:"id"`
-	Index   int      `json:"transactionIndex"`
-	Digests []Digest `json:"merkleProof"`
-}
-
 type subTree struct {
 	height int
 	digest Digest
@@ -42,29 +36,45 @@ func NewMerkleTree() (*MerkleTree, error) {
 }
 
 func (t *MerkleTree) Push(data []byte) {
-	t.stack = append(t.stack, subTree{height: 0, digest: t.leafDigest(data)})
+	leaf := t.leafDigest(data)
+	t.stack = append(t.stack, subTree{height: 0, digest: leaf})
 	t.joinAllSubTrees()
 }
 
 func (t *MerkleTree) Root() Digest {
-	if len(t.stack) == 0 {
+	switch len(t.stack) {
+	case 0:
 		return ZeroDigest
-	}
-	current := t.stack[len(t.stack)-1]
-	if current.height != 0 {
+	case 1:
+		current := t.stack[0]
+		if current.height == 0 {
+			current = t.joinSubTrees(t.stack[0], subTree{0, ZeroDigest})
+		}
+		return current.digest
+	default:
+		current := t.stack[len(t.stack)-1]
+		for i := len(t.stack) - 2; i >= 0; i-- {
+			h := t.stack[i].height
+			for current.height < h {
+				current = t.joinSubTrees(current, subTree{height: 0, digest: ZeroDigest})
+			}
+			current = t.joinSubTrees(t.stack[i], current)
+		}
 		return current.digest
 	}
-	h := 1
-	if len(t.stack) > 1 {
-		h = t.stack[len(t.stack)-2].height
+}
+
+func (t *MerkleTree) RebuildRoot(leaf Digest, proofs []Digest, index uint64) Digest {
+	digest := leaf
+	for i := len(proofs) - 1; i >= 0; i-- {
+		if index%2 == 0 { // Left
+			digest = t.nodeDigest(digest, proofs[i])
+		} else { // Right
+			digest = t.nodeDigest(proofs[i], digest)
+		}
+		index = index / 2
 	}
-	for current.height < h {
-		current = t.joinSubTrees(current, subTree{height: 0, digest: ZeroDigest})
-	}
-	for i := len(t.stack) - 2; i >= 0; i-- {
-		current = t.joinSubTrees(t.stack[i], current)
-	}
-	return current.digest
+	return digest
 }
 
 func (t *MerkleTree) leafDigest(data []byte) Digest {

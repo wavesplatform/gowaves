@@ -38,7 +38,7 @@ func TestSetAccountScript(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.scriptsStorage.setAccountScript(addr, proto.Script(testGlobal.scriptBytes), blockID0)
+	err = to.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err, "setAccountScript() failed")
 
 	// Test newest before flushing.
@@ -87,7 +87,7 @@ func TestSetAccountScript(t *testing.T) {
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test discarding script.
-	err = to.scriptsStorage.setAccountScript(addr, proto.Script{}, blockID0)
+	err = to.scriptsStorage.setAccountScript(addr, proto.Script{}, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err, "setAccountScript() failed")
 
 	// Test newest before flushing.
@@ -147,7 +147,7 @@ func TestSetAssetScript(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	assetID := testGlobal.asset0.asset.ID
-	err = to.scriptsStorage.setAssetScript(assetID, proto.Script(testGlobal.scriptBytes), blockID0)
+	err = to.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
@@ -184,7 +184,7 @@ func TestSetAssetScript(t *testing.T) {
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test discarding script.
-	err = to.scriptsStorage.setAssetScript(assetID, proto.Script{}, blockID0)
+	err = to.scriptsStorage.setAssetScript(assetID, proto.Script{}, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
