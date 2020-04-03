@@ -356,6 +356,7 @@ func (a *MockStateManager) BlockVRF(header *proto.BlockHeader, height proto.Heig
 	return nil, nil
 }
 
+/*
 func newMockStateWithGenesis() *MockStateManager {
 	sig, _ := crypto.NewSignatureFromBase58("5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa")
 	block := &proto.Block{
@@ -369,6 +370,7 @@ func newMockStateWithGenesis() *MockStateManager {
 		id2Block: id2Block,
 	}
 }
+*/
 
 type mockPeerManager struct {
 	connected map[peer.Peer]struct{}

@@ -774,6 +774,36 @@ func (mr *MockStateInfoMockRecorder) MapR(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapR", reflect.TypeOf((*MockStateInfo)(nil).MapR), arg0)
 }
 
+// HitSourceAtHeight mocks base method
+func (m *MockStateInfo) HitSourceAtHeight(height proto.Height) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HitSourceAtHeight", height)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HitSourceAtHeight indicates an expected call of HitSourceAtHeight
+func (mr *MockStateInfoMockRecorder) HitSourceAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HitSourceAtHeight", reflect.TypeOf((*MockStateInfo)(nil).HitSourceAtHeight), height)
+}
+
+// BlockVRF mocks base method
+func (m *MockStateInfo) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BlockVRF", blockHeader, height)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BlockVRF indicates an expected call of BlockVRF
+func (mr *MockStateInfoMockRecorder) BlockVRF(blockHeader, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockStateInfo)(nil).BlockVRF), blockHeader, height)
+}
+
 // MockStateModifier is a mock of StateModifier interface
 type MockStateModifier struct {
 	ctrl     *gomock.Controller
@@ -1032,17 +1062,17 @@ func (m *MockTxValidation) EXPECT() *MockTxValidationMockRecorder {
 }
 
 // ValidateNextTx mocks base method
-func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion) error {
+func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion)
+	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, vrf)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx
-func (mr *MockTxValidationMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion interface{}) *gomock.Call {
+func (mr *MockTxValidationMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, vrf interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockTxValidation)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockTxValidation)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, vrf)
 }
 
 // MockState is a mock of State interface
@@ -1725,6 +1755,36 @@ func (m *MockState) MapR(arg0 func(state.StateInfo) (interface{}, error)) (inter
 func (mr *MockStateMockRecorder) MapR(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapR", reflect.TypeOf((*MockState)(nil).MapR), arg0)
+}
+
+// HitSourceAtHeight mocks base method
+func (m *MockState) HitSourceAtHeight(height proto.Height) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HitSourceAtHeight", height)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HitSourceAtHeight indicates an expected call of HitSourceAtHeight
+func (mr *MockStateMockRecorder) HitSourceAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HitSourceAtHeight", reflect.TypeOf((*MockState)(nil).HitSourceAtHeight), height)
+}
+
+// BlockVRF mocks base method
+func (m *MockState) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BlockVRF", blockHeader, height)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BlockVRF indicates an expected call of BlockVRF
+func (mr *MockStateMockRecorder) BlockVRF(blockHeader, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockState)(nil).BlockVRF), blockHeader, height)
 }
 
 // AddBlock mocks base method

@@ -32,12 +32,16 @@ func (a *ValidatorImpl) Validate(t proto.Transaction) error {
 	if currentTimestamp-lastKnownBlock.Timestamp > DELTA {
 		return errors.New("state outdate, transaction not accepted")
 	}
+	stateHeight, err := a.state.Height()
+	if err != nil {
+		return err
+	}
 	vrf, err := a.state.BlockVRF(&lastKnownBlock.BlockHeader, stateHeight)
 	if err != nil {
 		return err
 	}
 	return a.state.TxValidation(func(validation state.TxValidation) error {
-		return validation.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version)
+		return validation.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, vrf)
 	})
 }
 

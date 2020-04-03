@@ -30,7 +30,8 @@ func NewMicroMiner(services services.Services) *MicroMiner {
 func (a *MicroMiner) Micro(
 	minedBlock *proto.Block,
 	rest proto.MiningLimits,
-	keyPair proto.KeyPair) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
+	keyPair proto.KeyPair,
+	vrf []byte) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
 
 	// way to stop mine microblocks
 	if minedBlock == nil {
@@ -77,7 +78,7 @@ func (a *MicroMiner) Micro(
 			continue
 		}
 
-		err = a.state.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version)
+		err = a.state.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, vrf)
 		if err != nil {
 			unAppliedTransactions = append(unAppliedTransactions, t)
 			continue

@@ -15,6 +15,18 @@ type ThreadSafeReadWrapper struct {
 	s  StateInfo
 }
 
+func (a *ThreadSafeReadWrapper) HitSourceAtHeight(height proto.Height) ([]byte, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.HitSourceAtHeight(height)
+}
+
+func (a *ThreadSafeReadWrapper) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.BlockVRF(blockHeader, height)
+}
+
 func (a *ThreadSafeReadWrapper) MapR(f func(StateInfo) (interface{}, error)) (interface{}, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -297,7 +309,7 @@ func (a *ThreadSafeWriteWrapper) Map(f func(state NonThreadSafeState) error) err
 	return f(a.s)
 }
 
-func (a *ThreadSafeWriteWrapper) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion) error {
+func (a *ThreadSafeWriteWrapper) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte) error {
 	panic("Invalid ValidateNextTx usage on thread safe wrapper. Should call TxValidation")
 }
 

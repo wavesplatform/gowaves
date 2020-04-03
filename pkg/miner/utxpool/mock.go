@@ -78,20 +78,6 @@ func (mr *MockstateWrapperMockRecorder) BlockVRF(blockHeader, height interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockstateWrapper)(nil).BlockVRF), blockHeader, height)
 }
 
-// ValidateNextTx mocks base method
-func (m *MockstateWrapper) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, vrf []byte) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, version, vrf)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// ValidateNextTx indicates an expected call of ValidateNextTx
-func (mr *MockstateWrapperMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, version, vrf interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockstateWrapper)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, version, vrf)
-}
-
 // TxValidation mocks base method
 func (m *MockstateWrapper) TxValidation(arg0 func(state.TxValidation) error) error {
 	m.ctrl.T.Helper()

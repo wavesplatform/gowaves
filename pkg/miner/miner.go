@@ -19,8 +19,8 @@ type MicroblockMiner struct {
 	state       state.State
 	peer        peer_manager.PeerManager
 	constraints Constraints
-	services services.Services
-	features Features
+	services    services.Services
+	features    Features
 	// reward vote 600000000
 	reward int64
 }
@@ -31,13 +31,13 @@ func NewMicroblockMiner(services services.Services, features Features, reward in
 		state:       services.State,
 		peer:        services.Peers,
 		constraints: DefaultConstraints(),
-		services: services,
-		features: features,
-		reward:   reward,
+		services:    services,
+		features:    features,
+		reward:      reward,
 	}
 }
 
-func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget types.BaseTarget, gs []byte, vrf []byte) (*proto.Block, proto.MiningLimits, error){
+func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget types.BaseTarget, gs []byte, vrf []byte) (*proto.Block, proto.MiningLimits, error) {
 	nxt := proto.NxtConsensus{
 		BaseTarget:   baseTarget,
 		GenSignature: gs,
@@ -52,7 +52,7 @@ func (a *MicroblockMiner) Mine(ctx context.Context, t proto.Timestamp, k proto.K
 		if err != nil {
 			return nil, err
 		}
-		b, err := MineBlock(v, nxt, k, validatedFeatured, t, parent, a.reward, a.scheme)
+		b, err := MineBlock(v, nxt, k, validatedFeatured, t, parent, a.reward, a.services.Scheme)
 		if err != nil {
 			return nil, err
 		}

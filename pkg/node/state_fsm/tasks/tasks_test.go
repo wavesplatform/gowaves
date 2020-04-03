@@ -16,7 +16,7 @@ func TestMineMicroTask_Run(t *testing.T) {
 	require.Equal(t, MINE_MICRO, task.Type())
 
 	ch := mkch()
-	task.Run(context.Background(), ch)
+	_ = task.Run(context.Background(), ch)
 
 	require.IsType(t, MineMicroTaskData{}, (<-ch).Data.(MineMicroTaskData))
 }
