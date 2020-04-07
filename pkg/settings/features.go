@@ -19,6 +19,7 @@ const (
 	BlockReward // 14
 	BlockV5
 	MultiPaymentInvokeScript // RIDE V4
+	AcceptFailedScriptTransaction
 	LeaseExpiration
 )
 
@@ -44,5 +45,6 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	BlockReward:                     {true, "Block Reward and Community Driven Monetary Policy"},
 	BlockV5:                         {true, "VRF and Protobuf"},
 	MultiPaymentInvokeScript:        {true, "Ride V4 and multiple attached payments for Invoke Script Transaction"},
+	AcceptFailedScriptTransaction:   {true, "Accept transactions with failed script result"},
 	LeaseExpiration:                 {false, "Lease Expiration"},
 }
