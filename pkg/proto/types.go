@@ -3594,12 +3594,6 @@ func (b *FullWavesBalance) ToProtobuf() *g.BalanceResponse_WavesBalances {
 	}
 }
 
-type BalancesHashes struct {
-	WavesBalanceHash crypto.Digest
-	AssetBalanceHash crypto.Digest
-	LeaseBalanceHash crypto.Digest
-}
-
 type StateHash struct {
 	BlockID           BlockID
 	SumHash           crypto.Digest
@@ -3609,7 +3603,9 @@ type StateHash struct {
 	LeaseStatusHash   crypto.Digest
 	SponsorshipHash   crypto.Digest
 	AliasesHash       crypto.Digest
-	BalancesHashes
+	WavesBalanceHash  crypto.Digest
+	AssetBalanceHash  crypto.Digest
+	LeaseBalanceHash  crypto.Digest
 }
 
 func (s *StateHash) GenerateSumHash(prevSumHash crypto.Digest) error {

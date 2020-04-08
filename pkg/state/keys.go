@@ -115,6 +115,9 @@ const (
 
 	// Stores protobuf-related info for blockReadWriter.
 	rwProtobufInfoKeyPrefix
+
+	// Stores state hashes at height.
+	stateHashKeyPrefix
 )
 
 var (
@@ -195,7 +198,7 @@ type blockNumToIdKey struct {
 func (k *blockNumToIdKey) bytes() []byte {
 	buf := make([]byte, 1+4)
 	buf[0] = blockNumToIdKeyPrefix
-	binary.LittleEndian.PutUint32(buf[1:], k.blockNum)
+	binary.BigEndian.PutUint32(buf[1:], k.blockNum)
 	return buf
 }
 
@@ -206,7 +209,7 @@ type validBlockNumKey struct {
 func (k *validBlockNumKey) bytes() []byte {
 	buf := make([]byte, 1+4)
 	buf[0] = validBlockNumKeyPrefix
-	binary.LittleEndian.PutUint32(buf[1:], k.blockNum)
+	binary.BigEndian.PutUint32(buf[1:], k.blockNum)
 	return buf
 }
 
@@ -251,7 +254,7 @@ type scoreKey struct {
 func (k *scoreKey) bytes() []byte {
 	buf := make([]byte, 9)
 	buf[0] = scoreKeyPrefix
-	binary.LittleEndian.PutUint64(buf[1:], k.height)
+	binary.BigEndian.PutUint64(buf[1:], k.height)
 	return buf
 }
 
@@ -455,14 +458,14 @@ type accountsDataStorKey struct {
 func (k *accountsDataStorKey) accountPrefix() []byte {
 	buf := make([]byte, 1+8)
 	buf[0] = accountsDataStorKeyPrefix
-	binary.LittleEndian.PutUint64(buf[1:9], k.addrNum)
+	binary.BigEndian.PutUint64(buf[1:9], k.addrNum)
 	return buf
 }
 
 func (k *accountsDataStorKey) bytes() []byte {
 	buf := make([]byte, 1+8+2+len(k.entryKey))
 	buf[0] = accountsDataStorKeyPrefix
-	binary.LittleEndian.PutUint64(buf[1:9], k.addrNum)
+	binary.BigEndian.PutUint64(buf[1:9], k.addrNum)
 	proto.PutStringWithUInt16Len(buf[9:], k.entryKey)
 	return buf
 }
@@ -474,7 +477,7 @@ func (k *accountsDataStorKey) unmarshal(data []byte) error {
 	if data[0] != accountsDataStorKeyPrefix {
 		return errInvalidPrefix
 	}
-	k.addrNum = binary.LittleEndian.Uint64(data[1:9])
+	k.addrNum = binary.BigEndian.Uint64(data[1:9])
 	var err error
 	k.entryKey, err = proto.StringWithUInt16Len(data[9:])
 	if err != nil {
@@ -558,7 +561,7 @@ func (k *batchedStorKey) bytes() []byte {
 	buf[1] = k.prefix
 	copy(buf[2:], k.internalKey[:])
 	pos := 2 + len(k.internalKey)
-	binary.LittleEndian.PutUint32(buf[pos:], k.batchNum)
+	binary.BigEndian.PutUint32(buf[pos:], k.batchNum)
 	return buf
 }
 
@@ -584,4 +587,15 @@ func (k *invokeResultKey) bytes() []byte {
 	res[0] = invokeResultKeyPrefix
 	copy(res[1:], k.invokeID[:])
 	return res
+}
+
+type stateHashKey struct {
+	height uint64
+}
+
+func (k *stateHashKey) bytes() []byte {
+	buf := make([]byte, 9)
+	buf[0] = stateHashKeyPrefix
+	binary.BigEndian.PutUint64(buf[1:], k.height)
+	return buf
 }

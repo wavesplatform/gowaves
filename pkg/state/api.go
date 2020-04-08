@@ -109,6 +109,12 @@ type StateInfo interface {
 
 	// True if state stores additional information in order to provide extended API.
 	ProvidesExtendedApi() (bool, error)
+
+	// True if state stores and calculates state hashes for each block height.
+	ProvidesStateHashes() (bool, error)
+
+	// State hashes.
+	StateHashAtHeight(height uint64) (*proto.StateHash, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.
@@ -215,6 +221,8 @@ type StateParams struct {
 	StoreExtendedApiData bool
 	// ProvideExtendedApi specifies whether state must provide data for extended API.
 	ProvideExtendedApi bool
+	// BuildStateHashes enables building and storing state hashes by height.
+	BuildStateHashes bool
 }
 
 func DefaultStateParams() StateParams {

@@ -15,6 +15,28 @@ func newDiffApplier(balances *balances) (*diffApplier, error) {
 	return &diffApplier{balances}, nil
 }
 
+func newWavesValueFromProfile(p balanceProfile) *wavesValue {
+	val := &wavesValue{profile: p}
+	if p.leaseIn != 0 || p.leaseOut != 0 {
+		val.leaseChange = true
+	}
+	if p.balance != 0 {
+		val.balanceChange = true
+	}
+	return val
+}
+
+func newWavesValue(diff balanceDiff, p balanceProfile) *wavesValue {
+	val := &wavesValue{profile: p}
+	if diff.balance != 0 {
+		val.balanceChange = true
+	}
+	if diff.leaseIn != 0 || diff.leaseOut != 0 {
+		val.leaseChange = true
+	}
+	return val
+}
+
 func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, validateOnly bool) error {
 	var k wavesBalanceKey
 	if err := k.unmarshal(change.key); err != nil {
@@ -33,7 +55,8 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, v
 		if validateOnly {
 			continue
 		}
-		if err := a.balances.setWavesBalance(k.address, newProfile, diff.blockID); err != nil {
+		val := newWavesValue(diff, *newProfile)
+		if err := a.balances.setWavesBalance(k.address, val, diff.blockID); err != nil {
 			return errors.Errorf("failed to set account balance: %v\n", err)
 		}
 	}

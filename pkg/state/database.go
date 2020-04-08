@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	stateInfoSize = 3
+	stateInfoSize = 4
 )
 
 var (
@@ -27,12 +27,14 @@ var (
 type stateInfo struct {
 	version            uint16
 	hasExtendedApiData bool
+	hasStateHashes     bool
 }
 
 func (inf *stateInfo) marshalBinary() []byte {
-	buf := make([]byte, 2+1)
+	buf := make([]byte, stateInfoSize)
 	binary.BigEndian.PutUint16(buf[:2], inf.version)
 	proto.PutBool(buf[2:], inf.hasExtendedApiData)
+	proto.PutBool(buf[3:], inf.hasStateHashes)
 	return buf
 }
 
@@ -43,6 +45,10 @@ func (inf *stateInfo) unmarshalBinary(data []byte) error {
 	inf.version = binary.BigEndian.Uint16(data[:2])
 	var err error
 	inf.hasExtendedApiData, err = proto.Bool(data[2:])
+	if err != nil {
+		return err
+	}
+	inf.hasStateHashes, err = proto.Bool(data[3:])
 	if err != nil {
 		return err
 	}
@@ -333,14 +339,31 @@ func (s *stateDB) stateVersion() (int, error) {
 	return int(info.version), nil
 }
 
-// stateStoresApiData indicates if additional data for gRPC API must be stored.
-func (s *stateDB) stateStoresApiData() (bool, error) {
+func (s *stateDB) stateInfo() (*stateInfo, error) {
 	stateInfoBytes, err := s.db.Get(stateInfoKeyBytes)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	var info stateInfo
 	if err := info.unmarshalBinary(stateInfoBytes); err != nil {
+		return nil, err
+	}
+	return &info, nil
+}
+
+// stateStoresHashes indicates if state hashes must be stored.
+func (s *stateDB) stateStoresHashes() (bool, error) {
+	info, err := s.stateInfo()
+	if err != nil {
+		return false, err
+	}
+	return info.hasStateHashes, nil
+}
+
+// stateStoresApiData indicates if additional data for gRPC API must be stored.
+func (s *stateDB) stateStoresApiData() (bool, error) {
+	info, err := s.stateInfo()
+	if err != nil {
 		return false, err
 	}
 	return info.hasExtendedApiData, nil

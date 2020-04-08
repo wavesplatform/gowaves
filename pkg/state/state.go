@@ -56,9 +56,11 @@ type blockchainEntitiesStorage struct {
 	scriptsStorage    *scriptsStorage
 	scriptsComplexity *scriptsComplexity
 	invokeResults     *invokeResults
+	stateHashes       *stateHashes
+	calculateHashes   bool
 }
 
-func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter) (*blockchainEntitiesStorage, error) {
+func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter, calcHashes bool) (*blockchainEntitiesStorage, error) {
 	aliases, err := newAliases(hs.db, hs.dbBatch, hs)
 	if err != nil {
 		return nil, err
@@ -71,15 +73,11 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	scores, err := newScores(hs.db, hs.dbBatch)
-	if err != nil {
-		return nil, err
-	}
 	blocksInfo, err := newBlocksInfo(hs.db, hs.dbBatch)
 	if err != nil {
 		return nil, err
 	}
-	balances, err := newBalances(hs.db, hs)
+	balances, err := newBalances(hs.db, hs, calcHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +118,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		aliases,
 		assets,
 		leases,
-		scores,
+		newScores(hs.db, hs.dbBatch),
 		blocksInfo,
 		balances,
 		features,
@@ -131,12 +129,77 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		scriptsStorage,
 		scriptsComplexity,
 		invokeResults,
+		newStateHashes(hs.db, hs.dbBatch),
+		calcHashes,
 	}, nil
+}
+
+func (s *blockchainEntitiesStorage) putStateHash(prevHash crypto.Digest, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
+	sh := &proto.StateHash{
+		BlockID:          blockID,
+		WavesBalanceHash: s.balances.wavesHasher.stateHashAt(blockID),
+		AssetBalanceHash: s.balances.assetsHasher.stateHashAt(blockID),
+		LeaseBalanceHash: s.balances.leaseHasher.stateHashAt(blockID),
+	}
+	if err := sh.GenerateSumHash(prevHash); err != nil {
+		return nil, err
+	}
+	if err := s.stateHashes.saveStateHash(sh, height); err != nil {
+		return nil, err
+	}
+	return sh, nil
+}
+
+func (s *blockchainEntitiesStorage) prepareHashes() error {
+	if err := s.balances.prepareHashes(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
+	if !s.calculateHashes {
+		return nil
+	}
+	if blockchainHeight < 1 {
+		return errors.New("bad blockchain height, should be greater than 0")
+	}
+	// Calculate any remaining hashes of the last block.
+	if err := s.prepareHashes(); err != nil {
+		return err
+	}
+	prevHash, err := s.stateHashes.stateHash(blockchainHeight)
+	if err != nil {
+		return err
+	}
+	startHeight := blockchainHeight + 1
+	for i, id := range blockIds {
+		height := startHeight + uint64(i)
+		newPrevHash, err := s.putStateHash(prevHash.SumHash, height, id)
+		if err != nil {
+			return err
+		}
+		prevHash = newPrevHash
+	}
+	return nil
+}
+
+func (s *blockchainEntitiesStorage) rollback(newHeight, oldHeight uint64) error {
+	if err := s.scores.rollback(newHeight, oldHeight); err != nil {
+		return err
+	}
+	if s.calculateHashes {
+		if err := s.stateHashes.rollback(newHeight, oldHeight); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {
 	s.hs.reset()
 	s.assets.reset()
+	s.balances.reset()
 	s.accountsDataStor.reset()
 }
 
@@ -150,7 +213,7 @@ func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
 	return nil
 }
 
-func checkCompatibility(stateDB *stateDB, extendedApi bool) error {
+func checkCompatibility(stateDB *stateDB, params StateParams) error {
 	version, err := stateDB.stateVersion()
 	if err != nil {
 		return errors.Errorf("stateVersion: %v", err)
@@ -162,8 +225,15 @@ func checkCompatibility(stateDB *stateDB, extendedApi bool) error {
 	if err != nil {
 		return errors.Errorf("stateStoresApiData(): %v", err)
 	}
-	if extendedApi != hasDataForExtendedApi {
-		return errors.Errorf("extended API incompatibility: state stores: %v; want: %v", hasDataForExtendedApi, extendedApi)
+	if params.StoreExtendedApiData != hasDataForExtendedApi {
+		return errors.Errorf("extended API incompatibility: state stores: %v; want: %v", hasDataForExtendedApi, params.StoreExtendedApiData)
+	}
+	hasDataForHashes, err := stateDB.stateStoresHashes()
+	if err != nil {
+		return errors.Errorf("stateStoresHashes: %v", err)
+	}
+	if params.BuildStateHashes != hasDataForHashes {
+		return errors.Errorf("state hashes incompatibility: state stores: %v; want: %v", hasDataForHashes, params.BuildStateHashes)
 	}
 	return nil
 }
@@ -242,7 +312,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v", err))
 	}
-	if err := checkCompatibility(stateDB, params.StoreExtendedApiData); err != nil {
+	if err := checkCompatibility(stateDB, params); err != nil {
 		return nil, wrapErr(IncompatibilityError, err)
 	}
 	if err := stateDB.syncRw(); err != nil {
@@ -252,7 +322,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v", err))
 	}
-	stor, err := newBlockchainEntitiesStorage(hs, settings, rw)
+	stor, err := newBlockchainEntitiesStorage(hs, settings, rw, params.BuildStateHashes)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v", err))
 	}
@@ -335,6 +405,12 @@ func (s *stateManager) addGenesisBlock() error {
 	}
 	close(chans.tasksChan)
 	if err := s.appender.applyAllDiffs(true); err != nil {
+		return err
+	}
+	if err := s.stor.prepareHashes(); err != nil {
+		return err
+	}
+	if _, err := s.stor.putStateHash(crypto.Digest{}, 1, s.genesis.BlockID()); err != nil {
 		return err
 	}
 	verifyError := <-chans.errChan
@@ -1155,6 +1231,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
 	var lastBlock *proto.Block
+	var ids []proto.BlockID
 	for i, block := range blocks {
 		curHeight := height + uint64(i)
 		breakAdding, err := s.needToBreakAddingBlocks(curHeight, breakerInfo)
@@ -1207,6 +1284,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		}
 		headers[i] = block.BlockHeader
 		parent = block
+		ids = append(ids, block.BlockID())
 	}
 	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
 	close(chans.tasksChan)
@@ -1214,6 +1292,10 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	// This also validates diffs for negative balances.
 	if err := s.appender.applyAllDiffs(initialisation); err != nil {
 		return nil, wrapErr(TxValidationError, err)
+	}
+	// Retrieve and store state hashes for each of new blocks.
+	if err := s.stor.handleStateHashes(height, ids); err != nil {
+		return nil, wrapErr(ModificationError, err)
 	}
 	// Validate consensus (i.e. that all of the new blocks were mined fairly).
 	if err := s.cv.ValidateHeaders(headers[:len(headers)-len(blocksToFinish)], height); err != nil {
@@ -1307,13 +1389,14 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	if err := s.rw.rollback(removalEdge, true); err != nil {
 		return wrapErr(RollbackError, err)
 	}
-	// Remove scores of deleted blocks.
+	// Rollback scores of blocks and state hashes.
+	// Both are entities stored by block height.
 	newHeight, err := s.Height()
 	if err != nil {
 		return wrapErr(RetrievalError, err)
 	}
 	oldHeight := curHeight + 1
-	if err := s.stor.scores.rollback(newHeight, oldHeight); err != nil {
+	if err := s.stor.rollback(newHeight, oldHeight); err != nil {
 		return wrapErr(RollbackError, err)
 	}
 	// Clear scripts cache.
@@ -1900,6 +1983,29 @@ func (s *stateManager) ProvidesExtendedApi() (bool, error) {
 	}
 	// State has data for extended API, but we need to make sure it is served.
 	return s.atx.providesData(), nil
+}
+
+func (s *stateManager) ProvidesStateHashes() (bool, error) {
+	provides, err := s.stateDB.stateStoresApiData()
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	return provides, nil
+}
+
+func (s *stateManager) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+	hasData, err := s.ProvidesStateHashes()
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	if !hasData {
+		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for state hashes"))
+	}
+	sh, err := s.stor.stateHashes.stateHash(height)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return sh, nil
 }
 
 func (s *stateManager) IsNotFound(err error) bool {
