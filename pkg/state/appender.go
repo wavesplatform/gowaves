@@ -455,7 +455,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return err
 		}
 		// Save transaction to storage.
-		if err := a.rw.writeTransaction(tx); err != nil {
+		//TODO: pass correct failure status
+		if err := a.rw.writeTransaction(tx, false); err != nil {
 			return err
 		}
 		// Store additional data for API: transaction by address.

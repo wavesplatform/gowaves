@@ -141,7 +141,7 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 	assert.NoError(t, err)
 	// Save the same transaction ID twice.
 	// Then make sure it was added to batchedStor only once.
-	err = stor.rw.writeTransaction(tx)
+	err = stor.rw.writeTransaction(tx, false)
 	assert.NoError(t, err)
 	stor.addBlock(t, blockID0)
 	err = atx.saveTxIdByAddress(addr, txID, blockID0, true)
@@ -169,3 +169,5 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 	iter.Release()
 	assert.NoError(t, iter.Error())
 }
+
+//TODO: add test on failed transactions

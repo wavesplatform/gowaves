@@ -18,7 +18,7 @@ import (
 
 const (
 	// Address size + length of block num + transaction offset length.
-	addrTxRecordSize = proto.AddressSize + blockNumLen + 8
+	addrTxRecordSize = proto.AddressSize + blockNumLen + txMetaSize
 
 	maxEmsortMem = 200 * 1024 * 1024 // 200 MiB.
 )
@@ -124,7 +124,7 @@ func newAddressTransactions(
 ) (*addressTransactions, error) {
 	bsParams := &batchedStorParams{
 		maxBatchSize: maxTransactionIdsBatchSize,
-		recordSize:   rw.offsetLen,
+		recordSize:   txMetaSize,
 		prefix:       transactionIdsPrefix,
 	}
 	filePath := path.Join(params.dir, "address_transactions")
@@ -158,7 +158,7 @@ func newAddressTransactions(
 
 func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte, blockID proto.BlockID, filter bool) error {
 	if at.rw.offsetLen != 8 {
-		return errors.New("unsupported offset length")
+		return errors.New("unsupported meta length")
 	}
 	newRecord := make([]byte, addrTxRecordSize)
 	blockNum, err := at.stateDB.blockIdToNum(blockID)
@@ -167,13 +167,13 @@ func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte
 	}
 	copy(newRecord[:proto.AddressSize], addr.Bytes())
 	pos := proto.AddressSize
-	offset, err := at.rw.newestTransactionOffsetByID(txID)
+	meta, err := at.rw.newestTransactionMetaByID(txID)
 	if err != nil {
 		return err
 	}
 	binary.BigEndian.PutUint32(newRecord[pos:], blockNum)
 	pos += blockNumLen
-	binary.BigEndian.PutUint64(newRecord[pos:], offset)
+	copy(newRecord[pos:], meta.bytes())
 	if at.params.providesData {
 		return at.stor.addRecordBytes(newRecord[:proto.AddressSize], newRecord[proto.AddressSize:], filter)
 	}
