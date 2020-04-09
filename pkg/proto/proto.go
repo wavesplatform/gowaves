@@ -1226,7 +1226,10 @@ func parsePacket(data []byte, ContentID uint8, name string, f func(payload []byt
 		return fmt.Errorf("%s: wrong magic in Header: %x", name, h.Magic)
 	}
 	if h.ContentID != ContentID {
-		return fmt.Errorf("%s:, wrong ContentID in Header: %x", name, h.ContentID)
+		return fmt.Errorf("%s: wrong ContentID in Header: %x", name, h.ContentID)
+	}
+	if len(data) < int(17+h.PayloadLength) {
+		return fmt.Errorf("%s: expected data at least %d, found %d", name, 17+h.PayloadLength, len(data))
 	}
 	err := f(data[17 : 17+h.PayloadLength])
 	if err != nil {

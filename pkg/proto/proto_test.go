@@ -2,6 +2,7 @@ package proto
 
 import (
 	"bytes"
+	"encoding"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -555,5 +556,24 @@ func TestGetBlockMessage_MarshalBinary(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, b, b2)
+	})
+}
+
+func withBytes(t *testing.T, b encoding.BinaryMarshaler, f func(bts []byte)) {
+	bts, err := b.MarshalBinary()
+	require.NoError(t, err)
+	f(bts)
+}
+
+// check that there is no panic, if payload is less than declared
+func TestParsePacked(t *testing.T) {
+	b := GetBlockMessage{
+		BlockID: NewBlockIDFromDigest(crypto.MustDigestFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")),
+	}
+	withBytes(t, &b, func(bts []byte) {
+		bts = bts[:18:18]
+		b2 := GetBlockMessage{}
+		err := b2.UnmarshalBinary(bts)
+		require.EqualError(t, err, "GetBlockMessage: expected data at least 49, found 18")
 	})
 }
