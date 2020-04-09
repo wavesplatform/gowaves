@@ -60,6 +60,7 @@ type SmartState interface {
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 
 	IsNotFound(err error) bool
+	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 }
 
 type ID interface {
@@ -89,7 +90,7 @@ type InvRequester interface {
 type BaseTarget = uint64
 
 type Miner interface {
-	Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget BaseTarget, GenSignature []byte)
+	Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget BaseTarget, gs []byte, vrf []byte)
 }
 
 type Time interface {

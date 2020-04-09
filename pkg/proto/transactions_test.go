@@ -4804,6 +4804,24 @@ func TestDataWithProofsValidations(t *testing.T) {
 	}
 }
 
+func TestDataWithProofsDeleteValidation(t *testing.T) {
+	spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+	require.NoError(t, err)
+	de := &DeleteDataEntry{Key: "key"}
+	tx1 := NewUnsignedData(1, spk, 12345, 67890)
+	tx1.Entries = DataEntries{de}
+	v, err := tx1.Valid()
+	assert.False(t, v)
+	msg := "delete supported only for protobuf transaction"
+	assert.EqualError(t, err, msg, fmt.Sprintf("expected: %s", msg))
+
+	tx2 := NewUnsignedData(2, spk, 12345, 67890)
+	tx2.Entries = DataEntries{de}
+	v, err = tx2.Valid()
+	assert.True(t, v)
+	assert.NoError(t, err)
+}
+
 func TestDataWithProofsSizeLimit(t *testing.T) {
 	repeat := func(e *BinaryDataEntry, n int) DataEntries {
 		r := DataEntries{}

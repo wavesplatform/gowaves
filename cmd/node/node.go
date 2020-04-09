@@ -110,6 +110,7 @@ func main() {
 		zap.S().Error(err)
 		return
 	}
+	zap.S().Infof("Blockchain: %s", string(cfg.AddressSchemeCharacter))
 
 	conf := &settings.NodeSettings{}
 	if err := settings.ApplySettings(conf, FromArgs(cfg.AddressSchemeCharacter), settings.FromJavaEnviron); err != nil {
@@ -255,7 +256,7 @@ func main() {
 		scoreSender.Run(ctx)
 	})
 
-	mine := miner.NewMicroblockMiner(services, ngRuntime, cfg.AddressSchemeCharacter, features, reward)
+	mine := miner.NewMicroblockMiner(services, ngRuntime, features, reward)
 	peerManager.SetConnectPeers(!*disableOutgoingConnections)
 	go miner.Run(ctx, mine, scheduler)
 

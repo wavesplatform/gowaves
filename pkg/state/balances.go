@@ -81,18 +81,18 @@ func (r *assetBalanceRecord) unmarshalBinary(data []byte) error {
 	return nil
 }
 
-type leaseBalanceChangeForHashes struct {
+type leaseBalanceRecordForHashes struct {
 	addr     *proto.Address
 	leaseIn  int64
 	leaseOut int64
 }
 
-func (lc *leaseBalanceChangeForHashes) less(other stateComponent) bool {
-	lc2 := other.(*leaseBalanceChangeForHashes)
+func (lc *leaseBalanceRecordForHashes) less(other stateComponent) bool {
+	lc2 := other.(*leaseBalanceRecordForHashes)
 	return bytes.Compare(lc.addr[:], lc2.addr[:]) == -1
 }
 
-func (lc *leaseBalanceChangeForHashes) writeTo(w io.Writer) error {
+func (lc *leaseBalanceRecordForHashes) writeTo(w io.Writer) error {
 	if _, err := w.Write(lc.addr[:]); err != nil {
 		return err
 	}
@@ -109,17 +109,17 @@ func (lc *leaseBalanceChangeForHashes) writeTo(w io.Writer) error {
 	return nil
 }
 
-type wavesChangeForHashes struct {
+type wavesRecordForHashes struct {
 	addr    *proto.Address
 	balance uint64
 }
 
-func (wc *wavesChangeForHashes) less(other stateComponent) bool {
-	wc2 := other.(*wavesChangeForHashes)
+func (wc *wavesRecordForHashes) less(other stateComponent) bool {
+	wc2 := other.(*wavesRecordForHashes)
 	return bytes.Compare(wc.addr[:], wc2.addr[:]) == -1
 }
 
-func (wc *wavesChangeForHashes) writeTo(w io.Writer) error {
+func (wc *wavesRecordForHashes) writeTo(w io.Writer) error {
 	if _, err := w.Write(wc.addr[:]); err != nil {
 		return err
 	}
@@ -131,14 +131,14 @@ func (wc *wavesChangeForHashes) writeTo(w io.Writer) error {
 	return nil
 }
 
-type assetChangeForHashes struct {
+type assetRecordForHashes struct {
 	addr    *proto.Address
 	asset   []byte
 	balance uint64
 }
 
-func (ac *assetChangeForHashes) less(other stateComponent) bool {
-	ac2 := other.(*assetChangeForHashes)
+func (ac *assetRecordForHashes) less(other stateComponent) bool {
+	ac2 := other.(*assetRecordForHashes)
 	val := bytes.Compare(ac.addr[:], ac2.addr[:])
 	if val > 0 {
 		return false
@@ -148,7 +148,7 @@ func (ac *assetChangeForHashes) less(other stateComponent) bool {
 	return true
 }
 
-func (ac *assetChangeForHashes) writeTo(w io.Writer) error {
+func (ac *assetRecordForHashes) writeTo(w io.Writer) error {
 	if _, err := w.Write(ac.addr[:]); err != nil {
 		return err
 	}
@@ -460,7 +460,7 @@ func (s *balances) setAssetBalance(addr proto.Address, asset []byte, balance uin
 		return err
 	}
 	if s.calculateHashes {
-		ac := &assetChangeForHashes{
+		ac := &assetRecordForHashes{
 			addr:    &addr,
 			asset:   asset,
 			balance: balance,
@@ -483,7 +483,7 @@ func (s *balances) setWavesBalance(addr proto.Address, balance *wavesValue, bloc
 	}
 	if s.calculateHashes {
 		if balance.balanceChange {
-			wc := &wavesChangeForHashes{
+			wc := &wavesRecordForHashes{
 				addr:    &addr,
 				balance: record.balance,
 			}
@@ -492,7 +492,7 @@ func (s *balances) setWavesBalance(addr proto.Address, balance *wavesValue, bloc
 			}
 		}
 		if balance.leaseChange {
-			lc := &leaseBalanceChangeForHashes{
+			lc := &leaseBalanceRecordForHashes{
 				addr:     &addr,
 				leaseIn:  record.leaseIn,
 				leaseOut: record.leaseOut,

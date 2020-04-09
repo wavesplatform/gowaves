@@ -653,16 +653,22 @@ func verify() = {
 		Arguments: proto.Arguments{proto.NewStringArgument("abc")},
 	})
 
-	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
+	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
-	require.Equal(t,
+	sr, err := proto.NewScriptResult(actions)
+	require.NoError(t, err)
+	require.EqualValues(t,
 		&proto.ScriptResult{
-			Writes: []proto.DataEntry{
-				&proto.StringDataEntry{Key: "abc_q", Value: "abc"},
-				&proto.StringDataEntry{Key: "abc_a", Value: "abc"},
+			DataEntries: []*proto.DataEntryScriptAction{
+				{Entry: &proto.StringDataEntry{Key: "abc_q", Value: "abc"}},
+				{Entry: &proto.StringDataEntry{Key: "abc_a", Value: "abc"}},
 			},
+			Transfers: make([]*proto.TransferScriptAction, 0),
+			Issues:    make([]*proto.IssueScriptAction, 0),
+			Reissues:  make([]*proto.ReissueScriptAction, 0),
+			Burns:     make([]*proto.BurnScriptAction, 0),
 		},
-		rs,
+		sr,
 	)
 }
 
@@ -713,16 +719,22 @@ func verify() = {
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
+	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
-	require.Equal(t,
+	sr, err := proto.NewScriptResult(actions)
+	require.NoError(t, err)
+	require.EqualValues(t,
 		&proto.ScriptResult{
-			Writes: []proto.DataEntry{
-				&proto.StringDataEntry{Key: "a", Value: "b"},
-				&proto.BinaryDataEntry{Key: "sender", Value: addr.Bytes()},
+			DataEntries: []*proto.DataEntryScriptAction{
+				{Entry: &proto.StringDataEntry{Key: "a", Value: "b"}},
+				{Entry: &proto.BinaryDataEntry{Key: "sender", Value: addr.Bytes()}},
 			},
+			Transfers: make([]*proto.TransferScriptAction, 0),
+			Issues:    make([]*proto.IssueScriptAction, 0),
+			Reissues:  make([]*proto.ReissueScriptAction, 0),
+			Burns:     make([]*proto.BurnScriptAction, 0),
 		},
-		rs,
+		sr,
 	)
 }
 
@@ -831,19 +843,25 @@ func tellme(question: String) = {
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
+	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
-	scriptTransfer := proto.ScriptResultTransfer{
+	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100,
 		Asset:     proto.OptionalAsset{Present: false},
 	}
 	require.NoError(t, err)
-	require.Equal(t,
+	sr, err := proto.NewScriptResult(actions)
+	require.NoError(t, err)
+	require.EqualValues(t,
 		&proto.ScriptResult{
-			Transfers: []proto.ScriptResultTransfer{scriptTransfer},
+			DataEntries: make([]*proto.DataEntryScriptAction, 0),
+			Transfers:   []*proto.TransferScriptAction{&scriptTransfer},
+			Issues:      make([]*proto.IssueScriptAction, 0),
+			Reissues:    make([]*proto.ReissueScriptAction, 0),
+			Burns:       make([]*proto.BurnScriptAction, 0),
 		},
-		rs,
+		sr,
 	)
 }
 
@@ -877,19 +895,24 @@ func tellme(question: String) = {
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	rs, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
+	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
-	scriptTransfer := proto.ScriptResultTransfer{
+	sr, err := proto.NewScriptResult(actions)
+	require.NoError(t, err)
+	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100500,
 		Asset:     proto.OptionalAsset{Present: false},
 	}
 	require.Equal(t,
 		&proto.ScriptResult{
-			Writes:    []proto.DataEntry{&proto.IntegerDataEntry{Key: "key", Value: 100}},
-			Transfers: []proto.ScriptResultTransfer{scriptTransfer},
+			DataEntries: []*proto.DataEntryScriptAction{{Entry: &proto.IntegerDataEntry{Key: "key", Value: 100}}},
+			Transfers:   []*proto.TransferScriptAction{&scriptTransfer},
+			Issues:      make([]*proto.IssueScriptAction, 0),
+			Reissues:    make([]*proto.ReissueScriptAction, 0),
+			Burns:       make([]*proto.BurnScriptAction, 0),
 		},
-		rs,
+		sr,
 	)
 }
 
@@ -1145,16 +1168,21 @@ func TestWhaleDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	sr, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
+	actions, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
-	expectedDataWrites := proto.WriteSet{
-		&proto.StringDataEntry{Key: "wl_ref_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "3P8Fvy1yDwNHvVrabe4ek5b9dAwxFjDKV7R"},
-		&proto.StringDataEntry{Key: "wl_bio_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: `{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}`},
-		&proto.StringDataEntry{Key: "wl_sts_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "invited"},
+	sr, err := proto.NewScriptResult(actions)
+	require.NoError(t, err)
+	expectedDataWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.StringDataEntry{Key: "wl_ref_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "3P8Fvy1yDwNHvVrabe4ek5b9dAwxFjDKV7R"}},
+		{Entry: &proto.StringDataEntry{Key: "wl_bio_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: `{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}`}},
+		{Entry: &proto.StringDataEntry{Key: "wl_sts_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "invited"}},
 	}
 	expectedResult := &proto.ScriptResult{
-		Transfers: nil,
-		Writes:    expectedDataWrites,
+		DataEntries: expectedDataWrites,
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1224,29 +1252,34 @@ func TestExchangeDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	sr, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
+	actions, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	sr, err := proto.NewScriptResult(actions)
+	assert.NoError(t, err)
 
 	ev, err := base64.StdEncoding.DecodeString("AAAAAAABhqAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLw==")
 	require.NoError(t, err)
-	expectedDataWrites := proto.WriteSet{
-		&proto.BinaryDataEntry{Key: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6", Value: ev},
+	expectedDataWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.BinaryDataEntry{Key: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6", Value: ev}},
 	}
 	ra, err := proto.NewAddressFromString("3P8WrXSDDyNC11dm8XANKeDcJricefgTRyZ")
 	require.NoError(t, err)
 	rcp := proto.NewRecipientFromAddress(ra)
 	asset, err := crypto.NewDigestFromBase58("78tZbyEovK6DLyqfmswMDtxb3bytTX7H5p6hYpGhYtBV")
 	require.NoError(t, err)
-	expectedTransfers := proto.TransferSet{
-		proto.ScriptResultTransfer{
+	expectedTransfers := []*proto.TransferScriptAction{
+		{
 			Recipient: rcp,
 			Amount:    1,
 			Asset:     *proto.NewOptionalAssetFromDigest(asset),
 		},
 	}
 	expectedResult := &proto.ScriptResult{
-		Transfers: expectedTransfers,
-		Writes:    expectedDataWrites,
+		Transfers:   expectedTransfers,
+		DataEntries: expectedDataWrites,
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1420,16 +1453,21 @@ func TestLigaDApp1(t *testing.T) {
 		GeneratorPublicKey:  sender1,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	sr, err := script.CallFunction(proto.TestNetScheme, state, tx1, this, lastBlock)
+	actions, err := script.CallFunction(proto.TestNetScheme, state, tx1, this, lastBlock)
+	require.NoError(t, err)
+	sr, err := proto.NewScriptResult(actions)
 	require.NoError(t, err)
 
-	expectedDataWrites := proto.WriteSet{
-		&proto.IntegerDataEntry{Key: "STAGE", Value: 2},
-		&proto.IntegerDataEntry{Key: "BALANCE_SNAPSHOT", Value: 98750005},
+	expectedDataWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.IntegerDataEntry{Key: "STAGE", Value: 2}},
+		{Entry: &proto.IntegerDataEntry{Key: "BALANCE_SNAPSHOT", Value: 98750005}},
 	}
 	expectedResult := &proto.ScriptResult{
-		Transfers: nil,
-		Writes:    expectedDataWrites,
+		DataEntries: expectedDataWrites,
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 
@@ -1517,18 +1555,23 @@ func TestLigaDApp1(t *testing.T) {
 		GeneratorPublicKey:  sender1,
 	}
 	lastBlock = NewObjectFromBlockInfo(blockInfo)
-	sr, err = script.CallFunction(proto.TestNetScheme, state, tx2, this, lastBlock)
+	actions, err = script.CallFunction(proto.TestNetScheme, state, tx2, this, lastBlock)
+	require.NoError(t, err)
+	sr, err = proto.NewScriptResult(actions)
 	require.NoError(t, err)
 
-	expectedDataWrites = proto.WriteSet{
-		&proto.IntegerDataEntry{Key: "STAGE", Value: 31},
-		&proto.IntegerDataEntry{Key: "PRIZE_POOL", Value: 94800004},
-		&proto.BinaryDataEntry{Key: "WINNER", Value: av},
-		&proto.IntegerDataEntry{Key: "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye_SOLD", Value: 5},
+	expectedDataWrites = []*proto.DataEntryScriptAction{
+		{Entry: &proto.IntegerDataEntry{Key: "STAGE", Value: 31}},
+		{Entry: &proto.IntegerDataEntry{Key: "PRIZE_POOL", Value: 94800004}},
+		{Entry: &proto.BinaryDataEntry{Key: "WINNER", Value: av}},
+		{Entry: &proto.IntegerDataEntry{Key: "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye_SOLD", Value: 5}},
 	}
 	expectedResult = &proto.ScriptResult{
-		Transfers: nil,
-		Writes:    expectedDataWrites,
+		DataEntries: expectedDataWrites,
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1601,15 +1644,20 @@ func TestTestingDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	sr, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	require.NoError(t, err)
+	sr, err := proto.NewScriptResult(actions)
 	require.NoError(t, err)
 
-	expectedDataWrites := proto.WriteSet{
-		&proto.StringDataEntry{Key: "mainLog", Value: "1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY - 3N4XM8G5WXzdkLXYDL6X229Entc5Hqgz7DM - 1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY -> 3NBQxw1ZzTfWbrLjWj2euMwizncrGG4nXJX"},
+	expectedDataWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.StringDataEntry{Key: "mainLog", Value: "1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY - 3N4XM8G5WXzdkLXYDL6X229Entc5Hqgz7DM - 1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY -> 3NBQxw1ZzTfWbrLjWj2euMwizncrGG4nXJX"}},
 	}
 	expectedResult := &proto.ScriptResult{
-		Transfers: proto.TransferSet{},
-		Writes:    expectedDataWrites,
+		DataEntries: expectedDataWrites,
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1677,15 +1725,20 @@ func TestDropElementDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	sr, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	require.NoError(t, err)
+	sr, err := proto.NewScriptResult(actions)
 	require.NoError(t, err)
 
-	expectedDataWrites := proto.WriteSet{
-		&proto.StringDataEntry{Key: "1", Value: "aaa,bbb,ccc - ccc = aaa,bbb"},
+	expectedDataWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.StringDataEntry{Key: "1", Value: "aaa,bbb,ccc - ccc = aaa,bbb"}},
 	}
 	expectedResult := &proto.ScriptResult{
-		Transfers: nil,
-		Writes:    expectedDataWrites,
+		DataEntries: expectedDataWrites,
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1758,22 +1811,27 @@ func TestMathDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	sr, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	require.NoError(t, err)
+	sr, err := proto.NewScriptResult(actions)
 	require.NoError(t, err)
 
-	expectedDataWrites := proto.WriteSet{
-		&proto.IntegerDataEntry{Key: "deltaT", Value: 6301369},
-		&proto.IntegerDataEntry{Key: "sqrtDeltaT", Value: 25102528},
-		&proto.IntegerDataEntry{Key: "up", Value: 105148668},
-		&proto.IntegerDataEntry{Key: "down", Value: 95103439},
-		&proto.IntegerDataEntry{Key: "df", Value: 99622632},
-		&proto.IntegerDataEntry{Key: "pUp", Value: 52516065},
-		&proto.IntegerDataEntry{Key: "pDown", Value: 47483935},
-		&proto.IntegerDataEntry{Key: "firstProjectedPrice", Value: 0},
+	expectedDataWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.IntegerDataEntry{Key: "deltaT", Value: 6301369}},
+		{Entry: &proto.IntegerDataEntry{Key: "sqrtDeltaT", Value: 25102528}},
+		{Entry: &proto.IntegerDataEntry{Key: "up", Value: 105148668}},
+		{Entry: &proto.IntegerDataEntry{Key: "down", Value: 95103439}},
+		{Entry: &proto.IntegerDataEntry{Key: "df", Value: 99622632}},
+		{Entry: &proto.IntegerDataEntry{Key: "pUp", Value: 52516065}},
+		{Entry: &proto.IntegerDataEntry{Key: "pDown", Value: 47483935}},
+		{Entry: &proto.IntegerDataEntry{Key: "firstProjectedPrice", Value: 0}},
 	}
 	expectedResult := &proto.ScriptResult{
-		Transfers: nil,
-		Writes:    expectedDataWrites,
+		DataEntries: expectedDataWrites,
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1840,15 +1898,20 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	sr, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	require.NoError(t, err)
+	sr, err := proto.NewScriptResult(actions)
 	require.NoError(t, err)
 
-	expectedDataWrites := proto.WriteSet{
-		&proto.IntegerDataEntry{Key: "3MwT5r4YSyG4QAiqi8VNZkL9eP9e354DXfE_waves", Value: 7012000},
+	expectedDataWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.IntegerDataEntry{Key: "3MwT5r4YSyG4QAiqi8VNZkL9eP9e354DXfE_waves", Value: 7012000}},
 	}
 	expectedResult := &proto.ScriptResult{
-		Transfers: proto.TransferSet{},
-		Writes:    expectedDataWrites,
+		DataEntries: expectedDataWrites,
+		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Issues:      make([]*proto.IssueScriptAction, 0),
+		Reissues:    make([]*proto.ReissueScriptAction, 0),
+		Burns:       make([]*proto.BurnScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }

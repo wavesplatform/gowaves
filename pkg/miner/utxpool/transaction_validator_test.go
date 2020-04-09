@@ -32,8 +32,10 @@ func TestValidatorImpl_Validate(t *testing.T) {
 
 	m.EXPECT().Mutex().Return(mu)
 	m.EXPECT().TopBlock().Return(emptyBlock)
+	m.EXPECT().Height().Return(uint64(0), nil)
+	m.EXPECT().BlockVRF(gomock.Any(), gomock.Any()).Return(nil, nil)
 	m.EXPECT().
-		ValidateNextTx(byte_helpers.BurnWithSig.Transaction, gomock.Any(), gomock.Any(), gomock.Any()).
+		ValidateNextTx(byte_helpers.BurnWithSig.Transaction, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil)
 	m.EXPECT().ResetValidationList()
 

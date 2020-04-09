@@ -25,11 +25,13 @@ func TestBulkValidator_Validate(t *testing.T) {
 	m := NewMockstateWrapper(ctrl)
 	m.EXPECT().Mutex().Return(mu)
 	m.EXPECT().TopBlock().Return(emptyBlock)
+	m.EXPECT().Height().Return(uint64(0), nil)
+	m.EXPECT().BlockVRF(gomock.Any(), gomock.Any()).Return(nil, nil)
 	m.EXPECT(). // first transaction returns err
-			ValidateNextTx(byte_helpers.TransferWithSig.Transaction, gomock.Any(), gomock.Any(), gomock.Any()).
+			ValidateNextTx(byte_helpers.TransferWithSig.Transaction, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(errors.New("some err"))
 	m.EXPECT(). // second returns ok
-			ValidateNextTx(byte_helpers.BurnWithSig.Transaction, gomock.Any(), gomock.Any(), gomock.Any()).
+			ValidateNextTx(byte_helpers.BurnWithSig.Transaction, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			Return(nil)
 	m.EXPECT().ResetValidationList()
 

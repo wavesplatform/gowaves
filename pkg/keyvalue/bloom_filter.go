@@ -1,6 +1,7 @@
 package keyvalue
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"io/ioutil"
@@ -10,6 +11,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/pkg/errors"
 	"github.com/steakknife/bloomfilter"
+	"go.uber.org/zap"
 )
 
 type BloomFilterParams struct {
@@ -127,7 +129,12 @@ func (a *storeImpl) saveData(f *bloomfilter.Filter) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			zap.S().Warnf("Failed to save bloom filter: %v", err)
+		}
+	}()
 
 	err = file.Truncate(0)
 	if err != nil {
@@ -137,7 +144,16 @@ func (a *storeImpl) saveData(f *bloomfilter.Filter) error {
 	if err != nil {
 		return err
 	}
-	_, err = f.WriteTo(file)
+
+	buffer := bufio.NewWriter(file)
+	defer func() {
+		err := buffer.Flush()
+		if err != nil {
+			zap.S().Warnf("Failed to save bloom filter: %v", err)
+		}
+	}()
+
+	_, err = f.WriteTo(buffer)
 	if err != nil {
 		return err
 	}

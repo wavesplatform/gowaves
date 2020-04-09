@@ -73,7 +73,7 @@ func (h *getStateChangesHandler) handle(tx proto.Transaction) error {
 	}
 	resProto, err := res.ToProtobuf()
 	if err != nil {
-		return errors.Wrap(err, "failed to convert ScriptResult to protobuf")
+		return errors.Wrap(err, "failed to convert ScriptResultV3 to protobuf")
 	}
 	if err := h.srv.Send(resProto); err != nil {
 		return errors.Wrap(err, "failed to send")

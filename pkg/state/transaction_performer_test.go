@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -108,7 +109,7 @@ func TestPerformReissueWithSig(t *testing.T) {
 	}()
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
-	tx := createReissueWithSig(t)
+	tx := createReissueWithSig(t, 1000)
 	err := to.tp.performReissueWithSig(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueWithSig() failed")
 	to.stor.flush(t)
@@ -132,7 +133,7 @@ func TestPerformReissueWithProofs(t *testing.T) {
 	}()
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
-	tx := createReissueWithProofs(t)
+	tx := createReissueWithProofs(t, 1000)
 	err := to.tp.performReissueWithProofs(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performReissueWithProofs() failed")
 	to.stor.flush(t)
@@ -609,7 +610,7 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test discarding script.
-	err = to.stor.entities.scriptsStorage.setAssetScript(assetID, proto.Script{}, blockID0)
+	err = to.stor.entities.scriptsStorage.setAssetScript(assetID, proto.Script{}, crypto.PublicKey{}, blockID0)
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.

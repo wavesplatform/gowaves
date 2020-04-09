@@ -118,6 +118,9 @@ const (
 
 	// Stores state hashes at height.
 	stateHashKeyPrefix
+
+	// Hit source data
+	hitSourceKeyPrefix
 )
 
 var (

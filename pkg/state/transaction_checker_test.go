@@ -260,7 +260,7 @@ func TestCheckReissueWithSig(t *testing.T) {
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
-	tx := createReissueWithSig(t)
+	tx := createReissueWithSig(t, 1000)
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
@@ -308,7 +308,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
-	tx := createReissueWithProofs(t)
+	tx := createReissueWithProofs(t, 1000)
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
@@ -458,7 +458,7 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	// Set script.
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.recipientInfo.addr
-	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, blockID0)
+	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.recipientInfo.pk, blockID0)
 	assert.NoError(t, err)
 
 	_, err = to.tc.checkExchangeWithSig(tx, info)
@@ -1046,7 +1046,7 @@ func TestCheckSetAssetScriptWithProofs(t *testing.T) {
 	assert.Error(t, err, "checkSetAssetScriptWithProofs did not fail with non-smart asset")
 
 	// Make it smart.
-	err = to.stor.entities.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, blockID0)
+	err = to.stor.entities.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, blockID0)
 	assert.NoError(t, err, "setAssetScript failed")
 
 	// Now should pass.
@@ -1079,7 +1079,7 @@ func TestCheckInvokeScriptWithProofs(t *testing.T) {
 	pmts := []proto.ScriptPayment{
 		{Amount: 1, Asset: *testGlobal.asset0.asset},
 	}
-	tx := createInvokeScriptWithProofs(t, pmts, proto.FunctionCall{}, 1)
+	tx := createInvokeScriptWithProofs(t, pmts, proto.FunctionCall{}, proto.OptionalAsset{}, 1)
 	info := defaultCheckerInfo(t)
 	to.stor.addBlock(t, blockID0)
 	assetId := tx.Payments[0].Asset.ID

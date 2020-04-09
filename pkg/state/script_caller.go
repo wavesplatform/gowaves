@@ -134,6 +134,7 @@ func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTra
 
 func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
 	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
+	obj["proofs"] = ast.NewUnit() // Proofs are not accessible from asset's script
 	if err != nil {
 		return errors.Wrap(err, "failed to convert transaction")
 	}
@@ -144,29 +145,21 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	return nil
 }
 
-func (a *scriptCaller) invokeFunction(tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, initialisation bool) (*proto.ScriptResult, error) {
-	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, a.stor.aliases, !initialisation)
-	if err != nil {
-		return nil, err
-	}
-	script, err := a.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !initialisation)
-	if err != nil {
-		return nil, err
-	}
-	this := ast.NewAddressFromProtoAddress(*scriptAddr)
+func (a *scriptCaller) invokeFunction(script ast.Script, tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) ([]proto.ScriptAction, error) {
+	this := ast.NewAddressFromProtoAddress(scriptAddress)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	sr, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
+	actions, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
 	if err != nil {
-		return nil, errors.Errorf("transaction ID %s: %v\n", tx.ID.String(), err)
+		return nil, errors.Wrapf(err, "transaction ID %s", tx.ID.String())
 	}
 	// Increase complexity.
-	complexityRecord, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(*scriptAddr, !initialisation)
+	complexityRecord, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, !initialisation)
 	if err != nil {
 		return nil, errors.Wrap(err, "newestScriptComplexityByAsset()")
 	}
 	// TODO: check this!
 	a.totalComplexity += complexityRecord.byFuncs[tx.FunctionCall.Name]
-	return sr, nil
+	return actions, nil
 }
 
 func (a *scriptCaller) getTotalComplexity() uint64 {

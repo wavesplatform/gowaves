@@ -1,8 +1,8 @@
 package consensus
 
 import (
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -39,6 +39,8 @@ type stateInfoProvider interface {
 	EffectiveBalance(addr proto.Recipient, startHeight, endHeight uint64) (uint64, error)
 	IsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 	ActivationHeight(featureID int16) (proto.Height, error)
+	HitSourceAtHeight(height uint64) ([]byte, error)
+	SaveHitSources(startHeight uint64, hs [][]byte) error
 }
 
 type ConsensusValidator struct {
@@ -46,8 +48,9 @@ type ConsensusValidator struct {
 	settings    *settings.BlockchainSettings
 	startHeight uint64
 	// Headers to validate.
-	headers []proto.BlockHeader
-	ntpTime types.Time
+	headers    []proto.BlockHeader
+	hitSources [][]byte
+	ntpTime    types.Time
 }
 
 func NewConsensusValidator(state stateInfoProvider, tm types.Time) (*ConsensusValidator, error) {
@@ -100,9 +103,17 @@ func (cv *ConsensusValidator) headerByHeight(height uint64) (*proto.BlockHeader,
 	return &cv.headers[height-cv.startHeight-1], nil
 }
 
+func (cv *ConsensusValidator) hitSourceByHeight(height uint64) ([]byte, error) {
+	if height <= cv.startHeight {
+		return cv.state.HitSourceAtHeight(height)
+	}
+	return cv.hitSources[height-cv.startHeight-1], nil
+}
+
 func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, startHeight uint64) error {
 	cv.startHeight = startHeight
 	cv.headers = headers
+	cv.hitSources = make([][]byte, 0, len(headers))
 	for i, header := range headers {
 		height := startHeight + uint64(i)
 		parent, err := cv.headerByHeight(height)
@@ -116,14 +127,11 @@ func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, start
 				return errors.Wrap(err, "failed to retrieve block's great grandparent")
 			}
 		}
+		if err := cv.validateGeneratorSignatureAndBlockDelay(height, &header); err != nil {
+			return errors.Wrap(err, "block generator signature validation failed")
+		}
 		if err := cv.validateBlockTimestamp(&header); err != nil {
 			return errors.Wrap(err, "block timestamp validation failed")
-		}
-		if err := cv.validateBlockDelay(height, &header); err != nil {
-			return errors.Wrap(err, "block delay validation failed")
-		}
-		if err := cv.validateGeneratorSignature(height, &header); err != nil {
-			return errors.Wrap(err, "block generator signature validation failed")
 		}
 		if err := cv.validateBaseTarget(height, &header, parent, greatGrandParent); err != nil {
 			return errors.Wrap(err, "base target validation failed")
@@ -131,6 +139,9 @@ func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, start
 		if err := cv.validateBlockVersion(&header, height); err != nil {
 			return errors.Wrap(err, "block version validation failed")
 		}
+	}
+	if err := cv.state.SaveHitSources(cv.startHeight, cv.hitSources); err != nil {
+		return errors.Wrap(err, "failed to update hit source")
 	}
 	return nil
 }
@@ -263,69 +274,72 @@ func (cv *ConsensusValidator) validateBaseTarget(height uint64, header, parent, 
 	return nil
 }
 
-func (cv *ConsensusValidator) validateGeneratorSignature(height uint64, header *proto.BlockHeader) error {
-	var generationSignatureBlockHeader *proto.BlockHeader
-	vrf, err := cv.state.IsActiveAtHeight(int16(settings.BlockV5), height+1)
-	if err != nil {
-		return errors.Wrapf(err, "failed to validate generation signature")
-	}
+func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uint64, header *proto.BlockHeader) error {
 	pos, err := cv.posAlgo(height)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate generation signature")
 	}
-	if vrf {
-		generationSignatureBlockHeader, err = cv.headerByHeight(pos.HeightForHit(height))
-		if err != nil {
-			return errors.Wrapf(err, "failed to get block header")
-		}
-	} else {
-		generationSignatureBlockHeader, err = cv.headerByHeight(height)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get last block header")
-		}
-	}
+
 	gsp, err := cv.generationSignatureProvider(height + 1)
 	if err != nil {
 		return errors.Wrap(err, "failed to get generation signature provider")
 	}
-	ok, err := gsp.VerifyGenerationSignature(header.GenPublicKey, generationSignatureBlockHeader.GenSignature, header.GenSignature)
-	if err != nil {
-		return errors.Wrapf(err, "failed to verify generator signature")
-	}
-	if !ok {
-		return errors.Errorf("invalid generation signature %s", header.GenSignature.String())
-	}
-	return nil
-}
 
-func (cv *ConsensusValidator) validBlockDelay(height uint64, key crypto.PublicKey, parentTarget, effectiveBalance uint64) (uint64, error) {
-	pos, err := cv.posAlgo(height)
+	vrf, err := cv.state.IsActiveAtHeight(int16(settings.BlockV5), height+1)
 	if err != nil {
-		return 0, err
+		return errors.Wrapf(err, "failed to validate generation signature")
 	}
-	hitSourceBlockHeader, err := cv.headerByHeight(pos.HeightForHit(height))
-	if err != nil {
-		return 0, err
-	}
-	gsp, err := cv.generationSignatureProvider(height + 1)
-	if err != nil {
-		return 0, err
-	}
-	source, err := gsp.HitSource(key, hitSourceBlockHeader.GenSignature)
-	if err != nil {
-		return 0, err
-	}
-	hit, err := GenHit(source)
-	if err != nil {
-		return 0, err
-	}
-	return pos.CalculateDelay(hit, parentTarget, effectiveBalance)
-}
 
-func (cv *ConsensusValidator) validateBlockDelay(height uint64, header *proto.BlockHeader) error {
+	var hitSource []byte
+	if vrf {
+		refGenSig, err := cv.hitSourceByHeight(pos.HeightForHit(height))
+		if err != nil {
+			return errors.Wrap(err, "failed to validate generation signature")
+		}
+		var ok bool
+		ok, hitSource, err = gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
+		if err != nil {
+			return errors.Wrapf(err, "failed to verify generator signature")
+		}
+		if !ok {
+			return errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s')",
+				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
+		}
+		cv.hitSources = append(cv.hitSources, hitSource)
+
+	} else {
+
+		refHeader, err := cv.headerByHeight(height)
+		if err != nil {
+			return errors.Wrap(err, "failed to validate generation signature")
+		}
+		refGenSig := refHeader.GenSignature
+		ok, gs, err := gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
+		if err != nil {
+			return errors.Wrapf(err, "failed to verify generator signature")
+		}
+		if !ok {
+			return errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s')",
+				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
+		}
+
+		cv.hitSources = append(cv.hitSources, gs)
+
+		prevHitSource, err := cv.hitSourceByHeight(pos.HeightForHit(height))
+		if err != nil {
+			return errors.Wrap(err, "failed to validate generation signature")
+		}
+		hitSource, err = gsp.HitSource(header.GenPublicKey, prevHitSource)
+		if err != nil {
+			return errors.Wrap(err, "failed to validate generation signature")
+		}
+
+	}
+
 	if cv.settings.Type == settings.MainNet && isInvalidMainNetBlock(header.BlockID(), height) {
 		return nil
 	}
+
 	parent, err := cv.headerByHeight(height)
 	if err != nil {
 		return errors.Errorf("failed to get parent by height: %v\n", err)
@@ -337,14 +351,20 @@ func (cv *ConsensusValidator) validateBlockDelay(height uint64, header *proto.Bl
 	if err := cv.validateEffectiveBalance(header, effectiveBalance, height); err != nil {
 		return errors.Errorf("invalid generating balance at height %d: %v\n", height, err)
 	}
-	delay, err := cv.validBlockDelay(height, header.GenPublicKey, parent.BaseTarget, effectiveBalance)
+	hit, err := GenHit(hitSource)
 	if err != nil {
-		return errors.Errorf("failed to calculate valid block delay: %v\n", err)
+		return err
+	}
+	delay, err := pos.CalculateDelay(hit, parent.BaseTarget, effectiveBalance)
+	if err != nil {
+		return errors.Wrap(err, "failed to calculate valid block delay")
 	}
 	minTimestamp := parent.Timestamp + delay
 	if header.Timestamp < minTimestamp {
-		return errors.Errorf("invalid block timestamp %d: less than min valid timestamp %d", header.Timestamp, minTimestamp)
+		return errors.Errorf("block '%s' at %d: invalid block timestamp %d: less than min valid timestamp %d (hit source %s)",
+			header.ID, height, header.Timestamp, minTimestamp, base58.Encode(hitSource))
 	}
+
 	return nil
 }
 

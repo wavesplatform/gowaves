@@ -718,23 +718,23 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockI
 			Features:             features,
 			RewardVote:           rewardVote,
 			ConsensusBlockLength: uint32(consensusLength),
+			NxtConsensus:         nxtConsensus,
 			TransactionCount:     transactions.Count(),
 			GenPublicKey:         publicKey,
-			NxtConsensus:         nxtConsensus,
 		},
 		Transactions: transactions,
 	}
 	if version <= RewardBlockVersion {
 		b.TransactionBlockLength = uint32(transactions.BinarySize() + 4)
 	}
-	if err := b.GenerateBlockID(scheme); err != nil {
-		return nil, errors.Wrap(err, "failed to generate block ID")
-	}
 	if version >= ProtoBlockVersion {
 		err := b.SetTransactionsRoot(scheme)
 		if err != nil {
 			return nil, err
 		}
+	}
+	if err := b.GenerateBlockID(scheme); err != nil {
+		return nil, errors.Wrap(err, "failed to generate block ID")
 	}
 	return b, nil
 }

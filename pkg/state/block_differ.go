@@ -110,8 +110,8 @@ func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID proto.BlockID, min
 	return diff, minerAddr, nil
 }
 
-func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, height uint64, initialisation bool) (txBalanceChanges, error) {
-	blockInfo, err := proto.BlockInfoFromHeader(d.settings.AddressSchemeCharacter, block, height)
+func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, height uint64, vrf []byte, initialisation bool) (txBalanceChanges, error) {
+	blockInfo, err := proto.BlockInfoFromHeader(d.settings.AddressSchemeCharacter, block, height, vrf)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
