@@ -64,15 +64,16 @@ func (r *recentTransactions) appendTx(id []byte, inf *txInfo) error {
 	return nil
 }
 
-func (r *recentTransactions) txById(id []byte) (proto.Transaction, error) {
+func (r *recentTransactions) txById(id []byte) (proto.Transaction, bool, error) {
 	pos, ok := r.positions[string(id)]
 	if !ok {
-		return nil, errNotFound
+		return nil, false, errNotFound
 	}
 	if pos < 0 || pos >= len(r.infos) {
-		return nil, errors.New("invalid pos")
+		return nil, false, errors.New("invalid pos")
 	}
-	return r.infos[pos].tx, nil
+	info := r.infos[pos]
+	return info.tx, info.failed, nil
 }
 
 func (r *recentTransactions) heightById(id []byte) (uint64, error) {
@@ -585,28 +586,29 @@ func (rw *blockReadWriter) readTransactionSize(offset uint64) (uint32, error) {
 	return binary.BigEndian.Uint32(sizeBytes), nil
 }
 
-func (rw *blockReadWriter) readNewestTransaction(txID []byte) (proto.Transaction, error) {
+func (rw *blockReadWriter) readNewestTransaction(txID []byte) (proto.Transaction, bool, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	tx, err := rw.rtx.txById(txID)
+	tx, fs, err := rw.rtx.txById(txID)
 	if err != nil {
 		return rw.readTransactionImpl(txID)
 	}
-	return tx, nil
+	return tx, fs, nil
 }
 
-func (rw *blockReadWriter) readTransaction(txID []byte) (proto.Transaction, error) {
+func (rw *blockReadWriter) readTransaction(txID []byte) (proto.Transaction, bool, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	return rw.readTransactionImpl(txID)
 }
 
-func (rw *blockReadWriter) readTransactionImpl(txID []byte) (proto.Transaction, error) {
+func (rw *blockReadWriter) readTransactionImpl(txID []byte) (proto.Transaction, bool, error) {
 	meta, err := rw.transactionMetaByID(txID)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return rw.readTransactionByOffsetImpl(meta.offset)
+	tx, err := rw.readTransactionByOffsetImpl(meta.offset)
+	return tx, meta.failed, err
 }
 
 func (rw *blockReadWriter) readTransactionByOffset(offset uint64) (proto.Transaction, error) {

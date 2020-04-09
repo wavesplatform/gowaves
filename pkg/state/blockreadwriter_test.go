@@ -218,7 +218,7 @@ func testNewestReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 				return errors.New("transaction offsets are not equal")
 			}
 		case readTx:
-			tx, err := rw.readNewestTransaction(task.txID)
+			tx, _, err := rw.readNewestTransaction(task.txID)
 			if err != nil {
 				return err
 			}
@@ -274,7 +274,7 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 				return errors.New("transaction offsets are not equal")
 			}
 		case readTx:
-			tx, err := rw.readTransaction(task.txID)
+			tx, _, err := rw.readTransaction(task.txID)
 			if err != nil {
 				return err
 			}
@@ -504,7 +504,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	if removeErr != nil {
 		t.Fatalf("Failed to remove blocks: %v", err)
 	}
-	_, err = rw.readTransaction(txID)
+	_, _, err = rw.readTransaction(txID)
 	if err != keyvalue.ErrNotFound {
 		t.Fatalf("transaction from removed block wasn't deleted %v", err)
 	}
@@ -589,4 +589,6 @@ func TestProtobufReadWrite(t *testing.T) {
 	}
 }
 
-//TODO: add test on failed transaction
+func TestFailedTransactionReadWrite(t *testing.T) {
+	//TODO: add test on failed transaction
+}

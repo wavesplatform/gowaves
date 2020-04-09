@@ -107,7 +107,7 @@ func (a *txAppender) checkDuplicateTxIdsImpl(id []byte, recentIds map[string]str
 		return errors.Errorf("transaction with ID %v already in state", id)
 	}
 	// Check DB.
-	if _, err := a.rw.readTransaction(id); err == nil {
+	if _, _, err := a.rw.readTransaction(id); err == nil {
 		return errors.Errorf("transaction with ID %v already in state", id)
 	}
 	return nil

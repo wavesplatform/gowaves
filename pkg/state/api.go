@@ -20,7 +20,7 @@ import (
 // Release() must be called after using iterator.
 // Error() should return nil if iterating was successful.
 type TransactionIterator interface {
-	Transaction() (proto.Transaction, error)
+	Transaction() (proto.Transaction, bool, error)
 	Next() bool
 	Release()
 	Error() error

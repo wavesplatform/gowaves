@@ -39,12 +39,13 @@ func (m *MockTransactionIterator) EXPECT() *MockTransactionIteratorMockRecorder 
 }
 
 // Transaction mocks base method
-func (m *MockTransactionIterator) Transaction() (proto.Transaction, error) {
+func (m *MockTransactionIterator) Transaction() (proto.Transaction, bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Transaction")
 	ret0, _ := ret[0].(proto.Transaction)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // Transaction indicates an expected call of Transaction

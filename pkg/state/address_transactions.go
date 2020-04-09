@@ -37,17 +37,21 @@ func newTxIter(rw *blockReadWriter, iter *recordIterator) *txIter {
 	return &txIter{rw: rw, iter: iter}
 }
 
-func (i *txIter) Transaction() (proto.Transaction, error) {
-	offsetBytes, err := i.iter.currentRecord()
+func (i *txIter) Transaction() (proto.Transaction, bool, error) {
+	value, err := i.iter.currentRecord()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	offset := binary.BigEndian.Uint64(offsetBytes)
-	tx, err := i.rw.readTransactionByOffset(offset)
+	var meta txMeta
+	err = meta.unmarshal(value)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return tx, nil
+	tx, err := i.rw.readTransactionByOffset(meta.offset)
+	if err != nil {
+		return nil, false, err
+	}
+	return tx, meta.failed, nil
 }
 
 func (i *txIter) Next() bool {
