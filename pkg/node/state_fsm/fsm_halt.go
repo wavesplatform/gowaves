@@ -34,7 +34,7 @@ func (a HaltFSM) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 	return noop(a)
 }
 
-func (a HaltFSM) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair) (FSM, Async, error) {
+func (a HaltFSM) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
 	return noop(a)
 }
 

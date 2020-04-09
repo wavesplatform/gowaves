@@ -300,12 +300,9 @@ func main() {
 
 	sig := <-gracefulStop
 	zap.S().Infow("Caught signal, stopping", "signal", sig)
-	n.Close()
-
-	zap.S().Infow("Caught signal, stopping", "signal", sig)
 	cancel()
-
-	<-time.After(2 * time.Second)
+	n.Close()
+	<-time.After(1 * time.Second)
 }
 
 func FromArgs(scheme proto.Scheme) func(s *settings.NodeSettings) error {

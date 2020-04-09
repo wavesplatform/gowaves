@@ -34,7 +34,6 @@ func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm stat
 			Port: uint16(r.Port),
 		})
 	}
-
 	mess.ID.SendMessage(&proto.PeersMessage{Peers: out})
 	return fsm, nil, nil
 }

@@ -26,8 +26,8 @@ func (a *IdleFsm) Halt() (FSM, Async, error) {
 	return HaltTransition(a.baseInfo)
 }
 
-func (a *IdleFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair) (FSM, Async, error) {
-	return MinedBlockNgTransition(a.baseInfo, block, limits, keyPair)
+func (a *IdleFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
+	return MinedBlockNgTransition(a.baseInfo, block, limits, keyPair, vrf)
 }
 
 func (a *IdleFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error) {
@@ -70,25 +70,6 @@ func (a *IdleFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 }
 
 func (a *IdleFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
-	////zap.S().Debug("*IdleFsm Score ", p, score)
-	//err := a.baseInfo.peers.UpdateScore(p, score)
-	////zap.S().Debug("a.baseInfo.peers.UpdateScore ", err)
-	//if err != nil {
-	//	return a, nil, err
-	//}
-	//
-	////return a, nil, nil
-	//
-	//defer a.baseInfo.storage.Mutex().Lock().Unlock()
-	//myScore, err := a.baseInfo.storage.CurrentScore()
-	//if err != nil {
-	//	return a, nil, err
-	//}
-	//
-	//if score.Cmp(myScore) == 1 { // remote score > my score
-	//	return NewIdleToSyncTransition(a.baseInfo, p)
-	//}
-	//return a, nil, nil
 	return handleScore(a, a.baseInfo, p, score)
 }
 

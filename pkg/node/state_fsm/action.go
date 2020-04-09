@@ -7,8 +7,13 @@ import (
 	"go.uber.org/zap"
 )
 
+type currentScorer interface {
+	// Get current blockchain score (at top height).
+	CurrentScore() (*proto.Score, error)
+}
+
 type Actions interface {
-	SendScore(curScore *proto.Score)
+	SendScore(currentScorer)
 	SendBlock(block *proto.Block)
 }
 
@@ -16,7 +21,12 @@ type ActionsImpl struct {
 	services services.Services
 }
 
-func (a *ActionsImpl) SendScore(curScore *proto.Score) {
+func (a *ActionsImpl) SendScore(s currentScorer) {
+	curScore, err := s.CurrentScore()
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
 	bts := curScore.Bytes()
 	a.services.Peers.EachConnected(func(peer peer.Peer, score *proto.Score) {
 		peer.SendMessage(&proto.ScoreMessage{Score: bts})

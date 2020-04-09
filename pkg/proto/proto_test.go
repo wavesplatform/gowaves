@@ -518,3 +518,42 @@ func TestVersion_Cmp(t *testing.T) {
 	require.Equal(t, 1, Version{2, 2, 1}.Cmp(Version{1, 2, 1}))
 	require.Equal(t, -1, Version{1, 2, 0}.Cmp(Version{1, 2, 1}))
 }
+
+func TestGetBlockMessage_MarshalBinary(t *testing.T) {
+	t.Run("parse signature from huge byte array", func(t *testing.T) {
+		b := GetBlockMessage{
+			BlockID: NewBlockIDFromSignature(crypto.MustSignatureFromBase58("2Br31FjkXETUiFanHyeN2GzinXvmN1vkVwRDkjzSHrcbFhU4aYwyvrXxkGkkprQ5h1UuaFeVQC1jexdsYbrqTtS9")),
+		}
+
+		rs, err := b.MarshalBinary()
+		require.NoError(t, err)
+
+		//
+		buf := make([]byte, 1000)
+		copy(buf, rs)
+
+		b2 := GetBlockMessage{}
+		err = b2.UnmarshalBinary(buf)
+		require.NoError(t, err)
+
+		require.Equal(t, b, b2)
+	})
+	t.Run("parse block id from huge byte array", func(t *testing.T) {
+		b := GetBlockMessage{
+			BlockID: NewBlockIDFromDigest(crypto.MustDigestFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")),
+		}
+
+		rs, err := b.MarshalBinary()
+		require.NoError(t, err)
+
+		b2 := GetBlockMessage{}
+
+		buf := make([]byte, 1000)
+		copy(buf, rs)
+
+		err = b2.UnmarshalBinary(buf)
+		require.NoError(t, err)
+
+		require.Equal(t, b, b2)
+	})
+}

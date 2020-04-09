@@ -1029,7 +1029,7 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes GetSignaturesMessage from binary form
 func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 	if len(data) < 17 {
-		return errors.New("invalid data size")
+		return errors.New("GetSignaturesMessage UnmarshalBinary: invalid data size")
 	}
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
@@ -1120,7 +1120,7 @@ func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes SignaturesMessage from binary form
 func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 	if len(data) < 17 {
-		return errors.New("invalid data size")
+		return errors.New("SignaturesMessage UnmarshalBinary: invalid data size")
 	}
 	var h Header
 
@@ -1204,27 +1204,34 @@ func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes GetBlockMessage from binary form
 func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
+	return parsePacket(data, ContentIDGetBlock, "GetBlockMessage", func(payload []byte) error {
+		blockID, err := NewBlockIDFromBytes(payload)
+		if err != nil {
+			return err
+		}
+		m.BlockID = blockID
+		return nil
+	})
+}
+
+func parsePacket(data []byte, ContentID uint8, name string, f func(payload []byte) error) error {
 	if len(data) < 17 {
-		return errors.New("invalid data size")
+		return errors.Errorf("%s: invalid data size %d, expected at least 17", name, len(data))
 	}
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
-		return err
+		return errors.Wrap(err, name)
 	}
-
 	if h.Magic != headerMagic {
-		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
+		return fmt.Errorf("%s: wrong magic in Header: %x", name, h.Magic)
 	}
-	if h.ContentID != ContentIDGetBlock {
-		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	if h.ContentID != ContentID {
+		return fmt.Errorf("%s:, wrong ContentID in Header: %x", name, h.ContentID)
 	}
-	data = data[17:]
-	blockID, err := NewBlockIDFromBytes(data)
+	err := f(data[17 : 17+h.PayloadLength])
 	if err != nil {
-		return errors.New("invalid data size")
+		return errors.Wrapf(err, "%s payload error", name)
 	}
-	m.BlockID = blockID
-
 	return nil
 }
 
@@ -1638,7 +1645,7 @@ func (m *PBBlockMessage) UnmarshalBinary(data []byte) error {
 
 	m.PBBlockBytes = make([]byte, h.PayloadLength)
 	if uint32(len(data)) < 17+h.PayloadLength {
-		return errors.New("invalid data size")
+		return errors.New("PBBlockMessage UnmarshalBinary: invalid data size")
 	}
 	copy(m.PBBlockBytes, data[17:17+h.PayloadLength])
 
@@ -1828,7 +1835,7 @@ func (m *GetBlockIdsMessage) MarshalBinary() ([]byte, error) {
 
 func (m *GetBlockIdsMessage) UnmarshalBinary(data []byte) error {
 	if len(data) < 17 {
-		return errors.New("invalid data size")
+		return errors.New("GetBlockIdsMessage UnmarshalBinary: invalid data size")
 	}
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
@@ -1924,7 +1931,7 @@ func (m *BlockIdsMessage) MarshalBinary() ([]byte, error) {
 
 func (m *BlockIdsMessage) UnmarshalBinary(data []byte) error {
 	if len(data) < 17 {
-		return errors.New("invalid data size")
+		return errors.New("BlockIdsMessage UnmarshalBinary: invalid data size")
 	}
 	var h Header
 

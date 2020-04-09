@@ -9,7 +9,7 @@ type MinedBlockInternalMessage struct {
 	Block   *proto.Block
 	Limits  proto.MiningLimits
 	KeyPair proto.KeyPair
-	vrf     []byte
+	Vrf     []byte
 }
 
 func NewMinedBlockInternalMessage(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) *MinedBlockInternalMessage {
@@ -17,7 +17,7 @@ func NewMinedBlockInternalMessage(block *proto.Block, limits proto.MiningLimits,
 		Block:   block,
 		Limits:  limits,
 		KeyPair: keyPair,
-		vrf:     common.Dup(vrf),
+		Vrf:     common.Dup(vrf),
 	}
 }
 

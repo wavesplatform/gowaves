@@ -208,6 +208,10 @@ type stateManager struct {
 }
 
 func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
+	err := validateSettings(settings)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
 		if err := os.Mkdir(dataDir, 0755); err != nil {
 			return nil, wrapErr(Other, errors.Errorf("failed to create state directory: %v", err))
@@ -306,6 +310,9 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	}
 	if err := state.loadLastBlock(); err != nil {
 		return nil, wrapErr(RetrievalError, err)
+	}
+	if err := state.checkProtobufActivation(); err != nil {
+		return nil, wrapErr(Other, err)
 	}
 	return state, nil
 }

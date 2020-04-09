@@ -100,6 +100,7 @@ type MineMicroTaskData struct {
 	Block   *proto.Block
 	Limits  proto.MiningLimits
 	KeyPair proto.KeyPair
+	Vrf     []byte
 }
 
 type MineMicroTask struct {
@@ -107,9 +108,9 @@ type MineMicroTask struct {
 	MineMicroTaskData MineMicroTaskData
 }
 
-func NewMineMicroTask(timeout time.Duration, block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair) MineMicroTask {
+func NewMineMicroTask(timeout time.Duration, block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) MineMicroTask {
 	if block == nil {
-		panic("NewMineMicroTask block eq nil")
+		panic("NewMineMicroTask block is nil")
 	}
 	return MineMicroTask{
 		timeout: timeout,
@@ -117,6 +118,7 @@ func NewMineMicroTask(timeout time.Duration, block *proto.Block, limits proto.Mi
 			Block:   block,
 			Limits:  limits,
 			KeyPair: keyPair,
+			Vrf:     vrf,
 		},
 	}
 }

@@ -34,59 +34,51 @@ type SchedulerImpl struct {
 	mu            sync.Mutex
 	internal      internal
 	emits         []Emit
-	state         state.State
+	storage       state.State
 	tm            types.Time
 	consensus     types.MinerConsensus
 	outdatePeriod proto.Timestamp
 }
 
 type internal interface {
-	schedule(state state.State, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) []Emit
+	schedule(state state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error)
 }
 
 type internalImpl struct {
 }
 
-func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) []Emit {
+func (a internalImpl) schedule(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
+
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
-		greatGrandParent, err := state.BlockByHeight(confirmedBlockHeight - 2)
+		greatGrandParent, err := storage.BlockByHeight(confirmedBlockHeight - 2)
 		if err != nil {
 			zap.S().Error(err)
-			return nil
+			return nil, err
 		}
 		greatGrandParentTimestamp = greatGrandParent.Timestamp
 	}
 
-	fairPosActivated, vrfActivated, err := func() (bool, bool, error) {
-		fairPosActivated, err := state.IsActiveAtHeight(int16(settings.FairPoS), confirmedBlockHeight)
-		if err != nil {
-			return false, false, errors.Wrap(err, "failed get fairPosActivated")
-		}
-		vrfActivated, err := state.IsActivated(int16(settings.BlockV5))
-		if err != nil {
-			return false, false, errors.Wrap(err, "failed get vrfActivated")
-		}
-		return fairPosActivated, vrfActivated, nil
-	}()
+	fairPosActivated, err := storage.IsActiveAtHeight(int16(settings.FairPoS), confirmedBlockHeight)
 	if err != nil {
-		zap.S().Error("scheduler, internalImpl", err)
-		return nil
+		return nil, errors.Wrap(err, "failed get fairPosActivated")
 	}
-
+	vrfActivated, err := storage.IsActivated(int16(settings.BlockV5))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed get vrfActivated")
+	}
 	var pos consensus.PosCalculator = &consensus.NxtPosCalculator{}
 	if fairPosActivated {
 		pos = &consensus.FairPosCalculator{}
 	}
-
 	var gsp consensus.GenerationSignatureProvider = &consensus.NXTGenerationSignatureProvider{}
 	if vrfActivated {
 		gsp = &consensus.VRFGenerationSignatureProvider{}
 	}
-	hitSourceHeader, err := state.HeaderByHeight(pos.HeightForHit(confirmedBlockHeight))
+	hitSourceHeader, err := storage.HeaderByHeight(pos.HeightForHit(confirmedBlockHeight))
 	if err != nil {
 		zap.S().Error("scheduler, internalImpl HeaderByHeight", err)
-		return nil
+		return nil, err
 	}
 
 	zap.S().Infof("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d", confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight)
@@ -128,8 +120,9 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 		if confirmedBlockHeight > 1000 {
 			startHeight = confirmedBlockHeight - 1000
 		}
-		effectiveBalance, err := state.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
+		effectiveBalance, err := storage.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
 		if err != nil {
+			zap.S().Debug("scheduler, internalImpl effectiveBalance, err", effectiveBalance, err, addr.String())
 			continue
 		}
 
@@ -154,7 +147,7 @@ func (a internalImpl) schedule(state state.State, keyPairs []proto.KeyPair, sche
 			Parent:       confirmedBlock.BlockID(),
 		})
 	}
-	return out
+	return out, nil
 }
 
 type seeder interface {
@@ -174,7 +167,7 @@ func newScheduler(internal internal, state state.State, seeder seeder, settings 
 		mine:          make(chan Emit, 1),
 		settings:      settings,
 		internal:      internal,
-		state:         state,
+		storage:       state,
 		mu:            sync.Mutex{},
 		tm:            tm,
 		consensus:     consensus,
@@ -200,29 +193,29 @@ func (a *SchedulerImpl) Reschedule() {
 	}
 
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
-	lastKnownBlock := a.state.TopBlock()
+	lastKnownBlock := a.storage.TopBlock()
 	if currentTimestamp-lastKnownBlock.Timestamp > a.outdatePeriod {
 		zap.S().Info("SchedulerImpl Reschedule mining disallow cause outdate period")
 		return
 	}
 
-	h, err := a.state.Height()
+	h, err := a.storage.Height()
 	if err != nil {
 		zap.S().Error(err)
 		//locked.Unlock()
 		return
 	}
 
-	block, err := a.state.BlockByHeight(h)
+	block, err := a.storage.BlockByHeight(h)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	a.reschedule(a.state, block, h)
+	a.reschedule(block, h)
 }
 
-func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Block, confirmedBlockHeight uint64) {
+func (a *SchedulerImpl) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight uint64) {
 	if len(a.seeder.Seeds()) == 0 {
 		return
 	}
@@ -241,7 +234,14 @@ func (a *SchedulerImpl) reschedule(state state.State, confirmedBlock *proto.Bloc
 		return
 	}
 
-	emits := a.internal.schedule(state, keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
+	rs, err := a.storage.MapR(func(info state.StateInfo) (i interface{}, err error) {
+		return a.internal.schedule(info, keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
+	})
+	if err != nil {
+		zap.S().Error(err)
+	}
+	emits := rs.([]Emit)
+
 	a.emits = emits
 	now := proto.NewTimestampFromTime(a.tm.Now())
 	for _, emit := range emits {

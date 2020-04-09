@@ -65,31 +65,32 @@ func (a *MicroMiner) Micro(
 
 	var unAppliedTransactions []*types.TransactionWithBytes
 
-	// 255 is max transactions count in microblock
-	for i := 0; i < 255; i++ {
-		t := a.utx.Pop()
-		if t == nil {
-			break
-		}
-		binTr := t.B
-		transactionLenBytes := 4
-		if binSize+len(binTr)+transactionLenBytes > rest.MaxTxsSizeInBytes {
-			unAppliedTransactions = append(unAppliedTransactions, t)
-			continue
-		}
+	_ = a.state.Map(func(s state.NonThreadSafeState) error {
+		// 255 is max transactions count in microblock
+		for i := 0; i < 255; i++ {
+			t := a.utx.Pop()
+			if t == nil {
+				break
+			}
+			binTr := t.B
+			transactionLenBytes := 4
+			if binSize+len(binTr)+transactionLenBytes > rest.MaxTxsSizeInBytes {
+				unAppliedTransactions = append(unAppliedTransactions, t)
+				continue
+			}
 
-		err = a.state.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, vrf)
-		if err != nil {
-			unAppliedTransactions = append(unAppliedTransactions, t)
-			continue
+			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, vrf)
+			if err != nil {
+				unAppliedTransactions = append(unAppliedTransactions, t)
+				continue
+			}
+
+			cnt += 1
+			binSize += len(binTr) + transactionLenBytes
+			transactions = append(transactions, t.T)
 		}
-
-		cnt += 1
-		binSize += len(binTr) + transactionLenBytes
-		transactions = append(transactions, t.T)
-	}
-
-	a.state.ResetValidationList()
+		return nil
+	})
 
 	// return unapplied transactions
 	for _, unapplied := range unAppliedTransactions {
@@ -133,17 +134,6 @@ func (a *MicroMiner) Micro(
 	if err != nil {
 		return nil, nil, rest, err
 	}
-
-	//locked = mu.Lock()
-	//_ = a.state.RollbackTo(minedBlock.Parent)
-	//locked.Unlock()
-
-	//err = a.services.BlocksApplier.Apply(a.state, []*proto.Block{newBlock})
-	//if err != nil {
-	//	zap.S().Error(err)
-	//	return
-	//}
-
 	micro := proto.MicroBlock{
 		VersionField:          5, // protobuf version
 		SenderPK:              keyPair.Public,

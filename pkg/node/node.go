@@ -140,7 +140,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 
 			switch t := internalMess.(type) {
 			case *messages.MinedBlockInternalMessage:
-				fsm, async, err = fsm.MinedBlock(t.Block, t.Limits, t.KeyPair)
+				fsm, async, err = fsm.MinedBlock(t.Block, t.Limits, t.KeyPair, t.Vrf)
 			case *messages.HaltMessage:
 				fsm, async, err = fsm.Halt()
 				t.Complete()

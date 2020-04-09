@@ -4,13 +4,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	//"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type PeerWrapper interface {
 	AskBlocksIDs(id []proto.BlockID)
 	AskBlock(id proto.BlockID)
-	//p.SendMessage(&proto.GetBlockIdsMessage{Blocks: a.respondedSignatures.BlockIDS()})
 }
 
 type PeerWrapperImpl struct {

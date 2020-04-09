@@ -69,7 +69,7 @@ type FSM interface {
 	PeerError(p peer.Peer, e error) (FSM, Async, error)
 	Score(p peer.Peer, score *proto.Score) (FSM, Async, error)
 	Block(p peer.Peer, block *proto.Block) (FSM, Async, error)
-	MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair) (FSM, Async, error)
+	MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error)
 
 	// Received signatures after asking by GetSignatures
 	BlockIDs(peer.Peer, []proto.BlockID) (FSM, Async, error)
