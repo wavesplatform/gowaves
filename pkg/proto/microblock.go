@@ -27,8 +27,6 @@ type MicroBlock struct {
 	Transactions          Transactions
 	SenderPK              crypto.PublicKey
 	Signature             crypto.Signature
-
-	//TotalBlockID BlockID
 }
 
 type MicroblockTotalSig = crypto.Signature
@@ -314,7 +312,6 @@ func (a *MicroBlockRequestMessage) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
-	//bts := a.Body.Bytes()
 	var h Header
 	h.Length = MaxHeaderLength + uint32(len(a.TotalBlockSig)) - 4
 	h.Magic = headerMagic
@@ -360,36 +357,9 @@ func (a *MicroBlockRequestMessage) UnmarshalBinary(data []byte) error {
 	data = data[17:]
 	body := make([]byte, h.PayloadLength)
 	copy(body, data)
-	//sig, err := crypto.NewSignatureFromBytes(body)
-	//if err != nil {
-	//	return err
-	//}
 	a.TotalBlockSig = body
 	return nil
 }
-
-// TODO looks like it useless
-//type MicroBlockRequest struct {
-//	TotalBlockID BlockID
-//}
-//
-//func (a *MicroBlockRequest) WriteTo(w io.Writer) (int64, error) {
-//	n, err := w.Write(a.TotalBlockID.Bytes())
-//	return int64(n), err
-//}
-//
-//func (a *MicroBlockRequest) UnmarshalBinary(data []byte) error {
-//	id, err := NewBlockIDFromBytes(data)
-//	if err != nil {
-//		return err
-//	}
-//	a.TotalBlockID = id
-//	return nil
-//}
-//
-//func (a *MicroBlockRequest) MarshalBinary() ([]byte, error) {
-//	return a.TotalBlockID.Bytes(), nil
-//}
 
 type MicroBlockInv struct {
 	PublicKey    crypto.PublicKey

@@ -23,9 +23,6 @@ type BlocksApplier interface {
 }
 
 type BaseInfo struct {
-	// too old state
-	//outdated bool
-
 	// peers
 	peers peer_manager.PeerManager
 

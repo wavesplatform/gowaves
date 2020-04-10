@@ -18,7 +18,7 @@ func TestSyncRw(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	// NewConnection block.
+	// Add block.
 	err = to.rw.startBlock(blockID0)
 	assert.NoError(t, err, "startBlock() failed")
 	err = to.rw.finishBlock(blockID0)

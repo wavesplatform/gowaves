@@ -99,7 +99,7 @@ func (s *diffStorage) balanceChangesWithNewDiff(key string, newDiff balanceDiff)
 	} else if err != nil {
 		return nil, errors.Wrap(err, "can not retrieve balance changes")
 	}
-	// NewConnection new diff.
+	// Add new diff.
 	if err := changes.addDiff(newDiff); err != nil {
 		return nil, errors.Wrap(err, "can not update balance changes")
 	}
@@ -114,7 +114,7 @@ func (s *diffStorage) addBalanceDiff(key string, diff balanceDiff) error {
 		return s.setBalanceChanges(changes)
 	}
 	changes := &s.changes[index]
-	// NewConnection new diff to existing changes.
+	// Add new diff to existing changes.
 	if err := changes.addDiff(diff); err != nil {
 		return errors.Wrap(err, "can not update balance changes")
 	}

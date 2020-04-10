@@ -8,9 +8,4 @@ import (
 // TODO Here should be internal message with rollback action
 func (a *App) RollbackToHeight(apiKey string, height proto.Height) error {
 	return errors.New("api method disabled")
-	//err := a.checkAuth(apiKey)
-	//if err != nil {
-	//	return err
-	//}
-	//return a.state.RollbackToHeight(height)
 }

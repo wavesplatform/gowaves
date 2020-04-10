@@ -261,7 +261,7 @@ func TestIterators(t *testing.T) {
 	to.testIterator(t, key0, key0Records)
 	to.testIterator(t, key1, key1Records)
 
-	// NewConnection again.
+	// Add again.
 	to.addTestRecords(t, key0, key0Records[size/2:])
 	to.addTestRecords(t, key1, key1Records[size/2:])
 	to.flush(t)

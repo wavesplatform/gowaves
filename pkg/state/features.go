@@ -414,7 +414,7 @@ func (f *features) approveFeatures(curHeight uint64, blockID proto.BlockID) erro
 			return err
 		}
 		if elected {
-			// NewConnection feature to the list of approved.
+			// Add feature to the list of approved.
 			r := &approvedFeaturesRecord{curHeight}
 			if err := f.approveFeature(k.featureID, r, blockID); err != nil {
 				return err
@@ -459,7 +459,7 @@ func (f *features) activateFeatures(curHeight uint64, blockID proto.BlockID) err
 			needToActivate = (curHeight - approvalHeight) >= f.settings.ActivationWindowSize(curHeight)
 		}
 		if needToActivate {
-			// NewConnection feature to the list of activated.
+			// Add feature to the list of activated.
 			r := &activatedFeaturesRecord{curHeight}
 			if err := f.activateFeature(k.featureID, r, blockID); err != nil {
 				return err

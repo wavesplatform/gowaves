@@ -1259,20 +1259,6 @@ func (m *GetBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	return n, err
 }
 
-//func MessageByMicroBlock(mb *MicroBlock, scheme Scheme) (Message, error) {
-//	if BlockVersion(mb.VersionField) >= ProtoBlockVersion {
-//		bts, err := mb.MarshalToProtobuf(scheme)
-//		if err != nil {
-//			return nil, err
-//		}
-//		idBytes := mb.TotalBlockID.Bytes()
-//		return &PBMicroBlockMessage{MicroBlockBytes: bts, TotalBlockID: idBytes}, nil
-//	} else {
-//		panic("MessageByMicroBlock unimplemented ")
-//		//return &MicroBlockMessage{mb}, nil
-//	}
-//}
-
 func MessageByBlock(block *Block, scheme Scheme) (Message, error) {
 	bts, err := block.Marshal(scheme)
 	if err != nil {

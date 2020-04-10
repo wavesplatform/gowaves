@@ -162,11 +162,5 @@ func (a *MicroMiner) Micro(
 		ClassicAmountOfTxsInBlock:   rest.ClassicAmountOfTxsInBlock,
 		MaxTxsSizeInBytes:           rest.MaxTxsSizeInBytes - binSize,
 	}
-
-	//newBlocks, err := blocks.AddMicro(&micro)
-	//if err != nil {
-	//	return nil, nil, rest, err
-	//}
-
 	return newBlock, &micro, newRest, nil
 }

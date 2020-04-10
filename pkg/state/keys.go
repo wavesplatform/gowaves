@@ -76,7 +76,7 @@ const (
 	// Orders volume.
 	ordersVolumeKeyPrefix
 
-	// Signatures information (fees for now).
+	// Blocks information (fees for now).
 	blocksInfoKeyPrefix
 
 	// Unique address number by address.

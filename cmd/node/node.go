@@ -27,10 +27,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
-	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/scoresender"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -227,47 +225,27 @@ func main() {
 		scheduler.NewMinerConsensus(peerManager, *minPeersMining),
 		proto.NewTimestampFromUSeconds(outdatePeriod),
 	)
-	stateChanged := state_changed.NewStateChanged()
 	blockApplier := blocks_applier.NewBlocksApplier()
 
 	services := services.Services{
-		State:              state,
-		Peers:              peerManager,
-		Scheduler:          scheduler,
-		BlocksApplier:      blockApplier,
-		UtxPool:            utx,
-		Scheme:             cfg.AddressSchemeCharacter,
-		BlockAddedNotifier: stateChanged,
-		LoggableRunner:     logRunner,
-		Time:               ntptm,
-		Wallet:             wal,
-		MicroBlockCache:    microblock_cache.NewMicroblockCache(),
-
+		State:           state,
+		Peers:           peerManager,
+		Scheduler:       scheduler,
+		BlocksApplier:   blockApplier,
+		UtxPool:         utx,
+		Scheme:          cfg.AddressSchemeCharacter,
+		LoggableRunner:  logRunner,
+		Time:            ntptm,
+		Wallet:          wal,
+		MicroBlockCache: microblock_cache.NewMicroblockCache(),
 		InternalChannel: messages.NewInternalChannel(),
 	}
-
-	utxClean := utxpool.NewCleaner(services)
-
-	scoreSender := scoresender.New(peerManager, state, 5*time.Second, async)
-	logRunner.Named("ScoreSender.Run", func() {
-		scoreSender.Run(ctx)
-	})
 
 	mine := miner.NewMicroblockMiner(services, features, reward)
 	peerManager.SetConnectPeers(!*disableOutgoingConnections)
 	go miner.Run(ctx, mine, scheduler, services.InternalChannel)
 
-	//stateSync := node.NewStateSync(services, scoreSender, blocks_applier.NewBlocksApplier(state, ntptm))
-
-	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
-		scheduler.Reschedule()
-	}))
-	//stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
-	//	ngState.BlockApplied()
-	//}))
-	stateChanged.AddHandler(utxClean)
-
-	n := node.NewNode(services, declAddr, bindAddr)
+	n := node.NewNode(services, declAddr, bindAddr, proto.NewTimestampFromUSeconds(outdatePeriod))
 	go n.Run(ctx, parent, services.InternalChannel)
 
 	go scheduler.Reschedule()

@@ -16,8 +16,6 @@ const (
 
 type TaskType int
 
-//type Async []Task
-
 type AsyncTask struct {
 	TaskType int
 	Data     interface{}
@@ -139,24 +137,3 @@ func (a MineMicroTask) Run(ctx context.Context, output chan AsyncTask) error {
 	}
 	return nil
 }
-
-//type GetSignaturesTimoutTask struct {
-//	duration time.Duration
-//}
-//
-//func NewGetSignaturesTimoutTask(duration time.Duration) GetSignaturesTimoutTask {
-//	return GetSignaturesTimoutTask{duration: duration}
-//}
-//
-//func (a GetSignaturesTimoutTask) Run(ctx context.Context, output chan AsyncTask) error {
-//	select {
-//	case <-ctx.Done():
-//		return ctx.Err()
-//	case <-time.After(a.duration):
-//		output <- AsyncTask{
-//			TaskType: SYNC_WAIT_SIGNATURES_TIMEOUT,
-//			Data:     nil,
-//		}
-//	}
-//	return nil
-//}

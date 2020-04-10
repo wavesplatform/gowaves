@@ -24,7 +24,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
-	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -135,7 +134,7 @@ func main() {
 		return
 	}
 
-	minerDelaySecond, err := common.ParseDuration(*outdateS)
+	outdateSeconds, err := common.ParseDuration(*outdateS)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -195,12 +194,11 @@ func main() {
 		custom,
 		ntptm,
 		scheduler2.NewMinerConsensus(peerManager, *minPeersMining),
-		proto.NewTimestampFromUSeconds(minerDelaySecond),
+		proto.NewTimestampFromUSeconds(outdateSeconds),
 	)
 
 	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm), custom)
 
-	stateChanged := state_changed.NewStateChanged()
 	blockApplier := blocks_applier.NewBlocksApplier()
 
 	async := runner.NewAsync()
@@ -209,51 +207,24 @@ func main() {
 	InternalCh := messages.NewInternalChannel()
 
 	services := services.Services{
-		State:              state,
-		Peers:              peerManager,
-		Scheduler:          scheduler,
-		BlocksApplier:      blockApplier,
-		UtxPool:            utx,
-		Scheme:             custom.AddressSchemeCharacter,
-		BlockAddedNotifier: stateChanged,
-		InvRequester:       ng.NewInvRequester(),
-
-		LoggableRunner: logRunner,
-
+		State:           state,
+		Peers:           peerManager,
+		Scheduler:       scheduler,
+		BlocksApplier:   blockApplier,
+		UtxPool:         utx,
+		Scheme:          custom.AddressSchemeCharacter,
+		InvRequester:    ng.NewInvRequester(),
+		LoggableRunner:  logRunner,
 		MicroBlockCache: microblock_cache.NewMicroblockCache(),
-
 		InternalChannel: InternalCh,
-
-		Time: ntptm,
+		Time:            ntptm,
 	}
 
-	utxClean := utxpool.NewCleaner(services)
-
-	//ngState := ng.NewState(services)
-	//ngRuntime := ng.NewRuntime(services, ngState)
-
 	Miner := miner.NewMicroblockMiner(services, features, reward)
-
-	//async := runner.NewAsync()
-	//scoreSender := scoresender.New(peerManager, state, 4*time.Second, async)
-
-	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
-		scheduler.Reschedule()
-	}))
-	//stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
-	//	ngState.BlockApplied()
-	//}))
-	stateChanged.AddHandler(utxClean)
-
-	//async.Go(func() {
-	//	scoreSender.Run(ctx)
-	//})
-	//stateSync := node.NewStateSync(services, scoreSender, blockApplier)
-
 	go miner.Run(ctx, Miner, scheduler, InternalCh)
 	go scheduler.Reschedule()
 
-	n := node.NewNode(services, declAddr, declAddr)
+	n := node.NewNode(services, declAddr, declAddr, proto.NewTimestampFromUSeconds(outdateSeconds))
 
 	go n.Run(ctx, parent, InternalCh)
 

@@ -35,9 +35,10 @@ type Node struct {
 	scheduler types.Scheduler
 	utx       types.UtxPool
 	services  services.Services
+	outdate   proto.Timestamp
 }
 
-func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr) *Node {
+func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, outdate proto.Timestamp) *Node {
 	if bindAddr.Empty() {
 		bindAddr = declAddr
 	}
@@ -49,15 +50,14 @@ func NewNode(services services.Services, declAddr proto.TCPAddr, bindAddr proto.
 		scheduler: services.Scheduler,
 		utx:       services.UtxPool,
 		services:  services,
+		outdate:   outdate,
 	}
 }
 
 func (a *Node) Close() {
 	ch := make(chan struct{})
 	a.services.InternalChannel <- messages.NewHaltMessage(ch)
-	zap.S().Debugf("start waiting <-ch")
 	<-ch
-	zap.S().Debugf("done waiting <-ch")
 }
 
 func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
@@ -120,11 +120,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
-	// TODO hardcode
-	outDatePeriod := 3600 /* hour */ * 4 * 1000 /* milliseconds */
-	fsm, async, err := state_fsm.NewFsm(a.services,
-		uint64(outDatePeriod),
-		proto.NewBlockCreator(a.services.Scheme))
+	fsm, async, err := state_fsm.NewFsm(a.services, a.outdate, proto.NewBlockCreator(a.services.Scheme))
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -135,9 +131,6 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 	for {
 		select {
 		case internalMess := <-InternalMessageCh:
-
-			zap.S().Infof("got internalMess.(type) %T", internalMess)
-
 			switch t := internalMess.(type) {
 			case *messages.MinedBlockInternalMessage:
 				fsm, async, err = fsm.MinedBlock(t.Block, t.Limits, t.KeyPair, t.Vrf)

@@ -264,7 +264,7 @@ func (hr *historyRecord) marshalBinary() ([]byte, error) {
 			return nil, err
 		}
 		if !fixedSize {
-			// NewConnection size of this record.
+			// Add size of this record.
 			size := entry.size()
 			binary.BigEndian.PutUint32(data[curPos:curPos+4], uint32(size))
 			curPos += 4

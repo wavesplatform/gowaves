@@ -7,7 +7,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/libs/ordered_blocks"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
-	//"github.com/wavesplatform/gowaves/pkg/mock"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )

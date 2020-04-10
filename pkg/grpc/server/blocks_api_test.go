@@ -127,7 +127,7 @@ func TestGetBlockRange(t *testing.T) {
 
 	cl := g.NewBlocksApiClient(conn)
 
-	// NewConnection some blocks.
+	// Add some blocks.
 	blockHeight := proto.Height(99)
 	blocks, err := state.ReadMainnetBlocksToHeight(blockHeight)
 	assert.NoError(t, err)
@@ -212,7 +212,7 @@ func TestGetCurrentHeight(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint32(1), res.Value)
 
-	// NewConnection some blocks.
+	// Add some blocks.
 	blockHeight := proto.Height(99)
 	blocks, err := state.ReadMainnetBlocksToHeight(blockHeight)
 	assert.NoError(t, err)

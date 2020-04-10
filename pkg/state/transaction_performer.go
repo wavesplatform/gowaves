@@ -192,7 +192,7 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 	} else {
 		recipientAddr = tx.Recipient.Address
 	}
-	// NewConnection leasing to lease state.
+	// Add leasing to lease state.
 	l := &leasing{true, tx.Amount, *recipientAddr, senderAddr}
 	if err := tp.stor.leases.addLeasing(*id, l, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to add leasing")

@@ -65,7 +65,7 @@
                 "signature": "3obfFPvsWXv2RyMYxjTT7owYGcpSGuSAm8fQVXeX5wErWYsgNSPPnQoFVV6nzuwm3RwGCbm8dfgvqwK9S8fVMpye",
                 "timestamp": 1478000000000,
                 "recipient": "3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh",
-                "amount": 2 000 000 00 000 000
+                "amount": 200000000000000
             },
             {
                 "type": 1,
@@ -73,7 +73,7 @@
                 "signature": "3TdE9G7V7fwED35981aGsWFM6aesxSS4W1XPfEx6p5xacwHLu7Kvf67Wzg73kgyU9gSFp1KsmPWqkFhaaR2S1fhp",
                 "timestamp": 1478000000000,
                 "recipient": "3NCBMxgdghg4tUhEEffSXy11L6hUi6fcBpd",
-                "amount": 2 000 000 00 000 000
+                "amount": 200000000000000
             },
             {
                 "type": 1,

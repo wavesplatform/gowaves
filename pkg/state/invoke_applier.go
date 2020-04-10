@@ -478,7 +478,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	}
 	// Remove diffs from invoke stor.
 	ia.invokeDiffStor.invokeDiffsStor.reset()
-	// NewConnection these diffs as a common diff to main stor.
+	// Add these diffs as a common diff to main stor.
 	if err := ia.saveDiff(commonDiff, info); err != nil {
 		return txBalanceChanges{}, err
 	}

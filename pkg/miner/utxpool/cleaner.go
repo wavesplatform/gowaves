@@ -46,6 +46,5 @@ type stateWrapper interface {
 	Height() (proto.Height, error)
 	TopBlock() *proto.Block
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
-	//ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, vrf []byte) error
 	TxValidation(func(validation state.TxValidation) error) error
 }

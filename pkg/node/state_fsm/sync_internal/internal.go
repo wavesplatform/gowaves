@@ -6,7 +6,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/ordered_blocks"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	//"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type Blocks []*proto.Block
