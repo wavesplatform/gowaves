@@ -8,7 +8,7 @@ import (
 )
 
 func TestAppAuth(t *testing.T) {
-	app, _ := NewApp("apiKey", nil, nil, services.Services{})
+	app, _ := NewApp("apiKey", nil, services.Services{})
 	require.Error(t, app.checkAuth("bla"))
 	require.NoError(t, app.checkAuth("apiKey"))
 }

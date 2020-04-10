@@ -67,6 +67,14 @@ func (a *UtxImpl) AllTransactions() []*types.TransactionWithBytes {
 	return res
 }
 
+func (a *UtxImpl) Add(t proto.Transaction) error {
+	bts, err := t.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	return a.addWithBytes(t, bts)
+}
+
 func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()

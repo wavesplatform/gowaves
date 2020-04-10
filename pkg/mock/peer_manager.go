@@ -52,7 +52,7 @@ func (mr *MockPeerManagerMockRecorder) Connected(arg0 interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connected", reflect.TypeOf((*MockPeerManager)(nil).Connected), arg0)
 }
 
-// NewConnection mocks base method
+// Add mocks base method
 func (m *MockPeerManager) NewConnection(arg0 peer.Peer) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewConnection", arg0)
@@ -176,9 +176,11 @@ func (mr *MockPeerManagerMockRecorder) PeerWithHighestScore() *gomock.Call {
 }
 
 // UpdateScore mocks base method
-func (m *MockPeerManager) UpdateScore(p peer.Peer, score *proto.Score) {
+func (m *MockPeerManager) UpdateScore(p peer.Peer, score *proto.Score) error {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "UpdateScore", p, score)
+	ret := m.ctrl.Call(m, "UpdateScore", p, score)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // UpdateScore indicates an expected call of UpdateScore

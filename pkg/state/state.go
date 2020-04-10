@@ -208,6 +208,10 @@ type stateManager struct {
 }
 
 func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
+	err := validateSettings(settings)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
 		if err := os.Mkdir(dataDir, 0755); err != nil {
 			return nil, wrapErr(Other, errors.Errorf("failed to create state directory: %v", err))
@@ -307,6 +311,9 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err := state.loadLastBlock(); err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
+	if err := state.checkProtobufActivation(); err != nil {
+		return nil, wrapErr(Other, err)
+	}
 	return state, nil
 }
 
@@ -321,6 +328,18 @@ func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
 func (s *stateManager) setGenesisBlock(genesisBlock proto.Block) error {
 	s.genesis = genesisBlock
 	return nil
+}
+
+func (s *stateManager) TxValidation(func(TxValidation) error) error {
+	panic("call TxValidation method on non thread safe state")
+}
+
+func (s *stateManager) MapR(func(StateInfo) (interface{}, error)) (interface{}, error) {
+	panic("call MapR on non thread safe state")
+}
+
+func (s *stateManager) Map(func(State) error) error {
+	panic("call Map on non thread safe state")
 }
 
 func (s *stateManager) addGenesisBlock() error {

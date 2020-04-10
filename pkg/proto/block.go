@@ -86,7 +86,7 @@ func NewBlockIDFromBytes(data []byte) (BlockID, error) {
 		res.dig = dig
 		res.idType = DigestID
 	} else {
-		return BlockID{}, errors.New("invalid data size")
+		return BlockID{}, errors.Errorf("NewBlockIDFromBytes: invalid data size %d", len(data))
 	}
 	return res, nil
 }
@@ -278,7 +278,7 @@ func (b *BlockHeader) HeaderToProtobufWithHeight(currentScheme Scheme, height ui
 
 func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 	if b.Version >= ProtoBlockVersion {
-		return nil, errors.New("binary format is not defined for Block versions > 4")
+		return nil, errors.New("BlockHeader.MarshalHeaderToBinary: binary format is not defined for Block versions > 4")
 	}
 	res := make([]byte, 1+8+64+4+8+32+4)
 	res[0] = byte(b.Version)

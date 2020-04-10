@@ -155,6 +155,36 @@ type Version struct {
 	Major, Minor, Patch uint32
 }
 
+func NewVersion(Major, Minor, Patch uint32) Version {
+	return Version{
+		Major: Major,
+		Minor: Minor,
+		Patch: Patch,
+	}
+}
+
+func (a Version) Cmp(other Version) int {
+	if a.Major < other.Major {
+		return -1
+	}
+	if a.Major > other.Major {
+		return 1
+	}
+	if a.Minor < other.Minor {
+		return -1
+	}
+	if a.Minor > other.Minor {
+		return 1
+	}
+	if a.Patch < other.Patch {
+		return -1
+	}
+	if a.Patch > other.Patch {
+		return 1
+	}
+	return 0
+}
+
 func NewVersionFromString(version string) (*Version, error) {
 	parts := strings.Split(version, ".")
 	if l := len(parts); l <= 0 || l > 3 {
@@ -507,86 +537,6 @@ func (a *Handshake) WriteTo(w io.Writer) (int64, error) {
 	c.W(U64(a.Timestamp).WriteTo(w))
 	return c.Ret()
 }
-
-/* TODO: unused code, need to write tests if it is needed or otherwise remove it.
-func (h *Handshake) readApplicationName(buf []byte, r io.Reader) (int, error) {
-	n, err := io.ReadFull(r, buf[0:1])
-	if err != nil {
-		return 0, err
-	}
-
-	length := uint(buf[0])
-	n2, err := io.ReadFull(r, buf[1:1+length])
-	if err != nil {
-		return 0, err
-	}
-
-	return n + n2, nil
-}
-
-func (h *Handshake) readVersion(buf []byte, r io.Reader) (int, error) {
-	n, err := io.ReadFull(r, buf[:12])
-	if err != nil {
-		return 0, err
-	}
-	return n, nil
-}
-
-func (h *Handshake) readNodeName(buf []byte, r io.Reader) (int, error) {
-	n, err := io.ReadFull(r, buf[0:1])
-	if err != nil {
-		return 0, err
-	}
-
-	length := uint(buf[0])
-	n2, err := io.ReadFull(r, buf[1:1+length])
-	if err != nil {
-		return 0, err
-	}
-
-	return n + n2, nil
-}
-
-func (h *Handshake) readNonce(buf []byte, r io.Reader) (int, error) {
-	n, err := io.ReadFull(r, buf[:8])
-	if err != nil {
-		return 0, err
-	}
-	return n, nil
-}
-
-func (h *Handshake) readDeclAddr(buf []byte, r io.Reader) (int, error) {
-	n, err := io.ReadFull(r, buf[:4])
-	if err != nil {
-		return n, err
-	}
-
-	addrlen := binary.BigEndian.Uint32(buf[:4])
-	if addrlen > 8 {
-		return n, errors.Errorf("invalid declared address length, expected 0 or 8, got %d", addrlen)
-	}
-
-	if addrlen == 0 {
-		return n, nil
-	}
-
-	n2, err := io.ReadFull(r, buf[4:4+addrlen])
-	if err != nil {
-		return n + n2, err
-	}
-
-	return n + n2, nil
-}
-
-func (h *Handshake) readTimestamp(buf []byte, r io.Reader) (int, error) {
-	n, err := io.ReadFull(r, buf[:8])
-	if err != nil {
-		return n, err
-	}
-
-	return n, nil
-}
-*/
 
 // ReadFrom reads Handshake from io.Reader
 func (a *Handshake) ReadFrom(r io.Reader) (int64, error) {
@@ -1044,14 +994,14 @@ func (m *PeersMessage) ReadFrom(r io.Reader) (int64, error) {
 
 // GetSignaturesMessage represents the Get Signatures request
 type GetSignaturesMessage struct {
-	Blocks []crypto.Signature
+	Signatures []crypto.Signature
 }
 
 // MarshalBinary encodes GetSignaturesMessage to binary form
 func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
-	body := make([]byte, 4, 4+len(m.Blocks)*64)
-	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Blocks)))
-	for _, b := range m.Blocks {
+	body := make([]byte, 4, 4+len(m.Signatures)*64)
+	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Signatures)))
+	for _, b := range m.Signatures {
 		body = append(body, b[:]...)
 	}
 
@@ -1079,7 +1029,7 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes GetSignaturesMessage from binary form
 func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 	if len(data) < 17 {
-		return errors.New("invalid data size")
+		return errors.New("GetSignaturesMessage UnmarshalBinary: invalid data size")
 	}
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
@@ -1105,7 +1055,7 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 			return fmt.Errorf("message too short %v", len(data))
 		}
 		copy(b[:], data[pos:pos+64])
-		m.Blocks = append(m.Blocks, b)
+		m.Signatures = append(m.Signatures, b)
 		pos += 64
 	}
 
@@ -1170,7 +1120,7 @@ func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes SignaturesMessage from binary form
 func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 	if len(data) < 17 {
-		return errors.New("invalid data size")
+		return errors.New("SignaturesMessage UnmarshalBinary: invalid data size")
 	}
 	var h Header
 
@@ -1254,27 +1204,37 @@ func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes GetBlockMessage from binary form
 func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
+	return parsePacket(data, ContentIDGetBlock, "GetBlockMessage", func(payload []byte) error {
+		blockID, err := NewBlockIDFromBytes(payload)
+		if err != nil {
+			return err
+		}
+		m.BlockID = blockID
+		return nil
+	})
+}
+
+func parsePacket(data []byte, ContentID uint8, name string, f func(payload []byte) error) error {
 	if len(data) < 17 {
-		return errors.New("invalid data size")
+		return errors.Errorf("%s: invalid data size %d, expected at least 17", name, len(data))
 	}
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
-		return err
+		return errors.Wrap(err, name)
 	}
-
 	if h.Magic != headerMagic {
-		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
+		return fmt.Errorf("%s: wrong magic in Header: %x", name, h.Magic)
 	}
-	if h.ContentID != ContentIDGetBlock {
-		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	if h.ContentID != ContentID {
+		return fmt.Errorf("%s: wrong ContentID in Header: %x", name, h.ContentID)
 	}
-	data = data[17:]
-	blockID, err := NewBlockIDFromBytes(data)
+	if len(data) < int(17+h.PayloadLength) {
+		return fmt.Errorf("%s: expected data at least %d, found %d", name, 17+h.PayloadLength, len(data))
+	}
+	err := f(data[17 : 17+h.PayloadLength])
 	if err != nil {
-		return errors.New("invalid data size")
+		return errors.Wrapf(err, "%s payload error", name)
 	}
-	m.BlockID = blockID
-
 	return nil
 }
 
@@ -1297,19 +1257,6 @@ func (m *GetBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	nn, err := w.Write(buf)
 	n := int64(nn)
 	return n, err
-}
-
-func MessageByMicroBlock(mb *MicroBlock, scheme Scheme) (Message, error) {
-	if BlockVersion(mb.VersionField) >= ProtoBlockVersion {
-		bts, err := mb.MarshalToProtobuf(scheme)
-		if err != nil {
-			return nil, err
-		}
-		idBytes := mb.TotalBlockID.Bytes()
-		return &PBMicroBlockMessage{MicroBlockBytes: bts, TotalBlockID: idBytes}, nil
-	} else {
-		return &MicroBlockMessage{mb}, nil
-	}
 }
 
 func MessageByBlock(block *Block, scheme Scheme) (Message, error) {
@@ -1687,7 +1634,7 @@ func (m *PBBlockMessage) UnmarshalBinary(data []byte) error {
 
 	m.PBBlockBytes = make([]byte, h.PayloadLength)
 	if uint32(len(data)) < 17+h.PayloadLength {
-		return errors.New("invalid data size")
+		return errors.New("PBBlockMessage UnmarshalBinary: invalid data size")
 	}
 	copy(m.PBBlockBytes, data[17:17+h.PayloadLength])
 
@@ -1877,7 +1824,7 @@ func (m *GetBlockIdsMessage) MarshalBinary() ([]byte, error) {
 
 func (m *GetBlockIdsMessage) UnmarshalBinary(data []byte) error {
 	if len(data) < 17 {
-		return errors.New("invalid data size")
+		return errors.New("GetBlockIdsMessage UnmarshalBinary: invalid data size")
 	}
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
@@ -1973,7 +1920,7 @@ func (m *BlockIdsMessage) MarshalBinary() ([]byte, error) {
 
 func (m *BlockIdsMessage) UnmarshalBinary(data []byte) error {
 	if len(data) < 17 {
-		return errors.New("invalid data size")
+		return errors.New("BlockIdsMessage UnmarshalBinary: invalid data size")
 	}
 	var h Header
 
@@ -2056,4 +2003,11 @@ func (a BulkMessage) MarshalBinary() (data []byte, err error) {
 		}
 	}
 	return out.Bytes(), nil
+}
+
+type MiningLimits struct {
+	MaxScriptRunsInBlock        int
+	MaxScriptsComplexityInBlock int
+	ClassicAmountOfTxsInBlock   int
+	MaxTxsSizeInBytes           int
 }

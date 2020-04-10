@@ -187,3 +187,11 @@ func FromBase58JSON(value []byte, size int, name string) ([]byte, error) {
 	}
 	return v[:size], nil
 }
+
+func Bts2Str(bts [][]byte) []string {
+	out := []string{}
+	for _, b := range bts {
+		out = append(out, string(b))
+	}
+	return out
+}

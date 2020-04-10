@@ -7,7 +7,7 @@ package utxpool
 import (
 	gomock "github.com/golang/mock/gomock"
 	proto "github.com/wavesplatform/gowaves/pkg/proto"
-	lock "github.com/wavesplatform/gowaves/pkg/util/lock"
+	state "github.com/wavesplatform/gowaves/pkg/state"
 	reflect "reflect"
 )
 
@@ -78,42 +78,16 @@ func (mr *MockstateWrapperMockRecorder) BlockVRF(blockHeader, height interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockstateWrapper)(nil).BlockVRF), blockHeader, height)
 }
 
-// ValidateNextTx mocks base method
-func (m *MockstateWrapper) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, vrf []byte) error {
+// TxValidation mocks base method
+func (m *MockstateWrapper) TxValidation(arg0 func(state.TxValidation) error) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, version, vrf)
+	ret := m.ctrl.Call(m, "TxValidation", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// ValidateNextTx indicates an expected call of ValidateNextTx
-func (mr *MockstateWrapperMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, version, vrf interface{}) *gomock.Call {
+// TxValidation indicates an expected call of TxValidation
+func (mr *MockstateWrapperMockRecorder) TxValidation(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockstateWrapper)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, version, vrf)
-}
-
-// ResetValidationList mocks base method
-func (m *MockstateWrapper) ResetValidationList() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ResetValidationList")
-}
-
-// ResetValidationList indicates an expected call of ResetValidationList
-func (mr *MockstateWrapperMockRecorder) ResetValidationList() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetValidationList", reflect.TypeOf((*MockstateWrapper)(nil).ResetValidationList))
-}
-
-// Mutex mocks base method
-func (m *MockstateWrapper) Mutex() *lock.RwMutex {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Mutex")
-	ret0, _ := ret[0].(*lock.RwMutex)
-	return ret0
-}
-
-// Mutex indicates an expected call of Mutex
-func (mr *MockstateWrapperMockRecorder) Mutex() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Mutex", reflect.TypeOf((*MockstateWrapper)(nil).Mutex))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TxValidation", reflect.TypeOf((*MockstateWrapper)(nil).TxValidation), arg0)
 }
