@@ -126,24 +126,19 @@ func TestMicroBlockInvMessage_WriteTo_And_Marshal(t *testing.T) {
 	require.Equal(t, m, m2)
 }
 
-func TestMicroBlockRequest_Marshaling(t *testing.T) {
+func TestMicroBlockRequestMessage_Marshaling(t *testing.T) {
 	sig := crypto.MustSignatureFromBase58("rBA7qj1nvXCnD8puLzWBWDoyHVkm3TzooDJgwbiaum9oV3vGhxGs45DfqwoM9qAyu4xfP6j8gQL6avub1wrB2zX")
 
 	mess := MicroBlockRequestMessage{
-		Body: &MicroBlockRequest{
-			TotalBlockID: NewBlockIDFromSignature(sig),
-		},
+		TotalBlockSig: sig.Bytes(),
 	}
 
-	buf := new(bytes.Buffer)
-	_, err := mess.WriteTo(buf)
+	bts, err := mess.MarshalBinary()
 	require.NoError(t, err)
 
-	mess2 := MicroBlockRequestMessage{}
-	require.NoError(t, mess2.UnmarshalBinary(buf.Bytes()))
+	mess2 := &MicroBlockRequestMessage{}
+	err = mess2.UnmarshalBinary(bts)
+	require.NoError(t, err)
 
-	mreq := &MicroBlockRequest{}
-	require.NoError(t, mreq.UnmarshalBinary(mess2.Body.(Bytes)))
-
-	require.Equal(t, mess.Body, mreq)
+	require.Equal(t, mess.TotalBlockSig, mess2.TotalBlockSig)
 }

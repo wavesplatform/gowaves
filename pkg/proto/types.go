@@ -360,6 +360,10 @@ type StringAttachment struct {
 	Value string
 }
 
+func NewStringAttachment(s string) StringArgument {
+	return StringArgument{Value: s}
+}
+
 func (a StringAttachment) ToProtobuf() *g.Attachment {
 	return &g.Attachment{Attachment: &g.Attachment_StringValue{StringValue: a.Value}}
 }

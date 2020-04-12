@@ -10,7 +10,6 @@ import (
 	proto "github.com/wavesplatform/gowaves/pkg/proto"
 	settings "github.com/wavesplatform/gowaves/pkg/settings"
 	state "github.com/wavesplatform/gowaves/pkg/state"
-	lock "github.com/wavesplatform/gowaves/pkg/util/lock"
 	big "math/big"
 	reflect "reflect"
 )
@@ -760,6 +759,21 @@ func (mr *MockStateInfoMockRecorder) ProvidesExtendedApi() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesExtendedApi", reflect.TypeOf((*MockStateInfo)(nil).ProvidesExtendedApi))
 }
 
+// MapR mocks base method
+func (m *MockStateInfo) MapR(arg0 func(state.StateInfo) (interface{}, error)) (interface{}, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MapR", arg0)
+	ret0, _ := ret[0].(interface{})
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// MapR indicates an expected call of MapR
+func (mr *MockStateInfoMockRecorder) MapR(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapR", reflect.TypeOf((*MockStateInfo)(nil).MapR), arg0)
+}
+
 // HitSourceAtHeight mocks base method
 func (m *MockStateInfo) HitSourceAtHeight(height proto.Height) ([]byte, error) {
 	m.ctrl.T.Helper()
@@ -811,20 +825,6 @@ func NewMockStateModifier(ctrl *gomock.Controller) *MockStateModifier {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockStateModifier) EXPECT() *MockStateModifierMockRecorder {
 	return m.recorder
-}
-
-// Mutex mocks base method
-func (m *MockStateModifier) Mutex() *lock.RwMutex {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Mutex")
-	ret0, _ := ret[0].(*lock.RwMutex)
-	return ret0
-}
-
-// Mutex indicates an expected call of Mutex
-func (mr *MockStateModifierMockRecorder) Mutex() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Mutex", reflect.TypeOf((*MockStateModifier)(nil).Mutex))
 }
 
 // AddBlock mocks base method
@@ -968,6 +968,34 @@ func (mr *MockStateModifierMockRecorder) ResetValidationList() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetValidationList", reflect.TypeOf((*MockStateModifier)(nil).ResetValidationList))
 }
 
+// TxValidation mocks base method
+func (m *MockStateModifier) TxValidation(arg0 func(state.TxValidation) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TxValidation", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// TxValidation indicates an expected call of TxValidation
+func (mr *MockStateModifierMockRecorder) TxValidation(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TxValidation", reflect.TypeOf((*MockStateModifier)(nil).TxValidation), arg0)
+}
+
+// Map mocks base method
+func (m *MockStateModifier) Map(arg0 func(state.NonThreadSafeState) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Map", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Map indicates an expected call of Map
+func (mr *MockStateModifierMockRecorder) Map(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Map", reflect.TypeOf((*MockStateModifier)(nil).Map), arg0)
+}
+
 // SavePeers mocks base method
 func (m *MockStateModifier) SavePeers(arg0 []proto.TCPAddr) error {
 	m.ctrl.T.Helper()
@@ -1008,6 +1036,43 @@ func (m *MockStateModifier) Close() error {
 func (mr *MockStateModifierMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockStateModifier)(nil).Close))
+}
+
+// MockTxValidation is a mock of TxValidation interface
+type MockTxValidation struct {
+	ctrl     *gomock.Controller
+	recorder *MockTxValidationMockRecorder
+}
+
+// MockTxValidationMockRecorder is the mock recorder for MockTxValidation
+type MockTxValidationMockRecorder struct {
+	mock *MockTxValidation
+}
+
+// NewMockTxValidation creates a new mock instance
+func NewMockTxValidation(ctrl *gomock.Controller) *MockTxValidation {
+	mock := &MockTxValidation{ctrl: ctrl}
+	mock.recorder = &MockTxValidationMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockTxValidation) EXPECT() *MockTxValidationMockRecorder {
+	return m.recorder
+}
+
+// ValidateNextTx mocks base method
+func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, vrf)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ValidateNextTx indicates an expected call of ValidateNextTx
+func (mr *MockTxValidationMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, vrf interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockTxValidation)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, vrf)
 }
 
 // MockState is a mock of State interface
@@ -1677,6 +1742,21 @@ func (mr *MockStateMockRecorder) ProvidesExtendedApi() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesExtendedApi", reflect.TypeOf((*MockState)(nil).ProvidesExtendedApi))
 }
 
+// MapR mocks base method
+func (m *MockState) MapR(arg0 func(state.StateInfo) (interface{}, error)) (interface{}, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MapR", arg0)
+	ret0, _ := ret[0].(interface{})
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// MapR indicates an expected call of MapR
+func (mr *MockStateMockRecorder) MapR(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapR", reflect.TypeOf((*MockState)(nil).MapR), arg0)
+}
+
 // HitSourceAtHeight mocks base method
 func (m *MockState) HitSourceAtHeight(height proto.Height) ([]byte, error) {
 	m.ctrl.T.Helper()
@@ -1705,20 +1785,6 @@ func (m *MockState) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height
 func (mr *MockStateMockRecorder) BlockVRF(blockHeader, height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockState)(nil).BlockVRF), blockHeader, height)
-}
-
-// Mutex mocks base method
-func (m *MockState) Mutex() *lock.RwMutex {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Mutex")
-	ret0, _ := ret[0].(*lock.RwMutex)
-	return ret0
-}
-
-// Mutex indicates an expected call of Mutex
-func (mr *MockStateMockRecorder) Mutex() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Mutex", reflect.TypeOf((*MockState)(nil).Mutex))
 }
 
 // AddBlock mocks base method
@@ -1860,6 +1926,34 @@ func (m *MockState) ResetValidationList() {
 func (mr *MockStateMockRecorder) ResetValidationList() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetValidationList", reflect.TypeOf((*MockState)(nil).ResetValidationList))
+}
+
+// TxValidation mocks base method
+func (m *MockState) TxValidation(arg0 func(state.TxValidation) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TxValidation", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// TxValidation indicates an expected call of TxValidation
+func (mr *MockStateMockRecorder) TxValidation(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TxValidation", reflect.TypeOf((*MockState)(nil).TxValidation), arg0)
+}
+
+// Map mocks base method
+func (m *MockState) Map(arg0 func(state.NonThreadSafeState) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Map", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Map indicates an expected call of Map
+func (mr *MockStateMockRecorder) Map(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Map", reflect.TypeOf((*MockState)(nil).Map), arg0)
 }
 
 // SavePeers mocks base method

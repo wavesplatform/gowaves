@@ -12,15 +12,6 @@ type Scheduler interface {
 	Reschedule()
 }
 
-type BlocksApplier interface {
-	Apply(block []*proto.Block) error
-}
-
-// notify state that it must run synchronization
-type StateHistorySynchronizer interface {
-	Sync()
-}
-
 // Abstract handler that called when event happens
 type Handler interface {
 	Handle()
@@ -28,6 +19,7 @@ type Handler interface {
 
 // UtxPool storage interface
 type UtxPool interface {
+	Add(t proto.Transaction) error
 	AddWithBytes(t proto.Transaction, b []byte) error
 	Exists(t proto.Transaction) bool
 	Pop() *TransactionWithBytes
@@ -84,13 +76,13 @@ type MessageSender interface {
 }
 
 type InvRequester interface {
-	Request(MessageSender, proto.BlockID)
+	Request(MessageSender, []byte)
 }
 
 type BaseTarget = uint64
 
 type Miner interface {
-	Mine(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget BaseTarget, gs []byte, vrf []byte)
+	MineKeyBlock(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget BaseTarget, gs []byte, vrf []byte) (*proto.Block, proto.MiningLimits, error)
 }
 
 type Time interface {
@@ -110,4 +102,8 @@ type EmbeddedWallet interface {
 	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
 	Load(password []byte) error
 	Seeds() [][]byte
+}
+
+type BlockCreator interface {
+	FromMicroblockRow(seq proto.MicroblockRow) (*proto.Block, error)
 }

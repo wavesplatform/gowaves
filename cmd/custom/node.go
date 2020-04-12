@@ -14,18 +14,19 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	scheduler2 "github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
-	"github.com/wavesplatform/gowaves/pkg/ng"
 	"github.com/wavesplatform/gowaves/pkg/node"
+	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
-	"github.com/wavesplatform/gowaves/pkg/node/state_changed"
+	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/scoresender"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -49,10 +50,11 @@ var (
 	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
 	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
-	minerDelayParam   = flag.String("miner-delay", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
+	outdateS          = flag.String("outdate", "4h", "Interval between last applied block and current time. If greater than no mining, no transaction accepted. Example 1d4h30m")
 	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
 	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
 	limitConnectionsS = flag.String("limit-connections", "30", "N incoming and outgoing connections")
+	minPeersMining    = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining")
 )
 
 func init() {
@@ -65,6 +67,9 @@ func main() {
 		zap.S().Error("Please provide path to blockchain config JSON file")
 		return
 	}
+
+	common.SetupLogger(*logLevel)
+
 	zap.S().Info(os.Args)
 	zap.S().Info(os.Environ())
 	zap.S().Info(os.LookupEnv("WAVES_OPTS"))
@@ -129,7 +134,7 @@ func main() {
 		return
 	}
 
-	minerDelaySecond, err := common.ParseDuration(*minerDelayParam)
+	outdateSeconds, err := common.ParseDuration(*outdateS)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -164,7 +169,7 @@ func main() {
 		return
 	}
 
-	features, err = miner.ValidateFeaturesWithLock(state, features)
+	features, err = miner.ValidateFeatures(state, features)
 	if err != nil {
 		cancel()
 		zap.S().Error(err)
@@ -188,56 +193,40 @@ func main() {
 		wal,
 		custom,
 		ntptm,
-		scheduler2.NewMinerConsensus(peerManager, 1),
-		proto.NewTimestampFromUSeconds(minerDelaySecond),
+		scheduler2.NewMinerConsensus(peerManager, *minPeersMining),
+		proto.NewTimestampFromUSeconds(outdateSeconds),
 	)
 
 	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm), custom)
 
-	stateChanged := state_changed.NewStateChanged()
-	blockApplier := node.NewBlocksApplier(state, ntptm)
-
-	services := services.Services{
-		State:              state,
-		Peers:              peerManager,
-		Scheduler:          scheduler,
-		BlocksApplier:      blockApplier,
-		UtxPool:            utx,
-		Scheme:             custom.AddressSchemeCharacter,
-		BlockAddedNotifier: stateChanged,
-		Subscribe:          node.NewSubscribeService(),
-		InvRequester:       ng.NewInvRequester(),
-	}
-
-	utxClean := utxpool.NewCleaner(services)
-
-	ngState := ng.NewState(services)
-	ngRuntime := ng.NewRuntime(services, ngState)
-
-	Miner := miner.NewMicroblockMiner(services, ngRuntime, features, reward)
+	blockApplier := blocks_applier.NewBlocksApplier()
 
 	async := runner.NewAsync()
-	scoreSender := scoresender.New(peerManager, state, 4*time.Second, async)
+	logRunner := runner.NewLogRunner(async)
 
-	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
-		scheduler.Reschedule()
-	}))
-	stateChanged.AddHandler(state_changed.NewFuncHandler(func() {
-		ngState.BlockApplied()
-	}))
-	stateChanged.AddHandler(utxClean)
+	InternalCh := messages.NewInternalChannel()
 
-	async.Go(func() {
-		scoreSender.Run(ctx)
-	})
-	stateSync := node.NewStateSync(services, scoreSender, blockApplier)
+	services := services.Services{
+		State:           state,
+		Peers:           peerManager,
+		Scheduler:       scheduler,
+		BlocksApplier:   blockApplier,
+		UtxPool:         utx,
+		Scheme:          custom.AddressSchemeCharacter,
+		InvRequester:    ng.NewInvRequester(),
+		LoggableRunner:  logRunner,
+		MicroBlockCache: microblock_cache.NewMicroblockCache(),
+		InternalChannel: InternalCh,
+		Time:            ntptm,
+	}
 
-	go miner.Run(ctx, Miner, scheduler)
+	Miner := miner.NewMicroblockMiner(services, features, reward)
+	go miner.Run(ctx, Miner, scheduler, InternalCh)
 	go scheduler.Reschedule()
 
-	n := node.NewNode(services, declAddr, declAddr, ngRuntime, stateSync)
+	n := node.NewNode(services, declAddr, declAddr, proto.NewTimestampFromUSeconds(outdateSeconds))
 
-	go n.Run(ctx, parent)
+	go n.Run(ctx, parent, InternalCh)
 
 	if len(conf.Addresses) > 0 {
 		adrs := strings.Split(conf.Addresses, ",")
@@ -247,7 +236,7 @@ func main() {
 	}
 
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", scheduler, stateSync, services)
+	app, err := api.NewApp("integration-test-rest-api", scheduler, services)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -282,12 +271,9 @@ func main() {
 
 	sig := <-gracefulStop
 	zap.S().Infow("Caught signal, stopping", "signal", sig)
-	n.Close()
-
-	zap.S().Infow("Caught signal, stopping", "signal", sig)
 	cancel()
-
-	<-time.After(2 * time.Second)
+	n.Close()
+	<-time.After(1 * time.Second)
 }
 
 func FromArgs(scheme proto.Scheme) func(s *settings.NodeSettings) error {

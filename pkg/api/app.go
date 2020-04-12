@@ -28,7 +28,7 @@ type App struct {
 	services      services.Services
 }
 
-func NewApp(apiKey string, scheduler SchedulerEmits, sync types.StateSync, services services.Services) (*App, error) {
+func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services) (*App, error) {
 	digest, err := crypto.SecureHash([]byte(apiKey))
 	if err != nil {
 		return nil, err
@@ -41,7 +41,6 @@ func NewApp(apiKey string, scheduler SchedulerEmits, sync types.StateSync, servi
 		scheduler:     scheduler,
 		utx:           services.UtxPool,
 		peers:         services.Peers,
-		sync:          sync,
 		services:      services,
 	}, nil
 }
