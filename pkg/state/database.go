@@ -55,7 +55,7 @@ func (inf *stateInfo) unmarshalBinary(data []byte) error {
 	return nil
 }
 
-func saveStateInfo(db keyvalue.KeyValue, storeApiData bool) error {
+func saveStateInfo(db keyvalue.KeyValue, params StateParams) error {
 	has, err := db.Has(stateInfoKeyBytes)
 	if err != nil {
 		return err
@@ -63,7 +63,11 @@ func saveStateInfo(db keyvalue.KeyValue, storeApiData bool) error {
 	if has {
 		return nil
 	}
-	info := &stateInfo{version: StateVersion, hasExtendedApiData: storeApiData}
+	info := &stateInfo{
+		version:            StateVersion,
+		hasExtendedApiData: params.StoreExtendedApiData,
+		hasStateHashes:     params.BuildStateHashes,
+	}
 	infoBytes := info.marshalBinary()
 	if err := db.Put(stateInfoKeyBytes, infoBytes); err != nil {
 		return err
@@ -85,7 +89,7 @@ type stateDB struct {
 	blocksNum int
 }
 
-func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, rw *blockReadWriter, storeApiData bool) (*stateDB, error) {
+func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, rw *blockReadWriter, params StateParams) (*stateDB, error) {
 	heightBuf := make([]byte, 8)
 	has, err := db.Has(dbHeightKeyBytes)
 	if err != nil {
@@ -108,7 +112,7 @@ func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, rw *blockReadWrite
 		}
 	}
 	dbWriteLock := &sync.Mutex{}
-	if err := saveStateInfo(db, storeApiData); err != nil {
+	if err := saveStateInfo(db, params); err != nil {
 		return nil, err
 	}
 	return &stateDB{

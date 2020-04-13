@@ -1560,7 +1560,7 @@ func TestStateHash_GenerateSumHash(t *testing.T) {
 	sh := createStateHash()
 	prevHash := crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	correctSumHash := crypto.MustDigestFromBase58("9ckTqHUsRap8YerHv1EijZMeBRaSFibdTkPqjmK9hoNy")
-	err := sh.GenerateSumHash(prevHash)
+	err := sh.GenerateSumHash(prevHash[:])
 	assert.NoError(t, err)
 	assert.Equal(t, correctSumHash, sh.SumHash)
 }

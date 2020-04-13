@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -167,22 +168,58 @@ type balances struct {
 	db keyvalue.IterableKeyVal
 	hs *historyStorage
 
-	wavesHasher  *stateHasher
-	assetsHasher *stateHasher
-	leaseHasher  *stateHasher
+	emptyHash         crypto.Digest
+	wavesHashesState  map[proto.BlockID]*stateForHashes
+	wavesHashes       map[proto.BlockID]crypto.Digest
+	assetsHashesState map[proto.BlockID]*stateForHashes
+	assetsHashes      map[proto.BlockID]crypto.Digest
+	leaseHashesState  map[proto.BlockID]*stateForHashes
+	leaseHashes       map[proto.BlockID]crypto.Digest
 
 	calculateHashes bool
 }
 
 func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, calcHashes bool) (*balances, error) {
+	emptyHash, err := crypto.FastHash(nil)
+	if err != nil {
+		return nil, err
+	}
 	return &balances{
-		db:              db,
-		hs:              hs,
-		calculateHashes: calcHashes,
-		wavesHasher:     newStateHasher(),
-		assetsHasher:    newStateHasher(),
-		leaseHasher:     newStateHasher(),
+		db:                db,
+		hs:                hs,
+		calculateHashes:   calcHashes,
+		emptyHash:         emptyHash,
+		wavesHashesState:  make(map[proto.BlockID]*stateForHashes),
+		wavesHashes:       make(map[proto.BlockID]crypto.Digest),
+		assetsHashesState: make(map[proto.BlockID]*stateForHashes),
+		assetsHashes:      make(map[proto.BlockID]crypto.Digest),
+		leaseHashesState:  make(map[proto.BlockID]*stateForHashes),
+		leaseHashes:       make(map[proto.BlockID]crypto.Digest),
 	}, nil
+}
+
+func (s *balances) wavesHashAt(blockID proto.BlockID) crypto.Digest {
+	hash, ok := s.wavesHashes[blockID]
+	if !ok {
+		return s.emptyHash
+	}
+	return hash
+}
+
+func (s *balances) assetsHashAt(blockID proto.BlockID) crypto.Digest {
+	hash, ok := s.assetsHashes[blockID]
+	if !ok {
+		return s.emptyHash
+	}
+	return hash
+}
+
+func (s *balances) leaseHashAt(blockID proto.BlockID) crypto.Digest {
+	hash, ok := s.leaseHashes[blockID]
+	if !ok {
+		return s.emptyHash
+	}
+	return hash
 }
 
 func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
@@ -465,9 +502,10 @@ func (s *balances) setAssetBalance(addr proto.Address, asset []byte, balance uin
 			asset:   asset,
 			balance: balance,
 		}
-		if err := s.assetsHasher.push(keyStr, ac, blockID); err != nil {
-			return err
+		if _, ok := s.assetsHashesState[blockID]; !ok {
+			s.assetsHashesState[blockID] = newStateForHashes()
 		}
+		s.assetsHashesState[blockID].set(keyStr, ac)
 	}
 	return s.hs.addNewEntry(assetBalance, keyBytes, recordBytes, blockID)
 }
@@ -487,9 +525,10 @@ func (s *balances) setWavesBalance(addr proto.Address, balance *wavesValue, bloc
 				addr:    &addr,
 				balance: record.balance,
 			}
-			if err := s.wavesHasher.push(keyStr, wc, blockID); err != nil {
-				return err
+			if _, ok := s.wavesHashesState[blockID]; !ok {
+				s.wavesHashesState[blockID] = newStateForHashes()
 			}
+			s.wavesHashesState[blockID].set(keyStr, wc)
 		}
 		if balance.leaseChange {
 			lc := &leaseBalanceRecordForHashes{
@@ -497,23 +536,36 @@ func (s *balances) setWavesBalance(addr proto.Address, balance *wavesValue, bloc
 				leaseIn:  record.leaseIn,
 				leaseOut: record.leaseOut,
 			}
-			if err := s.leaseHasher.push(keyStr, lc, blockID); err != nil {
-				return err
+			if _, ok := s.leaseHashesState[blockID]; !ok {
+				s.leaseHashesState[blockID] = newStateForHashes()
 			}
+			s.leaseHashesState[blockID].set(keyStr, lc)
 		}
 	}
 	return s.hs.addNewEntry(wavesBalance, keyBytes, recordBytes, blockID)
 }
 
 func (s *balances) prepareHashes() error {
-	if err := s.wavesHasher.stop(); err != nil {
-		return err
+	for blockID, st := range s.wavesHashesState {
+		res, err := st.hash()
+		if err != nil {
+			return err
+		}
+		s.wavesHashes[blockID] = res
 	}
-	if err := s.assetsHasher.stop(); err != nil {
-		return err
+	for blockID, st := range s.assetsHashesState {
+		res, err := st.hash()
+		if err != nil {
+			return err
+		}
+		s.assetsHashes[blockID] = res
 	}
-	if err := s.leaseHasher.stop(); err != nil {
-		return err
+	for blockID, st := range s.leaseHashesState {
+		res, err := st.hash()
+		if err != nil {
+			return err
+		}
+		s.leaseHashes[blockID] = res
 	}
 	return nil
 }
@@ -522,7 +574,10 @@ func (s *balances) reset() {
 	if !s.calculateHashes {
 		return
 	}
-	s.wavesHasher.reset()
-	s.assetsHasher.reset()
-	s.leaseHasher.reset()
+	s.wavesHashesState = make(map[proto.BlockID]*stateForHashes)
+	s.wavesHashes = make(map[proto.BlockID]crypto.Digest)
+	s.assetsHashesState = make(map[proto.BlockID]*stateForHashes)
+	s.assetsHashes = make(map[proto.BlockID]crypto.Digest)
+	s.leaseHashesState = make(map[proto.BlockID]*stateForHashes)
+	s.leaseHashes = make(map[proto.BlockID]crypto.Digest)
 }

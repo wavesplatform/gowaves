@@ -26,12 +26,12 @@ func newWavesValueFromProfile(p balanceProfile) *wavesValue {
 	return val
 }
 
-func newWavesValue(diff balanceDiff, p balanceProfile) *wavesValue {
-	val := &wavesValue{profile: p}
-	if diff.balance != 0 {
+func newWavesValue(prevProf, newProf balanceProfile) *wavesValue {
+	val := &wavesValue{profile: newProf}
+	if prevProf.balance != newProf.balance {
 		val.balanceChange = true
 	}
-	if diff.leaseIn != 0 || diff.leaseOut != 0 {
+	if prevProf.leaseIn != newProf.leaseIn || prevProf.leaseOut != newProf.leaseOut {
 		val.leaseChange = true
 	}
 	return val
@@ -46,6 +46,7 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, v
 	if err != nil {
 		return errors.Errorf("failed to retrieve waves balance: %v\n", err)
 	}
+	prevProfile := *profile
 	for _, diff := range change.balanceDiffs {
 		// Check for negative balance.
 		newProfile, err := diff.applyTo(profile)
@@ -55,10 +56,11 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, v
 		if validateOnly {
 			continue
 		}
-		val := newWavesValue(diff, *newProfile)
+		val := newWavesValue(prevProfile, *newProfile)
 		if err := a.balances.setWavesBalance(k.address, val, diff.blockID); err != nil {
 			return errors.Errorf("failed to set account balance: %v\n", err)
 		}
+		prevProfile = *newProfile
 	}
 	return nil
 }

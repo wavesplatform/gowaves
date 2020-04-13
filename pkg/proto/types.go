@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"math/big"
@@ -19,7 +20,6 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -3542,12 +3542,12 @@ type StateHash struct {
 	LeaseBalanceHash  crypto.Digest
 }
 
-func (s *StateHash) GenerateSumHash(prevSumHash crypto.Digest) error {
+func (s *StateHash) GenerateSumHash(prevSumHash []byte) error {
 	h, err := crypto.NewFastHash()
 	if err != nil {
 		return err
 	}
-	if _, err := h.Write(prevSumHash[:]); err != nil {
+	if _, err := h.Write(prevSumHash); err != nil {
 		return err
 	}
 	if _, err := h.Write(s.WavesBalanceHash[:]); err != nil {
@@ -3648,18 +3648,34 @@ func (s *StateHash) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// Base64 is required for state hashes API.
-// The quickest way to use Base64 for hashes in JSON in this particular case.
+// Hex is required for state hashes API.
+// The quickest way to use Hex for hashes in JSON in this particular case.
 type DigestWrapped crypto.Digest
 
 func (d DigestWrapped) MarshalJSON() ([]byte, error) {
-	return common.ToBase64JSON(d[:]), nil
+	s := hex.EncodeToString(d[:])
+	var sb strings.Builder
+	sb.WriteRune('"')
+	sb.WriteString(s)
+	sb.WriteRune('"')
+	return []byte(sb.String()), nil
 }
 
 func (d *DigestWrapped) UnmarshalJSON(value []byte) error {
-	b, err := common.FromBase64JSON(value, crypto.DigestSize, "Digest")
+	s := string(value)
+	if s == "null" {
+		return nil
+	}
+	s, err := strconv.Unquote(s)
 	if err != nil {
 		return err
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	if len(b) != crypto.DigestSize {
+		return errors.New("bad size")
 	}
 	copy(d[:], b[:crypto.DigestSize])
 	return nil
@@ -3673,7 +3689,7 @@ type stateHashJS struct {
 	AssetScriptHash   DigestWrapped `json:"assetScriptHash"`
 	LeaseStatusHash   DigestWrapped `json:"leaseStatusHash"`
 	SponsorshipHash   DigestWrapped `json:"sponsorshipHash"`
-	AliasesHash       DigestWrapped `json:"aliasesHash"`
+	AliasesHash       DigestWrapped `json:"aliasHash"`
 	WavesBalanceHash  DigestWrapped `json:"wavesBalanceHash"`
 	AssetBalanceHash  DigestWrapped `json:"assetBalanceHash"`
 	LeaseBalanceHash  DigestWrapped `json:"leaseBalanceHash"`

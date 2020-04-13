@@ -132,15 +132,15 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	}, nil
 }
 
-func (s *blockchainEntitiesStorage) putStateHash(prevHash crypto.Digest, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
+func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
 	sh := &proto.StateHash{
 		BlockID:           blockID,
-		WavesBalanceHash:  s.balances.wavesHasher.stateHashAt(blockID),
-		AssetBalanceHash:  s.balances.assetsHasher.stateHashAt(blockID),
+		WavesBalanceHash:  s.balances.wavesHashAt(blockID),
+		AssetBalanceHash:  s.balances.assetsHashAt(blockID),
 		DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
 		AccountScriptHash: s.scriptsStorage.accountScriptsHasher.stateHashAt(blockID),
 		AssetScriptHash:   s.scriptsStorage.assetScriptsHasher.stateHashAt(blockID),
-		LeaseBalanceHash:  s.balances.leaseHasher.stateHashAt(blockID),
+		LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
 		LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
 		SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
 		AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
@@ -183,7 +183,7 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 	if blockchainHeight < 1 {
 		return errors.New("bad blockchain height, should be greater than 0")
 	}
-	// Calculate any remaining hashes of the last block.
+	// Calculate any remaining hashes.
 	if err := s.prepareHashes(); err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 	startHeight := blockchainHeight + 1
 	for i, id := range blockIds {
 		height := startHeight + uint64(i)
-		newPrevHash, err := s.putStateHash(prevHash.SumHash, height, id)
+		newPrevHash, err := s.putStateHash(prevHash.SumHash[:], height, id)
 		if err != nil {
 			return err
 		}
@@ -334,7 +334,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
 	}
-	stateDB, err := newStateDB(db, dbBatch, rw, params.StoreExtendedApiData)
+	stateDB, err := newStateDB(db, dbBatch, rw, params)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v", err))
 	}
@@ -439,7 +439,7 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.stor.prepareHashes(); err != nil {
 		return err
 	}
-	if _, err := s.stor.putStateHash(crypto.Digest{}, 1, s.genesis.BlockID()); err != nil {
+	if _, err := s.stor.putStateHash(nil, 1, s.genesis.BlockID()); err != nil {
 		return err
 	}
 	verifyError := <-chans.errChan
@@ -2060,7 +2060,7 @@ func (s *stateManager) ProvidesExtendedApi() (bool, error) {
 }
 
 func (s *stateManager) ProvidesStateHashes() (bool, error) {
-	provides, err := s.stateDB.stateStoresApiData()
+	provides, err := s.stateDB.stateStoresHashes()
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
