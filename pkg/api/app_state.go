@@ -1,12 +1,11 @@
 package api
 
-import "github.com/wavesplatform/gowaves/pkg/proto"
+import (
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+)
 
+// TODO Here should be internal message with rollback action
 func (a *App) RollbackToHeight(apiKey string, height proto.Height) error {
-	err := a.checkAuth(apiKey)
-	if err != nil {
-		return err
-	}
-	defer a.state.Mutex().Lock().Unlock()
-	return a.state.RollbackToHeight(height)
+	return errors.New("api method disabled")
 }

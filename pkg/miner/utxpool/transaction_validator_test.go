@@ -1,7 +1,6 @@
 package utxpool
 
 import (
-	"sync"
 	"testing"
 	"time"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
-	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
 type tm time.Time
@@ -24,20 +22,16 @@ func TestValidatorImpl_Validate(t *testing.T) {
 
 	emptyBlock := &proto.Block{}
 	emptyBlock.Timestamp = proto.NewTimestampFromTime(time.Now())
-	mu := lock.NewRwMutex(&sync.RWMutex{})
 	now := time.Now()
 
 	m := NewMockstateWrapper(ctrl)
 	v := NewValidator(m, tm(now))
 
-	m.EXPECT().Mutex().Return(mu)
 	m.EXPECT().TopBlock().Return(emptyBlock)
-	m.EXPECT().Height().Return(uint64(0), nil)
+	m.EXPECT().Height().Return(proto.Height(1), nil)
 	m.EXPECT().BlockVRF(gomock.Any(), gomock.Any()).Return(nil, nil)
 	m.EXPECT().
-		ValidateNextTx(byte_helpers.BurnWithSig.Transaction, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		Return(nil)
-	m.EXPECT().ResetValidationList()
+		TxValidation(gomock.Any())
 
 	err := v.Validate(byte_helpers.BurnWithSig.Transaction)
 	require.NoError(t, err)

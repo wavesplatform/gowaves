@@ -3,7 +3,7 @@ package utxpool
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
-	"github.com/wavesplatform/gowaves/pkg/util/lock"
+	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 )
 
@@ -30,9 +30,7 @@ func (a *Cleaner) Handle() {
 }
 
 func (a *Cleaner) work() {
-	locked := a.state.Mutex().RLock()
 	height, err := a.state.Height()
-	locked.Unlock()
 	if err != nil {
 		zap.S().Debug(err)
 		return
@@ -48,7 +46,5 @@ type stateWrapper interface {
 	Height() (proto.Height, error)
 	TopBlock() *proto.Block
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, vrf []byte) error
-	ResetValidationList()
-	Mutex() *lock.RwMutex
+	TxValidation(func(validation state.TxValidation) error) error
 }

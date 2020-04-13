@@ -43,7 +43,7 @@ type PeerManager interface {
 	Suspended() []string
 	AddConnected(peer.Peer)
 	PeerWithHighestScore() (peer.Peer, *big.Int, bool)
-	UpdateScore(p peer.Peer, score *proto.Score)
+	UpdateScore(p peer.Peer, score *proto.Score) error
 	UpdateKnownPeers([]proto.TCPAddr) error
 	KnownPeers() ([]proto.TCPAddr, error)
 	Close()
@@ -235,13 +235,14 @@ func (a *PeerManagerImpl) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
 	return highest.peer, highest.score, true
 }
 
-func (a *PeerManagerImpl) UpdateScore(p peer.Peer, score *big.Int) {
+func (a *PeerManagerImpl) UpdateScore(p peer.Peer, score *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if row, ok := a.active[p]; ok {
 		row.score = score
 		a.active[p] = row
 	}
+	return nil
 }
 
 func (a *PeerManagerImpl) IsSuspended(p peer.Peer) bool {

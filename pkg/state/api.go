@@ -10,7 +10,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util/lock"
 )
 
 // TransactionIterator can be used to iterate through transactions of given address.
@@ -116,18 +115,19 @@ type StateInfo interface {
 	// State hashes.
 	StateHashAtHeight(height uint64) (*proto.StateHash, error)
 
-	// HitSourceAtHeight reads hit source stored in state
+	// Map on readable state. Way to apply multiple operations under same lock.
+	MapR(func(StateInfo) (interface{}, error)) (interface{}, error)
+
+	// HitSourceAtHeight reads hit source stored in state.
 	HitSourceAtHeight(height proto.Height) ([]byte, error)
 
-	//BlockVRF calculates VRF for given block
+	// BlockVRF calculates VRF for given block.
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.
 // Methods of this interface are not thread-safe.
 type StateModifier interface {
-	// Global mutex of state.
-	Mutex() *lock.RwMutex
 	// AddBlock adds single block to state.
 	// It's not recommended to use this function when you are able to accumulate big blocks batch,
 	// since it's much more efficient to add many blocks at once.
@@ -159,6 +159,12 @@ type StateModifier interface {
 	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
 	ResetValidationList()
 
+	// Func internally calls ResetValidationList.
+	TxValidation(func(validation TxValidation) error) error
+
+	// Way to call multiple operations under same lock.
+	Map(func(state NonThreadSafeState) error) error
+
 	// Create or replace Peers.
 	SavePeers([]proto.TCPAddr) error
 
@@ -166,6 +172,12 @@ type StateModifier interface {
 	StartProvidingExtendedApi() error
 
 	Close() error
+}
+
+type NonThreadSafeState = State
+
+type TxValidation interface {
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte) error
 }
 
 type State interface {
@@ -179,7 +191,11 @@ type State interface {
 // params are state parameters (see below).
 // settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
 func NewState(dataDir string, params StateParams, settings *settings.BlockchainSettings) (State, error) {
-	return newStateManager(dataDir, params, settings)
+	s, err := newStateManager(dataDir, params, settings)
+	if err != nil {
+		return nil, err
+	}
+	return NewThreadSafeState(s), nil
 }
 
 type StorageParams struct {

@@ -164,9 +164,7 @@ type BlockHeightResponse struct {
 }
 
 func (a *NodeApi) BlockHeight(w http.ResponseWriter, r *http.Request) {
-	lock := a.state.Mutex().RLock()
 	height, err := a.state.Height()
-	lock.Unlock()
 	if err != nil {
 		handleError(w, err)
 		return
