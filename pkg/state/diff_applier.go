@@ -74,6 +74,7 @@ func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, filter, v
 	if err != nil {
 		return errors.Errorf("failed to retrieve asset balance: %v\n", err)
 	}
+	prevBalance := balance
 	for _, diff := range change.balanceDiffs {
 		newBalance, err := diff.applyToAssetBalance(balance)
 		if err != nil {
@@ -82,9 +83,14 @@ func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, filter, v
 		if validateOnly {
 			continue
 		}
+		if newBalance == prevBalance {
+			// Nothing has changed.
+			continue
+		}
 		if err := a.balances.setAssetBalance(k.address, k.asset, newBalance, diff.blockID); err != nil {
 			return errors.Errorf("failed to set asset balance: %v\n", err)
 		}
+		prevBalance = newBalance
 	}
 	return nil
 }
