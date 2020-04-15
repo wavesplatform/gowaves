@@ -16,8 +16,16 @@ type inner interface {
 type ntpInner struct {
 }
 
-func (a ntpInner) Query(addr string) (*ntp.Response, error) {
-	return ntp.Query(addr)
+func (ntpInner) Query(addr string) (*ntp.Response, error) {
+	rsp, err := ntp.QueryWithOptions(addr, ntp.QueryOptions{})
+	if err != nil {
+		return nil, err
+	}
+	err = rsp.Validate()
+	if err != nil {
+		return nil, err
+	}
+	return rsp, nil
 }
 
 type ntpTimeImpl struct {
@@ -25,10 +33,6 @@ type ntpTimeImpl struct {
 	offset time.Duration
 	addr   string
 	inner  inner
-}
-
-func New(addr string) (*ntpTimeImpl, error) {
-	return new(addr, ntpInner{})
 }
 
 func TryNew(addr string, tries uint) (*ntpTimeImpl, error) {
