@@ -126,7 +126,6 @@ func (a *SyncFsm) Block(p Peer, block *proto.Block) (FSM, Async, error) {
 	return a.applyBlocks(a.baseInfo, a.conf.Now(), internal)
 }
 
-// TODO score, send block
 func (a *SyncFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
 	err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
 	if err != nil {
@@ -158,7 +157,18 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	}
 	a.baseInfo.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
+	should, err := a.baseInfo.storage.ShouldPersisAddressTransactions()
+	if err != nil {
+		return a, nil, err
+	}
+	if should {
+		return NewPersistTransition(a.baseInfo)
+	}
 	if eof {
+		err := a.baseInfo.storage.StartProvidingExtendedApi()
+		if err != nil {
+			return NewIdleFsm(a.baseInfo), nil, err
+		}
 		return NewNGFsm12(a.baseInfo), nil, nil
 	}
 	return newSyncFsm(baseInfo, conf, internal), nil, nil

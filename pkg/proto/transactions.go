@@ -631,10 +631,7 @@ func (tx *Genesis) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *Genesis) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	addrBody, err := tx.Recipient.Body()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get address body")
-	}
+	addrBody := tx.Recipient.Body()
 	txData := &g.Transaction_Genesis{Genesis: &g.GenesisTransactionData{
 		RecipientAddress: addrBody,
 		Amount:           int64(tx.Amount),
@@ -953,10 +950,7 @@ func (tx *Payment) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *Payment) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	addrBody, err := tx.Recipient.Body()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get address body")
-	}
+	addrBody := tx.Recipient.Body()
 	txData := &g.Transaction_Payment{Payment: &g.PaymentTransactionData{
 		RecipientAddress: addrBody,
 		Amount:           int64(tx.Amount),

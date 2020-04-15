@@ -24,15 +24,13 @@ func TestTxFilter(t *testing.T) {
 	addr, err := proto.NewAddressFromPublicKey(scheme, pk)
 	assert.NoError(t, err)
 	rcp := proto.NewRecipientFromAddress(addr)
-	addrBody, err := addr.Body()
-	assert.NoError(t, err)
+	addrBody := addr.Body()
 	pk2, err := crypto.NewPublicKeyFromBase58(pkStr2)
 	assert.NoError(t, err)
 	addr2, err := proto.NewAddressFromPublicKey(scheme, pk2)
 	assert.NoError(t, err)
 	rcp2 := proto.NewRecipientFromAddress(addr2)
-	addr2Body, err := addr2.Body()
-	assert.NoError(t, err)
+	addr2Body := addr2.Body()
 
 	// Test sender only.
 	req := &g.TransactionsRequest{Sender: addrBody}

@@ -42,8 +42,7 @@ func TestGetBalances(t *testing.T) {
 	cl := g.NewAccountsApiClient(conn)
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	require.NoError(t, err)
-	addrBody, err := addr.Body()
-	require.NoError(t, err)
+	addrBody := addr.Body()
 	req := &g.BalancesRequest{
 		Address: addrBody,
 		Assets:  [][]byte{{}},
@@ -86,10 +85,8 @@ func TestGetActiveLeases(t *testing.T) {
 	cl := g.NewAccountsApiClient(conn)
 	addr, err := proto.NewAddressFromString("3Fv3jiLvLS4c4N1ZvSLac3HBGUzaHDMvjN1")
 	require.NoError(t, err)
-	addrBody, err := addr.Body()
-	require.NoError(t, err)
 	req := &g.AccountRequest{
-		Address: addrBody,
+		Address: addr.Body(),
 	}
 	stream, err := cl.GetActiveLeases(ctx, req)
 	require.NoError(t, err)
@@ -131,8 +128,7 @@ func TestResolveAlias(t *testing.T) {
 	alias := proto.NewAlias('W', aliasStr)
 	correctAddr, err := st.AddrByAlias(*alias)
 	require.NoError(t, err)
-	correctAddrBody, err := correctAddr.Body()
-	require.NoError(t, err)
+	correctAddrBody := correctAddr.Body()
 	addr, err := cl.ResolveAlias(ctx, &wrappers.StringValue{Value: aliasStr})
 	require.NoError(t, err)
 	assert.True(t, bytes.Equal(correctAddrBody, addr.Value))

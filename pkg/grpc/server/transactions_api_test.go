@@ -50,8 +50,7 @@ func TestGetTransactions(t *testing.T) {
 	cl := g.NewTransactionsApiClient(conn)
 
 	// By sender.
-	senderBody, err := sender.Body()
-	require.NoError(t, err)
+	senderBody := sender.Body()
 	req := &g.TransactionsRequest{
 		Sender: senderBody,
 	}
@@ -66,8 +65,7 @@ func TestGetTransactions(t *testing.T) {
 	assert.Equal(t, io.EOF, err)
 
 	// By recipient.
-	recipientBody, err := recipient.Body()
-	require.NoError(t, err)
+	recipientBody := recipient.Body()
 	req = &g.TransactionsRequest{
 		Recipient: &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
 	}
@@ -196,8 +194,7 @@ func TestGetUnconfirmed(t *testing.T) {
 
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	require.NoError(t, err)
-	addrBody, err := addr.Body()
-	require.NoError(t, err)
+	addrBody := addr.Body()
 	sk, pk, err := crypto.GenerateKeyPair([]byte("whatever"))
 	require.NoError(t, err)
 	senderAddr, err := proto.NewAddressFromPublicKey(server.scheme, pk)
@@ -215,8 +212,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	cl := g.NewTransactionsApiClient(conn)
 
 	// By sender.
-	senderAddrBody, err := senderAddr.Body()
-	require.NoError(t, err)
+	senderAddrBody := senderAddr.Body()
 	req := &g.TransactionsRequest{
 		Sender: senderAddrBody,
 	}
@@ -257,8 +253,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	assert.Equal(t, io.EOF, err)
 
 	// By sender, recipient and ID.
-	senderAddrBody, err = senderAddr.Body()
-	require.NoError(t, err)
+	senderAddrBody = senderAddr.Body()
 	req = &g.TransactionsRequest{
 		Sender:         senderAddrBody,
 		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},

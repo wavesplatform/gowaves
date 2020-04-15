@@ -52,7 +52,7 @@ func (mr *MockPeerManagerMockRecorder) Connected(arg0 interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connected", reflect.TypeOf((*MockPeerManager)(nil).Connected), arg0)
 }
 
-// Add mocks base method
+// NewConnection mocks base method
 func (m *MockPeerManager) NewConnection(arg0 peer.Peer) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewConnection", arg0)
