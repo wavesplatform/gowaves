@@ -72,7 +72,6 @@ func TestCancelAllLeases(t *testing.T) {
 		err = to.balances.setWavesBalance(addr, newWavesValueFromProfile(tc.profile), tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
-	to.stor.flush(t)
 	err = to.balances.cancelAllLeases(blockID1)
 	assert.NoError(t, err, "cancelAllLeases() failed")
 	to.stor.flush(t)
@@ -116,7 +115,6 @@ func TestCancelLeaseOverflows(t *testing.T) {
 		err = to.balances.setWavesBalance(addr, newWavesValueFromProfile(tc.profile), tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
-	to.stor.flush(t)
 	overflows, err := to.balances.cancelLeaseOverflows(blockID1)
 	assert.NoError(t, err, "cancelLeaseOverflows() failed")
 	to.stor.flush(t)
@@ -173,7 +171,6 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 		assert.NoError(t, err, "setWavesBalance() failed")
 		leaseIns[addr] = tc.validLeaseIn
 	}
-	to.stor.flush(t)
 	err = to.balances.cancelInvalidLeaseIns(leaseIns, blockID1)
 	assert.NoError(t, err, "cancelInvalidLeaseIns() failed")
 	to.stor.flush(t)
