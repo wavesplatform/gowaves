@@ -128,6 +128,47 @@ var (
 	errInvalidPrefix   = errors.New("invalid prefix for given key")
 )
 
+func prefixByEntity(entity blockchainEntity) ([]byte, error) {
+	switch entity {
+	case alias:
+		return []byte{aliasKeyPrefix}, nil
+	case asset:
+		return []byte{assetHistKeyPrefix}, nil
+	case lease:
+		return []byte{leaseKeyPrefix}, nil
+	case wavesBalance:
+		return []byte{wavesBalanceKeyPrefix}, nil
+	case assetBalance:
+		return []byte{assetBalanceKeyPrefix}, nil
+	case featureVote:
+		return []byte{votesFeaturesKeyPrefix}, nil
+	case activatedFeature:
+		return []byte{activatedFeaturesKeyPrefix}, nil
+	case ordersVolume:
+		return []byte{ordersVolumeKeyPrefix}, nil
+	case sponsorship:
+		return []byte{sponsorshipKeyPrefix}, nil
+	case dataEntry:
+		return []byte{accountsDataStorKeyPrefix}, nil
+	case accountScript:
+		return []byte{accountScriptKeyPrefix}, nil
+	case assetScript:
+		return []byte{assetScriptKeyPrefix}, nil
+	case accountScriptComplexity:
+		return []byte{accountScriptComplexityKeyPrefix}, nil
+	case assetScriptComplexity:
+		return []byte{assetScriptComplexityKeyPrefix}, nil
+	case rewardVotes:
+		return []byte{rewardVotesKeyPrefix}, nil
+	case blockReward:
+		return []byte{blockRewardKeyPrefix}, nil
+	case invokeResult:
+		return []byte{invokeResultKeyPrefix}, nil
+	default:
+		return nil, errors.New("bad entity type")
+	}
+}
+
 type wavesBalanceKey struct {
 	address proto.Address
 }

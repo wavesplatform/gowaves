@@ -35,15 +35,23 @@ type Iterator interface {
 	Release()
 }
 
-func SafeKey(iter Iterator) []byte {
-	iterK := iter.Key()
+type KeyInter interface {
+	Key() []byte
+}
+
+func SafeKey(k KeyInter) []byte {
+	iterK := k.Key()
 	key := make([]byte, len(iterK))
 	copy(key, iterK)
 	return key
 }
 
-func SafeValue(iter Iterator) []byte {
-	iterV := iter.Value()
+type ValueInter interface {
+	Value() []byte
+}
+
+func SafeValue(k ValueInter) []byte {
+	iterV := k.Value()
 	value := make([]byte, len(iterV))
 	copy(value, iterV)
 	return value

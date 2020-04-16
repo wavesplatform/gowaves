@@ -84,7 +84,7 @@ func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage, calcHashes bool) 
 }
 
 func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID proto.BlockID) error {
-	leaseIter, err := l.db.NewKeyIterator([]byte{leaseKeyPrefix})
+	leaseIter, err := newNewestDataIterator(l.hs, lease)
 	if err != nil {
 		return errors.Errorf("failed to create key iterator to cancel leases: %v", err)
 	}
@@ -99,7 +99,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID prot
 	zap.S().Info("Started to cancel leases")
 	for leaseIter.Next() {
 		key := keyvalue.SafeKey(leaseIter)
-		leaseBytes, err := l.hs.latestEntryData(key, true)
+		leaseBytes, err := l.hs.freshLatestEntryData(key, true)
 		if err != nil {
 			return err
 		}
@@ -129,7 +129,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID prot
 }
 
 func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
-	leaseIter, err := l.db.NewKeyIterator([]byte{leaseKeyPrefix})
+	leaseIter, err := newNewestDataIterator(l.hs, lease)
 	if err != nil {
 		return nil, errors.Errorf("failed to create key iterator to cancel leases: %v", err)
 	}
@@ -144,7 +144,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 	// Iterate all the leases.
 	zap.S().Info("Started collecting leases")
 	for leaseIter.Next() {
-		leaseBytes, err := l.hs.latestEntryData(leaseIter.Key(), true)
+		leaseBytes, err := l.hs.freshLatestEntryData(leaseIter.Key(), true)
 		if err != nil {
 			return nil, err
 		}

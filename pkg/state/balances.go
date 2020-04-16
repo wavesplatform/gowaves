@@ -223,7 +223,7 @@ func (s *balances) leaseHashAt(blockID proto.BlockID) crypto.Digest {
 }
 
 func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
-	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
+	iter, err := newNewestDataIterator(s.hs, wavesBalance)
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
 
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
-		r, err := s.wavesRecord(key, true)
+		r, err := s.newestWavesRecord(key, true)
 		if err != nil {
 			return err
 		}
@@ -260,7 +260,7 @@ func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
 }
 
 func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.Address]struct{}, error) {
-	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
+	iter, err := newNewestDataIterator(s.hs, wavesBalance)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +274,7 @@ func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.Addres
 	overflowedAddresses := make(map[proto.Address]struct{})
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
-		r, err := s.wavesRecord(key, true)
+		r, err := s.newestWavesRecord(key, true)
 		if err != nil {
 			return nil, err
 		}
@@ -296,7 +296,7 @@ func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.Addres
 }
 
 func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64, blockID proto.BlockID) error {
-	iter, err := s.db.NewKeyIterator([]byte{wavesBalanceKeyPrefix})
+	iter, err := newNewestDataIterator(s.hs, wavesBalance)
 	if err != nil {
 		return err
 	}
@@ -310,7 +310,7 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64
 	zap.S().Infof("Started to cancel invalid leaseIns")
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
-		r, err := s.wavesRecord(key, true)
+		r, err := s.newestWavesRecord(key, true)
 		if err != nil {
 			return err
 		}
@@ -457,6 +457,18 @@ func (s *balances) assetBalance(addr proto.Address, asset []byte, filter bool) (
 		return 0, err
 	}
 	return record.balance, nil
+}
+
+func (s *balances) newestWavesRecord(key []byte, filter bool) (*wavesBalanceRecord, error) {
+	recordBytes, err := s.hs.freshLatestEntryData(key, filter)
+	if err != nil {
+		return nil, err
+	}
+	var record wavesBalanceRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return nil, err
+	}
+	return &record, nil
 }
 
 func (s *balances) wavesRecord(key []byte, filter bool) (*wavesBalanceRecord, error) {

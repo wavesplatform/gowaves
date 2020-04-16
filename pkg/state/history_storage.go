@@ -305,6 +305,70 @@ func (hr *historyRecord) latestEntry() (historyEntry, error) {
 	return hr.entries[len(hr.entries)-1], nil
 }
 
+type newestDataIterator struct {
+	entity blockchainEntity
+
+	hsEntries   []history
+	hsPos       int
+	visitedKeys map[string]bool
+
+	dbIter keyvalue.Iterator
+
+	curKey []byte
+}
+
+func newNewestDataIterator(hs *historyStorage, entity blockchainEntity) (*newestDataIterator, error) {
+	i := &newestDataIterator{entity: entity}
+	i.hsEntries = hs.stor.getEntries()
+	prefix, err := prefixByEntity(entity)
+	if err != nil {
+		return nil, err
+	}
+	dbIter, err := hs.db.NewKeyIterator(prefix)
+	if err != nil {
+		return nil, err
+	}
+	i.dbIter = dbIter
+	i.visitedKeys = make(map[string]bool)
+	return i, nil
+}
+
+func (i *newestDataIterator) Next() bool {
+	// Iterate in-mem history until the end or first entity of the type we need.
+	for i.hsPos < len(i.hsEntries) {
+		history := i.hsEntries[i.hsPos].value
+		i.curKey = i.hsEntries[i.hsPos].key
+		i.hsPos++
+		if history.entityType != i.entity {
+			continue
+		}
+		i.visitedKeys[string(i.curKey)] = true
+		return true
+	}
+	// Iterate db until the end or first unvisited key.
+	for i.dbIter.Next() {
+		key := i.dbIter.Key()
+		if i.visitedKeys[string(key)] {
+			continue
+		}
+		i.curKey = key
+		return true
+	}
+	return false
+}
+
+func (i *newestDataIterator) Key() []byte {
+	return i.curKey
+}
+
+func (i *newestDataIterator) Error() error {
+	return i.dbIter.Error()
+}
+
+func (i *newestDataIterator) Release() {
+	i.dbIter.Release()
+}
+
 // historyStorage manages the way per-block records are stored in.
 // Unlike blockchain entities parts, it does not know *what* it stores, but it does know *how*.
 type historyStorage struct {

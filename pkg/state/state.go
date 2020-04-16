@@ -1059,23 +1059,24 @@ func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
 	return false, nil
 }
 
-func (s *stateManager) needToCancelLeases(height uint64) (bool, error) {
+func (s *stateManager) needToCancelLeases(curBlockHeight uint64) (bool, error) {
 	if s.settings.Type == settings.Custom {
 		// No need to cancel leases in custom blockchains.
 		return false, nil
 	}
-	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), height)
+	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), curBlockHeight)
 	if err != nil {
 		return false, err
 	}
 	dataTxHeight := uint64(0)
 	if dataTxActivated {
-		dataTxHeight, err = s.ActivationHeight(int16(settings.DataTransaction))
+		approvalHeight, err := s.ApprovalHeight(int16(settings.DataTransaction))
 		if err != nil {
 			return false, err
 		}
+		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(curBlockHeight)
 	}
-	switch height {
+	switch curBlockHeight {
 	case s.settings.ResetEffectiveBalanceAtHeight:
 		return !s.leasesCl0, nil
 	case s.settings.BlockVersion3AfterHeight:
@@ -1092,8 +1093,6 @@ func (s *stateManager) needToCancelLeases(height uint64) (bool, error) {
 type breakerTask struct {
 	// ID of latest block before performing task.
 	blockID proto.BlockID
-	// Indicates that the task to perform before calling addBlocks() is to cancel leases.
-	cancelLeases bool
 	// Indicates that the task to perform before calling addBlocks() is to reset stolen aliases.
 	resetStolenAliases bool
 	// Indicates that the task to perform before calling addBlocks() is to finish features voting period.
@@ -1103,14 +1102,6 @@ type breakerTask struct {
 }
 
 func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTask) (bool, error) {
-	cancelLeases, err := s.needToCancelLeases(curHeight)
-	if err != nil {
-		return false, err
-	}
-	if cancelLeases {
-		task.cancelLeases = true
-		return true, nil
-	}
 	resetStolenAliases, err := s.needToResetStolenAliases(curHeight)
 	if err != nil {
 		return false, err
@@ -1176,23 +1167,20 @@ func (s *stateManager) updateBlockReward(blockID proto.BlockID, initialisation b
 	return nil
 }
 
-func (s *stateManager) cancelLeases(blockID proto.BlockID) error {
-	height, err := s.Height()
-	if err != nil {
-		return err
-	}
-	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), height)
+func (s *stateManager) cancelLeases(curBlockHeight uint64, blockID proto.BlockID) error {
+	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), curBlockHeight)
 	if err != nil {
 		return err
 	}
 	dataTxHeight := uint64(0)
 	if dataTxActivated {
-		dataTxHeight, err = s.ActivationHeight(int16(settings.DataTransaction))
+		approvalHeight, err := s.ApprovalHeight(int16(settings.DataTransaction))
 		if err != nil {
 			return err
 		}
+		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(curBlockHeight)
 	}
-	if height == s.settings.ResetEffectiveBalanceAtHeight {
+	if curBlockHeight == s.settings.ResetEffectiveBalanceAtHeight {
 		if err := s.stor.leases.cancelLeases(nil, blockID); err != nil {
 			return err
 		}
@@ -1200,7 +1188,7 @@ func (s *stateManager) cancelLeases(blockID proto.BlockID) error {
 			return err
 		}
 		s.leasesCl0 = true
-	} else if height == s.settings.BlockVersion3AfterHeight {
+	} else if curBlockHeight == s.settings.BlockVersion3AfterHeight {
 		overflowAddrs, err := s.stor.balances.cancelLeaseOverflows(blockID)
 		if err != nil {
 			return err
@@ -1209,7 +1197,7 @@ func (s *stateManager) cancelLeases(blockID proto.BlockID) error {
 			return err
 		}
 		s.leasesCl1 = true
-	} else if dataTxActivated && height == dataTxHeight {
+	} else if dataTxActivated && curBlockHeight == dataTxHeight {
 		leaseIns, err := s.stor.leases.validLeaseIns()
 		if err != nil {
 			return err
@@ -1218,12 +1206,6 @@ func (s *stateManager) cancelLeases(blockID proto.BlockID) error {
 			return err
 		}
 		s.leasesCl2 = true
-	}
-	if err := s.flush(true); err != nil {
-		return err
-	}
-	if err := s.reset(true); err != nil {
-		return err
 	}
 	return nil
 }
@@ -1242,18 +1224,15 @@ func (s *stateManager) handleBreak(blocksToFinish []*proto.Block, initialisation
 			return nil, wrapErr(ModificationError, err)
 		}
 	}
-	if task.cancelLeases {
-		// Need to cancel leases due to bugs in historical blockchain.
-		if err := s.cancelLeases(task.blockID); err != nil {
-			return nil, wrapErr(ModificationError, err)
-		}
-	}
 	if task.resetStolenAliases {
 		// Need to reset stolen aliases due to bugs in historical blockchain.
 		if err := s.stor.aliases.disableStolenAliases(); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 		s.disabledStolenAliases = true
+	}
+	if len(blocksToFinish) == 0 {
+		return s.TopBlock(), nil
 	}
 	return s.addBlocks(blocksToFinish, initialisation)
 }
@@ -1297,8 +1276,11 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 
 	var lastBlock *proto.Block
 	var ids []proto.BlockID
+	needToCancelLeases := false
+	curBlockHeight := height + 1
 	for i, block := range blocks {
 		curHeight := height + uint64(i)
+		curBlockHeight = curHeight + 1
 		breakAdding, err := s.needToBreakAddingBlocks(curHeight, breakerInfo)
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
@@ -1326,7 +1308,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		if err != nil {
 			return nil, wrapErr(Other, err)
 		}
-		if err := s.stor.scores.addScore(prevScore, score, curHeight+1); err != nil {
+		if err := s.stor.scores.addScore(prevScore, score, curBlockHeight); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 		prevScore = score
@@ -1334,7 +1316,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
-		if s.needToResetVotes(curHeight + 1) {
+		if s.needToResetVotes(curBlockHeight) {
 			// When next voting period starts, we need to put 0 as votes number
 			// for all features at first (current) block.
 			// This is not handled as breaker task on purpose:
@@ -1350,6 +1332,14 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		headers[i] = block.BlockHeader
 		parent = block
 		ids = append(ids, block.BlockID())
+		needToCancelLeases, err = s.needToCancelLeases(curBlockHeight)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		if needToCancelLeases {
+			blocksToFinish = blocks[i+1:]
+			break
+		}
 	}
 	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
 	close(chans.tasksChan)
@@ -1357,6 +1347,12 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	// This also validates diffs for negative balances.
 	if err := s.appender.applyAllDiffs(initialisation); err != nil {
 		return nil, wrapErr(TxValidationError, err)
+	}
+	if needToCancelLeases {
+		// Need to cancel leases due to bugs in historical blockchain.
+		if err := s.cancelLeases(curBlockHeight, lastBlock.BlockID()); err != nil {
+			return nil, wrapErr(ModificationError, err)
+		}
 	}
 	// Retrieve and store state hashes for each of new blocks.
 	if err := s.stor.handleStateHashes(height, ids); err != nil {
