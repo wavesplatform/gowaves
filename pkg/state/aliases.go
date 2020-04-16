@@ -32,8 +32,14 @@ func (ar *aliasRecordForStateHashes) writeTo(w io.Writer) error {
 }
 
 func (ar *aliasRecordForStateHashes) less(other stateComponent) bool {
-	addr2 := other.(*aliasRecordForStateHashes)
-	return bytes.Compare(ar.addr[:], addr2.addr[:]) == -1
+	ar2 := other.(*aliasRecordForStateHashes)
+	val := bytes.Compare(ar.addr[:], ar2.addr[:])
+	if val > 0 {
+		return false
+	} else if val == 0 {
+		return bytes.Compare(ar.alias, ar2.alias) == -1
+	}
+	return true
 }
 
 type aliasInfo struct {
