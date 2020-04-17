@@ -39,10 +39,7 @@ func (a *TransferScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, erro
 		AssetId: a.Asset.ToID(),
 		Amount:  a.Amount,
 	}
-	addrBody, err := a.Recipient.Address.Body()
-	if err != nil {
-		return nil, err
-	}
+	addrBody := a.Recipient.Address.Body()
 	return &g.InvokeScriptResult_Payment{
 		Address: addrBody,
 		Amount:  amount,

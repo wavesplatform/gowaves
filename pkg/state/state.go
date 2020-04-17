@@ -1989,6 +1989,14 @@ func (s *stateManager) StartProvidingExtendedApi() error {
 	return nil
 }
 
+func (s *stateManager) PersisAddressTransactions() error {
+	return s.atx.persist(true, true)
+}
+
+func (s *stateManager) ShouldPersisAddressTransactions() (bool, error) {
+	return s.atx.shouldPersist()
+}
+
 func (s *stateManager) Close() error {
 	if err := s.atx.close(); err != nil {
 		return wrapErr(ClosureError, err)

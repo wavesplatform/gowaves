@@ -115,8 +115,14 @@ type StateInfo interface {
 	// HitSourceAtHeight reads hit source stored in state
 	HitSourceAtHeight(height proto.Height) ([]byte, error)
 
-	//BlockVRF calculates VRF for given block
+	// BlockVRF calculates VRF for given block
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
+
+	// ShouldPersisAddressTransactions check persist should be called
+	ShouldPersisAddressTransactions() (bool, error)
+
+	// PersisAddressTransactions sort and save transactions to storage
+	PersisAddressTransactions() error
 }
 
 // StateModifier contains all the methods needed to modify node's state.
