@@ -12,6 +12,8 @@ const (
 	ASK_PEERS
 
 	MINE_MICRO
+
+	PersistComplete
 )
 
 type TaskType int
@@ -136,4 +138,24 @@ func (a MineMicroTask) Run(ctx context.Context, output chan AsyncTask) error {
 		}
 	}
 	return nil
+}
+
+type funcTask struct {
+	f     func(ctx context.Context, output chan AsyncTask) error
+	_type int
+}
+
+func (a funcTask) Run(ctx context.Context, output chan AsyncTask) error {
+	return a.f(ctx, output)
+}
+
+func (a funcTask) Type() int {
+	return a._type
+}
+
+func NewFuncTask(f func(ctx context.Context, output chan AsyncTask) error, taskType int) Task {
+	return funcTask{
+		f:     f,
+		_type: taskType,
+	}
 }

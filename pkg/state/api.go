@@ -123,6 +123,13 @@ type StateInfo interface {
 
 	// BlockVRF calculates VRF for given block.
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
+
+	// ShouldPersisAddressTransactions checks if PersisAddressTransactions
+	// should be called.
+	ShouldPersisAddressTransactions() (bool, error)
+
+	// PersisAddressTransactions sorts and saves transactions to storage.
+	PersisAddressTransactions() error
 }
 
 // StateModifier contains all the methods needed to modify node's state.

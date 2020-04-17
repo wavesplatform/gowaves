@@ -42,6 +42,35 @@ func TestTransactionsAPIClient(t *testing.T) {
 	assert.Equal(t, io.EOF, err)
 }
 
+func TestTransactions_GetTransactions(t *testing.T) {
+	t.SkipNow()
+	conn := connect(t)
+	defer conn.Close()
+
+	c := g.NewTransactionsApiClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	sender, err := proto.NewAddressFromString("3MmCJKB1ynwy4iZuQgmsEPrq1ST9ASyv33A")
+	require.NoError(t, err)
+
+	req := g.TransactionsRequest{
+		Sender: sender.Body(),
+	}
+	uc, err := c.GetTransactions(ctx, &req, grpc.EmptyCallOption{})
+	require.NoError(t, err)
+	var msg g.TransactionResponse
+	for err = uc.RecvMsg(&msg); err == nil; err = uc.RecvMsg(&msg) {
+		c := proto.ProtobufConverter{}
+		tx, err := c.SignedTransaction(msg.Transaction)
+		require.NoError(t, err)
+		js, err := json.Marshal(tx)
+		require.NoError(t, err)
+		fmt.Println(string(js))
+	}
+	assert.Equal(t, io.EOF, err)
+}
+
 func TestBlocksAPIClient(t *testing.T) {
 	t.SkipNow()
 	conn := connect(t)

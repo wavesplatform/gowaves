@@ -242,18 +242,22 @@ func (at *addressTransactions) handleRecord(record []byte, filter bool) error {
 	return nil
 }
 
+func (at *addressTransactions) shouldPersist() (bool, error) {
+	fileStats, err := os.Stat(at.filePath)
+	if err != nil {
+		return false, err
+	}
+	size := fileStats.Size()
+	zap.S().Debugf("TransactionsByAddresses file size: %d; max is %d", size, at.params.maxFileSize)
+	return size >= at.params.maxFileSize, nil
+}
+
 func (at *addressTransactions) persist(ignoreSize, filter bool) error {
 	fileStats, err := os.Stat(at.filePath)
 	if err != nil {
 		return err
 	}
 	size := fileStats.Size()
-	if size < at.params.maxFileSize && !ignoreSize {
-		// Nothing to do, file is not big enough yet.
-		zap.S().Debugf("TransactionsByAddresses file size: %d; max is %d", size, at.params.maxFileSize)
-		return nil
-	}
-
 	zap.S().Info("Starting to sort TransactionsByAddresses file, will take awhile...")
 	debug.FreeOSMemory()
 	// Create file for emsort and set emsort over it.
@@ -352,7 +356,7 @@ func (at *addressTransactions) reset(filter bool) error {
 		return nil
 	}
 	at.addrTransactionsBuf.Reset(at.addrTransactions)
-	return at.persist(false, filter)
+	return nil
 }
 
 func (at *addressTransactions) flush() error {
