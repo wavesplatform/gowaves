@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"math/big"
@@ -3529,4 +3530,206 @@ func (b *FullWavesBalance) ToProtobuf() *g.BalanceResponse_WavesBalances {
 		LeaseIn:    int64(b.LeaseIn),
 		LeaseOut:   int64(b.LeaseOut),
 	}
+}
+
+type StateHash struct {
+	BlockID           BlockID
+	SumHash           crypto.Digest
+	DataEntryHash     crypto.Digest
+	AccountScriptHash crypto.Digest
+	AssetScriptHash   crypto.Digest
+	LeaseStatusHash   crypto.Digest
+	SponsorshipHash   crypto.Digest
+	AliasesHash       crypto.Digest
+	WavesBalanceHash  crypto.Digest
+	AssetBalanceHash  crypto.Digest
+	LeaseBalanceHash  crypto.Digest
+}
+
+func (s *StateHash) GenerateSumHash(prevSumHash []byte) error {
+	h, err := crypto.NewFastHash()
+	if err != nil {
+		return err
+	}
+	if _, err := h.Write(prevSumHash); err != nil {
+		return err
+	}
+	if _, err := h.Write(s.WavesBalanceHash[:]); err != nil {
+		return err
+	}
+	if _, err := h.Write(s.AssetBalanceHash[:]); err != nil {
+		return err
+	}
+	if _, err := h.Write(s.DataEntryHash[:]); err != nil {
+		return err
+	}
+	if _, err := h.Write(s.AccountScriptHash[:]); err != nil {
+		return err
+	}
+	if _, err := h.Write(s.AssetScriptHash[:]); err != nil {
+		return err
+	}
+	if _, err := h.Write(s.LeaseBalanceHash[:]); err != nil {
+		return err
+	}
+	if _, err := h.Write(s.LeaseStatusHash[:]); err != nil {
+		return err
+	}
+	if _, err := h.Write(s.SponsorshipHash[:]); err != nil {
+		return err
+	}
+	if _, err := h.Write(s.AliasesHash[:]); err != nil {
+		return err
+	}
+	h.Sum(s.SumHash[:0])
+	return nil
+}
+
+func (s *StateHash) MarshalBinary() []byte {
+	idBytes := s.BlockID.Bytes()
+	res := make([]byte, 1+len(idBytes)+crypto.DigestSize*10)
+	res[0] = byte(len(idBytes))
+	pos := 1
+	copy(res[pos:pos+len(idBytes)], idBytes)
+	pos += len(idBytes)
+	copy(res[pos:pos+crypto.DigestSize], s.SumHash[:])
+	pos += crypto.DigestSize
+	copy(res[pos:pos+crypto.DigestSize], s.DataEntryHash[:])
+	pos += crypto.DigestSize
+	copy(res[pos:pos+crypto.DigestSize], s.AccountScriptHash[:])
+	pos += crypto.DigestSize
+	copy(res[pos:pos+crypto.DigestSize], s.AssetScriptHash[:])
+	pos += crypto.DigestSize
+	copy(res[pos:pos+crypto.DigestSize], s.LeaseStatusHash[:])
+	pos += crypto.DigestSize
+	copy(res[pos:pos+crypto.DigestSize], s.SponsorshipHash[:])
+	pos += crypto.DigestSize
+	copy(res[pos:pos+crypto.DigestSize], s.AliasesHash[:])
+	pos += crypto.DigestSize
+	copy(res[pos:pos+crypto.DigestSize], s.WavesBalanceHash[:])
+	pos += crypto.DigestSize
+	copy(res[pos:pos+crypto.DigestSize], s.AssetBalanceHash[:])
+	pos += crypto.DigestSize
+	copy(res[pos:pos+crypto.DigestSize], s.LeaseBalanceHash[:])
+	return res
+}
+
+func (s *StateHash) UnmarshalBinary(data []byte) error {
+	if len(data) < 1 {
+		return errors.New("invalid data size")
+	}
+	idBytesLen := int(data[0])
+	correctSize := 1 + idBytesLen + crypto.DigestSize*10
+	if len(data) != correctSize {
+		return errors.New("invalid data size")
+	}
+	var err error
+	pos := 1
+	s.BlockID, err = NewBlockIDFromBytes(data[pos : pos+idBytesLen])
+	if err != nil {
+		return err
+	}
+	pos += idBytesLen
+	copy(s.SumHash[:], data[pos:pos+crypto.DigestSize])
+	pos += crypto.DigestSize
+	copy(s.DataEntryHash[:], data[pos:pos+crypto.DigestSize])
+	pos += crypto.DigestSize
+	copy(s.AccountScriptHash[:], data[pos:pos+crypto.DigestSize])
+	pos += crypto.DigestSize
+	copy(s.AssetScriptHash[:], data[pos:pos+crypto.DigestSize])
+	pos += crypto.DigestSize
+	copy(s.LeaseStatusHash[:], data[pos:pos+crypto.DigestSize])
+	pos += crypto.DigestSize
+	copy(s.SponsorshipHash[:], data[pos:pos+crypto.DigestSize])
+	pos += crypto.DigestSize
+	copy(s.AliasesHash[:], data[pos:pos+crypto.DigestSize])
+	pos += crypto.DigestSize
+	copy(s.WavesBalanceHash[:], data[pos:pos+crypto.DigestSize])
+	pos += crypto.DigestSize
+	copy(s.AssetBalanceHash[:], data[pos:pos+crypto.DigestSize])
+	pos += crypto.DigestSize
+	copy(s.LeaseBalanceHash[:], data[pos:pos+crypto.DigestSize])
+	return nil
+}
+
+// Hex is required for state hashes API.
+// The quickest way to use Hex for hashes in JSON in this particular case.
+type DigestWrapped crypto.Digest
+
+func (d DigestWrapped) MarshalJSON() ([]byte, error) {
+	s := hex.EncodeToString(d[:])
+	var sb strings.Builder
+	sb.WriteRune('"')
+	sb.WriteString(s)
+	sb.WriteRune('"')
+	return []byte(sb.String()), nil
+}
+
+func (d *DigestWrapped) UnmarshalJSON(value []byte) error {
+	s := string(value)
+	if s == "null" {
+		return nil
+	}
+	s, err := strconv.Unquote(s)
+	if err != nil {
+		return err
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	if len(b) != crypto.DigestSize {
+		return errors.New("bad size")
+	}
+	copy(d[:], b[:crypto.DigestSize])
+	return nil
+}
+
+type stateHashJS struct {
+	BlockID           BlockID       `json:"blockId"`
+	SumHash           DigestWrapped `json:"stateHash"`
+	DataEntryHash     DigestWrapped `json:"dataEntryHash"`
+	AccountScriptHash DigestWrapped `json:"accountScriptHash"`
+	AssetScriptHash   DigestWrapped `json:"assetScriptHash"`
+	LeaseStatusHash   DigestWrapped `json:"leaseStatusHash"`
+	SponsorshipHash   DigestWrapped `json:"sponsorshipHash"`
+	AliasesHash       DigestWrapped `json:"aliasHash"`
+	WavesBalanceHash  DigestWrapped `json:"wavesBalanceHash"`
+	AssetBalanceHash  DigestWrapped `json:"assetBalanceHash"`
+	LeaseBalanceHash  DigestWrapped `json:"leaseBalanceHash"`
+}
+
+func (s StateHash) MarshalJSON() ([]byte, error) {
+	return json.Marshal(stateHashJS{
+		s.BlockID,
+		DigestWrapped(s.SumHash),
+		DigestWrapped(s.DataEntryHash),
+		DigestWrapped(s.AccountScriptHash),
+		DigestWrapped(s.AssetScriptHash),
+		DigestWrapped(s.LeaseStatusHash),
+		DigestWrapped(s.SponsorshipHash),
+		DigestWrapped(s.AliasesHash),
+		DigestWrapped(s.WavesBalanceHash),
+		DigestWrapped(s.AssetBalanceHash),
+		DigestWrapped(s.LeaseBalanceHash),
+	})
+}
+
+func (s *StateHash) UnmarshalJSON(value []byte) error {
+	var sh stateHashJS
+	if err := json.Unmarshal(value, &sh); err != nil {
+		return err
+	}
+	s.BlockID = sh.BlockID
+	s.SumHash = crypto.Digest(sh.SumHash)
+	s.DataEntryHash = crypto.Digest(sh.DataEntryHash)
+	s.AccountScriptHash = crypto.Digest(sh.AccountScriptHash)
+	s.AssetScriptHash = crypto.Digest(sh.AssetScriptHash)
+	s.LeaseStatusHash = crypto.Digest(sh.LeaseStatusHash)
+	s.SponsorshipHash = crypto.Digest(sh.SponsorshipHash)
+	s.AliasesHash = crypto.Digest(sh.AliasesHash)
+	s.WavesBalanceHash = crypto.Digest(sh.WavesBalanceHash)
+	s.AssetBalanceHash = crypto.Digest(sh.AssetBalanceHash)
+	s.LeaseBalanceHash = crypto.Digest(sh.LeaseBalanceHash)
+	return nil
 }

@@ -51,6 +51,7 @@ var (
 	enableGrpcApi              = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
 	buildExtendedApi           = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
 	serveExtendedApi           = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
+	buildStateHashes           = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
 	bindAddress                = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
 	disableOutgoingConnections = flag.Bool("no-connections", false, "Disable outgoing network connections to peers. Default value is false.")
 	minerVoteFeatures          = flag.String("vote", "", "Miner vote features")
@@ -75,6 +76,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("enable-grpc-api: %v", *enableGrpcApi)
 	zap.S().Debugf("build-extended-api: %v", *buildExtendedApi)
 	zap.S().Debugf("serve-extended-api: %v", *serveExtendedApi)
+	zap.S().Debugf("build-state-hashes: %v", *buildStateHashes)
 	zap.S().Debugf("bind-address: %s", *bindAddress)
 	zap.S().Debugf("vote: %s", *minerVoteFeatures)
 	zap.S().Debugf("reward: %s", *reward)
@@ -170,6 +172,7 @@ func main() {
 	params := state.DefaultStateParams()
 	params.StoreExtendedApiData = *buildExtendedApi
 	params.ProvideExtendedApi = *serveExtendedApi
+	params.BuildStateHashes = *buildStateHashes
 	params.Time = ntptm
 	state, err := state.NewState(path, params, cfg)
 	if err != nil {

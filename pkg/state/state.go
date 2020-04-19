@@ -56,11 +56,13 @@ type blockchainEntitiesStorage struct {
 	scriptsStorage    *scriptsStorage
 	scriptsComplexity *scriptsComplexity
 	invokeResults     *invokeResults
+	stateHashes       *stateHashes
 	hitSources        *hitSources
+	calculateHashes   bool
 }
 
-func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter) (*blockchainEntitiesStorage, error) {
-	aliases, err := newAliases(hs.db, hs.dbBatch, hs)
+func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter, calcHashes bool) (*blockchainEntitiesStorage, error) {
+	aliases, err := newAliases(hs.db, hs.dbBatch, hs, calcHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -68,19 +70,11 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	leases, err := newLeases(hs.db, hs)
-	if err != nil {
-		return nil, err
-	}
-	scores, err := newScores(hs.db, hs.dbBatch)
-	if err != nil {
-		return nil, err
-	}
 	blocksInfo, err := newBlocksInfo(hs.db, hs.dbBatch)
 	if err != nil {
 		return nil, err
 	}
-	balances, err := newBalances(hs.db, hs)
+	balances, err := newBalances(hs.db, hs, calcHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +86,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	accountsDataStor, err := newAccountsDataStorage(hs.db, hs.dbBatch, hs)
+	accountsDataStor, err := newAccountsDataStorage(hs.db, hs.dbBatch, hs, calcHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -100,11 +94,11 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	sponsoredAssets, err := newSponsoredAssets(rw, features, hs, sets)
+	sponsoredAssets, err := newSponsoredAssets(rw, features, hs, sets, calcHashes)
 	if err != nil {
 		return nil, err
 	}
-	scriptsStorage, err := newScriptsStorage(hs)
+	scriptsStorage, err := newScriptsStorage(hs, calcHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -112,38 +106,127 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	invokeResults, err := newInvokeResults(hs, aliases)
-	if err != nil {
-		return nil, err
-	}
-	hitSources, err := newHitSources(hs.db, hs.dbBatch)
+	invokeResults, err := newInvokeResults(hs)
 	if err != nil {
 		return nil, err
 	}
 	return &blockchainEntitiesStorage{
-		hs:                hs,
-		aliases:           aliases,
-		assets:            assets,
-		leases:            leases,
-		scores:            scores,
-		blocksInfo:        blocksInfo,
-		balances:          balances,
-		features:          features,
-		monetaryPolicy:    monetaryPolicy,
-		ordersVolumes:     ordersVolumes,
-		accountsDataStor:  accountsDataStor,
-		sponsoredAssets:   sponsoredAssets,
-		scriptsStorage:    scriptsStorage,
-		scriptsComplexity: scriptsComplexity,
-		invokeResults:     invokeResults,
-		hitSources:        hitSources,
+		hs,
+		aliases,
+		assets,
+		newLeases(hs.db, hs, calcHashes),
+		newScores(hs.db, hs.dbBatch),
+		blocksInfo,
+		balances,
+		features,
+		monetaryPolicy,
+		ordersVolumes,
+		accountsDataStor,
+		sponsoredAssets,
+		scriptsStorage,
+		scriptsComplexity,
+		invokeResults,
+		newStateHashes(hs.db, hs.dbBatch),
+		newHitSources(hs.db, hs.dbBatch),
+		calcHashes,
 	}, nil
+}
+
+func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
+	sh := &proto.StateHash{
+		BlockID:           blockID,
+		WavesBalanceHash:  s.balances.wavesHashAt(blockID),
+		AssetBalanceHash:  s.balances.assetsHashAt(blockID),
+		DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
+		AccountScriptHash: s.scriptsStorage.accountScriptsHasher.stateHashAt(blockID),
+		AssetScriptHash:   s.scriptsStorage.assetScriptsHasher.stateHashAt(blockID),
+		LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
+		LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
+		SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
+		AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
+	}
+	if err := sh.GenerateSumHash(prevHash); err != nil {
+		return nil, err
+	}
+	if err := s.stateHashes.saveStateHash(sh, height); err != nil {
+		return nil, err
+	}
+	return sh, nil
+}
+
+func (s *blockchainEntitiesStorage) prepareHashes() error {
+	if err := s.accountsDataStor.prepareHashes(); err != nil {
+		return err
+	}
+	if err := s.balances.prepareHashes(); err != nil {
+		return err
+	}
+	if err := s.scriptsStorage.prepareHashes(); err != nil {
+		return err
+	}
+	if err := s.leases.prepareHashes(); err != nil {
+		return err
+	}
+	if err := s.sponsoredAssets.prepareHashes(); err != nil {
+		return err
+	}
+	if err := s.aliases.prepareHashes(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
+	if !s.calculateHashes {
+		return nil
+	}
+	if blockchainHeight < 1 {
+		return errors.New("bad blockchain height, should be greater than 0")
+	}
+	// Calculate any remaining hashes.
+	if err := s.prepareHashes(); err != nil {
+		return err
+	}
+	prevHash, err := s.stateHashes.stateHash(blockchainHeight)
+	if err != nil {
+		return err
+	}
+	startHeight := blockchainHeight + 1
+	for i, id := range blockIds {
+		height := startHeight + uint64(i)
+		newPrevHash, err := s.putStateHash(prevHash.SumHash[:], height, id)
+		if err != nil {
+			return err
+		}
+		prevHash = newPrevHash
+	}
+	return nil
+}
+
+func (s *blockchainEntitiesStorage) rollback(newHeight, oldHeight uint64) error {
+	if err := s.scores.rollback(newHeight, oldHeight); err != nil {
+		return err
+	}
+	if err := s.hitSources.rollback(newHeight, oldHeight); err != nil {
+		return err
+	}
+	if s.calculateHashes {
+		if err := s.stateHashes.rollback(newHeight, oldHeight); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *blockchainEntitiesStorage) reset() {
 	s.hs.reset()
 	s.assets.reset()
 	s.accountsDataStor.reset()
+	s.balances.reset()
+	s.scriptsStorage.reset()
+	s.leases.reset()
+	s.sponsoredAssets.reset()
+	s.aliases.reset()
 }
 
 func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
@@ -156,7 +239,7 @@ func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
 	return nil
 }
 
-func checkCompatibility(stateDB *stateDB, extendedApi bool) error {
+func checkCompatibility(stateDB *stateDB, params StateParams) error {
 	version, err := stateDB.stateVersion()
 	if err != nil {
 		return errors.Errorf("stateVersion: %v", err)
@@ -168,8 +251,15 @@ func checkCompatibility(stateDB *stateDB, extendedApi bool) error {
 	if err != nil {
 		return errors.Errorf("stateStoresApiData(): %v", err)
 	}
-	if extendedApi != hasDataForExtendedApi {
-		return errors.Errorf("extended API incompatibility: state stores: %v; want: %v", hasDataForExtendedApi, extendedApi)
+	if params.StoreExtendedApiData != hasDataForExtendedApi {
+		return errors.Errorf("extended API incompatibility: state stores: %v; want: %v", hasDataForExtendedApi, params.StoreExtendedApiData)
+	}
+	hasDataForHashes, err := stateDB.stateStoresHashes()
+	if err != nil {
+		return errors.Errorf("stateStoresHashes: %v", err)
+	}
+	if params.BuildStateHashes != hasDataForHashes {
+		return errors.Errorf("state hashes incompatibility: state stores: %v; want: %v", hasDataForHashes, params.BuildStateHashes)
 	}
 	return nil
 }
@@ -248,11 +338,11 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
 	}
-	stateDB, err := newStateDB(db, dbBatch, rw, params.StoreExtendedApiData)
+	stateDB, err := newStateDB(db, dbBatch, rw, params)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v", err))
 	}
-	if err := checkCompatibility(stateDB, params.StoreExtendedApiData); err != nil {
+	if err := checkCompatibility(stateDB, params); err != nil {
 		return nil, wrapErr(IncompatibilityError, err)
 	}
 	if err := stateDB.syncRw(); err != nil {
@@ -262,7 +352,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v", err))
 	}
-	stor, err := newBlockchainEntitiesStorage(hs, settings, rw)
+	stor, err := newBlockchainEntitiesStorage(hs, settings, rw, params.BuildStateHashes)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v", err))
 	}
@@ -363,6 +453,12 @@ func (s *stateManager) addGenesisBlock() error {
 	}
 	close(chans.tasksChan)
 	if err := s.appender.applyAllDiffs(true); err != nil {
+		return err
+	}
+	if err := s.stor.prepareHashes(); err != nil {
+		return err
+	}
+	if _, err := s.stor.putStateHash(nil, 1, s.genesis.BlockID()); err != nil {
 		return err
 	}
 	verifyError := <-chans.errChan
@@ -963,23 +1059,24 @@ func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
 	return false, nil
 }
 
-func (s *stateManager) needToCancelLeases(height uint64) (bool, error) {
+func (s *stateManager) needToCancelLeases(curBlockHeight uint64) (bool, error) {
 	if s.settings.Type == settings.Custom {
 		// No need to cancel leases in custom blockchains.
 		return false, nil
 	}
-	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), height)
+	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), curBlockHeight)
 	if err != nil {
 		return false, err
 	}
 	dataTxHeight := uint64(0)
 	if dataTxActivated {
-		dataTxHeight, err = s.ActivationHeight(int16(settings.DataTransaction))
+		approvalHeight, err := s.ApprovalHeight(int16(settings.DataTransaction))
 		if err != nil {
 			return false, err
 		}
+		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(curBlockHeight)
 	}
-	switch height {
+	switch curBlockHeight {
 	case s.settings.ResetEffectiveBalanceAtHeight:
 		return !s.leasesCl0, nil
 	case s.settings.BlockVersion3AfterHeight:
@@ -996,8 +1093,6 @@ func (s *stateManager) needToCancelLeases(height uint64) (bool, error) {
 type breakerTask struct {
 	// ID of latest block before performing task.
 	blockID proto.BlockID
-	// Indicates that the task to perform before calling addBlocks() is to cancel leases.
-	cancelLeases bool
 	// Indicates that the task to perform before calling addBlocks() is to reset stolen aliases.
 	resetStolenAliases bool
 	// Indicates that the task to perform before calling addBlocks() is to finish features voting period.
@@ -1007,14 +1102,6 @@ type breakerTask struct {
 }
 
 func (s *stateManager) needToBreakAddingBlocks(curHeight uint64, task *breakerTask) (bool, error) {
-	cancelLeases, err := s.needToCancelLeases(curHeight)
-	if err != nil {
-		return false, err
-	}
-	if cancelLeases {
-		task.cancelLeases = true
-		return true, nil
-	}
 	resetStolenAliases, err := s.needToResetStolenAliases(curHeight)
 	if err != nil {
 		return false, err
@@ -1080,23 +1167,20 @@ func (s *stateManager) updateBlockReward(blockID proto.BlockID, initialisation b
 	return nil
 }
 
-func (s *stateManager) cancelLeases(blockID proto.BlockID) error {
-	height, err := s.Height()
-	if err != nil {
-		return err
-	}
-	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), height)
+func (s *stateManager) cancelLeases(curBlockHeight uint64, blockID proto.BlockID) error {
+	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), curBlockHeight)
 	if err != nil {
 		return err
 	}
 	dataTxHeight := uint64(0)
 	if dataTxActivated {
-		dataTxHeight, err = s.ActivationHeight(int16(settings.DataTransaction))
+		approvalHeight, err := s.ApprovalHeight(int16(settings.DataTransaction))
 		if err != nil {
 			return err
 		}
+		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(curBlockHeight)
 	}
-	if height == s.settings.ResetEffectiveBalanceAtHeight {
+	if curBlockHeight == s.settings.ResetEffectiveBalanceAtHeight {
 		if err := s.stor.leases.cancelLeases(nil, blockID); err != nil {
 			return err
 		}
@@ -1104,7 +1188,7 @@ func (s *stateManager) cancelLeases(blockID proto.BlockID) error {
 			return err
 		}
 		s.leasesCl0 = true
-	} else if height == s.settings.BlockVersion3AfterHeight {
+	} else if curBlockHeight == s.settings.BlockVersion3AfterHeight {
 		overflowAddrs, err := s.stor.balances.cancelLeaseOverflows(blockID)
 		if err != nil {
 			return err
@@ -1113,7 +1197,7 @@ func (s *stateManager) cancelLeases(blockID proto.BlockID) error {
 			return err
 		}
 		s.leasesCl1 = true
-	} else if dataTxActivated && height == dataTxHeight {
+	} else if dataTxActivated && curBlockHeight == dataTxHeight {
 		leaseIns, err := s.stor.leases.validLeaseIns()
 		if err != nil {
 			return err
@@ -1122,12 +1206,6 @@ func (s *stateManager) cancelLeases(blockID proto.BlockID) error {
 			return err
 		}
 		s.leasesCl2 = true
-	}
-	if err := s.flush(true); err != nil {
-		return err
-	}
-	if err := s.reset(true); err != nil {
-		return err
 	}
 	return nil
 }
@@ -1146,18 +1224,15 @@ func (s *stateManager) handleBreak(blocksToFinish []*proto.Block, initialisation
 			return nil, wrapErr(ModificationError, err)
 		}
 	}
-	if task.cancelLeases {
-		// Need to cancel leases due to bugs in historical blockchain.
-		if err := s.cancelLeases(task.blockID); err != nil {
-			return nil, wrapErr(ModificationError, err)
-		}
-	}
 	if task.resetStolenAliases {
 		// Need to reset stolen aliases due to bugs in historical blockchain.
 		if err := s.stor.aliases.disableStolenAliases(); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 		s.disabledStolenAliases = true
+	}
+	if len(blocksToFinish) == 0 {
+		return s.TopBlock(), nil
 	}
 	return s.addBlocks(blocksToFinish, initialisation)
 }
@@ -1200,8 +1275,12 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
 	var lastBlock *proto.Block
+	var ids []proto.BlockID
+	needToCancelLeases := false
+	curBlockHeight := height + 1
 	for i, block := range blocks {
 		curHeight := height + uint64(i)
+		curBlockHeight = curHeight + 1
 		breakAdding, err := s.needToBreakAddingBlocks(curHeight, breakerInfo)
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
@@ -1229,7 +1308,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		if err != nil {
 			return nil, wrapErr(Other, err)
 		}
-		if err := s.stor.scores.addScore(prevScore, score, curHeight+1); err != nil {
+		if err := s.stor.scores.addScore(prevScore, score, curBlockHeight); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 		prevScore = score
@@ -1237,7 +1316,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
-		if s.needToResetVotes(curHeight + 1) {
+		if s.needToResetVotes(curBlockHeight) {
 			// When next voting period starts, we need to put 0 as votes number
 			// for all features at first (current) block.
 			// This is not handled as breaker task on purpose:
@@ -1252,6 +1331,15 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		}
 		headers[i] = block.BlockHeader
 		parent = block
+		ids = append(ids, block.BlockID())
+		needToCancelLeases, err = s.needToCancelLeases(curBlockHeight)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		if needToCancelLeases {
+			blocksToFinish = blocks[i+1:]
+			break
+		}
 	}
 	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
 	close(chans.tasksChan)
@@ -1259,6 +1347,16 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	// This also validates diffs for negative balances.
 	if err := s.appender.applyAllDiffs(initialisation); err != nil {
 		return nil, wrapErr(TxValidationError, err)
+	}
+	if needToCancelLeases {
+		// Need to cancel leases due to bugs in historical blockchain.
+		if err := s.cancelLeases(curBlockHeight, lastBlock.BlockID()); err != nil {
+			return nil, wrapErr(ModificationError, err)
+		}
+	}
+	// Retrieve and store state hashes for each of new blocks.
+	if err := s.stor.handleStateHashes(height, ids); err != nil {
+		return nil, wrapErr(ModificationError, err)
 	}
 	// Validate consensus (i.e. that all of the new blocks were mined fairly).
 	if err := s.cv.ValidateHeaders(headers[:len(headers)-len(blocksToFinish)], height); err != nil {
@@ -1328,6 +1426,7 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 }
 
 func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
+	// TODO: this is not really atomic.
 	if err := s.checkRollbackInput(removalEdge); err != nil {
 		return wrapErr(InvalidInputError, err)
 	}
@@ -1354,16 +1453,13 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	if err := s.rw.rollback(removalEdge, true); err != nil {
 		return wrapErr(RollbackError, err)
 	}
-	// Remove scores of deleted blocks.
+	// Rollback entities stored by block height.
 	newHeight, err := s.Height()
 	if err != nil {
 		return wrapErr(RetrievalError, err)
 	}
 	oldHeight := curHeight + 1
-	if err := s.stor.scores.rollback(newHeight, oldHeight); err != nil {
-		return wrapErr(RollbackError, err)
-	}
-	if err := s.stor.hitSources.rollback(newHeight, oldHeight); err != nil {
+	if err := s.stor.rollback(newHeight, oldHeight); err != nil {
 		return wrapErr(RollbackError, err)
 	}
 	// Clear scripts cache.
@@ -1976,6 +2072,29 @@ func (s *stateManager) ProvidesExtendedApi() (bool, error) {
 	}
 	// State has data for extended API, but we need to make sure it is served.
 	return s.atx.providesData(), nil
+}
+
+func (s *stateManager) ProvidesStateHashes() (bool, error) {
+	provides, err := s.stateDB.stateStoresHashes()
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	return provides, nil
+}
+
+func (s *stateManager) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+	hasData, err := s.ProvidesStateHashes()
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	if !hasData {
+		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for state hashes"))
+	}
+	sh, err := s.stor.stateHashes.stateHash(height)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return sh, nil
 }
 
 func (s *stateManager) IsNotFound(err error) bool {

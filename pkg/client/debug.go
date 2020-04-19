@@ -191,3 +191,23 @@ func (a *Debug) ConfigInfo(ctx context.Context, full bool) ([]byte, *Response, e
 
 	return buf.Bytes(), response, nil
 }
+
+func (a *Debug) StateHash(ctx context.Context, height uint64) (*proto.StateHash, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/debug/stateHash/%d", height))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	out := &proto.StateHash{}
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}

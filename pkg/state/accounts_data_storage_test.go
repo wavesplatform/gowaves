@@ -18,7 +18,7 @@ func createAccountsDataStorage() (*accountsDataStorageTestObjects, []string, err
 	if err != nil {
 		return nil, path, err
 	}
-	accountsDataStor, err := newAccountsDataStorage(stor.db, stor.dbBatch, stor.hs)
+	accountsDataStor, err := newAccountsDataStorage(stor.db, stor.dbBatch, stor.hs, true)
 	if err != nil {
 		return nil, path, err
 	}

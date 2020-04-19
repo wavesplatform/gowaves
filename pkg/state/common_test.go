@@ -226,7 +226,7 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	stateDB, err := newStateDB(db, dbBatch, rw, false)
+	stateDB, err := newStateDB(db, dbBatch, rw, DefaultTestingStateParams())
 	if err != nil {
 		return nil, res, err
 	}
@@ -234,7 +234,7 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	entities, err := newBlockchainEntitiesStorage(hs, settings.MainNetSettings, rw)
+	entities, err := newBlockchainEntitiesStorage(hs, settings.MainNetSettings, rw, false)
 	if err != nil {
 		return nil, res, err
 	}

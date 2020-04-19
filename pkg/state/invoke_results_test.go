@@ -11,7 +11,6 @@ import (
 
 type invokeResultsTestObjects struct {
 	stor          *testStorageObjects
-	aliases       *aliases
 	invokeResults *invokeResults
 }
 
@@ -20,15 +19,11 @@ func createInvokeResults() (*invokeResultsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	aliases, err := newAliases(stor.db, stor.dbBatch, stor.hs)
+	invokeResults, err := newInvokeResults(stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
-	invokeResults, err := newInvokeResults(stor.hs, aliases)
-	if err != nil {
-		return nil, path, err
-	}
-	return &invokeResultsTestObjects{stor, aliases, invokeResults}, path, nil
+	return &invokeResultsTestObjects{stor, invokeResults}, path, nil
 }
 
 func TestSaveResult(t *testing.T) {

@@ -18,7 +18,7 @@ func createAliases() (*aliasesTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	aliases, err := newAliases(stor.db, stor.dbBatch, stor.hs)
+	aliases, err := newAliases(stor.db, stor.dbBatch, stor.hs, true)
 	if err != nil {
 		return nil, path, err
 	}

@@ -759,6 +759,36 @@ func (mr *MockStateInfoMockRecorder) ProvidesExtendedApi() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesExtendedApi", reflect.TypeOf((*MockStateInfo)(nil).ProvidesExtendedApi))
 }
 
+// ProvidesStateHashes mocks base method
+func (m *MockStateInfo) ProvidesStateHashes() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ProvidesStateHashes")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ProvidesStateHashes indicates an expected call of ProvidesStateHashes
+func (mr *MockStateInfoMockRecorder) ProvidesStateHashes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesStateHashes", reflect.TypeOf((*MockStateInfo)(nil).ProvidesStateHashes))
+}
+
+// StateHashAtHeight mocks base method
+func (m *MockStateInfo) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StateHashAtHeight", height)
+	ret0, _ := ret[0].(*proto.StateHash)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StateHashAtHeight indicates an expected call of StateHashAtHeight
+func (mr *MockStateInfoMockRecorder) StateHashAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StateHashAtHeight", reflect.TypeOf((*MockStateInfo)(nil).StateHashAtHeight), height)
+}
+
 // MapR mocks base method
 func (m *MockStateInfo) MapR(arg0 func(state.StateInfo) (interface{}, error)) (interface{}, error) {
 	m.ctrl.T.Helper()
@@ -1769,6 +1799,36 @@ func (m *MockState) ProvidesExtendedApi() (bool, error) {
 func (mr *MockStateMockRecorder) ProvidesExtendedApi() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesExtendedApi", reflect.TypeOf((*MockState)(nil).ProvidesExtendedApi))
+}
+
+// ProvidesStateHashes mocks base method
+func (m *MockState) ProvidesStateHashes() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ProvidesStateHashes")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ProvidesStateHashes indicates an expected call of ProvidesStateHashes
+func (mr *MockStateMockRecorder) ProvidesStateHashes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesStateHashes", reflect.TypeOf((*MockState)(nil).ProvidesStateHashes))
+}
+
+// StateHashAtHeight mocks base method
+func (m *MockState) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StateHashAtHeight", height)
+	ret0, _ := ret[0].(*proto.StateHash)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StateHashAtHeight indicates an expected call of StateHashAtHeight
+func (mr *MockStateMockRecorder) StateHashAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StateHashAtHeight", reflect.TypeOf((*MockState)(nil).StateHashAtHeight), height)
 }
 
 // MapR mocks base method

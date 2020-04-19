@@ -346,6 +346,26 @@ func (a *NodeApi) nodeProcesses(w http.ResponseWriter, r *http.Request) {
 	sendJson(w, rs)
 }
 
+func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) {
+	s := chi.URLParam(r, "height")
+	height, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	stateHash, err := a.state.StateHashAtHeight(height)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	err = json.NewEncoder(w).Encode(stateHash)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+}
+
 func handleError(w http.ResponseWriter, err error) {
 	switch err.(type) {
 	case *AuthError:

@@ -20,10 +20,7 @@ func createLeases() (*leasesTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	leases, err := newLeases(stor.db, stor.hs)
-	if err != nil {
-		return nil, path, err
-	}
+	leases := newLeases(stor.db, stor.hs, true)
 	return &leasesTestObjects{stor, leases}, path, nil
 }
 
@@ -66,7 +63,6 @@ func TestCancelLeases(t *testing.T) {
 		err = to.leases.addLeasing(leaseID, r, blockID0)
 		assert.NoError(t, err, "failed to add leasing")
 	}
-	to.stor.flush(t)
 	// Cancel one lease by sender and check.
 	badSenderStr := leasings[0].sender
 	badSender, err := proto.NewAddressFromString(badSenderStr)
@@ -136,7 +132,6 @@ func TestValidLeaseIns(t *testing.T) {
 		assert.NoError(t, err, "failed to add leasing")
 		properLeaseIns[r.recipient] += int64(r.leaseAmount)
 	}
-	to.stor.flush(t)
 	leaseIns, err := to.leases.validLeaseIns()
 	assert.NoError(t, err, "validLeaseIns() failed")
 	assert.Equal(t, len(properLeaseIns), len(leaseIns))

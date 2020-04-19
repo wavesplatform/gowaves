@@ -48,6 +48,7 @@ var (
 	enableGrpcApi     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
 	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
 	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
+	buildStateHashes  = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
 	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
 	outdateS          = flag.String("outdate", "4h", "Interval between last applied block and current time. If greater than no mining, no transaction accepted. Example 1d4h30m")
@@ -147,6 +148,7 @@ func main() {
 	params := state.DefaultStateParams()
 	params.StoreExtendedApiData = *buildExtendedApi
 	params.ProvideExtendedApi = *serveExtendedApi
+	params.BuildStateHashes = *buildStateHashes
 	params.Time = ntptm
 	state, err := state.NewState(path, params, custom)
 	if err != nil {

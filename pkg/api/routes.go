@@ -26,6 +26,7 @@ func (a *NodeApi) routes() chi.Router {
 	r.Post("/wallet/load", WalletLoadKeys(a.app))
 
 	r.Get("/node/processes", a.nodeProcesses)
+	r.Get("/debug/stateHash/{height:\\d+}", a.stateHash)
 	// enable or disable history sync
 	//r.Get("/debug/sync/{enabled:\\d+}", a.DebugSyncEnabled)
 
