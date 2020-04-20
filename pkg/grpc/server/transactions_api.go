@@ -5,7 +5,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -167,7 +168,7 @@ func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsAp
 	return nil
 }
 
-func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*g.SignedTransaction, error) {
+func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*pb.SignedTransaction, error) {
 	var c proto.ProtobufConverter
 	tx, err := c.Transaction(req.Transaction)
 	if err != nil {
@@ -187,7 +188,7 @@ func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*g.SignedTransac
 	return txProto, nil
 }
 
-func (s *Server) Broadcast(ctx context.Context, tx *g.SignedTransaction) (*g.SignedTransaction, error) {
+func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (*pb.SignedTransaction, error) {
 	var c proto.ProtobufConverter
 	t, err := c.SignedTransaction(tx)
 	if err != nil {

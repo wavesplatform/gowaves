@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

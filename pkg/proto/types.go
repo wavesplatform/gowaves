@@ -17,7 +17,8 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
@@ -2637,8 +2638,8 @@ type ScriptInfo struct {
 	Complexity uint64
 }
 
-func (s ScriptInfo) ToProtobuf() *g.ScriptData {
-	return &g.ScriptData{
+func (s ScriptInfo) ToProtobuf() *pb.ScriptData {
+	return &pb.ScriptData{
 		ScriptBytes: s.Bytes,
 		ScriptText:  s.Base64,
 		Complexity:  int64(s.Complexity),
@@ -3521,8 +3522,8 @@ type FullWavesBalance struct {
 	LeaseOut   uint64
 }
 
-func (b *FullWavesBalance) ToProtobuf() *g.BalanceResponse_WavesBalances {
-	return &g.BalanceResponse_WavesBalances{
+func (b *FullWavesBalance) ToProtobuf() *pb.BalanceResponse_WavesBalances {
+	return &pb.BalanceResponse_WavesBalances{
 		Regular:    int64(b.Regular),
 		Generating: int64(b.Generating),
 		Available:  int64(b.Available),

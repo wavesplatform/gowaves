@@ -5,7 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -48,7 +49,7 @@ func TestTxFilter(t *testing.T) {
 	// Test sender and recipient.
 	req = &g.TransactionsRequest{
 		Sender:    addrBody,
-		Recipient: &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addr2Body}},
+		Recipient: &pb.Recipient{Recipient: &pb.Recipient_PublicKeyHash{PublicKeyHash: addr2Body}},
 	}
 	filter, err = newTxFilter(scheme, req)
 	assert.NoError(t, err)
@@ -66,7 +67,7 @@ func TestTxFilter(t *testing.T) {
 	assert.NoError(t, err)
 	req = &g.TransactionsRequest{
 		Sender:         addrBody,
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},
+		Recipient:      &pb.Recipient{Recipient: &pb.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	filter, err = newTxFilter(scheme, req)

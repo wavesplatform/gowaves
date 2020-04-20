@@ -12,7 +12,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -265,12 +266,12 @@ func (b *BlockHeader) HeaderToProtobuf(scheme Scheme) (*g.Block, error) {
 	}, nil
 }
 
-func (b *BlockHeader) HeaderToProtobufWithHeight(currentScheme Scheme, height uint64) (*g.BlockWithHeight, error) {
+func (b *BlockHeader) HeaderToProtobufWithHeight(currentScheme Scheme, height uint64) (*pb.BlockWithHeight, error) {
 	block, err := b.HeaderToProtobuf(currentScheme)
 	if err != nil {
 		return nil, err
 	}
-	return &g.BlockWithHeight{
+	return &pb.BlockWithHeight{
 		Block:  block,
 		Height: uint32(height),
 	}, nil
@@ -558,7 +559,7 @@ func (b *Block) ToProtobuf(scheme Scheme) (*g.Block, error) {
 	return block, nil
 }
 
-func (b *Block) ToProtobufWithHeight(currentScheme Scheme, height uint64) (*g.BlockWithHeight, error) {
+func (b *Block) ToProtobufWithHeight(currentScheme Scheme, height uint64) (*pb.BlockWithHeight, error) {
 	block, err := b.BlockHeader.HeaderToProtobufWithHeight(currentScheme, height)
 	if err != nil {
 		return nil, err
