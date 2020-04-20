@@ -41,7 +41,7 @@ func (a *ValidatorImpl) Validate(t proto.Transaction) error {
 	}
 	mu := a.state.Mutex()
 	locked := mu.Lock()
-	err = a.state.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, vrf)
+	err = a.state.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, vrf, false)
 	a.state.ResetValidationList()
 	locked.Unlock()
 	return err

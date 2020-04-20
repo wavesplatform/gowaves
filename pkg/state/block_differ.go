@@ -124,6 +124,15 @@ func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.B
 	return txChanges, nil
 }
 
+func (d *blockDiffer) createTransactionFeeDiff(tx proto.Transaction, blockInfo *proto.BlockInfo, initialisation bool) (txBalanceChanges, error) {
+	differInfo := &differInfo{initialisation, blockInfo}
+	txFeeChanges, err := d.handler.createFeeDiffTx(tx, differInfo)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	return txFeeChanges, nil
+}
+
 func (d *blockDiffer) countMinerFee(tx proto.Transaction) error {
 	if err := d.handler.minerFeeTx(tx, &d.curDistr); err != nil {
 		return err

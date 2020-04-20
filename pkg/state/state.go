@@ -1469,8 +1469,8 @@ func (s *stateManager) ResetValidationList() {
 }
 
 // For UTX validation.
-func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, vrf []byte) error {
-	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, vrf); err != nil {
+func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, vrf []byte, acceptFailed bool) error {
+	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, vrf, acceptFailed); err != nil {
 		return wrapErr(TxValidationError, err)
 	}
 	return nil

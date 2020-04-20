@@ -31,118 +31,120 @@ func newScriptCaller(
 	}, nil
 }
 
-func (a *scriptCaller) callVerifyScript(script ast.Script, obj map[string]ast.Expr, this, lastBlock ast.Expr) error {
-	ok, err := script.Verify(a.settings.AddressSchemeCharacter, a.state, obj, this, lastBlock)
-	if err != nil {
-		return errors.Wrap(err, "verifier script failed")
-	}
-	if !ok {
-		return errors.New("verifier script does not allow to send transaction")
-	}
-	return nil
+func (a *scriptCaller) callVerifyScript(script ast.Script, obj map[string]ast.Expr, this, lastBlock ast.Expr) (ast.Result, error) {
+	return script.Verify(a.settings.AddressSchemeCharacter, a.state, obj, this, lastBlock)
 }
 
-func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
+func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockInfo *proto.BlockInfo, initialisation, acceptFailed bool) (bool, error) {
 	sender, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, order.GetSenderPK())
 	if err != nil {
-		return err
+		return false, err
+	}
+	id, err := order.GetID()
+	if err != nil {
+		return false, err
 	}
 	script, err := a.stor.scriptsStorage.newestScriptByAddr(sender, !initialisation)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve account script")
+		return false, errors.Wrap(err, "failed to retrieve account script")
 	}
 	obj, err := ast.NewVariablesFromOrder(a.settings.AddressSchemeCharacter, order)
 	if err != nil {
-		return errors.Wrap(err, "failed to convert order")
+		return false, errors.Wrap(err, "failed to convert order")
 	}
 	this := ast.NewAddressFromProtoAddress(sender)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	if err := a.callVerifyScript(script, obj, this, lastBlock); err != nil {
-		id, _ := order.GetID()
-		return errors.Errorf("account script; order ID %s: %v\n", base58.Encode(id), err)
+	r, err := a.callVerifyScript(script, obj, this, lastBlock)
+	if err != nil {
+		return false, errors.Wrapf(err, "account script failed on order '%s'", base58.Encode(id))
+	}
+	if !r.OK && !acceptFailed {
+		return false, errors.Errorf("account script failed on order '%s' with error: %s", base58.Encode(id), r.Message)
 	}
 	// Increase complexity.
 	complexity, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(sender, !initialisation)
 	if err != nil {
-		return errors.Wrap(err, "newestScriptComplexityByAddr")
+		return false, errors.Wrap(err, "newestScriptComplexityByAddr")
 	}
 	a.totalComplexity += complexity.verifierComplexity
-	return nil
+	return r.OK, nil
 }
 
-func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
+func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockInfo *proto.BlockInfo, initialisation, acceptFailed bool) (bool, error) {
 	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
-		return err
+		return false, err
 	}
 	script, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !initialisation)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve account script")
+		return false, err
 	}
 	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
 	if err != nil {
-		return errors.Wrap(err, "failed to convert transaction")
+		return false, err
 	}
 	this := ast.NewAddressFromProtoAddress(senderAddr)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	if err := a.callVerifyScript(script, obj, this, lastBlock); err != nil {
+	r, err := a.callVerifyScript(script, obj, this, lastBlock)
+	if err != nil {
 		id, _ := tx.GetID(a.settings.AddressSchemeCharacter)
-		return errors.Errorf("account script; transaction ID %s: %v\n", base58.Encode(id), err)
+		return false, errors.Wrapf(err, "account script failed on transaction '%s'", base58.Encode(id))
+	}
+	if !r.OK && !acceptFailed {
+		id, _ := tx.GetID(a.settings.AddressSchemeCharacter)
+		return false, errors.Errorf("account script failed on transaction '%s' with error: %s", base58.Encode(id), r.Message)
 	}
 	// Increase complexity.
 	complexity, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, !initialisation)
 	if err != nil {
-		return errors.Wrap(err, "newestScriptComplexityByAddr")
+		return false, err
 	}
 	a.totalComplexity += complexity.verifierComplexity
-	return nil
+	return r.OK, nil
 }
 
-func (a *scriptCaller) callAssetScriptCommon(obj map[string]ast.Expr, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
+func (a *scriptCaller) callAssetScriptCommon(obj map[string]ast.Expr, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation, acceptFailed bool) (bool, error) {
 	script, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
 	if err != nil {
-		return errors.Errorf("failed to retrieve asset script: %v\n", err)
+		return false, err
 	}
 	assetInfo, err := a.state.NewestAssetInfo(assetID)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve asset info")
+		return false, err
 	}
 	this := ast.NewObjectFromAssetInfo(*assetInfo)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	if err := a.callVerifyScript(script, obj, this, lastBlock); err != nil {
-		return errors.Wrap(err, "callVerifyScript failed")
+	r, err := a.callVerifyScript(script, obj, this, lastBlock)
+	if err != nil {
+		return false, errors.Wrapf(err, "script failure on asset '%s'", assetID.String())
+	}
+	if !r.OK && !acceptFailed {
+		return false, errors.Errorf("script failure on asset '%s' with error: %s", assetID.String(), r.Message)
 	}
 	// Increase complexity.
 	complexityRecord, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, !initialisation)
 	if err != nil {
-		return errors.Wrap(err, "newestScriptComplexityByAsset()")
+		return false, err
 	}
 	a.totalComplexity += complexityRecord.complexity
-	return nil
+	return r.OK, nil
 }
 
-func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTransfer, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
+func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTransfer, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation, acceptFailed bool) (bool, error) {
 	obj, err := ast.NewVariablesFromScriptTransfer(tr)
 	if err != nil {
-		return errors.Wrap(err, "failed to convert transaction")
+		return false, errors.Wrap(err, "failed to convert transaction")
 	}
-	if err := a.callAssetScriptCommon(obj, assetID, lastBlockInfo, initialisation); err != nil {
-		return errors.Errorf("asset script; script transfer ID %s: %v\n", tr.ID.String(), err)
-	}
-	return nil
+	return a.callAssetScriptCommon(obj, assetID, lastBlockInfo, initialisation, acceptFailed)
 }
 
-func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
+func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation, acceptFailed bool) (bool, error) {
 	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
 	obj["proofs"] = ast.NewUnit() // Proofs are not accessible from asset's script
 	if err != nil {
-		return errors.Wrap(err, "failed to convert transaction")
+		return false, errors.Wrap(err, "failed to convert transaction")
 	}
-	if err := a.callAssetScriptCommon(obj, assetID, lastBlockInfo, initialisation); err != nil {
-		id, _ := tx.GetID(a.settings.AddressSchemeCharacter)
-		return errors.Errorf("asset script; transaction ID %s: %v\n", base58.Encode(id), err)
-	}
-	return nil
+	return a.callAssetScriptCommon(obj, assetID, lastBlockInfo, initialisation, acceptFailed)
 }
 
 func (a *scriptCaller) invokeFunction(script ast.Script, tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) ([]proto.ScriptAction, error) {

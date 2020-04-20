@@ -180,7 +180,8 @@ func (a *MicroblockMiner) mineMicro(ctx context.Context, rest restLimits, blockA
 			unAppliedTransactions = append(unAppliedTransactions, t)
 			continue
 		}
-		err = a.state.ValidateNextTx(t.T, blockApplyOn.Timestamp, parentTimestamp, blockApplyOn.Version, vrf)
+		//TODO: pass real failed transactions acceptance status
+		err = a.state.ValidateNextTx(t.T, blockApplyOn.Timestamp, parentTimestamp, blockApplyOn.Version, vrf, false)
 		if err != nil {
 			unAppliedTransactions = append(unAppliedTransactions, t)
 			continue

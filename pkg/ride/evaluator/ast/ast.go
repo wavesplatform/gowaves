@@ -140,14 +140,14 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	}
 }
 
-func (a *Script) Verify(scheme byte, state types.SmartState, object map[string]Expr, this, lastBlock Expr) (bool, error) {
+func (a *Script) Verify(scheme byte, state types.SmartState, object map[string]Expr, this, lastBlock Expr) (Result, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
-		return false, err
+		return Result{}, err
 	}
 	if a.IsDapp() {
 		if a.DApp.Verifier == nil {
-			return false, errors.New("verify function not defined")
+			return Result{}, errors.New("verify function not defined")
 		}
 		scope := NewScope(a.Version, scheme, state)
 		scope.SetThis(this)
@@ -163,17 +163,17 @@ func (a *Script) Verify(scheme byte, state types.SmartState, object map[string]E
 		for _, expr := range a.DApp.Declarations {
 			_, err = expr.Evaluate(curScope)
 			if err != nil {
-				return false, errors.Wrap(err, "Script.Verify")
+				return Result{}, errors.Wrap(err, "Script.Verify")
 			}
 		}
-		return evalAsBool(fn.FuncDecl.Body, curScope)
+		return evalAsResult(fn.FuncDecl.Body, curScope)
 	} else {
 		scope := NewScope(a.Version, scheme, state)
 		scope.SetTransaction(object)
 		scope.SetThis(this)
 		scope.SetLastBlockInfo(lastBlock)
 		scope.SetHeight(height)
-		return evalAsBool(a.Verifier, scope)
+		return evalAsResult(a.Verifier, scope)
 	}
 }
 
@@ -208,24 +208,31 @@ func (a *Script) buildInvocation(scheme proto.Scheme, tx *proto.InvokeScriptWith
 	}, nil
 }
 
-func evalAsBool(e Expr, s Scope) (bool, error) {
+type Result struct {
+	OK      bool
+	Message string
+}
+
+func evalAsResult(e Expr, s Scope) (Result, error) {
 	rs, err := e.Evaluate(s)
 	if err != nil {
-		if _, ok := err.(Throw); ok {
-			// maybe log error
-			return false, nil
+		if throw, ok := err.(Throw); ok {
+			return Result{
+				OK:      false,
+				Message: throw.Message,
+			}, nil
 		}
-		return false, err
+		return Result{}, err
 	}
 	b, ok := rs.(*BooleanExpr)
 	if !ok {
-		return false, errors.Errorf("expected evaluate return *BooleanExpr, but found %T", b)
+		return Result{}, errors.Errorf("expected evaluate return *BooleanExpr, but found %T", b)
 	}
-	return b.Value, nil
+	return Result{OK: b.Value}, nil
 }
 
-func (a *Script) Eval(s Scope) (bool, error) {
-	return evalAsBool(a.Verifier, s)
+func (a *Script) Eval(s Scope) (Result, error) {
+	return evalAsResult(a.Verifier, s)
 }
 
 type Expr interface {

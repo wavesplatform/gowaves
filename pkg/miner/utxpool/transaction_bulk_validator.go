@@ -59,7 +59,9 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 		if t == nil {
 			break
 		}
-		if err := a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, vrf); err == nil {
+		// This validation of transactions that left in UTX after last block mining,
+		// failed transactions could be removed, that's why acceptFailed is false.
+		if err := a.state.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, vrf, false); err == nil {
 			transactions = append(transactions, t)
 		}
 	}
