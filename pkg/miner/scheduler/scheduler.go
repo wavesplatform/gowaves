@@ -74,28 +74,29 @@ func (a internalImpl) schedule(storage state.StateInfo, keyPairs []proto.KeyPair
 	if vrfActivated {
 		gsp = &consensus.VRFGenerationSignatureProvider{}
 	}
-	hitSourceHeader, err := storage.HeaderByHeight(pos.HeightForHit(confirmedBlockHeight))
-	if err != nil {
-		zap.S().Error("scheduler, internalImpl HeaderByHeight", err)
-		return nil, err
-	}
+
+	heightForHit := pos.HeightForHit(confirmedBlockHeight)
 
 	zap.S().Debugf("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d", confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight)
 
 	var out []Emit
 	for _, keyPair := range keyPairs {
 		var key [crypto.KeySize]byte = keyPair.Public
-		genSigBlock := confirmedBlock.BlockHeader
 		if vrfActivated { // In case of VRF generation signature we need a SK of miner to produce it
 			key = keyPair.Secret
-			genSigBlock = *hitSourceHeader
 		}
-		genSig, err := gsp.GenerationSignature(key, genSigBlock.GenSignature)
+
+		HitSourceAtHeight, err := storage.HitSourceAtHeight(heightForHit)
+		if err != nil {
+			zap.S().Error("scheduler, internalImpl", err)
+			continue
+		}
+		genSig, err := gsp.GenerationSignature(key, HitSourceAtHeight)
 		if err != nil {
 			zap.S().Error("Scheduler: Failed to schedule mining: %v", err)
 			continue
 		}
-		source, err := gsp.HitSource(key, hitSourceHeader.GenSignature)
+		source, err := gsp.HitSource(key, HitSourceAtHeight)
 		if err != nil {
 			zap.S().Error("Scheduler: Failed to schedule mining: %v", err)
 			continue

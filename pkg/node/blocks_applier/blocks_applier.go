@@ -117,18 +117,9 @@ func NewBlocksApplier() *BlocksApplier {
 	}
 }
 
-// 1) notify peers about score
-// 2) reshedule
 func (a *BlocksApplier) Apply(state state.State, blocks []*proto.Block) error {
 	_, _, err := a.inner.apply(state, blocks)
-	if err != nil {
-		return err
-	}
-	// TODO extended api
-	//if err := maybeEnableExtendedApi(a.state, lastBlock, proto.NewTimestampFromTime(a.tm.Now())); err != nil {
-	//	panic(fmt.Sprintf("[*] BlockDownloader: MaybeEnableExtendedApi(): %v. Failed to persist address transactions for API after successfully applying valid blocks.", err))
-	//}
-	return nil
+	return err
 }
 
 func calcMultipleScore(blocks []*proto.Block) (*big.Int, error) {
