@@ -124,7 +124,7 @@ func (h *Header) UnmarshalBinary(data []byte) error {
 	h.PayloadLength = binary.BigEndian.Uint32(data[9:13])
 	if h.PayloadLength > 0 {
 		if uint32(len(data)) < HeaderSizeWithPayload {
-			return errors.New("invalid data size")
+			return errors.New("Header UnmarshalBinary: invalid data size")
 		}
 		copy(h.PayloadCsum[:], data[13:17])
 	}
@@ -134,7 +134,7 @@ func (h *Header) UnmarshalBinary(data []byte) error {
 
 func (h *Header) Copy(data []byte) (int, error) {
 	if len(data) < 13 {
-		return 0, errors.New("invalid data size")
+		return 0, errors.New("Header Copy: invalid data size")
 	}
 	binary.BigEndian.PutUint32(data[0:4], h.Length)
 	binary.BigEndian.PutUint32(data[4:8], headerMagic)
@@ -142,7 +142,7 @@ func (h *Header) Copy(data []byte) (int, error) {
 	binary.BigEndian.PutUint32(data[9:13], h.PayloadLength)
 	if h.PayloadLength > 0 {
 		if len(data) < 17 {
-			return 0, errors.New("invalid data size")
+			return 0, errors.New("Header Copy: invalid data size")
 		}
 		copy(data[13:17], h.PayloadCsum[:])
 		return HeaderSizeWithPayload, nil
@@ -889,7 +889,7 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 		return err
 	}
 	if uint32(len(data)) < MaxHeaderLength {
-		return errors.New("invalid data size")
+		return errors.New("PeersMessage UnmarshalBinary: invalid data size")
 	}
 	data = data[MaxHeaderLength:]
 	if len(data) < 4 {
@@ -900,7 +900,7 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 	for i := uint32(0); i < peersCount; i += 8 {
 		var peer PeerInfo
 		if uint32(len(data)) < i+8 {
-			return errors.New("invalid data size")
+			return errors.New("PeersMessage UnmarshalBinary: invalid data size")
 		}
 		if err := peer.UnmarshalBinary(data[i : i+8]); err != nil {
 			return err
@@ -1325,7 +1325,7 @@ func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 	}
 
 	if uint32(len(data)) < 17+h.PayloadLength {
-		return errors.New("invalid data size")
+		return errors.New("BlockMessage UnmarshalBinary: invalid data size")
 	}
 	m.BlockBytes = make([]byte, h.PayloadLength)
 	copy(m.BlockBytes, data[17:17+h.PayloadLength])
@@ -1700,7 +1700,7 @@ func (m *PBTransactionMessage) UnmarshalBinary(data []byte) error {
 	// TODO check max length
 	m.Transaction = make([]byte, h.PayloadLength)
 	if uint32(len(data)) < MaxHeaderLength+h.PayloadLength {
-		return errors.New("invalid data size")
+		return errors.New("PBTransactionMessage UnmarshalBinary: invalid data size")
 	}
 	copy(m.Transaction, data[MaxHeaderLength:MaxHeaderLength+h.PayloadLength])
 	dig, err := crypto.FastHash(m.Transaction)

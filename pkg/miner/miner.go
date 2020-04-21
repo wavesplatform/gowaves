@@ -62,7 +62,6 @@ func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k
 		return nil, proto.MiningLimits{}, err
 	}
 	b := bi.(*proto.Block)
-	zap.S().Debugf("Miner: generated new block id: %s, time: %d, block: %+v", b.BlockID().String(), t, b)
 
 	rest := proto.MiningLimits{
 		MaxScriptRunsInBlock:        a.constraints.MaxScriptRunsInBlock,

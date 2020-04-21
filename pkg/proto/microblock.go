@@ -21,7 +21,8 @@ const (
 type MicroBlock struct {
 	VersionField byte
 	// Reference for previous block.
-	Reference             BlockID
+	Reference BlockID
+	// block signature
 	TotalResBlockSigField crypto.Signature
 	TransactionCount      uint32
 	Transactions          Transactions
@@ -385,7 +386,7 @@ func (a *MicroBlockInv) UnmarshalBinary(data []byte) error {
 	sigId := len(data) == MicroBlockInvSizeSig
 	hashId := len(data) == MicroBlockInvSizeHash
 	if !sigId && !hashId {
-		return errors.New("invalid data size")
+		return errors.Errorf("MicroBlockInv UnmarshalBinary: invalid data size, expected to be %d or %d, found %d", MicroBlockInvSizeSig, MicroBlockInvSizeHash, len(data))
 	}
 	var err error
 	d := deserializer.NewDeserializer(data)
@@ -545,7 +546,7 @@ func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	if h.PayloadLength < crypto.DigestSize {
-		return errors.New("invalid data size")
+		return errors.New("PBMicroBlockMessage UnmarshalBinary: invalid data size")
 	}
 	data = data[17:]
 

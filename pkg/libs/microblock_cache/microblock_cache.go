@@ -15,8 +15,8 @@ func NewMicroblockCache() *MicroblockCache {
 	}
 }
 
-func (a *MicroblockCache) Add(micro *proto.MicroBlock) {
-	a.cache.Add2(micro.TotalResBlockSigField.Bytes(), micro)
+func (a *MicroblockCache) Add(blockID proto.BlockID, micro *proto.MicroBlock) {
+	a.cache.Add2(blockID.Bytes(), micro)
 }
 
 func (a *MicroblockCache) Get(sig proto.BlockID) (*proto.MicroBlock, bool) {
@@ -25,4 +25,26 @@ func (a *MicroblockCache) Get(sig proto.BlockID) (*proto.MicroBlock, bool) {
 		return nil, false
 	}
 	return rs.(*proto.MicroBlock), true
+}
+
+type MicroblockInvCache struct {
+	cache *fifo_cache.FIFOCache
+}
+
+func NewMicroblockInvCache() *MicroblockInvCache {
+	return &MicroblockInvCache{
+		cache: fifo_cache.New(24),
+	}
+}
+
+func (a *MicroblockInvCache) Add(blockID proto.BlockID, micro *proto.MicroBlockInv) {
+	a.cache.Add2(blockID.Bytes(), micro)
+}
+
+func (a *MicroblockInvCache) Get(sig proto.BlockID) (*proto.MicroBlockInv, bool) {
+	rs, ok := a.cache.Get(sig.Bytes())
+	if !ok {
+		return nil, false
+	}
+	return rs.(*proto.MicroBlockInv), true
 }

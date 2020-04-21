@@ -14,8 +14,13 @@ type BlocksApplier interface {
 }
 
 type MicroBlockCache interface {
-	Add(micro *proto.MicroBlock)
+	Add(blockID proto.BlockID, micro *proto.MicroBlock)
 	Get(proto.BlockID) (*proto.MicroBlock, bool)
+}
+
+type MicroBlockInvCache interface {
+	Add(blockID proto.BlockID, micro *proto.MicroBlockInv)
+	Get(proto.BlockID) (*proto.MicroBlockInv, bool)
 }
 
 type Services struct {

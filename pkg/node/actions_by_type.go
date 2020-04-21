@@ -152,9 +152,7 @@ func MicroBlockRequestAction(services services.Services, mess peer.ProtoMessage,
 		return fsm, nil, err
 	}
 	micro, ok := services.MicroBlockCache.Get(blockID)
-	zap.S().Info("MicroBlockRequestAction, micro total ", micro.TotalResBlockSigField)
 	if ok {
-		zap.S().Info("MicroBlockRequestAction, micro total ", micro.TotalResBlockSigField, " found")
 		bts, err := micro.MarshalBinary()
 		if err != nil {
 			return fsm, nil, err
@@ -170,7 +168,6 @@ func MicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm st
 	if err != nil {
 		return fsm, nil, err
 	}
-	services.MicroBlockCache.Add(micro)
 	return fsm.MicroBlock(mess.ID, micro)
 }
 
@@ -192,7 +189,6 @@ func PBMicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm 
 	if err != nil {
 		return fsm, nil, err
 	}
-	services.MicroBlockCache.Add(micro)
 	return fsm.MicroBlock(mess.ID, micro)
 }
 

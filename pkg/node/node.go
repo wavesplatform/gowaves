@@ -120,7 +120,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
-	fsm, async, err := state_fsm.NewFsm(a.services, a.outdate, proto.NewBlockCreator(a.services.Scheme))
+	fsm, async, err := state_fsm.NewFsm(a.services, a.outdate)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -137,6 +137,12 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 			case *messages.HaltMessage:
 				fsm, async, err = fsm.Halt()
 				t.Complete()
+			case *messages.BroadcastTransaction:
+				fsm, async, err = fsm.Transaction(nil, t.Transaction)
+				select {
+				case t.Response <- err:
+				default:
+				}
 			default:
 				zap.S().Errorf("unknown internalMess %T", t)
 				continue

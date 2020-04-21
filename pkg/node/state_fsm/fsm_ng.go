@@ -41,6 +41,7 @@ func (a *NGFsm) Halt() (FSM, Async, error) {
 }
 
 func NewNGFsm12(info BaseInfo) *NGFsm {
+	info.Reschedule()
 	return &NGFsm{
 		BaseInfo: info,
 	}
@@ -92,22 +93,38 @@ func (a *NGFsm) GetPeers(peer peer.Peer) (FSM, Async, error) {
 	return sendPeers(a, peer, a.peers)
 }
 
+// received microblock
 func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error) {
-	// TODO check if it really need
-	defer a.Reschedule()
-	if micro.Reference.IsSignature() {
-		return a.microBlockBySignature(micro)
-	} else {
-		return a.microBlockByID(micro)
+	defer a.BaseInfo.Reschedule()
+	_, _, err := a.microBlockByID(micro)
+	if err != nil {
+		return a, nil, err
 	}
+	a.MicroBlockCache.Add(a.storage.TopBlock().BlockID(), micro)
+	inv, ok := a.MicroBlockInvCache.Get(a.storage.TopBlock().BlockID())
+	if ok {
+		invBts, err := inv.MarshalBinary()
+		if err == nil {
+			a.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
+				p.SendMessage(
+					&proto.MicroBlockInvMessage{
+						Body: invBts,
+					},
+				)
+			})
+		} else {
+			zap.S().Errorf("NGFsm.MicroBlock inv.MarshalBinary %q", err)
+		}
+	}
+	return a, nil, nil
 }
 
 func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
+	defer a.Reschedule()
 	block, micro, rest, err := a.microMiner.Micro(minedBlock, rest, keyPair, vrf)
 	if err == miner.NoTransactionsErr {
 		return a, Tasks(NewMineMicroTask(5*time.Second, minedBlock, rest, keyPair, vrf)), nil
 	}
-	defer a.Reschedule()
 	if err != nil {
 		return a, nil, errors.Wrap(err, "NGFsm.mineMicro")
 	}
@@ -117,7 +134,10 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 	if err != nil {
 		return a, nil, err
 	}
-	inv := proto.NewUnsignedMicroblockInv(micro.SenderPK, proto.NewBlockIDFromSignature(micro.TotalResBlockSigField), micro.Reference)
+	inv := proto.NewUnsignedMicroblockInv(
+		micro.SenderPK,
+		block.ID,
+		micro.Reference)
 	err = inv.Sign(keyPair.Secret, a.scheme)
 	if err != nil {
 		return a, nil, err
@@ -126,7 +146,8 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 	if err != nil {
 		return a, nil, err
 	}
-	a.MicroBlockCache.Add(micro)
+	a.MicroBlockCache.Add(block.ID, micro)
+	a.MicroBlockInvCache.Add(block.ID, inv)
 	// TODO wrap
 	a.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
 		p.SendMessage(
@@ -160,35 +181,12 @@ func (a *NGFsm) microBlockByID(micro *proto.MicroBlock) (FSM, Async, error) {
 	if !ok {
 		return a, nil, errors.New("incorrect signature for applied microblock")
 	}
+	err = newBlock.GenerateBlockID(a.scheme)
+	if err != nil {
+		return a, nil, errors.Wrap(err, "NGFsm microBlockByID: failed generate block id")
+	}
 	err = a.storage.Map(func(state state.State) error {
-		return a.blocksApplier.Apply(state, []*proto.Block{b})
-	})
-	if err != nil {
-		return a, nil, errors.Wrap(err, "failed to apply created from micro block")
-	}
-	return a, nil, nil
-}
-
-func (a *NGFsm) microBlockBySignature(micro *proto.MicroBlock) (FSM, Async, error) {
-	b, err := a.storage.Block(a.storage.TopBlock().BlockID())
-	if err != nil {
-		return a, nil, err
-	}
-	newTrs := b.Transactions.Join(micro.Transactions)
-	newBlock, err := proto.CreateBlock(newTrs, b.Timestamp, b.Parent, b.GenPublicKey, b.NxtConsensus, b.Version, b.Features, b.RewardVote, a.scheme)
-	if err != nil {
-		return a, nil, err
-	}
-	newBlock.BlockSignature = micro.TotalResBlockSigField
-	ok, err := newBlock.VerifySignature(a.scheme)
-	if err != nil {
-		return a, nil, err
-	}
-	if !ok {
-		return a, nil, errors.New("incorrect signature for applied microblock")
-	}
-	err = a.storage.Map(func(state state.NonThreadSafeState) error {
-		return a.blocksApplier.Apply(state, []*proto.Block{b})
+		return a.blocksApplier.Apply(state, []*proto.Block{newBlock})
 	})
 	if err != nil {
 		return a, nil, errors.Wrap(err, "failed to apply created from micro block")
@@ -197,8 +195,8 @@ func (a *NGFsm) microBlockBySignature(micro *proto.MicroBlock) (FSM, Async, erro
 }
 
 func (a *NGFsm) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Async, error) {
-	zap.S().Info("got inv, requesting microblock")
 	a.invRequester.Request(p, inv.TotalBlockID.Bytes())
+	a.MicroBlockInvCache.Add(inv.TotalBlockID, inv)
 	return a, nil, nil
 }
 
