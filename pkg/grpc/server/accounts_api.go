@@ -5,7 +5,8 @@ import (
 
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/pkg/errors"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -33,7 +34,7 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 			if err != nil {
 				return status.Errorf(codes.NotFound, err.Error())
 			}
-			res.Balance = &g.BalanceResponse_Asset{Asset: &g.Amount{AssetId: asset, Amount: int64(balance)}}
+			res.Balance = &g.BalanceResponse_Asset{Asset: &pb.Amount{AssetId: asset, Amount: int64(balance)}}
 		}
 		if err := srv.Send(&res); err != nil {
 			return status.Errorf(codes.Internal, err.Error())

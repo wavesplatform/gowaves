@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/deserializer"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )

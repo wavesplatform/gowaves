@@ -9,7 +9,7 @@ import (
 	pb "github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
 func TestScriptResultBinaryRoundTrip(t *testing.T) {

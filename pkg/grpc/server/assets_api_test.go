@@ -7,7 +7,7 @@ import (
 	protobuf "github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 )
 
 func TestGetInfo(t *testing.T) {

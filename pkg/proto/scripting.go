@@ -6,7 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
 // ScriptAction common interface of script invocation actions.

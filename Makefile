@@ -154,3 +154,7 @@ mock:
 	mockgen -source pkg/p2p/peer/peer.go -destination pkg/mock/peer.go -package mock Peer
 	mockgen -source pkg/state/api.go -destination pkg/mock/state.go -package mock State
 	mockgen -source pkg/node/state_fsm/default.go -destination pkg/node/state_fsm/default_mock.go -package state_fsm Default
+
+proto:
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=plugins=grpc:$(GOPATH)/src pkg/grpc/protobuf-schemas/proto/waves/*.proto
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=plugins=grpc:$(GOPATH)/src pkg/grpc/protobuf-schemas/proto/waves/node/grpc/*.proto
