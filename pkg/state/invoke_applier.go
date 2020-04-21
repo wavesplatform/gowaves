@@ -174,14 +174,14 @@ func (ia *invokeApplier) saveDiff(diff txDiff, info *invokeAddlInfo) error {
 	return nil
 }
 
-func (ia *invokeApplier) createTxDiff(tx *proto.InvokeScriptWithProofs, info *invokeAddlInfo) (txBalanceChanges, error) {
+func (ia *invokeApplier) createTxDiff(tx *proto.InvokeScriptWithProofs, info *invokeAddlInfo, status bool) (txBalanceChanges, error) {
 	if info.validatingUtx {
 		return ia.txHandler.createDiffTx(tx, &differInfo{
 			initialisation: false,
 			blockInfo:      &proto.BlockInfo{Timestamp: info.block.Timestamp},
 		})
 	}
-	return ia.blockDiffer.createTransactionDiff(tx, info.block, info.height, info.hitSource, info.initialisation)
+	return ia.blockDiffer.createTransactionDiff(tx, info.block, info.height, info.hitSource, info.initialisation, status)
 }
 
 func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction, initialisation bool) error {
@@ -284,7 +284,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	}
 	// Perform fee and payment changes first.
 	// Basic differ for InvokeScript creates only fee and payment diff.
-	feeAndPaymentChanges, err := ia.createTxDiff(tx, info)
+	feeAndPaymentChanges, err := ia.createTxDiff(tx, info, true) //todo: use real status
 	if err != nil {
 		return nil, false, err
 	}

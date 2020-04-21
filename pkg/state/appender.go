@@ -151,59 +151,6 @@ func (a *txAppender) orderIsScripted(order proto.Order, initialisation bool) (bo
 	return a.txHandler.tc.orderScriptedAccount(order, initialisation)
 }
 
-func (a *txAppender) handleExchange(ride4DAppsActivated bool, tx proto.Transaction, blockInfo *proto.BlockInfo, initialisation bool) (uint64, bool, error) {
-	// Smart account trading.
-	smartAccountTradingActivated, err := a.stor.features.isActivated(int16(settings.SmartAccountTrading))
-	if err != nil {
-		return 0, false, err
-	}
-	acceptFailedActivated, err := a.stor.features.isActivated(int16(settings.AcceptFailedScriptTransaction))
-	if err != nil {
-		return 0, false, err
-	}
-	if !smartAccountTradingActivated {
-		// Functionality is not yet activated.
-		return 0, false, nil
-	}
-	exchange, ok := tx.(proto.Exchange)
-	if !ok {
-		return 0, false, errors.New("failed to convert tx to Exchange")
-	}
-	o1 := exchange.GetOrder1()
-	o2 := exchange.GetOrder2()
-	o1Scripted, err := a.orderIsScripted(o1, initialisation)
-	if err != nil {
-		return 0, false, err
-	}
-	o2Scripted, err := a.orderIsScripted(o2, initialisation)
-	if err != nil {
-		return 0, false, err
-	}
-	scriptsRuns := uint64(0)
-	failureStatus := false
-	if o1Scripted {
-		fs, err := a.sc.callAccountScriptWithOrder(o1, blockInfo, initialisation, acceptFailedActivated)
-		if err != nil {
-			return 0, false, errors.Wrap(err, "Failed to call script on first order")
-		}
-		failureStatus = failureStatus || fs
-		scriptsRuns++
-	}
-	if o2Scripted {
-		fs, err := a.sc.callAccountScriptWithOrder(o2, blockInfo, initialisation, acceptFailedActivated)
-		if err != nil {
-			return 0, false, errors.Wrap(err, "Failed to call script on second order")
-		}
-		failureStatus = failureStatus || fs
-		scriptsRuns++
-	}
-	if !ride4DAppsActivated {
-		// Don't count before Ride4DApps activation.
-		scriptsRuns = 0
-	}
-	return scriptsRuns, failureStatus, nil
-}
-
 // For UTX validation, this returns the last stable block, which is in fact
 // current block.
 // For appendBlock(), this returns block that is currently being added.
@@ -292,23 +239,91 @@ func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScript
 		}
 		scriptsRuns++
 	}
-	if tx.GetTypeInfo().Type == proto.ExchangeTransaction {
-		var exchangeScripsRuns uint64
-		exchangeScripsRuns, fs, err := a.handleExchange(ride4DAppsActivated, tx, blockInfo, checkerInfo.initialisation)
-		if err != nil {
-			return 0, err
-		}
-		if !fs {
-			return 0, errors.New("script failure")
-		}
-		scriptsRuns += exchangeScripsRuns
-	}
 	return scriptsRuns, nil
 }
 
 func (a *txAppender) checkExchangeTransactionScripts(tx proto.Transaction, accountScripted bool, checkerInfo *checkerInfo, blockInfo *proto.BlockInfo, acceptFailed bool) (uint64, bool, error) {
-	//TODO: implement
-	return 0, false, nil
+	exchange, ok := tx.(proto.Exchange)
+	if !ok {
+		return 0, false, errors.New("failed to convert transaction to Exchange")
+	}
+	scriptsRuns := uint64(0)
+	// Check script on account
+	if accountScripted {
+		// Check script.
+		ok, err := a.sc.callAccountScriptWithTx(tx, blockInfo, checkerInfo.initialisation, acceptFailed)
+		if err != nil {
+			return 0, false, err
+		}
+		scriptsRuns++
+		if !ok {
+			return scriptsRuns, ok, nil
+		}
+	}
+	// Validate transaction, orders and extract smart assets
+	txSmartAssets, err := a.txHandler.checkTx(tx, checkerInfo)
+	if err != nil {
+		return 0, false, err
+	}
+	// Smart account trading.
+	smartAccountTradingActivated, err := a.stor.features.isActivated(int16(settings.SmartAccountTrading))
+	if err != nil {
+		return 0, false, err
+	}
+	// Check smart assets' scripts
+	for _, smartAsset := range txSmartAssets {
+		ok, err := a.sc.callAssetScript(tx, smartAsset, blockInfo, checkerInfo.initialisation, acceptFailed)
+		if err != nil {
+			return 0, false, err
+		}
+		scriptsRuns++
+		if !ok {
+			return scriptsRuns, ok, nil
+		}
+	}
+	if !smartAccountTradingActivated {
+		// Following checks are not required because functionality is not yet activated.
+		return scriptsRuns, true, nil
+	}
+	o1 := exchange.GetOrder1()
+	o2 := exchange.GetOrder2()
+	o1Scripted, err := a.orderIsScripted(o1, checkerInfo.initialisation)
+	if err != nil {
+		return 0, false, err
+	}
+	o2Scripted, err := a.orderIsScripted(o2, checkerInfo.initialisation)
+	if err != nil {
+		return 0, false, err
+	}
+	if o1Scripted {
+		ok, err := a.sc.callAccountScriptWithOrder(o1, blockInfo, checkerInfo.initialisation, acceptFailed)
+		if err != nil {
+			return 0, false, errors.Wrap(err, "failed to call script on first order")
+		}
+		scriptsRuns++
+		if !ok {
+			return scriptsRuns, ok, nil
+		}
+	}
+	if o2Scripted {
+		ok, err := a.sc.callAccountScriptWithOrder(o2, blockInfo, checkerInfo.initialisation, acceptFailed)
+		if err != nil {
+			return 0, false, errors.Wrap(err, "failed to call script on second order")
+		}
+		scriptsRuns++
+		if !ok {
+			return scriptsRuns, ok, nil
+		}
+	}
+	ride4DAppsActivated, err := a.stor.features.isActivated(int16(settings.Ride4DApps))
+	if err != nil {
+		return 0, false, err
+	}
+	if !ride4DAppsActivated {
+		// Don't count before Ride4DApps activation.
+		scriptsRuns = 0
+	}
+	return scriptsRuns, true, nil
 }
 
 func (a *txAppender) checkScriptsLimits(scriptsRuns uint64) error {
@@ -453,9 +468,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 				return errors.Errorf("not enough balance to pay transaction's fees")
 			}
 		}
-		// Failure status indicates that Invoke or Exchange transaction's scripts have failed
-		// but it have to be stored in state anyway.
-		failure := false
+		// Status indicates that Invoke or Exchange transaction's scripts may have failed
+		// but it have to be stored in state anyway. For other transactions it always true.
+		status := true
 		// The list of addresses that was used in transaction, to store the link to the transaction in extended API
 		var addresses []proto.Address
 		var scriptsRuns uint64
@@ -480,20 +495,20 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 				hitSource:          blockInfo.VRF,
 				validatingUtx:      false,
 			}
-			addresses, failure, err = a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo, acceptFailedActivated)
+			addresses, status, err = a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo, acceptFailedActivated)
 			if err != nil {
 				return errors.Errorf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
 			}
 		case proto.ExchangeTransaction:
 			// Exchange is handled in a special way also
-			//TODO: use failure status
-			txScriptsRuns, _, err := a.checkExchangeTransactionScripts(tx, accountHasVerifierScript, checkerInfo, blockInfo, acceptFailedActivated)
+			var txScriptsRuns uint64
+			txScriptsRuns, status, err = a.checkExchangeTransactionScripts(tx, accountHasVerifierScript, checkerInfo, blockInfo, acceptFailedActivated)
 			if err != nil {
 				return err
 			}
 			scriptsRuns += txScriptsRuns
 			// Create balance diff of this tx.
-			txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, blockInfo.VRF, params.initialisation)
+			txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, blockInfo.VRF, params.initialisation, status)
 			if err != nil {
 				return err
 			}
@@ -510,7 +525,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			}
 			scriptsRuns += txScriptsRuns
 			// Create balance diff of this tx.
-			txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, blockInfo.VRF, params.initialisation)
+			txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, curHeight, blockInfo.VRF, params.initialisation, true)
 			if err != nil {
 				return err
 			}
@@ -534,7 +549,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return err
 		}
 		// Save transaction to storage.
-		if err := a.rw.writeTransaction(tx, failure); err != nil {
+		if err := a.rw.writeTransaction(tx, !status); err != nil {
 			return err
 		}
 		// Store additional data for API: transaction by address.
@@ -591,11 +606,8 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, height uint64, block *pr
 		height:             height,
 		validatingUtx:      true,
 	}
-	_, failed, err := a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo, false)
+	_, _, err := a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo, acceptFailed)
 	if err != nil {
-		if acceptFailed && failed {
-			return nil
-		}
 		return errors.Wrap(err, "InvokeScript validation failed")
 	}
 	return nil
@@ -651,12 +663,16 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	}
 
 	txScriptsRuns := uint64(0)
+	ok := true
 	switch tx.GetTypeInfo().Type {
 	case proto.InvokeScriptTransaction:
 		// Invoke is handled in a special way.
-		return a.handleInvoke(tx, height, block, txScriptsRuns, acceptFailed)
+		return a.handleInvoke(tx, height, block, txScriptsRuns, acceptFailed) //todo: check
 	case proto.ExchangeTransaction:
-		//TODO:
+		txScriptsRuns, ok, err = a.checkExchangeTransactionScripts(tx, scripted, checkerInfo, blockInfo, acceptFailed)
+		if err != nil {
+			return err
+		}
 	default:
 		txScriptsRuns, err = a.checkTransactionScripts(tx, scripted, checkerInfo, blockInfo)
 		if err != nil {
@@ -667,13 +683,24 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return err
 	}
 	a.totalScriptsRuns += txScriptsRuns
-	// Create, validate and save balance diff.
-	txDiff, err := a.txHandler.createDiffTx(tx, &differInfo{
-		initialisation: false,
-		blockInfo:      &proto.BlockInfo{Timestamp: currentTimestamp},
-	})
-	if err != nil {
-		return err
+	// Create, validate and save balance diff
+	var txDiff txBalanceChanges
+	if ok {
+		txDiff, err = a.txHandler.createDiffTx(tx, &differInfo{
+			initialisation: false,
+			blockInfo:      &proto.BlockInfo{Timestamp: currentTimestamp},
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		txDiff, err = a.txHandler.createFeeDiffTx(tx, &differInfo{
+			initialisation: false,
+			blockInfo:      &proto.BlockInfo{Timestamp: currentTimestamp},
+		})
+		if err != nil {
+			return err
+		}
 	}
 	changes, err := a.diffStor.changesByTxDiff(txDiff.diff)
 	if err != nil {
