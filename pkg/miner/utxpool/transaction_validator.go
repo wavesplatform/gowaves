@@ -30,7 +30,7 @@ func (a *ValidatorImpl) Validate(t proto.Transaction) error {
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
 	if currentTimestamp-lastKnownBlock.Timestamp > DELTA {
-		return errors.New("state outdate, transaction not accepted")
+		return errors.New("state outdated, transaction not accepted")
 	}
 	stateHeight, err := a.state.Height()
 	if err != nil {
