@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 )
 
@@ -24,7 +23,7 @@ func (noopReschedule) Reschedule() {
 }
 
 func TestNewFsm(t *testing.T) {
-	fsm, async, err := NewFsm(services.Services{Scheduler: noopReschedule{}}, 1000, proto.BlockCreatorImpl{})
+	fsm, async, err := NewFsm(services.Services{Scheduler: noopReschedule{}}, 1000)
 
 	require.NoError(t, err)
 	require.Equal(t, []int{tasks.ASK_PEERS, tasks.PING}, mapAsync(async))

@@ -103,7 +103,3 @@ type EmbeddedWallet interface {
 	Load(password []byte) error
 	Seeds() [][]byte
 }
-
-type BlockCreator interface {
-	FromMicroblockRow(seq proto.MicroblockRow) (*proto.Block, error)
-}

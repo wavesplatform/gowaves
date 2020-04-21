@@ -3,6 +3,7 @@ package state_fsm
 import (
 	"time"
 
+	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
@@ -15,8 +16,6 @@ import (
 )
 
 type Async []Task
-
-// TODO send score
 
 type BlocksApplier interface {
 	Apply(state storage.State, block []*proto.Block) error
@@ -39,7 +38,6 @@ type BaseInfo struct {
 
 	//
 	invRequester  InvRequester
-	blockCreater  types.BlockCreator
 	blocksApplier BlocksApplier
 
 	// default behaviour
@@ -50,7 +48,8 @@ type BaseInfo struct {
 
 	microMiner *miner.MicroMiner
 
-	MicroBlockCache services.MicroBlockCache
+	MicroBlockCache    services.MicroBlockCache
+	MicroBlockInvCache services.MicroBlockInvCache
 
 	actions Actions
 
@@ -85,7 +84,6 @@ type FSM interface {
 func NewFsm(
 	services services.Services,
 	outdatePeriod proto.Timestamp,
-	blockCreator types.BlockCreator,
 ) (FSM, Async, error) {
 	b := BaseInfo{
 		peers:         services.Peers,
@@ -96,19 +94,17 @@ func NewFsm(
 
 		//
 		invRequester:  ng.NewInvRequester(),
-		blockCreater:  blockCreator,
 		blocksApplier: services.BlocksApplier,
 
-		//
+		// TODO: need better way
 		d: DefaultImpl{},
 
-		//
 		Scheduler: services.Scheduler,
 
-		//
 		microMiner: miner.NewMicroMiner(services),
 
-		MicroBlockCache: services.MicroBlockCache,
+		MicroBlockCache:    services.MicroBlockCache,
+		MicroBlockInvCache: microblock_cache.NewMicroblockInvCache(),
 
 		actions: &ActionsImpl{services: services},
 

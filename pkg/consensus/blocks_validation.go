@@ -292,7 +292,8 @@ func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uin
 
 	var hitSource []byte
 	if vrf {
-		refGenSig, err := cv.hitSourceByHeight(pos.HeightForHit(height))
+		p := pos.HeightForHit(height)
+		refGenSig, err := cv.hitSourceByHeight(p)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate generation signature")
 		}

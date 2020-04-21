@@ -66,7 +66,7 @@ func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err = a.app.TransactionsBroadcast(b)
+	err = a.app.TransactionsBroadcast(r.Context(), b)
 	if err != nil {
 		handleError(w, err)
 		return
