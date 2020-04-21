@@ -109,19 +109,26 @@ type StateInfo interface {
 	// True if state stores additional information in order to provide extended API.
 	ProvidesExtendedApi() (bool, error)
 
-	// Map on readable state. Way to apply multiple operations under same lock
+	// True if state stores and calculates state hashes for each block height.
+	ProvidesStateHashes() (bool, error)
+
+	// State hashes.
+	StateHashAtHeight(height uint64) (*proto.StateHash, error)
+
+	// Map on readable state. Way to apply multiple operations under same lock.
 	MapR(func(StateInfo) (interface{}, error)) (interface{}, error)
 
-	// HitSourceAtHeight reads hit source stored in state
+	// HitSourceAtHeight reads hit source stored in state.
 	HitSourceAtHeight(height proto.Height) ([]byte, error)
 
-	// BlockVRF calculates VRF for given block
+	// BlockVRF calculates VRF for given block.
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 
-	// ShouldPersisAddressTransactions check persist should be called
+	// ShouldPersisAddressTransactions checks if PersisAddressTransactions
+	// should be called.
 	ShouldPersisAddressTransactions() (bool, error)
 
-	// PersisAddressTransactions sort and save transactions to storage
+	// PersisAddressTransactions sorts and saves transactions to storage.
 	PersisAddressTransactions() error
 }
 
@@ -159,10 +166,10 @@ type StateModifier interface {
 	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
 	ResetValidationList()
 
-	// func internally calls ResetValidationList
+	// Func internally calls ResetValidationList.
 	TxValidation(func(validation TxValidation) error) error
 
-	// way to call multiple operation under same lock
+	// Way to call multiple operations under same lock.
 	Map(func(state NonThreadSafeState) error) error
 
 	// Create or replace Peers.
@@ -243,6 +250,8 @@ type StateParams struct {
 	StoreExtendedApiData bool
 	// ProvideExtendedApi specifies whether state must provide data for extended API.
 	ProvideExtendedApi bool
+	// BuildStateHashes enables building and storing state hashes by height.
+	BuildStateHashes bool
 }
 
 func DefaultStateParams() StateParams {

@@ -116,7 +116,8 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	validTx := createPayment(t)
 	err = manager.stateDB.addBlock(blockID0)
 	assert.NoError(t, err, "addBlock() failed")
-	err = manager.stor.balances.setWavesBalance(testGlobal.senderInfo.addr, &balanceProfile{validTx.Amount + validTx.Fee, 0, 0}, blockID0)
+	waves := newWavesValueFromProfile(balanceProfile{validTx.Amount + validTx.Fee, 0, 0})
+	err = manager.stor.balances.setWavesBalance(testGlobal.senderInfo.addr, waves, blockID0)
 	assert.NoError(t, err, "setWavesBalance() failed")
 	err = manager.flush(false)
 	assert.NoError(t, err, "manager.flush() failed")
@@ -471,4 +472,58 @@ func TestStateManager_TopBlock(t *testing.T) {
 	manager, err = newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
 	assert.Equal(t, correct, manager.TopBlock())
+}
+
+func TestGenesisStateHash(t *testing.T) {
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	assert.NoError(t, err, "failed to create dir for test data")
+	params := DefaultTestingStateParams()
+	params.BuildStateHashes = true
+	manager, err := newStateManager(dataDir, params, settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+
+	defer func() {
+		err := manager.Close()
+		assert.NoError(t, err, "manager.Close() failed")
+		err = os.RemoveAll(dataDir)
+		assert.NoError(t, err, "failed to remove test data dirs")
+	}()
+
+	stateHash, err := manager.StateHashAtHeight(1)
+	assert.NoError(t, err, "StateHashAtHeight failed")
+	var correctHashJs = `
+{"sponsorshipHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","blockId":"FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2","wavesBalanceHash":"211af58aa42c72d0cf546d11d7b9141a00c8394e0f5da2d8e7e9f4ba30e9ad37","accountScriptHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","aliasHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","stateHash":"fab947262e8f5f03807ee7a888c750e46d0544a04d5777f50cc6daaf5f4e8d19","leaseStatusHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","dataEntryHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","assetBalanceHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","assetScriptHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","leaseBalanceHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8"}`
+	var correctHash proto.StateHash
+	err = correctHash.UnmarshalJSON([]byte(correctHashJs))
+	assert.NoError(t, err, "failed to unmarshal correct hash JSON")
+	assert.Equal(t, correctHash, *stateHash)
+}
+
+func TestStateHashAtHeight(t *testing.T) {
+	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	assert.NoError(t, err, "failed to create dir for test data")
+	params := DefaultTestingStateParams()
+	params.BuildStateHashes = true
+	manager, err := newStateManager(dataDir, params, settings.MainNetSettings)
+	assert.NoError(t, err, "newStateManager() failed")
+
+	defer func() {
+		err := manager.Close()
+		assert.NoError(t, err, "manager.Close() failed")
+		err = os.RemoveAll(dataDir)
+		assert.NoError(t, err, "failed to remove test data dirs")
+	}()
+
+	blocksPath, err := blocksPath()
+	assert.NoError(t, err)
+	err = importer.ApplyFromFile(manager, blocksPath, 9499, 1, true)
+	assert.NoError(t, err, "ApplyFromFile() failed")
+	stateHash, err := manager.StateHashAtHeight(9500)
+	assert.NoError(t, err, "StateHashAtHeight failed")
+	var correctHashJs = `
+	{"sponsorshipHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","blockId":"2DYapXXAwxPm9WdYjS6bAY2n2fokGWeKmvHrcJy26uDfCFMognrwNEdtWEixaDxx3AahDKcdTDRNXmPVEtVumKjY","wavesBalanceHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","accountScriptHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","aliasHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","stateHash":"df48986cfee70960c977d741146ef4980ca71b20401db663eeff72c332fd8825","leaseStatusHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","dataEntryHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","assetBalanceHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","assetScriptHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","leaseBalanceHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8"}`
+	var correctHash proto.StateHash
+	err = correctHash.UnmarshalJSON([]byte(correctHashJs))
+	assert.NoError(t, err, "failed to unmarshal correct hash JSON")
+	assert.Equal(t, correctHash, *stateHash)
 }

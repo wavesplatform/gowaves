@@ -284,6 +284,18 @@ func (a *ThreadSafeReadWrapper) InvokeResultByID(invokeID crypto.Digest) (*proto
 	return a.s.InvokeResultByID(invokeID)
 }
 
+func (a *ThreadSafeReadWrapper) ProvidesStateHashes() (bool, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.ProvidesStateHashes()
+}
+
+func (a *ThreadSafeReadWrapper) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.StateHashAtHeight(height)
+}
+
 func (a *ThreadSafeReadWrapper) ProvidesExtendedApi() (bool, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

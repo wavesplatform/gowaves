@@ -1,7 +1,9 @@
 package state
 
 import (
+	"bytes"
 	"errors"
+	"io"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -22,6 +24,50 @@ func scriptBytesToAst(script proto.Script) (ast.Script, error) {
 		return ast.Script{}, err
 	}
 	return *scriptAst, nil
+}
+
+type accountScripRecordForHashes struct {
+	addr   *proto.Address
+	script proto.Script
+}
+
+func (ac *accountScripRecordForHashes) writeTo(w io.Writer) error {
+	if _, err := w.Write(ac.addr[:]); err != nil {
+		return err
+	}
+	if len(ac.script) != 0 {
+		if _, err := w.Write(ac.script[:]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ac *accountScripRecordForHashes) less(other stateComponent) bool {
+	ac2 := other.(*accountScripRecordForHashes)
+	return bytes.Compare(ac.addr[:], ac2.addr[:]) == -1
+}
+
+type assetScripRecordForHashes struct {
+	asset  []byte
+	script proto.Script
+}
+
+func (as *assetScripRecordForHashes) writeTo(w io.Writer) error {
+	if _, err := w.Write(as.asset); err != nil {
+		return err
+	}
+	if len(as.script) != 0 {
+		if _, err := w.Write(as.script[:]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (as *assetScripRecordForHashes) less(other stateComponent) bool {
+	as2 := other.(*assetScripRecordForHashes)
+	return bytes.Compare(as.asset, as2.asset) == -1
 }
 
 type scriptRecord struct {
@@ -54,14 +100,24 @@ func (r *scriptRecord) unmarshalBinary(data []byte) error {
 type scriptsStorage struct {
 	hs    *historyStorage
 	cache *lru
+
+	accountScriptsHasher *stateHasher
+	assetScriptsHasher   *stateHasher
+	calculateHashes      bool
 }
 
-func newScriptsStorage(hs *historyStorage) (*scriptsStorage, error) {
+func newScriptsStorage(hs *historyStorage, calcHashes bool) (*scriptsStorage, error) {
 	cache, err := newLru(maxCacheSize, maxCacheBytes)
 	if err != nil {
 		return nil, err
 	}
-	return &scriptsStorage{hs, cache}, nil
+	return &scriptsStorage{
+		hs:                   hs,
+		cache:                cache,
+		accountScriptsHasher: newStateHasher(),
+		assetScriptsHasher:   newStateHasher(),
+		calculateHashes:      calcHashes,
+	}, nil
 }
 
 func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key []byte, record scriptRecord, blockID proto.BlockID) error {
@@ -130,8 +186,19 @@ func (ss *scriptsStorage) scriptAstByKey(key []byte, filter bool) (ast.Script, e
 
 func (ss *scriptsStorage) setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
 	key := assetScriptKey{assetID}
+	keyBytes := key.bytes()
+	keyStr := string(keyBytes)
 	record := scriptRecord{pk: pk, script: script}
-	return ss.setScript(assetScript, key.bytes(), record, blockID)
+	if ss.calculateHashes {
+		as := &assetScripRecordForHashes{
+			asset:  assetID[:],
+			script: script,
+		}
+		if err := ss.assetScriptsHasher.push(keyStr, as, blockID); err != nil {
+			return err
+		}
+	}
+	return ss.setScript(assetScript, keyBytes, record, blockID)
 }
 
 func (ss *scriptsStorage) newestIsSmartAsset(assetID crypto.Digest, filter bool) (bool, error) {
@@ -182,8 +249,19 @@ func (ss *scriptsStorage) scriptBytesByAsset(assetID crypto.Digest, filter bool)
 
 func (ss *scriptsStorage) setAccountScript(addr proto.Address, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
 	key := accountScriptKey{addr}
+	keyBytes := key.bytes()
+	keyStr := string(keyBytes)
 	record := scriptRecord{pk: pk, script: script}
-	return ss.setScript(accountScript, key.bytes(), record, blockID)
+	if ss.calculateHashes {
+		ac := &accountScripRecordForHashes{
+			addr:   &addr,
+			script: script,
+		}
+		if err := ss.accountScriptsHasher.push(keyStr, ac, blockID); err != nil {
+			return err
+		}
+	}
+	return ss.setScript(accountScript, keyBytes, record, blockID)
 }
 
 func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.Address, filter bool) (bool, error) {
@@ -272,4 +350,22 @@ func (ss *scriptsStorage) clear() error {
 		return err
 	}
 	return nil
+}
+
+func (ss *scriptsStorage) prepareHashes() error {
+	if err := ss.accountScriptsHasher.stop(); err != nil {
+		return err
+	}
+	if err := ss.assetScriptsHasher.stop(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ss *scriptsStorage) reset() {
+	if !ss.calculateHashes {
+		return
+	}
+	ss.assetScriptsHasher.reset()
+	ss.accountScriptsHasher.reset()
 }

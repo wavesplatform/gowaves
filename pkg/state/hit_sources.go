@@ -22,8 +22,8 @@ type hitSources struct {
 	dbBatch keyvalue.Batch
 }
 
-func newHitSources(db keyvalue.KeyValue, dbBatch keyvalue.Batch) (*hitSources, error) {
-	return &hitSources{db: db, dbBatch: dbBatch}, nil
+func newHitSources(db keyvalue.KeyValue, dbBatch keyvalue.Batch) *hitSources {
+	return &hitSources{db: db, dbBatch: dbBatch}
 }
 
 func (hss *hitSources) saveHitSource(hs []byte, height uint64) error {

@@ -2,6 +2,7 @@
 package common
 
 import (
+	"encoding/base64"
 	"os"
 	"os/user"
 	"path"
@@ -150,6 +151,42 @@ func ParseDuration(str string) (uint64, error) {
 		return 0, errors.Errorf("invalid format")
 	}
 	return total, nil
+}
+
+func ToBase64JSON(b []byte) []byte {
+	s := base64.StdEncoding.EncodeToString(b)
+	var sb strings.Builder
+	sb.WriteRune('"')
+	sb.WriteString(s)
+	sb.WriteRune('"')
+	return []byte(sb.String())
+}
+
+func FromBase64JSONUnsized(value []byte, name string) ([]byte, error) {
+	s := string(value)
+	if s == "null" {
+		return nil, nil
+	}
+	s, err := strconv.Unquote(s)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal %s from JSON", name)
+	}
+	v, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to decode %s from Base64 string", name)
+	}
+	return v, nil
+}
+
+func FromBase64JSON(value []byte, size int, name string) ([]byte, error) {
+	v, err := FromBase64JSONUnsized(value, name)
+	if err != nil {
+		return nil, err
+	}
+	if l := len(v); l != size {
+		return nil, errors.Errorf("incorrect length %d of %s value, expected %d", l, name, size)
+	}
+	return v[:size], nil
 }
 
 func ToBase58JSON(b []byte) []byte {

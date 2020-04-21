@@ -249,6 +249,14 @@ func (a *MockStateManager) ProvidesExtendedApi() (bool, error) {
 	panic("implement me")
 }
 
+func (a *MockStateManager) ProvidesStateHashes() (bool, error) {
+	panic("not implemented")
+}
+
+func (a *MockStateManager) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+	panic("not implemented")
+}
+
 func (a *MockStateManager) IsNotFound(err error) bool {
 	panic("implement me")
 }

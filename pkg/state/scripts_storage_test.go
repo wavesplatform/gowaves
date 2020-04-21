@@ -18,7 +18,7 @@ func createScriptsStorageTestObjects() (*scriptsStorageTestObjects, []string, er
 	if err != nil {
 		return nil, path, err
 	}
-	scriptsStorage, err := newScriptsStorage(stor.hs)
+	scriptsStorage, err := newScriptsStorage(stor.hs, true)
 	if err != nil {
 		return nil, path, err
 	}
