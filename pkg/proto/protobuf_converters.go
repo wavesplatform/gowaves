@@ -255,7 +255,7 @@ func (c *ProtobufConverter) proof(proofs [][]byte) *crypto.Signature {
 	return &sig
 }
 
-func (c *ProtobufConverter) blockID(data []byte, v BlockVersion) BlockID {
+func (c *ProtobufConverter) blockID(data []byte) BlockID {
 	if c.err != nil {
 		return BlockID{}
 	}
@@ -338,7 +338,7 @@ func (c *ProtobufConverter) transfers(scheme byte, transfers []*g.MassTransferTr
 			c.err = errors.New("empty transfer")
 			return nil
 		}
-		rcp, err := c.Recipient(scheme, tr.Address)
+		rcp, err := c.Recipient(scheme, tr.Recipient)
 		if err != nil {
 			c.err = err
 			return nil
@@ -553,6 +553,16 @@ func (c *ProtobufConverter) BurnScriptActions(burns []*g.InvokeScriptResult_Burn
 		}
 	}
 	return res, nil
+}
+
+func (c *ProtobufConverter) ErrorMessage(msg *g.InvokeScriptResult_ErrorMessage) (*ScriptErrorMessage, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	return &ScriptErrorMessage{
+		Code: msg.Code,
+		Text: msg.Text,
+	}, nil
 }
 
 func (c *ProtobufConverter) reset() {
@@ -1082,8 +1092,9 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 	v := c.byte(mb.MicroBlock.Version)
 	res := MicroBlock{
 		VersionField:          v,
-		Reference:             c.blockID(mb.MicroBlock.Reference, BlockVersion(v)),
+		Reference:             c.blockID(mb.MicroBlock.Reference),
 		TotalResBlockSigField: c.signature(mb.MicroBlock.UpdatedBlockSignature),
+		TotalBlockID:          c.blockID(mb.TotalBlockId),
 		TransactionCount:      uint32(len(mb.MicroBlock.Transactions)),
 		Transactions:          txs,
 		SenderPK:              c.publicKey(mb.MicroBlock.SenderPublicKey),
@@ -1158,7 +1169,7 @@ func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 	header := BlockHeader{
 		Version:              v,
 		Timestamp:            c.uint64(block.Header.Timestamp),
-		Parent:               c.blockID(block.Header.Reference, v),
+		Parent:               c.blockID(block.Header.Reference),
 		FeaturesCount:        len(features),
 		Features:             features,
 		RewardVote:           block.Header.RewardVote,

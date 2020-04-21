@@ -153,9 +153,9 @@ func TestGetStatuses(t *testing.T) {
 	id2 := []byte{2}
 	ids := [][]byte{id0.Bytes(), id1, id2}
 	correstResults := []*g.TransactionStatus{
-		{Id: id0.Bytes(), Height: 1, Status: g.TransactionStatus_CONFIRMED},
-		{Id: id1, Status: g.TransactionStatus_UNCONFIRMED},
-		{Id: id2, Status: g.TransactionStatus_NOT_EXISTS},
+		{Id: id0.Bytes(), Height: 1, Status: g.TransactionStatus_CONFIRMED, ApplicationStatus: g.ApplicationStatus_SUCCEEDED},
+		{Id: id1, Status: g.TransactionStatus_UNCONFIRMED, ApplicationStatus: g.ApplicationStatus_UNKNOWN},
+		{Id: id2, Status: g.TransactionStatus_NOT_EXISTS, ApplicationStatus: g.ApplicationStatus_UNKNOWN},
 	}
 
 	req := &g.TransactionsByIdRequest{TransactionIds: ids}

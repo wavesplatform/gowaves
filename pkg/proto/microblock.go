@@ -22,8 +22,9 @@ type MicroBlock struct {
 	VersionField byte
 	// Reference for previous block.
 	Reference BlockID
-	// block signature
+	// Block signature.
 	TotalResBlockSigField crypto.Signature
+	TotalBlockID          BlockID
 	TransactionCount      uint32
 	Transactions          Transactions
 	SenderPK              crypto.PublicKey
@@ -76,7 +77,8 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 			SenderPublicKey:       a.SenderPK.Bytes(),
 			Transactions:          txs,
 		},
-		Signature: sig,
+		Signature:    sig,
+		TotalBlockId: a.TotalBlockID.Bytes(),
 	}, nil
 }
 
@@ -498,9 +500,7 @@ func (a *MicroBlockInvMessage) UnmarshalBinary(data []byte) error {
 
 // PBMicroBlockMessage represents a Protobuf MicroBlock message.
 type PBMicroBlockMessage struct {
-	// TODO: replace separate ID field with new Protobuf message later.
 	MicroBlockBytes Bytes
-	TotalBlockID    Bytes
 }
 
 func (*PBMicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
@@ -511,13 +511,9 @@ func (a *PBMicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
-	n, err := a.MicroBlockBytes.WriteTo(buf)
+	_, err := a.MicroBlockBytes.WriteTo(buf)
 	if err != nil {
-		return n, err
-	}
-	m, err := a.TotalBlockID.WriteTo(buf)
-	if err != nil {
-		return n + m, err
+		return 0, err
 	}
 
 	h, err := MakeHeader(ContentIDPBMicroBlock, buf.Bytes())
@@ -556,9 +552,6 @@ func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
 	mbBytes := data[:h.PayloadLength-crypto.DigestSize]
 	a.MicroBlockBytes = make([]byte, len(mbBytes))
 	copy(a.MicroBlockBytes, mbBytes)
-	idBytes := data[h.PayloadLength-crypto.DigestSize : h.PayloadLength]
-	a.TotalBlockID = make([]byte, crypto.DigestSize)
-	copy(a.TotalBlockID, idBytes)
 	return nil
 }
 

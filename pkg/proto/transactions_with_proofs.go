@@ -2519,7 +2519,7 @@ func (e *MassTransferEntry) ToProtobuf() (*g.MassTransferTransactionData_Transfe
 	if err != nil {
 		return nil, err
 	}
-	return &g.MassTransferTransactionData_Transfer{Address: rcpProto, Amount: int64(e.Amount)}, nil
+	return &g.MassTransferTransactionData_Transfer{Recipient: rcpProto, Amount: int64(e.Amount)}, nil
 }
 
 func (e *MassTransferEntry) MarshalBinary() ([]byte, error) {

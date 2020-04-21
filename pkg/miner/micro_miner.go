@@ -135,12 +135,13 @@ func (a *MicroMiner) Micro(
 		return nil, nil, rest, err
 	}
 	micro := proto.MicroBlock{
-		VersionField:          5, // protobuf version
+		VersionField:          byte(newBlock.Version),
 		SenderPK:              keyPair.Public,
 		Transactions:          transactions,
 		TransactionCount:      uint32(cnt),
 		Reference:             a.state.TopBlock().BlockID(),
 		TotalResBlockSigField: newBlock.BlockSignature,
+		TotalBlockID:          newBlock.BlockID(),
 	}
 
 	err = micro.Sign(sk)
@@ -149,12 +150,6 @@ func (a *MicroMiner) Micro(
 	}
 
 	zap.S().Debugf("micro_miner mined %+v", micro)
-
-	inv := proto.NewUnsignedMicroblockInv(micro.SenderPK, newBlock.BlockID(), micro.Reference)
-	err = inv.Sign(sk, a.scheme)
-	if err != nil {
-		return nil, nil, rest, err
-	}
 
 	newRest := proto.MiningLimits{
 		MaxScriptRunsInBlock:        rest.MaxScriptRunsInBlock,
