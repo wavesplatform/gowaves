@@ -110,10 +110,6 @@ func (k SecretKey) MarshalBinary() ([]byte, error) {
 	return b, nil
 }
 
-func (k SecretKey) Array() [SecretKeySize]byte {
-	return k
-}
-
 func (k *SecretKey) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < SecretKeySize {
 		return errors.Errorf("failed unmarshal SecretKey, required %d bytes, got %d", SecretKeySize, l)
@@ -167,10 +163,6 @@ func NewSecretKeyFromBytes(b []byte) (SecretKey, error) {
 }
 
 type PublicKey [PublicKeySize]byte
-
-func (k PublicKey) Array() [PublicKeySize]byte {
-	return k
-}
 
 func (k PublicKey) MarshalBinary() ([]byte, error) {
 	b := make([]byte, PublicKeySize)
