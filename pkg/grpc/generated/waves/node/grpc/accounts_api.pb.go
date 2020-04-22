@@ -6,13 +6,14 @@ package grpc
 import (
 	context "context"
 	fmt "fmt"
+	math "math"
+
 	proto "github.com/golang/protobuf/proto"
 	wrappers "github.com/golang/protobuf/ptypes/wrappers"
 	waves "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -430,7 +431,9 @@ func init() {
 	proto.RegisterType((*ScriptData)(nil), "waves.node.grpc.ScriptData")
 }
 
-func init() { proto.RegisterFile("waves/node/grpc/accounts_api.proto", fileDescriptor_e4fbafb2c22317fb) }
+func init() {
+	proto.RegisterFile("waves/node/grpc/accounts_api.proto", fileDescriptor_e4fbafb2c22317fb)
+}
 
 var fileDescriptor_e4fbafb2c22317fb = []byte{
 	// 661 bytes of a gzipped FileDescriptorProto
