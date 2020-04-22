@@ -97,7 +97,7 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		}
 		fee += uint64((len(dtxBytes) - 1) / 1024)
 	case proto.ReissueTransaction:
-		multiPayerActive, err := params.stor.features.isActivated(int16(settings.MultiPaymentInvokeScript))
+		multiPayerActive, err := params.stor.features.isActivated(int16(settings.BlockV5))
 		if err != nil {
 			return 0, err
 		}

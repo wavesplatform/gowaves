@@ -17,9 +17,7 @@ const (
 	OrderV3
 	ReduceNFTFee
 	BlockReward // 14
-	BlockV5
-	MultiPaymentInvokeScript // RIDE V4
-	AcceptFailedScriptTransaction
+	BlockV5     // 15
 	LeaseExpiration
 )
 
@@ -43,8 +41,6 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	OrderV3:                         {true, "Order Version 3"},
 	ReduceNFTFee:                    {true, "Reduce NFT fee"},
 	BlockReward:                     {true, "Block Reward and Community Driven Monetary Policy"},
-	BlockV5:                         {true, "VRF and Protobuf"},
-	MultiPaymentInvokeScript:        {true, "Ride V4 and multiple attached payments for Invoke Script Transaction"},
-	AcceptFailedScriptTransaction:   {true, "Accept transactions with failed script result"},
+	BlockV5:                         {true, "Ride V4, VRF, Protobuf, Failed transactions"},
 	LeaseExpiration:                 {false, "Lease Expiration"},
 }

@@ -227,10 +227,6 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	if err != nil {
 		return nil, false, errors.Wrap(err, "recipientToAddress() failed")
 	}
-	multiPaymentActivated, err := ia.stor.features.isActivated(int16(settings.MultiPaymentInvokeScript))
-	if err != nil {
-		return nil, false, errors.Wrap(err, "failed to apply script invocation")
-	}
 	script, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
 	if err != nil {
 		return nil, false, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
@@ -244,8 +240,8 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	if len(tx.Payments) == 2 && script.Version < 4 {
 		return nil, false, errors.Errorf("multiple payments is not allowed for RIDE library version %d", script.Version)
 	}
-	// Refuse payments to DApp itself since activation of MultiPaymentInvokeScript (RIDE V4) and for DApps with StdLib V4
-	disableSelfTransfers := multiPaymentActivated && script.Version >= 4
+	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4
+	disableSelfTransfers := acceptFailed && script.Version >= 4
 	if disableSelfTransfers && len(tx.Payments) > 0 {
 		sender, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, tx.SenderPK)
 		if err != nil {
@@ -255,12 +251,14 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 			return nil, false, errors.New("paying to DApp itself is forbidden since RIDE V4")
 		}
 	}
+	ok := true
 	scriptActions, err := ia.sc.invokeFunction(script, tx, blockInfo, *scriptAddr, info.initialisation)
 	if err != nil {
 		if acceptFailed {
-			return nil, false, nil
+			ok = false
+		} else {
+			return nil, false, errors.Wrap(err, "invokeFunction() failed")
 		}
-		return nil, false, errors.Wrap(err, "invokeFunction() failed")
 	}
 	// Resolve all aliases in .
 	// It have to be done before validation because we validate addresses, not aliases.
@@ -274,6 +272,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	}
 	if ia.buildApiData {
 		// Save invoke result for extended API.
+		// TODO: add saving of failure status to script result
 		res, err := proto.NewScriptResult(scriptActions)
 		if err != nil {
 			return nil, false, errors.Wrap(err, "failed to save script result")
@@ -284,208 +283,221 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	}
 	// Perform fee and payment changes first.
 	// Basic differ for InvokeScript creates only fee and payment diff.
-	feeAndPaymentChanges, err := ia.createTxDiff(tx, info, true) //todo: use real status
+	accountsChanges, err := ia.createTxDiff(tx, info, ok)
 	if err != nil {
 		return nil, false, err
 	}
-	totalChanges := feeAndPaymentChanges
+	totalChanges := accountsChanges.clone()
 	commonDiff := totalChanges.diff
-	if err := ia.saveIntermediateDiff(commonDiff); err != nil {
-		return nil, false, err
-	}
-
 	scriptRuns := info.previousScriptRuns
-	failureStatus := false
-	for _, action := range scriptActions {
-		switch a := action.(type) {
-		case *proto.DataEntryScriptAction:
-			// Perform data storage writes.
-			if !info.validatingUtx {
-				// TODO: when UTX transactions are validated, there is no block,
-				// and we can not perform state changes.
-				if err := ia.stor.accountsDataStor.appendEntry(*scriptAddr, a.Entry, info.block.BlockID()); err != nil {
-					return nil, false, err
+	if ok {
+		if err := ia.saveIntermediateDiff(commonDiff); err != nil {
+			return nil, false, err
+		}
+		for _, action := range scriptActions {
+			switch a := action.(type) {
+			case *proto.DataEntryScriptAction:
+				// Perform data storage writes.
+				if !info.validatingUtx {
+					// TODO: when UTX transactions are validated, there is no block,
+					// and we can not perform state changes.
+					if err := ia.stor.accountsDataStor.appendEntry(*scriptAddr, a.Entry, info.block.BlockID()); err != nil {
+						return nil, false, err
+					}
 				}
-			}
 
-		case *proto.TransferScriptAction:
-			// Perform transfers.
-			addr := a.Recipient.Address
-			totalChanges.appendAddr(*addr)
-			assetExists := ia.stor.assets.newestAssetExists(a.Asset, !info.initialisation)
-			if !assetExists {
-				return nil, false, errors.New("invalid asset in transfer")
-			}
-			isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(a.Asset.ID, !info.initialisation)
-			if err != nil {
-				return nil, false, err
-			}
-			if isSmartAsset {
-				fullTr, err := proto.NewFullScriptTransfer(a, tx)
+			case *proto.TransferScriptAction:
+				// Perform transfers.
+				addr := a.Recipient.Address
+				totalChanges.appendAddr(*addr)
+				assetExists := ia.stor.assets.newestAssetExists(a.Asset, !info.initialisation)
+				if !assetExists {
+					return nil, false, errors.New("invalid asset in transfer")
+				}
+				isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(a.Asset.ID, !info.initialisation)
 				if err != nil {
-					return nil, false, errors.Wrap(err, "failed to convert transfer to full script transfer")
+					return nil, false, err
 				}
-				// Call asset script if transferring smart asset.
-				fs, err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, blockInfo, info.initialisation, acceptFailed)
+				if isSmartAsset {
+					fullTr, err := proto.NewFullScriptTransfer(a, tx)
+					if err != nil {
+						return nil, false, errors.Wrap(err, "failed to convert transfer to full script transfer")
+					}
+					// Call asset script if transferring smart asset.
+					ok, err = ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, blockInfo, info.initialisation, acceptFailed)
+					if err != nil {
+						return nil, false, errors.Wrap(err, "asset script failed on transfer set")
+					}
+					if ok {
+						scriptRuns++
+					} else {
+						break
+					}
+				}
+				txDiff, err := ia.newTxDiffFromScriptTransfer(scriptAddr, a, info)
 				if err != nil {
-					return nil, false, errors.Wrap(err, "asset script failed on transfer set")
-				}
-				failureStatus = failureStatus || fs
-				scriptRuns++
-			}
-			// Perform transfer.
-			txDiff, err := ia.newTxDiffFromScriptTransfer(scriptAddr, a, info)
-			if err != nil {
-				return nil, false, err
-			}
-			// diff must be saved to storage, because further asset scripts must take
-			// recent balance changes into account.
-			if err := ia.saveIntermediateDiff(txDiff); err != nil {
-				return nil, false, err
-			}
-			// Append intermediate diff to common diff.
-			for key, balanceDiff := range txDiff {
-				if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
 					return nil, false, err
 				}
-			}
+				// diff must be saved to storage, because further asset scripts must take
+				// recent balance changes into account.
+				if err := ia.saveIntermediateDiff(txDiff); err != nil {
+					return nil, false, err
+				}
+				// Append intermediate diff to common diff.
+				for key, balanceDiff := range txDiff {
+					if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+						return nil, false, err
+					}
+				}
 
-		case *proto.IssueScriptAction:
-			// Create asset's info
-			assetInfo := &assetInfo{
-				assetConstInfo: assetConstInfo{
-					issuer:   scriptPK,
-					decimals: int8(a.Decimals),
-				},
-				assetChangeableInfo: assetChangeableInfo{
-					quantity:    *big.NewInt(int64(a.Quantity)),
-					name:        a.Name,
-					description: a.Description,
-					reissuable:  a.Reissuable,
-				},
-			}
-			if !info.validatingUtx {
-				if err := ia.stor.assets.issueAsset(a.ID, assetInfo, info.block.ID); err != nil {
-					return nil, false, err
+			case *proto.IssueScriptAction:
+				// Create asset's info
+				assetInfo := &assetInfo{
+					assetConstInfo: assetConstInfo{
+						issuer:   scriptPK,
+						decimals: int8(a.Decimals),
+					},
+					assetChangeableInfo: assetChangeableInfo{
+						quantity:    *big.NewInt(int64(a.Quantity)),
+						name:        a.Name,
+						description: a.Description,
+						reissuable:  a.Reissuable,
+					},
 				}
-			}
+				if !info.validatingUtx {
+					if err := ia.stor.assets.issueAsset(a.ID, assetInfo, info.block.ID); err != nil {
+						return nil, false, err
+					}
+				}
 
-			txDiff, err := ia.newTxDiffFromScriptIssue(scriptAddr, a)
-			if err != nil {
-				return nil, false, err
-			}
-			// diff must be saved to storage, because further asset scripts must take
-			// recent balance changes into account.
-			if err := ia.saveIntermediateDiff(txDiff); err != nil {
-				return nil, false, err
-			}
-			// Append intermediate diff to common diff.
-			for key, balanceDiff := range txDiff {
-				if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+				txDiff, err := ia.newTxDiffFromScriptIssue(scriptAddr, a)
+				if err != nil {
 					return nil, false, err
 				}
-			}
+				// diff must be saved to storage, because further asset scripts must take
+				// recent balance changes into account.
+				if err := ia.saveIntermediateDiff(txDiff); err != nil {
+					return nil, false, err
+				}
+				// Append intermediate diff to common diff.
+				for key, balanceDiff := range txDiff {
+					if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+						return nil, false, err
+					}
+				}
 
-		case *proto.ReissueScriptAction:
-			// Check validity of reissue
-			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
-			if err != nil {
-				return nil, false, err
-			}
-			if assetInfo.issuer != scriptPK {
-				return nil, false, errors.New("asset was issued by other address")
-			}
-			if !assetInfo.reissuable {
-				return nil, false, errors.New("attempt to reissue asset which is not reissuable")
-			}
-			if math.MaxInt64-a.Quantity < assetInfo.quantity.Int64() && info.block.Timestamp >= ia.settings.ReissueBugWindowTimeEnd {
-				return nil, false, errors.New("asset total value overflow")
-			}
-			ok, err := ia.validateActionSmartAsset(a.AssetID, a, scriptPK, blockInfo, *tx.ID, tx.Timestamp, info.initialisation)
-			if err != nil {
-				return nil, false, err
-			}
-			if ok {
-				scriptRuns++
-			}
-			// Update asset's info
-			if !info.validatingUtx {
-				change := &assetReissueChange{
-					reissuable: a.Reissuable,
-					diff:       a.Quantity,
-				}
-				if err := ia.stor.assets.reissueAsset(a.AssetID, change, info.block.ID, !info.initialisation); err != nil {
+			case *proto.ReissueScriptAction:
+				// Check validity of reissue
+				assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
+				if err != nil {
 					return nil, false, err
 				}
-			}
-			txDiff, err := ia.newTxDiffFromScriptReissue(scriptAddr, a)
-			if err != nil {
-				return nil, false, err
-			}
-			// diff must be saved to storage, because further asset scripts must take
-			// recent balance changes into account.
-			if err := ia.saveIntermediateDiff(txDiff); err != nil {
-				return nil, false, err
-			}
-			// Append intermediate diff to common diff.
-			for key, balanceDiff := range txDiff {
-				if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+				if assetInfo.issuer != scriptPK {
+					return nil, false, errors.New("asset was issued by other address")
+				}
+				if !assetInfo.reissuable {
+					return nil, false, errors.New("attempt to reissue asset which is not reissuable")
+				}
+				if math.MaxInt64-a.Quantity < assetInfo.quantity.Int64() && info.block.Timestamp >= ia.settings.ReissueBugWindowTimeEnd {
+					return nil, false, errors.New("asset total value overflow")
+				}
+				var n uint64
+				n, ok, err = ia.validateActionSmartAsset(a.AssetID, a, scriptPK, blockInfo, *tx.ID, tx.Timestamp, info.initialisation, acceptFailed)
+				if err != nil {
 					return nil, false, err
 				}
-			}
-		case *proto.BurnScriptAction:
-			// Check burn
-			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
-			if err != nil {
-				return nil, false, err
-			}
-			burnAnyTokensEnabled, err := ia.stor.features.isActivated(int16(settings.BurnAnyTokens))
-			if err != nil {
-				return nil, false, err
-			}
-			if !burnAnyTokensEnabled && assetInfo.issuer != scriptPK {
-				return nil, false, errors.New("asset was issued by other address")
-			}
-			ok, err := ia.validateActionSmartAsset(a.AssetID, a, scriptPK, blockInfo, *tx.ID, tx.Timestamp, info.initialisation)
-			if err != nil {
-				return nil, false, err
-			}
-			if ok {
-				scriptRuns++
-			}
-			// Update asset's info
-			// Modify asset.
-			if !info.validatingUtx {
-				change := &assetBurnChange{
-					diff: int64(a.Quantity),
+				if ok {
+					scriptRuns += n
+				} else {
+					break
 				}
-				if err := ia.stor.assets.burnAsset(a.AssetID, change, info.block.ID, !info.initialisation); err != nil {
-					return nil, false, errors.Wrap(err, "failed to burn asset")
+				// Update asset's info
+				if !info.validatingUtx {
+					change := &assetReissueChange{
+						reissuable: a.Reissuable,
+						diff:       a.Quantity,
+					}
+					if err := ia.stor.assets.reissueAsset(a.AssetID, change, info.block.ID, !info.initialisation); err != nil {
+						return nil, false, err
+					}
 				}
-			}
-			txDiff, err := ia.newTxDiffFromScriptBurn(scriptAddr, a)
-			if err != nil {
-				return nil, false, err
-			}
-			// diff must be saved to storage, because further asset scripts must take
-			// recent balance changes into account.
-			if err := ia.saveIntermediateDiff(txDiff); err != nil {
-				return nil, false, err
-			}
-			// Append intermediate diff to common diff.
-			for key, balanceDiff := range txDiff {
-				if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+				txDiff, err := ia.newTxDiffFromScriptReissue(scriptAddr, a)
+				if err != nil {
 					return nil, false, err
 				}
+				// diff must be saved to storage, because further asset scripts must take
+				// recent balance changes into account.
+				if err := ia.saveIntermediateDiff(txDiff); err != nil {
+					return nil, false, err
+				}
+				// Append intermediate diff to common diff.
+				for key, balanceDiff := range txDiff {
+					if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+						return nil, false, err
+					}
+				}
+			case *proto.BurnScriptAction:
+				// Check burn
+				assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
+				if err != nil {
+					return nil, false, err
+				}
+				burnAnyTokensEnabled, err := ia.stor.features.isActivated(int16(settings.BurnAnyTokens))
+				if err != nil {
+					return nil, false, err
+				}
+				if !burnAnyTokensEnabled && assetInfo.issuer != scriptPK {
+					return nil, false, errors.New("asset was issued by other address")
+				}
+				var n uint64
+				n, ok, err = ia.validateActionSmartAsset(a.AssetID, a, scriptPK, blockInfo, *tx.ID, tx.Timestamp, info.initialisation, acceptFailed)
+				if err != nil {
+					return nil, false, err
+				}
+				if ok {
+					scriptRuns += n
+				} else {
+					break
+				}
+				// Update asset's info
+				// Modify asset.
+				if !info.validatingUtx {
+					change := &assetBurnChange{
+						diff: int64(a.Quantity),
+					}
+					if err := ia.stor.assets.burnAsset(a.AssetID, change, info.block.ID, !info.initialisation); err != nil {
+						return nil, false, errors.Wrap(err, "failed to burn asset")
+					}
+				}
+				txDiff, err := ia.newTxDiffFromScriptBurn(scriptAddr, a)
+				if err != nil {
+					return nil, false, err
+				}
+				// diff must be saved to storage, because further asset scripts must take
+				// recent balance changes into account.
+				if err := ia.saveIntermediateDiff(txDiff); err != nil {
+					return nil, false, err
+				}
+				// Append intermediate diff to common diff.
+				for key, balanceDiff := range txDiff {
+					if err := commonDiff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+						return nil, false, err
+					}
+				}
+			default:
+				return nil, false, errors.Errorf("unsupported script action '%T'", a)
 			}
-		default:
-			return nil, false, errors.Errorf("unsupported script action '%T'", a)
 		}
 	}
 	// Remove diffs from invoke stor.
 	ia.invokeDiffStor.invokeDiffsStor.reset()
 	// Add these diffs as a common diff to main stor.
-	if err := ia.saveDiff(commonDiff, info); err != nil {
+	if !ok {
+		err = ia.saveDiff(accountsChanges.diff, info)
+	} else {
+		err = ia.saveDiff(commonDiff, info)
+	}
+	if err != nil {
 		return nil, false, err
 	}
 	// Check transaction fee.
@@ -495,7 +507,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	}
 	if !sponsorshipActivated {
 		// Minimum fee is not checked before sponsorship activation.
-		return totalChanges.addresses(), false, nil
+		return totalChanges.addresses(), true, nil
 	}
 	minWavesFee := scriptExtraFee*scriptRuns + feeConstants[proto.InvokeScriptTransaction]*FeeUnit
 	wavesFee := tx.Fee
@@ -508,27 +520,25 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	if wavesFee < minWavesFee {
 		return nil, false, errors.Errorf("tx fee %d is less than minimum value of %d\n", wavesFee, minWavesFee)
 	}
-	return totalChanges.addresses(), false, nil
+	return totalChanges.addresses(), true, nil
 }
 
 func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
-	blockInfo *proto.BlockInfo, txID crypto.Digest, txTimestamp uint64, initialisation bool) (bool, error) {
+	blockInfo *proto.BlockInfo, txID crypto.Digest, txTimestamp uint64, initialisation, acceptFailed bool) (uint64, bool, error) {
 	isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(asset, !initialisation)
 	if err != nil {
-		return false, err
+		return 0, false, err
 	}
 	if isSmartAsset {
 		obj, err := ast.NewVariablesFromScriptAction(ia.settings.AddressSchemeCharacter, action, callerPK, txID, txTimestamp)
 		if err != nil {
-			return false, err
+			return 0, false, err
 		}
-		//TODO: do we need to accept failed transactions
-		_, err = ia.sc.callAssetScriptCommon(obj, asset, blockInfo, initialisation, false)
+		ok, err := ia.sc.callAssetScriptCommon(obj, asset, blockInfo, initialisation, acceptFailed)
 		if err != nil {
-			return false, err
+			return 0, false, err
 		}
-		//TODO: fs?
-		return true, nil
+		return 1, ok, nil
 	}
-	return false, nil
+	return 0, true, nil
 }

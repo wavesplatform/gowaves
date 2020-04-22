@@ -393,12 +393,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-	//TODO: join flags then after joining features
 	blockV5Activated, err := a.stor.features.isActivated(int16(settings.BlockV5))
-	if err != nil {
-		return err
-	}
-	acceptFailedActivated, err := a.stor.features.isActivated(int16(settings.AcceptFailedScriptTransaction))
 	if err != nil {
 		return err
 	}
@@ -462,7 +457,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		a.recentTxIds[string(txID)] = empty
 		// After activation of AcceptFailedScriptTransactions feature we have to check availability of funds to
 		// pay fees for all transaction types except LeaseCancel.
-		if acceptFailedActivated {
+		if blockV5Activated {
 			err := a.checkTxFees(tx, checkerInfo, blockInfo)
 			if err != nil {
 				return errors.Errorf("not enough balance to pay transaction's fees")
@@ -495,14 +490,14 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 				hitSource:          blockInfo.VRF,
 				validatingUtx:      false,
 			}
-			addresses, status, err = a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo, acceptFailedActivated)
+			addresses, status, err = a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo, blockV5Activated)
 			if err != nil {
 				return errors.Errorf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
 			}
 		case proto.ExchangeTransaction:
 			// Exchange is handled in a special way also
 			var txScriptsRuns uint64
-			txScriptsRuns, status, err = a.checkExchangeTransactionScripts(tx, accountHasVerifierScript, checkerInfo, blockInfo, acceptFailedActivated)
+			txScriptsRuns, status, err = a.checkExchangeTransactionScripts(tx, accountHasVerifierScript, checkerInfo, blockInfo, blockV5Activated)
 			if err != nil {
 				return err
 			}
