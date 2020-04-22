@@ -5,10 +5,12 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/miner"
+	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	storage "github.com/wavesplatform/gowaves/pkg/state"
@@ -54,6 +56,18 @@ type BaseInfo struct {
 	actions Actions
 
 	utx types.UtxPool
+}
+
+func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
+	a.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
+		if p != receivedFrom {
+			_ = extension.NewPeerExtension(p, a.scheme).SendTransaction(t)
+		}
+	})
+}
+
+func (a *BaseInfo) CleanUtx() {
+	utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
 }
 
 type FromBaseInfo interface {

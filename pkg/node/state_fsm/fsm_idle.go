@@ -19,6 +19,9 @@ type IdleFsm struct {
 
 func (a *IdleFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
 	err := a.baseInfo.utx.Add(t)
+	if err != nil {
+		a.baseInfo.BroadcastTransaction(t, p)
+	}
 	return a, nil, err
 }
 

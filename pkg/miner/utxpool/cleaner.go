@@ -2,8 +2,8 @@ package utxpool
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 )
 
@@ -13,8 +13,8 @@ type Cleaner struct {
 	state      stateWrapper
 }
 
-func NewCleaner(services services.Services) *Cleaner {
-	return newCleaner(services.State, newBulkValidator(services.State, services.UtxPool, services.Time))
+func NewCleaner(state state.State, pool types.UtxPool, tm types.Time) *Cleaner {
+	return newCleaner(state, newBulkValidator(state, pool, tm))
 }
 
 func newCleaner(state stateWrapper, validator BulkValidator) *Cleaner {
@@ -24,8 +24,7 @@ func newCleaner(state stateWrapper, validator BulkValidator) *Cleaner {
 	}
 }
 
-// implements types.Handler
-func (a *Cleaner) Handle() {
+func (a *Cleaner) Clean() {
 	a.work()
 }
 

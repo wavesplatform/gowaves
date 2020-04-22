@@ -5,6 +5,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/libs/ordered_blocks"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -18,6 +19,11 @@ const WaitingForSignatures = true
 var NoSignaturesExpectedErr = errors.New("no signatures expected")
 var UnexpectedBlockErr = errors.New("unexpected block")
 
+type PeerExtension interface {
+	AskBlocksIDs(id []proto.BlockID)
+	AskBlock(id proto.BlockID)
+}
+
 type Internal struct {
 	respondedSignatures  *signatures.BlockIDs
 	orderedBlocks        *ordered_blocks.OrderedBlocks
@@ -25,7 +31,7 @@ type Internal struct {
 	nearEnd              bool
 }
 
-func InternalFromLastSignatures(p PeerWrapper, sigs *signatures.ReverseOrdering) Internal {
+func InternalFromLastSignatures(p extension.PeerExtension, sigs *signatures.ReverseOrdering) Internal {
 	p.AskBlocksIDs(sigs.BlockIDS())
 	return NewInternal(
 		ordered_blocks.NewOrderedBlocks(),
@@ -43,7 +49,7 @@ func NewInternal(orderedBlocks *ordered_blocks.OrderedBlocks, respondedSignature
 	}
 }
 
-func (a Internal) BlockIDs(p PeerWrapper, sigs []proto.BlockID) (Internal, error) {
+func (a Internal) BlockIDs(p PeerExtension, sigs []proto.BlockID) (Internal, error) {
 	if !a.waitingForSignatures {
 		return a, NoSignaturesExpectedErr
 	}
@@ -77,7 +83,11 @@ func (a Internal) Block(block *proto.Block) (Internal, error) {
 	return a, nil
 }
 
-func (a Internal) Blocks(p PeerWrapper) (Internal, Blocks, Eof) {
+type peerExtension interface {
+	AskBlocksIDs(id []proto.BlockID)
+}
+
+func (a Internal) Blocks(p peerExtension) (Internal, Blocks, Eof) {
 	if a.nearEnd {
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, NoSignaturesExpected, a.nearEnd),
 			a.orderedBlocks.PopAll(),
