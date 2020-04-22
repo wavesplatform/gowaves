@@ -1,11 +1,14 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -28,7 +31,7 @@ type App struct {
 	services      services.Services
 }
 
-func NewApp(apiKey string, scheduler SchedulerEmits, sync types.StateSync, services services.Services) (*App, error) {
+func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services) (*App, error) {
 	digest, err := crypto.SecureHash([]byte(apiKey))
 	if err != nil {
 		return nil, err
@@ -41,12 +44,11 @@ func NewApp(apiKey string, scheduler SchedulerEmits, sync types.StateSync, servi
 		scheduler:     scheduler,
 		utx:           services.UtxPool,
 		peers:         services.Peers,
-		sync:          sync,
 		services:      services,
 	}, nil
 }
 
-func (a *App) TransactionsBroadcast(b []byte) error {
+func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) error {
 	tt := proto.TransactionTypeVersion{}
 	err := json.Unmarshal(b, &tt)
 	if err != nil {
@@ -63,11 +65,22 @@ func (a *App) TransactionsBroadcast(b []byte) error {
 		return &BadRequestError{err}
 	}
 
-	bts, err := realType.MarshalBinary()
-	if err != nil {
-		return &BadRequestError{err}
+	respCh := make(chan error, 1)
+
+	select {
+	case a.services.InternalChannel <- messages.NewBroadcastTransaction(respCh, realType):
+	case <-ctx.Done():
+		return errors.Wrap(ctx.Err(), "failed to send internal")
 	}
-	return a.utx.AddWithBytes(realType, bts)
+
+	select {
+	case <-ctx.Done():
+		return errors.Wrap(ctx.Err(), "ctx cancelled from client")
+	case <-time.After(5 * time.Second):
+		return errors.New("timeout waiting response from internal")
+	case err := <-respCh:
+		return err
+	}
 }
 
 func (a *App) checkAuth(key string) error {

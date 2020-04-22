@@ -1520,3 +1520,47 @@ func TestFunctionCallJSONRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func createStateHash() StateHash {
+	return StateHash{
+		BlockID:           NewBlockIDFromSignature(crypto.MustSignatureFromBase58("2UwZrKyjx7Bs4RYkEk5SLCdtr9w6GR1EDbpS3TH9DGJKcxSCuQP4nivk4YPFpQTqWmoXXPPUiy6riF3JwhikbSQu")),
+		SumHash:           crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		DataEntryHash:     crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		AccountScriptHash: crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		AssetScriptHash:   crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		LeaseStatusHash:   crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		SponsorshipHash:   crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		AliasesHash:       crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		WavesBalanceHash:  crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		AssetBalanceHash:  crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ2RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+		LeaseBalanceHash:  crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6"),
+	}
+}
+
+func TestStateHashJSONRoundTrip(t *testing.T) {
+	sh := createStateHash()
+	shJs, err := sh.MarshalJSON()
+	assert.NoError(t, err)
+	var sh2 StateHash
+	err = sh2.UnmarshalJSON(shJs)
+	assert.NoError(t, err)
+	assert.Equal(t, sh, sh2)
+}
+
+func TestStateHashBinaryRoundTrip(t *testing.T) {
+	sh := createStateHash()
+	shBytes := sh.MarshalBinary()
+	var sh2 StateHash
+	err := sh2.UnmarshalBinary(shBytes)
+	assert.NoError(t, err)
+	assert.Equal(t, sh, sh2)
+}
+
+func TestStateHash_GenerateSumHash(t *testing.T) {
+	sh := createStateHash()
+	prevHash := crypto.MustDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
+	correctSumHash := crypto.MustDigestFromBase58("9ckTqHUsRap8YerHv1EijZMeBRaSFibdTkPqjmK9hoNy")
+	err := sh.GenerateSumHash(prevHash[:])
+	assert.NoError(t, err)
+	assert.Equal(t, correctSumHash, sh.SumHash)
+}

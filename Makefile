@@ -144,8 +144,17 @@ dist-wallet: release-wallet
 
 dist: clean dist-chaincmp dist-wmd dist-importer dist-node dist-wallet
 
+
+build-genconfig:
+	go build -o build/bin/darwin-amd64/genconfig ./cmd/genconfig
+
 mock:
 	mockgen -source pkg/miner/utxpool/cleaner.go -destination pkg/miner/utxpool/mock.go -package utxpool stateWrapper
 	mockgen -source pkg/node/peer_manager/peer_manager.go -destination pkg/mock/peer_manager.go -package mock PeerManagerMock
 	mockgen -source pkg/p2p/peer/peer.go -destination pkg/mock/peer.go -package mock Peer
 	mockgen -source pkg/state/api.go -destination pkg/mock/state.go -package mock State
+	mockgen -source pkg/node/state_fsm/default.go -destination pkg/node/state_fsm/default_mock.go -package state_fsm Default
+
+proto:
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=plugins=grpc:$(GOPATH)/src pkg/grpc/protobuf-schemas/proto/waves/*.proto
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=plugins=grpc:$(GOPATH)/src pkg/grpc/protobuf-schemas/proto/waves/node/grpc/*.proto

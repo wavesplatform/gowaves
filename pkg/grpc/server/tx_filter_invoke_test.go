@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -16,8 +16,7 @@ func TestTxFilterInvoke(t *testing.T) {
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromPublicKey(scheme, pk)
 	require.NoError(t, err)
-	addrBody, err := addr.Body()
-	require.NoError(t, err)
+	addrBody := addr.Body()
 	pk2, err := crypto.NewPublicKeyFromBase58(pkStr2)
 	require.NoError(t, err)
 	id, err := crypto.NewDigestFromBase58(idStr)

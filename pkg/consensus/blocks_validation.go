@@ -292,7 +292,8 @@ func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uin
 
 	var hitSource []byte
 	if vrf {
-		refGenSig, err := cv.hitSourceByHeight(pos.HeightForHit(height))
+		p := pos.HeightForHit(height)
+		refGenSig, err := cv.hitSourceByHeight(p)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate generation signature")
 		}
@@ -302,7 +303,7 @@ func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uin
 			return errors.Wrapf(err, "failed to verify generator signature")
 		}
 		if !ok {
-			return errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s')",
+			return errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s'), with vrf",
 				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
 		}
 		cv.hitSources = append(cv.hitSources, hitSource)
@@ -319,7 +320,7 @@ func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uin
 			return errors.Wrapf(err, "failed to verify generator signature")
 		}
 		if !ok {
-			return errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s')",
+			return errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s'), without vrf",
 				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
 		}
 

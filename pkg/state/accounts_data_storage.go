@@ -1,12 +1,47 @@
 package state
 
 import (
+	"bytes"
 	"encoding/binary"
+	"io"
 
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
+
+type dataEntryRecordForHashes struct {
+	addr  *proto.Address
+	key   []byte
+	value []byte
+}
+
+func (dr *dataEntryRecordForHashes) less(other stateComponent) bool {
+	dr2 := other.(*dataEntryRecordForHashes)
+	val := bytes.Compare(dr.addr[:], dr2.addr[:])
+	if val > 0 {
+		return false
+	} else if val == 0 {
+		return bytes.Compare(dr.key, dr2.key) == -1
+	}
+	return true
+}
+
+func (dr *dataEntryRecordForHashes) writeTo(w io.Writer) error {
+	if _, err := w.Write(dr.addr[:]); err != nil {
+		return err
+	}
+	if _, err := w.Write(dr.key); err != nil {
+		return err
+	}
+	if dr.value == nil {
+		return nil
+	}
+	if _, err := w.Write(dr.value); err != nil {
+		return err
+	}
+	return nil
+}
 
 type dataEntryRecord struct {
 	value []byte
@@ -28,17 +63,22 @@ type accountsDataStorage struct {
 	db      keyvalue.IterableKeyVal
 	dbBatch keyvalue.Batch
 	hs      *historyStorage
+	hasher  *stateHasher
 
 	addrToNumMem map[proto.Address]uint64
 	addrNum      uint64
+
+	calculateHashes bool
 }
 
-func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage) (*accountsDataStorage, error) {
+func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, calcHashes bool) (*accountsDataStorage, error) {
 	return &accountsDataStorage{
-		db:           db,
-		dbBatch:      dbBatch,
-		hs:           hs,
-		addrToNumMem: make(map[proto.Address]uint64),
+		db:              db,
+		dbBatch:         dbBatch,
+		hs:              hs,
+		hasher:          newStateHasher(),
+		addrToNumMem:    make(map[proto.Address]uint64),
+		calculateHashes: calcHashes,
 	}, nil
 }
 
@@ -102,6 +142,8 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 		return err
 	}
 	key := accountsDataStorKey{addrNum, entry.GetKey()}
+	keyBytes := key.bytes()
+	keyStr := string(keyBytes)
 	valueBytes, err := entry.MarshalValue()
 	if err != nil {
 		return err
@@ -111,7 +153,20 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 	if err != nil {
 		return err
 	}
-	if err := s.hs.addNewEntry(dataEntry, key.bytes(), recordBytes, blockID); err != nil {
+	if s.calculateHashes {
+		r := &dataEntryRecordForHashes{
+			addr: &addr,
+			key:  []byte(entry.GetKey()),
+		}
+		if entry.GetValueType() != proto.DataDelete {
+			// No value should be set for deletion.
+			r.value = valueBytes
+		}
+		if err := s.hasher.push(keyStr, r, blockID); err != nil {
+			return err
+		}
+	}
+	if err := s.hs.addNewEntry(dataEntry, keyBytes, recordBytes, blockID); err != nil {
 		return err
 	}
 	return nil
@@ -323,6 +378,10 @@ func (s *accountsDataStorage) retrieveBinaryEntry(addr proto.Address, key string
 	return &entry, nil
 }
 
+func (s *accountsDataStorage) prepareHashes() error {
+	return s.hasher.stop()
+}
+
 func (s *accountsDataStorage) flush() error {
 	lastAddrNum, err := s.getLastAddrNum()
 	if err != nil {
@@ -338,4 +397,7 @@ func (s *accountsDataStorage) flush() error {
 func (s *accountsDataStorage) reset() {
 	s.addrToNumMem = make(map[proto.Address]uint64)
 	s.addrNum = 0
+	if s.calculateHashes {
+		s.hasher.reset()
+	}
 }

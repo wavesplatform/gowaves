@@ -6,7 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 type Features []settings.Feature
@@ -50,13 +49,12 @@ func ParseReward(s string) (int64, error) {
 	return strconv.ParseInt(s, 10, 64)
 }
 
-func ValidateFeaturesWithLock(state state.State, features Features) (Features, error) {
-	locked := state.Mutex().RLock()
-	defer locked.Unlock()
-	return ValidateFeaturesWithoutLock(state, features)
+type featureState interface {
+	IsActivated(featureID int16) (bool, error)
+	IsApproved(featureID int16) (bool, error)
 }
 
-func ValidateFeaturesWithoutLock(state state.State, features Features) (Features, error) {
+func ValidateFeatures(state featureState, features Features) (Features, error) {
 	out := Features{}
 	for _, feature := range features {
 		info, ok := settings.FeaturesInfo[feature]

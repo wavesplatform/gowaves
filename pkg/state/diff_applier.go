@@ -15,6 +15,28 @@ func newDiffApplier(balances *balances) (*diffApplier, error) {
 	return &diffApplier{balances}, nil
 }
 
+func newWavesValueFromProfile(p balanceProfile) *wavesValue {
+	val := &wavesValue{profile: p}
+	if p.leaseIn != 0 || p.leaseOut != 0 {
+		val.leaseChange = true
+	}
+	if p.balance != 0 {
+		val.balanceChange = true
+	}
+	return val
+}
+
+func newWavesValue(prevProf, newProf balanceProfile) *wavesValue {
+	val := &wavesValue{profile: newProf}
+	if prevProf.balance != newProf.balance {
+		val.balanceChange = true
+	}
+	if prevProf.leaseIn != newProf.leaseIn || prevProf.leaseOut != newProf.leaseOut {
+		val.leaseChange = true
+	}
+	return val
+}
+
 func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, validateOnly bool) error {
 	var k wavesBalanceKey
 	if err := k.unmarshal(change.key); err != nil {
@@ -24,6 +46,7 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, v
 	if err != nil {
 		return errors.Errorf("failed to retrieve waves balance: %v\n", err)
 	}
+	prevProfile := *profile
 	for _, diff := range change.balanceDiffs {
 		// Check for negative balance.
 		newProfile, err := diff.applyTo(profile)
@@ -33,9 +56,11 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, v
 		if validateOnly {
 			continue
 		}
-		if err := a.balances.setWavesBalance(k.address, newProfile, diff.blockID); err != nil {
+		val := newWavesValue(prevProfile, *newProfile)
+		if err := a.balances.setWavesBalance(k.address, val, diff.blockID); err != nil {
 			return errors.Errorf("failed to set account balance: %v\n", err)
 		}
+		prevProfile = *newProfile
 	}
 	return nil
 }
@@ -49,6 +74,7 @@ func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, filter, v
 	if err != nil {
 		return errors.Errorf("failed to retrieve asset balance: %v\n", err)
 	}
+	prevBalance := balance
 	for _, diff := range change.balanceDiffs {
 		newBalance, err := diff.applyToAssetBalance(balance)
 		if err != nil {
@@ -57,9 +83,14 @@ func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, filter, v
 		if validateOnly {
 			continue
 		}
+		if newBalance == prevBalance {
+			// Nothing has changed.
+			continue
+		}
 		if err := a.balances.setAssetBalance(k.address, k.asset, newBalance, diff.blockID); err != nil {
 			return errors.Errorf("failed to set asset balance: %v\n", err)
 		}
+		prevBalance = newBalance
 	}
 	return nil
 }

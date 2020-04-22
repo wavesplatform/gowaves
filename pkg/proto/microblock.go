@@ -1,13 +1,14 @@
 package proto
 
 import (
+	"bytes"
 	"io"
 
 	protobuf "github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/deserializer"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
@@ -20,14 +21,14 @@ const (
 type MicroBlock struct {
 	VersionField byte
 	// Reference for previous block.
-	Reference             BlockID
+	Reference BlockID
+	// Block signature.
 	TotalResBlockSigField crypto.Signature
+	TotalBlockID          BlockID
 	TransactionCount      uint32
 	Transactions          Transactions
 	SenderPK              crypto.PublicKey
 	Signature             crypto.Signature
-
-	TotalBlockID BlockID
 }
 
 type MicroblockTotalSig = crypto.Signature
@@ -76,7 +77,8 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 			SenderPublicKey:       a.SenderPK.Bytes(),
 			Transactions:          txs,
 		},
-		Signature: sig,
+		Signature:    sig,
+		TotalBlockId: a.TotalBlockID.Bytes(),
 	}, nil
 }
 
@@ -187,9 +189,15 @@ func (a *MicroBlock) WriteWithoutSignature(w io.Writer) (int64, error) {
 	return s.N(), nil
 }
 
+func (a *MicroBlock) MarshalBinary() ([]byte, error) {
+	buf := &bytes.Buffer{}
+	_, err := a.WriteTo(buf)
+	return buf.Bytes(), err
+}
+
 // MicroBlockMessage represents a MicroBlock message.
 type MicroBlockMessage struct {
-	Body io.WriterTo
+	Body []byte
 }
 
 func (*MicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
@@ -200,9 +208,9 @@ func (a *MicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
-	n, err := a.Body.WriteTo(buf)
+	n, err := buf.Write(a.Body)
 	if err != nil {
-		return n, err
+		return int64(n), err
 	}
 
 	h, err := MakeHeader(ContentIDMicroblock, buf.Bytes())
@@ -237,7 +245,8 @@ func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {
 	}
 	b := make([]byte, len(data[:h.PayloadLength]))
 	copy(b, data)
-	a.Body = Bytes(b)
+
+	a.Body = b
 	return nil
 }
 
@@ -296,8 +305,9 @@ func (a *MicroBlockInvMessage) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
+// ?? total block sig or id
 type MicroBlockRequestMessage struct {
-	Body io.WriterTo
+	TotalBlockSig []byte
 }
 
 func (a *MicroBlockRequestMessage) ReadFrom(r io.Reader) (n int64, err error) {
@@ -305,19 +315,12 @@ func (a *MicroBlockRequestMessage) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
-	buf := bytebufferpool.Get()
-	defer bytebufferpool.Put(buf)
-	n, err := a.Body.WriteTo(buf)
-	if err != nil {
-		return n, err
-	}
-
 	var h Header
-	h.Length = MaxHeaderLength + uint32(buf.Len()) - 4
+	h.Length = MaxHeaderLength + uint32(len(a.TotalBlockSig)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDMicroblockRequest
-	h.PayloadLength = uint32(buf.Len())
-	dig, err := crypto.FastHash(buf.B)
+	h.PayloadLength = uint32(len(a.TotalBlockSig))
+	dig, err := crypto.FastHash(a.TotalBlockSig)
 	if err != nil {
 		return 0, err
 	}
@@ -327,11 +330,11 @@ func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
 		return 0, err
 	}
 
-	n3, err := buf.WriteTo(w)
+	n3, err := w.Write(a.TotalBlockSig)
 	if err != nil {
 		return 0, err
 	}
-	return n2 + n3, nil
+	return n2 + int64(n3), nil
 }
 
 func (a *MicroBlockRequestMessage) MarshalBinary() ([]byte, error) {
@@ -357,30 +360,8 @@ func (a *MicroBlockRequestMessage) UnmarshalBinary(data []byte) error {
 	data = data[17:]
 	body := make([]byte, h.PayloadLength)
 	copy(body, data)
-	a.Body = Bytes(body)
+	a.TotalBlockSig = body
 	return nil
-}
-
-type MicroBlockRequest struct {
-	TotalBlockID BlockID
-}
-
-func (a *MicroBlockRequest) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(a.TotalBlockID.Bytes())
-	return int64(n), err
-}
-
-func (a *MicroBlockRequest) UnmarshalBinary(data []byte) error {
-	id, err := NewBlockIDFromBytes(data)
-	if err != nil {
-		return err
-	}
-	a.TotalBlockID = id
-	return nil
-}
-
-func (a *MicroBlockRequest) MarshalBinary() ([]byte, error) {
-	return a.TotalBlockID.Bytes(), nil
 }
 
 type MicroBlockInv struct {
@@ -407,7 +388,7 @@ func (a *MicroBlockInv) UnmarshalBinary(data []byte) error {
 	sigId := len(data) == MicroBlockInvSizeSig
 	hashId := len(data) == MicroBlockInvSizeHash
 	if !sigId && !hashId {
-		return errors.New("invalid data size")
+		return errors.Errorf("MicroBlockInv UnmarshalBinary: invalid data size, expected to be %d or %d, found %d", MicroBlockInvSizeSig, MicroBlockInvSizeHash, len(data))
 	}
 	var err error
 	d := deserializer.NewDeserializer(data)
@@ -519,9 +500,7 @@ func (a *MicroBlockInvMessage) UnmarshalBinary(data []byte) error {
 
 // PBMicroBlockMessage represents a Protobuf MicroBlock message.
 type PBMicroBlockMessage struct {
-	// TODO: replace separate ID field with new Protobuf message later.
 	MicroBlockBytes Bytes
-	TotalBlockID    Bytes
 }
 
 func (*PBMicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
@@ -532,13 +511,9 @@ func (a *PBMicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
-	n, err := a.MicroBlockBytes.WriteTo(buf)
+	_, err := a.MicroBlockBytes.WriteTo(buf)
 	if err != nil {
-		return n, err
-	}
-	m, err := a.TotalBlockID.WriteTo(buf)
-	if err != nil {
-		return n + m, err
+		return 0, err
 	}
 
 	h, err := MakeHeader(ContentIDPBMicroBlock, buf.Bytes())
@@ -567,7 +542,7 @@ func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	if h.PayloadLength < crypto.DigestSize {
-		return errors.New("invalid data size")
+		return errors.New("PBMicroBlockMessage UnmarshalBinary: invalid data size")
 	}
 	data = data[17:]
 
@@ -577,9 +552,6 @@ func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
 	mbBytes := data[:h.PayloadLength-crypto.DigestSize]
 	a.MicroBlockBytes = make([]byte, len(mbBytes))
 	copy(a.MicroBlockBytes, mbBytes)
-	idBytes := data[h.PayloadLength-crypto.DigestSize : h.PayloadLength]
-	a.TotalBlockID = make([]byte, crypto.DigestSize)
-	copy(a.TotalBlockID, idBytes)
 	return nil
 }
 

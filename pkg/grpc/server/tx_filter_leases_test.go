@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -20,8 +20,7 @@ func TestTxFilterLeases(t *testing.T) {
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromString("3Fv3jiLvLS4c4N1ZvSLac3HBGUzaHDMvjN1")
 	require.NoError(t, err)
-	addrBody, err := addr.Body()
-	require.NoError(t, err)
+	addrBody := addr.Body()
 	pk, err := crypto.NewPublicKeyFromBase58("7rAoh3kPtsPQCTMVe9Bb39GKNX17bR5G57Ef66uwXfeT")
 	require.NoError(t, err)
 	pk2, err := crypto.NewPublicKeyFromBase58("7rAoh3kPtsPQCTMVe8Bb39GKNX17bR5G57Ef66uwXfeT")

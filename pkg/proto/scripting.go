@@ -6,7 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
 // ScriptAction common interface of script invocation actions.
@@ -39,10 +39,7 @@ func (a *TransferScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, erro
 		AssetId: a.Asset.ToID(),
 		Amount:  a.Amount,
 	}
-	addrBody, err := a.Recipient.Address.Body()
-	if err != nil {
-		return nil, err
-	}
+	addrBody := a.Recipient.Address.Body()
 	return &g.InvokeScriptResult_Payment{
 		Address: addrBody,
 		Amount:  amount,
@@ -134,16 +131,29 @@ func (a *BurnScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
 	}
 }
 
+type ScriptErrorMessage struct {
+	Code int32
+	Text string
+}
+
+func (msg *ScriptErrorMessage) ToProtobuf() *g.InvokeScriptResult_ErrorMessage {
+	return &g.InvokeScriptResult_ErrorMessage{
+		Code: msg.Code,
+		Text: msg.Text,
+	}
+}
+
 type ScriptResult struct {
 	DataEntries []*DataEntryScriptAction
 	Transfers   []*TransferScriptAction
 	Issues      []*IssueScriptAction
 	Reissues    []*ReissueScriptAction
 	Burns       []*BurnScriptAction
+	ErrorMsg    ScriptErrorMessage
 }
 
 // NewScriptResult creates correct representation of invocation actions for storage and API.
-func NewScriptResult(actions []ScriptAction) (*ScriptResult, error) {
+func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptResult, error) {
 	entries := make([]*DataEntryScriptAction, 0)
 	transfers := make([]*TransferScriptAction, 0)
 	issues := make([]*IssueScriptAction, 0)
@@ -171,6 +181,7 @@ func NewScriptResult(actions []ScriptAction) (*ScriptResult, error) {
 		Issues:      issues,
 		Reissues:    reissues,
 		Burns:       burns,
+		ErrorMsg:    msg,
 	}, nil
 }
 
@@ -200,11 +211,12 @@ func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
 		burns[i] = sr.Burns[i].ToProtobuf()
 	}
 	return &g.InvokeScriptResult{
-		Data:      data,
-		Transfers: transfers,
-		Issues:    issues,
-		Reissues:  reissues,
-		Burns:     burns,
+		Data:         data,
+		Transfers:    transfers,
+		Issues:       issues,
+		Reissues:     reissues,
+		Burns:        burns,
+		ErrorMessage: sr.ErrorMsg.ToProtobuf(),
 	}, nil
 }
 
@@ -239,6 +251,11 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 	if err != nil {
 		return err
 	}
+	errMsg, err := c.ErrorMessage(msg.ErrorMessage)
+	if err != nil {
+		return err
+	}
+	sr.ErrorMsg = *errMsg
 	return nil
 }
 

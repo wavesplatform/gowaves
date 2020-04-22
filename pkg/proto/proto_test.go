@@ -2,6 +2,7 @@ package proto
 
 import (
 	"bytes"
+	"encoding"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -79,11 +80,11 @@ func (m *GetSignaturesMessage) Equal(d comparable) bool {
 	if !ok {
 		return false
 	}
-	if len(m.Blocks) != len(p.Blocks) {
+	if len(m.Signatures) != len(p.Signatures) {
 		return false
 	}
-	for i := 0; i < len(m.Blocks); i++ {
-		if m.Blocks[i] != p.Blocks[i] {
+	for i := 0; i < len(m.Signatures); i++ {
+		if m.Signatures[i] != p.Signatures[i] {
 			return false
 		}
 	}
@@ -478,7 +479,7 @@ func TestVersionsSort(t *testing.T) {
 }
 
 func TestGetSignaturesMessageRoundTrip(t *testing.T) {
-	msg := GetSignaturesMessage{Blocks: []crypto.Signature{{0x1}, {0x2}}}
+	msg := GetSignaturesMessage{Signatures: []crypto.Signature{{0x1}, {0x2}}}
 	msgBytes, err := msg.MarshalBinary()
 	assert.NoError(t, err)
 	var res GetSignaturesMessage
@@ -511,4 +512,68 @@ func TestBlockIdsMessageRoundTrip(t *testing.T) {
 	err = res.UnmarshalBinary(msgBytes)
 	assert.NoError(t, err)
 	assert.Equal(t, res, msg)
+}
+
+func TestVersion_Cmp(t *testing.T) {
+	require.Equal(t, 0, Version{1, 2, 1}.Cmp(Version{1, 2, 1}))
+	require.Equal(t, 1, Version{2, 2, 1}.Cmp(Version{1, 2, 1}))
+	require.Equal(t, -1, Version{1, 2, 0}.Cmp(Version{1, 2, 1}))
+}
+
+func TestGetBlockMessage_MarshalBinary(t *testing.T) {
+	t.Run("parse signature from huge byte array", func(t *testing.T) {
+		b := GetBlockMessage{
+			BlockID: NewBlockIDFromSignature(crypto.MustSignatureFromBase58("2Br31FjkXETUiFanHyeN2GzinXvmN1vkVwRDkjzSHrcbFhU4aYwyvrXxkGkkprQ5h1UuaFeVQC1jexdsYbrqTtS9")),
+		}
+
+		rs, err := b.MarshalBinary()
+		require.NoError(t, err)
+
+		//
+		buf := make([]byte, 1000)
+		copy(buf, rs)
+
+		b2 := GetBlockMessage{}
+		err = b2.UnmarshalBinary(buf)
+		require.NoError(t, err)
+
+		require.Equal(t, b, b2)
+	})
+	t.Run("parse block id from huge byte array", func(t *testing.T) {
+		b := GetBlockMessage{
+			BlockID: NewBlockIDFromDigest(crypto.MustDigestFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")),
+		}
+
+		rs, err := b.MarshalBinary()
+		require.NoError(t, err)
+
+		b2 := GetBlockMessage{}
+
+		buf := make([]byte, 1000)
+		copy(buf, rs)
+
+		err = b2.UnmarshalBinary(buf)
+		require.NoError(t, err)
+
+		require.Equal(t, b, b2)
+	})
+}
+
+func withBytes(t *testing.T, b encoding.BinaryMarshaler, f func(bts []byte)) {
+	bts, err := b.MarshalBinary()
+	require.NoError(t, err)
+	f(bts)
+}
+
+// check that there is no panic, if payload is less than declared
+func TestParsePacked(t *testing.T) {
+	b := GetBlockMessage{
+		BlockID: NewBlockIDFromDigest(crypto.MustDigestFromBase58("3Janbh2r7ZQjiUM3sWVswVGHWyQB2TPxm348QvuX5v6c")),
+	}
+	withBytes(t, &b, func(bts []byte) {
+		bts = bts[:18:18]
+		b2 := GetBlockMessage{}
+		err := b2.UnmarshalBinary(bts)
+		require.EqualError(t, err, "GetBlockMessage: expected data at least 49, found 18")
+	})
 }

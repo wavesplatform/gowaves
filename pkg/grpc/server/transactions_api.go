@@ -5,7 +5,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -75,7 +76,15 @@ func (h *getStateChangesHandler) handle(tx proto.Transaction) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to convert ScriptResultV3 to protobuf")
 	}
-	if err := h.srv.Send(resProto); err != nil {
+	txProto, err := tx.ToProtobufSigned(h.s.scheme)
+	if err != nil {
+		return errors.Wrap(err, "failed to convert InvokeScriptWithProofs to protobuf")
+	}
+	resp := &g.InvokeScriptResultResponse{
+		Transaction: txProto,
+		Result:      resProto,
+	}
+	if err := h.srv.Send(resp); err != nil {
 		return errors.Wrap(err, "failed to send")
 	}
 	return nil
@@ -120,11 +129,16 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 			}
 			res.Status = g.TransactionStatus_CONFIRMED
 			res.Height = int64(height)
+			// TODO: set ApplicationStatus_SCRIPT_EXECUTION_FAILED here
+			// when dealing with failed transaction.
+			res.ApplicationStatus = g.ApplicationStatus_SUCCEEDED
 		} else if s.utx.ExistsByID(id) {
 			// Transaction is in UTX.
 			res.Status = g.TransactionStatus_UNCONFIRMED
+			res.ApplicationStatus = g.ApplicationStatus_UNKNOWN
 		} else {
 			res.Status = g.TransactionStatus_NOT_EXISTS
+			res.ApplicationStatus = g.ApplicationStatus_UNKNOWN
 		}
 		if err := srv.Send(res); err != nil {
 			return status.Errorf(codes.Internal, err.Error())
@@ -167,7 +181,7 @@ func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsAp
 	return nil
 }
 
-func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*g.SignedTransaction, error) {
+func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*pb.SignedTransaction, error) {
 	var c proto.ProtobufConverter
 	tx, err := c.Transaction(req.Transaction)
 	if err != nil {
@@ -187,7 +201,7 @@ func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*g.SignedTransac
 	return txProto, nil
 }
 
-func (s *Server) Broadcast(ctx context.Context, tx *g.SignedTransaction) (*g.SignedTransaction, error) {
+func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (*pb.SignedTransaction, error) {
 	var c proto.ProtobufConverter
 	t, err := c.SignedTransaction(tx)
 	if err != nil {

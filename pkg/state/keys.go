@@ -116,6 +116,9 @@ const (
 	// Stores protobuf-related info for blockReadWriter.
 	rwProtobufInfoKeyPrefix
 
+	// Stores state hashes at height.
+	stateHashKeyPrefix
+
 	// Hit source data
 	hitSourceKeyPrefix
 )
@@ -124,6 +127,47 @@ var (
 	errInvalidDataSize = errors.New("invalid data size")
 	errInvalidPrefix   = errors.New("invalid prefix for given key")
 )
+
+func prefixByEntity(entity blockchainEntity) ([]byte, error) {
+	switch entity {
+	case alias:
+		return []byte{aliasKeyPrefix}, nil
+	case asset:
+		return []byte{assetHistKeyPrefix}, nil
+	case lease:
+		return []byte{leaseKeyPrefix}, nil
+	case wavesBalance:
+		return []byte{wavesBalanceKeyPrefix}, nil
+	case assetBalance:
+		return []byte{assetBalanceKeyPrefix}, nil
+	case featureVote:
+		return []byte{votesFeaturesKeyPrefix}, nil
+	case activatedFeature:
+		return []byte{activatedFeaturesKeyPrefix}, nil
+	case ordersVolume:
+		return []byte{ordersVolumeKeyPrefix}, nil
+	case sponsorship:
+		return []byte{sponsorshipKeyPrefix}, nil
+	case dataEntry:
+		return []byte{accountsDataStorKeyPrefix}, nil
+	case accountScript:
+		return []byte{accountScriptKeyPrefix}, nil
+	case assetScript:
+		return []byte{assetScriptKeyPrefix}, nil
+	case accountScriptComplexity:
+		return []byte{accountScriptComplexityKeyPrefix}, nil
+	case assetScriptComplexity:
+		return []byte{assetScriptComplexityKeyPrefix}, nil
+	case rewardVotes:
+		return []byte{rewardVotesKeyPrefix}, nil
+	case blockReward:
+		return []byte{blockRewardKeyPrefix}, nil
+	case invokeResult:
+		return []byte{invokeResultKeyPrefix}, nil
+	default:
+		return nil, errors.New("bad entity type")
+	}
+}
 
 type wavesBalanceKey struct {
 	address proto.Address
@@ -198,7 +242,7 @@ type blockNumToIdKey struct {
 func (k *blockNumToIdKey) bytes() []byte {
 	buf := make([]byte, 1+4)
 	buf[0] = blockNumToIdKeyPrefix
-	binary.LittleEndian.PutUint32(buf[1:], k.blockNum)
+	binary.BigEndian.PutUint32(buf[1:], k.blockNum)
 	return buf
 }
 
@@ -209,7 +253,7 @@ type validBlockNumKey struct {
 func (k *validBlockNumKey) bytes() []byte {
 	buf := make([]byte, 1+4)
 	buf[0] = validBlockNumKeyPrefix
-	binary.LittleEndian.PutUint32(buf[1:], k.blockNum)
+	binary.BigEndian.PutUint32(buf[1:], k.blockNum)
 	return buf
 }
 
@@ -254,7 +298,7 @@ type scoreKey struct {
 func (k *scoreKey) bytes() []byte {
 	buf := make([]byte, 9)
 	buf[0] = scoreKeyPrefix
-	binary.LittleEndian.PutUint64(buf[1:], k.height)
+	binary.BigEndian.PutUint64(buf[1:], k.height)
 	return buf
 }
 
@@ -458,14 +502,14 @@ type accountsDataStorKey struct {
 func (k *accountsDataStorKey) accountPrefix() []byte {
 	buf := make([]byte, 1+8)
 	buf[0] = accountsDataStorKeyPrefix
-	binary.LittleEndian.PutUint64(buf[1:9], k.addrNum)
+	binary.BigEndian.PutUint64(buf[1:9], k.addrNum)
 	return buf
 }
 
 func (k *accountsDataStorKey) bytes() []byte {
 	buf := make([]byte, 1+8+2+len(k.entryKey))
 	buf[0] = accountsDataStorKeyPrefix
-	binary.LittleEndian.PutUint64(buf[1:9], k.addrNum)
+	binary.BigEndian.PutUint64(buf[1:9], k.addrNum)
 	proto.PutStringWithUInt16Len(buf[9:], k.entryKey)
 	return buf
 }
@@ -477,7 +521,7 @@ func (k *accountsDataStorKey) unmarshal(data []byte) error {
 	if data[0] != accountsDataStorKeyPrefix {
 		return errInvalidPrefix
 	}
-	k.addrNum = binary.LittleEndian.Uint64(data[1:9])
+	k.addrNum = binary.BigEndian.Uint64(data[1:9])
 	var err error
 	k.entryKey, err = proto.StringWithUInt16Len(data[9:])
 	if err != nil {
@@ -561,7 +605,7 @@ func (k *batchedStorKey) bytes() []byte {
 	buf[1] = k.prefix
 	copy(buf[2:], k.internalKey[:])
 	pos := 2 + len(k.internalKey)
-	binary.LittleEndian.PutUint32(buf[pos:], k.batchNum)
+	binary.BigEndian.PutUint32(buf[pos:], k.batchNum)
 	return buf
 }
 
@@ -587,4 +631,15 @@ func (k *invokeResultKey) bytes() []byte {
 	res[0] = invokeResultKeyPrefix
 	copy(res[1:], k.invokeID[:])
 	return res
+}
+
+type stateHashKey struct {
+	height uint64
+}
+
+func (k *stateHashKey) bytes() []byte {
+	buf := make([]byte, 9)
+	buf[0] = stateHashKeyPrefix
+	binary.BigEndian.PutUint64(buf[1:], k.height)
+	return buf
 }

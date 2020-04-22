@@ -273,7 +273,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	if ia.buildApiData {
 		// Save invoke result for extended API.
 		// TODO: add saving of failure status to script result
-		res, err := proto.NewScriptResult(scriptActions)
+		res, err := proto.NewScriptResult(scriptActions, proto.ScriptErrorMessage{})
 		if err != nil {
 			return nil, false, errors.Wrap(err, "failed to save script result")
 		}

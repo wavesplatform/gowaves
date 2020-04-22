@@ -655,7 +655,7 @@ func verify() = {
 
 	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(actions)
+	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	require.EqualValues(t,
 		&proto.ScriptResult{
@@ -721,7 +721,7 @@ func verify() = {
 
 	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(actions)
+	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	require.EqualValues(t,
 		&proto.ScriptResult{
@@ -851,7 +851,7 @@ func tellme(question: String) = {
 		Asset:     proto.OptionalAsset{Present: false},
 	}
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(actions)
+	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	require.EqualValues(t,
 		&proto.ScriptResult{
@@ -897,7 +897,7 @@ func tellme(question: String) = {
 
 	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(actions)
+	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
@@ -1170,7 +1170,7 @@ func TestWhaleDApp(t *testing.T) {
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
 	actions, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(actions)
+	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "wl_ref_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "3P8Fvy1yDwNHvVrabe4ek5b9dAwxFjDKV7R"}},
@@ -1254,7 +1254,7 @@ func TestExchangeDApp(t *testing.T) {
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
 	actions, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(actions)
+	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	assert.NoError(t, err)
 
 	ev, err := base64.StdEncoding.DecodeString("AAAAAAABhqAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLw==")
@@ -1455,7 +1455,7 @@ func TestLigaDApp1(t *testing.T) {
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
 	actions, err := script.CallFunction(proto.TestNetScheme, state, tx1, this, lastBlock)
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(actions)
+	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -1557,7 +1557,7 @@ func TestLigaDApp1(t *testing.T) {
 	lastBlock = NewObjectFromBlockInfo(blockInfo)
 	actions, err = script.CallFunction(proto.TestNetScheme, state, tx2, this, lastBlock)
 	require.NoError(t, err)
-	sr, err = proto.NewScriptResult(actions)
+	sr, err = proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites = []*proto.DataEntryScriptAction{
@@ -1646,7 +1646,7 @@ func TestTestingDApp(t *testing.T) {
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
 	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(actions)
+	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -1727,7 +1727,7 @@ func TestDropElementDApp(t *testing.T) {
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
 	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(actions)
+	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -1813,7 +1813,7 @@ func TestMathDApp(t *testing.T) {
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
 	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(actions)
+	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -1900,7 +1900,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
 	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(actions)
+	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{

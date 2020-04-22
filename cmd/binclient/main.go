@@ -92,7 +92,7 @@ func main() {
 	sig, _ := crypto.NewSignatureFromBase58("FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2")
 
 	sigs := proto.GetSignaturesMessage{
-		Blocks: []crypto.Signature{sig},
+		Signatures: []crypto.Signature{sig},
 	}
 
 	zap.S().Info("writing GetSignaturesMessage bytes")

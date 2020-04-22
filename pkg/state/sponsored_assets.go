@@ -1,7 +1,9 @@
 package state
 
 import (
+	"bytes"
 	"encoding/binary"
+	"io"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -13,6 +15,28 @@ import (
 const (
 	sponsorshipRecordSize = 8
 )
+
+type sponsorshipRecordForHashes struct {
+	id   *crypto.Digest
+	cost uint64
+}
+
+func (sr *sponsorshipRecordForHashes) writeTo(w io.Writer) error {
+	if _, err := w.Write(sr.id[:]); err != nil {
+		return err
+	}
+	costBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(costBytes, sr.cost)
+	if _, err := w.Write(costBytes); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (sr *sponsorshipRecordForHashes) less(other stateComponent) bool {
+	sr2 := other.(*sponsorshipRecordForHashes)
+	return bytes.Compare(sr.id[:], sr2.id[:]) == -1
+}
 
 type sponsorshipRecord struct {
 	// Cost in assets equal to FeeUnit Waves.
@@ -38,6 +62,9 @@ type sponsoredAssets struct {
 	features *features
 	hs       *historyStorage
 	settings *settings.BlockchainSettings
+
+	calculateHashes bool
+	hasher          *stateHasher
 }
 
 func newSponsoredAssets(
@@ -45,18 +72,37 @@ func newSponsoredAssets(
 	features *features,
 	hs *historyStorage,
 	settings *settings.BlockchainSettings,
+	calcHashes bool,
 ) (*sponsoredAssets, error) {
-	return &sponsoredAssets{rw, features, hs, settings}, nil
+	return &sponsoredAssets{
+		rw:              rw,
+		features:        features,
+		hs:              hs,
+		settings:        settings,
+		hasher:          newStateHasher(),
+		calculateHashes: calcHashes,
+	}, nil
 }
 
 func (s *sponsoredAssets) sponsorAsset(assetID crypto.Digest, assetCost uint64, blockID proto.BlockID) error {
 	key := sponsorshipKey{assetID}
+	keyBytes := key.bytes()
+	keyStr := string(keyBytes)
 	record := &sponsorshipRecord{assetCost}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
 	}
-	if err := s.hs.addNewEntry(sponsorship, key.bytes(), recordBytes, blockID); err != nil {
+	if s.calculateHashes {
+		sr := &sponsorshipRecordForHashes{
+			id:   &assetID,
+			cost: assetCost,
+		}
+		if err := s.hasher.push(keyStr, sr, blockID); err != nil {
+			return err
+		}
+	}
+	if err := s.hs.addNewEntry(sponsorship, keyBytes, recordBytes, blockID); err != nil {
 		return err
 	}
 	return nil
@@ -183,4 +229,12 @@ func (s *sponsoredAssets) isSponsorshipActivated() (bool, error) {
 	curHeight := s.rw.recentHeight()
 	sponsorshipTrueActivationHeight := height + s.settings.ActivationWindowSize(height)
 	return curHeight >= sponsorshipTrueActivationHeight, nil
+}
+
+func (s *sponsoredAssets) prepareHashes() error {
+	return s.hasher.stop()
+}
+
+func (s *sponsoredAssets) reset() {
+	s.hasher.reset()
 }

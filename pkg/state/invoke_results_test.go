@@ -12,7 +12,6 @@ import (
 
 type invokeResultsTestObjects struct {
 	stor          *testStorageObjects
-	aliases       *aliases
 	invokeResults *invokeResults
 }
 
@@ -21,15 +20,11 @@ func createInvokeResults() (*invokeResultsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	aliases, err := newAliases(stor.db, stor.dbBatch, stor.hs)
+	invokeResults, err := newInvokeResults(stor.hs)
 	if err != nil {
 		return nil, path, err
 	}
-	invokeResults, err := newInvokeResults(stor.hs, aliases)
-	if err != nil {
-		return nil, path, err
-	}
-	return &invokeResultsTestObjects{stor, aliases, invokeResults}, path, nil
+	return &invokeResultsTestObjects{stor, invokeResults}, path, nil
 }
 
 func TestSaveEmptyInvokeResult(t *testing.T) {
@@ -43,7 +38,7 @@ func TestSaveEmptyInvokeResult(t *testing.T) {
 	}()
 	invokeID := crypto.MustDigestFromBase58(invokeId)
 	to.stor.addBlock(t, blockID0)
-	savedRes, err := proto.NewScriptResult(nil)
+	savedRes, err := proto.NewScriptResult(nil, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	err = to.invokeResults.saveResult(invokeID, savedRes, blockID0)
 	require.NoError(t, err)

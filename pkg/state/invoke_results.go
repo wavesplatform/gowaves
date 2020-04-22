@@ -4,7 +4,7 @@ import (
 	pb "github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -34,12 +34,11 @@ func (r *invokeResultRecord) unmarshalBinary(scheme byte, data []byte) error {
 }
 
 type invokeResults struct {
-	hs      *historyStorage
-	aliases *aliases
+	hs *historyStorage
 }
 
-func newInvokeResults(hs *historyStorage, aliases *aliases) (*invokeResults, error) {
-	return &invokeResults{hs, aliases}, nil
+func newInvokeResults(hs *historyStorage) (*invokeResults, error) {
+	return &invokeResults{hs}, nil
 }
 
 func (ir *invokeResults) invokeResult(scheme byte, invokeID crypto.Digest, filter bool) (*proto.ScriptResult, error) {

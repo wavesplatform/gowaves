@@ -66,7 +66,7 @@ func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err = a.app.TransactionsBroadcast(b)
+	err = a.app.TransactionsBroadcast(r.Context(), b)
 	if err != nil {
 		handleError(w, err)
 		return
@@ -164,9 +164,7 @@ type BlockHeightResponse struct {
 }
 
 func (a *NodeApi) BlockHeight(w http.ResponseWriter, r *http.Request) {
-	lock := a.state.Mutex().RLock()
 	height, err := a.state.Height()
-	lock.Unlock()
 	if err != nil {
 		handleError(w, err)
 		return
@@ -346,6 +344,26 @@ func (a *NodeApi) Minerinfo(w http.ResponseWriter, r *http.Request) {
 func (a *NodeApi) nodeProcesses(w http.ResponseWriter, r *http.Request) {
 	rs := a.app.NodeProcesses()
 	sendJson(w, rs)
+}
+
+func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) {
+	s := chi.URLParam(r, "height")
+	height, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	stateHash, err := a.state.StateHashAtHeight(height)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	err = json.NewEncoder(w).Encode(stateHash)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
 }
 
 func handleError(w http.ResponseWriter, err error) {

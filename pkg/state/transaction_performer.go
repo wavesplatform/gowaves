@@ -59,6 +59,9 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if err != nil {
 		return err
 	}
+	if err := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, tx.SenderPK, info.blockID); err != nil {
+		return err
+	}
 	return tp.performIssue(&tx.Issue, assetID, info)
 }
 
@@ -75,10 +78,8 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	if err != nil {
 		return err
 	}
-	if len(tx.Script) != 0 {
-		if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
-			return err
-		}
+	if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
+		return err
 	}
 	return tp.performIssue(&tx.Issue, assetID, info)
 }

@@ -25,8 +25,8 @@ type scores struct {
 	dbBatch keyvalue.Batch
 }
 
-func newScores(db keyvalue.KeyValue, dbBatch keyvalue.Batch) (*scores, error) {
-	return &scores{db: db, dbBatch: dbBatch}, nil
+func newScores(db keyvalue.KeyValue, dbBatch keyvalue.Batch) *scores {
+	return &scores{db: db, dbBatch: dbBatch}
 }
 
 func (s *scores) saveScoreToDb(score *big.Int, height uint64) error {

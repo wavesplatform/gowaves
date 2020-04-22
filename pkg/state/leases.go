@@ -1,7 +1,9 @@
 package state
 
 import (
+	"bytes"
 	"encoding/binary"
+	"io"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -13,6 +15,26 @@ import (
 const (
 	leasingRecordSize = 1 + 8 + proto.AddressSize*2
 )
+
+type leaseRecordForStateHashes struct {
+	id     *crypto.Digest
+	active byte
+}
+
+func (lr *leaseRecordForStateHashes) writeTo(w io.Writer) error {
+	if _, err := w.Write(lr.id[:]); err != nil {
+		return err
+	}
+	if _, err := w.Write([]byte{lr.active}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (lr *leaseRecordForStateHashes) less(other stateComponent) bool {
+	lr2 := other.(*leaseRecordForStateHashes)
+	return bytes.Compare(lr.id[:], lr2.id[:]) == -1
+}
 
 type leasing struct {
 	isActive    bool
@@ -52,14 +74,17 @@ func (l *leasingRecord) unmarshalBinary(data []byte) error {
 type leases struct {
 	db keyvalue.IterableKeyVal
 	hs *historyStorage
+
+	calculateHashes bool
+	hasher          *stateHasher
 }
 
-func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage) (*leases, error) {
-	return &leases{db, hs}, nil
+func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage, calcHashes bool) *leases {
+	return &leases{db: db, hs: hs, calculateHashes: calcHashes, hasher: newStateHasher()}
 }
 
 func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID proto.BlockID) error {
-	leaseIter, err := l.db.NewKeyIterator([]byte{leaseKeyPrefix})
+	leaseIter, err := newNewestDataIterator(l.hs, lease)
 	if err != nil {
 		return errors.Errorf("failed to create key iterator to cancel leases: %v", err)
 	}
@@ -74,7 +99,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID prot
 	zap.S().Info("Started to cancel leases")
 	for leaseIter.Next() {
 		key := keyvalue.SafeKey(leaseIter)
-		leaseBytes, err := l.hs.latestEntryData(key, true)
+		leaseBytes, err := l.hs.freshLatestEntryData(key, true)
 		if err != nil {
 			return err
 		}
@@ -94,11 +119,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID prot
 			}
 			zap.S().Infof("State: cancelling lease %s", k.leaseID.String())
 			leaseRecord.isActive = false
-			leaseBytes, err := leaseRecord.marshalBinary()
-			if err != nil {
-				return errors.Errorf("failed to marshal lease: %v", err)
-			}
-			if err := l.hs.addNewEntry(lease, key, leaseBytes, blockID); err != nil {
+			if err := l.addLeasing(k.leaseID, &leaseRecord.leasing, blockID); err != nil {
 				return errors.Errorf("failed to save lease to storage: %v", err)
 			}
 		}
@@ -108,7 +129,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID prot
 }
 
 func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
-	leaseIter, err := l.db.NewKeyIterator([]byte{leaseKeyPrefix})
+	leaseIter, err := newNewestDataIterator(l.hs, lease)
 	if err != nil {
 		return nil, errors.Errorf("failed to create key iterator to cancel leases: %v", err)
 	}
@@ -123,7 +144,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 	// Iterate all the leases.
 	zap.S().Info("Started collecting leases")
 	for leaseIter.Next() {
-		leaseBytes, err := l.hs.latestEntryData(leaseIter.Key(), true)
+		leaseBytes, err := l.hs.freshLatestEntryData(leaseIter.Key(), true)
 		if err != nil {
 			return nil, err
 		}
@@ -177,12 +198,27 @@ func (l *leases) isActive(id crypto.Digest, filter bool) (bool, error) {
 
 func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID proto.BlockID) error {
 	key := leaseKey{leaseID: id}
+	keyBytes := key.bytes()
+	keyStr := string(keyBytes)
 	r := &leasingRecord{*leasing}
 	recordBytes, err := r.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal record: %v", err)
 	}
-	if err := l.hs.addNewEntry(lease, key.bytes(), recordBytes, blockID); err != nil {
+	if l.calculateHashes {
+		active := byte(0)
+		if leasing.isActive {
+			active = byte(1)
+		}
+		lr := &leaseRecordForStateHashes{
+			id:     &id,
+			active: active,
+		}
+		if err := l.hasher.push(keyStr, lr, blockID); err != nil {
+			return err
+		}
+	}
+	if err := l.hs.addNewEntry(lease, keyBytes, recordBytes, blockID); err != nil {
 		return err
 	}
 	return nil
@@ -195,4 +231,12 @@ func (l *leases) cancelLeasing(id crypto.Digest, blockID proto.BlockID, filter b
 	}
 	leasing.isActive = false
 	return l.addLeasing(id, leasing, blockID)
+}
+
+func (l *leases) prepareHashes() error {
+	return l.hasher.stop()
+}
+
+func (l *leases) reset() {
+	l.hasher.reset()
 }

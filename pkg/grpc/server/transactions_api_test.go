@@ -10,7 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated"
+	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -50,8 +51,7 @@ func TestGetTransactions(t *testing.T) {
 	cl := g.NewTransactionsApiClient(conn)
 
 	// By sender.
-	senderBody, err := sender.Body()
-	require.NoError(t, err)
+	senderBody := sender.Body()
 	req := &g.TransactionsRequest{
 		Sender: senderBody,
 	}
@@ -66,10 +66,9 @@ func TestGetTransactions(t *testing.T) {
 	assert.Equal(t, io.EOF, err)
 
 	// By recipient.
-	recipientBody, err := recipient.Body()
-	require.NoError(t, err)
+	recipientBody := recipient.Body()
 	req = &g.TransactionsRequest{
-		Recipient: &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
+		Recipient: &pb.Recipient{Recipient: &pb.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
 	}
 	stream, err = cl.GetTransactions(ctx, req)
 	require.NoError(t, err)
@@ -81,7 +80,7 @@ func TestGetTransactions(t *testing.T) {
 
 	// By recipient and ID.
 	req = &g.TransactionsRequest{
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
+		Recipient:      &pb.Recipient{Recipient: &pb.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	stream, err = cl.GetTransactions(ctx, req)
@@ -95,7 +94,7 @@ func TestGetTransactions(t *testing.T) {
 	// By sender, recipient and ID.
 	req = &g.TransactionsRequest{
 		Sender:         senderBody,
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
+		Recipient:      &pb.Recipient{Recipient: &pb.Recipient_PublicKeyHash{PublicKeyHash: recipientBody}},
 		TransactionIds: [][]byte{id.Bytes()},
 	}
 	stream, err = cl.GetTransactions(ctx, req)
@@ -154,9 +153,9 @@ func TestGetStatuses(t *testing.T) {
 	id2 := []byte{2}
 	ids := [][]byte{id0.Bytes(), id1, id2}
 	correstResults := []*g.TransactionStatus{
-		{Id: id0.Bytes(), Height: 1, Status: g.TransactionStatus_CONFIRMED},
-		{Id: id1, Status: g.TransactionStatus_UNCONFIRMED},
-		{Id: id2, Status: g.TransactionStatus_NOT_EXISTS},
+		{Id: id0.Bytes(), Height: 1, Status: g.TransactionStatus_CONFIRMED, ApplicationStatus: g.ApplicationStatus_SUCCEEDED},
+		{Id: id1, Status: g.TransactionStatus_UNCONFIRMED, ApplicationStatus: g.ApplicationStatus_UNKNOWN},
+		{Id: id2, Status: g.TransactionStatus_NOT_EXISTS, ApplicationStatus: g.ApplicationStatus_UNKNOWN},
 	}
 
 	req := &g.TransactionsByIdRequest{TransactionIds: ids}
@@ -196,8 +195,7 @@ func TestGetUnconfirmed(t *testing.T) {
 
 	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
 	require.NoError(t, err)
-	addrBody, err := addr.Body()
-	require.NoError(t, err)
+	addrBody := addr.Body()
 	sk, pk, err := crypto.GenerateKeyPair([]byte("whatever"))
 	require.NoError(t, err)
 	senderAddr, err := proto.NewAddressFromPublicKey(server.scheme, pk)
@@ -215,8 +213,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	cl := g.NewTransactionsApiClient(conn)
 
 	// By sender.
-	senderAddrBody, err := senderAddr.Body()
-	require.NoError(t, err)
+	senderAddrBody := senderAddr.Body()
 	req := &g.TransactionsRequest{
 		Sender: senderAddrBody,
 	}
@@ -232,7 +229,7 @@ func TestGetUnconfirmed(t *testing.T) {
 
 	// By recipient.
 	req = &g.TransactionsRequest{
-		Recipient: &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},
+		Recipient: &pb.Recipient{Recipient: &pb.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},
 	}
 	stream, err = cl.GetUnconfirmed(ctx, req)
 	require.NoError(t, err)
@@ -257,11 +254,10 @@ func TestGetUnconfirmed(t *testing.T) {
 	assert.Equal(t, io.EOF, err)
 
 	// By sender, recipient and ID.
-	senderAddrBody, err = senderAddr.Body()
-	require.NoError(t, err)
+	senderAddrBody = senderAddr.Body()
 	req = &g.TransactionsRequest{
 		Sender:         senderAddrBody,
-		Recipient:      &g.Recipient{Recipient: &g.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},
+		Recipient:      &pb.Recipient{Recipient: &pb.Recipient_PublicKeyHash{PublicKeyHash: addrBody}},
 		TransactionIds: [][]byte{id},
 	}
 	stream, err = cl.GetUnconfirmed(ctx, req)

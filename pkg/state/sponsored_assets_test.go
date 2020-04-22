@@ -23,7 +23,7 @@ func createSponsoredAssets() (*sponsoredAssetsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	sponsoredAssets, err := newSponsoredAssets(stor.rw, features, stor.hs, settings.MainNetSettings)
+	sponsoredAssets, err := newSponsoredAssets(stor.rw, features, stor.hs, settings.MainNetSettings, true)
 	if err != nil {
 		return nil, path, err
 	}
