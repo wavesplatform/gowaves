@@ -76,7 +76,15 @@ func (h *getStateChangesHandler) handle(tx proto.Transaction) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to convert ScriptResultV3 to protobuf")
 	}
-	if err := h.srv.Send(resProto); err != nil {
+	txProto, err := tx.ToProtobufSigned(h.s.scheme)
+	if err != nil {
+		return errors.Wrap(err, "failed to convert InvokeScriptWithProofs to protobuf")
+	}
+	resp := &g.InvokeScriptResultResponse{
+		Transaction: txProto,
+		Result:      resProto,
+	}
+	if err := h.srv.Send(resp); err != nil {
 		return errors.Wrap(err, "failed to send")
 	}
 	return nil
@@ -121,11 +129,16 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 			}
 			res.Status = g.TransactionStatus_CONFIRMED
 			res.Height = int64(height)
+			// TODO: set ApplicationStatus_SCRIPT_EXECUTION_FAILED here
+			// when dealing with failed transaction.
+			res.ApplicationStatus = g.ApplicationStatus_SUCCEEDED
 		} else if s.utx.ExistsByID(id) {
 			// Transaction is in UTX.
 			res.Status = g.TransactionStatus_UNCONFIRMED
+			res.ApplicationStatus = g.ApplicationStatus_UNKNOWN
 		} else {
 			res.Status = g.TransactionStatus_NOT_EXISTS
+			res.ApplicationStatus = g.ApplicationStatus_UNKNOWN
 		}
 		if err := srv.Send(res); err != nil {
 			return status.Errorf(codes.Internal, err.Error())
