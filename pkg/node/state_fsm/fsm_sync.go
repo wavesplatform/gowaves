@@ -8,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
@@ -37,6 +38,9 @@ type SyncFsm struct {
 
 func (a *SyncFsm) Transaction(p Peer, t proto.Transaction) (FSM, Async, error) {
 	err := a.baseInfo.utx.Add(t)
+	if err != nil {
+		a.baseInfo.BroadcastTransaction(t, p)
+	}
 	return a, nil, err
 }
 
@@ -94,7 +98,7 @@ func (a *SyncFsm) BlockIDs(peer Peer, sigs []proto.BlockID) (FSM, Async, error) 
 	if a.conf.peerSyncWith != peer {
 		return a, nil, nil
 	}
-	internal, err := a.internal.BlockIDs(sync_internal.NewPeerWrapper(peer), sigs)
+	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme), sigs)
 	if err != nil {
 		return newSyncFsm(a.baseInfo, a.conf, internal), nil, err
 	}
@@ -145,7 +149,7 @@ func (a *SyncFsm) Halt() (FSM, Async, error) {
 
 // TODO suspend peer on state error
 func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) (FSM, Async, error) {
-	internal, blocks, eof := internal.Blocks(sync_internal.NewPeerWrapper(conf.peerSyncWith))
+	internal, blocks, eof := internal.Blocks(extension.NewPeerExtension(conf.peerSyncWith, a.baseInfo.scheme))
 	if len(blocks) == 0 {
 		return newSyncFsm(baseInfo, conf, internal), nil, nil
 	}
@@ -191,7 +195,7 @@ func NewIdleToSyncTransition(baseInfo BaseInfo, p Peer) (FSM, Async, error) {
 	if err != nil {
 		return NewIdleFsm(baseInfo), nil, err
 	}
-	internal := sync_internal.InternalFromLastSignatures(sync_internal.NewPeerWrapper(p), lastSigs)
+	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, baseInfo.scheme), lastSigs)
 	c := conf{
 		peerSyncWith: p,
 		timeout:      30 * time.Second,

@@ -18,6 +18,9 @@ type NGFsm struct {
 
 func (a *NGFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
 	err := a.utx.Add(t)
+	if err != nil {
+		a.BroadcastTransaction(t, p)
+	}
 	return a, nil, err
 }
 
@@ -68,6 +71,7 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 	}
 	a.Scheduler.Reschedule()
 	a.actions.SendScore(a.storage)
+	a.CleanUtx()
 	return NewNGFsm12(a.BaseInfo), nil, nil
 }
 
@@ -82,6 +86,7 @@ func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPai
 	a.Reschedule()
 	a.actions.SendBlock(block)
 	a.actions.SendScore(a.storage)
+	a.CleanUtx()
 	return NewNGFsm12(a.BaseInfo), Tasks(NewMineMicroTask(5*time.Second, block, limits, keyPair, vrf)), nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"go.uber.org/zap"
@@ -145,7 +146,7 @@ func MicroBlockInvAction(services services.Services, mess peer.ProtoMessage, fsm
 	return fsm.MicroBlockInv(mess.ID, inv)
 }
 
-// our miner mined microblock, sent MicroblockInv to other nodes, they asked us about Microblock
+// Our miner mined microblock, sent MicroblockInv to other nodes, they asked us about Microblock.
 func MicroBlockRequestAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	blockID, err := proto.NewBlockIDFromBytes(mess.Message.(*proto.MicroBlockRequestMessage).TotalBlockSig)
 	if err != nil {
@@ -153,11 +154,7 @@ func MicroBlockRequestAction(services services.Services, mess peer.ProtoMessage,
 	}
 	micro, ok := services.MicroBlockCache.Get(blockID)
 	if ok {
-		bts, err := micro.MarshalBinary()
-		if err != nil {
-			return fsm, nil, err
-		}
-		mess.ID.SendMessage(&proto.MicroBlockMessage{Body: bts})
+		_ = extension.NewPeerExtension(mess.ID, services.Scheme).SendMicroBlock(micro)
 	}
 	return fsm, nil, nil
 }
