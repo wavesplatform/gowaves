@@ -21,7 +21,7 @@ go get -u github.com/golang/protobuf/protoc-gen-go
 If you want to update proto schemas:
 
 ```bash
-cd grpc/protobuf-schemas
+cd pkg/grpc/protobuf-schemas
 git submodule update --init
 git pull
 ```

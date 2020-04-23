@@ -41,7 +41,7 @@ const (
 	// For block storage.
 	// IDs of blocks and transactions --> offsets in files.
 	blockOffsetKeyPrefix
-	txOffsetKeyPrefix
+	txMetaKeyPrefix
 	// Transaction heights by IDs.
 	txHeightKeyPrefix
 
@@ -269,13 +269,13 @@ func (k *blockOffsetKey) bytes() []byte {
 	return buf
 }
 
-type txOffsetKey struct {
+type txMetaKey struct {
 	txID []byte
 }
 
-func (k *txOffsetKey) bytes() []byte {
+func (k *txMetaKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
-	buf[0] = txOffsetKeyPrefix
+	buf[0] = txMetaKeyPrefix
 	copy(buf[1:], k.txID)
 	return buf
 }

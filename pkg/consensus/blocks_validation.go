@@ -74,13 +74,24 @@ func (cv *ConsensusValidator) fairPosActivated(height uint64) (bool, error) {
 	return cv.state.IsActiveAtHeight(int16(settings.FairPoS), height)
 }
 
+func (cv *ConsensusValidator) blockV5Activated(height uint64) (bool, error) {
+	return cv.state.IsActiveAtHeight(int16(settings.BlockV5), height)
+}
+
 func (cv *ConsensusValidator) posAlgo(height uint64) (PosCalculator, error) {
 	fair, err := cv.fairPosActivated(height)
 	if err != nil {
-		return &NxtPosCalculator{}, err
+		return nil, err
 	}
 	if fair {
-		return &FairPosCalculator{}, nil
+		blockV5, err := cv.blockV5Activated(height)
+		if err != nil {
+			return nil, err
+		}
+		if blockV5 {
+			return &FairPosCalculatorV2{}, nil
+		}
+		return &FairPosCalculatorV1{}, nil
 	}
 	return &NxtPosCalculator{}, nil
 }

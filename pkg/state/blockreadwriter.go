@@ -13,63 +13,95 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	txMetaSize = 8 + 1
+)
+
 type txInfo struct {
 	tx     proto.Transaction
 	height uint64
 	offset uint64
+	failed bool
 }
 
-type recentTransactions struct {
-	id2Pos map[string]int
-	stor   []txInfo
+type txMeta struct {
+	offset uint64
+	failed bool
 }
 
-func newRecentTransactions() *recentTransactions {
-	return &recentTransactions{id2Pos: make(map[string]int)}
+func (m *txMeta) bytes() []byte {
+	buf := make([]byte, txMetaSize)
+	binary.BigEndian.PutUint64(buf, m.offset)
+	if m.failed {
+		buf[8] = 1
+	}
+	return buf
 }
 
-func (r *recentTransactions) appendTx(id []byte, inf *txInfo) error {
-	r.id2Pos[string(id)] = len(r.stor)
-	r.stor = append(r.stor, *inf)
+func (m *txMeta) unmarshal(data []byte) error {
+	if len(data) < txMetaSize {
+		return errors.Errorf("invalid transaction meta-information size")
+	}
+	m.offset = binary.BigEndian.Uint64(data)
+	if data[8] == 1 {
+		m.failed = true
+	}
 	return nil
 }
 
-func (r *recentTransactions) txById(id []byte) (proto.Transaction, error) {
-	pos, ok := r.id2Pos[string(id)]
+type recentTransactions struct {
+	positions map[string]int
+	infos     []txInfo
+}
+
+func newRecentTransactions() *recentTransactions {
+	return &recentTransactions{positions: make(map[string]int)}
+}
+
+func (r *recentTransactions) appendTx(id []byte, inf *txInfo) error {
+	r.positions[string(id)] = len(r.infos)
+	r.infos = append(r.infos, *inf)
+	return nil
+}
+
+func (r *recentTransactions) txById(id []byte) (proto.Transaction, bool, error) {
+	pos, ok := r.positions[string(id)]
 	if !ok {
-		return nil, errNotFound
+		return nil, false, errNotFound
 	}
-	if pos < 0 || pos >= len(r.stor) {
-		return nil, errors.New("invalid pos")
+	if pos < 0 || pos >= len(r.infos) {
+		return nil, false, errors.New("invalid pos")
 	}
-	return r.stor[pos].tx, nil
+	info := r.infos[pos]
+	return info.tx, info.failed, nil
 }
 
 func (r *recentTransactions) heightById(id []byte) (uint64, error) {
-	pos, ok := r.id2Pos[string(id)]
+	pos, ok := r.positions[string(id)]
 	if !ok {
 		return 0, errNotFound
 	}
-	if pos < 0 || pos >= len(r.stor) {
+	if pos < 0 || pos >= len(r.infos) {
 		return 0, errors.New("invalid pos")
 	}
-	return r.stor[pos].height, nil
+	return r.infos[pos].height, nil
 }
 
-func (r *recentTransactions) offsetById(id []byte) (uint64, error) {
-	pos, ok := r.id2Pos[string(id)]
+func (r *recentTransactions) metaById(id []byte) (txMeta, error) {
+	pos, ok := r.positions[string(id)]
 	if !ok {
-		return 0, errNotFound
+		return txMeta{}, errNotFound
 	}
-	if pos < 0 || pos >= len(r.stor) {
-		return 0, errors.New("invalid pos")
+	if pos < 0 || pos >= len(r.infos) {
+		return txMeta{}, errors.New("invalid pos")
 	}
-	return r.stor[pos].offset, nil
+	info := r.infos[pos]
+	return txMeta{offset: info.offset, failed: info.failed}, nil
 }
 
 func (r *recentTransactions) reset() {
-	r.id2Pos = make(map[string]int)
-	r.stor = nil
+	r.positions = make(map[string]int)
+	r.infos = make([]txInfo, 0, len(r.infos))
 }
 
 type protobufInfo struct {
@@ -120,7 +152,6 @@ type blockReadWriter struct {
 	blockInfo      map[blockOffsetKey][]byte
 
 	blockBounds  []byte
-	txStarts     []byte
 	headerBounds []byte
 	heightBuf    []byte
 
@@ -164,7 +195,7 @@ func initHeight(db keyvalue.KeyValue) (uint64, error) {
 	}
 	if !has {
 		heightBuf := make([]byte, 8)
-		binary.LittleEndian.PutUint64(heightBuf, 0)
+		binary.BigEndian.PutUint64(heightBuf, 0)
 		if err := db.Put([]byte{rwHeightKeyPrefix}, heightBuf); err != nil {
 			return 0, err
 		}
@@ -174,7 +205,7 @@ func initHeight(db keyvalue.KeyValue) (uint64, error) {
 		if err != nil {
 			return 0, err
 		}
-		return binary.LittleEndian.Uint64(heightBytes), nil
+		return binary.BigEndian.Uint64(heightBytes), nil
 	}
 }
 
@@ -224,7 +255,6 @@ func newBlockReadWriter(
 		rheaders:          make(map[proto.BlockID]proto.BlockHeader),
 		height2IDCache:    make(map[uint64]proto.BlockID),
 		blockInfo:         make(map[blockOffsetKey][]byte),
-		txStarts:          make([]byte, offsetLen),
 		headerBounds:      make([]byte, headerOffsetLen*2),
 		blockBounds:       make([]byte, offsetLen*2),
 		heightBuf:         make([]byte, 8),
@@ -243,7 +273,7 @@ func newBlockReadWriter(
 
 func (rw *blockReadWriter) setHeight(height uint64, directly bool) error {
 	rwHeightBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(rwHeightBytes, height)
+	binary.BigEndian.PutUint64(rwHeightBytes, height)
 	if directly {
 		if err := rw.db.Put([]byte{rwHeightKeyPrefix}, rwHeightBytes); err != nil {
 			return err
@@ -259,7 +289,7 @@ func (rw *blockReadWriter) getHeight() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return binary.LittleEndian.Uint64(rwHeightBytes), nil
+	return binary.BigEndian.Uint64(rwHeightBytes), nil
 }
 
 func (rw *blockReadWriter) syncFiles() error {
@@ -283,8 +313,8 @@ func (rw *blockReadWriter) startBlock(blockID proto.BlockID) error {
 		return err
 	}
 	rw.height2IDCache[rw.height+1] = blockID
-	binary.LittleEndian.PutUint64(rw.blockBounds[:rw.offsetLen], rw.blockchainLen)
-	binary.LittleEndian.PutUint64(rw.headerBounds[:rw.headerOffsetLen], rw.headersLen)
+	binary.BigEndian.PutUint64(rw.blockBounds[:rw.offsetLen], rw.blockchainLen)
+	binary.BigEndian.PutUint64(rw.headerBounds[:rw.headerOffsetLen], rw.headersLen)
 	return nil
 }
 
@@ -292,9 +322,9 @@ func (rw *blockReadWriter) finishBlock(blockID proto.BlockID) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	rw.addingBlock = false
-	binary.LittleEndian.PutUint64(rw.blockBounds[rw.offsetLen:], rw.blockchainLen)
-	binary.LittleEndian.PutUint64(rw.headerBounds[rw.headerOffsetLen:], rw.headersLen)
-	binary.LittleEndian.PutUint64(rw.heightBuf, rw.height+1)
+	binary.BigEndian.PutUint64(rw.blockBounds[rw.offsetLen:], rw.blockchainLen)
+	binary.BigEndian.PutUint64(rw.headerBounds[rw.headerOffsetLen:], rw.headersLen)
+	binary.BigEndian.PutUint64(rw.heightBuf, rw.height+1)
 	val := append(rw.blockBounds, rw.headerBounds...)
 	val = append(val, rw.heightBuf...)
 	key := blockOffsetKey{blockID: blockID}
@@ -303,7 +333,7 @@ func (rw *blockReadWriter) finishBlock(blockID proto.BlockID) error {
 	return nil
 }
 
-func (rw *blockReadWriter) marshalTranasction(tx proto.Transaction) ([]byte, error) {
+func (rw *blockReadWriter) marshalTransaction(tx proto.Transaction) ([]byte, error) {
 	var txBytes []byte
 	var err error
 	if rw.protobufActivated {
@@ -327,14 +357,14 @@ func (rw *blockReadWriter) marshalTranasction(tx proto.Transaction) ([]byte, err
 	return txBytesTotal, nil
 }
 
-func (rw *blockReadWriter) writeTransaction(tx proto.Transaction) error {
+func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, failed bool) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	txID, err := tx.GetID(rw.scheme)
 	if err != nil {
 		return err
 	}
-	txBytes, err := rw.marshalTranasction(tx)
+	txBytes, err := rw.marshalTransaction(tx)
 	if err != nil {
 		return err
 	}
@@ -343,22 +373,25 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction) error {
 		tx:     tx,
 		height: rw.height + 1,
 		offset: rw.blockchainLen,
+		failed: failed,
 	}
 	if err := rw.rtx.appendTx(txID, info); err != nil {
 		return err
 	}
-	// Write tx start pos to DB batch.
-	binary.LittleEndian.PutUint64(rw.txStarts[:rw.offsetLen], rw.blockchainLen)
+	// Write transaction meta-information to DB batch.
+	key := txMetaKey{txID: txID}
+	val := txMeta{offset: rw.blockchainLen, failed: failed}
+	// Update length of blockchain
 	rw.blockchainLen += uint64(len(txBytes))
+	//TODO: is this required?
 	if rw.blockchainLen > rw.offsetEnd {
-		return errors.Errorf("offsetLen is not enough for this offset: %d > %d", rw.blockchainLen, rw.offsetEnd)
+		return errors.Errorf("offset overflow: %d > %d", rw.blockchainLen, rw.offsetEnd)
 	}
-	key := txOffsetKey{txID: txID}
-	rw.dbBatch.Put(key.bytes(), rw.txStarts)
+	rw.dbBatch.Put(key.bytes(), val.bytes())
 	// Write tx height by ID.
 	heightKey := txHeightKey{txID: txID}
 	heightBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(heightBytes, rw.height+1)
+	binary.BigEndian.PutUint64(heightBytes, rw.height+1)
 	rw.dbBatch.Put(heightKey.bytes(), heightBytes)
 	// Write tx itself.
 	if _, err := rw.blockchainBuf.Write(txBytes); err != nil {
@@ -397,7 +430,7 @@ func (rw *blockReadWriter) writeBlockHeader(header *proto.BlockHeader) error {
 	rw.rheaders[blockID] = *header
 	rw.headersLen += uint64(len(headerBytes))
 	if rw.headersLen > rw.offsetEnd {
-		return errors.Errorf("offsetLen is not enough for this offset: %d > %d", rw.headersLen, rw.offsetEnd)
+		return errors.Errorf("headersLen is not enough for this offset: %d > %d", rw.headersLen, rw.offsetEnd)
 	}
 	return nil
 }
@@ -458,7 +491,7 @@ func (rw *blockReadWriter) heightFromBlockInfo(blockInfo []byte) (uint64, error)
 	if len(blockInfo) < 8 {
 		return 0, errInvalidDataSize
 	}
-	height := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
+	height := binary.BigEndian.Uint64(blockInfo[len(blockInfo)-8:])
 	return height, nil
 }
 
@@ -515,26 +548,31 @@ func (rw *blockReadWriter) transactionHeightByID(txID []byte) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return binary.LittleEndian.Uint64(heightBytes), nil
+	return binary.BigEndian.Uint64(heightBytes), nil
 }
 
-func (rw *blockReadWriter) transactionOffsetByID(txID []byte) (uint64, error) {
-	key := txOffsetKey{txID: txID}
-	offsetBytes, err := rw.db.Get(key.bytes())
+func (rw *blockReadWriter) transactionMetaByID(txID []byte) (txMeta, error) {
+	key := txMetaKey{txID: txID}
+	metaBytes, err := rw.db.Get(key.bytes())
 	if err != nil {
-		return 0, err
+		return txMeta{}, err
 	}
-	return binary.LittleEndian.Uint64(offsetBytes), nil
+	var meta txMeta
+	err = meta.unmarshal(metaBytes)
+	if err != nil {
+		return txMeta{}, err
+	}
+	return meta, nil
 }
 
-func (rw *blockReadWriter) newestTransactionOffsetByID(txID []byte) (uint64, error) {
+func (rw *blockReadWriter) newestTransactionMetaByID(txID []byte) (txMeta, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	offset, err := rw.rtx.offsetById(txID)
+	meta, err := rw.rtx.metaById(txID)
 	if err == nil {
-		return offset, nil
+		return meta, nil
 	}
-	return rw.transactionOffsetByID(txID)
+	return rw.transactionMetaByID(txID)
 }
 
 func (rw *blockReadWriter) readTransactionSize(offset uint64) (uint32, error) {
@@ -548,28 +586,29 @@ func (rw *blockReadWriter) readTransactionSize(offset uint64) (uint32, error) {
 	return binary.BigEndian.Uint32(sizeBytes), nil
 }
 
-func (rw *blockReadWriter) readNewestTransaction(txID []byte) (proto.Transaction, error) {
+func (rw *blockReadWriter) readNewestTransaction(txID []byte) (proto.Transaction, bool, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	tx, err := rw.rtx.txById(txID)
+	tx, fs, err := rw.rtx.txById(txID)
 	if err != nil {
 		return rw.readTransactionImpl(txID)
 	}
-	return tx, nil
+	return tx, fs, nil
 }
 
-func (rw *blockReadWriter) readTransaction(txID []byte) (proto.Transaction, error) {
+func (rw *blockReadWriter) readTransaction(txID []byte) (proto.Transaction, bool, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	return rw.readTransactionImpl(txID)
 }
 
-func (rw *blockReadWriter) readTransactionImpl(txID []byte) (proto.Transaction, error) {
-	offset, err := rw.transactionOffsetByID(txID)
+func (rw *blockReadWriter) readTransactionImpl(txID []byte) (proto.Transaction, bool, error) {
+	meta, err := rw.transactionMetaByID(txID)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return rw.readTransactionByOffsetImpl(offset)
+	tx, err := rw.readTransactionByOffsetImpl(meta.offset)
+	return tx, meta.failed, err
 }
 
 func (rw *blockReadWriter) readTransactionByOffset(offset uint64) (proto.Transaction, error) {
@@ -613,8 +652,8 @@ func (rw *blockReadWriter) readBlockHeaderImpl(blockID proto.BlockID) (*proto.Bl
 		return nil, err
 	}
 	headerBounds := blockInfo[rw.offsetLen*2 : len(blockInfo)-8]
-	headerStart := binary.LittleEndian.Uint64(headerBounds[:rw.headerOffsetLen])
-	headerEnd := binary.LittleEndian.Uint64(headerBounds[rw.headerOffsetLen:])
+	headerStart := binary.BigEndian.Uint64(headerBounds[:rw.headerOffsetLen])
+	headerEnd := binary.BigEndian.Uint64(headerBounds[rw.headerOffsetLen:])
 	return rw.headerByBounds(headerStart, headerEnd)
 }
 
@@ -631,8 +670,8 @@ func (rw *blockReadWriter) readBlock(blockID proto.BlockID) (*proto.Block, error
 		return nil, err
 	}
 	blockBounds := blockInfo[:rw.offsetLen*2]
-	blockStart := binary.LittleEndian.Uint64(blockBounds[:rw.offsetLen])
-	blockEnd := binary.LittleEndian.Uint64(blockBounds[rw.offsetLen:])
+	blockStart := binary.BigEndian.Uint64(blockBounds[:rw.offsetLen])
+	blockEnd := binary.BigEndian.Uint64(blockBounds[rw.offsetLen:])
 	blockBytes := make([]byte, blockEnd-blockStart)
 	n, err := rw.blockchain.ReadAt(blockBytes, int64(blockStart))
 	if err != nil {
@@ -702,7 +741,7 @@ func (rw *blockReadWriter) cleanIDs(oldHeight, newBlockchainLen uint64) error {
 		if err != nil {
 			return err
 		}
-		key := txOffsetKey{txID: txID}
+		key := txMetaKey{txID: txID}
 		if err := rw.db.Delete(key.bytes()); err != nil {
 			return err
 		}
@@ -776,7 +815,7 @@ func (rw *blockReadWriter) rollback(removalEdge proto.BlockID, cleanIDs bool) er
 	if err != nil {
 		return err
 	}
-	newHeight := binary.LittleEndian.Uint64(blockInfo[len(blockInfo)-8:])
+	newHeight := binary.BigEndian.Uint64(blockInfo[len(blockInfo)-8:])
 	// Set new height first of all.
 	oldHeight, err := rw.getHeight()
 	if err != nil {
@@ -789,7 +828,7 @@ func (rw *blockReadWriter) rollback(removalEdge proto.BlockID, cleanIDs bool) er
 		return err
 	}
 	blockBounds := blockInfo[:rw.offsetLen*2]
-	blockEnd := binary.LittleEndian.Uint64(blockBounds[rw.offsetLen:])
+	blockEnd := binary.BigEndian.Uint64(blockBounds[rw.offsetLen:])
 	if cleanIDs {
 		// Clean IDs of blocks and transactions.
 		if err := rw.cleanIDs(oldHeight, blockEnd); err != nil {
@@ -805,7 +844,7 @@ func (rw *blockReadWriter) rollback(removalEdge proto.BlockID, cleanIDs bool) er
 	}
 	// Remove headers.
 	headerBounds := blockInfo[rw.offsetLen*2 : len(blockInfo)-8]
-	headerEnd := binary.LittleEndian.Uint64(headerBounds[rw.headerOffsetLen:])
+	headerEnd := binary.BigEndian.Uint64(headerBounds[rw.headerOffsetLen:])
 	if err := rw.headers.Truncate(int64(headerEnd)); err != nil {
 		return err
 	}

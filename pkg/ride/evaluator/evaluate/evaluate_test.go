@@ -403,7 +403,7 @@ f(1) == 999
 	require.NoError(t, err)
 	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
 	require.NoError(t, err)
-	require.Equal(t, true, rs)
+	assert.True(t, rs.OK)
 }
 
 func TestUserFunctionsInExpression(t *testing.T) {
@@ -429,7 +429,7 @@ g() == 5
 	require.NoError(t, err)
 	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
 	require.NoError(t, err)
-	require.Equal(t, true, rs)
+	assert.True(t, rs.OK)
 }
 
 // variables refers to each other in the same scope
@@ -781,7 +781,7 @@ func verify() = {
 	require.NoError(t, err)
 	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
 	require.NoError(t, err)
-	require.Equal(t, false, rs)
+	assert.False(t, rs.OK)
 }
 
 func TestDappVerifySuccessful(t *testing.T) {
@@ -813,7 +813,7 @@ func verify() = {
 	require.NoError(t, err)
 	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
 	require.NoError(t, err)
-	require.Equal(t, true, rs)
+	assert.True(t, rs.OK)
 }
 
 func TestTransferSet(t *testing.T) {

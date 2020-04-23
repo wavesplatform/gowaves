@@ -2,9 +2,10 @@ package proto
 
 import (
 	"bytes"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
-	"testing"
 )
 
 func TestStringWithUInt16LenBinaryRoundTrip(t *testing.T) {

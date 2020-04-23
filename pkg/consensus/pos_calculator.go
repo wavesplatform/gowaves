@@ -22,9 +22,10 @@ const (
 	baseTargetGamma      = 64
 	meanCalculationDepth = 3
 	// Fair PoS values.
-	c1   = float64(70000)
-	c2   = float64(500000000000000000)
-	tMin = float64(5000)
+	c1     = float64(70000)
+	c2     = float64(500000000000000000)
+	tMinV1 = float64(5000)
+	tMinV2 = float64(15000)
 )
 
 type Hit = big.Int
@@ -209,17 +210,14 @@ func (calc *NxtPosCalculator) CalculateDelay(hit *Hit, parentTarget types.BaseTa
 	return delay, nil
 }
 
-type FairPosCalculator struct {
-}
-
-func (calc *FairPosCalculator) HeightForHit(height uint64) uint64 {
+func heightForHit(height uint64) uint64 {
 	if fairPosHeightDiffForHit >= height {
 		return height
 	}
 	return height - fairPosHeightDiffForHit
 }
 
-func (calc *FairPosCalculator) CalculateBaseTarget(
+func calculateBaseTarget(
 	targetBlockDelaySeconds uint64,
 	confirmedHeight uint64,
 	confirmedTarget uint64,
@@ -242,7 +240,7 @@ func (calc *FairPosCalculator) CalculateBaseTarget(
 	}
 }
 
-func (calc *FairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
+func calculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64, threshold float64) (uint64, error) {
 	var maxHit big.Int
 	maxHit.SetBytes(maxSignature)
 	var maxHitFloat big.Float
@@ -253,6 +251,52 @@ func (calc *FairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget types.Ba
 	quo.Quo(&hitFloat, &maxHitFloat)
 	h, _ := quo.Float64()
 	log := math.Log(1 - c2*math.Log(h)/float64(confirmedTarget)/float64(balance))
-	res := uint64(tMin + c1*log)
+	res := uint64(threshold + c1*log)
 	return res, nil
+}
+
+type FairPosCalculatorV1 struct {
+}
+
+func (calc *FairPosCalculatorV1) HeightForHit(height uint64) uint64 {
+	return heightForHit(height)
+}
+
+func (calc *FairPosCalculatorV1) CalculateBaseTarget(
+	targetBlockDelaySeconds uint64,
+	confirmedHeight uint64,
+	confirmedTarget uint64,
+	confirmedTimestamp uint64,
+	greatGrandParentTimestamp uint64,
+	applyingBlockTimestamp uint64,
+) (types.BaseTarget, error) {
+	return calculateBaseTarget(targetBlockDelaySeconds, confirmedHeight, confirmedTarget, confirmedTimestamp,
+		greatGrandParentTimestamp, applyingBlockTimestamp)
+}
+
+func (calc *FairPosCalculatorV1) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
+	return calculateDelay(hit, confirmedTarget, balance, tMinV1)
+}
+
+type FairPosCalculatorV2 struct {
+}
+
+func (calc *FairPosCalculatorV2) HeightForHit(height uint64) uint64 {
+	return heightForHit(height)
+}
+
+func (calc *FairPosCalculatorV2) CalculateBaseTarget(
+	targetBlockDelaySeconds uint64,
+	confirmedHeight uint64,
+	confirmedTarget uint64,
+	confirmedTimestamp uint64,
+	greatGrandParentTimestamp uint64,
+	applyingBlockTimestamp uint64,
+) (types.BaseTarget, error) {
+	return calculateBaseTarget(targetBlockDelaySeconds, confirmedHeight, confirmedTarget, confirmedTimestamp,
+		greatGrandParentTimestamp, applyingBlockTimestamp)
+}
+
+func (calc *FairPosCalculatorV2) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
+	return calculateDelay(hit, confirmedTarget, balance, tMinV2)
 }

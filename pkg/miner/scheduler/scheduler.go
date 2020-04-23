@@ -62,16 +62,20 @@ func (a internalImpl) schedule(storage state.StateInfo, keyPairs []proto.KeyPair
 	if err != nil {
 		return nil, errors.Wrap(err, "failed get fairPosActivated")
 	}
-	vrfActivated, err := storage.IsActivated(int16(settings.BlockV5))
+	blockV5Activated, err := storage.IsActivated(int16(settings.BlockV5))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed get vrfActivated")
+		return nil, errors.Wrap(err, "failed get blockV5Activated")
 	}
 	var pos consensus.PosCalculator = &consensus.NxtPosCalculator{}
 	if fairPosActivated {
-		pos = &consensus.FairPosCalculator{}
+		if blockV5Activated {
+			pos = &consensus.FairPosCalculatorV2{}
+		} else {
+			pos = &consensus.FairPosCalculatorV1{}
+		}
 	}
 	var gsp consensus.GenerationSignatureProvider = &consensus.NXTGenerationSignatureProvider{}
-	if vrfActivated {
+	if blockV5Activated {
 		gsp = &consensus.VRFGenerationSignatureProvider{}
 	}
 
@@ -82,7 +86,7 @@ func (a internalImpl) schedule(storage state.StateInfo, keyPairs []proto.KeyPair
 	var out []Emit
 	for _, keyPair := range keyPairs {
 		var key [crypto.KeySize]byte = keyPair.Public
-		if vrfActivated { // In case of VRF generation signature we need a SK of miner to produce it
+		if blockV5Activated { // In case of VRF generation signature we need a SK of miner to produce it
 			key = keyPair.Secret
 		}
 
@@ -102,7 +106,7 @@ func (a internalImpl) schedule(storage state.StateInfo, keyPairs []proto.KeyPair
 			continue
 		}
 		var vrf []byte = nil
-		if vrfActivated {
+		if blockV5Activated {
 			vrf = source
 		}
 		hit, err := consensus.GenHit(source)

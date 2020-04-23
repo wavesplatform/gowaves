@@ -59,7 +59,8 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 			if t == nil {
 				break
 			}
-			if err := validation.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, vrf); err == nil {
+			//TODO: While putting a transaction to UTX and cleanup we should always accept transactions with failed script
+			if err := validation.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, vrf, true); err == nil {
 				transactions = append(transactions, t)
 			}
 		}

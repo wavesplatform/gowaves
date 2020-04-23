@@ -8,7 +8,7 @@ import (
 )
 
 func TestFairPosCalculateDelay(t *testing.T) {
-	fpos := &FairPosCalculator{}
+	fpos := &FairPosCalculatorV1{}
 	var hit big.Int
 	hit.SetString("1", 10)
 	delay, err := fpos.CalculateDelay(&hit, 100, 10000000000000)
@@ -31,7 +31,7 @@ func TestFairPosCalculateDelay(t *testing.T) {
 }
 
 func TestFairPosCalculateBaseTarget(t *testing.T) {
-	fpos := &FairPosCalculator{}
+	fpos := &FairPosCalculatorV1{}
 	target, err := fpos.CalculateBaseTarget(100, 30, 100, 100000000000, 99000, 100000)
 	if err != nil {
 		t.Fatalf("fpos.calculateBaseTarget(): %v\n", err)
