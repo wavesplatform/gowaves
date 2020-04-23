@@ -233,7 +233,7 @@ func TestApplyInvokeScriptWithProofsTransfers(t *testing.T) {
 	assert.True(t, ok)
 	assert.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	correctAddrs = []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
-	assert.Equal(t, correctAddrs, addresses)
+	assert.ElementsMatch(t, correctAddrs, addresses)
 
 	// Check newest result state here.
 	senderBalance, err = to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
