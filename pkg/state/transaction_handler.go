@@ -10,6 +10,8 @@ import (
 type txCheckFunc func(proto.Transaction, *checkerInfo) ([]crypto.Digest, error)
 type txPerformFunc func(proto.Transaction, *performerInfo) error
 type txCreateDiffFunc func(proto.Transaction, *differInfo) (txBalanceChanges, error)
+
+//TODO: Consider not using txCreateFeeDiffFunc function but extract 2 special cases for Invoke and Exchange transactions
 type txCreateFeeDiffFunc func(proto.Transaction, *differInfo) (txBalanceChanges, error)
 type txCountFeeFunc func(proto.Transaction, *feeDistribution) error
 

@@ -507,7 +507,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	}
 	if !sponsorshipActivated {
 		// Minimum fee is not checked before sponsorship activation.
-		return totalChanges.addresses(), true, nil
+		return totalChanges.addresses(), ok, nil
 	}
 	minWavesFee := scriptExtraFee*scriptRuns + feeConstants[proto.InvokeScriptTransaction]*FeeUnit
 	wavesFee := tx.Fee
@@ -520,7 +520,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	if wavesFee < minWavesFee {
 		return nil, false, errors.Errorf("tx fee %d is less than minimum value of %d\n", wavesFee, minWavesFee)
 	}
-	return totalChanges.addresses(), true, nil
+	return totalChanges.addresses(), ok, nil
 }
 
 func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,

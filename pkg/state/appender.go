@@ -192,6 +192,16 @@ func (a *txAppender) checkProtobufVersion(tx proto.Transaction, blockV5Activated
 	return nil
 }
 
+// TODO: Consider following:
+// The idea of checking fee in advance is that we should save computational resources and discard scripts that don't
+// have enough fee before executing them. However, it is our decision if we want to do it for all transactions or only
+// Exchange and Invoke, consensus rules do not oblige us to do so for all transactions. Fee will be checked together
+// with other balance diffs at the end of applying blocks batch. validateBalancesChanges is very heavy function as it
+// reads balances from the database. It is not obvious what is faster: to execute scripts for other transaction types
+// or to read balances, because when script does everything in memory, it is much faster than reading. Finally, most of
+// transactions WILL have enough fee, and for them this check is just excess, but very expensive.
+// I suggest to check fee here only for Invoke and Exchange transactions (they involve calling a lot of scripts very
+// often), accepting all the other types in the same way it is currently done for LeaseCancel.
 func (a *txAppender) checkTxFees(tx proto.Transaction, info *checkerInfo, blockInfo *proto.BlockInfo) error {
 	if tx.GetTypeInfo().Type == proto.LeaseCancelTransaction {
 		return nil
@@ -455,6 +465,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return err
 		}
 		a.recentTxIds[string(txID)] = empty
+
+		// TODO: Consider not to do this because of comment on pkg/state/appender.go:196
 		// After activation of AcceptFailedScriptTransactions feature we have to check availability of funds to
 		// pay fees for all transaction types except LeaseCancel.
 		if blockV5Activated {

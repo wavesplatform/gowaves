@@ -221,7 +221,7 @@ func TestFailedTransaction(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, fs1)
 
-	// Read transaction failure status from accoun's transactions storage
+	// Read transaction failure status from account's transactions storage
 	iter, err := atx.newTransactionsByAddrIterator(addr)
 	require.NoError(t, err)
 	i := 0

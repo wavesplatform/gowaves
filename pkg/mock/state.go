@@ -1122,17 +1122,17 @@ func (m *MockTxValidation) EXPECT() *MockTxValidationMockRecorder {
 }
 
 // ValidateNextTx mocks base method
-func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte) error {
+func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte, acceptFailed bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, vrf)
+	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, vrf, acceptFailed)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx
-func (mr *MockTxValidationMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, vrf interface{}) *gomock.Call {
+func (mr *MockTxValidationMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, vrf, acceptFailed interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockTxValidation)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, vrf)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockTxValidation)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, vrf, acceptFailed)
 }
 
 // MockState is a mock of State interface
