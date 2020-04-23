@@ -122,7 +122,7 @@ func (a *MicroMiner) Micro(
 	}
 	sk := keyPair.Secret
 
-	err = newBlock.SetTransactionsRoot(a.scheme)
+	err = newBlock.SetTransactionsRootIfPossible(a.scheme)
 	if err != nil {
 		return nil, nil, rest, err
 	}

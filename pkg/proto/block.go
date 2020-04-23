@@ -458,6 +458,13 @@ func (b *Block) SetTransactionsRoot(scheme Scheme) error {
 	return nil
 }
 
+func (b *Block) SetTransactionsRootIfPossible(scheme Scheme) error {
+	if b.Version < ProtoBlockVersion {
+		return nil
+	}
+	return b.SetTransactionsRoot(scheme)
+}
+
 func (b *Block) VerifySignature(scheme Scheme) (bool, error) {
 	var bb []byte
 	if b.Version >= ProtoBlockVersion {
@@ -692,7 +699,7 @@ func (b *Block) UnmarshalBinary(data []byte, scheme Scheme) (err error) {
 
 func (b *Block) transactionsRoot(scheme Scheme) ([]byte, error) {
 	if b.Version < ProtoBlockVersion {
-		return nil, errors.Errorf("no transactions root prior block version %d", ProtoBlockVersion)
+		return nil, errors.Errorf("no transactions root prior block version %d, current version %d", ProtoBlockVersion, b.Version)
 	}
 	tree, err := crypto.NewMerkleTree()
 	if err != nil {
