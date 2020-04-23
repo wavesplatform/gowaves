@@ -553,7 +553,7 @@ func (s *stateManager) TopBlock() *proto.Block {
 func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
 	var vrf []byte = nil
 	if blockHeader.Version >= proto.ProtoBlockVersion {
-		pos := &consensus.FairPosCalculator{}
+		pos := &consensus.FairPosCalculatorV2{} // BlockV5 and FairPoSV2 are activated at the same time
 		gsp := &consensus.VRFGenerationSignatureProvider{}
 		hitSourceHeader, err := s.NewestHeaderByHeight(pos.HeightForHit(height))
 		if err != nil {
