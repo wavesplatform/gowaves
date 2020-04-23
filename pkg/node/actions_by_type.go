@@ -5,6 +5,7 @@ import (
 	"net"
 	"reflect"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -184,7 +185,7 @@ func PBMicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm 
 	micro := &proto.MicroBlock{}
 	err := micro.UnmarshalFromProtobuf(mess.Message.(*proto.PBMicroBlockMessage).MicroBlockBytes)
 	if err != nil {
-		return fsm, nil, err
+		return fsm, nil, errors.Wrap(err, "PBMicroBlockAction")
 	}
 	return fsm.MicroBlock(mess.ID, micro)
 }

@@ -6,7 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -47,7 +46,17 @@ type internalImpl struct {
 }
 
 func (a internalImpl) schedule(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
+	vrfActivated, err := storage.IsActivated(int16(settings.BlockV5))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed get vrfActivated")
+	}
+	if vrfActivated {
+		return a.scheduleWithVrf(storage, keyPairs, schema, AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
+	}
+	return a.scheduleWithoutVrf(storage, keyPairs, schema, AverageBlockDelaySeconds, confirmedBlock, confirmedBlockHeight)
+}
 
+func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
 		greatGrandParent, err := storage.BlockByHeight(confirmedBlockHeight - 2)
@@ -85,11 +94,7 @@ func (a internalImpl) schedule(storage state.StateInfo, keyPairs []proto.KeyPair
 
 	var out []Emit
 	for _, keyPair := range keyPairs {
-		var key [crypto.KeySize]byte = keyPair.Public
-		if blockV5Activated { // In case of VRF generation signature we need a SK of miner to produce it
-			key = keyPair.Secret
-		}
-
+		key := keyPair.Secret
 		HitSourceAtHeight, err := storage.HitSourceAtHeight(heightForHit)
 		if err != nil {
 			zap.S().Error("scheduler, internalImpl", err)
@@ -143,7 +148,102 @@ func (a internalImpl) schedule(storage state.StateInfo, keyPairs []proto.KeyPair
 		}
 
 		out = append(out, Emit{
-			Timestamp:    confirmedBlock.Timestamp + delay + 10,
+			Timestamp:    confirmedBlock.Timestamp + delay,
+			KeyPair:      keyPair,
+			GenSignature: genSig,
+			VRF:          vrf,
+			BaseTarget:   baseTarget,
+			Parent:       confirmedBlock.BlockID(),
+		})
+	}
+	return out, nil
+}
+
+func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
+	var greatGrandParentTimestamp proto.Timestamp = 0
+	if confirmedBlockHeight > 2 {
+		greatGrandParent, err := storage.BlockByHeight(confirmedBlockHeight - 2)
+		if err != nil {
+			zap.S().Error(err)
+			return nil, err
+		}
+		greatGrandParentTimestamp = greatGrandParent.Timestamp
+	}
+
+	fairPosActivated, err := storage.IsActiveAtHeight(int16(settings.FairPoS), confirmedBlockHeight)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed get fairPosActivated")
+	}
+	blockV5Activated, err := storage.IsActivated(int16(settings.BlockV5))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed get blockV5Activated")
+	}
+	var pos consensus.PosCalculator = &consensus.NxtPosCalculator{}
+	if fairPosActivated {
+		if blockV5Activated {
+			pos = &consensus.FairPosCalculatorV2{}
+		} else {
+			pos = &consensus.FairPosCalculatorV1{}
+		}
+	}
+	var gsp consensus.GenerationSignatureProvider = &consensus.NXTGenerationSignatureProvider{}
+	hitSourceHeader, err := storage.HeaderByHeight(pos.HeightForHit(confirmedBlockHeight))
+	if err != nil {
+		zap.S().Error("scheduler, internalImpl HeaderByHeight", err)
+		return nil, err
+	}
+
+	zap.S().Infof("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d", confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight)
+
+	var out []Emit
+	for _, keyPair := range keyPairs {
+		genSigBlock := confirmedBlock.BlockHeader
+		genSig, err := gsp.GenerationSignature(keyPair.Public, genSigBlock.GenSignature)
+		if err != nil {
+			zap.S().Error("scheduler, internalImpl", err)
+			continue
+		}
+		source, err := gsp.HitSource(keyPair.Public, hitSourceHeader.GenSignature)
+		if err != nil {
+			zap.S().Error("scheduler, internalImpl HitSource", err)
+			continue
+		}
+		var vrf []byte = nil
+		hit, err := consensus.GenHit(source)
+		if err != nil {
+			zap.S().Error("scheduler, internalImpl GenHit", err)
+			continue
+		}
+
+		addr, err := keyPair.Addr(schema)
+		if err != nil {
+			zap.S().Error("scheduler, internalImpl keyPair.Addr", err)
+			continue
+		}
+		var startHeight proto.Height = 1
+		if confirmedBlockHeight > 1000 {
+			startHeight = confirmedBlockHeight - 1000
+		}
+		effectiveBalance, err := storage.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
+		if err != nil {
+			zap.S().Debug("scheduler, internalImpl effectiveBalance, err", effectiveBalance, err, addr.String())
+			continue
+		}
+
+		delay, err := pos.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, effectiveBalance)
+		if err != nil {
+			zap.S().Error("scheduler, internalImpl pos.CalculateDelay", err)
+			continue
+		}
+
+		baseTarget, err := pos.CalculateBaseTarget(AverageBlockDelaySeconds, confirmedBlockHeight, confirmedBlock.BlockHeader.BaseTarget, confirmedBlock.Timestamp, greatGrandParentTimestamp, delay+confirmedBlock.Timestamp)
+		if err != nil {
+			zap.S().Error("scheduler, internalImpl pos.CalculateBaseTarget", err)
+			continue
+		}
+
+		out = append(out, Emit{
+			Timestamp:    confirmedBlock.Timestamp + delay,
 			KeyPair:      keyPair,
 			GenSignature: genSig,
 			VRF:          vrf,

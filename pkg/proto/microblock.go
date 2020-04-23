@@ -36,12 +36,12 @@ type MicroblockTotalSig = crypto.Signature
 func (a *MicroBlock) UnmarshalFromProtobuf(b []byte) error {
 	var pbMicroBlock g.SignedMicroBlock
 	if err := protobuf.Unmarshal(b, &pbMicroBlock); err != nil {
-		return err
+		return errors.Wrap(err, "SignedMicroBlock: failed to unmarshal")
 	}
 	var c ProtobufConverter
 	res, err := c.MicroBlock(&pbMicroBlock)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "ProtobufConverter")
 	}
 	*a = res
 	return nil
@@ -549,7 +549,7 @@ func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
 	if uint32(len(data)) < h.PayloadLength {
 		return errors.New("invalid data size")
 	}
-	mbBytes := data[:h.PayloadLength-crypto.DigestSize]
+	mbBytes := data[:h.PayloadLength]
 	a.MicroBlockBytes = make([]byte, len(mbBytes))
 	copy(a.MicroBlockBytes, mbBytes)
 	return nil
