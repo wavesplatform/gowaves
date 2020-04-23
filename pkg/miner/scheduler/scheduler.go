@@ -71,16 +71,20 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 	if err != nil {
 		return nil, errors.Wrap(err, "failed get fairPosActivated")
 	}
-	vrfActivated, err := storage.IsActivated(int16(settings.BlockV5))
+	blockV5Activated, err := storage.IsActivated(int16(settings.BlockV5))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed get vrfActivated")
+		return nil, errors.Wrap(err, "failed get blockV5Activated")
 	}
 	var pos consensus.PosCalculator = &consensus.NxtPosCalculator{}
 	if fairPosActivated {
-		pos = &consensus.FairPosCalculator{}
+		if blockV5Activated {
+			pos = &consensus.FairPosCalculatorV2{}
+		} else {
+			pos = &consensus.FairPosCalculatorV1{}
+		}
 	}
 	var gsp consensus.GenerationSignatureProvider = &consensus.NXTGenerationSignatureProvider{}
-	if vrfActivated {
+	if blockV5Activated {
 		gsp = &consensus.VRFGenerationSignatureProvider{}
 	}
 
@@ -107,7 +111,7 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 			continue
 		}
 		var vrf []byte = nil
-		if vrfActivated {
+		if blockV5Activated {
 			vrf = source
 		}
 		hit, err := consensus.GenHit(source)
@@ -170,9 +174,17 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 	if err != nil {
 		return nil, errors.Wrap(err, "failed get fairPosActivated")
 	}
+	blockV5Activated, err := storage.IsActivated(int16(settings.BlockV5))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed get blockV5Activated")
+	}
 	var pos consensus.PosCalculator = &consensus.NxtPosCalculator{}
 	if fairPosActivated {
-		pos = &consensus.FairPosCalculator{}
+		if blockV5Activated {
+			pos = &consensus.FairPosCalculatorV2{}
+		} else {
+			pos = &consensus.FairPosCalculatorV1{}
+		}
 	}
 	var gsp consensus.GenerationSignatureProvider = &consensus.NXTGenerationSignatureProvider{}
 	hitSourceHeader, err := storage.HeaderByHeight(pos.HeightForHit(confirmedBlockHeight))

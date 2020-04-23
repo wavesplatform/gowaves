@@ -333,7 +333,8 @@ func (a *ThreadSafeWriteWrapper) Map(f func(state NonThreadSafeState) error) err
 	return f(a.s)
 }
 
-func (a *ThreadSafeWriteWrapper) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte) error {
+func (a *ThreadSafeWriteWrapper) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64,
+	blockVersion proto.BlockVersion, vrf []byte, acceptFailed bool) error {
 	panic("Invalid ValidateNextTx usage on thread safe wrapper. Should call TxValidation")
 }
 

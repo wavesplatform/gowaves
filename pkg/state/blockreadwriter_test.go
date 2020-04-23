@@ -82,7 +82,7 @@ func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
 		t.Fatalf("writeBlockHeader(): %v", err)
 	}
 	for _, tx := range block.Transactions {
-		if err := rw.writeTransaction(tx); err != nil {
+		if err := rw.writeTransaction(tx, false); err != nil {
 			t.Fatalf("writeTransaction(): %v", err)
 		}
 	}
@@ -148,7 +148,7 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 					return err
 				}
 			}
-			if err := rw.writeTransaction(tx); err != nil {
+			if err := rw.writeTransaction(tx, false); err != nil {
 				close(readTasks)
 				return err
 			}
@@ -210,15 +210,15 @@ func testNewestReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 				return errors.New("heights are not equal")
 			}
 		case readTxOffset:
-			offset, err := rw.newestTransactionOffsetByID(task.txID)
+			meta, err := rw.newestTransactionMetaByID(task.txID)
 			if err != nil {
 				return err
 			}
-			if !assert.ObjectsAreEqual(task.offset, offset) {
+			if !assert.ObjectsAreEqual(task.offset, meta.offset) {
 				return errors.New("transaction offsets are not equal")
 			}
 		case readTx:
-			tx, err := rw.readNewestTransaction(task.txID)
+			tx, _, err := rw.readNewestTransaction(task.txID)
 			if err != nil {
 				return err
 			}
@@ -266,15 +266,15 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 				return errors.New("heights are not equal")
 			}
 		case readTxOffset:
-			offset, err := rw.transactionOffsetByID(task.txID)
+			meta, err := rw.transactionMetaByID(task.txID)
 			if err != nil {
 				return err
 			}
-			if !assert.ObjectsAreEqual(task.offset, offset) {
+			if !assert.ObjectsAreEqual(task.offset, meta.offset) {
 				return errors.New("transaction offsets are not equal")
 			}
 		case readTx:
-			tx, err := rw.readTransaction(task.txID)
+			tx, _, err := rw.readTransaction(task.txID)
 			if err != nil {
 				return err
 			}
@@ -504,7 +504,7 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	if removeErr != nil {
 		t.Fatalf("Failed to remove blocks: %v", err)
 	}
-	_, err = rw.readTransaction(txID)
+	_, _, err = rw.readTransaction(txID)
 	if err != keyvalue.ErrNotFound {
 		t.Fatalf("transaction from removed block wasn't deleted %v", err)
 	}
@@ -587,4 +587,8 @@ func TestProtobufReadWrite(t *testing.T) {
 	if errCounter != 0 {
 		t.Fatalf("Reader/writer error.")
 	}
+}
+
+func TestFailedTransactionReadWrite(t *testing.T) {
+	//TODO: add test on failed transaction
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -26,15 +27,37 @@ func createInvokeResults() (*invokeResultsTestObjects, []string, error) {
 	return &invokeResultsTestObjects{stor, invokeResults}, path, nil
 }
 
-func TestSaveResult(t *testing.T) {
+func TestSaveEmptyInvokeResult(t *testing.T) {
 	to, path, err := createInvokeResults()
-	assert.NoError(t, err, "createInvokeResults() failed")
-
+	require.NoError(t, err, "createInvokeResults() failed")
 	defer func() {
 		to.stor.close(t)
 
 		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+	invokeID := crypto.MustDigestFromBase58(invokeId)
+	to.stor.addBlock(t, blockID0)
+	savedRes, err := proto.NewScriptResult(nil, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+	err = to.invokeResults.saveResult(invokeID, savedRes, blockID0)
+	require.NoError(t, err)
+	// Flush.
+	to.stor.flush(t)
+	res, err := to.invokeResults.invokeResult('W', invokeID, true)
+	require.NoError(t, err)
+	assert.EqualValues(t, savedRes, res)
+}
+
+func TestSaveResult(t *testing.T) {
+	to, path, err := createInvokeResults()
+	require.NoError(t, err, "createInvokeResults() failed")
+
+	defer func() {
+		to.stor.close(t)
+
+		err = common.CleanTemporaryDirs(path)
+		require.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	rcp := proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
@@ -62,10 +85,10 @@ func TestSaveResult(t *testing.T) {
 		Burns:    make([]*proto.BurnScriptAction, 0),
 	}
 	err = to.invokeResults.saveResult(invokeID, savedRes, blockID0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	// Flush.
 	to.stor.flush(t)
 	res, err := to.invokeResults.invokeResult('W', invokeID, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, savedRes, res)
 }

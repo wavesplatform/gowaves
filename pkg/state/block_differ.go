@@ -110,18 +110,32 @@ func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID proto.BlockID, min
 	return diff, minerAddr, nil
 }
 
-func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, height uint64, vrf []byte, initialisation bool) (txBalanceChanges, error) {
+func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, height uint64, vrf []byte, initialisation, status bool) (txBalanceChanges, error) {
 	blockInfo, err := proto.BlockInfoFromHeader(d.settings.AddressSchemeCharacter, block, height, vrf)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
 	differInfo := &differInfo{initialisation, blockInfo}
-	txChanges, err := d.handler.createDiffTx(tx, differInfo)
+	var txChanges txBalanceChanges
+	if status {
+		txChanges, err = d.handler.createDiffTx(tx, differInfo)
+	} else {
+		txChanges, err = d.handler.createFeeDiffTx(tx, differInfo)
+	}
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
 	d.appendBlockInfoToTxDiff(txChanges.diff, block)
 	return txChanges, nil
+}
+
+func (d *blockDiffer) createTransactionFeeDiff(tx proto.Transaction, blockInfo *proto.BlockInfo, initialisation bool) (txBalanceChanges, error) {
+	differInfo := &differInfo{initialisation, blockInfo}
+	txFeeChanges, err := d.handler.createFeeDiffTx(tx, differInfo)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	return txFeeChanges, nil
 }
 
 func (d *blockDiffer) countMinerFee(tx proto.Transaction) error {
