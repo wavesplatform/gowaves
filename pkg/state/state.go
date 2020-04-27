@@ -2110,11 +2110,11 @@ func (s *stateManager) StartProvidingExtendedApi() error {
 	return nil
 }
 
-func (s *stateManager) PersisAddressTransactions() error {
-	return s.atx.persist(true, true)
+func (s *stateManager) PersistAddressTransactions() error {
+	return s.atx.persist(true)
 }
 
-func (s *stateManager) ShouldPersisAddressTransactions() (bool, error) {
+func (s *stateManager) ShouldPersistAddressTransactions() (bool, error) {
 	return s.atx.shouldPersist()
 }
 

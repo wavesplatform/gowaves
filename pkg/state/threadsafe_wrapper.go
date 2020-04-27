@@ -302,16 +302,10 @@ func (a *ThreadSafeReadWrapper) ProvidesExtendedApi() (bool, error) {
 	return a.s.ProvidesExtendedApi()
 }
 
-func (a *ThreadSafeReadWrapper) PersisAddressTransactions() error {
+func (a *ThreadSafeReadWrapper) ShouldPersistAddressTransactions() (bool, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.PersisAddressTransactions()
-}
-
-func (a *ThreadSafeReadWrapper) ShouldPersisAddressTransactions() (bool, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.ShouldPersisAddressTransactions()
+	return a.s.ShouldPersistAddressTransactions()
 }
 
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
@@ -407,6 +401,12 @@ func (a *ThreadSafeWriteWrapper) StartProvidingExtendedApi() error {
 	a.lock()
 	defer a.unlock()
 	return a.s.StartProvidingExtendedApi()
+}
+
+func (a *ThreadSafeWriteWrapper) PersistAddressTransactions() error {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.PersistAddressTransactions()
 }
 
 func (a *ThreadSafeWriteWrapper) Close() error {

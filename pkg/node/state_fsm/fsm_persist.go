@@ -9,7 +9,7 @@ import (
 )
 
 // Save transactions by address from temporary file into storage.
-// Only read operations permitted
+// Only read operations permitted.
 type PersistFsm struct {
 	BaseInfo
 }
@@ -66,7 +66,7 @@ func (a *PersistFsm) Halt() (FSM, Async, error) {
 
 func NewPersistTransition(info BaseInfo) (FSM, Async, error) {
 	t := tasks.NewFuncTask(func(ctx context.Context, output chan tasks.AsyncTask) error {
-		err := info.storage.PersisAddressTransactions()
+		err := info.storage.PersistAddressTransactions()
 		output <- tasks.AsyncTask{
 			TaskType: tasks.PersistComplete,
 		}

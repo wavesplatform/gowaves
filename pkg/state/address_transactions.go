@@ -153,7 +153,7 @@ func newAddressTransactions(
 		params:              params,
 	}
 	if params.providesData {
-		if err := atx.persist(true, true); err != nil {
+		if err := atx.persist(true); err != nil {
 			return nil, errors.Wrap(err, "failed to persist")
 		}
 	}
@@ -204,7 +204,7 @@ func (at *addressTransactions) startProvidingData() error {
 		// Already provides.
 		return nil
 	}
-	if err := at.persist(true, true); err != nil {
+	if err := at.persist(true); err != nil {
 		return err
 	}
 	at.params.providesData = true
@@ -256,7 +256,7 @@ func (at *addressTransactions) shouldPersist() (bool, error) {
 	return size >= at.params.maxFileSize, nil
 }
 
-func (at *addressTransactions) persist(ignoreSize, filter bool) error {
+func (at *addressTransactions) persist(filter bool) error {
 	fileStats, err := os.Stat(at.filePath)
 	if err != nil {
 		return err

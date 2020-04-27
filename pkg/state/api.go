@@ -126,10 +126,7 @@ type StateInfo interface {
 
 	// ShouldPersisAddressTransactions checks if PersisAddressTransactions
 	// should be called.
-	ShouldPersisAddressTransactions() (bool, error)
-
-	// PersisAddressTransactions sorts and saves transactions to storage.
-	PersisAddressTransactions() error
+	ShouldPersistAddressTransactions() (bool, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.
@@ -177,6 +174,9 @@ type StateModifier interface {
 
 	// State will provide extended API data after returning.
 	StartProvidingExtendedApi() error
+
+	// PersisAddressTransactions sorts and saves transactions to storage.
+	PersistAddressTransactions() error
 
 	Close() error
 }
