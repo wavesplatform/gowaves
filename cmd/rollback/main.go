@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 
-	//"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -31,15 +30,7 @@ func main() {
 		zap.S().Error(err)
 		return
 	}
-
 	params := state.DefaultStateParams()
-	//params.StoreExtendedApiData = *buildExtendedApi
-	//params.ProvideExtendedApi = *serveExtendedApi
-	//params.BuildStateHashes = *buildStateHashes
-	//params.Time = ntptime.Stub{}
-
-	zap.S().Info(*statePath)
-
 	state, err := state.NewState(*statePath, params, cfg)
 	if err != nil {
 		zap.S().Error(err)
