@@ -19,7 +19,7 @@ import (
 // Release() must be called after using iterator.
 // Error() should return nil if iterating was successful.
 type TransactionIterator interface {
-	Transaction() (proto.Transaction, error)
+	Transaction() (proto.Transaction, bool, error)
 	Next() bool
 	Release()
 	Error() error
@@ -162,7 +162,7 @@ type StateModifier interface {
 	// that were added using ValidateNextTx() until you call ResetValidationList().
 	// Does not change state.
 	// Returns TxValidationError or nil.
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte) error
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte, acceptFailed bool) error
 	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
 	ResetValidationList()
 
@@ -184,7 +184,8 @@ type StateModifier interface {
 type NonThreadSafeState = State
 
 type TxValidation interface {
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte) error
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion,
+		vrf []byte, acceptFailed bool) error
 }
 
 type State interface {

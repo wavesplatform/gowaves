@@ -79,7 +79,7 @@ func (a *MicroMiner) Micro(
 				continue
 			}
 
-			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, vrf)
+			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, vrf, false)
 			if err != nil {
 				unAppliedTransactions = append(unAppliedTransactions, t)
 				continue

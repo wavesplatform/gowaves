@@ -226,6 +226,14 @@ func (ch txBalanceChanges) addresses() []proto.Address {
 	return res
 }
 
+func (ch txBalanceChanges) clone() txBalanceChanges {
+	d := newTxDiff()
+	for k, v := range ch.diff {
+		d[k] = v
+	}
+	return newTxBalanceChanges(ch.addresses(), d)
+}
+
 type txDiff map[string]balanceDiff
 
 func newTxDiff() txDiff {
@@ -308,6 +316,10 @@ func (td *transactionDiffer) createDiffGenesis(transaction proto.Transaction, _ 
 	return changes, nil
 }
 
+func (td *transactionDiffer) createFeeDiffGenesis(_ proto.Transaction, _ *differInfo) (txBalanceChanges, error) {
+	return txBalanceChanges{}, nil
+}
+
 func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.Payment)
 	if !ok {
@@ -341,6 +353,30 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 	}
 	addresses := []proto.Address{senderAddr, tx.Recipient}
 	changes := newTxBalanceChanges(addresses, diff)
+	return changes, nil
+}
+
+func (td *transactionDiffer) createFeeDiffPayment(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.Payment)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to Payment transaction")
+	}
+	diff := newTxDiff()
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderKey := wavesBalanceKey{address: senderAddr}
+	senderBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(senderBalanceDiff, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	if info.hasMiner() {
+		if err := td.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	changes := newTxBalanceChanges([]proto.Address{senderAddr}, diff)
 	return changes, nil
 }
 
@@ -449,6 +485,25 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 	return changes, nil
 }
 
+func (td *transactionDiffer) createFeeDiffTransfer(tx *proto.Transfer, info *differInfo) (txBalanceChanges, error) {
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderFeeKey := byteKey(senderAddr, tx.FeeAsset.ToID())
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	changes := newTxBalanceChanges([]proto.Address{senderAddr}, diff)
+	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+		return txBalanceChanges{}, err
+	}
+	return changes, nil
+}
+
 func (td *transactionDiffer) createDiffTransferWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.TransferWithSig)
 	if !ok {
@@ -457,12 +512,28 @@ func (td *transactionDiffer) createDiffTransferWithSig(transaction proto.Transac
 	return td.createDiffTransfer(&tx.Transfer, info)
 }
 
+func (td *transactionDiffer) createFeeDiffTransferWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.TransferWithSig)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to TransferWithSig transaction")
+	}
+	return td.createFeeDiffTransfer(&tx.Transfer, info)
+}
+
 func (td *transactionDiffer) createDiffTransferWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.TransferWithProofs)
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert interface to TransferWithProofs transaction")
 	}
 	return td.createDiffTransfer(&tx.Transfer, info)
+}
+
+func (td *transactionDiffer) createFeeDiffTransferWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.TransferWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to TransferWithProofs transaction")
+	}
+	return td.createFeeDiffTransfer(&tx.Transfer, info)
 }
 
 func (td *transactionDiffer) createDiffIssue(tx *proto.Issue, id []byte, info *differInfo) (txBalanceChanges, error) {
@@ -496,6 +567,27 @@ func (td *transactionDiffer) createDiffIssue(tx *proto.Issue, id []byte, info *d
 	return changes, nil
 }
 
+func (td *transactionDiffer) createFeeDiffIssue(tx *proto.Issue, id []byte, info *differInfo) (txBalanceChanges, error) {
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderFeeKey := wavesBalanceKey{address: senderAddr}
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	if info.hasMiner() {
+		if err := td.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	changes := newTxBalanceChanges([]proto.Address{senderAddr}, diff)
+	return changes, nil
+}
+
 func (td *transactionDiffer) createDiffIssueWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.IssueWithSig)
 	if !ok {
@@ -508,6 +600,18 @@ func (td *transactionDiffer) createDiffIssueWithSig(transaction proto.Transactio
 	return td.createDiffIssue(&tx.Issue, txID, info)
 }
 
+func (td *transactionDiffer) createFeeDiffIssueWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.IssueWithSig)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to IssueWithSig transaction")
+	}
+	txID, err := tx.GetID(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, errors.Errorf("failed to get transaction ID: %v\n", err)
+	}
+	return td.createFeeDiffIssue(&tx.Issue, txID, info)
+}
+
 func (td *transactionDiffer) createDiffIssueWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.IssueWithProofs)
 	if !ok {
@@ -518,6 +622,18 @@ func (td *transactionDiffer) createDiffIssueWithProofs(transaction proto.Transac
 		return txBalanceChanges{}, errors.Errorf("failed to get transaction ID: %v\n", err)
 	}
 	return td.createDiffIssue(&tx.Issue, txID, info)
+}
+
+func (td *transactionDiffer) createFeeDiffIssueWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.IssueWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to IssueWithProofs transaction")
+	}
+	txID, err := tx.GetID(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, errors.Errorf("failed to get transaction ID: %v\n", err)
+	}
+	return td.createFeeDiffIssue(&tx.Issue, txID, info)
 }
 
 func (td *transactionDiffer) createDiffReissue(tx *proto.Reissue, info *differInfo) (txBalanceChanges, error) {
@@ -547,6 +663,27 @@ func (td *transactionDiffer) createDiffReissue(tx *proto.Reissue, info *differIn
 	return changes, nil
 }
 
+func (td *transactionDiffer) createFeeDiffReissue(tx *proto.Reissue, info *differInfo) (txBalanceChanges, error) {
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderFeeKey := wavesBalanceKey{address: senderAddr}
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	if info.hasMiner() {
+		if err := td.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	changes := newTxBalanceChanges([]proto.Address{senderAddr}, diff)
+	return changes, nil
+}
+
 func (td *transactionDiffer) createDiffReissueWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.ReissueWithSig)
 	if !ok {
@@ -555,12 +692,28 @@ func (td *transactionDiffer) createDiffReissueWithSig(transaction proto.Transact
 	return td.createDiffReissue(&tx.Reissue, info)
 }
 
+func (td *transactionDiffer) createFeeDiffReissueWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.ReissueWithSig)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to ReissueWithSig transaction")
+	}
+	return td.createFeeDiffReissue(&tx.Reissue, info)
+}
+
 func (td *transactionDiffer) createDiffReissueWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.ReissueWithProofs)
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert interface to ReissueWithProofs transaction")
 	}
 	return td.createDiffReissue(&tx.Reissue, info)
+}
+
+func (td *transactionDiffer) createFeeDiffReissueWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.ReissueWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to ReissueWithProofs transaction")
+	}
+	return td.createFeeDiffReissue(&tx.Reissue, info)
 }
 
 func (td *transactionDiffer) createDiffBurn(tx *proto.Burn, info *differInfo) (txBalanceChanges, error) {
@@ -590,6 +743,27 @@ func (td *transactionDiffer) createDiffBurn(tx *proto.Burn, info *differInfo) (t
 	return changes, nil
 }
 
+func (td *transactionDiffer) createFeeDiffBurn(tx *proto.Burn, info *differInfo) (txBalanceChanges, error) {
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderFeeKey := wavesBalanceKey{address: senderAddr}
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	if info.hasMiner() {
+		if err := td.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	changes := newTxBalanceChanges([]proto.Address{senderAddr}, diff)
+	return changes, nil
+}
+
 func (td *transactionDiffer) createDiffBurnWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.BurnWithSig)
 	if !ok {
@@ -598,12 +772,28 @@ func (td *transactionDiffer) createDiffBurnWithSig(transaction proto.Transaction
 	return td.createDiffBurn(&tx.Burn, info)
 }
 
+func (td *transactionDiffer) createFeeDiffBurnWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.BurnWithSig)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to BurnWithSig transaction")
+	}
+	return td.createFeeDiffBurn(&tx.Burn, info)
+}
+
 func (td *transactionDiffer) createDiffBurnWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.BurnWithProofs)
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert interface to BurnWithProofs transaction")
 	}
 	return td.createDiffBurn(&tx.Burn, info)
+}
+
+func (td *transactionDiffer) createFeeDiffBurnWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.BurnWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to BurnWithProofs transaction")
+	}
+	return td.createFeeDiffBurn(&tx.Burn, info)
 }
 
 func (td *transactionDiffer) orderFeeKey(address proto.Address, order proto.Order) []byte {
@@ -806,6 +996,70 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	return changes, nil
 }
 
+func (td *transactionDiffer) createFeeDiffExchange(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(proto.Exchange)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to Exchange transaction")
+	}
+	diff := newTxDiff()
+	buyOrder, err := tx.GetBuyOrder()
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	sellOrder, err := tx.GetSellOrder()
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, sellOrder.GetSenderPK())
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	receiverAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.GetSenderPK())
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	matcherAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.GetMatcherPK())
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	// Fees.
+	matcherKey := wavesBalanceKey{matcherAddr}
+	matcherFee := int64(tx.GetFee())
+	if err := diff.appendBalanceDiff(matcherKey.bytes(), newBalanceDiff(-matcherFee, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderFee := int64(tx.GetSellMatcherFee())
+	senderFeeKey := td.orderFeeKey(senderAddr, sellOrder)
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(-senderFee, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	matcherFeeFromSenderKey := td.orderFeeKey(matcherAddr, sellOrder)
+	if err := diff.appendBalanceDiff(matcherFeeFromSenderKey, newBalanceDiff(senderFee, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	receiverFee := int64(tx.GetBuyMatcherFee())
+	receiverFeeKey := td.orderFeeKey(receiverAddr, buyOrder)
+	if err := diff.appendBalanceDiff(receiverFeeKey, newBalanceDiff(-receiverFee, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	matcherFeeFromReceiverKey := td.orderFeeKey(matcherAddr, buyOrder)
+	if err := diff.appendBalanceDiff(matcherFeeFromReceiverKey, newBalanceDiff(receiverFee, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	if info.hasMiner() {
+		if err := td.minerPayout(diff, tx.GetFee(), info, nil); err != nil {
+			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	txSenderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	addresses := []proto.Address{txSenderAddr, senderAddr, receiverAddr, matcherAddr}
+	changes := newTxBalanceChanges(addresses, diff)
+	return changes, nil
+}
+
 func (td *transactionDiffer) createDiffLease(tx *proto.Lease, info *differInfo) (txBalanceChanges, error) {
 	diff := newTxDiff()
 	// Append sender diff.
@@ -842,6 +1096,26 @@ func (td *transactionDiffer) createDiffLease(tx *proto.Lease, info *differInfo) 
 	return changes, nil
 }
 
+func (td *transactionDiffer) createFeeDiffLease(tx *proto.Lease, info *differInfo) (txBalanceChanges, error) {
+	diff := newTxDiff()
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderKey := wavesBalanceKey{address: senderAddr}
+	senderFeeDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(senderFeeDiff, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	if info.hasMiner() {
+		if err := td.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	changes := newTxBalanceChanges([]proto.Address{senderAddr}, diff)
+	return changes, nil
+}
+
 func (td *transactionDiffer) createDiffLeaseWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.LeaseWithSig)
 	if !ok {
@@ -850,12 +1124,28 @@ func (td *transactionDiffer) createDiffLeaseWithSig(transaction proto.Transactio
 	return td.createDiffLease(&tx.Lease, info)
 }
 
+func (td *transactionDiffer) createFeeDiffLeaseWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.LeaseWithSig)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseWithSig transaction")
+	}
+	return td.createFeeDiffLease(&tx.Lease, info)
+}
+
 func (td *transactionDiffer) createDiffLeaseWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.LeaseWithProofs)
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseWithProofs transaction")
 	}
 	return td.createDiffLease(&tx.Lease, info)
+}
+
+func (td *transactionDiffer) createFeeDiffLeaseWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.LeaseWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseWithProofs transaction")
+	}
+	return td.createFeeDiffLease(&tx.Lease, info)
 }
 
 func (td *transactionDiffer) createDiffLeaseCancel(tx *proto.LeaseCancel, info *differInfo) (txBalanceChanges, error) {
@@ -894,6 +1184,26 @@ func (td *transactionDiffer) createDiffLeaseCancel(tx *proto.LeaseCancel, info *
 	return changes, nil
 }
 
+func (td *transactionDiffer) createFeeDiffLeaseCancel(tx *proto.LeaseCancel, info *differInfo) (txBalanceChanges, error) {
+	diff := newTxDiff()
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderKey := wavesBalanceKey{address: senderAddr}
+	senderFeeDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(senderFeeDiff, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	if info.hasMiner() {
+		if err := td.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	changes := newTxBalanceChanges([]proto.Address{senderAddr}, diff)
+	return changes, nil
+}
+
 func (td *transactionDiffer) createDiffLeaseCancelWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.LeaseCancelWithSig)
 	if !ok {
@@ -902,12 +1212,28 @@ func (td *transactionDiffer) createDiffLeaseCancelWithSig(transaction proto.Tran
 	return td.createDiffLeaseCancel(&tx.LeaseCancel, info)
 }
 
+func (td *transactionDiffer) createFeeDiffLeaseCancelWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.LeaseCancelWithSig)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseCancelWithSig transaction")
+	}
+	return td.createFeeDiffLeaseCancel(&tx.LeaseCancel, info)
+}
+
 func (td *transactionDiffer) createDiffLeaseCancelWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.LeaseCancelWithProofs)
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseCancelWithProofs transaction")
 	}
 	return td.createDiffLeaseCancel(&tx.LeaseCancel, info)
+}
+
+func (td *transactionDiffer) createFeeDiffLeaseCancelWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.LeaseCancelWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to LeaseCancelWithProofs transaction")
+	}
+	return td.createFeeDiffLeaseCancel(&tx.LeaseCancel, info)
 }
 
 func (td *transactionDiffer) createDiffCreateAlias(tx *proto.CreateAlias, info *differInfo) (txBalanceChanges, error) {
@@ -996,6 +1322,30 @@ func (td *transactionDiffer) createDiffMassTransferWithProofs(transaction proto.
 		}
 	}
 	changes := newTxBalanceChanges(addresses, diff)
+	return changes, nil
+}
+
+func (td *transactionDiffer) createFeeDiffMassTransferWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.MassTransferWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to MassTransferWithProofs transaction")
+	}
+	diff := newTxDiff()
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderFeeKey := wavesBalanceKey{address: senderAddr}
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	if info.hasMiner() {
+		if err := td.minerPayout(diff, tx.Fee, info, nil); err != nil {
+			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	changes := newTxBalanceChanges([]proto.Address{senderAddr}, diff)
 	return changes, nil
 }
 
@@ -1145,6 +1495,34 @@ func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.
 		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 			return txBalanceChanges{}, err
 		}
+	}
+	return changes, nil
+}
+
+func (td *transactionDiffer) createFeeDiffInvokeScriptWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
+	}
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderFeeKey := byteKey(senderAddr, tx.FeeAsset.ToID())
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, td.stor.aliases, !info.initialisation)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	addresses := []proto.Address{senderAddr, *scriptAddr}
+	changes := newTxBalanceChanges(addresses, diff)
+	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+		return txBalanceChanges{}, err
 	}
 	return changes, nil
 }

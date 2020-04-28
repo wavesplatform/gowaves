@@ -91,3 +91,18 @@ func (mr *MockstateWrapperMockRecorder) TxValidation(arg0 interface{}) *gomock.C
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TxValidation", reflect.TypeOf((*MockstateWrapper)(nil).TxValidation), arg0)
 }
+
+// IsActivated mocks base method
+func (m *MockstateWrapper) IsActivated(featureID int16) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsActivated", featureID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsActivated indicates an expected call of IsActivated
+func (mr *MockstateWrapperMockRecorder) IsActivated(featureID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActivated", reflect.TypeOf((*MockstateWrapper)(nil).IsActivated), featureID)
+}

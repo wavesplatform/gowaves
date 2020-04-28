@@ -553,7 +553,7 @@ func (s *stateManager) TopBlock() *proto.Block {
 func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
 	var vrf []byte = nil
 	if blockHeader.Version >= proto.ProtoBlockVersion {
-		pos := &consensus.FairPosCalculator{}
+		pos := &consensus.FairPosCalculatorV2{} // BlockV5 and FairPoSV2 are activated at the same time
 		gsp := &consensus.VRFGenerationSignatureProvider{}
 		hitSourceHeader, err := s.NewestHeaderByHeight(pos.HeightForHit(height))
 		if err != nil {
@@ -1584,8 +1584,8 @@ func (s *stateManager) ResetValidationList() {
 }
 
 // For UTX validation.
-func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, vrf []byte) error {
-	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, vrf); err != nil {
+func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, vrf []byte, acceptFailed bool) error {
+	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, vrf, acceptFailed); err != nil {
 		return wrapErr(TxValidationError, err)
 	}
 	return nil
@@ -1806,7 +1806,8 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 }
 
 func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
-	tx, err := s.rw.readNewestTransaction(id)
+	//TODO: use transaction failure status
+	tx, _, err := s.rw.readNewestTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1814,7 +1815,8 @@ func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, erro
 }
 
 func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
-	tx, err := s.rw.readTransaction(id)
+	//TODO: use transaction failure status
+	tx, _, err := s.rw.readTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

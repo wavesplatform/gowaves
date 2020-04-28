@@ -30,6 +30,7 @@ func TestValidatorImpl_Validate(t *testing.T) {
 	m.EXPECT().TopBlock().Return(emptyBlock)
 	m.EXPECT().Height().Return(proto.Height(1), nil)
 	m.EXPECT().BlockVRF(gomock.Any(), gomock.Any()).Return(nil, nil)
+	m.EXPECT().IsActivated(gomock.Any()).Return(false, nil)
 	m.EXPECT().
 		TxValidation(gomock.Any())
 

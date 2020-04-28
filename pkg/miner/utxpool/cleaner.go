@@ -46,4 +46,5 @@ type stateWrapper interface {
 	TopBlock() *proto.Block
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 	TxValidation(func(validation state.TxValidation) error) error
+	IsActivated(featureID int16) (bool, error)
 }

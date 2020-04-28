@@ -212,7 +212,7 @@ func (bg *batchesGroup) initFirstBatchEmpty() {
 }
 
 func (bg *batchesGroup) appendNewRecord(record []byte) error {
-	if len(record) != int(bg.recordSize) {
+	if len(record) != bg.recordSize {
 		// Sanity check.
 		return errInvalidDataSize
 	}

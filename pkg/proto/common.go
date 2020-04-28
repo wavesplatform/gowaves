@@ -3,8 +3,9 @@ package proto
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/pkg/errors"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 var ErrNotFound = errors.New("not found")

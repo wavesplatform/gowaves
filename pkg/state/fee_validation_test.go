@@ -240,7 +240,7 @@ func TestReissueFeeReduction(t *testing.T) {
 	require.NoError(t, checkMinFeeWaves(reissueB1, params))
 	require.NoError(t, checkMinFeeWaves(reissueB2, params))
 
-	storage.activateFeature(t, int16(settings.MultiPaymentInvokeScript))
+	storage.activateFeature(t, int16(settings.BlockV5))
 
 	require.NoError(t, checkMinFeeWaves(reissueA1, params))
 	require.NoError(t, checkMinFeeWaves(reissueA2, params))

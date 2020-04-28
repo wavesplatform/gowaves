@@ -51,7 +51,7 @@ func (tc *transactionChecker) scriptActivation(script *ast.Script) error {
 	if err != nil {
 		return err
 	}
-	multiPaymentsActivated, err := tc.stor.features.isActivated(int16(settings.MultiPaymentInvokeScript))
+	multiPaymentsActivated, err := tc.stor.features.isActivated(int16(settings.BlockV5))
 	if err != nil {
 		return err
 	}
@@ -1089,7 +1089,7 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
 		return nil, err
 	}
-	multiPaymentActivated, err := tc.stor.features.isActivated(int16(settings.MultiPaymentInvokeScript))
+	multiPaymentActivated, err := tc.stor.features.isActivated(int16(settings.BlockV5))
 	if err != nil {
 		return nil, err
 	}

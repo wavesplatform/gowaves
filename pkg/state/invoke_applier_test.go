@@ -142,13 +142,11 @@ func TestApplyInvokeScriptWithProofsPaymentsAndData(t *testing.T) {
 	fc := proto.FunctionCall{Name: "deposit"}
 	feeAsset := proto.OptionalAsset{Present: false}
 	tx := createInvokeScriptWithProofs(t, pmts, fc, feeAsset, fee)
-	ch, err := ia.applyInvokeScriptWithProofs(tx, info)
+	addresses, ok, err := ia.applyInvokeScriptWithProofs(tx, info, false)
+	assert.True(t, ok)
 	assert.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
-	correctAddrs := map[proto.Address]struct{}{
-		testGlobal.senderInfo.addr:    empty,
-		testGlobal.recipientInfo.addr: empty,
-	}
-	assert.Equal(t, correctAddrs, ch.addrs)
+	correctAddrs := []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
+	assert.ElementsMatch(t, correctAddrs, addresses)
 
 	// Check newest result state here.
 	senderBalance, err = to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
@@ -223,23 +221,19 @@ func TestApplyInvokeScriptWithProofsTransfers(t *testing.T) {
 	fc := proto.FunctionCall{Name: "deposit"}
 	feeAsset := proto.OptionalAsset{Present: false}
 	tx := createInvokeScriptWithProofs(t, pmts, fc, feeAsset, fee)
-	ch, err := ia.applyInvokeScriptWithProofs(tx, info)
+	addresses, ok, err := ia.applyInvokeScriptWithProofs(tx, info, false)
+	assert.True(t, ok)
 	assert.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
-	correctAddrs := map[proto.Address]struct{}{
-		testGlobal.senderInfo.addr:    empty,
-		testGlobal.recipientInfo.addr: empty,
-	}
-	assert.Equal(t, correctAddrs, ch.addrs)
+	correctAddrs := []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
+	assert.ElementsMatch(t, correctAddrs, addresses)
 
 	fc = proto.FunctionCall{Name: "withdraw", Arguments: proto.Arguments{&proto.IntegerArgument{Value: int64(withdrawAmount)}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	ch, err = ia.applyInvokeScriptWithProofs(tx, info)
+	addresses, ok, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	assert.True(t, ok)
 	assert.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
-	correctAddrs = map[proto.Address]struct{}{
-		testGlobal.senderInfo.addr:    empty,
-		testGlobal.recipientInfo.addr: empty,
-	}
-	assert.Equal(t, correctAddrs, ch.addrs)
+	correctAddrs = []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
+	assert.ElementsMatch(t, correctAddrs, addresses)
 
 	// Check newest result state here.
 	senderBalance, err = to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
@@ -307,13 +301,11 @@ func TestApplyInvokeScriptWithProofsWithIssues(t *testing.T) {
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	txID := *tx.ID
 	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
-	ch, err := ia.applyInvokeScriptWithProofs(tx, info)
+	addresses, ok, err := ia.applyInvokeScriptWithProofs(tx, info, false)
+	assert.True(t, ok)
 	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
-	correctAddrs := map[proto.Address]struct{}{
-		testGlobal.senderInfo.addr:    empty,
-		testGlobal.recipientInfo.addr: empty,
-	}
-	assert.Equal(t, correctAddrs, ch.addrs)
+	correctAddrs := []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
+	assert.ElementsMatch(t, correctAddrs, addresses)
 
 	// Check newest result state here.
 	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
@@ -374,13 +366,11 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissue(t *testing.T) {
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	txID := *tx.ID
 	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
-	ch, err := ia.applyInvokeScriptWithProofs(tx, info)
+	addresses, ok, err := ia.applyInvokeScriptWithProofs(tx, info, false)
+	assert.True(t, ok)
 	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
-	correctAddrs := map[proto.Address]struct{}{
-		testGlobal.senderInfo.addr:    empty,
-		testGlobal.recipientInfo.addr: empty,
-	}
-	assert.Equal(t, correctAddrs, ch.addrs)
+	correctAddrs := []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
+	assert.ElementsMatch(t, correctAddrs, addresses)
 
 	// Check newest result state here.
 	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
@@ -396,7 +386,8 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissue(t *testing.T) {
 
 	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	ch, err = ia.applyInvokeScriptWithProofs(tx, info)
+	_, ok, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	assert.True(t, ok)
 	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 
 	// Check newest result state here.
@@ -458,13 +449,11 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenBurn(t *testing.T) 
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	txID := *tx.ID
 	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
-	ch, err := ia.applyInvokeScriptWithProofs(tx, info)
+	addresses, ok, err := ia.applyInvokeScriptWithProofs(tx, info, false)
+	assert.True(t, ok)
 	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
-	correctAddrs := map[proto.Address]struct{}{
-		testGlobal.senderInfo.addr:    empty,
-		testGlobal.recipientInfo.addr: empty,
-	}
-	assert.Equal(t, correctAddrs, ch.addrs)
+	correctAddrs := []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
+	assert.ElementsMatch(t, correctAddrs, addresses)
 
 	// Check newest result state here.
 	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
@@ -480,7 +469,8 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenBurn(t *testing.T) 
 
 	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	ch, err = ia.applyInvokeScriptWithProofs(tx, info)
+	_, ok, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	assert.True(t, ok)
 	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 
 	// Check newest result state here.
@@ -497,7 +487,8 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenBurn(t *testing.T) 
 
 	fc = proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	ch, err = ia.applyInvokeScriptWithProofs(tx, info)
+	_, ok, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	assert.True(t, ok)
 	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 
 	// Check newest result state here.
@@ -559,13 +550,11 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenFailOnReissue(t *te
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	txID := *tx.ID
 	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
-	ch, err := ia.applyInvokeScriptWithProofs(tx, info)
+	addresses, ok, err := ia.applyInvokeScriptWithProofs(tx, info, false)
+	assert.True(t, ok)
 	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
-	correctAddrs := map[proto.Address]struct{}{
-		testGlobal.senderInfo.addr:    empty,
-		testGlobal.recipientInfo.addr: empty,
-	}
-	assert.Equal(t, correctAddrs, ch.addrs)
+	correctAddrs := []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
+	assert.ElementsMatch(t, correctAddrs, addresses)
 
 	// Check newest result state here.
 	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
@@ -581,7 +570,8 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenFailOnReissue(t *te
 
 	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	ch, err = ia.applyInvokeScriptWithProofs(tx, info)
+	_, ok, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	assert.True(t, ok)
 	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 
 	// Check newest result state here.
@@ -595,7 +585,8 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenFailOnReissue(t *te
 	// Second reissue should fail as asset made non-reissuable with the first one
 	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	ch, err = ia.applyInvokeScriptWithProofs(tx, info)
+	_, ok, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	assert.False(t, ok)
 	assert.Error(t, err)
 }
 
@@ -640,7 +631,7 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenFailOnBurnTooMuch(t *testing.T
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	txID := *tx.ID
 	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
-	_, err = ia.applyInvokeScriptWithProofs(tx, info)
+	_, _, err = ia.applyInvokeScriptWithProofs(tx, info, false)
 	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	err = to.state.appender.applyAllDiffs(false)
 	require.NoError(t, err, "applyAllDiffs() failed")
@@ -652,7 +643,7 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenFailOnBurnTooMuch(t *testing.T
 	fc = proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	for i := 0; i < 20; i++ {
-		_, err = ia.applyInvokeScriptWithProofs(tx, info)
+		_, _, err = ia.applyInvokeScriptWithProofs(tx, info, false)
 		require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	}
 	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
@@ -668,6 +659,6 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenFailOnBurnTooMuch(t *testing.T
 
 	fc = proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	_, err = ia.applyInvokeScriptWithProofs(tx, info)
+	_, _, err = ia.applyInvokeScriptWithProofs(tx, info, false)
 	assert.Error(t, err)
 }

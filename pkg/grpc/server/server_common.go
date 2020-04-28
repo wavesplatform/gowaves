@@ -47,7 +47,8 @@ type handleFunc = func(tx proto.Transaction) error
 func (s *Server) iterateAndHandleTransactions(iter state.TransactionIterator, filter filterFunc, handle handleFunc) error {
 	for iter.Next() {
 		// Get and send transactions one-by-one.
-		tx, err := iter.Transaction()
+		//TODO: use status
+		tx, _, err := iter.Transaction()
 		if err != nil {
 			return errors.Wrap(err, "iterator.Transaction() failed")
 		}

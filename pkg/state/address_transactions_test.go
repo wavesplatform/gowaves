@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -14,30 +15,30 @@ import (
 
 func testIterImpl(t *testing.T, params StateParams) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	st, err := NewState(dataDir, params, settings.MainNetSettings)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	defer func() {
 		err = st.Close()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		err = os.RemoveAll(dataDir)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}()
 
 	blockHeight := proto.Height(9900)
 	blocks, err := ReadMainnetBlocksToHeight(blockHeight)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	// Add extra blocks and rollback to check that rollback scenario is handled correctly.
 	err = st.AddOldDeserializedBlocks(blocks)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = st.RollbackToHeight(8000)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = st.StartProvidingExtendedApi()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	addr, err := proto.NewAddressFromString("3P2CVwf4MxPBkYZKTgaNMfcTt5SwbNXQWz6")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var txJs0 = `
 	{
@@ -79,23 +80,24 @@ func testIterImpl(t *testing.T, params StateParams) {
 	tx0 := &proto.Payment{Version: 1}
 	tx1 := &proto.Payment{Version: 1}
 	err = json.Unmarshal([]byte(txJs0), tx0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = json.Unmarshal([]byte(txJs1), tx1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	validTxs := []proto.Transaction{tx1, tx0}
 
 	iter, err := st.NewAddrTransactionsIterator(addr)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	i := 0
 	for iter.Next() {
-		tx, err := iter.Transaction()
-		assert.NoError(t, err)
+		tx, fs, err := iter.Transaction()
+		require.NoError(t, err)
+		assert.False(t, fs)
 		assert.Equal(t, validTxs[i], tx)
 		i++
 	}
 	assert.Equal(t, 2, i)
 	iter.Release()
-	assert.NoError(t, iter.Error())
+	require.NoError(t, iter.Error())
 }
 
 func TestTransactionsByAddrIterator(t *testing.T) {
@@ -114,16 +116,16 @@ func TestTransactionsByAddrIteratorOptimized(t *testing.T) {
 
 func TestAddrTransactionsIdempotent(t *testing.T) {
 	stor, path, err := createStorageObjects()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	atxDir, err := ioutil.TempDir(os.TempDir(), "atx")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	path = append(path, atxDir)
 
 	defer func() {
 		stor.close(t)
 
 		err = common.CleanTemporaryDirs(path)
-		assert.NoError(t, err, "failed to clean test data dirs")
+		require.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	params := &addressTransactionsParams{
@@ -133,39 +135,104 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 		providesData:        false,
 	}
 	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	addr, err := proto.NewAddressFromString(testAddr)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	tx := createPayment(t)
 	txID, err := tx.GetID(proto.MainNetScheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	// Save the same transaction ID twice.
 	// Then make sure it was added to batchedStor only once.
-	err = stor.rw.writeTransaction(tx)
-	assert.NoError(t, err)
+	err = stor.rw.writeTransaction(tx, false)
+	require.NoError(t, err)
 	stor.addBlock(t, blockID0)
 	err = atx.saveTxIdByAddress(addr, txID, blockID0, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = atx.saveTxIdByAddress(addr, txID, blockID0, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	stor.flush(t)
 	err = atx.flush()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = atx.reset(true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = atx.startProvidingData()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	iter, err := atx.newTransactionsByAddrIterator(addr)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	i := 0
 	for iter.Next() {
-		transaction, err := iter.Transaction()
-		assert.NoError(t, err)
+		transaction, fs, err := iter.Transaction()
+		require.NoError(t, err)
+		assert.False(t, fs)
 		assert.Equal(t, tx, transaction)
 		i++
 	}
 	assert.Equal(t, 1, i)
 	iter.Release()
-	assert.NoError(t, iter.Error())
+	require.NoError(t, iter.Error())
+}
+
+func TestFailedTransaction(t *testing.T) {
+	stor, path, err := createStorageObjects()
+	require.NoError(t, err)
+	atxDir, err := ioutil.TempDir(os.TempDir(), "atx")
+	require.NoError(t, err)
+	path = append(path, atxDir)
+
+	defer func() {
+		stor.close(t)
+
+		err = common.CleanTemporaryDirs(path)
+		require.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	params := &addressTransactionsParams{
+		dir:                 atxDir,
+		batchedStorMemLimit: AddressTransactionsMemLimit,
+		maxFileSize:         MaxAddressTransactionsFileSize,
+		providesData:        false,
+	}
+	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params)
+	require.NoError(t, err)
+	addr, err := proto.NewAddressFromString(testAddr)
+	require.NoError(t, err)
+
+	tx := createPayment(t)
+	txID, err := tx.GetID(proto.MainNetScheme)
+	require.NoError(t, err)
+
+	err = stor.rw.writeTransaction(tx, true)
+	require.NoError(t, err)
+	stor.addBlock(t, blockID0)
+	err = atx.saveTxIdByAddress(addr, txID, blockID0, true)
+	require.NoError(t, err)
+	stor.flush(t)
+	err = atx.flush()
+	require.NoError(t, err)
+
+	err = atx.reset(true)
+	require.NoError(t, err)
+	err = atx.startProvidingData()
+	require.NoError(t, err)
+
+	// Read transaction status from main transaction storage
+	_, fs1, err := stor.rw.readTransaction(tx.ID.Bytes())
+	require.NoError(t, err)
+	assert.True(t, fs1)
+
+	// Read transaction failure status from account's transactions storage
+	iter, err := atx.newTransactionsByAddrIterator(addr)
+	require.NoError(t, err)
+	i := 0
+	for iter.Next() {
+		transaction, fs, err := iter.Transaction()
+		require.NoError(t, err)
+		assert.True(t, fs)
+		assert.Equal(t, tx, transaction)
+		i++
+	}
+	assert.Equal(t, 1, i)
+	iter.Release()
+	require.NoError(t, iter.Error())
 }
