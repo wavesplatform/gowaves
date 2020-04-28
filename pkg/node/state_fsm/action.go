@@ -4,6 +4,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"go.uber.org/zap"
 )
 
@@ -34,13 +35,25 @@ func (a *ActionsImpl) SendScore(s currentScorer) {
 }
 
 func (a *ActionsImpl) SendBlock(block *proto.Block) {
-	zap.S().Info("SendBlock called with")
-	bts, err := block.MarshalToProtobuf(a.services.Scheme)
+	bts, err := block.Marshaller().Marshal(a.services.Scheme)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
-	a.services.Peers.EachConnected(func(p peer.Peer, score *proto.Score) {
-		p.SendMessage(&proto.PBBlockMessage{PBBlockBytes: bts})
-	})
+
+	activated, err := a.services.State.IsActivated(int16(settings.BlockV5))
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+
+	if activated {
+		a.services.Peers.EachConnected(func(p peer.Peer, score *proto.Score) {
+			p.SendMessage(&proto.PBBlockMessage{PBBlockBytes: bts})
+		})
+	} else {
+		a.services.Peers.EachConnected(func(p peer.Peer, score *proto.Score) {
+			p.SendMessage(&proto.BlockMessage{BlockBytes: bts})
+		})
+	}
 }

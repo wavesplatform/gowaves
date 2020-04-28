@@ -28,6 +28,10 @@ const (
 	ProtoBlockVersion
 )
 
+type Marshaller interface {
+	Marshal(scheme Scheme) ([]byte, error)
+}
+
 type NxtConsensus struct {
 	BaseTarget   uint64   `json:"base-target"`
 	GenSignature B58Bytes `json:"generation-signature"`
@@ -539,6 +543,12 @@ func (b *Block) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
 	return MarshalToProtobufDeterministic(pbBlock)
 }
 
+func (b *Block) Marshaller() Marshaller {
+	return BlockMarshaller{
+		b: b,
+	}
+}
+
 func (b *Block) UnmarshalFromProtobuf(data []byte) error {
 	var pbBlock g.Block
 	if err := protobuf.Unmarshal(data, &pbBlock); err != nil {
@@ -777,6 +787,18 @@ func BlockGetParent(data []byte) (crypto.Signature, error) {
 	}
 	copy(parent[:], data[9:73])
 	return parent, nil
+}
+
+type BlockMarshaller struct {
+	b *Block
+}
+
+func (a BlockMarshaller) Marshal(scheme Scheme) ([]byte, error) {
+	if a.b.Version >= ProtoBlockVersion {
+		return a.b.MarshalToProtobuf(scheme)
+	} else {
+		return a.b.MarshalBinary()
+	}
 }
 
 type Transactions []Transaction
