@@ -3534,8 +3534,12 @@ func (b *FullWavesBalance) ToProtobuf() *pb.BalanceResponse_WavesBalances {
 }
 
 type StateHash struct {
-	BlockID           BlockID
-	SumHash           crypto.Digest
+	BlockID BlockID
+	SumHash crypto.Digest
+	FieldsHashes
+}
+
+type FieldsHashes struct {
 	DataEntryHash     crypto.Digest
 	AccountScriptHash crypto.Digest
 	AssetScriptHash   crypto.Digest

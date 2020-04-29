@@ -134,16 +134,18 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 
 func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
 	sh := &proto.StateHash{
-		BlockID:           blockID,
-		WavesBalanceHash:  s.balances.wavesHashAt(blockID),
-		AssetBalanceHash:  s.balances.assetsHashAt(blockID),
-		DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
-		AccountScriptHash: s.scriptsStorage.accountScriptsHasher.stateHashAt(blockID),
-		AssetScriptHash:   s.scriptsStorage.assetScriptsHasher.stateHashAt(blockID),
-		LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
-		LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
-		SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
-		AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
+		BlockID: blockID,
+		FieldsHashes: proto.FieldsHashes{
+			WavesBalanceHash:  s.balances.wavesHashAt(blockID),
+			AssetBalanceHash:  s.balances.assetsHashAt(blockID),
+			DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
+			AccountScriptHash: s.scriptsStorage.accountScriptsHasher.stateHashAt(blockID),
+			AssetScriptHash:   s.scriptsStorage.assetScriptsHasher.stateHashAt(blockID),
+			LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
+			LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
+			SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
+			AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
+		},
 	}
 	if err := sh.GenerateSumHash(prevHash); err != nil {
 		return nil, err
