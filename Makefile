@@ -136,6 +136,15 @@ build-wallet-windows:
 
 release-wallet: ver build-wallet-linux build-wallet-darwin build-wallet-windows
 
+build-rollback-linux:
+	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/rollback ./cmd/rollback
+build-rollback-darwin:
+	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/rollback ./cmd/rollback
+build-rollback-windows:
+	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/rollback.exe ./cmd/rollback
+
+release-rollback: ver build-rollback-linux build-rollback-darwin build-rollback-windows
+
 dist-wallet: release-wallet
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/wallet_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/wallet*
