@@ -17,8 +17,8 @@ type getTransactionsHandler struct {
 	s   *Server
 }
 
-func (h *getTransactionsHandler) handle(tx proto.Transaction) error {
-	res, err := h.s.transactionToTransactionResponse(tx, true)
+func (h *getTransactionsHandler) handle(tx proto.Transaction, failed bool) error {
+	res, err := h.s.transactionToTransactionResponse(tx, true, failed)
 	if err != nil {
 		return errors.Wrap(err, "failed to form transaction response")
 	}
@@ -60,7 +60,7 @@ type getStateChangesHandler struct {
 	s   *Server
 }
 
-func (h *getStateChangesHandler) handle(tx proto.Transaction) error {
+func (h *getStateChangesHandler) handle(tx proto.Transaction, failed bool) error {
 	var id crypto.Digest
 	switch t := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
@@ -121,7 +121,7 @@ func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsA
 func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsApi_GetStatusesServer) error {
 	for _, id := range req.TransactionIds {
 		res := &g.TransactionStatus{Id: id}
-		if _, err := s.state.TransactionByID(id); err == nil {
+		if _, failed, err := s.state.TransactionByIDWithStatus(id); err == nil {
 			// Transaction is in state, it is confirmed.
 			height, err := s.state.TransactionHeightByID(id)
 			if err != nil {
@@ -129,9 +129,11 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 			}
 			res.Status = g.TransactionStatus_CONFIRMED
 			res.Height = int64(height)
-			// TODO: set ApplicationStatus_SCRIPT_EXECUTION_FAILED here
-			// when dealing with failed transaction.
-			res.ApplicationStatus = g.ApplicationStatus_SUCCEEDED
+			if failed {
+				res.ApplicationStatus = g.ApplicationStatus_SCRIPT_EXECUTION_FAILED
+			} else {
+				res.ApplicationStatus = g.ApplicationStatus_SUCCEEDED
+			}
 		} else if s.utx.ExistsByID(id) {
 			// Transaction is in UTX.
 			res.Status = g.TransactionStatus_UNCONFIRMED
@@ -152,8 +154,8 @@ type getUnconfirmedHandler struct {
 	s   *Server
 }
 
-func (h *getUnconfirmedHandler) handle(tx proto.Transaction) error {
-	res, err := h.s.transactionToTransactionResponse(tx, false)
+func (h *getUnconfirmedHandler) handle(tx proto.Transaction, failed bool) error {
+	res, err := h.s.transactionToTransactionResponse(tx, false, failed)
 	if err != nil {
 		return errors.Wrap(err, "failed to form transaction response")
 	}
@@ -174,7 +176,7 @@ func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsAp
 		if !filter.filter(tx.T) {
 			continue
 		}
-		if err := handler.handle(tx.T); err != nil {
+		if err := handler.handle(tx.T, false); err != nil {
 			return status.Errorf(codes.Internal, err.Error())
 		}
 	}

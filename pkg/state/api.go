@@ -85,6 +85,7 @@ type StateInfo interface {
 
 	// Transactions.
 	TransactionByID(id []byte) (proto.Transaction, error)
+	TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error)
 	TransactionHeightByID(id []byte) (uint64, error)
 	// NewAddrTransactionsIterator() returns iterator to iterate all transactions that affected
 	// given address.

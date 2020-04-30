@@ -1808,7 +1808,6 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 }
 
 func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
-	//TODO: use transaction failure status
 	tx, _, err := s.rw.readNewestTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1817,12 +1816,19 @@ func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, erro
 }
 
 func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
-	//TODO: use transaction failure status
 	tx, _, err := s.rw.readTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return tx, nil
+}
+
+func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+	tx, status, err := s.rw.readTransaction(id)
+	if err != nil {
+		return nil, false, wrapErr(RetrievalError, err)
+	}
+	return tx, status, nil
 }
 
 func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {

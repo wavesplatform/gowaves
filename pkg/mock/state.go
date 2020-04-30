@@ -610,6 +610,22 @@ func (mr *MockStateInfoMockRecorder) TransactionByID(id interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionByID", reflect.TypeOf((*MockStateInfo)(nil).TransactionByID), id)
 }
 
+// TransactionByIDWithStatus mocks base method
+func (m *MockStateInfo) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TransactionByIDWithStatus", id)
+	ret0, _ := ret[0].(proto.Transaction)
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// TransactionByIDWithStatus indicates an expected call of TransactionByIDWithStatus
+func (mr *MockStateInfoMockRecorder) TransactionByIDWithStatus(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionByIDWithStatus", reflect.TypeOf((*MockStateInfo)(nil).TransactionByIDWithStatus), id)
+}
+
 // TransactionHeightByID mocks base method
 func (m *MockStateInfo) TransactionHeightByID(id []byte) (uint64, error) {
 	m.ctrl.T.Helper()
@@ -1650,6 +1666,22 @@ func (m *MockState) TransactionByID(id []byte) (proto.Transaction, error) {
 func (mr *MockStateMockRecorder) TransactionByID(id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionByID", reflect.TypeOf((*MockState)(nil).TransactionByID), id)
+}
+
+// TransactionByIDWithStatus mocks base method
+func (m *MockState) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TransactionByIDWithStatus", id)
+	ret0, _ := ret[0].(proto.Transaction)
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// TransactionByIDWithStatus indicates an expected call of TransactionByIDWithStatus
+func (mr *MockStateMockRecorder) TransactionByIDWithStatus(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionByIDWithStatus", reflect.TypeOf((*MockState)(nil).TransactionByIDWithStatus), id)
 }
 
 // TransactionHeightByID mocks base method

@@ -383,7 +383,6 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, failed bool) e
 	val := txMeta{offset: rw.blockchainLen, failed: failed}
 	// Update length of blockchain
 	rw.blockchainLen += uint64(len(txBytes))
-	//TODO: is this required?
 	if rw.blockchainLen > rw.offsetEnd {
 		return errors.Errorf("offset overflow: %d > %d", rw.blockchainLen, rw.offsetEnd)
 	}

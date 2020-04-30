@@ -229,13 +229,18 @@ func (a *ThreadSafeReadWrapper) TransactionByID(id []byte) (proto.Transaction, e
 	return a.s.TransactionByID(id)
 }
 
+func (a *ThreadSafeReadWrapper) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.TransactionByIDWithStatus(id)
+}
+
 func (a *ThreadSafeReadWrapper) TransactionHeightByID(id []byte) (uint64, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.TransactionHeightByID(id)
 }
 
-// TODO is it safe??
 func (a *ThreadSafeReadWrapper) NewAddrTransactionsIterator(addr proto.Address) (TransactionIterator, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
