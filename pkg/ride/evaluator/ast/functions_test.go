@@ -426,6 +426,7 @@ func TestNativeModLong(t *testing.T) {
 		{-10, 6, 2},
 		{10, -6, -2},
 		{-10, -6, -4},
+		{2, 2, 0},
 	} {
 		rs, err := NativeModLong(newEmptyScopeV1(), Params(NewLong(test.x), NewLong(test.y)))
 		require.NoError(t, err)
