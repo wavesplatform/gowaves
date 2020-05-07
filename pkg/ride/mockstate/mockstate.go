@@ -17,6 +17,7 @@ type State struct {
 	BlockHeaderByHeight    *proto.BlockHeader
 	NewestHeightVal        proto.Height
 	Assets                 map[crypto.Digest]proto.AssetInfo
+	FullAssets             map[crypto.Digest]proto.FullAssetInfo
 }
 
 func (a State) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
@@ -130,6 +131,13 @@ func (a State) NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, er
 
 func (a State) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
 	if info, ok := a.Assets[assetID]; ok {
+		return &info, nil
+	}
+	return nil, proto.ErrNotFound
+}
+
+func (a State) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+	if info, ok := a.FullAssets[assetID]; ok {
 		return &info, nil
 	}
 	return nil, proto.ErrNotFound

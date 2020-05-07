@@ -108,11 +108,21 @@ func (a *scriptCaller) callAssetScriptCommon(obj map[string]ast.Expr, assetID cr
 	if err != nil {
 		return false, err
 	}
-	assetInfo, err := a.state.NewestAssetInfo(assetID)
-	if err != nil {
-		return false, err
+	var this ast.Expr
+	switch script.Version {
+	case 4:
+		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
+		if err != nil {
+			return false, err
+		}
+		this = ast.NewObjectFromAssetInfoV4(*assetInfo)
+	default:
+		assetInfo, err := a.state.NewestAssetInfo(assetID)
+		if err != nil {
+			return false, err
+		}
+		this = ast.NewObjectFromAssetInfoV3(*assetInfo)
 	}
-	this := ast.NewObjectFromAssetInfo(*assetInfo)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
 	r, err := a.callVerifyScript(script, obj, this, lastBlock)
 	if err != nil {

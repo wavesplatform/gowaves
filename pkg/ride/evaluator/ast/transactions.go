@@ -183,7 +183,7 @@ func NewObjectFromBlockInfo(info proto.BlockInfo) Expr {
 	return NewObject(m)
 }
 
-func newMapAssetInfo(info proto.AssetInfo) object {
+func newMapAssetInfoV3(info proto.AssetInfo) object {
 	obj := newObject()
 	obj["id"] = NewBytes(info.ID.Bytes())
 	obj["quantity"] = NewLong(int64(info.Quantity))
@@ -196,8 +196,27 @@ func newMapAssetInfo(info proto.AssetInfo) object {
 	return obj
 }
 
-func NewObjectFromAssetInfo(info proto.AssetInfo) Expr {
-	return NewObject(newMapAssetInfo(info))
+func newMapAssetInfoV4(info proto.FullAssetInfo) object {
+	obj := newObject()
+	obj["id"] = NewBytes(info.ID.Bytes())
+	obj["quantity"] = NewLong(int64(info.Quantity))
+	obj["decimals"] = NewLong(int64(info.Decimals))
+	obj["issuer"] = NewAddressFromProtoAddress(info.Issuer)
+	obj["issuerPublicKey"] = NewBytes(common.Dup(info.IssuerPublicKey.Bytes()))
+	obj["reissuable"] = NewBoolean(info.Reissuable)
+	obj["scripted"] = NewBoolean(info.Scripted)
+	obj["sponsored"] = NewBoolean(info.Sponsored)
+	obj["name"] = NewString(info.Name)
+	obj["description"] = NewString(info.Description)
+	return obj
+}
+
+func NewObjectFromAssetInfoV3(info proto.AssetInfo) Expr {
+	return NewObject(newMapAssetInfoV3(info))
+}
+
+func NewObjectFromAssetInfoV4(info proto.FullAssetInfo) Expr {
+	return NewObject(newMapAssetInfoV4(info))
 }
 
 func makeProofsFromSignature(sig *crypto.Signature) Exprs {

@@ -1902,6 +1902,55 @@ func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo,
 	}, nil
 }
 
+func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+	ai, err := s.NewestAssetInfo(assetID)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	info, err := s.stor.assets.newestAssetInfo(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	tx, err := s.TransactionByID(assetID.Bytes())
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	res := &proto.FullAssetInfo{
+		AssetInfo:        *ai,
+		Name:             info.name,
+		Description:      info.description,
+		IssueTransaction: tx,
+	}
+	isSponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	if isSponsored {
+		assetCost, err := s.stor.sponsoredAssets.assetCost(assetID, true)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		sponsorBalance, err := s.AccountBalance(proto.NewRecipientFromAddress(ai.Issuer), nil)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		res.SponsorshipCost = assetCost
+		res.SponsorBalance = sponsorBalance
+	}
+	isScripted, err := s.stor.scriptsStorage.isSmartAsset(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	if isScripted {
+		scriptInfo, err := s.ScriptInfoByAsset(assetID)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		res.ScriptInfo = *scriptInfo
+	}
+	return res, nil
+}
+
 func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
 	info, err := s.stor.assets.assetInfo(assetID, true)
 	if err != nil {
