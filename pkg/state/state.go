@@ -705,6 +705,15 @@ func (s *stateManager) GeneratingBalance(account proto.Recipient) (uint64, error
 	return s.EffectiveBalanceStable(account, start, end)
 }
 
+func (s *stateManager) NewestGeneratingBalance(account proto.Recipient) (uint64, error) {
+	height, err := s.NewestHeight()
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
+	return s.EffectiveBalance(account, start, end)
+}
+
 func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
@@ -745,7 +754,7 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	generating, err := s.GeneratingBalance(account)
+	generating, err := s.NewestGeneratingBalance(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
