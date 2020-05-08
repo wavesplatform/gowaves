@@ -253,7 +253,7 @@ func functionsV2() map[string]Expr {
 	fns["getString"] = FunctionFromPredefined(UserDataStringFromArrayByIndex, 2)
 
 	fns["addressFromPublicKey"] = FunctionFromPredefined(UserAddressFromPublicKey, 1)
-	fns["wavesBalance"] = FunctionFromPredefined(UserWavesBalance, 1)
+	fns["wavesBalance"] = FunctionFromPredefined(UserWavesBalanceV3, 1)
 
 	// type constructors
 	fns["Address"] = FunctionFromPredefined(UserAddress, 1)
@@ -344,7 +344,8 @@ func functionsV4() map[string]Expr {
 	delete(s, "WriteSet")
 	delete(s, "TransferSet")
 	delete(s, "DataEntry")
-
+	// Replace functions
+	s["wavesBalance"] = FunctionFromPredefined(UserWavesBalanceV4, 1)
 	// New constructors
 	s["IntegerEntry"] = FunctionFromPredefined(DataEntry, 2)
 	s["BooleanEntry"] = FunctionFromPredefined(DataEntry, 2)

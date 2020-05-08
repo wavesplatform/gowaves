@@ -591,6 +591,55 @@ func TestNativeAssetBalance_FromAlias(t *testing.T) {
 	assert.Equal(t, NewLong(5), rs)
 }
 
+func TestUserWavesBalance(t *testing.T) {
+	addr, err := proto.NewAddressFromString("3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK")
+	require.NoError(t, err)
+	s := mockstate.State{
+		FullWavesBalance: proto.FullWavesBalance{
+			Regular:    1,
+			Generating: 2,
+			Available:  3,
+			Effective:  4,
+			LeaseIn:    5,
+			LeaseOut:   6,
+		},
+		WavesBalance: 123456,
+	}
+	scope3 := NewScope(3, proto.TestNetScheme, s)
+	scope4 := NewScope(4, proto.TestNetScheme, s)
+
+	rs, err := UserWavesBalanceV3(scope3, Params(NewAddressFromProtoAddress(addr)))
+	assert.NoError(t, err)
+	v3, ok := rs.(*LongExpr)
+	assert.True(t, ok)
+	assert.Equal(t, 123456, int(v3.Value))
+
+	rs, err = UserWavesBalanceV4(scope4, Params(NewAddressFromProtoAddress(addr)))
+	assert.NoError(t, err)
+	v4, ok := rs.(*BalanceDetailsExpr)
+	assert.True(t, ok)
+	rv, err := v4.Get("regular")
+	assert.NoError(t, err)
+	rb, ok := rv.(*LongExpr)
+	assert.True(t, ok)
+	assert.Equal(t, 1, int(rb.Value))
+	gv, err := v4.Get("generating")
+	assert.NoError(t, err)
+	gb, ok := gv.(*LongExpr)
+	assert.True(t, ok)
+	assert.Equal(t, 2, int(gb.Value))
+	av, err := v4.Get("available")
+	assert.NoError(t, err)
+	ab, ok := av.(*LongExpr)
+	assert.True(t, ok)
+	assert.Equal(t, 3, int(ab.Value))
+	ev, err := v4.Get("effective")
+	assert.NoError(t, err)
+	eb, ok := ev.(*LongExpr)
+	assert.True(t, ok)
+	assert.Equal(t, 4, int(eb.Value))
+}
+
 func TestNativeDataFromArray(t *testing.T) {
 	var dataEntries []proto.DataEntry
 	dataEntries = append(dataEntries, &proto.IntegerDataEntry{

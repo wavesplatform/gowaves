@@ -1761,8 +1761,35 @@ func SimpleTypeConstructorFactory(name string, expr Expr) Callable {
 	}
 }
 
-func UserWavesBalance(s Scope, e Exprs) (Expr, error) {
+func UserWavesBalanceV3(s Scope, e Exprs) (Expr, error) {
 	return NativeAssetBalance(s, append(e, NewUnit()))
+}
+
+func UserWavesBalanceV4(s Scope, e Exprs) (Expr, error) {
+	const funcName = "UserWavesBalanceV4"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+	addressOrAliasExpr, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	var r proto.Recipient
+	switch a := addressOrAliasExpr.(type) {
+	case *AddressExpr:
+		r = proto.NewRecipientFromAddress(proto.Address(*a))
+	case *AliasExpr:
+		r = proto.NewRecipientFromAlias(proto.Alias(*a))
+	case *RecipientExpr:
+		r = proto.Recipient(*a)
+	default:
+		return nil, errors.Errorf("%s first argument expected to be AddressExpr or AliasExpr, found %T", funcName, addressOrAliasExpr)
+	}
+	balance, err := s.State().NewestFullWavesBalance(r)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewBalanceDetailsExpr(balance), nil
 }
 
 func limitedRSAVerify(limit int) Callable {
