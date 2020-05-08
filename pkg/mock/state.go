@@ -250,21 +250,6 @@ func (mr *MockStateInfoMockRecorder) FullWavesBalance(account interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockStateInfo)(nil).FullWavesBalance), account)
 }
 
-// NewestFullWavesBalance mocks base method
-func (m *MockStateInfo) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewestFullWavesBalance", account)
-	ret0, _ := ret[0].(*proto.FullWavesBalance)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewestFullWavesBalance indicates an expected call of NewestFullWavesBalance
-func (mr *MockStateInfoMockRecorder) NewestFullWavesBalance(account interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestFullWavesBalance", reflect.TypeOf((*MockStateInfo)(nil).NewestFullWavesBalance), account)
-}
-
 // EffectiveBalanceStable mocks base method
 func (m *MockStateInfo) EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
 	m.ctrl.T.Helper()
@@ -1305,21 +1290,6 @@ func (m *MockState) FullWavesBalance(account proto.Recipient) (*proto.FullWavesB
 func (mr *MockStateMockRecorder) FullWavesBalance(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockState)(nil).FullWavesBalance), account)
-}
-
-// NewestFullWavesBalance mocks base method
-func (m *MockState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewestFullWavesBalance", account)
-	ret0, _ := ret[0].(*proto.FullWavesBalance)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewestFullWavesBalance indicates an expected call of NewestFullWavesBalance
-func (mr *MockStateMockRecorder) NewestFullWavesBalance(account interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestFullWavesBalance", reflect.TypeOf((*MockState)(nil).NewestFullWavesBalance), account)
 }
 
 // EffectiveBalanceStable mocks base method
