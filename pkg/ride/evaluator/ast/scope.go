@@ -3,6 +3,7 @@ package ast
 import (
 	"strconv"
 
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -346,10 +347,10 @@ func functionsV4() map[string]Expr {
 	delete(s, "DataEntry")
 
 	// New constructors
-	s["IntegerEntry"] = FunctionFromPredefined(DataEntry, 2)
-	s["BooleanEntry"] = FunctionFromPredefined(DataEntry, 2)
-	s["BinaryEntry"] = FunctionFromPredefined(DataEntry, 2)
-	s["StringEntry"] = FunctionFromPredefined(DataEntry, 2)
+	s["IntegerEntry"] = FunctionFromPredefined(checkedDataEntry(proto.DataInteger), 2)
+	s["BooleanEntry"] = FunctionFromPredefined(checkedDataEntry(proto.DataBoolean), 2)
+	s["BinaryEntry"] = FunctionFromPredefined(checkedDataEntry(proto.DataBinary), 2)
+	s["StringEntry"] = FunctionFromPredefined(checkedDataEntry(proto.DataString), 2)
 	s["DeleteEntry"] = FunctionFromPredefined(DeleteEntry, 1)
 	s["Issue"] = FunctionFromPredefined(Issue, 7)
 	s["Reissue"] = FunctionFromPredefined(Reissue, 3)
