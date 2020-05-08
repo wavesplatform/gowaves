@@ -2000,3 +2000,71 @@ func Test8Ball(t *testing.T) {
 	}
 	assert.Equal(t, expectedResult, sr)
 }
+
+func TestIntegerEntry(t *testing.T) {
+	code := "AAIEAAAAAAAAAAgIAhIECgIIAQAAAAAAAAABAAAAAWkBAAAABGNhbGwAAAACAAAAA25vbQAAAANhZ2UEAAAADG93bmVyQWRkcmVzcwkABCUAAAABCAUAAAABaQAAAAZjYWxsZXIJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAIJAAEsAAAAAgUAAAAMb3duZXJBZGRyZXNzAgAAAARfYWdlBQAAAANhZ2UJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgkAASwAAAACBQAAAAxvd25lckFkZHJlc3MCAAAABF9ub20FAAAAA25vbQUAAAADbmlsAAAAAHNCMbc="
+	r, err := reader.NewReaderFromBase64(code)
+	require.NoError(t, err)
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	txID, err := crypto.NewDigestFromBase58("AjSkRGMhckj4bhwtLPyeSTeDY6unoDwjs736t2bNvV3D")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("2g1hQJKw1Mzc7Qpw8WzzheDibi34JWATTsV1m39GPGJc1oz1DH82RRFnHkp1QEMg7ccH3K71YFLuK1GrHrrnfEjJ")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("Ccebak7uPmCpdNGrVTxENghcrCLF7m9MXGA2BbMDknoW")
+	require.NoError(t, err)
+	address, err := proto.NewAddressFromString("3MouSkYhyvLXkn9wYRcqHUrhcDgNipSGFQN")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(address)
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.IntegerArgument{Value: 1})
+	arguments.Append(&proto.StringArgument{Value: "Hi!!! hello!"})
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.StageNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1588047474869,
+	}
+	entries := map[string]proto.DataEntry{}
+	state := mockstate.State{
+		TransactionsByID:       nil,
+		TransactionsHeightByID: nil,
+		WavesBalance:           5000000000, // ~50 WAVES
+		DataEntries:            entries,
+		AssetIsSponsored:       false,
+		BlockHeaderByHeight:    nil,
+		NewestHeightVal:        386529,
+		Assets:                 nil,
+	}
+	this := NewAddressFromProtoAddress(address)
+	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
+	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
+	require.NoError(t, err)
+	blockInfo := proto.BlockInfo{
+		Timestamp:           1567938316714,
+		Height:              844761,
+		BaseTarget:          1550,
+		GenerationSignature: gs,
+		Generator:           gen,
+		GeneratorPublicKey:  sender,
+	}
+	lastBlock := NewObjectFromBlockInfo(blockInfo)
+	_, err = script.CallFunction(proto.StageNetScheme, state, tx, this, lastBlock)
+	assert.Error(t, err)
+}

@@ -1655,6 +1655,45 @@ func DataEntry(s Scope, e Exprs) (Expr, error) {
 	}
 }
 
+func checkedDataEntry(entryType proto.DataValueType) Callable {
+	return func(s Scope, e Exprs) (Expr, error) {
+		const funcName = "CheckedDataEntry"
+		if l := len(e); l != 2 {
+			return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+		}
+		rs, err := e.EvaluateAll(s)
+		if err != nil {
+			return nil, errors.Wrap(err, funcName)
+		}
+		key, ok := rs[0].(*StringExpr)
+		if !ok {
+			return nil, errors.Errorf("%s: first argument expected to be *StringExpr, found %T", funcName, rs[0])
+		}
+		var typedEntry Expr
+		var entryName string
+		switch entryType {
+		case proto.DataInteger:
+			typedEntry, ok = rs[1].(*LongExpr)
+			entryName = "IntegerEntry"
+		case proto.DataString:
+			typedEntry, ok = rs[1].(*StringExpr)
+			entryName = "StringEntry"
+		case proto.DataBinary:
+			typedEntry, ok = rs[1].(*BytesExpr)
+			entryName = "BinaryEntry"
+		case proto.DataBoolean:
+			typedEntry, ok = rs[1].(*BooleanExpr)
+			entryName = "BooleanEntry"
+		default:
+			return nil, errors.Errorf("%s: unsupported data type %T", funcName, entryType)
+		}
+		if !ok {
+			return nil, errors.Errorf("%s: invalid value type for %s", funcName, entryName)
+		}
+		return NewDataEntry(key.Value, typedEntry), nil
+	}
+}
+
 func DeleteEntry(s Scope, e Exprs) (Expr, error) {
 	const funcName = "DeleteEntry"
 	if l := len(e); l != 1 {
