@@ -996,7 +996,7 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	return changes, nil
 }
 
-func (td *transactionDiffer) createFeeDiffExchange(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+func (td *transactionDiffer) createDiffForExchangeFeeValidation(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert interface to Exchange transaction")
@@ -1022,13 +1022,12 @@ func (td *transactionDiffer) createFeeDiffExchange(transaction proto.Transaction
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
-	// Fees.
 	matcherKey := wavesBalanceKey{matcherAddr}
 	matcherFee := int64(tx.GetFee())
 	if err := diff.appendBalanceDiff(matcherKey.bytes(), newBalanceDiff(-matcherFee, 0, 0, true)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	senderFee := int64(tx.GetSellMatcherFee())
+	senderFee := int64(sellOrder.GetMatcherFee())
 	senderFeeKey := td.orderFeeKey(senderAddr, sellOrder)
 	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(-senderFee, 0, 0, true)); err != nil {
 		return txBalanceChanges{}, err
@@ -1037,7 +1036,7 @@ func (td *transactionDiffer) createFeeDiffExchange(transaction proto.Transaction
 	if err := diff.appendBalanceDiff(matcherFeeFromSenderKey, newBalanceDiff(senderFee, 0, 0, true)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	receiverFee := int64(tx.GetBuyMatcherFee())
+	receiverFee := int64(buyOrder.GetMatcherFee())
 	receiverFeeKey := td.orderFeeKey(receiverAddr, buyOrder)
 	if err := diff.appendBalanceDiff(receiverFeeKey, newBalanceDiff(-receiverFee, 0, 0, true)); err != nil {
 		return txBalanceChanges{}, err
@@ -1055,7 +1054,40 @@ func (td *transactionDiffer) createFeeDiffExchange(transaction proto.Transaction
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
-	addresses := []proto.Address{txSenderAddr, senderAddr, receiverAddr, matcherAddr}
+	addresses := []proto.Address{txSenderAddr, matcherAddr}
+	changes := newTxBalanceChanges(addresses, diff)
+	return changes, nil
+}
+
+func (td *transactionDiffer) createFeeDiffExchange(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(proto.Exchange)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to Exchange transaction")
+	}
+	diff := newTxDiff()
+	buyOrder, err := tx.GetBuyOrder()
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	matcherAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.GetMatcherPK())
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	matcherKey := wavesBalanceKey{matcherAddr}
+	matcherFee := int64(tx.GetFee())
+	if err := diff.appendBalanceDiff(matcherKey.bytes(), newBalanceDiff(-matcherFee, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	if info.hasMiner() {
+		if err := td.minerPayout(diff, tx.GetFee(), info, nil); err != nil {
+			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
+		}
+	}
+	txSenderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	addresses := []proto.Address{txSenderAddr, matcherAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 	return changes, nil
 }

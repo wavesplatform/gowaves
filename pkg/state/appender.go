@@ -203,18 +203,28 @@ func (a *txAppender) checkProtobufVersion(tx proto.Transaction, blockV5Activated
 // I suggest to check fee here only for Invoke and Exchange transactions (they involve calling a lot of scripts very
 // often), accepting all the other types in the same way it is currently done for LeaseCancel.
 func (a *txAppender) checkTxFees(tx proto.Transaction, info *checkerInfo, blockInfo *proto.BlockInfo) error {
-	if tx.GetTypeInfo().Type == proto.LeaseCancelTransaction {
+	differInfo := &differInfo{info.initialisation, blockInfo}
+	var feeChanges txBalanceChanges
+	var err error
+	switch tx.GetTypeInfo().Type {
+	case proto.LeaseCancelTransaction:
 		return nil
-	}
-	feeChanges, err := a.blockDiffer.createTransactionFeeDiff(tx, blockInfo, info.initialisation)
-	if err != nil {
-		return err
+	case proto.ExchangeTransaction:
+		feeChanges, err = a.txHandler.td.createDiffForExchangeFeeValidation(tx, differInfo)
+		if err != nil {
+			return err
+		}
+	default:
+		feeChanges, err = a.txHandler.createFeeDiffTx(tx, differInfo)
+		if err != nil {
+			return err
+		}
 	}
 	changes, err := a.diffStor.changesByTxDiff(feeChanges.diff)
 	if err != nil {
 		return err
 	}
-	return a.diffApplier.validateBalancesChanges(changes, true)
+	return a.diffApplier.validateBalancesChanges(changes, info.initialisation)
 }
 
 // This functions is used for script validation of transaction that can't fail
