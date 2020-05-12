@@ -131,6 +131,21 @@ func (a *BurnScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
 	}
 }
 
+// SponsorshipScriptAction is an action to set sponsorship for given asset in response to script invocation.
+type SponsorshipScriptAction struct {
+	AssetID crypto.Digest // assetId
+	MinFee  int64         // minSponsoredAssetFee
+}
+
+func (a SponsorshipScriptAction) scriptAction() {}
+
+func (a *SponsorshipScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
+	return &g.SponsorFeeResult_Burn{
+		AssetId: a.AssetID.Bytes(),
+		Amount:  a.MinFee,
+	}
+}
+
 type ScriptErrorMessage struct {
 	Code int32
 	Text string
