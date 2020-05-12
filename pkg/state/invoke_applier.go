@@ -265,14 +265,14 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	if err := ia.resolveAliases(scriptActions, info.initialisation); err != nil {
 		return nil, false, errors.New("ScriptResult; failed to resolve aliases")
 	}
-	// Check script result
+	// Check script result.
 	restrictions := proto.ActionsValidationRestrictions{DisableSelfTransfers: disableSelfTransfers, ScriptAddress: *scriptAddr}
 	if err := proto.ValidateActions(scriptActions, restrictions); err != nil {
 		return nil, false, errors.Wrap(err, "invalid script result")
 	}
 	if ia.buildApiData {
 		// Save invoke result for extended API.
-		// TODO: add saving of failure status to script result
+		// TODO: add saving of failure status to script result.
 		res, err := proto.NewScriptResult(scriptActions, proto.ScriptErrorMessage{})
 		if err != nil {
 			return nil, false, errors.Wrap(err, "failed to save script result")
@@ -351,7 +351,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 				}
 
 			case *proto.IssueScriptAction:
-				// Create asset's info
+				// Create asset's info.
 				assetInfo := &assetInfo{
 					assetConstInfo: assetConstInfo{
 						issuer:   scriptPK,
@@ -366,6 +366,10 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 				}
 				if !info.validatingUtx {
 					if err := ia.stor.assets.issueAsset(a.ID, assetInfo, info.block.ID); err != nil {
+						return nil, false, err
+					}
+					// Currently asset script is always empty.
+					if err := ia.stor.scriptsStorage.setAssetScript(a.ID, proto.Script{}, scriptPK, info.block.ID); err != nil {
 						return nil, false, err
 					}
 				}
