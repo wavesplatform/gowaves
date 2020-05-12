@@ -570,7 +570,7 @@ func TestNativeAssetBalance_FromAddress(t *testing.T) {
 		AssetsBalances: map[crypto.Digest]uint64{d: 5},
 	}
 
-	rs, err := NativeAssetBalance(newScopeWithState(s), Params(NewAddressFromProtoAddress(addr), NewBytes(d.Bytes())))
+	rs, err := NativeAssetBalanceV3(newScopeWithState(s), Params(NewAddressFromProtoAddress(addr), NewBytes(d.Bytes())))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(5), rs)
 }
@@ -586,9 +586,28 @@ func TestNativeAssetBalance_FromAlias(t *testing.T) {
 
 	alias := proto.NewAlias(scope.Scheme(), "test")
 
-	rs, err := NativeAssetBalance(scope, Params(NewAliasFromProtoAlias(*alias), NewBytes(d.Bytes())))
+	rs, err := NativeAssetBalanceV3(scope, Params(NewAliasFromProtoAlias(*alias), NewBytes(d.Bytes())))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(5), rs)
+}
+
+func TestNativeAssetBalanceV4(t *testing.T) {
+	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+
+	s := mockstate.State{
+		AssetsBalances: map[crypto.Digest]uint64{d: 5},
+	}
+	scope := NewScope(4, proto.MainNetScheme, s)
+
+	alias := proto.NewAlias(scope.Scheme(), "test")
+
+	rs, err := NativeAssetBalanceV4(scope, Params(NewAliasFromProtoAlias(*alias), NewBytes(d.Bytes())))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(5), rs)
+
+	_, err = NativeAssetBalanceV4(scope, Params(NewAliasFromProtoAlias(*alias), NewUnit()))
+	assert.Error(t, err)
 }
 
 func TestUserWavesBalance(t *testing.T) {
