@@ -560,6 +560,23 @@ func (c *ProtobufConverter) BurnScriptActions(burns []*g.InvokeScriptResult_Burn
 	return res, nil
 }
 
+func (c *ProtobufConverter) SponsorshipScriptActions(sponsorships []*g.InvokeScriptResult_SponsorFee) ([]*SponsorshipScriptAction, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	res := make([]*SponsorshipScriptAction, len(sponsorships))
+	for i, x := range sponsorships {
+		res[i] = &SponsorshipScriptAction{
+			AssetID: c.digest(x.MinFee.AssetId),
+			MinFee:  x.MinFee.Amount,
+		}
+		if c.err != nil {
+			return nil, c.err
+		}
+	}
+	return res, nil
+}
+
 func (c *ProtobufConverter) ErrorMessage(msg *g.InvokeScriptResult_ErrorMessage) (*ScriptErrorMessage, error) {
 	if c.err != nil {
 		return nil, c.err
