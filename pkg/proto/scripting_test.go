@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	pb "github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	pb "google.golang.org/protobuf/proto"
 )
 
 func TestScriptResultBinaryRoundTrip(t *testing.T) {

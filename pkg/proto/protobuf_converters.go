@@ -1,28 +1,33 @@
 package proto
 
 import (
-	protobuf "github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	"google.golang.org/protobuf/encoding/protowire"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 func Int64ToProtobuf(val int64) ([]byte, error) {
-	buf := &protobuf.Buffer{}
-	buf.SetDeterministic(true)
-	if err := buf.EncodeVarint(uint64(val)); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return protowire.AppendVarint(nil, uint64(val)), nil
+	//m := protobuf.Int64(val)
+	//b, err := protobuf.MarshalOptions{Deterministic: true}.Marshal(m)
+	//buf := &protobuf.Buffer{}
+	//buf.SetDeterministic(true)
+	//if err := buf.EncodeVarint(uint64(val)); err != nil {
+	//	return nil, err
+	//}
+	//return buf.Bytes(), nil
 }
 
 func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
-	buf := &protobuf.Buffer{}
-	buf.SetDeterministic(true)
-	if err := buf.Marshal(pb); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return protobuf.MarshalOptions{Deterministic: true}.Marshal(pb)
+	//buf := &protobuf.Buffer{}
+	//buf.SetDeterministic(true)
+	//if err := buf.Marshal(pb); err != nil {
+	//	return nil, err
+	//}
+	//return buf.Bytes(), nil
 }
 
 func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {

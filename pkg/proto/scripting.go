@@ -139,10 +139,12 @@ type SponsorshipScriptAction struct {
 
 func (a SponsorshipScriptAction) scriptAction() {}
 
-func (a *SponsorshipScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
-	return &g.SponsorFeeResult_Burn{
-		AssetId: a.AssetID.Bytes(),
-		Amount:  a.MinFee,
+func (a *SponsorshipScriptAction) ToProtobuf() *g.InvokeScriptResult_SponsorFee {
+	return &g.InvokeScriptResult_SponsorFee{
+		MinFee: &g.Amount{
+			AssetId: a.AssetID.Bytes(),
+			Amount:  a.MinFee,
+		},
 	}
 }
 
