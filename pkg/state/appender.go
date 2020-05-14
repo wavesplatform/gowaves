@@ -503,7 +503,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			if err != nil {
 				return err
 			}
-			scriptsRuns += txScriptsRuns
 			invokeInfo := &invokeAddlInfo{
 				previousScriptRuns: txScriptsRuns,
 				initialisation:     params.initialisation,
@@ -512,10 +511,13 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 				hitSource:          blockInfo.VRF,
 				validatingUtx:      false,
 			}
-			addresses, status, err = a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo, blockV5Activated)
+			applicationInfo, err := a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo, blockV5Activated)
 			if err != nil {
 				return errors.Errorf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
 			}
+			addresses = applicationInfo.addresses
+			status = applicationInfo.status
+			scriptsRuns += applicationInfo.totalScriptsInvoked
 		case proto.ExchangeTransaction:
 			// Exchange is handled in a special way also.
 			var txScriptsRuns uint64
@@ -623,7 +625,7 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, height uint64, block *pr
 		height:             height,
 		validatingUtx:      true,
 	}
-	_, _, err := a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo, acceptFailed)
+	_, err := a.ia.applyInvokeScriptWithProofs(invokeTx, invokeInfo, acceptFailed)
 	if err != nil {
 		return errors.Wrap(err, "InvokeScript validation failed")
 	}
