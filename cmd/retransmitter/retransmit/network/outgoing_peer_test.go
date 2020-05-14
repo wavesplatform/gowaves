@@ -106,7 +106,7 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 	go RunOutgoingPeer(ctx, params)
 
 	select {
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(100 * time.Millisecond):
 		t.Error("no message arrived in 100ms")
 		return
 	case m := <-parent.InfoCh:

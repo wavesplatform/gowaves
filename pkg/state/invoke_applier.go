@@ -240,7 +240,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	if len(tx.Payments) == 2 && script.Version < 4 {
 		return nil, false, errors.Errorf("multiple payments is not allowed for RIDE library version %d", script.Version)
 	}
-	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4
+	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
 	disableSelfTransfers := acceptFailed && script.Version >= 4
 	if disableSelfTransfers && len(tx.Payments) > 0 {
 		sender, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, tx.SenderPK)
@@ -260,8 +260,8 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 			return nil, false, errors.Wrap(err, "invokeFunction() failed")
 		}
 	}
-	// Resolve all aliases in .
-	// It have to be done before validation because we validate addresses, not aliases.
+	// Resolve all aliases.
+	// It has to be done before validation because we validate addresses, not aliases.
 	if err := ia.resolveAliases(scriptActions, info.initialisation); err != nil {
 		return nil, false, errors.New("ScriptResult; failed to resolve aliases")
 	}
@@ -290,6 +290,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 	totalChanges := accountsChanges.clone()
 	commonDiff := totalChanges.diff
 	scriptRuns := info.previousScriptRuns
+	issuedAssetsCount := uint64(0)
 	if ok {
 		if err := ia.saveIntermediateDiff(commonDiff); err != nil {
 			return nil, false, err
@@ -358,11 +359,19 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 						decimals: int8(a.Decimals),
 					},
 					assetChangeableInfo: assetChangeableInfo{
-						quantity:    *big.NewInt(int64(a.Quantity)),
+						quantity:    *big.NewInt(a.Quantity),
 						name:        a.Name,
 						description: a.Description,
 						reissuable:  a.Reissuable,
 					},
+				}
+				assetParams := assetParams{a.Quantity, a.Decimals, a.Reissuable}
+				nft, err := isNFT(ia.stor.features, assetParams)
+				if err != nil {
+					return nil, false, err
+				}
+				if !nft {
+					issuedAssetsCount += 1
 				}
 				if !info.validatingUtx {
 					if err := ia.stor.assets.issueAsset(a.ID, assetInfo, info.block.ID); err != nil {
@@ -513,7 +522,8 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 		// Minimum fee is not checked before sponsorship activation.
 		return totalChanges.addresses(), ok, nil
 	}
-	minWavesFee := scriptExtraFee*scriptRuns + feeConstants[proto.InvokeScriptTransaction]*FeeUnit
+	minIssueFee := feeConstants[proto.IssueTransaction] * FeeUnit * issuedAssetsCount
+	minWavesFee := scriptExtraFee*scriptRuns + feeConstants[proto.InvokeScriptTransaction]*FeeUnit + minIssueFee
 	wavesFee := tx.Fee
 	if tx.FeeAsset.Present {
 		wavesFee, err = ia.stor.sponsoredAssets.sponsoredAssetToWaves(tx.FeeAsset.ID, tx.Fee)

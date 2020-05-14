@@ -227,7 +227,7 @@ func (a *txAppender) checkTxFees(tx proto.Transaction, info *checkerInfo, blockI
 	return a.diffApplier.validateBalancesChanges(changes, info.initialisation)
 }
 
-// This functions is used for script validation of transaction that can't fail
+// This function is used for script validation of transaction that can't fail.
 func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScripted bool, checkerInfo *checkerInfo, blockInfo *proto.BlockInfo) (uint64, error) {
 	scriptsRuns := uint64(0)
 	if accountScripted {
@@ -290,7 +290,7 @@ func (a *txAppender) checkExchangeTransactionScripts(tx proto.Transaction, accou
 	if err != nil {
 		return 0, false, err
 	}
-	// Check smart assets' scripts
+	// Check smart assets' scripts.
 	for _, smartAsset := range txSmartAssets {
 		ok, err := a.sc.callAssetScript(tx, smartAsset, blockInfo, checkerInfo.initialisation, acceptFailed)
 		if err != nil {
@@ -417,9 +417,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-	// Check transactions
+	// Check transactions.
 	for _, tx := range params.transactions {
-		// Check that Protobuf transaction could be accepted
+		// Check that Protobuf transaction could be accepted.
 		if err := a.checkProtobufVersion(tx, blockV5Activated); err != nil {
 			return err
 		}
@@ -465,7 +465,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if hasParent {
 			checkerInfo.parentTimestamp = params.parent.Timestamp
 		}
-		// Check transaction for duplication of it's ID
+		// Check transaction for duplication of it's ID.
 		if err := a.checkDuplicateTxIds(tx, a.recentTxIds, params.block.Timestamp); err != nil {
 			return err
 		}
@@ -488,10 +488,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		// Status indicates that Invoke or Exchange transaction's scripts may have failed
 		// but it have to be stored in state anyway. For other transactions it always true.
 		status := true
-		// The list of addresses that was used in transaction, to store the link to the transaction in extended API
+		// The list of addresses that was used in transaction, to store the link to the transaction in extended API.
 		var addresses []proto.Address
 		var scriptsRuns uint64
-		// Some transaction types should be handled differently
+		// Some transaction types should be handled differently.
 		switch tx.GetTypeInfo().Type {
 		case proto.InvokeScriptTransaction:
 			// Invoke is handled in a special way.
@@ -517,7 +517,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 				return errors.Errorf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
 			}
 		case proto.ExchangeTransaction:
-			// Exchange is handled in a special way also
+			// Exchange is handled in a special way also.
 			var txScriptsRuns uint64
 			txScriptsRuns, status, err = a.checkExchangeTransactionScripts(tx, accountHasVerifierScript, checkerInfo, blockInfo, blockV5Activated)
 			if err != nil {
