@@ -1891,9 +1891,6 @@ func (a *TransferSetExpr) InstanceOf() string {
 func (a *TransferSetExpr) ToActions() ([]proto.ScriptAction, error) {
 	res := make([]proto.ScriptAction, 0, len(a.items))
 	for _, transferExpr := range a.items {
-		if transferExpr.amount.Value == 0 {
-			continue
-		}
 		action, err := transferExpr.ToAction(nil)
 		if err != nil {
 			return nil, err
