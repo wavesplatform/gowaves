@@ -268,7 +268,7 @@ func (a *txAppender) checkExchangeTransactionScripts(tx proto.Transaction, accou
 		return 0, false, errors.New("failed to convert transaction to Exchange")
 	}
 	scriptsRuns := uint64(0)
-	// Check script on account
+	// Check script on account.
 	if accountScripted {
 		// Check script.
 		ok, err := a.sc.callAccountScriptWithTx(tx, blockInfo, checkerInfo.initialisation, acceptFailed)
@@ -280,7 +280,7 @@ func (a *txAppender) checkExchangeTransactionScripts(tx proto.Transaction, accou
 			return scriptsRuns, ok, nil
 		}
 	}
-	// Validate transaction, orders and extract smart assets
+	// Validate transaction, orders and extract smart assets.
 	txSmartAssets, err := a.txHandler.checkTx(tx, checkerInfo)
 	if err != nil {
 		return 0, false, err

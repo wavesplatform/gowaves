@@ -220,6 +220,25 @@ func (s *blockchainEntitiesStorage) rollback(newHeight, oldHeight uint64) error 
 	return nil
 }
 
+func (s *blockchainEntitiesStorage) commitUncertain(blockID proto.BlockID) error {
+	if err := s.assets.commitUncertain(blockID); err != nil {
+		return err
+	}
+	if err := s.accountsDataStor.commitUncertain(blockID); err != nil {
+		return err
+	}
+	if err := s.scriptsStorage.commitUncertain(blockID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *blockchainEntitiesStorage) dropUncertain() {
+	s.assets.dropUncertain()
+	s.accountsDataStor.dropUncertain()
+	s.scriptsStorage.dropUncertain()
+}
+
 func (s *blockchainEntitiesStorage) reset() {
 	s.hs.reset()
 	s.assets.reset()

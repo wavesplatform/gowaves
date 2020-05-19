@@ -226,14 +226,6 @@ func (ch txBalanceChanges) addresses() []proto.Address {
 	return res
 }
 
-func (ch txBalanceChanges) clone() txBalanceChanges {
-	d := newTxDiff()
-	for k, v := range ch.diff {
-		d[k] = v
-	}
-	return newTxBalanceChanges(ch.addresses(), d)
-}
-
 type txDiff map[string]balanceDiff
 
 func newTxDiff() txDiff {
