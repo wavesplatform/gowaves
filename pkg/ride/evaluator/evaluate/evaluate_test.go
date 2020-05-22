@@ -1906,9 +1906,16 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "3MwT5r4YSyG4QAiqi8VNZkL9eP9e354DXfE_waves", Value: 7012000}},
 	}
+	a, err := proto.NewAddressFromString("3MwT5r4YSyG4QAiqi8VNZkL9eP9e354DXfE")
+	require.NoError(t, err)
+	asset, err := proto.NewOptionalAssetFromString("Ea6CdDfumo8ZFecxUSWKAjZpQXmkRC79WB4ktu3KffPn")
+	require.NoError(t, err)
+	expectedTransfers := []*proto.TransferScriptAction{
+		{Recipient: proto.NewRecipientFromAddress(a), Amount: 0, Asset: *asset},
+	}
 	expectedResult := &proto.ScriptResult{
 		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Transfers:   expectedTransfers,
 		Issues:      make([]*proto.IssueScriptAction, 0),
 		Reissues:    make([]*proto.ReissueScriptAction, 0),
 		Burns:       make([]*proto.BurnScriptAction, 0),
