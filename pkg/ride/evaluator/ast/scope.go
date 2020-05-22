@@ -355,6 +355,7 @@ func functionsV4() map[string]Expr {
 	s["BinaryEntry"] = FunctionFromPredefined(checkedDataEntry(proto.DataBinary), 2)
 	s["StringEntry"] = FunctionFromPredefined(checkedDataEntry(proto.DataString), 2)
 	s["DeleteEntry"] = FunctionFromPredefined(DeleteEntry, 1)
+	//TODO: remove Issue constructor after updating test script in pkg/state/testdata/scripts/ride4_asset.base64
 	s["Issue"] = FunctionFromPredefined(Issue, 7)
 	s["Reissue"] = FunctionFromPredefined(Reissue, 3)
 	s["Burn"] = FunctionFromPredefined(Burn, 2)
@@ -381,6 +382,8 @@ func functionsV4() map[string]Expr {
 	s["1070"] = FunctionFromPredefined(TransferFromProtobuf, 1)
 	delete(s, "700") // remove CheckMerkleProof
 	s["701"] = FunctionFromPredefined(RebuildMerkleRoot, 3)
+	s["1090"] = FunctionFromPredefined(SimplifiedIssue, 5)
+	s["1091"] = FunctionFromPredefined(Issue, 7)
 	return s
 }
 

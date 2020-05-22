@@ -1767,3 +1767,38 @@ func TestRebuildMerkleRoot(t *testing.T) {
 	assert.True(t, ok)
 	assert.ElementsMatch(t, root, r.Value)
 }
+
+func TestIssueConstructors(t *testing.T) {
+	for _, test := range []struct {
+		txID        string
+		name        string
+		description string
+		decimals    int64
+		quantity    int64
+		reissuable  bool
+	}{
+		{"2K2XASvPkwdePyWaKDKpKT1X7u2uzu6FJASJ34nuTdEi", "asset", "test asset", 2, 100000, false},
+		{"F2fxqoTg3PvEwBshxhwKY9BrbqHvi1RZfyFJ4VmRmokZ", "somerset", "this asset is summer set", 8, 100000000000000, true},
+		{"AafWgQtRaLm915tNf1fhFdmRr7g6Y9YxyeaJRYuhioRX", "some", "this asset is awesome", 0, 1000000000, true},
+	} {
+		txID, err := crypto.NewDigestFromBase58(test.txID)
+		require.NoError(t, err)
+		s := newEmptyScopeV4()
+		s.AddValue("txId", NewBytes(txID.Bytes()))
+		i1, err := Issue(s, NewExprs(NewString(test.name), NewString(test.description), NewLong(test.quantity), NewLong(test.decimals), NewBoolean(test.reissuable), NewUnit(), NewLong(0)))
+		require.NoError(t, err)
+		r1, err := CalculateAssetID(s, NewExprs(i1))
+		require.NoError(t, err)
+		id1, ok := r1.(*BytesExpr)
+		require.True(t, ok)
+
+		i2, err := SimplifiedIssue(s, NewExprs(NewString(test.name), NewString(test.description), NewLong(test.quantity), NewLong(test.decimals), NewBoolean(test.reissuable)))
+		require.NoError(t, err)
+		r2, err := CalculateAssetID(s, NewExprs(i2))
+		require.NoError(t, err)
+		id2, ok := r2.(*BytesExpr)
+		require.True(t, ok)
+
+		assert.ElementsMatch(t, id1.Value, id2.Value)
+	}
+}
