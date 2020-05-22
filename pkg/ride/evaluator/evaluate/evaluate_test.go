@@ -1906,9 +1906,16 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "3MwT5r4YSyG4QAiqi8VNZkL9eP9e354DXfE_waves", Value: 7012000}},
 	}
+	a, err := proto.NewAddressFromString("3MwT5r4YSyG4QAiqi8VNZkL9eP9e354DXfE")
+	require.NoError(t, err)
+	asset, err := proto.NewOptionalAssetFromString("Ea6CdDfumo8ZFecxUSWKAjZpQXmkRC79WB4ktu3KffPn")
+	require.NoError(t, err)
+	expectedTransfers := []*proto.TransferScriptAction{
+		{Recipient: proto.NewRecipientFromAddress(a), Amount: 0, Asset: *asset},
+	}
 	expectedResult := &proto.ScriptResult{
 		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
+		Transfers:   expectedTransfers,
 		Issues:      make([]*proto.IssueScriptAction, 0),
 		Reissues:    make([]*proto.ReissueScriptAction, 0),
 		Burns:       make([]*proto.BurnScriptAction, 0),
@@ -2067,4 +2074,73 @@ func TestIntegerEntry(t *testing.T) {
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
 	_, err = script.CallFunction(proto.StageNetScheme, state, tx, this, lastBlock)
 	assert.Error(t, err)
+}
+
+func TestAssetInfoV3V4(t *testing.T) {
+	codeV3 := "AwQAAAACYWkJAQAAAAdleHRyYWN0AAAAAQkAA+wAAAABAQAAACA4SmZ7I8ecZ8q8rkkn9snzZVVjpJyyIfolCl2dP60I7QkAAAAAAAACCAUAAAACYWkAAAACaWQBAAAAIDhKZnsjx5xnyryuSSf2yfNlVWOknLIh+iUKXZ0/rQjthFBV8Q=="
+	rV3, err := reader.NewReaderFromBase64(codeV3)
+	require.NoError(t, err)
+	scriptV3, err := BuildScript(rV3)
+	require.NoError(t, err)
+
+	/* TODO: replace script with one that checks name and description
+	Current:
+	{-# STDLIB_VERSION 4 #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+	{-# CONTENT_TYPE EXPRESSION #-}
+	let ai =  extract(assetInfo(base58'4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye'))
+	ai.id == base58'4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye'
+
+	Should be:
+	{-# STDLIB_VERSION 4 #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+	{-# CONTENT_TYPE EXPRESSION #-}
+	let ai =  extract(assetInfo(base58'4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye'))
+	ai.name == "ASSET1" && ai.description == "DESCRIPTION1"
+	*/
+	codeV4 := "BAQAAAACYWkJAQAAAAdleHRyYWN0AAAAAQkAA+wAAAABAQAAACA4SmZ7I8ecZ8q8rkkn9snzZVVjpJyyIfolCl2dP60I7QkAAAAAAAACCAUAAAACYWkAAAACaWQBAAAAIDhKZnsjx5xnyryuSSf2yfNlVWOknLIh+iUKXZ0/rQjtfEsRSg=="
+	rV4, err := reader.NewReaderFromBase64(codeV4)
+	require.NoError(t, err)
+	scriptV4, err := BuildScript(rV4)
+	require.NoError(t, err)
+
+	pk, err := crypto.NewPublicKeyFromBase58("Ccebak7uPmCpdNGrVTxENghcrCLF7m9MXGA2BbMDknoW")
+	require.NoError(t, err)
+	issuer, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, pk)
+	require.NoError(t, err)
+	assetID1, err := crypto.NewDigestFromBase58("4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye")
+	require.NoError(t, err)
+	info1 := proto.AssetInfo{
+		ID:              assetID1,
+		Quantity:        1000,
+		Decimals:        0,
+		Issuer:          issuer,
+		IssuerPublicKey: pk,
+		Reissuable:      false,
+		Scripted:        false,
+		Sponsored:       false,
+	}
+	full1 := proto.FullAssetInfo{
+		AssetInfo:   info1,
+		Name:        "ASSET1",
+		Description: "DESCRIPTION1",
+	}
+	state := mockstate.State{
+		TransactionsByID:       nil,
+		TransactionsHeightByID: nil,
+		AssetsBalances:         map[crypto.Digest]uint64{assetID1: 1000},
+		AssetIsSponsored:       false,
+		BlockHeaderByHeight:    nil,
+		Assets:                 map[crypto.Digest]proto.AssetInfo{assetID1: info1},
+		FullAssets:             map[crypto.Digest]proto.FullAssetInfo{assetID1: full1},
+	}
+	scopeV3 := NewScope(3, proto.TestNetScheme, state)
+	rs, err := Eval(scriptV3.Verifier, scopeV3)
+	require.NoError(t, err)
+	assert.True(t, rs, rs)
+
+	scopeV4 := NewScope(4, proto.TestNetScheme, state)
+	rs, err = Eval(scriptV4.Verifier, scopeV4)
+	require.NoError(t, err)
+	assert.True(t, rs, rs)
 }
