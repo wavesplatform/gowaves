@@ -8,7 +8,6 @@ import (
 	"os"
 	"testing"
 
-	protobuf "github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -16,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 func headerFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.BlockWithHeight {

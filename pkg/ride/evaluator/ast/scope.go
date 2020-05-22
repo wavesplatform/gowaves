@@ -221,7 +221,7 @@ func functionsV2() map[string]Expr {
 
 	fns["1000"] = FunctionFromPredefined(NativeTransactionByID, 1)
 	fns["1001"] = FunctionFromPredefined(NativeTransactionHeightByID, 1)
-	fns["1003"] = FunctionFromPredefined(NativeAssetBalance, 2)
+	fns["1003"] = FunctionFromPredefined(NativeAssetBalanceV3, 2)
 
 	fns["1040"] = FunctionFromPredefined(NativeDataIntegerFromArray, 2)
 	fns["1041"] = FunctionFromPredefined(NativeDataBooleanFromArray, 2)
@@ -254,7 +254,7 @@ func functionsV2() map[string]Expr {
 	fns["getString"] = FunctionFromPredefined(UserDataStringFromArrayByIndex, 2)
 
 	fns["addressFromPublicKey"] = FunctionFromPredefined(UserAddressFromPublicKey, 1)
-	fns["wavesBalance"] = FunctionFromPredefined(UserWavesBalance, 1)
+	fns["wavesBalance"] = FunctionFromPredefined(UserWavesBalanceV3, 1)
 
 	// type constructors
 	fns["Address"] = FunctionFromPredefined(UserAddress, 1)
@@ -276,7 +276,7 @@ func functionsV3() map[string]Expr {
 	s["605"] = FunctionFromPredefined(NativeFromBase16, 1)
 	s["700"] = FunctionFromPredefined(NativeCheckMerkleProof, 3)
 	delete(s, "1000") // Native function transactionByID was disabled since v3
-	s["1004"] = FunctionFromPredefined(NativeAssetInfo, 1)
+	s["1004"] = FunctionFromPredefined(NativeAssetInfoV3, 1)
 	s["1005"] = FunctionFromPredefined(NativeBlockInfoByHeight, 1)
 	s["1006"] = FunctionFromPredefined(NativeTransferTransactionByID, 1)
 	s["1061"] = FunctionFromPredefined(NativeAddressToString, 1)
@@ -345,16 +345,21 @@ func functionsV4() map[string]Expr {
 	delete(s, "WriteSet")
 	delete(s, "TransferSet")
 	delete(s, "DataEntry")
-
+	// Replace functions
+	s["wavesBalance"] = FunctionFromPredefined(UserWavesBalanceV4, 1)
+	s["1003"] = FunctionFromPredefined(NativeAssetBalanceV4, 2)
+	s["1004"] = FunctionFromPredefined(NativeAssetInfoV4, 1)
 	// New constructors
 	s["IntegerEntry"] = FunctionFromPredefined(checkedDataEntry(proto.DataInteger), 2)
 	s["BooleanEntry"] = FunctionFromPredefined(checkedDataEntry(proto.DataBoolean), 2)
 	s["BinaryEntry"] = FunctionFromPredefined(checkedDataEntry(proto.DataBinary), 2)
 	s["StringEntry"] = FunctionFromPredefined(checkedDataEntry(proto.DataString), 2)
 	s["DeleteEntry"] = FunctionFromPredefined(DeleteEntry, 1)
+	//TODO: remove Issue constructor after updating test script in pkg/state/testdata/scripts/ride4_asset.base64
 	s["Issue"] = FunctionFromPredefined(Issue, 7)
 	s["Reissue"] = FunctionFromPredefined(Reissue, 3)
 	s["Burn"] = FunctionFromPredefined(Burn, 2)
+	s["SponsorFee"] = FunctionFromPredefined(Sponsorship, 2)
 
 	// New functions
 	s["contains"] = FunctionFromPredefined(Contains, 2)
@@ -379,6 +384,8 @@ func functionsV4() map[string]Expr {
 	s["1070"] = FunctionFromPredefined(TransferFromProtobuf, 1)
 	delete(s, "700") // remove CheckMerkleProof
 	s["701"] = FunctionFromPredefined(RebuildMerkleRoot, 3)
+	s["1090"] = FunctionFromPredefined(SimplifiedIssue, 5)
+	s["1091"] = FunctionFromPredefined(Issue, 7)
 	return s
 }
 

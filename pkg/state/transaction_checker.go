@@ -973,7 +973,7 @@ func (tc *transactionChecker) checkSponsorshipWithProofs(transaction proto.Trans
 	if err != nil {
 		return nil, err
 	}
-	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+	if assetInfo.issuer != tx.SenderPK {
 		return nil, errors.New("asset was issued by other address")
 	}
 	isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)

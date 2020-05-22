@@ -484,6 +484,33 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 						return nil, false, err
 					}
 				}
+			case *proto.SponsorshipScriptAction:
+				// Check sponsorship
+				assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
+				if err != nil {
+					return nil, false, err
+				}
+				sponsorshipActivated, err := ia.stor.features.isActivated(int16(settings.FeeSponsorship))
+				if err != nil {
+					return nil, false, err
+				}
+				if !sponsorshipActivated {
+					return nil, false, errors.New("sponsorship has not been activated yet")
+				}
+				if assetInfo.issuer != scriptPK {
+					return nil, false, errors.Errorf("asset %s was not issued by this DApp", a.AssetID.String())
+				}
+				isSmart, err := ia.stor.scriptsStorage.newestIsSmartAsset(a.AssetID, !info.initialisation)
+				if err != nil {
+					return nil, false, err
+				}
+				if isSmart {
+					return nil, false, errors.Errorf("can not sponsor smart asset %s", a.AssetID.String())
+				}
+				err = ia.stor.sponsoredAssets.sponsorAsset(a.AssetID, uint64(a.MinFee), info.block.ID)
+				if err != nil {
+					return nil, false, errors.Wrapf(err, "failed to sponsor asset %s", a.AssetID.String())
+				}
 			default:
 				return nil, false, errors.Errorf("unsupported script action '%T'", a)
 			}

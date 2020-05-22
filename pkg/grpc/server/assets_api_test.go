@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	protobuf "github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 func TestGetInfo(t *testing.T) {
