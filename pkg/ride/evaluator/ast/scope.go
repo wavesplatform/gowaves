@@ -359,6 +359,7 @@ func functionsV4() map[string]Expr {
 	s["Issue"] = FunctionFromPredefined(Issue, 7)
 	s["Reissue"] = FunctionFromPredefined(Reissue, 3)
 	s["Burn"] = FunctionFromPredefined(Burn, 2)
+	s["SponsorFee"] = FunctionFromPredefined(Sponsorship, 2)
 
 	// New functions
 	s["contains"] = FunctionFromPredefined(Contains, 2)

@@ -2420,6 +2420,30 @@ func Burn(s Scope, e Exprs) (Expr, error) {
 	return r, nil
 }
 
+func Sponsorship(s Scope, e Exprs) (Expr, error) {
+	const funcName = "Sponsorship"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	assetID, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument to be '*BytesExpr', got '%T'", funcName, rs[0])
+	}
+	minFee, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected second argument to be '*LongExpr', got '%T'", funcName, rs[1])
+	}
+	r, err := NewSponsorshipExpr(assetID.Value, minFee.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return r, nil
+}
+
 func Contains(s Scope, e Exprs) (Expr, error) {
 	const funcName = "Contains"
 	if l := len(e); l != 2 {

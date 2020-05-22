@@ -663,10 +663,11 @@ func verify() = {
 				{Entry: &proto.StringDataEntry{Key: "abc_q", Value: "abc"}},
 				{Entry: &proto.StringDataEntry{Key: "abc_a", Value: "abc"}},
 			},
-			Transfers: make([]*proto.TransferScriptAction, 0),
-			Issues:    make([]*proto.IssueScriptAction, 0),
-			Reissues:  make([]*proto.ReissueScriptAction, 0),
-			Burns:     make([]*proto.BurnScriptAction, 0),
+			Transfers:    make([]*proto.TransferScriptAction, 0),
+			Issues:       make([]*proto.IssueScriptAction, 0),
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 		},
 		sr,
 	)
@@ -729,10 +730,11 @@ func verify() = {
 				{Entry: &proto.StringDataEntry{Key: "a", Value: "b"}},
 				{Entry: &proto.BinaryDataEntry{Key: "sender", Value: addr.Bytes()}},
 			},
-			Transfers: make([]*proto.TransferScriptAction, 0),
-			Issues:    make([]*proto.IssueScriptAction, 0),
-			Reissues:  make([]*proto.ReissueScriptAction, 0),
-			Burns:     make([]*proto.BurnScriptAction, 0),
+			Transfers:    make([]*proto.TransferScriptAction, 0),
+			Issues:       make([]*proto.IssueScriptAction, 0),
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 		},
 		sr,
 	)
@@ -855,11 +857,12 @@ func tellme(question: String) = {
 	require.NoError(t, err)
 	require.EqualValues(t,
 		&proto.ScriptResult{
-			DataEntries: make([]*proto.DataEntryScriptAction, 0),
-			Transfers:   []*proto.TransferScriptAction{&scriptTransfer},
-			Issues:      make([]*proto.IssueScriptAction, 0),
-			Reissues:    make([]*proto.ReissueScriptAction, 0),
-			Burns:       make([]*proto.BurnScriptAction, 0),
+			DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+			Transfers:    []*proto.TransferScriptAction{&scriptTransfer},
+			Issues:       make([]*proto.IssueScriptAction, 0),
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 		},
 		sr,
 	)
@@ -906,11 +909,12 @@ func tellme(question: String) = {
 	}
 	require.Equal(t,
 		&proto.ScriptResult{
-			DataEntries: []*proto.DataEntryScriptAction{{Entry: &proto.IntegerDataEntry{Key: "key", Value: 100}}},
-			Transfers:   []*proto.TransferScriptAction{&scriptTransfer},
-			Issues:      make([]*proto.IssueScriptAction, 0),
-			Reissues:    make([]*proto.ReissueScriptAction, 0),
-			Burns:       make([]*proto.BurnScriptAction, 0),
+			DataEntries:  []*proto.DataEntryScriptAction{{Entry: &proto.IntegerDataEntry{Key: "key", Value: 100}}},
+			Transfers:    []*proto.TransferScriptAction{&scriptTransfer},
+			Issues:       make([]*proto.IssueScriptAction, 0),
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 		},
 		sr,
 	)
@@ -1178,11 +1182,12 @@ func TestWhaleDApp(t *testing.T) {
 		{Entry: &proto.StringDataEntry{Key: "wl_sts_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "invited"}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1275,11 +1280,12 @@ func TestExchangeDApp(t *testing.T) {
 		},
 	}
 	expectedResult := &proto.ScriptResult{
-		Transfers:   expectedTransfers,
-		DataEntries: expectedDataWrites,
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		Transfers:    expectedTransfers,
+		DataEntries:  expectedDataWrites,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1463,11 +1469,12 @@ func TestLigaDApp1(t *testing.T) {
 		{Entry: &proto.IntegerDataEntry{Key: "BALANCE_SNAPSHOT", Value: 98750005}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 
@@ -1567,11 +1574,12 @@ func TestLigaDApp1(t *testing.T) {
 		{Entry: &proto.IntegerDataEntry{Key: "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye_SOLD", Value: 5}},
 	}
 	expectedResult = &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1653,11 +1661,12 @@ func TestTestingDApp(t *testing.T) {
 		{Entry: &proto.StringDataEntry{Key: "mainLog", Value: "1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY - 3N4XM8G5WXzdkLXYDL6X229Entc5Hqgz7DM - 1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY -> 3NBQxw1ZzTfWbrLjWj2euMwizncrGG4nXJX"}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1734,11 +1743,12 @@ func TestDropElementDApp(t *testing.T) {
 		{Entry: &proto.StringDataEntry{Key: "1", Value: "aaa,bbb,ccc - ccc = aaa,bbb"}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1827,11 +1837,12 @@ func TestMathDApp(t *testing.T) {
 		{Entry: &proto.IntegerDataEntry{Key: "firstProjectedPrice", Value: 0}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1914,11 +1925,12 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		{Recipient: proto.NewRecipientFromAddress(a), Amount: 0, Asset: *asset},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   expectedTransfers,
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    expectedTransfers,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1999,11 +2011,12 @@ func Test8Ball(t *testing.T) {
 		{Entry: &proto.StringDataEntry{Key: "3Mz67eGY4aNdBHJtgbRPVde3KwAeN3ULLHG_a", Value: "Yes - definitely."}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }

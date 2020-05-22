@@ -662,3 +662,9 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenFailOnBurnTooMuch(t *testing.T
 	_, _, err = ia.applyInvokeScriptWithProofs(tx, info, false)
 	assert.Error(t, err)
 }
+
+//TODO: add test on sponsorship made by DApp, create new DApp, that will issue and sponsor asset,
+// test also the function call that issues and sets sponsorship in one turn.
+
+//TODO: add test on impossibility of sponsorship of smart asset using DApp, issue smart asset with simple script using
+// usual transaction and then try to set sponsorship using invoke.

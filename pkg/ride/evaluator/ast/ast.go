@@ -2222,6 +2222,60 @@ func (a *BurnExpr) Get(name string) (Expr, error) {
 	}
 }
 
+type SponsorshipExpr struct {
+	AssetID crypto.Digest
+	MinFee  int64
+}
+
+func NewSponsorshipExpr(assetID []byte, minFee int64) (*SponsorshipExpr, error) {
+	id, err := crypto.NewDigestFromBytes(assetID)
+	if err != nil {
+		return nil, err
+	}
+	return &SponsorshipExpr{
+		AssetID: id,
+		MinFee:  minFee,
+	}, nil
+}
+
+func (a *SponsorshipExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "SponsorshipExpr")
+}
+
+func (a *SponsorshipExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *SponsorshipExpr) Eq(other Expr) bool {
+	b, ok := other.(*SponsorshipExpr)
+	if !ok {
+		return false
+	}
+	return a.AssetID == b.AssetID && a.MinFee == b.MinFee
+}
+
+func (a *SponsorshipExpr) InstanceOf() string {
+	return "SponsorFee"
+}
+
+func (a *SponsorshipExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error) {
+	return &proto.SponsorshipScriptAction{
+		AssetID: a.AssetID,
+		MinFee:  a.MinFee,
+	}, nil
+}
+
+func (a *SponsorshipExpr) Get(name string) (Expr, error) {
+	switch name {
+	case "assetId":
+		return NewBytes(a.AssetID.Bytes()), nil
+	case "minSponsoredAssetFee":
+		return NewLong(a.MinFee), nil
+	default:
+		return nil, errors.Errorf("unknown field '%s' of SponsorshipExpr", name)
+	}
+}
+
 type BalanceDetailsExpr struct {
 	fields object
 }

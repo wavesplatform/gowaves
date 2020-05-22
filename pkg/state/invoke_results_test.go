@@ -80,13 +80,25 @@ func TestSaveResult(t *testing.T) {
 			{Amount: 10, Asset: *testGlobal.asset1.asset, Recipient: rcp},
 			{Amount: 0, Asset: *testGlobal.asset2.asset, Recipient: rcp},
 		},
-		Issues:   make([]*proto.IssueScriptAction, 0),
-		Reissues: make([]*proto.ReissueScriptAction, 0),
-		Burns:    make([]*proto.BurnScriptAction, 0),
+		Issues: []*proto.IssueScriptAction{
+			{ID: testGlobal.asset0.asset.ID, Name: "asset0", Description: "description0", Quantity: 12345, Decimals: 6, Reissuable: false, Script: []byte{}, Nonce: 7890},
+			{ID: testGlobal.asset1.asset.ID, Name: "asset1", Description: "description1", Quantity: 9876, Decimals: 5, Reissuable: true, Script: []byte{}, Nonce: 4321},
+		},
+		Reissues: []*proto.ReissueScriptAction{
+			{AssetID: testGlobal.asset0.asset.ID, Quantity: 1234567890, Reissuable: false},
+			{AssetID: testGlobal.asset1.asset.ID, Quantity: 987654321, Reissuable: true},
+		},
+		Burns: []*proto.BurnScriptAction{
+			{AssetID: testGlobal.asset0.asset.ID, Quantity: 1234567890},
+			{AssetID: testGlobal.asset1.asset.ID, Quantity: 9877654321},
+		},
+		Sponsorships: []*proto.SponsorshipScriptAction{
+			{AssetID: testGlobal.asset0.asset.ID, MinFee: 12345},
+			{AssetID: testGlobal.asset0.asset.ID, MinFee: 0},
+		},
 	}
 	err = to.invokeResults.saveResult(invokeID, savedRes, blockID0)
 	require.NoError(t, err)
-	// Flush.
 	to.stor.flush(t)
 	res, err := to.invokeResults.invokeResult('W', invokeID, true)
 	require.NoError(t, err)

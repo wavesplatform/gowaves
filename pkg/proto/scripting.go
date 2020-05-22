@@ -131,6 +131,23 @@ func (a *BurnScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
 	}
 }
 
+// SponsorshipScriptAction is an action to set sponsorship for given asset in response to script invocation.
+type SponsorshipScriptAction struct {
+	AssetID crypto.Digest // assetId
+	MinFee  int64         // minSponsoredAssetFee
+}
+
+func (a SponsorshipScriptAction) scriptAction() {}
+
+func (a *SponsorshipScriptAction) ToProtobuf() *g.InvokeScriptResult_SponsorFee {
+	return &g.InvokeScriptResult_SponsorFee{
+		MinFee: &g.Amount{
+			AssetId: a.AssetID.Bytes(),
+			Amount:  a.MinFee,
+		},
+	}
+}
+
 type ScriptErrorMessage struct {
 	Code int32
 	Text string
@@ -144,12 +161,13 @@ func (msg *ScriptErrorMessage) ToProtobuf() *g.InvokeScriptResult_ErrorMessage {
 }
 
 type ScriptResult struct {
-	DataEntries []*DataEntryScriptAction
-	Transfers   []*TransferScriptAction
-	Issues      []*IssueScriptAction
-	Reissues    []*ReissueScriptAction
-	Burns       []*BurnScriptAction
-	ErrorMsg    ScriptErrorMessage
+	DataEntries  []*DataEntryScriptAction
+	Transfers    []*TransferScriptAction
+	Issues       []*IssueScriptAction
+	Reissues     []*ReissueScriptAction
+	Burns        []*BurnScriptAction
+	Sponsorships []*SponsorshipScriptAction
+	ErrorMsg     ScriptErrorMessage
 }
 
 // NewScriptResult creates correct representation of invocation actions for storage and API.
@@ -159,6 +177,7 @@ func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptRes
 	issues := make([]*IssueScriptAction, 0)
 	reissues := make([]*ReissueScriptAction, 0)
 	burns := make([]*BurnScriptAction, 0)
+	sponsorships := make([]*SponsorshipScriptAction, 0)
 	for _, a := range actions {
 		switch ta := a.(type) {
 		case *DataEntryScriptAction:
@@ -171,17 +190,20 @@ func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptRes
 			reissues = append(reissues, ta)
 		case *BurnScriptAction:
 			burns = append(burns, ta)
+		case *SponsorshipScriptAction:
+			sponsorships = append(sponsorships, ta)
 		default:
 			return nil, errors.Errorf("unsupported action type '%T'", a)
 		}
 	}
 	return &ScriptResult{
-		DataEntries: entries,
-		Transfers:   transfers,
-		Issues:      issues,
-		Reissues:    reissues,
-		Burns:       burns,
-		ErrorMsg:    msg,
+		DataEntries:  entries,
+		Transfers:    transfers,
+		Issues:       issues,
+		Reissues:     reissues,
+		Burns:        burns,
+		Sponsorships: sponsorships,
+		ErrorMsg:     msg,
 	}, nil
 }
 
@@ -210,12 +232,17 @@ func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
 	for i := range sr.Burns {
 		burns[i] = sr.Burns[i].ToProtobuf()
 	}
+	sponsorships := make([]*g.InvokeScriptResult_SponsorFee, len(sr.Sponsorships))
+	for i := range sr.Sponsorships {
+		sponsorships[i] = sr.Sponsorships[i].ToProtobuf()
+	}
 	return &g.InvokeScriptResult{
 		Data:         data,
 		Transfers:    transfers,
 		Issues:       issues,
 		Reissues:     reissues,
 		Burns:        burns,
+		SponsorFees:  sponsorships,
 		ErrorMessage: sr.ErrorMsg.ToProtobuf(),
 	}, nil
 }
@@ -248,6 +275,10 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 		return err
 	}
 	sr.Burns, err = c.BurnScriptActions(msg.Burns)
+	if err != nil {
+		return err
+	}
+	sr.Sponsorships, err = c.SponsorshipScriptActions(msg.SponsorFees)
 	if err != nil {
 		return err
 	}
@@ -331,6 +362,15 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			}
 			if ta.Quantity <= 0 {
 				return errors.New("negative or zero quantity")
+			}
+
+		case *SponsorshipScriptAction:
+			otherActionsCount++
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			}
+			if ta.MinFee < 0 {
+				return errors.New("negative minimal fee")
 			}
 
 		default:
