@@ -1293,21 +1293,40 @@ func TestNativeBlockInfoByHeight(t *testing.T) {
 	require.Equal(t, NewBytes(publicKey.Bytes()), ok(b.Get("generatorPublicKey")))
 }
 
-func TestNativeAssetInfo(t *testing.T) {
+func TestNativeAssetInfoV3(t *testing.T) {
 	info := proto.AssetInfo{
 		ID: crypto.MustDigestFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU"),
 	}
 	s := mockstate.State{
 		Assets: map[crypto.Digest]proto.AssetInfo{info.ID: info},
 	}
-	rs, err := NativeAssetInfo(newScopeWithState(s), Params(NewBytes(info.ID.Bytes())))
+	rs, err := NativeAssetInfoV3(newScopeWithState(s), Params(NewBytes(info.ID.Bytes())))
 	require.NoError(t, err)
 	v := rs.(Getable)
 	require.Equal(t, NewBytes(info.ID.Bytes()), ok(v.Get("id")))
 
 	wID, err := base58.Decode("WAVES")
 	require.NoError(t, err)
-	rs2, err := NativeAssetInfo(newScopeWithState(s), Params(NewBytes(wID)))
+	rs2, err := NativeAssetInfoV3(newScopeWithState(s), Params(NewBytes(wID)))
+	require.NoError(t, err)
+	assert.Equal(t, NewUnit(), rs2)
+}
+
+func TestNativeAssetInfoV4(t *testing.T) {
+	info := proto.FullAssetInfo{
+		AssetInfo: proto.AssetInfo{ID: crypto.MustDigestFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")},
+	}
+	s := mockstate.State{
+		FullAssets: map[crypto.Digest]proto.FullAssetInfo{info.ID: info},
+	}
+	rs, err := NativeAssetInfoV4(newScopeWithState(s), Params(NewBytes(info.ID.Bytes())))
+	require.NoError(t, err)
+	v := rs.(Getable)
+	require.Equal(t, NewBytes(info.ID.Bytes()), ok(v.Get("id")))
+
+	wID, err := base58.Decode("WAVES")
+	require.NoError(t, err)
+	rs2, err := NativeAssetInfoV4(newScopeWithState(s), Params(NewBytes(wID)))
 	require.NoError(t, err)
 	assert.Equal(t, NewUnit(), rs2)
 }

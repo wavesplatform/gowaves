@@ -1293,8 +1293,8 @@ func NativeAddressFromRecipient(s Scope, e Exprs) (Expr, error) {
 }
 
 // 1004: accepts id: []byte
-func NativeAssetInfo(s Scope, e Exprs) (Expr, error) {
-	const funcName = "NativeAssetInfo"
+func NativeAssetInfoV3(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeAssetInfoV3"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
@@ -1314,7 +1314,31 @@ func NativeAssetInfo(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	return NewAssetInfo(newMapAssetInfo(*info)), nil
+	return NewAssetInfo(newMapAssetInfoV3(*info)), nil
+}
+
+func NativeAssetInfoV4(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeAssetInfoV4"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+	first, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	id, ok := first.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
+	}
+	assetId, err := crypto.NewDigestFromBytes(id.Value)
+	if err != nil {
+		return NewUnit(), nil // Return Unit not an error on invalid Asset IDs
+	}
+	info, err := s.State().NewestFullAssetInfo(assetId)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewAssetInfo(newMapAssetInfoV4(*info)), nil
 }
 
 //1005:

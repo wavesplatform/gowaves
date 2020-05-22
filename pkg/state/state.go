@@ -1902,6 +1902,55 @@ func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo,
 	}, nil
 }
 
+func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+	ai, err := s.NewestAssetInfo(assetID)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	info, err := s.stor.assets.newestAssetInfo(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	tx, err := s.NewestTransactionByID(assetID.Bytes())
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	res := &proto.FullAssetInfo{
+		AssetInfo:        *ai,
+		Name:             info.name,
+		Description:      info.description,
+		IssueTransaction: tx,
+	}
+	isSponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	if isSponsored {
+		assetCost, err := s.stor.sponsoredAssets.newestAssetCost(assetID, true)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		sponsorBalance, err := s.NewestAccountBalance(proto.NewRecipientFromAddress(ai.Issuer), nil)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		res.SponsorshipCost = assetCost
+		res.SponsorBalance = sponsorBalance
+	}
+	isScripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	if isScripted {
+		scriptInfo, err := s.NewestScriptInfoByAsset(assetID)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		res.ScriptInfo = *scriptInfo
+	}
+	return res, nil
+}
+
 func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
 	info, err := s.stor.assets.assetInfo(assetID, true)
 	if err != nil {
@@ -2017,6 +2066,28 @@ func (s *stateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptIn
 	}
 	text := base64.StdEncoding.EncodeToString(scriptBytes)
 	complexity, err := s.stor.scriptsComplexity.scriptComplexityByAsset(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	version, err := proto.VersionFromScriptBytes(scriptBytes)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	return &proto.ScriptInfo{
+		Version:    version,
+		Bytes:      scriptBytes,
+		Base64:     text,
+		Complexity: complexity.complexity,
+	}, nil
+}
+
+func (s *stateManager) NewestScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error) {
+	scriptBytes, err := s.stor.scriptsStorage.newestScriptBytesByAsset(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	text := base64.StdEncoding.EncodeToString(scriptBytes)
+	complexity, err := s.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
