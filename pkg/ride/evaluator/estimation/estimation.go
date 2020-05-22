@@ -695,6 +695,7 @@ func NewCatalogueV4() *Catalogue {
 	c.user["407"] = 3
 	c.user["701"] = 30
 	c.user["800"] = 3900
+	c.user["900"] = 70
 	c.user["1070"] = 5
 	c.user["1080"] = 10
 	c.user["1100"] = 2

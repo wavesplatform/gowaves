@@ -1031,8 +1031,8 @@ func NativeBooleanToBytes(s Scope, e Exprs) (Expr, error) {
 }
 
 // Asset balance for account
-func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
-	const funcName = "NativeAssetBalance"
+func NativeAssetBalanceV3(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeAssetBalanceV3"
 	if l := len(e); l != 2 {
 		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
 	}
@@ -1040,20 +1040,13 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
+	r, err := extractRecipient(addressOrAliasExpr)
+	if err != nil {
+		return nil, errors.Errorf("%s: first argument %v", funcName, err)
+	}
 	assetId, err := e[1].Evaluate(s)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
-	}
-	var r proto.Recipient
-	switch a := addressOrAliasExpr.(type) {
-	case *AddressExpr:
-		r = proto.NewRecipientFromAddress(proto.Address(*a))
-	case *AliasExpr:
-		r = proto.NewRecipientFromAlias(proto.Alias(*a))
-	case *RecipientExpr:
-		r = proto.Recipient(*a)
-	default:
-		return nil, errors.Errorf("%s first argument expected to be AddressExpr or AliasExpr, found %T", funcName, addressOrAliasExpr)
 	}
 	if _, ok := assetId.(*Unit); ok {
 		balance, err := s.State().NewestAccountBalance(r, nil)
@@ -1064,7 +1057,35 @@ func NativeAssetBalance(s Scope, e Exprs) (Expr, error) {
 	}
 	assetBts, ok := assetId.(*BytesExpr)
 	if !ok {
-		return nil, errors.Errorf("%s expected second argument to be *BytesExpr, found %T", funcName, assetId)
+		return nil, errors.Errorf("%s: expected second argument to be *BytesExpr, found %T", funcName, assetId)
+	}
+	balance, err := s.State().NewestAccountBalance(r, assetBts.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewLong(int64(balance)), nil
+}
+
+func NativeAssetBalanceV4(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeAssetBalanceV4"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	}
+	addressOrAliasExpr, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	r, err := extractRecipient(addressOrAliasExpr)
+	if err != nil {
+		return nil, errors.Errorf("%s: first argument %v", funcName, err)
+	}
+	assetId, err := e[1].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	assetBts, ok := assetId.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected second argument to be *BytesExpr, found %T", funcName, assetId)
 	}
 	balance, err := s.State().NewestAccountBalance(r, assetBts.Value)
 	if err != nil {
@@ -1393,8 +1414,8 @@ func NativeAddressFromRecipient(s Scope, e Exprs) (Expr, error) {
 }
 
 // 1004: accepts id: []byte
-func NativeAssetInfo(s Scope, e Exprs) (Expr, error) {
-	const funcName = "NativeAssetInfo"
+func NativeAssetInfoV3(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeAssetInfoV3"
 	if l := len(e); l != 1 {
 		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	}
@@ -1414,7 +1435,31 @@ func NativeAssetInfo(s Scope, e Exprs) (Expr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	return NewAssetInfo(newMapAssetInfo(*info)), nil
+	return NewAssetInfo(newMapAssetInfoV3(*info)), nil
+}
+
+func NativeAssetInfoV4(s Scope, e Exprs) (Expr, error) {
+	const funcName = "NativeAssetInfoV4"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+	first, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	id, ok := first.(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s expected first argument to be *BytesExpr, found %T", funcName, first)
+	}
+	assetId, err := crypto.NewDigestFromBytes(id.Value)
+	if err != nil {
+		return NewUnit(), nil // Return Unit not an error on invalid Asset IDs
+	}
+	info, err := s.State().NewestFullAssetInfo(assetId)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewAssetInfo(newMapAssetInfoV4(*info)), nil
 }
 
 //1005:
@@ -1900,8 +1945,28 @@ func SimpleTypeConstructorFactory(name string, expr Expr) Callable {
 	}
 }
 
-func UserWavesBalance(s Scope, e Exprs) (Expr, error) {
-	return NativeAssetBalance(s, append(e, NewUnit()))
+func UserWavesBalanceV3(s Scope, e Exprs) (Expr, error) {
+	return NativeAssetBalanceV3(s, append(e, NewUnit()))
+}
+
+func UserWavesBalanceV4(s Scope, e Exprs) (Expr, error) {
+	const funcName = "UserWavesBalanceV4"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	}
+	addressOrAliasExpr, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	r, err := extractRecipient(addressOrAliasExpr)
+	if err != nil {
+		return nil, errors.Errorf("%s: first argument %v", funcName, err)
+	}
+	balance, err := s.State().NewestFullWavesBalance(r)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewBalanceDetailsExpr(balance), nil
 }
 
 func limitedRSAVerify(limit int) Callable {
@@ -2369,6 +2434,39 @@ func Issue(s Scope, e Exprs) (Expr, error) {
 	return NewIssueExpr(name.Value, description.Value, quantity.Value, decimals.Value, reissuable.Value, nonce.Value), nil
 }
 
+// SimplifiedIssue is a constructor of IssueExpr with some parameters set to default values
+func SimplifiedIssue(s Scope, e Exprs) (Expr, error) {
+	const funcName = "SimplifiedIssue"
+	if l := len(e); l != 5 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 7, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	name, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument to be '*StringExpr', got '%T'", funcName, rs[0])
+	}
+	description, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected second argument to be '*StringExpr', got '%T'", funcName, rs[1])
+	}
+	quantity, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected third argument to be '*LongExpr', got '%T'", funcName, rs[2])
+	}
+	decimals, ok := rs[3].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected forth argument to be '*LongExpr', got '%T'", funcName, rs[3])
+	}
+	reissuable, ok := rs[4].(*BooleanExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected 5th argument to be '*BooleanExpr', got '%T'", funcName, rs[4])
+	}
+	return NewIssueExpr(name.Value, description.Value, quantity.Value, decimals.Value, reissuable.Value, 0), nil
+}
+
 // Reissue is a constructor of ReissueExpr type
 func Reissue(s Scope, e Exprs) (Expr, error) {
 	const funcName = "Reissue"
@@ -2416,6 +2514,30 @@ func Burn(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s: expected second argument to be '*LongExpr', got '%T'", funcName, rs[1])
 	}
 	r, err := NewBurnExpr(assetID.Value, quantity.Value)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return r, nil
+}
+
+func Sponsorship(s Scope, e Exprs) (Expr, error) {
+	const funcName = "Sponsorship"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 2, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	assetID, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument to be '*BytesExpr', got '%T'", funcName, rs[0])
+	}
+	minFee, ok := rs[1].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected second argument to be '*LongExpr', got '%T'", funcName, rs[1])
+	}
+	r, err := NewSponsorshipExpr(assetID.Value, minFee.Value)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
@@ -2630,6 +2752,38 @@ func limitedGroth16Verify(limit int) Callable {
 	}
 }
 
+func ECRecover(s Scope, e Exprs) (Expr, error) {
+	const funcName = "ECRecover"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters %d, expected 2", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	digest, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument of type *BytesExpr, got '%T'", funcName, rs[0])
+	}
+	if l := len(digest.Value); l != 32 {
+		return nil, errors.Errorf("%s: invalid message digest size %d, expected 32 bytes", funcName, l)
+	}
+	signature, ok := rs[1].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected second argument of type *BytesExpr, got '%T'", funcName, rs[1])
+	}
+	if l := len(signature.Value); l != 65 {
+		return nil, errors.Errorf("%s: invalid signature size %d, expected 65 bytes", funcName, l)
+	}
+	pk, err := crypto.ECDSARecoverPublicKey(digest.Value, signature.Value)
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	pkb := pk.SerializeUncompressed()
+	//We have to drop first byte because in bitcoin library where is a length.
+	return NewBytes(pkb[1:]), nil
+}
+
 func wrapWithExtract(c Callable, name string) Callable {
 	return func(s Scope, e Exprs) (Expr, error) {
 		rs, err := c(s, e)
@@ -2680,24 +2834,32 @@ func dataFromArray(s Scope, e Exprs) (Expr, error) {
 	return NewUnit(), nil
 }
 
+func extractRecipient(e Expr) (proto.Recipient, error) {
+	var r proto.Recipient
+	switch a := e.(type) {
+	case *AddressExpr:
+		r = proto.NewRecipientFromAddress(proto.Address(*a))
+	case *AliasExpr:
+		r = proto.NewRecipientFromAlias(proto.Alias(*a))
+	case *RecipientExpr:
+		r = proto.Recipient(*a)
+	default:
+		return proto.Recipient{}, errors.Errorf("expected to be AddressExpr or AliasExpr, found %T", e)
+	}
+	return r, nil
+}
+
 func extractRecipientAndKey(s Scope, e Exprs) (proto.Recipient, string, error) {
 	if l := len(e); l != 2 {
 		return proto.Recipient{}, "", errors.Errorf("invalid params, expected 2, passed %d", l)
 	}
-	addOrAliasExpr, err := e[0].Evaluate(s)
+	first, err := e[0].Evaluate(s)
 	if err != nil {
 		return proto.Recipient{}, "", err
 	}
-	var r proto.Recipient
-	switch a := addOrAliasExpr.(type) {
-	case *AliasExpr:
-		r = proto.NewRecipientFromAlias(proto.Alias(*a))
-	case *AddressExpr:
-		r = proto.NewRecipientFromAddress(proto.Address(*a))
-	case *RecipientExpr:
-		r = proto.Recipient(*a)
-	default:
-		return proto.Recipient{}, "", errors.Errorf("expected first argument of types *proto.AliasExpr of *proto.AddressExpr, found %T", addOrAliasExpr)
+	r, err := extractRecipient(first)
+	if err != nil {
+		return proto.Recipient{}, "", errors.Errorf("first argument %v", err)
 	}
 	second, err := e[1].Evaluate(s)
 	if err != nil {

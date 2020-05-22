@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	pb "github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	pb "google.golang.org/protobuf/proto"
 )
 
 func TestScriptResultBinaryRoundTrip(t *testing.T) {
@@ -27,6 +27,7 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 	emptyIssues := make([]*IssueScriptAction, 0)
 	emptyReissues := make([]*ReissueScriptAction, 0)
 	emptyBurns := make([]*BurnScriptAction, 0)
+	emptySponsorships := make([]*SponsorshipScriptAction, 0)
 	for i, test := range []ScriptResult{
 		{
 			DataEntries: []*DataEntryScriptAction{
@@ -46,18 +47,20 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 				{Amount: 100500, Asset: *waves, Recipient: rcp},
 				{Amount: 0, Asset: *asset1, Recipient: rcp},
 			},
-			Issues:   emptyIssues,
-			Reissues: emptyReissues,
-			Burns:    emptyBurns,
+			Issues:       emptyIssues,
+			Reissues:     emptyReissues,
+			Burns:        emptyBurns,
+			Sponsorships: emptySponsorships,
 		},
 		{
 			DataEntries: []*DataEntryScriptAction{
 				{&IntegerDataEntry{"some key", 12345}},
 			},
-			Transfers: emptyTransfers,
-			Issues:    emptyIssues,
-			Reissues:  emptyReissues,
-			Burns:     emptyBurns,
+			Transfers:    emptyTransfers,
+			Issues:       emptyIssues,
+			Reissues:     emptyReissues,
+			Burns:        emptyBurns,
+			Sponsorships: emptySponsorships,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -66,9 +69,10 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 				{Amount: 10, Asset: *asset0, Recipient: rcp},
 				{Amount: 0, Asset: *asset1, Recipient: rcp},
 			},
-			Issues:   emptyIssues,
-			Reissues: emptyReissues,
-			Burns:    emptyBurns,
+			Issues:       emptyIssues,
+			Reissues:     emptyReissues,
+			Burns:        emptyBurns,
+			Sponsorships: emptySponsorships,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -77,8 +81,9 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 				{ID: asset0.ID, Name: "xxx1", Description: "some asset", Quantity: 10000000, Decimals: 2, Reissuable: false, Script: Script{}, Nonce: 0},
 				{ID: asset1.ID, Name: strings.Repeat("x", 100), Description: strings.Repeat("s", 1000), Quantity: math.MaxUint32, Decimals: 0, Reissuable: true, Script: Script{}, Nonce: math.MaxInt64},
 			},
-			Reissues: emptyReissues,
-			Burns:    emptyBurns,
+			Reissues:     emptyReissues,
+			Burns:        emptyBurns,
+			Sponsorships: emptySponsorships,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -91,7 +96,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 				{AssetID: asset0.ID, Quantity: 100000, Reissuable: false},
 				{AssetID: asset1.ID, Quantity: 1234567890, Reissuable: true},
 			},
-			Burns: emptyBurns,
+			Burns:        emptyBurns,
+			Sponsorships: emptySponsorships,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -104,6 +110,18 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			Burns: []*BurnScriptAction{
 				{AssetID: asset1.ID, Quantity: 12345},
 				{AssetID: asset0.ID, Quantity: 0},
+			},
+			Sponsorships: emptySponsorships,
+		},
+		{
+			DataEntries: emptyDataEntries,
+			Transfers:   emptyTransfers,
+			Issues:      emptyIssues,
+			Reissues:    emptyReissues,
+			Burns:       emptyBurns,
+			Sponsorships: []*SponsorshipScriptAction{
+				{AssetID: asset0.ID, MinFee: 12345},
+				{AssetID: asset1.ID, MinFee: 0},
 			},
 		},
 	} {

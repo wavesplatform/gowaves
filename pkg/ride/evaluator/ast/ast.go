@@ -2221,3 +2221,96 @@ func (a *BurnExpr) Get(name string) (Expr, error) {
 		return nil, errors.Errorf("unknown field '%s' of BurnExpr", name)
 	}
 }
+
+type SponsorshipExpr struct {
+	AssetID crypto.Digest
+	MinFee  int64
+}
+
+func NewSponsorshipExpr(assetID []byte, minFee int64) (*SponsorshipExpr, error) {
+	id, err := crypto.NewDigestFromBytes(assetID)
+	if err != nil {
+		return nil, err
+	}
+	return &SponsorshipExpr{
+		AssetID: id,
+		MinFee:  minFee,
+	}, nil
+}
+
+func (a *SponsorshipExpr) Write(w io.Writer) {
+	_, _ = fmt.Fprintf(w, "SponsorshipExpr")
+}
+
+func (a *SponsorshipExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *SponsorshipExpr) Eq(other Expr) bool {
+	b, ok := other.(*SponsorshipExpr)
+	if !ok {
+		return false
+	}
+	return a.AssetID == b.AssetID && a.MinFee == b.MinFee
+}
+
+func (a *SponsorshipExpr) InstanceOf() string {
+	return "SponsorFee"
+}
+
+func (a *SponsorshipExpr) ToAction(*crypto.Digest) (proto.ScriptAction, error) {
+	return &proto.SponsorshipScriptAction{
+		AssetID: a.AssetID,
+		MinFee:  a.MinFee,
+	}, nil
+}
+
+func (a *SponsorshipExpr) Get(name string) (Expr, error) {
+	switch name {
+	case "assetId":
+		return NewBytes(a.AssetID.Bytes()), nil
+	case "minSponsoredAssetFee":
+		return NewLong(a.MinFee), nil
+	default:
+		return nil, errors.Errorf("unknown field '%s' of SponsorshipExpr", name)
+	}
+}
+
+type BalanceDetailsExpr struct {
+	fields object
+}
+
+func NewBalanceDetailsExpr(balance *proto.FullWavesBalance) *BalanceDetailsExpr {
+	fields := newObject()
+	fields["regular"] = NewLong(int64(balance.Regular))
+	fields["available"] = NewLong(int64(balance.Available))
+	fields["effective"] = NewLong(int64(balance.Effective))
+	fields["generating"] = NewLong(int64(balance.Generating))
+	return &BalanceDetailsExpr{
+		fields: fields,
+	}
+}
+
+func (a *BalanceDetailsExpr) Write(w io.Writer) {
+	_, _ = w.Write([]byte("BalanceDetailsExpr"))
+}
+
+func (a *BalanceDetailsExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *BalanceDetailsExpr) Eq(other Expr) bool {
+	if a.InstanceOf() != other.InstanceOf() {
+		return false
+	}
+	o := other.(*BalanceDetailsExpr)
+	return a.fields.Eq(o.fields)
+}
+
+func (a *BalanceDetailsExpr) InstanceOf() string {
+	return "BalanceDetails"
+}
+
+func (a *BalanceDetailsExpr) Get(key string) (Expr, error) {
+	return a.fields.Get(key)
+}
