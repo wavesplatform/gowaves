@@ -459,7 +459,7 @@ func TestPerformSponsorshipWithProofs(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 
-	tx := createSponsorshipWithProofs(t)
+	tx := createSponsorshipWithProofs(t, 1000)
 	err := to.tp.performSponsorshipWithProofs(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performSponsorshipWithProofs() failed")
 

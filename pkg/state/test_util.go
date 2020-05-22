@@ -13,11 +13,20 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 var (
 	cachedBlocks []proto.Block
 )
+
+func init() {
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	zap.ReplaceGlobals(logger)
+}
 
 func getLocalDir() (string, error) {
 	_, filename, _, ok := runtime.Caller(0)

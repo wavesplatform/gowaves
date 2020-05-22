@@ -2221,3 +2221,42 @@ func (a *BurnExpr) Get(name string) (Expr, error) {
 		return nil, errors.Errorf("unknown field '%s' of BurnExpr", name)
 	}
 }
+
+type BalanceDetailsExpr struct {
+	fields object
+}
+
+func NewBalanceDetailsExpr(balance *proto.FullWavesBalance) *BalanceDetailsExpr {
+	fields := newObject()
+	fields["regular"] = NewLong(int64(balance.Regular))
+	fields["available"] = NewLong(int64(balance.Available))
+	fields["effective"] = NewLong(int64(balance.Effective))
+	fields["generating"] = NewLong(int64(balance.Generating))
+	return &BalanceDetailsExpr{
+		fields: fields,
+	}
+}
+
+func (a *BalanceDetailsExpr) Write(w io.Writer) {
+	_, _ = w.Write([]byte("BalanceDetailsExpr"))
+}
+
+func (a *BalanceDetailsExpr) Evaluate(Scope) (Expr, error) {
+	return a, nil
+}
+
+func (a *BalanceDetailsExpr) Eq(other Expr) bool {
+	if a.InstanceOf() != other.InstanceOf() {
+		return false
+	}
+	o := other.(*BalanceDetailsExpr)
+	return a.fields.Eq(o.fields)
+}
+
+func (a *BalanceDetailsExpr) InstanceOf() string {
+	return "BalanceDetails"
+}
+
+func (a *BalanceDetailsExpr) Get(key string) (Expr, error) {
+	return a.fields.Get(key)
+}
