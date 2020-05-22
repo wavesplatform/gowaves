@@ -2334,6 +2334,39 @@ func Issue(s Scope, e Exprs) (Expr, error) {
 	return NewIssueExpr(name.Value, description.Value, quantity.Value, decimals.Value, reissuable.Value, nonce.Value), nil
 }
 
+// SimplifiedIssue is a constructor of IssueExpr with some parameters set to default values
+func SimplifiedIssue(s Scope, e Exprs) (Expr, error) {
+	const funcName = "SimplifiedIssue"
+	if l := len(e); l != 5 {
+		return nil, errors.Errorf("%s: invalid number of parameters, expected 7, received %d", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	name, ok := rs[0].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument to be '*StringExpr', got '%T'", funcName, rs[0])
+	}
+	description, ok := rs[1].(*StringExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected second argument to be '*StringExpr', got '%T'", funcName, rs[1])
+	}
+	quantity, ok := rs[2].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected third argument to be '*LongExpr', got '%T'", funcName, rs[2])
+	}
+	decimals, ok := rs[3].(*LongExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected forth argument to be '*LongExpr', got '%T'", funcName, rs[3])
+	}
+	reissuable, ok := rs[4].(*BooleanExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected 5th argument to be '*BooleanExpr', got '%T'", funcName, rs[4])
+	}
+	return NewIssueExpr(name.Value, description.Value, quantity.Value, decimals.Value, reissuable.Value, 0), nil
+}
+
 // Reissue is a constructor of ReissueExpr type
 func Reissue(s Scope, e Exprs) (Expr, error) {
 	const funcName = "Reissue"
