@@ -920,7 +920,7 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createSponsorshipWithProofs(t)
+	tx := createSponsorshipWithProofs(t, 1000)
 	assetInfo := to.stor.createAsset(t, tx.AssetID)
 	tx.SenderPK = assetInfo.issuer
 	info := defaultCheckerInfo(t)
