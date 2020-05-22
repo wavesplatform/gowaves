@@ -11,6 +11,7 @@ type State struct {
 	TransactionsByID       map[string]proto.Transaction
 	TransactionsHeightByID map[string]uint64
 	WavesBalance           uint64
+	FullWavesBalance       proto.FullWavesBalance
 	AssetsBalances         map[crypto.Digest]uint64
 	DataEntries            map[string]proto.DataEntry
 	AssetIsSponsored       bool
@@ -153,4 +154,8 @@ func (a State) HitSourceAtHeight(height uint64) ([]byte, error) {
 
 func (a State) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
 	return nil, nil
+}
+
+func (a State) NewestFullWavesBalance(recipient proto.Recipient) (*proto.FullWavesBalance, error) {
+	return &a.FullWavesBalance, nil
 }
