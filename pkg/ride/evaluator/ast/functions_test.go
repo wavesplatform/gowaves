@@ -1802,3 +1802,52 @@ func TestIssueConstructors(t *testing.T) {
 		assert.ElementsMatch(t, id1.Value, id2.Value)
 	}
 }
+
+func TestECRecover(t *testing.T) {
+	scope := newEmptyScopeV4()
+	sig, err := hex.DecodeString("848ffb6a07e7ce335a2bfe373f1c17573eac320f658ea8cf07426544f2203e9d52dbba4584b0b6c0ed5333d84074002878082aa938fdf68c43367946b2f615d01b")
+	require.NoError(t, err)
+	md, err := hex.DecodeString("ee97de2243125c58133531c3d5c6e244eb6165df38694b1724623d69fd323e6b")
+	require.NoError(t, err)
+	epk, err := hex.DecodeString("f80cb44734ef6eba2cff997ca17d1cfb03a85db1b0aa2101a07184e04a3cde02c0f2ecded2918ccb6b86d568cceed83e9beeb749ff8981a718e495aff30ac446")
+	require.NoError(t, err)
+
+	res, err := ECRecover(scope, NewExprs(NewBytes(md), NewBytes(sig)))
+	require.NoError(t, err)
+
+	pk, ok := res.(*BytesExpr)
+	assert.True(t, ok)
+	assert.ElementsMatch(t, epk, pk.Value)
+}
+
+func TestECRecoverFailures(t *testing.T) {
+	scope := newEmptyScopeV4()
+	for _, test := range []struct {
+		sig string
+		md  string
+		err string
+	}{
+		{
+			"848ffb6a07e7",
+			"ee97de2243125c58133531c3d5c6e244eb6165df38694b1724623d69fd323e6b",
+			"ECRecover: invalid signature size 6, expected 65 bytes",
+		},
+		{
+			"848ffb6a07e7ce335a2bfe373f1c17573eac320f658ea8cf07426544f2203e9d52dbba4584b0b6c0ed5333d84074002878082aa938fdf68c43367946b2f615d01b",
+			"ee97de224312",
+			"ECRecover: invalid message digest size 6, expected 32 bytes",
+		},
+		{
+			"0000fb6a07e7ce335a2bfe373f1c17573eac320f658ea8cf07426544f2203e9d52dbba4584b0b6c0ed5333d84074002878082aa938fdf68c43367946b2f615d01b",
+			"ee97de2243125c58133531c3d5c6e244eb6165df38694b1724623d69fd323e6b",
+			"ECRecover: failed to recover public key: invalid square root",
+		},
+	} {
+		sig, err := hex.DecodeString(test.sig)
+		require.NoError(t, err)
+		md, err := hex.DecodeString(test.md)
+		require.NoError(t, err)
+		_, err = ECRecover(scope, NewExprs(NewBytes(md), NewBytes(sig)))
+		assert.EqualError(t, err, test.err)
+	}
+}

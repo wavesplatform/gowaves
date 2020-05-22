@@ -370,6 +370,7 @@ func functionsV4() map[string]Expr {
 	s["405"] = FunctionFromPredefined(Median, 1)
 	s["1100"] = FunctionFromPredefined(LimitedCreateList, 2)
 	s["800"] = FunctionFromPredefined(limitedGroth16Verify(0), 3)
+	s["900"] = FunctionFromPredefined(ECRecover, 2)
 	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		s[strconv.Itoa(2400+i)] = FunctionFromPredefined(limitedGroth16Verify(l), 3)
 	}

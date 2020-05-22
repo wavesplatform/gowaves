@@ -2623,6 +2623,38 @@ func limitedGroth16Verify(limit int) Callable {
 	}
 }
 
+func ECRecover(s Scope, e Exprs) (Expr, error) {
+	const funcName = "ECRecover"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid number of parameters %d, expected 2", funcName, l)
+	}
+	rs, err := e.EvaluateAll(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	digest, ok := rs[0].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected first argument of type *BytesExpr, got '%T'", funcName, rs[0])
+	}
+	if l := len(digest.Value); l != 32 {
+		return nil, errors.Errorf("%s: invalid message digest size %d, expected 32 bytes", funcName, l)
+	}
+	signature, ok := rs[1].(*BytesExpr)
+	if !ok {
+		return nil, errors.Errorf("%s: expected second argument of type *BytesExpr, got '%T'", funcName, rs[1])
+	}
+	if l := len(signature.Value); l != 65 {
+		return nil, errors.Errorf("%s: invalid signature size %d, expected 65 bytes", funcName, l)
+	}
+	pk, err := crypto.ECDSARecoverPublicKey(digest.Value, signature.Value)
+	if err != nil {
+		return nil, errors.Wrapf(err, funcName)
+	}
+	pkb := pk.SerializeUncompressed()
+	//We have to drop first byte because in bitcoin library where is a length.
+	return NewBytes(pkb[1:]), nil
+}
+
 func wrapWithExtract(c Callable, name string) Callable {
 	return func(s Scope, e Exprs) (Expr, error) {
 		rs, err := c(s, e)
