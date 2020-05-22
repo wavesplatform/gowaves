@@ -61,7 +61,7 @@ func NewParser(source []byte) (*Parser, error) {
 	return &Parser{r: bytes.NewReader(src), id: id}, nil
 }
 
-func (p *Parser) Parse() (*SourceTree, error) {
+func (p *Parser) Parse() (*Tree, error) {
 	vb, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (p *Parser) Parse() (*SourceTree, error) {
 	}
 }
 
-func (p *Parser) parseDApp() (*SourceTree, error) {
+func (p *Parser) parseDApp() (*Tree, error) {
 	av, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (p *Parser) parseDApp() (*SourceTree, error) {
 	if err != nil {
 		return nil, err
 	}
-	tree := &SourceTree{
+	tree := &Tree{
 		AppVersion: int(av),
 		LibVersion: int(lv),
 	}
@@ -123,11 +123,12 @@ func (p *Parser) parseDApp() (*SourceTree, error) {
 		if err != nil {
 			return nil, err
 		}
-		if node.Kind != FunctionDeclarationExpression {
-			return nil, errors.Errorf("unexpected type of declaration %d", node.Kind)
+		fn, ok := node.(*FunctionDeclarationNode)
+		if !ok {
+			return nil, errors.Errorf("unexpected type of declaration %T", node)
 		}
-		node.invocationParameter = invocationParameter
-		functions[i] = node
+		fn.invocationParameter = invocationParameter
+		functions[i] = fn
 	}
 	tree.Functions = functions
 
@@ -144,19 +145,20 @@ func (p *Parser) parseDApp() (*SourceTree, error) {
 		if err != nil {
 			return nil, err
 		}
-		if node.Kind != FunctionDeclarationExpression {
-			return nil, errors.Errorf("unexpected type of declaration %d", node.Kind)
+		fn, ok := node.(*FunctionDeclarationNode)
+		if !ok {
+			return nil, errors.Errorf("unexpected type of declaration %T", node)
 		}
-		node.invocationParameter = invocationParameter
-		tree.Verifier = node
+		fn.invocationParameter = invocationParameter
+		tree.Verifier = fn
 	}
 	tree.HasBlockV2 = p.seenBlockV2
 	tree.Digest = p.id
 	return tree, nil
 }
 
-func (p *Parser) parseScript(v int) (*SourceTree, error) {
-	tree := &SourceTree{
+func (p *Parser) parseScript(v int) (*Tree, error) {
+	tree := &Tree{
 		AppVersion: scriptApplicationVersion,
 		LibVersion: v,
 	}
@@ -173,125 +175,123 @@ func (p *Parser) parseScript(v int) (*SourceTree, error) {
 func (p *Parser) parse() (Node, error) {
 	t, err := p.r.ReadByte()
 	if err != nil {
-		return Node{}, err
+		return nil, err
 	}
 	switch t {
 	case tokenLong:
 		v, err := p.readLong()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
-		return NewLongLiteral(v), nil
+		return NewLongNode(v), nil
 
 	case tokenBytes:
 		v, err := p.readBytes()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
-		return NewBytesLiteral(v), nil
+		return NewBytesNode(v), nil
 
 	case tokenString:
 		v, err := p.readString()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
-		return NewStringLiteral(v), nil
+		return NewStringNode(v), nil
 
 	case tokenIf:
 		condition, err := p.parse()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
 		trueBranch, err := p.parse()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
 		falseBranch, err := p.parse()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
-		return NewIfExpression(condition, trueBranch, falseBranch), nil
+		return NewConditionalNode(condition, trueBranch, falseBranch), nil
 
 	case tokenBlockV1:
 		name, err := p.readString()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
 		expr, err := p.parse()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
-		body, err := p.parse()
+		block, err := p.parse()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
-		n := NewLetExpression(name, expr)
-		n.Siblings = append(n.Siblings, body)
-		return n, nil
+		return NewAssignmentNode(name, expr, block), nil
 
 	case tokenRef:
 		name, err := p.readString()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
-		return NewReferenceExpression(name), nil
+		return NewReferenceNode(name), nil
 
 	case tokenTrue:
-		return NewBooleanLiteral(true), nil
+		return NewBooleanNode(true), nil
 
 	case tokenFalse:
-		return NewBooleanLiteral(false), nil
+		return NewBooleanNode(false), nil
 
 	case tokenGetter:
 		object, err := p.parse()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
 		field, err := p.readString()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
-		return NewGetterExpression(object, field), nil
+		return NewPropertyNode(field, object), nil
 
 	case tokenFunctionCall:
 		ft, err := p.r.ReadByte()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
 		name, err := p.readFunctionName(ft)
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
 		argumentsCount, err := p.readInt()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
 		ac := int(argumentsCount)
 		arguments := make([]Node, ac)
 		for i := 0; i < int(ac); i++ {
 			arg, err := p.parse()
 			if err != nil {
-				return Node{}, err
+				return nil, err
 			}
 			arguments[i] = arg
 		}
-		return NewFunctionCallExpression(name, arguments), nil
+		return NewFunctionCallNode(name, arguments), nil
 
 	case tokenBlockV2:
 		p.seenBlockV2 = true
 		declaration, err := p.readDeclaration()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
-		body, err := p.parse()
+		block, err := p.parse()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
-		declaration.Siblings = append(declaration.Siblings, body)
+		declaration.SetBlock(block)
 		return declaration, nil
 
 	default:
-		return Node{}, errors.Errorf("unsupported token %x", t)
+		return nil, errors.Errorf("unsupported token %x", t)
 	}
 
 }
@@ -361,47 +361,47 @@ func (p *Parser) readFunctionName(ft byte) (string, error) {
 	}
 }
 
-func (p *Parser) readDeclaration() (Node, error) {
+func (p *Parser) readDeclaration() (DeclarationNode, error) {
 	dt, err := p.r.ReadByte()
 	if err != nil {
-		return Node{}, err
+		return nil, err
 	}
 	switch dt {
 	case declarationTypeLet:
 		name, err := p.readString()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
 		exp, err := p.parse()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
-		return NewLetExpression(name, exp), nil
+		return NewAssignmentNode(name, exp, nil), nil
 	case declarationTypeFunction:
 		name, err := p.readString()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
 		argumentsCount, err := p.readInt()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
 		ac := int(argumentsCount)
 		arguments := make([]string, ac)
 		for i := 0; i < ac; i++ {
 			arg, err := p.readString()
 			if err != nil {
-				return Node{}, err
+				return nil, err
 			}
 			arguments[i] = arg
 		}
 		body, err := p.parse()
 		if err != nil {
-			return Node{}, err
+			return nil, err
 		}
-		return NewFunctionDeclarationExpression(name, arguments, body), nil
+		return NewFunctionDeclarationNode(name, arguments, body, nil), nil
 	default:
-		return Node{}, errors.Errorf("unsupported declaration type %d", dt)
+		return nil, errors.Errorf("unsupported declaration type %d", dt)
 	}
 }
 

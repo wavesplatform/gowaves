@@ -33,15 +33,15 @@ func TestParseScripts(t *testing.T) {
 		source  string
 		node    Node
 	}{
-		{`V1: true`, 1, 1, false, "AQa3b8tH", NewBooleanLiteral(true)},
-		{`V2: true`, 1, 2, false, "AgZ7TN8j", NewBooleanLiteral(true)},
-		{`V3: true`, 1, 3, false, "AwZd0cYf", NewBooleanLiteral(true)},
+		{`V1: true`, 1, 1, false, "AQa3b8tH", NewBooleanNode(true)},
+		{`V2: true`, 1, 2, false, "AgZ7TN8j", NewBooleanNode(true)},
+		{`V3: true`, 1, 3, false, "AwZd0cYf", NewBooleanNode(true)},
 		{`V1: let i = 1; let s = "string"; toString(i) == s`, 1, 1, false, "AQQAAAABaQAAAAAAAAAAAQQAAAABcwIAAAAGc3RyaW5nCQAAAAAAAAIJAAGkAAAAAQUAAAABaQUAAAABcwIsH74=",
-			NewLetExpression("i", NewLongLiteral(1)).append(NewLetExpression("s", NewStringLiteral("string")).append(NewFunctionCallExpression("0", []Node{NewFunctionCallExpression("420", []Node{NewReferenceExpression("i")}), NewReferenceExpression("s")})))},
+			NewAssignmentNode("i", NewLongNode(1), NewAssignmentNode("s", NewStringNode("string"), NewFunctionCallNode("0", []Node{NewFunctionCallNode("420", []Node{NewReferenceNode("i")}), NewReferenceNode("s")})))},
 		{`V3: if (true) then {let r = true; r} else {let r = false; r}`, 1, 3, false, "AwMGBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXJ/ok0E",
-			NewIfExpression(NewBooleanLiteral(true), NewLetExpression("r", NewBooleanLiteral(true)).append(NewReferenceExpression("r")), NewLetExpression("r", NewBooleanLiteral(false)).append(NewReferenceExpression("r")))},
+			NewConditionalNode(NewBooleanNode(true), NewAssignmentNode("r", NewBooleanNode(true), NewReferenceNode("r")), NewAssignmentNode("r", NewBooleanNode(false), NewReferenceNode("r")))},
 		{`V3: func abs(i:Int) = if (i >= 0) then i else -i; abs(-10) == 10`, 1, 3, true, "AwoBAAAAA2FicwAAAAEAAAABaQMJAABnAAAAAgUAAAABaQAAAAAAAAAAAAUAAAABaQkBAAAAAS0AAAABBQAAAAFpCQAAAAAAAAIJAQAAAANhYnMAAAABAP/////////2AAAAAAAAAAAKmp8BWw==",
-			NewFunctionDeclarationExpression("abs", []string{"i"}, NewIfExpression(NewFunctionCallExpression("103", []Node{NewReferenceExpression("i"), NewLongLiteral(0)}), NewReferenceExpression("i"), NewFunctionCallExpression("-", []Node{NewReferenceExpression("i")}))).append(NewFunctionCallExpression("0", []Node{NewFunctionCallExpression("abs", []Node{NewLongLiteral(-10)}), NewLongLiteral(10)}))},
+			NewFunctionDeclarationNode("abs", []string{"i"}, NewConditionalNode(NewFunctionCallNode("103", []Node{NewReferenceNode("i"), NewLongNode(0)}), NewReferenceNode("i"), NewFunctionCallNode("-", []Node{NewReferenceNode("i")})), NewFunctionCallNode("0", []Node{NewFunctionCallNode("abs", []Node{NewLongNode(-10)}), NewLongNode(10)}))},
 	} {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err, test.comment)

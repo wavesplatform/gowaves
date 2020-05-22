@@ -1,24 +1,157 @@
 package stride
 
-const (
-	LongLiteral = iota + 1
-	BytesLiteral
-	StringLiteral
-	BooleanLiteral
-	IfExpression
-	LetExpression
-	ReferenceExpression
-	FunctionDeclarationExpression
-	FunctionCallExpression
-	GetterExpression
-)
+type Node interface {
+	node()
+}
+
+type DeclarationNode interface {
+	Node
+	SetBlock(node Node)
+}
+
+type LongNode struct {
+	Value int64
+}
+
+func (*LongNode) node() {}
+
+func NewLongNode(v int64) *LongNode {
+	return &LongNode{Value: v}
+}
+
+type BytesNode struct {
+	Value []byte
+}
+
+func (*BytesNode) node() {}
+
+func NewBytesNode(v []byte) *BytesNode {
+	return &BytesNode{Value: v}
+}
+
+type StringNode struct {
+	Value string
+}
+
+func (*StringNode) node() {}
+
+func NewStringNode(v string) *StringNode {
+	return &StringNode{Value: v}
+}
+
+type BooleanNode struct {
+	Value bool
+}
+
+func (*BooleanNode) node() {}
+
+func NewBooleanNode(v bool) *BooleanNode {
+	return &BooleanNode{Value: v}
+}
+
+type ConditionalNode struct {
+	Condition       Node
+	TrueExpression  Node
+	FalseExpression Node
+}
+
+func (*ConditionalNode) node() {}
+
+func NewConditionalNode(condition, trueExpression, falseExpression Node) *ConditionalNode {
+	return &ConditionalNode{
+		Condition:       condition,
+		TrueExpression:  trueExpression,
+		FalseExpression: falseExpression,
+	}
+}
+
+type AssignmentNode struct {
+	Name       string
+	Expression Node
+	Block      Node
+}
+
+func (*AssignmentNode) node() {}
+
+func (n *AssignmentNode) SetBlock(node Node) {
+	n.Block = node
+}
+
+func NewAssignmentNode(name string, expression, block Node) *AssignmentNode {
+	return &AssignmentNode{
+		Name:       name,
+		Expression: expression,
+		Block:      block,
+	}
+}
+
+type ReferenceNode struct {
+	Name string
+}
+
+func (ReferenceNode) node() {}
+
+func NewReferenceNode(name string) *ReferenceNode {
+	return &ReferenceNode{Name: name}
+}
+
+type FunctionDeclarationNode struct {
+	Name                string
+	Arguments           []string
+	Body                Node
+	Block               Node
+	invocationParameter string
+}
+
+func (*FunctionDeclarationNode) node() {}
+
+func (n *FunctionDeclarationNode) SetBlock(node Node) {
+	n.Block = node
+}
+
+func NewFunctionDeclarationNode(name string, arguments []string, body, block Node) *FunctionDeclarationNode {
+	return &FunctionDeclarationNode{
+		Name:      name,
+		Arguments: arguments,
+		Body:      body,
+		Block:     block,
+	}
+}
+
+type FunctionCallNode struct {
+	Name      string
+	Arguments []Node
+}
+
+func (*FunctionCallNode) node() {}
+
+func NewFunctionCallNode(name string, arguments []Node) *FunctionCallNode {
+	return &FunctionCallNode{
+		Name:      name,
+		Arguments: arguments,
+	}
+}
+
+type PropertyNode struct {
+	Name   string
+	Object Node
+}
+
+func (*PropertyNode) node() {}
+
+func NewPropertyNode(name string, object Node) *PropertyNode {
+	return &PropertyNode{
+		Name:   name,
+		Object: object,
+	}
+}
 
 type ScriptMeta struct {
 	Version int
 	Bytes   []byte
 }
 
-type SourceTree struct {
+type Tree struct {
 	Digest       [32]byte
 	AppVersion   int
 	LibVersion   int
@@ -29,104 +162,10 @@ type SourceTree struct {
 	Verifier     Node
 }
 
-func (t *SourceTree) HasVerifier() bool {
-	return t.Verifier.Kind != 0
+func (t *Tree) HasVerifier() bool {
+	return t.Verifier != nil
 }
 
-func (t *SourceTree) IsDApp() bool {
+func (t *Tree) IsDApp() bool {
 	return t.AppVersion != scriptApplicationVersion
-}
-
-type Value struct {
-	Long       int64
-	Bytes      []byte
-	String     string
-	Boolean    bool
-	Parameters []string
-}
-
-type Node struct {
-	Kind                int
-	V                   Value
-	Siblings            []Node
-	invocationParameter string
-}
-
-func (n Node) append(node Node) Node {
-	n.Siblings = append(n.Siblings, node)
-	return n
-}
-
-func NewLongLiteral(v int64) Node {
-	return Node{
-		Kind: LongLiteral,
-		V:    Value{Long: v},
-	}
-}
-
-func NewBytesLiteral(v []byte) Node {
-	return Node{
-		Kind: BytesLiteral,
-		V:    Value{Bytes: v},
-	}
-}
-
-func NewStringLiteral(v string) Node {
-	return Node{
-		Kind: StringLiteral,
-		V:    Value{String: v},
-	}
-}
-
-func NewBooleanLiteral(v bool) Node {
-	return Node{
-		Kind: BooleanLiteral,
-		V:    Value{Boolean: v},
-	}
-}
-
-func NewIfExpression(condition, consequence, alternative Node) Node {
-	return Node{
-		Kind:     IfExpression,
-		Siblings: []Node{condition, consequence, alternative},
-	}
-}
-
-func NewLetExpression(id string, expression Node) Node {
-	return Node{
-		Kind:     LetExpression,
-		V:        Value{String: id},
-		Siblings: []Node{expression},
-	}
-}
-
-func NewReferenceExpression(id string) Node {
-	return Node{
-		Kind: ReferenceExpression,
-		V:    Value{String: id},
-	}
-}
-
-func NewFunctionDeclarationExpression(id string, arguments []string, body Node) Node {
-	return Node{
-		Kind:     FunctionDeclarationExpression,
-		V:        Value{String: id, Parameters: arguments},
-		Siblings: []Node{body},
-	}
-}
-
-func NewFunctionCallExpression(id string, arguments []Node) Node {
-	return Node{
-		Kind:     FunctionCallExpression,
-		V:        Value{String: id},
-		Siblings: arguments,
-	}
-}
-
-func NewGetterExpression(object Node, field string) Node {
-	return Node{
-		Kind:     GetterExpression,
-		V:        Value{String: field},
-		Siblings: []Node{object},
-	}
 }
