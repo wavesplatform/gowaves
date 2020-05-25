@@ -167,10 +167,10 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 			fsm, async, err = action(a.services, mess, fsm)
 		}
 		if err != nil {
-			zap.S().Error(err)
+			zap.S().Errorf("Failure during synchronization: %v", err)
 		}
 		spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
-		zap.S().Debugf("fsm %T", fsm)
+		zap.S().Debugf("FSM %T", fsm)
 	}
 }
 

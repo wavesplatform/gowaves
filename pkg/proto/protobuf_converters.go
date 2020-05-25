@@ -351,8 +351,7 @@ func (c *ProtobufConverter) attachment(att *g.Attachment, untyped bool) Attachme
 		return nil
 	}
 	if att == nil {
-		c.err = errors.New("empty attachment")
-		return nil
+		return &LegacyAttachment{nil}
 	}
 	if untyped {
 		binaryAttachment, ok := att.Attachment.(*g.Attachment_BinaryValue)
