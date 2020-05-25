@@ -690,13 +690,19 @@ func NewCatalogueV4() *Catalogue {
 	c.user["Burn"] = 2
 	c.user["contains"] = 20
 	c.user["valueOrElse"] = 13
-	c.user["1080"] = 10
-	c.user["1101"] = 3
-	c.user["1102"] = 10
 	c.user["405"] = 10
-	c.user["1100"] = 2
+	c.user["406"] = 3
+	c.user["407"] = 3
+	c.user["701"] = 30
 	c.user["800"] = 3900
 	c.user["900"] = 70
+	c.user["1070"] = 5
+	c.user["1080"] = 10
+	c.user["1100"] = 2
+	c.user["1101"] = 3
+	c.user["1102"] = 10
+	c.user["1103"] = 5
+	c.user["1104"] = 5
 	c.user["2400"] = 1900
 	c.user["2401"] = 2000
 	c.user["2402"] = 2150
@@ -732,7 +738,5 @@ func NewCatalogueV4() *Catalogue {
 	c.user["2901"] = 25
 	c.user["2902"] = 50
 	c.user["2903"] = 100
-	c.user["1070"] = 5
-	c.user["701"] = 30
 	return c
 }

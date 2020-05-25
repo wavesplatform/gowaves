@@ -1851,3 +1851,133 @@ func TestECRecoverFailures(t *testing.T) {
 		assert.EqualError(t, err, test.err)
 	}
 }
+
+func TestMin(t *testing.T) {
+	list999 := NewExprs()
+	for i := 0; i < 999; i++ {
+		list999 = append(list999, NewLong(0))
+	}
+	list1000 := append(list999, NewLong(1))
+	list1001 := append(list1000, NewLong(2))
+	broken1000 := make(Exprs, 1000)
+	copy(broken1000, list1000)
+	broken1000[999] = NewString("XXX")
+	for n, test := range []struct {
+		expressions Exprs
+		result      Expr
+		error       string
+	}{
+		{NewExprs(NewLong(1), NewLong(2), NewLong(3)), NewLong(1), ""},
+		{NewExprs(NewLong(-1), NewLong(-2), NewLong(-3)), NewLong(-3), ""},
+		{NewExprs(NewLong(0)), NewLong(0), ""},
+		{NewExprs(), nil, "Min: invalid list size 0"},
+		{list1000, NewLong(0), ""},
+		{broken1000, nil, "Min: list must contain only LongExpr elements"},
+		{list1001, nil, "Min: invalid list size 1001"},
+	} {
+		r, err := Min(newEmptyScopeV4(), NewExprs(test.expressions))
+		if test.result != nil {
+			require.NoError(t, err, fmt.Sprintf("#%d", n))
+			assert.Equal(t, test.result, r, fmt.Sprintf("#%d", n))
+		} else {
+			assert.EqualError(t, err, test.error, fmt.Sprintf("#%d", n))
+		}
+	}
+}
+
+func TestMax(t *testing.T) {
+	list999 := NewExprs()
+	for i := 0; i < 999; i++ {
+		list999 = append(list999, NewLong(0))
+	}
+	list1000 := append(list999, NewLong(1))
+	list1001 := append(list1000, NewLong(2))
+	broken1000 := make(Exprs, 1000)
+	copy(broken1000, list1000)
+	broken1000[999] = NewString("XXX")
+	for _, test := range []struct {
+		expressions Exprs
+		result      Expr
+		error       string
+	}{
+		{NewExprs(NewLong(1), NewLong(2), NewLong(3)), NewLong(3), ""},
+		{NewExprs(NewLong(-1), NewLong(-2), NewLong(-3)), NewLong(-1), ""},
+		{NewExprs(NewLong(0)), NewLong(0), ""},
+		{NewExprs(), nil, "Max: invalid list size 0"},
+		{list1000, NewLong(1), ""},
+		{broken1000, nil, "Max: list must contain only LongExpr elements"},
+		{list1001, nil, "Max: invalid list size 1001"},
+	} {
+		r, err := Max(newEmptyScopeV4(), NewExprs(test.expressions))
+		if test.result != nil {
+			require.NoError(t, err)
+			assert.Equal(t, test.result, r)
+		} else {
+			assert.EqualError(t, err, test.error)
+		}
+	}
+}
+
+func TestIndexOf(t *testing.T) {
+	list1000 := NewExprs()
+	for i := 0; i < 1000; i++ {
+		list1000 = append(list1000, NewLong(0))
+	}
+	list1001 := append(list1000, NewLong(2))
+	for _, test := range []struct {
+		expressions Exprs
+		result      Expr
+		error       string
+	}{
+		{NewExprs(NewExprs(NewLong(1), NewLong(2), NewLong(3)), NewLong(3)), NewLong(2), ""},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewLong(3)), nil, "IndexOf: not found"},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewLong(1)), NewLong(0), ""},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewString("A")), NewLong(1), ""},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewString("B")), nil, "IndexOf: not found"},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewBoolean(false)), nil, "IndexOf: not found"},
+		{NewExprs(NewExprs(), NewBoolean(false)), nil, "IndexOf: not found"},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewString("A"), NewBoolean(true)), NewString("A")), NewLong(1), ""},
+		{NewExprs(list1000, NewLong(0)), NewLong(0), ""},
+		{NewExprs(list1001, NewLong(0)), nil, "IndexOf: list size can not exceed 1000 elements"},
+	} {
+		r, err := IndexOf(newEmptyScopeV4(), test.expressions)
+		if test.result != nil {
+			require.NoError(t, err)
+			assert.Equal(t, test.result, r)
+		} else {
+			assert.EqualError(t, err, test.error)
+		}
+	}
+}
+
+func TestLastIndexOf(t *testing.T) {
+	list1000 := NewExprs()
+	for i := 0; i < 1000; i++ {
+		list1000 = append(list1000, NewLong(0))
+	}
+	list1001 := append(list1000, NewLong(2))
+	for _, test := range []struct {
+		expressions Exprs
+		result      Expr
+		error       string
+	}{
+		{NewExprs(NewExprs(NewLong(1), NewLong(2), NewLong(3)), NewLong(3)), NewLong(2), ""},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewLong(3)), nil, "LastIndexOf: not found"},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewLong(1)), NewLong(0), ""},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewString("A")), NewLong(1), ""},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewString("B")), nil, "LastIndexOf: not found"},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewBoolean(false)), nil, "LastIndexOf: not found"},
+		{NewExprs(NewExprs(), NewBoolean(false)), nil, "LastIndexOf: not found"},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewString("A"), NewBoolean(true)), NewString("A")), NewLong(2), ""},
+		{NewExprs(list1000, NewLong(0)), NewLong(999), ""},
+		{NewExprs(list1001, NewLong(0)), nil, "LastIndexOf: list size can not exceed 1000 elements"},
+	} {
+		r, err := LastIndexOf(newEmptyScopeV4(), test.expressions)
+		if test.result != nil {
+			require.NoError(t, err)
+			assert.Equal(t, test.result, r)
+		} else {
+			assert.EqualError(t, err, test.error)
+		}
+	}
+}

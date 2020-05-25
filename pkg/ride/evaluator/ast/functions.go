@@ -204,6 +204,60 @@ func Concat(s Scope, e Exprs) (Expr, error) {
 	return append(list1, list2...), nil
 }
 
+func IndexOf(s Scope, e Exprs) (Expr, error) {
+	const funcName = "IndexOf"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid parameters, expected 2, received %d", funcName, l)
+	}
+	l, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	list, ok := l.(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid first parameter, expected Exprs, received %T", funcName, e[0])
+	}
+	if len(list) > MaxListSize {
+		return nil, errors.Errorf("%s: list size can not exceed %d elements", funcName, MaxListSize)
+	}
+	element, err := e[1].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	i, err := indexOf(list, element)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewLong(i), nil
+}
+
+func LastIndexOf(s Scope, e Exprs) (Expr, error) {
+	const funcName = "LastIndexOf"
+	if l := len(e); l != 2 {
+		return nil, errors.Errorf("%s: invalid parameters, expected 2, received %d", funcName, l)
+	}
+	l, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	list, ok := l.(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid first parameter, expected Exprs, received %T", funcName, e[0])
+	}
+	if len(list) > MaxListSize {
+		return nil, errors.Errorf("%s: list size can not exceed %d elements", funcName, MaxListSize)
+	}
+	element, err := e[1].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	i, err := lastIndexOf(list, element)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	return NewLong(i), nil
+}
+
 func Median(s Scope, e Exprs) (Expr, error) {
 	const funcName = "Median"
 	if l := len(e); l != 1 {
@@ -221,13 +275,9 @@ func Median(s Scope, e Exprs) (Expr, error) {
 	if size > MaxListSize || size < 2 {
 		return nil, errors.Errorf("%s: invalid list size %d", funcName, size)
 	}
-	items := make([]int, size)
-	for i, el := range list {
-		item, ok := el.(*LongExpr)
-		if !ok {
-			return nil, errors.Errorf("%s: list must contain only LongExpr elements", funcName)
-		}
-		items[i] = int(item.Value)
+	items, err := intSlice(list)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
 	}
 	sort.Ints(items)
 	half := size / 2
@@ -236,6 +286,56 @@ func Median(s Scope, e Exprs) (Expr, error) {
 	} else {
 		return NewLong(floorDiv(int64(items[half-1])+int64(items[half]), 2)), nil
 	}
+}
+
+func Min(s Scope, e Exprs) (Expr, error) {
+	const funcName = "Min"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid parameters, expected 1, received %d", funcName, l)
+	}
+	l, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	list, ok := l.(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid first parameter, expected Exprs, received %T", funcName, e[0])
+	}
+	size := len(list)
+	if size > MaxListSize || size == 0 {
+		return nil, errors.Errorf("%s: invalid list size %d", funcName, size)
+	}
+	items, err := intSlice(list)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	min, _ := minMax(items)
+	return NewLong(int64(min)), nil
+}
+
+func Max(s Scope, e Exprs) (Expr, error) {
+	const funcName = "Max"
+	if l := len(e); l != 1 {
+		return nil, errors.Errorf("%s: invalid parameters, expected 1, received %d", funcName, l)
+	}
+	l, err := e[0].Evaluate(s)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	list, ok := l.(Exprs)
+	if !ok {
+		return nil, errors.Errorf("%s: invalid first parameter, expected Exprs, received %T", funcName, e[0])
+	}
+	size := len(list)
+	if size > MaxListSize || size == 0 {
+		return nil, errors.Errorf("%s: invalid list size %d", funcName, size)
+	}
+	items, err := intSlice(list)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	_, max := minMax(items)
+	return NewLong(int64(max)), nil
 }
 
 // Internal function to check value type
@@ -2587,6 +2687,35 @@ func RebuildMerkleRoot(s Scope, e Exprs) (Expr, error) {
 	return NewBytes(root[:]), nil
 }
 
+func intSlice(list Exprs) ([]int, error) {
+	items := make([]int, len(list))
+	for i, el := range list {
+		item, ok := el.(*LongExpr)
+		if !ok {
+			return nil, errors.New("list must contain only LongExpr elements")
+		}
+		items[i] = int(item.Value)
+	}
+	return items, nil
+}
+
+func minMax(items []int) (int, int) {
+	if len(items) == 0 {
+		panic("empty slice")
+	}
+	max := items[0]
+	min := items[0]
+	for _, i := range items {
+		if max < i {
+			max = i
+		}
+		if min > i {
+			min = i
+		}
+	}
+	return min, max
+}
+
 func limitedGroth16Verify(limit int) Callable {
 	fn := "Groth16Verify"
 	if limit > 0 {
@@ -2873,4 +3002,22 @@ func writeFunction(w io.Writer, id string, e Exprs) {
 	default:
 		prefix(w, fmt.Sprintf("FUNCTION_%s(", id), e)
 	}
+}
+
+func indexOf(list Exprs, element Expr) (int64, error) {
+	for i, v := range list {
+		if element.Eq(v) {
+			return int64(i), nil
+		}
+	}
+	return 0, errors.New("not found")
+}
+
+func lastIndexOf(list Exprs, element Expr) (int64, error) {
+	for i := len(list) - 1; i >= 0; i-- {
+		if element.Eq(list[i]) {
+			return int64(i), nil
+		}
+	}
+	return 0, errors.New("not found")
 }
