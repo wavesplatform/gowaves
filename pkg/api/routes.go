@@ -24,7 +24,7 @@ func (a *NodeApi) routes() chi.Router {
 	r.Post("/transactions/broadcast", a.TransactionsBroadcast)
 
 	r.Post("/wallet/load", WalletLoadKeys(a.app))
-	r.Post("/wallet/accounts", a.WalletAccounts)
+	r.Get("/wallet/accounts", a.WalletAccounts)
 
 	r.Get("/node/processes", a.nodeProcesses)
 	r.Get("/debug/stateHash/{height:\\d+}", a.stateHash)
