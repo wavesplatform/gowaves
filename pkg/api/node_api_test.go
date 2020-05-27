@@ -24,7 +24,7 @@ func TestRollbackToHeight(t *testing.T) {
 	r := &roll{}
 	f := RollbackToHeight(r)
 	req := httptest.NewRequest("POST", "/blocks/rollback", strings.NewReader(`{"height": 100500}`))
-	req.Header.Add(API_KEY, "apikey")
+	req.Header.Add(apiKey, "apikey")
 	resp := httptest.NewRecorder()
 	f(resp, req)
 
@@ -48,7 +48,7 @@ func TestWalletLoadKeys(t *testing.T) {
 	f := WalletLoadKeys(r)
 
 	req := httptest.NewRequest("POST", "/wallet/load", strings.NewReader(`{"password": "password"}`))
-	req.Header.Add(API_KEY, "apikey")
+	req.Header.Add(apiKey, "apikey")
 	resp := httptest.NewRecorder()
 	f(resp, req)
 
