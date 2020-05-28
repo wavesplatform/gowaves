@@ -170,20 +170,20 @@ func (a *scriptCaller) callAssetScript(
 	return a.callAssetScriptCommon(obj, assetID, lastBlockInfo, initialisation, acceptFailed)
 }
 
-func (a *scriptCaller) invokeFunction(script ast.Script, tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) ([]proto.ScriptAction, error) {
+func (a *scriptCaller) invokeFunction(script ast.Script, tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) (bool, []proto.ScriptAction, error) {
 	this := ast.NewAddressFromProtoAddress(scriptAddress)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	actions, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
 	if err != nil {
-		return nil, errors.Wrapf(err, "transaction ID %s", tx.ID.String())
+		return ok, nil, errors.Wrapf(err, "transaction ID %s", tx.ID.String())
 	}
 	// Increase complexity.
 	complexityRecord, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, !initialisation)
 	if err != nil {
-		return nil, errors.Wrap(err, "newestScriptComplexityByAsset()")
+		return false, nil, errors.Wrap(err, "newestScriptComplexityByAsset()")
 	}
 	a.totalComplexity += complexityRecord.byFuncs[tx.FunctionCall.Name]
-	return actions, nil
+	return ok, actions, nil
 }
 
 func (a *scriptCaller) getTotalComplexity() uint64 {

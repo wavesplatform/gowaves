@@ -653,8 +653,9 @@ func verify() = {
 		Arguments: proto.Arguments{proto.NewStringArgument("abc")},
 	})
 
-	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
+	ok, actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	require.EqualValues(t,
@@ -719,8 +720,9 @@ func verify() = {
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
+	ok, actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	require.EqualValues(t,
@@ -843,8 +845,9 @@ func tellme(question: String) = {
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
+	ok, actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
+	require.True(t, ok)
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100,
@@ -895,8 +898,9 @@ func tellme(question: String) = {
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
+	ok, actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	scriptTransfer := proto.TransferScriptAction{
@@ -1168,8 +1172,9 @@ func TestWhaleDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -1252,8 +1257,9 @@ func TestExchangeDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	assert.NoError(t, err)
 
@@ -1369,8 +1375,9 @@ func TestBankDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	_, err = script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
+	ok, _, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 }
 
 func TestLigaDApp1(t *testing.T) {
@@ -1453,8 +1460,9 @@ func TestLigaDApp1(t *testing.T) {
 		GeneratorPublicKey:  sender1,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.TestNetScheme, state, tx1, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.TestNetScheme, state, tx1, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
@@ -1555,8 +1563,9 @@ func TestLigaDApp1(t *testing.T) {
 		GeneratorPublicKey:  sender1,
 	}
 	lastBlock = NewObjectFromBlockInfo(blockInfo)
-	actions, err = script.CallFunction(proto.TestNetScheme, state, tx2, this, lastBlock)
+	ok, actions, err = script.CallFunction(proto.TestNetScheme, state, tx2, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err = proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
@@ -1644,8 +1653,9 @@ func TestTestingDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
@@ -1725,8 +1735,9 @@ func TestDropElementDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
@@ -1811,8 +1822,9 @@ func TestMathDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
@@ -1898,8 +1910,9 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
@@ -1989,8 +2002,9 @@ func Test8Ball(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
@@ -2072,6 +2086,6 @@ func TestIntegerEntry(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	_, err = script.CallFunction(proto.StageNetScheme, state, tx, this, lastBlock)
+	_, _, err = script.CallFunction(proto.StageNetScheme, state, tx, this, lastBlock)
 	assert.Error(t, err)
 }

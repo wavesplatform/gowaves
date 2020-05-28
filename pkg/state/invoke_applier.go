@@ -275,9 +275,13 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 		return nil, err
 	}
 	// Call script function.
-	scriptActions, err := ia.sc.invokeFunction(script, tx, info.blockInfo, *scriptAddr, info.initialisation)
-	if err != nil {
-		// TODO: separate invoke failure from other technical errors here.
+	ok, scriptActions, err := ia.sc.invokeFunction(script, tx, info.blockInfo, *scriptAddr, info.initialisation)
+	if !ok {
+		// When ok is false, it means that we could not even start invocation.
+		// We just return error in such case.
+		return nil, errors.Wrap(err, "invokeFunction() failed")
+	} else if err != nil {
+		// If ok is true, but error is not nil, it means that invocation has failed.
 		if !info.acceptFailed {
 			return nil, errors.Wrap(err, "invokeFunction() failed")
 		}

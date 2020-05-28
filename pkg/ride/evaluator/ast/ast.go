@@ -56,13 +56,13 @@ func protoArgToArgExpr(arg proto.Argument) (Expr, error) {
 	}
 }
 
-func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptWithProofs, this, lastBlock Expr) ([]proto.ScriptAction, error) {
+func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptWithProofs, this, lastBlock Expr) (bool, []proto.ScriptAction, error) {
 	if !a.IsDapp() {
-		return nil, errors.New("can't call Script.CallFunction on non DApp")
+		return false, nil, errors.New("can't call Script.CallFunction on non DApp")
 	}
 	txObj, err := NewVariablesFromTransaction(scheme, tx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to convert transaction")
+		return false, nil, errors.Wrap(err, "failed to convert transaction")
 	}
 	name := tx.FunctionCall.Name
 	if name == "" && tx.FunctionCall.Default {
@@ -70,15 +70,15 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	}
 	fn, ok := a.DApp.CallableFuncs[name]
 	if !ok {
-		return nil, errors.Errorf("Callable function named '%s' not found", name)
+		return false, nil, errors.Errorf("Callable function named '%s' not found", name)
 	}
 	invoke, err := a.buildInvocation(scheme, tx)
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
 	height, err := state.AddingBlockHeight()
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
 	scope := NewScope(a.Version, scheme, state)
 	scope.SetThis(this)
@@ -90,19 +90,19 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 	for _, expr := range a.DApp.Declarations {
 		_, err = expr.Evaluate(scope)
 		if err != nil {
-			return nil, errors.Wrap(err, "Script.CallFunction")
+			return true, nil, errors.Wrap(err, "Script.CallFunction")
 		}
 	}
 
 	if len(fn.FuncDecl.Args) != len(tx.FunctionCall.Arguments) {
-		return nil, errors.Errorf("invalid func '%s' args count, expected %d, got %d", fn.FuncDecl.Name, len(fn.FuncDecl.Args), len(tx.FunctionCall.Arguments))
+		return true, nil, errors.Errorf("invalid func '%s' args count, expected %d, got %d", fn.FuncDecl.Name, len(fn.FuncDecl.Args), len(tx.FunctionCall.Arguments))
 	}
 	// pass function arguments
 	curScope := scope.Clone()
 	for i, arg := range tx.FunctionCall.Arguments {
 		argExpr, err := protoArgToArgExpr(arg)
 		if err != nil {
-			return nil, errors.Wrap(err, "Script.CallFunction")
+			return true, nil, errors.Wrap(err, "Script.CallFunction")
 		}
 		curScope.AddValue(fn.FuncDecl.Args[i], argExpr)
 	}
@@ -111,32 +111,35 @@ func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *p
 
 	rs, err := fn.FuncDecl.Body.Evaluate(curScope)
 	if err != nil {
-		return nil, errors.Wrap(err, "Script.CallFunction")
+		return true, nil, errors.Wrap(err, "Script.CallFunction")
 	}
 
 	switch t := rs.(type) {
 	case *WriteSetExpr:
-		return t.ToActions()
+		actions, err := t.ToActions()
+		return true, actions, err
 	case *TransferSetExpr:
-		return t.ToActions()
+		actions, err := t.ToActions()
+		return true, actions, err
 	case *ScriptResultExpr:
-		return t.ToActions()
+		actions, err := t.ToActions()
+		return true, actions, err
 	case Exprs:
 		res := make([]proto.ScriptAction, 0, len(t))
 		for _, e := range t {
 			ae, ok := e.(Actionable)
 			if !ok {
-				return nil, errors.Errorf("Script.CallFunction: fail to convert result to action")
+				return true, nil, errors.Errorf("Script.CallFunction: fail to convert result to action")
 			}
 			action, err := ae.ToAction(tx.ID)
 			if err != nil {
-				return nil, errors.Wrap(err, "Script.CallFunction: fail to convert result to action")
+				return true, nil, errors.Wrap(err, "Script.CallFunction: fail to convert result to action")
 			}
 			res = append(res, action)
 		}
-		return res, nil
+		return true, res, nil
 	default:
-		return nil, errors.Errorf("Script.CallFunction: unexpected result type '%T'", t)
+		return true, nil, errors.Errorf("Script.CallFunction: unexpected result type '%T'", t)
 	}
 }
 
