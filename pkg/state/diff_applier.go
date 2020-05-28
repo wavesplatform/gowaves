@@ -143,3 +143,11 @@ func (a *diffApplier) applyBalancesChanges(changes []balanceChanges, filter bool
 func (a *diffApplier) validateBalancesChanges(changes []balanceChanges, filter bool) error {
 	return a.applyBalancesChangesImpl(changes, filter, true)
 }
+
+func (a *diffApplier) validateTxDiff(diff txDiff, stor *diffStorage, filter bool) error {
+	changes, err := stor.changesByTxDiff(diff)
+	if err != nil {
+		return err
+	}
+	return a.validateBalancesChanges(changes, filter)
+}

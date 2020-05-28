@@ -209,8 +209,23 @@ func (a *Script) buildInvocation(scheme proto.Scheme, tx *proto.InvokeScriptWith
 }
 
 type Result struct {
-	OK      bool
+	Value   bool
+	Throw   bool
 	Message string
+}
+
+func (r *Result) Error() error {
+	if r.Throw {
+		return errors.Errorf("script thrown error: %s", r.Message)
+	}
+	if !r.Value {
+		return errors.New("script returned false")
+	}
+	return nil
+}
+
+func (r *Result) Failed() bool {
+	return !r.Value || r.Throw
 }
 
 func evalAsResult(e Expr, s Scope) (Result, error) {
@@ -218,7 +233,7 @@ func evalAsResult(e Expr, s Scope) (Result, error) {
 	if err != nil {
 		if throw, ok := err.(Throw); ok {
 			return Result{
-				OK:      false,
+				Throw:   true,
 				Message: throw.Message,
 			}, nil
 		}
@@ -228,7 +243,7 @@ func evalAsResult(e Expr, s Scope) (Result, error) {
 	if !ok {
 		return Result{}, errors.Errorf("expected evaluate return *BooleanExpr, but found %T", b)
 	}
-	return Result{OK: b.Value}, nil
+	return Result{Value: b.Value}, nil
 }
 
 func (a *Script) Eval(s Scope) (Result, error) {

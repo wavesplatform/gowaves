@@ -61,6 +61,39 @@ type testAddrData struct {
 	assetKeys []string
 }
 
+func defaultBlock() *proto.BlockHeader {
+	return &proto.BlockHeader{BlockSignature: blockID0.Signature(), Timestamp: defaultTimestamp}
+}
+
+func defaultBlockInfo() *proto.BlockInfo {
+	genSig := crypto.MustBytesFromBase58("2eYyRDZwRCuXJhJTfwKYsqVFpBTg8v69RBppZzStWtaR")
+	return &proto.BlockInfo{
+		Timestamp:           defaultTimestamp,
+		Height:              400000,
+		BaseTarget:          943,
+		GenerationSignature: genSig,
+		Generator:           testGlobal.minerInfo.addr,
+		GeneratorPublicKey:  testGlobal.minerInfo.pk,
+	}
+}
+
+func defaultDifferInfo(t *testing.T) *differInfo {
+	return &differInfo{false, defaultBlockInfo()}
+}
+
+func defaultFallibleValidationParams(t *testing.T) *fallibleValidationParams {
+	return &fallibleValidationParams{
+		checkerInfo:    defaultCheckerInfo(t),
+		blockInfo:      defaultBlockInfo(),
+		block:          defaultBlock(),
+		senderScripted: false,
+		checkScripts:   true,
+		acceptFailed:   false,
+		validatingUtx:  false,
+		initialisation: false,
+	}
+}
+
 func newTestAddrData(seedStr string, assets [][]byte) (*testAddrData, error) {
 	seedBytes, err := base58.Decode(seedStr)
 	if err != nil {

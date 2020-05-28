@@ -26,7 +26,11 @@ func createInvokeApplierTestObjects(t *testing.T) (*invokeApplierTestObjects, st
 	assert.NoError(t, err, "failed to create dir for test state")
 	state, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
-	return &invokeApplierTestObjects{state}, dataDir
+	err = state.stateDB.addBlock(blockID0)
+	assert.NoError(t, err)
+	to := &invokeApplierTestObjects{state}
+	to.activateFeature(t, int16(settings.Ride4DApps))
+	return to, dataDir
 }
 
 func (to *invokeApplierTestObjects) setInitialWavesBalance(t *testing.T, addr proto.Address, balance uint64) {
@@ -55,6 +59,24 @@ func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.Address, 
 	assert.NoError(t, err, "failed to save complexity for address")
 	err = to.state.stor.scriptsStorage.setAccountScript(addr, script, pk, blockID0)
 	assert.NoError(t, err, "failed to set account script")
+}
+
+func (to *invokeApplierTestObjects) activateFeature(t *testing.T, feature int16) {
+	req := &activatedFeaturesRecord{1}
+	err := to.state.stor.features.activateFeature(feature, req, blockID0)
+	assert.NoError(t, err)
+	err = to.state.flush(true)
+	assert.NoError(t, err)
+	err = to.state.reset(true)
+	assert.NoError(t, err)
+}
+
+func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams) *applicationResult {
+	res, err := to.state.appender.ia.applyInvokeScriptWithProofs(tx, info)
+	assert.NoError(t, err)
+	err = to.state.appender.diffStor.saveTxDiff(res.changes.diff)
+	assert.NoError(t, err)
+	return res
 }
 
 /*
@@ -111,14 +133,10 @@ func TestApplyInvokeScriptWithProofsPaymentsAndData(t *testing.T) {
 		assert.NoError(t, err, "failed to remove test data dir")
 	}()
 
-	// Invoke applier object.
-	ia := to.state.appender.ia
-	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
-		height: 1,
-	}
+	info := defaultFallibleValidationParams(t)
 	err := to.state.stateDB.addBlock(info.block.BlockID())
 	assert.NoError(t, err)
+	// Invoke applier object.
 	dir, err := getLocalDir()
 	assert.NoError(t, err, "getLocalDir() failed")
 	dAppPath := filepath.Join(dir, "testdata", "scripts", "dapp.base64")
@@ -142,11 +160,10 @@ func TestApplyInvokeScriptWithProofsPaymentsAndData(t *testing.T) {
 	fc := proto.FunctionCall{Name: "deposit"}
 	feeAsset := proto.OptionalAsset{Present: false}
 	tx := createInvokeScriptWithProofs(t, pmts, fc, feeAsset, fee)
-	res, err := ia.applyInvokeScriptWithProofs(tx, info, false)
+	res := to.applyAndSaveInvoke(t, tx, info)
 	assert.True(t, res.status)
-	assert.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	correctAddrs := []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
-	assert.ElementsMatch(t, correctAddrs, res.addresses)
+	assert.ElementsMatch(t, correctAddrs, res.changes.addresses())
 
 	// Check newest result state here.
 	senderBalance, err = to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
@@ -189,14 +206,10 @@ func TestApplyInvokeScriptWithProofsTransfers(t *testing.T) {
 		assert.NoError(t, err, "failed to remove test data dir")
 	}()
 
-	// Invoke applier object.
-	ia := to.state.appender.ia
-	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
-		height: 1,
-	}
+	info := defaultFallibleValidationParams(t)
 	err := to.state.stateDB.addBlock(info.block.BlockID())
 	assert.NoError(t, err)
+	// Invoke applier object.
 	dir, err := getLocalDir()
 	assert.NoError(t, err, "getLocalDir() failed")
 	dAppPath := filepath.Join(dir, "testdata", "scripts", "dapp.base64")
@@ -221,19 +234,17 @@ func TestApplyInvokeScriptWithProofsTransfers(t *testing.T) {
 	fc := proto.FunctionCall{Name: "deposit"}
 	feeAsset := proto.OptionalAsset{Present: false}
 	tx := createInvokeScriptWithProofs(t, pmts, fc, feeAsset, fee)
-	res, err := ia.applyInvokeScriptWithProofs(tx, info, false)
+	res := to.applyAndSaveInvoke(t, tx, info)
 	assert.True(t, res.status)
-	assert.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	correctAddrs := []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
-	assert.ElementsMatch(t, correctAddrs, res.addresses)
+	assert.ElementsMatch(t, correctAddrs, res.changes.addresses())
 
 	fc = proto.FunctionCall{Name: "withdraw", Arguments: proto.Arguments{&proto.IntegerArgument{Value: int64(withdrawAmount)}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	res, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	res = to.applyAndSaveInvoke(t, tx, info)
 	assert.True(t, res.status)
-	assert.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	correctAddrs = []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
-	assert.ElementsMatch(t, correctAddrs, res.addresses)
+	assert.ElementsMatch(t, correctAddrs, res.changes.addresses())
 
 	// Check newest result state here.
 	senderBalance, err = to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
@@ -269,14 +280,10 @@ func TestApplyInvokeScriptWithProofsWithIssues(t *testing.T) {
 		require.NoError(t, err, "failed to remove test data dir")
 	}()
 
+	info := defaultFallibleValidationParams(t)
+	err := to.state.stateDB.addBlock(info.block.BlockID())
+	assert.NoError(t, err)
 	// Invoke applier object.
-	ia := to.state.appender.ia
-	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{ID: blockID0, BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
-		height: 1,
-	}
-	err := to.state.stateDB.addBlock(info.block.ID)
-	require.NoError(t, err)
 	dir, err := getLocalDir()
 	require.NoError(t, err, "getLocalDir() failed")
 	dAppPath := filepath.Join(dir, "testdata", "scripts", "ride4_asset.base64")
@@ -301,11 +308,10 @@ func TestApplyInvokeScriptWithProofsWithIssues(t *testing.T) {
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	txID := *tx.ID
 	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
-	res, err := ia.applyInvokeScriptWithProofs(tx, info, false)
+	res := to.applyAndSaveInvoke(t, tx, info)
 	assert.True(t, res.status)
-	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	correctAddrs := []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
-	assert.ElementsMatch(t, correctAddrs, res.addresses)
+	assert.ElementsMatch(t, correctAddrs, res.changes.addresses())
 
 	// Check newest result state here.
 	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
@@ -335,14 +341,10 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissue(t *testing.T) {
 		require.NoError(t, err, "failed to remove test data dir")
 	}()
 
+	info := defaultFallibleValidationParams(t)
+	err := to.state.stateDB.addBlock(info.block.BlockID())
+	assert.NoError(t, err)
 	// Invoke applier object.
-	ia := to.state.appender.ia
-	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{ID: blockID0, BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
-		height: 1,
-	}
-	err := to.state.stateDB.addBlock(info.block.ID)
-	require.NoError(t, err)
 	dir, err := getLocalDir()
 	require.NoError(t, err, "getLocalDir() failed")
 	dAppPath := filepath.Join(dir, "testdata", "scripts", "ride4_asset.base64")
@@ -366,11 +368,10 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissue(t *testing.T) {
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	txID := *tx.ID
 	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
-	res, err := ia.applyInvokeScriptWithProofs(tx, info, false)
+	res := to.applyAndSaveInvoke(t, tx, info)
 	assert.True(t, res.status)
-	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	correctAddrs := []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
-	assert.ElementsMatch(t, correctAddrs, res.addresses)
+	assert.ElementsMatch(t, correctAddrs, res.changes.addresses())
 
 	// Check newest result state here.
 	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
@@ -386,9 +387,8 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissue(t *testing.T) {
 
 	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	res, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	res = to.applyAndSaveInvoke(t, tx, info)
 	assert.True(t, res.status)
-	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 
 	// Check newest result state here.
 	recipientBalance, err = to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
@@ -418,14 +418,10 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenBurn(t *testing.T) 
 		require.NoError(t, err, "failed to remove test data dir")
 	}()
 
+	info := defaultFallibleValidationParams(t)
+	err := to.state.stateDB.addBlock(info.block.BlockID())
+	assert.NoError(t, err)
 	// Invoke applier object.
-	ia := to.state.appender.ia
-	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{ID: blockID0, BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
-		height: 1,
-	}
-	err := to.state.stateDB.addBlock(info.block.ID)
-	require.NoError(t, err)
 	dir, err := getLocalDir()
 	require.NoError(t, err, "getLocalDir() failed")
 	dAppPath := filepath.Join(dir, "testdata", "scripts", "ride4_asset.base64")
@@ -449,11 +445,10 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenBurn(t *testing.T) 
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	txID := *tx.ID
 	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
-	res, err := ia.applyInvokeScriptWithProofs(tx, info, false)
+	res := to.applyAndSaveInvoke(t, tx, info)
 	assert.True(t, res.status)
-	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	correctAddrs := []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
-	assert.ElementsMatch(t, correctAddrs, res.addresses)
+	assert.ElementsMatch(t, correctAddrs, res.changes.addresses())
 
 	// Check newest result state here.
 	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
@@ -469,9 +464,8 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenBurn(t *testing.T) 
 
 	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	res, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	res = to.applyAndSaveInvoke(t, tx, info)
 	assert.True(t, res.status)
-	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 
 	// Check newest result state here.
 	recipientBalance, err = to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
@@ -487,9 +481,8 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenBurn(t *testing.T) 
 
 	fc = proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	res, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	res = to.applyAndSaveInvoke(t, tx, info)
 	assert.True(t, res.status)
-	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 
 	// Check newest result state here.
 	recipientBalance, err = to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
@@ -519,14 +512,10 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenFailOnReissue(t *te
 		require.NoError(t, err, "failed to remove test data dir")
 	}()
 
+	info := defaultFallibleValidationParams(t)
+	err := to.state.stateDB.addBlock(info.block.BlockID())
+	assert.NoError(t, err)
 	// Invoke applier object.
-	ia := to.state.appender.ia
-	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{ID: blockID0, BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
-		height: 1,
-	}
-	err := to.state.stateDB.addBlock(info.block.ID)
-	require.NoError(t, err)
 	dir, err := getLocalDir()
 	require.NoError(t, err, "getLocalDir() failed")
 	dAppPath := filepath.Join(dir, "testdata", "scripts", "ride4_asset.base64")
@@ -550,11 +539,10 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenFailOnReissue(t *te
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	txID := *tx.ID
 	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
-	res, err := ia.applyInvokeScriptWithProofs(tx, info, false)
+	res := to.applyAndSaveInvoke(t, tx, info)
 	assert.True(t, res.status)
-	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	correctAddrs := []proto.Address{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
-	assert.ElementsMatch(t, correctAddrs, res.addresses)
+	assert.ElementsMatch(t, correctAddrs, res.changes.addresses())
 
 	// Check newest result state here.
 	recipientBalance, err := to.state.NewestAccountBalance(tx.ScriptRecipient, newAsset[:])
@@ -570,7 +558,7 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenFailOnReissue(t *te
 
 	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	res, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	res = to.applyAndSaveInvoke(t, tx, info)
 	assert.True(t, res.status)
 	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 
@@ -585,7 +573,7 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenFailOnReissue(t *te
 	// Second reissue should fail as asset made non-reissuable with the first one
 	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	_, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	_, err = to.state.appender.ia.applyInvokeScriptWithProofs(tx, info)
 	assert.Error(t, err)
 }
 
@@ -599,14 +587,10 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenFailOnBurnTooMuch(t *testing.T
 		require.NoError(t, err, "failed to remove test data dir")
 	}()
 
+	info := defaultFallibleValidationParams(t)
+	err := to.state.stateDB.addBlock(info.block.BlockID())
+	assert.NoError(t, err)
 	// Invoke applier object.
-	ia := to.state.appender.ia
-	info := &invokeAddlInfo{
-		block:  &proto.BlockHeader{ID: blockID0, BlockSignature: blockID0.Signature(), Timestamp: to.state.settings.CheckTempNegativeAfterTime},
-		height: 1,
-	}
-	err := to.state.stateDB.addBlock(info.block.ID)
-	require.NoError(t, err)
 	dir, err := getLocalDir()
 	require.NoError(t, err, "getLocalDir() failed")
 	dAppPath := filepath.Join(dir, "testdata", "scripts", "ride4_asset.base64")
@@ -630,8 +614,7 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenFailOnBurnTooMuch(t *testing.T
 	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	txID := *tx.ID
 	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
-	_, err = ia.applyInvokeScriptWithProofs(tx, info, false)
-	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
+	to.applyAndSaveInvoke(t, tx, info)
 	err = to.state.appender.applyAllDiffs(false)
 	require.NoError(t, err, "applyAllDiffs() failed")
 	err = to.state.flush(false)
@@ -642,8 +625,7 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenFailOnBurnTooMuch(t *testing.T
 	fc = proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
 	for i := 0; i < 20; i++ {
-		_, err = ia.applyInvokeScriptWithProofs(tx, info, false)
-		require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
+		to.applyAndSaveInvoke(t, tx, info)
 	}
 	require.NoError(t, err, "failed to apply valid InvokeScriptWithProofs tx")
 	err = to.state.appender.applyAllDiffs(false)
@@ -658,6 +640,6 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenFailOnBurnTooMuch(t *testing.T
 
 	fc = proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
-	_, err = ia.applyInvokeScriptWithProofs(tx, info, false)
+	_, err = to.state.appender.ia.applyInvokeScriptWithProofs(tx, info)
 	assert.Error(t, err)
 }

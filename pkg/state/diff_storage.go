@@ -133,15 +133,6 @@ func (s *diffStorage) changesByTxDiff(diff txDiff) ([]balanceChanges, error) {
 	return changes, nil
 }
 
-func (s *diffStorage) saveBalanceChanges(changes []balanceChanges) error {
-	for _, change := range changes {
-		if err := s.setBalanceChanges(&change); err != nil {
-			return errors.Wrap(err, "failed to save changes to changes storage")
-		}
-	}
-	return nil
-}
-
 func (s *diffStorage) saveTxDiff(diff txDiff) error {
 	for key, balanceDiff := range diff {
 		if err := s.addBalanceDiff(key, balanceDiff); err != nil {

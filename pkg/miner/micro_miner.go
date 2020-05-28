@@ -79,7 +79,11 @@ func (a *MicroMiner) Micro(
 				continue
 			}
 
-			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, vrf, false)
+			// In miner we pack transactions from UTX into new block.
+			// We should always check all scripts here, even after
+			// activation of accepting transactions with failed scripts.
+			checkScripts := true
+			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, checkScripts)
 			if err != nil {
 				unAppliedTransactions = append(unAppliedTransactions, t)
 				continue

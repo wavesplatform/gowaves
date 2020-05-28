@@ -567,7 +567,7 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 
 	txOV3 := createExchangeWithProofsWithOrdersV3(t)
 
-	// Matcher fee asset should not be added to the list of smart assets even if it is smart.
+	// Matcher fee asset should be added to the list of smart assets when it is smart.
 	smartAsset2 := txOV3.GetOrder1().GetMatcherFeeAsset().ID
 	to.stor.createSmartAsset(t, smartAsset2)
 
@@ -576,8 +576,8 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 
 	smartAssets, err = to.tc.checkExchangeWithProofs(txOV3, info)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, len(smartAssets))
-	assert.ElementsMatch(t, []crypto.Digest{smartAsset}, smartAssets)
+	assert.Equal(t, 2, len(smartAssets))
+	assert.ElementsMatch(t, []crypto.Digest{smartAsset, smartAsset2}, smartAssets)
 
 	// Now overfill volume and make sure check fails.
 	bo := txOV2.GetOrder1()
