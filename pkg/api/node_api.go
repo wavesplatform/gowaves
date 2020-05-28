@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const API_KEY = "X-API-Key"
+const apiKey = "X-API-Key"
 
 // Logger is a middleware that logs the start and end of each request, along
 // with some useful data about what was requested, what the response status was,
@@ -88,7 +88,7 @@ func (a *NodeApi) BlocksLast(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write(bts)
 }
 
-func (a *NodeApi) BlocksFirst(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) BlocksFirst(w http.ResponseWriter, _ *http.Request) {
 	block, err := a.state.BlockByHeight(1)
 	if err != nil {
 		handleError(w, err)
@@ -163,7 +163,7 @@ type BlockHeightResponse struct {
 	Height uint64 `json:"height"`
 }
 
-func (a *NodeApi) BlockHeight(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) BlockHeight(w http.ResponseWriter, _ *http.Request) {
 	height, err := a.state.Height()
 	if err != nil {
 		handleError(w, err)
@@ -208,7 +208,7 @@ func Run(ctx context.Context, address string, n *NodeApi) error {
 	return nil
 }
 
-func (a *NodeApi) PeersAll(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) PeersAll(w http.ResponseWriter, _ *http.Request) {
 	rs, err := a.app.PeersAll()
 	if err != nil {
 		handleError(w, err)
@@ -217,7 +217,7 @@ func (a *NodeApi) PeersAll(w http.ResponseWriter, r *http.Request) {
 	sendJson(w, rs)
 }
 
-func (a *NodeApi) PeersSpawned(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) PeersSpawned(w http.ResponseWriter, _ *http.Request) {
 	rs := a.app.PeersSpawned()
 	sendJson(w, rs)
 }
@@ -249,7 +249,7 @@ func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) {
 	sendJson(w, rs)
 }
 
-func (a *NodeApi) PeersConnected(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) PeersConnected(w http.ResponseWriter, _ *http.Request) {
 	rs, err := a.app.PeersConnected()
 	if err != nil {
 		handleError(w, err)
@@ -258,7 +258,7 @@ func (a *NodeApi) PeersConnected(w http.ResponseWriter, r *http.Request) {
 	sendJson(w, rs)
 }
 
-func (a *NodeApi) PeersSuspended(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) PeersSuspended(w http.ResponseWriter, _ *http.Request) {
 	rs, err := a.app.PeersSuspended()
 	if err != nil {
 		handleError(w, err)
@@ -267,7 +267,7 @@ func (a *NodeApi) PeersSuspended(w http.ResponseWriter, r *http.Request) {
 	sendJson(w, rs)
 }
 
-func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, _ *http.Request) {
 	rs, err := a.app.BlocksGenerators()
 	if err != nil {
 		handleError(w, err)
@@ -276,7 +276,7 @@ func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, r *http.Request) {
 	sendJson(w, rs)
 }
 
-func (a *NodeApi) poolTransactions(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) poolTransactions(w http.ResponseWriter, _ *http.Request) {
 	rs := a.app.PoolTransactions()
 	sendJson(w, rs)
 }
@@ -310,6 +310,7 @@ func RollbackToHeight(app rollbackToHeight) http.HandlerFunc {
 type walletLoadKeysRequest struct {
 	Password string `json:"password"`
 }
+
 type walletLoadKeys interface {
 	LoadKeys(apiKey string, password []byte) error
 }
@@ -332,7 +333,16 @@ func WalletLoadKeys(app walletLoadKeys) http.HandlerFunc {
 	}
 }
 
-func (a *NodeApi) Minerinfo(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) WalletAccounts(w http.ResponseWriter, _ *http.Request) {
+	rs, err := a.app.Accounts()
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	sendJson(w, rs)
+}
+
+func (a *NodeApi) MinerInfo(w http.ResponseWriter, _ *http.Request) {
 	rs, err := a.app.Miner()
 	if err != nil {
 		handleError(w, err)
@@ -341,7 +351,7 @@ func (a *NodeApi) Minerinfo(w http.ResponseWriter, r *http.Request) {
 	sendJson(w, rs)
 }
 
-func (a *NodeApi) nodeProcesses(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) {
 	rs := a.app.NodeProcesses()
 	sendJson(w, rs)
 }
