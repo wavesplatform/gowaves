@@ -202,8 +202,7 @@ func TestAssetsUncertain(t *testing.T) {
 
 	// Issue uncertain asset and check it can be retrieved with newestAssetInfo().
 	asset := defaultAssetInfo(false)
-	err = to.assets.issueAssetUncertain(assetID, asset)
-	assert.NoError(t, err, "failed to issue asset")
+	to.assets.issueAssetUncertain(assetID, asset)
 	inf, err := to.assets.newestAssetInfo(assetID, true)
 	assert.NoError(t, err, "failed to get newest asset info")
 	if !inf.equal(asset) {
@@ -215,8 +214,7 @@ func TestAssetsUncertain(t *testing.T) {
 	assert.Error(t, err)
 	// Issue uncertain asset and commit.
 	to.stor.addBlock(t, blockID0)
-	err = to.assets.issueAssetUncertain(assetID, asset)
-	assert.NoError(t, err, "failed to issue asset")
+	to.assets.issueAssetUncertain(assetID, asset)
 	err = to.assets.commitUncertain(blockID0)
 	assert.NoError(t, err)
 	inf, err = to.assets.newestAssetInfo(assetID, true)

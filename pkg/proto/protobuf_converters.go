@@ -1,28 +1,19 @@
 package proto
 
 import (
-	protobuf "github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	"google.golang.org/protobuf/encoding/protowire"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 func Int64ToProtobuf(val int64) ([]byte, error) {
-	buf := &protobuf.Buffer{}
-	buf.SetDeterministic(true)
-	if err := buf.EncodeVarint(uint64(val)); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return protowire.AppendVarint(nil, uint64(val)), nil
 }
 
 func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
-	buf := &protobuf.Buffer{}
-	buf.SetDeterministic(true)
-	if err := buf.Marshal(pb); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return protobuf.MarshalOptions{Deterministic: true}.Marshal(pb)
 }
 
 func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
@@ -547,6 +538,23 @@ func (c *ProtobufConverter) BurnScriptActions(burns []*g.InvokeScriptResult_Burn
 		res[i] = &BurnScriptAction{
 			AssetID:  c.digest(x.AssetId),
 			Quantity: x.Amount,
+		}
+		if c.err != nil {
+			return nil, c.err
+		}
+	}
+	return res, nil
+}
+
+func (c *ProtobufConverter) SponsorshipScriptActions(sponsorships []*g.InvokeScriptResult_SponsorFee) ([]*SponsorshipScriptAction, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	res := make([]*SponsorshipScriptAction, len(sponsorships))
+	for i, x := range sponsorships {
+		res[i] = &SponsorshipScriptAction{
+			AssetID: c.digest(x.MinFee.AssetId),
+			MinFee:  x.MinFee.Amount,
 		}
 		if c.err != nil {
 			return nil, c.err

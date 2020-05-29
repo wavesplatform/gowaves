@@ -156,6 +156,18 @@ func (ss *scriptsStorage) scriptBytesByKey(key []byte, filter bool) (proto.Scrip
 	return record.script, nil
 }
 
+func (ss *scriptsStorage) newestScriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
+	recordBytes, err := ss.hs.freshLatestEntryData(key, filter)
+	if err != nil {
+		return proto.Script{}, err
+	}
+	var record scriptRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return proto.Script{}, err
+	}
+	return record.script, nil
+}
+
 func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (ast.Script, crypto.PublicKey, error) {
 	var record scriptRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
@@ -200,9 +212,8 @@ func (ss *scriptsStorage) dropUncertain() {
 	ss.uncertainAssetScripts = make(map[crypto.Digest]scriptRecord)
 }
 
-func (ss *scriptsStorage) setAssetScriptUncertain(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error {
+func (ss *scriptsStorage) setAssetScriptUncertain(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey) {
 	ss.uncertainAssetScripts[assetID] = scriptRecord{pk: pk, script: script}
-	return nil
 }
 
 func (ss *scriptsStorage) setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
@@ -275,6 +286,11 @@ func (ss *scriptsStorage) scriptByAsset(assetID crypto.Digest, filter bool) (ast
 func (ss *scriptsStorage) scriptBytesByAsset(assetID crypto.Digest, filter bool) (proto.Script, error) {
 	key := assetScriptKey{assetID}
 	return ss.scriptBytesByKey(key.bytes(), filter)
+}
+
+func (ss *scriptsStorage) newestScriptBytesByAsset(assetID crypto.Digest, filter bool) (proto.Script, error) {
+	key := assetScriptKey{assetID}
+	return ss.newestScriptBytesByKey(key.bytes(), filter)
 }
 
 func (ss *scriptsStorage) setAccountScript(addr proto.Address, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {

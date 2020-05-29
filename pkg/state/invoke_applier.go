@@ -339,13 +339,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 		switch a := action.(type) {
 		case *proto.DataEntryScriptAction:
 			// Perform data storage writes.
-			if !info.validatingUtx {
-				// TODO: when UTX transactions are validated, there is no block,
-				// and we can not perform state changes.
-				if err := ia.stor.accountsDataStor.appendEntryUncertain(*scriptAddr, a.Entry); err != nil {
-					return nil, err
-				}
-			}
+			ia.stor.accountsDataStor.appendEntryUncertain(*scriptAddr, a.Entry)
 
 		case *proto.TransferScriptAction:
 			// Perform transfers.
@@ -411,17 +405,11 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 					reissuable:  a.Reissuable,
 				},
 			}
-			if !info.validatingUtx {
-				if err := ia.stor.assets.issueAssetUncertain(a.ID, assetInfo); err != nil {
-					return nil, err
-				}
-				// Currently asset script is always empty.
-				// TODO: if this script is ever set, don't forget to
-				// also save complexity for it using saveComplexityForAsset().
-				if err := ia.stor.scriptsStorage.setAssetScriptUncertain(a.ID, proto.Script{}, scriptPK); err != nil {
-					return nil, err
-				}
-			}
+			ia.stor.assets.issueAssetUncertain(a.ID, assetInfo)
+			// Currently asset script is always empty.
+			// TODO: if this script is ever set, don't forget to
+			// also save complexity for it here using saveComplexityForAsset().
+			ia.stor.scriptsStorage.setAssetScriptUncertain(a.ID, proto.Script{}, scriptPK)
 
 			txDiff, err := ia.newTxDiffFromScriptIssue(scriptAddr, a)
 			if err != nil {
@@ -470,14 +458,12 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 				return ia.handleInvocationResult(tx, info, res)
 			}
 			// Update asset's info.
-			if !info.validatingUtx {
-				change := &assetReissueChange{
-					reissuable: a.Reissuable,
-					diff:       a.Quantity,
-				}
-				if err := ia.stor.assets.reissueAssetUncertain(a.AssetID, change, !info.initialisation); err != nil {
-					return nil, err
-				}
+			change := &assetReissueChange{
+				reissuable: a.Reissuable,
+				diff:       a.Quantity,
+			}
+			if err := ia.stor.assets.reissueAssetUncertain(a.AssetID, change, !info.initialisation); err != nil {
+				return nil, err
 			}
 			txDiff, err := ia.newTxDiffFromScriptReissue(scriptAddr, a)
 			if err != nil {
@@ -524,13 +510,11 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 			}
 			// Update asset's info
 			// Modify asset.
-			if !info.validatingUtx {
-				change := &assetBurnChange{
-					diff: int64(a.Quantity),
-				}
-				if err := ia.stor.assets.burnAssetUncertain(a.AssetID, change, !info.initialisation); err != nil {
-					return nil, errors.Wrap(err, "failed to burn asset")
-				}
+			change := &assetBurnChange{
+				diff: int64(a.Quantity),
+			}
+			if err := ia.stor.assets.burnAssetUncertain(a.AssetID, change, !info.initialisation); err != nil {
+				return nil, errors.Wrap(err, "failed to burn asset")
 			}
 			txDiff, err := ia.newTxDiffFromScriptBurn(scriptAddr, a)
 			if err != nil {
@@ -547,6 +531,29 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 					return nil, err
 				}
 			}
+		case *proto.SponsorshipScriptAction:
+			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
+			if err != nil {
+				return nil, err
+			}
+			sponsorshipActivated, err := ia.stor.features.isActivated(int16(settings.FeeSponsorship))
+			if err != nil {
+				return nil, err
+			}
+			if !sponsorshipActivated {
+				return nil, errors.New("sponsorship has not been activated yet")
+			}
+			if assetInfo.issuer != scriptPK {
+				return nil, errors.Errorf("asset %s was not issued by this DApp", a.AssetID.String())
+			}
+			isSmart, err := ia.stor.scriptsStorage.newestIsSmartAsset(a.AssetID, !info.initialisation)
+			if err != nil {
+				return nil, err
+			}
+			if isSmart {
+				return nil, errors.Errorf("can not sponsor smart asset %s", a.AssetID.String())
+			}
+			ia.stor.sponsoredAssets.sponsorAssetUncertain(a.AssetID, uint64(a.MinFee))
 		default:
 			return nil, errors.Errorf("unsupported script action '%T'", a)
 		}
@@ -614,8 +621,10 @@ func toScriptResult(ir *invocationResult) (*proto.ScriptResult, error) {
 }
 
 func (ia *invokeApplier) handleInvocationResult(tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, res *invocationResult) (*applicationResult, error) {
-	if !res.failed {
+	if !res.failed && !info.validatingUtx {
 		// Commit actions state changes.
+		// TODO: when UTX transactions are validated, there is no block,
+		// and we can not perform state changes.
 		if err := ia.stor.commitUncertain(info.block.BlockID()); err != nil {
 			return nil, err
 		}

@@ -158,10 +158,9 @@ func (s *accountsDataStorage) commitUncertain(blockID proto.BlockID) error {
 	return nil
 }
 
-func (s *accountsDataStorage) appendEntryUncertain(addr proto.Address, entry proto.DataEntry) error {
+func (s *accountsDataStorage) appendEntryUncertain(addr proto.Address, entry proto.DataEntry) {
 	id := entryId{addr, entry.GetKey()}
 	s.uncertainEntries[id] = entry
-	return nil
 }
 
 func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEntry, blockID proto.BlockID) error {

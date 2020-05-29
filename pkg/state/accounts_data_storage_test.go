@@ -142,8 +142,7 @@ func TestRetrieveIntegerEntry(t *testing.T) {
 
 	// Test uncertain.
 	entry1 := &proto.IntegerDataEntry{Key: "Uncertain", Value: 123}
-	err = to.accountsDataStor.appendEntryUncertain(addr0, entry1)
-	assert.NoError(t, err)
+	to.accountsDataStor.appendEntryUncertain(addr0, entry1)
 	entry, err = to.accountsDataStor.retrieveNewestIntegerEntry(addr0, entry1.Key, true)
 	assert.NoError(t, err, "retrieveNewestIntegerEntry failed")
 	assert.Equal(t, entry1, entry)
@@ -151,8 +150,7 @@ func TestRetrieveIntegerEntry(t *testing.T) {
 	_, err = to.accountsDataStor.retrieveNewestIntegerEntry(addr0, entry1.Key, true)
 	assert.Error(t, err)
 
-	err = to.accountsDataStor.appendEntryUncertain(addr0, entry1)
-	assert.NoError(t, err)
+	to.accountsDataStor.appendEntryUncertain(addr0, entry1)
 	err = to.accountsDataStor.commitUncertain(blockID0)
 	assert.NoError(t, err)
 	entry, err = to.accountsDataStor.retrieveNewestIntegerEntry(addr0, entry1.Key, true)
@@ -190,8 +188,7 @@ func TestRetrieveBooleanEntry(t *testing.T) {
 
 	// Test uncertain.
 	entry1 := &proto.BooleanDataEntry{Key: "Uncertain", Value: true}
-	err = to.accountsDataStor.appendEntryUncertain(addr0, entry1)
-	assert.NoError(t, err)
+	to.accountsDataStor.appendEntryUncertain(addr0, entry1)
 	entry, err = to.accountsDataStor.retrieveNewestBooleanEntry(addr0, entry1.Key, true)
 	assert.NoError(t, err, "retrieveNewestBooleanEntry failed")
 	assert.Equal(t, entry1, entry)
@@ -199,8 +196,7 @@ func TestRetrieveBooleanEntry(t *testing.T) {
 	_, err = to.accountsDataStor.retrieveNewestBooleanEntry(addr0, entry1.Key, true)
 	assert.Error(t, err)
 
-	err = to.accountsDataStor.appendEntryUncertain(addr0, entry1)
-	assert.NoError(t, err)
+	to.accountsDataStor.appendEntryUncertain(addr0, entry1)
 	err = to.accountsDataStor.commitUncertain(blockID0)
 	assert.NoError(t, err)
 	entry, err = to.accountsDataStor.retrieveNewestBooleanEntry(addr0, entry1.Key, true)
@@ -238,8 +234,7 @@ func TestRetrieveStringEntry(t *testing.T) {
 
 	// Test uncertain.
 	entry1 := &proto.StringDataEntry{Key: "Uncertain", Value: "whatever"}
-	err = to.accountsDataStor.appendEntryUncertain(addr0, entry1)
-	assert.NoError(t, err)
+	to.accountsDataStor.appendEntryUncertain(addr0, entry1)
 	entry, err = to.accountsDataStor.retrieveNewestStringEntry(addr0, entry1.Key, true)
 	assert.NoError(t, err, "retrieveNewestStringEntry failed")
 	assert.Equal(t, entry1, entry)
@@ -247,8 +242,7 @@ func TestRetrieveStringEntry(t *testing.T) {
 	_, err = to.accountsDataStor.retrieveNewestStringEntry(addr0, entry1.Key, true)
 	assert.Error(t, err)
 
-	err = to.accountsDataStor.appendEntryUncertain(addr0, entry1)
-	assert.NoError(t, err)
+	to.accountsDataStor.appendEntryUncertain(addr0, entry1)
 	err = to.accountsDataStor.commitUncertain(blockID0)
 	assert.NoError(t, err)
 	entry, err = to.accountsDataStor.retrieveNewestStringEntry(addr0, entry1.Key, true)
@@ -286,8 +280,7 @@ func TestRetrieveBinaryEntry(t *testing.T) {
 
 	// Test uncertain.
 	entry1 := &proto.BinaryDataEntry{Key: "Uncertain", Value: []byte("whatever")}
-	err = to.accountsDataStor.appendEntryUncertain(addr0, entry1)
-	assert.NoError(t, err)
+	to.accountsDataStor.appendEntryUncertain(addr0, entry1)
 	entry, err = to.accountsDataStor.retrieveNewestBinaryEntry(addr0, entry1.Key, true)
 	assert.NoError(t, err, "retrieveNewestBinaryEntry failed")
 	assert.Equal(t, entry1, entry)
@@ -295,8 +288,7 @@ func TestRetrieveBinaryEntry(t *testing.T) {
 	_, err = to.accountsDataStor.retrieveNewestBinaryEntry(addr0, entry1.Key, true)
 	assert.Error(t, err)
 
-	err = to.accountsDataStor.appendEntryUncertain(addr0, entry1)
-	assert.NoError(t, err)
+	to.accountsDataStor.appendEntryUncertain(addr0, entry1)
 	err = to.accountsDataStor.commitUncertain(blockID0)
 	assert.NoError(t, err)
 	entry, err = to.accountsDataStor.retrieveNewestBinaryEntry(addr0, entry1.Key, true)

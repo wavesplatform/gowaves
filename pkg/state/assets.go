@@ -172,9 +172,8 @@ func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo, blockID pro
 // issueAssetUncertain() is similar to issueAsset() but the changes can be
 // dropped later using dropUncertain() or commited using commitUncertain().
 // newest*() functions will take changes into account even before commitUncertain().
-func (a *assets) issueAssetUncertain(assetID crypto.Digest, asset *assetInfo) error {
+func (a *assets) issueAssetUncertain(assetID crypto.Digest, asset *assetInfo) {
 	a.uncertainAssetInfo[assetID] = *asset
-	return nil
 }
 
 type assetReissueChange struct {

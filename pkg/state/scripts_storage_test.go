@@ -219,8 +219,7 @@ func TestSetAssetScript(t *testing.T) {
 	assert.Error(t, err)
 
 	// Test uncertain.
-	err = to.scriptsStorage.setAssetScriptUncertain(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk)
-	assert.NoError(t, err, "setAssetScriptUncertain() failed")
+	to.scriptsStorage.setAssetScriptUncertain(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk)
 	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(assetID, true)
 	assert.NoError(t, err, "newestIsSmartAsset() failed")
 	assert.Equal(t, true, isSmartAsset)
@@ -234,8 +233,7 @@ func TestSetAssetScript(t *testing.T) {
 	assert.NoError(t, err, "newestIsSmartAsset() failed")
 	assert.Equal(t, false, isSmartAsset)
 	// Test after commit.
-	err = to.scriptsStorage.setAssetScriptUncertain(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk)
-	assert.NoError(t, err, "setAssetScriptUncertain() failed")
+	to.scriptsStorage.setAssetScriptUncertain(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk)
 	err = to.scriptsStorage.commitUncertain(blockID0)
 	assert.NoError(t, err, "commitUncertain() failed")
 	to.scriptsStorage.dropUncertain()

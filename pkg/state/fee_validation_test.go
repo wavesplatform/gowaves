@@ -9,7 +9,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
-	"go.uber.org/zap"
 )
 
 func TestAssetScriptExtraFee(t *testing.T) {
@@ -210,10 +209,6 @@ func TestNFTMinFee(t *testing.T) {
 }
 
 func TestReissueFeeReduction(t *testing.T) {
-	//TODO: move logging initialization o package init level
-	logger, err := zap.NewDevelopment()
-	require.NoError(t, err)
-	zap.ReplaceGlobals(logger)
 	storage, path, err := createStorageObjects()
 	require.NoError(t, err)
 
@@ -246,4 +241,33 @@ func TestReissueFeeReduction(t *testing.T) {
 	require.NoError(t, checkMinFeeWaves(reissueA2, params))
 	require.NoError(t, checkMinFeeWaves(reissueB1, params))
 	require.NoError(t, checkMinFeeWaves(reissueB2, params))
+}
+
+func TestSponsorshipFeeReduction(t *testing.T) {
+	storage, path, err := createStorageObjects()
+	require.NoError(t, err)
+
+	defer func() {
+		storage.close(t)
+		err = common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	params := &feeValidationParams{
+		stor:           storage.entities,
+		settings:       settings.MainNetSettings,
+		initialisation: false,
+		txAssets:       &txAssets{feeAsset: proto.OptionalAsset{Present: false}},
+	}
+
+	sponsorshipA := createSponsorshipWithProofs(t, 1)
+	sponsorshipB := createSponsorshipWithProofs(t, 1000)
+
+	require.Error(t, checkMinFeeWaves(sponsorshipA, params))
+	require.NoError(t, checkMinFeeWaves(sponsorshipB, params))
+
+	storage.activateFeature(t, int16(settings.BlockV5))
+
+	require.NoError(t, checkMinFeeWaves(sponsorshipA, params))
+	require.NoError(t, checkMinFeeWaves(sponsorshipB, params))
 }
