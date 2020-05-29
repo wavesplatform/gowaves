@@ -1136,7 +1136,7 @@ func (tr Transfer) Valid() (bool, error) {
 	if x := tr.Amount + tr.Fee; !validJVMLong(x) {
 		return false, errors.New("sum of amount and fee overflows JVM long")
 	}
-	if tr.Attachment.Size() > maxAttachmentLengthBytes {
+	if tr.Attachment != nil && tr.Attachment.Size() > maxAttachmentLengthBytes {
 		return false, errors.New("attachment is too long")
 	}
 	if ok, err := tr.Recipient.Valid(); !ok {
@@ -1286,10 +1286,14 @@ func (tr *Transfer) ToProtobuf() (*g.Transaction_Transfer, error) {
 	if err != nil {
 		return nil, err
 	}
+	var att *g.Attachment = nil
+	if tr.Attachment != nil {
+		att = tr.Attachment.ToProtobuf()
+	}
 	return &g.Transaction_Transfer{Transfer: &g.TransferTransactionData{
 		Recipient:  rcpProto,
 		Amount:     &g.Amount{AssetId: tr.AmountAsset.ToID(), Amount: int64(tr.Amount)},
-		Attachment: tr.Attachment.ToProtobuf(),
+		Attachment: att,
 	}}, nil
 }
 
