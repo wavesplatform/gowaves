@@ -593,7 +593,7 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 	// Check smart assets' scripts.
 	for _, smartAsset := range txSmartAssets {
 		res, err := a.sc.callAssetScript(tx, smartAsset, info.blockInfo, info.initialisation, info.acceptFailed)
-		if err != nil && info.acceptFailed {
+		if err != nil && !info.acceptFailed {
 			return nil, err
 		}
 		if err != nil || res.Failed() {
