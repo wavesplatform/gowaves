@@ -641,7 +641,7 @@ func (tx *TransferWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error 
 	if tx.FeeAsset.Present {
 		fal += crypto.DigestSize
 	}
-	atl := tx.Attachment.Size()
+	atl := tx.attachmentSize()
 	rl := tx.Recipient.len
 	bl := transferWithProofsFixedBodyLen + aal + fal + atl + rl
 	data = data[bl:]
@@ -2561,7 +2561,7 @@ type MassTransferWithProofs struct {
 }
 
 func (tx MassTransferWithProofs) BinarySize() int {
-	size := 2 + tx.Proofs.BinarySize() + crypto.PublicKeySize + tx.Asset.BinarySize() + 16 + 2 + tx.Attachment.Size()
+	size := 2 + tx.Proofs.BinarySize() + crypto.PublicKeySize + tx.Asset.BinarySize() + 16 + 2 + tx.attachmentSize()
 	size += 2
 	for _, tr := range tx.Transfers {
 		size += tr.BinarySize()
@@ -2653,10 +2653,17 @@ func (tx MassTransferWithProofs) Valid() (bool, error) {
 			return false, errors.New("sum of amounts of transfers and transaction fee is bigger than JVM long")
 		}
 	}
-	if tx.Attachment.Size() > maxAttachmentLengthBytes {
+	if tx.attachmentSize() > maxAttachmentLengthBytes {
 		return false, errors.New("attachment too long")
 	}
 	return true, nil
+}
+
+func (tx *MassTransferWithProofs) attachmentSize() int {
+	if tx.Attachment != nil {
+		return tx.Attachment.Size()
+	}
+	return 0
 }
 
 func (tx *MassTransferWithProofs) bodyAndAssetLen() (int, int) {
@@ -2669,7 +2676,7 @@ func (tx *MassTransferWithProofs) bodyAndAssetLen() (int, int) {
 	for _, e := range tx.Transfers {
 		rls += e.Recipient.len
 	}
-	al := tx.Attachment.Size()
+	al := tx.attachmentSize()
 	return massTransferWithProofsFixedLen + l + n*massTransferEntryLen + rls + al, l
 }
 

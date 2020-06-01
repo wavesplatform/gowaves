@@ -351,7 +351,6 @@ func (c *ProtobufConverter) attachment(att *g.Attachment, untyped bool) Attachme
 		return nil
 	}
 	if att == nil {
-		c.err = errors.New("empty attachment")
 		return nil
 	}
 	if untyped {
