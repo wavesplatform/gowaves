@@ -177,7 +177,7 @@ func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FS
 		zap.S().Debug(err)
 		return fsm, nil, err
 	}
-	zap.S().Debugf("Protobuf block received '%s'", b.ID)
+	zap.S().Debugf("Protobuf block received '%s'", b.ID.String())
 	return fsm.Block(mess.ID, b)
 }
 
