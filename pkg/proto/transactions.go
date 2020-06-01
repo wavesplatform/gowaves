@@ -1105,7 +1105,7 @@ type Transfer struct {
 func (tr Transfer) BinarySize() int {
 	aaSize := tr.AmountAsset.BinarySize()
 	faSize := tr.FeeAsset.BinarySize()
-	return crypto.PublicKeySize + aaSize + faSize + 24 + tr.Recipient.BinarySize() + tr.Attachment.Size() + 2
+	return crypto.PublicKeySize + aaSize + faSize + 24 + tr.Recipient.BinarySize() + tr.attachmentSize() + 2
 }
 
 func (tr Transfer) GetSenderPK() crypto.PublicKey {
@@ -1136,13 +1136,20 @@ func (tr Transfer) Valid() (bool, error) {
 	if x := tr.Amount + tr.Fee; !validJVMLong(x) {
 		return false, errors.New("sum of amount and fee overflows JVM long")
 	}
-	if tr.Attachment.Size() > maxAttachmentLengthBytes {
+	if tr.attachmentSize() > maxAttachmentLengthBytes {
 		return false, errors.New("attachment is too long")
 	}
 	if ok, err := tr.Recipient.Valid(); !ok {
 		return false, errors.Wrapf(err, "invalid recipient '%s'", tr.Recipient.String())
 	}
 	return true, nil
+}
+
+func (tr *Transfer) attachmentSize() int {
+	if tr.Attachment != nil {
+		return tr.Attachment.Size()
+	}
+	return 0
 }
 
 func (tr *Transfer) marshalBinary() ([]byte, error) {
@@ -1286,10 +1293,14 @@ func (tr *Transfer) ToProtobuf() (*g.Transaction_Transfer, error) {
 	if err != nil {
 		return nil, err
 	}
+	var att *g.Attachment = nil
+	if tr.Attachment != nil {
+		att = tr.Attachment.ToProtobuf()
+	}
 	return &g.Transaction_Transfer{Transfer: &g.TransferTransactionData{
 		Recipient:  rcpProto,
 		Amount:     &g.Amount{AssetId: tr.AmountAsset.ToID(), Amount: int64(tr.Amount)},
-		Attachment: tr.Attachment.ToProtobuf(),
+		Attachment: att,
 	}}, nil
 }
 

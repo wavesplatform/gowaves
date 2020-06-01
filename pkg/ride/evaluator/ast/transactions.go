@@ -294,6 +294,17 @@ func newVariablesFromPayment(scheme proto.Scheme, tx *proto.Payment) (map[string
 	return out, nil
 }
 
+func setAttachment(obj map[string]Expr, a proto.Attachment) error {
+	if a != nil {
+		ab, err := a.Bytes()
+		if err != nil {
+			return err
+		}
+		obj["attachment"] = NewBytes(ab)
+	}
+	return nil
+}
+
 func newVariablesFromTransferWithSig(scheme byte, tx *proto.TransferWithSig) (map[string]Expr, error) {
 	funcName := "newVariablesFromTransferWithSig"
 
@@ -302,11 +313,10 @@ func newVariablesFromTransferWithSig(scheme byte, tx *proto.TransferWithSig) (ma
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["assetId"] = makeOptionalAsset(tx.AmountAsset)
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	attachmentBytes, err := tx.Attachment.Bytes()
+	err := setAttachment(out, tx.Attachment)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["attachment"] = NewBytes(attachmentBytes)
 	out["id"] = NewBytes(common.Dup(tx.ID.Bytes()))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
@@ -338,11 +348,10 @@ func newVariablesFromTransferWithProofs(scheme byte, tx *proto.TransferWithProof
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["assetId"] = makeOptionalAsset(tx.AmountAsset)
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	attachmentBytes, err := tx.Attachment.Bytes()
+	err := setAttachment(out, tx.Attachment)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["attachment"] = NewBytes(attachmentBytes)
 	out["id"] = NewBytes(common.Dup(tx.ID.Bytes()))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
@@ -510,11 +519,10 @@ func newVariablesFromMassTransferWithProofs(scheme proto.Scheme, tx *proto.MassT
 	}
 	out["transfers"] = transfers
 	out["transferCount"] = NewLong(int64(len(tx.Transfers)))
-	attachmentBytes, err := tx.Attachment.Bytes()
+	err := setAttachment(out, tx.Attachment)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["attachment"] = NewBytes(attachmentBytes)
 	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
