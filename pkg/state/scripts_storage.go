@@ -233,20 +233,20 @@ func (ss *scriptsStorage) setAssetScript(assetID crypto.Digest, script proto.Scr
 	return ss.setScript(assetScript, keyBytes, record, blockID)
 }
 
-func (ss *scriptsStorage) newestIsSmartAsset(assetID crypto.Digest, filter bool) (bool, error) {
+func (ss *scriptsStorage) newestIsSmartAsset(assetID crypto.Digest, filter bool) bool {
 	if r, ok := ss.uncertainAssetScripts[assetID]; ok {
-		return len(r.script) != 0, nil
+		return len(r.script) != 0
 	}
 	key := assetScriptKey{assetID}
 	keyBytes := key.bytes()
 	if _, has := ss.cache.get(keyBytes); has {
-		return true, nil
+		return true
 	}
 	recordBytes, err := ss.hs.freshLatestEntryData(keyBytes, filter)
 	if err != nil {
-		return false, nil
+		return false
 	}
-	return len(recordBytes) > crypto.KeySize, nil
+	return len(recordBytes) > crypto.KeySize
 }
 
 func (ss *scriptsStorage) isSmartAsset(assetID crypto.Digest, filter bool) (bool, error) {

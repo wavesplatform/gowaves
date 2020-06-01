@@ -227,10 +227,7 @@ func (tc *transactionChecker) smartAssets(assets []proto.OptionalAsset, initiali
 			// Waves can not be scripted.
 			continue
 		}
-		hasScript, err := tc.stor.scriptsStorage.newestIsSmartAsset(asset.ID, !initialisation)
-		if err != nil {
-			return nil, err
-		}
+		hasScript := tc.stor.scriptsStorage.newestIsSmartAsset(asset.ID, !initialisation)
 		if hasScript {
 			smartAssets = append(smartAssets, asset.ID)
 		}
@@ -975,10 +972,7 @@ func (tc *transactionChecker) checkSponsorshipWithProofs(transaction proto.Trans
 	if assetInfo.issuer != tx.SenderPK {
 		return nil, errors.New("asset was issued by other address")
 	}
-	isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
-	if err != nil {
-		return nil, err
-	}
+	isSmart := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
 	if isSmart {
 		return nil, errors.Errorf("can not sponsor smart asset %s", tx.AssetID.String())
 	}
@@ -1039,10 +1033,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return nil, errors.Wrap(err, "invalid timestamp")
 	}
-	isSmartAsset, err := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
-	if err != nil {
-		return nil, err
-	}
+	isSmartAsset := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
 	if !isSmartAsset {
 		return nil, errors.Errorf("asset %s is not smart, can not set script for it", tx.AssetID.String())
 	}

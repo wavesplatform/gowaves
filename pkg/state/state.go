@@ -2024,10 +2024,7 @@ func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo,
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
+	scripted := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
 	return &proto.AssetInfo{
 		ID:              assetID,
 		Quantity:        info.quantity.Uint64(),
@@ -2075,10 +2072,7 @@ func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAs
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
 	}
-	isScripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
+	isScripted := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
 	if isScripted {
 		scriptInfo, err := s.NewestScriptInfoByAsset(assetID)
 		if err != nil {

@@ -148,10 +148,7 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (uint64, err
 	// Therefore, the extra fee for smart fee asset below is also wrong, but it must be there,
 	// again for compatibility with Scala.
 	if params.txAssets.feeAsset.Present {
-		hasScript, err := params.stor.scriptsStorage.newestIsSmartAsset(params.txAssets.feeAsset.ID, !params.initialisation)
-		if err != nil {
-			return 0, err
-		}
+		hasScript := params.stor.scriptsStorage.newestIsSmartAsset(params.txAssets.feeAsset.ID, !params.initialisation)
 		if hasScript {
 			scriptsCost += scriptExtraFee
 		}
