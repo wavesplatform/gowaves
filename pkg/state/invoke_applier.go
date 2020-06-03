@@ -213,6 +213,16 @@ type addlInvokeInfo struct {
 }
 
 func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, info *addlInvokeInfo) (proto.TxFailureReason, txBalanceChanges, error) {
+	// Check smart asset scripts on payments.
+	for _, smartAsset := range info.paymentSmartAssets {
+		r, err := ia.sc.callAssetScript(tx, smartAsset, info.blockInfo, info.initialisation, info.acceptFailed)
+		if err != nil {
+			return proto.DAppError, info.failedChanges, errors.Errorf("failed to call asset %s script on payment: %v", smartAsset.String(), err)
+		}
+		if r.Failed() {
+			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset(r, smartAsset)
+		}
+	}
 	// Resolve all aliases.
 	// It has to be done before validation because we validate addresses, not aliases.
 	if err := ia.resolveAliases(info.actions, info.initialisation); err != nil {
@@ -264,7 +274,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				// Call asset script if transferring smart asset.
 				res, err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, info.blockInfo, info.initialisation, info.acceptFailed)
 				if err != nil {
-					return proto.DAppError, info.failedChanges, errors.Wrap(err, "asset script failed on transfer set")
+					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to call asset script on transfer set")
 				}
 				if res.Failed() {
 					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(res, a.Asset.ID)
@@ -429,16 +439,6 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			ia.stor.sponsoredAssets.sponsorAssetUncertain(a.AssetID, uint64(a.MinFee))
 		default:
 			return proto.DAppError, info.failedChanges, errors.Errorf("unsupported script action '%T'", a)
-		}
-	}
-	// After performing actions we should check smart asset scripts on payments.
-	for _, smartAsset := range info.paymentSmartAssets {
-		r, err := ia.sc.callAssetScript(tx, smartAsset, info.blockInfo, info.initialisation, info.acceptFailed)
-		if err != nil {
-			return proto.DAppError, info.failedChanges, errors.Errorf("asset %s script on payment failed: %v", smartAsset.String(), err)
-		}
-		if r.Failed() {
-			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset(r, smartAsset)
 		}
 	}
 	if info.acceptFailed {
