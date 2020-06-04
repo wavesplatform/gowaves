@@ -644,6 +644,60 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenFailOnBurnTooMuch(t *testing.T
 	assert.Error(t, err)
 }
 
+func TestFailedApplyInvokeScriptWithProofs(t *testing.T) {
+	to, path := createInvokeApplierTestObjects(t)
+
+	defer func() {
+		err := to.state.Close()
+		require.NoError(t, err, "state.Close() failed")
+		err = os.RemoveAll(path)
+		require.NoError(t, err, "failed to remove test data dir")
+	}()
+
+	info := defaultFallibleValidationParams(t)
+	info.acceptFailed = true
+	err := to.state.stateDB.addBlock(info.block.BlockID())
+	assert.NoError(t, err)
+	// Invoke applier object.
+	dir, err := getLocalDir()
+	require.NoError(t, err, "getLocalDir() failed")
+	dAppPath := filepath.Join(dir, "testdata", "scripts", "ride4_asset.base64")
+	scriptBase64, err := ioutil.ReadFile(dAppPath)
+	require.NoError(t, err, "ReadFile() failed")
+	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
+	require.NoError(t, err, "ScriptBytesFromBase64() failed")
+	to.setScript(t, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptBytes)
+
+	fee := FeeUnit * feeConstants[proto.InvokeScriptTransaction]
+	startBalance := fee * 3
+	to.setInitialWavesBalance(t, testGlobal.senderInfo.addr, startBalance)
+	senderBalance, err := to.state.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	require.NoError(t, err)
+	assert.Equal(t, startBalance, senderBalance)
+
+	name := "Somerset"
+	description := fmt.Sprintf("Asset '%s' was generated automatically", name)
+	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
+	feeAsset := proto.OptionalAsset{Present: false}
+	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	txID := *tx.ID
+	newAsset := proto.GenerateIssueScriptActionID(name, description, 2, 100000, true, 0, txID)
+	res := to.applyAndSaveInvoke(t, tx, info)
+	assert.True(t, res.status)
+
+	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	res = to.applyAndSaveInvoke(t, tx, info)
+	assert.True(t, res.status)
+
+	// Second reissue should fail as asset made non-reissuable with the first one
+	fc = proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	tx = createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc, feeAsset, fee)
+	res, err = to.state.appender.ia.applyInvokeScriptWithProofs(tx, info)
+	assert.NoError(t, err)
+	assert.False(t, res.status)
+}
+
 //TODO: add test on sponsorship made by DApp, create new DApp, that will issue and sponsor asset,
 // test also the function call that issues and sets sponsorship in one turn.
 
