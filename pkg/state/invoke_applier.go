@@ -455,14 +455,14 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 }
 
 // For InvokeScript transactions there is no performer function.
-// Instead, here (in applyInvokeScriptWithProofs) we perform both balance and state changes
+// Instead, here (in applyInvokeScript) we perform both balance and state changes
 // along with fee validation which is normally done in checker function.
 // We can not check fee in checker because before function invocation, we don't have Actions
 // and can not evaluate how many smart assets (= script runs) will be involved, while this directly
 // affects minimum allowed fee.
 // That is why invoke transaction is applied to state in a different way - here, unlike other
 // transaction types.
-func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams) (*applicationResult, error) {
+func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams) (*applicationResult, error) {
 	// In defer we should clean all the temp changes invoke does to state.
 	defer func() {
 		ia.invokeDiffStor.invokeDiffsStor.reset()

@@ -106,7 +106,7 @@ func (to *invokeApplierTestObjects) activateFeature(t *testing.T, feature int16)
 }
 
 func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams) *applicationResult {
-	res, err := to.state.appender.ia.applyInvokeScriptWithProofs(tx, info)
+	res, err := to.state.appender.ia.applyInvokeScript(tx, info)
 	assert.NoError(t, err)
 	err = to.state.appender.diffStor.saveTxDiff(res.changes.diff)
 	assert.NoError(t, err)
@@ -161,7 +161,7 @@ type invokeApplierTestData struct {
 func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestObjects, info *fallibleValidationParams) {
 	tx := createInvokeScriptWithProofs(t, id.payments, id.fc, feeAsset, invokeFee)
 	if id.errorRes {
-		_, err := to.state.appender.ia.applyInvokeScriptWithProofs(tx, info)
+		_, err := to.state.appender.ia.applyInvokeScript(tx, info)
 		assert.Error(t, err)
 		return
 	}
@@ -251,7 +251,7 @@ func verify() = {
 }
 */
 
-func TestApplyInvokeScriptWithProofsPaymentsAndData(t *testing.T) {
+func TestApplyInvokeScriptPaymentsAndData(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
 
 	defer func() {
@@ -297,7 +297,7 @@ func TestApplyInvokeScriptWithProofsPaymentsAndData(t *testing.T) {
 	}
 }
 
-func TestApplyInvokeScriptWithProofsWithIssuesTransfers(t *testing.T) {
+func TestApplyInvokeScriptTransfers(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
 
 	defer func() {
@@ -361,7 +361,7 @@ func TestApplyInvokeScriptWithProofsWithIssuesTransfers(t *testing.T) {
 	}
 }
 
-func TestApplyInvokeScriptWithProofsWithIssues(t *testing.T) {
+func TestApplyInvokeScriptWithIssues(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
 
 	defer func() {
@@ -399,7 +399,7 @@ func TestApplyInvokeScriptWithProofsWithIssues(t *testing.T) {
 	}
 }
 
-func TestApplyInvokeScriptWithProofsWithIssuesThenReissue(t *testing.T) {
+func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
 
 	defer func() {
@@ -451,7 +451,7 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissue(t *testing.T) {
 	}
 }
 
-func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenBurn(t *testing.T) {
+func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
 
 	defer func() {
@@ -517,7 +517,7 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenBurn(t *testing.T) 
 	}
 }
 
-func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
+func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
 
 	defer func() {
@@ -574,7 +574,7 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenReissueThenFailOnReissue(t *te
 	}
 }
 
-func TestApplyInvokeScriptWithProofsWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
+func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
 
 	defer func() {
@@ -633,7 +633,7 @@ func TestApplyInvokeScriptWithProofsWithIssuesThenFailOnBurnTooMuch(t *testing.T
 	}
 }
 
-func TestFailedApplyInvokeScriptWithProofs(t *testing.T) {
+func TestFailedApplyInvokeScript(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
 
 	defer func() {
@@ -699,8 +699,8 @@ func TestFailedApplyInvokeScriptWithProofs(t *testing.T) {
 	}
 }
 
-//TODO: add test on sponsorship made by DApp, create new DApp, that will issue and sponsor asset,
+// TODO: add test on sponsorship made by DApp: create new DApp that will issue and sponsor asset,
 // test also the function call that issues and sets sponsorship in one turn.
 
-//TODO: add test on impossibility of sponsorship of smart asset using DApp, issue smart asset with simple script using
+// TODO: add test on impossibility of sponsorship of smart asset using DApp: issue smart asset with simple script using
 // usual transaction and then try to set sponsorship using invoke.

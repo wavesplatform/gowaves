@@ -499,7 +499,7 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 	if !ok {
 		return nil, errors.New("failed to convert transaction to type InvokeScriptWithProofs")
 	}
-	res, err := a.ia.applyInvokeScriptWithProofs(invokeTx, info)
+	res, err := a.ia.applyInvokeScript(invokeTx, info)
 	if err != nil {
 		return nil, errors.Errorf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
 	}
