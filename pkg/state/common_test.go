@@ -57,6 +57,7 @@ type testAddrData struct {
 	sk        crypto.SecretKey
 	pk        crypto.PublicKey
 	addr      proto.Address
+	rcp       proto.Recipient
 	wavesKey  string
 	assetKeys []string
 }
@@ -107,13 +108,14 @@ func newTestAddrData(seedStr string, assets [][]byte) (*testAddrData, error) {
 	if err != nil {
 		return nil, err
 	}
+	rcp := proto.NewRecipientFromAddress(addr)
 	wavesKey := string((&wavesBalanceKey{addr}).bytes())
 
 	assetKeys := make([]string, len(assets))
 	for i, a := range assets {
 		assetKeys[i] = string((&assetBalanceKey{addr, a}).bytes())
 	}
-	return &testAddrData{sk: sk, pk: pk, addr: addr, wavesKey: wavesKey, assetKeys: assetKeys}, nil
+	return &testAddrData{sk: sk, pk: pk, addr: addr, rcp: rcp, wavesKey: wavesKey, assetKeys: assetKeys}, nil
 }
 
 type testAssetData struct {
