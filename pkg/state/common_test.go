@@ -57,8 +57,42 @@ type testAddrData struct {
 	sk        crypto.SecretKey
 	pk        crypto.PublicKey
 	addr      proto.Address
+	rcp       proto.Recipient
 	wavesKey  string
 	assetKeys []string
+}
+
+func defaultBlock() *proto.BlockHeader {
+	return &proto.BlockHeader{BlockSignature: blockID0.Signature(), Timestamp: defaultTimestamp}
+}
+
+func defaultBlockInfo() *proto.BlockInfo {
+	genSig := crypto.MustBytesFromBase58("2eYyRDZwRCuXJhJTfwKYsqVFpBTg8v69RBppZzStWtaR")
+	return &proto.BlockInfo{
+		Timestamp:           defaultTimestamp,
+		Height:              400000,
+		BaseTarget:          943,
+		GenerationSignature: genSig,
+		Generator:           testGlobal.minerInfo.addr,
+		GeneratorPublicKey:  testGlobal.minerInfo.pk,
+	}
+}
+
+func defaultDifferInfo(t *testing.T) *differInfo {
+	return &differInfo{false, defaultBlockInfo()}
+}
+
+func defaultFallibleValidationParams(t *testing.T) *fallibleValidationParams {
+	return &fallibleValidationParams{
+		checkerInfo:    defaultCheckerInfo(t),
+		blockInfo:      defaultBlockInfo(),
+		block:          defaultBlock(),
+		senderScripted: false,
+		checkScripts:   true,
+		acceptFailed:   false,
+		validatingUtx:  false,
+		initialisation: false,
+	}
 }
 
 func newTestAddrData(seedStr string, assets [][]byte) (*testAddrData, error) {
@@ -74,13 +108,14 @@ func newTestAddrData(seedStr string, assets [][]byte) (*testAddrData, error) {
 	if err != nil {
 		return nil, err
 	}
+	rcp := proto.NewRecipientFromAddress(addr)
 	wavesKey := string((&wavesBalanceKey{addr}).bytes())
 
 	assetKeys := make([]string, len(assets))
 	for i, a := range assets {
 		assetKeys[i] = string((&assetBalanceKey{addr, a}).bytes())
 	}
-	return &testAddrData{sk: sk, pk: pk, addr: addr, wavesKey: wavesKey, assetKeys: assetKeys}, nil
+	return &testAddrData{sk: sk, pk: pk, addr: addr, rcp: rcp, wavesKey: wavesKey, assetKeys: assetKeys}, nil
 }
 
 type testAssetData struct {

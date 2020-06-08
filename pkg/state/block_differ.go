@@ -110,32 +110,34 @@ func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID proto.BlockID, min
 	return diff, minerAddr, nil
 }
 
-func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, height uint64, vrf []byte, initialisation, status bool) (txBalanceChanges, error) {
-	blockInfo, err := proto.BlockInfoFromHeader(d.settings.AddressSchemeCharacter, block, height, vrf)
-	if err != nil {
-		return txBalanceChanges{}, err
-	}
-	differInfo := &differInfo{initialisation, blockInfo}
+func (d *blockDiffer) createFailedTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, differInfo *differInfo) (txBalanceChanges, error) {
 	var txChanges txBalanceChanges
-	if status {
-		txChanges, err = d.handler.createDiffTx(tx, differInfo)
-	} else {
-		txChanges, err = d.handler.createFeeDiffTx(tx, differInfo)
-	}
-	if err != nil {
-		return txBalanceChanges{}, err
+	var err error
+	switch tx.GetTypeInfo().Type {
+	case proto.InvokeScriptTransaction:
+		txChanges, err = d.handler.td.createFeeDiffInvokeScriptWithProofs(tx, differInfo)
+		if err != nil {
+			return txBalanceChanges{}, err
+		}
+	case proto.ExchangeTransaction:
+		txChanges, err = d.handler.td.createFeeDiffExchange(tx, differInfo)
+		if err != nil {
+			return txBalanceChanges{}, err
+		}
+	default:
+		return txBalanceChanges{}, errors.New("only Exchange and Invoke transactions may fail")
 	}
 	d.appendBlockInfoToTxDiff(txChanges.diff, block)
 	return txChanges, nil
 }
 
-func (d *blockDiffer) createTransactionFeeDiff(tx proto.Transaction, blockInfo *proto.BlockInfo, initialisation bool) (txBalanceChanges, error) {
-	differInfo := &differInfo{initialisation, blockInfo}
-	txFeeChanges, err := d.handler.createFeeDiffTx(tx, differInfo)
+func (d *blockDiffer) createTransactionDiff(tx proto.Transaction, block *proto.BlockHeader, differInfo *differInfo) (txBalanceChanges, error) {
+	txChanges, err := d.handler.createDiffTx(tx, differInfo)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
-	return txFeeChanges, nil
+	d.appendBlockInfoToTxDiff(txChanges.diff, block)
+	return txChanges, nil
 }
 
 func (d *blockDiffer) countMinerFee(tx proto.Transaction) error {

@@ -149,13 +149,13 @@ func (a *SponsorshipScriptAction) ToProtobuf() *g.InvokeScriptResult_SponsorFee 
 }
 
 type ScriptErrorMessage struct {
-	Code int32
+	Code TxFailureReason
 	Text string
 }
 
 func (msg *ScriptErrorMessage) ToProtobuf() *g.InvokeScriptResult_ErrorMessage {
 	return &g.InvokeScriptResult_ErrorMessage{
-		Code: msg.Code,
+		Code: int32(msg.Code),
 		Text: msg.Text,
 	}
 }

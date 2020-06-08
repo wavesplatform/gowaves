@@ -41,19 +41,6 @@ func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
 	return &differTestObjects{stor, td, tp}, path
 }
 
-func defaultDifferInfo(t *testing.T) *differInfo {
-	genSig := crypto.MustBytesFromBase58("2eYyRDZwRCuXJhJTfwKYsqVFpBTg8v69RBppZzStWtaR")
-	blockInfo := &proto.BlockInfo{
-		Timestamp:           defaultTimestamp,
-		Height:              400000,
-		BaseTarget:          943,
-		GenerationSignature: genSig,
-		Generator:           testGlobal.minerInfo.addr,
-		GeneratorPublicKey:  testGlobal.minerInfo.pk,
-	}
-	return &differInfo{false, blockInfo}
-}
-
 func createGenesis(t *testing.T) *proto.Genesis {
 	return proto.NewUnsignedGenesis(testGlobal.recipientInfo.addr, defaultAmount, defaultTimestamp)
 }

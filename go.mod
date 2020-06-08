@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.12
+go 1.11
 
 require (
 	github.com/OneOfOne/xxhash v1.2.5 // indirect

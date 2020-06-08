@@ -161,7 +161,7 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	}
 	a.baseInfo.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
-	should, err := a.baseInfo.storage.ShouldPersisAddressTransactions()
+	should, err := a.baseInfo.storage.ShouldPersistAddressTransactions()
 	if err != nil {
 		return a, nil, err
 	}

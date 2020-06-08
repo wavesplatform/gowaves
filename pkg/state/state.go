@@ -134,16 +134,18 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 
 func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
 	sh := &proto.StateHash{
-		BlockID:           blockID,
-		WavesBalanceHash:  s.balances.wavesHashAt(blockID),
-		AssetBalanceHash:  s.balances.assetsHashAt(blockID),
-		DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
-		AccountScriptHash: s.scriptsStorage.accountScriptsHasher.stateHashAt(blockID),
-		AssetScriptHash:   s.scriptsStorage.assetScriptsHasher.stateHashAt(blockID),
-		LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
-		LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
-		SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
-		AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
+		BlockID: blockID,
+		FieldsHashes: proto.FieldsHashes{
+			WavesBalanceHash:  s.balances.wavesHashAt(blockID),
+			AssetBalanceHash:  s.balances.assetsHashAt(blockID),
+			DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
+			AccountScriptHash: s.scriptsStorage.accountScriptsHasher.stateHashAt(blockID),
+			AssetScriptHash:   s.scriptsStorage.assetScriptsHasher.stateHashAt(blockID),
+			LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
+			LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
+			SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
+			AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
+		},
 	}
 	if err := sh.GenerateSumHash(prevHash); err != nil {
 		return nil, err
@@ -218,6 +220,29 @@ func (s *blockchainEntitiesStorage) rollback(newHeight, oldHeight uint64) error 
 	return nil
 }
 
+func (s *blockchainEntitiesStorage) commitUncertain(blockID proto.BlockID) error {
+	if err := s.assets.commitUncertain(blockID); err != nil {
+		return err
+	}
+	if err := s.accountsDataStor.commitUncertain(blockID); err != nil {
+		return err
+	}
+	if err := s.scriptsStorage.commitUncertain(blockID); err != nil {
+		return err
+	}
+	if err := s.sponsoredAssets.commitUncertain(blockID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *blockchainEntitiesStorage) dropUncertain() {
+	s.assets.dropUncertain()
+	s.accountsDataStor.dropUncertain()
+	s.scriptsStorage.dropUncertain()
+	s.sponsoredAssets.dropUncertain()
+}
+
 func (s *blockchainEntitiesStorage) reset() {
 	s.hs.reset()
 	s.assets.reset()
@@ -264,6 +289,94 @@ func checkCompatibility(stateDB *stateDB, params StateParams) error {
 	return nil
 }
 
+type newBlocks struct {
+	binary    bool
+	binBlocks [][]byte
+	blocks    []*proto.Block
+	curPos    int
+
+	rw       *blockReadWriter
+	settings *settings.BlockchainSettings
+}
+
+func newNewBlocks(rw *blockReadWriter, settings *settings.BlockchainSettings) *newBlocks {
+	return &newBlocks{
+		rw:       rw,
+		settings: settings,
+	}
+}
+
+func (n *newBlocks) len() int {
+	if n.binary {
+		if n.curPos > len(n.binBlocks) {
+			return 0
+		}
+		return len(n.binBlocks) - n.curPos
+	}
+	if n.curPos > len(n.blocks) {
+		return 0
+	}
+	return len(n.blocks) - n.curPos
+}
+
+func (n *newBlocks) setNewBinary(blocks [][]byte) {
+	n.reset()
+	n.binBlocks = blocks
+	n.binary = true
+}
+
+func (n *newBlocks) setNew(blocks []*proto.Block) {
+	n.reset()
+	n.blocks = blocks
+	n.binary = false
+}
+
+func (n *newBlocks) next() bool {
+	n.curPos++
+	if n.binary {
+		return n.curPos <= len(n.binBlocks)
+	} else {
+		return n.curPos <= len(n.blocks)
+	}
+}
+
+func (n *newBlocks) unmarshalBlock(block *proto.Block, blockBytes []byte) error {
+	if n.rw.protobufActivated {
+		if err := block.UnmarshalFromProtobuf(blockBytes); err != nil {
+			return err
+		}
+	} else {
+		if err := block.UnmarshalBinary(blockBytes, n.settings.AddressSchemeCharacter); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (n *newBlocks) current() (*proto.Block, error) {
+	if !n.binary {
+		if n.curPos > len(n.blocks) || n.curPos < 1 {
+			return nil, errors.New("bad current position")
+		}
+		return n.blocks[n.curPos-1], nil
+	}
+	if n.curPos > len(n.binBlocks) || n.curPos < 1 {
+		return nil, errors.New("bad current position")
+	}
+	blockBytes := n.binBlocks[n.curPos-1]
+	b := &proto.Block{}
+	if err := n.unmarshalBlock(b, blockBytes); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func (n *newBlocks) reset() {
+	n.binBlocks = nil
+	n.blocks = nil
+	n.curPos = 0
+}
+
 type stateManager struct {
 	mu *sync.RWMutex // `mu` is used outside of state and returned in Mutex() function.
 
@@ -295,6 +408,8 @@ type stateManager struct {
 	// The height when last features voting took place.
 	lastVotingHeight             uint64
 	lastBlockRewardTermEndHeight uint64
+
+	newBlocks *newBlocks
 }
 
 func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -381,6 +496,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		atx:                       atx,
 		peers:                     newPeerStorage(db),
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
+		newBlocks:                 newNewBlocks(rw, settings),
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
@@ -941,27 +1057,10 @@ func (s *stateManager) undoBlockAddition() error {
 }
 
 func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
-	b := &proto.Block{}
-	err := b.UnmarshalBinary(block, s.settings.AddressSchemeCharacter)
-	if err != nil {
-		return nil, err
-	}
+	s.newBlocks.setNewBinary([][]byte{block})
 	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
 	s.appender.reset()
-	rs, err := s.addBlocks([]*proto.Block{b}, false)
-	if err != nil {
-		if err := s.undoBlockAddition(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
-		}
-		return nil, err
-	}
-	return rs, nil
-}
-
-func (s *stateManager) addBlock(block *proto.Block) (*proto.Block, error) {
-	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
-	s.appender.reset()
-	rs, err := s.addBlocks([]*proto.Block{block}, false)
+	rs, err := s.addBlocks(false)
 	if err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
@@ -972,22 +1071,24 @@ func (s *stateManager) addBlock(block *proto.Block) (*proto.Block, error) {
 }
 
 func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
-	return s.addBlock(block)
+	s.newBlocks.setNew([]*proto.Block{block})
+	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
+	s.appender.reset()
+	rs, err := s.addBlocks(false)
+	if err != nil {
+		if err := s.undoBlockAddition(); err != nil {
+			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
+		}
+		return nil, err
+	}
+	return rs, nil
 }
 
 func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
-	var blocks []*proto.Block
-	for _, bts := range blockBytes {
-		block := &proto.Block{}
-		err := block.UnmarshalBinary(bts, s.settings.AddressSchemeCharacter)
-		if err != nil {
-			return err
-		}
-		blocks = append(blocks, block)
-	}
+	s.newBlocks.setNewBinary(blockBytes)
 	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
 	s.appender.reset()
-	if _, err := s.addBlocks(blocks, false); err != nil {
+	if _, err := s.addBlocks(false); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
 		}
@@ -997,9 +1098,10 @@ func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
 }
 
 func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+	s.newBlocks.setNew(blocks)
 	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
 	s.appender.reset()
-	lastBlock, err := s.addBlocks(blocks, false)
+	lastBlock, err := s.addBlocks(false)
 	if err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
@@ -1010,18 +1112,10 @@ func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.B
 }
 
 func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
-	var blocks []*proto.Block
-	for _, bts := range blockBytes {
-		block := &proto.Block{}
-		err := block.UnmarshalBinary(bts, s.settings.AddressSchemeCharacter)
-		if err != nil {
-			return err
-		}
-		blocks = append(blocks, block)
-	}
+	s.newBlocks.setNewBinary(blockBytes)
 	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
 	s.appender.reset()
-	if _, err := s.addBlocks(blocks, true); err != nil {
+	if _, err := s.addBlocks(true); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
 		}
@@ -1031,9 +1125,10 @@ func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
 }
 
 func (s *stateManager) AddOldDeserializedBlocks(blocks []*proto.Block) error {
+	s.newBlocks.setNew(blocks)
 	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
 	s.appender.reset()
-	if _, err := s.addBlocks(blocks, true); err != nil {
+	if _, err := s.addBlocks(true); err != nil {
 		if err := s.undoBlockAddition(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
 		}
@@ -1246,7 +1341,7 @@ func (s *stateManager) cancelLeases(curBlockHeight uint64, blockID proto.BlockID
 	return nil
 }
 
-func (s *stateManager) handleBreak(blocksToFinish []*proto.Block, initialisation bool, task *breakerTask) (*proto.Block, error) {
+func (s *stateManager) handleBreak(initialisation bool, task *breakerTask) (*proto.Block, error) {
 	if task == nil {
 		return nil, wrapErr(Other, errors.New("handleBreak received empty task"))
 	}
@@ -1267,16 +1362,16 @@ func (s *stateManager) handleBreak(blocksToFinish []*proto.Block, initialisation
 		}
 		s.disabledStolenAliases = true
 	}
-	if len(blocksToFinish) == 0 {
+	if s.newBlocks.len() == 0 {
 		return s.TopBlock(), nil
 	}
-	return s.addBlocks(blocksToFinish, initialisation)
+	return s.addBlocks(initialisation)
 }
 
-func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*proto.Block, error) {
+func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	blocksNumber := len(blocks)
+	blocksNumber := s.newBlocks.len()
 	if blocksNumber == 0 {
 		return nil, wrapErr(InvalidInputError, errors.New("no blocks provided"))
 	}
@@ -1301,9 +1396,8 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	// at defined height of the blockchain.
 	// When such events occur inside of the blocks batch, this batch must be splitted, so the event
 	// can be performed with consistent database state, with all the recent changes being saved to disk.
-	// After performing the event, addBlocks() calls itself with the rest of the blocks batch.
-	// blocksToFinish stores these blocks, breakerInfo specifies type of the event.
-	var blocksToFinish []*proto.Block
+	// After performing the event, addBlocks() calls itself and continues to add the rest of the blocks batch.
+	// breakerInfo specifies type of the event.
 	breakerInfo := &breakerTask{blockID: parent.BlockID()}
 
 	// Launch verifier that checks signatures of blocks and transactions.
@@ -1314,18 +1408,15 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 	var ids []proto.BlockID
 	needToCancelLeases := false
 	curBlockHeight := height + 1
-	for i, block := range blocks {
-		curHeight := height + uint64(i)
-		curBlockHeight = curHeight + 1
-		breakAdding, err := s.needToBreakAddingBlocks(curHeight, breakerInfo)
+	pos := 0
+	for s.newBlocks.next() {
+		block, err := s.newBlocks.current()
 		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+			return nil, wrapErr(DeserializationError, err)
 		}
-		if breakAdding {
-			// Need to break at this height, so we split block batch in order to cancel and finish with the rest blocks after.
-			blocksToFinish = blocks[i:]
-			break
-		}
+		curHeight := height + uint64(pos)
+		curBlockHeight = curHeight + 1
+		nextHeight := curHeight + 1
 		breakerInfo.blockID = block.BlockID()
 		// Send block for signature verification, which works in separate goroutine.
 		task := &verifyTask{
@@ -1365,15 +1456,19 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		if err := s.addNewBlock(block, parent, initialisation, chans, curHeight); err != nil {
 			return nil, wrapErr(TxValidationError, err)
 		}
-		headers[i] = block.BlockHeader
+		headers[pos] = block.BlockHeader
+		pos++
 		parent = block
 		ids = append(ids, block.BlockID())
 		needToCancelLeases, err = s.needToCancelLeases(curBlockHeight)
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
-		if needToCancelLeases {
-			blocksToFinish = blocks[i+1:]
+		breakAdding, err := s.needToBreakAddingBlocks(nextHeight, breakerInfo)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		if breakAdding || needToCancelLeases {
 			break
 		}
 	}
@@ -1395,7 +1490,7 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		return nil, wrapErr(ModificationError, err)
 	}
 	// Validate consensus (i.e. that all of the new blocks were mined fairly).
-	if err := s.cv.ValidateHeaders(headers[:len(headers)-len(blocksToFinish)], height); err != nil {
+	if err := s.cv.ValidateHeaders(headers[:pos], height); err != nil {
 		return nil, wrapErr(ValidationError, err)
 	}
 	// Check the result of signatures verification.
@@ -1415,12 +1510,13 @@ func (s *stateManager) addBlocks(blocks []*proto.Block, initialisation bool) (*p
 		return nil, wrapErr(RetrievalError, err)
 	}
 	// Check if we need to perform some event and call addBlocks() again.
-	if blocksToFinish != nil {
-		return s.handleBreak(blocksToFinish, initialisation, breakerInfo)
+	if s.newBlocks.len() != 0 {
+		return s.handleBreak(initialisation, breakerInfo)
 	}
 	if lastBlock != nil {
 		zap.S().Infof("Height: %d; Block ID: %s", height+uint64(blocksNumber), lastBlock.BlockID().String())
 	}
+	s.newBlocks.reset()
 	return lastBlock, nil
 }
 
@@ -1620,8 +1716,8 @@ func (s *stateManager) ResetValidationList() {
 }
 
 // For UTX validation.
-func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, vrf []byte, acceptFailed bool) error {
-	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, vrf, acceptFailed); err != nil {
+func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, checkScripts bool) error {
+	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, checkScripts); err != nil {
 		return wrapErr(TxValidationError, err)
 	}
 	return nil
@@ -1842,7 +1938,6 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 }
 
 func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
-	//TODO: use transaction failure status
 	tx, _, err := s.rw.readNewestTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1851,12 +1946,19 @@ func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, erro
 }
 
 func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
-	//TODO: use transaction failure status
 	tx, _, err := s.rw.readTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return tx, nil
+}
+
+func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+	tx, status, err := s.rw.readTransaction(id)
+	if err != nil {
+		return nil, false, wrapErr(RetrievalError, err)
+	}
+	return tx, status, nil
 }
 
 func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
@@ -1922,10 +2024,7 @@ func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo,
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
+	scripted := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
 	return &proto.AssetInfo{
 		ID:              assetID,
 		Quantity:        info.quantity.Uint64(),
@@ -1973,10 +2072,7 @@ func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAs
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
 	}
-	isScripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
+	isScripted := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
 	if isScripted {
 		scriptInfo, err := s.NewestScriptInfoByAsset(assetID)
 		if err != nil {
@@ -2217,11 +2313,11 @@ func (s *stateManager) StartProvidingExtendedApi() error {
 	return nil
 }
 
-func (s *stateManager) PersisAddressTransactions() error {
-	return s.atx.persist(true, true)
+func (s *stateManager) PersistAddressTransactions() error {
+	return s.atx.persist(true)
 }
 
-func (s *stateManager) ShouldPersisAddressTransactions() (bool, error) {
+func (s *stateManager) ShouldPersistAddressTransactions() (bool, error) {
 	return s.atx.shouldPersist()
 }
 

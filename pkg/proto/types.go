@@ -3534,8 +3534,12 @@ func (b *FullWavesBalance) ToProtobuf() *pb.BalanceResponse_WavesBalances {
 }
 
 type StateHash struct {
-	BlockID           BlockID
-	SumHash           crypto.Digest
+	BlockID BlockID
+	SumHash crypto.Digest
+	FieldsHashes
+}
+
+type FieldsHashes struct {
 	DataEntryHash     crypto.Digest
 	AccountScriptHash crypto.Digest
 	AssetScriptHash   crypto.Digest
@@ -3545,6 +3549,49 @@ type StateHash struct {
 	WavesBalanceHash  crypto.Digest
 	AssetBalanceHash  crypto.Digest
 	LeaseBalanceHash  crypto.Digest
+}
+
+type fieldsHashesJS struct {
+	DataEntryHash     DigestWrapped `json:"dataEntryHash"`
+	AccountScriptHash DigestWrapped `json:"accountScriptHash"`
+	AssetScriptHash   DigestWrapped `json:"assetScriptHash"`
+	LeaseStatusHash   DigestWrapped `json:"leaseStatusHash"`
+	SponsorshipHash   DigestWrapped `json:"sponsorshipHash"`
+	AliasesHash       DigestWrapped `json:"aliasHash"`
+	WavesBalanceHash  DigestWrapped `json:"wavesBalanceHash"`
+	AssetBalanceHash  DigestWrapped `json:"assetBalanceHash"`
+	LeaseBalanceHash  DigestWrapped `json:"leaseBalanceHash"`
+}
+
+func (s FieldsHashes) MarshalJSON() ([]byte, error) {
+	return json.Marshal(fieldsHashesJS{
+		DigestWrapped(s.DataEntryHash),
+		DigestWrapped(s.AccountScriptHash),
+		DigestWrapped(s.AssetScriptHash),
+		DigestWrapped(s.LeaseStatusHash),
+		DigestWrapped(s.SponsorshipHash),
+		DigestWrapped(s.AliasesHash),
+		DigestWrapped(s.WavesBalanceHash),
+		DigestWrapped(s.AssetBalanceHash),
+		DigestWrapped(s.LeaseBalanceHash),
+	})
+}
+
+func (s *FieldsHashes) UnmasrhalJSON(value []byte) error {
+	var sh fieldsHashesJS
+	if err := json.Unmarshal(value, &sh); err != nil {
+		return err
+	}
+	s.DataEntryHash = crypto.Digest(sh.DataEntryHash)
+	s.AccountScriptHash = crypto.Digest(sh.AccountScriptHash)
+	s.AssetScriptHash = crypto.Digest(sh.AssetScriptHash)
+	s.LeaseStatusHash = crypto.Digest(sh.LeaseStatusHash)
+	s.SponsorshipHash = crypto.Digest(sh.SponsorshipHash)
+	s.AliasesHash = crypto.Digest(sh.AliasesHash)
+	s.WavesBalanceHash = crypto.Digest(sh.WavesBalanceHash)
+	s.AssetBalanceHash = crypto.Digest(sh.AssetBalanceHash)
+	s.LeaseBalanceHash = crypto.Digest(sh.LeaseBalanceHash)
+	return nil
 }
 
 func (s *StateHash) GenerateSumHash(prevSumHash []byte) error {
@@ -3687,32 +3734,26 @@ func (d *DigestWrapped) UnmarshalJSON(value []byte) error {
 }
 
 type stateHashJS struct {
-	BlockID           BlockID       `json:"blockId"`
-	SumHash           DigestWrapped `json:"stateHash"`
-	DataEntryHash     DigestWrapped `json:"dataEntryHash"`
-	AccountScriptHash DigestWrapped `json:"accountScriptHash"`
-	AssetScriptHash   DigestWrapped `json:"assetScriptHash"`
-	LeaseStatusHash   DigestWrapped `json:"leaseStatusHash"`
-	SponsorshipHash   DigestWrapped `json:"sponsorshipHash"`
-	AliasesHash       DigestWrapped `json:"aliasHash"`
-	WavesBalanceHash  DigestWrapped `json:"wavesBalanceHash"`
-	AssetBalanceHash  DigestWrapped `json:"assetBalanceHash"`
-	LeaseBalanceHash  DigestWrapped `json:"leaseBalanceHash"`
+	BlockID BlockID       `json:"blockId"`
+	SumHash DigestWrapped `json:"stateHash"`
+	fieldsHashesJS
 }
 
 func (s StateHash) MarshalJSON() ([]byte, error) {
 	return json.Marshal(stateHashJS{
 		s.BlockID,
 		DigestWrapped(s.SumHash),
-		DigestWrapped(s.DataEntryHash),
-		DigestWrapped(s.AccountScriptHash),
-		DigestWrapped(s.AssetScriptHash),
-		DigestWrapped(s.LeaseStatusHash),
-		DigestWrapped(s.SponsorshipHash),
-		DigestWrapped(s.AliasesHash),
-		DigestWrapped(s.WavesBalanceHash),
-		DigestWrapped(s.AssetBalanceHash),
-		DigestWrapped(s.LeaseBalanceHash),
+		fieldsHashesJS{
+			DigestWrapped(s.DataEntryHash),
+			DigestWrapped(s.AccountScriptHash),
+			DigestWrapped(s.AssetScriptHash),
+			DigestWrapped(s.LeaseStatusHash),
+			DigestWrapped(s.SponsorshipHash),
+			DigestWrapped(s.AliasesHash),
+			DigestWrapped(s.WavesBalanceHash),
+			DigestWrapped(s.AssetBalanceHash),
+			DigestWrapped(s.LeaseBalanceHash),
+		},
 	})
 }
 

@@ -567,7 +567,7 @@ func (c *ProtobufConverter) ErrorMessage(msg *g.InvokeScriptResult_ErrorMessage)
 		return nil, c.err
 	}
 	return &ScriptErrorMessage{
-		Code: msg.Code,
+		Code: TxFailureReason(msg.Code),
 		Text: msg.Text,
 	}, nil
 }

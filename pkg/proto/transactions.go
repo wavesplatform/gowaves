@@ -35,6 +35,16 @@ const (
 	UpdateAssetInfoTransaction                            // 17 - UpdateAssetInfoTransaction
 )
 
+// Transactions failure reasons.
+type TxFailureReason byte
+
+const (
+	DAppError TxFailureReason = iota + 1
+	InsufficientActionsFee
+	SmartAssetOnActionFailure
+	SmartAssetOnPaymentFailure
+)
+
 const (
 	maxAttachmentLengthBytes = 140
 	maxDescriptionLen        = 1000

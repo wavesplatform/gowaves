@@ -96,7 +96,7 @@ func TestGetActiveLeases(t *testing.T) {
 	require.NoError(t, err)
 	tx, err := st.TransactionByID(txId.Bytes())
 	require.NoError(t, err)
-	correctRes, err := server.transactionToTransactionResponse(tx, true)
+	correctRes, err := server.transactionToTransactionResponse(tx, true, false)
 	require.NoError(t, err)
 	assertTransactionResponsesEqual(t, correctRes, res)
 	_, err = stream.Recv()

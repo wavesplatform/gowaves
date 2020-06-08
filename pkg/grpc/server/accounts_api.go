@@ -62,8 +62,8 @@ type getActiveLeasesHandler struct {
 	s   *Server
 }
 
-func (h *getActiveLeasesHandler) handle(tx proto.Transaction) error {
-	res, err := h.s.transactionToTransactionResponse(tx, true)
+func (h *getActiveLeasesHandler) handle(tx proto.Transaction, failed bool) error {
+	res, err := h.s.transactionToTransactionResponse(tx, true, failed)
 	if err != nil {
 		return errors.Wrap(err, "failed to form transaction response")
 	}

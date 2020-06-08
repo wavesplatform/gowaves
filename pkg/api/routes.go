@@ -20,10 +20,11 @@ func (a *NodeApi) routes() chi.Router {
 		r.Get("/suspended", a.PeersSuspended)
 		r.Get("/spawned", a.PeersSpawned)
 	})
-	r.Get("/miner/info", a.Minerinfo)
+	r.Get("/miner/info", a.MinerInfo)
 	r.Post("/transactions/broadcast", a.TransactionsBroadcast)
 
 	r.Post("/wallet/load", WalletLoadKeys(a.app))
+	r.Get("/wallet/accounts", a.WalletAccounts)
 
 	r.Get("/node/processes", a.nodeProcesses)
 	r.Get("/debug/stateHash/{height:\\d+}", a.stateHash)

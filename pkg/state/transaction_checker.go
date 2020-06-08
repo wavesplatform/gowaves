@@ -227,10 +227,7 @@ func (tc *transactionChecker) smartAssets(assets []proto.OptionalAsset, initiali
 			// Waves can not be scripted.
 			continue
 		}
-		hasScript, err := tc.stor.scriptsStorage.newestIsSmartAsset(asset.ID, !initialisation)
-		if err != nil {
-			return nil, err
-		}
+		hasScript := tc.stor.scriptsStorage.newestIsSmartAsset(asset.ID, !initialisation)
 		if hasScript {
 			smartAssets = append(smartAssets, asset.ID)
 		}
@@ -624,11 +621,6 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	m := make(map[proto.OptionalAsset]struct{})
 	m[so.GetAssetPair().AmountAsset] = struct{}{}
 	m[so.GetAssetPair().PriceAsset] = struct{}{}
-	// allAssets does not include matcher fee assets.
-	allAssets := make([]proto.OptionalAsset, 0, len(m))
-	for a := range m {
-		allAssets = append(allAssets, a)
-	}
 	// Add matcher fee assets to map to checkAsset() them later.
 	if o2v3, ok := tx.GetOrder2().(*proto.OrderV3); ok {
 		m[o2v3.MatcherFeeAsset] = struct{}{}
@@ -646,6 +638,10 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 		if err := tc.checkAsset(&a, info.initialisation); err != nil {
 			return nil, err
 		}
+	}
+	allAssets := make([]proto.OptionalAsset, 0, len(m))
+	for a := range m {
+		allAssets = append(allAssets, a)
 	}
 	smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
 	if err != nil {
@@ -976,10 +972,7 @@ func (tc *transactionChecker) checkSponsorshipWithProofs(transaction proto.Trans
 	if assetInfo.issuer != tx.SenderPK {
 		return nil, errors.New("asset was issued by other address")
 	}
-	isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
-	if err != nil {
-		return nil, err
-	}
+	isSmart := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
 	if isSmart {
 		return nil, errors.Errorf("can not sponsor smart asset %s", tx.AssetID.String())
 	}
@@ -1040,10 +1033,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return nil, errors.Wrap(err, "invalid timestamp")
 	}
-	isSmartAsset, err := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
-	if err != nil {
-		return nil, err
-	}
+	isSmartAsset := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
 	if !isSmartAsset {
 		return nil, errors.Errorf("asset %s is not smart, can not set script for it", tx.AssetID.String())
 	}
@@ -1107,8 +1097,6 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 		}
 		paymentAssets = append(paymentAssets, payment.Asset)
 	}
-	// Only payment assets' scripts are called before invoke function and with
-	// state that doesn't have any changes caused by this invokeScript tx yet.
 	smartAssets, err := tc.smartAssets(paymentAssets, info.initialisation)
 	if err != nil {
 		return nil, err

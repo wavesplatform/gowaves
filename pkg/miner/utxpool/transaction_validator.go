@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -33,20 +32,12 @@ func (a *ValidatorImpl) Validate(t proto.Transaction) error {
 	if currentTimestamp-lastKnownBlock.Timestamp > DELTA {
 		return errors.New("state outdated, transaction not accepted")
 	}
-	stateHeight, err := a.state.Height()
-	if err != nil {
-		return err
-	}
-	vrf, err := a.state.BlockVRF(&lastKnownBlock.BlockHeader, stateHeight)
-	if err != nil {
-		return err
-	}
-	acceptFailed, err := a.state.IsActivated(int16(settings.BlockV5))
+	checkScripts, err := needToCheckScriptsInUtx(a.state)
 	if err != nil {
 		return err
 	}
 	return a.state.TxValidation(func(validation state.TxValidation) error {
-		return validation.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, vrf, acceptFailed)
+		return validation.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, checkScripts)
 	})
 }
 

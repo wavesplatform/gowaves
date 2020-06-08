@@ -39,6 +39,24 @@ type feeValidationParams struct {
 	txAssets       *txAssets
 }
 
+type assetParams struct {
+	quantity   int64
+	decimals   int32
+	reissuable bool
+}
+
+func isNFT(features *features, params assetParams) (bool, error) {
+	nftAsset := params.quantity == 1 && params.decimals == 0 && !params.reissuable
+	if !nftAsset {
+		return false, nil
+	}
+	nftActivated, err := features.isActivated(int16(settings.ReduceNFTFee))
+	if err != nil {
+		return false, err
+	}
+	return nftActivated, nil
+}
+
 func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, error) {
 	txType := tx.GetTypeInfo().Type
 	baseFee, ok := feeConstants[txType]
@@ -48,23 +66,21 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 	fee := baseFee
 	switch txType {
 	case proto.IssueTransaction:
-		nft := false
+		var asset assetParams
 		switch itx := tx.(type) {
 		case *proto.IssueWithSig:
-			nft = itx.Quantity == 1 && itx.Decimals == 0 && !itx.Reissuable
+			asset = assetParams{int64(itx.Quantity), int32(itx.Decimals), itx.Reissuable}
 		case *proto.IssueWithProofs:
-			nft = itx.Quantity == 1 && itx.Decimals == 0 && !itx.Reissuable
+			asset = assetParams{int64(itx.Quantity), int32(itx.Decimals), itx.Reissuable}
 		default:
 			return 0, errors.New("failed to convert interface to Issue transaction")
 		}
+		nft, err := isNFT(params.stor.features, asset)
+		if err != nil {
+			return 0, err
+		}
 		if nft {
-			nftActive, err := params.stor.features.isActivated(int16(settings.ReduceNFTFee))
-			if err != nil {
-				return 0, err
-			}
-			if nftActive {
-				return fee / 1000, nil
-			}
+			return fee / 1000, nil
 		}
 		return fee, nil
 	case proto.MassTransferTransaction:
@@ -132,10 +148,7 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (uint64, err
 	// Therefore, the extra fee for smart fee asset below is also wrong, but it must be there,
 	// again for compatibility with Scala.
 	if params.txAssets.feeAsset.Present {
-		hasScript, err := params.stor.scriptsStorage.newestIsSmartAsset(params.txAssets.feeAsset.ID, !params.initialisation)
-		if err != nil {
-			return 0, err
-		}
+		hasScript := params.stor.scriptsStorage.newestIsSmartAsset(params.txAssets.feeAsset.ID, !params.initialisation)
 		if hasScript {
 			scriptsCost += scriptExtraFee
 		}
