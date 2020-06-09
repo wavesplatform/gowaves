@@ -126,7 +126,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		scriptsStorage,
 		scriptsComplexity,
 		invokeResults,
-		newStateHashes(hs.db, hs.dbBatch),
+		newStateHashes(hs),
 		newHitSources(hs.db, hs.dbBatch),
 		calcHashes,
 	}, nil
@@ -178,7 +178,7 @@ func (s *blockchainEntitiesStorage) prepareHashes() error {
 	return nil
 }
 
-func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
+func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, blockIds []proto.BlockID, initialisation bool) error {
 	if !s.calculateHashes {
 		return nil
 	}
@@ -189,7 +189,7 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 	if err := s.prepareHashes(); err != nil {
 		return err
 	}
-	prevHash, err := s.stateHashes.stateHash(blockchainHeight)
+	prevHash, err := s.stateHashes.stateHash(blockchainHeight, !initialisation)
 	if err != nil {
 		return err
 	}
@@ -208,11 +208,6 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 func (s *blockchainEntitiesStorage) rollback(newHeight, oldHeight uint64) error {
 	if err := s.hitSources.rollback(newHeight, oldHeight); err != nil {
 		return err
-	}
-	if s.calculateHashes {
-		if err := s.stateHashes.rollback(newHeight, oldHeight); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -1470,7 +1465,7 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		}
 	}
 	// Retrieve and store state hashes for each of new blocks.
-	if err := s.stor.handleStateHashes(height, ids); err != nil {
+	if err := s.stor.handleStateHashes(height, ids, initialisation); err != nil {
 		return nil, wrapErr(ModificationError, err)
 	}
 	// Validate consensus (i.e. that all of the new blocks were mined fairly).
@@ -2279,7 +2274,7 @@ func (s *stateManager) StateHashAtHeight(height uint64) (*proto.StateHash, error
 	if !hasData {
 		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for state hashes"))
 	}
-	sh, err := s.stor.stateHashes.stateHash(height)
+	sh, err := s.stor.stateHashes.stateHash(height, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

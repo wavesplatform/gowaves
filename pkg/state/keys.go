@@ -119,7 +119,7 @@ const (
 	// Stores state hashes at height.
 	stateHashKeyPrefix
 
-	// Hit source data
+	// Hit source data.
 	hitSourceKeyPrefix
 )
 
@@ -166,6 +166,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{invokeResultKeyPrefix}, nil
 	case score:
 		return []byte{scoreKeyPrefix}, nil
+	case stateHash:
+		return []byte{stateHashKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}

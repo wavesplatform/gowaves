@@ -33,6 +33,7 @@ const (
 	blockReward
 	invokeResult
 	score
+	stateHash
 )
 
 type blockchainEntityProperties struct {
@@ -148,6 +149,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	score: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	stateHash: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,
