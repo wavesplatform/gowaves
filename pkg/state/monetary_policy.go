@@ -58,13 +58,12 @@ func (r *rewardVotesRecord) unmarshalBinary(data []byte) error {
 }
 
 type monetaryPolicy struct {
-	db       keyvalue.IterableKeyVal
-	hs       *historyStorage
 	settings *settings.BlockchainSettings
+	hs       *historyStorage
 }
 
-func newMonetaryPolicy(db keyvalue.IterableKeyVal, hs *historyStorage, settings *settings.BlockchainSettings) (*monetaryPolicy, error) {
-	return &monetaryPolicy{db: db, hs: hs, settings: settings}, nil
+func newMonetaryPolicy(hs *historyStorage, settings *settings.BlockchainSettings) (*monetaryPolicy, error) {
+	return &monetaryPolicy{hs: hs, settings: settings}, nil
 }
 
 func (m *monetaryPolicy) reward() (uint64, error) {

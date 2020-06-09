@@ -82,7 +82,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	monetaryPolicy, err := newMonetaryPolicy(hs.db, hs, sets)
+	monetaryPolicy, err := newMonetaryPolicy(hs, sets)
 	if err != nil {
 		return nil, err
 	}
