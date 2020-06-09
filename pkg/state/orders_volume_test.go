@@ -19,10 +19,7 @@ func createOrdersVolumeStorageObjects() (*ordersVolumesStorageObjects, []string,
 	if err != nil {
 		return nil, path, err
 	}
-	ordersVolumes, err := newOrdersVolumes(stor.hs)
-	if err != nil {
-		return nil, path, err
-	}
+	ordersVolumes := newOrdersVolumes(stor.hs)
 	return &ordersVolumesStorageObjects{stor, ordersVolumes}, path, nil
 }
 

@@ -133,14 +133,14 @@ type assets struct {
 	uncertainAssetInfo map[crypto.Digest]assetInfo
 }
 
-func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage) (*assets, error) {
+func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage) *assets {
 	return &assets{
 		db:                 db,
 		dbBatch:            dbBatch,
 		hs:                 hs,
 		freshConstInfo:     make(map[crypto.Digest]assetConstInfo),
 		uncertainAssetInfo: make(map[crypto.Digest]assetInfo),
-	}, nil
+	}
 }
 
 func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord, blockID proto.BlockID) error {

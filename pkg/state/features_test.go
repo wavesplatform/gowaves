@@ -27,10 +27,7 @@ func createFeatures(sets *settings.BlockchainSettings) (*featuresTestObjects, []
 	}
 	definedFeaturesInfo := make(map[settings.Feature]settings.FeatureInfo)
 	definedFeaturesInfo[settings.Feature(featureID)] = settings.FeatureInfo{Implemented: true, Description: "test feature"}
-	features, err := newFeatures(stor.rw, stor.db, stor.hs, sets, definedFeaturesInfo)
-	if err != nil {
-		return nil, path, err
-	}
+	features := newFeatures(stor.rw, stor.db, stor.hs, sets, definedFeaturesInfo)
 	return &featuresTestObjects{stor, features}, path, nil
 }
 

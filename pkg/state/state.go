@@ -62,39 +62,7 @@ type blockchainEntitiesStorage struct {
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter, calcHashes bool) (*blockchainEntitiesStorage, error) {
-	aliases, err := newAliases(hs.db, hs.dbBatch, hs, calcHashes)
-	if err != nil {
-		return nil, err
-	}
-	assets, err := newAssets(hs.db, hs.dbBatch, hs)
-	if err != nil {
-		return nil, err
-	}
-	blocksInfo, err := newBlocksInfo(hs.db, hs.dbBatch)
-	if err != nil {
-		return nil, err
-	}
 	balances, err := newBalances(hs.db, hs, calcHashes)
-	if err != nil {
-		return nil, err
-	}
-	features, err := newFeatures(rw, hs.db, hs, sets, settings.FeaturesInfo)
-	if err != nil {
-		return nil, err
-	}
-	monetaryPolicy, err := newMonetaryPolicy(hs, sets)
-	if err != nil {
-		return nil, err
-	}
-	accountsDataStor, err := newAccountsDataStorage(hs.db, hs.dbBatch, hs, calcHashes)
-	if err != nil {
-		return nil, err
-	}
-	ordersVolumes, err := newOrdersVolumes(hs)
-	if err != nil {
-		return nil, err
-	}
-	sponsoredAssets, err := newSponsoredAssets(rw, features, hs, sets, calcHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -102,30 +70,23 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	if err != nil {
 		return nil, err
 	}
-	scriptsComplexity, err := newScriptsComplexity(hs)
-	if err != nil {
-		return nil, err
-	}
-	invokeResults, err := newInvokeResults(hs)
-	if err != nil {
-		return nil, err
-	}
+	features := newFeatures(rw, hs.db, hs, sets, settings.FeaturesInfo)
 	return &blockchainEntitiesStorage{
 		hs,
-		aliases,
-		assets,
+		newAliases(hs.db, hs.dbBatch, hs, calcHashes),
+		newAssets(hs.db, hs.dbBatch, hs),
 		newLeases(hs.db, hs, calcHashes),
 		newScores(hs),
-		blocksInfo,
+		newBlocksInfo(hs.db, hs.dbBatch),
 		balances,
 		features,
-		monetaryPolicy,
-		ordersVolumes,
-		accountsDataStor,
-		sponsoredAssets,
+		newMonetaryPolicy(hs, sets),
+		newOrdersVolumes(hs),
+		newAccountsDataStorage(hs.db, hs.dbBatch, hs, calcHashes),
+		newSponsoredAssets(rw, features, hs, sets, calcHashes),
 		scriptsStorage,
-		scriptsComplexity,
-		invokeResults,
+		newScriptsComplexity(hs),
+		newInvokeResults(hs),
 		newStateHashes(hs),
 		newHitSources(hs.db, hs.dbBatch),
 		calcHashes,

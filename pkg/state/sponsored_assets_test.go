@@ -19,14 +19,8 @@ func createSponsoredAssets() (*sponsoredAssetsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	features, err := newFeatures(stor.rw, stor.db, stor.hs, settings.MainNetSettings, settings.FeaturesInfo)
-	if err != nil {
-		return nil, path, err
-	}
-	sponsoredAssets, err := newSponsoredAssets(stor.rw, features, stor.hs, settings.MainNetSettings, true)
-	if err != nil {
-		return nil, path, err
-	}
+	features := newFeatures(stor.rw, stor.db, stor.hs, settings.MainNetSettings, settings.FeaturesInfo)
+	sponsoredAssets := newSponsoredAssets(stor.rw, features, stor.hs, settings.MainNetSettings, true)
 	return &sponsoredAssetsTestObjects{stor, features, sponsoredAssets}, path, nil
 }
 

@@ -75,7 +75,7 @@ func newSponsoredAssets(
 	hs *historyStorage,
 	settings *settings.BlockchainSettings,
 	calcHashes bool,
-) (*sponsoredAssets, error) {
+) *sponsoredAssets {
 	return &sponsoredAssets{
 		rw:                       rw,
 		features:                 features,
@@ -84,7 +84,7 @@ func newSponsoredAssets(
 		uncertainSponsoredAssets: make(map[crypto.Digest]uint64),
 		hasher:                   newStateHasher(),
 		calculateHashes:          calcHashes,
-	}, nil
+	}
 }
 
 func (s *sponsoredAssets) sponsorAsset(assetID crypto.Digest, assetCost uint64, blockID proto.BlockID) error {

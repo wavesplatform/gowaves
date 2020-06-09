@@ -37,8 +37,8 @@ type invokeResults struct {
 	hs *historyStorage
 }
 
-func newInvokeResults(hs *historyStorage) (*invokeResults, error) {
-	return &invokeResults{hs}, nil
+func newInvokeResults(hs *historyStorage) *invokeResults {
+	return &invokeResults{hs}
 }
 
 func (ir *invokeResults) invokeResult(scheme byte, invokeID crypto.Digest, filter bool) (*proto.ScriptResult, error) {

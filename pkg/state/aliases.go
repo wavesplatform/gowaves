@@ -80,8 +80,8 @@ type aliases struct {
 	hasher          *stateHasher
 }
 
-func newAliases(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, calcHashes bool) (*aliases, error) {
-	return &aliases{db: db, dbBatch: dbBatch, hs: hs, calculateHashes: calcHashes, hasher: newStateHasher()}, nil
+func newAliases(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, calcHashes bool) *aliases {
+	return &aliases{db: db, dbBatch: dbBatch, hs: hs, calculateHashes: calcHashes, hasher: newStateHasher()}
 }
 
 func (a *aliases) createAlias(aliasStr string, info *aliasInfo, blockID proto.BlockID) error {

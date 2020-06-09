@@ -83,8 +83,8 @@ func newFeatures(
 	hs *historyStorage,
 	settings *settings.BlockchainSettings,
 	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo,
-) (*features, error) {
-	return &features{rw, db, hs, settings, definedFeaturesInfo}, nil
+) *features {
+	return &features{rw, db, hs, settings, definedFeaturesInfo}
 }
 
 // addVote adds vote for feature by its featureID at given blockID.

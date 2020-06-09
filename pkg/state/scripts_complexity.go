@@ -97,8 +97,8 @@ type scriptsComplexity struct {
 	hs *historyStorage
 }
 
-func newScriptsComplexity(hs *historyStorage) (*scriptsComplexity, error) {
-	return &scriptsComplexity{hs: hs}, nil
+func newScriptsComplexity(hs *historyStorage) *scriptsComplexity {
+	return &scriptsComplexity{hs: hs}
 }
 
 func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address, filter bool) (*accountScriptComplexityRecord, error) {

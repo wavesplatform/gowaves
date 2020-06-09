@@ -62,8 +62,8 @@ type monetaryPolicy struct {
 	hs       *historyStorage
 }
 
-func newMonetaryPolicy(hs *historyStorage, settings *settings.BlockchainSettings) (*monetaryPolicy, error) {
-	return &monetaryPolicy{hs: hs, settings: settings}, nil
+func newMonetaryPolicy(hs *historyStorage, settings *settings.BlockchainSettings) *monetaryPolicy {
+	return &monetaryPolicy{hs: hs, settings: settings}
 }
 
 func (m *monetaryPolicy) reward() (uint64, error) {

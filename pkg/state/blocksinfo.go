@@ -121,8 +121,8 @@ type blocksInfo struct {
 	dbBatch keyvalue.Batch
 }
 
-func newBlocksInfo(db keyvalue.KeyValue, dbBatch keyvalue.Batch) (*blocksInfo, error) {
-	return &blocksInfo{db, dbBatch}, nil
+func newBlocksInfo(db keyvalue.KeyValue, dbBatch keyvalue.Batch) *blocksInfo {
+	return &blocksInfo{db, dbBatch}
 }
 
 func (i *blocksInfo) feeDistribution(blockID proto.BlockID) (*feeDistribution, error) {

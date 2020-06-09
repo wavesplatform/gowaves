@@ -183,9 +183,6 @@ func createTestObjects(sets *settings.BlockchainSettings) (*monetaryPolicy, *tes
 	if err != nil {
 		return nil, nil, path, err
 	}
-	mp, err := newMonetaryPolicy(storage.hs, sets)
-	if err != nil {
-		return nil, storage, path, err
-	}
+	mp := newMonetaryPolicy(storage.hs, sets)
 	return mp, storage, path, nil
 }

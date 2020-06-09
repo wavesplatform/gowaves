@@ -79,7 +79,7 @@ type accountsDataStorage struct {
 	calculateHashes bool
 }
 
-func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, calcHashes bool) (*accountsDataStorage, error) {
+func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, calcHashes bool) *accountsDataStorage {
 	return &accountsDataStorage{
 		db:               db,
 		dbBatch:          dbBatch,
@@ -88,7 +88,7 @@ func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, 
 		addrToNumMem:     make(map[proto.Address]uint64),
 		uncertainEntries: make(map[entryId]proto.DataEntry),
 		calculateHashes:  calcHashes,
-	}, nil
+	}
 }
 
 func (s *accountsDataStorage) getLastAddrNum() (uint64, error) {
