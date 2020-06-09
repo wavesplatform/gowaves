@@ -168,6 +168,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{scoreKeyPrefix}, nil
 	case stateHash:
 		return []byte{stateHashKeyPrefix}, nil
+	case hitSource:
+		return []byte{hitSourceKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -645,5 +647,16 @@ func (k *stateHashKey) bytes() []byte {
 	buf := make([]byte, 9)
 	buf[0] = stateHashKeyPrefix
 	binary.BigEndian.PutUint64(buf[1:], k.height)
+	return buf
+}
+
+type hitSourceKey struct {
+	height uint64
+}
+
+func (k *hitSourceKey) bytes() []byte {
+	buf := make([]byte, 9)
+	buf[0] = hitSourceKeyPrefix
+	binary.LittleEndian.PutUint64(buf[1:], k.height)
 	return buf
 }

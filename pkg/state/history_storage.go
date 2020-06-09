@@ -34,6 +34,7 @@ const (
 	invokeResult
 	score
 	stateHash
+	hitSource
 )
 
 type blockchainEntityProperties struct {
@@ -157,6 +158,12 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,
+	},
+	hitSource: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true,
+		recordSize:   hitSourceSize + 4,
 	},
 }
 

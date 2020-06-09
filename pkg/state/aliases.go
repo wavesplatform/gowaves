@@ -12,9 +12,7 @@ import (
 
 var errAliasDisabled = errors.New("alias was stolen and is now disabled")
 
-const (
-	aliasRecordSize = 1 + proto.AddressSize
-)
+const aliasRecordSize = 1 + proto.AddressSize
 
 type aliasRecordForStateHashes struct {
 	addr  *proto.Address

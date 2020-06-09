@@ -88,7 +88,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newScriptsComplexity(hs),
 		newInvokeResults(hs),
 		newStateHashes(hs),
-		newHitSources(hs.db, hs.dbBatch),
+		newHitSources(hs, rw),
 		calcHashes,
 	}, nil
 }
@@ -162,13 +162,6 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 			return err
 		}
 		prevHash = newPrevHash
-	}
-	return nil
-}
-
-func (s *blockchainEntitiesStorage) rollback(newHeight, oldHeight uint64) error {
-	if err := s.hitSources.rollback(newHeight, oldHeight); err != nil {
-		return err
 	}
 	return nil
 }
@@ -508,12 +501,12 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.stor.scores.appendBlockScore(&s.genesis, 1, false); err != nil {
 		return err
 	}
-	if err := s.stor.hitSources.saveHitSource(s.genesis.GenSignature, 1); err != nil {
-		return err
-	}
 	chans := newVerifierChans()
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 	if err := s.addNewBlock(&s.genesis, nil, true, chans, 0); err != nil {
+		return err
+	}
+	if err := s.stor.hitSources.saveHitSource(s.genesis.GenSignature, 1); err != nil {
 		return err
 	}
 	close(chans.tasksChan)
@@ -577,8 +570,7 @@ func (s *stateManager) handleGenesisBlock(block proto.Block) error {
 		if err := s.addGenesisBlock(); err != nil {
 			return errors.Errorf("failed to apply/save genesis: %v", err)
 		}
-		// TODO: we apply preactivated features after genesis block, so they aren't active in genesis itself.
-		// Probably it makes sense though, because genesis must be block version 1.
+		// We apply preactivated features after genesis block, so they aren't active in genesis itself.
 		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures, block.BlockID()); err != nil {
 			return errors.Errorf("failed to apply preactivated features: %v\n", err)
 		}
@@ -1525,15 +1517,6 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	if err := s.rw.rollback(removalEdge, true); err != nil {
 		return wrapErr(RollbackError, err)
 	}
-	// Rollback entities stored by block height.
-	newHeight, err := s.Height()
-	if err != nil {
-		return wrapErr(RetrievalError, err)
-	}
-	oldHeight := curHeight + 1
-	if err := s.stor.rollback(newHeight, oldHeight); err != nil {
-		return wrapErr(RollbackError, err)
-	}
 	// Clear scripts cache.
 	if err := s.stor.scriptsStorage.clear(); err != nil {
 		return wrapErr(RollbackError, err)
@@ -1578,7 +1561,7 @@ func (s *stateManager) HitSourceAtHeight(height uint64) ([]byte, error) {
 		return nil, wrapErr(InvalidInputError,
 			errors.Errorf("HitSourceAtHeight: height %d out of valid range [%d, %d]", height, 1, maxHeight))
 	}
-	hs, err := s.stor.hitSources.hitSource(height)
+	hs, err := s.stor.hitSources.hitSource(height, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
