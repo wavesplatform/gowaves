@@ -164,6 +164,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{blockRewardKeyPrefix}, nil
 	case invokeResult:
 		return []byte{invokeResultKeyPrefix}, nil
+	case score:
+		return []byte{scoreKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}

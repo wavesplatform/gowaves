@@ -32,6 +32,7 @@ const (
 	rewardVotes
 	blockReward
 	invokeResult
+	score
 )
 
 type blockchainEntityProperties struct {
@@ -142,6 +143,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		recordSize:   blockRewardRecordSize + 4,
 	},
 	invokeResult: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	score: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

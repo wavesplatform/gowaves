@@ -115,7 +115,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		aliases,
 		assets,
 		newLeases(hs.db, hs, calcHashes),
-		newScores(hs.db, hs.dbBatch),
+		newScores(hs),
 		blocksInfo,
 		balances,
 		features,
@@ -206,9 +206,6 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 }
 
 func (s *blockchainEntitiesStorage) rollback(newHeight, oldHeight uint64) error {
-	if err := s.scores.rollback(newHeight, oldHeight); err != nil {
-		return err
-	}
 	if err := s.hitSources.rollback(newHeight, oldHeight); err != nil {
 		return err
 	}
@@ -549,14 +546,10 @@ func (s *stateManager) Map(func(State) error) error {
 }
 
 func (s *stateManager) addGenesisBlock() error {
-	// Add score of genesis block.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	genesisScore, err := CalculateScore(s.genesis.BaseTarget)
-	if err != nil {
-		return err
-	}
-	if err := s.stor.scores.addScore(&big.Int{}, genesisScore, 1); err != nil {
+	// Add score of genesis block.
+	if err := s.stor.scores.appendBlockScore(&s.genesis, 1, false); err != nil {
 		return err
 	}
 	if err := s.stor.hitSources.saveHitSource(s.genesis.GenSignature, 1); err != nil {
@@ -1386,10 +1379,6 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	prevScore, err := s.stor.scores.score(height)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
 	headers := make([]proto.BlockHeader, blocksNumber)
 
 	// Some 'events', like finish of voting periods or cancelling invalid leases, happen (or happened)
@@ -1430,17 +1419,12 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		case chans.tasksChan <- task:
 		}
 		lastBlock = block
-		// Add score.
-		score, err := CalculateScore(block.BaseTarget)
-		if err != nil {
-			return nil, wrapErr(Other, err)
-		}
-		if err := s.stor.scores.addScore(prevScore, score, curBlockHeight); err != nil {
-			return nil, wrapErr(ModificationError, err)
-		}
-		prevScore = score
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
 		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
+			return nil, wrapErr(ModificationError, err)
+		}
+		// Add score.
+		if err := s.stor.scores.appendBlockScore(block, curBlockHeight, !initialisation); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
 		if s.needToResetVotes(curBlockHeight) {
@@ -1622,7 +1606,7 @@ func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 	if height < 1 || height > maxHeight {
 		return nil, wrapErr(InvalidInputError, errors.New("ScoreAtHeight: height out of valid range"))
 	}
-	score, err := s.stor.scores.score(height)
+	score, err := s.stor.scores.score(height, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
