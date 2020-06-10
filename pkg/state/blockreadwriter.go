@@ -523,14 +523,6 @@ func (rw *blockReadWriter) recentHeight() uint64 {
 	return rw.height
 }
 
-func (rw *blockReadWriter) currentHeight() (uint64, error) {
-	height, err := rw.getHeight()
-	if err != nil {
-		return 0, err
-	}
-	return height, nil
-}
-
 func (rw *blockReadWriter) newestTransactionHeightByID(txID []byte) (uint64, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()

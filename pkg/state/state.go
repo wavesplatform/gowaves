@@ -677,7 +677,7 @@ func (s *stateManager) NewestHeight() (uint64, error) {
 }
 
 func (s *stateManager) Height() (uint64, error) {
-	height, err := s.rw.currentHeight()
+	height, err := s.rw.getHeight()
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -1494,7 +1494,7 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	if err := s.checkRollbackInput(removalEdge); err != nil {
 		return wrapErr(InvalidInputError, err)
 	}
-	curHeight, err := s.rw.currentHeight()
+	curHeight, err := s.rw.getHeight()
 	if err != nil {
 		return wrapErr(RetrievalError, err)
 	}
