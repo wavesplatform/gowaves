@@ -1498,6 +1498,18 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	if err != nil {
 		return wrapErr(RetrievalError, err)
 	}
+
+	defer func() {
+		// Clear scripts cache.
+		if err := s.stor.scriptsStorage.clear(); err != nil {
+			zap.S().Fatalf("Failed to clear scripts cache after rollback: %v", err)
+		}
+		if err := s.loadLastBlock(); err != nil {
+			zap.S().Fatalf("Failed to load last block after rollback: %v", err)
+		}
+	}()
+
+	// Remove block ids from valid blocks list.
 	for height := curHeight; height > 0; height-- {
 		blockID, err := s.rw.blockIDByHeight(height)
 		if err != nil {
@@ -1513,13 +1525,6 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	// Remove blocks from block storage.
 	if err := s.rw.rollback(removalEdge, true); err != nil {
 		return wrapErr(RollbackError, err)
-	}
-	// Clear scripts cache.
-	if err := s.stor.scriptsStorage.clear(); err != nil {
-		return wrapErr(RollbackError, err)
-	}
-	if err := s.loadLastBlock(); err != nil {
-		return wrapErr(RetrievalError, err)
 	}
 	return nil
 }
