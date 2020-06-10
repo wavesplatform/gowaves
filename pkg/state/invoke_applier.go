@@ -95,6 +95,7 @@ func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr *proto.Address, 
 	if err != nil {
 		return txDiff{}, err
 	}
+	// TODO: set updateMinIntermediateBalance to true here after BlockV5 activation.
 	// updateMinIntermediateBalance is set to false here, because in Scala implementation
 	// only fee and payments are checked for temporary negative balance.
 	return ia.newTxDiffFromPayment(pmt, false, info)
@@ -104,6 +105,7 @@ func (ia *invokeApplier) newTxDiffFromScriptIssue(scriptAddr *proto.Address, act
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: *scriptAddr, asset: action.ID[:]}
 	senderAssetBalanceDiff := int64(action.Quantity)
+	// TODO: set updateMinIntermediateBalance to true here after BlockV5 activation.
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
 	}
@@ -114,6 +116,7 @@ func (ia *invokeApplier) newTxDiffFromScriptReissue(scriptAddr *proto.Address, a
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: *scriptAddr, asset: action.AssetID[:]}
 	senderAssetBalanceDiff := action.Quantity
+	// TODO: set updateMinIntermediateBalance to true here after BlockV5 activation.
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
 	}
@@ -124,6 +127,7 @@ func (ia *invokeApplier) newTxDiffFromScriptBurn(scriptAddr *proto.Address, acti
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: *scriptAddr, asset: action.AssetID[:]}
 	senderAssetBalanceDiff := -action.Quantity
+	// TODO: set updateMinIntermediateBalance to true here after BlockV5 activation.
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
 	}
