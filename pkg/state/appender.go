@@ -310,7 +310,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
 	// in case NG is activated, or empty diff otherwise.
-	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent, params.height)
+	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent, params.height, params.initialisation)
 	if err != nil {
 		return err
 	}

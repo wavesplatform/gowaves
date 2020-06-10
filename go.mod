@@ -3,6 +3,7 @@ module github.com/wavesplatform/gowaves
 go 1.11
 
 require (
+	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/OneOfOne/xxhash v1.2.5 // indirect
 	github.com/alecthomas/kong v0.2.0
 	github.com/beevik/ntp v0.2.0

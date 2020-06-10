@@ -35,6 +35,7 @@ const (
 	score
 	stateHash
 	hitSource
+	feeDistr
 )
 
 type blockchainEntityProperties struct {
@@ -164,6 +165,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		needToCut:    true,
 		fixedSize:    true,
 		recordSize:   hitSourceSize + 4,
+	},
+	feeDistr: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
 	},
 }
 

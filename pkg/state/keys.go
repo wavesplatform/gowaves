@@ -170,6 +170,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{stateHashKeyPrefix}, nil
 	case hitSource:
 		return []byte{hitSourceKeyPrefix}, nil
+	case feeDistr:
+		return []byte{blocksInfoKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}

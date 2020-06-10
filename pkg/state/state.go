@@ -77,7 +77,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newAssets(hs.db, hs.dbBatch, hs),
 		newLeases(hs.db, hs, calcHashes),
 		newScores(hs),
-		newBlocksInfo(hs.db, hs.dbBatch),
+		newBlocksInfo(hs),
 		balances,
 		features,
 		newMonetaryPolicy(hs, sets),
@@ -1507,9 +1507,6 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 			break
 		}
 		if err := s.stateDB.rollbackBlock(blockID); err != nil {
-			return wrapErr(RollbackError, err)
-		}
-		if err := s.stor.blocksInfo.rollback(blockID); err != nil {
 			return wrapErr(RollbackError, err)
 		}
 	}
