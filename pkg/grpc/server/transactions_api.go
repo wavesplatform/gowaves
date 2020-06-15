@@ -49,11 +49,11 @@ func (s *Server) GetTransactions(req *g.TransactionsRequest, srv g.TransactionsA
 		if len(req.TransactionIds) > 0 {
 			handler := &getTransactionsHandler{srv, s}
 			for _, bts := range req.TransactionIds {
-				tx, err := s.state.TransactionByID(bts)
+				tx, failed, err := s.state.TransactionByIDWithStatus(bts)
 				if err != nil {
 					continue
 				}
-				err = handler.handle(tx)
+				err = handler.handle(tx, failed)
 				if err != nil {
 					continue
 				}

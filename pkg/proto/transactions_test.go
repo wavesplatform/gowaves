@@ -2545,7 +2545,6 @@ func TestExchangeWithSigProtobufRoundTrip(t *testing.T) {
 		fee     uint64
 	}{
 		{*bo, *so, 98765, 456, 789, 987, 654},
-		{*so, *bo, 1234, 5678, 9012, 3456, 7890},
 	}
 	for _, tc := range tests {
 		ts := uint64(time.Now().UnixNano() / 1000000)
