@@ -57,11 +57,11 @@ func TestGetTransactions(t *testing.T) {
 	}
 	stream, err := cl.GetTransactions(ctx, req)
 	require.NoError(t, err)
-	correctRes, err := server.transactionToTransactionResponse(tx, true)
+	correctRes, err := server.transactionToTransactionResponse(tx, true, false)
 	require.NoError(t, err)
 	res, err := stream.Recv()
 	require.NoError(t, err)
-	assert.Equal(t, correctRes, res)
+	assertTransactionResponsesEqual(t, correctRes, res)
 	_, err = stream.Recv()
 	assert.Equal(t, io.EOF, err)
 
@@ -74,7 +74,7 @@ func TestGetTransactions(t *testing.T) {
 	require.NoError(t, err)
 	res, err = stream.Recv()
 	require.NoError(t, err)
-	assert.Equal(t, correctRes, res)
+	assertTransactionResponsesEqual(t, correctRes, res)
 	_, err = stream.Recv()
 	assert.Equal(t, io.EOF, err)
 
@@ -87,7 +87,7 @@ func TestGetTransactions(t *testing.T) {
 	require.NoError(t, err)
 	res, err = stream.Recv()
 	require.NoError(t, err)
-	assert.Equal(t, correctRes, res)
+	assertTransactionResponsesEqual(t, correctRes, res)
 	_, err = stream.Recv()
 	assert.Equal(t, io.EOF, err)
 
@@ -101,7 +101,7 @@ func TestGetTransactions(t *testing.T) {
 	require.NoError(t, err)
 	res, err = stream.Recv()
 	require.NoError(t, err)
-	assert.Equal(t, correctRes, res)
+	assertTransactionResponsesEqual(t, correctRes, res)
 	_, err = stream.Recv()
 	assert.Equal(t, io.EOF, err)
 }
@@ -164,7 +164,7 @@ func TestGetStatuses(t *testing.T) {
 	for _, correctRes := range correstResults {
 		res, err := stream.Recv()
 		require.NoError(t, err)
-		assert.Equal(t, correctRes, res)
+		assertTransactionStatusesEqual(t, correctRes, res)
 	}
 	_, err = stream.Recv()
 	assert.Equal(t, io.EOF, err)
@@ -219,11 +219,11 @@ func TestGetUnconfirmed(t *testing.T) {
 	}
 	stream, err := cl.GetUnconfirmed(ctx, req)
 	require.NoError(t, err)
-	correctRes, err := server.transactionToTransactionResponse(tx, false)
+	correctRes, err := server.transactionToTransactionResponse(tx, false, false)
 	require.NoError(t, err)
 	res, err := stream.Recv()
 	require.NoError(t, err)
-	assert.Equal(t, correctRes, res)
+	assertTransactionResponsesEqual(t, correctRes, res)
 	_, err = stream.Recv()
 	assert.Equal(t, io.EOF, err)
 
@@ -235,7 +235,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	require.NoError(t, err)
 	res, err = stream.Recv()
 	require.NoError(t, err)
-	assert.Equal(t, correctRes, res)
+	assertTransactionResponsesEqual(t, correctRes, res)
 	_, err = stream.Recv()
 	assert.Equal(t, io.EOF, err)
 
@@ -249,7 +249,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	require.NoError(t, err)
 	res, err = stream.Recv()
 	require.NoError(t, err)
-	assert.Equal(t, correctRes, res)
+	assertTransactionResponsesEqual(t, correctRes, res)
 	_, err = stream.Recv()
 	assert.Equal(t, io.EOF, err)
 
@@ -264,7 +264,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	require.NoError(t, err)
 	res, err = stream.Recv()
 	require.NoError(t, err)
-	assert.Equal(t, correctRes, res)
+	assertTransactionResponsesEqual(t, correctRes, res)
 	_, err = stream.Recv()
 	assert.Equal(t, io.EOF, err)
 }

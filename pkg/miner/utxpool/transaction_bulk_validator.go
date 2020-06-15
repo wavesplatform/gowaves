@@ -43,12 +43,8 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 	var transactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
-	stateHeight, err := a.state.Height()
-	if err != nil {
-		return nil, err
-	}
 
-	vrf, err := a.state.BlockVRF(&lastKnownBlock.BlockHeader, stateHeight)
+	checkScripts, err := needToCheckScriptsInUtx(a.state)
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +55,7 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 			if t == nil {
 				break
 			}
-			//TODO: While putting a transaction to UTX and cleanup we should always accept transactions with failed script
-			if err := validation.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, vrf, true); err == nil {
+			if err := validation.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, checkScripts); err == nil {
 				transactions = append(transactions, t)
 			}
 		}

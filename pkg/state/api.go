@@ -85,6 +85,7 @@ type StateInfo interface {
 
 	// Transactions.
 	TransactionByID(id []byte) (proto.Transaction, error)
+	TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error)
 	TransactionHeightByID(id []byte) (uint64, error)
 	// NewAddrTransactionsIterator() returns iterator to iterate all transactions that affected
 	// given address.
@@ -126,10 +127,7 @@ type StateInfo interface {
 
 	// ShouldPersisAddressTransactions checks if PersisAddressTransactions
 	// should be called.
-	ShouldPersisAddressTransactions() (bool, error)
-
-	// PersisAddressTransactions sorts and saves transactions to storage.
-	PersisAddressTransactions() error
+	ShouldPersistAddressTransactions() (bool, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.
@@ -160,9 +158,10 @@ type StateModifier interface {
 	// -------------------------
 	// ValidateNextTx() validates transaction against state, taking into account all the previous changes from transactions
 	// that were added using ValidateNextTx() until you call ResetValidationList().
-	// Does not change state.
+	// checkScripts specifies if scripts for Exchange and Invoke transactions
+	// should be checked.
 	// Returns TxValidationError or nil.
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte, acceptFailed bool) error
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, checkScripts bool) error
 	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
 	ResetValidationList()
 
@@ -178,14 +177,16 @@ type StateModifier interface {
 	// State will provide extended API data after returning.
 	StartProvidingExtendedApi() error
 
+	// PersisAddressTransactions sorts and saves transactions to storage.
+	PersistAddressTransactions() error
+
 	Close() error
 }
 
 type NonThreadSafeState = State
 
 type TxValidation interface {
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion,
-		vrf []byte, acceptFailed bool) error
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, checkScripts bool) error
 }
 
 type State interface {

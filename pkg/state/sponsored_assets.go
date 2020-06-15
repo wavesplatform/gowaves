@@ -63,6 +63,8 @@ type sponsoredAssets struct {
 	hs       *historyStorage
 	settings *settings.BlockchainSettings
 
+	uncertainSponsoredAssets map[crypto.Digest]uint64
+
 	calculateHashes bool
 	hasher          *stateHasher
 }
@@ -75,12 +77,13 @@ func newSponsoredAssets(
 	calcHashes bool,
 ) (*sponsoredAssets, error) {
 	return &sponsoredAssets{
-		rw:              rw,
-		features:        features,
-		hs:              hs,
-		settings:        settings,
-		hasher:          newStateHasher(),
-		calculateHashes: calcHashes,
+		rw:                       rw,
+		features:                 features,
+		hs:                       hs,
+		settings:                 settings,
+		uncertainSponsoredAssets: make(map[crypto.Digest]uint64),
+		hasher:                   newStateHasher(),
+		calculateHashes:          calcHashes,
 	}, nil
 }
 
@@ -108,15 +111,14 @@ func (s *sponsoredAssets) sponsorAsset(assetID crypto.Digest, assetCost uint64, 
 	return nil
 }
 
+func (s *sponsoredAssets) sponsorAssetUncertain(assetID crypto.Digest, assetCost uint64) {
+	s.uncertainSponsoredAssets[assetID] = assetCost
+}
+
 func (s *sponsoredAssets) newestIsSponsored(assetID crypto.Digest, filter bool) (bool, error) {
-	key := sponsorshipKey{assetID}
-	if _, err := s.hs.freshLatestEntryData(key.bytes(), filter); err != nil {
-		// No sponsorship info for this asset at all.
-		return false, nil
-	}
 	cost, err := s.newestAssetCost(assetID, filter)
 	if err != nil {
-		return false, err
+		return false, nil
 	}
 	if cost == 0 {
 		// 0 cost means that asset isn't really sponsored anymore.
@@ -143,6 +145,9 @@ func (s *sponsoredAssets) isSponsored(assetID crypto.Digest, filter bool) (bool,
 }
 
 func (s *sponsoredAssets) newestAssetCost(assetID crypto.Digest, filter bool) (uint64, error) {
+	if cost, ok := s.uncertainSponsoredAssets[assetID]; ok {
+		return cost, nil
+	}
 	key := sponsorshipKey{assetID}
 	recordBytes, err := s.hs.freshLatestEntryData(key.bytes(), filter)
 	if err != nil {
@@ -233,6 +238,19 @@ func (s *sponsoredAssets) isSponsorshipActivated() (bool, error) {
 
 func (s *sponsoredAssets) prepareHashes() error {
 	return s.hasher.stop()
+}
+
+func (s *sponsoredAssets) commitUncertain(blockID proto.BlockID) error {
+	for assetID, cost := range s.uncertainSponsoredAssets {
+		if err := s.sponsorAsset(assetID, cost, blockID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *sponsoredAssets) dropUncertain() {
+	s.uncertainSponsoredAssets = make(map[crypto.Digest]uint64)
 }
 
 func (s *sponsoredAssets) reset() {

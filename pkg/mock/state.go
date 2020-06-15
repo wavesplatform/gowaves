@@ -610,6 +610,22 @@ func (mr *MockStateInfoMockRecorder) TransactionByID(id interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionByID", reflect.TypeOf((*MockStateInfo)(nil).TransactionByID), id)
 }
 
+// TransactionByIDWithStatus mocks base method
+func (m *MockStateInfo) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TransactionByIDWithStatus", id)
+	ret0, _ := ret[0].(proto.Transaction)
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// TransactionByIDWithStatus indicates an expected call of TransactionByIDWithStatus
+func (mr *MockStateInfoMockRecorder) TransactionByIDWithStatus(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionByIDWithStatus", reflect.TypeOf((*MockStateInfo)(nil).TransactionByIDWithStatus), id)
+}
+
 // TransactionHeightByID mocks base method
 func (m *MockStateInfo) TransactionHeightByID(id []byte) (uint64, error) {
 	m.ctrl.T.Helper()
@@ -835,33 +851,19 @@ func (mr *MockStateInfoMockRecorder) BlockVRF(blockHeader, height interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockStateInfo)(nil).BlockVRF), blockHeader, height)
 }
 
-// ShouldPersisAddressTransactions mocks base method
-func (m *MockStateInfo) ShouldPersisAddressTransactions() (bool, error) {
+// ShouldPersistAddressTransactions mocks base method
+func (m *MockStateInfo) ShouldPersistAddressTransactions() (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ShouldPersisAddressTransactions")
+	ret := m.ctrl.Call(m, "ShouldPersistAddressTransactions")
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ShouldPersisAddressTransactions indicates an expected call of ShouldPersisAddressTransactions
-func (mr *MockStateInfoMockRecorder) ShouldPersisAddressTransactions() *gomock.Call {
+// ShouldPersistAddressTransactions indicates an expected call of ShouldPersistAddressTransactions
+func (mr *MockStateInfoMockRecorder) ShouldPersistAddressTransactions() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersisAddressTransactions", reflect.TypeOf((*MockStateInfo)(nil).ShouldPersisAddressTransactions))
-}
-
-// PersisAddressTransactions mocks base method
-func (m *MockStateInfo) PersisAddressTransactions() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PersisAddressTransactions")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// PersisAddressTransactions indicates an expected call of PersisAddressTransactions
-func (mr *MockStateInfoMockRecorder) PersisAddressTransactions() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PersisAddressTransactions", reflect.TypeOf((*MockStateInfo)(nil).PersisAddressTransactions))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockStateInfo)(nil).ShouldPersistAddressTransactions))
 }
 
 // MockStateModifier is a mock of StateModifier interface
@@ -1003,17 +1005,17 @@ func (mr *MockStateModifierMockRecorder) RollbackTo(removalEdge interface{}) *go
 }
 
 // ValidateNextTx mocks base method
-func (m *MockStateModifier) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte, acceptFailed bool) error {
+func (m *MockStateModifier) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, checkScripts bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, vrf, acceptFailed)
+	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx
-func (mr *MockStateModifierMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, vrf, acceptFailed interface{}) *gomock.Call {
+func (mr *MockStateModifierMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockStateModifier)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, vrf, acceptFailed)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockStateModifier)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts)
 }
 
 // ResetValidationList mocks base method
@@ -1084,6 +1086,20 @@ func (mr *MockStateModifierMockRecorder) StartProvidingExtendedApi() *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedApi", reflect.TypeOf((*MockStateModifier)(nil).StartProvidingExtendedApi))
 }
 
+// PersistAddressTransactions mocks base method
+func (m *MockStateModifier) PersistAddressTransactions() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PersistAddressTransactions")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PersistAddressTransactions indicates an expected call of PersistAddressTransactions
+func (mr *MockStateModifierMockRecorder) PersistAddressTransactions() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PersistAddressTransactions", reflect.TypeOf((*MockStateModifier)(nil).PersistAddressTransactions))
+}
+
 // Close mocks base method
 func (m *MockStateModifier) Close() error {
 	m.ctrl.T.Helper()
@@ -1122,17 +1138,17 @@ func (m *MockTxValidation) EXPECT() *MockTxValidationMockRecorder {
 }
 
 // ValidateNextTx mocks base method
-func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte, acceptFailed bool) error {
+func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, checkScripts bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, vrf, acceptFailed)
+	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx
-func (mr *MockTxValidationMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, vrf, acceptFailed interface{}) *gomock.Call {
+func (mr *MockTxValidationMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockTxValidation)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, vrf, acceptFailed)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockTxValidation)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts)
 }
 
 // MockState is a mock of State interface
@@ -1652,6 +1668,22 @@ func (mr *MockStateMockRecorder) TransactionByID(id interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionByID", reflect.TypeOf((*MockState)(nil).TransactionByID), id)
 }
 
+// TransactionByIDWithStatus mocks base method
+func (m *MockState) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TransactionByIDWithStatus", id)
+	ret0, _ := ret[0].(proto.Transaction)
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// TransactionByIDWithStatus indicates an expected call of TransactionByIDWithStatus
+func (mr *MockStateMockRecorder) TransactionByIDWithStatus(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TransactionByIDWithStatus", reflect.TypeOf((*MockState)(nil).TransactionByIDWithStatus), id)
+}
+
 // TransactionHeightByID mocks base method
 func (m *MockState) TransactionHeightByID(id []byte) (uint64, error) {
 	m.ctrl.T.Helper()
@@ -1877,33 +1909,19 @@ func (mr *MockStateMockRecorder) BlockVRF(blockHeader, height interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockState)(nil).BlockVRF), blockHeader, height)
 }
 
-// ShouldPersisAddressTransactions mocks base method
-func (m *MockState) ShouldPersisAddressTransactions() (bool, error) {
+// ShouldPersistAddressTransactions mocks base method
+func (m *MockState) ShouldPersistAddressTransactions() (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ShouldPersisAddressTransactions")
+	ret := m.ctrl.Call(m, "ShouldPersistAddressTransactions")
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ShouldPersisAddressTransactions indicates an expected call of ShouldPersisAddressTransactions
-func (mr *MockStateMockRecorder) ShouldPersisAddressTransactions() *gomock.Call {
+// ShouldPersistAddressTransactions indicates an expected call of ShouldPersistAddressTransactions
+func (mr *MockStateMockRecorder) ShouldPersistAddressTransactions() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersisAddressTransactions", reflect.TypeOf((*MockState)(nil).ShouldPersisAddressTransactions))
-}
-
-// PersisAddressTransactions mocks base method
-func (m *MockState) PersisAddressTransactions() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PersisAddressTransactions")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// PersisAddressTransactions indicates an expected call of PersisAddressTransactions
-func (mr *MockStateMockRecorder) PersisAddressTransactions() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PersisAddressTransactions", reflect.TypeOf((*MockState)(nil).PersisAddressTransactions))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockState)(nil).ShouldPersistAddressTransactions))
 }
 
 // AddBlock mocks base method
@@ -2022,17 +2040,17 @@ func (mr *MockStateMockRecorder) RollbackTo(removalEdge interface{}) *gomock.Cal
 }
 
 // ValidateNextTx mocks base method
-func (m *MockState) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, vrf []byte, acceptFailed bool) error {
+func (m *MockState) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, checkScripts bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, vrf, acceptFailed)
+	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx
-func (mr *MockStateMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, vrf, acceptFailed interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockState)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, vrf, acceptFailed)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockState)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts)
 }
 
 // ResetValidationList mocks base method
@@ -2101,6 +2119,20 @@ func (m *MockState) StartProvidingExtendedApi() error {
 func (mr *MockStateMockRecorder) StartProvidingExtendedApi() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedApi", reflect.TypeOf((*MockState)(nil).StartProvidingExtendedApi))
+}
+
+// PersistAddressTransactions mocks base method
+func (m *MockState) PersistAddressTransactions() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PersistAddressTransactions")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PersistAddressTransactions indicates an expected call of PersistAddressTransactions
+func (mr *MockStateMockRecorder) PersistAddressTransactions() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PersistAddressTransactions", reflect.TypeOf((*MockState)(nil).PersistAddressTransactions))
 }
 
 // Close mocks base method

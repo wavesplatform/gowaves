@@ -183,7 +183,7 @@ func NewObjectFromBlockInfo(info proto.BlockInfo) Expr {
 	return NewObject(m)
 }
 
-func newMapAssetInfo(info proto.AssetInfo) object {
+func newMapAssetInfoV3(info proto.AssetInfo) object {
 	obj := newObject()
 	obj["id"] = NewBytes(info.ID.Bytes())
 	obj["quantity"] = NewLong(int64(info.Quantity))
@@ -196,8 +196,27 @@ func newMapAssetInfo(info proto.AssetInfo) object {
 	return obj
 }
 
-func NewObjectFromAssetInfo(info proto.AssetInfo) Expr {
-	return NewObject(newMapAssetInfo(info))
+func newMapAssetInfoV4(info proto.FullAssetInfo) object {
+	obj := newObject()
+	obj["id"] = NewBytes(info.ID.Bytes())
+	obj["quantity"] = NewLong(int64(info.Quantity))
+	obj["decimals"] = NewLong(int64(info.Decimals))
+	obj["issuer"] = NewAddressFromProtoAddress(info.Issuer)
+	obj["issuerPublicKey"] = NewBytes(common.Dup(info.IssuerPublicKey.Bytes()))
+	obj["reissuable"] = NewBoolean(info.Reissuable)
+	obj["scripted"] = NewBoolean(info.Scripted)
+	obj["sponsored"] = NewBoolean(info.Sponsored)
+	obj["name"] = NewString(info.Name)
+	obj["description"] = NewString(info.Description)
+	return obj
+}
+
+func NewObjectFromAssetInfoV3(info proto.AssetInfo) Expr {
+	return NewObject(newMapAssetInfoV3(info))
+}
+
+func NewObjectFromAssetInfoV4(info proto.FullAssetInfo) Expr {
+	return NewObject(newMapAssetInfoV4(info))
 }
 
 func makeProofsFromSignature(sig *crypto.Signature) Exprs {
@@ -275,6 +294,17 @@ func newVariablesFromPayment(scheme proto.Scheme, tx *proto.Payment) (map[string
 	return out, nil
 }
 
+func setAttachment(obj map[string]Expr, a proto.Attachment) error {
+	if a != nil {
+		ab, err := a.Bytes()
+		if err != nil {
+			return err
+		}
+		obj["attachment"] = NewBytes(ab)
+	}
+	return nil
+}
+
 func newVariablesFromTransferWithSig(scheme byte, tx *proto.TransferWithSig) (map[string]Expr, error) {
 	funcName := "newVariablesFromTransferWithSig"
 
@@ -283,11 +313,10 @@ func newVariablesFromTransferWithSig(scheme byte, tx *proto.TransferWithSig) (ma
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["assetId"] = makeOptionalAsset(tx.AmountAsset)
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	attachmentBytes, err := tx.Attachment.Bytes()
+	err := setAttachment(out, tx.Attachment)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["attachment"] = NewBytes(attachmentBytes)
 	out["id"] = NewBytes(common.Dup(tx.ID.Bytes()))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
@@ -319,11 +348,10 @@ func newVariablesFromTransferWithProofs(scheme byte, tx *proto.TransferWithProof
 	out["amount"] = NewLong(int64(tx.Amount))
 	out["assetId"] = makeOptionalAsset(tx.AmountAsset)
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
-	attachmentBytes, err := tx.Attachment.Bytes()
+	err := setAttachment(out, tx.Attachment)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["attachment"] = NewBytes(attachmentBytes)
 	out["id"] = NewBytes(common.Dup(tx.ID.Bytes()))
 	out["fee"] = NewLong(int64(tx.Fee))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
@@ -491,11 +519,10 @@ func newVariablesFromMassTransferWithProofs(scheme proto.Scheme, tx *proto.MassT
 	}
 	out["transfers"] = transfers
 	out["transferCount"] = NewLong(int64(len(tx.Transfers)))
-	attachmentBytes, err := tx.Attachment.Bytes()
+	err := setAttachment(out, tx.Attachment)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
 	}
-	out["attachment"] = NewBytes(attachmentBytes)
 	id, err := tx.GetID(scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)

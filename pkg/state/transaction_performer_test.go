@@ -459,7 +459,7 @@ func TestPerformSponsorshipWithProofs(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 
-	tx := createSponsorshipWithProofs(t)
+	tx := createSponsorshipWithProofs(t, 1000)
 	err := to.tp.performSponsorshipWithProofs(tx, defaultPerformerInfo(t))
 	assert.NoError(t, err, "performSponsorshipWithProofs() failed")
 
@@ -577,8 +577,7 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	assetID := tx.AssetID
 
 	// Test newest before flushing.
-	isSmartAsset, err := to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
-	assert.NoError(t, err, "newestIsSmartAsset() failed")
+	isSmartAsset := to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
 	assert.Equal(t, true, isSmartAsset)
 	scriptAst, err := to.stor.entities.scriptsStorage.newestScriptByAsset(assetID, true)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
@@ -594,8 +593,7 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
-	assert.NoError(t, err, "newestIsSmartAsset() failed")
+	isSmartAsset = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
 	assert.Equal(t, true, isSmartAsset)
 	scriptAst, err = to.stor.entities.scriptsStorage.newestScriptByAsset(assetID, true)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
@@ -614,8 +612,7 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
-	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
-	assert.NoError(t, err, "newestIsSmartAsset() failed")
+	isSmartAsset = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
 	assert.Equal(t, false, isSmartAsset)
 	_, err = to.stor.entities.scriptsStorage.newestScriptByAsset(assetID, true)
 	assert.Error(t, err)
@@ -631,8 +628,7 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
-	assert.NoError(t, err, "newestIsSmartAsset() failed")
+	isSmartAsset = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
 	assert.Equal(t, false, isSmartAsset)
 	_, err = to.stor.entities.scriptsStorage.newestScriptByAsset(assetID, true)
 	assert.Error(t, err)

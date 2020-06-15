@@ -403,7 +403,7 @@ f(1) == 999
 	require.NoError(t, err)
 	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
 	require.NoError(t, err)
-	assert.True(t, rs.OK)
+	assert.True(t, rs.Value)
 }
 
 func TestUserFunctionsInExpression(t *testing.T) {
@@ -429,7 +429,7 @@ g() == 5
 	require.NoError(t, err)
 	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
 	require.NoError(t, err)
-	assert.True(t, rs.OK)
+	assert.True(t, rs.Value)
 }
 
 // variables refers to each other in the same scope
@@ -653,8 +653,9 @@ func verify() = {
 		Arguments: proto.Arguments{proto.NewStringArgument("abc")},
 	})
 
-	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
+	ok, actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	require.EqualValues(t,
@@ -663,10 +664,11 @@ func verify() = {
 				{Entry: &proto.StringDataEntry{Key: "abc_q", Value: "abc"}},
 				{Entry: &proto.StringDataEntry{Key: "abc_a", Value: "abc"}},
 			},
-			Transfers: make([]*proto.TransferScriptAction, 0),
-			Issues:    make([]*proto.IssueScriptAction, 0),
-			Reissues:  make([]*proto.ReissueScriptAction, 0),
-			Burns:     make([]*proto.BurnScriptAction, 0),
+			Transfers:    make([]*proto.TransferScriptAction, 0),
+			Issues:       make([]*proto.IssueScriptAction, 0),
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 		},
 		sr,
 	)
@@ -719,8 +721,9 @@ func verify() = {
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
+	ok, actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	require.EqualValues(t,
@@ -729,10 +732,11 @@ func verify() = {
 				{Entry: &proto.StringDataEntry{Key: "a", Value: "b"}},
 				{Entry: &proto.BinaryDataEntry{Key: "sender", Value: addr.Bytes()}},
 			},
-			Transfers: make([]*proto.TransferScriptAction, 0),
-			Issues:    make([]*proto.IssueScriptAction, 0),
-			Reissues:  make([]*proto.ReissueScriptAction, 0),
-			Burns:     make([]*proto.BurnScriptAction, 0),
+			Transfers:    make([]*proto.TransferScriptAction, 0),
+			Issues:       make([]*proto.IssueScriptAction, 0),
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 		},
 		sr,
 	)
@@ -781,7 +785,7 @@ func verify() = {
 	require.NoError(t, err)
 	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
 	require.NoError(t, err)
-	assert.False(t, rs.OK)
+	assert.False(t, rs.Value)
 }
 
 func TestDappVerifySuccessful(t *testing.T) {
@@ -813,7 +817,7 @@ func verify() = {
 	require.NoError(t, err)
 	rs, err := script.Verify(proto.MainNetScheme, mockstate.State{}, obj, nil, nil)
 	require.NoError(t, err)
-	assert.True(t, rs.OK)
+	assert.True(t, rs.Value)
 }
 
 func TestTransferSet(t *testing.T) {
@@ -843,8 +847,9 @@ func tellme(question: String) = {
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
+	ok, actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
+	require.True(t, ok)
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100,
@@ -855,11 +860,12 @@ func tellme(question: String) = {
 	require.NoError(t, err)
 	require.EqualValues(t,
 		&proto.ScriptResult{
-			DataEntries: make([]*proto.DataEntryScriptAction, 0),
-			Transfers:   []*proto.TransferScriptAction{&scriptTransfer},
-			Issues:      make([]*proto.IssueScriptAction, 0),
-			Reissues:    make([]*proto.ReissueScriptAction, 0),
-			Burns:       make([]*proto.BurnScriptAction, 0),
+			DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+			Transfers:    []*proto.TransferScriptAction{&scriptTransfer},
+			Issues:       make([]*proto.IssueScriptAction, 0),
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 		},
 		sr,
 	)
@@ -895,8 +901,9 @@ func tellme(question: String) = {
 
 	addr, _ := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
 
-	actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
+	ok, actions, err := script.CallFunction(proto.MainNetScheme, mockstate.State{}, tx, nil, nil)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	scriptTransfer := proto.TransferScriptAction{
@@ -906,11 +913,12 @@ func tellme(question: String) = {
 	}
 	require.Equal(t,
 		&proto.ScriptResult{
-			DataEntries: []*proto.DataEntryScriptAction{{Entry: &proto.IntegerDataEntry{Key: "key", Value: 100}}},
-			Transfers:   []*proto.TransferScriptAction{&scriptTransfer},
-			Issues:      make([]*proto.IssueScriptAction, 0),
-			Reissues:    make([]*proto.ReissueScriptAction, 0),
-			Burns:       make([]*proto.BurnScriptAction, 0),
+			DataEntries:  []*proto.DataEntryScriptAction{{Entry: &proto.IntegerDataEntry{Key: "key", Value: 100}}},
+			Transfers:    []*proto.TransferScriptAction{&scriptTransfer},
+			Issues:       make([]*proto.IssueScriptAction, 0),
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 		},
 		sr,
 	)
@@ -1168,8 +1176,9 @@ func TestWhaleDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -1178,11 +1187,12 @@ func TestWhaleDApp(t *testing.T) {
 		{Entry: &proto.StringDataEntry{Key: "wl_sts_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "invited"}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1252,8 +1262,9 @@ func TestExchangeDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	assert.NoError(t, err)
 
@@ -1275,11 +1286,12 @@ func TestExchangeDApp(t *testing.T) {
 		},
 	}
 	expectedResult := &proto.ScriptResult{
-		Transfers:   expectedTransfers,
-		DataEntries: expectedDataWrites,
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		Transfers:    expectedTransfers,
+		DataEntries:  expectedDataWrites,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1369,8 +1381,9 @@ func TestBankDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	_, err = script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
+	ok, _, err := script.CallFunction(proto.MainNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 }
 
 func TestLigaDApp1(t *testing.T) {
@@ -1453,8 +1466,9 @@ func TestLigaDApp1(t *testing.T) {
 		GeneratorPublicKey:  sender1,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.TestNetScheme, state, tx1, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.TestNetScheme, state, tx1, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
@@ -1463,11 +1477,12 @@ func TestLigaDApp1(t *testing.T) {
 		{Entry: &proto.IntegerDataEntry{Key: "BALANCE_SNAPSHOT", Value: 98750005}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 
@@ -1555,8 +1570,9 @@ func TestLigaDApp1(t *testing.T) {
 		GeneratorPublicKey:  sender1,
 	}
 	lastBlock = NewObjectFromBlockInfo(blockInfo)
-	actions, err = script.CallFunction(proto.TestNetScheme, state, tx2, this, lastBlock)
+	ok, actions, err = script.CallFunction(proto.TestNetScheme, state, tx2, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err = proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
@@ -1567,11 +1583,12 @@ func TestLigaDApp1(t *testing.T) {
 		{Entry: &proto.IntegerDataEntry{Key: "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye_SOLD", Value: 5}},
 	}
 	expectedResult = &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1644,8 +1661,9 @@ func TestTestingDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
@@ -1653,11 +1671,12 @@ func TestTestingDApp(t *testing.T) {
 		{Entry: &proto.StringDataEntry{Key: "mainLog", Value: "1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY - 3N4XM8G5WXzdkLXYDL6X229Entc5Hqgz7DM - 1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY -> 3NBQxw1ZzTfWbrLjWj2euMwizncrGG4nXJX"}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1725,8 +1744,9 @@ func TestDropElementDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
@@ -1734,11 +1754,12 @@ func TestDropElementDApp(t *testing.T) {
 		{Entry: &proto.StringDataEntry{Key: "1", Value: "aaa,bbb,ccc - ccc = aaa,bbb"}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1811,8 +1832,9 @@ func TestMathDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
@@ -1827,11 +1849,12 @@ func TestMathDApp(t *testing.T) {
 		{Entry: &proto.IntegerDataEntry{Key: "firstProjectedPrice", Value: 0}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -1898,20 +1921,253 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 	lastBlock := NewObjectFromBlockInfo(blockInfo)
-	actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	ok, actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
 	require.NoError(t, err)
+	require.True(t, ok)
 	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "3MwT5r4YSyG4QAiqi8VNZkL9eP9e354DXfE_waves", Value: 7012000}},
 	}
+	a, err := proto.NewAddressFromString("3MwT5r4YSyG4QAiqi8VNZkL9eP9e354DXfE")
+	require.NoError(t, err)
+	asset, err := proto.NewOptionalAssetFromString("Ea6CdDfumo8ZFecxUSWKAjZpQXmkRC79WB4ktu3KffPn")
+	require.NoError(t, err)
+	expectedTransfers := []*proto.TransferScriptAction{
+		{Recipient: proto.NewRecipientFromAddress(a), Amount: 0, Asset: *asset},
+	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries: expectedDataWrites,
-		Transfers:   make([]*proto.TransferScriptAction, 0),
-		Issues:      make([]*proto.IssueScriptAction, 0),
-		Reissues:    make([]*proto.ReissueScriptAction, 0),
-		Burns:       make([]*proto.BurnScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    expectedTransfers,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
+}
+
+func Test8Ball(t *testing.T) {
+	code := "AAIDAAAAAAAAAAAAAAAEAAAAAAxhbnN3ZXJzQ291bnQAAAAAAAAAABQAAAAAB2Fuc3dlcnMJAARMAAAAAgIAAAAOSXQgaXMgY2VydGFpbi4JAARMAAAAAgIAAAATSXQgaXMgZGVjaWRlZGx5IHNvLgkABEwAAAACAgAAABBXaXRob3V0IGEgZG91YnQuCQAETAAAAAICAAAAEVllcyAtIGRlZmluaXRlbHkuCQAETAAAAAICAAAAE1lvdSBtYXkgcmVseSBvbiBpdC4JAARMAAAAAgIAAAARQXMgSSBzZWUgaXQsIHllcy4JAARMAAAAAgIAAAAMTW9zdCBsaWtlbHkuCQAETAAAAAICAAAADU91dGxvb2sgZ29vZC4JAARMAAAAAgIAAAAEWWVzLgkABEwAAAACAgAAABNTaWducyBwb2ludCB0byB5ZXMuCQAETAAAAAICAAAAFlJlcGx5IGhhenksIHRyeSBhZ2Fpbi4JAARMAAAAAgIAAAAQQXNrIGFnYWluIGxhdGVyLgkABEwAAAACAgAAABhCZXR0ZXIgbm90IHRlbGwgeW91IG5vdy4JAARMAAAAAgIAAAATQ2Fubm90IHByZWRpY3Qgbm93LgkABEwAAAACAgAAABpDb25jZW50cmF0ZSBhbmQgYXNrIGFnYWluLgkABEwAAAACAgAAABJEb24ndCBjb3VudCBvbiBpdC4JAARMAAAAAgIAAAAPTXkgcmVwbHkgaXMgbm8uCQAETAAAAAICAAAAEk15IHNvdXJjZXMgc2F5IG5vLgkABEwAAAACAgAAABRPdXRsb29rIG5vdCBzbyBnb29kLgkABEwAAAACAgAAAA5WZXJ5IGRvdWJ0ZnVsLgUAAAADbmlsAQAAAAlnZXRBbnN3ZXIAAAACAAAACHF1ZXN0aW9uAAAADnByZXZpb3VzQW5zd2VyBAAAAARoYXNoCQAB9wAAAAEJAAGbAAAAAQkAASwAAAACBQAAAAhxdWVzdGlvbgUAAAAOcHJldmlvdXNBbnN3ZXIEAAAABWluZGV4CQAEsQAAAAEFAAAABGhhc2gJAAGRAAAAAgUAAAAHYW5zd2VycwkAAGoAAAACBQAAAAVpbmRleAUAAAAMYW5zd2Vyc0NvdW50AQAAABFnZXRQcmV2aW91c0Fuc3dlcgAAAAEAAAAHYWRkcmVzcwQAAAAHJG1hdGNoMAkABB0AAAACBQAAAAR0aGlzCQABLAAAAAIFAAAAB2FkZHJlc3MCAAAAAl9hAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAAZTdHJpbmcEAAAAAWEFAAAAByRtYXRjaDAFAAAAAWEFAAAAB2FkZHJlc3MAAAABAAAAAWkBAAAABnRlbGxtZQAAAAEAAAAIcXVlc3Rpb24EAAAADWNhbGxlckFkZHJlc3MJAAJYAAAAAQgIBQAAAAFpAAAABmNhbGxlcgAAAAVieXRlcwQAAAAGYW5zd2VyCQEAAAAJZ2V0QW5zd2VyAAAAAgUAAAAIcXVlc3Rpb24JAQAAABFnZXRQcmV2aW91c0Fuc3dlcgAAAAEFAAAADWNhbGxlckFkZHJlc3MJAQAAAAhXcml0ZVNldAAAAAEJAARMAAAAAgkBAAAACURhdGFFbnRyeQAAAAIJAAEsAAAAAgUAAAANY2FsbGVyQWRkcmVzcwIAAAACX3EFAAAACHF1ZXN0aW9uCQAETAAAAAIJAQAAAAlEYXRhRW50cnkAAAACCQABLAAAAAIFAAAADWNhbGxlckFkZHJlc3MCAAAAAl9hBQAAAAZhbnN3ZXIFAAAAA25pbAAAAACOjDZR"
+	r, err := reader.NewReaderFromBase64(code)
+	require.NoError(t, err)
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	txID, err := crypto.NewDigestFromBase58("6zUFtrHoWpzVoGcW1eqxQptoYpv3WSMDFjwpU7CtdgDn")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("4x5AEuTj5yhaJQrE8YXUKg9Bc2n5GtdfG7bbrhXqB6wro9AcAtQH4ZgDFMawp5jLVcp3yesJxQ53ALVZTZjkeaWY")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("4KxkQHV5VP5a5tm5ETSEj78r9JfLUPFqZFmnQz1q878Y")
+	require.NoError(t, err)
+	address, err := proto.NewAddressFromString("3N27HUMt4ddx2X7foQwZRmpFzg5PSzLrUgU")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(address)
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "What is my purpose?"})
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "tellme",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1577191068093,
+	}
+	entries := map[string]proto.DataEntry{
+		"3Mz67eGY4aNdBHJtgbRPVde3KwAeN3ULLHG_q": &proto.StringDataEntry{Key: "3Mz67eGY4aNdBHJtgbRPVde3KwAeN3ULLHG_q", Value: "What is my purpose?"},
+		"3Mz67eGY4aNdBHJtgbRPVde3KwAeN3ULLHG_a": &proto.StringDataEntry{Key: "3Mz67eGY4aNdBHJtgbRPVde3KwAeN3ULLHG_a", Value: "You may rely on it."},
+	}
+	state := mockstate.State{
+		TransactionsByID:       nil,
+		TransactionsHeightByID: nil,
+		WavesBalance:           5000000000, // ~50 WAVES
+		DataEntries:            entries,
+		AssetIsSponsored:       false,
+		BlockHeaderByHeight:    nil,
+		NewestHeightVal:        844761,
+		Assets:                 nil,
+	}
+	this := NewAddressFromProtoAddress(address)
+	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
+	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
+	require.NoError(t, err)
+	blockInfo := proto.BlockInfo{
+		Timestamp:           1567938316714,
+		Height:              844761,
+		BaseTarget:          1550,
+		GenerationSignature: gs,
+		Generator:           gen,
+		GeneratorPublicKey:  sender,
+	}
+	lastBlock := NewObjectFromBlockInfo(blockInfo)
+	ok, actions, err := script.CallFunction(proto.TestNetScheme, state, tx, this, lastBlock)
+	require.NoError(t, err)
+	require.True(t, ok)
+	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+
+	expectedDataWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.StringDataEntry{Key: "3Mz67eGY4aNdBHJtgbRPVde3KwAeN3ULLHG_q", Value: "What is my purpose?"}},
+		{Entry: &proto.StringDataEntry{Key: "3Mz67eGY4aNdBHJtgbRPVde3KwAeN3ULLHG_a", Value: "Yes - definitely."}},
+	}
+	expectedResult := &proto.ScriptResult{
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+	}
+	assert.Equal(t, expectedResult, sr)
+}
+
+func TestIntegerEntry(t *testing.T) {
+	code := "AAIEAAAAAAAAAAgIAhIECgIIAQAAAAAAAAABAAAAAWkBAAAABGNhbGwAAAACAAAAA25vbQAAAANhZ2UEAAAADG93bmVyQWRkcmVzcwkABCUAAAABCAUAAAABaQAAAAZjYWxsZXIJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAIJAAEsAAAAAgUAAAAMb3duZXJBZGRyZXNzAgAAAARfYWdlBQAAAANhZ2UJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgkAASwAAAACBQAAAAxvd25lckFkZHJlc3MCAAAABF9ub20FAAAAA25vbQUAAAADbmlsAAAAAHNCMbc="
+	r, err := reader.NewReaderFromBase64(code)
+	require.NoError(t, err)
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+
+	txID, err := crypto.NewDigestFromBase58("AjSkRGMhckj4bhwtLPyeSTeDY6unoDwjs736t2bNvV3D")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("2g1hQJKw1Mzc7Qpw8WzzheDibi34JWATTsV1m39GPGJc1oz1DH82RRFnHkp1QEMg7ccH3K71YFLuK1GrHrrnfEjJ")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("Ccebak7uPmCpdNGrVTxENghcrCLF7m9MXGA2BbMDknoW")
+	require.NoError(t, err)
+	address, err := proto.NewAddressFromString("3MouSkYhyvLXkn9wYRcqHUrhcDgNipSGFQN")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(address)
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.IntegerArgument{Value: 1})
+	arguments.Append(&proto.StringArgument{Value: "Hi!!! hello!"})
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.StageNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1588047474869,
+	}
+	entries := map[string]proto.DataEntry{}
+	state := mockstate.State{
+		TransactionsByID:       nil,
+		TransactionsHeightByID: nil,
+		WavesBalance:           5000000000, // ~50 WAVES
+		DataEntries:            entries,
+		AssetIsSponsored:       false,
+		BlockHeaderByHeight:    nil,
+		NewestHeightVal:        386529,
+		Assets:                 nil,
+	}
+	this := NewAddressFromProtoAddress(address)
+	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
+	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
+	require.NoError(t, err)
+	blockInfo := proto.BlockInfo{
+		Timestamp:           1567938316714,
+		Height:              844761,
+		BaseTarget:          1550,
+		GenerationSignature: gs,
+		Generator:           gen,
+		GeneratorPublicKey:  sender,
+	}
+	lastBlock := NewObjectFromBlockInfo(blockInfo)
+	_, _, err = script.CallFunction(proto.StageNetScheme, state, tx, this, lastBlock)
+	assert.Error(t, err)
+}
+
+func TestAssetInfoV3V4(t *testing.T) {
+	codeV3 := "AwQAAAACYWkJAQAAAAdleHRyYWN0AAAAAQkAA+wAAAABAQAAACA4SmZ7I8ecZ8q8rkkn9snzZVVjpJyyIfolCl2dP60I7QkAAAAAAAACCAUAAAACYWkAAAACaWQBAAAAIDhKZnsjx5xnyryuSSf2yfNlVWOknLIh+iUKXZ0/rQjthFBV8Q=="
+	rV3, err := reader.NewReaderFromBase64(codeV3)
+	require.NoError(t, err)
+	scriptV3, err := BuildScript(rV3)
+	require.NoError(t, err)
+
+	/* TODO: replace script with one that checks name and description
+	Current:
+	{-# STDLIB_VERSION 4 #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+	{-# CONTENT_TYPE EXPRESSION #-}
+	let ai =  extract(assetInfo(base58'4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye'))
+	ai.id == base58'4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye'
+
+	Should be:
+	{-# STDLIB_VERSION 4 #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+	{-# CONTENT_TYPE EXPRESSION #-}
+	let ai =  extract(assetInfo(base58'4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye'))
+	ai.name == "ASSET1" && ai.description == "DESCRIPTION1"
+	*/
+	codeV4 := "BAQAAAACYWkJAQAAAAdleHRyYWN0AAAAAQkAA+wAAAABAQAAACA4SmZ7I8ecZ8q8rkkn9snzZVVjpJyyIfolCl2dP60I7QkAAAAAAAACCAUAAAACYWkAAAACaWQBAAAAIDhKZnsjx5xnyryuSSf2yfNlVWOknLIh+iUKXZ0/rQjtfEsRSg=="
+	rV4, err := reader.NewReaderFromBase64(codeV4)
+	require.NoError(t, err)
+	scriptV4, err := BuildScript(rV4)
+	require.NoError(t, err)
+
+	pk, err := crypto.NewPublicKeyFromBase58("Ccebak7uPmCpdNGrVTxENghcrCLF7m9MXGA2BbMDknoW")
+	require.NoError(t, err)
+	issuer, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, pk)
+	require.NoError(t, err)
+	assetID1, err := crypto.NewDigestFromBase58("4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye")
+	require.NoError(t, err)
+	info1 := proto.AssetInfo{
+		ID:              assetID1,
+		Quantity:        1000,
+		Decimals:        0,
+		Issuer:          issuer,
+		IssuerPublicKey: pk,
+		Reissuable:      false,
+		Scripted:        false,
+		Sponsored:       false,
+	}
+	full1 := proto.FullAssetInfo{
+		AssetInfo:   info1,
+		Name:        "ASSET1",
+		Description: "DESCRIPTION1",
+	}
+	state := mockstate.State{
+		TransactionsByID:       nil,
+		TransactionsHeightByID: nil,
+		AssetsBalances:         map[crypto.Digest]uint64{assetID1: 1000},
+		AssetIsSponsored:       false,
+		BlockHeaderByHeight:    nil,
+		Assets:                 map[crypto.Digest]proto.AssetInfo{assetID1: info1},
+		FullAssets:             map[crypto.Digest]proto.FullAssetInfo{assetID1: full1},
+	}
+	scopeV3 := NewScope(3, proto.TestNetScheme, state)
+	rs, err := Eval(scriptV3.Verifier, scopeV3)
+	require.NoError(t, err)
+	assert.True(t, rs, rs)
+
+	scopeV4 := NewScope(4, proto.TestNetScheme, state)
+	rs, err = Eval(scriptV4.Verifier, scopeV4)
+	require.NoError(t, err)
+	assert.True(t, rs, rs)
 }

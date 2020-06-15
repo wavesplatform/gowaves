@@ -41,19 +41,6 @@ func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
 	return &differTestObjects{stor, td, tp}, path
 }
 
-func defaultDifferInfo(t *testing.T) *differInfo {
-	genSig := crypto.MustBytesFromBase58("2eYyRDZwRCuXJhJTfwKYsqVFpBTg8v69RBppZzStWtaR")
-	blockInfo := &proto.BlockInfo{
-		Timestamp:           defaultTimestamp,
-		Height:              400000,
-		BaseTarget:          943,
-		GenerationSignature: genSig,
-		Generator:           testGlobal.minerInfo.addr,
-		GeneratorPublicKey:  testGlobal.minerInfo.pk,
-	}
-	return &differInfo{false, blockInfo}
-}
-
 func createGenesis(t *testing.T) *proto.Genesis {
 	return proto.NewUnsignedGenesis(testGlobal.recipientInfo.addr, defaultAmount, defaultTimestamp)
 }
@@ -1062,10 +1049,8 @@ func TestCreateDiffDataWithProofs(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
-func createSponsorshipWithProofs(t *testing.T) *proto.SponsorshipWithProofs {
-	feeConst, ok := feeConstants[proto.SponsorshipTransaction]
-	assert.Equal(t, ok, true)
-	tx := proto.NewUnsignedSponsorshipWithProofs(1, testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, FeeUnit*feeConst, defaultTimestamp)
+func createSponsorshipWithProofs(t *testing.T, fee uint64) *proto.SponsorshipWithProofs {
+	tx := proto.NewUnsignedSponsorshipWithProofs(1, testGlobal.senderInfo.pk, testGlobal.asset0.asset.ID, defaultQuantity, FeeUnit*fee, defaultTimestamp)
 	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -1081,7 +1066,7 @@ func TestCreateDiffSponsorshipWithProofs(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createSponsorshipWithProofs(t)
+	tx := createSponsorshipWithProofs(t, 1000)
 	ch, err := to.td.createDiffSponsorshipWithProofs(tx, defaultDifferInfo(t))
 	assert.NoError(t, err, "createDiffSponsorshipWithProofs failed")
 

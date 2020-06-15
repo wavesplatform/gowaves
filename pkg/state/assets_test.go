@@ -185,3 +185,74 @@ func TestNewestLastUpdateHeight(t *testing.T) {
 	assert.NoError(t, err, "failed to get last update height")
 	assert.Equal(t, uint64(2), lastUpdateHeight)
 }
+
+func TestAssetsUncertain(t *testing.T) {
+	to, path, err := createAssets()
+	assert.NoError(t, err, "createAssets() failed")
+
+	defer func() {
+		to.stor.close(t)
+
+		err = common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
+	assert.NoError(t, err, "failed to create digest from bytes")
+
+	// Issue uncertain asset and check it can be retrieved with newestAssetInfo().
+	asset := defaultAssetInfo(false)
+	to.assets.issueAssetUncertain(assetID, asset)
+	inf, err := to.assets.newestAssetInfo(assetID, true)
+	assert.NoError(t, err, "failed to get newest asset info")
+	if !inf.equal(asset) {
+		t.Errorf("uncertain asset was not created properly")
+	}
+	// Asset should not be present after dropUncertain().
+	to.assets.dropUncertain()
+	_, err = to.assets.newestAssetInfo(assetID, true)
+	assert.Error(t, err)
+	// Issue uncertain asset and commit.
+	to.stor.addBlock(t, blockID0)
+	to.assets.issueAssetUncertain(assetID, asset)
+	err = to.assets.commitUncertain(blockID0)
+	assert.NoError(t, err)
+	inf, err = to.assets.newestAssetInfo(assetID, true)
+	assert.NoError(t, err, "failed to get newest asset info")
+	if !inf.equal(asset) {
+		t.Errorf("uncertain asset was not created properly after commit")
+	}
+	// Reissue and burn uncertainly.
+	err = to.assets.burnAssetUncertain(assetID, &assetBurnChange{1}, true)
+	assert.NoError(t, err, "failed to burn asset")
+	asset.quantity.Sub(&asset.quantity, big.NewInt(1))
+	resAsset, err := to.assets.newestAssetInfo(assetID, true)
+	assert.NoError(t, err, "failed to get asset info")
+	if !resAsset.equal(asset) {
+		t.Errorf("assets after burn differ.")
+	}
+	err = to.assets.reissueAssetUncertain(assetID, &assetReissueChange{false, 1}, true)
+	assert.NoError(t, err, "failed to reissue asset")
+	asset.reissuable = false
+	asset.quantity.Add(&asset.quantity, big.NewInt(1))
+	resAsset, err = to.assets.newestAssetInfo(assetID, true)
+	assert.NoError(t, err, "failed to get asset info")
+	if !resAsset.equal(asset) {
+		t.Errorf("assets after reissue differ.")
+	}
+	// Test commit and flush.
+	err = to.assets.commitUncertain(blockID0)
+	assert.NoError(t, err)
+	to.assets.dropUncertain()
+	resAsset, err = to.assets.newestAssetInfo(assetID, true)
+	assert.NoError(t, err, "failed to get asset info")
+	if !resAsset.equal(asset) {
+		t.Errorf("assets after commit differ.")
+	}
+	to.stor.flush(t)
+	resAsset, err = to.assets.assetInfo(assetID, true)
+	assert.NoError(t, err, "failed to get asset info")
+	if !resAsset.equal(asset) {
+		t.Errorf("assets after flush differ.")
+	}
+}

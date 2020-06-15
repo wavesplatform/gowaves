@@ -426,6 +426,7 @@ func TestNativeModLong(t *testing.T) {
 		{-10, 6, 2},
 		{10, -6, -2},
 		{-10, -6, -4},
+		{2, 2, 0},
 	} {
 		rs, err := NativeModLong(newEmptyScopeV1(), Params(NewLong(test.x), NewLong(test.y)))
 		require.NoError(t, err)
@@ -569,7 +570,7 @@ func TestNativeAssetBalance_FromAddress(t *testing.T) {
 		AssetsBalances: map[crypto.Digest]uint64{d: 5},
 	}
 
-	rs, err := NativeAssetBalance(newScopeWithState(s), Params(NewAddressFromProtoAddress(addr), NewBytes(d.Bytes())))
+	rs, err := NativeAssetBalanceV3(newScopeWithState(s), Params(NewAddressFromProtoAddress(addr), NewBytes(d.Bytes())))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(5), rs)
 }
@@ -585,9 +586,77 @@ func TestNativeAssetBalance_FromAlias(t *testing.T) {
 
 	alias := proto.NewAlias(scope.Scheme(), "test")
 
-	rs, err := NativeAssetBalance(scope, Params(NewAliasFromProtoAlias(*alias), NewBytes(d.Bytes())))
+	rs, err := NativeAssetBalanceV3(scope, Params(NewAliasFromProtoAlias(*alias), NewBytes(d.Bytes())))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(5), rs)
+}
+
+func TestNativeAssetBalanceV4(t *testing.T) {
+	d, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+
+	s := mockstate.State{
+		AssetsBalances: map[crypto.Digest]uint64{d: 5},
+	}
+	scope := NewScope(4, proto.MainNetScheme, s)
+
+	alias := proto.NewAlias(scope.Scheme(), "test")
+
+	rs, err := NativeAssetBalanceV4(scope, Params(NewAliasFromProtoAlias(*alias), NewBytes(d.Bytes())))
+	require.NoError(t, err)
+	assert.Equal(t, NewLong(5), rs)
+
+	_, err = NativeAssetBalanceV4(scope, Params(NewAliasFromProtoAlias(*alias), NewUnit()))
+	assert.Error(t, err)
+}
+
+func TestUserWavesBalance(t *testing.T) {
+	addr, err := proto.NewAddressFromString("3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK")
+	require.NoError(t, err)
+	s := mockstate.State{
+		FullWavesBalance: proto.FullWavesBalance{
+			Regular:    1,
+			Generating: 2,
+			Available:  3,
+			Effective:  4,
+			LeaseIn:    5,
+			LeaseOut:   6,
+		},
+		WavesBalance: 123456,
+	}
+	scope3 := NewScope(3, proto.TestNetScheme, s)
+	scope4 := NewScope(4, proto.TestNetScheme, s)
+
+	rs, err := UserWavesBalanceV3(scope3, Params(NewAddressFromProtoAddress(addr)))
+	assert.NoError(t, err)
+	v3, ok := rs.(*LongExpr)
+	assert.True(t, ok)
+	assert.Equal(t, 123456, int(v3.Value))
+
+	rs, err = UserWavesBalanceV4(scope4, Params(NewAddressFromProtoAddress(addr)))
+	assert.NoError(t, err)
+	v4, ok := rs.(*BalanceDetailsExpr)
+	assert.True(t, ok)
+	rv, err := v4.Get("regular")
+	assert.NoError(t, err)
+	rb, ok := rv.(*LongExpr)
+	assert.True(t, ok)
+	assert.Equal(t, 1, int(rb.Value))
+	gv, err := v4.Get("generating")
+	assert.NoError(t, err)
+	gb, ok := gv.(*LongExpr)
+	assert.True(t, ok)
+	assert.Equal(t, 2, int(gb.Value))
+	av, err := v4.Get("available")
+	assert.NoError(t, err)
+	ab, ok := av.(*LongExpr)
+	assert.True(t, ok)
+	assert.Equal(t, 3, int(ab.Value))
+	ev, err := v4.Get("effective")
+	assert.NoError(t, err)
+	eb, ok := ev.(*LongExpr)
+	assert.True(t, ok)
+	assert.Equal(t, 4, int(eb.Value))
 }
 
 func TestNativeDataFromArray(t *testing.T) {
@@ -1292,21 +1361,40 @@ func TestNativeBlockInfoByHeight(t *testing.T) {
 	require.Equal(t, NewBytes(publicKey.Bytes()), ok(b.Get("generatorPublicKey")))
 }
 
-func TestNativeAssetInfo(t *testing.T) {
+func TestNativeAssetInfoV3(t *testing.T) {
 	info := proto.AssetInfo{
 		ID: crypto.MustDigestFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU"),
 	}
 	s := mockstate.State{
 		Assets: map[crypto.Digest]proto.AssetInfo{info.ID: info},
 	}
-	rs, err := NativeAssetInfo(newScopeWithState(s), Params(NewBytes(info.ID.Bytes())))
+	rs, err := NativeAssetInfoV3(newScopeWithState(s), Params(NewBytes(info.ID.Bytes())))
 	require.NoError(t, err)
 	v := rs.(Getable)
 	require.Equal(t, NewBytes(info.ID.Bytes()), ok(v.Get("id")))
 
 	wID, err := base58.Decode("WAVES")
 	require.NoError(t, err)
-	rs2, err := NativeAssetInfo(newScopeWithState(s), Params(NewBytes(wID)))
+	rs2, err := NativeAssetInfoV3(newScopeWithState(s), Params(NewBytes(wID)))
+	require.NoError(t, err)
+	assert.Equal(t, NewUnit(), rs2)
+}
+
+func TestNativeAssetInfoV4(t *testing.T) {
+	info := proto.FullAssetInfo{
+		AssetInfo: proto.AssetInfo{ID: crypto.MustDigestFromBase58("6a1hWT8QNGw8wnacXQ8vT2YEFLuxRxVpEuaaSf6AbSvU")},
+	}
+	s := mockstate.State{
+		FullAssets: map[crypto.Digest]proto.FullAssetInfo{info.ID: info},
+	}
+	rs, err := NativeAssetInfoV4(newScopeWithState(s), Params(NewBytes(info.ID.Bytes())))
+	require.NoError(t, err)
+	v := rs.(Getable)
+	require.Equal(t, NewBytes(info.ID.Bytes()), ok(v.Get("id")))
+
+	wID, err := base58.Decode("WAVES")
+	require.NoError(t, err)
+	rs2, err := NativeAssetInfoV4(newScopeWithState(s), Params(NewBytes(wID)))
 	require.NoError(t, err)
 	assert.Equal(t, NewUnit(), rs2)
 }
@@ -1678,4 +1766,218 @@ func TestRebuildMerkleRoot(t *testing.T) {
 	r, ok := res.(*BytesExpr)
 	assert.True(t, ok)
 	assert.ElementsMatch(t, root, r.Value)
+}
+
+func TestIssueConstructors(t *testing.T) {
+	for _, test := range []struct {
+		txID        string
+		name        string
+		description string
+		decimals    int64
+		quantity    int64
+		reissuable  bool
+	}{
+		{"2K2XASvPkwdePyWaKDKpKT1X7u2uzu6FJASJ34nuTdEi", "asset", "test asset", 2, 100000, false},
+		{"F2fxqoTg3PvEwBshxhwKY9BrbqHvi1RZfyFJ4VmRmokZ", "somerset", "this asset is summer set", 8, 100000000000000, true},
+		{"AafWgQtRaLm915tNf1fhFdmRr7g6Y9YxyeaJRYuhioRX", "some", "this asset is awesome", 0, 1000000000, true},
+	} {
+		txID, err := crypto.NewDigestFromBase58(test.txID)
+		require.NoError(t, err)
+		s := newEmptyScopeV4()
+		s.AddValue("txId", NewBytes(txID.Bytes()))
+		i1, err := Issue(s, NewExprs(NewString(test.name), NewString(test.description), NewLong(test.quantity), NewLong(test.decimals), NewBoolean(test.reissuable), NewUnit(), NewLong(0)))
+		require.NoError(t, err)
+		r1, err := CalculateAssetID(s, NewExprs(i1))
+		require.NoError(t, err)
+		id1, ok := r1.(*BytesExpr)
+		require.True(t, ok)
+
+		i2, err := SimplifiedIssue(s, NewExprs(NewString(test.name), NewString(test.description), NewLong(test.quantity), NewLong(test.decimals), NewBoolean(test.reissuable)))
+		require.NoError(t, err)
+		r2, err := CalculateAssetID(s, NewExprs(i2))
+		require.NoError(t, err)
+		id2, ok := r2.(*BytesExpr)
+		require.True(t, ok)
+
+		assert.ElementsMatch(t, id1.Value, id2.Value)
+	}
+}
+
+func TestECRecover(t *testing.T) {
+	scope := newEmptyScopeV4()
+	sig, err := hex.DecodeString("848ffb6a07e7ce335a2bfe373f1c17573eac320f658ea8cf07426544f2203e9d52dbba4584b0b6c0ed5333d84074002878082aa938fdf68c43367946b2f615d01b")
+	require.NoError(t, err)
+	md, err := hex.DecodeString("ee97de2243125c58133531c3d5c6e244eb6165df38694b1724623d69fd323e6b")
+	require.NoError(t, err)
+	epk, err := hex.DecodeString("f80cb44734ef6eba2cff997ca17d1cfb03a85db1b0aa2101a07184e04a3cde02c0f2ecded2918ccb6b86d568cceed83e9beeb749ff8981a718e495aff30ac446")
+	require.NoError(t, err)
+
+	res, err := ECRecover(scope, NewExprs(NewBytes(md), NewBytes(sig)))
+	require.NoError(t, err)
+
+	pk, ok := res.(*BytesExpr)
+	assert.True(t, ok)
+	assert.ElementsMatch(t, epk, pk.Value)
+}
+
+func TestECRecoverFailures(t *testing.T) {
+	scope := newEmptyScopeV4()
+	for _, test := range []struct {
+		sig string
+		md  string
+		err string
+	}{
+		{
+			"848ffb6a07e7",
+			"ee97de2243125c58133531c3d5c6e244eb6165df38694b1724623d69fd323e6b",
+			"ECRecover: invalid signature size 6, expected 65 bytes",
+		},
+		{
+			"848ffb6a07e7ce335a2bfe373f1c17573eac320f658ea8cf07426544f2203e9d52dbba4584b0b6c0ed5333d84074002878082aa938fdf68c43367946b2f615d01b",
+			"ee97de224312",
+			"ECRecover: invalid message digest size 6, expected 32 bytes",
+		},
+		{
+			"0000fb6a07e7ce335a2bfe373f1c17573eac320f658ea8cf07426544f2203e9d52dbba4584b0b6c0ed5333d84074002878082aa938fdf68c43367946b2f615d01b",
+			"ee97de2243125c58133531c3d5c6e244eb6165df38694b1724623d69fd323e6b",
+			"ECRecover: failed to recover public key: invalid square root",
+		},
+	} {
+		sig, err := hex.DecodeString(test.sig)
+		require.NoError(t, err)
+		md, err := hex.DecodeString(test.md)
+		require.NoError(t, err)
+		_, err = ECRecover(scope, NewExprs(NewBytes(md), NewBytes(sig)))
+		assert.EqualError(t, err, test.err)
+	}
+}
+
+func TestMin(t *testing.T) {
+	list999 := NewExprs()
+	for i := 0; i < 999; i++ {
+		list999 = append(list999, NewLong(0))
+	}
+	list1000 := append(list999, NewLong(1))
+	list1001 := append(list1000, NewLong(2))
+	broken1000 := make(Exprs, 1000)
+	copy(broken1000, list1000)
+	broken1000[999] = NewString("XXX")
+	for n, test := range []struct {
+		expressions Exprs
+		result      Expr
+		error       string
+	}{
+		{NewExprs(NewLong(1), NewLong(2), NewLong(3)), NewLong(1), ""},
+		{NewExprs(NewLong(-1), NewLong(-2), NewLong(-3)), NewLong(-3), ""},
+		{NewExprs(NewLong(0)), NewLong(0), ""},
+		{NewExprs(), nil, "Min: invalid list size 0"},
+		{list1000, NewLong(0), ""},
+		{broken1000, nil, "Min: list must contain only LongExpr elements"},
+		{list1001, nil, "Min: invalid list size 1001"},
+	} {
+		r, err := Min(newEmptyScopeV4(), NewExprs(test.expressions))
+		if test.result != nil {
+			require.NoError(t, err, fmt.Sprintf("#%d", n))
+			assert.Equal(t, test.result, r, fmt.Sprintf("#%d", n))
+		} else {
+			assert.EqualError(t, err, test.error, fmt.Sprintf("#%d", n))
+		}
+	}
+}
+
+func TestMax(t *testing.T) {
+	list999 := NewExprs()
+	for i := 0; i < 999; i++ {
+		list999 = append(list999, NewLong(0))
+	}
+	list1000 := append(list999, NewLong(1))
+	list1001 := append(list1000, NewLong(2))
+	broken1000 := make(Exprs, 1000)
+	copy(broken1000, list1000)
+	broken1000[999] = NewString("XXX")
+	for _, test := range []struct {
+		expressions Exprs
+		result      Expr
+		error       string
+	}{
+		{NewExprs(NewLong(1), NewLong(2), NewLong(3)), NewLong(3), ""},
+		{NewExprs(NewLong(-1), NewLong(-2), NewLong(-3)), NewLong(-1), ""},
+		{NewExprs(NewLong(0)), NewLong(0), ""},
+		{NewExprs(), nil, "Max: invalid list size 0"},
+		{list1000, NewLong(1), ""},
+		{broken1000, nil, "Max: list must contain only LongExpr elements"},
+		{list1001, nil, "Max: invalid list size 1001"},
+	} {
+		r, err := Max(newEmptyScopeV4(), NewExprs(test.expressions))
+		if test.result != nil {
+			require.NoError(t, err)
+			assert.Equal(t, test.result, r)
+		} else {
+			assert.EqualError(t, err, test.error)
+		}
+	}
+}
+
+func TestIndexOf(t *testing.T) {
+	list1000 := NewExprs()
+	for i := 0; i < 1000; i++ {
+		list1000 = append(list1000, NewLong(0))
+	}
+	list1001 := append(list1000, NewLong(2))
+	for _, test := range []struct {
+		expressions Exprs
+		result      Expr
+		error       string
+	}{
+		{NewExprs(NewExprs(NewLong(1), NewLong(2), NewLong(3)), NewLong(3)), NewLong(2), ""},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewLong(3)), nil, "IndexOf: not found"},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewLong(1)), NewLong(0), ""},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewString("A")), NewLong(1), ""},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewString("B")), nil, "IndexOf: not found"},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewBoolean(false)), nil, "IndexOf: not found"},
+		{NewExprs(NewExprs(), NewBoolean(false)), nil, "IndexOf: not found"},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewString("A"), NewBoolean(true)), NewString("A")), NewLong(1), ""},
+		{NewExprs(list1000, NewLong(0)), NewLong(0), ""},
+		{NewExprs(list1001, NewLong(0)), nil, "IndexOf: list size can not exceed 1000 elements"},
+	} {
+		r, err := IndexOf(newEmptyScopeV4(), test.expressions)
+		if test.result != nil {
+			require.NoError(t, err)
+			assert.Equal(t, test.result, r)
+		} else {
+			assert.EqualError(t, err, test.error)
+		}
+	}
+}
+
+func TestLastIndexOf(t *testing.T) {
+	list1000 := NewExprs()
+	for i := 0; i < 1000; i++ {
+		list1000 = append(list1000, NewLong(0))
+	}
+	list1001 := append(list1000, NewLong(2))
+	for _, test := range []struct {
+		expressions Exprs
+		result      Expr
+		error       string
+	}{
+		{NewExprs(NewExprs(NewLong(1), NewLong(2), NewLong(3)), NewLong(3)), NewLong(2), ""},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewLong(3)), nil, "LastIndexOf: not found"},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewLong(1)), NewLong(0), ""},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewString("A")), NewLong(1), ""},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewString("B")), nil, "LastIndexOf: not found"},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewBoolean(true)), NewBoolean(false)), nil, "LastIndexOf: not found"},
+		{NewExprs(NewExprs(), NewBoolean(false)), nil, "LastIndexOf: not found"},
+		{NewExprs(NewExprs(NewLong(1), NewString("A"), NewString("A"), NewBoolean(true)), NewString("A")), NewLong(2), ""},
+		{NewExprs(list1000, NewLong(0)), NewLong(999), ""},
+		{NewExprs(list1001, NewLong(0)), nil, "LastIndexOf: list size can not exceed 1000 elements"},
+	} {
+		r, err := LastIndexOf(newEmptyScopeV4(), test.expressions)
+		if test.result != nil {
+			require.NoError(t, err)
+			assert.Equal(t, test.result, r)
+		} else {
+			assert.EqualError(t, err, test.error)
+		}
+	}
 }

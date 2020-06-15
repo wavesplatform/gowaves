@@ -166,7 +166,7 @@ func (a *MockStateManager) EffectiveBalanceStable(account proto.Recipient, start
 	panic("implement me")
 }
 
-func (a *MockStateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, vrf []byte, acceptFailed bool) error {
+func (a *MockStateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, checkScripts bool) error {
 	panic("implement me")
 }
 
