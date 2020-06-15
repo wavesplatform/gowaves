@@ -257,14 +257,15 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	rw, err := newBlockReadWriter(rwDir, 8, 8, db, dbBatch, proto.MainNetScheme)
+	stateDB, err := newStateDB(db, dbBatch, DefaultTestingStateParams())
 	if err != nil {
 		return nil, res, err
 	}
-	stateDB, err := newStateDB(db, dbBatch, rw, DefaultTestingStateParams())
+	rw, err := newBlockReadWriter(rwDir, 8, 8, stateDB, proto.MainNetScheme)
 	if err != nil {
 		return nil, res, err
 	}
+	stateDB.setRw(rw)
 	hs, err := newHistoryStorage(db, dbBatch, stateDB)
 	if err != nil {
 		return nil, res, err
@@ -274,6 +275,29 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 		return nil, res, err
 	}
 	return &testStorageObjects{db, dbBatch, rw, hs, stateDB, entities}, res, nil
+}
+
+func (s *testStorageObjects) addRealBlock(t *testing.T, block *proto.Block) {
+	blockID := block.BlockID()
+	err := s.stateDB.addBlock(blockID)
+	assert.NoError(t, err, "stateDB.addBlock() failed")
+	err = s.rw.startBlock(blockID)
+	assert.NoError(t, err, "startBlock() failed")
+	err = s.rw.writeBlockHeader(&block.BlockHeader)
+	assert.NoError(t, err, "writeBlockHeader() failed")
+	for _, tx := range block.Transactions {
+		err = s.rw.writeTransaction(tx, false)
+		assert.NoError(t, err, "writeTransaction() failed")
+	}
+	err = s.rw.finishBlock(blockID)
+	assert.NoError(t, err, "finishBlock() failed")
+	s.flush(t)
+}
+
+func (s *testStorageObjects) rollbackBlock(t *testing.T, blockID proto.BlockID) {
+	err := s.stateDB.rollbackBlock(blockID)
+	assert.NoError(t, err, "rollbackBlock() failed")
+	s.flush(t)
 }
 
 func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {

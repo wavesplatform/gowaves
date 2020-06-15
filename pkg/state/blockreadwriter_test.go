@@ -3,8 +3,7 @@ package state
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"os"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -46,59 +44,9 @@ type readTask struct {
 	correctID     proto.BlockID
 }
 
-func createBlockReadWriter(offsetLen, headerOffsetLen int) (*blockReadWriter, []string, error) {
-	res := make([]string, 2)
-	dbDir, err := ioutil.TempDir(os.TempDir(), "db_dir")
-	if err != nil {
-		return nil, nil, err
-	}
-	res[0] = dbDir
-	db, err := keyvalue.NewKeyVal(dbDir, defaultTestKeyValParams())
-	if err != nil {
-		return nil, res, err
-	}
-	dbBatch, err := db.NewBatch()
-	if err != nil {
-		return nil, res, err
-	}
-	rwDir, err := ioutil.TempDir(os.TempDir(), "rw_dir")
-	if err != nil {
-		return nil, res, err
-	}
-	res[1] = rwDir
-	rw, err := newBlockReadWriter(rwDir, offsetLen, headerOffsetLen, db, dbBatch, proto.MainNetScheme)
-	if err != nil {
-		return nil, res, err
-	}
-	return rw, res, nil
-}
-
-func writeBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
-	blockID := block.BlockID()
-	if err := rw.startBlock(blockID); err != nil {
-		t.Fatalf("startBlock(): %v", err)
-	}
-	if err := rw.writeBlockHeader(&block.BlockHeader); err != nil {
-		t.Fatalf("writeBlockHeader(): %v", err)
-	}
-	for _, tx := range block.Transactions {
-		if err := rw.writeTransaction(tx, false); err != nil {
-			t.Fatalf("writeTransaction(): %v", err)
-		}
-	}
-	if err := rw.finishBlock(blockID); err != nil {
-		t.Fatalf("finishBlock(): %v", err)
-	}
-	if err := rw.flush(); err != nil {
-		t.Fatalf("Failed to flush: %v", err)
-	}
-	if err := rw.db.Flush(rw.dbBatch); err != nil {
-		t.Fatalf("Failed to flush DB: %v", err)
-	}
-}
-
-func testSingleBlock(t *testing.T, rw *blockReadWriter, block *proto.Block) {
-	writeBlock(t, rw, block)
+func testSingleBlock(t *testing.T, to *testStorageObjects, block *proto.Block) {
+	rw := to.rw
+	to.addRealBlock(t, block)
 	blockID := block.BlockID()
 	resHeader, err := rw.readBlockHeader(blockID)
 	if err != nil {
@@ -210,11 +158,11 @@ func testNewestReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 				return errors.New("heights are not equal")
 			}
 		case readTxOffset:
-			meta, err := rw.newestTransactionMetaByID(task.txID)
+			info, err := rw.newestTransactionInfoByID(task.txID)
 			if err != nil {
 				return err
 			}
-			if !assert.ObjectsAreEqual(task.offset, meta.offset) {
+			if !assert.ObjectsAreEqual(task.offset, info.offset) {
 				return errors.New("transaction offsets are not equal")
 			}
 		case readTx:
@@ -266,11 +214,11 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 				return errors.New("heights are not equal")
 			}
 		case readTxOffset:
-			meta, err := rw.transactionMetaByID(task.txID)
+			info, err := rw.transactionInfoByID(task.txID)
 			if err != nil {
 				return err
 			}
-			if !assert.ObjectsAreEqual(task.offset, meta.offset) {
+			if !assert.ObjectsAreEqual(task.offset, info.offset) {
 				return errors.New("transaction offsets are not equal")
 			}
 		case readTx:
@@ -295,18 +243,14 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 }
 
 func TestSimpleReadWrite(t *testing.T) {
-	rw, path, err := createBlockReadWriter(8, 8)
+	to, path, err := createStorageObjects()
 	if err != nil {
-		t.Fatalf("createBlockReadWriter: %v", err)
+		t.Fatalf("createStorageObjects: %v", err)
 	}
 
 	defer func() {
-		if err := rw.close(); err != nil {
-			t.Fatalf("Failed to close blockReadWriter: %v", err)
-		}
-		if err := rw.db.Close(); err != nil {
-			t.Fatalf("Failed to close DB: %v", err)
-		}
+		to.close(t)
+
 		if err := common.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
@@ -317,23 +261,19 @@ func TestSimpleReadWrite(t *testing.T) {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
 	for _, block := range blocks {
-		testSingleBlock(t, rw, &block)
+		testSingleBlock(t, to, &block)
 	}
 }
 
 func TestSimultaneousReadWrite(t *testing.T) {
-	rw, path, err := createBlockReadWriter(8, 8)
+	to, path, err := createStorageObjects()
 	if err != nil {
-		t.Fatalf("createBlockReadWriter: %v", err)
+		t.Fatalf("createStorageObjects: %v", err)
 	}
 
 	defer func() {
-		if err := rw.close(); err != nil {
-			t.Fatalf("Failed to close blockReadWriter: %v", err)
-		}
-		if err := rw.db.Close(); err != nil {
-			t.Fatalf("Failed to close DB: %v", err)
-		}
+		to.close(t)
+
 		if err := common.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
@@ -351,7 +291,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err1 := writeBlocks(ctx, rw, blocks, readTasks, true, false)
+		err1 := writeBlocks(ctx, to.rw, blocks, readTasks, true, false)
 		if err1 != nil {
 			mtx.Lock()
 			errCounter++
@@ -364,7 +304,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err1 := testReader(rw, readTasks)
+			err1 := testReader(to.rw, readTasks)
 			if err1 != nil {
 				mtx.Lock()
 				errCounter++
@@ -381,18 +321,14 @@ func TestSimultaneousReadWrite(t *testing.T) {
 }
 
 func TestReadNewest(t *testing.T) {
-	rw, path, err := createBlockReadWriter(8, 8)
+	to, path, err := createStorageObjects()
 	if err != nil {
-		t.Fatalf("createBlockReadWriter: %v", err)
+		t.Fatalf("createStorageObjects: %v", err)
 	}
 
 	defer func() {
-		if err := rw.close(); err != nil {
-			t.Fatalf("Failed to close blockReadWriter: %v", err)
-		}
-		if err := rw.db.Close(); err != nil {
-			t.Fatalf("Failed to close DB: %v", err)
-		}
+		to.close(t)
+
 		if err := common.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
@@ -410,7 +346,7 @@ func TestReadNewest(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err1 := writeBlocks(ctx, rw, blocks, readTasks, false, false)
+		err1 := writeBlocks(ctx, to.rw, blocks, readTasks, false, false)
 		if err1 != nil {
 			mtx.Lock()
 			errCounter++
@@ -423,7 +359,7 @@ func TestReadNewest(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err1 := testNewestReader(rw, readTasks)
+			err1 := testNewestReader(to.rw, readTasks)
 			if err1 != nil {
 				mtx.Lock()
 				errCounter++
@@ -440,18 +376,14 @@ func TestReadNewest(t *testing.T) {
 }
 
 func TestSimultaneousReadDelete(t *testing.T) {
-	rw, path, err := createBlockReadWriter(8, 8)
+	to, path, err := createStorageObjects()
 	if err != nil {
-		t.Fatalf("createBlockReadWriter: %v", err)
+		t.Fatalf("createStorageObjects: %v", err)
 	}
 
 	defer func() {
-		if err := rw.close(); err != nil {
-			t.Fatalf("Failed to close blockReadWriter: %v", err)
-		}
-		if err := rw.db.Close(); err != nil {
-			t.Fatalf("Failed to close DB: %v", err)
-		}
+		to.close(t)
+
 		if err := common.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
@@ -463,11 +395,11 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	}
 
 	for _, block := range blocks {
-		writeBlock(t, rw, &block)
+		to.addRealBlock(t, &block)
 	}
-	idToTest := blocks[blocksNumber-2].BlockID()
-	prevId := blocks[blocksNumber-3].BlockID()
-	txs := blocks[blocksNumber-2].Transactions
+	rollbackHeight := blocksNumber - 2
+	idToTest := blocks[rollbackHeight].BlockID()
+	txs := blocks[rollbackHeight].Transactions
 	txID, err := txs[0].GetID(proto.MainNetScheme)
 	if err != nil {
 		t.Fatalf("GetID(): %v", err)
@@ -480,20 +412,20 @@ func TestSimultaneousReadDelete(t *testing.T) {
 		defer wg.Done()
 		// Give some time to start reading before deleting.
 		time.Sleep(time.Second)
-		removeErr = rw.rollback(prevId, true)
+		removeErr = to.rw.rollback(uint64(rollbackHeight))
 	}()
 	for {
-		_, err = rw.readBlockHeader(idToTest)
+		_, err = to.rw.readBlockHeader(idToTest)
 		if err != nil {
-			if err == keyvalue.ErrNotFound {
+			if err == io.EOF {
 				// Successfully removed.
 				break
 			}
 			t.Fatalf("readBlockHeader(): %v", err)
 		}
-		_, err = rw.readBlock(idToTest)
+		_, err = to.rw.readBlock(idToTest)
 		if err != nil {
-			if err == keyvalue.ErrNotFound {
+			if err == io.EOF {
 				// Successfully removed.
 				break
 			}
@@ -504,25 +436,21 @@ func TestSimultaneousReadDelete(t *testing.T) {
 	if removeErr != nil {
 		t.Fatalf("Failed to remove blocks: %v", err)
 	}
-	_, _, err = rw.readTransaction(txID)
-	if err != keyvalue.ErrNotFound {
+	_, _, err = to.rw.readTransaction(txID)
+	if err != io.EOF {
 		t.Fatalf("transaction from removed block wasn't deleted %v", err)
 	}
 }
 
 func TestProtobufReadWrite(t *testing.T) {
-	rw, path, err := createBlockReadWriter(8, 8)
+	to, path, err := createStorageObjects()
 	if err != nil {
-		t.Fatalf("createBlockReadWriter: %v", err)
+		t.Fatalf("createStorageObjects: %v", err)
 	}
 
 	defer func() {
-		if err := rw.close(); err != nil {
-			t.Fatalf("Failed to close blockReadWriter: %v", err)
-		}
-		if err := rw.db.Close(); err != nil {
-			t.Fatalf("Failed to close DB: %v", err)
-		}
+		to.close(t)
+
 		if err := common.CleanTemporaryDirs(path); err != nil {
 			t.Fatalf("Failed to clean test data dirs: %v", err)
 		}
@@ -531,7 +459,7 @@ func TestProtobufReadWrite(t *testing.T) {
 	// Activate protobuf and convert MainNet blocks to fake 'protobuf' ones.
 	// This is needed because blockReadWriter only accepts
 	// protobuf blocks after setProtobufActivated().
-	rw.setProtobufActivated()
+	to.rw.setProtobufActivated()
 	blocks, err := readBlocksFromTestPath(blocksNumber)
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
@@ -560,7 +488,7 @@ func TestProtobufReadWrite(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err1 := writeBlocks(ctx, rw, protobufBlocks, readTasks, true, true)
+		err1 := writeBlocks(ctx, to.rw, protobufBlocks, readTasks, true, true)
 		if err1 != nil {
 			mtx.Lock()
 			errCounter++
@@ -573,7 +501,7 @@ func TestProtobufReadWrite(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err1 := testReader(rw, readTasks)
+			err1 := testReader(to.rw, readTasks)
 			if err1 != nil {
 				mtx.Lock()
 				errCounter++
@@ -591,4 +519,32 @@ func TestProtobufReadWrite(t *testing.T) {
 
 func TestFailedTransactionReadWrite(t *testing.T) {
 	//TODO: add test on failed transaction
+}
+
+func TestSyncWithDb(t *testing.T) {
+	to, path, err := createStorageObjects()
+	assert.NoError(t, err, "createStorageObjects() failed")
+
+	defer func() {
+		to.close(t)
+
+		err = common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	// Add block.
+	err = to.rw.startBlock(blockID0)
+	assert.NoError(t, err, "startBlock() failed")
+	err = to.rw.finishBlock(blockID0)
+	assert.NoError(t, err, "finishBlock() failed")
+
+	to.flush(t)
+
+	assert.Equal(t, uint64(1), to.rw.height)
+
+	err = to.rw.syncWithDb()
+	assert.NoError(t, err, "syncWithDb() failed")
+
+	// Block that is not present in DB should be removed after sync.
+	assert.Equal(t, uint64(0), to.rw.height)
 }

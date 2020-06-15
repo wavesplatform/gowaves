@@ -234,6 +234,7 @@ func (k *KeyVal) Flush(b1 Batch) error {
 	if !ok {
 		return errors.New("can't convert batch interface to leveldb's batch")
 	}
+	// TODO: this is not atomic.
 	if err := k.db.Write(b.leveldbBatch(), nil); err != nil {
 		return err
 	}

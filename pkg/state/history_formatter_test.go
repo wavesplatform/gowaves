@@ -65,8 +65,7 @@ func TestNormalizeFeatureVote(t *testing.T) {
 
 	// Now rollback the last block to check filtering.
 	id := ids[len(ids)-1]
-	err = to.stor.stateDB.rollbackBlock(id)
-	assert.NoError(t, err, "rollbackBlock() failed")
+	to.stor.rollbackBlock(t, id)
 
 	// Normalize and check the result.
 	changed, err = to.fmt.normalize(history, true)
@@ -102,8 +101,7 @@ func TestNormalize(t *testing.T) {
 	// Rollback some of blocks.
 	for i, id := range ids {
 		if i >= rollbackEdge {
-			err = to.stor.stateDB.rollbackBlock(id)
-			assert.NoError(t, err, "rollbackBlock() failed")
+			to.stor.rollbackBlock(t, id)
 		}
 	}
 

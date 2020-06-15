@@ -128,7 +128,7 @@ func (i *batchIterator) next() bool {
 
 func (i *batchIterator) currentBatch() ([]byte, error) {
 	val := keyvalue.SafeValue(i.iter)
-	return i.stor.normalize(val)
+	return i.stor.normalize(val, false)
 }
 
 func (i *batchIterator) error() error {
@@ -413,7 +413,7 @@ func (s *batchedStorage) normalizeBatches(key []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to get batch by key")
 		}
-		newBatch, err := s.normalize(batch)
+		newBatch, err := s.normalize(batch, true)
 		if err != nil {
 			return errors.Wrap(err, "failed to normalize batch")
 		}
@@ -463,7 +463,7 @@ func (s *batchedStorage) newBackwardRecordIterator(key []byte) (*recordIterator,
 	return newRecordIterator(batchIter, s.params.recordSize), nil
 }
 
-func (s *batchedStorage) normalize(batch []byte) ([]byte, error) {
+func (s *batchedStorage) normalize(batch []byte, includeNewest bool) ([]byte, error) {
 	size := s.params.recordSize
 	if (len(batch) % size) != 0 {
 		return nil, errInvalidDataSize
@@ -474,7 +474,7 @@ func (s *batchedStorage) normalize(batch []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		isValid, err := s.stateDB.isValidBlock(record.blockNum)
+		isValid, err := s.stateDB.isValidBlock(record.blockNum, includeNewest)
 		if err != nil {
 			return nil, err
 		}
@@ -551,9 +551,9 @@ func (s *batchedStorage) flush() error {
 		s.writeBatchGroup([]byte(key), bg)
 	}
 	s.writeLock.Lock()
+	defer s.writeLock.Unlock()
 	if err := s.db.Flush(s.dbBatch); err != nil {
 		return err
 	}
-	s.writeLock.Unlock()
 	return nil
 }

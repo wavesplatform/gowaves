@@ -110,8 +110,7 @@ func TestRollbackVote(t *testing.T) {
 	assert.Equal(t, uint32(1), votes.increase)
 	assert.Equal(t, uint32(0), votes.decrease)
 
-	err = storage.stateDB.rollbackBlock(blockID0)
-	require.NoError(t, err)
+	storage.rollbackBlock(t, blockID0)
 	votes, err = mo.votes()
 	require.NoError(t, err)
 	assert.Equal(t, uint32(0), votes.increase)

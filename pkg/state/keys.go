@@ -39,16 +39,13 @@ const (
 	validBlockNumKeyPrefix
 
 	// For block storage.
-	// IDs of blocks and transactions --> offsets in files.
+	// IDs of blocks --> offsets in files.
 	blockOffsetKeyPrefix
-	txMetaKeyPrefix
-	// Transaction heights by IDs.
-	txHeightKeyPrefix
+	// IDs of transactions --> offsets in files, heights, failure status.
+	txInfoKeyPrefix
 
 	// Minimum height to which rollback is possible.
 	rollbackMinHeightKeyPrefix
-	// Min height of blockReadWriter's files.
-	rwHeightKeyPrefix
 	// Height of main db.
 	dbHeightKeyPrefix
 
@@ -277,24 +274,13 @@ func (k *blockOffsetKey) bytes() []byte {
 	return buf
 }
 
-type txMetaKey struct {
+type txInfoKey struct {
 	txID []byte
 }
 
-func (k *txMetaKey) bytes() []byte {
+func (k *txInfoKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
-	buf[0] = txMetaKeyPrefix
-	copy(buf[1:], k.txID)
-	return buf
-}
-
-type txHeightKey struct {
-	txID []byte
-}
-
-func (k *txHeightKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
-	buf[0] = txHeightKeyPrefix
+	buf[0] = txInfoKeyPrefix
 	copy(buf[1:], k.txID)
 	return buf
 }

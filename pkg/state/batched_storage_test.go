@@ -77,8 +77,7 @@ func (to *batchedStorageTestObjects) testIterator(t *testing.T, key []byte, data
 }
 
 func (to *batchedStorageTestObjects) rollbackBlock(t *testing.T, blockID proto.BlockID) {
-	err := to.stor.stateDB.rollbackBlock(blockID)
-	assert.NoError(t, err)
+	to.stor.rollbackBlock(t, blockID)
 	to.rollbackedIds[blockID] = true
 }
 

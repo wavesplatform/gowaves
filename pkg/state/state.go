@@ -387,27 +387,24 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create db batch: %v", err))
 	}
+	stateDB, err := newStateDB(db, dbBatch, params)
+	if err != nil {
+		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v", err))
+	}
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(
 		blockStorageDir,
 		params.OffsetLen,
 		params.HeaderOffsetLen,
-		db,
-		dbBatch,
+		stateDB,
 		settings.AddressSchemeCharacter,
 	)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
 	}
-	stateDB, err := newStateDB(db, dbBatch, rw, params)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v", err))
-	}
+	stateDB.setRw(rw)
 	if err := checkCompatibility(stateDB, params); err != nil {
 		return nil, wrapErr(IncompatibilityError, err)
-	}
-	if err := stateDB.syncRw(); err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to sync block storage and DB: %v", err))
 	}
 	hs, err := newHistoryStorage(db, dbBatch, stateDB)
 	if err != nil {
@@ -677,7 +674,7 @@ func (s *stateManager) NewestHeight() (uint64, error) {
 }
 
 func (s *stateManager) Height() (uint64, error) {
-	height, err := s.rw.getHeight()
+	height, err := s.stateDB.getHeight()
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -991,7 +988,7 @@ func (s *stateManager) undoBlockAddition() error {
 	if err := s.reset(false); err != nil {
 		return err
 	}
-	if err := s.stateDB.syncRw(); err != nil {
+	if err := s.rw.syncWithDb(); err != nil {
 		return err
 	}
 	return nil
@@ -1483,60 +1480,35 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 	if err != nil {
 		return wrapErr(RetrievalError, err)
 	}
-	if err := s.RollbackTo(blockID); err != nil {
-		return wrapErr(RollbackError, err)
-	}
-	return nil
+	return s.rollbackToImpl(blockID)
 }
 
 func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
-	// TODO: this is not really atomic.
-	if err := s.checkRollbackInput(removalEdge); err != nil {
-		return wrapErr(InvalidInputError, err)
-	}
-	curHeight, err := s.rw.getHeight()
-	if err != nil {
-		return wrapErr(RetrievalError, err)
-	}
-
-	defer func() {
-		// Clear scripts cache.
-		if err := s.stor.scriptsStorage.clear(); err != nil {
-			zap.S().Fatalf("Failed to clear scripts cache after rollback: %v", err)
-		}
-		if err := s.loadLastBlock(); err != nil {
-			zap.S().Fatalf("Failed to load last block after rollback: %v", err)
-		}
-	}()
-
-	// Remove block ids from valid blocks list.
-	for height := curHeight; height > 0; height-- {
-		blockID, err := s.rw.blockIDByHeight(height)
-		if err != nil {
-			return wrapErr(RetrievalError, err)
-		}
-		if blockID == removalEdge {
-			break
-		}
-		if err := s.stateDB.rollbackBlock(blockID); err != nil {
-			return wrapErr(RollbackError, err)
-		}
-	}
-	// Remove blocks from block storage.
-	if err := s.rw.rollback(removalEdge, true); err != nil {
+	// The database part of rollback.
+	if err := s.stateDB.rollback(removalEdge); err != nil {
 		return wrapErr(RollbackError, err)
+	}
+	// After this point Fatalf() is called instead of returning errors,
+	// because exiting would lead to incorrect state.
+	// Remove blocks from block storage by syncing block storage with the database.
+	if err := s.rw.syncWithDb(); err != nil {
+		zap.S().Fatalf("Failed to sync block storage with db: %v", err)
+	}
+	// Clear scripts cache.
+	if err := s.stor.scriptsStorage.clear(); err != nil {
+		zap.S().Fatalf("Failed to clear scripts cache after rollback: %v", err)
+	}
+	if err := s.loadLastBlock(); err != nil {
+		zap.S().Fatalf("Failed to load last block after rollback: %v", err)
 	}
 	return nil
 }
 
 func (s *stateManager) RollbackTo(removalEdge proto.BlockID) error {
-	if err := s.rollbackToImpl(removalEdge); err != nil {
-		if err1 := s.stateDB.syncRw(); err1 != nil {
-			zap.S().Fatalf("Failed to rollback and can not sync state components after failure: %v", err1)
-		}
-		return err
+	if err := s.checkRollbackInput(removalEdge); err != nil {
+		return wrapErr(InvalidInputError, err)
 	}
-	return nil
+	return s.rollbackToImpl(removalEdge)
 }
 
 func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {

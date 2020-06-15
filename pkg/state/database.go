@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 const (
@@ -21,7 +20,6 @@ var (
 	rollbackMinHeightKeyBytes = []byte{rollbackMinHeightKeyPrefix}
 	lastBlockNumKeyBytes      = []byte{lastBlockNumKeyPrefix}
 	dbHeightKeyBytes          = []byte{dbHeightKeyPrefix}
-	rwHeightKeyBytes          = []byte{rwHeightKeyPrefix}
 )
 
 type stateInfo struct {
@@ -85,11 +83,12 @@ type stateDB struct {
 
 	newestBlockIdToNum map[proto.BlockID]uint32
 	newestBlockNumToId map[uint32]proto.BlockID
+	blockNumsLock      sync.RWMutex
 
 	blocksNum int
 }
 
-func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, rw *blockReadWriter, params StateParams) (*stateDB, error) {
+func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, params StateParams) (*stateDB, error) {
 	heightBuf := make([]byte, 8)
 	has, err := db.Has(dbHeightKeyBytes)
 	if err != nil {
@@ -119,10 +118,13 @@ func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, rw *blockReadWrite
 		db:                 db,
 		dbBatch:            dbBatch,
 		dbWriteLock:        dbWriteLock,
-		rw:                 rw,
 		newestBlockIdToNum: make(map[proto.BlockID]uint32),
 		newestBlockNumToId: make(map[uint32]proto.BlockID),
 	}, nil
+}
+
+func (s *stateDB) setRw(rw *blockReadWriter) {
+	s.rw = rw
 }
 
 // Returns database write lock.
@@ -130,41 +132,11 @@ func (s *stateDB) retrieveWriteLock() *sync.Mutex {
 	return s.dbWriteLock
 }
 
-// Sync blockReadWriter's storage (files) with the database.
-func (s *stateDB) syncRw() error {
-	dbHeightBytes, err := s.db.Get(dbHeightKeyBytes)
-	if err != nil {
-		return err
-	}
-	dbHeight := binary.LittleEndian.Uint64(dbHeightBytes)
-	rwHeightBytes, err := s.db.Get(rwHeightKeyBytes)
-	if err != nil {
-		return err
-	}
-	rwHeight := binary.LittleEndian.Uint64(rwHeightBytes)
-	zap.S().Infof("Synced to state height %d", dbHeight)
-	if rwHeight < dbHeight {
-		// This should never happen, because we update block storage before writing changes into DB.
-		zap.S().Fatal("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node")
-	}
-	if dbHeight == 0 {
-		if err := s.rw.removeEverything(false); err != nil {
-			return err
-		}
-	} else {
-		last, err := s.rw.blockIDByHeight(dbHeight)
-		if err != nil {
-			return err
-		}
-		if err := s.rw.rollback(last, false); err != nil {
-			return errors.Errorf("failed to remove blocks from block storage: %v", err)
-		}
-	}
-	return nil
-}
-
 // addBlock() makes block officially valid (but only after batch is flushed).
 func (s *stateDB) addBlock(blockID proto.BlockID) error {
+	s.blockNumsLock.Lock()
+	defer s.blockNumsLock.Unlock()
+
 	lastBlockNum, err := s.getLastBlockNum()
 	if err != nil {
 		return err
@@ -197,7 +169,14 @@ func (s *stateDB) addBlock(blockID proto.BlockID) error {
 	return nil
 }
 
-func (s *stateDB) isValidBlock(blockNum uint32) (bool, error) {
+func (s *stateDB) isValidBlock(blockNum uint32, includeNewest bool) (bool, error) {
+	s.blockNumsLock.RLock()
+	defer s.blockNumsLock.RUnlock()
+	if includeNewest {
+		if _, ok := s.newestBlockNumToId[blockNum]; ok {
+			return true, nil
+		}
+	}
 	key := validBlockNumKey{blockNum}
 	return s.db.Has(key.bytes())
 }
@@ -217,6 +196,8 @@ func (s *stateDB) blockIdToNum(blockID proto.BlockID) (uint32, error) {
 }
 
 func (s *stateDB) blockNumToId(blockNum uint32) (proto.BlockID, error) {
+	s.blockNumsLock.RLock()
+	defer s.blockNumsLock.RUnlock()
 	blockId, ok := s.newestBlockNumToId[blockNum]
 	if ok {
 		return blockId, nil
@@ -250,30 +231,44 @@ func (s *stateDB) blockNumByHeight(height uint64) (uint32, error) {
 }
 
 func (s *stateDB) rollbackBlock(blockID proto.BlockID) error {
-	// Decrease DB's height (for sync/recovery).
-	height, err := s.getHeight()
-	if err != nil {
-		return err
-	}
-	if err := s.setHeight(height-1, true); err != nil {
-		return err
-	}
 	blockNum, err := s.blockIdToNum(blockID)
 	if err != nil {
 		return err
 	}
 	key := validBlockNumKey{blockNum}
-	if err := s.db.Delete(key.bytes()); err != nil {
-		return err
-	}
+	s.dbBatch.Delete(key.bytes())
 	numKey := blockIdToNumKey{blockID}
-	if err := s.db.Delete(numKey.bytes()); err != nil {
-		return err
-	}
+	s.dbBatch.Delete(numKey.bytes())
 	idKey := blockNumToIdKey{blockNum}
-	if err := s.db.Delete(idKey.bytes()); err != nil {
+	s.dbBatch.Delete(idKey.bytes())
+	return nil
+}
+
+func (s *stateDB) rollback(removalEdge proto.BlockID) error {
+	curHeight, err := s.getHeight()
+	if err != nil {
 		return err
 	}
+	for ; curHeight > 0; curHeight-- {
+		blockID, err := s.rw.blockIDByHeight(curHeight)
+		if err != nil {
+			return err
+		}
+		if blockID == removalEdge {
+			break
+		}
+		if err := s.rollbackBlock(blockID); err != nil {
+			return err
+		}
+	}
+	s.setHeight(curHeight)
+	if err := s.rw.cleanIDs(removalEdge); err != nil {
+		return err
+	}
+	if err := s.flushBatch(); err != nil {
+		return err
+	}
+	s.reset()
 	return nil
 }
 
@@ -310,17 +305,10 @@ func (s *stateDB) getRollbackMinHeight() (uint64, error) {
 	return binary.LittleEndian.Uint64(heightBytes), nil
 }
 
-func (s *stateDB) setHeight(height uint64, directly bool) error {
+func (s *stateDB) setHeight(height uint64) {
 	dbHeightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(dbHeightBytes, height)
-	if directly {
-		if err := s.db.Put(dbHeightKeyBytes, dbHeightBytes); err != nil {
-			return err
-		}
-	} else {
-		s.dbBatch.Put(dbHeightKeyBytes, dbHeightBytes)
-	}
-	return nil
+	s.dbBatch.Put(dbHeightKeyBytes, dbHeightBytes)
 }
 
 func (s *stateDB) getHeight() (uint64, error) {
@@ -403,9 +391,7 @@ func (s *stateDB) flush() error {
 		return err
 	}
 	newHeight := prevHeight + uint64(s.blocksNum)
-	if err := s.setHeight(newHeight, false); err != nil {
-		return err
-	}
+	s.setHeight(newHeight)
 	// Update rollback minimum height.
 	newRollbackMinHeight, err := s.calculateNewRollbackMinHeight(newHeight)
 	if err != nil {
@@ -414,16 +400,23 @@ func (s *stateDB) flush() error {
 	if err := s.setRollbackMinHeight(newRollbackMinHeight); err != nil {
 		return err
 	}
+	return s.flushBatch()
+}
+
+func (s *stateDB) flushBatch() error {
 	s.dbWriteLock.Lock()
+	defer s.dbWriteLock.Unlock()
 	// Write the whole batch to DB.
 	if err := s.db.Flush(s.dbBatch); err != nil {
 		return err
 	}
-	s.dbWriteLock.Unlock()
 	return nil
 }
 
 func (s *stateDB) reset() {
+	s.blockNumsLock.Lock()
+	defer s.blockNumsLock.Unlock()
+
 	s.newestBlockIdToNum = make(map[proto.BlockID]uint32)
 	s.newestBlockNumToId = make(map[uint32]proto.BlockID)
 	s.blocksNum = 0

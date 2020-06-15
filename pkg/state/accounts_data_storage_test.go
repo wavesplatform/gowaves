@@ -105,8 +105,7 @@ func TestRollbackEntry(t *testing.T) {
 	// Flush and reset before rollback.
 	to.stor.flush(t)
 	// Rollback block.
-	err = to.stor.stateDB.rollbackBlock(blockID1)
-	assert.NoError(t, err, "rollbackBlock() failed")
+	to.stor.rollbackBlock(t, blockID1)
 	// Make sure data entry is now from blockID0.
 	entry, err = to.accountsDataStor.retrieveEntry(addr0, entry0.Key, true)
 	assert.NoError(t, err, "retrieveEntry() failed")

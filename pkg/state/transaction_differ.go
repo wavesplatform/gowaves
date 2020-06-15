@@ -696,7 +696,6 @@ func calculateAmount(matchAmount, matchPrice uint64, amountDecimal, priceDecimal
 	return r, nil
 }
 
-// TODO: set updateMinIntermediateBalance to true here after BlockV5 activation.
 func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
@@ -807,7 +806,6 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	return changes, nil
 }
 
-// TODO: set updateMinIntermediateBalance to true here after BlockV5 activation.
 func (td *transactionDiffer) createDiffForExchangeFeeValidation(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
