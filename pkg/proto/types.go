@@ -17,6 +17,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
@@ -43,6 +44,7 @@ const (
 	MaxOrderAmount       = 100 * PriceConstant * PriceConstant
 	MaxOrderTTL          = uint64((30 * 24 * time.Hour) / time.Millisecond)
 	maxKeySize           = 100
+	maxPBKeySize         = 400
 	maxValueSize         = 32767
 
 	maxScriptActions                     = 10
@@ -1904,7 +1906,7 @@ type DataEntry interface {
 
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
-	Valid() (bool, error)
+	Valid(version byte) error
 	BinarySize() int
 
 	ToProtobuf() *g.DataTransactionData_DataEntry
@@ -1970,14 +1972,21 @@ func (e IntegerDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e IntegerDataEntry) Valid() (bool, error) {
+func (e IntegerDataEntry) Valid(version byte) error {
 	if len(e.Key) == 0 {
-		return false, errors.New("empty entry key")
+		return errs.NewEmptyDataKey("empty entry key")
 	}
-	if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
-		return false, errors.New("key is too large")
+	switch version {
+	case 1:
+		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+			return errs.NewTooBigArray("key is too large")
+		}
+	default:
+		if len([]byte(e.Key)) > maxPBKeySize {
+			return errs.NewTooBigArray("key is too large")
+		}
 	}
-	return true, nil
+	return nil
 }
 
 //GetKey returns the key of data entry.
@@ -2091,14 +2100,21 @@ func (e BooleanDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e BooleanDataEntry) Valid() (bool, error) {
+func (e BooleanDataEntry) Valid(version byte) error {
 	if len(e.Key) == 0 {
-		return false, errors.New("empty entry key")
+		return errs.NewEmptyDataKey("empty entry key")
 	}
-	if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
-		return false, errors.New("key is too large")
+	switch version {
+	case 1:
+		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+			return errs.NewTooBigArray("key is too large11")
+		}
+	default:
+		if len([]byte(e.Key)) > maxPBKeySize {
+			return errs.NewTooBigArray("key is too large22")
+		}
 	}
-	return true, nil
+	return nil
 }
 
 //GetKey returns the key of data entry.
@@ -2216,17 +2232,24 @@ func (e BinaryDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e BinaryDataEntry) Valid() (bool, error) {
+func (e BinaryDataEntry) Valid(version byte) error {
 	if len(e.Key) == 0 {
-		return false, errors.New("empty entry key")
+		return errs.NewEmptyDataKey("empty entry key")
 	}
-	if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
-		return false, errors.New("key is too large")
+	switch version {
+	case 1:
+		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+			return errs.NewTooBigArray("key is too large")
+		}
+	default:
+		if len([]byte(e.Key)) > maxPBKeySize {
+			return errs.NewTooBigArray("key is too large")
+		}
 	}
 	if len(e.Value) > maxValueSize {
-		return false, errors.New("value is too large")
+		return errs.NewTooBigArray("value is too large")
 	}
-	return true, nil
+	return nil
 }
 
 //GetKey returns the key of data entry.
@@ -2344,17 +2367,24 @@ func (e StringDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e StringDataEntry) Valid() (bool, error) {
+func (e StringDataEntry) Valid(version byte) error {
 	if len(e.Key) == 0 {
-		return false, errors.New("empty entry key")
+		return errs.NewEmptyDataKey("empty entry key")
 	}
-	if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
-		return false, errors.New("key is too large")
+	switch version {
+	case 1:
+		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+			return errs.NewTooBigArray("key is too large")
+		}
+	default:
+		if len([]byte(e.Key)) > maxPBKeySize {
+			return errs.NewTooBigArray("key is too large")
+		}
 	}
 	if len(e.Value) > maxValueSize {
-		return false, errors.New("value is too large")
+		return errs.NewTooBigArray("value is too large")
 	}
-	return true, nil
+	return nil
 }
 
 //GetKey returns the key of key-value pair.
@@ -2471,14 +2501,21 @@ func (e DeleteDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e DeleteDataEntry) Valid() (bool, error) {
+func (e DeleteDataEntry) Valid(version byte) error {
 	if len(e.Key) == 0 {
-		return false, errors.New("empty entry key")
+		return errs.NewEmptyDataKey("empty entry key")
 	}
-	if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
-		return false, errors.New("key is too large")
+	switch version {
+	case 1:
+		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+			return errs.NewTooBigArray("key is too large")
+		}
+	default:
+		if len([]byte(e.Key)) > maxPBKeySize {
+			return errs.NewTooBigArray("key is too large")
+		}
 	}
-	return true, nil
+	return nil
 }
 
 //GetKey returns the key of key-value pair.

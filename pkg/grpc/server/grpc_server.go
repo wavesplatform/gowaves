@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/pkg/errors"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
@@ -12,6 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 type Server struct {
@@ -42,7 +44,12 @@ func (s *Server) initServer(state state.StateInfo, utx types.UtxPool, sch types.
 }
 
 func (s *Server) Run(ctx context.Context, address string) error {
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             10 * time.Second,
+			PermitWithoutStream: true,
+		}),
+	)
 	g.RegisterAccountsApiServer(grpcServer, s)
 	g.RegisterAssetsApiServer(grpcServer, s)
 	g.RegisterBlockchainApiServer(grpcServer, s)

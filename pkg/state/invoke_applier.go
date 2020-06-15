@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -393,7 +394,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 					return nil, false, err
 				}
 				if assetInfo.issuer != scriptPK {
-					return nil, false, errors.New("asset was issued by other address")
+					return nil, false, errs.NewTxValidationError("asset was issued by other address")
 				}
 				if !assetInfo.reissuable {
 					return nil, false, errors.New("attempt to reissue asset which is not reissuable")
@@ -447,7 +448,7 @@ func (ia *invokeApplier) applyInvokeScriptWithProofs(tx *proto.InvokeScriptWithP
 					return nil, false, err
 				}
 				if !burnAnyTokensEnabled && assetInfo.issuer != scriptPK {
-					return nil, false, errors.New("asset was issued by other address")
+					return nil, false, errs.NewTxValidationError("asset was issued by other address")
 				}
 				var n uint64
 				n, ok, err = ia.validateActionSmartAsset(a.AssetID, a, scriptPK, blockInfo, *tx.ID, tx.Timestamp, info.initialisation, acceptFailed)

@@ -1,5 +1,11 @@
 # How to generate embedded settings files
 
+Installation:
+
+```bash
+go get github.com/rakyll/statik
+```
+
 Execute following command:
 
 ```bash

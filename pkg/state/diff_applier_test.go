@@ -61,7 +61,7 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	}
 	err = to.applier.applyBalancesChanges(changes, true)
 	assert.Error(t, err, "applyBalancesChanges() did not fail with leasing change leading to negative balance")
-	// Valid leasing change.
+	// Validate leasing change.
 	diff = balanceDiff{leaseIn: 10, blockID: blockID0}
 	changes = []balanceChanges{
 		{[]byte(testGlobal.senderInfo.wavesKey), []balanceDiff{diff}},

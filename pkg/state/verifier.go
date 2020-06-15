@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -35,7 +36,7 @@ type verifyTask struct {
 }
 
 func checkTx(tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, scheme proto.Scheme) error {
-	if ok, err := tx.Valid(); !ok {
+	if _, err := tx.Validate(); err != nil {
 		return errors.Wrap(err, "invalid tx data")
 	}
 	if !checkTxSig {
@@ -49,18 +50,24 @@ func checkTx(tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, sc
 		}
 	case *proto.TransferWithSig:
 		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errs.NewTxValidationError("transfer tx signature verification failed")
 		}
 	case *proto.TransferWithProofs:
 		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("transfer tx signature verification failed")
+			return errs.NewTxValidationError("transfer tx signature verification failed")
 		}
 	case *proto.IssueWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, err := t.Verify(scheme, t.SenderPK); !ok {
+			if err != nil {
+				return errs.Extend(err, "issue tx signature verification failed")
+			}
 			return errors.New("issue tx signature verification failed")
 		}
 	case *proto.IssueWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, err := t.Verify(scheme, t.SenderPK); !ok {
+			if err != nil {
+				return errs.Extend(err, "issue tx signature verification failed")
+			}
 			return errors.New("issue tx signature verification failed")
 		}
 	case *proto.ReissueWithSig:
@@ -137,7 +144,7 @@ func checkTx(tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, sc
 		}
 	case *proto.MassTransferWithProofs:
 		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("masstransfer tx signature verification failed")
+			return errs.NewTxValidationError("masstransfer tx signature verification failed")
 		}
 	case *proto.DataWithProofs:
 		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
