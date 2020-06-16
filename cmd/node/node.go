@@ -295,6 +295,7 @@ func main() {
 		Wallet:          wal,
 		MicroBlockCache: microblock_cache.NewMicroblockCache(),
 		InternalChannel: messages.NewInternalChannel(),
+		MinPeersMining:  *minPeersMining,
 	}
 
 	mine := miner.NewMicroblockMiner(services, features, reward)

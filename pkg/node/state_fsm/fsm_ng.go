@@ -52,7 +52,9 @@ func NewNGFsm12(info BaseInfo) *NGFsm {
 
 func (a *NGFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 	fsm, as, err := newPeer(a, p, a.peers)
-	a.Reschedule()
+	if a.peers.ConnectedCount() == a.minPeersMining {
+		a.Reschedule()
+	}
 	sendScore(p, a.storage)
 	return fsm, as, err
 }

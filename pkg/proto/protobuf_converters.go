@@ -388,9 +388,13 @@ func (c *ProtobufConverter) attachment(att *g.Attachment, untyped bool) Attachme
 		return nil
 	}
 	if untyped {
+		if att.Attachment == nil {
+			return &LegacyAttachment{Value: nil}
+		}
+
 		binaryAttachment, ok := att.Attachment.(*g.Attachment_BinaryValue)
 		if !ok {
-			c.err = errors.New("trying to convert non-binary attachment as untyped")
+			c.err = errors.Errorf("trying to convert non-binary type (%T) attachment as untyped", att.Attachment)
 			return nil
 		}
 		return &LegacyAttachment{Value: binaryAttachment.BinaryValue}

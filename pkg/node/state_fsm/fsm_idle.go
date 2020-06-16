@@ -70,7 +70,9 @@ func NewIdleFsm(info BaseInfo) *IdleFsm {
 
 func (a *IdleFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 	fsm, as, err := newPeer(a, p, a.baseInfo.peers)
-	a.baseInfo.Reschedule()
+	if a.baseInfo.peers.ConnectedCount() == a.baseInfo.minPeersMining {
+		a.baseInfo.Reschedule()
+	}
 	sendScore(p, a.baseInfo.storage)
 	return fsm, as, err
 }
