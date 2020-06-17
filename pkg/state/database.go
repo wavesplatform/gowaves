@@ -169,14 +169,16 @@ func (s *stateDB) addBlock(blockID proto.BlockID) error {
 	return nil
 }
 
-func (s *stateDB) isValidBlock(blockNum uint32, includeNewest bool) (bool, error) {
+func (s *stateDB) newestIsValidBlock(blockNum uint32) (bool, error) {
 	s.blockNumsLock.RLock()
 	defer s.blockNumsLock.RUnlock()
-	if includeNewest {
-		if _, ok := s.newestBlockNumToId[blockNum]; ok {
-			return true, nil
-		}
+	if _, ok := s.newestBlockNumToId[blockNum]; ok {
+		return true, nil
 	}
+	return s.isValidBlock(blockNum)
+}
+
+func (s *stateDB) isValidBlock(blockNum uint32) (bool, error) {
 	key := validBlockNumKey{blockNum}
 	return s.db.Has(key.bytes())
 }

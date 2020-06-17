@@ -28,7 +28,7 @@ func TestAddBlock(t *testing.T) {
 	blockNum, err = to.stateDB.newestBlockNumByHeight(1)
 	assert.NoError(t, err, "newestBlockNumByHeight() failed")
 	assert.Equal(t, uint32(0), blockNum)
-	isValid, err := to.stateDB.isValidBlock(blockNum, false)
+	isValid, err := to.stateDB.isValidBlock(blockNum)
 	assert.NoError(t, err, "isValidBlock() failed")
 	assert.Equal(t, false, isValid)
 
@@ -37,7 +37,7 @@ func TestAddBlock(t *testing.T) {
 	blockNum, err = to.stateDB.blockNumByHeight(1)
 	assert.NoError(t, err, "blockNumByHeight() failed")
 	assert.Equal(t, uint32(0), blockNum)
-	isValid, err = to.stateDB.isValidBlock(blockNum, false)
+	isValid, err = to.stateDB.isValidBlock(blockNum)
 	assert.NoError(t, err, "isValidBlock() failed")
 	assert.Equal(t, true, isValid)
 	height, err := to.stateDB.getHeight()
@@ -46,7 +46,7 @@ func TestAddBlock(t *testing.T) {
 
 	// Rollback.
 	to.rollbackBlock(t, blockID0)
-	isValid, err = to.stateDB.isValidBlock(blockNum, false)
+	isValid, err = to.stateDB.isValidBlock(blockNum)
 	assert.NoError(t, err, "isValidBlock() failed")
 	assert.Equal(t, false, isValid)
 }

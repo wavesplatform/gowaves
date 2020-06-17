@@ -474,9 +474,17 @@ func (s *batchedStorage) normalize(batch []byte, includeNewest bool) ([]byte, er
 		if err != nil {
 			return nil, err
 		}
-		isValid, err := s.stateDB.isValidBlock(record.blockNum, includeNewest)
-		if err != nil {
-			return nil, err
+		var isValid bool
+		if includeNewest {
+			isValid, err = s.stateDB.newestIsValidBlock(record.blockNum)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			isValid, err = s.stateDB.isValidBlock(record.blockNum)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if isValid {
 			break

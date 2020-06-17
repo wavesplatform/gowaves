@@ -316,7 +316,7 @@ func (at *addressTransactions) persist(filter bool) error {
 		isValid := true
 		if filter {
 			blockNum := binary.BigEndian.Uint32(record[proto.AddressSize : proto.AddressSize+4])
-			isValid, err = at.stateDB.isValidBlock(blockNum, false)
+			isValid, err = at.stateDB.isValidBlock(blockNum)
 			if err != nil {
 				return errors.Wrap(err, "isValidBlock() failed")
 			}

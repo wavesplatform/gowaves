@@ -29,7 +29,7 @@ func (hfmt *historyFormatter) filter(history *historyRecord) (bool, error) {
 	changed := false
 	for i := len(history.entries) - 1; i >= 0; i-- {
 		entry := history.entries[i]
-		valid, err := hfmt.db.isValidBlock(entry.blockNum, false)
+		valid, err := hfmt.db.isValidBlock(entry.blockNum)
 		if err != nil {
 			return false, err
 		}
