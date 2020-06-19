@@ -889,18 +889,16 @@ func NativeTakeStrings(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, rs[1])
 	}
-	runeStr := []rune(str.Value)
-	runeLen := len(runeStr)
-	l := int(length.Value)
-	if l > runeLen {
-		l = runeLen
+	l := utf8.RuneCountInString(str.Value)
+	t := int(length.Value)
+	if t > l {
+		t = l
 	}
-	if l < 0 {
-		l = 0
+	if t < 0 {
+		t = 0
 	}
-	out := make([]rune, l)
-	copy(out, runeStr[:l])
-	return NewString(string(out)), nil
+	res := runesTake(str.Value, t)
+	return NewString(res), nil
 }
 
 // Remove string prefix
@@ -917,22 +915,20 @@ func NativeDropStrings(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s expected first argument to be *StringExpr, found %T", funcName, rs[0])
 	}
-	length, ok := rs[1].(*LongExpr)
+	dropCount, ok := rs[1].(*LongExpr)
 	if !ok {
 		return nil, errors.Errorf("%s expected second argument to be *LongExpr, found %T", funcName, rs[1])
 	}
-	runeStr := []rune(str.Value)
-	runeLen := len(runeStr)
-	l := int(length.Value)
-	if l > runeLen {
-		l = runeLen
+	l := utf8.RuneCountInString(str.Value)
+	d := int(dropCount.Value)
+	if d > l {
+		d = l
 	}
-	if l < 0 {
-		l = 0
+	if d < 0 {
+		d = 0
 	}
-	out := make([]rune, runeLen-l)
-	copy(out, runeStr[l:])
-	return NewString(string(out)), nil
+	res := runesDrop(str.Value, d)
+	return NewString(res), nil
 }
 
 // String size in characters
@@ -2127,7 +2123,7 @@ func NativeIndexOfSubstring(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: second argument expected to be *StringExpr, found %T", funcName, rs[1])
 	}
-	i := strings.Index(str.Value, sub.Value)
+	i := runesIndex(str.Value, sub.Value)
 	if i == -1 {
 		return NewUnit(), nil
 	}
@@ -2156,10 +2152,10 @@ func NativeIndexOfSubstringWithOffset(s Scope, e Exprs) (Expr, error) {
 		return nil, errors.Errorf("%s: third argument expected to be *LongExpr, found %T", funcName, rs[2])
 	}
 	offset := int(off.Value)
-	if offset < 0 || offset > len(str.Value) {
+	if offset < 0 || offset > utf8.RuneCountInString(str.Value) {
 		return NewUnit(), nil
 	}
-	i := strings.Index(str.Value[offset:], sub.Value)
+	i := runesIndex(runesDrop(str.Value, offset), sub.Value)
 	if i == -1 {
 		return NewUnit(), nil
 	}
@@ -2367,7 +2363,7 @@ func ScriptTransfer(s Scope, e Exprs) (Expr, error) {
 	}
 	amount, ok := rs[1].(*LongExpr)
 	if !ok {
-		return nil, errors.Errorf("%s: expected secnd argument to be '*LongExpr', got '%T'", funcName, rs[1])
+		return nil, errors.Errorf("%s: expected second argument to be '*LongExpr', got '%T'", funcName, rs[1])
 	}
 	return NewScriptTransfer(recipient, amount, rs[2])
 }
@@ -2387,7 +2383,7 @@ func ScriptResult(s Scope, e Exprs) (Expr, error) {
 	}
 	transferSet, ok := rs[1].(*TransferSetExpr)
 	if !ok {
-		return nil, errors.Errorf("%s: expected secnd argument to be 'Exprs', got '%T'", funcName, rs[1])
+		return nil, errors.Errorf("%s: expected second argument to be 'Exprs', got '%T'", funcName, rs[1])
 	}
 	return NewScriptResult(writeSet, transferSet), nil
 }
@@ -2822,8 +2818,7 @@ func dataFromArray(s Scope, e Exprs) (Expr, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "%dth element doesn't have 'key' field", i)
 		}
-		b := key.Eq(k)
-		if b {
+		if key.Eq(k) {
 			v, err := item.Get("value")
 			if err != nil {
 				return nil, errors.Wrapf(err, "%dth element doesn't have 'value' field", i)
@@ -3020,4 +3015,25 @@ func lastIndexOf(list Exprs, element Expr) (int64, error) {
 		}
 	}
 	return 0, errors.New("not found")
+}
+
+func runesIndex(s, sub string) int {
+	if i := strings.Index(s, sub); i >= 0 {
+		return utf8.RuneCountInString(s[:i])
+	}
+	return -1
+}
+
+func runesDrop(s string, n int) string {
+	runes := []rune(s)
+	out := make([]rune, len(runes)-n)
+	copy(out, runes[n:])
+	res := string(out)
+	return res
+}
+
+func runesTake(s string, n int) string {
+	out := make([]rune, n)
+	copy(out, []rune(s)[:n])
+	return string(out)
 }
