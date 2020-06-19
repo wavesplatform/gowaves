@@ -70,9 +70,18 @@ func (as *assetScripRecordForHashes) less(other stateComponent) bool {
 	return bytes.Compare(as.asset, as2.asset) == -1
 }
 
+func scriptExists(recordBytes []byte) bool {
+	// Detect if script length is not 0 without unmarshal.
+	return len(recordBytes) > crypto.KeySize
+}
+
 type scriptRecord struct {
 	pk     crypto.PublicKey
 	script proto.Script
+}
+
+func (r *scriptRecord) scriptIsEmpty() bool {
+	return len(r.script) == 0
 }
 
 func (r *scriptRecord) marshalBinary() ([]byte, error) {
@@ -131,7 +140,7 @@ func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key []byte, rec
 	if err := ss.hs.addNewEntry(scriptType, key, recordBytes, blockID); err != nil {
 		return err
 	}
-	if len(record.script) == 0 {
+	if record.scriptIsEmpty() {
 		// There is no AST for empty script.
 		ss.cache.deleteIfExists(key)
 		return nil
@@ -173,7 +182,7 @@ func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (ast.Scri
 	if err := record.unmarshalBinary(recordBytes); err != nil {
 		return ast.Script{}, crypto.PublicKey{}, err
 	}
-	if len(record.script) == 0 {
+	if record.scriptIsEmpty() {
 		// Empty script = no script.
 		return ast.Script{}, crypto.PublicKey{}, proto.ErrNotFound
 	}
@@ -246,7 +255,7 @@ func (ss *scriptsStorage) newestIsSmartAsset(assetID crypto.Digest, filter bool)
 	if err != nil {
 		return false
 	}
-	return len(recordBytes) > crypto.KeySize
+	return scriptExists(recordBytes)
 }
 
 func (ss *scriptsStorage) isSmartAsset(assetID crypto.Digest, filter bool) (bool, error) {
@@ -255,12 +264,12 @@ func (ss *scriptsStorage) isSmartAsset(assetID crypto.Digest, filter bool) (bool
 	if err != nil {
 		return false, nil
 	}
-	return len(recordBytes) > crypto.KeySize, nil
+	return scriptExists(recordBytes), nil
 }
 
 func (ss *scriptsStorage) newestScriptByAsset(assetID crypto.Digest, filter bool) (ast.Script, error) {
 	if r, ok := ss.uncertainAssetScripts[assetID]; ok {
-		if len(r.script) == 0 {
+		if r.scriptIsEmpty() {
 			return ast.Script{}, proto.ErrNotFound
 		}
 		return scriptBytesToAst(r.script)
@@ -343,7 +352,7 @@ func (ss *scriptsStorage) newestAccountHasScript(addr proto.Address, filter bool
 	if err != nil {
 		return false, nil
 	}
-	return len(recordBytes) > crypto.KeySize, nil
+	return scriptExists(recordBytes), nil
 }
 
 func (ss *scriptsStorage) accountHasScript(addr proto.Address, filter bool) (bool, error) {
@@ -352,7 +361,7 @@ func (ss *scriptsStorage) accountHasScript(addr proto.Address, filter bool) (boo
 	if err != nil {
 		return false, nil
 	}
-	return len(recordBytes) > crypto.KeySize, nil
+	return scriptExists(recordBytes), nil
 }
 
 func (ss *scriptsStorage) newestScriptByAddr(addr proto.Address, filter bool) (ast.Script, error) {
