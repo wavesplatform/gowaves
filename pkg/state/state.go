@@ -201,6 +201,7 @@ func (s *blockchainEntitiesStorage) reset() {
 }
 
 func (s *blockchainEntitiesStorage) flush(initialisation bool) error {
+	s.aliases.flush()
 	if err := s.hs.flush(!initialisation); err != nil {
 		return err
 	}
@@ -880,7 +881,7 @@ func (s *stateManager) topBlock() (*proto.Block, error) {
 func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 	// For Block version 2 Features are always empty, so we don't add anything.
 	for _, featureID := range block.Features {
-		approved, err := s.stor.features.isApproved(featureID)
+		approved, err := s.stor.features.newestIsApproved(featureID)
 		if err != nil {
 			return err
 		}
@@ -895,7 +896,7 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 }
 
 func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
-	activation, err := s.ActivationHeight(int16(settings.BlockReward))
+	activation, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
 	if err != nil {
 		return err
 	}
@@ -943,10 +944,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	if err := s.addFeaturesVotes(block); err != nil {
 		return err
 	}
-	blockRewardActivated, err := s.IsActiveAtHeight(int16(settings.BlockReward), height)
-	if err != nil {
-		return err
-	}
+	blockRewardActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
 	// Count reward vote.
 	if blockRewardActivated {
 		err := s.addRewardVote(block, height)
@@ -1090,12 +1088,9 @@ func (s *stateManager) needToFinishVotingPeriod(blockchainHeight uint64) bool {
 
 func (s *stateManager) isBlockRewardTermOver(height uint64) (bool, error) {
 	feature := int16(settings.BlockReward)
-	activated, err := s.IsActiveAtHeight(feature, height)
-	if err != nil {
-		return false, err
-	}
+	activated := s.stor.features.newestIsActivatedAtHeight(feature, height)
 	if activated {
-		activation, err := s.ActivationHeight(int16(settings.BlockReward))
+		activation, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
 		if err != nil {
 			return false, err
 		}
@@ -1112,12 +1107,9 @@ func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
 		// No need to reset stolen aliases in custom blockchains.
 		return false, nil
 	}
-	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), height)
-	if err != nil {
-		return false, err
-	}
+	dataTxActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.DataTransaction), height)
 	if dataTxActivated {
-		dataTxHeight, err := s.ActivationHeight(int16(settings.DataTransaction))
+		dataTxHeight, err := s.stor.features.newestActivationHeight(int16(settings.DataTransaction))
 		if err != nil {
 			return false, err
 		}
@@ -1133,13 +1125,10 @@ func (s *stateManager) needToCancelLeases(curBlockHeight uint64) (bool, error) {
 		// No need to cancel leases in custom blockchains.
 		return false, nil
 	}
-	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), curBlockHeight)
-	if err != nil {
-		return false, err
-	}
+	dataTxActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.DataTransaction), curBlockHeight)
 	dataTxHeight := uint64(0)
 	if dataTxActivated {
-		approvalHeight, err := s.ApprovalHeight(int16(settings.DataTransaction))
+		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.DataTransaction))
 		if err != nil {
 			return false, err
 		}
@@ -1237,13 +1226,10 @@ func (s *stateManager) updateBlockReward(blockID proto.BlockID, initialisation b
 }
 
 func (s *stateManager) cancelLeases(curBlockHeight uint64, blockID proto.BlockID) error {
-	dataTxActivated, err := s.IsActiveAtHeight(int16(settings.DataTransaction), curBlockHeight)
-	if err != nil {
-		return err
-	}
+	dataTxActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.DataTransaction), curBlockHeight)
 	dataTxHeight := uint64(0)
 	if dataTxActivated {
-		approvalHeight, err := s.ApprovalHeight(int16(settings.DataTransaction))
+		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.DataTransaction))
 		if err != nil {
 			return err
 		}
@@ -1375,8 +1361,6 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		if s.needToResetVotes(curBlockHeight) {
 			// When next voting period starts, we need to put 0 as votes number
 			// for all features at first (current) block.
-			// This is not handled as breaker task on purpose:
-			// featureVotes() operates with fresh records, so we do not need to flush() votes.
 			if err := s.stor.features.resetVotes(block.BlockID()); err != nil {
 				return nil, wrapErr(ModificationError, err)
 			}
@@ -1645,7 +1629,7 @@ func (s *stateManager) VotesNumAtHeight(featureID int16, height proto.Height) (u
 }
 
 func (s *stateManager) VotesNum(featureID int16) (uint64, error) {
-	votesNum, err := s.stor.features.featureVotesStable(featureID)
+	votesNum, err := s.stor.features.featureVotes(featureID)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}

@@ -50,7 +50,7 @@ func isNFT(features *features, params assetParams) (bool, error) {
 	if !nftAsset {
 		return false, nil
 	}
-	nftActivated, err := features.isActivated(int16(settings.ReduceNFTFee))
+	nftActivated, err := features.newestIsActivated(int16(settings.ReduceNFTFee))
 	if err != nil {
 		return false, err
 	}
@@ -94,7 +94,7 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		if !ok {
 			return 0, errors.New("failed to convert interface to DataTransaction")
 		}
-		smartAccountsActive, err := params.stor.features.isActivated(int16(settings.SmartAccounts))
+		smartAccountsActive, err := params.stor.features.newestIsActivated(int16(settings.SmartAccounts))
 		if err != nil {
 			return 0, err
 		}
@@ -113,7 +113,7 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		}
 		fee += uint64((len(dtxBytes) - 1) / 1024)
 	case proto.ReissueTransaction, proto.SponsorshipTransaction:
-		blockV5Activated, err := params.stor.features.isActivated(int16(settings.BlockV5))
+		blockV5Activated, err := params.stor.features.newestIsActivated(int16(settings.BlockV5))
 		if err != nil {
 			return 0, err
 		}

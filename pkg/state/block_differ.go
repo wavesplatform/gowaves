@@ -36,7 +36,7 @@ func newBlockDiffer(handler *transactionHandler, stor *blockchainEntitiesStorage
 }
 
 func (d *blockDiffer) prevBlockFeeDistr(prevBlock proto.BlockID, initialisation bool) (*feeDistribution, error) {
-	ngActivated, err := d.stor.features.isActivatedForNBlocks(int16(settings.NG), 2)
+	ngActivated, err := d.stor.features.newestIsActivatedForNBlocks(int16(settings.NG), 2)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool, 
 }
 
 func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.Address, block *proto.BlockHeader, blockchainHeight uint64) error {
-	activated, err := d.stor.features.isActivated(int16(settings.BlockReward))
+	activated, err := d.stor.features.newestIsActivated(int16(settings.BlockReward))
 	if err != nil {
 		return err
 	}

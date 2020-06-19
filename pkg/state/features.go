@@ -94,7 +94,7 @@ func (f *features) addVote(featureID int16, blockID proto.BlockID) error {
 	if err != nil {
 		return err
 	}
-	prevVotes, err := f.featureVotes(featureID)
+	prevVotes, err := f.newestFeatureVotes(featureID)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (f *features) featureVotesAtHeight(featureID int16, height uint64) (uint64,
 	return f.votesFromRecord(recordBytes)
 }
 
-func (f *features) featureVotesStable(featureID int16) (uint64, error) {
+func (f *features) featureVotes(featureID int16) (uint64, error) {
 	key := votesFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
@@ -148,7 +148,7 @@ func (f *features) featureVotesStable(featureID int16) (uint64, error) {
 	return f.votesFromRecord(recordBytes)
 }
 
-func (f *features) featureVotes(featureID int16) (uint64, error) {
+func (f *features) newestFeatureVotes(featureID int16) (uint64, error) {
 	key := votesFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
 	if err != nil {
@@ -193,8 +193,8 @@ func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord, 
 	return f.hs.addNewEntry(activatedFeature, keyBytes, recordBytes, blockID)
 }
 
-func (f *features) isActivatedForNBlocks(featureID int16, n int) (bool, error) {
-	activationHeight, err := f.activationHeight(featureID)
+func (f *features) newestIsActivatedForNBlocks(featureID int16, n int) (bool, error) {
+	activationHeight, err := f.newestActivationHeight(featureID)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		return false, nil
 	}
@@ -240,6 +240,18 @@ func (f *features) isActivated(featureID int16) (bool, error) {
 	return true, nil
 }
 
+func (f *features) newestIsActivatedAtHeight(featureID int16, height uint64) bool {
+	activationHeight, err := f.newestActivationHeight(featureID)
+	if err == nil {
+		return height >= activationHeight
+	}
+	approvalHeight, err := f.newestApprovalHeight(featureID)
+	if err == nil && height >= approvalHeight {
+		return (height - approvalHeight) >= f.settings.ActivationWindowSize(height)
+	}
+	return false
+}
+
 func (f *features) isActivatedAtHeight(featureID int16, height uint64) bool {
 	activationHeight, err := f.activationHeight(featureID)
 	if err == nil {
@@ -250,6 +262,23 @@ func (f *features) isActivatedAtHeight(featureID int16, height uint64) bool {
 		return (height - approvalHeight) >= f.settings.ActivationWindowSize(height)
 	}
 	return false
+}
+
+func (f *features) newestActivatedFeaturesRecord(featureID int16) (*activatedFeaturesRecord, error) {
+	key := activatedFeaturesKey{featureID: featureID}
+	keyBytes, err := key.bytes()
+	if err != nil {
+		return nil, err
+	}
+	recordBytes, err := f.hs.freshLatestEntryData(keyBytes, true)
+	if err != nil {
+		return nil, err
+	}
+	var record activatedFeaturesRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return nil, err
+	}
+	return &record, nil
 }
 
 func (f *features) activatedFeaturesRecord(featureID int16) (*activatedFeaturesRecord, error) {
@@ -267,6 +296,14 @@ func (f *features) activatedFeaturesRecord(featureID int16) (*activatedFeaturesR
 		return nil, err
 	}
 	return &record, nil
+}
+
+func (f *features) newestActivationHeight(featureID int16) (uint64, error) {
+	record, err := f.newestActivatedFeaturesRecord(featureID)
+	if err != nil {
+		return 0, err
+	}
+	return record.activationHeight, nil
 }
 
 func (f *features) activationHeight(featureID int16) (uint64, error) {
@@ -305,6 +342,22 @@ func (f *features) approveFeature(featureID int16, r *approvedFeaturesRecord, bl
 	return f.hs.addNewEntry(approvedFeature, keyBytes, recordBytes, blockID)
 }
 
+func (f *features) newestIsApproved(featureID int16) (bool, error) {
+	key := approvedFeaturesKey{featureID: featureID}
+	keyBytes, err := key.bytes()
+	if err != nil {
+		return false, err
+	}
+	_, err = f.hs.freshLatestEntryData(keyBytes, true)
+	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (f *features) isApproved(featureID int16) (bool, error) {
 	key := approvedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
@@ -329,6 +382,23 @@ func (f *features) isApprovedAtHeight(featureID int16, height uint64) bool {
 	return false
 }
 
+func (f *features) newestApprovalHeight(featureID int16) (uint64, error) {
+	key := approvedFeaturesKey{featureID: featureID}
+	keyBytes, err := key.bytes()
+	if err != nil {
+		return 0, err
+	}
+	recordBytes, err := f.hs.freshLatestEntryData(keyBytes, true)
+	if err != nil {
+		return 0, err
+	}
+	var record approvedFeaturesRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return 0, err
+	}
+	return record.approvalHeight, nil
+}
+
 func (f *features) approvalHeight(featureID int16) (uint64, error) {
 	key := approvedFeaturesKey{featureID: featureID}
 	keyBytes, err := key.bytes()
@@ -346,8 +416,8 @@ func (f *features) approvalHeight(featureID int16) (uint64, error) {
 	return record.approvalHeight, nil
 }
 
-func (f *features) isElected(height uint64, featureID int16) (bool, error) {
-	votes, err := f.featureVotes(featureID)
+func (f *features) newestIsElected(height uint64, featureID int16) (bool, error) {
+	votes, err := f.newestFeatureVotes(featureID)
 	if err != nil {
 		return false, err
 	}
@@ -402,14 +472,14 @@ func (f *features) approveFeatures(curHeight uint64, blockID proto.BlockID) erro
 		if err = k.unmarshal(key); err != nil {
 			return err
 		}
-		alreadyApproved, err := f.isApproved(k.featureID)
+		alreadyApproved, err := f.newestIsApproved(k.featureID)
 		if err != nil {
 			return err
 		}
 		if alreadyApproved {
 			continue
 		}
-		elected, err := f.isElected(curHeight, k.featureID)
+		elected, err := f.newestIsElected(curHeight, k.featureID)
 		if err != nil {
 			return err
 		}
@@ -443,14 +513,14 @@ func (f *features) activateFeatures(curHeight uint64, blockID proto.BlockID) err
 		if err = k.unmarshal(keyvalue.SafeKey(iter)); err != nil {
 			return err
 		}
-		alreadyActivated, err := f.isActivated(k.featureID)
+		alreadyActivated, err := f.newestIsActivated(k.featureID)
 		if err != nil {
 			return err
 		}
 		if alreadyActivated {
 			continue
 		}
-		approvalHeight, err := f.approvalHeight(k.featureID)
+		approvalHeight, err := f.newestApprovalHeight(k.featureID)
 		if err != nil {
 			return err
 		}

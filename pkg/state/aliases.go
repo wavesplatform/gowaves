@@ -74,12 +74,21 @@ type aliases struct {
 	dbBatch keyvalue.Batch
 	hs      *historyStorage
 
+	disabled map[string]bool
+
 	calculateHashes bool
 	hasher          *stateHasher
 }
 
 func newAliases(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, calcHashes bool) *aliases {
-	return &aliases{db: db, dbBatch: dbBatch, hs: hs, calculateHashes: calcHashes, hasher: newStateHasher()}
+	return &aliases{
+		db:              db,
+		dbBatch:         dbBatch,
+		hs:              hs,
+		disabled:        make(map[string]bool),
+		calculateHashes: calcHashes,
+		hasher:          newStateHasher(),
+	}
 }
 
 func (a *aliases) createAlias(aliasStr string, info *aliasInfo, blockID proto.BlockID) error {
@@ -111,13 +120,20 @@ func (a *aliases) exists(aliasStr string, filter bool) bool {
 	return true
 }
 
+func (a *aliases) newestIsDisabled(aliasStr string) (bool, error) {
+	if _, ok := a.disabled[aliasStr]; ok {
+		return true, nil
+	}
+	return a.isDisabled(aliasStr)
+}
+
 func (a *aliases) isDisabled(aliasStr string) (bool, error) {
 	key := disabledAliasKey{alias: aliasStr}
 	return a.db.Has(key.bytes())
 }
 
 func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.Address, error) {
-	disabled, err := a.isDisabled(aliasStr)
+	disabled, err := a.newestIsDisabled(aliasStr)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +141,15 @@ func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.Addres
 		return nil, errAliasDisabled
 	}
 	key := aliasKey{alias: aliasStr}
-	recordBytes, err := a.hs.freshLatestEntryData(key.bytes(), filter)
+	record, err := a.newestRecordByAlias(key.bytes(), filter)
+	if err != nil {
+		return nil, err
+	}
+	return &record.info.addr, nil
+}
+
+func (a *aliases) newestRecordByAlias(key []byte, filter bool) (*aliasRecord, error) {
+	recordBytes, err := a.hs.freshLatestEntryData(key, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +157,7 @@ func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.Addres
 	if err := record.unmarshalBinary(recordBytes); err != nil {
 		return nil, errors.Errorf("failed to unmarshal record: %v", err)
 	}
-	return &record.info.addr, nil
+	return &record, nil
 }
 
 func (a *aliases) recordByAlias(key []byte, filter bool) (*aliasRecord, error) {
@@ -173,7 +197,7 @@ func (a *aliases) disableStolenAliases() error {
 
 	for iter.Next() {
 		keyBytes := iter.Key()
-		record, err := a.recordByAlias(iter.Key(), true)
+		record, err := a.newestRecordByAlias(iter.Key(), true)
 		if err != nil {
 			return err
 		}
@@ -183,8 +207,7 @@ func (a *aliases) disableStolenAliases() error {
 		}
 		if record.info.stolen {
 			zap.S().Debugf("Forbidding stolen alias %s", key.alias)
-			disabledKey := disabledAliasKey(key)
-			a.dbBatch.Put(disabledKey.bytes(), void)
+			a.disabled[key.alias] = true
 		}
 	}
 
@@ -196,6 +219,14 @@ func (a *aliases) prepareHashes() error {
 	return a.hasher.stop()
 }
 
+func (a *aliases) flush() {
+	for alias := range a.disabled {
+		disabledKey := disabledAliasKey{alias}
+		a.dbBatch.Put(disabledKey.bytes(), void)
+	}
+}
+
 func (a *aliases) reset() {
+	a.disabled = make(map[string]bool)
 	a.hasher.reset()
 }

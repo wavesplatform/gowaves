@@ -218,7 +218,7 @@ func (s *sponsoredAssets) wavesToSponsoredAsset(assetID crypto.Digest, wavesAmou
 }
 
 func (s *sponsoredAssets) isSponsorshipActivated() (bool, error) {
-	featureActivated, err := s.features.isActivated(int16(settings.FeeSponsorship))
+	featureActivated, err := s.features.newestIsActivated(int16(settings.FeeSponsorship))
 	if err != nil {
 		return false, err
 	}
@@ -226,7 +226,7 @@ func (s *sponsoredAssets) isSponsorshipActivated() (bool, error) {
 		// Not activated at all.
 		return false, nil
 	}
-	height, err := s.features.activationHeight(int16(settings.FeeSponsorship))
+	height, err := s.features.newestActivationHeight(int16(settings.FeeSponsorship))
 	if err != nil {
 		return false, err
 	}

@@ -380,7 +380,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
-			burnAnyTokensEnabled, err := ia.stor.features.isActivated(int16(settings.BurnAnyTokens))
+			burnAnyTokensEnabled, err := ia.stor.features.newestIsActivated(int16(settings.BurnAnyTokens))
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -422,7 +422,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
-			sponsorshipActivated, err := ia.stor.features.isActivated(int16(settings.FeeSponsorship))
+			sponsorshipActivated, err := ia.stor.features.newestIsActivated(int16(settings.FeeSponsorship))
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -619,7 +619,7 @@ func (ia *invokeApplier) handleInvocationResult(tx *proto.InvokeScriptWithProofs
 }
 
 func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRuns, issuedAssetsCount uint64) error {
-	sponsorshipActivated, err := ia.stor.features.isActivated(int16(settings.FeeSponsorship))
+	sponsorshipActivated, err := ia.stor.features.newestIsActivated(int16(settings.FeeSponsorship))
 	if err != nil {
 		return err
 	}

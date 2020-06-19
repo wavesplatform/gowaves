@@ -139,6 +139,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{assetBalanceKeyPrefix}, nil
 	case featureVote:
 		return []byte{votesFeaturesKeyPrefix}, nil
+	case approvedFeature:
+		return []byte{approvedFeaturesKeyPrefix}, nil
 	case activatedFeature:
 		return []byte{activatedFeaturesKeyPrefix}, nil
 	case ordersVolume:

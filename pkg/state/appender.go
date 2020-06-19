@@ -225,7 +225,7 @@ func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScript
 	if err != nil {
 		return 0, err
 	}
-	ride4DAppsActivated, err := a.stor.features.isActivated(int16(settings.Ride4DApps))
+	ride4DAppsActivated, err := a.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
 		return 0, err
 	}
@@ -245,11 +245,11 @@ func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScript
 }
 
 func (a *txAppender) checkScriptsLimits(scriptsRuns uint64) error {
-	smartAccountsActivated, err := a.stor.features.isActivated(int16(settings.SmartAccounts))
+	smartAccountsActivated, err := a.stor.features.newestIsActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return err
 	}
-	ride4DAppsActivated, err := a.stor.features.isActivated(int16(settings.Ride4DApps))
+	ride4DAppsActivated, err := a.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
 		return err
 	}
@@ -323,7 +323,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-	blockV5Activated, err := a.stor.features.isActivated(int16(settings.BlockV5))
+	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return err
 	}
@@ -508,7 +508,7 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 
 func (a *txAppender) countExchangeScriptsRuns(scriptsRuns uint64) (uint64, error) {
 	// Some bug in historical blockchain, no logic here.
-	ride4DAppsActivated, err := a.stor.features.isActivated(int16(settings.Ride4DApps))
+	ride4DAppsActivated, err := a.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
 		return 0, err
 	}
@@ -535,7 +535,7 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 		scriptsRuns++
 	}
 	// Smart account trading.
-	smartAccountTradingActivated, err := a.stor.features.isActivated(int16(settings.SmartAccountTrading))
+	smartAccountTradingActivated, err := a.stor.features.newestIsActivated(int16(settings.SmartAccountTrading))
 	if err != nil {
 		return nil, err
 	}
@@ -674,7 +674,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		blockVersion:     version,
 		height:           blockInfo.Height,
 	}
-	blockV5Activated, err := a.stor.features.isActivated(int16(settings.BlockV5))
+	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return err
 	}
