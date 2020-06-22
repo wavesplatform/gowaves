@@ -456,13 +456,14 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 }
 
 func (a *txAppender) applyAllDiffs(initialisation bool) error {
-	changes := a.diffStor.allChanges()
 	a.recentTxIds = make(map[string]struct{})
+	return a.moveChangesToHistoryStorage(initialisation)
+}
+
+func (a *txAppender) moveChangesToHistoryStorage(initialisation bool) error {
+	changes := a.diffStor.allChanges()
 	a.diffStor.reset()
-	if err := a.diffApplier.applyBalancesChanges(changes, !initialisation); err != nil {
-		return err
-	}
-	return nil
+	return a.diffApplier.applyBalancesChanges(changes, !initialisation)
 }
 
 func (a *txAppender) checkUtxTxSig(tx proto.Transaction, scripted bool) error {

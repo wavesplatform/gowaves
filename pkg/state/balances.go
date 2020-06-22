@@ -443,6 +443,14 @@ func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, e
 	return minBalance, nil
 }
 
+func (s *balances) assetBalanceFromRecordBytes(recordBytes []byte) (uint64, error) {
+	var record assetBalanceRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return 0, err
+	}
+	return record.balance, nil
+}
+
 func (s *balances) assetBalance(addr proto.Address, asset []byte, filter bool) (uint64, error) {
 	key := assetBalanceKey{address: addr, asset: asset}
 	recordBytes, err := s.hs.latestEntryData(key.bytes(), filter)
@@ -452,16 +460,27 @@ func (s *balances) assetBalance(addr proto.Address, asset []byte, filter bool) (
 	} else if err != nil {
 		return 0, err
 	}
-	var record assetBalanceRecord
-	if err := record.unmarshalBinary(recordBytes); err != nil {
+	return s.assetBalanceFromRecordBytes(recordBytes)
+}
+
+func (s *balances) newestAssetBalance(addr proto.Address, asset []byte, filter bool) (uint64, error) {
+	key := assetBalanceKey{address: addr, asset: asset}
+	recordBytes, err := s.hs.freshLatestEntryData(key.bytes(), filter)
+	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+		// Unknown address, expected behavior is to return 0 and no errors in this case.
+		return 0, nil
+	} else if err != nil {
 		return 0, err
 	}
-	return record.balance, nil
+	return s.assetBalanceFromRecordBytes(recordBytes)
 }
 
 func (s *balances) newestWavesRecord(key []byte, filter bool) (*wavesBalanceRecord, error) {
 	recordBytes, err := s.hs.freshLatestEntryData(key, filter)
-	if err != nil {
+	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+		// Unknown address, expected behavior is to return empty profile and no errors in this case.
+		return &wavesBalanceRecord{}, nil
+	} else if err != nil {
 		return nil, err
 	}
 	var record wavesBalanceRecord
@@ -469,6 +488,15 @@ func (s *balances) newestWavesRecord(key []byte, filter bool) (*wavesBalanceReco
 		return nil, err
 	}
 	return &record, nil
+}
+
+func (s *balances) newestWavesBalance(addr proto.Address, filter bool) (*balanceProfile, error) {
+	key := wavesBalanceKey{address: addr}
+	r, err := s.newestWavesRecord(key.bytes(), filter)
+	if err != nil {
+		return nil, err
+	}
+	return &r.balanceProfile, nil
 }
 
 func (s *balances) wavesRecord(key []byte, filter bool) (*wavesBalanceRecord, error) {

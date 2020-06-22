@@ -425,7 +425,7 @@ func (f *features) newestIsElected(height uint64, featureID int16) (bool, error)
 }
 
 func (f *features) resetVotes(blockID proto.BlockID) error {
-	iter, err := f.db.NewKeyIterator([]byte{votesFeaturesKeyPrefix})
+	iter, err := newNewestDataIterator(f.hs, featureVote)
 	if err != nil {
 		return err
 	}
@@ -454,7 +454,7 @@ func (f *features) resetVotes(blockID proto.BlockID) error {
 
 // Check voting results, update approval list, reset voting list.
 func (f *features) approveFeatures(curHeight uint64, blockID proto.BlockID) error {
-	iter, err := f.db.NewKeyIterator([]byte{votesFeaturesKeyPrefix})
+	iter, err := newNewestDataIterator(f.hs, featureVote)
 	if err != nil {
 		return err
 	}
@@ -496,7 +496,7 @@ func (f *features) approveFeatures(curHeight uint64, blockID proto.BlockID) erro
 
 // Update activation list.
 func (f *features) activateFeatures(curHeight uint64, blockID proto.BlockID) error {
-	iter, err := f.db.NewKeyIterator([]byte{approvedFeaturesKeyPrefix})
+	iter, err := newNewestDataIterator(f.hs, approvedFeature)
 	if err != nil {
 		return err
 	}
