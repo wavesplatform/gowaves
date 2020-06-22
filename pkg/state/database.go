@@ -247,6 +247,7 @@ func (s *stateDB) rollbackBlock(blockID proto.BlockID) error {
 }
 
 func (s *stateDB) rollback(removalEdge proto.BlockID) error {
+	defer s.reset()
 	curHeight, err := s.getHeight()
 	if err != nil {
 		return err
@@ -270,7 +271,6 @@ func (s *stateDB) rollback(removalEdge proto.BlockID) error {
 	if err := s.flushBatch(); err != nil {
 		return err
 	}
-	s.reset()
 	return nil
 }
 
