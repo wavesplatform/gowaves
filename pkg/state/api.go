@@ -122,9 +122,6 @@ type StateInfo interface {
 	// HitSourceAtHeight reads hit source stored in state.
 	HitSourceAtHeight(height proto.Height) ([]byte, error)
 
-	// BlockVRF calculates VRF for given block.
-	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
-
 	// ShouldPersisAddressTransactions checks if PersisAddressTransactions
 	// should be called.
 	ShouldPersistAddressTransactions() (bool, error)
