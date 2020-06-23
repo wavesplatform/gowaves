@@ -61,7 +61,7 @@ func (a *innerBlocksApplier) apply(storage innerState, blocks []*proto.Block) (*
 	}
 	sumScore := score.Add(score, parentScore)
 	if curScore.Cmp(sumScore) > 0 { // current height is higher
-		return nil, 0, errors.New("BlockApplier: low score: current score is higher than firstBlock")
+		return nil, 0, errors.Errorf("BlockApplier: low score: current score (%s) is higher than firstBlock's score (%s)", curScore.String(), sumScore.String())
 	}
 
 	// so, new blocks has higher score, try apply it.
@@ -117,9 +117,9 @@ func NewBlocksApplier() *BlocksApplier {
 	}
 }
 
-func (a *BlocksApplier) Apply(state state.State, blocks []*proto.Block) error {
-	_, _, err := a.inner.apply(state, blocks)
-	return err
+func (a *BlocksApplier) Apply(state state.State, blocks []*proto.Block) (proto.Height, error) {
+	_, h, err := a.inner.apply(state, blocks)
+	return h, err
 }
 
 func calcMultipleScore(blocks []*proto.Block) (*big.Int, error) {

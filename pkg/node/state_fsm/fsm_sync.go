@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -86,7 +87,8 @@ func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
 		_, blocks, _ := a.internal.Blocks(noopWrapper{})
 		if len(blocks) > 0 {
 			err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-				return a.baseInfo.blocksApplier.Apply(s, blocks)
+				_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
+				return err
 			})
 			return NewIdleFsm(a.baseInfo), nil, err
 		}
@@ -123,6 +125,7 @@ func (a *SyncFsm) Block(p Peer, block *proto.Block) (FSM, Async, error) {
 	if p != a.conf.peerSyncWith {
 		return a, nil, nil
 	}
+	metrics.BlockReceivedFromExtension(block, p.Handshake().NodeName)
 	internal, err := a.internal.Block(block)
 	if err != nil {
 		return newSyncFsm(a.baseInfo, a.conf, internal), nil, err
@@ -131,10 +134,11 @@ func (a *SyncFsm) Block(p Peer, block *proto.Block) (FSM, Async, error) {
 }
 
 func (a *SyncFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
-	err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
+	h, err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
 	if err != nil {
 		return a, nil, err
 	}
+	metrics.BlockMined(block, h)
 	a.baseInfo.Reschedule()
 
 	// first we should send block
@@ -153,11 +157,20 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	if len(blocks) == 0 {
 		return newSyncFsm(baseInfo, conf, internal), nil, nil
 	}
+	var last proto.Height
 	err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-		return a.baseInfo.blocksApplier.Apply(s, blocks)
+		var err error
+		last, err = a.baseInfo.blocksApplier.Apply(s, blocks)
+		return err
 	})
 	if err != nil {
+		for _, b := range blocks {
+			metrics.BlockDeclinedFromExtension(b)
+		}
 		return NewIdleFsm(a.baseInfo), nil, err
+	}
+	for i, b := range blocks {
+		metrics.BlockAppliedFromExtension(b, last-uint64(len(blocks)-1-i))
 	}
 	a.baseInfo.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)

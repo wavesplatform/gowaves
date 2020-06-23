@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -65,10 +66,13 @@ func (a *NGFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 }
 
 func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
-	err := a.blocksApplier.Apply(a.storage, []*proto.Block{block})
+	metrics.BlockReceived(block, peer.Handshake().NodeName)
+	h, err := a.blocksApplier.Apply(a.storage, []*proto.Block{block})
 	if err != nil {
+		metrics.BlockDeclined(block)
 		return a, nil, err
 	}
+	metrics.BlockApplied(block, h)
 	a.Scheduler.Reschedule()
 	a.actions.SendScore(a.storage)
 	a.CleanUtx()
@@ -76,13 +80,17 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 }
 
 func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
+	var h proto.Height
 	err := a.storage.Map(func(state state.NonThreadSafeState) error {
-		return a.blocksApplier.Apply(state, []*proto.Block{block})
+		var err error
+		h, err = a.blocksApplier.Apply(state, []*proto.Block{block})
+		return err
 	})
 	if err != nil {
 		zap.S().Info("NGFsm MinedBlock  err ", err)
 		return a, nil, err
 	}
+	metrics.BlockMined(block, h)
 	a.Reschedule()
 	a.actions.SendBlock(block)
 	a.actions.SendScore(a.storage)
@@ -101,6 +109,7 @@ func (a *NGFsm) GetPeers(peer peer.Peer) (FSM, Async, error) {
 // received microblock
 func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error) {
 	defer a.BaseInfo.Reschedule()
+	metrics.MicroBlockReceived(micro, p.Handshake().NodeName)
 	_, _, err := a.microBlockByID(micro)
 	if err != nil {
 		return a, nil, err
@@ -134,7 +143,8 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 		return a, nil, errors.Wrap(err, "NGFsm.mineMicro")
 	}
 	err = a.storage.Map(func(s state.NonThreadSafeState) error {
-		return a.blocksApplier.Apply(s, []*proto.Block{block})
+		_, err := a.blocksApplier.Apply(s, []*proto.Block{block})
+		return err
 	})
 	if err != nil {
 		return a, nil, err
@@ -191,15 +201,18 @@ func (a *NGFsm) microBlockByID(micro *proto.MicroBlock) (FSM, Async, error) {
 		return a, nil, errors.Wrap(err, "NGFsm microBlockByID: failed generate block id")
 	}
 	err = a.storage.Map(func(state state.State) error {
-		return a.blocksApplier.Apply(state, []*proto.Block{newBlock})
+		_, err := a.blocksApplier.Apply(state, []*proto.Block{newBlock})
+		return err
 	})
 	if err != nil {
 		return a, nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
+	metrics.MicroBlockApplied(micro)
 	return a, nil, nil
 }
 
 func (a *NGFsm) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Async, error) {
+	metrics.MicroBlockInv(inv, p.Handshake().NodeName)
 	a.invRequester.Request(p, inv.TotalBlockID.Bytes())
 	a.MicroBlockInvCache.Add(inv.TotalBlockID, inv)
 	return a, nil, nil

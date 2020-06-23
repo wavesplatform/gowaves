@@ -17,6 +17,7 @@ require (
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/howeyc/gopass v0.0.0-20190910152052-7cb4b85ec19c
+	github.com/influxdata/influxdb1-client v0.0.0-20200515024757-02f0bf5dbca3
 	github.com/jinzhu/copier v0.0.0-20190625015134-976e0346caa8
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.1
