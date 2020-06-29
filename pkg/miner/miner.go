@@ -62,7 +62,6 @@ func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k
 		return nil, proto.MiningLimits{}, err
 	}
 	b := bi.(*proto.Block)
-
 	rest := proto.MiningLimits{
 		MaxScriptRunsInBlock:        a.constraints.MaxScriptRunsInBlock,
 		MaxScriptsComplexityInBlock: a.constraints.MaxScriptsComplexityInBlock,

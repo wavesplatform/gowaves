@@ -224,7 +224,10 @@ func main() {
 
 	Miner := miner.NewMicroblockMiner(services, features, reward)
 	go miner.Run(ctx, Miner, scheduler, InternalCh)
-	go scheduler.Reschedule()
+
+	//TODO: remove
+	//zap.S().Debug("Reschedule from main 1")
+	//go scheduler.Reschedule()
 
 	n := node.NewNode(services, declAddr, declAddr, proto.NewTimestampFromUSeconds(outdateSeconds))
 

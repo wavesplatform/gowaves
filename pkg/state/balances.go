@@ -413,6 +413,12 @@ func (s *balances) minEffectiveBalanceInRangeStable(addr proto.Address, startHei
 	if err != nil {
 		return 0, err
 	}
+	//TODO: This is how scala node works, it adds one record before the start height.
+	// This should be switched of by future fork parameter.
+	additionalRecord, err := s.hs.entryDataBeforeHeight(key.bytes(), startHeight, true)
+	if err == nil && additionalRecord != nil {
+		records = append(records, additionalRecord)
+	}
 	minBalance, err := s.minEffectiveBalanceInRangeCommon(records)
 	if err != nil {
 		return 0, err

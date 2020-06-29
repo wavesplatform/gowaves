@@ -281,7 +281,9 @@ func main() {
 	n := node.NewNode(services, declAddr, bindAddr, proto.NewTimestampFromUSeconds(outdatePeriod))
 	go n.Run(ctx, parent, services.InternalChannel)
 
-	go scheduler.Reschedule()
+	//TODO: remove
+	//zap.S().Debug("Reschedule from main 2")
+	//go scheduler.Reschedule()
 
 	if len(conf.Addresses) > 0 {
 		adrs := strings.Split(conf.Addresses, ",")

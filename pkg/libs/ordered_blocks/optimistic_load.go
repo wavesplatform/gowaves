@@ -5,35 +5,35 @@ import (
 )
 
 type OrderedBlocks struct {
-	sigSequence  []proto.BlockID
-	uniqBlockIDs map[proto.BlockID]*proto.Block
+	requested []proto.BlockID
+	blocks    map[proto.BlockID]*proto.Block
 }
 
 func NewOrderedBlocks() *OrderedBlocks {
 	return &OrderedBlocks{
-		sigSequence:  nil,
-		uniqBlockIDs: make(map[proto.BlockID]*proto.Block),
+		requested: nil,
+		blocks:    make(map[proto.BlockID]*proto.Block),
 	}
 }
 
 func (a *OrderedBlocks) Contains(sig proto.BlockID) bool {
-	_, ok := a.uniqBlockIDs[sig]
+	_, ok := a.blocks[sig]
 	return ok
 }
 
 func (a *OrderedBlocks) SetBlock(b *proto.Block) {
-	a.uniqBlockIDs[b.BlockID()] = b
+	a.blocks[b.BlockID()] = b
 }
 
 func (a *OrderedBlocks) pop() (proto.BlockID, *proto.Block, bool) {
-	if len(a.sigSequence) == 0 {
+	if len(a.requested) == 0 {
 		return proto.BlockID{}, nil, false
 	}
-	firstSig := a.sigSequence[0]
-	bts := a.uniqBlockIDs[firstSig]
+	firstSig := a.requested[0]
+	bts := a.blocks[firstSig]
 	if bts != nil {
-		delete(a.uniqBlockIDs, firstSig)
-		a.sigSequence = a.sigSequence[1:]
+		delete(a.blocks, firstSig)
+		a.requested = a.requested[1:]
 		return firstSig, bts, true
 	}
 	return proto.BlockID{}, nil, false
@@ -53,24 +53,24 @@ func (a *OrderedBlocks) PopAll() []*proto.Block {
 // true - added, false - not added
 func (a *OrderedBlocks) Add(sig proto.BlockID) bool {
 	// already contains
-	if _, ok := a.uniqBlockIDs[sig]; ok {
+	if _, ok := a.blocks[sig]; ok {
 		return false
 	}
-	a.sigSequence = append(a.sigSequence, sig)
-	a.uniqBlockIDs[sig] = nil
+	a.requested = append(a.requested, sig)
+	a.blocks[sig] = nil
 	return true
 }
 
-func (a *OrderedBlocks) WaitingCount() int {
-	return len(a.sigSequence)
+func (a *OrderedBlocks) RequestedCount() int {
+	return len(a.requested)
 }
 
 // blocks count available for pop
-func (a *OrderedBlocks) AvailableCount() int {
-	for i, sig := range a.sigSequence {
-		if a.uniqBlockIDs[sig] == nil {
+func (a *OrderedBlocks) ReceivedCount() int {
+	for i, sig := range a.requested {
+		if a.blocks[sig] == nil {
 			return i
 		}
 	}
-	return len(a.sigSequence)
+	return len(a.requested)
 }

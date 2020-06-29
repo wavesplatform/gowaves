@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -11,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
@@ -127,7 +129,7 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 		}
 		var startHeight proto.Height = 1
 		if confirmedBlockHeight > 1000 {
-			startHeight = confirmedBlockHeight - 1000
+			startHeight = confirmedBlockHeight - 1000 + 1
 		}
 		effectiveBalance, err := storage.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
 		if err != nil {
@@ -193,8 +195,13 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 		return nil, err
 	}
 
-	zap.S().Infof("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d", confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight)
-
+	zap.S().Debugf("Scheduling generation on top of block '%s' at height %d:", confirmedBlock.BlockID().String(), confirmedBlockHeight)
+	zap.S().Debugf("\tgenerations signature: %s", confirmedBlock.GenSignature.String())
+	zap.S().Debugf("\ttimestamp: %d (%s)", confirmedBlock.Timestamp, common.TimestampMillisToTime(confirmedBlock.Timestamp).String())
+	zap.S().Debugf("\tbase target: %d", confirmedBlock.BaseTarget)
+	zap.S().Debugf("\thit source block: %s", hitSourceHeader.ID.String())
+	zap.S().Debugf("\thit source generation signature: %s", hitSourceHeader.GenSignature.String())
+	zap.S().Debug("Generation accounts:")
 	var out []Emit
 	for _, keyPair := range keyPairs {
 		genSigBlock := confirmedBlock.BlockHeader
@@ -241,9 +248,17 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 			zap.S().Error("scheduler, internalImpl pos.CalculateBaseTarget", err)
 			continue
 		}
-
+		ts := confirmedBlock.Timestamp + delay
+		zap.S().Debugf("\t%s (%s): ", addr.String(), keyPair.Public.String())
+		zap.S().Debugf("\t\tGeneration Signature: %s", base58.Encode(genSig))
+		zap.S().Debugf("\t\tBase Target: %d", baseTarget)
+		zap.S().Debugf("\t\tHit Source: %s", base58.Encode(source))
+		zap.S().Debugf("\t\tHit: %s", hit.String())
+		zap.S().Debugf("\t\tEffective Balance: %d", int(effectiveBalance))
+		zap.S().Debugf("\t\tDelay: %d", int(delay))
+		zap.S().Debugf("\t\tTimestamp: %d (%s)", int(ts), common.TimestampMillisToTime(ts).String())
 		out = append(out, Emit{
-			Timestamp:    confirmedBlock.Timestamp + delay,
+			Timestamp:    ts,
 			KeyPair:      keyPair,
 			GenSignature: genSig,
 			VRF:          vrf,
@@ -330,6 +345,7 @@ func (a *SchedulerImpl) reschedule(confirmedBlock *proto.Block, confirmedBlockHe
 		cancel()
 	}
 	a.cancel = nil
+	a.emits = nil
 
 	keyPairs, err := makeKeyPairs(a.seeder.Seeds())
 	if err != nil {

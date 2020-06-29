@@ -13,5 +13,9 @@ func MineBlock(version proto.BlockVersion, nxt proto.NxtConsensus, pair proto.Ke
 	if err != nil {
 		return nil, err
 	}
+	err = b.GenerateBlockID(scheme)
+	if err != nil {
+		return nil, err
+	}
 	return b, nil
 }

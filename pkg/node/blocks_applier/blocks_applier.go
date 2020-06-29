@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"go.uber.org/zap"
 )
 
 type innerBlocksApplier struct {
@@ -34,48 +35,54 @@ func (a *innerBlocksApplier) apply(storage innerState, blocks []*proto.Block) (*
 	if !state.IsNotFound(err) {
 		return nil, 0, errors.Wrap(err, "unknown error")
 	}
-	curHeight, err := storage.Height()
+	currentHeight, err := storage.Height()
 	if err != nil {
 		return nil, 0, err
 	}
 	// current score. Main idea is to find parent block, and check if score
-	// of all passed blocks higher than curScore. If yes, we can add blocks
-	curScore, err := storage.ScoreAtHeight(curHeight)
+	// of all passed blocks higher than currentScore. If yes, we can add blocks
+	currentScore, err := storage.ScoreAtHeight(currentHeight)
 	if err != nil {
 		return nil, 0, err
 	}
-
+	zap.S().Debugf("Current score: %s", currentScore.String())
 	// try to find parent. If not - we can't add blocks, skip it
 	parentHeight, err := storage.BlockIDToHeight(firstBlock.Parent)
 	if err != nil {
-		return nil, 0, errors.Wrapf(err, "BlocksApplier: failed get parent height, firstBlock id %s, for firstBlock %s", firstBlock.Parent.String(), firstBlock.BlockID().String())
+		return nil, 0, errors.Wrapf(err, "BlocksApplier: failed get parent height, firstBlock id %s, for firstBlock %s",
+			firstBlock.Parent.String(), firstBlock.BlockID().String())
 	}
 	// calculate score of all passed blocks
-	score, err := calcMultipleScore(blocks)
+	forkScore, err := calcMultipleScore(blocks)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed calculate score of passed blocks")
 	}
+	zap.S().Debugf("Score of fork (%d) [%s ... %s]: %s",
+		len(blocks), blocks[0].ID.ShortString(), blocks[len(blocks)-1].ID.ShortString(), forkScore.String())
 	parentScore, err := storage.ScoreAtHeight(parentHeight)
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed get score at %d", parentHeight)
 	}
-	sumScore := score.Add(score, parentScore)
-	if curScore.Cmp(sumScore) > 0 { // current height is higher
-		return nil, 0, errors.Errorf("BlockApplier: low score: current score (%s) is higher than firstBlock's score (%s)", curScore.String(), sumScore.String())
+	zap.S().Debugf("Parent score %s at height %d", parentScore.String(), parentHeight)
+	cumulativeScore := forkScore.Add(forkScore, parentScore)
+	zap.S().Debugf("Cumulative score: %s", cumulativeScore.String())
+	if currentScore.Cmp(cumulativeScore) > 0 { // current height is higher
+		return nil, 0, errors.Errorf("BlockApplier: low fork score: current blockchain score (%s) is higher than fork's score (%s)",
+			currentScore.String(), cumulativeScore.String())
 	}
 
 	// so, new blocks has higher score, try apply it.
 	// Do we need rollback?
-	if parentHeight == curHeight {
+	if parentHeight == currentHeight {
 		// no, don't rollback, just add blocks
 		newBlock, err := storage.AddNewDeserializedBlocks(blocks)
 		if err != nil {
 			return nil, 0, err
 		}
-		return newBlock, curHeight + proto.Height(len(blocks)), nil
+		return newBlock, currentHeight + proto.Height(len(blocks)), nil
 	}
 
-	deltaHeight := curHeight - parentHeight
+	deltaHeight := currentHeight - parentHeight
 	if deltaHeight > 100 { // max number that we can rollback
 		return nil, 0, errors.Errorf("can't apply new blocks, rollback more than 100 blocks, %d", deltaHeight)
 	}
@@ -123,16 +130,16 @@ func (a *BlocksApplier) Apply(state state.State, blocks []*proto.Block) (proto.H
 }
 
 func calcMultipleScore(blocks []*proto.Block) (*big.Int, error) {
-	score, err := state.CalculateScore(blocks[0].NxtConsensus.BaseTarget)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed calculate score")
-	}
-	for _, block := range blocks[1:] {
+	score := big.NewInt(0)
+	zap.S().Debugf("Calculating score of fork:")
+	for _, block := range blocks {
 		s, err := state.CalculateScore(block.NxtConsensus.BaseTarget)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed calculate score")
 		}
-		score.Add(score, s)
+		zap.S().Debugf("\t[%s]: bt = %d\t->\tscore = %s", block.ID.String(), int(block.NxtConsensus.BaseTarget), s.String())
+		score = score.Add(score, s)
 	}
+	zap.S().Debugf("Total fork score: %s", score.String())
 	return score, nil
 }

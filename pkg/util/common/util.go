@@ -8,6 +8,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -166,4 +167,11 @@ func FromBase58JSON(value []byte, size int, name string) ([]byte, error) {
 		return nil, errors.Errorf("incorrect length %d of %s value, expected %d", l, name, size)
 	}
 	return v[:size], nil
+}
+
+func TimestampMillisToTime(ts uint64) time.Time {
+	ts64 := int64(ts)
+	s := ts64 / 1000
+	ns := ts64 % 1000 * 1000000
+	return time.Unix(s, ns)
 }

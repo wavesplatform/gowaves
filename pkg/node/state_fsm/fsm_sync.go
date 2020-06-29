@@ -87,6 +87,7 @@ func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
 		_, blocks, _ := a.internal.Blocks(noopWrapper{})
 		if len(blocks) > 0 {
 			err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+				zap.S().Debug("Apply-1: %v", a.internal)
 				_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
 				return err
 			})
@@ -100,11 +101,26 @@ func (a *SyncFsm) BlockIDs(peer Peer, sigs []proto.BlockID) (FSM, Async, error) 
 	if a.conf.peerSyncWith != peer {
 		return a, nil, nil
 	}
+	if l := len(sigs); l > 0 {
+		zap.S().Debugf("[%s] Received %d signatures: [%s ... %s]",
+			peer.ID(), l, sigs[0].ShortString(), sigs[l-1].ShortString())
+	} else {
+		zap.S().Debugf("[%s] Empty signatures received", peer.ID())
+	}
 	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme), sigs)
 	if err != nil {
 		return newSyncFsm(a.baseInfo, a.conf, internal), nil, err
 	}
-	return newSyncFsm(a.baseInfo, a.conf.Now(), internal), nil, nil
+	if internal.RequestedCount() > 0 {
+		// Blocks were requested waiting for them to receive and apply
+		return newSyncFsm(a.baseInfo, a.conf.Now(), internal), nil, nil
+	}
+	// No blocks were request, switching to NG working mode
+	err = a.baseInfo.storage.StartProvidingExtendedApi()
+	if err != nil {
+		return NewIdleFsm(a.baseInfo), nil, err
+	}
+	return NewNGFsm12(a.baseInfo), nil, nil
 }
 
 func (a *SyncFsm) NewPeer(p Peer) (FSM, Async, error) {
@@ -126,6 +142,7 @@ func (a *SyncFsm) Block(p Peer, block *proto.Block) (FSM, Async, error) {
 		return a, nil, nil
 	}
 	metrics.BlockReceivedFromExtension(block, p.Handshake().NodeName)
+	zap.S().Debugf("[%s] Received block %s", p.ID(), block.ID.String())
 	internal, err := a.internal.Block(block)
 	if err != nil {
 		return newSyncFsm(a.baseInfo, a.conf, internal), nil, err
@@ -134,11 +151,13 @@ func (a *SyncFsm) Block(p Peer, block *proto.Block) (FSM, Async, error) {
 }
 
 func (a *SyncFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
+	zap.S().Infof("New key block '%s' mined", block.ID.String())
 	h, err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
 	if err != nil {
-		return a, nil, err
+		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
 	metrics.BlockMined(block, h)
+	zap.S().Debug("Reschedule from SyncFsm.MinedBlock")
 	a.baseInfo.Reschedule()
 
 	// first we should send block
@@ -157,9 +176,12 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	if len(blocks) == 0 {
 		return newSyncFsm(baseInfo, conf, internal), nil, nil
 	}
+	zap.S().Debugf("Applying blocks (%d) [%s ... %s]",
+		len(blocks), blocks[0].ID.ShortString(), blocks[len(blocks)-1].ID.ShortString())
 	var last proto.Height
 	err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		var err error
+		zap.S().Debugf("Apply-3: %v", a.internal)
 		last, err = a.baseInfo.blocksApplier.Apply(s, blocks)
 		return err
 	})
@@ -172,6 +194,7 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	for i, b := range blocks {
 		metrics.BlockAppliedFromExtension(b, last-uint64(len(blocks)-1-i))
 	}
+	zap.S().Debug("Reschedule from SyncFsm.applyBlock")
 	a.baseInfo.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	should, err := a.baseInfo.storage.ShouldPersistAddressTransactions()
@@ -191,14 +214,14 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	return newSyncFsm(baseInfo, conf, internal), nil, nil
 }
 
-func NewSyncFsm(baseInfo BaseInfo, conf2 conf, internal sync_internal.Internal) (FSM, Async, error) {
-	return newSyncFsm(baseInfo, conf2, internal), nil, nil
+func NewSyncFsm(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) (FSM, Async, error) {
+	return newSyncFsm(baseInfo, conf, internal), nil, nil
 }
 
-func newSyncFsm(baseInfo BaseInfo, conf2 conf, internal sync_internal.Internal) FSM {
+func newSyncFsm(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) FSM {
 	return &SyncFsm{
 		baseInfo: baseInfo,
-		conf:     conf2,
+		conf:     conf,
 		internal: internal,
 	}
 }
