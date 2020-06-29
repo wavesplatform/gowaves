@@ -3,10 +3,12 @@ package proto
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
@@ -177,16 +179,16 @@ func NewUnsignedIssueWithProofs(v, chainID byte, senderPK crypto.PublicKey, name
 	return &IssueWithProofs{Type: IssueTransaction, Version: v, ChainID: chainID, Script: script, Issue: i}
 }
 
-func (tx IssueWithProofs) Valid() (bool, error) {
+func (tx *IssueWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxIssueTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for IssueWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for IssueWithProofs", tx.Version)
 	}
 	ok, err := tx.Issue.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
 	//TODO: add script and scheme validations
-	return true, nil
+	return tx, nil
 }
 
 //NonEmptyScript returns true if the script of the transaction is not empty, otherwise false.
@@ -492,16 +494,16 @@ func NewUnsignedTransferWithProofs(v byte, senderPK crypto.PublicKey, amountAsse
 	return &TransferWithProofs{Type: TransferTransaction, Version: v, Transfer: t}
 }
 
-func (tx TransferWithProofs) Valid() (bool, error) {
+func (tx *TransferWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxTransferTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for TransferWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for TransferWithProofs", tx.Version)
 	}
 	ok, err := tx.Transfer.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
 	//TODO: validate script and scheme
-	return true, nil
+	return tx, nil
 }
 
 func (tx *TransferWithProofs) BodyMarshalBinary() ([]byte, error) {
@@ -801,16 +803,16 @@ func NewUnsignedReissueWithProofs(v, chainID byte, senderPK crypto.PublicKey, as
 	return &ReissueWithProofs{Type: ReissueTransaction, Version: v, ChainID: chainID, Reissue: r}
 }
 
-func (tx ReissueWithProofs) Valid() (bool, error) {
+func (tx *ReissueWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxReissueTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for ReissueWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for ReissueWithProofs", tx.Version)
 	}
 	ok, err := tx.Reissue.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
 	//TODO: add current blockchain scheme validation
-	return true, nil
+	return tx, nil
 }
 
 func (tx *ReissueWithProofs) BodyMarshalBinary() ([]byte, error) {
@@ -1043,16 +1045,16 @@ func NewUnsignedBurnWithProofs(v, chainID byte, senderPK crypto.PublicKey, asset
 	return &BurnWithProofs{Type: BurnTransaction, Version: v, ChainID: chainID, Burn: b}
 }
 
-func (tx BurnWithProofs) Valid() (bool, error) {
+func (tx *BurnWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxBurnTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for BurnWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for BurnWithProofs", tx.Version)
 	}
 	ok, err := tx.Burn.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
 	//TODO: check current blockchain scheme
-	return true, nil
+	return tx, nil
 }
 
 func (tx *BurnWithProofs) BodyMarshalBinary() ([]byte, error) {
@@ -1368,75 +1370,81 @@ func NewUnsignedExchangeWithProofs(v byte, buy, sell Order, price, amount, buyMa
 	}
 }
 
-func (tx ExchangeWithProofs) Valid() (bool, error) {
+func (tx *ExchangeWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxExchangeTransactionVersion {
-		return false, errors.Errorf("unexpected transaction version %d for ExchangeWithProofs transaction", tx.Version)
+		return tx, errors.Errorf("unexpected transaction version %d for ExchangeWithProofs transaction", tx.Version)
 	}
 	ok, err := tx.Order1.Valid()
 	if !ok {
-		return false, errors.Wrap(err, "invalid first order")
+		return tx, errors.Wrap(err, "invalid first order")
 	}
 	ok, err = tx.Order2.Valid()
 	if !ok {
-		return false, errors.Wrap(err, "invalid second order")
+		return tx, errors.Wrap(err, "invalid second order")
 	}
 	if (tx.Order1.GetOrderType() == Buy && tx.Order2.GetOrderType() != Sell) || (tx.Order1.GetOrderType() == Sell && tx.Order2.GetOrderType() != Buy) {
-		return false, errors.New("incorrect combination of orders types")
+		return tx, errors.New("incorrect combination of orders types")
 	}
 	if tx.Order2.GetMatcherPK() != tx.Order1.GetMatcherPK() {
-		return false, errors.New("unmatched matcher's public keys")
+		return tx, errors.New("unmatched matcher's public keys")
 	}
 	if tx.Order2.GetAssetPair() != tx.Order1.GetAssetPair() {
-		return false, errors.New("different asset pairs")
+		return tx, errors.New("different asset pairs")
 	}
 	if tx.Amount == 0 {
-		return false, errors.New("amount should be positive")
+		return tx, errors.New("amount should be positive")
 	}
 	if !validJVMLong(tx.Amount) {
-		return false, errors.New("amount is too big")
+		return tx, errors.New("amount is too big")
 	}
 	if tx.Price == 0 {
-		return false, errors.New("price should be positive")
+		return tx, errors.New("price should be positive")
 	}
 	if !validJVMLong(tx.Price) {
-		return false, errors.New("price is too big")
+		return tx, errors.New("price is too big")
 	}
 	bo, err := tx.GetBuyOrder()
 	if err != nil {
-		return false, err
+		return tx, err
 	}
 	so, err := tx.GetSellOrder()
 	if err != nil {
-		return false, err
+		return tx, err
 	}
 	if tx.Price > bo.GetPrice() || tx.Price < so.GetPrice() {
-		return false, errors.New("invalid price")
+		if tx.Price > bo.GetPrice() {
+			return tx, errors.Errorf("invalid price: tx.Price %d > bo.GetPrice() %d", tx.Price, bo.GetPrice())
+		}
+		if tx.Price < so.GetPrice() {
+			return tx, errors.Errorf("invalid price: tx.Price %d < so.GetPrice() %d", tx.Price, so.GetPrice())
+		}
+		panic("unreachable")
 	}
 	if tx.Fee == 0 {
-		return false, errors.New("fee should be positive")
+		return tx, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
-		return false, errors.New("fee is too big")
+		return tx, errors.New("fee is too big")
 	}
 	if !validJVMLong(tx.BuyMatcherFee) {
-		return false, errors.New("buy matcher's fee is too big")
+		return tx, errors.New("buy matcher's fee is too big")
 	}
 	if !validJVMLong(tx.SellMatcherFee) {
-		return false, errors.New("sell matcher's fee is too big")
+		return tx, errors.New("sell matcher's fee is too big")
 	}
 	if tx.Order1.GetExpiration() < tx.Timestamp {
-		return false, errors.New("invalid first order expiration")
+		return tx, errors.New("invalid first order expiration")
 	}
 	if tx.Order1.GetExpiration()-tx.Timestamp > MaxOrderTTL {
-		return false, errors.New("first order expiration should be earlier than 30 days")
+		return tx, errors.New("first order expiration should be earlier than 30 days")
 	}
 	if tx.Order2.GetExpiration() < tx.Timestamp {
-		return false, errors.New("invalid second order expiration")
+		return tx, errors.New("invalid second order expiration")
 	}
 	if tx.Order2.GetExpiration()-tx.Timestamp > MaxOrderTTL {
-		return false, errors.New("second order expiration should be earlier than 30 days")
+		return tx, errors.New("second order expiration should be earlier than 30 days")
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx *ExchangeWithProofs) marshalAsOrderV1(order Order) ([]byte, error) {
@@ -1767,16 +1775,16 @@ type LeaseWithProofs struct {
 	Lease
 }
 
-func (tx LeaseWithProofs) Valid() (bool, error) {
+func (tx *LeaseWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxLeaseTransactionVersion {
-		return false, errors.Errorf("unexpected transaction version %d for LeaseWithProofs transaction", tx.Version)
+		return tx, errors.Errorf("unexpected transaction version %d for LeaseWithProofs transaction", tx.Version)
 	}
 	ok, err := tx.Lease.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
 	//TODO: add scheme validation
-	return true, nil
+	return tx, nil
 }
 
 func (tx LeaseWithProofs) BinarySize() int {
@@ -2117,16 +2125,16 @@ func NewUnsignedLeaseCancelWithProofs(v, chainID byte, senderPK crypto.PublicKey
 	return &LeaseCancelWithProofs{Type: LeaseCancelTransaction, Version: v, ChainID: chainID, LeaseCancel: lc}
 }
 
-func (tx LeaseCancelWithProofs) Valid() (bool, error) {
+func (tx *LeaseCancelWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxLeaseCancelTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for LeaseCancelWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for LeaseCancelWithProofs", tx.Version)
 	}
 	ok, err := tx.LeaseCancel.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
 	//TODO: add scheme validation
-	return true, nil
+	return tx, nil
 }
 
 func (tx *LeaseCancelWithProofs) BodyMarshalBinary() ([]byte, error) {
@@ -2247,16 +2255,16 @@ type CreateAliasWithProofs struct {
 	CreateAlias
 }
 
-func (tx CreateAliasWithProofs) Valid() (bool, error) {
+func (tx *CreateAliasWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxCreateAliasTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for CreateAliasWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for CreateAliasWithProofs", tx.Version)
 	}
 	ok, err := tx.CreateAlias.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
 	//TODO: add script and scheme validations
-	return true, nil
+	return tx, nil
 }
 
 func (tx CreateAliasWithProofs) BinarySize() int {
@@ -2630,33 +2638,33 @@ func NewUnsignedMassTransferWithProofs(v byte, senderPK crypto.PublicKey, asset 
 	return &MassTransferWithProofs{Type: MassTransferTransaction, Version: v, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: attachment}
 }
 
-func (tx MassTransferWithProofs) Valid() (bool, error) {
+func (tx *MassTransferWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxMassTransferTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for MassTransferWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for MassTransferWithProofs", tx.Version)
 	}
 	if len(tx.Transfers) > maxTransfers {
-		return false, errors.Errorf("number of transfers is greater than %d", maxTransfers)
+		return tx, errs.NewTxValidationError(fmt.Sprintf("Number of transfers %d is greater than %d", len(tx.Transfers), maxTransfers))
 	}
 	if tx.Fee == 0 {
-		return false, errors.New("fee should be positive")
+		return tx, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
-		return false, errors.New("fee is too big")
+		return tx, errors.New("fee is too big")
 	}
 	total := tx.Fee
 	for _, t := range tx.Transfers {
 		if !validJVMLong(t.Amount) {
-			return false, errors.New("at least one of the transfers amount is bigger than JVM long")
+			return tx, errors.New("at least one of the transfers amount is bigger than JVM long")
 		}
 		total += t.Amount
 		if !validJVMLong(total) {
-			return false, errors.New("sum of amounts of transfers and transaction fee is bigger than JVM long")
+			return tx, errors.New("sum of amounts of transfers and transaction fee is bigger than JVM long")
 		}
 	}
 	if tx.attachmentSize() > maxAttachmentLengthBytes {
-		return false, errors.New("attachment too long")
+		return tx, errs.NewTooBigArray("attachment too long")
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx *MassTransferWithProofs) attachmentSize() int {
@@ -3021,35 +3029,38 @@ func NewUnsignedData(v byte, senderPK crypto.PublicKey, fee, timestamp uint64) *
 	return &DataWithProofs{Type: DataTransaction, Version: v, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *DataWithProofs) Valid() (bool, error) {
+func (tx *DataWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxDataTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for DataWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for DataWithProofs", tx.Version)
 	}
 	if len(tx.Entries) > maxEntries {
-		return false, errors.Errorf("number of DataWithProofs entries is bigger than %d", maxEntries)
+		return tx, errs.NewTooBigArray(fmt.Sprintf("number of DataWithProofs entries is bigger than %d", maxEntries))
 	}
 	keys := make(map[string]struct{})
 	for _, e := range tx.Entries {
 		if !IsProtobufTx(tx) && e.GetValueType() == DataDelete {
-			return false, errors.New("delete supported only for protobuf transaction")
+			return tx, errors.New("delete supported only for protobuf transaction")
 		}
-		ok, err := e.Valid()
-		if !ok {
-			return false, errors.Wrap(err, "at least one of the DataWithProofs entry is not valid")
+		err := e.Valid(tx.Version)
+		if err != nil {
+			return tx, errs.Extend(err, "at least one of the DataWithProofs entry is not valid")
 		}
-		_, ok = keys[e.GetKey()]
+		_, ok := keys[e.GetKey()]
 		if ok {
-			return false, errors.New("duplicate keys")
+			return tx, errs.NewDuplicatedDataKeys(fmt.Sprintf("duplicate key %s", e.GetKey()))
 		}
 		keys[e.GetKey()] = struct{}{}
 	}
 	if tx.Fee == 0 {
-		return false, errors.New("fee should be positive")
+		return tx, errors.New("fee should be positive")
+	}
+	if tx.Fee < MinFee {
+		return tx, errs.NewTxValidationError(fmt.Sprintf("Fee %d does not exceed minimal value", tx.Fee))
 	}
 	if !validJVMLong(tx.Fee) {
-		return false, errors.New("fee is too big")
+		return tx, errors.New("fee is too big")
 	}
-	return true, nil
+	return tx, nil
 }
 
 //AppendEntry adds the entry to the transaction.
@@ -3385,17 +3396,17 @@ func NewUnsignedSetScriptWithProofs(v byte, chain byte, senderPK crypto.PublicKe
 	return &SetScriptWithProofs{Type: SetScriptTransaction, Version: v, ChainID: chain, SenderPK: senderPK, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx SetScriptWithProofs) Valid() (bool, error) {
+func (tx *SetScriptWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxSetScriptTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for SetScriptWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for SetScriptWithProofs", tx.Version)
 	}
 	if tx.Fee == 0 {
-		return false, errors.New("fee should be positive")
+		return tx, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
-		return false, errors.New("fee is too big")
+		return tx, errors.New("fee is too big")
 	}
-	return true, nil
+	return tx, nil
 }
 
 //NonEmptyScript returns true if transaction contains non-empty script.
@@ -3671,20 +3682,20 @@ func NewUnsignedSponsorshipWithProofs(v byte, senderPK crypto.PublicKey, assetID
 	return &SponsorshipWithProofs{Type: SponsorshipTransaction, Version: v, SenderPK: senderPK, AssetID: assetID, MinAssetFee: minAssetFee, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx SponsorshipWithProofs) Valid() (bool, error) {
+func (tx *SponsorshipWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxSponsorshipTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for SponsorshipWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for SponsorshipWithProofs", tx.Version)
 	}
 	if tx.Fee == 0 {
-		return false, errors.New("fee should be positive")
+		return tx, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
-		return false, errors.New("fee is too big")
+		return tx, errors.New("fee is too big")
 	}
 	if !validJVMLong(tx.MinAssetFee) {
-		return false, errors.New("min asset fee is too big")
+		return tx, errors.New("min asset fee is too big")
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx *SponsorshipWithProofs) BodyMarshalBinary() ([]byte, error) {
@@ -3949,18 +3960,18 @@ func NewUnsignedSetAssetScriptWithProofs(v, chain byte, senderPK crypto.PublicKe
 	return &SetAssetScriptWithProofs{Type: SetAssetScriptTransaction, Version: v, ChainID: chain, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx SetAssetScriptWithProofs) Valid() (bool, error) {
+func (tx *SetAssetScriptWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxSetAssetScriptTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for SetAssetScriptWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for SetAssetScriptWithProofs", tx.Version)
 	}
 	if tx.Fee == 0 {
-		return false, errors.New("fee should be positive")
+		return tx, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
-		return false, errors.New("fee is too big")
+		return tx, errors.New("fee is too big")
 	}
 	//TODO: validate blockchain scheme and script type
-	return true, nil
+	return tx, nil
 }
 
 //NonEmptyScript returns true if transaction contains non-empty script.
@@ -4254,41 +4265,41 @@ func NewUnsignedInvokeScriptWithProofs(v, chain byte, senderPK crypto.PublicKey,
 	}
 }
 
-func (tx InvokeScriptWithProofs) Valid() (bool, error) {
+func (tx *InvokeScriptWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxInvokeScriptTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for InvokeScriptWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for InvokeScriptWithProofs", tx.Version)
 	}
 	if tx.Fee == 0 {
-		return false, errors.New("fee should be positive")
+		return tx, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
-		return false, errors.New("fee is too big")
+		return tx, errors.New("fee is too big")
 	}
 	if len(tx.FunctionCall.Arguments) > maxArguments {
-		return false, errors.New("too many arguments")
+		return tx, errors.New("too many arguments")
 	}
 	if len(tx.FunctionCall.Name) > maxFunctionNameBytes {
-		return false, errors.New("function name is too big")
+		return tx, errors.New("function name is too big")
 	}
 	if len(tx.Payments) > 1 {
-		return false, errors.New("no more than one payment is allowed")
+		return tx, errors.New("no more than one payment is allowed")
 	}
 	assets := make(map[OptionalAsset]struct{})
 	for _, p := range tx.Payments {
 		if p.Amount == 0 {
-			return false, errors.New("at least one payment has a non-positive amount")
+			return tx, errors.New("at least one payment has a non-positive amount")
 		}
 		if !validJVMLong(p.Amount) {
-			return false, errors.New("at least one payment has a too big amount")
+			return tx, errors.New("at least one payment has a too big amount")
 		}
 		_, ok := assets[p.Asset]
 		if ok {
-			return false, errors.New("duplicate assets")
+			return tx, errors.New("duplicate assets")
 		}
 		assets[p.Asset] = struct{}{}
 	}
 	//TODO: check blockchain scheme and script type
-	return true, nil
+	return tx, nil
 }
 
 func (tx *InvokeScriptWithProofs) BodyMarshalBinary() ([]byte, error) {
@@ -4644,23 +4655,23 @@ func (tx UpdateAssetInfoWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func (tx UpdateAssetInfoWithProofs) Valid() (bool, error) {
+func (tx *UpdateAssetInfoWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxUpdateAssetInfoTransactionVersion {
-		return false, errors.Errorf("unexpected version %d for UpdateAssetInfoWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for UpdateAssetInfoWithProofs", tx.Version)
 	}
 	if tx.Fee == 0 {
-		return false, errors.New("fee should be positive")
+		return tx, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
-		return false, errors.New("fee is too big")
+		return tx, errors.New("fee is too big")
 	}
 	if l := len(tx.Name); l < minAssetNameLen || l > maxAssetNameLen {
-		return false, errors.New("incorrect number of bytes in the asset's name")
+		return tx, errs.NewInvalidName("incorrect number of bytes in the asset's name")
 	}
 	if l := len(tx.Description); l > maxDescriptionLen {
-		return false, errors.New("incorrect number of bytes in the asset's description")
+		return tx, errors.New("incorrect number of bytes in the asset's description")
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx *UpdateAssetInfoWithProofs) GenerateID(scheme Scheme) error {

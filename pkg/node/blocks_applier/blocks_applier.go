@@ -61,7 +61,7 @@ func (a *innerBlocksApplier) apply(storage innerState, blocks []*proto.Block) (*
 	}
 	sumScore := score.Add(score, parentScore)
 	if curScore.Cmp(sumScore) > 0 { // current height is higher
-		return nil, 0, errors.New("BlockApplier: low score: current score is higher than firstBlock")
+		return nil, 0, errors.New("BlockApplier: low score: current score is higher than sumScore of provided blocks")
 	}
 
 	// so, new blocks has higher score, try apply it.

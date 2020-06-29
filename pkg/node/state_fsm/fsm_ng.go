@@ -52,6 +52,9 @@ func NewNGFsm12(info BaseInfo) *NGFsm {
 
 func (a *NGFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 	fsm, as, err := newPeer(a, p, a.peers)
+	if a.peers.ConnectedCount() == a.minPeersMining {
+		a.Reschedule()
+	}
 	sendScore(p, a.storage)
 	return fsm, as, err
 }
@@ -87,15 +90,11 @@ func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPai
 	a.actions.SendBlock(block)
 	a.actions.SendScore(a.storage)
 	a.CleanUtx()
-	return NewNGFsm12(a.BaseInfo), Tasks(NewMineMicroTask(5*time.Second, block, limits, keyPair, vrf)), nil
+	return NewNGFsm12(a.BaseInfo), Tasks(NewMineMicroTask(1*time.Second, block, limits, keyPair, vrf)), nil
 }
 
 func (a *NGFsm) BlockIDs(peer peer.Peer, sigs []proto.BlockID) (FSM, Async, error) {
 	return noop(a)
-}
-
-func (a *NGFsm) GetPeers(peer peer.Peer) (FSM, Async, error) {
-	return sendPeers(a, peer, a.peers)
 }
 
 // received microblock

@@ -56,6 +56,8 @@ type BaseInfo struct {
 	actions Actions
 
 	utx types.UtxPool
+
+	minPeersMining int
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -123,6 +125,8 @@ func NewFsm(
 		actions: &ActionsImpl{services: services},
 
 		utx: services.UtxPool,
+
+		minPeersMining: services.MinPeersMining,
 	}
 
 	b.Scheduler.Reschedule()

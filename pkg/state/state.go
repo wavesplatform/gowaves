@@ -1477,7 +1477,7 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 	// Apply all the balance diffs accumulated from this blocks batch.
 	// This also validates diffs for negative balances.
 	if err := s.appender.applyAllDiffs(initialisation); err != nil {
-		return nil, wrapErr(TxValidationError, err)
+		return nil, err
 	}
 	if needToCancelLeases {
 		// Need to cancel leases due to bugs in historical blockchain.
@@ -1718,7 +1718,7 @@ func (s *stateManager) ResetValidationList() {
 // For UTX validation.
 func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, checkScripts bool) error {
 	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, checkScripts); err != nil {
-		return wrapErr(TxValidationError, err)
+		return err
 	}
 	return nil
 }

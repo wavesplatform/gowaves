@@ -76,7 +76,7 @@ func SetupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 	ec := zap.NewDevelopmentEncoderConfig()
 	core := zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al)
 	logger := zap.New(core)
-	zap.ReplaceGlobals(logger)
+	zap.ReplaceGlobals(logger.WithOptions(zap.AddCaller()))
 	return logger, logger.Sugar()
 }
 

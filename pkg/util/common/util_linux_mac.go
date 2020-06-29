@@ -1,6 +1,6 @@
 // +build !windows
 
-package main
+package common
 
 import (
 	"syscall"
@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func setMaxOpenFiles(limit uint64) error {
+func SetMaxOpenFiles(limit uint64) error {
 	var rLimit syscall.Rlimit
 	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit)
 	if err != nil {

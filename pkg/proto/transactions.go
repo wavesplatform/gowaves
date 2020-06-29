@@ -3,10 +3,12 @@ package proto
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
@@ -81,6 +83,8 @@ const (
 	MaxSetAssetScriptTransactionVersion  = 2
 	MaxInvokeScriptTransactionVersion    = 2
 	MaxUpdateAssetInfoTransactionVersion = 1
+
+	MinFee = 100_000
 )
 
 var (
@@ -166,7 +170,7 @@ type Transaction interface {
 	// Check that all transaction fields are valid.
 	// This includes ranges checks, and sanity checks specific for each transaction type:
 	// for example, negative amounts for transfers.
-	Valid() (bool, error)
+	Validate() (Transaction, error)
 
 	// Set transaction ID.
 	// For most transacions ID is hash of transaction body.
@@ -507,21 +511,21 @@ func NewUnsignedGenesis(recipient Address, amount, timestamp uint64) *Genesis {
 	return &Genesis{Type: GenesisTransaction, Version: 1, Timestamp: timestamp, Recipient: recipient, Amount: amount}
 }
 
-//Valid checks the validity of transaction parameters and it's signature.
-func (tx Genesis) Valid() (bool, error) {
+//Validate checks the validity of transaction parameters and it's signature.
+func (tx *Genesis) Validate() (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxGenesisTransactionVersion {
-		return false, errors.Errorf("bad version %d for Genesis transaction", tx.Version)
+		return tx, errors.Errorf("bad version %d for Genesis transaction", tx.Version)
 	}
 	if tx.Amount == 0 {
-		return false, errors.New("amount should be positive")
+		return tx, errors.New("amount should be positive")
 	}
 	if !validJVMLong(tx.Amount) {
-		return false, errors.New("amount is too big")
+		return tx, errors.New("amount is too big")
 	}
 	if ok, err := tx.Recipient.Valid(); !ok {
-		return false, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
+		return tx, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx *Genesis) BodyMarshalBinary() ([]byte, error) {
@@ -748,29 +752,29 @@ func NewUnsignedPayment(senderPK crypto.PublicKey, recipient Address, amount, fe
 	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx Payment) Valid() (bool, error) {
+func (tx *Payment) Validate() (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxPaymentTransactionVersion {
-		return false, errors.Errorf("bad version %d for Payment transaction", tx.Version)
+		return tx, errors.Errorf("bad version %d for Payment transaction", tx.Version)
 	}
 	if ok, err := tx.Recipient.Valid(); !ok {
-		return false, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
+		return tx, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
 	}
 	if tx.Amount == 0 {
-		return false, errors.New("amount should be positive")
+		return tx, errors.New("amount should be positive")
 	}
 	if !validJVMLong(tx.Amount) {
-		return false, errors.New("amount is too big")
+		return tx, errors.New("amount is too big")
 	}
 	if tx.Fee == 0 {
-		return false, errors.New("fee should be positive")
+		return tx, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
-		return false, errors.New("fee is too big")
+		return tx, errors.New("fee is too big")
 	}
 	if x := tx.Amount + tx.Fee; !validJVMLong(x) {
-		return false, errors.New("sum of amount and fee overflows JVM long")
+		return tx, errors.New("sum of amount and fee overflows JVM long")
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx *Payment) bodyMarshalBinary(buf []byte) error {
@@ -1025,13 +1029,13 @@ func (i Issue) Valid() (bool, error) {
 		return false, errors.New("fee is too big")
 	}
 	if l := len(i.Name); l < minAssetNameLen || l > maxAssetNameLen {
-		return false, errors.New("incorrect number of bytes in the asset's name")
+		return false, errs.NewInvalidName("incorrect number of bytes in the asset's name")
 	}
 	if l := len(i.Description); l > maxDescriptionLen {
-		return false, errors.New("incorrect number of bytes in the asset's description")
+		return false, errs.NewTooBigArray("incorrect number of bytes in the asset's description")
 	}
 	if i.Decimals > maxDecimals {
-		return false, errors.Errorf("incorrect decimals, should be no more then %d", maxDecimals)
+		return false, errs.NewTooBigArray(fmt.Sprintf("incorrect decimals, should be no more then %d", maxDecimals))
 	}
 	return true, nil
 }

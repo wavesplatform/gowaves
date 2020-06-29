@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -45,7 +46,19 @@ func (s *Server) GetTransactions(req *g.TransactionsRequest, srv g.TransactionsA
 		return status.Errorf(codes.Internal, err.Error())
 	}
 	if iter == nil {
-		// Nothing to iterate.
+		if len(req.TransactionIds) > 0 {
+			handler := &getTransactionsHandler{srv, s}
+			for _, bts := range req.TransactionIds {
+				tx, failed, err := s.state.TransactionByIDWithStatus(bts)
+				if err != nil {
+					continue
+				}
+				err = handler.handle(tx, failed)
+				if err != nil {
+					continue
+				}
+			}
+		}
 		return nil
 	}
 	handler := &getTransactionsHandler{srv, s}
@@ -203,19 +216,50 @@ func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*pb.SignedTransa
 	return txProto, nil
 }
 
-func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (*pb.SignedTransaction, error) {
+func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (out *pb.SignedTransaction, err error) {
 	var c proto.ProtobufConverter
 	t, err := c.SignedTransaction(tx)
 	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+		return nil, apiError(err)
 	}
 	tBytes, err := t.MarshalBinary()
 	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+		return nil, apiError(err)
 	}
 	err = s.utx.AddWithBytes(t, tBytes)
 	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "failed to add transaction to UTX")
+		return nil, apiError(err)
 	}
 	return tx, nil
+}
+
+func apiError(err error) error {
+	switch err.(type) {
+	case *errs.NonPositiveAmount:
+		return status.Errorf(codes.InvalidArgument, "non-positive amount "+err.Error())
+	case *errs.TooBigArray:
+		return status.Errorf(codes.InvalidArgument, "Too big sequences requested: "+err.Error())
+	case *errs.InvalidName:
+		return status.Errorf(codes.InvalidArgument, "invalid name: %q", err)
+	case *errs.AccountBalanceError:
+		return status.Errorf(codes.InvalidArgument, "Accounts balance errors: %q", err)
+	case *errs.ToSelf:
+		return status.Errorf(codes.InvalidArgument, "Transaction to yourself: %q", err)
+	case *errs.TxValidationError:
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	case *errs.AssetIsNotReissuable:
+		return status.Errorf(codes.InvalidArgument, "Asset is not reissuable: %s", err)
+	case *errs.AliasTaken:
+		return status.Errorf(codes.InvalidArgument, "Alias already claimed: %s", err)
+	case *errs.Mistiming:
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	case *errs.EmptyDataKey:
+		return status.Errorf(codes.InvalidArgument, "Empty key found: %s", err)
+	case *errs.DuplicatedDataKeys:
+		return status.Errorf(codes.InvalidArgument, "Duplicated keys found: %s", err)
+	case *errs.UnknownAsset:
+		return status.Errorf(codes.InvalidArgument, "Assets should be issued before they can be traded: %s", err)
+	default:
+		return status.Errorf(codes.Internal, err.Error())
+	}
 }

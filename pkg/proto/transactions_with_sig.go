@@ -42,15 +42,15 @@ type IssueWithSig struct {
 	Issue
 }
 
-func (tx IssueWithSig) Valid() (bool, error) {
+func (tx *IssueWithSig) Validate() (Transaction, error) {
 	if tx.Version != 1 {
-		return false, errors.Errorf("unexpected version %d for IssueWithSig", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for IssueWithSig", tx.Version)
 	}
 	ok, err := tx.Issue.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx IssueWithSig) BinarySize() int {
@@ -269,15 +269,15 @@ type TransferWithSig struct {
 	Transfer
 }
 
-func (tx TransferWithSig) Valid() (bool, error) {
+func (tx *TransferWithSig) Validate() (Transaction, error) {
 	if tx.Version != 1 {
-		return false, errors.Errorf("unexpected version %d for TransferWithSig", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for TransferWithSig", tx.Version)
 	}
 	ok, err := tx.Transfer.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx TransferWithSig) BinarySize() int {
@@ -564,15 +564,15 @@ type ReissueWithSig struct {
 	Reissue
 }
 
-func (tx ReissueWithSig) Valid() (bool, error) {
+func (tx *ReissueWithSig) Validate() (Transaction, error) {
 	if tx.Version != 1 {
-		return false, errors.Errorf("unexpected version %d for ReissueWithSig", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for ReissueWithSig", tx.Version)
 	}
 	ok, err := tx.Reissue.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx ReissueWithSig) BinarySize() int {
@@ -793,15 +793,15 @@ type BurnWithSig struct {
 	Burn
 }
 
-func (tx BurnWithSig) Valid() (bool, error) {
+func (tx *BurnWithSig) Validate() (Transaction, error) {
 	if tx.Version != 1 {
-		return false, errors.Errorf("unexpected version %d for BurnWithSig", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for BurnWithSig", tx.Version)
 	}
 	ok, err := tx.Burn.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx BurnWithSig) BinarySize() int {
@@ -1118,70 +1118,76 @@ func NewUnsignedExchangeWithSig(buy, sell *OrderV1, price, amount, buyMatcherFee
 	}
 }
 
-func (tx ExchangeWithSig) Valid() (bool, error) {
+func (tx *ExchangeWithSig) Validate() (Transaction, error) {
 	if tx.Version != 1 {
-		return false, errors.Errorf("unexpected version %d for ExchangeWithSig", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for ExchangeWithSig", tx.Version)
 	}
 	ok, err := tx.Order1.Valid()
 	if !ok {
-		return false, errors.Wrap(err, "invalid buy order")
+		return tx, errors.Wrap(err, "invalid buy order")
 	}
 	ok, err = tx.Order2.Valid()
 	if !ok {
-		return false, errors.Wrap(err, "invalid sell order")
+		return tx, errors.Wrap(err, "invalid sell order")
 	}
 	if tx.Order1.OrderType != Buy {
-		return false, errors.New("incorrect order type of buy order")
+		return tx, errors.New("incorrect order type of buy order")
 	}
 	if tx.Order2.OrderType != Sell {
-		return false, errors.New("incorrect order type of sell order")
+		return tx, errors.New("incorrect order type of sell order")
 	}
 	if tx.Order2.MatcherPK != tx.Order1.MatcherPK {
-		return false, errors.New("unmatched matcher's public keys")
+		return tx, errors.New("unmatched matcher's public keys")
 	}
 	if tx.Order2.AssetPair != tx.Order1.AssetPair {
-		return false, errors.New("different asset pairs")
+		return tx, errors.New("different asset pairs")
 	}
 	if tx.Amount == 0 {
-		return false, errors.New("amount should be positive")
+		return tx, errors.New("amount should be positive")
 	}
 	if !validJVMLong(tx.Amount) {
-		return false, errors.New("amount is too big")
+		return tx, errors.New("amount is too big")
 	}
 	if tx.Price == 0 {
-		return false, errors.New("price should be positive")
+		return tx, errors.New("price should be positive")
 	}
 	if !validJVMLong(tx.Price) {
-		return false, errors.New("price is too big")
+		return tx, errors.New("price is too big")
 	}
 	if tx.Price > tx.Order1.Price || tx.Price < tx.Order2.Price {
-		return false, errors.New("invalid price")
+		if tx.Price > tx.Order1.Price {
+			return tx, errors.Errorf("invalid price: tx.Price %d > tx.Order1.Price %d", tx.Price, tx.Order1.Price)
+		}
+		if tx.Price < tx.Order2.Price {
+			return tx, errors.Errorf("invalid price: tx.Price %d < tx.Order2.Price %d", tx.Price, tx.Order2.Price)
+		}
+		panic("unreachable")
 	}
 	if tx.Fee == 0 {
-		return false, errors.New("fee should be positive")
+		return tx, errors.New("fee should be positive")
 	}
 	if !validJVMLong(tx.Fee) {
-		return false, errors.New("fee is too big")
+		return tx, errors.New("fee is too big")
 	}
 	if !validJVMLong(tx.BuyMatcherFee) {
-		return false, errors.New("buy matcher's fee is too big")
+		return tx, errors.New("buy matcher's fee is too big")
 	}
 	if !validJVMLong(tx.SellMatcherFee) {
-		return false, errors.New("sell matcher's fee is too big")
+		return tx, errors.New("sell matcher's fee is too big")
 	}
 	if tx.Order1.Expiration < tx.Timestamp {
-		return false, errors.New("invalid buy order expiration")
+		return tx, errors.New("invalid buy order expiration")
 	}
 	if tx.Order1.Expiration-tx.Timestamp > MaxOrderTTL {
-		return false, errors.New("buy order expiration should be earlier than 30 days")
+		return tx, errors.New("buy order expiration should be earlier than 30 days")
 	}
 	if tx.Order2.Expiration < tx.Timestamp {
-		return false, errors.New("invalid sell order expiration")
+		return tx, errors.New("invalid sell order expiration")
 	}
 	if tx.Order2.Expiration-tx.Timestamp > MaxOrderTTL {
-		return false, errors.New("sell order expiration should be earlier than 30 days")
+		return tx, errors.New("sell order expiration should be earlier than 30 days")
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx *ExchangeWithSig) BodyMarshalBinary() ([]byte, error) {
@@ -1469,15 +1475,15 @@ type LeaseWithSig struct {
 	Lease
 }
 
-func (tx LeaseWithSig) Valid() (bool, error) {
+func (tx *LeaseWithSig) Validate() (Transaction, error) {
 	if tx.Version != 1 {
-		return false, errors.Errorf("unexpected version %d for LeaseWithSig", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for LeaseWithSig", tx.Version)
 	}
 	ok, err := tx.Lease.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx LeaseWithSig) BinarySize() int {
@@ -1698,15 +1704,15 @@ type LeaseCancelWithSig struct {
 	LeaseCancel
 }
 
-func (tx LeaseCancelWithSig) Valid() (bool, error) {
+func (tx *LeaseCancelWithSig) Validate() (Transaction, error) {
 	if tx.Version != 1 {
-		return false, errors.Errorf("unexpected version %d for LeaseCancelWithSig", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for LeaseCancelWithSig", tx.Version)
 	}
 	ok, err := tx.LeaseCancel.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx LeaseCancelWithSig) BinarySize() int {
@@ -1919,15 +1925,15 @@ type CreateAliasWithSig struct {
 	CreateAlias
 }
 
-func (tx CreateAliasWithSig) Valid() (bool, error) {
+func (tx *CreateAliasWithSig) Validate() (Transaction, error) {
 	if tx.Version != 1 {
-		return false, errors.Errorf("unexpected version %d for CreateAliasWithSig", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for CreateAliasWithSig", tx.Version)
 	}
 	ok, err := tx.CreateAlias.Valid()
 	if !ok {
-		return false, err
+		return tx, err
 	}
-	return true, nil
+	return tx, nil
 }
 
 func (tx CreateAliasWithSig) BinarySize() int {
