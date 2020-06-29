@@ -347,6 +347,7 @@ func TestFunctions(t *testing.T) {
 		{1202, `TOINT_OFF`, `toInt(base16'ffffff0000000000003039', 2) == 12345`, `AwkAAAAAAAACCQAEsgAAAAIBAAAAC////wAAAAAAADA5AAAAAAAAAAACAAAAAAAAADA57UQA4Q==`, defaultScope(3), false, false},
 		{1203, `INDEXOF`, `indexOf("cafe bebe dead beef cafe bebe", "bebe") == 5`, `AwkAAAAAAAACCQAEswAAAAICAAAAHWNhZmUgYmViZSBkZWFkIGJlZWYgY2FmZSBiZWJlAgAAAARiZWJlAAAAAAAAAAAFyqpjwQ==`, defaultScope(3), true, false},
 		{1203, `INDEXOF`, `indexOf("cafe bebe dead beef cafe bebe", "fox") == unit`, `AwkAAAAAAAACCQAEswAAAAICAAAAHWNhZmUgYmViZSBkZWFkIGJlZWYgY2FmZSBiZWJlAgAAAANmb3gFAAAABHVuaXS7twzl`, defaultScope(3), true, false},
+		{1203, `INDEXOF`, `indexOf("世界}}世界", "}}") == 2`, `AwkAAAAAAAACCQAEswAAAAICAAAADuS4lueVjH195LiW55WMAgAAAAJ9fQAAAAAAAAAAAjCgf3g=`, defaultScope(3), true, false},
 		{1204, `INDEXOFN`, `indexOf("cafe bebe dead beef cafe bebe", "bebe", 0) == 5`, `AwkAAAAAAAACCQAEtAAAAAMCAAAAHWNhZmUgYmViZSBkZWFkIGJlZWYgY2FmZSBiZWJlAgAAAARiZWJlAAAAAAAAAAAAAAAAAAAAAAAFFBPTAA==`, defaultScope(3), true, false},
 		{1204, `INDEXOFN`, `indexOf("cafe bebe dead beef cafe bebe", "bebe", 10) == 25`, `AwkAAAAAAAACCQAEtAAAAAMCAAAAHWNhZmUgYmViZSBkZWFkIGJlZWYgY2FmZSBiZWJlAgAAAARiZWJlAAAAAAAAAAAKAAAAAAAAAAAZVBpWMw==`, defaultScope(3), true, false},
 		{1204, `INDEXOFN`, `indexOf("cafe bebe dead beef cafe bebe", "dead", 10) == 10`, `AwkAAAAAAAACCQAEtAAAAAMCAAAAHWNhZmUgYmViZSBkZWFkIGJlZWYgY2FmZSBiZWJlAgAAAARkZWFkAAAAAAAAAAAKAAAAAAAAAAAKstuWEQ==`, defaultScope(3), true, false},
@@ -2170,4 +2171,15 @@ func TestAssetInfoV3V4(t *testing.T) {
 	rs, err = Eval(scriptV4.Verifier, scopeV4)
 	require.NoError(t, err)
 	assert.True(t, rs, rs)
+}
+
+func TestJSONParsing(t *testing.T) {
+	code := "AwoBAAAADmdldFZhbHVlU3RyaW5nAAAAAQAAAARqc29uCQABLwAAAAIJAAEwAAAAAgUAAAAEanNvbgAAAAAAAAAAAQkBAAAABXZhbHVlAAAAAQkABLMAAAACCQABMAAAAAIFAAAABGpzb24AAAAAAAAAAAECAAAAASIKAQAAAAhnZXRWYWx1ZQAAAAIAAAAEanNvbgAAAANrZXkEAAAACGtleUluZGV4CQEAAAAFdmFsdWUAAAABCQAEswAAAAIFAAAABGpzb24JAAEsAAAAAgkAASwAAAACAgAAAAEiBQAAAANrZXkCAAAAAiI6BAAAAARkYXRhCQABMAAAAAIFAAAABGpzb24JAABkAAAAAgkAAGQAAAACBQAAAAhrZXlJbmRleAkAATEAAAABBQAAAANrZXkAAAAAAAAAAAMJAQAAAA5nZXRWYWx1ZVN0cmluZwAAAAEFAAAABGRhdGEEAAAACWFkZHJlc3NlcwIAAAFgeyJ0aXRsZSI6Ikjhu6NwIMSR4buTbmcgbXVhIGLDoW4gxJHhuqV0IChyZWFsLWVzdGF0ZSBjb250cmFjdCkiLCJ0aW1lc3RhbXAiOjE1OTE2MDg5NDQzNTQsImhhc2giOiJkOGYwOWFjYmRlYTIwMTc5MTUyY2Q5N2RiNDNmNmJjZjhjYjYxMTE1YmE3YzNmZWU3NDk4MWU0ZjRiNTBlNGEwIiwiY3JlYXRvciI6IiIsImFkZHJlc3MxIjoiM015Yjg1REd2N3hqNFhaRlpBTDRHSHVHRG1aU0czQ0NVdlciLCJhZGRyZXNzMiI6IiIsImFkZHJlc3MzIjoiIiwiYWRkcmVzczQiOiIiLCJhZGRyZXNzNSI6IiIsImFkZHJlc3M2IjoiIiwiaXBmcyI6IlFtVEtCbUg5aW4yRU50NkFRcnZwUHpvYWFtMnozcWRFZUhRU1k5M3JkOEpqSFkifQkAAAAAAAACCQEAAAAIZ2V0VmFsdWUAAAACBQAAAAlhZGRyZXNzZXMCAAAACGFkZHJlc3MxAgAAACMzTXliODVER3Y3eGo0WFpGWkFMNEdIdUdEbVpTRzNDQ1V2V6k+k0o="
+	r, err := reader.NewReaderFromBase64(code)
+	require.NoError(t, err)
+	script, err := BuildScript(r)
+	require.NoError(t, err)
+	rs, err := Eval(script.Verifier, defaultScope(3))
+	require.NoError(t, err)
+	assert.True(t, rs)
 }
