@@ -75,7 +75,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		hs,
 		newAliases(hs.db, hs.dbBatch, hs, calcHashes),
 		newAssets(hs.db, hs.dbBatch, hs),
-		newLeases(hs.db, hs, calcHashes),
+		newLeases(hs, calcHashes),
 		newScores(hs),
 		newBlocksInfo(hs),
 		balances,
@@ -487,10 +487,6 @@ func (s *stateManager) Map(func(State) error) error {
 func (s *stateManager) addGenesisBlock() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	// Add score of genesis block.
-	if err := s.stor.scores.appendBlockScore(&s.genesis, 1, false); err != nil {
-		return err
-	}
 	chans := newVerifierChans()
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 	if err := s.addNewBlock(&s.genesis, nil, true, chans, 0); err != nil {
@@ -900,6 +896,11 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 }
 
 func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bool, chans *verifierChans, height uint64) error {
+	blockHeight := height + 1
+	// Add score.
+	if err := s.stor.scores.appendBlockScore(block, blockHeight, !initialisation); err != nil {
+		return err
+	}
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockID()); err != nil {
 		return err
@@ -974,24 +975,12 @@ func (s *stateManager) flush(initialisation bool) error {
 	return nil
 }
 
-func (s *stateManager) undoBlockAddition() error {
-	if err := s.reset(false); err != nil {
-		return err
-	}
-	if err := s.rw.syncWithDb(); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 	s.newBlocks.setNewBinary([][]byte{block})
-	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
-	s.appender.reset()
 	rs, err := s.addBlocks(false)
 	if err != nil {
-		if err := s.undoBlockAddition(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
+		if err := s.rw.syncWithDb(); err != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
 		}
 		return nil, err
 	}
@@ -1000,12 +989,10 @@ func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 
 func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	s.newBlocks.setNew([]*proto.Block{block})
-	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
-	s.appender.reset()
 	rs, err := s.addBlocks(false)
 	if err != nil {
-		if err := s.undoBlockAddition(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
+		if err := s.rw.syncWithDb(); err != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
 		}
 		return nil, err
 	}
@@ -1014,11 +1001,9 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 
 func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
 	s.newBlocks.setNewBinary(blockBytes)
-	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
-	s.appender.reset()
 	if _, err := s.addBlocks(false); err != nil {
-		if err := s.undoBlockAddition(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
+		if err := s.rw.syncWithDb(); err != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
 		}
 		return err
 	}
@@ -1027,12 +1012,10 @@ func (s *stateManager) AddNewBlocks(blockBytes [][]byte) error {
 
 func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	s.newBlocks.setNew(blocks)
-	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
-	s.appender.reset()
 	lastBlock, err := s.addBlocks(false)
 	if err != nil {
-		if err := s.undoBlockAddition(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
+		if err := s.rw.syncWithDb(); err != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
 		}
 		return nil, err
 	}
@@ -1041,11 +1024,9 @@ func (s *stateManager) AddNewDeserializedBlocks(blocks []*proto.Block) (*proto.B
 
 func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
 	s.newBlocks.setNewBinary(blockBytes)
-	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
-	s.appender.reset()
 	if _, err := s.addBlocks(true); err != nil {
-		if err := s.undoBlockAddition(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
+		if err := s.rw.syncWithDb(); err != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
 		}
 		return err
 	}
@@ -1054,11 +1035,9 @@ func (s *stateManager) AddOldBlocks(blockBytes [][]byte) error {
 
 func (s *stateManager) AddOldDeserializedBlocks(blocks []*proto.Block) error {
 	s.newBlocks.setNew(blocks)
-	// Make sure appender doesn't store any diffs from previous validations (e.g. UTX).
-	s.appender.reset()
 	if _, err := s.addBlocks(true); err != nil {
-		if err := s.undoBlockAddition(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not rollback to previous state after failure: %v", err)
+		if err := s.rw.syncWithDb(); err != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
 		}
 		return err
 	}
@@ -1242,17 +1221,28 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initia
 func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	defer func() {
+		// Reset in-memory storages and load last block in defer.
+		if err := s.reset(initialisation); err != nil {
+			zap.S().Fatalf("Failed to reset state: %v", err)
+		}
+		if err := s.loadLastBlock(); err != nil {
+			zap.S().Fatalf("Failed to load last block: %v", err)
+		}
+		s.newBlocks.reset()
+	}()
+
 	blocksNumber := s.newBlocks.len()
 	if blocksNumber == 0 {
 		return nil, wrapErr(InvalidInputError, errors.New("no blocks provided"))
 	}
 
 	// Read some useful values for later.
-	parent, err := s.topBlock()
+	lastAppliedBlock, err := s.topBlock()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	zap.S().Debugf("StateManager: parent (top) block ID: %s", parent.BlockID().String())
+	zap.S().Debugf("StateManager: parent (top) block ID: %s", lastAppliedBlock.BlockID().String())
 	height, err := s.Height()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1263,21 +1253,23 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 	chans := newVerifierChans()
 	go launchVerifier(ctx, chans, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
-	var lastBlock *proto.Block
 	var ids []proto.BlockID
 	pos := 0
 	for s.newBlocks.next() {
 		curHeight := height + uint64(pos)
-		curBlockHeight := curHeight + 1
 		block, err := s.newBlocks.current()
 		if err != nil {
 			return nil, wrapErr(DeserializationError, err)
+		}
+		// Assign unique block number for this block ID, add this number to the list of valid blocks.
+		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
+			return nil, wrapErr(ModificationError, err)
 		}
 		// At some blockchain heights specific logic is performed.
 		// This includes voting for features, block rewards and so on.
 		params := &heightActionParams{
 			blockchainHeight: curHeight,
-			lastBlock:        parent.BlockID(),
+			lastBlock:        lastAppliedBlock.BlockID(),
 			nextBlock:        block.BlockID(),
 			initialisation:   initialisation,
 		}
@@ -1287,7 +1279,7 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		// Send block for signature verification, which works in separate goroutine.
 		task := &verifyTask{
 			taskType: verifyBlock,
-			parentID: parent.BlockID(),
+			parentID: lastAppliedBlock.BlockID(),
 			block:    block,
 		}
 		select {
@@ -1295,23 +1287,14 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 			return nil, wrapErr(ValidationError, verifyError)
 		case chans.tasksChan <- task:
 		}
-		lastBlock = block
-		// Assign unique block number for this block ID, add this number to the list of valid blocks.
-		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
-			return nil, wrapErr(ModificationError, err)
-		}
-		// Add score.
-		if err := s.stor.scores.appendBlockScore(block, curBlockHeight, !initialisation); err != nil {
-			return nil, wrapErr(ModificationError, err)
-		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
-		if err := s.addNewBlock(block, parent, initialisation, chans, curHeight); err != nil {
+		if err := s.addNewBlock(block, lastAppliedBlock, initialisation, chans, curHeight); err != nil {
 			return nil, wrapErr(TxValidationError, err)
 		}
 		headers[pos] = block.BlockHeader
 		pos++
-		parent = block
 		ids = append(ids, block.BlockID())
+		lastAppliedBlock = block
 	}
 	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
 	close(chans.tasksChan)
@@ -1337,18 +1320,8 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 	if err := s.flush(initialisation); err != nil {
 		return nil, wrapErr(ModificationError, err)
 	}
-	// Reset in-memory storages.
-	if err := s.reset(initialisation); err != nil {
-		return nil, wrapErr(ModificationError, err)
-	}
-	if err := s.loadLastBlock(); err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
-	if lastBlock != nil {
-		zap.S().Infof("Height: %d; Block ID: %s", height+uint64(blocksNumber), lastBlock.BlockID().String())
-	}
-	s.newBlocks.reset()
-	return lastBlock, nil
+	zap.S().Infof("Height: %d; Block ID: %s", height+uint64(blocksNumber), lastAppliedBlock.BlockID().String())
+	return lastAppliedBlock, nil
 }
 
 func (s *stateManager) checkRollbackHeight(height uint64) error {

@@ -72,15 +72,14 @@ func (l *leasingRecord) unmarshalBinary(data []byte) error {
 }
 
 type leases struct {
-	db keyvalue.IterableKeyVal
 	hs *historyStorage
 
 	calculateHashes bool
 	hasher          *stateHasher
 }
 
-func newLeases(db keyvalue.IterableKeyVal, hs *historyStorage, calcHashes bool) *leases {
-	return &leases{db: db, hs: hs, calculateHashes: calcHashes, hasher: newStateHasher()}
+func newLeases(hs *historyStorage, calcHashes bool) *leases {
+	return &leases{hs: hs, calculateHashes: calcHashes, hasher: newStateHasher()}
 }
 
 func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID proto.BlockID) error {
