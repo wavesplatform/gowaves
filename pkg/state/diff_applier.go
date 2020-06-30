@@ -2,9 +2,11 @@ package state
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 )
 
 type diffApplier struct {
@@ -51,7 +53,7 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, v
 		// Check for negative balance.
 		newProfile, err := diff.applyTo(profile)
 		if err != nil {
-			return errors.Errorf("failed to apply waves balance change for addr %s: %v\n", k.address.String(), err)
+			return errs.NewAccountBalanceError(fmt.Sprintf("failed to apply waves balance change for addr %s: %v\n", k.address.String(), err))
 		}
 		if validateOnly {
 			continue
@@ -78,7 +80,7 @@ func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, filter, v
 	for _, diff := range change.balanceDiffs {
 		newBalance, err := diff.applyToAssetBalance(balance)
 		if err != nil {
-			return errors.Errorf("validation failed: negative asset balance: %v\n", err)
+			return errs.NewAccountBalanceError(fmt.Sprintf("validation failed: negative asset balance: %v\n", err))
 		}
 		if validateOnly {
 			continue

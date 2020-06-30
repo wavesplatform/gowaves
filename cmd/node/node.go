@@ -14,7 +14,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mr-tron/base58"
 	"github.com/wavesplatform/gowaves/pkg/api"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
@@ -32,6 +34,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
@@ -40,34 +43,47 @@ import (
 var version = proto.Version{Major: 1, Minor: 2, Patch: 3}
 
 var (
-	logLevel                   = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath                  = flag.String("state-path", "", "Path to node's state directory")
-	blockchainType             = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
-	peerAddresses              = flag.String("peers", "", "Addresses of peers to connect to")
-	declAddr                   = flag.String("declared-address", "", "Address to listen on")
-	apiAddr                    = flag.String("api-address", "", "Address for REST API")
-	apiKey                     = flag.String("api-key", "", "Api key")
-	grpcAddr                   = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
-	enableGrpcApi              = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
-	buildExtendedApi           = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
-	serveExtendedApi           = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
-	buildStateHashes           = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
-	bindAddress                = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
-	disableOutgoingConnections = flag.Bool("no-connections", false, "Disable outgoing network connections to peers. Default value is false.")
-	minerVoteFeatures          = flag.String("vote", "", "Miner vote features")
-	reward                     = flag.String("reward", "", "Miner reward: for example 600000000")
-	minerDelayParam            = flag.String("outdate", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
-	walletPath                 = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
-	walletPassword             = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
-	limitConnectionsS          = flag.String("limit-connections", "30", "N incoming and outgoing connections")
-	minPeersMining             = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining")
-	profiler                   = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
+	logLevel                          = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath                         = flag.String("state-path", "", "Path to node's state directory")
+	blockchainType                    = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
+	peerAddresses                     = flag.String("peers", "", "Addresses of peers to connect to")
+	declAddr                          = flag.String("declared-address", "", "Address to listen on")
+	nodeName                          = flag.String("name", "gowaves", "Node name.")
+	apiAddr                           = flag.String("api-address", "", "Address for REST API")
+	apiKey                            = flag.String("api-key", "", "Api key")
+	grpcAddr                          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	enableGrpcApi                     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
+	buildExtendedApi                  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
+	serveExtendedApi                  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
+	buildStateHashes                  = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
+	bindAddress                       = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
+	disableOutgoingConnections        = flag.Bool("no-connections", false, "Disable outgoing network connections to peers. Default value is false.")
+	minerVoteFeatures                 = flag.String("vote", "", "Miner vote features")
+	reward                            = flag.String("reward", "", "Miner reward: for example 600000000")
+	minerDelayParam                   = flag.String("outdate", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
+	walletPath                        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
+	walletPassword                    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
+	limitConnectionsS                 = flag.String("limit-connections", "30", "N incoming and outgoing connections")
+	minPeersMining                    = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining")
+	disableMiner                      = flag.Bool("disable-miner", false, "Disable miner. Enabled by default")
+	profiler                          = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
+	integrationGenesisSignature       = flag.String("integration.genesis.signature", "", "Integration. Genesis signature.")
+	integrationGenesisTimestamp       = flag.Int("integration.genesis.timestamp", 0, "??")
+	integrationGenesisBlockTimestamp  = flag.Int("integration.genesis.block-timestamp", 0, "??")
+	integrationAccountSeed            = flag.String("integration.account-seed", "", "??")
+	integrationAddressSchemeCharacter = flag.String("integration.address-scheme-character", "", "??")
 )
 
 var defaultPeers = map[string]string{
 	"mainnet":  "35.156.19.4:6868,52.50.69.247:6868,52.52.46.76:6868,52.57.147.71:6868,52.214.55.18:6868,54.176.190.226:6868",
 	"testnet":  "52.51.92.182:6863,52.231.205.53:6863,52.30.47.67:6863,52.28.66.217:6863",
 	"stagenet": "217.100.219.251:6861",
+}
+
+type Scheduler interface {
+	Mine() chan scheduler.Emit
+	types.Scheduler
+	Emits() []scheduler.Emit
 }
 
 func debugCommandLineParameters() {
@@ -87,6 +103,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("vote: %s", *minerVoteFeatures)
 	zap.S().Debugf("reward: %s", *reward)
 	zap.S().Debugf("miner-delay: %s", *minerDelayParam)
+	zap.S().Debugf("disable-miner %v", *disableMiner)
 	zap.S().Debugf("wallet-path: %s", *walletPath)
 	zap.S().Debugf("wallet-password: %s", *walletPassword)
 	zap.S().Debugf("limit-connections: %s", *limitConnectionsS)
@@ -94,7 +111,7 @@ func debugCommandLineParameters() {
 }
 
 func main() {
-	err := setMaxOpenFiles(1024)
+	err := common.SetMaxOpenFiles(1024)
 	if err != nil {
 		panic(err)
 	}
@@ -111,10 +128,17 @@ func main() {
 
 	debugCommandLineParameters()
 
-	cfg, err := settings.BlockchainSettingsByTypeName(*blockchainType)
-	if err != nil {
-		zap.S().Error(err)
-		return
+	var cfg *settings.BlockchainSettings
+	if *blockchainType == "integration" {
+		cfg = settings.GetIntegrationSetting()
+		cfg = applyIntegrationSettings(cfg)
+		zap.S().Debugf("cfg: %+v", cfg)
+	} else {
+		cfg, err = settings.BlockchainSettingsByTypeName(*blockchainType)
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
 	}
 
 	conf := &settings.NodeSettings{}
@@ -129,7 +153,17 @@ func main() {
 		return
 	}
 
-	wal := wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), cfg.AddressSchemeCharacter)
+	var wal types.EmbeddedWallet = wallet.NewEmbeddedWallet(wallet.NewLoader(*walletPath), wallet.NewWallet(), cfg.AddressSchemeCharacter)
+	if *blockchainType == "integration" {
+		decoded, err := base58.Decode(*integrationAccountSeed)
+		if err != nil {
+			zap.S().Error(err)
+			return
+		}
+		wal = wallet.Stub{
+			S: [][]byte{decoded},
+		}
+	}
 	if *walletPassword != "" {
 		err := wal.Load([]byte(*walletPassword))
 		if err != nil {
@@ -159,21 +193,20 @@ func main() {
 		return
 	}
 
-	ntptm, err := ntptime.TryNew("pool.ntp.org", 10)
+	ctx, cancel := context.WithCancel(context.Background())
+	ntptm, err := getNtp(ctx)
 	if err != nil {
 		zap.S().Error(err)
+		cancel()
 		return
 	}
 
 	outdatePeriod, err := common.ParseDuration(*minerDelayParam)
 	if err != nil {
 		zap.S().Error(err)
+		cancel()
 		return
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	go ntptm.Run(ctx, 2*time.Minute)
 
 	params := state.DefaultStateParams()
 	params.StoreExtendedApiData = *buildExtendedApi
@@ -221,7 +254,7 @@ func main() {
 
 	parent := peer.NewParent()
 
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version)
 
 	peerStorage, err := peer_manager.NewJsonFileStorage(path)
 	if err != nil {
@@ -237,7 +270,7 @@ func main() {
 	)
 	go peerManager.Run(ctx)
 
-	scheduler := scheduler.NewScheduler(
+	var sched Scheduler = scheduler.NewScheduler(
 		state,
 		wal,
 		cfg,
@@ -245,12 +278,15 @@ func main() {
 		scheduler.NewMinerConsensus(peerManager, *minPeersMining),
 		proto.NewTimestampFromUSeconds(outdatePeriod),
 	)
+	if *disableMiner {
+		sched = scheduler.DisabledScheduler{}
+	}
 	blockApplier := blocks_applier.NewBlocksApplier()
 
 	services := services.Services{
 		State:           state,
 		Peers:           peerManager,
-		Scheduler:       scheduler,
+		Scheduler:       sched,
 		BlocksApplier:   blockApplier,
 		UtxPool:         utx,
 		Scheme:          cfg.AddressSchemeCharacter,
@@ -259,16 +295,17 @@ func main() {
 		Wallet:          wal,
 		MicroBlockCache: microblock_cache.NewMicroblockCache(),
 		InternalChannel: messages.NewInternalChannel(),
+		MinPeersMining:  *minPeersMining,
 	}
 
 	mine := miner.NewMicroblockMiner(services, features, reward)
 	peerManager.SetConnectPeers(!*disableOutgoingConnections)
-	go miner.Run(ctx, mine, scheduler, services.InternalChannel)
+	go miner.Run(ctx, mine, sched, services.InternalChannel)
 
 	n := node.NewNode(services, declAddr, bindAddr, proto.NewTimestampFromUSeconds(outdatePeriod))
 	go n.Run(ctx, parent, services.InternalChannel)
 
-	go scheduler.Reschedule()
+	go sched.Reschedule()
 
 	if len(conf.Addresses) > 0 {
 		adrs := strings.Split(conf.Addresses, ",")
@@ -277,7 +314,7 @@ func main() {
 		}
 	}
 
-	app, err := api.NewApp(*apiKey, scheduler, services)
+	app, err := api.NewApp(*apiKey, sched, services)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -328,4 +365,34 @@ func FromArgs(scheme proto.Scheme) func(s *settings.NodeSettings) error {
 		}
 		return nil
 	}
+}
+
+func applyIntegrationSettings(blockchainSettings *settings.BlockchainSettings) *settings.BlockchainSettings {
+	blockchainSettings.Genesis.BlockSignature = crypto.MustSignatureFromBase58(*integrationGenesisSignature)
+	blockchainSettings.Genesis.Timestamp = uint64(*integrationGenesisBlockTimestamp)
+
+	zap.S().Debugf("applyIntegrationSettings: *integrationGenesisBlockTimestamp = %d", *integrationGenesisBlockTimestamp)
+
+	for _, t := range blockchainSettings.Genesis.Transactions {
+		t.(*proto.Genesis).Timestamp = uint64(*integrationGenesisTimestamp)
+	}
+	blockchainSettings.AddressSchemeCharacter = proto.Scheme((*integrationAddressSchemeCharacter)[0])
+	blockchainSettings.AverageBlockDelaySeconds = blockchainSettings.AverageBlockDelaySeconds / 2
+
+	// scala value is 50_000
+	blockchainSettings.Genesis.BaseTarget = 500_000
+
+	return blockchainSettings
+}
+
+func getNtp(ctx context.Context) (types.Time, error) {
+	if *blockchainType == "integration" {
+		return ntptime.Stub{}, nil
+	}
+	tm, err := ntptime.TryNew("pool.ntp.org", 10)
+	if err != nil {
+		return nil, err
+	}
+	go tm.Run(ctx, 2*time.Minute)
+	return tm, nil
 }

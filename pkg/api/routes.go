@@ -1,9 +1,23 @@
 package api
 
-import "github.com/go-chi/chi"
+import (
+	"io/ioutil"
+	"net/http"
+
+	"github.com/go-chi/chi"
+	"go.uber.org/zap"
+)
 
 func (a *NodeApi) routes() chi.Router {
 	r := chi.NewRouter()
+	r.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		zap.S().Debugf("NodeApi not found %+v, %s", r, r.URL.Path)
+		if r.Method == "POST" {
+			rs, err := ioutil.ReadAll(r.Body)
+			zap.S().Debugf("NodeApi not found post body: %s %+v", string(rs), err)
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
 	r.Get("/blocks/last", a.BlocksLast)
 	r.Get("/blocks/height", a.BlockHeight)
 	r.Get("/blocks/first", a.BlocksFirst)

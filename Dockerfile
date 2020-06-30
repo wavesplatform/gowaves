@@ -1,15 +1,24 @@
-FROM golang:1.12
+FROM golang:1.14 as parent
 
-WORKDIR /go/src/github.com/wavesplatform/gowaves
+WORKDIR /app
 
-COPY cmd cmd
+COPY go.mod .
+COPY go.sum .
+
+RUN go mod download
+
+FROM parent
+
+
 COPY pkg pkg
-COPY Makefile Makefile
-COPY vendor vendor
+COPY cmd cmd
+COPY Makefile .
 
 RUN make build-node-linux
+RUN make build-integration-linux
 
 EXPOSE 6863
 EXPOSE 6869
+EXPOSE 6870
 
-CMD build/bin/linux-amd64/node run --waves-network=wavesW -d 0.0.0.0:6863 -w 0.0.0.0:6869
+CMD ./build/bin/linux-amd64/integration -log-level DEBUG -node ./build/bin/linux-amd64/node

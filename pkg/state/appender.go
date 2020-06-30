@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -128,7 +129,13 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 	if err != nil {
 		return err
 	}
-	return a.checkDuplicateTxIdsImpl(txID, recentIds)
+	err = a.checkDuplicateTxIdsImpl(txID, recentIds)
+	if err != nil {
+		if tx.GetTypeInfo().Type == proto.CreateAliasTransaction {
+			return errs.NewAliasTaken(err.Error())
+		}
+	}
+	return err
 }
 
 type appendBlockParams struct {
@@ -351,7 +358,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if err != nil {
 			return err
 		}
-		// Send transaction for validation of transaction's data correctness (using tx.Valid() method)
+		// Send transaction for validation of transaction's data correctness (using tx.Validate() method)
 		// and simple cryptographic signature verification (using tx.Verify() and PK).
 		task := &verifyTask{
 			taskType:    verifyTx,

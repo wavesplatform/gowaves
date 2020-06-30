@@ -102,12 +102,12 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 		}
 		genSig, err := gsp.GenerationSignature(key, HitSourceAtHeight)
 		if err != nil {
-			zap.S().Error("Scheduler: Failed to schedule mining: %v", err)
+			zap.S().Errorf("Scheduler: Failed to schedule mining: %v", err)
 			continue
 		}
 		source, err := gsp.HitSource(key, HitSourceAtHeight)
 		if err != nil {
-			zap.S().Error("Scheduler: Failed to schedule mining: %v", err)
+			zap.S().Errorf("Scheduler: Failed to schedule mining: %v", err)
 			continue
 		}
 		var vrf []byte = nil
@@ -116,13 +116,13 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 		}
 		hit, err := consensus.GenHit(source)
 		if err != nil {
-			zap.S().Error("Scheduler: Failed to schedule mining: %v", err)
+			zap.S().Errorf("Scheduler: Failed to schedule mining: %v", err)
 			continue
 		}
 
 		addr, err := keyPair.Addr(schema)
 		if err != nil {
-			zap.S().Error("Scheduler: Failed to schedule mining: %v", err)
+			zap.S().Errorf("Scheduler: Failed to schedule mining: %v", err)
 			continue
 		}
 		var startHeight proto.Height = 1
@@ -131,19 +131,19 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 		}
 		effectiveBalance, err := storage.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
 		if err != nil {
-			zap.S().Debug("Scheduler: Failed to schedule mining for address '%s': %v", addr.String(), err)
+			zap.S().Debugf("Scheduler: Failed to schedule mining for address '%s': %v", addr.String(), err)
 			continue
 		}
 
 		delay, err := pos.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, effectiveBalance)
 		if err != nil {
-			zap.S().Error("Scheduler: Failed to schedule mining: %v", err)
+			zap.S().Errorf("Scheduler: Failed to schedule mining: %v", err)
 			continue
 		}
 
 		baseTarget, err := pos.CalculateBaseTarget(AverageBlockDelaySeconds, confirmedBlockHeight, confirmedBlock.BlockHeader.BaseTarget, confirmedBlock.Timestamp, greatGrandParentTimestamp, delay+confirmedBlock.Timestamp)
 		if err != nil {
-			zap.S().Error("Scheduler: Failed to schedule mining: %v", err)
+			zap.S().Errorf("Scheduler: Failed to schedule mining: %v", err)
 			continue
 		}
 

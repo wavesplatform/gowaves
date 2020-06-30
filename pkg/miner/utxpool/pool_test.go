@@ -55,7 +55,7 @@ func (a transaction) GetID(scheme proto.Scheme) ([]byte, error) {
 	return a.id, nil
 }
 
-func (transaction) Valid() (bool, error) {
+func (transaction) Validate() (proto.Transaction, error) {
 	panic("implement me")
 }
 

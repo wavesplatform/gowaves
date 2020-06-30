@@ -1,8 +1,6 @@
 package state_fsm
 
 import (
-	"net"
-
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -10,25 +8,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 )
-
-func sendPeers(fsm FSM, p Peer, peers peer_manager.PeerManager) (FSM, Async, error) {
-	rs, err := peers.KnownPeers()
-	if err != nil {
-		zap.L().Error("failed got known peers", zap.Error(err))
-		return fsm, nil, err
-	}
-
-	var out []proto.PeerInfo
-	for _, r := range rs {
-		out = append(out, proto.PeerInfo{
-			Addr: net.IP(r.IP[:]),
-			Port: uint16(r.Port),
-		})
-	}
-
-	p.SendMessage(&proto.PeersMessage{Peers: out})
-	return fsm, nil, nil
-}
 
 func newPeer(fsm FSM, p Peer, peers peer_manager.PeerManager) (FSM, Async, error) {
 	err := peers.NewConnection(p)

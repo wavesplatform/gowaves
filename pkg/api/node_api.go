@@ -228,18 +228,12 @@ type PeersConnectRequest struct {
 }
 
 func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) {
-
-	zap.S().Info("PeersConnect ", r.Header.Get("X-API-Key"))
-
 	req := new(PeersConnectRequest)
 	err := json.NewDecoder(r.Body).Decode(req)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
-
-	zap.S().Info("PeersConnect ", r.Header.Get("X-API-Key"), req)
-
 	apiKey := r.Header.Get("X-API-Key")
 	rs, err := a.app.PeersConnect(r.Context(), apiKey, fmt.Sprintf("%s:%d", req.Host, req.Port))
 	if err != nil {

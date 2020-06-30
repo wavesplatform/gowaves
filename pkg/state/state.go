@@ -1301,7 +1301,7 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 	// Apply all the balance diffs accumulated from this blocks batch.
 	// This also validates diffs for negative balances.
 	if err := s.appender.applyAllDiffs(initialisation); err != nil {
-		return nil, wrapErr(TxValidationError, err)
+		return nil, err
 	}
 	// Retrieve and store state hashes for each of new blocks.
 	if err := s.stor.handleStateHashes(height, ids, initialisation); err != nil {
@@ -1490,7 +1490,7 @@ func (s *stateManager) ResetValidationList() {
 // For UTX validation.
 func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, checkScripts bool) error {
 	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, checkScripts); err != nil {
-		return wrapErr(TxValidationError, err)
+		return err
 	}
 	return nil
 }
