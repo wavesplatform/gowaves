@@ -5,7 +5,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type seeder interface {
@@ -44,7 +43,6 @@ func (a *EmbeddedWalletImpl) Load(password []byte) error {
 	}
 	a.mu.Lock()
 	a.seeder = w
-	zap.S().Infof("Wallet with %d account(s) successfully loaded", len(w.Seeds()))
 	a.mu.Unlock()
 	return nil
 }

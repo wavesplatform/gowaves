@@ -1,10 +1,12 @@
 package reader
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 const E_LONG byte = 0
@@ -52,6 +54,15 @@ func ScriptBytesFromBase64Str(base64String string) ([]byte, error) {
 	if l < 4 {
 		return nil, errors.Errorf("expected script len at least 4 bytes, got %d", l)
 	}
+
+	d, err := crypto.SecureHash(decoded[:l-4])
+	if err != nil {
+		return nil, err
+	}
+	if bytes.Equal(d.Bytes()[:4], decoded[:l-4]) {
+		return nil, errors.Errorf("invalid checksum, expected %+v, found %+v", d.Bytes()[:4], decoded[:l-4])
+	}
+
 	return decoded[:l-4], nil
 }
 
@@ -120,6 +131,14 @@ func (a *BytesReader) ReadString() string {
 	stringBytes := a.bytes[a.pos : a.pos+length]
 	a.pos += length
 	return string(stringBytes)
+}
+
+func (a *BytesReader) ReadByteString() []byte {
+	length := int(binary.BigEndian.Uint32(a.bytes[a.pos : a.pos+4]))
+	a.pos += 4
+	stringBytes := a.bytes[a.pos : a.pos+length]
+	a.pos += length
+	return stringBytes
 }
 
 func (a *BytesReader) ReadBytes() []byte {

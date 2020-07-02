@@ -19,6 +19,7 @@ const (
 	TestNet
 	StageNet
 	Custom
+	Integration
 )
 
 type FunctionalitySettings struct {
@@ -109,6 +110,14 @@ var (
 		},
 	}
 )
+
+func GetIntegrationSetting() *BlockchainSettings {
+	rs, err := loadEmbeddedSettings("/integration.json")
+	if err != nil {
+		panic(err)
+	}
+	return rs
+}
 
 func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 	switch blockchain {

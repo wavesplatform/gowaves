@@ -3,6 +3,7 @@ package proto
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
@@ -337,10 +339,10 @@ func (a Alias) Valid() (bool, error) {
 		return false, errors.Errorf("%d is incorrect alias version, expected %d", v, aliasVersion)
 	}
 	if l := len(a.Alias); l < AliasMinLength || l > AliasMaxLength {
-		return false, errors.Errorf("alias length should be between %d and %d", AliasMinLength, AliasMaxLength)
+		return false, errs.NewTxValidationError(fmt.Sprintf("Alias '%s' length should be between %d and %d", a.Alias, AliasMinLength, AliasMaxLength))
 	}
 	if !correctAlphabet(a.Alias) {
-		return false, errors.Errorf("alias should contain only following characters: %s", AliasAlphabet)
+		return false, errs.NewTxValidationError(fmt.Sprintf("Alias should contain only following characters: %s", AliasAlphabet))
 	}
 	return true, nil
 }

@@ -36,4 +36,5 @@ type Services struct {
 	Wallet          types.EmbeddedWallet
 	MicroBlockCache MicroBlockCache
 	InternalChannel chan messages.InternalMessage
+	MinPeersMining  int
 }

@@ -25,9 +25,10 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 			// Waves.
 			balanceInfo, err := s.state.FullWavesBalance(rcp)
 			if err != nil {
-				return status.Errorf(codes.NotFound, err.Error())
+				res.Balance = &g.BalanceResponse_Waves{Waves: &g.BalanceResponse_WavesBalances{}}
+			} else {
+				res.Balance = &g.BalanceResponse_Waves{Waves: balanceInfo.ToProtobuf()}
 			}
-			res.Balance = &g.BalanceResponse_Waves{Waves: balanceInfo.ToProtobuf()}
 		} else {
 			// Asset.
 			balance, err := s.state.AccountBalance(rcp, asset)
@@ -112,6 +113,9 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 	if req.Key != "" {
 		entry, err := s.state.RetrieveEntry(rcp, req.Key)
 		if err != nil {
+			if err.Error() == "not found" {
+				return nil
+			}
 			return status.Errorf(codes.NotFound, err.Error())
 		}
 		if entry.GetValueType() == proto.DataDelete { // Send "Not Found" if entry was removed
@@ -121,10 +125,14 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 		if err := srv.Send(res); err != nil {
 			return status.Errorf(codes.Internal, err.Error())
 		}
+		return nil
 	}
 	entries, err := s.state.RetrieveEntries(rcp)
 	if err != nil {
-		return status.Errorf(codes.NotFound, err.Error())
+		if err.Error() == "not found" {
+			return nil
+		}
+		return status.Errorf(codes.Internal, err.Error())
 	}
 	for _, entry := range entries {
 		if entry.GetValueType() == proto.DataDelete {
