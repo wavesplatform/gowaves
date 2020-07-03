@@ -577,39 +577,11 @@ func (hs *historyStorage) entryDataWithHeightFilter(
 	return res.data, nil
 }
 
-func (hs *historyStorage) entryDataBeforeHeight(key []byte, height uint64, filter bool) ([]byte, error) {
-	cmp := func(entryNum, limitNum uint32) bool {
-		return entryNum < limitNum
-	}
-	return hs.entryDataWithHeightFilter(key, height, filter, cmp)
-}
-
 func (hs *historyStorage) entryDataAtHeight(key []byte, height uint64, filter bool) ([]byte, error) {
 	cmp := func(entryNum, limitNum uint32) bool {
 		return entryNum <= limitNum
 	}
 	return hs.entryDataWithHeightFilter(key, height, filter, cmp)
-}
-
-// freshEntryBeforeHeight() returns bytes of the latest fresh (from local storage or DB) entry before given height.
-func (hs *historyStorage) freshEntryDataBeforeHeight(key []byte, height uint64, filter bool) ([]byte, error) {
-	limitBlockNum, err := hs.stateDB.newestBlockNumByHeight(height)
-	if err != nil {
-		return nil, err
-	}
-	history, err := hs.fullHistory(key, filter)
-	if err != nil {
-		return nil, err
-	}
-	var res historyEntry
-	for _, entry := range history.entries {
-		if entry.blockNum < limitBlockNum {
-			res = entry
-		} else {
-			break
-		}
-	}
-	return res.data, nil
 }
 
 func (hs *historyStorage) generationBalanceHeightRangeEntries(history *historyRecord, startBlockNum, endBlockNum uint32) [][]byte {
