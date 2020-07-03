@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -11,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
@@ -127,7 +129,7 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 		}
 		var startHeight proto.Height = 1
 		if confirmedBlockHeight > 1000 {
-			startHeight = confirmedBlockHeight - 1000
+			startHeight = confirmedBlockHeight - 1000 + 1
 		}
 		effectiveBalance, err := storage.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
 		if err != nil {
@@ -193,8 +195,10 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 		return nil, err
 	}
 
-	zap.S().Infof("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d", confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight)
-
+	zap.S().Debugf("Scheduling generation on top of block (%d) '%s'", confirmedBlockHeight, confirmedBlock.BlockID().String())
+	zap.S().Debugf("  block timestamp: %d (%s)", confirmedBlock.Timestamp, common.TimestampMillisToTime(confirmedBlock.Timestamp).String())
+	zap.S().Debugf("  block base target: %d", confirmedBlock.BaseTarget)
+	zap.S().Debug("Generation accounts:")
 	var out []Emit
 	for _, keyPair := range keyPairs {
 		genSigBlock := confirmedBlock.BlockHeader
@@ -222,7 +226,7 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 		}
 		var startHeight proto.Height = 1
 		if confirmedBlockHeight > 1000 {
-			startHeight = confirmedBlockHeight - 1000
+			startHeight = confirmedBlockHeight - 1000 + 1
 		}
 		effectiveBalance, err := storage.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
 		if err != nil {
@@ -241,9 +245,14 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 			zap.S().Error("scheduler, internalImpl pos.CalculateBaseTarget", err)
 			continue
 		}
-
+		ts := confirmedBlock.Timestamp + delay
+		zap.S().Debugf("  %s (%s): ", addr.String(), keyPair.Public.String())
+		zap.S().Debugf("    Hit: %s (%s)", hit.String(), base58.Encode(source))
+		zap.S().Debugf("    Generation Balance: %d", int(effectiveBalance))
+		zap.S().Debugf("    Delay: %d", int(delay))
+		zap.S().Debugf("    Timestamp: %d (%s)", int(ts), common.TimestampMillisToTime(ts).String())
 		out = append(out, Emit{
-			Timestamp:    confirmedBlock.Timestamp + delay,
+			Timestamp:    ts,
 			KeyPair:      keyPair,
 			GenSignature: genSig,
 			VRF:          vrf,
@@ -330,6 +339,7 @@ func (a *SchedulerImpl) reschedule(confirmedBlock *proto.Block, confirmedBlockHe
 		cancel()
 	}
 	a.cancel = nil
+	a.emits = nil
 
 	keyPairs, err := makeKeyPairs(a.seeder.Seeds())
 	if err != nil {

@@ -34,24 +34,24 @@ func (a *innerBlocksApplier) apply(storage innerState, blocks []*proto.Block) (*
 	if !state.IsNotFound(err) {
 		return nil, 0, errors.Wrap(err, "unknown error")
 	}
-	curHeight, err := storage.Height()
+	currentHeight, err := storage.Height()
 	if err != nil {
 		return nil, 0, err
 	}
 	// current score. Main idea is to find parent block, and check if score
-	// of all passed blocks higher than curScore. If yes, we can add blocks
-	curScore, err := storage.ScoreAtHeight(curHeight)
+	// of all passed blocks higher than currentScore. If yes, we can add blocks
+	currentScore, err := storage.ScoreAtHeight(currentHeight)
 	if err != nil {
 		return nil, 0, err
 	}
-
 	// try to find parent. If not - we can't add blocks, skip it
 	parentHeight, err := storage.BlockIDToHeight(firstBlock.Parent)
 	if err != nil {
-		return nil, 0, errors.Wrapf(err, "BlocksApplier: failed get parent height, firstBlock id %s, for firstBlock %s", firstBlock.Parent.String(), firstBlock.BlockID().String())
+		return nil, 0, errors.Wrapf(err, "BlocksApplier: failed get parent height, firstBlock id %s, for firstBlock %s",
+			firstBlock.Parent.String(), firstBlock.BlockID().String())
 	}
 	// calculate score of all passed blocks
-	score, err := calcMultipleScore(blocks)
+	forkScore, err := calcMultipleScore(blocks)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed calculate score of passed blocks")
 	}
@@ -59,23 +59,24 @@ func (a *innerBlocksApplier) apply(storage innerState, blocks []*proto.Block) (*
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "failed get score at %d", parentHeight)
 	}
-	sumScore := score.Add(score, parentScore)
-	if curScore.Cmp(sumScore) > 0 { // current height is higher
-		return nil, 0, errors.New("BlockApplier: low score: current score is higher than sumScore of provided blocks")
+	cumulativeScore := forkScore.Add(forkScore, parentScore)
+	if currentScore.Cmp(cumulativeScore) > 0 { // current height is higher
+		return nil, 0, errors.Errorf("BlockApplier: low fork score: current blockchain score (%s) is higher than fork's score (%s)",
+			currentScore.String(), cumulativeScore.String())
 	}
 
 	// so, new blocks has higher score, try apply it.
 	// Do we need rollback?
-	if parentHeight == curHeight {
+	if parentHeight == currentHeight {
 		// no, don't rollback, just add blocks
 		newBlock, err := storage.AddNewDeserializedBlocks(blocks)
 		if err != nil {
 			return nil, 0, err
 		}
-		return newBlock, curHeight + proto.Height(len(blocks)), nil
+		return newBlock, currentHeight + proto.Height(len(blocks)), nil
 	}
 
-	deltaHeight := curHeight - parentHeight
+	deltaHeight := currentHeight - parentHeight
 	if deltaHeight > 100 { // max number that we can rollback
 		return nil, 0, errors.Errorf("can't apply new blocks, rollback more than 100 blocks, %d", deltaHeight)
 	}
@@ -117,22 +118,19 @@ func NewBlocksApplier() *BlocksApplier {
 	}
 }
 
-func (a *BlocksApplier) Apply(state state.State, blocks []*proto.Block) error {
-	_, _, err := a.inner.apply(state, blocks)
-	return err
+func (a *BlocksApplier) Apply(state state.State, blocks []*proto.Block) (proto.Height, error) {
+	_, h, err := a.inner.apply(state, blocks)
+	return h, err
 }
 
 func calcMultipleScore(blocks []*proto.Block) (*big.Int, error) {
-	score, err := state.CalculateScore(blocks[0].NxtConsensus.BaseTarget)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed calculate score")
-	}
-	for _, block := range blocks[1:] {
+	score := big.NewInt(0)
+	for _, block := range blocks {
 		s, err := state.CalculateScore(block.NxtConsensus.BaseTarget)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed calculate score")
 		}
-		score.Add(score, s)
+		score = score.Add(score, s)
 	}
 	return score, nil
 }
