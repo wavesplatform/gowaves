@@ -87,7 +87,6 @@ func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
 		_, blocks, _ := a.internal.Blocks(noopWrapper{})
 		if len(blocks) > 0 {
 			err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-				zap.S().Debug("Apply-1: %v", a.internal)
 				_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
 				return err
 			})
@@ -100,12 +99,6 @@ func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
 func (a *SyncFsm) BlockIDs(peer Peer, sigs []proto.BlockID) (FSM, Async, error) {
 	if a.conf.peerSyncWith != peer {
 		return a, nil, nil
-	}
-	if l := len(sigs); l > 0 {
-		zap.S().Debugf("[%s] Received %d signatures: [%s ... %s]",
-			peer.ID(), l, sigs[0].ShortString(), sigs[l-1].ShortString())
-	} else {
-		zap.S().Debugf("[%s] Empty signatures received", peer.ID())
 	}
 	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme), sigs)
 	if err != nil {
@@ -157,7 +150,6 @@ func (a *SyncFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyP
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
 	metrics.BlockMined(block, h)
-	zap.S().Debug("Reschedule from SyncFsm.MinedBlock")
 	a.baseInfo.Reschedule()
 
 	// first we should send block
@@ -176,12 +168,9 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	if len(blocks) == 0 {
 		return newSyncFsm(baseInfo, conf, internal), nil, nil
 	}
-	zap.S().Debugf("Applying blocks (%d) [%s ... %s]",
-		len(blocks), blocks[0].ID.ShortString(), blocks[len(blocks)-1].ID.ShortString())
 	var last proto.Height
 	err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		var err error
-		zap.S().Debugf("Apply-3: %v", a.internal)
 		last, err = a.baseInfo.blocksApplier.Apply(s, blocks)
 		return err
 	})
@@ -194,7 +183,6 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	for i, b := range blocks {
 		metrics.BlockAppliedFromExtension(b, last-uint64(len(blocks)-1-i))
 	}
-	zap.S().Debug("Reschedule from SyncFsm.applyBlock")
 	a.baseInfo.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	should, err := a.baseInfo.storage.ShouldPersistAddressTransactions()

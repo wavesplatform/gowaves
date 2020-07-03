@@ -7,7 +7,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type Blocks []*proto.Block
@@ -77,19 +76,14 @@ type peerExtension interface {
 
 func (a Internal) Blocks(p peerExtension) (Internal, Blocks, Eof) {
 	if a.waitingForSignatures {
-		zap.S().Debug("[Internal] Waiting for block IDs")
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures), nil, false
 	}
 	if a.orderedBlocks.RequestedCount() > a.orderedBlocks.ReceivedCount() {
-		zap.S().Debugf("[Internal] Waiting for %d blocks to receive", a.RequestedCount()-a.AvailableCount())
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures), nil, false
 	}
-	zap.S().Debug("[Internal] All requested blocks received")
 	if a.orderedBlocks.RequestedCount() < 100 {
-		zap.S().Debug("[Internal] The last part of blockchain received, do not requesting for new blocks")
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, false), a.orderedBlocks.PopAll(), true
 	}
-	zap.S().Debug("[Internal] Requesting next part")
 	p.AskBlocksIDs(a.respondedSignatures.BlockIDS())
 	return NewInternal(a.orderedBlocks, a.respondedSignatures, true), a.orderedBlocks.PopAll(), false
 }

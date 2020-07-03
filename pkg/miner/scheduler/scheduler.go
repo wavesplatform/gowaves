@@ -195,12 +195,9 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 		return nil, err
 	}
 
-	zap.S().Debugf("Scheduling generation on top of block '%s' at height %d:", confirmedBlock.BlockID().String(), confirmedBlockHeight)
-	zap.S().Debugf("\tgenerations signature: %s", confirmedBlock.GenSignature.String())
-	zap.S().Debugf("\ttimestamp: %d (%s)", confirmedBlock.Timestamp, common.TimestampMillisToTime(confirmedBlock.Timestamp).String())
-	zap.S().Debugf("\tbase target: %d", confirmedBlock.BaseTarget)
-	zap.S().Debugf("\thit source block: %s", hitSourceHeader.ID.String())
-	zap.S().Debugf("\thit source generation signature: %s", hitSourceHeader.GenSignature.String())
+	zap.S().Debugf("Scheduling generation on top of block (%d) '%s'", confirmedBlockHeight, confirmedBlock.BlockID().String())
+	zap.S().Debugf("  block timestamp: %d (%s)", confirmedBlock.Timestamp, common.TimestampMillisToTime(confirmedBlock.Timestamp).String())
+	zap.S().Debugf("  block base target: %d", confirmedBlock.BaseTarget)
 	zap.S().Debug("Generation accounts:")
 	var out []Emit
 	for _, keyPair := range keyPairs {
@@ -229,7 +226,7 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 		}
 		var startHeight proto.Height = 1
 		if confirmedBlockHeight > 1000 {
-			startHeight = confirmedBlockHeight - 1000
+			startHeight = confirmedBlockHeight - 1000 + 1
 		}
 		effectiveBalance, err := storage.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
 		if err != nil {
@@ -249,14 +246,11 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 			continue
 		}
 		ts := confirmedBlock.Timestamp + delay
-		zap.S().Debugf("\t%s (%s): ", addr.String(), keyPair.Public.String())
-		zap.S().Debugf("\t\tGeneration Signature: %s", base58.Encode(genSig))
-		zap.S().Debugf("\t\tBase Target: %d", baseTarget)
-		zap.S().Debugf("\t\tHit Source: %s", base58.Encode(source))
-		zap.S().Debugf("\t\tHit: %s", hit.String())
-		zap.S().Debugf("\t\tEffective Balance: %d", int(effectiveBalance))
-		zap.S().Debugf("\t\tDelay: %d", int(delay))
-		zap.S().Debugf("\t\tTimestamp: %d (%s)", int(ts), common.TimestampMillisToTime(ts).String())
+		zap.S().Debugf("  %s (%s): ", addr.String(), keyPair.Public.String())
+		zap.S().Debugf("    Hit: %s (%s)", hit.String(), base58.Encode(source))
+		zap.S().Debugf("    Generation Balance: %d", int(effectiveBalance))
+		zap.S().Debugf("    Delay: %d", int(delay))
+		zap.S().Debugf("    Timestamp: %d (%s)", int(ts), common.TimestampMillisToTime(ts).String())
 		out = append(out, Emit{
 			Timestamp:    ts,
 			KeyPair:      keyPair,

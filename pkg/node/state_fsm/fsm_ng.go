@@ -45,9 +45,6 @@ func (a *NGFsm) Halt() (FSM, Async, error) {
 }
 
 func NewNGFsm12(info BaseInfo) *NGFsm {
-	//TODO: remove
-	//zap.S().Debug("Reschedule from NewNGGsm12")
-	//info.Reschedule()
 	return &NGFsm{
 		BaseInfo: info,
 	}
@@ -72,14 +69,12 @@ func (a *NGFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 
 func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 	metrics.BlockReceived(block, peer.Handshake().NodeName)
-	zap.S().Debugf("Apply-4: peer = %s", peer.ID())
 	h, err := a.blocksApplier.Apply(a.storage, []*proto.Block{block})
 	if err != nil {
 		metrics.BlockDeclined(block)
 		return a, nil, err
 	}
 	metrics.BlockApplied(block, h)
-	zap.S().Debug("Reschedule from NGFsm.Block")
 	a.Scheduler.Reschedule()
 	a.actions.SendScore(a.storage)
 	a.CleanUtx()
@@ -90,7 +85,6 @@ func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPai
 	var h proto.Height
 	err := a.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
-		zap.S().Debugf("Apply-5: NG Mined")
 		h, err = a.blocksApplier.Apply(state, []*proto.Block{block})
 		return err
 	})
@@ -153,7 +147,6 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 		return a, nil, errors.Wrap(err, "NGFsm.mineMicro")
 	}
 	err = a.storage.Map(func(s state.NonThreadSafeState) error {
-		zap.S().Debugf("Apply-6:  NG Micro Mined")
 		_, err := a.blocksApplier.Apply(s, []*proto.Block{block})
 		return err
 	})
@@ -212,7 +205,6 @@ func (a *NGFsm) microBlockByID(micro *proto.MicroBlock) (FSM, Async, error) {
 		return a, nil, errors.Wrap(err, "NGFsm microBlockByID: failed generate block id")
 	}
 	err = a.storage.Map(func(state state.State) error {
-		zap.S().Debugf("Apply-7: NG Micro Received")
 		_, err := a.blocksApplier.Apply(state, []*proto.Block{newBlock})
 		return err
 	})

@@ -612,21 +612,22 @@ func (hs *historyStorage) freshEntryDataBeforeHeight(key []byte, height uint64, 
 	return res.data, nil
 }
 
-func (hs *historyStorage) entriesDataInHeightRangeCommon(history *historyRecord, startBlockNum, endBlockNum uint32) [][]byte {
-	var entriesData [][]byte
-	for i := len(history.entries) - 1; i >= 0; i-- {
-		entry := history.entries[i]
-		if entry.blockNum > endBlockNum {
-			continue
-		}
-		if entry.blockNum < startBlockNum {
+func (hs *historyStorage) generationBalanceHeightRangeEntries(history *historyRecord, startBlockNum, endBlockNum uint32) [][]byte {
+	records := make([][]byte, 1)
+	for _, entry := range history.entries {
+		switch {
+		case entry.blockNum <= startBlockNum:
+			records[0] = entry.data
+		case entry.blockNum > endBlockNum:
 			break
+		default:
+			records = append(records, entry.data)
 		}
-		entriesData = append(entriesData, entry.data)
 	}
-	return entriesData
+	return records
 }
 
+// entriesDataInHeightRangeStable should be used only fof calculation of generation balance because it uses extended range of data records.
 func (hs *historyStorage) entriesDataInHeightRangeStable(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
 	history, err := hs.getHistory(key, filter, false)
 	if err != nil {
@@ -643,7 +644,7 @@ func (hs *historyStorage) entriesDataInHeightRangeStable(key []byte, startHeight
 	if err != nil {
 		return nil, err
 	}
-	return hs.entriesDataInHeightRangeCommon(history, startBlockNum, endBlockNum), nil
+	return hs.generationBalanceHeightRangeEntries(history, startBlockNum, endBlockNum), nil
 }
 
 // entriesDataInHeightRange() returns bytes of entries that fit into specified height interval.
@@ -663,7 +664,7 @@ func (hs *historyStorage) entriesDataInHeightRange(key []byte, startHeight, endH
 	if err != nil {
 		return nil, err
 	}
-	return hs.entriesDataInHeightRangeCommon(history, startBlockNum, endBlockNum), nil
+	return hs.generationBalanceHeightRangeEntries(history, startBlockNum, endBlockNum), nil
 }
 
 func (hs *historyStorage) reset() {

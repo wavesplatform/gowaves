@@ -15,7 +15,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 	storage "github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 type Async []Task
@@ -130,7 +129,6 @@ func NewFsm(
 		minPeersMining: services.MinPeersMining,
 	}
 
-	zap.S().Debug("Reschedule from NewFsm")
 	b.Scheduler.Reschedule()
 
 	// default tasks
