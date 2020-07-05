@@ -20,7 +20,7 @@ import (
 type Async []Task
 
 type BlocksApplier interface {
-	Apply(state storage.State, block []*proto.Block) error
+	Apply(state storage.State, block []*proto.Block) (proto.Height, error)
 }
 
 type BaseInfo struct {

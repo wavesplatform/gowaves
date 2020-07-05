@@ -8,6 +8,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -59,7 +60,11 @@ func GetStatePath() (string, error) {
 
 func SetupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 	al := zap.NewAtomicLevel()
+	var opts []zap.Option
 	switch strings.ToUpper(level) {
+	case "DEV":
+		al.SetLevel(zap.DebugLevel)
+		opts = append(opts, zap.AddCaller())
 	case "DEBUG":
 		al.SetLevel(zap.DebugLevel)
 	case "INFO":
@@ -76,7 +81,7 @@ func SetupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 	ec := zap.NewDevelopmentEncoderConfig()
 	core := zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al)
 	logger := zap.New(core)
-	zap.ReplaceGlobals(logger.WithOptions(zap.AddCaller()))
+	zap.ReplaceGlobals(logger.WithOptions(opts...))
 	return logger, logger.Sugar()
 }
 
@@ -166,4 +171,11 @@ func FromBase58JSON(value []byte, size int, name string) ([]byte, error) {
 		return nil, errors.Errorf("incorrect length %d of %s value, expected %d", l, name, size)
 	}
 	return v[:size], nil
+}
+
+func TimestampMillisToTime(ts uint64) time.Time {
+	ts64 := int64(ts)
+	s := ts64 / 1000
+	ns := ts64 % 1000 * 1000000
+	return time.Unix(s, ns)
 }

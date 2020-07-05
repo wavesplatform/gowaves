@@ -684,13 +684,6 @@ func (hs *historyStorage) entryDataWithHeightFilter(
 	return res.data, nil
 }
 
-func (hs *historyStorage) entryDataBeforeHeight(key []byte, height uint64, filter bool) ([]byte, error) {
-	cmp := func(entryNum, limitNum uint32) bool {
-		return entryNum < limitNum
-	}
-	return hs.entryDataWithHeightFilter(key, height, filter, cmp)
-}
-
 func (hs *historyStorage) entryDataAtHeight(key []byte, height uint64, filter bool) ([]byte, error) {
 	cmp := func(entryNum, limitNum uint32) bool {
 		return entryNum <= limitNum
@@ -698,43 +691,29 @@ func (hs *historyStorage) entryDataAtHeight(key []byte, height uint64, filter bo
 	return hs.entryDataWithHeightFilter(key, height, filter, cmp)
 }
 
-// newestEntryBeforeHeight() returns bytes of the top entry from local storage or DB before given height.
-func (hs *historyStorage) newestEntryDataBeforeHeight(key []byte, height uint64, filter bool) ([]byte, error) {
-	limitBlockNum, err := hs.stateDB.newestBlockNumByHeight(height)
-	if err != nil {
-		return nil, err
-	}
-	history, err := hs.fullHistory(key, filter)
-	if err != nil {
-		return nil, err
-	}
-	var res historyEntry
+// blockRangeEntries() returns list of entries corresponding to given block interval.
+// IMPORTANTLY, it does not simply return list of entries with block nums between startBlockNum and endBlockNum,
+// instead this function returns values which are relevant for this block range.
+// This actually means that it MIGHT include entries BEFORE startBlockNum, because they are relevant for the range start.
+// For example, if the first entry in the range is at startBlockNum + 1, then at startBlockNum we should use the value
+// from the past.
+func (hs *historyStorage) blockRangeEntries(history *historyRecord, startBlockNum, endBlockNum uint32) [][]byte {
+	records := make([][]byte, 1)
 	for _, entry := range history.entries {
-		if entry.blockNum < limitBlockNum {
-			res = entry
-		} else {
+		switch {
+		case entry.blockNum <= startBlockNum:
+			records[0] = entry.data
+		case entry.blockNum > endBlockNum:
 			break
+		default:
+			records = append(records, entry.data)
 		}
 	}
-	return res.data, nil
-}
-
-func (hs *historyStorage) entriesDataInHeightRangeCommon(history *historyRecord, startBlockNum, endBlockNum uint32) [][]byte {
-	var entriesData [][]byte
-	for i := len(history.entries) - 1; i >= 0; i-- {
-		entry := history.entries[i]
-		if entry.blockNum > endBlockNum {
-			continue
-		}
-		if entry.blockNum < startBlockNum {
-			break
-		}
-		entriesData = append(entriesData, entry.data)
-	}
-	return entriesData
+	return records
 }
 
 // entriesDataInHeightRange() returns bytes of entries that fit into specified height interval.
+// WARNING: see comment about blockRangeEntries() to understand how this function actually works.
 func (hs *historyStorage) entriesDataInHeightRange(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
 	history, err := hs.getHistory(key, filter, false)
 	if err != nil {
@@ -751,9 +730,10 @@ func (hs *historyStorage) entriesDataInHeightRange(key []byte, startHeight, endH
 	if err != nil {
 		return nil, err
 	}
-	return hs.entriesDataInHeightRangeCommon(history, startBlockNum, endBlockNum), nil
+	return hs.blockRangeEntries(history, startBlockNum, endBlockNum), nil
 }
 
+// WARNING: see comment about blockRangeEntries() to understand how this function actually works.
 func (hs *historyStorage) newestEntriesDataInHeightRange(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
 	history, err := hs.fullHistory(key, filter)
 	if err != nil {
@@ -770,7 +750,7 @@ func (hs *historyStorage) newestEntriesDataInHeightRange(key []byte, startHeight
 	if err != nil {
 		return nil, err
 	}
-	return hs.entriesDataInHeightRangeCommon(history, startBlockNum, endBlockNum), nil
+	return hs.blockRangeEntries(history, startBlockNum, endBlockNum), nil
 }
 
 func (hs *historyStorage) reset() {

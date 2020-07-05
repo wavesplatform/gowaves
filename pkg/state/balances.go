@@ -364,35 +364,6 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 	return addressesNumber, nil
 }
 
-func (s *balances) effectiveBalanceBeforeHeightCommon(recordBytes []byte) (uint64, error) {
-	if recordBytes == nil {
-		return 0, nil
-	}
-	var record wavesBalanceRecord
-	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return 0, err
-	}
-	return record.effectiveBalance()
-}
-
-func (s *balances) effectiveBalanceBeforeHeight(addr proto.Address, height uint64) (uint64, error) {
-	key := wavesBalanceKey{address: addr}
-	recordBytes, err := s.hs.entryDataBeforeHeight(key.bytes(), height, true)
-	if err != nil {
-		return 0, err
-	}
-	return s.effectiveBalanceBeforeHeightCommon(recordBytes)
-}
-
-func (s *balances) newestEffectiveBalanceBeforeHeight(addr proto.Address, height uint64) (uint64, error) {
-	key := wavesBalanceKey{address: addr}
-	recordBytes, err := s.hs.newestEntryDataBeforeHeight(key.bytes(), height, true)
-	if err != nil {
-		return 0, err
-	}
-	return s.effectiveBalanceBeforeHeightCommon(recordBytes)
-}
-
 func (s *balances) minEffectiveBalanceInRangeCommon(records [][]byte) (uint64, error) {
 	minBalance := uint64(math.MaxUint64)
 	for _, recordBytes := range records {
@@ -408,6 +379,11 @@ func (s *balances) minEffectiveBalanceInRangeCommon(records [][]byte) (uint64, e
 			minBalance = effectiveBal
 		}
 	}
+	if minBalance == math.MaxUint64 {
+		// This is the case when records is empty.
+		// This actually means that address has no balance records, i.e. it has 0 balance.
+		minBalance = 0
+	}
 	return minBalance, nil
 }
 
@@ -417,15 +393,7 @@ func (s *balances) minEffectiveBalanceInRange(addr proto.Address, startHeight, e
 	if err != nil {
 		return 0, err
 	}
-	minBalance, err := s.minEffectiveBalanceInRangeCommon(records)
-	if err != nil {
-		return 0, err
-	}
-	if minBalance == math.MaxUint64 {
-		// No balances found at height range, use the latest before startHeight.
-		return s.effectiveBalanceBeforeHeight(addr, startHeight)
-	}
-	return minBalance, nil
+	return s.minEffectiveBalanceInRangeCommon(records)
 }
 
 func (s *balances) newestMinEffectiveBalanceInRange(addr proto.Address, startHeight, endHeight uint64) (uint64, error) {
@@ -434,15 +402,7 @@ func (s *balances) newestMinEffectiveBalanceInRange(addr proto.Address, startHei
 	if err != nil {
 		return 0, err
 	}
-	minBalance, err := s.minEffectiveBalanceInRangeCommon(records)
-	if err != nil {
-		return 0, err
-	}
-	if minBalance == math.MaxUint64 {
-		// No balances found at height range, use the latest before startHeight.
-		return s.newestEffectiveBalanceBeforeHeight(addr, startHeight)
-	}
-	return minBalance, nil
+	return s.minEffectiveBalanceInRangeCommon(records)
 }
 
 func (s *balances) assetBalanceFromRecordBytes(recordBytes []byte) (uint64, error) {

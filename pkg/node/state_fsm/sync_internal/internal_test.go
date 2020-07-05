@@ -36,18 +36,17 @@ func TestSigFSM_Signatures(t *testing.T) {
 	sigs := signatures.NewSignatures()
 
 	t.Run("error on receive unexpected signatures", func(t *testing.T) {
-		fsm := NewInternal(or, sigs, NoSignaturesExpected, false)
+		fsm := NewInternal(or, sigs, false)
 		rs2, err := fsm.BlockIDs(nil, blocksFromSigs(sig1, sig2))
 		require.Equal(t, NoSignaturesExpectedErr, err)
 		require.NotNil(t, rs2)
 	})
 
 	t.Run("successful receive signatures", func(t *testing.T) {
-		fsm := NewInternal(or, sigs, WaitingForSignatures, false)
+		fsm := NewInternal(or, sigs, true)
 		rs2, err := fsm.BlockIDs(noopWrapper{}, blocksFromSigs(sig1, sig2))
 		require.NoError(t, err)
 		require.NotNil(t, rs2)
-		require.True(t, rs2.NearEnd())
 		require.False(t, rs2.WaitingForSignatures())
 	})
 }
@@ -63,7 +62,7 @@ func block(sig crypto.Signature) *proto.Block {
 func TestSigFSM_Block(t *testing.T) {
 	or := ordered_blocks.NewOrderedBlocks()
 	sigs := signatures.NewSignatures()
-	fsm := NewInternal(or, sigs, WaitingForSignatures, false)
+	fsm := NewInternal(or, sigs, true)
 	fsm, _ = fsm.BlockIDs(noopWrapper{}, blocksFromSigs(sig1, sig2))
 
 	fsm, _ = fsm.Block(block(sig1))
@@ -79,7 +78,6 @@ func TestSigFSM_Block(t *testing.T) {
 func TestSigFSM_BlockGetSignatures(t *testing.T) {
 	or := ordered_blocks.NewOrderedBlocks()
 	sigs := signatures.NewSignatures()
-	require.Panics(t, func() {
-		NewInternal(or, sigs, NoSignaturesExpected, false).Blocks(nil)
-	})
+	_, bs, _ := NewInternal(or, sigs, false).Blocks(nil)
+	require.Nil(t, bs)
 }
