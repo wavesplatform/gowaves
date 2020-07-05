@@ -114,7 +114,7 @@ func (a *aliases) createAlias(aliasStr string, info *aliasInfo, blockID proto.Bl
 
 func (a *aliases) exists(aliasStr string, filter bool) bool {
 	key := aliasKey{alias: aliasStr}
-	if _, err := a.hs.freshLatestEntryData(key.bytes(), filter); err != nil {
+	if _, err := a.hs.newestTopEntryData(key.bytes(), filter); err != nil {
 		return false
 	}
 	return true
@@ -149,7 +149,7 @@ func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.Addres
 }
 
 func (a *aliases) newestRecordByAlias(key []byte, filter bool) (*aliasRecord, error) {
-	recordBytes, err := a.hs.freshLatestEntryData(key, filter)
+	recordBytes, err := a.hs.newestTopEntryData(key, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (a *aliases) newestRecordByAlias(key []byte, filter bool) (*aliasRecord, er
 }
 
 func (a *aliases) recordByAlias(key []byte, filter bool) (*aliasRecord, error) {
-	recordBytes, err := a.hs.latestEntryData(key, filter)
+	recordBytes, err := a.hs.topEntryData(key, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -190,16 +190,17 @@ func (a *aliases) addrByAlias(aliasStr string, filter bool) (*proto.Address, err
 
 func (a *aliases) disableStolenAliases() error {
 	// TODO: this action can not be rolled back now, do we need it?
-	iter, err := newNewestDataIterator(a.hs, alias)
+	iter, err := a.hs.newNewestTopEntryIterator(alias, true)
 	if err != nil {
 		return err
 	}
 
 	for iter.Next() {
 		keyBytes := iter.Key()
-		record, err := a.newestRecordByAlias(iter.Key(), true)
-		if err != nil {
-			return err
+		recordBytes := iter.Value()
+		var record aliasRecord
+		if err := record.unmarshalBinary(recordBytes); err != nil {
+			return errors.Errorf("failed to unmarshal record: %v", err)
 		}
 		var key aliasKey
 		if err := key.unmarshal(keyBytes); err != nil {

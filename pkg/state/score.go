@@ -52,7 +52,7 @@ func scoreFromBytes(scoreBytes []byte) *big.Int {
 
 func (s *scores) score(height uint64, filter bool) (*big.Int, error) {
 	key := scoreKey{height: height}
-	scoreBytes, err := s.hs.latestEntryData(key.bytes(), filter)
+	scoreBytes, err := s.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (s *scores) score(height uint64, filter bool) (*big.Int, error) {
 
 func (s *scores) newestScore(height uint64, filter bool) (*big.Int, error) {
 	key := scoreKey{height: height}
-	scoreBytes, err := s.hs.freshLatestEntryData(key.bytes(), filter)
+	scoreBytes, err := s.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

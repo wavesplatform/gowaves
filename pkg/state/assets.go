@@ -303,7 +303,7 @@ func (a *assets) newestChangeableInfo(assetID crypto.Digest, filter bool) (*asse
 		return &info.assetChangeableInfo, nil
 	}
 	histKey := assetHistKey{assetID: assetID}
-	recordBytes, err := a.hs.freshLatestEntryData(histKey.bytes(), filter)
+	recordBytes, err := a.hs.newestTopEntryData(histKey.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +347,7 @@ func (a *assets) assetInfo(assetID crypto.Digest, filter bool) (*assetInfo, erro
 		return nil, err
 	}
 	histKey := assetHistKey{assetID: assetID}
-	recordBytes, err := a.hs.latestEntryData(histKey.bytes(), filter)
+	recordBytes, err := a.hs.topEntryData(histKey.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

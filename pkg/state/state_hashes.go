@@ -19,7 +19,7 @@ func (s *stateHashes) saveStateHash(sh *proto.StateHash, height uint64) error {
 
 func (s *stateHashes) stateHash(height uint64, filter bool) (*proto.StateHash, error) {
 	key := stateHashKey{height: height}
-	stateHashBytes, err := s.hs.latestEntryData(key.bytes(), filter)
+	stateHashBytes, err := s.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

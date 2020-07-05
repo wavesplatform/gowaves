@@ -128,7 +128,7 @@ func (i *batchIterator) next() bool {
 
 func (i *batchIterator) currentBatch() ([]byte, error) {
 	val := keyvalue.SafeValue(i.iter)
-	return i.stor.normalize(val, false)
+	return i.stor.normalize(val)
 }
 
 func (i *batchIterator) error() error {
@@ -413,7 +413,7 @@ func (s *batchedStorage) normalizeBatches(key []byte) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to get batch by key")
 		}
-		newBatch, err := s.normalize(batch, true)
+		newBatch, err := s.newestNormalize(batch)
 		if err != nil {
 			return errors.Wrap(err, "failed to normalize batch")
 		}
@@ -463,7 +463,9 @@ func (s *batchedStorage) newBackwardRecordIterator(key []byte) (*recordIterator,
 	return newRecordIterator(batchIter, s.params.recordSize), nil
 }
 
-func (s *batchedStorage) normalize(batch []byte, includeNewest bool) ([]byte, error) {
+type blockValidationFunc func(blockNum uint32) (bool, error)
+
+func (s *batchedStorage) normalizeCommon(batch []byte, isValidBlock blockValidationFunc) ([]byte, error) {
 	size := s.params.recordSize
 	if (len(batch) % size) != 0 {
 		return nil, errInvalidDataSize
@@ -474,17 +476,9 @@ func (s *batchedStorage) normalize(batch []byte, includeNewest bool) ([]byte, er
 		if err != nil {
 			return nil, err
 		}
-		var isValid bool
-		if includeNewest {
-			isValid, err = s.stateDB.newestIsValidBlock(record.blockNum)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			isValid, err = s.stateDB.isValidBlock(record.blockNum)
-			if err != nil {
-				return nil, err
-			}
+		isValid, err := isValidBlock(record.blockNum)
+		if err != nil {
+			return nil, err
 		}
 		if isValid {
 			break
@@ -492,6 +486,14 @@ func (s *batchedStorage) normalize(batch []byte, includeNewest bool) ([]byte, er
 		batch = batch[:i-size]
 	}
 	return batch, nil
+}
+
+func (s *batchedStorage) normalize(batch []byte) ([]byte, error) {
+	return s.normalizeCommon(batch, s.stateDB.isValidBlock)
+}
+
+func (s *batchedStorage) newestNormalize(batch []byte) ([]byte, error) {
+	return s.normalizeCommon(batch, s.stateDB.newestIsValidBlock)
 }
 
 func (s *batchedStorage) removeBatchByNum(key []byte, num uint32) error {

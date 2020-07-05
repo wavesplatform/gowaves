@@ -192,7 +192,7 @@ func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte
 		return errors.New("unsupported meta length")
 	}
 	newRecord := make([]byte, addrTxRecordSize)
-	blockNum, err := at.stateDB.blockIdToNum(blockID)
+	blockNum, err := at.stateDB.newestBlockIdToNum(blockID)
 	if err != nil {
 		return err
 	}

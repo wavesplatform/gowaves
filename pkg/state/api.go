@@ -43,7 +43,7 @@ type StateInfo interface {
 	HeightToBlockID(height proto.Height) (proto.BlockID, error)
 	// FullWavesBalance returns complete Waves balance record.
 	FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
-	EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
+	EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
 	// AccountBalance retrieves balance of account in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)

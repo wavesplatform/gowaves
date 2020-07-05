@@ -43,7 +43,7 @@ func newInvokeResults(hs *historyStorage) *invokeResults {
 
 func (ir *invokeResults) invokeResult(scheme byte, invokeID crypto.Digest, filter bool) (*proto.ScriptResult, error) {
 	key := invokeResultKey{invokeID}
-	recordBytes, err := ir.hs.latestEntryData(key.bytes(), filter)
+	recordBytes, err := ir.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

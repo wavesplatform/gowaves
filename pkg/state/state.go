@@ -745,7 +745,7 @@ func (s *stateManager) GeneratingBalance(account proto.Recipient) (uint64, error
 		return 0, wrapErr(RetrievalError, err)
 	}
 	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
-	return s.EffectiveBalanceStable(account, start, end)
+	return s.EffectiveBalance(account, start, end)
 }
 
 func (s *stateManager) NewestGeneratingBalance(account proto.Recipient) (uint64, error) {
@@ -754,7 +754,7 @@ func (s *stateManager) NewestGeneratingBalance(account proto.Recipient) (uint64,
 		return 0, wrapErr(RetrievalError, err)
 	}
 	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
-	return s.EffectiveBalance(account, start, end)
+	return s.NewestEffectiveBalance(account, start, end)
 }
 
 func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -1449,24 +1449,24 @@ func (s *stateManager) recipientToAddress(recipient proto.Recipient) (*proto.Add
 	return recipient.Address, nil
 }
 
-func (s *stateManager) EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
+func (s *stateManager) EffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	effectiveBalance, err := s.stor.balances.minEffectiveBalanceInRangeStable(*addr, startHeight, endHeight)
+	effectiveBalance, err := s.stor.balances.minEffectiveBalanceInRange(*addr, startHeight, endHeight)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
 	return effectiveBalance, nil
 }
 
-func (s *stateManager) EffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
+func (s *stateManager) NewestEffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
 	addr, err := s.newestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	effectiveBalance, err := s.stor.balances.minEffectiveBalanceInRange(*addr, startHeight, endHeight)
+	effectiveBalance, err := s.stor.balances.newestMinEffectiveBalanceInRange(*addr, startHeight, endHeight)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}

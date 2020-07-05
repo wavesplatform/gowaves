@@ -42,7 +42,7 @@ func newOrdersVolumes(hs *historyStorage) *ordersVolumes {
 
 func (ov *ordersVolumes) newestVolumeById(orderId []byte, filter bool) (*orderVolumeRecord, error) {
 	key := ordersVolumeKey{orderId}
-	recordBytes, err := ov.hs.freshLatestEntryData(key.bytes(), filter)
+	recordBytes, err := ov.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

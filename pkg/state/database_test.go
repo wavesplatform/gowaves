@@ -19,10 +19,10 @@ func TestAddBlock(t *testing.T) {
 	}()
 
 	to.addBlock(t, blockID0)
-	blockNum, err := to.stateDB.blockIdToNum(blockID0)
+	blockNum, err := to.stateDB.newestBlockIdToNum(blockID0)
 	assert.NoError(t, err, "blockIdToNum() failed")
 	assert.Equal(t, uint32(0), blockNum)
-	blockID, err := to.stateDB.blockNumToId(blockNum)
+	blockID, err := to.stateDB.newestBlockNumToId(blockNum)
 	assert.NoError(t, err, "blockNumToId() failed")
 	assert.Equal(t, blockID0, blockID)
 	blockNum, err = to.stateDB.newestBlockNumByHeight(1)

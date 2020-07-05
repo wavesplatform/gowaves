@@ -309,11 +309,11 @@ func (hr *historyRecord) appendEntry(entry historyEntry) error {
 		// History is empty, new record is the first one.
 		hr.entries = append(hr.entries, entry)
 	}
-	latestEntry, err := hr.latestEntry()
+	topEntry, err := hr.topEntry()
 	if err != nil {
 		return err
 	}
-	if latestEntry.blockNum == entry.blockNum {
+	if topEntry.blockNum == entry.blockNum {
 		// The block is the same, rewrite the last entry.
 		hr.entries[len(hr.entries)-1] = entry
 	} else {
@@ -323,51 +323,100 @@ func (hr *historyRecord) appendEntry(entry historyEntry) error {
 	return nil
 }
 
-func (hr *historyRecord) latestEntry() (historyEntry, error) {
+func (hr *historyRecord) topEntry() (historyEntry, error) {
 	if len(hr.entries) < 1 {
 		return historyEntry{}, errors.New("empty history")
 	}
 	return hr.entries[len(hr.entries)-1], nil
 }
 
-type newestDataIterator struct {
+type topEntryIterator struct {
+	dbIter keyvalue.Iterator
+	fmt    *historyFormatter
+	filter bool
+
+	err    error
+	curKey []byte
+	curVal []byte
+}
+
+func (i *topEntryIterator) Next() bool {
+	for i.dbIter.Next() {
+		historyBytes := i.dbIter.Value()
+		history, err := newHistoryRecordFromBytes(historyBytes)
+		if err != nil {
+			i.err = err
+			return false
+		}
+		if _, err := i.fmt.normalize(history, i.filter); err != nil {
+			i.err = err
+			return false
+		}
+		if len(history.entries) == 0 {
+			continue
+		}
+		topEntry, err := history.topEntry()
+		if err != nil {
+			i.err = err
+			return false
+		}
+		i.curKey = i.dbIter.Key()
+		i.curVal = topEntry.data
+		return true
+	}
+	return false
+}
+
+func (i *topEntryIterator) Release() {
+	i.dbIter.Release()
+}
+
+func (i *topEntryIterator) Error() error {
+	if i.err != nil {
+		return i.err
+	}
+	return i.dbIter.Error()
+}
+
+func (i *topEntryIterator) Key() []byte {
+	return i.curKey
+}
+
+func (i *topEntryIterator) Value() []byte {
+	return i.curVal
+}
+
+type newestTopEntryIterator struct {
 	entity blockchainEntity
 
 	hsEntries   []history
 	hsPos       int
 	visitedKeys map[string]bool
 
-	dbIter keyvalue.Iterator
+	dbIter *topEntryIterator
 
+	err    error
 	curKey []byte
+	curVal []byte
 }
 
-func newNewestDataIterator(hs *historyStorage, entity blockchainEntity) (*newestDataIterator, error) {
-	i := &newestDataIterator{entity: entity}
-	i.hsEntries = hs.stor.getEntries()
-	prefix, err := prefixByEntity(entity)
-	if err != nil {
-		return nil, err
-	}
-	dbIter, err := hs.db.NewKeyIterator(prefix)
-	if err != nil {
-		return nil, err
-	}
-	i.dbIter = dbIter
-	i.visitedKeys = make(map[string]bool)
-	return i, nil
-}
-
-func (i *newestDataIterator) Next() bool {
+func (i *newestTopEntryIterator) Next() bool {
 	// Iterate in-mem history until the end or first entity of the type we need.
 	for i.hsPos < len(i.hsEntries) {
 		history := i.hsEntries[i.hsPos].value
-		i.curKey = i.hsEntries[i.hsPos].key
+		key := i.hsEntries[i.hsPos].key
 		i.hsPos++
 		if history.entityType != i.entity {
 			continue
 		}
-		i.visitedKeys[string(i.curKey)] = true
+		i.visitedKeys[string(key)] = true
+		topEntry, err := history.topEntry()
+		if err != nil {
+			i.err = err
+			return false
+		}
+		i.curKey = key
+		i.curVal = topEntry.data
 		return true
 	}
 	// Iterate db until the end or first unvisited key.
@@ -377,20 +426,25 @@ func (i *newestDataIterator) Next() bool {
 			continue
 		}
 		i.curKey = key
+		i.curVal = i.dbIter.Value()
 		return true
 	}
 	return false
 }
 
-func (i *newestDataIterator) Key() []byte {
+func (i *newestTopEntryIterator) Value() []byte {
+	return i.curVal
+}
+
+func (i *newestTopEntryIterator) Key() []byte {
 	return i.curKey
 }
 
-func (i *newestDataIterator) Error() error {
+func (i *newestTopEntryIterator) Error() error {
 	return i.dbIter.Error()
 }
 
-func (i *newestDataIterator) Release() {
+func (i *newestTopEntryIterator) Release() {
 	i.dbIter.Release()
 }
 
@@ -429,8 +483,36 @@ func newHistoryStorage(
 	}, nil
 }
 
+func (hs *historyStorage) newTopEntryIteratorByPrefix(prefix []byte, filter bool) (*topEntryIterator, error) {
+	dbIter, err := hs.db.NewKeyIterator(prefix)
+	if err != nil {
+		return nil, err
+	}
+	return &topEntryIterator{dbIter: dbIter, fmt: hs.fmt, filter: filter}, nil
+}
+
+func (hs *historyStorage) newTopEntryIterator(entity blockchainEntity, filter bool) (*topEntryIterator, error) {
+	prefix, err := prefixByEntity(entity)
+	if err != nil {
+		return nil, err
+	}
+	return hs.newTopEntryIteratorByPrefix(prefix, filter)
+}
+
+func (hs *historyStorage) newNewestTopEntryIterator(entity blockchainEntity, filter bool) (*newestTopEntryIterator, error) {
+	i := &newestTopEntryIterator{entity: entity}
+	i.hsEntries = hs.stor.getEntries()
+	dbIter, err := hs.newTopEntryIterator(entity, filter)
+	if err != nil {
+		return nil, err
+	}
+	i.dbIter = dbIter
+	i.visitedKeys = make(map[string]bool)
+	return i, nil
+}
+
 func (hs *historyStorage) addNewEntry(entityType blockchainEntity, key, value []byte, blockID proto.BlockID) error {
-	blockNum, err := hs.stateDB.blockIdToNum(blockID)
+	blockNum, err := hs.stateDB.newestBlockIdToNum(blockID)
 	if err != nil {
 		return err
 	}
@@ -498,19 +580,19 @@ func (hs *historyStorage) getHistory(key []byte, filter, update bool) (*historyR
 	return history, nil
 }
 
-func (hs *historyStorage) latestEntry(key []byte, filter bool) (historyEntry, error) {
+func (hs *historyStorage) topEntry(key []byte, filter bool) (historyEntry, error) {
 	history, err := hs.getHistory(key, filter, false)
 	if err != nil {
 		return historyEntry{}, err
 	}
-	return history.latestEntry()
+	return history.topEntry()
 }
 
-func (hs *historyStorage) freshLatestEntry(key []byte, filter bool) (historyEntry, error) {
+func (hs *historyStorage) newestTopEntry(key []byte, filter bool) (historyEntry, error) {
 	if newHist, err := hs.stor.get(key); err == nil {
-		return newHist.latestEntry()
+		return newHist.topEntry()
 	}
-	return hs.latestEntry(key, filter)
+	return hs.topEntry(key, filter)
 }
 
 func (hs *historyStorage) combineHistories(key []byte, newHist *historyRecord, filter bool) (*historyRecord, error) {
@@ -539,36 +621,36 @@ func (hs *historyStorage) fullHistory(key []byte, filter bool) (*historyRecord, 
 	return hs.combineHistories(key, newHist, filter)
 }
 
-// latestEntryData() returns bytes of the latest entry.
-func (hs *historyStorage) latestEntryData(key []byte, filter bool) ([]byte, error) {
-	entry, err := hs.latestEntry(key, filter)
+// topEntryData() returns bytes of the top entry.
+func (hs *historyStorage) topEntryData(key []byte, filter bool) ([]byte, error) {
+	entry, err := hs.topEntry(key, filter)
 	if err != nil {
 		return nil, err
 	}
 	return entry.data, nil
 }
 
-// freshLatestEntryData() returns bytes of the latest fresh (from local storage or DB) entry.
-func (hs *historyStorage) freshLatestEntryData(key []byte, filter bool) ([]byte, error) {
-	entry, err := hs.freshLatestEntry(key, filter)
+// newestTopEntryData() returns bytes of the top entry from local storage or DB.
+func (hs *historyStorage) newestTopEntryData(key []byte, filter bool) ([]byte, error) {
+	entry, err := hs.newestTopEntry(key, filter)
 	if err != nil {
 		return nil, err
 	}
 	return entry.data, nil
 }
 
-// freshBlockOfTheLatestEntry() returns block ID of the latest fresh (mem or DB) entry.
-func (hs *historyStorage) freshBlockOfTheLatestEntry(key []byte, filter bool) (proto.BlockID, error) {
-	entry, err := hs.freshLatestEntry(key, filter)
+// newestBlockOfTheTopEntry() returns block ID of the top entry from local storage or DB.
+func (hs *historyStorage) newestBlockOfTheTopEntry(key []byte, filter bool) (proto.BlockID, error) {
+	entry, err := hs.newestTopEntry(key, filter)
 	if err != nil {
 		return proto.BlockID{}, err
 	}
-	return hs.stateDB.blockNumToId(entry.blockNum)
+	return hs.stateDB.newestBlockNumToId(entry.blockNum)
 }
 
-// blockOfTheLatestEntry() returns block ID of the latest entry from DB.
-func (hs *historyStorage) blockOfTheLatestEntry(key []byte, filter bool) (proto.BlockID, error) {
-	entry, err := hs.latestEntry(key, filter)
+// blockOfTheTopEntry() returns block ID of the top entry from DB.
+func (hs *historyStorage) blockOfTheTopEntry(key []byte, filter bool) (proto.BlockID, error) {
+	entry, err := hs.topEntry(key, filter)
 	if err != nil {
 		return proto.BlockID{}, err
 	}
@@ -616,8 +698,8 @@ func (hs *historyStorage) entryDataAtHeight(key []byte, height uint64, filter bo
 	return hs.entryDataWithHeightFilter(key, height, filter, cmp)
 }
 
-// freshEntryBeforeHeight() returns bytes of the latest fresh (from local storage or DB) entry before given height.
-func (hs *historyStorage) freshEntryDataBeforeHeight(key []byte, height uint64, filter bool) ([]byte, error) {
+// newestEntryBeforeHeight() returns bytes of the top entry from local storage or DB before given height.
+func (hs *historyStorage) newestEntryDataBeforeHeight(key []byte, height uint64, filter bool) ([]byte, error) {
 	limitBlockNum, err := hs.stateDB.newestBlockNumByHeight(height)
 	if err != nil {
 		return nil, err
@@ -652,7 +734,8 @@ func (hs *historyStorage) entriesDataInHeightRangeCommon(history *historyRecord,
 	return entriesData
 }
 
-func (hs *historyStorage) entriesDataInHeightRangeStable(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
+// entriesDataInHeightRange() returns bytes of entries that fit into specified height interval.
+func (hs *historyStorage) entriesDataInHeightRange(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
 	history, err := hs.getHistory(key, filter, false)
 	if err != nil {
 		return nil, err
@@ -671,8 +754,7 @@ func (hs *historyStorage) entriesDataInHeightRangeStable(key []byte, startHeight
 	return hs.entriesDataInHeightRangeCommon(history, startBlockNum, endBlockNum), nil
 }
 
-// entriesDataInHeightRange() returns bytes of entries that fit into specified height interval.
-func (hs *historyStorage) entriesDataInHeightRange(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
+func (hs *historyStorage) newestEntriesDataInHeightRange(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
 	history, err := hs.fullHistory(key, filter)
 	if err != nil {
 		return nil, err

@@ -75,7 +75,30 @@ func TestRetrieveEntries(t *testing.T) {
 	properEntries := []proto.DataEntry{entry0, entry1}
 	entries, err := to.accountsDataStor.retrieveEntries(addr0, true)
 	assert.NoError(t, err)
-	assert.Equal(t, properEntries, entries)
+	assert.ElementsMatch(t, properEntries, entries)
+
+	// Test how it works with rollback.
+	entry2 := &proto.BooleanDataEntry{Key: "Next", Value: true}
+	to.stor.addBlock(t, blockID1)
+	err = to.accountsDataStor.appendEntry(addr0, entry2, blockID1)
+	assert.NoError(t, err)
+	properEntries = []proto.DataEntry{entry0, entry1, entry2}
+	to.stor.flush(t)
+	entries, err = to.accountsDataStor.retrieveEntries(addr0, true)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, properEntries, entries)
+
+	to.stor.rollbackBlock(t, blockID1)
+	properEntries = []proto.DataEntry{entry0, entry1}
+	entries, err = to.accountsDataStor.retrieveEntries(addr0, true)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, properEntries, entries)
+	to.stor.rollbackBlock(t, blockID0)
+
+	properEntries = nil
+	entries, err = to.accountsDataStor.retrieveEntries(addr0, true)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, properEntries, entries)
 }
 
 func TestRollbackEntry(t *testing.T) {

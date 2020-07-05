@@ -25,7 +25,7 @@ func (hss *hitSources) saveHitSource(hs []byte, height uint64) error {
 
 func (hss *hitSources) hitSource(height uint64, filter bool) ([]byte, error) {
 	key := hitSourceKey{height: height}
-	hs, err := hss.hs.latestEntryData(key.bytes(), filter)
+	hs, err := hss.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

@@ -154,7 +154,7 @@ func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key []byte, rec
 }
 
 func (ss *scriptsStorage) scriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
-	recordBytes, err := ss.hs.latestEntryData(key, filter)
+	recordBytes, err := ss.hs.topEntryData(key, filter)
 	if err != nil {
 		return proto.Script{}, err
 	}
@@ -166,7 +166,7 @@ func (ss *scriptsStorage) scriptBytesByKey(key []byte, filter bool) (proto.Scrip
 }
 
 func (ss *scriptsStorage) newestScriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
-	recordBytes, err := ss.hs.freshLatestEntryData(key, filter)
+	recordBytes, err := ss.hs.newestTopEntryData(key, filter)
 	if err != nil {
 		return proto.Script{}, err
 	}
@@ -191,7 +191,7 @@ func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (ast.Scri
 }
 
 func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (ast.Script, error) {
-	recordBytes, err := ss.hs.freshLatestEntryData(key, filter)
+	recordBytes, err := ss.hs.newestTopEntryData(key, filter)
 	if err != nil {
 		return ast.Script{}, err
 	}
@@ -200,7 +200,7 @@ func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (ast.Scr
 }
 
 func (ss *scriptsStorage) scriptAstByKey(key []byte, filter bool) (ast.Script, error) {
-	recordBytes, err := ss.hs.latestEntryData(key, filter)
+	recordBytes, err := ss.hs.topEntryData(key, filter)
 	if err != nil {
 		return ast.Script{}, err
 	}
@@ -251,7 +251,7 @@ func (ss *scriptsStorage) newestIsSmartAsset(assetID crypto.Digest, filter bool)
 	if _, has := ss.cache.get(keyBytes); has {
 		return true
 	}
-	recordBytes, err := ss.hs.freshLatestEntryData(keyBytes, filter)
+	recordBytes, err := ss.hs.newestTopEntryData(keyBytes, filter)
 	if err != nil {
 		return false
 	}
@@ -260,7 +260,7 @@ func (ss *scriptsStorage) newestIsSmartAsset(assetID crypto.Digest, filter bool)
 
 func (ss *scriptsStorage) isSmartAsset(assetID crypto.Digest, filter bool) (bool, error) {
 	key := assetScriptKey{assetID}
-	recordBytes, err := ss.hs.latestEntryData(key.bytes(), filter)
+	recordBytes, err := ss.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return false, nil
 	}
@@ -348,7 +348,7 @@ func (ss *scriptsStorage) newestAccountHasScript(addr proto.Address, filter bool
 	if _, has := ss.cache.get(keyBytes); has {
 		return true, nil
 	}
-	recordBytes, err := ss.hs.freshLatestEntryData(keyBytes, filter)
+	recordBytes, err := ss.hs.newestTopEntryData(keyBytes, filter)
 	if err != nil {
 		return false, nil
 	}
@@ -357,7 +357,7 @@ func (ss *scriptsStorage) newestAccountHasScript(addr proto.Address, filter bool
 
 func (ss *scriptsStorage) accountHasScript(addr proto.Address, filter bool) (bool, error) {
 	key := accountScriptKey{addr}
-	recordBytes, err := ss.hs.latestEntryData(key.bytes(), filter)
+	recordBytes, err := ss.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return false, nil
 	}
@@ -380,7 +380,7 @@ func (ss *scriptsStorage) newestScriptByAddr(addr proto.Address, filter bool) (a
 
 func (ss *scriptsStorage) newestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
 	key := accountScriptKey{addr}
-	recordBytes, err := ss.hs.freshLatestEntryData(key.bytes(), filter)
+	recordBytes, err := ss.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return crypto.PublicKey{}, err
 	}

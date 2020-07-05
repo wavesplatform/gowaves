@@ -81,9 +81,8 @@ type stateDB struct {
 	dbWriteLock *sync.Mutex // `dbWriteLock` is lock for writing to database.
 	rw          *blockReadWriter
 
-	newestBlockIdToNum map[proto.BlockID]uint32
-	newestBlockNumToId map[uint32]proto.BlockID
-	blockNumsLock      sync.RWMutex
+	newestBlockId2Num map[proto.BlockID]uint32
+	newestBlockNum2Id map[uint32]proto.BlockID
 
 	blocksNum int
 }
@@ -115,11 +114,11 @@ func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, params StateParams
 		return nil, err
 	}
 	return &stateDB{
-		db:                 db,
-		dbBatch:            dbBatch,
-		dbWriteLock:        dbWriteLock,
-		newestBlockIdToNum: make(map[proto.BlockID]uint32),
-		newestBlockNumToId: make(map[uint32]proto.BlockID),
+		db:                db,
+		dbBatch:           dbBatch,
+		dbWriteLock:       dbWriteLock,
+		newestBlockId2Num: make(map[proto.BlockID]uint32),
+		newestBlockNum2Id: make(map[uint32]proto.BlockID),
 	}, nil
 }
 
@@ -134,33 +133,30 @@ func (s *stateDB) retrieveWriteLock() *sync.Mutex {
 
 // addBlock() makes block officially valid (but only after batch is flushed).
 func (s *stateDB) addBlock(blockID proto.BlockID) error {
-	s.blockNumsLock.Lock()
-	defer s.blockNumsLock.Unlock()
-
 	lastBlockNum, err := s.getLastBlockNum()
 	if err != nil {
 		return err
 	}
-	if _, err := s.blockIdToNum(blockID); err == nil {
+	if _, err := s.newestBlockIdToNum(blockID); err == nil {
 		// Block is already in there.
 		return nil
 	}
 	// Unique number of new block.
 	newBlockNum := lastBlockNum + uint32(s.blocksNum)
-	if _, ok := s.newestBlockNumToId[newBlockNum]; ok {
+	if _, ok := s.newestBlockNum2Id[newBlockNum]; ok {
 		return errors.Errorf("block number %d is already taken by some block", newBlockNum)
 	}
 	// Add unique block number to the list of valid nums.
 	validBlocKey := validBlockNumKey{newBlockNum}
 	s.dbBatch.Put(validBlocKey.bytes(), void)
 	// Save block number for this ID.
-	s.newestBlockIdToNum[blockID] = newBlockNum
+	s.newestBlockId2Num[blockID] = newBlockNum
 	idToNumKey := blockIdToNumKey{blockID}
 	newBlockNumBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(newBlockNumBytes, newBlockNum)
 	s.dbBatch.Put(idToNumKey.bytes(), newBlockNumBytes)
 	// Save ID for this block number.
-	s.newestBlockNumToId[newBlockNum] = blockID
+	s.newestBlockNum2Id[newBlockNum] = blockID
 	numToIdKey := blockNumToIdKey{newBlockNum}
 	idBytes := blockID.Bytes()
 	s.dbBatch.Put(numToIdKey.bytes(), idBytes)
@@ -170,9 +166,7 @@ func (s *stateDB) addBlock(blockID proto.BlockID) error {
 }
 
 func (s *stateDB) newestIsValidBlock(blockNum uint32) (bool, error) {
-	s.blockNumsLock.RLock()
-	defer s.blockNumsLock.RUnlock()
-	if _, ok := s.newestBlockNumToId[blockNum]; ok {
+	if _, ok := s.newestBlockNum2Id[blockNum]; ok {
 		return true, nil
 	}
 	return s.isValidBlock(blockNum)
@@ -183,33 +177,38 @@ func (s *stateDB) isValidBlock(blockNum uint32) (bool, error) {
 	return s.db.Has(key.bytes())
 }
 
-func (s *stateDB) blockIdToNum(blockID proto.BlockID) (uint32, error) {
-	blockNum, ok := s.newestBlockIdToNum[blockID]
+func (s *stateDB) newestBlockIdToNum(blockID proto.BlockID) (uint32, error) {
+	blockNum, ok := s.newestBlockId2Num[blockID]
 	if ok {
 		return blockNum, nil
 	}
+	return s.blockIdToNum(blockID)
+}
+
+func (s *stateDB) blockIdToNum(blockID proto.BlockID) (uint32, error) {
 	idToNumKey := blockIdToNumKey{blockID}
 	blockNumBytes, err := s.db.Get(idToNumKey.bytes())
 	if err != nil {
 		return 0, err
 	}
-	blockNum = binary.LittleEndian.Uint32(blockNumBytes)
-	return blockNum, nil
+	return binary.LittleEndian.Uint32(blockNumBytes), nil
 }
 
-func (s *stateDB) blockNumToId(blockNum uint32) (proto.BlockID, error) {
-	s.blockNumsLock.RLock()
-	defer s.blockNumsLock.RUnlock()
-	blockId, ok := s.newestBlockNumToId[blockNum]
+func (s *stateDB) newestBlockNumToId(blockNum uint32) (proto.BlockID, error) {
+	blockId, ok := s.newestBlockNum2Id[blockNum]
 	if ok {
 		return blockId, nil
 	}
+	return s.blockNumToId(blockNum)
+}
+
+func (s *stateDB) blockNumToId(blockNum uint32) (proto.BlockID, error) {
 	numToIdKey := blockNumToIdKey{blockNum}
 	blockIdBytes, err := s.db.Get(numToIdKey.bytes())
 	if err != nil {
 		return proto.BlockID{}, err
 	}
-	blockId, err = proto.NewBlockIDFromBytes(blockIdBytes)
+	blockId, err := proto.NewBlockIDFromBytes(blockIdBytes)
 	if err != nil {
 		return proto.BlockID{}, err
 	}
@@ -221,7 +220,7 @@ func (s *stateDB) newestBlockNumByHeight(height uint64) (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	return s.blockIdToNum(blockID)
+	return s.newestBlockIdToNum(blockID)
 }
 
 func (s *stateDB) blockNumByHeight(height uint64) (uint32, error) {
@@ -416,11 +415,8 @@ func (s *stateDB) flushBatch() error {
 }
 
 func (s *stateDB) reset() {
-	s.blockNumsLock.Lock()
-	defer s.blockNumsLock.Unlock()
-
-	s.newestBlockIdToNum = make(map[proto.BlockID]uint32)
-	s.newestBlockNumToId = make(map[uint32]proto.BlockID)
+	s.newestBlockId2Num = make(map[proto.BlockID]uint32)
+	s.newestBlockNum2Id = make(map[uint32]proto.BlockID)
 	s.blocksNum = 0
 	s.dbBatch.Reset()
 }

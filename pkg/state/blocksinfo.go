@@ -123,7 +123,7 @@ func newBlocksInfo(hs *historyStorage) *blocksInfo {
 
 func (i *blocksInfo) feeDistribution(blockID proto.BlockID, filter bool) (*feeDistribution, error) {
 	key := blocksInfoKey{blockID}
-	distrBytes, err := i.hs.latestEntryData(key.bytes(), filter)
+	distrBytes, err := i.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return &feeDistribution{}, err
 	}

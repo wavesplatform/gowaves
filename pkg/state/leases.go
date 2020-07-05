@@ -83,7 +83,7 @@ func newLeases(hs *historyStorage, calcHashes bool) *leases {
 }
 
 func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID proto.BlockID) error {
-	leaseIter, err := newNewestDataIterator(l.hs, lease)
+	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
 	if err != nil {
 		return errors.Errorf("failed to create key iterator to cancel leases: %v", err)
 	}
@@ -98,10 +98,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID prot
 	zap.S().Info("Started to cancel leases")
 	for leaseIter.Next() {
 		key := keyvalue.SafeKey(leaseIter)
-		leaseBytes, err := l.hs.freshLatestEntryData(key, true)
-		if err != nil {
-			return err
-		}
+		leaseBytes := keyvalue.SafeValue(leaseIter)
 		var leaseRecord leasingRecord
 		if err := leaseRecord.unmarshalBinary(leaseBytes); err != nil {
 			return errors.Errorf("failed to unmarshal lease: %v", err)
@@ -128,7 +125,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID prot
 }
 
 func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
-	leaseIter, err := newNewestDataIterator(l.hs, lease)
+	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
 	if err != nil {
 		return nil, errors.Errorf("failed to create key iterator to cancel leases: %v", err)
 	}
@@ -143,10 +140,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 	// Iterate all the leases.
 	zap.S().Info("Started collecting leases")
 	for leaseIter.Next() {
-		leaseBytes, err := l.hs.freshLatestEntryData(leaseIter.Key(), true)
-		if err != nil {
-			return nil, err
-		}
+		leaseBytes := keyvalue.SafeValue(leaseIter)
 		var lease leasingRecord
 		if err := lease.unmarshalBinary(leaseBytes); err != nil {
 			return nil, errors.Errorf("failed to unmarshal lease: %v", err)
@@ -162,7 +156,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 // Leasing info from DB or local storage.
 func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	key := leaseKey{leaseID: id}
-	recordBytes, err := l.hs.freshLatestEntryData(key.bytes(), filter)
+	recordBytes, err := l.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +170,7 @@ func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, err
 // Stable leasing info from DB.
 func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	key := leaseKey{leaseID: id}
-	recordBytes, err := l.hs.latestEntryData(key.bytes(), filter)
+	recordBytes, err := l.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
