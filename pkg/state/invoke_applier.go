@@ -388,6 +388,10 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if !burnAnyTokensEnabled && assetInfo.issuer != info.scriptPK {
 				return proto.DAppError, info.failedChanges, errors.New("asset was issued by other address")
 			}
+			quantityDiff := big.NewInt(a.Quantity)
+			if assetInfo.quantity.Cmp(quantityDiff) == -1 {
+				return proto.DAppError, info.failedChanges, errors.New("trying to burn more assets than exist at all")
+			}
 			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, info.scriptPK, info.blockInfo, *tx.ID, tx.Timestamp, info.initialisation, info.acceptFailed)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err

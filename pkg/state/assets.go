@@ -222,9 +222,6 @@ func (a *assets) applyBurn(assetID crypto.Digest, ch *assetBurnChange, filter bo
 		return nil, errors.Errorf("failed to get asset info: %v\n", err)
 	}
 	quantityDiff := big.NewInt(ch.diff)
-	if info.quantity.Cmp(quantityDiff) == -1 {
-		return nil, errors.New("trying to burn more assets than exist at all")
-	}
 	info.quantity.Sub(&info.quantity, quantityDiff)
 	return info, nil
 }

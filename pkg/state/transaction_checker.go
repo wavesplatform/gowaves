@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"math/big"
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
@@ -497,12 +498,18 @@ func (tc *transactionChecker) checkBurn(tx *proto.Burn, info *checkerInfo) error
 	if err != nil {
 		return err
 	}
+	// Verify sender.
 	burnAnyTokensEnabled, err := tc.stor.features.newestIsActivated(int16(settings.BurnAnyTokens))
 	if err != nil {
 		return err
 	}
 	if !burnAnyTokensEnabled && !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
 		return errs.NewTxValidationError("asset was issued by other address")
+	}
+	// Check burn amount.
+	quantityDiff := big.NewInt(int64(tx.Amount))
+	if assetInfo.quantity.Cmp(quantityDiff) == -1 {
+		return errs.NewTxValidationError("trying to burn more assets than exist at all")
 	}
 	return nil
 }
