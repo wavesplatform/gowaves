@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/user"
 	"path"
-	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -35,16 +34,6 @@ func AddUint64(a, b uint64) (uint64, error) {
 	return 0, errors.New("64-bit unsigned integer overflow")
 }
 
-func MinOf(vars ...uint64) uint64 {
-	min := vars[0]
-	for _, i := range vars {
-		if min > i {
-			min = i
-		}
-	}
-	return min
-}
-
 func CleanTemporaryDirs(dirs []string) error {
 	for _, dir := range dirs {
 		if err := os.RemoveAll(dir); err != nil {
@@ -52,31 +41,6 @@ func CleanTemporaryDirs(dirs []string) error {
 		}
 	}
 	return nil
-}
-
-func TimeTrack(start time.Time, name string) {
-	elapsed := time.Since(start)
-	zap.S().Infof("%s took %s", name, elapsed)
-}
-
-// call function like this
-// defer TrackLongFunc()()
-func TrackLongFunc(duration time.Duration, value ...string) func() {
-	s := debug.Stack()
-	ch := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-ch:
-				return
-			case <-time.After(duration):
-				zap.S().Error("took long time", value, string(s))
-			}
-		}
-	}()
-	return func() {
-		close(ch)
-	}
 }
 
 // duplicate (copy) bytes
@@ -96,7 +60,11 @@ func GetStatePath() (string, error) {
 
 func SetupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 	al := zap.NewAtomicLevel()
+	var opts []zap.Option
 	switch strings.ToUpper(level) {
+	case "DEV":
+		al.SetLevel(zap.DebugLevel)
+		opts = append(opts, zap.AddCaller())
 	case "DEBUG":
 		al.SetLevel(zap.DebugLevel)
 	case "INFO":
@@ -113,7 +81,7 @@ func SetupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 	ec := zap.NewDevelopmentEncoderConfig()
 	core := zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al)
 	logger := zap.New(core)
-	zap.ReplaceGlobals(logger)
+	zap.ReplaceGlobals(logger.WithOptions(opts...))
 	return logger, logger.Sugar()
 }
 
@@ -153,15 +121,6 @@ func ParseDuration(str string) (uint64, error) {
 	return total, nil
 }
 
-func ToBase64JSON(b []byte) []byte {
-	s := base64.StdEncoding.EncodeToString(b)
-	var sb strings.Builder
-	sb.WriteRune('"')
-	sb.WriteString(s)
-	sb.WriteRune('"')
-	return []byte(sb.String())
-}
-
 func FromBase64JSONUnsized(value []byte, name string) ([]byte, error) {
 	s := string(value)
 	if s == "null" {
@@ -176,17 +135,6 @@ func FromBase64JSONUnsized(value []byte, name string) ([]byte, error) {
 		return nil, errors.Wrapf(err, "failed to decode %s from Base64 string", name)
 	}
 	return v, nil
-}
-
-func FromBase64JSON(value []byte, size int, name string) ([]byte, error) {
-	v, err := FromBase64JSONUnsized(value, name)
-	if err != nil {
-		return nil, err
-	}
-	if l := len(v); l != size {
-		return nil, errors.Errorf("incorrect length %d of %s value, expected %d", l, name, size)
-	}
-	return v[:size], nil
 }
 
 func ToBase58JSON(b []byte) []byte {
@@ -225,10 +173,9 @@ func FromBase58JSON(value []byte, size int, name string) ([]byte, error) {
 	return v[:size], nil
 }
 
-func Bts2Str(bts [][]byte) []string {
-	out := []string{}
-	for _, b := range bts {
-		out = append(out, string(b))
-	}
-	return out
+func TimestampMillisToTime(ts uint64) time.Time {
+	ts64 := int64(ts)
+	s := ts64 / 1000
+	ns := ts64 % 1000 * 1000000
+	return time.Unix(s, ns)
 }

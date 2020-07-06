@@ -11,12 +11,14 @@ type State struct {
 	TransactionsByID       map[string]proto.Transaction
 	TransactionsHeightByID map[string]uint64
 	WavesBalance           uint64
+	FullWavesBalance       proto.FullWavesBalance
 	AssetsBalances         map[crypto.Digest]uint64
 	DataEntries            map[string]proto.DataEntry
 	AssetIsSponsored       bool
 	BlockHeaderByHeight    *proto.BlockHeader
 	NewestHeightVal        proto.Height
 	Assets                 map[crypto.Digest]proto.AssetInfo
+	FullAssets             map[crypto.Digest]proto.FullAssetInfo
 }
 
 func (a State) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
@@ -135,6 +137,13 @@ func (a State) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) 
 	return nil, proto.ErrNotFound
 }
 
+func (a State) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+	if info, ok := a.FullAssets[assetID]; ok {
+		return &info, nil
+	}
+	return nil, proto.ErrNotFound
+}
+
 func (a State) IsNotFound(err error) bool {
 	return err == proto.ErrNotFound
 }
@@ -145,4 +154,8 @@ func (a State) HitSourceAtHeight(height uint64) ([]byte, error) {
 
 func (a State) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
 	return nil, nil
+}
+
+func (a State) NewestFullWavesBalance(recipient proto.Recipient) (*proto.FullWavesBalance, error) {
+	return &a.FullWavesBalance, nil
 }

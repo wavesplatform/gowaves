@@ -151,8 +151,7 @@ func TestSetAssetScript(t *testing.T) {
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
-	isSmartAsset, err := to.scriptsStorage.newestIsSmartAsset(assetID, true)
-	assert.NoError(t, err, "newestIsSmartAsset() failed")
+	isSmartAsset := to.scriptsStorage.newestIsSmartAsset(assetID, true)
 	assert.Equal(t, true, isSmartAsset)
 	scriptAst, err := to.scriptsStorage.newestScriptByAsset(assetID, true)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
@@ -168,8 +167,7 @@ func TestSetAssetScript(t *testing.T) {
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(assetID, true)
-	assert.NoError(t, err, "newestIsSmartAsset() failed")
+	isSmartAsset = to.scriptsStorage.newestIsSmartAsset(assetID, true)
 	assert.Equal(t, true, isSmartAsset)
 	scriptAst, err = to.scriptsStorage.newestScriptByAsset(assetID, true)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
@@ -188,8 +186,7 @@ func TestSetAssetScript(t *testing.T) {
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
-	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(assetID, true)
-	assert.NoError(t, err, "newestIsSmartAsset() failed")
+	isSmartAsset = to.scriptsStorage.newestIsSmartAsset(assetID, true)
 	assert.Equal(t, false, isSmartAsset)
 	_, err = to.scriptsStorage.newestScriptByAsset(assetID, true)
 	assert.Error(t, err)
@@ -205,8 +202,7 @@ func TestSetAssetScript(t *testing.T) {
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	isSmartAsset, err = to.scriptsStorage.newestIsSmartAsset(assetID, true)
-	assert.NoError(t, err, "newestIsSmartAsset() failed")
+	isSmartAsset = to.scriptsStorage.newestIsSmartAsset(assetID, true)
 	assert.Equal(t, false, isSmartAsset)
 	_, err = to.scriptsStorage.newestScriptByAsset(assetID, true)
 	assert.Error(t, err)
@@ -217,4 +213,35 @@ func TestSetAssetScript(t *testing.T) {
 	assert.Equal(t, false, isSmartAsset)
 	_, err = to.scriptsStorage.scriptByAsset(assetID, true)
 	assert.Error(t, err)
+
+	// Test uncertain.
+	to.scriptsStorage.setAssetScriptUncertain(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk)
+	isSmartAsset = to.scriptsStorage.newestIsSmartAsset(assetID, true)
+	assert.Equal(t, true, isSmartAsset)
+	scriptAst, err = to.scriptsStorage.newestScriptByAsset(assetID, true)
+	assert.NoError(t, err, "newestScriptByAsset() failed")
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+	to.scriptsStorage.dropUncertain()
+	_, err = to.scriptsStorage.newestScriptByAsset(assetID, true)
+	assert.Error(t, err)
+	isSmartAsset = to.scriptsStorage.newestIsSmartAsset(assetID, true)
+	assert.Equal(t, false, isSmartAsset)
+	// Test after commit.
+	to.scriptsStorage.setAssetScriptUncertain(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk)
+	err = to.scriptsStorage.commitUncertain(blockID0)
+	assert.NoError(t, err, "commitUncertain() failed")
+	to.scriptsStorage.dropUncertain()
+	isSmartAsset = to.scriptsStorage.newestIsSmartAsset(assetID, true)
+	assert.Equal(t, true, isSmartAsset)
+	scriptAst, err = to.scriptsStorage.newestScriptByAsset(assetID, true)
+	assert.NoError(t, err, "newestScriptByAsset() failed")
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+	// Test after flush.
+	to.stor.flush(t)
+	isSmartAsset, err = to.scriptsStorage.isSmartAsset(assetID, true)
+	assert.NoError(t, err, "isSmartAsset() failed")
+	assert.Equal(t, true, isSmartAsset)
+	scriptAst, err = to.scriptsStorage.scriptByAsset(assetID, true)
+	assert.NoError(t, err)
+	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 }

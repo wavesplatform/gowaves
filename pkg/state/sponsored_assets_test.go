@@ -83,6 +83,63 @@ func TestSponsorAsset(t *testing.T) {
 	assert.Equal(t, isSponsored, false)
 }
 
+func TestSponsorAssetUncertain(t *testing.T) {
+	to, path, err := createSponsoredAssets()
+	assert.NoError(t, err, "createSponsoredAssets() failed")
+
+	defer func() {
+		to.stor.close(t)
+
+		err = common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	properCost := uint64(100500)
+	id := testGlobal.asset0.asset.ID
+	test := func() {
+		to.stor.addBlock(t, blockID0)
+		to.sponsoredAssets.sponsorAssetUncertain(id, properCost)
+		newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(id, true)
+		assert.NoError(t, err, "newestIsSponsored() failed")
+		assert.Equal(t, newestIsSponsored, true)
+		isSponsored, err := to.sponsoredAssets.isSponsored(id, true)
+		assert.NoError(t, err, "isSponsored() failed")
+		assert.Equal(t, isSponsored, false)
+		newestCost, err := to.sponsoredAssets.newestAssetCost(id, true)
+		assert.NoError(t, err, "newestAssetCost() failed")
+		assert.Equal(t, newestCost, properCost)
+		_, err = to.sponsoredAssets.assetCost(id, true)
+		assert.Error(t, err, "assetCost() did not fail witn new asset before flushing")
+	}
+	tests := []struct {
+		drop, commit bool
+	}{
+		{true, false},
+		{false, true},
+	}
+	for _, tc := range tests {
+		test()
+		if tc.drop {
+			to.sponsoredAssets.dropUncertain()
+			_, err = to.sponsoredAssets.newestAssetCost(id, true)
+			assert.Error(t, err)
+			newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(id, true)
+			assert.NoError(t, err)
+			assert.Equal(t, false, newestIsSponsored)
+		} else if tc.commit {
+			err = to.sponsoredAssets.commitUncertain(blockID0)
+			assert.NoError(t, err)
+			cost, err := to.sponsoredAssets.newestAssetCost(id, true)
+			assert.NoError(t, err)
+			assert.Equal(t, properCost, cost)
+			newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(id, true)
+			assert.NoError(t, err)
+			assert.Equal(t, true, newestIsSponsored)
+		}
+		to.sponsoredAssets.dropUncertain()
+	}
+}
+
 func TestSponsoredAssetToWaves(t *testing.T) {
 	to, path, err := createSponsoredAssets()
 	assert.NoError(t, err, "createSponsoredAssets() failed")

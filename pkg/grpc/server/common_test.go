@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -138,4 +139,18 @@ func defaultStateParams() state.StateParams {
 	params.StoreExtendedApiData = true
 	params.ProvideExtendedApi = true
 	return params
+}
+
+func assertTransactionResponsesEqual(t *testing.T, a, b *g.TransactionResponse) {
+	assert.Equal(t, a.Id, b.Id)
+	assert.Equal(t, a.ApplicationStatus, b.ApplicationStatus)
+	assert.Equal(t, a.Height, b.Height)
+	assert.Equal(t, a.Transaction, b.Transaction)
+}
+
+func assertTransactionStatusesEqual(t *testing.T, a, b *g.TransactionStatus) {
+	assert.Equal(t, a.Id, b.Id)
+	assert.Equal(t, a.ApplicationStatus, b.ApplicationStatus)
+	assert.Equal(t, a.Height, b.Height)
+	assert.Equal(t, a.Status, b.Status)
 }

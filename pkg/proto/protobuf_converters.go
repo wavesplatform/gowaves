@@ -1,28 +1,19 @@
 package proto
 
 import (
-	protobuf "github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	"google.golang.org/protobuf/encoding/protowire"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 func Int64ToProtobuf(val int64) ([]byte, error) {
-	buf := &protobuf.Buffer{}
-	buf.SetDeterministic(true)
-	if err := buf.EncodeVarint(uint64(val)); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return protowire.AppendVarint(nil, uint64(val)), nil
 }
 
 func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
-	buf := &protobuf.Buffer{}
-	buf.SetDeterministic(true)
-	if err := buf.Marshal(pb); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return protobuf.MarshalOptions{Deterministic: true}.Marshal(pb)
 }
 
 func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
@@ -84,18 +75,50 @@ func (c *ProtobufConverter) uint64(value int64) uint64 {
 		return 0
 	}
 	if value < 0 {
-		c.err = errors.New("negative int64 value")
+		c.err = errors.New("non-positive amount")
 		return 0
 	}
 	return uint64(value)
 }
 
-func (c *ProtobufConverter) byte(value int32) byte {
+func (c *ProtobufConverter) uint64v(value int64, validators ...func(int64) error) uint64 {
+	if c.err != nil {
+		return 0
+	}
+	for _, v := range validators {
+		err := v(value)
+		if err != nil {
+			c.err = err
+			return 0
+		}
+	}
+	return uint64(value)
+}
+
+func (c *ProtobufConverter) byte(value int32, context ...string) byte {
 	if c.err != nil {
 		return 0
 	}
 	if value < 0 || value > 0xff {
-		c.err = errors.New("invalid byte value")
+		if len(context) > 0 {
+			c.err = errors.Errorf("invalid byte value, context: %s", context[0])
+		} else {
+			c.err = errors.New("invalid byte value")
+		}
+	}
+	return byte(value)
+}
+
+func (c *ProtobufConverter) bytev(value int32, validators ...func(int32) error) byte {
+	if c.err != nil {
+		return 0
+	}
+	for _, v := range validators {
+		err := v(value)
+		if err != nil {
+			c.err = err
+			return 0
+		}
 	}
 	return byte(value)
 }
@@ -345,7 +368,9 @@ func (c *ProtobufConverter) transfers(scheme byte, transfers []*g.MassTransferTr
 		}
 		e := MassTransferEntry{
 			Recipient: rcp,
-			Amount:    c.uint64(tr.Amount),
+			Amount: c.uint64v(tr.Amount, func(i int64) error {
+				return ValidatePositiveAmount(i, "One of the transfers has negative amount")
+			}),
 		}
 		if c.err != nil {
 			return nil
@@ -360,13 +385,16 @@ func (c *ProtobufConverter) attachment(att *g.Attachment, untyped bool) Attachme
 		return nil
 	}
 	if att == nil {
-		c.err = errors.New("empty attachment")
 		return nil
 	}
 	if untyped {
+		if att.Attachment == nil {
+			return &LegacyAttachment{Value: nil}
+		}
+
 		binaryAttachment, ok := att.Attachment.(*g.Attachment_BinaryValue)
 		if !ok {
-			c.err = errors.New("trying to convert non-binary attachment as untyped")
+			c.err = errors.Errorf("trying to convert non-binary type (%T) attachment as untyped", att.Attachment)
 			return nil
 		}
 		return &LegacyAttachment{Value: binaryAttachment.BinaryValue}
@@ -381,7 +409,7 @@ func (c *ProtobufConverter) attachment(att *g.Attachment, untyped bool) Attachme
 	case *g.Attachment_StringValue:
 		return &StringAttachment{t.StringValue}
 	}
-	c.err = errors.New("unsupported attachment type")
+	c.err = errors.Errorf("unsupported attachment type %T", att.Attachment)
 	return nil
 }
 
@@ -555,12 +583,29 @@ func (c *ProtobufConverter) BurnScriptActions(burns []*g.InvokeScriptResult_Burn
 	return res, nil
 }
 
+func (c *ProtobufConverter) SponsorshipScriptActions(sponsorships []*g.InvokeScriptResult_SponsorFee) ([]*SponsorshipScriptAction, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	res := make([]*SponsorshipScriptAction, len(sponsorships))
+	for i, x := range sponsorships {
+		res[i] = &SponsorshipScriptAction{
+			AssetID: c.digest(x.MinFee.AssetId),
+			MinFee:  x.MinFee.Amount,
+		}
+		if c.err != nil {
+			return nil, c.err
+		}
+	}
+	return res, nil
+}
+
 func (c *ProtobufConverter) ErrorMessage(msg *g.InvokeScriptResult_ErrorMessage) (*ScriptErrorMessage, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
 	return &ScriptErrorMessage{
-		Code: msg.Code,
+		Code: TxFailureReason(msg.Code),
 		Text: msg.Text,
 	}, nil
 }
@@ -610,11 +655,15 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			SenderPK:    c.publicKey(tx.SenderPublicKey),
 			Name:        d.Issue.Name,
 			Description: d.Issue.Description,
-			Quantity:    c.uint64(d.Issue.Amount),
-			Decimals:    c.byte(d.Issue.Decimals),
-			Reissuable:  d.Issue.Reissuable,
-			Timestamp:   ts,
-			Fee:         c.amount(tx.Fee),
+			Quantity: c.uint64v(d.Issue.Amount, func(v int64) error {
+				return ValidatePositiveAmount(v, "quantity")
+			}),
+			Decimals: c.bytev(d.Issue.Decimals, func(value int32) error {
+				return nil
+			}),
+			Reissuable: d.Issue.Reissuable,
+			Timestamp:  ts,
+			Fee:        c.amount(tx.Fee),
 		}
 		if tx.Version >= 2 {
 			rtx = &IssueWithProofs{
@@ -969,6 +1018,14 @@ func (c *ProtobufConverter) extractFirstSignature(proofs *ProofsV1) *crypto.Sign
 }
 
 func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transaction, error) {
+	tx, err := c.signedTransaction(stx)
+	if err != nil {
+		return tx, err
+	}
+	return tx.Validate()
+}
+
+func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transaction, error) {
 	tx, err := c.Transaction(stx.Transaction)
 	if err != nil {
 		return nil, err

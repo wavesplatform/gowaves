@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 
-	protobuf "github.com/golang/protobuf/proto"
 	"github.com/jinzhu/copier"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -16,6 +15,7 @@ import (
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 type BlockVersion byte

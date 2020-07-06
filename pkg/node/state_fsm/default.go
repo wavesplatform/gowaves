@@ -27,5 +27,6 @@ func (a DefaultImpl) PeerError(fsm FSM, p Peer, baseInfo BaseInfo, _ error) (FSM
 
 func (a DefaultImpl) NewPeer(fsm FSM, p Peer, info BaseInfo) (FSM, Async, error) {
 	err := info.peers.NewConnection(p)
+	info.Reschedule()
 	return fsm, nil, err
 }

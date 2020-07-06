@@ -62,7 +62,6 @@ func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k
 		return nil, proto.MiningLimits{}, err
 	}
 	b := bi.(*proto.Block)
-
 	rest := proto.MiningLimits{
 		MaxScriptRunsInBlock:        a.constraints.MaxScriptRunsInBlock,
 		MaxScriptsComplexityInBlock: a.constraints.MaxScriptsComplexityInBlock,
@@ -94,7 +93,11 @@ func blockVersion(state state.StateInfo) (proto.BlockVersion, error) {
 	return proto.NgBlockVersion, nil
 }
 
-func Run(ctx context.Context, a types.Miner, s *scheduler.SchedulerImpl, internalCh chan messages.InternalMessage) {
+type Mine interface {
+	Mine() chan scheduler.Emit
+}
+
+func Run(ctx context.Context, a types.Miner, s Mine, internalCh chan messages.InternalMessage) {
 	for {
 		select {
 		case <-ctx.Done():

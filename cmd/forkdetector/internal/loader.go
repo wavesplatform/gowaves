@@ -119,11 +119,11 @@ func (l *loader) requestBlocks(exclusion []*Conn) {
 }
 
 func (l *loader) requestBlock(id proto.BlockID, conn *Conn) error {
-	zap.S().Infof("[%s][LDR] Requesting block '%s'", conn.RawConn.RemoteAddr(), id.String())
 	if conn == nil {
 		zap.S().Fatalf("Empty connection to request block '%s'", id.String())
 		return nil
 	}
+	zap.S().Infof("[%s][LDR] Requesting block '%s'", conn.RawConn.RemoteAddr(), id.String())
 	buf := new(bytes.Buffer)
 	m := proto.GetBlockMessage{BlockID: id}
 	_, err := m.WriteTo(buf)

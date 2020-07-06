@@ -3,6 +3,9 @@ package state
 import (
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -10,14 +13,16 @@ const (
 )
 
 func TestCalculateScore(t *testing.T) {
-	var genesisScore big.Int
-	genesisScore.SetString(genesisScoreStr, 10)
+	genesisScore, ok := big.NewInt(0).SetString(genesisScoreStr, 10)
+	require.True(t, ok)
 	genesisTarget := uint64(153722867)
 	result, err := CalculateScore(genesisTarget)
-	if err != nil {
-		t.Fatalf("Failed to calculate score: %v\n", err)
-	}
-	if result.Cmp(&genesisScore) != 0 {
-		t.Errorf("Scores are not equal.")
-	}
+	require.NoError(t, err)
+	assert.Equal(t, genesisScore, result)
+}
+
+func TestCalculateScoreFromZeroValue(t *testing.T) {
+	var bt uint64
+	_, err := CalculateScore(bt)
+	assert.Error(t, err)
 }

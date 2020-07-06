@@ -229,13 +229,18 @@ func (a *ThreadSafeReadWrapper) TransactionByID(id []byte) (proto.Transaction, e
 	return a.s.TransactionByID(id)
 }
 
+func (a *ThreadSafeReadWrapper) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.TransactionByIDWithStatus(id)
+}
+
 func (a *ThreadSafeReadWrapper) TransactionHeightByID(id []byte) (uint64, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.TransactionHeightByID(id)
 }
 
-// TODO is it safe??
 func (a *ThreadSafeReadWrapper) NewAddrTransactionsIterator(addr proto.Address) (TransactionIterator, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -302,16 +307,10 @@ func (a *ThreadSafeReadWrapper) ProvidesExtendedApi() (bool, error) {
 	return a.s.ProvidesExtendedApi()
 }
 
-func (a *ThreadSafeReadWrapper) PersisAddressTransactions() error {
+func (a *ThreadSafeReadWrapper) ShouldPersistAddressTransactions() (bool, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.PersisAddressTransactions()
-}
-
-func (a *ThreadSafeReadWrapper) ShouldPersisAddressTransactions() (bool, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.ShouldPersisAddressTransactions()
+	return a.s.ShouldPersistAddressTransactions()
 }
 
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
@@ -333,8 +332,13 @@ func (a *ThreadSafeWriteWrapper) Map(f func(state NonThreadSafeState) error) err
 	return f(a.s)
 }
 
-func (a *ThreadSafeWriteWrapper) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64,
-	blockVersion proto.BlockVersion, vrf []byte, acceptFailed bool) error {
+func (a *ThreadSafeWriteWrapper) ValidateNextTx(
+	tx proto.Transaction,
+	currentTimestamp uint64,
+	parentTimestamp uint64,
+	blockVersion proto.BlockVersion,
+	checkScripts bool,
+) error {
 	panic("Invalid ValidateNextTx usage on thread safe wrapper. Should call TxValidation")
 }
 
@@ -407,6 +411,12 @@ func (a *ThreadSafeWriteWrapper) StartProvidingExtendedApi() error {
 	a.lock()
 	defer a.unlock()
 	return a.s.StartProvidingExtendedApi()
+}
+
+func (a *ThreadSafeWriteWrapper) PersistAddressTransactions() error {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.PersistAddressTransactions()
 }
 
 func (a *ThreadSafeWriteWrapper) Close() error {
