@@ -66,6 +66,8 @@ func (a *MicroMiner) Micro(
 	var unAppliedTransactions []*types.TransactionWithBytes
 
 	_ = a.state.Map(func(s state.NonThreadSafeState) error {
+		defer s.ResetValidationList()
+
 		// 255 is max transactions count in microblock
 		for i := 0; i < 255; i++ {
 			t := a.utx.Pop()

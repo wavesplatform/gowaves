@@ -71,7 +71,7 @@ func (s *diffStorage) latestDiffByKey(key string) (balanceDiff, error) {
 	return s.changes[index].latestDiff()
 }
 
-func (s *diffStorage) setBalanceChanges(changes *balanceChanges) error {
+func (s *diffStorage) setBalanceChanges(changes *balanceChanges) {
 	key := string(changes.key)
 	if index, ok := s.keys[key]; ok {
 		s.changes[index] = *changes
@@ -79,7 +79,6 @@ func (s *diffStorage) setBalanceChanges(changes *balanceChanges) error {
 		s.keys[key] = len(s.changes)
 		s.changes = append(s.changes, *changes)
 	}
-	return nil
 }
 
 func (s *diffStorage) balanceChanges(key string) (*balanceChanges, error) {
@@ -111,7 +110,8 @@ func (s *diffStorage) addBalanceDiff(key string, diff balanceDiff) error {
 	index, ok := s.keys[key]
 	if !ok {
 		changes := newBalanceChanges([]byte(key), diff)
-		return s.setBalanceChanges(changes)
+		s.setBalanceChanges(changes)
+		return nil
 	}
 	changes := &s.changes[index]
 	// Add new diff to existing changes.
@@ -216,9 +216,7 @@ func (s *diffStorageWrapped) saveTxDiff(diff txDiff) error {
 			return err
 		}
 		// The result is saved to invoke stor.
-		if err := s.invokeDiffsStor.setBalanceChanges(change); err != nil {
-			return errors.Wrap(err, "failed to save changes to changes storage")
-		}
+		s.invokeDiffsStor.setBalanceChanges(change)
 	}
 	return nil
 }
