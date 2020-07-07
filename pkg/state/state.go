@@ -384,6 +384,9 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create stateDB: %v", err))
 	}
+	if err := checkCompatibility(stateDB, params); err != nil {
+		return nil, wrapErr(IncompatibilityError, err)
+	}
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(
 		blockStorageDir,
@@ -396,9 +399,6 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
 	}
 	stateDB.setRw(rw)
-	if err := checkCompatibility(stateDB, params); err != nil {
-		return nil, wrapErr(IncompatibilityError, err)
-	}
 	hs, err := newHistoryStorage(db, dbBatch, stateDB)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v", err))
