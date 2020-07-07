@@ -92,6 +92,13 @@ func (c *ProtobufConverter) uint64v(value int64, validators ...func(int64) error
 			return 0
 		}
 	}
+	for _, v := range validators {
+		err := v(value)
+		if err != nil {
+			c.err = err
+			return 0
+		}
+	}
 	return uint64(value)
 }
 

@@ -22,6 +22,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
@@ -72,6 +73,8 @@ var (
 	integrationGenesisBlockTimestamp  = flag.Int("integration.genesis.block-timestamp", 0, "??")
 	integrationAccountSeed            = flag.String("integration.account-seed", "", "??")
 	integrationAddressSchemeCharacter = flag.String("integration.address-scheme-character", "", "??")
+	metricsID                         = flag.Int("metrics-id", -1, "ID of the node on the metrics collection system")
+	metricsURL                        = flag.String("metrics-url", "", "URL of InfluxDB or Telegraf in form of 'http://username:password@host:port/db'")
 )
 
 var defaultPeers = map[string]string{
@@ -124,6 +127,18 @@ func main() {
 		go func() {
 			zap.S().Warn(http.ListenAndServe("localhost:6060", nil))
 		}()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	if *metricsURL != "" && *metricsID != -1 {
+		err := metrics.Start(ctx, *metricsID, *metricsURL)
+		if err != nil {
+			zap.S().Warnf("Metrics reporting failed to start: %v", err)
+			zap.S().Warn("Proceeding without reporting any metrics")
+		} else {
+			zap.S().Info("Metrics reporting activated")
+		}
 	}
 
 	debugCommandLineParameters()
