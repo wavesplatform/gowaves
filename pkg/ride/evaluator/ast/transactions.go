@@ -295,13 +295,7 @@ func newVariablesFromPayment(scheme proto.Scheme, tx *proto.Payment) (map[string
 }
 
 func setAttachment(obj map[string]Expr, a proto.Attachment) error {
-	if a != nil {
-		ab, err := a.Bytes()
-		if err != nil {
-			return err
-		}
-		obj["attachment"] = NewBytes(ab)
-	}
+	obj["attachment"] = NewBytes(a)
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -166,4 +167,20 @@ func FromBase58JSON(value []byte, size int, name string) ([]byte, error) {
 		return nil, errors.Errorf("incorrect length %d of %s value, expected %d", l, name, size)
 	}
 	return v[:size], nil
+}
+
+type tm interface {
+	Now() time.Time
+}
+
+// no way when expected can be higher than current, but if somehow its happened...
+func EnsureTimeout(tm tm, expected uint64) {
+	for {
+		current := uint64(tm.Now().UnixNano() / 1000000)
+		if expected > current {
+			<-time.After(5 * time.Millisecond)
+			continue
+		}
+		break
+	}
 }

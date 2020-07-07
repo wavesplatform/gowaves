@@ -223,24 +223,24 @@ func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScript
 	if accountScripted {
 		// Check script.
 		if err := a.sc.callAccountScriptWithTx(tx, blockInfo, checkerInfo.initialisation); err != nil {
-			return 0, err
+			return 0, errs.Extend(err, "callAccountScriptWithTx")
 		}
 		scriptsRuns++
 	}
 	// Check against state.
 	txSmartAssets, err := a.txHandler.checkTx(tx, checkerInfo)
 	if err != nil {
-		return 0, err
+		return 0, errs.Extend(err, "checkTx")
 	}
 	ride4DAppsActivated, err := a.stor.features.isActivated(int16(settings.Ride4DApps))
 	if err != nil {
-		return 0, err
+		return 0, errs.Extend(err, "isActivated")
 	}
 	for _, smartAsset := range txSmartAssets {
 		// Check smart asset's script.
 		_, err := a.sc.callAssetScript(tx, smartAsset, blockInfo, checkerInfo.initialisation, false)
 		if err != nil {
-			return 0, err
+			return 0, errs.Extend(err, "callAssetScript")
 		}
 		if tx.GetTypeInfo().Type == proto.SetAssetScriptTransaction && !ride4DAppsActivated {
 			// Exception: don't count before Ride4DApps activation.
@@ -647,31 +647,31 @@ func (a *txAppender) resetValidationList() {
 // For UTX validation.
 func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, checkScripts bool) error {
 	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, currentTimestamp); err != nil {
-		return err
+		return errs.Extend(err, "check duplicate tx ids")
 	}
 	// Add transaction ID.
 	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
-		return err
+		return errs.Extend(err, "failed get tx by id")
 	}
 	a.recentTxIds[string(txID)] = empty
 	scripted, err := a.hasAccountVerifyScript(tx, false)
 	if err != nil {
-		return err
+		return errs.Extend(err, "failed check hasAccountVerifyScript")
 	}
 	// Check tx signature and data.
 	if err := a.checkUtxTxSig(tx, scripted); err != nil {
-		return err
+		return errs.Extend(err, "failed checkUtxTxSig")
 	}
 	// TODO: Doesn't work correctly if miner doesn't work in NG mode.
 	// In this case it returns the last block instead of what is being mined.
 	block, err := a.currentBlock()
 	if err != nil {
-		return err
+		return errs.Extend(err, "failed get currentBlock")
 	}
 	blockInfo, err := a.currentBlockInfo()
 	if err != nil {
-		return err
+		return errs.Extend(err, "failed get currentBlockInfo")
 	}
 	blockInfo.Timestamp = currentTimestamp
 	checkerInfo := &checkerInfo{
@@ -683,7 +683,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	}
 	blockV5Activated, err := a.stor.features.isActivated(int16(settings.BlockV5))
 	if err != nil {
-		return err
+		return errs.Extend(err, "failed check is activated")
 	}
 	// Check tx data against state.
 	var txScriptsRuns uint64
@@ -702,34 +702,34 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		}
 		applicationInfo, err := a.handleFallible(tx, fallibleInfo)
 		if err != nil {
-			return err
+			return errs.Extend(err, "handleFallible")
 		}
 		txScriptsRuns = applicationInfo.totalScriptsRuns
 		changes = applicationInfo.changes
 	default:
 		txScriptsRuns, err = a.checkTransactionScripts(tx, scripted, checkerInfo, blockInfo)
 		if err != nil {
-			return err
+			return errs.Extend(err, "checkTransactionScripts")
 		}
 		// Create balance diff.
 		differInfo := &differInfo{false, blockInfo}
 		changes, err = a.blockDiffer.createTransactionDiff(tx, block, differInfo)
 		if err != nil {
-			return err
+			return errs.Extend(err, "failed createTransactionDiff")
 		}
 		// Validate tx diff.
 		if err := a.diffApplier.validateTxDiff(changes.diff, a.diffStor, true); err != nil {
-			return err
+			return errs.Extend(err, "failed validateTxDiff")
 		}
 	}
 	// Validate script runs.
 	if err := a.checkScriptsLimits(a.totalScriptsRuns + txScriptsRuns); err != nil {
-		return err
+		return errs.Extend(err, "checkScriptsLimits")
 	}
 	a.totalScriptsRuns += txScriptsRuns
 	// Save balance diff.
 	if err := a.diffStor.saveTxDiff(changes.diff); err != nil {
-		return err
+		return errs.Extend(err, "saveTxDiff")
 	}
 	return nil
 }

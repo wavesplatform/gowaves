@@ -24,3 +24,7 @@ func (s *Server) GetInfo(ctx context.Context, req *g.AssetRequest) (*g.AssetInfo
 	}
 	return res, nil
 }
+
+func (s *Server) GetNFTList(*g.NFTRequest, g.AssetsApi_GetNFTListServer) error {
+	return status.Errorf(codes.Unimplemented, "not GetNFTList")
+}

@@ -111,6 +111,7 @@ build-custom: ver build-custom-linux build-custom-darwin build-custom-windows
 
 build-docker:
 	docker build -t com.wavesplatform/node-it:latest .
+	date "+%Y-%m-%d %H:%M:%S"
 
 build-importer-linux:
 	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/importer ./cmd/importer

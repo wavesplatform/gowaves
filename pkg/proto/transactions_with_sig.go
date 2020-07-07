@@ -269,6 +269,10 @@ type TransferWithSig struct {
 	Transfer
 }
 
+func (tx TransferWithSig) GetProofs() *ProofsV1 {
+	return NewProofsFromSignature(tx.Signature)
+}
+
 func (tx *TransferWithSig) Validate() (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for TransferWithSig", tx.Version)
@@ -538,11 +542,6 @@ func (tx *TransferWithSig) UnmarshalJSON(data []byte) error {
 		Signature *crypto.Signature `json:"signature,omitempty"`
 		Transfer
 	}{}
-	var err error
-	tmp.Attachment, err = TxAttachmentFromJson(data, TransferTransaction)
-	if err != nil {
-		return err
-	}
 
 	if err := json.Unmarshal(data, &tmp); err != nil {
 		return err

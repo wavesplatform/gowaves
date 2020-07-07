@@ -381,42 +381,6 @@ func TxVersionFromJson(data []byte) (byte, error) {
 	return txVersion.Version, nil
 }
 
-type attachmentType struct {
-	Type string `json:"type"`
-}
-
-func TxAttachmentFromJson(data []byte, txType TransactionType) (Attachment, error) {
-	version, err := TxVersionFromJson(data)
-	if err != nil {
-		return nil, err
-	}
-	protobufVersion, ok := ProtobufTransactionsVersions[txType]
-	if !ok {
-		return nil, errors.Errorf("Type %v is absent in ProtobufTransactionsVersions", txType)
-	}
-	if version < protobufVersion {
-		return &LegacyAttachment{}, nil
-	}
-	tx := struct {
-		Attachment attachmentType `json:"attachment"`
-	}{}
-	if err := json.Unmarshal(data, &tx); err != nil {
-		return nil, err
-	}
-	switch tx.Attachment.Type {
-	case "integer":
-		return &IntAttachment{}, nil
-	case "boolean":
-		return &BoolAttachment{}, nil
-	case "binary":
-		return &BinaryAttachment{}, nil
-	case "string":
-		return &StringAttachment{}, nil
-	default:
-		return nil, errors.New("unknown attachment type")
-	}
-}
-
 //Genesis is a transaction used to initial balances distribution. This transactions allowed only in the first block.
 type Genesis struct {
 	Type      TransactionType   `json:"type"`
@@ -1116,6 +1080,10 @@ type Transfer struct {
 	Attachment  Attachment       `json:"attachment,omitempty"`
 }
 
+func (tr Transfer) GetAttachment() []byte {
+	return tr.Attachment
+}
+
 func (tr Transfer) BinarySize() int {
 	aaSize := tr.AmountAsset.BinarySize()
 	faSize := tr.FeeAsset.BinarySize()
@@ -1181,10 +1149,7 @@ func (tr *Transfer) marshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal Transfer body")
 	}
 	rl := len(rb)
-	att, ok := tr.Attachment.(*LegacyAttachment)
-	if !ok {
-		return nil, errors.New("binary format is only defined for untyped attachments")
-	}
+	att := tr.Attachment
 	atl := att.Size()
 	buf := make([]byte, transferLen+aal+fal+atl+rl)
 	copy(buf[p:], tr.SenderPK[:])
@@ -1246,15 +1211,7 @@ func (tr *Transfer) Serialize(s *serializer.Serializer) error {
 	if err != nil {
 		return err
 	}
-	att, ok := tr.Attachment.(*LegacyAttachment)
-	if !ok {
-		return errors.New("binary format is only defined for untyped attachments")
-	}
-	attBytes, err := att.Bytes()
-	if err != nil {
-		return err
-	}
-	err = s.BytesWithUInt16Len(attBytes)
+	err = s.BytesWithUInt16Len(tr.Attachment)
 	if err != nil {
 		return err
 	}
@@ -1298,7 +1255,7 @@ func (tr *Transfer) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Transfer body from bytes")
 	}
-	tr.Attachment = &LegacyAttachment{Value: a}
+	tr.Attachment = a
 	return nil
 }
 
@@ -1307,14 +1264,10 @@ func (tr *Transfer) ToProtobuf() (*g.Transaction_Transfer, error) {
 	if err != nil {
 		return nil, err
 	}
-	var att *g.Attachment = nil
-	if tr.Attachment != nil {
-		att = tr.Attachment.ToProtobuf()
-	}
 	return &g.Transaction_Transfer{Transfer: &g.TransferTransactionData{
 		Recipient:  rcpProto,
 		Amount:     &g.Amount{AssetId: tr.AmountAsset.ToID(), Amount: int64(tr.Amount)},
-		Attachment: att,
+		Attachment: tr.Attachment,
 	}}, nil
 }
 
