@@ -208,7 +208,6 @@ func main() {
 		return
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
 	ntptm, err := getNtp(ctx)
 	if err != nil {
 		zap.S().Error(err)
