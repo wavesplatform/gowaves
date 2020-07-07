@@ -1,4 +1,4 @@
-package stride
+package fride
 
 type Node interface {
 	node()
