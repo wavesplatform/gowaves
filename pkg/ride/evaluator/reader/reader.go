@@ -148,6 +148,10 @@ func (a *BytesReader) ReadBytes() []byte {
 	return out
 }
 
+func (a *BytesReader) Content() []byte {
+	return a.bytes
+}
+
 func (a *BytesReader) Pos() int {
 	return a.pos
 }

@@ -215,7 +215,7 @@ func TestAssets_MassTransfer(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.EqualValues(t, proto.MassTransferTransaction, body.Type)
 	assert.EqualValues(t, 1, body.Version)
-	att, _ := proto.NewLegacyAttachmentFromBase58("t")
+	att, _ := proto.NewAttachmentFromBase58("t")
 	assert.Equal(t, att, body.Attachment)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/assets/masstransfer", resp.Request.URL.String())
 }

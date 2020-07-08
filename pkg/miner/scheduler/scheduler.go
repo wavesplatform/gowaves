@@ -308,7 +308,7 @@ func (a *SchedulerImpl) Reschedule() {
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.storage.TopBlock()
 	if currentTimestamp-lastKnownBlock.Timestamp > a.outdatePeriod {
-		zap.S().Debug("Scheduler: Mining is not allowed because blockchain is too old")
+		zap.S().Debugf("Scheduler: Mining is not allowed because blockchain is too old: cur %d, block.ts %d, outdate: %d, id: %s", currentTimestamp, lastKnownBlock.Timestamp, a.outdatePeriod, lastKnownBlock.ID)
 		return
 	}
 
@@ -362,12 +362,13 @@ func (a *SchedulerImpl) reschedule(confirmedBlock *proto.Block, confirmedBlockHe
 			timeout := emit.Timestamp - now
 			emit_ := emit
 			cancel := cancellable.After(time.Duration(timeout)*time.Millisecond, func() {
+				// hack for integrations tests
+				common.EnsureTimeout(a.tm, emit_.Timestamp)
 				select {
 				case a.mine <- emit_:
 				default:
 					zap.S().Debug("Scheduler: cannot emit a.mine, chan is full")
 				}
-
 			})
 			a.cancel = append(a.cancel, cancel)
 		} else {

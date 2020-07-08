@@ -279,222 +279,46 @@ func (a OptionalAsset) Eq(b OptionalAsset) bool {
 	return a.Present == b.Present && a.ID == b.ID
 }
 
-// Attachment represents the additional data stored in Transfer and MassTransfer transactions.
-type Attachment interface {
-	ToProtobuf() *g.Attachment
-	Size() int
-	Bytes() ([]byte, error)
+type Attachment []byte
 
-	json.Marshaler
-	json.Unmarshaler
+func (a Attachment) Size() int {
+	return len(a)
 }
 
-type IntAttachment struct {
-	Value int64
+func (a Attachment) Bytes() ([]byte, error) {
+	return a, nil
 }
 
-func (a IntAttachment) ToProtobuf() *g.Attachment {
-	return &g.Attachment{Attachment: &g.Attachment_IntValue{IntValue: a.Value}}
+func (a Attachment) MarshalJSON() ([]byte, error) {
+	return json.Marshal(base58.Encode(a))
 }
 
-func (a IntAttachment) Size() int {
-	return 8
-}
-
-func (a IntAttachment) Bytes() ([]byte, error) {
-	return Int64ToProtobuf(a.Value)
-}
-
-func (a IntAttachment) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		T string `json:"type"`
-		V int    `json:"value"`
-	}{"integer", int(a.Value)})
-}
-
-func (a *IntAttachment) UnmarshalJSON(data []byte) error {
-	tmp := struct {
-		T string `json:"type"`
-		V int    `json:"value"`
-	}{}
-	if err := json.Unmarshal(data, &tmp); err != nil {
-		return errors.Wrap(err, "failed to parse int attachment from JSON")
-	}
-	*a = IntAttachment{int64(tmp.V)}
-	return nil
-}
-
-type BoolAttachment struct {
-	Value bool
-}
-
-func (a BoolAttachment) ToProtobuf() *g.Attachment {
-	return &g.Attachment{Attachment: &g.Attachment_BoolValue{BoolValue: a.Value}}
-}
-
-func (a BoolAttachment) Size() int {
-	return 1
-}
-func (a BoolAttachment) Bytes() ([]byte, error) {
-	buf := make([]byte, 1)
-	PutBool(buf, bool(a.Value))
-	return buf, nil
-}
-
-func (a BoolAttachment) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		T string `json:"type"`
-		V bool   `json:"value"`
-	}{"boolean", a.Value})
-}
-
-func (a *BoolAttachment) UnmarshalJSON(data []byte) error {
-	tmp := struct {
-		T string `json:"type"`
-		V bool   `json:"value"`
-	}{}
-	if err := json.Unmarshal(data, &tmp); err != nil {
-		return errors.Wrap(err, "failed to parse bool attachment from JSON")
-	}
-	*a = BoolAttachment{tmp.V}
-	return nil
-}
-
-type StringAttachment struct {
-	Value string
-}
-
-func NewStringAttachment(s string) StringArgument {
-	return StringArgument{Value: s}
-}
-
-func (a StringAttachment) ToProtobuf() *g.Attachment {
-	return &g.Attachment{Attachment: &g.Attachment_StringValue{StringValue: a.Value}}
-}
-
-func (a StringAttachment) Size() int {
-	return len(a.Value)
-}
-
-func (a StringAttachment) Bytes() ([]byte, error) {
-	return []byte(a.Value), nil
-}
-
-func (a StringAttachment) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		T string `json:"type"`
-		V string `json:"value"`
-	}{"string", a.Value})
-}
-
-func (a *StringAttachment) UnmarshalJSON(data []byte) error {
-	tmp := struct {
-		T string `json:"type"`
-		V string `json:"value"`
-	}{}
-	if err := json.Unmarshal(data, &tmp); err != nil {
-		return errors.Wrap(err, "failed to parse string attachment from JSON")
-	}
-	*a = StringAttachment{tmp.V}
-	return nil
-}
-
-type BinaryAttachment struct {
-	Value []byte
-}
-
-func (a BinaryAttachment) ToProtobuf() *g.Attachment {
-	return &g.Attachment{Attachment: &g.Attachment_BinaryValue{BinaryValue: a.Value}}
-}
-
-func (a BinaryAttachment) Size() int {
-	return len(a.Value)
-}
-
-func (a BinaryAttachment) Bytes() ([]byte, error) {
-	return []byte(a.Value), nil
-}
-
-func (a BinaryAttachment) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		T string `json:"type"`
-		V Script `json:"value"`
-	}{"binary", Script(a.Value)})
-}
-
-func (a *BinaryAttachment) UnmarshalJSON(data []byte) error {
-	tmp := struct {
-		T string `json:"type"`
-		V Script `json:"value"`
-	}{}
-	if err := json.Unmarshal(data, &tmp); err != nil {
-		return errors.Wrap(err, "failed to parse binary attachment from JSON")
-	}
-	*a = BinaryAttachment{tmp.V}
-	return nil
-}
-
-// LegacyAttachment represents untyped old attachments.
-type LegacyAttachment BinaryAttachment
-
-// NewLegacyAttachmentFromBase58 creates an LegacyAttachment structure from its
-// base58 string representation.
-func NewLegacyAttachmentFromBase58(s string) (*LegacyAttachment, error) {
-	v, err := base58.Decode(s)
-	if err != nil {
-		return nil, err
-	}
-	return &LegacyAttachment{Value: v}, nil
-}
-
-func (a LegacyAttachment) ToProtobuf() *g.Attachment {
-	return BinaryAttachment(a).ToProtobuf()
-}
-
-func (a LegacyAttachment) Size() int {
-	return BinaryAttachment(a).Size()
-}
-
-func (a LegacyAttachment) Bytes() ([]byte, error) {
-	return BinaryAttachment(a).Bytes()
-}
-
-func (a LegacyAttachment) String() string {
-	return string(a.Value)
-}
-
-// MarshalJSON writes LegacyAttachment as a JSON string Value
-func (a LegacyAttachment) MarshalJSON() ([]byte, error) {
-	b := []byte(a.Value)
-	sb := strings.Builder{}
-	sb.WriteRune('"')
-	sb.WriteString(base58.Encode(b))
-	sb.WriteRune('"')
-	return []byte(sb.String()), nil
-}
-
-// UnmarshalJSON reads LegacyAttachment from a JSON string Value
-func (a *LegacyAttachment) UnmarshalJSON(value []byte) error {
-	s := string(value)
-	if s == jsonNull {
+func (a *Attachment) UnmarshalJSON(data []byte) error {
+	*a = Attachment{}
+	if len(data) == 0 {
 		return nil
 	}
-	s, err := strconv.Unquote(s)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal Attachment from JSON")
+	if bytes.Equal(data, []byte("null")) {
+		return nil
 	}
-
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal")
+	}
 	if s == "" {
-		*a = LegacyAttachment{Value: []byte{}}
 		return nil
 	}
-
-	v, err := base58.Decode(s)
+	rs, err := base58.Decode(s)
 	if err != nil {
-		return errors.Wrap(err, "failed to decode Attachment from JSON Value")
+		return err
 	}
-	*a = LegacyAttachment{Value: v}
+	*a = rs
 	return nil
+}
+
+func NewAttachmentFromBase58(s string) (Attachment, error) {
+	return base58.Decode(s)
 }
 
 //OrderType an alias for byte that encodes the type of OrderV1 (BUY|SELL).

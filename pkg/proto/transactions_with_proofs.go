@@ -384,6 +384,10 @@ func (tx TransferWithProofs) BinarySize() int {
 	return 3 + tx.Proofs.BinarySize() + tx.Transfer.BinarySize()
 }
 
+func (tx TransferWithProofs) GetProofs() *ProofsV1 {
+	return tx.Proofs
+}
+
 func (tx *TransferWithProofs) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
 	return MarshalTxDeterministic(tx, scheme)
 }
@@ -667,11 +671,6 @@ func (tx *TransferWithProofs) UnmarshalJSON(data []byte) error {
 		Proofs  *ProofsV1       `json:"proofs,omitempty"`
 		Transfer
 	}{}
-	var err error
-	tmp.Attachment, err = TxAttachmentFromJson(data, TransferTransaction)
-	if err != nil {
-		return err
-	}
 
 	if err := json.Unmarshal(data, &tmp); err != nil {
 		return err
@@ -2719,15 +2718,7 @@ func (tx *MassTransferWithProofs) BodyMarshalBinary() ([]byte, error) {
 	p += 8
 	binary.BigEndian.PutUint64(buf[p:], tx.Fee)
 	p += 8
-	att, ok := tx.Attachment.(*LegacyAttachment)
-	if !ok {
-		return nil, errors.New("binary format is only defined for untyped attachments")
-	}
-	attBytes, err := att.Bytes()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to convert attachment to bytes")
-	}
-	PutBytesWithUInt16Len(buf[p:], attBytes)
+	PutBytesWithUInt16Len(buf[p:], tx.Attachment)
 	return buf, nil
 }
 
@@ -2772,7 +2763,7 @@ func (tx *MassTransferWithProofs) bodyUnmarshalBinary(data []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal MassTransferWithProofs transaction body from bytes")
 	}
-	tx.Attachment = &LegacyAttachment{Value: at}
+	tx.Attachment = at
 	return nil
 }
 
@@ -2899,7 +2890,7 @@ func (tx *MassTransferWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, err
 	txData := &g.Transaction_MassTransfer{MassTransfer: &g.MassTransferTransactionData{
 		AssetId:    tx.Asset.ToID(),
 		Transfers:  transfers,
-		Attachment: tx.Attachment.ToProtobuf(),
+		Attachment: tx.Attachment,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx)
@@ -2935,11 +2926,6 @@ func (tx *MassTransferWithProofs) UnmarshalJSON(data []byte) error {
 		Fee        uint64              `json:"fee"`
 		Attachment Attachment          `json:"attachment,omitempty"`
 	}{}
-	var err error
-	tmp.Attachment, err = TxAttachmentFromJson(data, TransferTransaction)
-	if err != nil {
-		return err
-	}
 
 	if err := json.Unmarshal(data, &tmp); err != nil {
 		return err

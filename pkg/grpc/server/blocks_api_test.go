@@ -68,7 +68,6 @@ func TestGetBlock(t *testing.T) {
 	noTransactionsProto := headerFromState(t, blockHeight, st)
 
 	sig := crypto.MustSignatureFromBase58("VaviVcQWhEz2idFT9P5YQebai2CtDrUrbqmkZNSUsKS1mNpSyg8NAyHnmrY32Cgv1oSfPdTWXqZTExNz33Edtmv")
-	parent := crypto.MustSignatureFromBase58("2uN9rN94LSARneoTChNzVrDUuU9sT5CVvCtcFuRzpEtxZZAFGkCQPJiNjBJPSLo47tfXFZmgu1UdSfFeUzD9rZYX")
 
 	// By block ID.
 	req := &g.BlockRequest{Request: &g.BlockRequest_BlockId{BlockId: sig.Bytes()}, IncludeTransactions: true}
@@ -88,17 +87,6 @@ func TestGetBlock(t *testing.T) {
 	assert.True(t, protobuf.Equal(correctBlockProto, res))
 	// Without transactions.
 	req = &g.BlockRequest{Request: &g.BlockRequest_Height{Height: int32(blockHeight)}, IncludeTransactions: false}
-	res, err = cl.GetBlock(ctx, req)
-	assert.NoError(t, err)
-	assert.True(t, protobuf.Equal(noTransactionsProto, res))
-
-	// By reference.
-	req = &g.BlockRequest{Request: &g.BlockRequest_Reference{Reference: parent.Bytes()}, IncludeTransactions: true}
-	res, err = cl.GetBlock(ctx, req)
-	assert.NoError(t, err)
-	assert.True(t, protobuf.Equal(correctBlockProto, res))
-	// Without transactions.
-	req = &g.BlockRequest{Request: &g.BlockRequest_Reference{Reference: parent.Bytes()}, IncludeTransactions: false}
 	res, err = cl.GetBlock(ctx, req)
 	assert.NoError(t, err)
 	assert.True(t, protobuf.Equal(noTransactionsProto, res))
@@ -169,7 +157,7 @@ func TestGetBlockRange(t *testing.T) {
 	// Enable filter.
 	gen := crypto.MustPublicKeyFromBase58("ARqHSzWJjTmtx3eqoFSkR6d432v2q4s1jLrYEt8axVmd")
 	genBytes := gen.Bytes()
-	req.Filter = &g.BlockRangeRequest_Generator{Generator: genBytes}
+	req.Filter = &g.BlockRangeRequest_GeneratorPublicKey{GeneratorPublicKey: genBytes}
 	stream, err = cl.GetBlockRange(ctx, req)
 	assert.NoError(t, err)
 	for h := startHeight; h <= endHeight; h++ {

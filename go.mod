@@ -13,7 +13,7 @@ require (
 	github.com/ericlagergren/decimal v0.0.0-20190912144844-2c3e3e1ef942
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/golang/mock v1.4.3
-	github.com/golang/protobuf v1.4.1
+	github.com/golang/protobuf v1.4.2
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/howeyc/gopass v0.0.0-20190910152052-7cb4b85ec19c
@@ -34,7 +34,7 @@ require (
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
 	github.com/steakknife/hamming v0.0.0-20180906055917-c99c65617cd3 // indirect
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/xenolf/lego v2.7.2+incompatible
@@ -47,7 +47,7 @@ require (
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/genproto v0.0.0-20200511104702-f5ebc3bea380 // indirect
 	google.golang.org/grpc v1.29.1
-	google.golang.org/protobuf v1.22.0
+	google.golang.org/protobuf v1.23.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.2.8 // indirect

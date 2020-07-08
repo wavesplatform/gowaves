@@ -194,3 +194,21 @@ func (a UnknownAsset) Extend(message string) error {
 func NewUnknownAsset(message string) *UnknownAsset {
 	return &UnknownAsset{message: message}
 }
+
+type AssetIssuedByOtherAddress struct {
+	message string
+}
+
+func (a AssetIssuedByOtherAddress) Error() string {
+	return a.message
+}
+
+func NewAssetIssuedByOtherAddress(message string) *AssetIssuedByOtherAddress {
+	return &AssetIssuedByOtherAddress{
+		message: message,
+	}
+}
+
+func (a AssetIssuedByOtherAddress) Extend(message string) error {
+	return NewAssetIssuedByOtherAddress(fmtExtend(a, message))
+}

@@ -378,7 +378,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 	tx := existingGenesisTx(t)
 	txID, err := tx.GetID(settings.MainNetSettings.AddressSchemeCharacter)
 	assert.NoError(t, err, "tx.GetID() failed")
-	expectedErrStr := fmt.Sprintf("transaction with ID %v already in state", txID)
+	expectedErrStr := fmt.Sprintf("check duplicate tx ids: transaction with ID %v already in state", txID)
 	err = manager.ValidateNextTx(tx, 1460678400000, 1460678400000, 3, true)
 	assert.Error(t, err, "duplicate transacton ID was accepted by state")
 	assert.EqualError(t, err, expectedErrStr)

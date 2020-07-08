@@ -173,6 +173,22 @@ func FromBase58JSON(value []byte, size int, name string) ([]byte, error) {
 	return v[:size], nil
 }
 
+type tm interface {
+	Now() time.Time
+}
+
+// no way when expected can be higher than current, but if somehow its happened...
+func EnsureTimeout(tm tm, expected uint64) {
+	for {
+		current := uint64(tm.Now().UnixNano() / 1000000)
+		if expected > current {
+			<-time.After(5 * time.Millisecond)
+			continue
+		}
+		break
+	}
+}
+
 func TimestampMillisToTime(ts uint64) time.Time {
 	ts64 := int64(ts)
 	s := ts64 / 1000

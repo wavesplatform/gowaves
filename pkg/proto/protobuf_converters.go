@@ -92,6 +92,13 @@ func (c *ProtobufConverter) uint64v(value int64, validators ...func(int64) error
 			return 0
 		}
 	}
+	for _, v := range validators {
+		err := v(value)
+		if err != nil {
+			c.err = err
+			return 0
+		}
+	}
 	return uint64(value)
 }
 
@@ -380,37 +387,12 @@ func (c *ProtobufConverter) transfers(scheme byte, transfers []*g.MassTransferTr
 	return r
 }
 
-func (c *ProtobufConverter) attachment(att *g.Attachment, untyped bool) Attachment {
-	if c.err != nil {
-		return nil
+func (c *ProtobufConverter) attachment(att []byte, untyped bool) Attachment {
+	// this cast is required, tests fill fall if remove!
+	if len(att) == 0 {
+		return Attachment{}
 	}
-	if att == nil {
-		return nil
-	}
-	if untyped {
-		if att.Attachment == nil {
-			return &LegacyAttachment{Value: nil}
-		}
-
-		binaryAttachment, ok := att.Attachment.(*g.Attachment_BinaryValue)
-		if !ok {
-			c.err = errors.Errorf("trying to convert non-binary type (%T) attachment as untyped", att.Attachment)
-			return nil
-		}
-		return &LegacyAttachment{Value: binaryAttachment.BinaryValue}
-	}
-	switch t := att.Attachment.(type) {
-	case *g.Attachment_IntValue:
-		return &IntAttachment{t.IntValue}
-	case *g.Attachment_BoolValue:
-		return &BoolAttachment{t.BoolValue}
-	case *g.Attachment_BinaryValue:
-		return &BinaryAttachment{t.BinaryValue}
-	case *g.Attachment_StringValue:
-		return &StringAttachment{t.StringValue}
-	}
-	c.err = errors.Errorf("unsupported attachment type %T", att.Attachment)
-	return nil
+	return Attachment(att)
 }
 
 func (c *ProtobufConverter) entry(entry *g.DataTransactionData_DataEntry) DataEntry {
