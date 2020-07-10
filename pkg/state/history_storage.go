@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -456,7 +457,7 @@ func (hs *historyStorage) getHistory(key []byte, filter, update bool) (*historyR
 	}
 	history, err := newHistoryRecordFromBytes(historyBytes)
 	if err != nil {
-		return nil, err
+		return nil, errs.Extend(err, "newHistoryRecordFromBytes")
 	}
 	changed, err := hs.fmt.normalize(history, filter)
 	if err != nil {
@@ -464,7 +465,7 @@ func (hs *historyStorage) getHistory(key []byte, filter, update bool) (*historyR
 	}
 	if changed && update {
 		if err := hs.manageDbUpdate(key, history); err != nil {
-			return nil, err
+			return nil, errs.Extend(err, "manageDbUpdate")
 		}
 	}
 	if len(history.entries) == 0 {
@@ -603,18 +604,18 @@ func (hs *historyStorage) generationBalanceHeightRangeEntries(history *historyRe
 func (hs *historyStorage) entriesDataInHeightRangeStable(key []byte, startHeight, endHeight uint64, filter bool) ([][]byte, error) {
 	history, err := hs.getHistory(key, filter, false)
 	if err != nil {
-		return nil, err
+		return nil, errs.Extend(err, "getHistory")
 	}
 	if len(history.entries) == 0 {
 		return nil, nil
 	}
 	startBlockNum, err := hs.stateDB.blockNumByHeight(startHeight)
 	if err != nil {
-		return nil, err
+		return nil, errs.Extend(err, "blockNumByHeight")
 	}
 	endBlockNum, err := hs.stateDB.blockNumByHeight(endHeight)
 	if err != nil {
-		return nil, err
+		return nil, errs.Extend(err, "blockNumByHeight")
 	}
 	return hs.generationBalanceHeightRangeEntries(history, startBlockNum, endBlockNum), nil
 }

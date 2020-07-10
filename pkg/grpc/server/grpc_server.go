@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -17,14 +18,17 @@ import (
 )
 
 type Server struct {
-	state  state.StateInfo
-	scheme proto.Scheme
-	utx    types.UtxPool
-	wallet types.EmbeddedWallet
+	state           state.StateInfo
+	scheme          proto.Scheme
+	utx             types.UtxPool
+	wallet          types.EmbeddedWallet
+	InternalChannel chan messages.InternalMessage
 }
 
 func NewServer(services services.Services) (*Server, error) {
-	s := &Server{}
+	s := &Server{
+		InternalChannel: services.InternalChannel,
+	}
 	if err := s.initServer(services.State, services.UtxPool, services.Wallet); err != nil {
 		return nil, err
 	}
