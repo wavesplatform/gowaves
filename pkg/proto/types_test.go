@@ -996,25 +996,19 @@ func TestDataEntriesUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestNewLegacyAttachmentFromBase58(t *testing.T) {
-	att, err := NewLegacyAttachmentFromBase58("t")
-	require.NoError(t, err)
-	assert.Equal(t, *att, LegacyAttachment{Value: []byte("3")})
-}
-
 func TestAttachment_UnmarshalJSON(t *testing.T) {
-	a := LegacyAttachment{Value: []byte{}}
+	a := Attachment{}
 	err := a.UnmarshalJSON([]byte("null"))
 	require.NoError(t, err)
-	assert.Equal(t, "", a.String())
+	assert.Equal(t, "", string(a))
 
 	err = a.UnmarshalJSON([]byte(`"8Gbmq3u18PmPbWcobY"`))
 	require.NoError(t, err)
-	assert.Equal(t, "WELCOME BONUS", a.String())
+	assert.Equal(t, "WELCOME BONUS", string(a))
 
 	err = a.UnmarshalJSON([]byte(`""`))
 	require.NoError(t, err)
-	assert.Equal(t, "", a.String())
+	assert.Equal(t, "", string(a))
 }
 
 func TestNewOptionalAssetFromBytes(t *testing.T) {

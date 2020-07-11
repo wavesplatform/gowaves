@@ -337,7 +337,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				return proto.DAppError, info.failedChanges, err
 			}
 			if assetInfo.issuer != info.scriptPK {
-				return proto.DAppError, info.failedChanges, errors.New("asset was issued by other address")
+				return proto.DAppError, info.failedChanges, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 			}
 			if !assetInfo.reissuable {
 				return proto.DAppError, info.failedChanges, errors.New("attempt to reissue asset which is not reissuable")

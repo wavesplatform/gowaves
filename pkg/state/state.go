@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -680,7 +681,7 @@ func (s *stateManager) HeightToBlockID(height uint64) (proto.BlockID, error) {
 		return proto.BlockID{}, wrapErr(RetrievalError, err)
 	}
 	if height < 1 || height > maxHeight {
-		return proto.BlockID{}, wrapErr(InvalidInputError, errors.New("HeightToBlockID: height out of valid range"))
+		return proto.BlockID{}, wrapErr(InvalidInputError, errors.Errorf("HeightToBlockID: height %d out of valid range [1, %d]", height, maxHeight))
 	}
 	blockID, err := s.rw.blockIDByHeight(height)
 	if err != nil {
@@ -1233,7 +1234,7 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	zap.S().Debugf("StateManager: parent (top) block ID: %s", lastAppliedBlock.BlockID().String())
+	zap.S().Debugf("StateManager: parent (top) block ID: %s, ts: %d", lastAppliedBlock.BlockID().String(), lastAppliedBlock.Timestamp)
 	height, err := s.Height()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1311,7 +1312,13 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 	if err := s.flush(initialisation); err != nil {
 		return nil, wrapErr(ModificationError, err)
 	}
-	zap.S().Infof("Height: %d; Block ID: %s", height+uint64(blocksNumber), lastAppliedBlock.BlockID().String())
+	zap.S().Infof(
+		"Height: %d; Block ID: %s, sig: %s, ts: %d",
+		height+uint64(blocksNumber),
+		lastAppliedBlock.BlockID().String(),
+		base58.Encode(lastAppliedBlock.GenSignature),
+		lastAppliedBlock.Timestamp,
+	)
 	return lastAppliedBlock, nil
 }
 
@@ -1383,7 +1390,7 @@ func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	if height < 1 || height > maxHeight {
-		return nil, wrapErr(InvalidInputError, errors.New("ScoreAtHeight: height out of valid range"))
+		return nil, wrapErr(InvalidInputError, errors.Errorf("ScoreAtHeight: %d height out of valid range [1, %d]", height, maxHeight))
 	}
 	score, err := s.stor.scores.score(height, true)
 	if err != nil {

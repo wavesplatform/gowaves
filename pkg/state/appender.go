@@ -213,24 +213,24 @@ func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScript
 	if accountScripted {
 		// Check script.
 		if err := a.sc.callAccountScriptWithTx(tx, blockInfo, checkerInfo.initialisation); err != nil {
-			return 0, err
+			return 0, errs.Extend(err, "callAccountScriptWithTx")
 		}
 		scriptsRuns++
 	}
 	// Check against state.
 	txSmartAssets, err := a.txHandler.checkTx(tx, checkerInfo)
 	if err != nil {
-		return 0, err
+		return 0, errs.Extend(err, "checkTx")
 	}
 	ride4DAppsActivated, err := a.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
-		return 0, err
+		return 0, errs.Extend(err, "isActivated")
 	}
 	for _, smartAsset := range txSmartAssets {
 		// Check smart asset's script.
 		_, err := a.sc.callAssetScript(tx, smartAsset, blockInfo, checkerInfo.initialisation, false)
 		if err != nil {
-			return 0, err
+			return 0, errs.Extend(err, "callAssetScript")
 		}
 		if tx.GetTypeInfo().Type == proto.SetAssetScriptTransaction && !ride4DAppsActivated {
 			// Exception: don't count before Ride4DApps activation.
@@ -390,19 +390,19 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	}
 	// Check transaction for duplication of it's ID.
 	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, params.block.Timestamp); err != nil {
-		return err
+		return errs.Extend(err, "check duplicate tx ids")
 	}
 	// Verify tx signature and internal data correctness.
 	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
-		return err
+		return errs.Extend(err, "failed to get sender addr by pk")
 	}
 	accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !params.initialisation)
 	if err != nil {
-		return err
+		return errs.Extend(err, "account has verifier")
 	}
 	if err := a.verifyTxSigAndData(tx, params, accountHasVerifierScript); err != nil {
-		return err
+		return errs.Extend(err, "tx signature or data verification failed")
 	}
 	// Check tx against state, check tx scripts, calculate balance changes.
 	var applicationRes *applicationResult
@@ -414,7 +414,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		fallibleInfo := &fallibleValidationParams{*params, accountHasVerifierScript}
 		applicationRes, err = a.handleFallible(tx, fallibleInfo)
 		if err != nil {
-			return err
+			return errs.Extend(err, "fallible validation failed")
 		}
 		// Exchange and Invoke balances are validated in UTX when acceptFailed is false.
 		// When acceptFailed is true, balances are validated inside handleFallible().
@@ -423,13 +423,13 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		// Execute transaction's scripts, check against state.
 		txScriptsRuns, err := a.checkTransactionScripts(tx, accountHasVerifierScript, params.checkerInfo, params.blockInfo)
 		if err != nil {
-			return err
+			return errs.Extend(err, "check transaction scripts")
 		}
 		// Create balance diff of this tx.
 		differInfo := &differInfo{params.initialisation, params.blockInfo}
 		txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, differInfo)
 		if err != nil {
-			return err
+			return errs.Extend(err, "create transaction diff")
 		}
 		applicationRes = &applicationResult{true, txScriptsRuns, txChanges}
 		// In UTX balances are always validated.
@@ -438,17 +438,17 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	if needToValidateBalanceDiff {
 		// Validate balance diff for negative balances.
 		if err := a.diffApplier.validateTxDiff(applicationRes.changes.diff, a.diffStor, !params.initialisation); err != nil {
-			return err
+			return errs.Extend(err, "validate transaction diff")
 		}
 	}
 	// Check complexity limits and scripts runs limits.
 	if err := a.checkScriptsLimits(a.totalScriptsRuns + applicationRes.totalScriptsRuns); err != nil {
-		return errors.Errorf("%s: %v", blockID.String(), err)
+		return errs.Extend(errors.Errorf("%s: %v", blockID.String(), err), "check scripts limits")
 	}
 	// Perform state changes, save balance changes, write tx to storage.
 	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
-		return err
+		return errs.Extend(err, "get transaction id")
 	}
 	if err := a.commitTxApplication(tx, params, applicationRes); err != nil {
 		zap.S().Warnf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
@@ -457,7 +457,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	// Store additional data for API: transaction by address.
 	if !params.validatingUtx && a.buildApiData {
 		if err := a.saveTransactionIdByAddresses(applicationRes.changes.addresses(), txID, blockID, !params.initialisation); err != nil {
-			return err
+			return errs.Extend(err, "save transaction id by addresses")
 		}
 	}
 	return nil
@@ -686,11 +686,11 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	// In this case it returns the last block instead of what is being mined.
 	block, err := a.currentBlock()
 	if err != nil {
-		return err
+		return errs.Extend(err, "failed get currentBlock")
 	}
 	blockInfo, err := a.currentBlockInfo()
 	if err != nil {
-		return err
+		return errs.Extend(err, "failed get currentBlockInfo")
 	}
 	blockInfo.Timestamp = currentTimestamp
 	checkerInfo := &checkerInfo{
@@ -703,7 +703,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	}
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
-		return err
+		return errs.Extend(err, "failed check is activated")
 	}
 	appendTxArgs := &appendTxParams{
 		checkerInfo:      checkerInfo,

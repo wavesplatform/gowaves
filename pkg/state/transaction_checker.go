@@ -52,7 +52,7 @@ func newTransactionChecker(
 func (tc *transactionChecker) scriptActivation(script *ast.Script) error {
 	rideForDAppsActivated, err := tc.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
-		return err
+		return errs.Extend(err, "transactionChecker scriptActivation isActivated")
 	}
 	multiPaymentsActivated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
@@ -423,7 +423,7 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 		return err
 	}
 	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
-		return errs.NewTxValidationError("asset was issued by other address")
+		return errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 	if info.currentTimestamp <= tc.settings.InvalidReissueInSameBlockUntilTime {
 		// Due to bugs in existing blockchain it is valid to reissue non-reissueable asset in this time period.
@@ -504,7 +504,7 @@ func (tc *transactionChecker) checkBurn(tx *proto.Burn, info *checkerInfo) error
 		return err
 	}
 	if !burnAnyTokensEnabled && !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
-		return errs.NewTxValidationError("asset was issued by other address")
+		return errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 	// Check burn amount.
 	quantityDiff := big.NewInt(int64(tx.Amount))
@@ -979,7 +979,7 @@ func (tc *transactionChecker) checkSponsorshipWithProofs(transaction proto.Trans
 		return nil, err
 	}
 	if assetInfo.issuer != tx.SenderPK {
-		return nil, errs.NewTxValidationError("asset was issued by other address")
+		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 	isSmart := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
 	if isSmart {
@@ -1145,7 +1145,7 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 		return nil, errs.Extend(err, "unknown asset")
 	}
 	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
-		return nil, errs.NewTxValidationError("asset was issued by other address")
+		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 	lastUpdateHeight, err := tc.stor.assets.newestLastUpdateHeight(tx.AssetID, !info.initialisation)
 	if err != nil {
