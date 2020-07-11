@@ -698,18 +698,18 @@ func (hs *historyStorage) entryDataAtHeight(key []byte, height uint64, filter bo
 // For example, if the first entry in the range is at startBlockNum + 1, then at startBlockNum we should use the value
 // from the past.
 func (hs *historyStorage) blockRangeEntries(history *historyRecord, startBlockNum, endBlockNum uint32) [][]byte {
-	records := make([][]byte, 1)
-	for _, entry := range history.entries {
-		switch {
-		case entry.blockNum <= startBlockNum:
-			records[0] = entry.data
-		case entry.blockNum > endBlockNum:
+	var records [][]byte
+	startPos := 0
+	for i, entry := range history.entries {
+		if entry.blockNum > endBlockNum {
 			break
-		default:
-			records = append(records, entry.data)
+		}
+		records = append(records, entry.data)
+		if entry.blockNum <= startBlockNum {
+			startPos = i
 		}
 	}
-	return records
+	return records[startPos:]
 }
 
 // entriesDataInHeightRange() returns bytes of entries that fit into specified height interval.
