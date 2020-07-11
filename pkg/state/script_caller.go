@@ -70,7 +70,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	if err != nil {
 		return errors.Wrap(err, "newestScriptComplexityByAddr")
 	}
-	a.totalComplexity += complexity.verifierComplexity
+	a.recentTxComplexity += complexity.verifierComplexity
 	return nil
 }
 
@@ -105,7 +105,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	if err != nil {
 		return err
 	}
-	a.totalComplexity += complexity.verifierComplexity
+	a.recentTxComplexity += complexity.verifierComplexity
 	return nil
 }
 
@@ -148,7 +148,7 @@ func (a *scriptCaller) callAssetScriptCommon(
 	if err != nil {
 		return ast.Result{}, err
 	}
-	a.totalComplexity += complexityRecord.complexity
+	a.recentTxComplexity += complexityRecord.complexity
 	return r, nil
 }
 
@@ -193,7 +193,7 @@ func (a *scriptCaller) invokeFunction(script ast.Script, tx *proto.InvokeScriptW
 	if err != nil {
 		return false, nil, errors.Wrap(err, "newestScriptComplexityByAsset()")
 	}
-	a.totalComplexity += complexityRecord.byFuncs[tx.FunctionCall.Name]
+	a.recentTxComplexity += complexityRecord.byFuncs[tx.FunctionCall.Name]
 	return ok, actions, nil
 }
 
