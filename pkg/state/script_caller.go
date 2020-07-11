@@ -16,7 +16,8 @@ type scriptCaller struct {
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
 
-	totalComplexity uint64
+	totalComplexity    uint64
+	recentTxComplexity uint64
 }
 
 func newScriptCaller(
@@ -197,9 +198,19 @@ func (a *scriptCaller) invokeFunction(script ast.Script, tx *proto.InvokeScriptW
 }
 
 func (a *scriptCaller) getTotalComplexity() uint64 {
-	return a.totalComplexity
+	return a.totalComplexity + a.recentTxComplexity
+}
+
+func (a *scriptCaller) resetRecentTxComplexity() {
+	a.recentTxComplexity = 0
+}
+
+func (a *scriptCaller) addRecentTxComplexity() {
+	a.totalComplexity += a.recentTxComplexity
+	a.recentTxComplexity = 0
 }
 
 func (a *scriptCaller) resetComplexity() {
 	a.totalComplexity = 0
+	a.recentTxComplexity = 0
 }

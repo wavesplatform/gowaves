@@ -82,16 +82,23 @@ func defaultDifferInfo(t *testing.T) *differInfo {
 	return &differInfo{false, defaultBlockInfo()}
 }
 
-func defaultFallibleValidationParams(t *testing.T) *fallibleValidationParams {
-	return &fallibleValidationParams{
+func defaultAppendTxParams(t *testing.T) *appendTxParams {
+	return &appendTxParams{
 		checkerInfo:    defaultCheckerInfo(t),
 		blockInfo:      defaultBlockInfo(),
 		block:          defaultBlock(),
-		senderScripted: false,
 		checkScripts:   true,
 		acceptFailed:   false,
 		validatingUtx:  false,
 		initialisation: false,
+	}
+}
+
+func defaultFallibleValidationParams(t *testing.T) *fallibleValidationParams {
+	appendTxPrms := defaultAppendTxParams(t)
+	return &fallibleValidationParams{
+		appendTxParams: *appendTxPrms,
+		senderScripted: false,
 	}
 }
 

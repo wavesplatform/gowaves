@@ -382,13 +382,12 @@ func (at *addressTransactions) saveFileSizeToBatch(batch keyvalue.Batch, size ui
 	return nil
 }
 
-func (at *addressTransactions) reset(filter bool) error {
+func (at *addressTransactions) reset() {
 	if at.params.providesData {
 		at.stor.reset()
-		return nil
+	} else {
+		at.addrTransactionsBuf.Reset(at.addrTransactions)
 	}
-	at.addrTransactionsBuf.Reset(at.addrTransactions)
-	return nil
 }
 
 func (at *addressTransactions) flush() error {

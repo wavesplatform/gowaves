@@ -1,6 +1,7 @@
 package state
 
 import (
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -36,9 +37,7 @@ type txAppender struct {
 	// diffApplier is used to both validate and apply balance diffs.
 	diffApplier *diffApplier
 
-	// totalScriptsRuns counts script runs for UTX validation.
-	// It is increased every time ValidateNextTx() is called with transaction
-	// that involved calling scripts.
+	// totalScriptsRuns counts script runs in block / UTX.
 	totalScriptsRuns uint64
 
 	// buildApiData flag indicates that additional data for API is built when
@@ -146,20 +145,11 @@ type appendBlockParams struct {
 	initialisation bool
 }
 
-func (a *txAppender) hasAccountVerifyScript(tx proto.Transaction, initialisation bool) (bool, error) {
-	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
-	if err != nil {
-		return false, err
-	}
-	return a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !initialisation)
-}
-
 func (a *txAppender) orderIsScripted(order proto.Order, initialisation bool) (bool, error) {
 	return a.txHandler.tc.orderScriptedAccount(order, initialisation)
 }
 
 // For UTX validation, this returns the last stable block, which is in fact current block.
-// For appendBlock(), this returns block that is currently being added.
 func (a *txAppender) currentBlock() (*proto.BlockHeader, error) {
 	curBlockHeight, err := a.state.AddingBlockHeight()
 	if err != nil {
@@ -261,6 +251,7 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64) error {
 		return err
 	}
 	if ride4DAppsActivated {
+		// TODO: fix estimator and return error here instead of warning.
 		if a.sc.getTotalComplexity() > maxScriptsComplexityInBlock {
 			zap.S().Warn("complexity limit per block is exceeded")
 		}
@@ -298,6 +289,180 @@ func (a *txAppender) saveTransactionIdByAddresses(addrs []proto.Address, txID []
 	return nil
 }
 
+func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxParams, res *applicationResult) error {
+	// Add transaction ID to recent IDs.
+	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
+	if err != nil {
+		return wrapErr(TxCommitmentError, errors.Errorf("failed to get tx id: %v", err))
+	}
+	a.recentTxIds[string(txID)] = empty
+	// Update script runs.
+	a.totalScriptsRuns += res.totalScriptsRuns
+	// Update complexity.
+	a.sc.addRecentTxComplexity()
+	// Save balance diff.
+	if err := a.diffStor.saveTxDiff(res.changes.diff); err != nil {
+		return wrapErr(TxCommitmentError, errors.Errorf("failed to save balance diff: %v", err))
+	}
+	// Perform state changes.
+	if res.status {
+		// We only perform tx in case it has not failed.
+		performerInfo := &performerInfo{
+			initialisation: params.initialisation,
+			height:         params.checkerInfo.height,
+			blockID:        params.checkerInfo.blockID,
+		}
+		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
+			return wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
+		}
+	}
+	if params.validatingUtx {
+		// Save transaction to in-mem storage.
+		if err := a.rw.writeTransactionToMem(tx, !res.status); err != nil {
+			return wrapErr(TxCommitmentError, errors.Errorf("failed to write tranasction to in mem stor: %v", err))
+		}
+	} else {
+		// Count tx fee.
+		if err := a.blockDiffer.countMinerFee(tx); err != nil {
+			return wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
+		}
+		// Save transaction to storage.
+		if err := a.rw.writeTransaction(tx, !res.status); err != nil {
+			return wrapErr(TxCommitmentError, errors.Errorf("failed to write transaction to storage: %v", err))
+		}
+	}
+	return nil
+}
+
+func (a *txAppender) verifyTxSigAndData(tx proto.Transaction, params *appendTxParams, accountHasVerifierScript bool) error {
+	// Detect what signatures must be checked for this transaction.
+	// For transaction with SmartAccount we don't check signature.
+	checkTxSig := !accountHasVerifierScript
+	checkOrder1, checkOrder2, err := a.needToCheckOrdersSigs(tx, params.initialisation)
+	if err != nil {
+		return err
+	}
+	checkSimultaneously := !params.validatingUtx
+	if !checkSimultaneously {
+		// In UTX it is not very useful to check signatures in separate goroutines,
+		// because they have to be checked in each validateNextTx() anyway.
+		return checkTx(tx, checkTxSig, checkOrder1, checkOrder2, a.settings.AddressSchemeCharacter)
+	}
+	// Send transaction for validation of transaction's data correctness (using tx.Validate() method)
+	// and simple cryptographic signature verification (using tx.Verify() and PK).
+	task := &verifyTask{
+		taskType:    verifyTx,
+		tx:          tx,
+		checkTxSig:  checkTxSig,
+		checkOrder1: checkOrder1,
+		checkOrder2: checkOrder2,
+	}
+	select {
+	case verifyError := <-params.chans.errChan:
+		return verifyError
+	case params.chans.tasksChan <- task:
+	}
+	return nil
+}
+
+type appendTxParams struct {
+	chans            *verifierChans
+	checkerInfo      *checkerInfo
+	blockInfo        *proto.BlockInfo
+	block            *proto.BlockHeader
+	checkScripts     bool
+	acceptFailed     bool
+	blockV5Activated bool
+	validatingUtx    bool
+	initialisation   bool
+}
+
+func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) error {
+	defer func() {
+		a.sc.resetRecentTxComplexity()
+		a.stor.dropUncertain()
+	}()
+
+	blockID := params.checkerInfo.blockID
+	// Check that Protobuf transactions are accepted.
+	if err := a.checkProtobufVersion(tx, params.blockV5Activated); err != nil {
+		return err
+	}
+	// Check transaction for duplication of it's ID.
+	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, params.block.Timestamp); err != nil {
+		return err
+	}
+	// Verify tx signature and internal data correctness.
+	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	if err != nil {
+		return err
+	}
+	accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !params.initialisation)
+	if err != nil {
+		return err
+	}
+	if err := a.verifyTxSigAndData(tx, params, accountHasVerifierScript); err != nil {
+		return err
+	}
+	// Check tx against state, check tx scripts, calculate balance changes.
+	var applicationRes *applicationResult
+	needToValidateBalanceDiff := false
+	switch tx.GetTypeInfo().Type {
+	case proto.InvokeScriptTransaction, proto.ExchangeTransaction:
+		// Invoke and Exchange transactions should be handled differently.
+		// They may fail, and will be saved to blockchain anyway.
+		fallibleInfo := &fallibleValidationParams{*params, accountHasVerifierScript}
+		applicationRes, err = a.handleFallible(tx, fallibleInfo)
+		if err != nil {
+			return err
+		}
+		// Exchange and Invoke balances are validated in UTX when acceptFailed is false.
+		// When acceptFailed is true, balances are validated inside handleFallible().
+		needToValidateBalanceDiff = params.validatingUtx && !params.acceptFailed
+	default:
+		// Execute transaction's scripts, check against state.
+		txScriptsRuns, err := a.checkTransactionScripts(tx, accountHasVerifierScript, params.checkerInfo, params.blockInfo)
+		if err != nil {
+			return err
+		}
+		// Create balance diff of this tx.
+		differInfo := &differInfo{params.initialisation, params.blockInfo}
+		txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, differInfo)
+		if err != nil {
+			return err
+		}
+		applicationRes = &applicationResult{true, txScriptsRuns, txChanges}
+		// In UTX balances are always validated.
+		needToValidateBalanceDiff = params.validatingUtx
+	}
+	if needToValidateBalanceDiff {
+		// Validate balance diff for negative balances.
+		if err := a.diffApplier.validateTxDiff(applicationRes.changes.diff, a.diffStor, !params.initialisation); err != nil {
+			return err
+		}
+	}
+	// Check complexity limits and scripts runs limits.
+	if err := a.checkScriptsLimits(a.totalScriptsRuns + applicationRes.totalScriptsRuns); err != nil {
+		return errors.Errorf("%s: %v", blockID.String(), err)
+	}
+	// Perform state changes, save balance changes, write tx to storage.
+	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
+	if err != nil {
+		return err
+	}
+	if err := a.commitTxApplication(tx, params, applicationRes); err != nil {
+		zap.S().Warnf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
+		return err
+	}
+	// Store additional data for API: transaction by address.
+	if !params.validatingUtx && a.buildApiData {
+		if err := a.saveTransactionIdByAddresses(applicationRes.changes.addresses(), txID, blockID, !params.initialisation); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Reset block complexity counter.
 	defer a.sc.resetComplexity()
@@ -325,7 +490,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err := a.diffStor.saveTxDiff(minerDiff); err != nil {
 		return err
 	}
-	scriptsRuns := uint64(0)
 	blockInfo, err := a.currentBlockInfo()
 	if err != nil {
 		return err
@@ -334,125 +498,22 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-	// Check transactions.
+	// Check and append transactions.
 	for _, tx := range params.transactions {
-		// Check that Protobuf transactions are accepted.
-		if err := a.checkProtobufVersion(tx, blockV5Activated); err != nil {
+		appendTxArgs := &appendTxParams{
+			chans:            params.chans,
+			checkerInfo:      checkerInfo,
+			blockInfo:        blockInfo,
+			block:            params.block,
+			checkScripts:     true,
+			acceptFailed:     blockV5Activated,
+			blockV5Activated: blockV5Activated,
+			validatingUtx:    false,
+			initialisation:   params.initialisation,
+		}
+		if err := a.appendTx(tx, appendTxArgs); err != nil {
 			return err
 		}
-		// Detect what signatures must be checked for this transaction.
-		senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
-		if err != nil {
-			return err
-		}
-		accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !params.initialisation)
-		if err != nil {
-			return err
-		}
-		checkTxSig := true
-		if accountHasVerifierScript {
-			// For transaction with SmartAccount we don't check signatures.
-			checkTxSig = false
-		}
-		checkOrder1, checkOrder2, err := a.needToCheckOrdersSigs(tx, params.initialisation)
-		if err != nil {
-			return err
-		}
-		// Send transaction for validation of transaction's data correctness (using tx.Validate() method)
-		// and simple cryptographic signature verification (using tx.Verify() and PK).
-		task := &verifyTask{
-			taskType:    verifyTx,
-			tx:          tx,
-			checkTxSig:  checkTxSig,
-			checkOrder1: checkOrder1,
-			checkOrder2: checkOrder2,
-		}
-		select {
-		case verifyError := <-params.chans.errChan:
-			return verifyError
-		case params.chans.tasksChan <- task:
-		}
-		// Check transaction for duplication of it's ID.
-		if err := a.checkDuplicateTxIds(tx, a.recentTxIds, params.block.Timestamp); err != nil {
-			return err
-		}
-		// Add transaction ID to recent IDs.
-		txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
-		if err != nil {
-			return err
-		}
-		a.recentTxIds[string(txID)] = empty
-
-		// Status indicates that Invoke or Exchange transaction's scripts could failed
-		// but they have to be stored in state anyway.
-		// For other transactions it is always true.
-		status := true
-		var txChanges txBalanceChanges
-		switch tx.GetTypeInfo().Type {
-		case proto.InvokeScriptTransaction, proto.ExchangeTransaction:
-			// Invoke and Exchange transactions should be handled differently.
-			// They may fail, and will be saved to blockchain anyway.
-			fallibleInfo := &fallibleValidationParams{
-				checkerInfo:    checkerInfo,
-				blockInfo:      blockInfo,
-				block:          params.block,
-				senderScripted: accountHasVerifierScript,
-				checkScripts:   true,
-				acceptFailed:   blockV5Activated,
-				validatingUtx:  false,
-				initialisation: params.initialisation,
-			}
-			applicationInfo, err := a.handleFallible(tx, fallibleInfo)
-			if err != nil {
-				return err
-			}
-			scriptsRuns += applicationInfo.totalScriptsRuns
-			txChanges = applicationInfo.changes
-			status = applicationInfo.status
-		default:
-			// Execute transaction's scripts.
-			txScriptsRuns, err := a.checkTransactionScripts(tx, accountHasVerifierScript, checkerInfo, blockInfo)
-			if err != nil {
-				return err
-			}
-			scriptsRuns += txScriptsRuns
-			// Create balance diff of this tx.
-			differInfo := &differInfo{params.initialisation, blockInfo}
-			txChanges, err = a.blockDiffer.createTransactionDiff(tx, params.block, differInfo)
-			if err != nil {
-				return err
-			}
-		}
-		// Save balance diff of this tx.
-		if err := a.diffStor.saveTxDiff(txChanges.diff); err != nil {
-			return err
-		}
-		// Count current tx fee.
-		if err := a.blockDiffer.countMinerFee(tx); err != nil {
-			return err
-		}
-		// Perform state changes.
-		performerInfo := &performerInfo{
-			initialisation: params.initialisation,
-			height:         params.height,
-			blockID:        blockID,
-		}
-		if err := a.txHandler.performTx(tx, performerInfo); err != nil {
-			return err
-		}
-		// Save transaction to storage.
-		if err := a.rw.writeTransaction(tx, !status); err != nil {
-			return err
-		}
-		// Store additional data for API: transaction by address.
-		if a.buildApiData {
-			if err := a.saveTransactionIdByAddresses(txChanges.addresses(), txID, blockID, !params.initialisation); err != nil {
-				return err
-			}
-		}
-	}
-	if err := a.checkScriptsLimits(scriptsRuns); err != nil {
-		return errors.Errorf("%s: %v", blockID.String(), err)
 	}
 	// Save fee distribution of this block.
 	// This will be needed for createMinerDiff() of next block due to NG.
@@ -473,27 +534,9 @@ func (a *txAppender) moveChangesToHistoryStorage(initialisation bool) error {
 	return a.diffApplier.applyBalancesChanges(changes, !initialisation)
 }
 
-func (a *txAppender) checkUtxTxSig(tx proto.Transaction, scripted bool) error {
-	// Check tx signature and data.
-	checkOrder1, checkOrder2, err := a.needToCheckOrdersSigs(tx, false)
-	if err != nil {
-		return err
-	}
-	if err := checkTx(tx, !scripted, checkOrder1, checkOrder2, a.settings.AddressSchemeCharacter); err != nil {
-		return err
-	}
-	return nil
-}
-
 type fallibleValidationParams struct {
-	checkerInfo    *checkerInfo
-	blockInfo      *proto.BlockInfo
-	block          *proto.BlockHeader
+	appendTxParams
 	senderScripted bool
-	checkScripts   bool
-	acceptFailed   bool
-	validatingUtx  bool
-	initialisation bool
 }
 
 type applicationResult struct {
@@ -637,33 +680,8 @@ func (a *txAppender) handleFallible(tx proto.Transaction, info *fallibleValidati
 	return nil, errors.New("transaction is not fallible")
 }
 
-func (a *txAppender) resetValidationList() {
-	a.sc.resetComplexity()
-	a.totalScriptsRuns = 0
-	a.recentTxIds = make(map[string]struct{})
-	a.diffStor.reset()
-	a.stor.reset()
-}
-
 // For UTX validation.
 func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, checkScripts bool) error {
-	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, currentTimestamp); err != nil {
-		return err
-	}
-	// Add transaction ID.
-	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
-	if err != nil {
-		return err
-	}
-	a.recentTxIds[string(txID)] = empty
-	scripted, err := a.hasAccountVerifyScript(tx, false)
-	if err != nil {
-		return err
-	}
-	// Check tx signature and data.
-	if err := a.checkUtxTxSig(tx, scripted); err != nil {
-		return err
-	}
 	// TODO: Doesn't work correctly if miner doesn't work in NG mode.
 	// In this case it returns the last block instead of what is being mined.
 	block, err := a.currentBlock()
@@ -679,6 +697,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		initialisation:   false,
 		currentTimestamp: currentTimestamp,
 		parentTimestamp:  parentTimestamp,
+		blockID:          block.BlockID(),
 		blockVersion:     version,
 		height:           blockInfo.Height,
 	}
@@ -686,53 +705,17 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return err
 	}
-	// Check tx data against state.
-	var txScriptsRuns uint64
-	var changes txBalanceChanges
-	switch tx.GetTypeInfo().Type {
-	case proto.InvokeScriptTransaction, proto.ExchangeTransaction:
-		fallibleInfo := &fallibleValidationParams{
-			checkerInfo:    checkerInfo,
-			blockInfo:      blockInfo,
-			block:          block,
-			senderScripted: scripted,
-			checkScripts:   checkScripts,
-			acceptFailed:   blockV5Activated,
-			validatingUtx:  true,
-			initialisation: false,
-		}
-		applicationInfo, err := a.handleFallible(tx, fallibleInfo)
-		if err != nil {
-			return err
-		}
-		txScriptsRuns = applicationInfo.totalScriptsRuns
-		changes = applicationInfo.changes
-	default:
-		txScriptsRuns, err = a.checkTransactionScripts(tx, scripted, checkerInfo, blockInfo)
-		if err != nil {
-			return err
-		}
-		// Create balance diff.
-		differInfo := &differInfo{false, blockInfo}
-		changes, err = a.blockDiffer.createTransactionDiff(tx, block, differInfo)
-		if err != nil {
-			return err
-		}
-		// Validate tx diff.
-		if err := a.diffApplier.validateTxDiff(changes.diff, a.diffStor, true); err != nil {
-			return err
-		}
+	appendTxArgs := &appendTxParams{
+		checkerInfo:      checkerInfo,
+		blockInfo:        blockInfo,
+		block:            block,
+		checkScripts:     checkScripts,
+		acceptFailed:     blockV5Activated,
+		blockV5Activated: blockV5Activated,
+		validatingUtx:    true,
+		initialisation:   false,
 	}
-	// Validate script runs.
-	if err := a.checkScriptsLimits(a.totalScriptsRuns + txScriptsRuns); err != nil {
-		return err
-	}
-	a.totalScriptsRuns += txScriptsRuns
-	// Save balance diff.
-	if err := a.diffStor.saveTxDiff(changes.diff); err != nil {
-		return err
-	}
-	return nil
+	return a.appendTx(tx, appendTxArgs)
 }
 
 func (a *txAppender) reset() {

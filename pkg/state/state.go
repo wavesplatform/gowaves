@@ -512,9 +512,7 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.flush(true); err != nil {
 		return wrapErr(ModificationError, err)
 	}
-	if err := s.reset(true); err != nil {
-		return wrapErr(ModificationError, err)
-	}
+	s.reset()
 	return nil
 }
 
@@ -532,9 +530,7 @@ func (s *stateManager) applyPreactivatedFeatures(features []int16, blockID proto
 	if err := s.flush(true); err != nil {
 		return err
 	}
-	if err := s.reset(true); err != nil {
-		return err
-	}
+	s.reset()
 	return nil
 }
 
@@ -948,15 +944,12 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 	return nil
 }
 
-func (s *stateManager) reset(initialisation bool) error {
+func (s *stateManager) reset() {
 	s.rw.reset()
 	s.stor.reset()
 	s.stateDB.reset()
 	s.appender.reset()
-	if err := s.atx.reset(!initialisation); err != nil {
-		return err
-	}
-	return nil
+	s.atx.reset()
 }
 
 func (s *stateManager) flush(initialisation bool) error {
@@ -1223,9 +1216,7 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 	defer cancel()
 	defer func() {
 		// Reset in-memory storages and load last block in defer.
-		if err := s.reset(initialisation); err != nil {
-			zap.S().Fatalf("Failed to reset state: %v", err)
-		}
+		s.reset()
 		if err := s.loadLastBlock(); err != nil {
 			zap.S().Fatalf("Failed to load last block: %v", err)
 		}
@@ -1484,7 +1475,7 @@ func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {
 }
 
 func (s *stateManager) ResetValidationList() {
-	s.appender.resetValidationList()
+	s.reset()
 }
 
 // For UTX validation.

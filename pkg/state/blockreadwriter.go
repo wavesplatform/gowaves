@@ -315,18 +315,7 @@ func (rw *blockReadWriter) marshalTransaction(tx proto.Transaction) ([]byte, err
 	return txBytesTotal, nil
 }
 
-func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, failed bool) error {
-	rw.mtx.Lock()
-	defer rw.mtx.Unlock()
-	txID, err := tx.GetID(rw.scheme)
-	if err != nil {
-		return err
-	}
-	txBytes, err := rw.marshalTransaction(tx)
-	if err != nil {
-		return err
-	}
-	// Save transaction to local storage.
+func (rw *blockReadWriter) writeTranasctionToMemImpl(tx proto.Transaction, txID []byte, failed bool) {
 	info := &txInfoWithTx{
 		tx: tx,
 		txInfo: txInfo{
@@ -336,11 +325,37 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, failed bool) e
 		},
 	}
 	rw.rtx.appendTx(txID, info)
+}
+
+func (rw *blockReadWriter) writeTransactionToMem(tx proto.Transaction, failed bool) error {
+	rw.mtx.Lock()
+	defer rw.mtx.Unlock()
+	txID, err := tx.GetID(rw.scheme)
+	if err != nil {
+		return err
+	}
+	rw.writeTranasctionToMemImpl(tx, txID, failed)
+	return nil
+}
+
+func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, failed bool) error {
+	rw.mtx.Lock()
+	defer rw.mtx.Unlock()
+	txID, err := tx.GetID(rw.scheme)
+	if err != nil {
+		return err
+	}
+	// Save transaction to local storage.
+	rw.writeTranasctionToMemImpl(tx, txID, failed)
 	// Write transaction information to DB batch.
 	key := txInfoKey{txID: txID}
 	val := txInfo{offset: rw.blockchainLen, failed: failed, height: rw.height + 1}
 	rw.dbBatch.Put(key.bytes(), val.bytes())
 	// Update length of blockchain.
+	txBytes, err := rw.marshalTransaction(tx)
+	if err != nil {
+		return err
+	}
 	rw.blockchainLen += uint64(len(txBytes))
 	if rw.blockchainLen > rw.offsetEnd {
 		return errors.Errorf("offset overflow: %d > %d", rw.blockchainLen, rw.offsetEnd)

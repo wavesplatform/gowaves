@@ -459,19 +459,14 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 	return 0, totalChanges, nil
 }
 
-// For InvokeScript transactions there is no performer function.
-// Instead, here (in applyInvokeScript) we perform both balance and state changes
-// along with fee validation which is normally done in checker function.
-// We can not check fee in checker because before function invocation, we don't have Actions
-// and can not evaluate how many smart assets (= script runs) will be involved, while this directly
-// affects minimum allowed fee.
-// That is why invoke transaction is applied to state in a different way - here, unlike other
-// transaction types.
+// applyInvokeScript checks InvokeScript transaction, creates its balance diffs and adds changes to `uncertain` storage.
+// If the transaction does not fail, changes are commited (moved from uncertain to normal storage)
+// later in performInvokeScriptWithProofs().
+// If the transaction fails, performInvokeScriptWithProofs() is not called and changes are discarded later using dropUncertain().
 func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams) (*applicationResult, error) {
 	// In defer we should clean all the temp changes invoke does to state.
 	defer func() {
 		ia.invokeDiffStor.invokeDiffsStor.reset()
-		ia.stor.dropUncertain()
 	}()
 
 	// Check sender script, if any.
@@ -596,14 +591,6 @@ func toScriptResult(ir *invocationResult) (*proto.ScriptResult, error) {
 }
 
 func (ia *invokeApplier) handleInvocationResult(tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, res *invocationResult) (*applicationResult, error) {
-	if !res.failed && !info.validatingUtx {
-		// Commit actions state changes.
-		// TODO: when UTX transactions are validated, there is no block,
-		// and we can not perform state changes.
-		if err := ia.stor.commitUncertain(info.block.BlockID()); err != nil {
-			return nil, err
-		}
-	}
 	if ia.buildApiData && !info.validatingUtx {
 		// Save invoke result for extended API.
 		res, err := toScriptResult(res)
