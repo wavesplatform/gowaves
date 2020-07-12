@@ -465,7 +465,10 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Reset block complexity counter.
-	defer a.sc.resetComplexity()
+	defer func() {
+		a.sc.resetComplexity()
+		a.totalScriptsRuns = 0
+	}()
 
 	blockID := params.block.BlockID()
 	hasParent := params.parent != nil
