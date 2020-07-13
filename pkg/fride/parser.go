@@ -38,13 +38,21 @@ const (
 	declarationTypeFunction
 )
 
-type Parser struct {
+func Parse(source []byte) (*Tree, error) {
+	p, err := newParser(source)
+	if err != nil {
+		return nil, err
+	}
+	return p.parse()
+}
+
+type parser struct {
 	r           *bytes.Reader
 	seenBlockV2 bool
 	id          [32]byte
 }
 
-func NewParser(source []byte) (*Parser, error) {
+func newParser(source []byte) (*parser, error) {
 	id := sha256.Sum256(source)
 	size := len(source) - 4
 	if size <= 0 {
@@ -58,10 +66,10 @@ func NewParser(source []byte) (*Parser, error) {
 	if !bytes.Equal(digest[:4], cs) {
 		return nil, errors.New("invalid source checksum")
 	}
-	return &Parser{r: bytes.NewReader(src), id: id}, nil
+	return &parser{r: bytes.NewReader(src), id: id}, nil
 }
 
-func (p *Parser) Parse() (*Tree, error) {
+func (p *parser) parse() (*Tree, error) {
 	vb, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -76,7 +84,7 @@ func (p *Parser) Parse() (*Tree, error) {
 	}
 }
 
-func (p *Parser) parseDApp() (*Tree, error) {
+func (p *parser) parseDApp() (*Tree, error) {
 	av, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -157,12 +165,12 @@ func (p *Parser) parseDApp() (*Tree, error) {
 	return tree, nil
 }
 
-func (p *Parser) parseScript(v int) (*Tree, error) {
+func (p *parser) parseScript(v int) (*Tree, error) {
 	tree := &Tree{
 		AppVersion: scriptApplicationVersion,
 		LibVersion: v,
 	}
-	node, err := p.parse()
+	node, err := p.parseNext()
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +180,7 @@ func (p *Parser) parseScript(v int) (*Tree, error) {
 	return tree, nil
 }
 
-func (p *Parser) parse() (Node, error) {
+func (p *parser) parseNext() (Node, error) {
 	t, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -200,15 +208,15 @@ func (p *Parser) parse() (Node, error) {
 		return NewStringNode(v), nil
 
 	case tokenIf:
-		condition, err := p.parse()
+		condition, err := p.parseNext()
 		if err != nil {
 			return nil, err
 		}
-		trueBranch, err := p.parse()
+		trueBranch, err := p.parseNext()
 		if err != nil {
 			return nil, err
 		}
-		falseBranch, err := p.parse()
+		falseBranch, err := p.parseNext()
 		if err != nil {
 			return nil, err
 		}
@@ -219,11 +227,11 @@ func (p *Parser) parse() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		expr, err := p.parse()
+		expr, err := p.parseNext()
 		if err != nil {
 			return nil, err
 		}
-		block, err := p.parse()
+		block, err := p.parseNext()
 		if err != nil {
 			return nil, err
 		}
@@ -243,7 +251,7 @@ func (p *Parser) parse() (Node, error) {
 		return NewBooleanNode(false), nil
 
 	case tokenGetter:
-		object, err := p.parse()
+		object, err := p.parseNext()
 		if err != nil {
 			return nil, err
 		}
@@ -269,7 +277,7 @@ func (p *Parser) parse() (Node, error) {
 		ac := int(argumentsCount)
 		arguments := make([]Node, ac)
 		for i := 0; i < int(ac); i++ {
-			arg, err := p.parse()
+			arg, err := p.parseNext()
 			if err != nil {
 				return nil, err
 			}
@@ -283,7 +291,7 @@ func (p *Parser) parse() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		block, err := p.parse()
+		block, err := p.parseNext()
 		if err != nil {
 			return nil, err
 		}
@@ -296,7 +304,7 @@ func (p *Parser) parse() (Node, error) {
 
 }
 
-func (p *Parser) readShort() (int16, error) {
+func (p *parser) readShort() (int16, error) {
 	buf := make([]byte, 2)
 	_, err := p.r.Read(buf)
 	if err != nil {
@@ -305,7 +313,7 @@ func (p *Parser) readShort() (int16, error) {
 	return int16(binary.BigEndian.Uint16(buf)), nil
 }
 
-func (p *Parser) readInt() (int32, error) {
+func (p *parser) readInt() (int32, error) {
 	buf := make([]byte, 4)
 	_, err := p.r.Read(buf)
 	if err != nil {
@@ -314,7 +322,7 @@ func (p *Parser) readInt() (int32, error) {
 	return int32(binary.BigEndian.Uint32(buf)), nil
 }
 
-func (p *Parser) readLong() (int64, error) {
+func (p *parser) readLong() (int64, error) {
 	buf := make([]byte, 8)
 	_, err := p.r.Read(buf)
 	if err != nil {
@@ -323,7 +331,7 @@ func (p *Parser) readLong() (int64, error) {
 	return int64(binary.BigEndian.Uint64(buf)), nil
 }
 
-func (p *Parser) readBytes() ([]byte, error) {
+func (p *parser) readBytes() ([]byte, error) {
 	n, err := p.readInt()
 	if err != nil {
 		return nil, err
@@ -338,7 +346,7 @@ func (p *Parser) readBytes() ([]byte, error) {
 	return buf, nil
 }
 
-func (p *Parser) readString() (string, error) {
+func (p *parser) readString() (string, error) {
 	b, err := p.readBytes()
 	if err != nil {
 		return "", err
@@ -346,7 +354,7 @@ func (p *Parser) readString() (string, error) {
 	return string(b), nil
 }
 
-func (p *Parser) readFunctionName(ft byte) (string, error) {
+func (p *parser) readFunctionName(ft byte) (string, error) {
 	switch ft {
 	case functionTypeNative:
 		id, err := p.readShort()
@@ -361,7 +369,7 @@ func (p *Parser) readFunctionName(ft byte) (string, error) {
 	}
 }
 
-func (p *Parser) readDeclaration() (DeclarationNode, error) {
+func (p *parser) readDeclaration() (DeclarationNode, error) {
 	dt, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -372,7 +380,7 @@ func (p *Parser) readDeclaration() (DeclarationNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		exp, err := p.parse()
+		exp, err := p.parseNext()
 		if err != nil {
 			return nil, err
 		}
@@ -395,7 +403,7 @@ func (p *Parser) readDeclaration() (DeclarationNode, error) {
 			}
 			arguments[i] = arg
 		}
-		body, err := p.parse()
+		body, err := p.parseNext()
 		if err != nil {
 			return nil, err
 		}
@@ -405,7 +413,7 @@ func (p *Parser) readDeclaration() (DeclarationNode, error) {
 	}
 }
 
-func (p *Parser) readMeta() (ScriptMeta, error) {
+func (p *parser) readMeta() (ScriptMeta, error) {
 	v, err := p.readInt()
 	if err != nil {
 		return ScriptMeta{}, err

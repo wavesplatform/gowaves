@@ -1,5 +1,8 @@
 package fride
 
 type Program struct {
-	Code []byte
+	Code            []byte
+	LongConstants   []int64
+	ByteConstants   [][]byte
+	StringConstants []string
 }
