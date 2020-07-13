@@ -4,9 +4,12 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
+	"log"
+	"net"
 	"os"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -14,9 +17,12 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
+	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"google.golang.org/grpc"
 )
 
 func TestGetTransactions(t *testing.T) {
@@ -319,45 +325,33 @@ func TestSign(t *testing.T) {
 }
 
 func TestBroadcast(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	h := mock.NewMockGrpcHandlers(ctrl)
+	h.EXPECT().Broadcast(gomock.Any(), gomock.Any()).Return(&pb.SignedTransaction{}, nil)
+
+	server, err := NewServerWithHandlers(services.Services{}, h)
 	require.NoError(t, err)
-	params := defaultStateParams()
-	st, err := state.NewState(dataDir, params, settings.MainNetSettings)
-	require.NoError(t, err)
+
 	ctx, cancel := context.WithCancel(context.Background())
-	sch := createWallet(ctx, st, settings.MainNetSettings)
-	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
-	err = server.initServer(st, utx, sch)
-	require.NoError(t, err)
+	defer cancel()
 
-	conn := connect(t, grpcTestAddr)
-	defer func() {
-		cancel()
-		err = conn.Close()
-		require.NoError(t, err)
-		err = st.Close()
-		require.NoError(t, err)
-		err = os.RemoveAll(dataDir)
-		require.NoError(t, err)
+	lis, err := net.Listen("tcp", "127.0.0.1:")
+	require.NoError(t, err)
+	defer lis.Close()
+	go func() {
+		if err := server.Serve(lis); err != nil {
+			log.Fatalf("server.Run(): %v\n", err)
+		}
 	}()
+	defer server.Stop()
 
-	addr, err := proto.NewAddressFromString("3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ")
+	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
 	require.NoError(t, err)
-	sk, pk, err := crypto.GenerateKeyPair([]byte("whatever"))
-	require.NoError(t, err)
-	waves := proto.OptionalAsset{Present: false}
-	tx := proto.NewUnsignedTransferWithSig(pk, waves, waves, 100, 1, 100, proto.NewRecipientFromAddress(addr), []byte("attachment"))
-	err = tx.Sign(server.scheme, sk)
-	require.NoError(t, err)
-	txProto, err := tx.ToProtobufSigned(server.scheme)
-	require.NoError(t, err)
+	defer conn.Close()
 
-	// tx is originally not in UTX.
-	assert.Equal(t, false, utx.Exists(tx))
 	cl := g.NewTransactionsApiClient(conn)
-	_, err = cl.Broadcast(ctx, txProto)
+	_, err = cl.Broadcast(ctx, &pb.SignedTransaction{})
 	require.NoError(t, err)
-
-	// tx should now be in UTX.
-	assert.Equal(t, true, utx.Exists(tx))
 }

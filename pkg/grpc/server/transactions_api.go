@@ -224,7 +224,7 @@ func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (out *
 	if err != nil {
 		return nil, apiError(err)
 	}
-	err = broadcast(ctx, s.InternalChannel, t)
+	err = broadcast(ctx, s.services.InternalChannel, t)
 	if err != nil {
 		return nil, apiError(err)
 	}
@@ -270,6 +270,8 @@ func broadcast(ctx context.Context, ch chan messages.InternalMessage, tx proto.T
 	case ch <- messages.NewBroadcastTransaction(respCh, tx):
 	case <-ctx.Done():
 		return ctx.Err()
+	case <-time.After(2 * time.Second):
+		return errors.New("timeout waiting request to internal")
 	}
 	select {
 	case <-ctx.Done():
