@@ -23,7 +23,7 @@ func Run(program *Program) (*Result, error) {
 
 	m := vm{
 		code:      program.Code,
-		constants: nil,
+		constants: program.Constants,
 		stack:     make([]interface{}, 0, 2),
 		scopes:    make([]scope, 0, 2),
 		ip:        0,
@@ -85,6 +85,10 @@ func (m *vm) current() interface{} {
 }
 
 func (m *vm) arg() uint16 {
+
+	if len(m.code) >= m.ip+2 {
+
+	}
 	b0, b1 := m.code[m.ip], m.code[m.ip+1]
 	m.ip += 2
 	return uint16(b0) | uint16(b1)<<8

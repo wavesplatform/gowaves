@@ -10,9 +10,7 @@ import (
 func Compile(tree *Tree) (*Program, error) {
 	c := &compiler{
 		code:      make([]byte, 0, 256),
-		longs:     make([]int64, 0),
-		bytes:     make([][]byte, 0),
-		strings:   make([]string, 0),
+		constants: make([]interface{}, 0),
 		calls:     make([]call, 0),
 		functions: make(map[string]function),
 	}
@@ -21,18 +19,14 @@ func Compile(tree *Tree) (*Program, error) {
 		return nil, err
 	}
 	return &Program{
-		Code:            c.code,
-		LongConstants:   c.longs,
-		ByteConstants:   c.bytes,
-		StringConstants: c.strings,
+		Code:      c.code,
+		Constants: c.constants,
 	}, nil
 }
 
 type compiler struct {
 	code      []byte
-	longs     []int64
-	bytes     [][]byte
-	strings   []string
+	constants []interface{}
 	calls     []call
 	functions map[string]function
 }
@@ -72,7 +66,7 @@ func (c *compiler) emit(op byte, data ...byte) int {
 }
 
 func (c *compiler) longNode(node *LongNode) error {
-	v, err := c.makeLongConstant(node.Value)
+	v, err := c.makeConstant(node.Value)
 	if err != nil {
 		return err
 	}
@@ -81,7 +75,7 @@ func (c *compiler) longNode(node *LongNode) error {
 }
 
 func (c *compiler) bytesNode(node *BytesNode) error {
-	v, err := c.makeBytesConstant(node.Value)
+	v, err := c.makeConstant(node.Value)
 	if err != nil {
 		return err
 	}
@@ -90,7 +84,7 @@ func (c *compiler) bytesNode(node *BytesNode) error {
 }
 
 func (c *compiler) stringNode(node *StringNode) error {
-	v, err := c.makeStringConstant(node.Value)
+	v, err := c.makeConstant(node.Value)
 	if err != nil {
 		return err
 	}
@@ -137,7 +131,7 @@ func (c *compiler) assignmentNode(node *AssignmentNode) error {
 	if err != nil {
 		return err
 	}
-	p, err := c.makeStringConstant(node.Name)
+	p, err := c.makeConstant(node.Name)
 	if err != nil {
 		return err
 	}
@@ -147,7 +141,7 @@ func (c *compiler) assignmentNode(node *AssignmentNode) error {
 }
 
 func (c *compiler) referenceNode(node *ReferenceNode) error {
-	p, err := c.makeStringConstant(node.Name)
+	p, err := c.makeConstant(node.Name)
 	if err != nil {
 		return err
 	}
@@ -185,7 +179,7 @@ func (c *compiler) propertyNode(node *PropertyNode) error {
 	if err != nil {
 		return err
 	}
-	p, err := c.makeStringConstant(node.Name)
+	p, err := c.makeConstant(node.Name)
 	if err != nil {
 		return err
 	}
@@ -193,30 +187,12 @@ func (c *compiler) propertyNode(node *PropertyNode) error {
 	return nil
 }
 
-func (c *compiler) makeLongConstant(v int64) ([]byte, error) {
-	c.longs = append(c.longs, v)
-	if len(c.longs) > math.MaxUint16 {
-		return nil, errors.New("max number of longNode constants exceeded")
+func (c *compiler) makeConstant(v interface{}) ([]byte, error) {
+	c.constants = append(c.constants, v)
+	if len(c.constants) > math.MaxUint16 {
+		return nil, errors.New("max number of constants exceeded")
 	}
-	pos := uint16(len(c.longs) - 1)
-	return encode(pos), nil
-}
-
-func (c *compiler) makeBytesConstant(v []byte) ([]byte, error) {
-	c.bytes = append(c.bytes, v)
-	if len(c.bytes) > math.MaxUint16 {
-		return nil, errors.New("max number of bytes constants exceeded")
-	}
-	pos := uint16(len(c.bytes) - 1)
-	return encode(pos), nil
-}
-
-func (c *compiler) makeStringConstant(v string) ([]byte, error) {
-	c.strings = append(c.strings, v)
-	if len(c.strings) > math.MaxUint16 {
-		return nil, errors.New("max number of string constants exceeded")
-	}
-	pos := uint16(len(c.strings) - 1)
+	pos := uint16(len(c.constants) - 1)
 	return encode(pos), nil
 }
 
