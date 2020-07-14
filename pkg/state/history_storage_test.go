@@ -29,30 +29,30 @@ func TestAddNewEntry(t *testing.T) {
 	val := bytes.Repeat([]byte{0x1a}, valSize)
 	err = to.hs.addNewEntry(accountScript, key, val, blockID0)
 	assert.NoError(t, err, "addNewEntry() failed")
-	entry, err := to.hs.freshLatestEntry(key, true)
-	assert.NoError(t, err, "freshLatestEntry() failed")
+	entry, err := to.hs.newestTopEntry(key, true)
+	assert.NoError(t, err, "newestTopEntry() failed")
 	assert.Equal(t, val, entry.data)
-	data, err := to.hs.freshLatestEntryData(key, true)
-	assert.NoError(t, err, "freshLatestEntryData() failed")
+	data, err := to.hs.newestTopEntryData(key, true)
+	assert.NoError(t, err, "newestTopEntryData() failed")
 	assert.Equal(t, val, data)
-	entries, err := to.hs.entriesDataInHeightRange(key, 1, 1, true)
-	assert.NoError(t, err, "entriesDataInHeightRange() failed")
+	entries, err := to.hs.newestEntriesDataInHeightRange(key, 1, 1, true)
+	assert.NoError(t, err, "newestEntriesDataInHeightRange() failed")
 	assert.Equal(t, [][]byte{val}, entries)
 
-	blockID, err := to.hs.freshBlockOfTheLatestEntry(key, true)
-	assert.NoError(t, err, "freshBlockOfTheLatestEntry() failed")
+	blockID, err := to.hs.newestBlockOfTheTopEntry(key, true)
+	assert.NoError(t, err, "newestBlockOfTheTopEntry() failed")
 	assert.Equal(t, blockID0, blockID)
 
 	to.flush(t)
 
-	entry, err = to.hs.latestEntry(key, true)
-	assert.NoError(t, err, "latestEntry() failed")
+	entry, err = to.hs.topEntry(key, true)
+	assert.NoError(t, err, "topEntry() failed")
 	assert.Equal(t, val, entry.data)
-	data, err = to.hs.latestEntryData(key, true)
-	assert.NoError(t, err, "latestEntryData() failed")
+	data, err = to.hs.topEntryData(key, true)
+	assert.NoError(t, err, "topEntryData() failed")
 	assert.Equal(t, val, data)
-	blockID, err = to.hs.blockOfTheLatestEntry(key, true)
-	assert.NoError(t, err, "blockOfTheLatestEntry() failed")
+	blockID, err = to.hs.blockOfTheTopEntry(key, true)
+	assert.NoError(t, err, "blockOfTheTopEntry() failed")
 	assert.Equal(t, blockID0, blockID)
 
 	// Check entryDataAtHeight().
@@ -116,14 +116,13 @@ func TestNewestDataIterator(t *testing.T) {
 		string(key1.bytes()): val1,
 	}
 	keys := make(map[string]bool)
-	iter, err := newNewestDataIterator(to.hs, accountScript)
+	iter, err := to.hs.newNewestTopEntryIterator(accountScript, true)
 	assert.NoError(t, err)
 	for iter.Next() {
 		key := iter.Key()
 		correctVal, ok := correctValues[string(key)]
 		assert.Equal(t, true, ok)
-		val, err := to.hs.freshLatestEntryData(key, true)
-		assert.NoError(t, err)
+		val := iter.Value()
 		assert.Equal(t, correctVal, val)
 		keys[string(key)] = true
 	}
@@ -136,15 +135,14 @@ func TestNewestDataIterator(t *testing.T) {
 	correctValues = map[string][]byte{
 		string(key2.bytes()): val2,
 	}
-	iter, err = newNewestDataIterator(to.hs, assetScript)
+	iter, err = to.hs.newNewestTopEntryIterator(assetScript, true)
 	assert.NoError(t, err)
 	keys = make(map[string]bool)
 	for iter.Next() {
 		key := iter.Key()
 		correctVal, ok := correctValues[string(key)]
 		assert.Equal(t, true, ok)
-		val, err := to.hs.freshLatestEntryData(key, true)
-		assert.NoError(t, err)
+		val := iter.Value()
 		assert.Equal(t, correctVal, val)
 		keys[string(key)] = true
 	}

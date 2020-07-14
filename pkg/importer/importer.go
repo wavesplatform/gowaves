@@ -29,6 +29,20 @@ type State interface {
 	AddOldBlocks(blocks [][]byte) error
 	WavesAddressesNumber() (uint64, error)
 	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)
+	ShouldPersistAddressTransactions() (bool, error)
+	PersistAddressTransactions() error
+}
+
+func maybePersistTxs(st State) error {
+	// Check if we need to persist transactions for extended API.
+	persistTxs, err := st.ShouldPersistAddressTransactions()
+	if err != nil {
+		return err
+	}
+	if persistTxs {
+		return st.PersistAddressTransactions()
+	}
+	return nil
 }
 
 func calculateNextMaxSizeAndDirection(maxSize int, speed, prevSpeed float64, increasingSize bool) (int, bool) {
@@ -122,6 +136,9 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 		prevSpeed = speed
 		totalSize = 0
 		blocksIndex = 0
+		if err := maybePersistTxs(st); err != nil {
+			return err
+		}
 	}
 	return nil
 }

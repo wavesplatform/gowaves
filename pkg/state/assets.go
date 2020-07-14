@@ -133,14 +133,14 @@ type assets struct {
 	uncertainAssetInfo map[crypto.Digest]assetInfo
 }
 
-func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage) (*assets, error) {
+func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage) *assets {
 	return &assets{
 		db:                 db,
 		dbBatch:            dbBatch,
 		hs:                 hs,
 		freshConstInfo:     make(map[crypto.Digest]assetConstInfo),
 		uncertainAssetInfo: make(map[crypto.Digest]assetInfo),
-	}, nil
+	}
 }
 
 func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord, blockID proto.BlockID) error {
@@ -222,9 +222,6 @@ func (a *assets) applyBurn(assetID crypto.Digest, ch *assetBurnChange, filter bo
 		return nil, errors.Errorf("failed to get asset info: %v\n", err)
 	}
 	quantityDiff := big.NewInt(ch.diff)
-	if info.quantity.Cmp(quantityDiff) == -1 {
-		return nil, errors.New("trying to burn more assets than exist at all")
-	}
 	info.quantity.Sub(&info.quantity, quantityDiff)
 	return info, nil
 }
@@ -303,7 +300,7 @@ func (a *assets) newestChangeableInfo(assetID crypto.Digest, filter bool) (*asse
 		return &info.assetChangeableInfo, nil
 	}
 	histKey := assetHistKey{assetID: assetID}
-	recordBytes, err := a.hs.freshLatestEntryData(histKey.bytes(), filter)
+	recordBytes, err := a.hs.newestTopEntryData(histKey.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +344,7 @@ func (a *assets) assetInfo(assetID crypto.Digest, filter bool) (*assetInfo, erro
 		return nil, err
 	}
 	histKey := assetHistKey{assetID: assetID}
-	recordBytes, err := a.hs.latestEntryData(histKey.bytes(), filter)
+	recordBytes, err := a.hs.topEntryData(histKey.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

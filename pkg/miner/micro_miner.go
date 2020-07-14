@@ -10,6 +10,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	maxMicroblockTransactions = 255
+)
+
 var NoTransactionsErr = errors.New("no transactions")
 var StateChangedErr = errors.New("state changed")
 
@@ -59,15 +63,19 @@ func (a *MicroMiner) Micro(
 	}
 
 	//
-	transactions := make([]proto.Transaction, 0)
-	cnt := 0
+	txCount := 0
 	binSize := 0
 
+	var appliedTransactions []*types.TransactionWithBytes
 	var unAppliedTransactions []*types.TransactionWithBytes
 
 	_ = a.state.Map(func(s state.NonThreadSafeState) error {
-		// 255 is max transactions count in microblock
-		for i := 0; i < 255; i++ {
+		defer s.ResetValidationList()
+
+		for {
+			if txCount >= maxMicroblockTransactions {
+				break
+			}
 			t := a.utx.Pop()
 			if t == nil {
 				break
@@ -84,14 +92,25 @@ func (a *MicroMiner) Micro(
 			// activation of accepting transactions with failed scripts.
 			checkScripts := true
 			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, checkScripts)
+			if state.IsTxCommitmentError(err) {
+				// This should not happen in practice.
+				// Reset state, tx count, return applied transactions to UTX.
+				s.ResetValidationList()
+				txCount = 0
+				for _, appliedTx := range appliedTransactions {
+					_ = a.utx.AddWithBytes(appliedTx.T, appliedTx.B)
+				}
+				appliedTransactions = nil
+				continue
+			}
 			if err != nil {
 				unAppliedTransactions = append(unAppliedTransactions, t)
 				continue
 			}
 
-			cnt += 1
+			txCount += 1
 			binSize += len(binTr) + transactionLenBytes
-			transactions = append(transactions, t.T)
+			appliedTransactions = append(appliedTransactions, t)
 		}
 		return nil
 	})
@@ -102,12 +121,16 @@ func (a *MicroMiner) Micro(
 	}
 
 	// no transactions applied, skip
-	if cnt == 0 {
+	if txCount == 0 {
 		return nil, nil, rest, NoTransactionsErr
 	}
 
 	zap.S().Debugf("micro_miner top block sig %s", a.state.TopBlock().BlockSignature)
 
+	transactions := make([]proto.Transaction, len(appliedTransactions))
+	for i, appliedTx := range appliedTransactions {
+		transactions[i] = appliedTx.T
+	}
 	newTransactions := minedBlock.Transactions.Join(transactions)
 
 	newBlock, err := proto.CreateBlock(
@@ -142,7 +165,7 @@ func (a *MicroMiner) Micro(
 		VersionField:          byte(newBlock.Version),
 		SenderPK:              keyPair.Public,
 		Transactions:          transactions,
-		TransactionCount:      uint32(cnt),
+		TransactionCount:      uint32(txCount),
 		Reference:             a.state.TopBlock().BlockID(),
 		TotalResBlockSigField: newBlock.BlockSignature,
 		TotalBlockID:          newBlock.BlockID(),

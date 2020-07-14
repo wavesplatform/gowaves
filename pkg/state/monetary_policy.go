@@ -58,18 +58,17 @@ func (r *rewardVotesRecord) unmarshalBinary(data []byte) error {
 }
 
 type monetaryPolicy struct {
-	db       keyvalue.IterableKeyVal
-	hs       *historyStorage
 	settings *settings.BlockchainSettings
+	hs       *historyStorage
 }
 
-func newMonetaryPolicy(db keyvalue.IterableKeyVal, hs *historyStorage, settings *settings.BlockchainSettings) (*monetaryPolicy, error) {
-	return &monetaryPolicy{db: db, hs: hs, settings: settings}, nil
+func newMonetaryPolicy(hs *historyStorage, settings *settings.BlockchainSettings) *monetaryPolicy {
+	return &monetaryPolicy{hs: hs, settings: settings}
 }
 
 func (m *monetaryPolicy) reward() (uint64, error) {
 	var record blockRewardRecord
-	b, err := m.hs.freshLatestEntryData(blockRewardKeyBytes, true)
+	b, err := m.hs.newestTopEntryData(blockRewardKeyBytes, true)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		return m.settings.InitialBlockReward, nil
 	}
@@ -84,7 +83,7 @@ func (m *monetaryPolicy) reward() (uint64, error) {
 
 func (m *monetaryPolicy) votes() (rewardVotesRecord, error) {
 	var record rewardVotesRecord
-	recordBytes, err := m.hs.freshLatestEntryData(rewardVotesKeyBytes, true)
+	recordBytes, err := m.hs.newestTopEntryData(rewardVotesKeyBytes, true)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		return record, nil
 	}

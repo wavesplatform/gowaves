@@ -79,7 +79,7 @@ type accountsDataStorage struct {
 	calculateHashes bool
 }
 
-func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, calcHashes bool) (*accountsDataStorage, error) {
+func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, calcHashes bool) *accountsDataStorage {
 	return &accountsDataStorage{
 		db:               db,
 		dbBatch:          dbBatch,
@@ -88,7 +88,7 @@ func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, 
 		addrToNumMem:     make(map[proto.Address]uint64),
 		uncertainEntries: make(map[entryId]proto.DataEntry),
 		calculateHashes:  calcHashes,
-	}, nil
+	}
 }
 
 func (s *accountsDataStorage) getLastAddrNum() (uint64, error) {
@@ -205,7 +205,7 @@ func (s *accountsDataStorage) newestEntryBytes(addr proto.Address, entryKey stri
 		return nil, err
 	}
 	key := accountsDataStorKey{addrNum, entryKey}
-	recordBytes, err := s.hs.freshLatestEntryData(key.bytes(), filter)
+	recordBytes, err := s.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func (s *accountsDataStorage) entryBytes(addr proto.Address, entryKey string, fi
 		return nil, err
 	}
 	key := accountsDataStorKey{addrNum, entryKey}
-	recordBytes, err := s.hs.latestEntryData(key.bytes(), filter)
+	recordBytes, err := s.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +239,7 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address, filter bool) (
 		return nil, err
 	}
 	key := accountsDataStorKey{addrNum: addrNum}
-	iter, err := s.db.NewKeyIterator(key.accountPrefix())
+	iter, err := s.hs.newTopEntryIteratorByPrefix(key.accountPrefix(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -253,10 +253,7 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address, filter bool) (
 	var entries []proto.DataEntry
 	for iter.Next() {
 		entryKeyBytes := keyvalue.SafeKey(iter)
-		recordBytes, err := s.hs.latestEntryData(entryKeyBytes, filter)
-		if err != nil {
-			return nil, err
-		}
+		recordBytes := keyvalue.SafeValue(iter)
 		var record dataEntryRecord
 		if err := record.unmarshalBinary(recordBytes); err != nil {
 			return nil, err

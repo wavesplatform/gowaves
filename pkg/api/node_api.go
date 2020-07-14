@@ -17,8 +17,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const apiKey = "X-API-Key"
-
 // Logger is a middleware that logs the start and end of each request, along
 // with some useful data about what was requested, what the response status was,
 // and how long it took to return.

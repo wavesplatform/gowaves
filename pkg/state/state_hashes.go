@@ -1,28 +1,25 @@
 package state
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type stateHashes struct {
-	db      keyvalue.KeyValue
-	dbBatch keyvalue.Batch
+	hs *historyStorage
 }
 
-func newStateHashes(db keyvalue.KeyValue, dbBatch keyvalue.Batch) *stateHashes {
-	return &stateHashes{db: db, dbBatch: dbBatch}
+func newStateHashes(hs *historyStorage) *stateHashes {
+	return &stateHashes{hs}
 }
 
-func (s *stateHashes) saveStateHash(stateHash *proto.StateHash, height uint64) error {
+func (s *stateHashes) saveStateHash(sh *proto.StateHash, height uint64) error {
 	key := stateHashKey{height: height}
-	s.dbBatch.Put(key.bytes(), stateHash.MarshalBinary())
-	return nil
+	return s.hs.addNewEntry(stateHash, key.bytes(), sh.MarshalBinary(), sh.BlockID)
 }
 
-func (s *stateHashes) stateHash(height uint64) (*proto.StateHash, error) {
+func (s *stateHashes) stateHash(height uint64, filter bool) (*proto.StateHash, error) {
 	key := stateHashKey{height: height}
-	stateHashBytes, err := s.db.Get(key.bytes())
+	stateHashBytes, err := s.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -31,14 +28,4 @@ func (s *stateHashes) stateHash(height uint64) (*proto.StateHash, error) {
 		return nil, err
 	}
 	return &sh, nil
-}
-
-func (s *stateHashes) rollback(newHeight, oldHeight uint64) error {
-	for h := oldHeight; h > newHeight; h-- {
-		key := stateHashKey{height: h}
-		if err := s.db.Delete(key.bytes()); err != nil {
-			return err
-		}
-	}
-	return nil
 }

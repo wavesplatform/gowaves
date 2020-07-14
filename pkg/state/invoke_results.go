@@ -37,13 +37,13 @@ type invokeResults struct {
 	hs *historyStorage
 }
 
-func newInvokeResults(hs *historyStorage) (*invokeResults, error) {
-	return &invokeResults{hs}, nil
+func newInvokeResults(hs *historyStorage) *invokeResults {
+	return &invokeResults{hs}
 }
 
 func (ir *invokeResults) invokeResult(scheme byte, invokeID crypto.Digest, filter bool) (*proto.ScriptResult, error) {
 	key := invokeResultKey{invokeID}
-	recordBytes, err := ir.hs.latestEntryData(key.bytes(), filter)
+	recordBytes, err := ir.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

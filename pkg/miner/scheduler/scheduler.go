@@ -131,7 +131,7 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 		if confirmedBlockHeight > 1000 {
 			startHeight = confirmedBlockHeight - 1000 + 1
 		}
-		effectiveBalance, err := storage.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
+		effectiveBalance, err := storage.EffectiveBalance(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
 		if err != nil {
 			zap.S().Debugf("Scheduler: Failed to schedule mining for address '%s': %v", addr.String(), err)
 			continue
@@ -228,7 +228,7 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 		if confirmedBlockHeight > 1000 {
 			startHeight = confirmedBlockHeight - 1000 + 1
 		}
-		effectiveBalance, err := storage.EffectiveBalanceStable(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
+		effectiveBalance, err := storage.EffectiveBalance(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
 		if err != nil {
 			zap.S().Debug("scheduler, internalImpl effectiveBalance, err", effectiveBalance, err, addr.String())
 			continue

@@ -110,8 +110,7 @@ func TestRollbackVote(t *testing.T) {
 	assert.Equal(t, uint32(1), votes.increase)
 	assert.Equal(t, uint32(0), votes.decrease)
 
-	err = storage.stateDB.rollbackBlock(blockID0)
-	require.NoError(t, err)
+	storage.rollbackBlock(t, blockID0)
 	votes, err = mo.votes()
 	require.NoError(t, err)
 	assert.Equal(t, uint32(0), votes.increase)
@@ -183,9 +182,6 @@ func createTestObjects(sets *settings.BlockchainSettings) (*monetaryPolicy, *tes
 	if err != nil {
 		return nil, nil, path, err
 	}
-	mp, err := newMonetaryPolicy(storage.db, storage.hs, sets)
-	if err != nil {
-		return nil, storage, path, err
-	}
+	mp := newMonetaryPolicy(storage.hs, sets)
 	return mp, storage, path, nil
 }
