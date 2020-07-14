@@ -3,17 +3,17 @@ package state
 import (
 	"fmt"
 
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/script"
 )
 
 type element struct {
 	key        string
-	value      ast.Script
+	value      messages.Script
 	prev, next *element
 	bytes      uint64
 }
 
-var defaultValue ast.Script
+var defaultValue messages.Script
 
 type lru struct {
 	maxSize, maxBytes, size, bytesUsed uint64
@@ -83,7 +83,7 @@ func (l *lru) makeFreeSpace(bytes uint64) {
 	}
 }
 
-func (l *lru) get(key []byte) (value ast.Script, has bool) {
+func (l *lru) get(key []byte) (value messages.Script, has bool) {
 	var e *element
 	e, has = l.m[string(key)]
 	if !has {
@@ -94,7 +94,7 @@ func (l *lru) get(key []byte) (value ast.Script, has bool) {
 	return e.value, true
 }
 
-func (l *lru) set(key []byte, value ast.Script, bytes uint64) (existed bool) {
+func (l *lru) set(key []byte, value messages.Script, bytes uint64) (existed bool) {
 	keyStr := string(key)
 	e, has := l.m[keyStr]
 	if has {

@@ -1,10 +1,14 @@
-package ast
+package messages
 
 import (
 	"strconv"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	. "github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
+	"github.com/wavesplatform/gowaves/pkg/ride/op"
+	"github.com/wavesplatform/gowaves/pkg/ride/transpiler"
+	"go.uber.org/zap"
 )
 
 type flags struct {
@@ -41,11 +45,33 @@ func BuildScript(r *BytesReader) (*Script, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "parser")
 	}
+
+	b := op.NewOpCodeBuilder()
+	r2 := r.Reset().StripCheckSum()
+	//r2.Next()
+	errer := transpiler.ErrImpl{}
+	err = transpiler.BuildCode(r2, transpiler.NewInitial(b, &errer))
+	vmCode := b.Code()
+	if err != nil {
+		vmCode = nil
+		zap.S().Debugf("transpiler.BuildCode: %s", err)
+		return nil, err
+	}
+	if errer.Get() != nil {
+		vmCode = nil
+		zap.S().Debugf("transpiler.Fsm: %s", errer.Get())
+		return nil, errer.Get()
+	}
+	//if err != nil {
+	//	return nil, errors.Wrap(err, "transpiler")
+	//}
+
 	script := Script{
 		Version:    int(version),
 		HasBlockV2: f.blockV2,
 		HasArrays:  f.arrays,
 		Verifier:   exp,
+		VmCode:     vmCode,
 	}
 	return &script, nil
 }
@@ -54,7 +80,7 @@ type DApp struct {
 	DAppVersion   byte
 	LibVersion    byte
 	Meta          DappMeta
-	Declarations  Exprs
+	Declarations  ast.Exprs
 	CallableFuncs map[string]*DappCallableFunc
 	Verifier      *DappCallableFunc
 }
@@ -75,7 +101,7 @@ func (f *flags) parseDApp(r *BytesReader) (DApp, error) {
 	}
 	dApp.Meta = meta
 
-	declarations := Exprs{}
+	declarations := ast.Exprs{}
 	cnt := r.ReadInt()
 	for i := int32(0); i < cnt; i++ {
 		d, err := f.deserializeDeclaration(r)
@@ -97,7 +123,7 @@ func (f *flags) parseDApp(r *BytesReader) (DApp, error) {
 		if err != nil {
 			return dApp, err
 		}
-		f, ok := d.(*FuncDeclaration)
+		f, ok := d.(*ast.FuncDeclaration)
 		if !ok {
 			return dApp, errors.Errorf("expected to be *FuncDeclaration, found %T", f)
 		}
@@ -117,7 +143,7 @@ func (f *flags) parseDApp(r *BytesReader) (DApp, error) {
 		if err != nil {
 			return dApp, err
 		}
-		f, ok := d.(*FuncDeclaration)
+		f, ok := d.(*ast.FuncDeclaration)
 		if !ok {
 			return dApp, errors.Errorf("expected to be *FuncDeclaration, found %T", f)
 		}
@@ -132,10 +158,10 @@ func (f *flags) parseDApp(r *BytesReader) (DApp, error) {
 
 type DappCallableFunc struct {
 	AnnotationInvokeName string
-	FuncDecl             *FuncDeclaration
+	FuncDecl             *ast.FuncDeclaration
 }
 
-func (f *flags) walk(iter *BytesReader) (Expr, error) {
+func (f *flags) walk(iter *BytesReader) (ast.Expr, error) {
 	if iter.Eof() {
 		return nil, ErrUnexpectedEOF
 	}
@@ -143,25 +169,25 @@ func (f *flags) walk(iter *BytesReader) (Expr, error) {
 	next := iter.Next()
 	switch next {
 	case E_LONG:
-		return &LongExpr{
+		return &ast.LongExpr{
 			Value: iter.ReadLong(),
 		}, nil
 	case E_BYTES:
 		return readBytes(iter)
 	case E_STRING:
-		return NewString(iter.ReadString()), nil
+		return ast.NewString(iter.ReadString()), nil
 	case E_IF:
 		return f.readIf(iter)
 	case E_BLOCK:
 		return f.readBlock(iter)
 	case E_REF:
-		return &RefExpr{
+		return &ast.RefExpr{
 			Name: iter.ReadString(),
 		}, nil
 	case E_TRUE:
-		return NewBoolean(true), nil
+		return ast.NewBoolean(true), nil
 	case E_FALSE:
-		return NewBoolean(false), nil
+		return ast.NewBoolean(false), nil
 	case E_GETTER:
 		return f.readGetter(iter)
 	case E_FUNCALL:
@@ -185,7 +211,7 @@ func (f *flags) walk(iter *BytesReader) (Expr, error) {
 	}
 }
 
-func (f *flags) readBlock(r *BytesReader) (*Block, error) {
+func (f *flags) readBlock(r *BytesReader) (*ast.Block, error) {
 	letName := r.ReadString()
 	letValue, err := f.walk(r)
 	if err != nil {
@@ -197,13 +223,13 @@ func (f *flags) readBlock(r *BytesReader) (*Block, error) {
 		return nil, err
 	}
 
-	return &Block{
-		Let:  NewLet(letName, letValue),
+	return &ast.Block{
+		Let:  ast.NewLet(letName, letValue),
 		Body: body,
 	}, nil
 }
 
-func (f *flags) deserializeDeclaration(r *BytesReader) (Expr, error) {
+func (f *flags) deserializeDeclaration(r *BytesReader) (ast.Expr, error) {
 	declType, err := r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -215,7 +241,7 @@ func (f *flags) deserializeDeclaration(r *BytesReader) (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewLet(name, body), nil
+		return ast.NewLet(name, body), nil
 	case DEC_FUNC:
 		name := r.ReadString()
 		argc := r.ReadInt()
@@ -227,7 +253,7 @@ func (f *flags) deserializeDeclaration(r *BytesReader) (Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &FuncDeclaration{
+		return &ast.FuncDeclaration{
 			Name: name,
 			Args: args,
 			Body: body,
@@ -238,7 +264,7 @@ func (f *flags) deserializeDeclaration(r *BytesReader) (Expr, error) {
 	}
 }
 
-func (f *flags) readBlockV2(r *BytesReader) (*BlockV2, error) {
+func (f *flags) readBlockV2(r *BytesReader) (*ast.BlockV2, error) {
 	rs, err := f.deserializeDeclaration(r)
 	if err != nil {
 		return nil, err
@@ -249,31 +275,31 @@ func (f *flags) readBlockV2(r *BytesReader) (*BlockV2, error) {
 		return nil, err
 	}
 
-	return &BlockV2{
+	return &ast.BlockV2{
 		Decl: rs,
 		Body: body,
 	}, nil
 }
 
-func (f *flags) readArray(r *BytesReader) (*ArrayExpr, error) {
+func (f *flags) readArray(r *BytesReader) (*ast.ArrayExpr, error) {
 	cnt := r.ReadInt()
-	items := make([]Expr, cnt)
+	items := make([]ast.Expr, cnt)
 	for i := 0; i < int(cnt); i++ {
 		item, err := f.walk(r)
 		if err != nil {
 			return nil, err
 		}
 		switch item.(type) {
-		case *LongExpr, *BooleanExpr, *StringExpr, *BytesExpr:
+		case *ast.LongExpr, *ast.BooleanExpr, *ast.StringExpr, *ast.BytesExpr:
 			items[i] = item
 		default:
 			return nil, errors.New("unsupported type of array item")
 		}
 	}
-	return NewArray(items), nil
+	return ast.NewArray(items), nil
 }
 
-func (f *flags) readFuncCAll(iter *BytesReader) (*FuncCallExpr, error) {
+func (f *flags) readFuncCAll(iter *BytesReader) (*ast.FuncCallExpr, error) {
 	nativeOrUser, err := iter.ReadByte()
 	if err != nil {
 		return nil, err
@@ -284,24 +310,24 @@ func (f *flags) readFuncCAll(iter *BytesReader) (*FuncCallExpr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewFuncCall(f), nil
+		return ast.NewFuncCall(f), nil
 	case FH_USER:
 		f, err := f.readUserFunction(iter)
 		if err != nil {
 			return nil, err
 		}
-		return NewFuncCall(f), nil
+		return ast.NewFuncCall(f), nil
 	default:
 		return nil, errors.Errorf("invalid function type, expects 0 or 1, found %d", nativeOrUser)
 	}
 
 }
 
-func (f *flags) readNativeFunction(iter *BytesReader) (*FunctionCall, error) {
+func (f *flags) readNativeFunction(iter *BytesReader) (*ast.FunctionCall, error) {
 	funcNumber := iter.ReadShort()
 	name := strconv.Itoa(int(funcNumber))
 	argc := iter.ReadInt()
-	argv := make([]Expr, argc)
+	argv := make([]ast.Expr, argc)
 
 	for i := int32(0); i < argc; i++ {
 		v, err := f.walk(iter)
@@ -310,13 +336,13 @@ func (f *flags) readNativeFunction(iter *BytesReader) (*FunctionCall, error) {
 		}
 		argv[i] = v
 	}
-	return NewFunctionCall(name, argv), nil
+	return ast.NewFunctionCall(name, argv), nil
 }
 
-func (f *flags) readUserFunction(iter *BytesReader) (*FunctionCall, error) {
+func (f *flags) readUserFunction(iter *BytesReader) (*ast.FunctionCall, error) {
 	name := iter.ReadString()
 	argc := iter.ReadInt()
-	argv := make([]Expr, argc)
+	argv := make([]ast.Expr, argc)
 	for i := int32(0); i < argc; i++ {
 		v, err := f.walk(iter)
 		if err != nil {
@@ -325,10 +351,10 @@ func (f *flags) readUserFunction(iter *BytesReader) (*FunctionCall, error) {
 		argv[i] = v
 	}
 
-	return NewFunctionCall(name, argv), nil
+	return ast.NewFunctionCall(name, argv), nil
 }
 
-func (f *flags) readIf(r *BytesReader) (*IfExpr, error) {
+func (f *flags) readIf(r *BytesReader) (*ast.IfExpr, error) {
 	cond, err := f.walk(r)
 	if err != nil {
 		return nil, err
@@ -341,19 +367,19 @@ func (f *flags) readIf(r *BytesReader) (*IfExpr, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewIf(cond, True, False), nil
+	return ast.NewIf(cond, True, False), nil
 }
 
-func readBytes(r *BytesReader) (*BytesExpr, error) {
-	return NewBytes(r.ReadBytes()), nil
+func readBytes(r *BytesReader) (*ast.BytesExpr, error) {
+	return ast.NewBytes(r.ReadBytes()), nil
 }
 
-func (f *flags) readGetter(r *BytesReader) (*GetterExpr, error) {
+func (f *flags) readGetter(r *BytesReader) (*ast.GetterExpr, error) {
 	a, err := f.walk(r)
 	if err != nil {
 		return nil, err
 	}
 
 	s := r.ReadString()
-	return NewGetterExpr(a, s), nil
+	return ast.NewGetterExpr(a, s), nil
 }

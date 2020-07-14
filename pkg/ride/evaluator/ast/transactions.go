@@ -10,7 +10,7 @@ import (
 func NewVariablesFromScriptTransfer(tx *proto.FullScriptTransfer) (map[string]Expr, error) {
 	out := make(map[string]Expr)
 	out["amount"] = NewLong(int64(tx.Amount))
-	out["assetId"] = makeOptionalAsset(tx.Asset)
+	out["assetId"] = MakeOptionalAsset(tx.Asset)
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
 	out["id"] = NewBytes(common.Dup(tx.ID.Bytes()))
 	out["timestamp"] = NewLong(int64(tx.Timestamp))
@@ -138,14 +138,14 @@ func NewVariablesFromOrder(scheme proto.Scheme, tx proto.Order) (map[string]Expr
 	matcherPk := tx.GetMatcherPK()
 	out["matcherPublicKey"] = NewBytes(common.Dup(matcherPk.Bytes()))
 	pair := tx.GetAssetPair()
-	out["assetPair"] = NewAssetPair(makeOptionalAsset(pair.AmountAsset), makeOptionalAsset(pair.PriceAsset))
+	out["assetPair"] = NewAssetPair(MakeOptionalAsset(pair.AmountAsset), MakeOptionalAsset(pair.PriceAsset))
 	out["orderType"] = makeOrderType(tx.GetOrderType())
 	out["price"] = NewLong(int64(tx.GetPrice()))
 	out["amount"] = NewLong(int64(tx.GetAmount()))
 	out["timestamp"] = NewLong(int64(tx.GetTimestamp()))
 	out["expiration"] = NewLong(int64(tx.GetExpiration()))
 	out["matcherFee"] = NewLong(int64(tx.GetMatcherFee()))
-	out["matcherFeeAssetId"] = makeOptionalAsset(tx.GetMatcherFeeAsset())
+	out["matcherFeeAssetId"] = MakeOptionalAsset(tx.GetMatcherFeeAsset())
 	addr, err := proto.NewAddressFromPublicKey(scheme, tx.GetSenderPK())
 	if err != nil {
 		return nil, errors.Wrap(err, funcName)
@@ -183,7 +183,7 @@ func NewObjectFromBlockInfo(info proto.BlockInfo) Expr {
 	return NewObject(m)
 }
 
-func newMapAssetInfoV3(info proto.AssetInfo) object {
+func newMapAssetInfoV3(info proto.AssetInfo) Object {
 	obj := newObject()
 	obj["id"] = NewBytes(info.ID.Bytes())
 	obj["quantity"] = NewLong(int64(info.Quantity))
@@ -196,7 +196,7 @@ func newMapAssetInfoV3(info proto.AssetInfo) object {
 	return obj
 }
 
-func newMapAssetInfoV4(info proto.FullAssetInfo) object {
+func newMapAssetInfoV4(info proto.FullAssetInfo) Object {
 	obj := newObject()
 	obj["id"] = NewBytes(info.ID.Bytes())
 	obj["quantity"] = NewLong(int64(info.Quantity))
@@ -244,7 +244,7 @@ func makeProofs(proofs *proto.ProofsV1) Exprs {
 	return out
 }
 
-func makeOptionalAsset(o proto.OptionalAsset) Expr {
+func MakeOptionalAsset(o proto.OptionalAsset) Expr {
 	if o.Present {
 		return NewBytes(o.ID.Bytes())
 	}
@@ -303,9 +303,9 @@ func newVariablesFromTransferWithSig(scheme byte, tx *proto.TransferWithSig) (ma
 	funcName := "newVariablesFromTransferWithSig"
 
 	out := make(map[string]Expr)
-	out["feeAssetId"] = makeOptionalAsset(tx.FeeAsset)
+	out["feeAssetId"] = MakeOptionalAsset(tx.FeeAsset)
 	out["amount"] = NewLong(int64(tx.Amount))
-	out["assetId"] = makeOptionalAsset(tx.AmountAsset)
+	out["assetId"] = MakeOptionalAsset(tx.AmountAsset)
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
 	err := setAttachment(out, tx.Attachment)
 	if err != nil {
@@ -338,9 +338,9 @@ func newVariablesFromTransferWithProofs(scheme byte, tx *proto.TransferWithProof
 
 	out := make(map[string]Expr)
 
-	out["feeAssetId"] = makeOptionalAsset(tx.FeeAsset)
+	out["feeAssetId"] = MakeOptionalAsset(tx.FeeAsset)
 	out["amount"] = NewLong(int64(tx.Amount))
-	out["assetId"] = makeOptionalAsset(tx.AmountAsset)
+	out["assetId"] = MakeOptionalAsset(tx.AmountAsset)
 	out["recipient"] = NewRecipientFromProtoRecipient(tx.Recipient)
 	err := setAttachment(out, tx.Attachment)
 	if err != nil {
@@ -497,7 +497,7 @@ func newVariablesFromBurnWithProofs(scheme proto.Scheme, tx *proto.BurnWithProof
 func newVariablesFromMassTransferWithProofs(scheme proto.Scheme, tx *proto.MassTransferWithProofs) (map[string]Expr, error) {
 	funcName := "newVariablesFromMassTransferWithProofs"
 	out := make(map[string]Expr)
-	out["assetId"] = makeOptionalAsset(tx.Asset)
+	out["assetId"] = MakeOptionalAsset(tx.Asset)
 	var total uint64
 	for _, t := range tx.Transfers {
 		total += t.Amount
@@ -685,11 +685,11 @@ func newVariablesFromInvokeScriptWithProofs(scheme proto.Scheme, tx *proto.Invok
 	out["payment"] = NewUnit()
 	if len(tx.Payments) > 0 {
 		out["payment"] = NewAttachedPaymentExpr(
-			makeOptionalAsset(tx.Payments[0].Asset),
+			MakeOptionalAsset(tx.Payments[0].Asset),
 			NewLong(int64(tx.Payments[0].Amount)),
 		)
 	}
-	out["feeAssetId"] = makeOptionalAsset(tx.FeeAsset)
+	out["feeAssetId"] = MakeOptionalAsset(tx.FeeAsset)
 	out["function"] = NewString(tx.FunctionCall.Name)
 
 	var args Exprs

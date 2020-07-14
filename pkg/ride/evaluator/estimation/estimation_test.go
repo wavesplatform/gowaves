@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/script"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,7 +65,7 @@ func TestEstimatorCommon(t *testing.T) {
 	} {
 		r, err := reader.NewReaderFromBase64(test.script)
 		require.NoError(t, err, test.code)
-		script, err := ast.BuildScript(r)
+		script, err := messages.BuildScript(r)
 		require.NoError(t, err, test.code)
 		e1 := NewEstimator(1, test.catalogue, ast.VariablesV3())
 		e2 := NewEstimator(2, test.catalogue, ast.VariablesV3())
@@ -128,7 +129,7 @@ func TestEstimatorFix(t *testing.T) {
 	} {
 		r, err := reader.NewReaderFromBase64(test.script)
 		require.NoError(t, err, test.code)
-		script, err := ast.BuildScript(r)
+		script, err := messages.BuildScript(r)
 		require.NoError(t, err, test.code)
 		e := NewEstimator(test.version, test.catalogue, ast.VariablesV3())
 		cost, err := e.EstimateVerifier(script)
@@ -197,7 +198,7 @@ func TestDAppEstimation(t *testing.T) {
 	} {
 		r, err := reader.NewReaderFromBase64(test.script)
 		require.NoError(t, err, fmt.Sprintf("Failure: V%d: %s: %v", test.version, test.code, err))
-		s, err := ast.BuildScript(r)
+		s, err := messages.BuildScript(r)
 		require.NoError(t, err, fmt.Sprintf("Failure: V%d: %s: %v", test.version, test.code, err))
 		require.True(t, s.IsDapp(), fmt.Sprintf("Failure: V%d: %s: not a DApp", test.version, test.code))
 		e := NewEstimator(test.version, NewCatalogueV3(), ast.VariablesV3())

@@ -6,8 +6,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/script"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"go.uber.org/zap"
 )
 
 type scriptCaller struct {
@@ -32,7 +34,7 @@ func newScriptCaller(
 	}, nil
 }
 
-func (a *scriptCaller) callVerifyScript(script ast.Script, obj map[string]ast.Expr, this, lastBlock ast.Expr) (ast.Result, error) {
+func (a *scriptCaller) callVerifyScript(script messages.Script, obj map[string]ast.Expr, this, lastBlock ast.Expr) (ast.Result, error) {
 	return script.Verify(a.settings.AddressSchemeCharacter, a.state, obj, this, lastBlock)
 }
 
@@ -93,6 +95,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	}
 	this := ast.NewAddressFromProtoAddress(senderAddr)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
+	zap.S().Debugf("callAccountScriptWithTx: %s", base58.Encode(id))
 	r, err := a.callVerifyScript(script, obj, this, lastBlock)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
@@ -181,7 +184,7 @@ func (a *scriptCaller) callAssetScript(
 	return a.callAssetScriptCommon(obj, assetID, lastBlockInfo, initialisation, acceptFailed)
 }
 
-func (a *scriptCaller) invokeFunction(script ast.Script, tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) (bool, []proto.ScriptAction, error) {
+func (a *scriptCaller) invokeFunction(script messages.Script, tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) (bool, []proto.ScriptAction, error) {
 	this := ast.NewAddressFromProtoAddress(scriptAddress)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
 	ok, actions, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)

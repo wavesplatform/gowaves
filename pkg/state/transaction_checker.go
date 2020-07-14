@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/estimation"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/script"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"go.uber.org/zap"
 )
@@ -49,7 +50,7 @@ func newTransactionChecker(
 	return &transactionChecker{genesis, stor, settings}, nil
 }
 
-func (tc *transactionChecker) scriptActivation(script *ast.Script) error {
+func (tc *transactionChecker) scriptActivation(script *messages.Script) error {
 	rideForDAppsActivated, err := tc.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
 		return errs.Extend(err, "transactionChecker scriptActivation isActivated")
@@ -73,7 +74,7 @@ func (tc *transactionChecker) scriptActivation(script *ast.Script) error {
 	return nil
 }
 
-func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexity estimation.Costs) error {
+func (tc *transactionChecker) checkScriptComplexity(script *messages.Script, complexity estimation.Costs) error {
 	var maxComplexity uint64
 	switch script.Version {
 	case 1, 2:
@@ -92,7 +93,7 @@ func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexi
 	return nil
 }
 
-func estimatorByScript(script *ast.Script, version int) *estimation.Estimator {
+func estimatorByScript(script *messages.Script, version int) *estimation.Estimator {
 	var variables map[string]ast.Expr
 	var cat *estimation.Catalogue
 	switch script.Version {
@@ -116,7 +117,7 @@ type scriptInfo struct {
 }
 
 func (tc *transactionChecker) checkScript(scriptBytes proto.Script, estimatorVersion int) (*scriptInfo, error) {
-	script, err := ast.BuildScript(reader.NewBytesReader(scriptBytes))
+	script, err := messages.BuildScript(reader.NewBytesReader(scriptBytes))
 	if err != nil {
 		return nil, errs.Extend(err, "failed to build ast from script bytes")
 	}

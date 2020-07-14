@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -20,196 +19,6 @@ type Actionable interface {
 }
 
 type Callable func(Scope, Exprs) (Expr, error)
-
-type Script struct {
-	Version    int
-	HasBlockV2 bool
-	HasArrays  bool
-	Verifier   Expr
-	DApp       DApp
-	dApp       bool
-}
-
-func (a *Script) HasVerifier() bool {
-	if a.IsDapp() {
-		return a.DApp.Verifier != nil
-	}
-	return a.Verifier != nil
-}
-
-func (a *Script) IsDapp() bool {
-	return a.dApp
-}
-
-func protoArgToArgExpr(arg proto.Argument) (Expr, error) {
-	switch a := arg.(type) {
-	case *proto.IntegerArgument:
-		return &LongExpr{a.Value}, nil
-	case *proto.BooleanArgument:
-		return &BooleanExpr{a.Value}, nil
-	case *proto.StringArgument:
-		return &StringExpr{a.Value}, nil
-	case *proto.BinaryArgument:
-		return &BytesExpr{a.Value}, nil
-	default:
-		return nil, errors.New("unknown argument type")
-	}
-}
-
-func (a *Script) CallFunction(scheme proto.Scheme, state types.SmartState, tx *proto.InvokeScriptWithProofs, this, lastBlock Expr) (bool, []proto.ScriptAction, error) {
-	if !a.IsDapp() {
-		return false, nil, errors.New("can't call Script.CallFunction on non DApp")
-	}
-	txObj, err := NewVariablesFromTransaction(scheme, tx)
-	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to convert transaction")
-	}
-	name := tx.FunctionCall.Name
-	if name == "" && tx.FunctionCall.Default {
-		name = "default"
-	}
-	fn, ok := a.DApp.CallableFuncs[name]
-	if !ok {
-		return false, nil, errors.Errorf("Callable function named '%s' not found", name)
-	}
-	invoke, err := a.buildInvocation(scheme, tx)
-	if err != nil {
-		return false, nil, err
-	}
-	height, err := state.AddingBlockHeight()
-	if err != nil {
-		return false, nil, err
-	}
-	scope := NewScope(a.Version, scheme, state)
-	scope.SetThis(this)
-	scope.SetLastBlockInfo(lastBlock)
-	scope.SetHeight(height)
-	scope.SetTransaction(txObj)
-
-	// assign of global vars and function
-	for _, expr := range a.DApp.Declarations {
-		_, err = expr.Evaluate(scope)
-		if err != nil {
-			return true, nil, errors.Wrap(err, "Script.CallFunction")
-		}
-	}
-
-	if len(fn.FuncDecl.Args) != len(tx.FunctionCall.Arguments) {
-		return true, nil, errors.Errorf("invalid func '%s' args count, expected %d, got %d", fn.FuncDecl.Name, len(fn.FuncDecl.Args), len(tx.FunctionCall.Arguments))
-	}
-	// pass function arguments
-	curScope := scope.Clone()
-	for i, arg := range tx.FunctionCall.Arguments {
-		argExpr, err := protoArgToArgExpr(arg)
-		if err != nil {
-			return true, nil, errors.Wrap(err, "Script.CallFunction")
-		}
-		curScope.AddValue(fn.FuncDecl.Args[i], argExpr)
-	}
-	// invocation type
-	curScope.AddValue(fn.AnnotationInvokeName, invoke)
-
-	rs, err := fn.FuncDecl.Body.Evaluate(curScope)
-	if err != nil {
-		return true, nil, errors.Wrap(err, "Script.CallFunction")
-	}
-
-	switch t := rs.(type) {
-	case *WriteSetExpr:
-		actions, err := t.ToActions()
-		return true, actions, err
-	case *TransferSetExpr:
-		actions, err := t.ToActions()
-		return true, actions, err
-	case *ScriptResultExpr:
-		actions, err := t.ToActions()
-		return true, actions, err
-	case Exprs:
-		res := make([]proto.ScriptAction, 0, len(t))
-		for _, e := range t {
-			ae, ok := e.(Actionable)
-			if !ok {
-				return true, nil, errors.Errorf("Script.CallFunction: fail to convert result to action")
-			}
-			action, err := ae.ToAction(tx.ID)
-			if err != nil {
-				return true, nil, errors.Wrap(err, "Script.CallFunction: fail to convert result to action")
-			}
-			res = append(res, action)
-		}
-		return true, res, nil
-	default:
-		return true, nil, errors.Errorf("Script.CallFunction: unexpected result type '%T'", t)
-	}
-}
-
-func (a *Script) Verify(scheme byte, state types.SmartState, object map[string]Expr, this, lastBlock Expr) (Result, error) {
-	height, err := state.AddingBlockHeight()
-	if err != nil {
-		return Result{}, err
-	}
-	if a.IsDapp() {
-		if a.DApp.Verifier == nil {
-			return Result{}, errors.New("verify function not defined")
-		}
-		scope := NewScope(a.Version, scheme, state)
-		scope.SetThis(this)
-		scope.SetLastBlockInfo(lastBlock)
-		scope.SetHeight(height)
-
-		fn := a.DApp.Verifier
-		// pass function arguments
-		curScope := scope //.Clone()
-		// annotated tx type
-		curScope.AddValue(fn.AnnotationInvokeName, NewObject(object))
-		// here should be only assign of vars and function
-		for _, expr := range a.DApp.Declarations {
-			_, err = expr.Evaluate(curScope)
-			if err != nil {
-				return Result{}, errors.Wrap(err, "Script.Verify")
-			}
-		}
-		return evalAsResult(fn.FuncDecl.Body, curScope)
-	} else {
-		scope := NewScope(a.Version, scheme, state)
-		scope.SetTransaction(object)
-		scope.SetThis(this)
-		scope.SetLastBlockInfo(lastBlock)
-		scope.SetHeight(height)
-		return evalAsResult(a.Verifier, scope)
-	}
-}
-
-func (a *Script) buildInvocation(scheme proto.Scheme, tx *proto.InvokeScriptWithProofs) (*InvocationExpr, error) {
-	fields := object{}
-	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
-	if err != nil {
-		return nil, err
-	}
-	fields["caller"] = NewAddressFromProtoAddress(addr)
-	fields["callerPublicKey"] = NewBytes(tx.SenderPK.Bytes())
-
-	switch a.Version {
-	case 4:
-		payments := NewExprs(nil)
-		for _, p := range tx.Payments {
-			payments = append(NewExprs(NewAttachedPaymentExpr(makeOptionalAsset(p.Asset), NewLong(int64(p.Amount)))), payments...)
-		}
-		fields["payments"] = payments
-	default:
-		fields["payment"] = NewUnit()
-		if len(tx.Payments) > 0 {
-			fields["payment"] = NewAttachedPaymentExpr(makeOptionalAsset(tx.Payments[0].Asset), NewLong(int64(tx.Payments[0].Amount)))
-		}
-	}
-	fields["transactionId"] = NewBytes(tx.ID.Bytes())
-	fields["fee"] = NewLong(int64(tx.Fee))
-	fields["feeAssetId"] = makeOptionalAsset(tx.FeeAsset)
-
-	return &InvocationExpr{
-		fields: fields,
-	}, nil
-}
 
 type Result struct {
 	Value   bool
@@ -229,28 +38,6 @@ func (r *Result) Error() error {
 
 func (r *Result) Failed() bool {
 	return !r.Value || r.Throw
-}
-
-func evalAsResult(e Expr, s Scope) (Result, error) {
-	rs, err := e.Evaluate(s)
-	if err != nil {
-		if throw, ok := err.(Throw); ok {
-			return Result{
-				Throw:   true,
-				Message: throw.Message,
-			}, nil
-		}
-		return Result{}, err
-	}
-	b, ok := rs.(*BooleanExpr)
-	if !ok {
-		return Result{}, errors.Errorf("expected evaluate return *BooleanExpr, but found %T", b)
-	}
-	return Result{Value: b.Value}, nil
-}
-
-func (a *Script) Eval(s Scope) (Result, error) {
-	return evalAsResult(a.Verifier, s)
 }
 
 type Expr interface {
@@ -1272,7 +1059,7 @@ func (a *RecipientExpr) Recipient() proto.Recipient {
 }
 
 type AssetPairExpr struct {
-	fields object
+	fields Object
 }
 
 func NewAssetPair(amountAsset Expr, priceAsset Expr) *AssetPairExpr {
@@ -1309,22 +1096,22 @@ func (a *AssetPairExpr) Get(name string) (Expr, error) {
 	return a.fields.Get(name)
 }
 
-type object map[string]Expr
+type Object map[string]Expr
 
-func newObject() object {
-	return make(object)
+func newObject() Object {
+	return make(Object)
 }
 
-func (a object) Write(w io.Writer) {
+func (a Object) Write(w io.Writer) {
 	_, _ = fmt.Fprint(w, "object")
 }
 
-func (a object) Evaluate(Scope) (Expr, error) {
+func (a Object) Evaluate(Scope) (Expr, error) {
 	return a, nil
 }
 
-func (a object) Eq(other Expr) bool {
-	b, ok := other.(object)
+func (a Object) Eq(other Expr) bool {
+	b, ok := other.(Object)
 	if !ok {
 		return false
 	}
@@ -1345,7 +1132,7 @@ func (a object) Eq(other Expr) bool {
 	return true
 }
 
-func (a object) Get(name string) (Expr, error) {
+func (a Object) Get(name string) (Expr, error) {
 	out, ok := a[name]
 	if !ok {
 		return nil, errors.Errorf("ObjectExpr no such field %s", name)
@@ -1353,7 +1140,7 @@ func (a object) Get(name string) (Expr, error) {
 	return out, nil
 }
 
-func (a object) InstanceOf() string {
+func (a Object) InstanceOf() string {
 	return "object"
 }
 
@@ -1728,7 +1515,7 @@ func (a *SHA3512Expr) InstanceOf() string {
 //assetId ByteVector|Unit
 //amount Int
 type AttachedPaymentExpr struct {
-	fields object
+	fields Object
 }
 
 func NewAttachedPaymentExpr(assetId Expr, amount Expr) *AttachedPaymentExpr {
@@ -1765,7 +1552,7 @@ func (a *AttachedPaymentExpr) Get(key string) (Expr, error) {
 }
 
 type AssetInfoExpr struct {
-	fields object
+	fields Object
 }
 
 func (a *AssetInfoExpr) Write(w io.Writer) {
@@ -1788,12 +1575,12 @@ func (a *AssetInfoExpr) Get(name string) (Expr, error) {
 	return a.fields.Get(name)
 }
 
-func NewAssetInfo(obj object) *AssetInfoExpr {
+func NewAssetInfo(obj Object) *AssetInfoExpr {
 	return &AssetInfoExpr{fields: obj}
 }
 
 type BlockInfoExpr struct {
-	fields object
+	fields Object
 }
 
 func (a *BlockInfoExpr) Write(w io.Writer) {
@@ -1919,7 +1706,13 @@ func (a *TransferSetExpr) ToActions() ([]proto.ScriptAction, error) {
 }
 
 type InvocationExpr struct {
-	fields object
+	fields Object
+}
+
+func NewInvocation(fields Object) *InvocationExpr {
+	return &InvocationExpr{
+		fields: fields,
+	}
 }
 
 func (a *InvocationExpr) Get(name string) (Expr, error) {
@@ -1954,7 +1747,7 @@ func NewScriptTransfer(recipient Recipient, amount *LongExpr, asset Expr) (*Scri
 	default:
 		return nil, errors.Errorf("expected 'Unit' or 'BytesExpr' as asset, found %T", asset)
 	}
-	fields := object{}
+	fields := Object{}
 	fields["recipient"] = recipient
 	fields["amount"] = amount
 	fields["asset"] = asset
@@ -2295,7 +2088,7 @@ func (a *SponsorshipExpr) Get(name string) (Expr, error) {
 }
 
 type BalanceDetailsExpr struct {
-	fields object
+	fields Object
 }
 
 func NewBalanceDetailsExpr(balance *proto.FullWavesBalance) *BalanceDetailsExpr {

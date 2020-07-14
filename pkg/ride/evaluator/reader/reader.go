@@ -43,6 +43,14 @@ func NewBytesReader(bytes []byte) *BytesReader {
 	}
 }
 
+func (a BytesReader) Reset() *BytesReader {
+	return NewBytesReader(a.bytes)
+}
+
+func (a BytesReader) StripCheckSum() *BytesReader {
+	return NewBytesReader(a.bytes[:len(a.bytes)-4])
+}
+
 func ScriptBytesFromBase64Str(base64String string) ([]byte, error) {
 	decoded, err := base64.StdEncoding.DecodeString(base64String)
 	if err != nil {

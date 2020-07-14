@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/script"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -68,7 +68,7 @@ func (to *invokeApplierTestObjects) setAndCheckInitialWavesBalance(t *testing.T,
 }
 
 func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.Address, pk crypto.PublicKey, script proto.Script) {
-	scriptAst, err := ast.BuildScript(reader.NewBytesReader(script))
+	scriptAst, err := messages.BuildScript(reader.NewBytesReader(script))
 	assert.NoError(t, err)
 	estimator := estimatorByScript(scriptAst, 1)
 	complexity, err := estimator.Estimate(scriptAst)

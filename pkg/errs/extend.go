@@ -17,6 +17,10 @@ func Extend(err error, message string) error {
 	return errors.Wrap(err, message)
 }
 
+func Extendf(err error, format string, values ...interface{}) error {
+	return Extend(err, fmt.Sprintf(format, values...))
+}
+
 func fmtExtend(self error, message string) string {
 	return fmt.Sprintf("%s: %s", message, self)
 }

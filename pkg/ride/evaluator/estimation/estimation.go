@@ -3,6 +3,7 @@ package estimation
 import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/script"
 )
 
 type function struct {
@@ -183,14 +184,14 @@ func NewEstimator(version int, catalogue *Catalogue, variables map[string]ast.Ex
 	}
 }
 
-func (e *Estimator) Estimate(script *ast.Script) (Costs, error) {
+func (e *Estimator) Estimate(script *messages.Script) (Costs, error) {
 	if script.IsDapp() {
 		return e.EstimateDApp(script)
 	}
 	return e.EstimateVerifier(script)
 }
 
-func (e *Estimator) EstimateDApp(script *ast.Script) (Costs, error) {
+func (e *Estimator) EstimateDApp(script *messages.Script) (Costs, error) {
 	if !script.IsDapp() {
 		return Costs{}, errors.New("estimation: not a DApp")
 	}
@@ -255,7 +256,7 @@ func (e *Estimator) EstimateDApp(script *ast.Script) (Costs, error) {
 	return r, nil
 }
 
-func (e *Estimator) EstimateVerifier(script *ast.Script) (Costs, error) {
+func (e *Estimator) EstimateVerifier(script *messages.Script) (Costs, error) {
 	if script.IsDapp() {
 		return Costs{}, errors.New("estimation: not a simple script")
 	}
@@ -266,7 +267,7 @@ func (e *Estimator) EstimateVerifier(script *ast.Script) (Costs, error) {
 	return Costs{Verifier: verifierCost}, nil
 }
 
-func (e *Estimator) estimateCallable(callable *ast.DappCallableFunc) (uint64, error) {
+func (e *Estimator) estimateCallable(callable *messages.DappCallableFunc) (uint64, error) {
 	if callable == nil {
 		return 0, nil
 	}
