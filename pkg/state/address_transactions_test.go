@@ -153,8 +153,7 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 	stor.flush(t)
 	err = atx.flush()
 	require.NoError(t, err)
-	err = atx.reset(true)
-	require.NoError(t, err)
+	atx.reset()
 	err = atx.startProvidingData()
 	require.NoError(t, err)
 
@@ -211,8 +210,7 @@ func TestFailedTransaction(t *testing.T) {
 	err = atx.flush()
 	require.NoError(t, err)
 
-	err = atx.reset(true)
-	require.NoError(t, err)
+	atx.reset()
 	err = atx.startProvidingData()
 	require.NoError(t, err)
 

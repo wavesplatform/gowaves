@@ -36,13 +36,13 @@ type ordersVolumes struct {
 	hs *historyStorage
 }
 
-func newOrdersVolumes(hs *historyStorage) (*ordersVolumes, error) {
-	return &ordersVolumes{hs: hs}, nil
+func newOrdersVolumes(hs *historyStorage) *ordersVolumes {
+	return &ordersVolumes{hs: hs}
 }
 
 func (ov *ordersVolumes) newestVolumeById(orderId []byte, filter bool) (*orderVolumeRecord, error) {
 	key := ordersVolumeKey{orderId}
-	recordBytes, err := ov.hs.freshLatestEntryData(key.bytes(), filter)
+	recordBytes, err := ov.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

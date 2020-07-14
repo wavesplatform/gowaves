@@ -8,79 +8,62 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-type aliasesTestObjects struct {
-	stor    *testStorageObjects
-	aliases *aliases
-}
-
-func createAliases() (*aliasesTestObjects, []string, error) {
-	stor, path, err := createStorageObjects()
-	if err != nil {
-		return nil, path, err
-	}
-	aliases, err := newAliases(stor.db, stor.dbBatch, stor.hs, true)
-	if err != nil {
-		return nil, path, err
-	}
-	return &aliasesTestObjects{stor, aliases}, path, nil
-}
-
 func TestCreateAlias(t *testing.T) {
-	to, path, err := createAliases()
-	assert.NoError(t, err, "createAliases() failed")
+	to, path, err := createStorageObjects()
+	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {
-		to.stor.close(t)
+		to.close(t)
 
 		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	aliasStr := "alias"
-	to.stor.addBlock(t, blockID0)
+	to.addBlock(t, blockID0)
 	aliasAddr, err := proto.NewAddressFromString(addr0)
 	assert.NoError(t, err, "NewAddressFromString() failed")
 	inf := &aliasInfo{false, aliasAddr}
-	err = to.aliases.createAlias(aliasStr, inf, blockID0)
+	err = to.entities.aliases.createAlias(aliasStr, inf, blockID0)
 	assert.NoError(t, err, "createAlias() failed")
-	addr, err := to.aliases.newestAddrByAlias(aliasStr, true)
+	addr, err := to.entities.aliases.newestAddrByAlias(aliasStr, true)
 	assert.NoError(t, err, "newestAddrByAlias() failed")
 	assert.Equal(t, aliasAddr, *addr)
-	to.stor.flush(t)
-	addr, err = to.aliases.addrByAlias(aliasStr, true)
+	to.flush(t)
+	addr, err = to.entities.aliases.addrByAlias(aliasStr, true)
 	assert.NoError(t, err, "addrByAlias() failed")
 	assert.Equal(t, aliasAddr, *addr)
 }
 
 func TestDisableStolenAliases(t *testing.T) {
-	to, path, err := createAliases()
-	assert.NoError(t, err, "createAliases() failed")
+	to, path, err := createStorageObjects()
+	assert.NoError(t, err, "createStorageObjects() failed")
 
 	defer func() {
-		to.stor.close(t)
+		to.close(t)
 
 		err = common.CleanTemporaryDirs(path)
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
 	aliasStr := "alias"
-	to.stor.addBlock(t, blockID0)
+	to.addBlock(t, blockID0)
 	aliasAddr, err := proto.NewAddressFromString(addr0)
 	assert.NoError(t, err, "NewAddressFromString() failed")
 	inf := &aliasInfo{true, aliasAddr}
-	err = to.aliases.createAlias(aliasStr, inf, blockID0)
+	err = to.entities.aliases.createAlias(aliasStr, inf, blockID0)
 	assert.NoError(t, err, "createAlias() failed")
-	to.stor.flush(t)
+	to.flush(t)
 
-	err = to.aliases.disableStolenAliases()
+	err = to.entities.aliases.disableStolenAliases()
 	assert.NoError(t, err, "disableStolenAlises() failed")
-	to.stor.flush(t)
-	disabled, err := to.aliases.isDisabled(aliasStr)
+	to.flush(t)
+	disabled, err := to.entities.aliases.isDisabled(aliasStr)
 	assert.NoError(t, err, "isDisabled() failed")
 	assert.Equal(t, true, disabled)
-	assert.Equal(t, true, to.aliases.exists(aliasStr, true))
-	_, err = to.aliases.addrByAlias(aliasStr, true)
+	assert.Equal(t, true, to.entities.aliases.exists(aliasStr, true))
+	_, err = to.entities.aliases.addrByAlias(aliasStr, true)
 	assert.Equal(t, errAliasDisabled, err)
-	_, err = to.aliases.newestAddrByAlias(aliasStr, true)
+	_, err = to.entities.aliases.newestAddrByAlias(aliasStr, true)
 	assert.Equal(t, errAliasDisabled, err)
 }

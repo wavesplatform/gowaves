@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 const (
@@ -21,7 +20,6 @@ var (
 	rollbackMinHeightKeyBytes = []byte{rollbackMinHeightKeyPrefix}
 	lastBlockNumKeyBytes      = []byte{lastBlockNumKeyPrefix}
 	dbHeightKeyBytes          = []byte{dbHeightKeyPrefix}
-	rwHeightKeyBytes          = []byte{rwHeightKeyPrefix}
 )
 
 type stateInfo struct {
@@ -83,13 +81,13 @@ type stateDB struct {
 	dbWriteLock *sync.Mutex // `dbWriteLock` is lock for writing to database.
 	rw          *blockReadWriter
 
-	newestBlockIdToNum map[proto.BlockID]uint32
-	newestBlockNumToId map[uint32]proto.BlockID
+	newestBlockId2Num map[proto.BlockID]uint32
+	newestBlockNum2Id map[uint32]proto.BlockID
 
 	blocksNum int
 }
 
-func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, rw *blockReadWriter, params StateParams) (*stateDB, error) {
+func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, params StateParams) (*stateDB, error) {
 	heightBuf := make([]byte, 8)
 	has, err := db.Has(dbHeightKeyBytes)
 	if err != nil {
@@ -116,51 +114,21 @@ func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, rw *blockReadWrite
 		return nil, err
 	}
 	return &stateDB{
-		db:                 db,
-		dbBatch:            dbBatch,
-		dbWriteLock:        dbWriteLock,
-		rw:                 rw,
-		newestBlockIdToNum: make(map[proto.BlockID]uint32),
-		newestBlockNumToId: make(map[uint32]proto.BlockID),
+		db:                db,
+		dbBatch:           dbBatch,
+		dbWriteLock:       dbWriteLock,
+		newestBlockId2Num: make(map[proto.BlockID]uint32),
+		newestBlockNum2Id: make(map[uint32]proto.BlockID),
 	}, nil
+}
+
+func (s *stateDB) setRw(rw *blockReadWriter) {
+	s.rw = rw
 }
 
 // Returns database write lock.
 func (s *stateDB) retrieveWriteLock() *sync.Mutex {
 	return s.dbWriteLock
-}
-
-// Sync blockReadWriter's storage (files) with the database.
-func (s *stateDB) syncRw() error {
-	dbHeightBytes, err := s.db.Get(dbHeightKeyBytes)
-	if err != nil {
-		return err
-	}
-	dbHeight := binary.LittleEndian.Uint64(dbHeightBytes)
-	rwHeightBytes, err := s.db.Get(rwHeightKeyBytes)
-	if err != nil {
-		return err
-	}
-	rwHeight := binary.LittleEndian.Uint64(rwHeightBytes)
-	zap.S().Infof("Synced to state height %d", dbHeight)
-	if rwHeight < dbHeight {
-		// This should never happen, because we update block storage before writing changes into DB.
-		zap.S().Fatal("Impossible to sync: DB is ahead of block storage; remove data dir and restart the node")
-	}
-	if dbHeight == 0 {
-		if err := s.rw.removeEverything(false); err != nil {
-			return err
-		}
-	} else {
-		last, err := s.rw.blockIDByHeight(dbHeight)
-		if err != nil {
-			return err
-		}
-		if err := s.rw.rollback(last, false); err != nil {
-			return errors.Errorf("failed to remove blocks from block storage: %v", err)
-		}
-	}
-	return nil
 }
 
 // addBlock() makes block officially valid (but only after batch is flushed).
@@ -169,26 +137,26 @@ func (s *stateDB) addBlock(blockID proto.BlockID) error {
 	if err != nil {
 		return err
 	}
-	if _, err := s.blockIdToNum(blockID); err == nil {
+	if _, err := s.newestBlockIdToNum(blockID); err == nil {
 		// Block is already in there.
 		return nil
 	}
 	// Unique number of new block.
 	newBlockNum := lastBlockNum + uint32(s.blocksNum)
-	if _, ok := s.newestBlockNumToId[newBlockNum]; ok {
+	if _, ok := s.newestBlockNum2Id[newBlockNum]; ok {
 		return errors.Errorf("block number %d is already taken by some block", newBlockNum)
 	}
 	// Add unique block number to the list of valid nums.
 	validBlocKey := validBlockNumKey{newBlockNum}
 	s.dbBatch.Put(validBlocKey.bytes(), void)
 	// Save block number for this ID.
-	s.newestBlockIdToNum[blockID] = newBlockNum
+	s.newestBlockId2Num[blockID] = newBlockNum
 	idToNumKey := blockIdToNumKey{blockID}
 	newBlockNumBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(newBlockNumBytes, newBlockNum)
 	s.dbBatch.Put(idToNumKey.bytes(), newBlockNumBytes)
 	// Save ID for this block number.
-	s.newestBlockNumToId[newBlockNum] = blockID
+	s.newestBlockNum2Id[newBlockNum] = blockID
 	numToIdKey := blockNumToIdKey{newBlockNum}
 	idBytes := blockID.Bytes()
 	s.dbBatch.Put(numToIdKey.bytes(), idBytes)
@@ -197,36 +165,50 @@ func (s *stateDB) addBlock(blockID proto.BlockID) error {
 	return nil
 }
 
+func (s *stateDB) newestIsValidBlock(blockNum uint32) (bool, error) {
+	if _, ok := s.newestBlockNum2Id[blockNum]; ok {
+		return true, nil
+	}
+	return s.isValidBlock(blockNum)
+}
+
 func (s *stateDB) isValidBlock(blockNum uint32) (bool, error) {
 	key := validBlockNumKey{blockNum}
 	return s.db.Has(key.bytes())
 }
 
-func (s *stateDB) blockIdToNum(blockID proto.BlockID) (uint32, error) {
-	blockNum, ok := s.newestBlockIdToNum[blockID]
+func (s *stateDB) newestBlockIdToNum(blockID proto.BlockID) (uint32, error) {
+	blockNum, ok := s.newestBlockId2Num[blockID]
 	if ok {
 		return blockNum, nil
 	}
+	return s.blockIdToNum(blockID)
+}
+
+func (s *stateDB) blockIdToNum(blockID proto.BlockID) (uint32, error) {
 	idToNumKey := blockIdToNumKey{blockID}
 	blockNumBytes, err := s.db.Get(idToNumKey.bytes())
 	if err != nil {
 		return 0, err
 	}
-	blockNum = binary.LittleEndian.Uint32(blockNumBytes)
-	return blockNum, nil
+	return binary.LittleEndian.Uint32(blockNumBytes), nil
 }
 
-func (s *stateDB) blockNumToId(blockNum uint32) (proto.BlockID, error) {
-	blockId, ok := s.newestBlockNumToId[blockNum]
+func (s *stateDB) newestBlockNumToId(blockNum uint32) (proto.BlockID, error) {
+	blockId, ok := s.newestBlockNum2Id[blockNum]
 	if ok {
 		return blockId, nil
 	}
+	return s.blockNumToId(blockNum)
+}
+
+func (s *stateDB) blockNumToId(blockNum uint32) (proto.BlockID, error) {
 	numToIdKey := blockNumToIdKey{blockNum}
 	blockIdBytes, err := s.db.Get(numToIdKey.bytes())
 	if err != nil {
 		return proto.BlockID{}, err
 	}
-	blockId, err = proto.NewBlockIDFromBytes(blockIdBytes)
+	blockId, err := proto.NewBlockIDFromBytes(blockIdBytes)
 	if err != nil {
 		return proto.BlockID{}, err
 	}
@@ -238,7 +220,7 @@ func (s *stateDB) newestBlockNumByHeight(height uint64) (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	return s.blockIdToNum(blockID)
+	return s.newestBlockIdToNum(blockID)
 }
 
 func (s *stateDB) blockNumByHeight(height uint64) (uint32, error) {
@@ -250,28 +232,42 @@ func (s *stateDB) blockNumByHeight(height uint64) (uint32, error) {
 }
 
 func (s *stateDB) rollbackBlock(blockID proto.BlockID) error {
-	// Decrease DB's height (for sync/recovery).
-	height, err := s.getHeight()
-	if err != nil {
-		return err
-	}
-	if err := s.setHeight(height-1, true); err != nil {
-		return err
-	}
 	blockNum, err := s.blockIdToNum(blockID)
 	if err != nil {
 		return err
 	}
 	key := validBlockNumKey{blockNum}
-	if err := s.db.Delete(key.bytes()); err != nil {
-		return err
-	}
+	s.dbBatch.Delete(key.bytes())
 	numKey := blockIdToNumKey{blockID}
-	if err := s.db.Delete(numKey.bytes()); err != nil {
+	s.dbBatch.Delete(numKey.bytes())
+	idKey := blockNumToIdKey{blockNum}
+	s.dbBatch.Delete(idKey.bytes())
+	return nil
+}
+
+func (s *stateDB) rollback(removalEdge proto.BlockID) error {
+	defer s.reset()
+	curHeight, err := s.getHeight()
+	if err != nil {
 		return err
 	}
-	idKey := blockNumToIdKey{blockNum}
-	if err := s.db.Delete(idKey.bytes()); err != nil {
+	for ; curHeight > 0; curHeight-- {
+		blockID, err := s.rw.blockIDByHeight(curHeight)
+		if err != nil {
+			return err
+		}
+		if blockID == removalEdge {
+			break
+		}
+		if err := s.rollbackBlock(blockID); err != nil {
+			return err
+		}
+	}
+	s.setHeight(curHeight)
+	if err := s.rw.cleanIDs(removalEdge); err != nil {
+		return err
+	}
+	if err := s.flushBatch(); err != nil {
 		return err
 	}
 	return nil
@@ -310,17 +306,10 @@ func (s *stateDB) getRollbackMinHeight() (uint64, error) {
 	return binary.LittleEndian.Uint64(heightBytes), nil
 }
 
-func (s *stateDB) setHeight(height uint64, directly bool) error {
+func (s *stateDB) setHeight(height uint64) {
 	dbHeightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(dbHeightBytes, height)
-	if directly {
-		if err := s.db.Put(dbHeightKeyBytes, dbHeightBytes); err != nil {
-			return err
-		}
-	} else {
-		s.dbBatch.Put(dbHeightKeyBytes, dbHeightBytes)
-	}
-	return nil
+	s.dbBatch.Put(dbHeightKeyBytes, dbHeightBytes)
 }
 
 func (s *stateDB) getHeight() (uint64, error) {
@@ -403,9 +392,7 @@ func (s *stateDB) flush() error {
 		return err
 	}
 	newHeight := prevHeight + uint64(s.blocksNum)
-	if err := s.setHeight(newHeight, false); err != nil {
-		return err
-	}
+	s.setHeight(newHeight)
 	// Update rollback minimum height.
 	newRollbackMinHeight, err := s.calculateNewRollbackMinHeight(newHeight)
 	if err != nil {
@@ -414,18 +401,22 @@ func (s *stateDB) flush() error {
 	if err := s.setRollbackMinHeight(newRollbackMinHeight); err != nil {
 		return err
 	}
+	return s.flushBatch()
+}
+
+func (s *stateDB) flushBatch() error {
 	s.dbWriteLock.Lock()
+	defer s.dbWriteLock.Unlock()
 	// Write the whole batch to DB.
 	if err := s.db.Flush(s.dbBatch); err != nil {
 		return err
 	}
-	s.dbWriteLock.Unlock()
 	return nil
 }
 
 func (s *stateDB) reset() {
-	s.newestBlockIdToNum = make(map[proto.BlockID]uint32)
-	s.newestBlockNumToId = make(map[uint32]proto.BlockID)
+	s.newestBlockId2Num = make(map[proto.BlockID]uint32)
+	s.newestBlockNum2Id = make(map[uint32]proto.BlockID)
 	s.blocksNum = 0
 	s.dbBatch.Reset()
 }

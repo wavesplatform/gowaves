@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"math/big"
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
@@ -49,11 +50,11 @@ func newTransactionChecker(
 }
 
 func (tc *transactionChecker) scriptActivation(script *ast.Script) error {
-	rideForDAppsActivated, err := tc.stor.features.isActivated(int16(settings.Ride4DApps))
+	rideForDAppsActivated, err := tc.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
 		return errs.Extend(err, "transactionChecker scriptActivation isActivated")
 	}
-	multiPaymentsActivated, err := tc.stor.features.isActivated(int16(settings.BlockV5))
+	multiPaymentsActivated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return err
 	}
@@ -316,7 +317,7 @@ func (tc *transactionChecker) checkTransferWithProofs(transaction proto.Transact
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +341,7 @@ func (tc *transactionChecker) checkIssue(tx *proto.Issue, info *checkerInfo) err
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return errs.Extend(err, "invalid timestamp")
 	}
-	blockV5Activated, err := tc.stor.features.isActivated(int16(settings.BlockV5))
+	blockV5Activated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return err
 	}
@@ -476,7 +477,7 @@ func (tc *transactionChecker) checkReissueWithProofs(transaction proto.Transacti
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return nil, err
 	}
@@ -497,12 +498,18 @@ func (tc *transactionChecker) checkBurn(tx *proto.Burn, info *checkerInfo) error
 	if err != nil {
 		return err
 	}
-	burnAnyTokensEnabled, err := tc.stor.features.isActivated(int16(settings.BurnAnyTokens))
+	// Verify sender.
+	burnAnyTokensEnabled, err := tc.stor.features.newestIsActivated(int16(settings.BurnAnyTokens))
 	if err != nil {
 		return err
 	}
 	if !burnAnyTokensEnabled && !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
 		return errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
+	}
+	// Check burn amount.
+	quantityDiff := big.NewInt(int64(tx.Amount))
+	if assetInfo.quantity.Cmp(quantityDiff) == -1 {
+		return errs.NewTxValidationError("trying to burn more assets than exist at all")
 	}
 	return nil
 }
@@ -541,7 +548,7 @@ func (tc *transactionChecker) checkBurnWithProofs(transaction proto.Transaction,
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return nil, err
 	}
@@ -653,7 +660,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	smartAssetsActivated, err := tc.stor.features.isActivated(int16(settings.SmartAssets))
+	smartAssetsActivated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAssets))
 	if err != nil {
 		return nil, err
 	}
@@ -661,7 +668,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 		return nil, errors.New("smart assets can't participate in Exchange because smart assets feature is disabled")
 	}
 	// Check smart accounts trading.
-	smartTradingActivated, err := tc.stor.features.isActivated(int16(settings.SmartAccountTrading))
+	smartTradingActivated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccountTrading))
 	if err != nil {
 		return nil, err
 	}
@@ -699,7 +706,7 @@ func (tc *transactionChecker) checkExchangeWithProofs(transaction proto.Transact
 	if !ok {
 		return nil, errors.New("failed to convert interface to ExchangeWithProofs transaction")
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccountTrading))
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccountTrading))
 	if err != nil {
 		return nil, err
 	}
@@ -713,7 +720,7 @@ func (tc *transactionChecker) checkExchangeWithProofs(transaction proto.Transact
 	if (tx.Order1.GetVersion() != 3) && (tx.Order2.GetVersion() != 3) {
 		return smartAssets, nil
 	}
-	activated, err = tc.stor.features.isActivated(int16(settings.OrderV3))
+	activated, err = tc.stor.features.newestIsActivated(int16(settings.OrderV3))
 	if err != nil {
 		return nil, err
 	}
@@ -770,7 +777,7 @@ func (tc *transactionChecker) checkLeaseWithProofs(transaction proto.Transaction
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return nil, err
 	}
@@ -828,7 +835,7 @@ func (tc *transactionChecker) checkLeaseCancelWithProofs(transaction proto.Trans
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return nil, err
 	}
@@ -880,7 +887,7 @@ func (tc *transactionChecker) checkCreateAliasWithProofs(transaction proto.Trans
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.SmartAccounts))
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return nil, err
 	}
@@ -910,7 +917,7 @@ func (tc *transactionChecker) checkMassTransferWithProofs(transaction proto.Tran
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.MassTransfer))
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.MassTransfer))
 	if err != nil {
 		return nil, err
 	}
@@ -935,7 +942,7 @@ func (tc *transactionChecker) checkDataWithProofs(transaction proto.Transaction,
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.DataTransaction))
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.DataTransaction))
 	if err != nil {
 		return nil, err
 	}
@@ -957,7 +964,7 @@ func (tc *transactionChecker) checkSponsorshipWithProofs(transaction proto.Trans
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.FeeSponsorship))
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.FeeSponsorship))
 	if err != nil {
 		return nil, err
 	}
@@ -1071,7 +1078,7 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return nil, errs.Extend(err, "invalid timestamp")
 	}
-	ride4DAppsActivated, err := tc.stor.features.isActivated(int16(settings.Ride4DApps))
+	ride4DAppsActivated, err := tc.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
 		return nil, err
 	}
@@ -1081,7 +1088,7 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
 		return nil, err
 	}
-	multiPaymentActivated, err := tc.stor.features.isActivated(int16(settings.BlockV5))
+	multiPaymentActivated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return nil, err
 	}
@@ -1126,7 +1133,7 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errors.Errorf("checkFee(): %v", err)
 	}
-	activated, err := tc.stor.features.isActivated(int16(settings.BlockV5))
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return nil, err
 	}

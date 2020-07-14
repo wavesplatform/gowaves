@@ -103,7 +103,7 @@ func buildHandles(tc *transactionChecker, tp *transactionPerformer, td *transact
 			tc.checkSetAssetScriptWithProofs, tp.performSetAssetScriptWithProofs, td.createDiffSetAssetScriptWithProofs, tf.minerFeeSetAssetScriptWithProofs,
 		},
 		proto.TransactionTypeInfo{Type: proto.InvokeScriptTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
-			tc.checkInvokeScriptWithProofs, nil, td.createDiffInvokeScriptWithProofs, tf.minerFeeInvokeScriptWithProofs,
+			tc.checkInvokeScriptWithProofs, tp.performInvokeScriptWithProofs, td.createDiffInvokeScriptWithProofs, tf.minerFeeInvokeScriptWithProofs,
 		},
 		proto.TransactionTypeInfo{Type: proto.UpdateAssetInfoTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
 			tc.checkUpdateAssetInfoWithProofs, tp.performUpdateAssetInfoWithProofs, td.createDiffUpdateAssetInfoWithProofs, tf.minerFeeUpdateAssetInfoWithProofs,

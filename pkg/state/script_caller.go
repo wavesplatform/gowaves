@@ -16,7 +16,8 @@ type scriptCaller struct {
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
 
-	totalComplexity uint64
+	totalComplexity    uint64
+	recentTxComplexity uint64
 }
 
 func newScriptCaller(
@@ -69,7 +70,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	if err != nil {
 		return errors.Wrap(err, "newestScriptComplexityByAddr")
 	}
-	a.totalComplexity += complexity.verifierComplexity
+	a.recentTxComplexity += complexity.verifierComplexity
 	return nil
 }
 
@@ -104,7 +105,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	if err != nil {
 		return err
 	}
-	a.totalComplexity += complexity.verifierComplexity
+	a.recentTxComplexity += complexity.verifierComplexity
 	return nil
 }
 
@@ -147,7 +148,7 @@ func (a *scriptCaller) callAssetScriptCommon(
 	if err != nil {
 		return ast.Result{}, err
 	}
-	a.totalComplexity += complexityRecord.complexity
+	a.recentTxComplexity += complexityRecord.complexity
 	return r, nil
 }
 
@@ -192,14 +193,24 @@ func (a *scriptCaller) invokeFunction(script ast.Script, tx *proto.InvokeScriptW
 	if err != nil {
 		return false, nil, errors.Wrap(err, "newestScriptComplexityByAsset()")
 	}
-	a.totalComplexity += complexityRecord.byFuncs[tx.FunctionCall.Name]
+	a.recentTxComplexity += complexityRecord.byFuncs[tx.FunctionCall.Name]
 	return ok, actions, nil
 }
 
 func (a *scriptCaller) getTotalComplexity() uint64 {
-	return a.totalComplexity
+	return a.totalComplexity + a.recentTxComplexity
+}
+
+func (a *scriptCaller) resetRecentTxComplexity() {
+	a.recentTxComplexity = 0
+}
+
+func (a *scriptCaller) addRecentTxComplexity() {
+	a.totalComplexity += a.recentTxComplexity
+	a.recentTxComplexity = 0
 }
 
 func (a *scriptCaller) resetComplexity() {
 	a.totalComplexity = 0
+	a.recentTxComplexity = 0
 }

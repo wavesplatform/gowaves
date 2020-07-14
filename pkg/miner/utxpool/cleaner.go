@@ -45,8 +45,8 @@ func (a *Cleaner) work() {
 type stateWrapper interface {
 	Height() (proto.Height, error)
 	TopBlock() *proto.Block
-	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 	TxValidation(func(validation state.TxValidation) error) error
+	Map(func(state state.NonThreadSafeState) error) error
 	IsActivated(featureID int16) (bool, error)
 }
 

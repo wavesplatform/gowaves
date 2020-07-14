@@ -4,7 +4,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func CalculateScore(baseTarget uint64) (*big.Int, error) {
@@ -21,45 +21,49 @@ func CalculateScore(baseTarget uint64) (*big.Int, error) {
 }
 
 type scores struct {
-	db      keyvalue.KeyValue
-	dbBatch keyvalue.Batch
+	hs *historyStorage
 }
 
-func newScores(db keyvalue.KeyValue, dbBatch keyvalue.Batch) *scores {
-	return &scores{db: db, dbBatch: dbBatch}
+func newScores(hs *historyStorage) *scores {
+	return &scores{hs}
 }
 
-func (s *scores) saveScoreToDb(score *big.Int, height uint64) error {
-	key := scoreKey{height: height}
-	s.dbBatch.Put(key.bytes(), score.Bytes())
-	return nil
-}
-
-func (s *scores) addScore(prevScore, score *big.Int, height uint64) error {
-	score.Add(score, prevScore)
-	if err := s.saveScoreToDb(score, height); err != nil {
+func (s *scores) appendBlockScore(block *proto.Block, height uint64, filter bool) error {
+	blockScore, err := CalculateScore(block.BaseTarget)
+	if err != nil {
 		return err
 	}
-	return nil
+	if height > 1 {
+		prevScore, err := s.newestScore(height-1, filter)
+		if err != nil {
+			return err
+		}
+		blockScore.Add(blockScore, prevScore)
+	}
+	scoreKey := scoreKey{height: height}
+	return s.hs.addNewEntry(score, scoreKey.bytes(), blockScore.Bytes(), block.BlockID())
 }
 
-func (s *scores) score(height uint64) (*big.Int, error) {
+func scoreFromBytes(scoreBytes []byte) *big.Int {
+	var score big.Int
+	score.SetBytes(scoreBytes)
+	return &score
+}
+
+func (s *scores) score(height uint64, filter bool) (*big.Int, error) {
 	key := scoreKey{height: height}
-	scoreBytes, err := s.db.Get(key.bytes())
+	scoreBytes, err := s.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
-	var score big.Int
-	score.SetBytes(scoreBytes)
-	return &score, nil
+	return scoreFromBytes(scoreBytes), nil
 }
 
-func (s *scores) rollback(newHeight, oldHeight uint64) error {
-	for h := oldHeight; h > newHeight; h-- {
-		key := scoreKey{height: h}
-		if err := s.db.Delete(key.bytes()); err != nil {
-			return err
-		}
+func (s *scores) newestScore(height uint64, filter bool) (*big.Int, error) {
+	key := scoreKey{height: height}
+	scoreBytes, err := s.hs.newestTopEntryData(key.bytes(), filter)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	return scoreFromBytes(scoreBytes), nil
 }

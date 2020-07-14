@@ -27,10 +27,7 @@ func createFeatures(sets *settings.BlockchainSettings) (*featuresTestObjects, []
 	}
 	definedFeaturesInfo := make(map[settings.Feature]settings.FeatureInfo)
 	definedFeaturesInfo[settings.Feature(featureID)] = settings.FeatureInfo{Implemented: true, Description: "test feature"}
-	features, err := newFeatures(stor.rw, stor.db, stor.hs, sets, definedFeaturesInfo)
-	if err != nil {
-		return nil, path, err
-	}
+	features := newFeatures(stor.rw, stor.db, stor.hs, sets, definedFeaturesInfo)
 	return &featuresTestObjects{stor, features}, path, nil
 }
 
@@ -48,15 +45,15 @@ func TestAddFeatureVote(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	err = to.features.addVote(featureID, blockID0)
 	assert.NoError(t, err, "addVote() failed")
-	votes, err := to.features.featureVotes(featureID)
-	assert.NoError(t, err, "featureVotes() failed")
+	votes, err := to.features.newestFeatureVotes(featureID)
+	assert.NoError(t, err, "newestFeatureVotes() failed")
 	assert.Equal(t, uint64(1), votes)
-	votes, err = to.features.featureVotes(0)
-	assert.NoError(t, err, "featureVotes() failed")
+	votes, err = to.features.newestFeatureVotes(0)
+	assert.NoError(t, err, "newestFeatureVotes() failed")
 	assert.Equal(t, uint64(0), votes)
 	to.stor.flush(t)
-	votes, err = to.features.featureVotes(featureID)
-	assert.NoError(t, err, "featureVotes() after flush() failed")
+	votes, err = to.features.newestFeatureVotes(featureID)
+	assert.NoError(t, err, "newestFeatureVotes() after flush() failed")
 	assert.Equal(t, uint64(1), votes)
 }
 

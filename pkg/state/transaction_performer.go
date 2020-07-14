@@ -326,6 +326,16 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	return nil
 }
 
+func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	if _, ok := transaction.(*proto.InvokeScriptWithProofs); !ok {
+		return errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
+	}
+	if err := tp.stor.commitUncertain(info.blockID); err != nil {
+		return errors.Wrap(err, "failed to commit invoke changes")
+	}
+	return nil
+}
+
 func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction, info *performerInfo) error {
 	tx, ok := transaction.(*proto.UpdateAssetInfoWithProofs)
 	if !ok {

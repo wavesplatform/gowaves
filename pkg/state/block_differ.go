@@ -35,8 +35,8 @@ func newBlockDiffer(handler *transactionHandler, stor *blockchainEntitiesStorage
 	}, nil
 }
 
-func (d *blockDiffer) prevBlockFeeDistr(prevBlock proto.BlockID) (*feeDistribution, error) {
-	ngActivated, err := d.stor.features.isActivatedForNBlocks(int16(settings.NG), 2)
+func (d *blockDiffer) prevBlockFeeDistr(prevBlock proto.BlockID, initialisation bool) (*feeDistribution, error) {
+	ngActivated, err := d.stor.features.newestIsActivatedForNBlocks(int16(settings.NG), 2)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (d *blockDiffer) prevBlockFeeDistr(prevBlock proto.BlockID) (*feeDistributi
 		return &d.prevDistr, nil
 	}
 	// Load from DB.
-	return d.stor.blocksInfo.feeDistribution(prevBlock)
+	return d.stor.blocksInfo.feeDistribution(prevBlock, !initialisation)
 }
 
 func (d *blockDiffer) appendBlockInfoToBalanceDiff(diff *balanceDiff, block *proto.BlockHeader) {
@@ -94,8 +94,8 @@ func (d *blockDiffer) txDiffFromFees(addr proto.Address, distr *feeDistribution)
 	return diff, nil
 }
 
-func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID proto.BlockID, minerPK crypto.PublicKey) (txDiff, proto.Address, error) {
-	feeDistr, err := d.prevBlockFeeDistr(prevBlockID)
+func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID proto.BlockID, minerPK crypto.PublicKey, initialisation bool) (txDiff, proto.Address, error) {
+	feeDistr, err := d.prevBlockFeeDistr(prevBlockID, initialisation)
 	if err != nil {
 		return txDiff{}, proto.Address{}, err
 	}
@@ -159,12 +159,12 @@ func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
 	return nil
 }
 
-func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool, height uint64) (txDiff, error) {
+func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool, height uint64, initialisation bool) (txDiff, error) {
 	var err error
 	var minerDiff txDiff
 	var minerAddr proto.Address
 	if hasParent {
-		minerDiff, minerAddr, err = d.createPrevBlockMinerFeeDiff(block.Parent, block.GenPublicKey)
+		minerDiff, minerAddr, err = d.createPrevBlockMinerFeeDiff(block.Parent, block.GenPublicKey, initialisation)
 		if err != nil {
 			return txDiff{}, err
 		}
@@ -178,7 +178,7 @@ func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool, 
 }
 
 func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.Address, block *proto.BlockHeader, blockchainHeight uint64) error {
-	activated, err := d.stor.features.isActivated(int16(settings.BlockReward))
+	activated, err := d.stor.features.newestIsActivated(int16(settings.BlockReward))
 	if err != nil {
 		return err
 	}

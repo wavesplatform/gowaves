@@ -1,55 +1,36 @@
 package state
 
-import (
-	"encoding/binary"
-
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
-)
-
-type hitSourceKey struct {
-	height uint64
-}
-
-func (k *hitSourceKey) bytes() []byte {
-	buf := make([]byte, 9)
-	buf[0] = hitSourceKeyPrefix
-	binary.LittleEndian.PutUint64(buf[1:], k.height)
-	return buf
-}
+const hitSourceSize = 32
 
 type hitSources struct {
-	db      keyvalue.KeyValue
-	dbBatch keyvalue.Batch
+	hs *historyStorage
+	rw *blockReadWriter
 }
 
-func newHitSources(db keyvalue.KeyValue, dbBatch keyvalue.Batch) *hitSources {
-	return &hitSources{db: db, dbBatch: dbBatch}
+func newHitSources(hs *historyStorage, rw *blockReadWriter) *hitSources {
+	return &hitSources{hs, rw}
 }
 
 func (hss *hitSources) saveHitSource(hs []byte, height uint64) error {
-	if len(hs) != 32 {
+	if len(hs) != hitSourceSize {
 		return errInvalidDataSize
 	}
+	blockID, err := hss.rw.newestBlockIDByHeight(height)
+	if err != nil {
+		return err
+	}
 	key := hitSourceKey{height: height}
-	hss.dbBatch.Put(key.bytes(), hs)
-	return nil
+	return hss.hs.addNewEntry(hitSource, key.bytes(), hs, blockID)
 }
 
-func (hss *hitSources) hitSource(height uint64) ([]byte, error) {
+func (hss *hitSources) hitSource(height uint64, filter bool) ([]byte, error) {
 	key := hitSourceKey{height: height}
-	hs, err := hss.db.Get(key.bytes())
+	hs, err := hss.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
-	return hs, nil
-}
-
-func (hss *hitSources) rollback(newHeight, oldHeight uint64) error {
-	for h := oldHeight; h > newHeight; h-- {
-		key := hitSourceKey{height: h}
-		if err := hss.db.Delete(key.bytes()); err != nil {
-			return err
-		}
+	if len(hs) != hitSourceSize {
+		return nil, errInvalidDataSize
 	}
-	return nil
+	return hs, nil
 }
