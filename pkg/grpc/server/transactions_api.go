@@ -2,12 +2,14 @@ package server
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -222,11 +224,7 @@ func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (out *
 	if err != nil {
 		return nil, apiError(err)
 	}
-	tBytes, err := t.MarshalBinary()
-	if err != nil {
-		return nil, apiError(err)
-	}
-	err = s.utx.AddWithBytes(t, tBytes)
+	err = broadcast(ctx, s.services.InternalChannel, t)
 	if err != nil {
 		return nil, apiError(err)
 	}
@@ -263,5 +261,24 @@ func apiError(err error) error {
 		return status.Errorf(codes.InvalidArgument, "Asset was issued by other address: %s", err)
 	default:
 		return status.Errorf(codes.Internal, err.Error())
+	}
+}
+
+func broadcast(ctx context.Context, ch chan messages.InternalMessage, tx proto.Transaction) error {
+	respCh := make(chan error, 1)
+	select {
+	case ch <- messages.NewBroadcastTransaction(respCh, tx):
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(2 * time.Second):
+		return errors.New("timeout waiting request to internal")
+	}
+	select {
+	case <-ctx.Done():
+		return errors.Wrap(ctx.Err(), "ctx cancelled from client")
+	case <-time.After(5 * time.Second):
+		return errors.New("timeout waiting response from internal")
+	case err := <-respCh:
+		return err
 	}
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -108,7 +109,11 @@ func connect(t *testing.T, addr string) *grpc.ClientConn {
 }
 
 func TestMain(m *testing.M) {
-	server = &Server{}
+	server = &Server{
+		services: services.Services{
+			Scheme: 'W',
+		},
+	}
 	grpcTestAddr = fmt.Sprintf("127.0.0.1:%d", freeport.GetPort())
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {

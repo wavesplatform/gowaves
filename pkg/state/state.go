@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -739,7 +741,7 @@ func (s *stateManager) newestWavesBalanceProfile(addr proto.Address) (*balancePr
 func (s *stateManager) GeneratingBalance(account proto.Recipient) (uint64, error) {
 	height, err := s.Height()
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, errs.Extend(err, "failed to get height")
 	}
 	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
 	return s.EffectiveBalance(account, start, end)
@@ -757,19 +759,19 @@ func (s *stateManager) NewestGeneratingBalance(account proto.Recipient) (uint64,
 func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, errs.Extend(err, "failed convert recipient to address")
 	}
 	profile, err := s.stor.balances.wavesBalance(*addr, true)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, errs.Extend(err, "failed to get waves balance")
 	}
 	effective, err := profile.effectiveBalance()
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, errs.Extend(err, "failed to get effective balance")
 	}
 	generating, err := s.GeneratingBalance(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, errs.Extend(err, "failed to get generating balance")
 	}
 	return &proto.FullWavesBalance{
 		Regular:    profile.balance,
@@ -1450,11 +1452,11 @@ func (s *stateManager) recipientToAddress(recipient proto.Recipient) (*proto.Add
 func (s *stateManager) EffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, errs.Extend(err, "failed convert recipient to address ")
 	}
 	effectiveBalance, err := s.stor.balances.minEffectiveBalanceInRange(*addr, startHeight, endHeight)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, errs.Extend(err, fmt.Sprintf("failed get min effective balance: startHeight: %d, endHeight: %d", startHeight, endHeight))
 	}
 	return effectiveBalance, nil
 }
