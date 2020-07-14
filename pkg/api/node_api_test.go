@@ -9,6 +9,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const apiKey = "X-API-Key"
+
 type roll struct {
 	apiKey string
 	height proto.Height

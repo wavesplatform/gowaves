@@ -4,13 +4,10 @@ import (
 	"encoding/binary"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-var (
-	recordSize = crypto.DigestSize + 8
-)
+var assetFeeRecordSize = crypto.DigestSize + 8
 
 type assetFeeMap map[crypto.Digest]uint64
 
@@ -19,7 +16,7 @@ func newAssetFeeMap() assetFeeMap {
 }
 
 func (m assetFeeMap) marshalBinary() []byte {
-	res := make([]byte, 4+len(m)*recordSize)
+	res := make([]byte, 4+len(m)*assetFeeRecordSize)
 	count := uint32(4)
 	for asset, fee := range m {
 		copy(res[count:count+crypto.DigestSize], asset[:])
@@ -117,17 +114,16 @@ func (distr *feeDistribution) unmarshalBinary(data []byte) error {
 }
 
 type blocksInfo struct {
-	db      keyvalue.KeyValue
-	dbBatch keyvalue.Batch
+	hs *historyStorage
 }
 
-func newBlocksInfo(db keyvalue.KeyValue, dbBatch keyvalue.Batch) (*blocksInfo, error) {
-	return &blocksInfo{db, dbBatch}, nil
+func newBlocksInfo(hs *historyStorage) *blocksInfo {
+	return &blocksInfo{hs}
 }
 
-func (i *blocksInfo) feeDistribution(blockID proto.BlockID) (*feeDistribution, error) {
+func (i *blocksInfo) feeDistribution(blockID proto.BlockID, filter bool) (*feeDistribution, error) {
 	key := blocksInfoKey{blockID}
-	distrBytes, err := i.db.Get(key.bytes())
+	distrBytes, err := i.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return &feeDistribution{}, err
 	}
@@ -140,14 +136,5 @@ func (i *blocksInfo) feeDistribution(blockID proto.BlockID) (*feeDistribution, e
 
 func (i *blocksInfo) saveFeeDistribution(blockID proto.BlockID, distr *feeDistribution) error {
 	key := blocksInfoKey{blockID}
-	i.dbBatch.Put(key.bytes(), distr.marshalBinary())
-	return nil
-}
-
-func (i *blocksInfo) rollback(blockID proto.BlockID) error {
-	key := blocksInfoKey{blockID}
-	if err := i.db.Delete(key.bytes()); err != nil {
-		return err
-	}
-	return nil
+	return i.hs.addNewEntry(feeDistr, key.bytes(), distr.marshalBinary(), blockID)
 }

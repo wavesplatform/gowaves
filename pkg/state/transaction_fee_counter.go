@@ -43,7 +43,7 @@ func (tf *transactionFeeCounter) minerFee(distr *feeDistribution, fee uint64, as
 		// Asset is now Waves.
 		asset.Present = false
 	}
-	ngActivated, err := tf.stor.features.isActivatedForNBlocks(int16(settings.NG), 1)
+	ngActivated, err := tf.stor.features.newestIsActivatedForNBlocks(int16(settings.NG), 1)
 	if err != nil {
 		return err
 	}

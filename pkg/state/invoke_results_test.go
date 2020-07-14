@@ -20,10 +20,7 @@ func createInvokeResults() (*invokeResultsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	invokeResults, err := newInvokeResults(stor.hs)
-	if err != nil {
-		return nil, path, err
-	}
+	invokeResults := newInvokeResults(stor.hs)
 	return &invokeResultsTestObjects{stor, invokeResults}, path, nil
 }
 

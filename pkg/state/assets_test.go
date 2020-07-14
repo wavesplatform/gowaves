@@ -20,10 +20,7 @@ func createAssets() (*assetsTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	assets, err := newAssets(stor.db, stor.dbBatch, stor.hs)
-	if err != nil {
-		return nil, path, err
-	}
+	assets := newAssets(stor.db, stor.dbBatch, stor.hs)
 	return &assetsTestObjects{stor, assets}, path, nil
 }
 

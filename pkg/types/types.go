@@ -52,9 +52,9 @@ type SmartState interface {
 	NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
 	NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
+	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 
 	IsNotFound(err error) bool
-	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 }
 
 type ID interface {

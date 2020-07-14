@@ -360,10 +360,6 @@ func (a *MockStateManager) HitSourceAtHeight(height proto.Height) ([]byte, error
 	panic("not implemented")
 }
 
-func (a *MockStateManager) BlockVRF(header *proto.BlockHeader, height proto.Height) ([]byte, error) {
-	return nil, nil
-}
-
 type mockPeerManager struct {
 	connected map[peer.Peer]struct{}
 }

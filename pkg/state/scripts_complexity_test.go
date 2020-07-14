@@ -17,10 +17,7 @@ func createScriptsComplexityStorageObjects() (*scriptsComplexityStorageObjects, 
 	if err != nil {
 		return nil, path, err
 	}
-	scriptsComplexity, err := newScriptsComplexity(stor.hs)
-	if err != nil {
-		return nil, path, err
-	}
+	scriptsComplexity := newScriptsComplexity(stor.hs)
 	return &scriptsComplexityStorageObjects{stor, scriptsComplexity}, path, nil
 }
 

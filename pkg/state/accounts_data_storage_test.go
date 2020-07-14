@@ -18,10 +18,7 @@ func createAccountsDataStorage() (*accountsDataStorageTestObjects, []string, err
 	if err != nil {
 		return nil, path, err
 	}
-	accountsDataStor, err := newAccountsDataStorage(stor.db, stor.dbBatch, stor.hs, true)
-	if err != nil {
-		return nil, path, err
-	}
+	accountsDataStor := newAccountsDataStorage(stor.db, stor.dbBatch, stor.hs, true)
 	return &accountsDataStorageTestObjects{stor, accountsDataStor}, path, nil
 }
 
@@ -78,7 +75,30 @@ func TestRetrieveEntries(t *testing.T) {
 	properEntries := []proto.DataEntry{entry0, entry1}
 	entries, err := to.accountsDataStor.retrieveEntries(addr0, true)
 	assert.NoError(t, err)
-	assert.Equal(t, properEntries, entries)
+	assert.ElementsMatch(t, properEntries, entries)
+
+	// Test how it works with rollback.
+	entry2 := &proto.BooleanDataEntry{Key: "Next", Value: true}
+	to.stor.addBlock(t, blockID1)
+	err = to.accountsDataStor.appendEntry(addr0, entry2, blockID1)
+	assert.NoError(t, err)
+	properEntries = []proto.DataEntry{entry0, entry1, entry2}
+	to.stor.flush(t)
+	entries, err = to.accountsDataStor.retrieveEntries(addr0, true)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, properEntries, entries)
+
+	to.stor.rollbackBlock(t, blockID1)
+	properEntries = []proto.DataEntry{entry0, entry1}
+	entries, err = to.accountsDataStor.retrieveEntries(addr0, true)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, properEntries, entries)
+	to.stor.rollbackBlock(t, blockID0)
+
+	properEntries = nil
+	entries, err = to.accountsDataStor.retrieveEntries(addr0, true)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, properEntries, entries)
 }
 
 func TestRollbackEntry(t *testing.T) {
@@ -108,8 +128,7 @@ func TestRollbackEntry(t *testing.T) {
 	// Flush and reset before rollback.
 	to.stor.flush(t)
 	// Rollback block.
-	err = to.stor.stateDB.rollbackBlock(blockID1)
-	assert.NoError(t, err, "rollbackBlock() failed")
+	to.stor.rollbackBlock(t, blockID1)
 	// Make sure data entry is now from blockID0.
 	entry, err = to.accountsDataStor.retrieveEntry(addr0, entry0.Key, true)
 	assert.NoError(t, err, "retrieveEntry() failed")

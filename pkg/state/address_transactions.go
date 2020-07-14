@@ -21,11 +21,38 @@ const (
 	addrTxRecordSize = proto.AddressSize + blockNumLen + txMetaSize
 
 	maxEmsortMem = 200 * 1024 * 1024 // 200 MiB.
+
+	txMetaSize = 8 + 1
 )
 
 var (
 	fileSizeKeyBytes = []byte{txsByAddrsFileSizeKeyPrefix}
 )
+
+type txMeta struct {
+	offset uint64
+	failed bool
+}
+
+func (m *txMeta) bytes() []byte {
+	buf := make([]byte, txMetaSize)
+	binary.BigEndian.PutUint64(buf, m.offset)
+	if m.failed {
+		buf[8] = 1
+	}
+	return buf
+}
+
+func (m *txMeta) unmarshal(data []byte) error {
+	if len(data) < txMetaSize {
+		return errInvalidDataSize
+	}
+	m.offset = binary.BigEndian.Uint64(data)
+	if data[8] == 1 {
+		m.failed = true
+	}
+	return nil
+}
 
 type txIter struct {
 	rw   *blockReadWriter
@@ -165,16 +192,17 @@ func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte
 		return errors.New("unsupported meta length")
 	}
 	newRecord := make([]byte, addrTxRecordSize)
-	blockNum, err := at.stateDB.blockIdToNum(blockID)
+	blockNum, err := at.stateDB.newestBlockIdToNum(blockID)
 	if err != nil {
 		return err
 	}
 	copy(newRecord[:proto.AddressSize], addr.Bytes())
 	pos := proto.AddressSize
-	meta, err := at.rw.newestTransactionMetaByID(txID)
+	info, err := at.rw.newestTransactionInfoByID(txID)
 	if err != nil {
 		return err
 	}
+	meta := txMeta{info.offset, info.failed}
 	binary.BigEndian.PutUint32(newRecord[pos:], blockNum)
 	pos += blockNumLen
 	copy(newRecord[pos:], meta.bytes())
@@ -354,13 +382,12 @@ func (at *addressTransactions) saveFileSizeToBatch(batch keyvalue.Batch, size ui
 	return nil
 }
 
-func (at *addressTransactions) reset(filter bool) error {
+func (at *addressTransactions) reset() {
 	if at.params.providesData {
 		at.stor.reset()
-		return nil
+	} else {
+		at.addrTransactionsBuf.Reset(at.addrTransactions)
 	}
-	at.addrTransactionsBuf.Reset(at.addrTransactions)
-	return nil
 }
 
 func (at *addressTransactions) flush() error {

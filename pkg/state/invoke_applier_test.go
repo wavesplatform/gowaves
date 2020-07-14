@@ -101,15 +101,22 @@ func (to *invokeApplierTestObjects) activateFeature(t *testing.T, feature int16)
 	assert.NoError(t, err)
 	err = to.state.flush(true)
 	assert.NoError(t, err)
-	err = to.state.reset(true)
-	assert.NoError(t, err)
+	to.state.reset()
 }
 
 func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams) *applicationResult {
+	// TODO: consider rewriting using txAppender.
+	// This should simplify tests because we actually reimplement part of appendTx() here.
+	defer to.state.stor.dropUncertain()
+
 	res, err := to.state.appender.ia.applyInvokeScript(tx, info)
 	assert.NoError(t, err)
 	err = to.state.appender.diffStor.saveTxDiff(res.changes.diff)
 	assert.NoError(t, err)
+	if res.status {
+		err = to.state.stor.commitUncertain(info.checkerInfo.blockID)
+		assert.NoError(t, err)
+	}
 	return res
 }
 
@@ -191,8 +198,7 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 	assert.NoError(t, err, "applyAllDiffs() failed")
 	err = to.state.flush(false)
 	assert.NoError(t, err, "state.flush() failed")
-	err = to.state.reset(false)
-	assert.NoError(t, err, "state.reset() failed")
+	to.state.reset()
 
 	// Check state after flushing.
 	for aa, correct := range id.correctBalances {

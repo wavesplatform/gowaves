@@ -97,13 +97,13 @@ type scriptsComplexity struct {
 	hs *historyStorage
 }
 
-func newScriptsComplexity(hs *historyStorage) (*scriptsComplexity, error) {
-	return &scriptsComplexity{hs: hs}, nil
+func newScriptsComplexity(hs *historyStorage) *scriptsComplexity {
+	return &scriptsComplexity{hs: hs}
 }
 
 func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address, filter bool) (*accountScriptComplexityRecord, error) {
 	key := accountScriptComplexityKey{addr}
-	recordBytes, err := sc.hs.freshLatestEntryData(key.bytes(), filter)
+	recordBytes, err := sc.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address, fi
 
 func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset crypto.Digest, filter bool) (*assetScriptComplexityRecord, error) {
 	key := assetScriptComplexityKey{asset}
-	recordBytes, err := sc.hs.freshLatestEntryData(key.bytes(), filter)
+	recordBytes, err := sc.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset crypto.Digest, 
 
 func (sc *scriptsComplexity) scriptComplexityByAsset(asset crypto.Digest, filter bool) (*assetScriptComplexityRecord, error) {
 	key := assetScriptComplexityKey{asset}
-	recordBytes, err := sc.hs.latestEntryData(key.bytes(), filter)
+	recordBytes, err := sc.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (sc *scriptsComplexity) scriptComplexityByAsset(asset crypto.Digest, filter
 
 func (sc *scriptsComplexity) scriptComplexityByAddress(addr proto.Address, filter bool) (*accountScriptComplexityRecord, error) {
 	key := accountScriptComplexityKey{addr}
-	recordBytes, err := sc.hs.latestEntryData(key.bytes(), filter)
+	recordBytes, err := sc.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}

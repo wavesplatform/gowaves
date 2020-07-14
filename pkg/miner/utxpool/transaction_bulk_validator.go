@@ -49,13 +49,25 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 		return nil, err
 	}
 
-	_ = a.state.TxValidation(func(validation state.TxValidation) error {
+	_ = a.state.Map(func(s state.NonThreadSafeState) error {
+		defer s.ResetValidationList()
+
 		for {
 			t := a.utx.Pop()
 			if t == nil {
 				break
 			}
-			if err := validation.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, checkScripts); err == nil {
+			err := s.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, checkScripts)
+			if state.IsTxCommitmentError(err) {
+				// This should not happen in practice.
+				// Reset state, return applied transactions to UTX.
+				s.ResetValidationList()
+				for _, tx := range transactions {
+					_ = a.utx.AddWithBytes(tx.T, tx.B)
+				}
+				transactions = nil
+				continue
+			} else if err == nil {
 				transactions = append(transactions, t)
 			}
 		}
