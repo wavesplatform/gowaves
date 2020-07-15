@@ -43,7 +43,7 @@ type StateInfo interface {
 	HeightToBlockID(height proto.Height) (proto.BlockID, error)
 	// FullWavesBalance returns complete Waves balance record.
 	FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
-	EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
+	EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
 	// AccountBalance retrieves balance of account in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)
@@ -122,9 +122,6 @@ type StateInfo interface {
 	// HitSourceAtHeight reads hit source stored in state.
 	HitSourceAtHeight(height proto.Height) ([]byte, error)
 
-	// BlockVRF calculates VRF for given block.
-	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
-
 	// ShouldPersisAddressTransactions checks if PersisAddressTransactions
 	// should be called.
 	ShouldPersistAddressTransactions() (bool, error)
@@ -158,9 +155,9 @@ type StateModifier interface {
 	// -------------------------
 	// ValidateNextTx() validates transaction against state, taking into account all the previous changes from transactions
 	// that were added using ValidateNextTx() until you call ResetValidationList().
-	// checkScripts specifies if scripts for Exchange and Invoke transactions
-	// should be checked.
-	// Returns TxValidationError or nil.
+	// checkScripts specifies if scripts for Exchange and Invoke transactions should be checked.
+	// Returns TxCommitmentError or other state error or nil.
+	// When TxCommitmentError is returned, state MUST BE cleared using ResetValidationList().
 	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, checkScripts bool) error
 	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
 	ResetValidationList()

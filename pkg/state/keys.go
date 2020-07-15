@@ -39,16 +39,13 @@ const (
 	validBlockNumKeyPrefix
 
 	// For block storage.
-	// IDs of blocks and transactions --> offsets in files.
+	// IDs of blocks --> offsets in files.
 	blockOffsetKeyPrefix
-	txMetaKeyPrefix
-	// Transaction heights by IDs.
-	txHeightKeyPrefix
+	// IDs of transactions --> offsets in files, heights, failure status.
+	txInfoKeyPrefix
 
 	// Minimum height to which rollback is possible.
 	rollbackMinHeightKeyPrefix
-	// Min height of blockReadWriter's files.
-	rwHeightKeyPrefix
 	// Height of main db.
 	dbHeightKeyPrefix
 
@@ -119,7 +116,7 @@ const (
 	// Stores state hashes at height.
 	stateHashKeyPrefix
 
-	// Hit source data
+	// Hit source data.
 	hitSourceKeyPrefix
 )
 
@@ -142,6 +139,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{assetBalanceKeyPrefix}, nil
 	case featureVote:
 		return []byte{votesFeaturesKeyPrefix}, nil
+	case approvedFeature:
+		return []byte{approvedFeaturesKeyPrefix}, nil
 	case activatedFeature:
 		return []byte{activatedFeaturesKeyPrefix}, nil
 	case ordersVolume:
@@ -164,6 +163,14 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{blockRewardKeyPrefix}, nil
 	case invokeResult:
 		return []byte{invokeResultKeyPrefix}, nil
+	case score:
+		return []byte{scoreKeyPrefix}, nil
+	case stateHash:
+		return []byte{stateHashKeyPrefix}, nil
+	case hitSource:
+		return []byte{hitSourceKeyPrefix}, nil
+	case feeDistr:
+		return []byte{blocksInfoKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -269,24 +276,13 @@ func (k *blockOffsetKey) bytes() []byte {
 	return buf
 }
 
-type txMetaKey struct {
+type txInfoKey struct {
 	txID []byte
 }
 
-func (k *txMetaKey) bytes() []byte {
+func (k *txInfoKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
-	buf[0] = txMetaKeyPrefix
-	copy(buf[1:], k.txID)
-	return buf
-}
-
-type txHeightKey struct {
-	txID []byte
-}
-
-func (k *txHeightKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
-	buf[0] = txHeightKeyPrefix
+	buf[0] = txInfoKeyPrefix
 	copy(buf[1:], k.txID)
 	return buf
 }
@@ -641,5 +637,16 @@ func (k *stateHashKey) bytes() []byte {
 	buf := make([]byte, 9)
 	buf[0] = stateHashKeyPrefix
 	binary.BigEndian.PutUint64(buf[1:], k.height)
+	return buf
+}
+
+type hitSourceKey struct {
+	height uint64
+}
+
+func (k *hitSourceKey) bytes() []byte {
+	buf := make([]byte, 9)
+	buf[0] = hitSourceKeyPrefix
+	binary.LittleEndian.PutUint64(buf[1:], k.height)
 	return buf
 }

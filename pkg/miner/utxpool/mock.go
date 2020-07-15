@@ -63,21 +63,6 @@ func (mr *MockstateWrapperMockRecorder) TopBlock() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TopBlock", reflect.TypeOf((*MockstateWrapper)(nil).TopBlock))
 }
 
-// BlockVRF mocks base method
-func (m *MockstateWrapper) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockVRF", blockHeader, height)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BlockVRF indicates an expected call of BlockVRF
-func (mr *MockstateWrapperMockRecorder) BlockVRF(blockHeader, height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockstateWrapper)(nil).BlockVRF), blockHeader, height)
-}
-
 // TxValidation mocks base method
 func (m *MockstateWrapper) TxValidation(arg0 func(state.TxValidation) error) error {
 	m.ctrl.T.Helper()
@@ -90,6 +75,20 @@ func (m *MockstateWrapper) TxValidation(arg0 func(state.TxValidation) error) err
 func (mr *MockstateWrapperMockRecorder) TxValidation(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TxValidation", reflect.TypeOf((*MockstateWrapper)(nil).TxValidation), arg0)
+}
+
+// Map mocks base method
+func (m *MockstateWrapper) Map(arg0 func(state.NonThreadSafeState) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Map", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Map indicates an expected call of Map
+func (mr *MockstateWrapperMockRecorder) Map(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Map", reflect.TypeOf((*MockstateWrapper)(nil).Map), arg0)
 }
 
 // IsActivated mocks base method

@@ -114,6 +114,9 @@ func MustAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) Address {
 }
 
 func RebuildAddress(scheme byte, body []byte) (Address, error) {
+	if len(body) == 26 {
+		return NewAddressFromBytes(body)
+	}
 	var a Address
 	a[0] = addressVersion
 	a[1] = scheme

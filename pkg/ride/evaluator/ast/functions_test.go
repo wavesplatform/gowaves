@@ -257,7 +257,7 @@ func TestNativeTransactionByID(t *testing.T) {
 		1,
 		10000,
 		proto.NewRecipientFromAddress(sender),
-		&proto.LegacyAttachment{},
+		nil,
 	)
 	require.NoError(t, err)
 	require.NoError(t, transferWithSig.Sign(proto.MainNetScheme, secret))
@@ -1733,8 +1733,8 @@ func TestTransferFromProtobuf(t *testing.T) {
 	addr, err := proto.NewAddressFromPublicKey(scope.Scheme(), pk)
 	require.NoError(t, err)
 	rcp := proto.NewRecipientFromAddress(addr)
-	att := proto.StringAttachment{Value: "some attachment"}
-	tx := proto.NewUnsignedTransferWithProofs(3, pk, proto.OptionalAsset{}, proto.OptionalAsset{}, ts, 1234500000000, 100000, rcp, &att)
+	att := []byte("some attachment")
+	tx := proto.NewUnsignedTransferWithProofs(3, pk, proto.OptionalAsset{}, proto.OptionalAsset{}, ts, 1234500000000, 100000, rcp, att)
 	err = tx.GenerateID(scope.Scheme())
 	require.NoError(t, err)
 	err = tx.Sign(scope.Scheme(), sk)

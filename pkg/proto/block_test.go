@@ -386,10 +386,10 @@ func TestBlockVerifyRootHash(t *testing.T) {
 	recipient := NewRecipientFromAddress(addr)
 
 	// Transactions
-	tx1 := NewUnsignedTransferWithProofs(MaxTransferTransactionVersion, public, waves, waves, 1, 2, 3, recipient, &LegacyAttachment{Value: []byte("aaa")})
+	tx1 := NewUnsignedTransferWithProofs(MaxTransferTransactionVersion, public, waves, waves, 1, 2, 3, recipient, []byte("aaa"))
 	err = tx1.Sign(TestNetScheme, secret)
 	assert.NoError(t, err)
-	tx2 := NewUnsignedTransferWithProofs(MaxTransferTransactionVersion, public, waves, waves, 4, 5, 6, recipient, &LegacyAttachment{Value: []byte("bbb")})
+	tx2 := NewUnsignedTransferWithProofs(MaxTransferTransactionVersion, public, waves, waves, 4, 5, 6, recipient, []byte("bbb"))
 	err = tx2.Sign(TestNetScheme, secret)
 	assert.NoError(t, err)
 

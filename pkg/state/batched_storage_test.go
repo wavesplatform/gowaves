@@ -51,7 +51,7 @@ func (to *batchedStorageTestObjects) addTestRecords(t *testing.T, key []byte, da
 	for _, rc := range data {
 		to.stor.addBlock(t, rc.blockID)
 		delete(to.rollbackedIds, rc.blockID)
-		blockNum, err := to.stor.stateDB.blockIdToNum(rc.blockID)
+		blockNum, err := to.stor.stateDB.newestBlockIdToNum(rc.blockID)
 		assert.NoError(t, err)
 		err = to.batchedStor.addRecord(key, rc.record, blockNum, true)
 		assert.NoError(t, err)
@@ -77,8 +77,7 @@ func (to *batchedStorageTestObjects) testIterator(t *testing.T, key []byte, data
 }
 
 func (to *batchedStorageTestObjects) rollbackBlock(t *testing.T, blockID proto.BlockID) {
-	err := to.stor.stateDB.rollbackBlock(blockID)
-	assert.NoError(t, err)
+	to.stor.rollbackBlock(t, blockID)
 	to.rollbackedIds[blockID] = true
 }
 
@@ -172,7 +171,7 @@ func TestLastRecordByKey(t *testing.T) {
 	}()
 
 	to.stor.addBlock(t, blockID0)
-	blockNum0, err := to.stor.stateDB.blockIdToNum(blockID0)
+	blockNum0, err := to.stor.stateDB.newestBlockIdToNum(blockID0)
 	assert.NoError(t, err)
 	key0 := []byte{1, 2, 3}
 	record0 := []byte{4, 5, 6}
@@ -207,7 +206,7 @@ func TestLastRecordByKey(t *testing.T) {
 	assert.Equal(t, record1, res)
 
 	to.stor.addBlock(t, blockID1)
-	blockNum1, err := to.stor.stateDB.blockIdToNum(blockID1)
+	blockNum1, err := to.stor.stateDB.newestBlockIdToNum(blockID1)
 	assert.NoError(t, err)
 	key2 := []byte{13, 14, 15}
 	record2 := []byte{16, 17, 18}

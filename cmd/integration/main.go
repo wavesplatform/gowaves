@@ -78,7 +78,6 @@ func (a Arguments) Empty(name string) Arguments {
 func main() {
 	flag.Parse()
 	// difference between scala System.currentTimeMillis() and time.Now()
-	<-time.After(2 * time.Second)
 	common.SetupLogger(*logLevel)
 
 	zap.S().Debug(os.Getenv("WAVES_OPTS"))

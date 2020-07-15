@@ -319,6 +319,8 @@ func main() {
 	n := node.NewNode(services, declAddr, bindAddr, proto.NewTimestampFromUSeconds(outdatePeriod))
 	go n.Run(ctx, parent, services.InternalChannel)
 
+	go sched.Reschedule()
+
 	if len(conf.Addresses) > 0 {
 		adrs := strings.Split(conf.Addresses, ",")
 		for _, addr := range adrs {

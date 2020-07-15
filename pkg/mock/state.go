@@ -250,19 +250,19 @@ func (mr *MockStateInfoMockRecorder) FullWavesBalance(account interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockStateInfo)(nil).FullWavesBalance), account)
 }
 
-// EffectiveBalanceStable mocks base method
-func (m *MockStateInfo) EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
+// EffectiveBalance mocks base method
+func (m *MockStateInfo) EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EffectiveBalanceStable", account, startHeight, endHeight)
+	ret := m.ctrl.Call(m, "EffectiveBalance", account, startHeight, endHeight)
 	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// EffectiveBalanceStable indicates an expected call of EffectiveBalanceStable
-func (mr *MockStateInfoMockRecorder) EffectiveBalanceStable(account, startHeight, endHeight interface{}) *gomock.Call {
+// EffectiveBalance indicates an expected call of EffectiveBalance
+func (mr *MockStateInfoMockRecorder) EffectiveBalance(account, startHeight, endHeight interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalanceStable", reflect.TypeOf((*MockStateInfo)(nil).EffectiveBalanceStable), account, startHeight, endHeight)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalance", reflect.TypeOf((*MockStateInfo)(nil).EffectiveBalance), account, startHeight, endHeight)
 }
 
 // AccountBalance mocks base method
@@ -836,21 +836,6 @@ func (mr *MockStateInfoMockRecorder) HitSourceAtHeight(height interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HitSourceAtHeight", reflect.TypeOf((*MockStateInfo)(nil).HitSourceAtHeight), height)
 }
 
-// BlockVRF mocks base method
-func (m *MockStateInfo) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockVRF", blockHeader, height)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BlockVRF indicates an expected call of BlockVRF
-func (mr *MockStateInfoMockRecorder) BlockVRF(blockHeader, height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockStateInfo)(nil).BlockVRF), blockHeader, height)
-}
-
 // ShouldPersistAddressTransactions mocks base method
 func (m *MockStateInfo) ShouldPersistAddressTransactions() (bool, error) {
 	m.ctrl.T.Helper()
@@ -1308,19 +1293,19 @@ func (mr *MockStateMockRecorder) FullWavesBalance(account interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockState)(nil).FullWavesBalance), account)
 }
 
-// EffectiveBalanceStable mocks base method
-func (m *MockState) EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
+// EffectiveBalance mocks base method
+func (m *MockState) EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EffectiveBalanceStable", account, startHeight, endHeight)
+	ret := m.ctrl.Call(m, "EffectiveBalance", account, startHeight, endHeight)
 	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// EffectiveBalanceStable indicates an expected call of EffectiveBalanceStable
-func (mr *MockStateMockRecorder) EffectiveBalanceStable(account, startHeight, endHeight interface{}) *gomock.Call {
+// EffectiveBalance indicates an expected call of EffectiveBalance
+func (mr *MockStateMockRecorder) EffectiveBalance(account, startHeight, endHeight interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalanceStable", reflect.TypeOf((*MockState)(nil).EffectiveBalanceStable), account, startHeight, endHeight)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalance", reflect.TypeOf((*MockState)(nil).EffectiveBalance), account, startHeight, endHeight)
 }
 
 // AccountBalance mocks base method
@@ -1892,21 +1877,6 @@ func (m *MockState) HitSourceAtHeight(height proto.Height) ([]byte, error) {
 func (mr *MockStateMockRecorder) HitSourceAtHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HitSourceAtHeight", reflect.TypeOf((*MockState)(nil).HitSourceAtHeight), height)
-}
-
-// BlockVRF mocks base method
-func (m *MockState) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockVRF", blockHeader, height)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// BlockVRF indicates an expected call of BlockVRF
-func (mr *MockStateMockRecorder) BlockVRF(blockHeader, height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockState)(nil).BlockVRF), blockHeader, height)
 }
 
 // ShouldPersistAddressTransactions mocks base method

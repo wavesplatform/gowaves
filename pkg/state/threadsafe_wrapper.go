@@ -21,12 +21,6 @@ func (a *ThreadSafeReadWrapper) HitSourceAtHeight(height proto.Height) ([]byte, 
 	return a.s.HitSourceAtHeight(height)
 }
 
-func (a *ThreadSafeReadWrapper) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.BlockVRF(blockHeader, height)
-}
-
 func (a *ThreadSafeReadWrapper) MapR(f func(StateInfo) (interface{}, error)) (interface{}, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -85,10 +79,10 @@ func (a *ThreadSafeReadWrapper) FullWavesBalance(account proto.Recipient) (*prot
 	return a.s.FullWavesBalance(account)
 }
 
-func (a *ThreadSafeReadWrapper) EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
+func (a *ThreadSafeReadWrapper) EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.EffectiveBalanceStable(account, startHeight, endHeight)
+	return a.s.EffectiveBalance(account, startHeight, endHeight)
 }
 
 func (a *ThreadSafeReadWrapper) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {

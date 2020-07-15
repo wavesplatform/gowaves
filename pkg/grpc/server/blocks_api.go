@@ -57,31 +57,38 @@ func (s *Server) GetBlock(ctx context.Context, req *g.BlockRequest) (*g.BlockWit
 		return s.headerOrBlockByHeight(blockHeight, req.IncludeTransactions)
 	case *g.BlockRequest_Height:
 		return s.headerOrBlockByHeight(proto.Height(r.Height), req.IncludeTransactions)
-	case *g.BlockRequest_Reference:
-		id, err := proto.NewBlockIDFromBytes(r.Reference)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, err.Error())
-		}
-		parentHeight, err := s.state.BlockIDToHeight(id)
-		if err != nil {
-			return nil, status.Errorf(codes.NotFound, err.Error())
-		}
-		blockHeight := parentHeight + 1
-		return s.headerOrBlockByHeight(blockHeight, req.IncludeTransactions)
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "Unknown argument type")
 	}
 }
 
 func (s *Server) GetBlockRange(req *g.BlockRangeRequest, srv g.BlocksApi_GetBlockRangeServer) error {
-	generator := req.GetGenerator()
-	hasFilter := generator != nil
+	var filter func(b *g.BlockWithHeight) bool
+	switch t := req.Filter.(type) {
+	case *g.BlockRangeRequest_GeneratorPublicKey:
+		filter = func(b *g.BlockWithHeight) bool {
+			return bytes.Equal(t.GeneratorPublicKey, b.Block.Header.Generator)
+		}
+	case *g.BlockRangeRequest_GeneratorAddress:
+		addr, err := proto.RebuildAddress(s.scheme, t.GeneratorAddress)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument, "Invalid address: %s", err.Error())
+		}
+		filter = func(b *g.BlockWithHeight) bool {
+			genaddr, _ := proto.RebuildAddress(s.scheme, t.GeneratorAddress)
+			return addr == genaddr
+		}
+	default:
+		filter = func(b *g.BlockWithHeight) bool {
+			return true
+		}
+	}
 	for height := proto.Height(req.FromHeight); height <= proto.Height(req.ToHeight); height++ {
 		block, err := s.headerOrBlockByHeight(height, req.IncludeTransactions)
 		if err != nil {
 			return status.Errorf(codes.NotFound, err.Error())
 		}
-		if hasFilter && !bytes.Equal(block.Block.Header.Generator, generator) {
+		if !filter(block) {
 			continue
 		}
 		if err := srv.Send(block); err != nil {

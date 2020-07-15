@@ -44,7 +44,7 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, v
 	if err := k.unmarshal(change.key); err != nil {
 		return errors.Errorf("failed to unmarshal waves balance key: %v\n", err)
 	}
-	profile, err := a.balances.wavesBalance(k.address, filter)
+	profile, err := a.balances.newestWavesBalance(k.address, filter)
 	if err != nil {
 		return errors.Errorf("failed to retrieve waves balance: %v\n", err)
 	}
@@ -72,7 +72,7 @@ func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, filter, v
 	if err := k.unmarshal(change.key); err != nil {
 		return errors.Errorf("failed to unmarshal asset balance key: %v\n", err)
 	}
-	balance, err := a.balances.assetBalance(k.address, k.asset, filter)
+	balance, err := a.balances.newestAssetBalance(k.address, k.asset, filter)
 	if err != nil {
 		return errors.Errorf("failed to retrieve asset balance: %v\n", err)
 	}
