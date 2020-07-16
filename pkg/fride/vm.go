@@ -1,6 +1,11 @@
 package fride
 
-import "fmt"
+import (
+	"encoding/binary"
+	"fmt"
+
+	"github.com/pkg/errors"
+)
 
 const (
 	OpPush        byte = iota //00
@@ -14,6 +19,8 @@ const (
 	OpStore                   //08
 	OpLoad                    //09
 	OpReturn                  //10
+	OpBegin                   //11
+	OpEnd                     //12
 )
 
 func Run(program *Program) (*Result, error) {
@@ -31,12 +38,7 @@ func Run(program *Program) (*Result, error) {
 	return m.run()
 }
 
-type scope map[string]interface{}
-
-type call struct {
-	name  string
-	count int
-}
+type scope map[str]value
 
 type function struct {
 }
@@ -44,8 +46,8 @@ type function struct {
 type vm struct {
 	code      []byte
 	ip        int
-	constants []interface{}
-	stack     []interface{}
+	constants []value
+	stack     []value
 	scopes    []scope
 }
 
@@ -64,36 +66,104 @@ func (m *vm) run() (*Result, error) {
 			m.push(m.constant())
 		case OpPop:
 			m.pop()
+		case OpTrue:
+			m.push(boolean(true))
+		case OpFalse:
+			m.push(boolean(false))
+		case OpJump:
+			offset := m.arg()
+			m.ip += int(offset)
+		case OpJumpIfFalse:
+			offset := m.arg()
+			v, ok := m.current().(boolean)
+			if !ok {
+				return nil, errors.Errorf("not a boolean value '%v' of type '%T'", m.current(), m.current())
+			}
+			if !v {
+				m.ip += int(offset)
+			}
+		case OpProperty:
+			obj := m.pop()
+			prop := m.constant()
+			v, err := fetch(obj, prop)
+			if err != nil {
+				return nil, err
+			}
+			m.push(v)
+		case OpCall:
+			c := m.constant()
+			call, ok := c.(call)
+			if !ok {
+				return nil, errors.Errorf("not a call descriptor '%v' of type '%T'", c, c)
+			}
+			in := make([]value, call.count)
+			for i := call.count - 1; i >= 0; i-- {
+				in[i] = m.pop()
+			}
+			fn := fetchFunction(call.name)
+			res, err := fn(in...)
+			if err != nil {
+				return nil, err
+			}
+			m.push(res)
+		case OpStore:
+			scope := m.scope()
+			c := m.constant()
+			key, ok := c.(str)
+			if !ok {
+				return nil, errors.Errorf("not a str value '%v' of type '%T'", c, c)
+			}
+			value := m.pop()
+			scope[key] = value
+		case OpLoad:
+			scope := m.scope()
+			c := m.constant()
+			key, ok := c.(str)
+			if !ok {
+				return nil, errors.Errorf("not a str value '%v' of type '%T'", c, c)
+			}
+			m.push(scope[key])
+		case OpBegin:
+			scope := make(scope)
+			m.scopes = append(m.scopes, scope)
+		case OpEnd:
+			m.scopes = m.scopes[:len(m.scopes)-1]
+		case OpReturn:
+
+		default:
+			return nil, errors.Errorf("unknown code %#x", op)
 		}
 		m.ip++
 	}
 	return nil, nil
 }
 
-func (m *vm) push(value interface{}) {
-	m.stack = append(m.stack, value)
+func (m *vm) push(v value) {
+	m.stack = append(m.stack, v)
 }
 
-func (m *vm) pop() interface{} {
+func (m *vm) pop() value {
 	value := m.stack[len(m.stack)-1]
 	m.stack = m.stack[:len(m.stack)-1]
 	return value
 }
 
-func (m *vm) current() interface{} {
+func (m *vm) current() value {
 	return m.stack[len(m.stack)-1]
 }
 
 func (m *vm) arg() uint16 {
-
-	if len(m.code) >= m.ip+2 {
-
-	}
-	b0, b1 := m.code[m.ip], m.code[m.ip+1]
-	m.ip += 2
-	return uint16(b0) | uint16(b1)<<8
+	//TODO: add check
+	return binary.BigEndian.Uint16(m.code[m.ip : m.ip+1])
 }
 
-func (m *vm) constant() interface{} {
+func (m *vm) constant() value {
 	return m.constants[m.arg()]
+}
+
+func (m *vm) scope() scope {
+	if l := len(m.scopes); l > 0 {
+		return m.scopes[l-1]
+	}
+	return nil
 }
