@@ -36,11 +36,10 @@ func isInvalidMainNetBlock(blockID proto.BlockID, height uint64) bool {
 type stateInfoProvider interface {
 	BlockchainSettings() (*settings.BlockchainSettings, error)
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
-	NewestEffectiveBalance(addr proto.Recipient, startHeight, endHeight uint64) (uint64, error)
-	IsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
-	ActivationHeight(featureID int16) (proto.Height, error)
 	HitSourceAtHeight(height uint64) ([]byte, error)
 	SaveHitSources(startHeight uint64, hs [][]byte) error
+	NewestEffectiveBalance(addr proto.Recipient, startHeight, endHeight uint64) (uint64, error)
+	NewestIsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 }
 
 type ConsensusValidator struct {
@@ -67,15 +66,15 @@ func NewConsensusValidator(state stateInfoProvider, tm types.Time) (*ConsensusVa
 }
 
 func (cv *ConsensusValidator) smallerMinimalGeneratingBalanceActivated(height uint64) (bool, error) {
-	return cv.state.IsActiveAtHeight(int16(settings.SmallerMinimalGeneratingBalance), height)
+	return cv.state.NewestIsActiveAtHeight(int16(settings.SmallerMinimalGeneratingBalance), height)
 }
 
 func (cv *ConsensusValidator) fairPosActivated(height uint64) (bool, error) {
-	return cv.state.IsActiveAtHeight(int16(settings.FairPoS), height)
+	return cv.state.NewestIsActiveAtHeight(int16(settings.FairPoS), height)
 }
 
 func (cv *ConsensusValidator) blockV5Activated(height uint64) (bool, error) {
-	return cv.state.IsActiveAtHeight(int16(settings.BlockV5), height)
+	return cv.state.NewestIsActiveAtHeight(int16(settings.BlockV5), height)
 }
 
 func (cv *ConsensusValidator) posAlgo(height uint64) (PosCalculator, error) {
@@ -97,7 +96,7 @@ func (cv *ConsensusValidator) posAlgo(height uint64) (PosCalculator, error) {
 }
 
 func (cv *ConsensusValidator) generationSignatureProvider(height uint64) (GenerationSignatureProvider, error) {
-	vrf, err := cv.state.IsActiveAtHeight(int16(settings.BlockV5), height)
+	vrf, err := cv.state.NewestIsActiveAtHeight(int16(settings.BlockV5), height)
 	if err != nil {
 		return nil, err
 	}
@@ -207,12 +206,12 @@ func (cv *ConsensusValidator) minerGeneratingBalance(height uint64, header *prot
 }
 
 func (cv *ConsensusValidator) validBlockVersionAtHeight(blockchainHeight uint64) (proto.BlockVersion, error) {
-	blockRewardActivated, err := cv.state.IsActiveAtHeight(int16(settings.BlockReward), blockchainHeight)
+	blockRewardActivated, err := cv.state.NewestIsActiveAtHeight(int16(settings.BlockReward), blockchainHeight)
 	if err != nil {
 		return proto.GenesisBlockVersion, errors.Wrap(err, "IsActiveAtHeight failed")
 	}
 	blockHeight := blockchainHeight + 1
-	blockV5Activated, err := cv.state.IsActiveAtHeight(int16(settings.BlockV5), blockHeight)
+	blockV5Activated, err := cv.state.NewestIsActiveAtHeight(int16(settings.BlockV5), blockHeight)
 	if err != nil {
 		return proto.GenesisBlockVersion, errors.Wrap(err, "IsActiveAtHeight failed")
 	}
@@ -296,7 +295,7 @@ func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uin
 		return errors.Wrap(err, "failed to get generation signature provider")
 	}
 
-	vrf, err := cv.state.IsActiveAtHeight(int16(settings.BlockV5), height+1)
+	vrf, err := cv.state.NewestIsActiveAtHeight(int16(settings.BlockV5), height+1)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate generation signature")
 	}
