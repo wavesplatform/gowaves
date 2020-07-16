@@ -8,11 +8,21 @@ import (
 )
 
 func Compile(tree *Tree) (*Program, error) {
+	var functions map[string]rideFunction
+	switch tree.LibVersion {
+	case 1, 2:
+		functions = functionsV12()
+	case 3:
+		functions = functionsV3()
+	case 4:
+		functions = functionsV4()
+	default:
+		return nil, errors.Errorf("unsupported library version %d", tree.LibVersion)
+	}
 	c := &compiler{
 		code:      make([]byte, 0, 256),
-		constants: make([]interface{}, 0),
-		calls:     make([]call, 0),
-		functions: make(map[string]function),
+		constants: make([]rideType, 0, 256),
+		functions: functions,
 	}
 	err := c.compile(tree.Verifier)
 	if err != nil {
@@ -21,14 +31,14 @@ func Compile(tree *Tree) (*Program, error) {
 	return &Program{
 		Code:      c.code,
 		Constants: c.constants,
+		Functions: c.functions,
 	}, nil
 }
 
 type compiler struct {
 	code      []byte
-	constants []interface{}
-	calls     []call
-	functions map[string]function
+	constants []rideType
+	functions map[string]rideFunction
 }
 
 func (c *compiler) compile(node Node) error {
@@ -66,7 +76,7 @@ func (c *compiler) emit(op byte, data ...byte) int {
 }
 
 func (c *compiler) longNode(node *LongNode) error {
-	v, err := c.makeConstant(node.Value)
+	v, err := c.makeConstant(rideLong(node.Value))
 	if err != nil {
 		return err
 	}
@@ -75,7 +85,7 @@ func (c *compiler) longNode(node *LongNode) error {
 }
 
 func (c *compiler) bytesNode(node *BytesNode) error {
-	v, err := c.makeConstant(node.Value)
+	v, err := c.makeConstant(rideBytes(node.Value))
 	if err != nil {
 		return err
 	}
@@ -84,7 +94,7 @@ func (c *compiler) bytesNode(node *BytesNode) error {
 }
 
 func (c *compiler) stringNode(node *StringNode) error {
-	v, err := c.makeConstant(node.Value)
+	v, err := c.makeConstant(rideString(node.Value))
 	if err != nil {
 		return err
 	}
@@ -131,7 +141,7 @@ func (c *compiler) assignmentNode(node *AssignmentNode) error {
 	if err != nil {
 		return err
 	}
-	p, err := c.makeConstant(node.Name)
+	p, err := c.makeConstant(rideString(node.Name))
 	if err != nil {
 		return err
 	}
@@ -141,7 +151,7 @@ func (c *compiler) assignmentNode(node *AssignmentNode) error {
 }
 
 func (c *compiler) referenceNode(node *ReferenceNode) error {
-	p, err := c.makeConstant(node.Name)
+	p, err := c.makeConstant(rideString(node.Name))
 	if err != nil {
 		return err
 	}
@@ -179,7 +189,7 @@ func (c *compiler) propertyNode(node *PropertyNode) error {
 	if err != nil {
 		return err
 	}
-	p, err := c.makeConstant(node.Name)
+	p, err := c.makeConstant(rideString(node.Name))
 	if err != nil {
 		return err
 	}
@@ -187,7 +197,7 @@ func (c *compiler) propertyNode(node *PropertyNode) error {
 	return nil
 }
 
-func (c *compiler) makeConstant(v interface{}) ([]byte, error) {
+func (c *compiler) makeConstant(v rideType) ([]byte, error) {
 	c.constants = append(c.constants, v)
 	if len(c.constants) > math.MaxUint16 {
 		return nil, errors.New("max number of constants exceeded")
@@ -197,11 +207,11 @@ func (c *compiler) makeConstant(v interface{}) ([]byte, error) {
 }
 
 func (c *compiler) makeCall(name string, count int) ([]byte, error) {
-	c.calls = append(c.calls, call{name, count})
-	if len(c.calls) > math.MaxUint16 {
-		return nil, errors.New("max number of function calls exceeded")
+	c.constants = append(c.constants, rideCall{name, count})
+	if len(c.constants) > math.MaxUint16 {
+		return nil, errors.New("max number of constants exceeded")
 	}
-	pos := uint16(len(c.calls) - 1)
+	pos := uint16(len(c.constants) - 1)
 	return encode(pos), nil
 }
 

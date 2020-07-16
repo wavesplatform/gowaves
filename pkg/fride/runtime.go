@@ -1,42 +1,131 @@
 package fride
 
-import "github.com/pkg/errors"
+import (
+	"bytes"
 
-type value interface {
-	value()
+	"github.com/pkg/errors"
+)
+
+type rideType interface {
+	_rideType()
+	eq(other rideType) bool
+	ge(other rideType) bool
 }
 
-type boolean bool
+type rideBoolean bool
 
-func (b boolean) value() {}
+func (b rideBoolean) _rideType() {}
 
-type long int64
+func (b rideBoolean) eq(other rideType) bool {
+	if o, ok := other.(rideBoolean); ok {
+		return b == o
+	}
+	return false
+}
 
-func (l long) value() {}
+func (b rideBoolean) ge(other rideType) bool {
+	return false
+}
 
-type str string
+type rideLong int64
 
-func (s str) value() {}
+func (l rideLong) _rideType() {}
 
-type bytes []byte
+func (l rideLong) eq(other rideType) bool {
+	if o, ok := other.(rideLong); ok {
+		return l == o
+	}
+	return false
+}
 
-func (b bytes) value() {}
+func (l rideLong) ge(other rideType) bool {
+	if o, ok := other.(rideLong); ok {
+		return l >= o
+	}
+	return false
+}
 
-type object map[str]value
+type rideString string
 
-func (o object) value() {}
+func (s rideString) _rideType() {}
 
-type call struct {
+func (s rideString) eq(other rideType) bool {
+	if o, ok := other.(rideString); ok {
+		return s == o
+	}
+	return false
+}
+
+func (s rideString) ge(other rideType) bool {
+	if o, ok := other.(rideString); ok {
+		return s >= o
+	}
+	return false
+}
+
+type rideBytes []byte
+
+func (b rideBytes) _rideType() {}
+
+func (b rideBytes) eq(other rideType) bool {
+	if o, ok := other.(rideBytes); ok {
+		return bytes.Equal(b, o)
+	}
+	return false
+}
+
+func (b rideBytes) ge(other rideType) bool {
+	if o, ok := other.(rideBytes); ok {
+		return bytes.Compare(b, o) >= 0
+	}
+	return false
+}
+
+type rideObject map[rideString]rideType
+
+func (o rideObject) _rideType() {}
+
+func (o rideObject) eq(other rideType) bool {
+	if oo, ok := other.(rideObject); ok {
+		for k, v := range o {
+			if ov, ok := oo[k]; ok {
+				if !v.eq(ov) {
+					return false
+				}
+			} else {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+func (o rideObject) ge(other rideType) bool {
+	return false
+}
+
+type rideCall struct {
 	name  string
 	count int
 }
 
-func (c call) value() {}
+func (c rideCall) _rideType() {}
 
-func fetch(from value, prop value) (value, error) {
-	obj, ok := from.(object)
+func (c rideCall) eq(other rideType) bool {
+	return false //Call is incomparable
+}
+
+func (c rideCall) ge(other rideType) bool {
+	return false //Call is incomparable
+}
+
+type rideFunction func(args ...rideType) (rideType, error)
+
+func fetch(from rideType, prop rideType) (rideType, error) {
+	obj, ok := from.(rideObject)
 	if ok {
-		name, ok := prop.(str)
+		name, ok := prop.(rideString)
 		if !ok {
 			return nil, errors.Errorf("unable to fetch by property of invalid type '%T'", prop)
 		}

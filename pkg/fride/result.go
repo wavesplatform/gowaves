@@ -1,5 +1,9 @@
 package fride
 
-type Result struct {
-
+type RideResult interface {
+	_rideResult()
 }
+
+type ScriptResult bool
+
+func (r ScriptResult) _rideResult() {}

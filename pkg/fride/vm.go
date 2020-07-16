@@ -23,7 +23,7 @@ const (
 	OpEnd                     //12
 )
 
-func Run(program *Program) (*Result, error) {
+func Run(program *Program) (RideResult, error) {
 	if program == nil {
 		return nil, fmt.Errorf("empty program")
 	}
@@ -31,51 +31,53 @@ func Run(program *Program) (*Result, error) {
 	m := vm{
 		code:      program.Code,
 		constants: program.Constants,
-		stack:     make([]interface{}, 0, 2),
+		functions: program.Functions,
+		stack:     make([]rideType, 0, 2),
 		scopes:    make([]scope, 0, 2),
 		ip:        0,
 	}
 	return m.run()
 }
 
-type scope map[str]value
-
-type function struct {
-}
+type scope map[rideString]rideType
 
 type vm struct {
 	code      []byte
 	ip        int
-	constants []value
-	stack     []value
+	constants []rideType
+	functions map[string]rideFunction
+	stack     []rideType
 	scopes    []scope
 }
 
-func (m *vm) run() (*Result, error) {
+func (m *vm) run() (RideResult, error) {
 	if m.stack != nil {
 		m.stack = m.stack[0:0]
 	}
 	if m.scopes != nil {
 		m.scopes = m.scopes[0:0]
 	}
+	m.ip = 0
+	m.scopes = append(m.scopes, make(scope))
 
 	for m.ip < len(m.code) {
 		op := m.code[m.ip]
+		m.ip++
 		switch op {
 		case OpPush:
 			m.push(m.constant())
 		case OpPop:
 			m.pop()
 		case OpTrue:
-			m.push(boolean(true))
+			m.push(rideBoolean(true))
 		case OpFalse:
-			m.push(boolean(false))
+			m.push(rideBoolean(false))
 		case OpJump:
 			offset := m.arg()
 			m.ip += int(offset)
 		case OpJumpIfFalse:
 			offset := m.arg()
-			v, ok := m.current().(boolean)
+			v, ok := m.current().(rideBoolean)
 			if !ok {
 				return nil, errors.Errorf("not a boolean value '%v' of type '%T'", m.current(), m.current())
 			}
@@ -92,15 +94,18 @@ func (m *vm) run() (*Result, error) {
 			m.push(v)
 		case OpCall:
 			c := m.constant()
-			call, ok := c.(call)
+			call, ok := c.(rideCall)
 			if !ok {
 				return nil, errors.Errorf("not a call descriptor '%v' of type '%T'", c, c)
 			}
-			in := make([]value, call.count)
+			in := make([]rideType, call.count)
 			for i := call.count - 1; i >= 0; i-- {
 				in[i] = m.pop()
 			}
-			fn := fetchFunction(call.name)
+			fn, err := m.fetchFunction(call.name)
+			if err != nil {
+				return nil, err
+			}
 			res, err := fn(in...)
 			if err != nil {
 				return nil, err
@@ -109,7 +114,7 @@ func (m *vm) run() (*Result, error) {
 		case OpStore:
 			scope := m.scope()
 			c := m.constant()
-			key, ok := c.(str)
+			key, ok := c.(rideString)
 			if !ok {
 				return nil, errors.Errorf("not a str value '%v' of type '%T'", c, c)
 			}
@@ -118,7 +123,7 @@ func (m *vm) run() (*Result, error) {
 		case OpLoad:
 			scope := m.scope()
 			c := m.constant()
-			key, ok := c.(str)
+			key, ok := c.(rideString)
 			if !ok {
 				return nil, errors.Errorf("not a str value '%v' of type '%T'", c, c)
 			}
@@ -133,32 +138,50 @@ func (m *vm) run() (*Result, error) {
 		default:
 			return nil, errors.Errorf("unknown code %#x", op)
 		}
-		m.ip++
 	}
-	return nil, nil
+	if len(m.stack) > 0 {
+		v := m.pop()
+		switch tv := v.(type) {
+		case rideBoolean:
+			return ScriptResult(tv), nil
+		default:
+			return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
+		}
+	}
+	return nil, errors.New("no result after script execution")
 }
 
-func (m *vm) push(v value) {
+func (m *vm) push(v rideType) {
 	m.stack = append(m.stack, v)
 }
 
-func (m *vm) pop() value {
+func (m *vm) pop() rideType {
 	value := m.stack[len(m.stack)-1]
 	m.stack = m.stack[:len(m.stack)-1]
 	return value
 }
 
-func (m *vm) current() value {
+func (m *vm) current() rideType {
 	return m.stack[len(m.stack)-1]
 }
 
 func (m *vm) arg() uint16 {
 	//TODO: add check
-	return binary.BigEndian.Uint16(m.code[m.ip : m.ip+1])
+	res := binary.BigEndian.Uint16(m.code[m.ip : m.ip+2])
+	m.ip += 2
+	return res
 }
 
-func (m *vm) constant() value {
+func (m *vm) constant() rideType {
 	return m.constants[m.arg()]
+}
+
+func (m *vm) fetchFunction(name string) (rideFunction, error) {
+	f, ok := m.functions[name]
+	if !ok {
+		return nil, errors.Errorf("function '%s' not found", name)
+	}
+	return f, nil
 }
 
 func (m *vm) scope() scope {
