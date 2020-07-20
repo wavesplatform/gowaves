@@ -941,7 +941,7 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 	tx.Fee = FeeUnit*feeConst - 1
 	_, err = to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.Error(t, err, "checkSponsorshipWithProofs did not fail with fee less than minimum")
-	assert.EqualError(t, err, fmt.Sprintf("fee %d does not exceed minimal value of %d WAVES\n", tx.Fee, FeeUnit*feeConst))
+	assert.EqualError(t, err, fmt.Sprintf("Fee %d does not exceed minimal value of %d WAVES", tx.Fee, FeeUnit*feeConst))
 	tx.Fee = FeeUnit * feeConst
 	_, err = to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.NoError(t, err, "checkSponsorshipWithProofs failed with valid Sponsorship tx")
@@ -987,7 +987,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	tx.Fee = FeeUnit*feeConst - 1
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkSetScriptWithProofs did not fail with fee less than minimum")
-	assert.EqualError(t, err, fmt.Sprintf("fee %d does not exceed minimal value of %d WAVES\n", tx.Fee, FeeUnit*feeConst))
+	assert.EqualError(t, err, fmt.Sprintf("Fee %d does not exceed minimal value of %d WAVES", tx.Fee, FeeUnit*feeConst))
 	tx.Fee = FeeUnit * feeConst
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.NoError(t, err, "checkSetScriptWithProofs failed with valid SetScriptWithProofs tx")

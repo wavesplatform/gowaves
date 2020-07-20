@@ -127,7 +127,7 @@ func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
 		return 0, errors.Errorf("failed to add balance and min balance diff: %v\n", err)
 	}
 	if minBalance < 0 {
-		return 0, errors.New("negative intermediate asset balance")
+		return 0, errors.New("negative intermediate asset balance (Attempt to transfer unavailable funds)")
 	}
 	// Chech main balance diff.
 	newBalance, err := common.AddInt64(diff.balance, int64(balance))
@@ -135,7 +135,7 @@ func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
 		return 0, errors.Errorf("failed to add balance and balance diff: %v\n", err)
 	}
 	if newBalance < 0 {
-		return 0, errors.New("negative result balance")
+		return 0, errors.New("negative result balance (Attempt to transfer unavailable funds)")
 	}
 	return uint64(newBalance), nil
 }

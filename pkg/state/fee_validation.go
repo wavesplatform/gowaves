@@ -180,7 +180,7 @@ func checkMinFeeWaves(tx proto.Transaction, params *feeValidationParams) error {
 	}
 	fee := tx.GetFee()
 	if fee < minWaves {
-		return errs.NewFeeValidation(fmt.Sprintf("fee %d does not exceed minimal value of %d WAVES", fee, minWaves))
+		return errs.NewFeeValidation(fmt.Sprintf("Fee %d does not exceed minimal value of %d WAVES", fee, minWaves))
 	}
 	return nil
 }
