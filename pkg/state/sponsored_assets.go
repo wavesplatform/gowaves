@@ -222,18 +222,20 @@ func (s *sponsoredAssets) isSponsorshipActivated() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if !featureActivated {
-		// Not activated at all.
-		return false, nil
+	sponsorshipActivated := false
+	if s.settings.SponsorshipSingleActivationPeriod {
+		sponsorshipActivated = featureActivated
+	} else if featureActivated {
+		height, err := s.features.newestActivationHeight(int16(settings.FeeSponsorship))
+		if err != nil {
+			return false, err
+		}
+		// Sponsorship has double activation period.
+		curHeight := s.rw.recentHeight()
+		sponsorshipTrueActivationHeight := height + s.settings.ActivationWindowSize(height)
+		sponsorshipActivated = curHeight >= sponsorshipTrueActivationHeight
 	}
-	height, err := s.features.newestActivationHeight(int16(settings.FeeSponsorship))
-	if err != nil {
-		return false, err
-	}
-	// Sponsorship has double activation period.
-	curHeight := s.rw.recentHeight()
-	sponsorshipTrueActivationHeight := height + s.settings.ActivationWindowSize(height)
-	return curHeight >= sponsorshipTrueActivationHeight, nil
+	return sponsorshipActivated, nil
 }
 
 func (s *sponsoredAssets) prepareHashes() error {

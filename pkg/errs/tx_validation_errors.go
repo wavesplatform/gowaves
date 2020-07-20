@@ -212,3 +212,21 @@ func NewAssetIssuedByOtherAddress(message string) *AssetIssuedByOtherAddress {
 func (a AssetIssuedByOtherAddress) Extend(message string) error {
 	return NewAssetIssuedByOtherAddress(fmtExtend(a, message))
 }
+
+type FeeValidation struct {
+	message string
+}
+
+func (a FeeValidation) Error() string {
+	return a.message
+}
+
+func NewFeeValidation(message string) *FeeValidation {
+	return &FeeValidation{
+		message: message,
+	}
+}
+
+func (a FeeValidation) Extend(message string) error {
+	return NewFeeValidation(fmtExtend(a, message))
+}

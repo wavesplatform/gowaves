@@ -119,7 +119,7 @@ func TestCheckTransferWithSig(t *testing.T) {
 	to.stor.activateSponsorship(t)
 	_, err = to.tc.checkTransferWithSig(tx, info)
 	assert.Error(t, err, "checkTransferWithSig did not fail with unsponsored asset")
-	assert.EqualError(t, err, fmt.Sprintf("checkFee(): asset %s is not sponsored", assetId.String()))
+	assert.EqualError(t, err, fmt.Sprintf("asset %s is not sponsored", assetId.String()))
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, info.blockID)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	_, err = to.tc.checkTransferWithSig(tx, info)
@@ -170,7 +170,7 @@ func TestCheckTransferWithProofs(t *testing.T) {
 	to.stor.activateSponsorship(t)
 	_, err = to.tc.checkTransferWithProofs(tx, info)
 	assert.Error(t, err, "checkTransferWithProofs did not fail with unsponsored asset")
-	assert.EqualError(t, err, fmt.Sprintf("checkFee(): asset %s is not sponsored", assetId.String()))
+	assert.EqualError(t, err, fmt.Sprintf("asset %s is not sponsored", assetId.String()))
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, info.blockID)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	_, err = to.tc.checkTransferWithProofs(tx, info)
@@ -941,7 +941,7 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 	tx.Fee = FeeUnit*feeConst - 1
 	_, err = to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.Error(t, err, "checkSponsorshipWithProofs did not fail with fee less than minimum")
-	assert.EqualError(t, err, fmt.Sprintf("checkFee(): fee %d is less than minimum value of %d\n", tx.Fee, FeeUnit*feeConst))
+	assert.EqualError(t, err, fmt.Sprintf("Fee %d does not exceed minimal value of %d WAVES", tx.Fee, FeeUnit*feeConst))
 	tx.Fee = FeeUnit * feeConst
 	_, err = to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.NoError(t, err, "checkSponsorshipWithProofs failed with valid Sponsorship tx")
@@ -987,7 +987,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	tx.Fee = FeeUnit*feeConst - 1
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkSetScriptWithProofs did not fail with fee less than minimum")
-	assert.EqualError(t, err, fmt.Sprintf("checkFee(): fee %d is less than minimum value of %d\n", tx.Fee, FeeUnit*feeConst))
+	assert.EqualError(t, err, fmt.Sprintf("Fee %d does not exceed minimal value of %d WAVES", tx.Fee, FeeUnit*feeConst))
 	tx.Fee = FeeUnit * feeConst
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.NoError(t, err, "checkSetScriptWithProofs failed with valid SetScriptWithProofs tx")

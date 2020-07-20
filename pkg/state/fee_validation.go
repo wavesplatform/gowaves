@@ -1,8 +1,11 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -177,7 +180,7 @@ func checkMinFeeWaves(tx proto.Transaction, params *feeValidationParams) error {
 	}
 	fee := tx.GetFee()
 	if fee < minWaves {
-		return errors.Errorf("fee %d is less than minimum value of %d\n", fee, minWaves)
+		return errs.NewFeeValidation(fmt.Sprintf("Fee %d does not exceed minimal value of %d WAVES", fee, minWaves))
 	}
 	return nil
 }

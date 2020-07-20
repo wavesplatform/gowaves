@@ -259,6 +259,8 @@ func apiError(err error) error {
 		return status.Errorf(codes.InvalidArgument, "Assets should be issued before they can be traded: %s", err)
 	case *errs.AssetIssuedByOtherAddress:
 		return status.Errorf(codes.InvalidArgument, "Asset was issued by other address: %s", err)
+	case *errs.FeeValidation:
+		return status.Errorf(codes.InvalidArgument, err.Error())
 	default:
 		return status.Errorf(codes.Internal, err.Error())
 	}

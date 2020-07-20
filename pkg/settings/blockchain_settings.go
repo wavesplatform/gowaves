@@ -24,10 +24,11 @@ const (
 
 type FunctionalitySettings struct {
 	// Features.
-	FeaturesVotingPeriod             uint64  `json:"features_voting_period"`
-	VotesForFeatureActivation        uint64  `json:"votes_for_feature_activation"`
-	PreactivatedFeatures             []int16 `json:"preactivated_features"`
-	DoubleFeaturesPeriodsAfterHeight uint64  `json:"double_features_periods_after_height"`
+	FeaturesVotingPeriod              uint64  `json:"features_voting_period"`
+	VotesForFeatureActivation         uint64  `json:"votes_for_feature_activation"`
+	PreactivatedFeatures              []int16 `json:"preactivated_features"`
+	DoubleFeaturesPeriodsAfterHeight  uint64  `json:"double_features_periods_after_height"`
+	SponsorshipSingleActivationPeriod bool    `json:"sponsorship_single_activation_period"`
 
 	// Heights when some of rules change.
 	GenerationBalanceDepthFrom50To1000AfterHeight uint64 `json:"generation_balance_depth_from_50_to_1000_after_height"`
