@@ -3,6 +3,7 @@
     "votes_for_feature_activation": 2700,
     "preactivated_features": null,
     "double_features_periods_after_height": 18446744073709551615,
+    "sponsorship_single_activation_period": false,
     "generation_balance_depth_from_50_to_1000_after_height": 0,
     "block_version_3_after_height": 161700,
     "reset_effective_balance_at_height": 51500,

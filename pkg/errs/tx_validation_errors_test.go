@@ -58,3 +58,7 @@ func TestNewTxValidationError(t *testing.T) {
 func TestNewAssetIssuedByOtherAddress(t *testing.T) {
 	require.EqualError(t, NewAssetIssuedByOtherAddress("a").Extend("b"), "b: a")
 }
+
+func TestFeeValdiation(t *testing.T) {
+	require.EqualError(t, NewFeeValidation("a").Extend("b"), "b: a")
+}

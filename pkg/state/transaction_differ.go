@@ -85,7 +85,11 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 		return nil, errors.Errorf("failed to add balance and min balance diff: %v\n", err)
 	}
 	if minBalance < 0 {
-		return nil, errors.Errorf("negative intermediate balance: balance is %d; diff is: %d\n", profile.balance, diff.minBalance)
+		return nil, errors.Errorf(
+			"negative intermediate balance (Attempt to transfer unavailable funds): balance is %d; diff is: %d\n",
+			profile.balance,
+			diff.minBalance,
+		)
 	}
 	// Check main balance diff.
 	newBalance, err := common.AddInt64(diff.balance, int64(profile.balance))
@@ -93,7 +97,7 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 		return nil, errors.Errorf("failed to add balance and balance diff: %v\n", err)
 	}
 	if newBalance < 0 {
-		return nil, errors.New("negative result balance")
+		return nil, errors.New("negative result balance (Attempt to transfer unavailable funds)")
 	}
 	newLeaseIn, err := common.AddInt64(diff.leaseIn, profile.leaseIn)
 	if err != nil {

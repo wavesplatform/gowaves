@@ -14,18 +14,20 @@ type sponsoredAssetsTestObjects struct {
 	sponsoredAssets *sponsoredAssets
 }
 
-func createSponsoredAssets() (*sponsoredAssetsTestObjects, []string, error) {
+func createSponsoredAssets(doubleActivation bool) (*sponsoredAssetsTestObjects, []string, error) {
 	stor, path, err := createStorageObjects()
 	if err != nil {
 		return nil, path, err
 	}
-	features := newFeatures(stor.rw, stor.db, stor.hs, settings.MainNetSettings, settings.FeaturesInfo)
-	sponsoredAssets := newSponsoredAssets(stor.rw, features, stor.hs, settings.MainNetSettings, true)
+	sets := settings.MainNetSettings
+	sets.SponsorshipSingleActivationPeriod = !doubleActivation
+	features := newFeatures(stor.rw, stor.db, stor.hs, sets, settings.FeaturesInfo)
+	sponsoredAssets := newSponsoredAssets(stor.rw, features, stor.hs, sets, true)
 	return &sponsoredAssetsTestObjects{stor, features, sponsoredAssets}, path, nil
 }
 
 func TestSponsorAsset(t *testing.T) {
-	to, path, err := createSponsoredAssets()
+	to, path, err := createSponsoredAssets(true)
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {
@@ -78,7 +80,7 @@ func TestSponsorAsset(t *testing.T) {
 }
 
 func TestSponsorAssetUncertain(t *testing.T) {
-	to, path, err := createSponsoredAssets()
+	to, path, err := createSponsoredAssets(true)
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {
@@ -135,7 +137,7 @@ func TestSponsorAssetUncertain(t *testing.T) {
 }
 
 func TestSponsoredAssetToWaves(t *testing.T) {
-	to, path, err := createSponsoredAssets()
+	to, path, err := createSponsoredAssets(true)
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {
@@ -158,7 +160,7 @@ func TestSponsoredAssetToWaves(t *testing.T) {
 }
 
 func TestWavesToSponsoredAsset(t *testing.T) {
-	to, path, err := createSponsoredAssets()
+	to, path, err := createSponsoredAssets(true)
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {
@@ -180,8 +182,8 @@ func TestWavesToSponsoredAsset(t *testing.T) {
 	assert.Equal(t, assetAmount, properAssetAmount)
 }
 
-func TestIsSponsorshipActivated(t *testing.T) {
-	to, path, err := createSponsoredAssets()
+func TestIsSponsorshipActivated_Double(t *testing.T) {
+	to, path, err := createSponsoredAssets(true)
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {
@@ -204,6 +206,29 @@ func TestIsSponsorshipActivated(t *testing.T) {
 
 	// True after windowSize blocks after activation.
 	to.stor.activateSponsorship(t)
+	isSponsorshipActivated, err = to.sponsoredAssets.isSponsorshipActivated()
+	assert.NoError(t, err, "isSponsorshipActivated() failed")
+	assert.Equal(t, true, isSponsorshipActivated)
+}
+
+func TestIsSponsorshipActivated_Single(t *testing.T) {
+	to, path, err := createSponsoredAssets(false)
+	assert.NoError(t, err, "createSponsoredAssets() failed")
+
+	defer func() {
+		to.stor.close(t)
+
+		err = common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	// False before activation.
+	isSponsorshipActivated, err := to.sponsoredAssets.isSponsorshipActivated()
+	assert.NoError(t, err, "isSponsorshipActivated() failed")
+	assert.Equal(t, false, isSponsorshipActivated)
+
+	// True after activation.
+	to.stor.activateFeature(t, int16(settings.FeeSponsorship))
 	isSponsorshipActivated, err = to.sponsoredAssets.isSponsorshipActivated()
 	assert.NoError(t, err, "isSponsorshipActivated() failed")
 	assert.Equal(t, true, isSponsorshipActivated)
