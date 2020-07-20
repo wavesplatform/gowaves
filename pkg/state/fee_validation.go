@@ -191,7 +191,7 @@ func checkMinFeeAsset(tx proto.Transaction, feeAssetID crypto.Digest, params *fe
 		return errors.Errorf("newestIsSponsored: %v\n", err)
 	}
 	if !isSponsored {
-		return errors.Errorf("asset %s is not sponsored", feeAssetID.String())
+		return errs.NewTxValidationError(fmt.Sprintf("Asset %s is not sponsored, cannot be used to pay fees", feeAssetID.String()))
 	}
 	minWaves, err := minFeeInWaves(tx, params)
 	if err != nil {
@@ -203,7 +203,7 @@ func checkMinFeeAsset(tx proto.Transaction, feeAssetID crypto.Digest, params *fe
 	}
 	fee := tx.GetFee()
 	if fee < minAsset {
-		return errors.Errorf("fee %d is less than minimum value of %d\n", fee, minAsset)
+		return errs.NewFeeValidation(fmt.Sprintf("fee %d is less than minimum value of %d\n", fee, minAsset))
 	}
 	return nil
 }
