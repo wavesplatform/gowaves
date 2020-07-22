@@ -6,6 +6,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -109,7 +110,7 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 		return nil, errors.Errorf("failed to add leaseOut and leaseOut diff: %v\n", err)
 	}
 	if (newBalance-newLeaseOut < 0) && !diff.allowLeasedTransfer {
-		return nil, errors.New("leased balance is greater than own")
+		return nil, errs.NewTxValidationError("Reason: Cannot lease more than own")
 	}
 	// Create new profile.
 	newProfile := &balanceProfile{}

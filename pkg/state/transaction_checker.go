@@ -1044,7 +1044,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	}
 	isSmartAsset := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
 	if !isSmartAsset {
-		return nil, errors.Errorf("asset %s is not smart, can not set script for it", tx.AssetID.String())
+		return nil, errs.NewTxValidationError("Cannot set script on an asset issued without a script")
 	}
 	smartAssets := []crypto.Digest{tx.AssetID}
 	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
