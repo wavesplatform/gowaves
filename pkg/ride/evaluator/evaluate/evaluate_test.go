@@ -210,6 +210,23 @@ f == e
 	}
 }
 
+func BenchmarkSimplestScript(b *testing.B) {
+	s := defaultScope(3)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		r, err := reader.NewReaderFromBase64("AwZd0cYf")
+		require.NoError(b, err)
+		script, err := BuildScript(r)
+		require.NoError(b, err)
+		assert.NotNil(b, script)
+		b.StartTimer()
+		res, err := Eval(script.Verifier, s)
+		require.NoError(b, err)
+		assert.True(b, res)
+	}
+}
+
 const merkle = `
 let rootHash = base64'eh9fm3HeHZ3XA/UfMpC9HSwLVMyBLgkAJL0MIVBIoYk='
 let leafData = base64'AAAm+w=='

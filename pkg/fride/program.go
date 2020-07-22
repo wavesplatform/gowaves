@@ -1,7 +1,9 @@
 package fride
 
 type Program struct {
-	Code      []byte
-	Constants []rideType
-	Functions map[string]rideFunction
+	LibVersion int
+	EntryPoint int
+	Code       []byte
+	Constants  []rideType
+	Functions  map[string]int
 }

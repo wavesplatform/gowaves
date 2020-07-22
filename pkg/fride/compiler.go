@@ -8,37 +8,32 @@ import (
 )
 
 func Compile(tree *Tree) (*Program, error) {
-	var functions map[string]rideFunction
-	switch tree.LibVersion {
-	case 1, 2:
-		functions = functionsV12()
-	case 3:
-		functions = functionsV3()
-	case 4:
-		functions = functionsV4()
-	default:
-		return nil, errors.Errorf("unsupported library version %d", tree.LibVersion)
-	}
 	c := &compiler{
-		code:      make([]byte, 0, 256),
-		constants: make([]rideType, 0, 256),
-		functions: functions,
+		code:      make([]byte, 0),
+		constants: make([]rideType, 0),
+		functions: make(map[string]int),
+		strings:   make(map[string]uint16),
+		entry:     0,
 	}
 	err := c.compile(tree.Verifier)
 	if err != nil {
 		return nil, err
 	}
 	return &Program{
-		Code:      c.code,
-		Constants: c.constants,
-		Functions: c.functions,
+		LibVersion: tree.LibVersion,
+		Code:       c.code,
+		Constants:  c.constants,
+		Functions:  c.functions,
+		EntryPoint: c.entry,
 	}, nil
 }
 
 type compiler struct {
 	code      []byte
 	constants []rideType
-	functions map[string]rideFunction
+	functions map[string]int
+	strings   map[string]uint16
+	entry     int
 }
 
 func (c *compiler) compile(node Node) error {
@@ -69,10 +64,10 @@ func (c *compiler) compile(node Node) error {
 }
 
 func (c *compiler) emit(op byte, data ...byte) int {
+	pos := len(c.code)
 	c.code = append(c.code, op)
-	current := len(c.code)
 	c.code = append(c.code, data...)
-	return current
+	return pos
 }
 
 func (c *compiler) longNode(node *LongNode) error {
@@ -146,8 +141,12 @@ func (c *compiler) assignmentNode(node *AssignmentNode) error {
 		return err
 	}
 	c.emit(OpStore, p...)
-
-	return c.compile(node.Block)
+	//TODO: rewrite resulting pos for laziness
+	err = c.compile(node.Block)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *compiler) referenceNode(node *ReferenceNode) error {
@@ -160,11 +159,21 @@ func (c *compiler) referenceNode(node *ReferenceNode) error {
 }
 
 func (c *compiler) functionDeclarationNode(node *FunctionDeclarationNode) error {
+	pos := c.emit(OpBegin)
+	for _, arg := range node.Arguments {
+		p, err := c.makeConstant(rideString(arg))
+		if err != nil {
+			return err
+		}
+		c.emit(OpStore, p...)
+	}
 	err := c.compile(node.Body)
 	if err != nil {
 		return err
 	}
-	c.emit(OpReturn)
+	c.emit(OpEnd)
+	c.functions[node.Name] = pos
+	c.entry = len(c.code)
 	return c.compile(node.Block)
 }
 
@@ -179,7 +188,6 @@ func (c *compiler) callNode(node *FunctionCallNode) error {
 	if err != nil {
 		return err
 	}
-
 	c.emit(OpCall, call...)
 	return nil
 }
@@ -198,11 +206,20 @@ func (c *compiler) propertyNode(node *PropertyNode) error {
 }
 
 func (c *compiler) makeConstant(v rideType) ([]byte, error) {
+	sv, isString := v.(rideString)
+	if isString {
+		if pos, ok := c.strings[string(sv)]; ok {
+			return encode(pos), nil
+		}
+	}
 	c.constants = append(c.constants, v)
 	if len(c.constants) > math.MaxUint16 {
 		return nil, errors.New("max number of constants exceeded")
 	}
 	pos := uint16(len(c.constants) - 1)
+	if isString {
+		c.strings[string(sv)] = pos
+	}
 	return encode(pos), nil
 }
 
@@ -225,9 +242,9 @@ func (c *compiler) placeholder() []byte {
 	return []byte{0xFF, 0xFF}
 }
 
-func (c *compiler) patchJump(placeholder int) {
-	offset := len(c.code) - 2 - placeholder
+func (c *compiler) patchJump(pos int) {
+	offset := len(c.code) - pos - 3
 	b := encode(uint16(offset))
-	c.code[placeholder] = b[0]
-	c.code[placeholder+1] = b[1]
+	c.code[pos+1] = b[0]
+	c.code[pos+2] = b[1]
 }

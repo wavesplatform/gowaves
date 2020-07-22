@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type rideType interface {
@@ -118,6 +119,26 @@ func (c rideCall) eq(other rideType) bool {
 
 func (c rideCall) ge(other rideType) bool {
 	return false //Call is incomparable
+}
+
+type rideAddress proto.Address
+
+func (a rideAddress) _rideType() {}
+
+func (a rideAddress) eq(other rideType) bool {
+	switch o := other.(type) {
+	case rideAddress:
+		return bytes.Equal(a[:], o[:])
+	case rideBytes:
+		return bytes.Equal(a[:], o[:])
+	//TODO: add case to compare with rideRecipient
+	default:
+		return false
+	}
+}
+
+func (a rideAddress) ge(other rideType) bool {
+	return false
 }
 
 type rideFunction func(args ...rideType) (rideType, error)

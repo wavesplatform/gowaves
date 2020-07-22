@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func functionsV12() map[string]rideFunction {
@@ -67,7 +68,7 @@ func functionsV12() map[string]rideFunction {
 	//
 	//user functions
 	//m["throw"] = FunctionFromPredefined(UserThrow, 0)
-	//m["addressFromString"] = FunctionFromPredefined(UserAddressFromString, 1)
+	m["addressFromString"] = addressFromString
 	//m["!="] = FunctionFromPredefined(UserFunctionNeq, 2)
 	//m["isDefined"] = FunctionFromPredefined(UserIsDefined, 1)
 	//m["extract"] = FunctionFromPredefined(UserExtract, 1)
@@ -76,7 +77,7 @@ func functionsV12() map[string]rideFunction {
 	//m["takeRight"] = FunctionFromPredefined(UserTakeRightString, 2)
 	//m["dropRight"] = FunctionFromPredefined(UserDropRightString, 2)
 	//m["!"] = FunctionFromPredefined(UserUnaryNot, 1)
-	//m["-"] = FunctionFromPredefined(UserUnaryMinus, 1)
+	m["-"] = unaryMinus
 	//
 	//m["getInteger"] = FunctionFromPredefined(UserDataIntegerFromArrayByIndex, 2)
 	//m["getBoolean"] = FunctionFromPredefined(UserDataBooleanFromArrayByIndex, 2)
@@ -107,27 +108,65 @@ func functionsV4() map[string]rideFunction {
 	return m
 }
 
+func checkArgs(args []rideType, count int) error {
+	if len(args) != count {
+		return errors.Errorf("%d is invalid number of arguments, expected %d", len(args), count)
+	}
+	for n, arg := range args {
+		if arg == nil {
+			return errors.Errorf("argument %d is empty", n)
+		}
+	}
+	return nil
+}
+
 func eq(args ...rideType) (rideType, error) {
-	if len(args) != 2 {
-		return nil, errors.Errorf("eq: %d is invalid number of arguments, expected 2", len(args))
+	if err := checkArgs(args, 2); err != nil {
+		return nil, errors.Wrap(err, "eq")
 	}
 	return rideBoolean(args[0].eq(args[1])), nil
 }
 
 func ge(args ...rideType) (rideType, error) {
-	if len(args) != 2 {
-		return nil, errors.Errorf("ge: %d is invalid number of arguments, expected 2", len(args))
+	if err := checkArgs(args, 2); err != nil {
+		return nil, errors.Wrap(err, "ge")
 	}
 	return rideBoolean(args[0].ge(args[1])), nil
 }
 
 func longToString(args ...rideType) (rideType, error) {
-	if len(args) != 1 {
-		return nil, errors.Errorf("longToString: %d is invalid number of arguments, expected 1", len(args))
+	if err := checkArgs(args, 1); err != nil {
+		return nil, errors.Wrap(err, "longToString")
 	}
-	lv, ok := args[0].(rideLong)
+	v, ok := args[0].(rideLong)
 	if !ok {
 		return nil, errors.Errorf("longToString: first argument is not a long value but '%v' of type '%T'", args[0], args[0])
 	}
-	return rideString(strconv.Itoa(int(lv))), nil
+	return rideString(strconv.Itoa(int(v))), nil
+}
+
+func addressFromString(args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 1); err != nil {
+		return nil, errors.Wrap(err, "addressFromString")
+	}
+	v, ok := args[0].(rideString)
+	if !ok {
+		return nil, errors.Errorf("addressFromString: first argument is not a string value but '%v' of type '%T'", args[0], args[0])
+	}
+	a, err := proto.NewAddressFromString(string(v))
+	if err != nil {
+		return nil, errors.Wrap(err, "addressFromString")
+	}
+	return rideAddress(a), nil
+}
+
+func unaryMinus(args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 1); err != nil {
+		return nil, errors.Wrap(err, "unaryMinus")
+	}
+	v, ok := args[0].(rideLong)
+	if !ok {
+		return nil, errors.Errorf("unaryMinus: first argument is not a long value but '%v' of type '%T'", args[0], args[0])
+	}
+	return -v, nil
 }
