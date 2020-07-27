@@ -1,5 +1,7 @@
 package fride
 
+//go:generate go run ./generate
+
 import (
 	"encoding/binary"
 	"math"
@@ -8,32 +10,31 @@ import (
 )
 
 func Compile(tree *Tree) (*Program, error) {
-	c := &compiler{
-		code:      make([]byte, 0),
-		constants: make([]rideType, 0),
-		functions: make(map[string]int),
-		strings:   make(map[string]uint16),
-		entry:     0,
+	ec, err := externalChecker(tree.LibVersion)
+	if err != nil {
+		return nil, errors.Wrap(err, "compile")
 	}
-	err := c.compile(tree.Verifier)
+	c := &compiler{
+		code:          make([]byte, 0),
+		constants:     newRideConstants(),
+		checkExternal: ec,
+	}
+	err = c.compile(tree.Verifier)
 	if err != nil {
 		return nil, err
 	}
+	c.emitNone(OpReturn)
 	return &Program{
 		LibVersion: tree.LibVersion,
 		Code:       c.code,
-		Constants:  c.constants,
-		Functions:  c.functions,
-		EntryPoint: c.entry,
+		Constants:  c.constants.items,
 	}, nil
 }
 
 type compiler struct {
-	code      []byte
-	constants []rideType
-	functions map[string]int
-	strings   map[string]uint16
-	entry     int
+	code          []byte
+	constants     *rideConstants
+	checkExternal func(string) bool
 }
 
 func (c *compiler) compile(node Node) error {
@@ -63,45 +64,78 @@ func (c *compiler) compile(node Node) error {
 	}
 }
 
-func (c *compiler) emit(op byte, data ...byte) int {
+func (c *compiler) emitNone(op byte) int {
 	pos := len(c.code)
 	c.code = append(c.code, op)
-	c.code = append(c.code, data...)
 	return pos
 }
 
+func (c *compiler) emitByte(op, data byte) int {
+	pos := len(c.code)
+	c.code = append(c.code, []byte{op, data}...)
+	return pos
+}
+
+func (c *compiler) emitByteByte(op, data1, data2 byte) int {
+	pos := len(c.code)
+	c.code = append(c.code, []byte{op, data1, data2}...)
+	return pos
+}
+
+func (c *compiler) emitUint16Placeholder(op byte) int {
+	pos := len(c.code)
+	c.code = append(c.code, []byte{op, 0xff, 0xff}...)
+	return pos + 1
+}
+
+func (c *compiler) emitUint16(op byte, n uint16) int {
+	pos := len(c.code)
+	bts := []byte{op, 0, 0}
+	binary.BigEndian.PutUint16(bts[1:], n)
+	c.code = append(c.code, bts...)
+	return pos
+}
+
+func (c *compiler) emit5Placeholder(op byte, n uint16) int {
+	l := len(c.code)
+	bts := []byte{op, 0, 0, 0xff, 0xff}
+	binary.BigEndian.PutUint16(bts[1:], n)
+	c.code = append(c.code, bts...)
+	return l + 3
+}
+
 func (c *compiler) longNode(node *LongNode) error {
-	v, err := c.makeConstant(rideLong(node.Value))
+	n, err := c.constants.put(rideInt(node.Value))
 	if err != nil {
 		return err
 	}
-	c.emit(OpPush, v...)
+	c.emitUint16(OpPush, n)
 	return nil
 }
 
 func (c *compiler) bytesNode(node *BytesNode) error {
-	v, err := c.makeConstant(rideBytes(node.Value))
+	n, err := c.constants.put(rideBytes(node.Value))
 	if err != nil {
 		return err
 	}
-	c.emit(OpPush, v...)
+	c.emitUint16(OpPush, n)
 	return nil
 }
 
 func (c *compiler) stringNode(node *StringNode) error {
-	v, err := c.makeConstant(rideString(node.Value))
+	n, err := c.constants.put(rideString(node.Value))
 	if err != nil {
 		return err
 	}
-	c.emit(OpPush, v...)
+	c.emitUint16(OpPush, n)
 	return nil
 }
 
 func (c *compiler) booleanNode(node *BooleanNode) error {
 	if node.Value {
-		c.emit(OpTrue)
+		c.emitNone(OpTrue)
 	} else {
-		c.emit(OpFalse)
+		c.emitNone(OpFalse)
 	}
 	return nil
 }
@@ -111,17 +145,17 @@ func (c *compiler) conditionalNode(node *ConditionalNode) error {
 	if err != nil {
 		return err
 	}
-	otherwise := c.emit(OpJumpIfFalse, c.placeholder()...)
+	otherwise := c.emitUint16Placeholder(OpJumpIfFalse)
 
-	c.emit(OpPop)
+	c.emitNone(OpPop)
 	err = c.compile(node.TrueExpression)
 	if err != nil {
 		return err
 	}
-	end := c.emit(OpJump, c.placeholder()...)
+	end := c.emitUint16Placeholder(OpJump)
 
 	c.patchJump(otherwise)
-	c.emit(OpPop)
+	c.emitNone(OpPop)
 	err = c.compile(node.FalseExpression)
 	if err != nil {
 		return err
@@ -132,63 +166,64 @@ func (c *compiler) conditionalNode(node *ConditionalNode) error {
 }
 
 func (c *compiler) assignmentNode(node *AssignmentNode) error {
-	err := c.compile(node.Expression)
+	n, err := c.constants.put(rideString(node.Name))
+	_ = c.emit5Placeholder(OpRecord, n)
+	err = c.compile(node.Expression)
 	if err != nil {
 		return err
 	}
-	p, err := c.makeConstant(rideString(node.Name))
-	if err != nil {
-		return err
-	}
-	c.emit(OpStore, p...)
-	//TODO: rewrite resulting pos for laziness
-	err = c.compile(node.Block)
-	if err != nil {
-		return err
-	}
-	return nil
+	c.emitNone(OpReturn)
+	//TODO: patch jump with block position
+	return c.compile(node.Block)
 }
 
 func (c *compiler) referenceNode(node *ReferenceNode) error {
-	p, err := c.makeConstant(rideString(node.Name))
+	n, err := c.constants.put(rideString(node.Name))
 	if err != nil {
 		return err
 	}
-	c.emit(OpLoad, p...)
+	c.emitUint16(OpLoad, n)
 	return nil
 }
 
 func (c *compiler) functionDeclarationNode(node *FunctionDeclarationNode) error {
-	pos := c.emit(OpBegin)
+	//pos := c.emit(OpBegin)
 	for _, arg := range node.Arguments {
-		p, err := c.makeConstant(rideString(arg))
+		n, err := c.constants.put(rideString(arg))
 		if err != nil {
 			return err
 		}
-		c.emit(OpStore, p...)
+		c.emitUint16(OpStore, n)
 	}
 	err := c.compile(node.Body)
 	if err != nil {
 		return err
 	}
-	c.emit(OpEnd)
-	c.functions[node.Name] = pos
-	c.entry = len(c.code)
+	//c.emit(OpEnd)
 	return c.compile(node.Block)
 }
 
 func (c *compiler) callNode(node *FunctionCallNode) error {
+	// Put call parameters on stack
 	for _, arg := range node.Arguments {
 		err := c.compile(arg)
 		if err != nil {
 			return err
 		}
 	}
-	call, err := c.makeCall(node.Name, len(node.Arguments))
-	if err != nil {
-		return err
+	id, ok := functionByName(node.Name)
+	if ok {
+		//External function
+		cnt := byte(len(node.Arguments))
+		c.emitByteByte(OpExternalCall, id, cnt)
+	} else {
+		//Internal function
+		n, err := c.constants.put(rideString(node.Name))
+		if err != nil {
+			return err
+		}
+		c.emitUint16(OpCall, n)
 	}
-	c.emit(OpCall, call...)
 	return nil
 }
 
@@ -197,39 +232,12 @@ func (c *compiler) propertyNode(node *PropertyNode) error {
 	if err != nil {
 		return err
 	}
-	p, err := c.makeConstant(rideString(node.Name))
+	n, err := c.constants.put(rideString(node.Name))
 	if err != nil {
 		return err
 	}
-	c.emit(OpProperty, p...)
+	c.emitUint16(OpProperty, n)
 	return nil
-}
-
-func (c *compiler) makeConstant(v rideType) ([]byte, error) {
-	sv, isString := v.(rideString)
-	if isString {
-		if pos, ok := c.strings[string(sv)]; ok {
-			return encode(pos), nil
-		}
-	}
-	c.constants = append(c.constants, v)
-	if len(c.constants) > math.MaxUint16 {
-		return nil, errors.New("max number of constants exceeded")
-	}
-	pos := uint16(len(c.constants) - 1)
-	if isString {
-		c.strings[string(sv)] = pos
-	}
-	return encode(pos), nil
-}
-
-func (c *compiler) makeCall(name string, count int) ([]byte, error) {
-	c.constants = append(c.constants, rideCall{name, count})
-	if len(c.constants) > math.MaxUint16 {
-		return nil, errors.New("max number of constants exceeded")
-	}
-	pos := uint16(len(c.constants) - 1)
-	return encode(pos), nil
 }
 
 func encode(v uint16) []byte {
@@ -238,13 +246,51 @@ func encode(v uint16) []byte {
 	return b
 }
 
-func (c *compiler) placeholder() []byte {
-	return []byte{0xFF, 0xFF}
-}
-
 func (c *compiler) patchJump(pos int) {
 	offset := len(c.code) - pos - 3
 	b := encode(uint16(offset))
 	c.code[pos+1] = b[0]
 	c.code[pos+2] = b[1]
+}
+
+type rideConstants struct {
+	items   []rideType
+	strings map[string]uint16
+}
+
+func newRideConstants() *rideConstants {
+	return &rideConstants{
+		items:   make([]rideType, 0, 4),
+		strings: make(map[string]uint16, 4),
+	}
+}
+
+func (c *rideConstants) put(value rideType) (uint16, error) {
+	switch v := value.(type) {
+	case rideString:
+		s := string(v)
+		if pos, ok := c.strings[s]; ok {
+			return pos, nil
+		}
+		pos, err := c.append(value)
+		if err != nil {
+			return 0, err
+		}
+		c.strings[s] = pos
+		return pos, nil
+	default:
+		pos, err := c.append(value)
+		if err != nil {
+			return 0, err
+		}
+		return pos, nil
+	}
+}
+
+func (c *rideConstants) append(value rideType) (uint16, error) {
+	if len(c.items) >= math.MaxUint16 {
+		return 0, errors.New("max number of constants reached")
+	}
+	c.items = append(c.items, value)
+	return uint16(len(c.items) - 1), nil
 }

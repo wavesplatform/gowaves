@@ -7,15 +7,26 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const instanceFieldName = "$instance"
+
+type Throw struct {
+	Message string
+}
+
+func (a Throw) Error() string {
+	return a.Message
+}
+
 type rideType interface {
-	_rideType()
+	instanceOf() string
 	eq(other rideType) bool
-	ge(other rideType) bool
 }
 
 type rideBoolean bool
 
-func (b rideBoolean) _rideType() {}
+func (b rideBoolean) instanceOf() string {
+	return "Boolean"
+}
 
 func (b rideBoolean) eq(other rideType) bool {
 	if o, ok := other.(rideBoolean); ok {
@@ -24,31 +35,24 @@ func (b rideBoolean) eq(other rideType) bool {
 	return false
 }
 
-func (b rideBoolean) ge(other rideType) bool {
-	return false
+type rideInt int64
+
+func (l rideInt) instanceOf() string {
+	return "Int"
 }
 
-type rideLong int64
-
-func (l rideLong) _rideType() {}
-
-func (l rideLong) eq(other rideType) bool {
-	if o, ok := other.(rideLong); ok {
+func (l rideInt) eq(other rideType) bool {
+	if o, ok := other.(rideInt); ok {
 		return l == o
-	}
-	return false
-}
-
-func (l rideLong) ge(other rideType) bool {
-	if o, ok := other.(rideLong); ok {
-		return l >= o
 	}
 	return false
 }
 
 type rideString string
 
-func (s rideString) _rideType() {}
+func (s rideString) instanceOf() string {
+	return "String"
+}
 
 func (s rideString) eq(other rideType) bool {
 	if o, ok := other.(rideString); ok {
@@ -57,16 +61,11 @@ func (s rideString) eq(other rideType) bool {
 	return false
 }
 
-func (s rideString) ge(other rideType) bool {
-	if o, ok := other.(rideString); ok {
-		return s >= o
-	}
-	return false
-}
-
 type rideBytes []byte
 
-func (b rideBytes) _rideType() {}
+func (b rideBytes) instanceOf() string {
+	return "ByteVector"
+}
 
 func (b rideBytes) eq(other rideType) bool {
 	if o, ok := other.(rideBytes); ok {
@@ -75,16 +74,14 @@ func (b rideBytes) eq(other rideType) bool {
 	return false
 }
 
-func (b rideBytes) ge(other rideType) bool {
-	if o, ok := other.(rideBytes); ok {
-		return bytes.Compare(b, o) >= 0
-	}
-	return false
-}
-
 type rideObject map[rideString]rideType
 
-func (o rideObject) _rideType() {}
+func (o rideObject) instanceOf() string {
+	if s, ok := o[instanceFieldName].(rideString); ok {
+		return string(s)
+	}
+	return ""
+}
 
 func (o rideObject) eq(other rideType) bool {
 	if oo, ok := other.(rideObject); ok {
@@ -102,28 +99,11 @@ func (o rideObject) eq(other rideType) bool {
 	return false
 }
 
-func (o rideObject) ge(other rideType) bool {
-	return false
-}
-
-type rideCall struct {
-	name  string
-	count int
-}
-
-func (c rideCall) _rideType() {}
-
-func (c rideCall) eq(other rideType) bool {
-	return false //Call is incomparable
-}
-
-func (c rideCall) ge(other rideType) bool {
-	return false //Call is incomparable
-}
-
 type rideAddress proto.Address
 
-func (a rideAddress) _rideType() {}
+func (a rideAddress) instanceOf() string {
+	return "Address"
+}
 
 func (a rideAddress) eq(other rideType) bool {
 	switch o := other.(type) {
@@ -137,8 +117,14 @@ func (a rideAddress) eq(other rideType) bool {
 	}
 }
 
-func (a rideAddress) ge(other rideType) bool {
-	return false
+type rideUnit struct{}
+
+func (a rideUnit) instanceOf() string {
+	return "Unit"
+}
+
+func (a rideUnit) eq(other rideType) bool {
+	return a.instanceOf() == other.instanceOf()
 }
 
 type rideFunction func(args ...rideType) (rideType, error)

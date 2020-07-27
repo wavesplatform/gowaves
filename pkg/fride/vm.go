@@ -2,51 +2,25 @@ package fride
 
 import (
 	"encoding/binary"
-	"fmt"
 
 	"github.com/pkg/errors"
 )
 
-const (
-	OpPush        byte = iota //00 - 3
-	OpPop                     //01 - 1
-	OpTrue                    //02 - 1
-	OpFalse                   //03 - 1
-	OpJump                    //04 - 3
-	OpJumpIfFalse             //05 - 3
-	OpProperty                //06 - 3
-	OpCall                    //07 - 3
-	OpStore                   //08 - 3
-	OpLoad                    //09 - 3
-	OpBegin                   //0a - 1
-	OpEnd                     //0b - 1
-)
-
 func Run(program *Program) (RideResult, error) {
 	if program == nil {
-		return nil, fmt.Errorf("empty program")
+		return nil, errors.New("empty program")
 	}
-	var functions map[string]rideFunction
-	switch program.LibVersion {
-	case 1, 2:
-		functions = functionsV12()
-	case 3:
-		functions = functionsV3()
-	case 4:
-		functions = functionsV4()
-	default:
-		return nil, errors.Errorf("unsupported library version %d", program.LibVersion)
+	fs, err := functions(program.LibVersion)
+	if err != nil {
+		return nil, errors.Wrap(err, "run")
 	}
-
 	m := vm{
-		code:          program.Code,
-		constants:     program.Constants,
-		functions:     functions,
-		userFunctions: program.Functions,
-		stack:         make([]rideType, 0, 2),
-		scopes:        make([]scope, 0, 2),
-		ip:            0,
-		entryPoint:    program.EntryPoint,
+		code:      program.Code,
+		constants: program.Constants,
+		functions: fs,
+		stack:     make([]rideType, 0, 2),
+		scopes:    make([]scope, 0, 2),
+		ip:        0,
 	}
 	return m.run()
 }
@@ -64,14 +38,12 @@ func newScope(pos int) scope {
 }
 
 type vm struct {
-	code          []byte
-	ip            int
-	constants     []rideType
-	functions     map[string]rideFunction
-	userFunctions map[string]int
-	entryPoint    int
-	stack         []rideType
-	scopes        []scope
+	code      []byte
+	ip        int
+	constants []rideType
+	functions func(int) rideFunction
+	stack     []rideType
+	scopes    []scope
 }
 
 func (m *vm) run() (RideResult, error) {
@@ -81,8 +53,8 @@ func (m *vm) run() (RideResult, error) {
 	if m.scopes != nil {
 		m.scopes = m.scopes[0:0]
 	}
-	m.ip = m.entryPoint
-	m.scopes = append(m.scopes, newScope(0))
+	m.ip = 0
+	m.scopes = append(m.scopes, newScope(len(m.code)))
 
 	for m.ip < len(m.code) {
 		op := m.code[m.ip]
@@ -100,10 +72,10 @@ func (m *vm) run() (RideResult, error) {
 		case OpFalse:
 			m.push(rideBoolean(false))
 		case OpJump:
-			offset := m.arg()
+			offset := m.arg16()
 			m.ip += int(offset)
 		case OpJumpIfFalse:
-			offset := m.arg()
+			offset := m.arg16()
 			v, ok := m.current().(rideBoolean)
 			if !ok {
 				return nil, errors.Errorf("not a boolean value '%v' of type '%T'", m.current(), m.current())
@@ -124,71 +96,68 @@ func (m *vm) run() (RideResult, error) {
 			m.push(v)
 		case OpCall:
 			c := m.constant()
-			call, ok := c.(rideCall)
+			name, ok := c.(rideString)
 			if !ok {
-				return nil, errors.Errorf("not a call descriptor '%v' of type '%T'", c, c)
+				return nil, errors.Errorf("not a function name but '%v' of type '%s'", c, c.instanceOf())
 			}
-			fp, ok := m.userFunctions[call.name]
-			if ok {
-				m.push(rideLong(m.ip))
-				m.ip = fp
-			} else {
-				in := make([]rideType, call.count)
-				for i := call.count - 1; i >= 0; i-- {
-					v, err := m.pop()
-					if err != nil {
-						return nil, errors.Wrapf(err, "failed to call function '%s'", call.name)
-					}
-					in[i] = v
-				}
-				fn, err := m.fetchFunction(call.name)
-				if err != nil {
-					return nil, err
-				}
-				res, err := fn(in...)
-				if err != nil {
-					return nil, err
-				}
-				m.push(res)
+			fp, err := m.resolve(string(name))
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to call user function '%s'", name)
 			}
+			scope := newScope(m.ip) // Creating new function scope with return position
+			m.scopes = append(m.scopes, scope)
+			m.ip = fp // Continue to function code
+		case OpExternalCall:
+			id := m.code[m.ip]
+			m.ip++
+			cnt := int(m.code[m.ip])
+			m.ip++
+			in := make([]rideType, cnt) // Prepare input parameters for external call
+			for i := cnt - 1; i >= 0; i-- {
+				v, err := m.pop()
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to call external function '%s'", functionName(int(id)))
+				}
+				in[i] = v
+			}
+			fn, err := m.fetchFunction(int(id))
+			if err != nil {
+				return nil, err
+			}
+			res, err := fn(in...)
+			if err != nil {
+				return nil, err
+			}
+			m.push(res)
 		case OpStore:
-			scope := m.scope()
+			scope, n := m.scope()
+			if n < 0 {
+				return nil, errors.Errorf("failed to store variable: no scope")
+			}
 			c := m.constant()
-			key, ok := c.(rideString)
+			name, ok := c.(rideString)
 			if !ok {
-				return nil, errors.Errorf("not a str value '%v' of type '%T'", c, c)
+				return nil, errors.Errorf("not a string value '%v' of type '%T'", c, c)
 			}
 			value, err := m.pop()
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to store variable '%s'", key)
+				return nil, errors.Wrapf(err, "failed to store variable '%s'", name)
 			}
-			scope.variables[key] = value
+			scope.variables[name] = value
 		case OpLoad:
-			scope := m.scope()
 			c := m.constant()
-			key, ok := c.(rideString)
+			name, ok := c.(rideString)
 			if !ok {
 				return nil, errors.Errorf("not a str value '%v' of type '%T'", c, c)
 			}
-			m.push(scope.variables[key])
-		case OpBegin:
-			pos, err := m.pop()
+			v, err := m.value(name)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to start function execution")
+				return nil, errors.Wrap(err, "failed to load variable")
 			}
-			p, ok := pos.(rideLong)
-			if !ok {
-				return nil, errors.Errorf("invalid return position '%v' of type '%T'", pos, pos)
-			}
-			scope := newScope(int(p))
-			m.scopes = append(m.scopes, scope)
-		case OpEnd:
-			s := m.scope()
-			if s == nil {
-				return nil, errors.New("failed to exit from function: no scope")
-			}
-			m.ip = s.back
-			m.scopes = m.scopes[:len(m.scopes)-1]
+			m.push(v)
+		case OpReturn:
+			m.ip = m.returnPosition()             // Continue from return position
+			m.scopes = m.scopes[:len(m.scopes)-1] // Removing the current call stack frame
 		default:
 			return nil, errors.Errorf("unknown code %#x", op)
 		}
@@ -225,28 +194,72 @@ func (m *vm) current() rideType {
 	return m.stack[len(m.stack)-1]
 }
 
-func (m *vm) arg() uint16 {
+func (m *vm) arg16() uint16 {
 	//TODO: add check
 	res := binary.BigEndian.Uint16(m.code[m.ip : m.ip+2])
 	m.ip += 2
 	return res
 }
 
+func (m *vm) arg8() uint8 {
+	//TODO: add check
+	res := m.code[m.ip]
+	m.ip++
+	return res
+}
+
 func (m *vm) constant() rideType {
-	return m.constants[m.arg()]
+	//TODO: add check
+	return m.constants[m.arg16()]
 }
 
-func (m *vm) fetchFunction(name string) (rideFunction, error) {
-	f, ok := m.functions[name]
-	if !ok {
-		return nil, errors.Errorf("function '%s' not found", name)
+func (m *vm) fetchFunction(id int) (rideFunction, error) {
+	//TODO: implement
+	return nil, errors.New("not implemented")
+}
+
+func (m *vm) scope() (*scope, int) {
+	n := len(m.scopes) - 1
+	if n < 0 {
+		return nil, n
 	}
-	return f, nil
+	return &m.scopes[n], n
 }
 
-func (m *vm) scope() *scope {
+func (m *vm) resolve(name string) (int, error) {
+	_ = name
+	//TODO: implement
+	return 0, errors.New("not implemented")
+}
+
+func (m *vm) returnPosition() int {
 	if l := len(m.scopes); l > 0 {
-		return &m.scopes[l-1]
+		return m.scopes[l-1].back
 	}
-	return nil
+	return len(m.code)
+}
+
+func (m *vm) value(name rideString) (rideType, error) {
+	s, n := m.scope()
+	switch n {
+	case -1:
+		return nil, errors.Errorf("no scope to look up variable '%s'", name)
+	case 0:
+		v, ok := s.variables[name]
+		if !ok {
+			return nil, errors.Errorf("variable '%s' not found", name)
+		}
+		return v, nil
+	default:
+		v, ok := s.variables[name]
+		if ok {
+			return v, nil
+		}
+		global := m.scopes[0]
+		v, ok = global.variables[name]
+		if !ok {
+			return nil, errors.Errorf("variable '%s' not found", name)
+		}
+		return v, nil
+	}
 }

@@ -41,6 +41,15 @@ func TestParseScripts(t *testing.T) {
 			NewConditionalNode(NewBooleanNode(true), NewAssignmentNode("r", NewBooleanNode(true), NewReferenceNode("r")), NewAssignmentNode("r", NewBooleanNode(false), NewReferenceNode("r")))},
 		{`V3: func abs(i:Int) = if (i >= 0) then i else -i; abs(-10) == 10`, 1, 3, true, "AwoBAAAAA2FicwAAAAEAAAABaQMJAABnAAAAAgUAAAABaQAAAAAAAAAAAAUAAAABaQkBAAAAAS0AAAABBQAAAAFpCQAAAAAAAAIJAQAAAANhYnMAAAABAP/////////2AAAAAAAAAAAKmp8BWw==",
 			NewFunctionDeclarationNode("abs", []string{"i"}, NewConditionalNode(NewFunctionCallNode("103", []Node{NewReferenceNode("i"), NewLongNode(0)}), NewReferenceNode("i"), NewFunctionCallNode("-", []Node{NewReferenceNode("i")})), NewFunctionCallNode("0", []Node{NewFunctionCallNode("abs", []Node{NewLongNode(-10)}), NewLongNode(10)}))},
+		{`V3: if (true) then {if (false) then {func XX() = true; XX()} else {func XX() = false; XX()}} else {if (true) then {let x = false; x} else {let x = true; x}}`,
+			1, 3, true, "AwMGAwcKAQAAAAJYWAAAAAAGCQEAAAACWFgAAAAACgEAAAACWFgAAAAABwkBAAAAAlhYAAAAAAMGBAAAAAF4BwUAAAABeAQAAAABeAYFAAAAAXgYYeMi",
+			NewConditionalNode(NewBooleanNode(true),
+				NewConditionalNode(NewBooleanNode(false),
+					NewFunctionDeclarationNode("XX", []string{}, NewBooleanNode(true), NewFunctionCallNode("XX", []Node{})),
+					NewFunctionDeclarationNode("XX", []string{}, NewBooleanNode(false), NewFunctionCallNode("XX", []Node{}))),
+				NewConditionalNode(NewBooleanNode(true),
+					NewAssignmentNode("x", NewBooleanNode(false), NewReferenceNode("x")),
+					NewAssignmentNode("x", NewBooleanNode(true), NewReferenceNode("x"))))},
 	} {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err, test.comment)
