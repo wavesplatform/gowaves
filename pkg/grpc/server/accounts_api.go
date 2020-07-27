@@ -68,7 +68,8 @@ func (h *getActiveLeasesHandler) handle(tx proto.Transaction, failed bool) error
 	if err != nil {
 		return errors.Wrap(err, "failed to form transaction response")
 	}
-	if err := h.srv.Send(res); err != nil {
+	err = h.srv.Send(res)
+	if err != nil {
 		return errors.Wrap(err, "failed to send")
 	}
 	return nil
@@ -82,13 +83,25 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 	if !extendedApi {
 		return status.Errorf(codes.FailedPrecondition, "Node's state does not have information required for extended API")
 	}
-	reqTr := &g.TransactionsRequest{Sender: req.Address}
-	ftr, err := newTxFilter(s.scheme, reqTr)
+	var c proto.ProtobufConverter
+	addr, err := c.Address(s.scheme, req.Address)
 	if err != nil {
-		return status.Errorf(codes.FailedPrecondition, err.Error())
+		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	filter := newTxFilterLeases(ftr, s.state)
-	iter, err := s.newStateIterator(ftr.getSenderRecipient())
+
+	filterFn := func(tx proto.Transaction) bool {
+		switch t := tx.(type) {
+		case *proto.LeaseWithSig:
+			ok, _ := s.state.IsActiveLeasing(*t.ID)
+			return ok
+		case *proto.LeaseWithProofs:
+			ok, _ := s.state.IsActiveLeasing(*t.ID)
+			return ok
+		default:
+			return false
+		}
+	}
+	iter, err := s.state.NewAddrTransactionsIterator(addr)
 	if err != nil {
 		return status.Errorf(codes.Internal, err.Error())
 	}
@@ -97,7 +110,7 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 		return nil
 	}
 	handler := &getActiveLeasesHandler{srv, s}
-	if err := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); err != nil {
+	if err := s.iterateAndHandleTransactions(iter, filterFn, handler.handle); err != nil {
 		return status.Errorf(codes.Internal, err.Error())
 	}
 	return nil
