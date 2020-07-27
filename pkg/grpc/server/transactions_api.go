@@ -256,10 +256,12 @@ func apiError(err error) error {
 	case *errs.DuplicatedDataKeys:
 		return status.Errorf(codes.InvalidArgument, "Duplicated keys found: %s", err)
 	case *errs.UnknownAsset:
-		return status.Errorf(codes.InvalidArgument, "Assets should be issued before they can be traded: %s", err)
+		return status.Errorf(codes.InvalidArgument, "Referenced assetId not found: %s", err)
 	case *errs.AssetIssuedByOtherAddress:
 		return status.Errorf(codes.InvalidArgument, "Asset was issued by other address: %s", err)
 	case *errs.FeeValidation:
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	case *errs.AssetUpdateInterval:
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	default:
 		return status.Errorf(codes.Internal, err.Error())

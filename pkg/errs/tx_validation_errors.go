@@ -230,3 +230,21 @@ func NewFeeValidation(message string) *FeeValidation {
 func (a FeeValidation) Extend(message string) error {
 	return NewFeeValidation(fmtExtend(a, message))
 }
+
+type AssetUpdateInterval struct {
+	message string
+}
+
+func (a AssetUpdateInterval) Error() string {
+	return a.message
+}
+
+func NewAssetUpdateInterval(message string) *AssetUpdateInterval {
+	return &AssetUpdateInterval{
+		message: message,
+	}
+}
+
+func (a AssetUpdateInterval) Extend(message string) error {
+	return NewAssetUpdateInterval(fmtExtend(a, message))
+}

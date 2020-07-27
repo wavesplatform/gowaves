@@ -78,6 +78,8 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 		return newVariablesFromCreateAliasWithProofs(scheme, tx)
 	case *proto.SetScriptWithProofs:
 		return newVariablesFromSetScriptWithProofs(scheme, tx)
+	case *proto.UpdateAssetInfoWithProofs:
+		return newVariablesFromUpdateAssetInfoWithProofs(scheme, tx)
 	default:
 		return nil, errors.Errorf("NewVariablesFromTransaction not implemented for %T", tx)
 	}
@@ -1096,5 +1098,39 @@ func newVariablesFromSetScriptWithProofs(scheme proto.Scheme, tx *proto.SetScrip
 	out["bodyBytes"] = NewBytes(bts)
 	out["proofs"] = makeProofs(tx.Proofs)
 	out[InstanceFieldName] = NewString("SetScriptTransaction")
+	return out, nil
+}
+
+func newVariablesFromUpdateAssetInfoWithProofs(scheme proto.Scheme, tx *proto.UpdateAssetInfoWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromUpdateAssetInfoWithProofs"
+
+	out := make(map[string]Expr)
+
+	out["name"] = NewString(tx.Name)
+	out["description"] = NewString(tx.Description)
+	out["feeAssetId"] = makeOptionalAsset(tx.FeeAsset)
+	out["assetId"] = NewBytes(tx.AssetID.Bytes())
+	id, err := tx.GetID(scheme)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(common.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
+	bts, err := proto.MarshalTxBody(scheme, tx)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = makeProofs(tx.Proofs)
+	out[InstanceFieldName] = NewString("UpdateAssetInfoTransaction")
 	return out, nil
 }

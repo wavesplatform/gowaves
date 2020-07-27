@@ -68,7 +68,7 @@ func (a *UtxImpl) AllTransactions() []*types.TransactionWithBytes {
 }
 
 func (a *UtxImpl) Add(t proto.Transaction) error {
-	bts, err := t.MarshalBinary()
+	bts, err := proto.MarshalTx(a.settings.AddressSchemeCharacter, t)
 	if err != nil {
 		return err
 	}
