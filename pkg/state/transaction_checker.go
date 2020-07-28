@@ -1053,7 +1053,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 		return nil, errs.Extend(err, "check fee")
 	}
 	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
-		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address111")
+		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 	isSmartAsset := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
 	if len(tx.Script) == 0 {
