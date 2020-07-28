@@ -101,7 +101,8 @@ func main() {
 		NonEmpty("integration.genesis.timestamp", cfg.String("waves.blockchain.custom.genesis.timestamp")).
 		NonEmpty("integration.genesis.block-timestamp", cfg.String("waves.blockchain.custom.genesis.block-timestamp")).
 		NonEmpty("integration.account-seed", cfg.String("account-seed")).
-		NonEmpty("integration.address-scheme-character", cfg.String("waves.blockchain.custom.address-scheme-character", "I")) //
+		NonEmpty("integration.address-scheme-character", cfg.String("waves.blockchain.custom.address-scheme-character", "I")).
+		SkipEmpty("integration.min-asset-info-update-interval", cfg.String("waves.blockchain.custom.functionality.min-asset-info-update-interval")) //
 
 	if cfg.String("waves.miner.enable") == "no" {
 		arguments = arguments.Empty("disable-miner")

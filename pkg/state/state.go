@@ -1485,6 +1485,9 @@ func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {
 
 func (s *stateManager) ResetValidationList() {
 	s.reset()
+	if err := s.stor.scriptsStorage.clear(); err != nil {
+		zap.S().Fatalf("Failed to clear scripts cache after UTX validation: %v", err)
+	}
 }
 
 // For UTX validation.

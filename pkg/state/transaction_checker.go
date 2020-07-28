@@ -645,7 +645,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	}
 	for a := range m {
 		if err := tc.checkAsset(&a, info.initialisation); err != nil {
-			return nil, err
+			return nil, errs.Extend(err, "Assets should be issued before they can be traded")
 		}
 	}
 	allAssets := make([]proto.OptionalAsset, 0, len(m))
@@ -1042,6 +1042,13 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return nil, errs.Extend(err, "invalid timestamp")
 	}
+	assetInfo, err := tc.stor.assets.newestAssetInfo(tx.AssetID, !info.initialisation)
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
+	}
 	isSmartAsset := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
 	if !isSmartAsset {
 		return nil, errs.NewTxValidationError("Cannot set script on an asset issued without a script")
@@ -1142,7 +1149,7 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 	}
 	assetInfo, err := tc.stor.assets.newestAssetInfo(tx.AssetID, !info.initialisation)
 	if err != nil {
-		return nil, errs.Extend(err, "unknown asset")
+		return nil, errs.NewUnknownAsset(fmt.Sprintf("unknown asset %s", tx.AssetID.String()))
 	}
 	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
 		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
@@ -1153,8 +1160,8 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 	}
 	updateAllowedAt := lastUpdateHeight + tc.settings.MinUpdateAssetInfoInterval
 	blockHeight := info.height + 1
-	if blockHeight < updateAllowedAt {
-		return nil, errors.Errorf("can not update asset info of asset %s before height %d, current height is %d", tx.AssetID.String(), updateAllowedAt, blockHeight)
+	if blockHeight <= updateAllowedAt {
+		return nil, errs.NewAssetUpdateInterval(fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d", tx.AssetID.String(), updateAllowedAt, blockHeight))
 	}
 	return smartAssets, nil
 }

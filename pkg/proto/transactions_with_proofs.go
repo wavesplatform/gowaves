@@ -4655,7 +4655,7 @@ func (tx *UpdateAssetInfoWithProofs) Validate() (Transaction, error) {
 		return tx, errs.NewInvalidName("incorrect number of bytes in the asset's name")
 	}
 	if l := len(tx.Description); l > maxDescriptionLen {
-		return tx, errors.New("incorrect number of bytes in the asset's description")
+		return tx, errs.NewTooBigArray("incorrect number of bytes in the asset's description")
 	}
 	return tx, nil
 }

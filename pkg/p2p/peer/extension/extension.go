@@ -57,7 +57,7 @@ func (a PeerWrapperImpl) AskBlock(id proto.BlockID) {
 
 func (a PeerWrapperImpl) SendMicroBlock(micro *proto.MicroBlock) error {
 	if a.p.Handshake().Version.Cmp(proto.NewVersion(1, 2, 0)) < 0 {
-		bts, err := micro.MarshalBinary()
+		bts, err := micro.MarshalBinary(a.scheme)
 		if err != nil {
 			return err
 		}

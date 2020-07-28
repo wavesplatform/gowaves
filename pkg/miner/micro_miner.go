@@ -171,7 +171,7 @@ func (a *MicroMiner) Micro(
 		TotalBlockID:          newBlock.BlockID(),
 	}
 
-	err = micro.Sign(sk)
+	err = micro.Sign(a.scheme, sk)
 	if err != nil {
 		return nil, nil, rest, err
 	}

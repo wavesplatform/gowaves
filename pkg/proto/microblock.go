@@ -91,8 +91,8 @@ func (a *MicroBlock) UnmarshalBinary(b []byte, scheme Scheme) error {
 		return errors.Wrap(err, "failed to unmarshal microblock version")
 	}
 
-	hashId := a.VersionField >= byte(ProtoBlockVersion)
-	if hashId {
+	proto := a.VersionField >= byte(ProtoBlockVersion)
+	if proto {
 		ref, err := d.Digest()
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal reference")
@@ -125,9 +125,17 @@ func (a *MicroBlock) UnmarshalBinary(b []byte, scheme Scheme) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal microblock transaction bytes")
 	}
-	a.Transactions, err = NewTransactionsFromBytes(bts, int(a.TransactionCount), scheme)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal transactions")
+	if proto {
+		var txs Transactions
+		if err := txs.UnmarshalFromProtobuf(bts); err != nil {
+			return errors.Wrap(err, "failed to unmarshal transactions from protobuf")
+		}
+		a.Transactions = txs
+	} else {
+		a.Transactions, err = NewTransactionsFromBytes(bts, int(a.TransactionCount), scheme)
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal transactions")
+		}
 	}
 
 	a.SenderPK, err = d.PublicKey()
@@ -143,10 +151,10 @@ func (a *MicroBlock) UnmarshalBinary(b []byte, scheme Scheme) error {
 	return nil
 }
 
-func (a *MicroBlock) VerifySignature() (bool, error) {
+func (a *MicroBlock) VerifySignature(scheme Scheme) (bool, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
-	_, err := a.WriteWithoutSignature(buf)
+	_, err := a.WriteWithoutSignature(scheme, buf)
 	if err != nil {
 		return false, err
 	}
@@ -154,10 +162,10 @@ func (a *MicroBlock) VerifySignature() (bool, error) {
 	return crypto.Verify(a.SenderPK, a.Signature, buf.Bytes()), nil
 }
 
-func (a *MicroBlock) Sign(secret crypto.SecretKey) error {
+func (a *MicroBlock) Sign(scheme Scheme, secret crypto.SecretKey) error {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
-	_, err := a.WriteWithoutSignature(buf)
+	_, err := a.WriteWithoutSignature(scheme, buf)
 	if err != nil {
 		return err
 	}
@@ -169,29 +177,30 @@ func (a *MicroBlock) Sign(secret crypto.SecretKey) error {
 	return nil
 }
 
-func (a *MicroBlock) WriteTo(w io.Writer) (int64, error) {
-	n, _ := a.WriteWithoutSignature(w)
+func (a *MicroBlock) WriteTo(scheme Scheme, w io.Writer) (int64, error) {
+	n, _ := a.WriteWithoutSignature(scheme, w)
 	n2, _ := w.Write(a.Signature[:])
 	return n + int64(n2), nil
 }
 
-func (a *MicroBlock) WriteWithoutSignature(w io.Writer) (int64, error) {
+func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, error) {
 	s := serializer.NewNonFallable(w)
 	s.Byte(a.VersionField)
 	s.Bytes(a.Reference.Bytes())
 	s.Bytes(a.TotalResBlockSigField[:])
 	s.Uint32(uint32(a.Transactions.BinarySize() + 4))
 	s.Uint32(a.TransactionCount)
-	if _, err := a.Transactions.WriteTo(s); err != nil {
+	proto := a.VersionField >= byte(ProtoBlockVersion)
+	if _, err := a.Transactions.WriteTo(proto, scheme, s); err != nil {
 		return 0, err
 	}
 	s.Bytes(a.SenderPK[:])
 	return s.N(), nil
 }
 
-func (a *MicroBlock) MarshalBinary() ([]byte, error) {
+func (a *MicroBlock) MarshalBinary(scheme Scheme) ([]byte, error) {
 	buf := &bytes.Buffer{}
-	_, err := a.WriteTo(buf)
+	_, err := a.WriteTo(scheme, buf)
 	return buf.Bytes(), err
 }
 
