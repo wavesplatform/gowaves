@@ -220,7 +220,7 @@ func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScript
 	// Check against state.
 	txSmartAssets, err := a.txHandler.checkTx(tx, checkerInfo)
 	if err != nil {
-		return 0, errs.Extend(err, "checkTx")
+		return 0, err
 	}
 	ride4DAppsActivated, err := a.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
@@ -423,7 +423,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		// Execute transaction's scripts, check against state.
 		txScriptsRuns, err := a.checkTransactionScripts(tx, accountHasVerifierScript, params.checkerInfo, params.blockInfo)
 		if err != nil {
-			return errs.Extend(err, "check transaction scripts")
+			return err
 		}
 		// Create balance diff of this tx.
 		differInfo := &differInfo{params.initialisation, params.blockInfo}

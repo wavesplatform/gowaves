@@ -1046,21 +1046,21 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if err != nil {
 		return nil, err
 	}
+
+	smartAssets := []crypto.Digest{tx.AssetID}
+	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errs.Extend(err, "check fee")
+	}
 	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
 		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 	isSmartAsset := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
-	if !isSmartAsset {
-		return nil, errs.NewTxValidationError("Cannot set script on an asset issued without a script")
-	}
-	smartAssets := []crypto.Digest{tx.AssetID}
-	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
-	if err := tc.checkFee(transaction, assets, info); err != nil {
-		return nil, err
-	}
 	if len(tx.Script) == 0 {
-		// No script checks / actions are needed.
-		return nil, nil
+		return nil, errs.NewTxValidationError("Cannot set empty script")
+	}
+	if !isSmartAsset {
+		return nil, errs.NewTxValidationError("Reason: Cannot set script on an asset issued without a script. Referenced assetId not found")
 	}
 	scriptInf, err := tc.checkScript(tx.Script, tc.estimatorVersion(info))
 	if err != nil {
@@ -1072,7 +1072,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	}
 	// Save complexity to storage so we won't have to calculate it every time the script is called.
 	if err := tc.stor.scriptsComplexity.saveComplexityForAsset(tx.AssetID, r, info.blockID); err != nil {
-		return nil, err
+		return nil, errs.Extend(err, "saveComplexityForAsset")
 	}
 	return smartAssets, nil
 }

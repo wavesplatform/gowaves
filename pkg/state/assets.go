@@ -2,10 +2,12 @@ package state
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math/big"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -276,7 +278,7 @@ func (a *assets) constInfo(assetID crypto.Digest) (*assetConstInfo, error) {
 	constKey := assetConstKey{assetID: assetID}
 	constInfoBytes, err := a.db.Get(constKey.bytes())
 	if err != nil {
-		return nil, errors.Errorf("failed to retrieve const info for given asset: %v\n", err)
+		return nil, errs.NewUnknownAsset(fmt.Sprintf("failed to retrieve const info for given asset: %v", err))
 	}
 	var constInfo assetConstInfo
 	if err := constInfo.unmarshalBinary(constInfoBytes); err != nil {

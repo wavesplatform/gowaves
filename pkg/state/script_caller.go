@@ -4,6 +4,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -141,6 +142,12 @@ func (a *scriptCaller) callAssetScriptCommon(
 		return ast.Result{}, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 	}
 	if r.Failed() && !acceptFailed {
+		if r.Throw {
+			return ast.Result{}, errors.Errorf("script failure on asset '%s' with error: %s", assetID.String(), r.Error())
+		}
+		if !r.Value {
+			return ast.Result{}, errs.NewTransactionNotAllowedByScript(r.Error().Error(), assetID.Bytes())
+		}
 		return ast.Result{}, errors.Errorf("script failure on asset '%s' with error: %s", assetID.String(), r.Error())
 	}
 	// Increase complexity.

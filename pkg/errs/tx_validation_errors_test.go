@@ -59,6 +59,17 @@ func TestNewAssetIssuedByOtherAddress(t *testing.T) {
 	require.EqualError(t, NewAssetIssuedByOtherAddress("a").Extend("b"), "b: a")
 }
 
-func TestFeeValdiation(t *testing.T) {
+func TestFeeValidation(t *testing.T) {
 	require.EqualError(t, NewFeeValidation("a").Extend("b"), "b: a")
+}
+
+func TestNewAssetUpdateInterval(t *testing.T) {
+	require.EqualError(t, NewAssetUpdateInterval("a").Extend("b"), "b: a")
+}
+
+func TestNewTransactionNotAllowedByScript(t *testing.T) {
+	err := NewTransactionNotAllowedByScript("a", nil)
+	require.EqualError(t, err.Extend("b"), "b: a")
+	require.False(t, err.IsAssetScript())
+	require.Len(t, err.Asset(), 0)
 }
