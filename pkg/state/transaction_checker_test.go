@@ -1039,7 +1039,9 @@ func TestCheckSetAssetScriptWithProofs(t *testing.T) {
 	tx := createSetAssetScriptWithProofs(t)
 	info := defaultCheckerInfo(t)
 
-	to.stor.addBlock(t, blockID0)
+	assetInfo := defaultAssetInfo(true)
+	assetInfo.issuer = tx.SenderPK
+	to.stor.createAssetUsingInfo(t, tx.AssetID, assetInfo)
 
 	// Must fail on non-smart assets.
 	_, err := to.tc.checkSetAssetScriptWithProofs(tx, info)

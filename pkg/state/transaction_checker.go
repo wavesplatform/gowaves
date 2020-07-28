@@ -1042,6 +1042,13 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
 		return nil, errs.Extend(err, "invalid timestamp")
 	}
+	assetInfo, err := tc.stor.assets.newestAssetInfo(tx.AssetID, !info.initialisation)
+	if err != nil {
+		return nil, err
+	}
+	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
+	}
 	isSmartAsset := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
 	if !isSmartAsset {
 		return nil, errs.NewTxValidationError("Cannot set script on an asset issued without a script")

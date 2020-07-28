@@ -324,6 +324,13 @@ func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
 	s.flush(t)
 }
 
+func (s *testStorageObjects) createAssetUsingInfo(t *testing.T, assetID crypto.Digest, info *assetInfo) {
+	s.addBlock(t, blockID0)
+	err := s.entities.assets.issueAsset(assetID, info, blockID0)
+	assert.NoError(t, err, "issueAsset() failed")
+	s.flush(t)
+}
+
 func (s *testStorageObjects) createAssetAtBlock(t *testing.T, assetID crypto.Digest, blockID proto.BlockID) *assetInfo {
 	s.addBlock(t, blockID)
 	assetInfo := defaultAssetInfo(true)
