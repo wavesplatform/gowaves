@@ -22,6 +22,10 @@ type assetInfo struct {
 	assetChangeableInfo
 }
 
+func (ai *assetInfo) isNFT() bool {
+	return ai.quantity.Uint64() == 1 && ai.decimals == 0 && !ai.reissuable
+}
+
 func (ai *assetInfo) equal(ai1 *assetInfo) bool {
 	return ai.assetChangeableInfo.equal(&ai1.assetChangeableInfo) && (ai.assetConstInfo == ai1.assetConstInfo)
 }

@@ -245,8 +245,8 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address, filter bool) (
 	}
 	defer func() {
 		iter.Release()
-		if err != nil {
-			zap.S().Fatalf("Iterator release error: %v", err)
+		if err := iter.Error(); err != nil {
+			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -25,6 +26,25 @@ func (s *Server) GetInfo(ctx context.Context, req *g.AssetRequest) (*g.AssetInfo
 	return res, nil
 }
 
-func (s *Server) GetNFTList(*g.NFTRequest, g.AssetsApi_GetNFTListServer) error {
-	return status.Errorf(codes.Unimplemented, "not GetNFTList")
+func (s *Server) GetNFTList(req *g.NFTRequest, srv g.AssetsApi_GetNFTListServer) error {
+	var c proto.ProtobufConverter
+	addr, err := c.Address(s.scheme, req.Address)
+	if err != nil {
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	}
+	nfts, err := s.state.NFTList(proto.NewRecipientFromAddress(addr), uint64(req.Limit), req.AfterAssetId)
+	if err != nil {
+		return status.Errorf(codes.Internal, err.Error())
+	}
+	for _, nft := range nfts {
+		ai, err := nft.ToProtobuf(s.scheme)
+		if err != nil {
+			return status.Errorf(codes.Internal, err.Error())
+		}
+		res := &g.NFTResponse{AssetId: nft.ID.Bytes(), AssetInfo: ai}
+		if err := srv.Send(res); err != nil {
+			return status.Errorf(codes.Internal, err.Error())
+		}
+	}
+	return nil
 }

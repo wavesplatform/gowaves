@@ -51,6 +51,7 @@ const (
 var (
 	blockID0 = genBlockId(1)
 	blockID1 = genBlockId(2)
+	blockID2 = genBlockId(3)
 )
 
 type testAddrData struct {
@@ -216,6 +217,22 @@ func defaultTestCacheParams() keyvalue.CacheParams {
 
 func defaultTestKeyValParams() keyvalue.KeyValParams {
 	return keyvalue.KeyValParams{CacheParams: defaultTestCacheParams(), BloomFilterParams: defaultTestBloomFilterParams()}
+}
+
+func defaultNFT() *assetInfo {
+	return &assetInfo{
+		assetConstInfo{
+			issuer:   testGlobal.issuerInfo.pk,
+			decimals: 0,
+		},
+		assetChangeableInfo{
+			quantity:                 *big.NewInt(1),
+			name:                     "asset",
+			description:              "description",
+			lastNameDescChangeHeight: 1,
+			reissuable:               false,
+		},
+	}
 }
 
 func defaultAssetInfo(reissuable bool) *assetInfo {
