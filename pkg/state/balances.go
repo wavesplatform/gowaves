@@ -381,11 +381,14 @@ func (s *balances) nftList(addr proto.Address, limit uint64, after []byte, asset
 		if uint64(len(res)) >= limit {
 			break
 		}
-		keyBytes := keyvalue.SafeKey(iter)
 		recordBytes := keyvalue.SafeValue(iter)
 		if err := r.unmarshalBinary(recordBytes); err != nil {
 			return nil, err
 		}
+		if r.balance == 0 {
+			continue
+		}
+		keyBytes := keyvalue.SafeKey(iter)
 		if err := k.unmarshal(keyBytes); err != nil {
 			return nil, err
 		}
