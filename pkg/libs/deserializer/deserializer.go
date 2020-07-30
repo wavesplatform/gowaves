@@ -96,7 +96,7 @@ func (a *Deserializer) Uint16() (uint16, error) {
 	return out, nil
 }
 
-// Length of the rest bytes
+// Length of the rest bytes.
 func (a *Deserializer) Len() int {
 	return len(a.b)
 }
