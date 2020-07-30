@@ -288,3 +288,31 @@ func TestBalances(t *testing.T) {
 		}
 	}
 }
+
+func TestNftList(t *testing.T) {
+	to, path, err := createBalances()
+	assert.NoError(t, err, "createBalances() failed")
+
+	defer func() {
+		to.stor.close(t)
+
+		err = common.CleanTemporaryDirs(path)
+		assert.NoError(t, err, "failed to clean test data dirs")
+	}()
+
+	to.stor.addBlock(t, blockID0)
+
+	addr := testGlobal.senderInfo.addr
+	assetID := testGlobal.asset1.asset.ID
+	assetIDBytes := testGlobal.asset1.assetID
+	err = to.balances.setAssetBalance(addr, assetIDBytes, 123, blockID0)
+	assert.NoError(t, err)
+	asset := defaultNFT()
+	err = to.stor.entities.assets.issueAsset(assetID, asset, blockID0)
+	assert.NoError(t, err)
+	to.stor.flush(t)
+	fn := to.stor.entities.assets.assetInfo
+	nfts, err := to.balances.nftList(addr, 1, nil, fn)
+	assert.NoError(t, err)
+	assert.Equal(t, []crypto.Digest{assetID}, nfts)
+}

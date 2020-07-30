@@ -1943,6 +1943,27 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 	return res, nil
 }
 
+func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	fn := s.stor.assets.assetInfo
+	nfts, err := s.stor.balances.nftList(*addr, limit, afterAssetID, fn)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	infos := make([]*proto.FullAssetInfo, len(nfts))
+	for i, nft := range nfts {
+		info, err := s.FullAssetInfo(nft)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		infos[i] = info
+	}
+	return infos, nil
+}
+
 func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {

@@ -701,6 +701,21 @@ func (mr *MockStateInfoMockRecorder) FullAssetInfo(assetID interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullAssetInfo", reflect.TypeOf((*MockStateInfo)(nil).FullAssetInfo), assetID)
 }
 
+// NFTList mocks base method
+func (m *MockStateInfo) NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NFTList", account, limit, afterAssetID)
+	ret0, _ := ret[0].([]*proto.FullAssetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NFTList indicates an expected call of NFTList
+func (mr *MockStateInfoMockRecorder) NFTList(account, limit, afterAssetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NFTList", reflect.TypeOf((*MockStateInfo)(nil).NFTList), account, limit, afterAssetID)
+}
+
 // ScriptInfoByAccount mocks base method
 func (m *MockStateInfo) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
 	m.ctrl.T.Helper()
@@ -1742,6 +1757,21 @@ func (m *MockState) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, 
 func (mr *MockStateMockRecorder) FullAssetInfo(assetID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullAssetInfo", reflect.TypeOf((*MockState)(nil).FullAssetInfo), assetID)
+}
+
+// NFTList mocks base method
+func (m *MockState) NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NFTList", account, limit, afterAssetID)
+	ret0, _ := ret[0].([]*proto.FullAssetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NFTList indicates an expected call of NFTList
+func (mr *MockStateMockRecorder) NFTList(account, limit, afterAssetID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NFTList", reflect.TypeOf((*MockState)(nil).NFTList), account, limit, afterAssetID)
 }
 
 // ScriptInfoByAccount mocks base method

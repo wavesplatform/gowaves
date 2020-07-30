@@ -339,6 +339,75 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64
 	return nil
 }
 
+type assetInfoFn func(crypto.Digest, bool) (*assetInfo, error)
+
+func (s *balances) nftList(addr proto.Address, limit uint64, after []byte, assetInfoById assetInfoFn) ([]crypto.Digest, error) {
+	key := assetBalanceKey{address: addr}
+	iter, err := s.hs.newTopEntryIteratorByPrefix(key.addressPrefix(), true)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			zap.S().Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	var k assetBalanceKey
+	if after != nil {
+		// Iterate until `after_asset_id` asset is found.
+		afterID, err := crypto.NewDigestFromBytes(after)
+		if err != nil {
+			return nil, err
+		}
+		for iter.Next() {
+			keyBytes := keyvalue.SafeKey(iter)
+			if err := k.unmarshal(keyBytes); err != nil {
+				return nil, err
+			}
+			assetID, err := crypto.NewDigestFromBytes(k.asset)
+			if err != nil {
+				return nil, err
+			}
+			if assetID == afterID {
+				break
+			}
+		}
+	}
+	var r assetBalanceRecord
+	var res []crypto.Digest
+	for iter.Next() {
+		if uint64(len(res)) >= limit {
+			break
+		}
+		recordBytes := keyvalue.SafeValue(iter)
+		if err := r.unmarshalBinary(recordBytes); err != nil {
+			return nil, err
+		}
+		if r.balance == 0 {
+			continue
+		}
+		keyBytes := keyvalue.SafeKey(iter)
+		if err := k.unmarshal(keyBytes); err != nil {
+			return nil, err
+		}
+		assetID, err := crypto.NewDigestFromBytes(k.asset)
+		if err != nil {
+			return nil, err
+		}
+		assetInfo, err := assetInfoById(assetID, true)
+		if err != nil {
+			return nil, err
+		}
+		nft := assetInfo.isNFT()
+		if nft {
+			res = append(res, assetID)
+		}
+	}
+	return res, nil
+}
+
 func (s *balances) wavesAddressesNumber() (uint64, error) {
 	iter, err := s.hs.newTopEntryIterator(wavesBalance, true)
 	if err != nil {

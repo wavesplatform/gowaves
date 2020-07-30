@@ -206,6 +206,13 @@ type assetBalanceKey struct {
 	asset   []byte
 }
 
+func (k *assetBalanceKey) addressPrefix() []byte {
+	buf := make([]byte, 1+proto.AddressSize)
+	buf[0] = assetBalanceKeyPrefix
+	copy(buf[1:], k.address[:])
+	return buf
+}
+
 func (k *assetBalanceKey) bytes() []byte {
 	buf := make([]byte, assetBalanceKeySize)
 	buf[0] = assetBalanceKeyPrefix
