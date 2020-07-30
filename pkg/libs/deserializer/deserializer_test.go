@@ -79,3 +79,13 @@ func TestDeserializer_PublicKey(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestDeserializer_ByteStringWithUint16Len(t *testing.T) {
+	_, err := NewDeserializer(nil).ByteStringWithUint16Len()
+	require.Error(t, err)
+}
+
+func TestDeserializer_Uint64(t *testing.T) {
+	_, err := NewDeserializer(nil).Uint64()
+	require.Error(t, err)
+}
