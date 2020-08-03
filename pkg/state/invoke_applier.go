@@ -266,7 +266,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 		return proto.DAppError, info.failedChanges, err
 	}
 	// Empty keys rejected since protobuf version.
-	if ia.countEmptyDataEntryKeys(info.actions) > 0 {
+	if proto.IsProtobufTx(tx) && ia.countEmptyDataEntryKeys(info.actions) > 0 {
 		return proto.DAppError, info.failedChanges, errors.Errorf("Empty keys aren't allowed in tx version >= %d", tx.Version)
 	}
 	// Perform actions.
