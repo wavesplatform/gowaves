@@ -4184,6 +4184,10 @@ type InvokeScriptWithProofs struct {
 	Timestamp       uint64           `json:"timestamp,omitempty"`
 }
 
+func (tx *InvokeScriptWithProofs) ProtobufVersion() byte {
+	return 2
+}
+
 func (tx *InvokeScriptWithProofs) BinarySize() int {
 	return 4 + tx.Proofs.BinarySize() + crypto.PublicKeySize + tx.FunctionCall.BinarySize() + tx.ScriptRecipient.BinarySize() + tx.Payments.BinarySize() + tx.FeeAsset.BinarySize() + 16
 }

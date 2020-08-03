@@ -169,6 +169,19 @@ func (ia *invokeApplier) countIssuedAssets(actions []proto.ScriptAction) (uint64
 	return issuedAssetsCount, nil
 }
 
+func (ia *invokeApplier) countEmptyDataEntryKeys(actions []proto.ScriptAction) uint64 {
+	var out uint64 = 0
+	for _, action := range actions {
+		switch a := action.(type) {
+		case *proto.DataEntryScriptAction:
+			if len(a.Entry.GetKey()) == 0 {
+				out = +1
+			}
+		}
+	}
+	return out
+}
+
 func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, initialisation bool) uint64 {
 	scriptRuns := uint64(0)
 	for _, action := range actions {
@@ -251,6 +264,10 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 	totalChanges := feeAndPaymentChanges
 	if err := ia.saveIntermediateDiff(totalChanges.diff); err != nil {
 		return proto.DAppError, info.failedChanges, err
+	}
+	// Empty keys rejected since protobuf version.
+	if proto.IsProtobufTx(tx) && ia.countEmptyDataEntryKeys(info.actions) > 0 {
+		return proto.DAppError, info.failedChanges, errors.Errorf("Empty keys aren't allowed in tx version >= %d", tx.Version)
 	}
 	// Perform actions.
 	for _, action := range info.actions {

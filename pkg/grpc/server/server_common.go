@@ -47,6 +47,7 @@ type filterFunc = func(tx proto.Transaction) bool
 type handleFunc = func(tx proto.Transaction, failed bool) error
 
 func (s *Server) iterateAndHandleTransactions(iter state.TransactionIterator, filter filterFunc, handle handleFunc) error {
+	defer iter.Release()
 	for iter.Next() {
 		// Get and send transactions one-by-one.
 		tx, failed, err := iter.Transaction()
@@ -60,7 +61,6 @@ func (s *Server) iterateAndHandleTransactions(iter state.TransactionIterator, fi
 			return errors.Wrap(err, "handle() failed")
 		}
 	}
-	iter.Release()
 	if err := iter.Error(); err != nil {
 		return errors.Wrap(err, "iterator error")
 	}

@@ -99,6 +99,9 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
 	if r.Failed() {
+		if !r.Value {
+			return errs.NewTransactionNotAllowedByScript(r.Error().Error(), nil)
+		}
 		return errors.Errorf("account script on transaction '%s' failed; error: %v", base58.Encode(id), r.Error())
 	}
 	// Increase complexity.

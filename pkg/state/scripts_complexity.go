@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/deserializer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -71,25 +72,31 @@ func (r *accountScriptComplexityRecord) marshalBinary() ([]byte, error) {
 }
 
 func (r *accountScriptComplexityRecord) unmarshalBinary(data []byte) (err error) {
-	defer func() {
-		if recover() != nil {
-			err = errInvalidDataSize
-		}
-	}()
+	if len(data) == 0 {
+		return errors.Errorf("accountScriptComplexityRecord.unmarshalBinary: provided 0 length data")
+	}
 
-	r.verifierComplexity = binary.BigEndian.Uint64(data[:8])
-	pos := 8
-	for pos < len(data)-1 {
-		funcName, err := proto.StringWithUInt16Len(data[pos:])
+	d := deserializer.NewDeserializer(data)
+	r.verifierComplexity, err = d.Uint64()
+	if err != nil {
+		return err
+	}
+	r.byFuncs = make(map[string]uint64)
+	for d.Len() > 1 {
+		funcName, err := d.ByteStringWithUint16Len()
 		if err != nil {
 			return err
 		}
-		pos += len(funcName) + 2
-		value := binary.BigEndian.Uint64(data[pos : pos+8])
-		pos += 8
-		r.byFuncs[funcName] = value
+		value, err := d.Uint64()
+		if err != nil {
+			return err
+		}
+		r.byFuncs[string(funcName)] = value
 	}
-	r.estimator = data[pos]
+	r.estimator, err = d.Byte()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -109,7 +116,7 @@ func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address, fi
 	}
 	record := newAccountScriptComplexityRecord()
 	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return nil, errors.Errorf("failed to unmarshal account script complexity record: %v\n", err)
+		return nil, errors.Errorf("failed to unmarshal account script complexity record: %v", err)
 	}
 	return &record, nil
 }
