@@ -21,6 +21,7 @@ func Compile(tree *Tree) (*Program, error) {
 		values:        make([]rideValue, 0),
 		functions:     make([]*localFunction, 0),
 		declarations:  make([]rideDeclaration, 0),
+		patcher:       newPatcher(),
 	}
 	bb := new(bytes.Buffer)
 	err = c.compile(bb, tree.Verifier)
@@ -28,16 +29,20 @@ func Compile(tree *Tree) (*Program, error) {
 		return nil, err
 	}
 	bb.WriteByte(OpReturn)
-	patches := make(map[int]uint16)
 	for _, d := range c.declarations {
 		pos := bb.Len()
-		bb.Write(d.code())
+		c.patcher.setOrigin(d.buffer(), pos)
+		bb.Write(patchedCode(d.buffer(), pos))
 		bb.WriteByte(OpReturn)
 		for _, ref := range d.references() {
-			patches[ref] = uint16(pos)
+			c.patcher.setPosition(ref, uint16(pos))
 		}
 	}
 	code := bb.Bytes()
+	patches, err := c.patcher.get()
+	if err != nil {
+		return nil, err
+	}
 	for pos, addr := range patches {
 		binary.BigEndian.PutUint16(code[pos:], addr)
 	}
@@ -55,6 +60,7 @@ type compiler struct {
 	values        []rideValue
 	functions     []*localFunction
 	declarations  []rideDeclaration
+	patcher       *patcher
 }
 
 func (c *compiler) compile(bb *bytes.Buffer, node Node) error {
@@ -185,18 +191,18 @@ func (c *compiler) referenceNode(bb *bytes.Buffer, node *ReferenceNode) error {
 	if err != nil {
 		return err
 	}
-	switch tv := v.(type) {
+	switch value := v.(type) {
 	case *localValue:
 		bb.WriteByte(OpLoadLocal)
-		bb.Write(encode(tv.position))
+		bb.Write(encode(value.position))
 		return nil
 	case *globalValue:
 		bb.WriteByte(OpLoad)
-		tv.refer(bb.Len())
+		value.refer(c.patcher.add(bb))
 		bb.Write([]byte{0xff, 0xff})
 		return nil
 	default:
-		return errors.Errorf("unexpected value type '%T'", tv)
+		return errors.Errorf("unexpected value type '%T'", value)
 	}
 }
 
@@ -237,7 +243,7 @@ func (c *compiler) callNode(bb *bytes.Buffer, node *FunctionCallNode) error {
 			return err
 		}
 		bb.WriteByte(OpCall)
-		decl.call(bb.Len())
+		decl.call(c.patcher.add(bb))
 		bb.Write([]byte{0xff, 0xff})
 	}
 	return nil
@@ -372,7 +378,7 @@ func (c *rideConstants) append(value rideType) (uint16, error) {
 }
 
 type rideDeclaration interface {
-	code() []byte
+	buffer() *bytes.Buffer
 	references() []int
 }
 
@@ -412,8 +418,8 @@ func newGlobalValue(name string) *globalValue {
 	}
 }
 
-func (v *globalValue) code() []byte {
-	return v.bb.Bytes()
+func (v *globalValue) buffer() *bytes.Buffer {
+	return v.bb
 }
 
 func (v *globalValue) references() []int {
@@ -424,8 +430,8 @@ func (v *globalValue) id() string {
 	return v.name
 }
 
-func (v *globalValue) refer(pos int) {
-	v.usages = append(v.usages, pos)
+func (v *globalValue) refer(patch int) {
+	v.usages = append(v.usages, patch)
 }
 
 type localFunction struct {
@@ -444,8 +450,8 @@ func newLocalFunction(name string, args []string) *localFunction {
 	}
 }
 
-func (f *localFunction) code() []byte {
-	return f.bb.Bytes()
+func (f *localFunction) buffer() *bytes.Buffer {
+	return f.bb
 }
 
 func (f *localFunction) references() []int {
@@ -456,8 +462,96 @@ func (f *localFunction) call(pos int) {
 	f.calls = append(f.calls, pos)
 }
 
+type patch struct {
+	id     int
+	origin int
+	pos    int
+	addr   uint16
+}
+
+type patcher struct {
+	count   int
+	buffers map[*bytes.Buffer][]patch
+}
+
+func newPatcher() *patcher {
+	return &patcher{
+		count:   0,
+		buffers: make(map[*bytes.Buffer][]patch, 0),
+	}
+}
+
+func (p *patcher) add(bb *bytes.Buffer) int {
+	pt := patch{
+		id:  p.count,
+		pos: bb.Len(),
+	}
+	if bps, ok := p.buffers[bb]; ok {
+		p.buffers[bb] = append(bps, pt)
+	} else {
+		p.buffers[bb] = []patch{pt}
+	}
+	p.count++
+	return pt.id
+}
+
+func (p *patcher) setOrigin(bb *bytes.Buffer, origin int) {
+	if ps, ok := p.buffers[bb]; ok {
+		for i := range ps {
+			ps[i].origin = origin
+		}
+	}
+}
+
+func (p *patcher) setPosition(id int, addr uint16) {
+	for _, v := range p.buffers {
+		for i := range v {
+			if v[i].id == id {
+				v[i].addr = addr
+			}
+		}
+	}
+}
+
+func (p *patcher) get() (map[int]uint16, error) {
+	r := make(map[int]uint16)
+	for _, v := range p.buffers {
+		for i := range v {
+			abs := v[i].origin + v[i].pos
+			if _, ok := r[abs]; ok {
+				return nil, errors.Errorf("duplicate patch at position %d", abs)
+			}
+			r[abs] = v[i].addr
+		}
+	}
+	return r, nil
+}
+
 func encode(v uint16) []byte {
 	b := make([]byte, 2)
 	binary.BigEndian.PutUint16(b, v)
 	return b
+}
+
+func patchedCode(bb *bytes.Buffer, origin int) []byte {
+	bts := bb.Bytes()
+	i := 0
+	for i < bb.Len() {
+		switch bts[i] {
+		case OpJumpIfFalse, OpJump:
+			addr := bts[i+1 : i+3]
+			update(addr, origin)
+			i += 3
+		case OpPush, OpProperty, OpCall, OpExternalCall, OpLoad, OpLoadLocal:
+			i += 3
+		default:
+			i++
+		}
+	}
+	return bts
+}
+
+func update(b []byte, n int) {
+	v := binary.BigEndian.Uint16(b)
+	binary.BigEndian.PutUint16(b, uint16(int(v)+n))
 }
