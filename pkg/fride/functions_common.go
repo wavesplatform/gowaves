@@ -4,7 +4,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func functions(v int) (func(id int) rideFunction, error) {
+func selectFunctions(v int) (func(id int) rideFunction, error) {
 	switch v {
 	case 1, 2:
 		return functionsV2, nil
@@ -13,23 +13,34 @@ func functions(v int) (func(id int) rideFunction, error) {
 	case 4:
 		return functionsV4, nil
 	default:
-		return nil, errors.Errorf("compile: unsupported library version '%d'", v)
+		return nil, errors.Errorf("unsupported library version '%d'", v)
 	}
 }
 
-func functionByName(name string) (byte, bool) {
-	//TODO: implement
-	return 0, false
+func selectFunctionChecker(v int) (func(name string) (byte, bool), error) {
+	switch v {
+	case 1, 2:
+		return checkFunctionV2, nil
+	case 3:
+		return checkFunctionV3, nil
+	case 4:
+		return checkFunctionV4, nil
+	default:
+		return nil, errors.Errorf("unsupported library version '%d'", v)
+	}
 }
 
-func functionName(id int) string {
-	//TODO: implement
-	return ""
-}
-
-func externalChecker(v int) (func(name string) bool, error) {
-	//TODO: implement
-	return nil, nil
+func selectFunctionNameProvider(v int) (func(int) string, error) {
+	switch v {
+	case 1, 2:
+		return functionNameV2, nil
+	case 3:
+		return functionNameV3, nil
+	case 4:
+		return functionNameV4, nil
+	default:
+		return nil, errors.Errorf("unsupported library version '%d'", v)
+	}
 }
 
 func checkArgs(args []rideType, count int) error {

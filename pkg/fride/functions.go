@@ -20,6 +20,14 @@ func functionsV2(id int) rideFunction {
 	}
 	return _functions_V2[id]
 }
+func checkFunctionV2(name string) (byte, bool) {
+	for i := 0; i <= 67; i++ {
+		if _names_V2[_index_V2[i]:_index_V2[i+1]] == name {
+			return byte(i), true
+		}
+	}
+	return 0, false
+}
 
 var _functions_V3 = [...]rideFunction{unaryNot, neq, unaryMinus, eq, instanceOf, sum, transactionHeightByID, assetBalanceV3, assetInfoV3, blockInfoByHeight, transferByID, sub, gt, ge, mul, intFromArray, booleanFromArray, bytesFromArray, stringFromArray, div, intFromState, booleanFromState, bytesFromState, stringFromState, mod, addressFromRecipient, addressToString, fraction, pow, log, createList, bytesToUTF8String, bytesToLong, bytesToLongWithOffset, indexOfSubstring, indexOfSubstringWithOffset, splitString, parseInt, lastIndexOfSubstring, lastIndexOfSubstringWithOffset, throw, sizeBytes, takeBytes, dropBytes, concatBytes, concatStrings, takeStrings, dropStrings, sizeStrings, sizeList, getList, intToBytes, stringToBytes, booleanToBytes, intToString, booleanToString, unlimitedSigVerify, unlimitedKeccak256, unlimitedBlake2b256, unlimitedSha256, unlimitedRSAVerify, toBase58, fromBase58, toBase64, fromBase64, toBase16, fromBase16, checkMerkleProof, intValueFromArray, booleanValueFromArray, bytesValueFromArray, stringValueFromArray, intValueFromState, booleanValueFromState, bytesValueFromState, stringValueFromState, addressFromString, bytesValueFromArrayByIndex, booleanValueFromArrayByIndex, intValueFromArrayByIndex, stringValueFromArrayByIndex, address, alias, assetPair, ceiling, dataEntry, dataTransaction, down, floor, halfDown, halfEven, halfUp, md5, noAlg, scriptResult, scriptTransfer, sha1, sha224, rideSha256, sha3224, sha3256, sha3384, sha3512, sha384, sha512, transferSet, unit, up, writeSet, addressFromPublicKey, addressFromString, dropRightString, dropRightBytes, extract, bytesFromArrayByIndex, booleanFromArrayByIndex, intFromArrayByIndex, stringFromArrayByIndex, isDefined, parseIntValue, takeRightString, takeRightBytes, throw0, value, valueOrErrorMessage, wavesBalanceV3}
 
@@ -39,6 +47,14 @@ func functionsV3(id int) rideFunction {
 	}
 	return _functions_V3[id]
 }
+func checkFunctionV3(name string) (byte, bool) {
+	for i := 0; i <= 125; i++ {
+		if _names_V3[_index_V3[i]:_index_V3[i+1]] == name {
+			return byte(i), true
+		}
+	}
+	return 0, false
+}
 
 var _functions_V4 = [...]rideFunction{unaryNot, neq, unaryMinus, eq, instanceOf, sum, transactionHeightByID, assetBalanceV4, assetInfoV4, blockInfoByHeight, transferByID, sub, gt, ge, mul, intFromArray, booleanFromArray, bytesFromArray, stringFromArray, div, intFromState, booleanFromState, bytesFromState, stringFromState, mod, addressFromRecipient, addressToString, fraction, transferFromProtobuf, pow, calculateAssetID, log, simplifiedIssue, fullIssue, limitedCreateList, appendToList, concatList, indexOfList, lastIndexOfList, bytesToUTF8String, bytesToLong, bytesToLongWithOffset, indexOfSubstring, indexOfSubstringWithOffset, splitString, parseInt, lastIndexOfSubstring, lastIndexOfSubstringWithOffset, throw, sizeBytes, takeBytes, dropBytes, concatBytes, limitedGroth16Verify_1, limitedGroth16Verify_2, limitedGroth16Verify_3, limitedGroth16Verify_4, limitedGroth16Verify_5, limitedGroth16Verify_6, limitedGroth16Verify_7, limitedGroth16Verify_8, limitedGroth16Verify_9, limitedGroth16Verify_10, limitedGroth16Verify_11, limitedGroth16Verify_12, limitedGroth16Verify_13, limitedGroth16Verify_14, limitedGroth16Verify_15, sigVerify_16, sigVerify_32, sigVerify_64, sigVerify_128, rsaVerify_16, rsaVerify_32, rsaVerify_64, rsaVerify_128, keccak256_16, keccak256_32, keccak256_64, keccak256_128, blake2b256_16, blake2b256_32, blake2b256_64, blake2b256_128, sha256_16, sha256_32, sha256_64, sha256_128, concatStrings, takeStrings, dropStrings, sizeStrings, sizeList, getList, median, max, min, intToBytes, stringToBytes, booleanToBytes, intToString, booleanToString, unlimitedSigVerify, unlimitedKeccak256, unlimitedBlake2b256, unlimitedSha256, unlimitedRSAVerify, toBase58, fromBase58, toBase64, fromBase64, toBase16, fromBase16, rebuildMerkleRoot, unlimitedGroth16Verify, ecRecover, intValueFromArray, booleanValueFromArray, bytesValueFromArray, stringValueFromArray, intValueFromState, booleanValueFromState, bytesValueFromState, stringValueFromState, addressFromString, bytesValueFromArrayByIndex, booleanValueFromArrayByIndex, intValueFromArrayByIndex, stringValueFromArrayByIndex, address, alias, assetPair, checkedBytesDataEntry, checkedBooleanDataEntry, burn, ceiling, dataTransaction, checkedDeleteEntry, down, floor, halfDown, halfEven, halfUp, checkedIntDataEntry, issue, md5, noAlg, reissue, scriptTransfer, sha1, sha224, rideSha256, sha3224, sha3256, sha3384, sha3512, sha384, sha512, sponsorship, checkedStringDataEntry, unit, up, addressFromPublicKey, addressFromString, contains, dropRightString, dropRightBytes, extract, bytesFromArrayByIndex, booleanFromArrayByIndex, intFromArrayByIndex, stringFromArrayByIndex, isDefined, parseIntValue, takeRightString, takeRightBytes, throw0, value, valueOrElse, valueOrErrorMessage, wavesBalanceV4}
 
@@ -57,4 +73,12 @@ func functionsV4(id int) rideFunction {
 		return nil
 	}
 	return _functions_V4[id]
+}
+func checkFunctionV4(name string) (byte, bool) {
+	for i := 0; i <= 180; i++ {
+		if _names_V4[_index_V4[i]:_index_V4[i+1]] == name {
+			return byte(i), true
+		}
+	}
+	return 0, false
 }

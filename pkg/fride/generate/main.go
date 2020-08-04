@@ -249,6 +249,13 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string) {
 	sb.WriteString("return nil\n")
 	sb.WriteString("}\n")
 	sb.WriteString(fmt.Sprintf("return _functions_%s[id]\n}\n", ver))
+	sb.WriteString(fmt.Sprintf("func checkFunction%s(name string) (byte, bool) {\n", ver))
+	sb.WriteString(fmt.Sprintf("for i := 0; i <= %d; i++ {\n", len(keys)-1))
+	sb.WriteString(fmt.Sprintf("if _names_%s[_index_%s[i]:_index_%s[i+1]] == name {\n", ver, ver, ver))
+	sb.WriteString("return byte(i), true\n")
+	sb.WriteString("}\n}\n")
+	sb.WriteString("return 0, false\n")
+	sb.WriteString("}\n")
 }
 
 func main() {
