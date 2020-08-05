@@ -83,6 +83,13 @@ func (s *Server) GetBlockRange(req *g.BlockRangeRequest, srv g.BlocksApi_GetBloc
 			return true
 		}
 	}
+	stateHeight, err := s.state.Height()
+	if err != nil {
+		return status.Errorf(codes.Internal, err.Error())
+	}
+	if req.ToHeight > uint32(stateHeight) {
+		req.ToHeight = uint32(stateHeight)
+	}
 	for height := proto.Height(req.FromHeight); height <= proto.Height(req.ToHeight); height++ {
 		block, err := s.headerOrBlockByHeight(height, req.IncludeTransactions)
 		if err != nil {
