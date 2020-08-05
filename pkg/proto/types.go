@@ -2499,7 +2499,10 @@ type ScriptInfo struct {
 	Complexity uint64
 }
 
-func (s ScriptInfo) ToProtobuf() *pb.ScriptData {
+func (s *ScriptInfo) ToProtobuf() *pb.ScriptData {
+	if s == nil {
+		return &pb.ScriptData{}
+	}
 	return &pb.ScriptData{
 		ScriptBytes: s.Bytes,
 		ScriptText:  s.Base64,
