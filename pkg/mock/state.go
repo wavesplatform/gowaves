@@ -1005,17 +1005,17 @@ func (mr *MockStateModifierMockRecorder) RollbackTo(removalEdge interface{}) *go
 }
 
 // ValidateNextTx mocks base method
-func (m *MockStateModifier) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, checkScripts bool) error {
+func (m *MockStateModifier) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts)
+	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx
-func (mr *MockStateModifierMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts interface{}) *gomock.Call {
+func (mr *MockStateModifierMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockStateModifier)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockStateModifier)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
 }
 
 // ResetValidationList mocks base method
@@ -1138,17 +1138,17 @@ func (m *MockTxValidation) EXPECT() *MockTxValidationMockRecorder {
 }
 
 // ValidateNextTx mocks base method
-func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, checkScripts bool) error {
+func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts)
+	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx
-func (mr *MockTxValidationMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts interface{}) *gomock.Call {
+func (mr *MockTxValidationMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockTxValidation)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockTxValidation)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
 }
 
 // MockState is a mock of State interface
@@ -2040,17 +2040,17 @@ func (mr *MockStateMockRecorder) RollbackTo(removalEdge interface{}) *gomock.Cal
 }
 
 // ValidateNextTx mocks base method
-func (m *MockState) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, checkScripts bool) error {
+func (m *MockState) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts)
+	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx
-func (mr *MockStateMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) ValidateNextTx(tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockState)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, checkScripts)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockState)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
 }
 
 // ResetValidationList mocks base method

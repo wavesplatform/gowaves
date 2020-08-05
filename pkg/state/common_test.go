@@ -88,7 +88,6 @@ func defaultAppendTxParams(t *testing.T) *appendTxParams {
 		checkerInfo:    defaultCheckerInfo(t),
 		blockInfo:      defaultBlockInfo(),
 		block:          defaultBlock(),
-		checkScripts:   true,
 		acceptFailed:   false,
 		validatingUtx:  false,
 		initialisation: false,

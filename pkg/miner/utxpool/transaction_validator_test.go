@@ -28,7 +28,6 @@ func TestValidatorImpl_Validate(t *testing.T) {
 	v := NewValidator(m, tm(now))
 
 	m.EXPECT().TopBlock().Return(emptyBlock)
-	m.EXPECT().IsActivated(gomock.Any()).Return(false, nil)
 	m.EXPECT().
 		TxValidation(gomock.Any())
 

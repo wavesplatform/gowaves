@@ -44,11 +44,6 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
 
-	checkScripts, err := needToCheckScriptsInUtx(a.state)
-	if err != nil {
-		return nil, err
-	}
-
 	_ = a.state.Map(func(s state.NonThreadSafeState) error {
 		defer s.ResetValidationList()
 
@@ -57,7 +52,7 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 			if t == nil {
 				break
 			}
-			err := s.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, checkScripts)
+			err := s.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
 			if state.IsTxCommitmentError(err) {
 				// This should not happen in practice.
 				// Reset state, return applied transactions to UTX.

@@ -2,7 +2,6 @@ package utxpool
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
@@ -48,20 +47,4 @@ type stateWrapper interface {
 	TxValidation(func(validation state.TxValidation) error) error
 	Map(func(state state.NonThreadSafeState) error) error
 	IsActivated(featureID int16) (bool, error)
-}
-
-func needToCheckScriptsInUtx(st stateWrapper) (bool, error) {
-	// By default, we should check all scripts when validating UTX.
-	checkScripts := true
-	acceptFailed, err := st.IsActivated(int16(settings.BlockV5))
-	if err != nil {
-		return false, err
-	}
-	if acceptFailed {
-		// If accept transactions with failed script result feature is on,
-		// we should not check scripts on Exchange and Invoke transactions.
-		// We will only check them while mining.
-		checkScripts = false
-	}
-	return checkScripts, nil
 }
