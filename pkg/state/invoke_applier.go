@@ -486,6 +486,8 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		ia.invokeDiffStor.invokeDiffsStor.reset()
 	}()
 
+	// If BlockV5 feature is not activated, we never accept failed transactions.
+	info.acceptFailed = info.blockV5Activated && info.acceptFailed
 	// Check sender script, if any.
 	if info.senderScripted {
 		if err := ia.sc.callAccountScriptWithTx(tx, info.blockInfo, info.initialisation); err != nil {

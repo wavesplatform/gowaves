@@ -577,6 +577,8 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 	if !ok {
 		return nil, errors.New("failed to convert transaction to Exchange")
 	}
+	// If BlockV5 feature is not activated, we never accept failed transactions.
+	info.acceptFailed = info.blockV5Activated && info.acceptFailed
 	scriptsRuns := uint64(0)
 	// At first, we call accounts and orders scripts which must not fail.
 	if info.senderScripted {
