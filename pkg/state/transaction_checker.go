@@ -1011,17 +1011,24 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, err
 	}
+	senderAddr, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
 	if len(tx.Script) == 0 {
 		// No script checks / actions are needed.
+		if err := tc.stor.scriptsComplexity.saveComplexityForAddr(
+			senderAddr,
+			&accountScriptComplexityRecord{},
+			info.blockID,
+		); err != nil {
+			return nil, err
+		}
 		return nil, nil
 	}
 	scriptInf, err := tc.checkScript(tx.Script, tc.estimatorVersion(info))
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
-	}
-	senderAddr, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
-	if err != nil {
-		return nil, err
 	}
 	// Save complexity to storage so we won't have to calculate it every time the script is called.
 	if err := tc.stor.scriptsComplexity.saveComplexityForAddr(
