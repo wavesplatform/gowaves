@@ -51,10 +51,7 @@ func (s *Server) GetScript(ctx context.Context, req *g.AccountRequest) (*g.Scrip
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
-	scriptInfo, err := s.state.ScriptInfoByAccount(rcp)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, err.Error())
-	}
+	scriptInfo, _ := s.state.ScriptInfoByAccount(rcp)
 	return scriptInfo.ToProtobuf(), nil
 }
 
