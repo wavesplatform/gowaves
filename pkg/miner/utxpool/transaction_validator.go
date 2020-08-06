@@ -32,12 +32,8 @@ func (a *ValidatorImpl) Validate(t proto.Transaction) error {
 	if currentTimestamp-lastKnownBlock.Timestamp > DELTA {
 		return errors.New("state outdated, transaction not accepted")
 	}
-	checkScripts, err := needToCheckScriptsInUtx(a.state)
-	if err != nil {
-		return err
-	}
 	return a.state.TxValidation(func(validation state.TxValidation) error {
-		return validation.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, checkScripts)
+		return validation.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
 	})
 }
 

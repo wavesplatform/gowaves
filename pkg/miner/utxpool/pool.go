@@ -75,6 +75,10 @@ func (a *UtxImpl) Add(t proto.Transaction) error {
 	return a.addWithBytes(t, bts)
 }
 
+// TODO: add flag here to distinguish adding using API and accepting
+// through the network from other nodes.
+// When API is used, we should check all scripts completely.
+// When adding from the network, only free complexity limit is checked.
 func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()

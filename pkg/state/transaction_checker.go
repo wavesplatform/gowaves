@@ -1124,6 +1124,10 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 	if err != nil {
 		return nil, err
 	}
+	assets := &txAssets{feeAsset: tx.FeeAsset, smartAssets: smartAssets}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, err
+	}
 	return smartAssets, nil
 }
 

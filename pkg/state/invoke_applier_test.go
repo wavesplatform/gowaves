@@ -651,6 +651,7 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 
 	info := to.fallibleValidationParams(t)
 	info.acceptFailed = true
+	info.blockV5Activated = true
 	to.setDApp(t, "ride4_asset.base64", testGlobal.recipientInfo)
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
