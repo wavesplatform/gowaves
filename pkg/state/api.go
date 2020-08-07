@@ -156,10 +156,9 @@ type StateModifier interface {
 	// -------------------------
 	// ValidateNextTx() validates transaction against state, taking into account all the previous changes from transactions
 	// that were added using ValidateNextTx() until you call ResetValidationList().
-	// checkScripts specifies if scripts for Exchange and Invoke transactions should be checked.
 	// Returns TxCommitmentError or other state error or nil.
 	// When TxCommitmentError is returned, state MUST BE cleared using ResetValidationList().
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, checkScripts bool) error
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error
 	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
 	ResetValidationList()
 
@@ -184,7 +183,7 @@ type StateModifier interface {
 type NonThreadSafeState = State
 
 type TxValidation interface {
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, checkScripts bool) error
+	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error
 }
 
 type State interface {

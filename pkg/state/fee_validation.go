@@ -149,11 +149,15 @@ func newTxCosts(smartAssets, smartAccounts uint64) *txCosts {
 
 // toString is mostly added for integration tests compatibility with Scala.
 func (tc *txCosts) toString() string {
-	str := ""
+	if tc.smartAccounts == 0 && tc.smartAssets == 0 {
+		return ""
+	}
+	str := "State check failed. Reason: "
 	if tc.smartAccounts > 0 {
-		str = fmt.Sprintf("State check failed. Reason: Transaction sent from smart account. Requires %d extra fee.", tc.smartAccountsFee)
-	} else if tc.smartAssets > 0 {
-		str = fmt.Sprintf("State check failed. Reason: Transaction involves %d scripted assets. Requires %d extra fee.", tc.smartAssets, tc.smartAssetsFee)
+		str += fmt.Sprintf("Transaction sent from smart account. Requires %d extra fee. ", tc.smartAccountsFee)
+	}
+	if tc.smartAssets > 0 {
+		str += fmt.Sprintf("Transaction involves %d scripted assets. Requires %d extra fee.", tc.smartAssets, tc.smartAssetsFee)
 	}
 	return str
 }

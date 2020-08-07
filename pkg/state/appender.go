@@ -370,7 +370,6 @@ type appendTxParams struct {
 	checkerInfo      *checkerInfo
 	blockInfo        *proto.BlockInfo
 	block            *proto.BlockHeader
-	checkScripts     bool
 	acceptFailed     bool
 	blockV5Activated bool
 	validatingUtx    bool
@@ -508,7 +507,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			checkerInfo:      checkerInfo,
 			blockInfo:        blockInfo,
 			block:            params.block,
-			checkScripts:     true,
 			acceptFailed:     blockV5Activated,
 			blockV5Activated: blockV5Activated,
 			validatingUtx:    false,
@@ -555,7 +553,8 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 	}
 	res, err := a.ia.applyInvokeScript(invokeTx, info)
 	if err != nil {
-		return nil, errors.Errorf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
+		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
+		return nil, err
 	}
 	return res, nil
 }
@@ -578,6 +577,8 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 	if !ok {
 		return nil, errors.New("failed to convert transaction to Exchange")
 	}
+	// If BlockV5 feature is not activated, we never accept failed transactions.
+	info.acceptFailed = info.blockV5Activated && info.acceptFailed
 	scriptsRuns := uint64(0)
 	// At first, we call accounts and orders scripts which must not fail.
 	if info.senderScripted {
@@ -639,11 +640,6 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 	if err != nil {
 		return nil, err
 	}
-	if !info.checkScripts {
-		// There is special mode for UTX validation when we don't check any scripts which might fail.
-		// Instead, we just return failed balance diff here.
-		return &applicationResult{false, scriptsRuns, failedChanges}, nil
-	}
 	// Check smart assets' scripts.
 	for _, smartAsset := range txSmartAssets {
 		res, err := a.sc.callAssetScript(tx, smartAsset, info.blockInfo, info.initialisation, info.acceptFailed)
@@ -684,7 +680,7 @@ func (a *txAppender) handleFallible(tx proto.Transaction, info *fallibleValidati
 }
 
 // For UTX validation.
-func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, checkScripts bool) error {
+func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, acceptFailed bool) error {
 	// TODO: Doesn't work correctly if miner doesn't work in NG mode.
 	// In this case it returns the last block instead of what is being mined.
 	block, err := a.currentBlock()
@@ -712,8 +708,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		checkerInfo:      checkerInfo,
 		blockInfo:        blockInfo,
 		block:            block,
-		checkScripts:     checkScripts,
-		acceptFailed:     blockV5Activated,
+		acceptFailed:     acceptFailed,
 		blockV5Activated: blockV5Activated,
 		validatingUtx:    true,
 		initialisation:   false,

@@ -88,10 +88,9 @@ func (a *MicroMiner) Micro(
 			}
 
 			// In miner we pack transactions from UTX into new block.
-			// We should always check all scripts here, even after
-			// activation of accepting transactions with failed scripts.
-			checkScripts := true
-			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, checkScripts)
+			// We should accept failed transactions here.
+			acceptFailed := true
+			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, acceptFailed)
 			if state.IsTxCommitmentError(err) {
 				// This should not happen in practice.
 				// Reset state, tx count, return applied transactions to UTX.

@@ -486,6 +486,8 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		ia.invokeDiffStor.invokeDiffsStor.reset()
 	}()
 
+	// If BlockV5 feature is not activated, we never accept failed transactions.
+	info.acceptFailed = info.blockV5Activated && info.acceptFailed
 	// Check sender script, if any.
 	if info.senderScripted {
 		if err := ia.sc.callAccountScriptWithTx(tx, info.blockInfo, info.initialisation); err != nil {
@@ -533,11 +535,6 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if err != nil {
 		return nil, err
 	}
-	if !info.checkScripts {
-		// Special mode when we don't check any fallible scripts.
-		res := &invocationResult{failed: true, changes: failedChanges}
-		return ia.handleInvocationResult(tx, info, res)
-	}
 	// Call script function.
 	ok, scriptActions, err := ia.sc.invokeFunction(script, tx, info.blockInfo, *scriptAddr, info.initialisation)
 	if !ok {
@@ -554,6 +551,9 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
 	scriptRuns := uint64(len(paymentSmartAssets)) + actionScriptRuns
+	if info.senderScripted {
+		scriptRuns += 1
+	}
 	var res invocationResult
 	code, changes, err := ia.fallibleValidation(tx, &addlInvokeInfo{
 		fallibleValidationParams: info,
@@ -647,7 +647,7 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 	}
 	if wavesFee < minWavesFee {
 		feeAssetStr := tx.FeeAsset.String()
-		return errors.Errorf("Fee in %s for InvokeScriptTransaction (%d in %s) with %d total scripts invoked does not exceed minimal value of %d WAVES", feeAssetStr, tx.Fee, feeAssetStr, scriptRuns, minWavesFee)
+		return errs.NewFeeValidation(fmt.Sprintf("Fee in %s for InvokeScriptTransaction (%d in %s) with %d total scripts invoked does not exceed minimal value of %d WAVES", feeAssetStr, tx.Fee, feeAssetStr, scriptRuns, minWavesFee))
 	}
 	return nil
 }
