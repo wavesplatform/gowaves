@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -149,6 +151,19 @@ const (
 type TransactionTypeInfo struct {
 	Type         TransactionType
 	ProofVersion TransactionProofVersion
+}
+
+func (a TransactionTypeInfo) String() string {
+	sb := strings.Builder{}
+	switch a.Type {
+	case TransferTransaction:
+		sb.WriteString("TransferTransaction")
+	default:
+		sb.WriteString(strconv.Itoa(int(a.Type)))
+	}
+	sb.WriteString(" ")
+	sb.WriteString(strconv.Itoa(int(a.ProofVersion)))
+	return sb.String()
 }
 
 // Transaction is a set of common transaction functions.

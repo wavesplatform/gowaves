@@ -509,7 +509,7 @@ func (tc *transactionChecker) checkBurn(tx *proto.Burn, info *checkerInfo) error
 	// Check burn amount.
 	quantityDiff := big.NewInt(int64(tx.Amount))
 	if assetInfo.quantity.Cmp(quantityDiff) == -1 {
-		return errs.NewTxValidationError("trying to burn more assets than exist at all")
+		return errs.NewAccountBalanceError("trying to burn more assets than exist at all")
 	}
 	return nil
 }

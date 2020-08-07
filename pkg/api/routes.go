@@ -27,6 +27,7 @@ func (a *NodeApi) routes() chi.Router {
 	r.Get("/blocks/generators", a.BlocksGenerators)
 	r.Post("/blocks/rollback", RollbackToHeight(a.app))
 	r.Get("/pool/transactions", a.poolTransactions)
+	r.Get("/transactions/unconfirmed/size", a.unconfirmedSize)
 	r.Route("/peers", func(r chi.Router) {
 		r.Get("/known", a.PeersAll)
 		r.Get("/connected", a.PeersConnected)
