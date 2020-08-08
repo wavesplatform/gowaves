@@ -146,6 +146,14 @@ func NewAddressFromString(s string) (Address, error) {
 	return a, nil
 }
 
+func MustAddressFromString(s string) Address {
+	a, err := NewAddressFromString(s)
+	if err != nil {
+		panic(err.Error())
+	}
+	return a
+}
+
 // NewAddressFromBytes creates an Address from the slice of bytes and checks that the result address is valid address.
 func NewAddressFromBytes(b []byte) (Address, error) {
 	var a Address

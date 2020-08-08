@@ -51,6 +51,7 @@ func BuildScript(r *BytesReader) (*Script, error) {
 	//r2.Next()
 	errer := transpiler.ErrImpl{}
 	err = transpiler.BuildCode(r2, transpiler.NewInitial(b, &errer))
+	zap.S().Debugf("BUILD CODE!!!!!")
 	vmCode := b.Code()
 	if err != nil {
 		vmCode = nil

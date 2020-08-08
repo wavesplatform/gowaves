@@ -281,7 +281,7 @@ func defaultScope() *Scope {
 		"103":  GteLong,
 		"0":    Eq,
 	}
-	return NewScope(fns, map[string]ast.Expr{"nil": ast.NewExprs()}, 'I')
+	return NewScope(nil, fns, map[string]ast.Expr{"nil": ast.NewExprs()}, 'I')
 }
 
 func TestVm_PutStringOnStack(t *testing.T) {
@@ -316,7 +316,7 @@ func BenchmarkVmRun(b *testing.B) {
 	fncs := map[string]Func{
 		"103": GteLong,
 	}
-	scope := NewScope(fncs, nil, 'I')
+	scope := NewScope(nil, fncs, nil, 'I')
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -359,7 +359,7 @@ func TestMatchSimpleCase(t *testing.T) {
 	v = v.Bool(true)
 	v = v.Bool(false)
 
-	ok, err := EvaluateExpressionAsBoolean(b.Code(), NewScope(nil, nil, 'I'))
+	ok, err := EvaluateExpressionAsBoolean(b.Code(), NewScope(nil, nil, nil, 'I'))
 	require.NoError(t, err)
 	require.Equal(t, true, ok)
 }

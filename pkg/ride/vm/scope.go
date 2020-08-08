@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	//"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 )
 
@@ -11,6 +12,7 @@ type Scope struct {
 	fns        map[string]Func
 	calculated map[string]ast.Expr
 	scheme     byte
+	state      types.SmartState
 }
 
 func merge(x map[string]ast.Expr, y map[string]ast.Expr) map[string]ast.Expr {
@@ -24,13 +26,17 @@ func merge(x map[string]ast.Expr, y map[string]ast.Expr) map[string]ast.Expr {
 	return out
 }
 
-func NewScope(fns map[string]Func, calculated map[string]ast.Expr, scheme byte) *Scope {
-	return &Scope{fns: fns, calculated: calculated, scheme: scheme}
+func NewScope(state types.SmartState, fns map[string]Func, calculated map[string]ast.Expr, scheme byte) *Scope {
+	return &Scope{fns: fns, calculated: calculated, scheme: scheme, state: state}
 }
 
 func (a *Scope) AddTransaction(tx ast.Object) {
-	a.calculated["tx"] = tx
+	a.calculated["tx"] = ast.NewObject(tx)
 	a.calculated["txId"] = tx["id"]
+}
+
+func (a *Scope) SetHeight(height proto.Height) {
+	a.calculated["height"] = ast.NewLong(int64(height))
 }
 
 func (a *Scope) Call(name string, s *Stack) error {
@@ -38,7 +44,7 @@ func (a *Scope) Call(name string, s *Stack) error {
 	if !ok {
 		return errors.Errorf("function named '%s' not found", name)
 	}
-	err := fn(s)
+	err := fn(NewContext(s, nil, a.scheme))
 	if err != nil {
 		return errors.Wrap(err, name)
 	}
@@ -59,10 +65,10 @@ func (a *Scope) Calculated(name string) (value ast.Expr, exists bool) {
 	return v, ok
 }
 
-func BuildScope(scheme proto.Scheme, version int) *Scope {
+func BuildScope(state types.SmartState, scheme proto.Scheme, version int) *Scope {
 
 	vars, funcs := expressionsV1()
-	return NewScope(funcs, vars, scheme)
+	return NewScope(state, funcs, vars, scheme)
 
 	//var v func(int) bool
 	//switch version {
@@ -106,10 +112,14 @@ func functionsV2() map[string]Func {
 		"0":       Eq,
 		"1":       IsInstanceOf,
 		"2":       NativeThrow,
+		"100":     NativeSumLong,
 		"1100":    NativeCreateList,
+		"400":     NativeSizeList,
 		"401":     NativeGetList,
 		"500":     SigVerifyV2,
 		"103":     GteLong,
 		"$getter": GetterFn,
+		"Address": UserAddress,
+		"1050":    NativeDataIntegerFromState,
 	}
 }

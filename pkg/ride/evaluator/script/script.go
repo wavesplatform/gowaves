@@ -153,8 +153,9 @@ func (a *Script) Verify(scheme byte, state types.SmartState, object map[string]a
 		scope.SetHeight(height)
 
 		if a.Version == 1 && len(a.VmCode) > 0 {
-			vmScope := vm.BuildScope(scheme, a.Version)
+			vmScope := vm.BuildScope(state, scheme, a.Version)
 			vmScope.AddTransaction(object)
+			vmScope.SetHeight(height)
 			rs, err := vm.EvaluateExpressionAsBoolean(a.VmCode, vmScope)
 			//if err != nil {
 			zap.S().Debugf("EvaluateExpressionAsBoolean: %v, %s", rs, err)

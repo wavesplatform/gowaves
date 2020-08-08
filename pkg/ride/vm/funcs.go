@@ -6,18 +6,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
-	"go.uber.org/zap"
 )
-
-type Context interface {
-	Pop() ast.Expr
-	Push(value ast.Expr)
-	//Scheme() byte
-}
-
-type ContextImpl struct {
-}
 
 //func withLong(expr ast.Expr, f func(l int64) error) error {
 
@@ -30,6 +21,7 @@ type ContextImpl struct {
 //
 //}
 
+// expects f looks like `func(x int64) error`
 func with(s Context, f interface{}) error {
 	v := reflect.ValueOf(f)
 	x := v.Type()
@@ -41,13 +33,21 @@ func with(s Context, f interface{}) error {
 	for i := x.NumIn() - 1; i >= 0; i-- {
 		inV := x.In(i)
 		value := s.Pop()
+		if value == nil {
+			return errors.Errorf("with: empty stack")
+		}
+		// TODO check outher types
 		switch inV.Kind() {
 		case reflect.Int64:
 			args[i] = reflect.ValueOf(value.(*ast.LongExpr).Value)
 		case reflect.Bool:
 			args[i] = reflect.ValueOf(value.(*ast.BooleanExpr).Value)
 		case reflect.String:
-			args[i] = reflect.ValueOf(value.(*ast.StringExpr).Value)
+			v, ok := value.(*ast.StringExpr)
+			if !ok {
+				return errors.Errorf("with: expected '%d' argument to be *ast.StringExpr, found %T", i, value)
+			}
+			args[i] = reflect.ValueOf(v.Value)
 		case reflect.Interface:
 			args[i] = reflect.ValueOf(value)
 		case reflect.Slice: // []byte
@@ -127,37 +127,90 @@ func Neq(s Context) error {
 
 func IsInstanceOf(s Context) error {
 	return with(s, func(first ast.Expr, second string) error {
-		zap.S().Debugf("called `IsInstanceOf` with first argument %T, second %s", first, second)
 		s.Push(ast.NewBoolean(first.InstanceOf() == second))
 		return nil
 	})
 }
 
-// Decode account address
-func UserAddressFromString(s Context) error {
-	str := s.Pop().(*ast.StringExpr).Value
-	//proto.NewAddressFromString(str)
-
-	//rs, err := e[0].Evaluate(s)
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "UserAddressFromString")
+// Size of list
+func NativeSizeList(s Context) error {
+	const funcName = "NativeSizeList"
+	//if l := len(e); l != 1 {
+	//	return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
 	//}
-	//str, ok := rs.(*StringExpr)
-	//if !ok {
-	//	return nil, errors.Errorf("UserAddressFromString: expected first argument to be *StringExpr, found %T", rs)
-	//}
-	addr, err := ast.NewAddressFromString(str)
-	if err != nil {
-		s.Push(ast.NewUnit())
+	e := s.Pop()
+	// optimize not evaluate inner list
+	if v, ok := e.(ast.Exprs); ok {
+		s.Push(ast.NewLong(int64(len(v))))
 		return nil
 	}
-	// TODO return this back
-	//if addr[1] != s.Scheme() {
-	//	return NewUnit(), nil
+	return errors.Errorf("%s: expected first argument to be ast.Expr, got %T", funcName, e)
+	//rs, err := e[0].Evaluate(s)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, funcName)
 	//}
-	s.Push(addr)
-	return nil
+	//lst, ok := rs.(Exprs)
+	//if !ok {
+	//	return nil, errors.Errorf("%s: expected first argument Exprs, got %T", funcName, rs)
+	//}
+	//return NewLong(int64(len(lst))), nil
 }
+
+// type constructor
+func UserAddress(s Context) error {
+	//const funcName = "UserAddress"
+	return with(s, func(value []byte) error {
+		addr, err := proto.NewAddressFromBytes(value)
+		if err != nil {
+			s.Push(&ast.InvalidAddressExpr{Value: value})
+			return nil
+		}
+		s.Push(ast.NewAddressFromProtoAddress(addr))
+		return nil
+	})
+	//if l := len(e); l != 1 {
+	//	return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	//}
+	//first = s.Pop()
+	////if err != nil {
+	////	return nil, errors.Wrap(err, funcName)
+	////}
+	//bts, ok := first.(*BytesExpr)
+	//if !ok {
+	//	return nil, errors.Errorf("%s: first argument expected to be *BytesExpr, found %T", funcName, first)
+	//}
+	//addr, err := proto.NewAddressFromBytes(bts.Value)
+	//if err != nil {
+	//	return &ast.InvalidAddressExpr{Value: bts.Value}, nil
+	//}
+	//return NewAddressFromProtoAddress(addr), nil
+}
+
+//// Decode account address
+//func UserAddressFromString(s Context) error {
+//	str := s.Pop().(*ast.StringExpr).Value
+//	//proto.NewAddressFromString(str)
+//
+//	//rs, err := e[0].Evaluate(s)
+//	//if err != nil {
+//	//	return nil, errors.Wrap(err, "UserAddressFromString")
+//	//}
+//	//str, ok := rs.(*StringExpr)
+//	//if !ok {
+//	//	return nil, errors.Errorf("UserAddressFromString: expected first argument to be *StringExpr, found %T", rs)
+//	//}
+//	addr, err := ast.NewAddressFromString(str)
+//	if err != nil {
+//		s.Push(ast.NewUnit())
+//		return nil
+//	}
+//	// TODO return this back
+//	//if addr[1] != s.Scheme() {
+//	//	return NewUnit(), nil
+//	//}
+//	s.Push(addr)
+//	return nil
+//}
 
 func NativeCreateList(s Context) error {
 	const funcName = "NativeCreateList"
@@ -311,3 +364,77 @@ func SigVerifyV2(s Context) error {
 //		*/
 //	}
 //}
+
+func extractRecipient(e ast.Expr) (proto.Recipient, error) {
+	var r proto.Recipient
+	switch a := e.(type) {
+	case *ast.AddressExpr:
+		r = proto.NewRecipientFromAddress(proto.Address(*a))
+	case *ast.AliasExpr:
+		r = proto.NewRecipientFromAlias(proto.Alias(*a))
+	case *ast.RecipientExpr:
+		r = proto.Recipient(*a)
+	default:
+		return proto.Recipient{}, errors.Errorf("expected to be AddressExpr or AliasExpr, found %T", e)
+	}
+	return r, nil
+}
+
+func extractRecipientAndKey(s Context) (proto.Recipient, string, error) {
+	//if l := len(e); l != 2 {
+	//	return proto.Recipient{}, "", errors.Errorf("invalid params, expected 2, passed %d", l)
+	//}
+
+	second := s.Pop()
+	first := s.Pop()
+	//if err != nil {
+	//	return proto.Recipient{}, "", err
+	//}
+	r, err := extractRecipient(first)
+	if err != nil {
+		return proto.Recipient{}, "", errors.Errorf("first argument %v", err)
+	}
+
+	//if err != nil {
+	//	return proto.Recipient{}, "", err
+	//}
+	key, ok := second.(*ast.StringExpr)
+	if !ok {
+		return proto.Recipient{}, "", errors.Errorf("second argument expected to be *StringExpr, found %T", second)
+	}
+	return r, key.Value, nil
+}
+
+// Get integer from account state
+func NativeDataIntegerFromState(s Context) error {
+	r, k, err := extractRecipientAndKey(s)
+	if err != nil {
+		return s.Push(ast.NewUnit())
+	}
+	entry, err := s.State().RetrieveNewestIntegerEntry(r, k)
+	if err != nil {
+		return s.Push(ast.NewUnit())
+	}
+	return s.Push(ast.NewLong(entry.Value))
+}
+
+// Decode account address
+func UserAddressFromString(s Context) error {
+	return with(s, func(value string) error {
+		addr, err := ast.NewAddressFromString(value)
+		if err != nil {
+			return s.Push(ast.NewUnit())
+		}
+		if addr[1] != s.Scheme() {
+			return s.Push(ast.NewUnit())
+		}
+		return s.Push(addr)
+	})
+}
+
+// Integer sum
+func NativeSumLong(s Context) error {
+	return with(s, func(i int64, i2 int64) error {
+		return s.Push(ast.NewLong(i + i2))
+	})
+}

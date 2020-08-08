@@ -21,6 +21,9 @@ func (a *Stack) PushL(i int64) {
 }
 
 func (a *Stack) Pop() ast.Expr {
+	if len(a.stack) == 0 {
+		return nil
+	}
 	last := a.stack[len(a.stack)-1]
 	a.stack = a.stack[:len(a.stack)-1]
 	return last
