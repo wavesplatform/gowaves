@@ -2,7 +2,9 @@ package vm
 
 import (
 	"reflect"
+	"strconv"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -489,6 +491,13 @@ func NativeSubLong(s Context) error {
 	})
 }
 
+// Integer multiplication
+func NativeMulLong(s Context) error {
+	return with(s, func(i int64, i2 int64) error {
+		return s.Push(ast.NewLong(i * i2))
+	})
+}
+
 // Integer division
 func NativeDivLong(s Context) error {
 	return with(s, func(x int64, y int64) error {
@@ -577,5 +586,129 @@ func NativeAssetBalanceV3(s Context) error {
 		}
 		return s.Push(ast.NewLong(int64(balance)))
 	})
+}
 
+func UserAddressFromPublicKey(s Context) error {
+	const funcName = "UserAddressFromPublicKey"
+	return with(s, func(val []byte) error {
+		addr, err := proto.NewAddressLikeFromAnyBytes(s.Scheme(), val)
+		if err != nil {
+			return s.Push(ast.NewUnit())
+		}
+		return s.Push(ast.NewAddressFromProtoAddress(addr))
+	})
+}
+
+func dataFromArray(s Context) error {
+	return with(s, func(first ast.Expr, second ast.Expr) error {
+		lst, ok := first.(ast.Exprs)
+		if !ok {
+			return errors.Errorf("expected first argument to be *Exprs, found %T", first)
+		}
+		key, ok := second.(*ast.StringExpr)
+		if !ok {
+			return errors.Errorf("expected second argument to be *StringExpr, found %T", second)
+		}
+		for i, e := range lst {
+			item, ok := e.(ast.Getable)
+			if !ok {
+				return errors.Errorf("unexpected list element of type %T", e)
+			}
+			k, err := item.Get("key")
+			if err != nil {
+				return errors.Wrapf(err, "%dth element doesn't have 'key' field", i)
+			}
+			if key.Eq(k) {
+				v, err := item.Get("value")
+				if err != nil {
+					return errors.Wrapf(err, "%dth element doesn't have 'value' field", i)
+				}
+				return s.Push(v)
+			}
+		}
+		return s.Push(ast.NewUnit())
+	})
+}
+
+// Get integer from data of DataTransaction
+func NativeDataIntegerFromArray(s Context) error {
+	err := dataFromArray(s)
+	if err != nil {
+		return errors.Wrap(err, "NativeDataIntegerFromArray")
+	}
+	d := s.Pop()
+	_, ok := d.(*ast.LongExpr)
+	if !ok {
+		return s.Push(ast.NewUnit())
+	}
+	return s.Push(d)
+}
+
+// Base58 decode
+func NativeFromBase58(s Context) error {
+	const funcName = "NativeFromBase58"
+	return with(s, func(val string) error {
+		if val == "" {
+			return s.Push(ast.NewBytes(nil))
+		}
+		rs, err := base58.Decode(val)
+		if err != nil {
+			return errors.Wrap(err, funcName)
+		}
+		return s.Push(ast.NewBytes(rs))
+	})
+
+	//if l := len(e); l != 1 {
+	//	return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	//}
+	//first, err := e[0].Evaluate(s)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, funcName)
+	//}
+	//str, ok := first.(*StringExpr)
+	//if !ok {
+	//	return nil, errors.Errorf("%s: expected first argument to be *StringExpr, found %T", funcName, first)
+	//}
+	//if str.Value == "" {
+	//	return NewBytes(nil), nil
+	//}
+	//rs, err := base58.Decode(str.Value)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, funcName)
+	//}
+	//return NewBytes(rs), nil
+}
+
+// String representation
+func NativeLongToString(s Context) error {
+	return with(s, func(i int64) error {
+		return s.Push(ast.NewString(strconv.FormatInt(i, 10)))
+	})
+	//if l := len(e); l != 1 {
+	//	return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	//}
+	//first, err := e[0].Evaluate(s)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, funcName)
+	//}
+	//long, ok := first.(*LongExpr)
+	//if !ok {
+	//	return nil, errors.Errorf("%s: expected first argument to be *LongExpr, found %T", funcName, first)
+	//}
+	//return NewString(fmt.Sprintf("%d", long.Value)), nil
+}
+
+// Base58 encode
+func NativeToBase58(s Context) error {
+	const funcName = "NativeToBase58"
+	return with(s, func(first ast.Expr) error {
+		switch arg := first.(type) {
+		case *ast.BytesExpr:
+			return s.Push(ast.NewString(base58.Encode(arg.Value)))
+		case *ast.Unit:
+			return s.Push(ast.NewString(base58.Encode(nil)))
+		default:
+			return errors.Errorf("%s: expected first argument to be *BytesExpr, found %T", funcName, first)
+		}
+	})
 }
