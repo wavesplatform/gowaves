@@ -44,7 +44,7 @@ func (a *Scope) Call(name string, s *Stack) error {
 	if !ok {
 		return errors.Errorf("function named '%s' not found", name)
 	}
-	err := fn(NewContext(s, nil, a.scheme))
+	err := fn(NewContext(s, a.state, a.scheme))
 	if err != nil {
 		return errors.Wrap(err, name)
 	}
@@ -113,13 +113,23 @@ func functionsV2() map[string]Func {
 		"1":       IsInstanceOf,
 		"2":       NativeThrow,
 		"100":     NativeSumLong,
-		"1100":    NativeCreateList,
+		"101":     NativeSubLong,
+		"102":     NativeGtLong,
+		"103":     GteLong,
+		"105":     NativeDivLong,
+		"106":     NativeModLong,
 		"400":     NativeSizeList,
 		"401":     NativeGetList,
 		"500":     SigVerifyV2,
-		"103":     GteLong,
-		"$getter": GetterFn,
-		"Address": UserAddress,
 		"1050":    NativeDataIntegerFromState,
+		"1053":    NativeDataStringFromState,
+		"1100":    NativeCreateList,
+		"$getter": GetterFn,
+
+		"Address":      UserAddress,
+		"extract":      UserExtract,
+		"isDefined":    UserIsDefined,
+		"!":            UserUnaryNot,
+		"wavesBalance": UserWavesBalanceV3,
 	}
 }

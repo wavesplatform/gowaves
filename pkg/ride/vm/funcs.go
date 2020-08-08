@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
+	"github.com/wavesplatform/gowaves/pkg/libs/jvm"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 )
@@ -285,6 +286,12 @@ func NativeThrow(s Context) error {
 	}
 }
 
+func Throw(message string) error {
+	return &ast.Throw{
+		Message: message,
+	}
+}
+
 func SigVerifyV2(s Context) error {
 	return with(s, func(data []byte, sigBytes []byte, publicKey []byte) error {
 		//if l := len(data); !s.validMessageLength(l) || limit > 0 && l > limit*1024 {
@@ -437,4 +444,138 @@ func NativeSumLong(s Context) error {
 	return with(s, func(i int64, i2 int64) error {
 		return s.Push(ast.NewLong(i + i2))
 	})
+}
+
+func NativeGtLong(s Context) error {
+	return with(s, func(i int64, i2 int64) error {
+		return s.Push(ast.NewBoolean(i > i2))
+	})
+}
+
+func UserExtract(s Context) error {
+	return with(s, func(val ast.Expr) error {
+		if val.InstanceOf() == (&ast.Unit{}).InstanceOf() {
+			return Throw("extract() called on unit value")
+		}
+		return s.Push(val)
+	})
+	//if l := len(e); l != 1 {
+	//	return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	//}
+	//val, err := e[0].Evaluate(s)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, funcName)
+	//}
+	//if val.InstanceOf() == (&Unit{}).InstanceOf() {
+	//	return NativeThrow(s, Params(NewString("extract() called on unit value")))
+	//}
+	//return val, nil
+}
+
+// Modulo
+func NativeModLong(s Context) error {
+	return with(s, func(i int64, i2 int64) error {
+		if i2 == 0 {
+			return errors.New("zero division")
+		}
+		return s.Push(ast.NewLong(jvm.ModDivision(i, i2)))
+	})
+}
+
+// Integer substitution
+func NativeSubLong(s Context) error {
+	return with(s, func(i int64, i2 int64) error {
+		return s.Push(ast.NewLong(i - i2))
+	})
+}
+
+// Integer division
+func NativeDivLong(s Context) error {
+	return with(s, func(x int64, y int64) error {
+		if y == 0 {
+			return errors.New("zero division")
+		}
+		return s.Push(ast.NewLong(jvm.FloorDiv(x, y)))
+	})
+}
+
+// Get string from account state
+func NativeDataStringFromState(s Context) error {
+	r, k, err := extractRecipientAndKey(s)
+	if err != nil {
+		return s.Push(ast.NewUnit())
+	}
+	entry, err := s.State().RetrieveNewestStringEntry(r, k)
+	if err != nil {
+		return s.Push(ast.NewUnit())
+	}
+	return s.Push(ast.NewString(entry.Value))
+}
+
+func UserIsDefined(s Context) error {
+	return with(s, func(val ast.Expr) error {
+		return s.Push(ast.NewBoolean(val.InstanceOf() != (&ast.Unit{}).InstanceOf()))
+	})
+	//const funcName = "UserIsDefined"
+	//if l := len(e); l != 1 {
+	//	return nil, errors.Errorf("%s: invalid params, expected 1, passed %d", funcName, l)
+	//}
+	//val, err := e[0].Evaluate(s)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, funcName)
+	//}
+	//if val.InstanceOf() == (&Unit{}).InstanceOf() {
+	//	return NewBoolean(false), nil
+	//}
+	//return NewBoolean(true), nil
+}
+
+func UserUnaryNot(s Context) error {
+	return with(s, func(val bool) error {
+		return s.Push(ast.NewBoolean(!val))
+	})
+}
+
+func UserWavesBalanceV3(s Context) error {
+	_ = s.Push(ast.NewUnit())
+	return NativeAssetBalanceV3(s) //, append(e, NewUnit()))
+}
+
+// Asset balance for account
+func NativeAssetBalanceV3(s Context) error {
+	const funcName = "NativeAssetBalanceV3"
+	return with(s, func(addressOrAliasExpr ast.Expr, assetId ast.Expr) error {
+		//if l := len(e); l != 2 {
+		//	return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+		//}
+		//addressOrAliasExpr, err := e[0].Evaluate(s)
+		//if err != nil {
+		//	return nil, errors.Wrap(err, funcName)
+		//}
+		r, err := extractRecipient(addressOrAliasExpr)
+		if err != nil {
+			return errors.Errorf("%s: first argument %v", funcName, err)
+		}
+		//assetId, err := e[1].Evaluate(s)
+		//if err != nil {
+		//	return nil, errors.Wrap(err, funcName)
+		//}
+		if _, ok := assetId.(*ast.Unit); ok {
+			balance, err := s.State().NewestAccountBalance(r, nil)
+			if err != nil {
+				return errors.Wrap(err, funcName)
+			}
+			return s.Push(ast.NewLong(int64(balance)))
+		}
+		assetBts, ok := assetId.(*ast.BytesExpr)
+		if !ok {
+			return errors.Errorf("%s: expected second argument to be *BytesExpr, found %T", funcName, assetId)
+		}
+		balance, err := s.State().NewestAccountBalance(r, assetBts.Value)
+		if err != nil {
+			return errors.Wrap(err, funcName)
+		}
+		return s.Push(ast.NewLong(int64(balance)))
+	})
+
 }
