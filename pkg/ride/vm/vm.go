@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/op"
+	"go.uber.org/zap"
 	//"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 )
 
@@ -44,30 +45,6 @@ func EvaluateExpression(code []byte, fns *Scope) (ast.Expr, error) {
 				return nil, errors.Errorf("Move to zero: varname %s, curpos: %d", name, r.Pos())
 			}
 			r.Move(moveTo)
-		case op.StackPushL:
-			stack.PushL(r.Long())
-		case op.StackPushS:
-			stack.Push(ast.NewString(r.String()))
-		case op.Ret:
-			to, ok := jmps.PopSafe()
-			if ok {
-				r.Jmp(to)
-			} else {
-				return stack.Pop(), nil
-			}
-		case op.JmpRef:
-			ref := r.String()
-			// first search in already computed variables
-			if v, ok := fns.Calculated(ref); ok {
-				stack.Push(v)
-				continue
-			}
-			goTo, ok := scopeVariablesAtPositions[ref]
-			if !ok {
-				return nil, errors.Errorf("ref `%s` not found in scope", ref)
-			}
-			jmps.Push(r.Pos())
-			r.Jmp(goTo)
 		case op.Call:
 			name := r.String()
 			err := fns.Call(name, stack)
@@ -82,6 +59,32 @@ func EvaluateExpression(code []byte, fns *Scope) (ast.Expr, error) {
 			//if err != nil {
 			//	return StackValue{}, errors.Wrap(err, name)
 			//}
+		case op.JmpRef:
+			ref := r.String()
+			// first search in already computed variables
+			if v, ok := fns.Calculated(ref); ok {
+				stack.Push(v)
+				continue
+			}
+			goTo, ok := scopeVariablesAtPositions[ref]
+			if !ok {
+				return nil, errors.Errorf("ref `%s` not found in scope", ref)
+			}
+			jmps.Push(r.Pos())
+			r.Jmp(goTo)
+		case op.StackPushL:
+			stack.PushL(r.Long())
+
+		case op.StackPushS:
+			stack.Push(ast.NewString(r.String()))
+		case op.Ret:
+			to, ok := jmps.PopSafe()
+			if ok {
+				r.Jmp(to)
+			} else {
+				return stack.Pop(), nil
+			}
+
 		case op.StackPushTrue:
 			stack.Push(ast.NewBoolean(true))
 		case op.StackPushFalse:
@@ -114,6 +117,10 @@ func EvaluateExpressionAsBoolean(code []byte, scope *Scope) (bool, error) {
 	rs, err := EvaluateExpression(code, scope)
 	if err != nil {
 		return false, err
+	}
+	if rs == nil {
+		zap.S().Debugf("EvaluateExpressionAsBoolean ret is null: %+v", code)
+		return false, errors.New("script result is nil")
 	}
 	return rs.(*ast.BooleanExpr).Value, nil
 }

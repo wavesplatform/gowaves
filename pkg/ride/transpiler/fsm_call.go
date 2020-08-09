@@ -18,6 +18,7 @@ func (a CallFsm) If() Fsm {
 	return IfFsmTransition(a.BaseFsm)
 }
 
+/*
 func CallFsmTransition(name []byte, argc int32, fsm BaseFsm) Fsm {
 	a := CallFsm{
 		BaseFsm: fsm,
@@ -39,4 +40,32 @@ func CallFsmTransition(name []byte, argc int32, fsm BaseFsm) Fsm {
 		}
 	}
 	return a
+}
+*/
+
+func CallFsmTransition(name []byte, argc int32, fsm BaseFsm) Fsm {
+	a := CallFsm{
+		BaseFsm: fsm,
+	}
+	if argc > 0 {
+		for i := int32(0); i < argc; i++ {
+			first := i == 0
+			if first {
+				//fsm.op.Call(name)
+				fsm.lift.Up(func() Fsm {
+					fsm.op.Call(name)
+					return fsm.lift.Down()
+				})
+			} else {
+				fsm.lift.Up(func() Fsm {
+					return a
+				})
+			}
+		}
+		return a
+	} else {
+		fsm.op.Call(name)
+		return fsm.lift.Down()
+	}
+	//return a
 }

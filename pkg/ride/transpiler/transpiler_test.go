@@ -189,3 +189,21 @@ func TestLetInLet(t *testing.T) {
 		b.Code())
 
 }
+
+func TestEmptyFunctions(t *testing.T) {
+	// let x = false
+	//if x then throw() else !true
+	//AQQAAAABeAcDBQAAAAF4CQEAAAAFdGhyb3cAAAAACQEAAAABIQAAAAEGLvqQKg==
+	b := op.NewOpCodeBuilder()
+	v := NewInitial(b)
+	v = v.Call([]byte("throw"), 0)
+
+	require.Equal(t, []byte{
+		/*call*/ op.Call, 0, 5, 't', 'h', 'r', 'o', 'w',
+		/*ret*/ op.Ret,
+		///*value*/ op.Label, 0, 1, 'y', 0, 0, 0, 18 /*value2*/, op.StackPushTrue, op.Ret, op.JmpRef, 0, 1, 'y', op.Ret,
+		//op.StackPushTrue, op.Ret,
+	},
+		b.Code())
+
+}

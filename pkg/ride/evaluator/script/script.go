@@ -155,6 +155,8 @@ func (a *Script) Verify(scheme byte, state types.SmartState, object map[string]a
 		if a.Version == 1 && len(a.VmCode) > 0 {
 			vmScope := vm.BuildScope(state, scheme, a.Version)
 			vmScope.AddTransaction(object)
+			zap.S().Debugf("object=== %+v", object)
+			zap.S().Debugf("object=== %q", object)
 			vmScope.SetHeight(height)
 			rs, err := vm.EvaluateExpressionAsBoolean(a.VmCode, vmScope)
 			if err != nil {
