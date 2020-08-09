@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"unicode/utf8"
@@ -786,4 +787,116 @@ func NativeConcatStrings(s Context) error {
 	//	return nil, errors.Errorf("%s string length %d is greater than max %d", funcName, lengthInRunes, MaxStringResult)
 	//}
 	//return NewString(out), nil
+}
+
+//// Decode account address
+//func UserAddressFromString(s Context) error {
+//	return with(s, func(val string) error {
+//		addr, err := NewAddressFromString(str.Value)
+//		if err != nil {
+//			return NewUnit(), nil
+//		}
+//		if addr[1] != s.Scheme() {
+//			return NewUnit(), nil
+//		}
+//		return addr, nil
+//	})
+//	if l := len(e); l != 1 {
+//		return nil, errors.Errorf("UserAddressFromString: invalid params, expected 1, passed %d", l)
+//	}
+//	rs, err := e[0].Evaluate(s)
+//	if err != nil {
+//		return nil, errors.Wrap(err, "UserAddressFromString")
+//	}
+//	str, ok := rs.(*StringExpr)
+//	if !ok {
+//		return nil, errors.Errorf("UserAddressFromString: expected first argument to be *StringExpr, found %T", rs)
+//	}
+//	addr, err := NewAddressFromString(str.Value)
+//	if err != nil {
+//		return NewUnit(), nil
+//	}
+//	if addr[1] != s.Scheme() {
+//		return NewUnit(), nil
+//	}
+//	return addr, nil
+//}
+
+// String to bytes representation
+func NativeStringToBytes(s Context) error {
+	return with(s, func(val string) error {
+		return s.Push(ast.NewBytes([]byte(val)))
+	})
+}
+
+func limitedKeccak256(limit int) func(ctx Context) error {
+	fn := "Keccak256"
+	if limit > 0 {
+		fn = fmt.Sprintf("%s_%dKb", fn, limit)
+	}
+	return func(s Context) error {
+		return with(s, func(val []byte) error {
+			if l := len(val); limit > 0 && l > limit {
+				return errors.Errorf("%s: invalid size of data %d bytes", fn, l)
+			}
+			d, err := crypto.Keccak256(val)
+			if err != nil {
+				return errors.Wrap(err, fn)
+			}
+			return s.Push(ast.NewBytes(d.Bytes()))
+		})
+		//if l := len(e); l != 1 {
+		//	return nil, errors.Errorf("%s: invalid number of parameters %d, expected 1", fn, l)
+		//}
+		//val, err := e[0].Evaluate(s)
+		//if err != nil {
+		//	return nil, errors.Wrapf(err, fn)
+		//}
+		//dataExpr, ok := val.(*BytesExpr)
+		//if !ok {
+		//	return nil, errors.Errorf("%s: expected first argument to be *BytesExpr, found %T", fn, val)
+		//}
+		//if l := len(dataExpr.Value); limit > 0 && l > limit {
+		//	return nil, errors.Errorf("%s: invalid size of data %d bytes", fn, l)
+		//}
+		//d, err := crypto.Keccak256(dataExpr.Value)
+		//if err != nil {
+		//	return nil, errors.Wrap(err, fn)
+		//}
+		//return NewBytes(d.Bytes()), nil
+	}
+}
+
+// Get bool from account state
+func NativeDataBooleanFromState(s Context) error {
+	r, k, err := extractRecipientAndKey(s)
+	if err != nil {
+		return s.Push(ast.NewUnit())
+	}
+	entry, err := s.State().RetrieveNewestBooleanEntry(r, k)
+	if err != nil {
+		return s.Push(ast.NewUnit())
+	}
+	return s.Push(ast.NewBoolean(entry.Value))
+}
+
+func NativeAddressFromRecipient(s Context) error {
+	const funcName = "NativeAddressFromRecipient"
+	return with(s, func(val ast.Expr) error {
+		recipient, ok := val.(*ast.RecipientExpr)
+		if !ok {
+			return errors.Errorf("%s expected first argument to be RecipientExpr, found %T", funcName, val)
+		}
+		if recipient.Address != nil {
+			return s.Push(ast.NewAddressFromProtoAddress(*recipient.Address))
+		}
+		if recipient.Alias != nil {
+			addr, err := s.State().NewestAddrByAlias(*recipient.Alias)
+			if err != nil {
+				return errors.Wrap(err, funcName)
+			}
+			return s.Push(ast.NewAddressFromProtoAddress(addr))
+		}
+		return errors.Errorf("can't get address from recipient, recipient %v", recipient)
+	})
 }

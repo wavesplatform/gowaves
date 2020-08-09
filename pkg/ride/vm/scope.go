@@ -123,14 +123,18 @@ func functionsV2() map[string]Func {
 		"400":     NativeSizeList,
 		"420":     NativeLongToString,
 		"401":     NativeGetList,
+		"411":     NativeStringToBytes,
 		"500":     SigVerifyV2,
+		"501":     limitedKeccak256(0),
 		"600":     NativeToBase58,
 		"601":     NativeFromBase58,
 		"1000":    NativeTransactionByID,
 		"1040":    NativeDataIntegerFromArray,
 		"1043":    NativeDataStringFromArray,
 		"1050":    NativeDataIntegerFromState,
+		"1051":    NativeDataBooleanFromState,
 		"1053":    NativeDataStringFromState,
+		"1060":    NativeAddressFromRecipient,
 		"1100":    NativeCreateList,
 		"$getter": GetterFn,
 
@@ -141,5 +145,6 @@ func functionsV2() map[string]Func {
 		"!=":                   UserFunctionNeq,
 		"wavesBalance":         UserWavesBalanceV3,
 		"addressFromPublicKey": UserAddressFromPublicKey,
+		"addressFromString":    UserAddressFromString,
 	}
 }
