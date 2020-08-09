@@ -157,9 +157,10 @@ func (a *Script) Verify(scheme byte, state types.SmartState, object map[string]a
 			vmScope.AddTransaction(object)
 			vmScope.SetHeight(height)
 			rs, err := vm.EvaluateExpressionAsBoolean(a.VmCode, vmScope)
-			//if err != nil {
-			zap.S().Debugf("EvaluateExpressionAsBoolean: %v, %s", rs, err)
-			//}
+			if err != nil {
+				zap.S().Debugf("EvaluateExpressionAsBoolean: %v, %s", rs, err)
+				return ast.Result{}, err
+			}
 		}
 
 		scriptrs, err := EvalAsResult(a.Verifier, scope)
@@ -205,13 +206,13 @@ func (a *Script) buildInvocation(scheme proto.Scheme, tx *proto.InvokeScriptWith
 func protoArgToArgExpr(arg proto.Argument) (ast.Expr, error) {
 	switch a := arg.(type) {
 	case *proto.IntegerArgument:
-		return &ast.LongExpr{a.Value}, nil
+		return &ast.LongExpr{Value: a.Value}, nil
 	case *proto.BooleanArgument:
-		return &ast.BooleanExpr{a.Value}, nil
+		return &ast.BooleanExpr{Value: a.Value}, nil
 	case *proto.StringArgument:
-		return &ast.StringExpr{a.Value}, nil
+		return &ast.StringExpr{Value: a.Value}, nil
 	case *proto.BinaryArgument:
-		return &ast.BytesExpr{a.Value}, nil
+		return &ast.BytesExpr{Value: a.Value}, nil
 	default:
 		return nil, errors.New("unknown argument type")
 	}

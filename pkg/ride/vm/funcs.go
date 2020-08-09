@@ -3,11 +3,11 @@ package vm
 import (
 	"reflect"
 	"strconv"
+	"unicode/utf8"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/libs/jvm"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
@@ -118,14 +118,14 @@ func GetterFn(s Context) error {
 	return nil
 }
 
-func Neq(s Context) error {
+func UserFunctionNeq(s Context) error {
 	err := Eq(s)
 	if err != nil {
 		return err
 	}
-	first := s.Pop().(*ast.BooleanExpr)
-	s.Push(ast.NewBoolean(!first.Value))
-	return nil
+	return with(s, func(v bool) error {
+		return s.Push(ast.NewBoolean(!v))
+	})
 }
 
 func IsInstanceOf(s Context) error {
@@ -302,15 +302,14 @@ func SigVerifyV2(s Context) error {
 
 		signature, err := crypto.NewSignatureFromBytes(sigBytes)
 		if err != nil {
-			return errs.Extendf(err, "bytes len: %d", len(sigBytes))
+			return s.Push(ast.NewBoolean(false)) //errs.Extendf(err, "bytes len: %d", len(sigBytes))
 		}
 		pk, err := crypto.NewPublicKeyFromBytes(publicKey)
 		if err != nil {
-			return err
+			return s.Push(ast.NewBoolean(false))
 		}
 		out := crypto.Verify(pk, signature, data)
-		s.Push(ast.NewBoolean(out))
-		return nil
+		return s.Push(ast.NewBoolean(out))
 	})
 }
 
@@ -711,4 +710,80 @@ func NativeToBase58(s Context) error {
 			return errors.Errorf("%s: expected first argument to be *BytesExpr, found %T", funcName, first)
 		}
 	})
+}
+
+// Get string from data of DataTransaction
+func NativeDataStringFromArray(s Context) error {
+	err := dataFromArray(s)
+	if err != nil {
+		return errors.Wrap(err, "NativeDataStringFromArray")
+	}
+	d := s.Pop()
+	_, ok := d.(*ast.StringExpr)
+	if !ok {
+		return s.Push(ast.NewUnit())
+	}
+	return s.Push(d)
+}
+
+// Lookup transaction
+func NativeTransactionByID(s Context) error {
+	const funcName = "NativeTransactionByID"
+	return with(s, func(val []byte) error {
+		tx, err := s.State().NewestTransactionByID(val)
+		if err != nil {
+			if s.State().IsNotFound(err) {
+				return s.Push(ast.NewUnit())
+			}
+			return errors.Wrap(err, funcName)
+		}
+		vars, err := ast.NewVariablesFromTransaction(s.Scheme(), tx)
+		if err != nil {
+			return errors.Wrap(err, funcName)
+		}
+		return s.Push(ast.NewObject(vars))
+	})
+}
+
+// Limited strings concatenation
+func NativeConcatStrings(s Context) error {
+	const funcName = "NativeConcatStrings"
+	return with(s, func(prefix string, suffix string) error {
+		l := len(prefix) + len(suffix)
+		if l > ast.MaxBytesResult {
+			return errors.Errorf("%s byte length %d is greater than max %d", funcName, l, ast.MaxBytesResult)
+		}
+		out := prefix + suffix
+		lengthInRunes := utf8.RuneCountInString(out)
+		if lengthInRunes > ast.MaxStringResult {
+			return errors.Errorf("%s string length %d is greater than max %d", funcName, lengthInRunes, ast.MaxStringResult)
+		}
+		return s.Push(ast.NewString(out))
+	})
+	//
+	//if l := len(e); l != 2 {
+	//	return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+	//}
+	//rs, err := e.EvaluateAll(s)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, funcName)
+	//}
+	//prefix, ok := rs[0].(*StringExpr)
+	//if !ok {
+	//	return nil, errors.Errorf("%s expected first argument to be *StringExpr, found %T", funcName, rs[0])
+	//}
+	//suffix, ok := rs[1].(*StringExpr)
+	//if !ok {
+	//	return nil, errors.Errorf("%s expected second argument to be *StringExpr, found %T", funcName, rs[1])
+	//}
+	//l := len(prefix.Value) + len(suffix.Value)
+	//if l > MaxBytesResult {
+	//	return nil, errors.Errorf("%s byte length %d is greater than max %d", funcName, l, MaxBytesResult)
+	//}
+	//out := prefix.Value + suffix.Value
+	//lengthInRunes := utf8.RuneCountInString(out)
+	//if lengthInRunes > MaxStringResult {
+	//	return nil, errors.Errorf("%s string length %d is greater than max %d", funcName, lengthInRunes, MaxStringResult)
+	//}
+	//return NewString(out), nil
 }
