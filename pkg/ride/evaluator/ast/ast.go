@@ -738,7 +738,7 @@ func (a *ObjectExpr) Eq(other Expr) bool {
 func (a *ObjectExpr) Get(name string) (Expr, error) {
 	out, ok := a.fields[name]
 	if !ok {
-		return nil, errors.Errorf("ObjectExpr no such field %s", name)
+		return nil, errors.Errorf("ObjectExpr no such field '%s'", name)
 	}
 	return out, nil
 }

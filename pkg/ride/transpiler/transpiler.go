@@ -1,7 +1,6 @@
 package transpiler
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -16,59 +15,59 @@ func BuildCode(r *reader.BytesReader, a Fsm) error {
 	}
 	return f.walk(r)
 
-	for !r.Eof() {
-		n := r.Next()
-		switch n {
-		case reader.E_LONG:
-			a = a.Long(r.ReadLong())
-		case reader.E_BYTES:
-			a = a.Bytes(r.ReadBytes())
-		case reader.E_STRING:
-			a = a.String(r.ReadByteString())
-		case reader.E_IF:
-			a = a.If()
-		case reader.E_BLOCK:
-			s := r.ReadByteString()
-			a = a.BlockV1(s)
-		case reader.E_REF: // 5
-			a = a.Ref(r.ReadByteString())
-		case reader.E_TRUE:
-			a = a.Bool(true)
-		case reader.E_FALSE:
-			a = a.Bool(false)
-		case reader.E_GETTER:
-			next := r.Peek()
-			if next == reader.E_REF {
-				r.Next()
-				ref := r.ReadByteString()
-				attr := r.ReadByteString()
-				a = a.Call([]byte("$getter"), 2).Ref(ref).String(attr)
-				continue
-			}
-			if next == reader.E_FUNCALL {
-				return errors.Errorf("E_GETTER: unsupported operation with function on first argument")
-			}
-			return errors.Errorf("expected reader.E_REF %d, found %d", reader.E_REF, next)
-		case reader.E_FUNCALL:
-			nativeOrUser, err := r.ReadByte()
-			if err != nil {
-				return errors.Wrap(err, "reader.E_FUNCALL: reading native or user")
-			}
-			switch nativeOrUser {
-			case reader.FH_NATIVE:
-				a = readNativeFunction(a, r)
-			case reader.FH_USER:
-				a = readUserFunction(a, r)
-			default:
-				return errors.Errorf("invalid function type, expects 0 or 1, found %d", nativeOrUser)
-			}
-		default:
-			fmt.Printf("unknown code %+v, pos: %d %v", n, r.Pos(), r.Content())
-			//return nil, errors.Errorf("unknown code %d", n)
-			return errors.Errorf("unknown code %d, at pos %d", n, r.Pos())
-		}
-	}
-	return nil
+	//for !r.Eof() {
+	//	n := r.Next()
+	//	switch n {
+	//	case reader.E_LONG:
+	//		a = a.Long(r.ReadLong())
+	//	case reader.E_BYTES:
+	//		a = a.Bytes(r.ReadBytes())
+	//	case reader.E_STRING:
+	//		a = a.String(r.ReadByteString())
+	//	case reader.E_IF:
+	//		a = a.If()
+	//	case reader.E_BLOCK:
+	//		s := r.ReadByteString()
+	//		a = a.BlockV1(s)
+	//	case reader.E_REF: // 5
+	//		a = a.Ref(r.ReadByteString())
+	//	case reader.E_TRUE:
+	//		a = a.Bool(true)
+	//	case reader.E_FALSE:
+	//		a = a.Bool(false)
+	//	case reader.E_GETTER:
+	//		next := r.Peek()
+	//		if next == reader.E_REF {
+	//			r.Next()
+	//			ref := r.ReadByteString()
+	//			attr := r.ReadByteString()
+	//			a = a.Call([]byte("$getter"), 2).Ref(ref).String(attr)
+	//			continue
+	//		}
+	//		if next == reader.E_FUNCALL {
+	//			return errors.Errorf("E_GETTER: unsupported operation with function on first argument")
+	//		}
+	//		return errors.Errorf("expected reader.E_REF %d, found %d", reader.E_REF, next)
+	//	case reader.E_FUNCALL:
+	//		nativeOrUser, err := r.ReadByte()
+	//		if err != nil {
+	//			return errors.Wrap(err, "reader.E_FUNCALL: reading native or user")
+	//		}
+	//		switch nativeOrUser {
+	//		case reader.FH_NATIVE:
+	//			a = readNativeFunction(a, r)
+	//		case reader.FH_USER:
+	//			a = readUserFunction(a, r)
+	//		default:
+	//			return errors.Errorf("invalid function type, expects 0 or 1, found %d", nativeOrUser)
+	//		}
+	//	default:
+	//		fmt.Printf("unknown code %+v, pos: %d %v", n, r.Pos(), r.Content())
+	//		//return nil, errors.Errorf("unknown code %d", n)
+	//		return errors.Errorf("unknown code %d, at pos %d", n, r.Pos())
+	//	}
+	//}
+	//return nil
 }
 
 type flags struct {

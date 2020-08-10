@@ -15,6 +15,6 @@ func TestReader_String(t *testing.T) {
 func TestReader_Pos(t *testing.T) {
 	code := []byte{0, 1, 120}
 	r := NewReader(code)
-	r.String()
+	_ = r.String()
 	require.Equal(t, 3, r.Pos())
 }
