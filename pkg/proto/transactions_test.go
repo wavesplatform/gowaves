@@ -6259,3 +6259,7 @@ func recipientFromString(s string) (Recipient, error) {
 	}
 	return NewRecipientFromAddress(addr), nil
 }
+
+func TestTransactionTypeInfo_String(t *testing.T) {
+	require.NotEmpty(t, TransactionTypeInfo{}.String())
+}
