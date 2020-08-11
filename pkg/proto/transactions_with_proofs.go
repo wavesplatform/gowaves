@@ -2011,7 +2011,7 @@ func (tx *LeaseWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 type LeaseCancelWithProofs struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
-	ChainID byte            `json:"-"`
+	ChainID byte            `json:"chainId"`
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	LeaseCancel
