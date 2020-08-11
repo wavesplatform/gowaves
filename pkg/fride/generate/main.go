@@ -82,6 +82,79 @@ func functionsV2() map[string]string {
 	return m
 }
 
+func catalogueV2() map[string]int {
+	m := make(map[string]int)
+	m["0"] = 1
+	m["1"] = 1
+	m["2"] = 1
+	m["100"] = 1
+	m["101"] = 1
+	m["102"] = 1
+	m["103"] = 1
+	m["104"] = 1
+	m["105"] = 1
+	m["106"] = 1
+	m["107"] = 1
+	m["200"] = 1
+	m["201"] = 1
+	m["202"] = 1
+	m["203"] = 10
+	m["300"] = 10
+	m["303"] = 1
+	m["304"] = 1
+	m["305"] = 1
+	m["400"] = 2
+	m["401"] = 2
+	m["410"] = 1
+	m["411"] = 1
+	m["412"] = 1
+	m["420"] = 1
+	m["421"] = 1
+	m["500"] = 100
+	m["501"] = 10
+	m["502"] = 10
+	m["503"] = 10
+	m["600"] = 10
+	m["601"] = 10
+	m["602"] = 10
+	m["603"] = 10
+	m["1000"] = 100
+	m["1001"] = 100
+	m["1003"] = 100
+	m["1040"] = 10
+	m["1041"] = 10
+	m["1042"] = 10
+	m["1043"] = 10
+	m["1050"] = 100
+	m["1051"] = 100
+	m["1052"] = 100
+	m["1053"] = 100
+	m["1060"] = 100
+	m["throw"] = 2
+	m["addressFromString"] = 124
+	m["!="] = 26
+	m["isDefined"] = 35
+	m["extract"] = 13
+	m["dropRightBytes"] = 19
+	m["takeRightBytes"] = 19
+	m["takeRight"] = 19
+	m["dropRight"] = 19
+	m["!"] = 11
+	m["-"] = 9
+	m["getInteger"] = 10
+	m["getBoolean"] = 10
+	m["getBinary"] = 10
+	m["getString"] = 10
+	m["addressFromPublicKey"] = 82
+	m["wavesBalance"] = 109
+	m["Address"] = 1
+	m["Alias"] = 1
+	m["DataEntry"] = 2
+	m["DataTransaction"] = 9
+	m["AssetPair"] = 2
+	return m
+}
+
 func functionsV3() map[string]string {
 	m := functionsV2()
 	m["108"] = "pow"
@@ -107,25 +180,7 @@ func functionsV3() map[string]string {
 	m["1208"] = "lastIndexOfSubstringWithOffset"
 
 	// Constructors for simple types
-	m["Ceiling"] = "ceiling"
-	m["Floor"] = "floor"
-	m["HalfEven"] = "halfEven"
-	m["Down"] = "down"
-	m["Up"] = "up"
-	m["HalfUp"] = "halfUp"
-	m["HalfDown"] = "halfDown"
-
-	m["NoAlg"] = "noAlg"
-	m["Md5"] = "md5"
-	m["Sha1"] = "sha1"
-	m["Sha224"] = "sha224"
-	m["Sha256"] = "rideSha256"
-	m["Sha384"] = "sha384"
-	m["Sha512"] = "sha512"
-	m["Sha3224"] = "sha3224"
-	m["Sha3256"] = "sha3256"
-	m["Sha3384"] = "sha3384"
-	m["Sha3512"] = "sha3512"
+	constructorsFromConstants(m, constantsV3())
 
 	m["Unit"] = "unit"
 
@@ -150,6 +205,77 @@ func functionsV3() map[string]string {
 	m["TransferSet"] = "transferSet"
 	m["ScriptTransfer"] = "scriptTransfer"
 	m["ScriptResult"] = "scriptResult"
+	return m
+}
+
+func catalogueV3() map[string]int {
+	m := catalogueV2()
+	m["108"] = 100
+	m["109"] = 100
+	m["504"] = 300
+	m["604"] = 10
+	m["605"] = 10
+	m["700"] = 30
+	delete(m, "1000")
+	m["1004"] = 100
+	m["1005"] = 100
+	m["1006"] = 100
+	m["1061"] = 10
+	m["1070"] = 100
+	m["1100"] = 2
+	m["1200"] = 20
+	m["1201"] = 10
+	m["1202"] = 10
+	m["1203"] = 20
+	m["1204"] = 20
+	m["1205"] = 100
+	m["1206"] = 20
+	m["1207"] = 20
+	m["1208"] = 20
+	m["throw"] = 1
+	m["isDefined"] = 1
+	m["!="] = 1
+	m["!"] = 1
+	m["-"] = 1
+	m["Ceiling"] = 0
+	m["Floor"] = 0
+	m["HalfEven"] = 0
+	m["Down"] = 0
+	m["Up"] = 0
+	m["HalfUp"] = 0
+	m["HalfDown"] = 0
+	m["NoAlg"] = 0
+	m["Md5"] = 0
+	m["Sha1"] = 0
+	m["Sha224"] = 0
+	m["Sha256"] = 0
+	m["Sha384"] = 0
+	m["Sha512"] = 0
+	m["Sha3224"] = 0
+	m["Sha3256"] = 0
+	m["Sha3384"] = 0
+	m["Sha3512"] = 0
+	m["Unit"] = 0
+	m["@extrNative(1040)"] = 10
+	m["@extrNative(1041)"] = 10
+	m["@extrNative(1042)"] = 10
+	m["@extrNative(1043)"] = 10
+	m["@extrNative(1050)"] = 100
+	m["@extrNative(1051)"] = 100
+	m["@extrNative(1052)"] = 100
+	m["@extrNative(1053)"] = 100
+	m["@extrUser(getInteger)"] = 10
+	m["@extrUser(getBoolean)"] = 10
+	m["@extrUser(getBinary)"] = 10
+	m["@extrUser(getString)"] = 10
+	m["@extrUser(addressFromString)"] = 124
+	m["parseIntValue"] = 20
+	m["value"] = 13
+	m["valueOrErrorMessage"] = 13
+	m["WriteSet"] = 1
+	m["TransferSet"] = 1
+	m["ScriptTransfer"] = 3
+	m["ScriptResult"] = 2
 	return m
 }
 
@@ -208,200 +334,193 @@ func functionsV4() map[string]string {
 	return m
 }
 
-type fc struct {
-	c2 int
-	c3 int
-	c4 int
-}
-
-func costs() map[string]fc {
-	m := make(map[string]fc)
-	m["eq"] = fc{1, 1, 1}
-	m["1"] = fc{1, 1, 1}
-	m["2"] = fc{1, 1, 1}
-	m["100"] = fc{1, 1, 1}
-	m["101"] = fc{1, 1, 1}
-	m["102"] = fc{1, 1, 1}
-	m["103"] = fc{1, 1, 1}
-	m["104"] = fc{1, 1, 1}
-	m["105"] = fc{1, 1, 1}
-	m["106"] = fc{1, 1, 1}
-	m["107"] = fc{1, 1, 1}
-	m["108"] = fc{-1, 100, 100}
-	m["109"] = fc{-1, 100, 100}
-	m["200"] = fc{1, 1, 1}
-	m["201"] = fc{1, 1, 1}
-	m["202"] = fc{1, 1, 1}
-	m["203"] = fc{10, 10, 10}
-	m["300"] = fc{10, 10, 10}
-	m["303"] = fc{1, 1, 1}
-	m["304"] = fc{1, 1, 1}
-	m["305"] = fc{1, 1, 1}
-	m["400"] = fc{2, 2, 2}
-	m["401"] = fc{2, 2, 2}
-	m["405"] = fc{-1, -1, 10}
-	m["406"] = fc{-1, -1, 3}
-	m["407"] = fc{-1, -1, 3}
-	m["410"] = fc{1, 1, 1}
-	m["411"] = fc{1, 1, 1}
-	m["412"] = fc{1, 1, 1}
-	m["420"] = fc{1, 1, 1}
-	m["421"] = fc{1, 1, 1}
-	m["500"] = fc{100, 100, 100}
-	m["501"] = fc{10, 10, 10}
-	m["502"] = fc{10, 10, 10}
-	m["503"] = fc{10, 10, 10}
-	m["504"] = fc{-1, 300, 300}
-	m["600"] = fc{10, 10, 10}
-	m["601"] = fc{10, 10, 10}
-	m["602"] = fc{10, 10, 10}
-	m["603"] = fc{10, 10, 10}
-	m["604"] = fc{-1, 10, 10}
-	m["605"] = fc{-1, 10, 10}
-	m["700"] = fc{-1, 30, 30}
-	m["701"] = fc{-1, -1, 30}
-	m["800"] = fc{-1, -1, 3900}
-	m["900"] = fc{-1, -1, 70}
-	m["1000"] = fc{100, -1, -1}
-	m["1001"] = fc{100, 100, 100}
-	m["1003"] = fc{100, 100, 100}
-	m["1004"] = fc{-1, 100, 100}
-	m["1005"] = fc{-1, 100, 100}
-	m["1006"] = fc{-1, 100, 100}
-	m["1040"] = fc{10, 10, 10}
-	m["1041"] = fc{10, 10, 10}
-	m["1042"] = fc{10, 10, 10}
-	m["1043"] = fc{10, 10, 10}
-	m["1050"] = fc{100, 100, 100}
-	m["1051"] = fc{100, 100, 100}
-	m["1052"] = fc{100, 100, 100}
-	m["1053"] = fc{100, 100, 100}
-	m["1060"] = fc{100, 100, 100}
-	m["1061"] = fc{-1, 10, 10}
-	m["1070"] = fc{-1, 100, 5}
-	m["1080"] = fc{-1, -1, 10}
-	m["1100"] = fc{-1, 2, 2}
-	m["1101"] = fc{-1, -1, 3}
-	m["1102"] = fc{-1, -1, 10}
-	m["1103"] = fc{-1, -1, 5}
-	m["1104"] = fc{-1, -1, 5}
-	m["1200"] = fc{-1, 20, 20}
-	m["1201"] = fc{-1, 10, 10}
-	m["1202"] = fc{-1, 10, 10}
-	m["1203"] = fc{-1, 20, 20}
-	m["1204"] = fc{-1, 20, 20}
-	m["1205"] = fc{-1, 100, 100}
-	m["1206"] = fc{-1, 20, 20}
-	m["1207"] = fc{-1, 20, 20}
-	m["1208"] = fc{-1, 20, 20}
-	m["2400"] = fc{-1, -1, 1900}
-	m["2401"] = fc{-1, -1, 2000}
-	m["2402"] = fc{-1, -1, 2150}
-	m["2403"] = fc{-1, -1, 2300}
-	m["2404"] = fc{-1, -1, 2450}
-	m["2405"] = fc{-1, -1, 2550}
-	m["2406"] = fc{-1, -1, 2700}
-	m["2407"] = fc{-1, -1, 2900}
-	m["2408"] = fc{-1, -1, 3000}
-	m["2409"] = fc{-1, -1, 3150}
-	m["2410"] = fc{-1, -1, 3250}
-	m["2411"] = fc{-1, -1, 3400}
-	m["2412"] = fc{-1, -1, 3500}
-	m["2413"] = fc{-1, -1, 3650}
-	m["2414"] = fc{-1, -1, 3750}
-	m["2500"] = fc{-1, -1, 100}
-	m["2501"] = fc{-1, -1, 110}
-	m["2502"] = fc{-1, -1, 125}
-	m["2503"] = fc{-1, -1, 150}
-	m["2600"] = fc{-1, -1, 100}
-	m["2601"] = fc{-1, -1, 500}
-	m["2602"] = fc{-1, -1, 550}
-	m["2603"] = fc{-1, -1, 625}
-	m["2700"] = fc{-1, -1, 10}
-	m["2701"] = fc{-1, -1, 25}
-	m["2702"] = fc{-1, -1, 50}
-	m["2703"] = fc{-1, -1, 100}
-	m["2800"] = fc{-1, -1, 10}
-	m["2801"] = fc{-1, -1, 25}
-	m["2802"] = fc{-1, -1, 50}
-	m["2803"] = fc{-1, -1, 100}
-	m["2900"] = fc{-1, -1, 10}
-	m["2901"] = fc{-1, -1, 25}
-	m["2902"] = fc{-1, -1, 50}
-	m["2903"] = fc{-1, -1, 100}
-	m["throw"] = fc{2, 1, 1}
-	m["addressFromString"] = fc{124, 124, 124}
-	m["!="] = fc{26, 1, 1}
-	m["isDefined"] = fc{35, 1, 1}
-	m["extract"] = fc{13, 13, 13}
-	m["dropRightBytes"] = fc{19, 19, 19}
-	m["takeRightBytes"] = fc{19, 19, 19}
-	m["takeRight"] = fc{19, 19, 19}
-	m["dropRight"] = fc{19, 19, 19}
-	m["!"] = fc{11, 1, 1}
-	m["-"] = fc{9, 1, 1}
-	m["getInteger"] = fc{10, 10, 10}
-	m["getBoolean"] = fc{10, 10, 10}
-	m["getBinary"] = fc{10, 10, 10}
-	m["getString"] = fc{10, 10, 10}
-	m["addressFromPublicKey"] = fc{82, 82, 82}
-	m["wavesBalance"] = fc{109, 109, 109}
-	m["@extrNative(1040)"] = fc{-1, 10, 10}
-	m["@extrNative(1041)"] = fc{-1, 10, 10}
-	m["@extrNative(1042)"] = fc{-1, 10, 10}
-	m["@extrNative(1043)"] = fc{-1, 10, 10}
-	m["@extrNative(1050)"] = fc{-1, 100, 100}
-	m["@extrNative(1051)"] = fc{-1, 100, 100}
-	m["@extrNative(1052)"] = fc{-1, 100, 100}
-	m["@extrNative(1053)"] = fc{-1, 100, 100}
-	m["@extrUser(getInteger)"] = fc{-1, 10, 10}
-	m["@extrUser(getBoolean)"] = fc{-1, 10, 10}
-	m["@extrUser(getBinary)"] = fc{-1, 10, 10}
-	m["@extrUser(getString)"] = fc{-1, 10, 10}
-	m["@extrUser(addressFromString)"] = fc{-1, 124, 124}
-	m["parseIntValue"] = fc{-1, 20, 20}
-	m["value"] = fc{-1, 13, 13}
-	m["valueOrErrorMessage"] = fc{-1, 13, 13}
-	m["Address"] = fc{1, 1, 1}
-	m["Alias"] = fc{1, 1, 1}
-	m["DataEntry"] = fc{2, 2, 2}
-	m["AssetPair"] = fc{9, 9, 9}
-	m["DataTransaction"] = fc{2, 2, 2}
-	m["Ceiling"] = fc{-1, 0, 0}
-	m["Floor"] = fc{-1, 0, 0}
-	m["HalfEven"] = fc{-1, 0, 0}
-	m["Down"] = fc{-1, 0, 0}
-	m["Up"] = fc{-1, 0, 0}
-	m["HalfUp"] = fc{-1, 0, 0}
-	m["HalfDown"] = fc{-1, 0, 0}
-	m["NoAlg"] = fc{-1, 0, 0}
-	m["Md5"] = fc{-1, 0, 0}
-	m["Sha1"] = fc{-1, 0, 0}
-	m["Sha224"] = fc{-1, 0, 0}
-	m["Sha256"] = fc{-1, 0, 0}
-	m["Sha384"] = fc{-1, 0, 0}
-	m["Sha512"] = fc{-1, 0, 0}
-	m["Sha3224"] = fc{-1, 0, 0}
-	m["Sha3256"] = fc{-1, 0, 0}
-	m["Sha3384"] = fc{-1, 0, 0}
-	m["Sha3512"] = fc{-1, 0, 0}
-	m["Unit"] = fc{-1, 0, 0}
-	m["WriteSet"] = fc{-1, 1, -1}
-	m["TransferSet"] = fc{-1, 1, -1}
-	m["ScriptTransfer"] = fc{-1, 3, -1}
-	m["ScriptResult"] = fc{-1, 2, -1}
-	m["IntegerEntry"] = fc{-1, -1, 2}
-	m["BooleanEntry"] = fc{-1, -1, 2}
-	m["BinaryEntry"] = fc{-1, -1, 2}
-	m["StringEntry"] = fc{-1, -1, 2}
-	m["DeleteEntry"] = fc{-1, -1, 1}
-	m["Issue"] = fc{-1, -1, 7}
-	m["Reissue"] = fc{-1, -1, 3}
-	m["Burn"] = fc{-1, -1, 2}
+func catalogueV4() map[string]int {
+	m := catalogueV3()
+	delete(m, "ScriptResult")
+	delete(m, "WriteSet")
+	delete(m, "TransferSet")
+	delete(m, "DataEntry")
+	m["IntegerEntry"] = 2
+	m["BooleanEntry"] = 2
+	m["BinaryEntry"] = 2
+	m["StringEntry"] = 2
+	m["DeleteEntry"] = 1
+	m["Issue"] = 7
+	m["Reissue"] = 3
+	m["Burn"] = 2
+	m["contains"] = 20
+	m["valueOrElse"] = 13
+	m["405"] = 10
+	m["406"] = 3
+	m["407"] = 3
+	m["701"] = 30
+	m["800"] = 3900
+	m["900"] = 70
+	m["1070"] = 5
+	m["1080"] = 10
+	m["1100"] = 2
+	m["1101"] = 3
+	m["1102"] = 10
+	m["1103"] = 5
+	m["1104"] = 5
+	m["2400"] = 1900
+	m["2401"] = 2000
+	m["2402"] = 2150
+	m["2403"] = 2300
+	m["2404"] = 2450
+	m["2405"] = 2550
+	m["2406"] = 2700
+	m["2407"] = 2900
+	m["2408"] = 3000
+	m["2409"] = 3150
+	m["2410"] = 3250
+	m["2411"] = 3400
+	m["2412"] = 3500
+	m["2413"] = 3650
+	m["2414"] = 3750
+	m["2500"] = 100
+	m["2501"] = 110
+	m["2502"] = 125
+	m["2503"] = 150
+	m["2600"] = 100
+	m["2601"] = 500
+	m["2602"] = 550
+	m["2603"] = 625
+	m["2700"] = 10
+	m["2701"] = 25
+	m["2702"] = 50
+	m["2703"] = 100
+	m["2800"] = 10
+	m["2801"] = 25
+	m["2802"] = 50
+	m["2803"] = 100
+	m["2900"] = 10
+	m["2901"] = 25
+	m["2902"] = 50
+	m["2903"] = 100
 	return m
 }
 
-func createFunctionsList(sb *strings.Builder, ver string, m map[string]string) {
+type constantDescription struct {
+	typeName    string
+	constructor string
+}
+
+func constantsV1() map[string]constantDescription {
+	return map[string]constantDescription{"tx": {constructor: "newTx"}, "unit": {constructor: "newUnit"}}
+}
+
+func constantsV2() map[string]constantDescription {
+	c := constantsV1()
+	c["Sell"] = constantDescription{"Sell", ""}
+	c["Buy"] = constantDescription{"Buy", ""}
+
+	c["CEILING"] = constantDescription{"Ceiling", ""}
+	c["FLOOR"] = constantDescription{"Floor", ""}
+	c["HALFEVEN"] = constantDescription{"HalfEven", ""}
+	c["DOWN"] = constantDescription{"Down", ""}
+	c["UP"] = constantDescription{"Up", ""}
+	c["HALFUP"] = constantDescription{"HalfUp", ""}
+	c["HALFDOWN"] = constantDescription{"HalfDown", ""}
+
+	c["nil"] = constantDescription{constructor: "newNil"}
+	return c
+}
+
+func constantsV3() map[string]constantDescription {
+	c := constantsV2()
+	c["NOALG"] = constantDescription{"NoAlg", ""}
+	c["MD5"] = constantDescription{"Md5", ""}
+	c["SHA1"] = constantDescription{"Sha1", ""}
+	c["SHA224"] = constantDescription{"Sha224", ""}
+	c["SHA256"] = constantDescription{"Sha256", ""}
+	c["SHA384"] = constantDescription{"Sha384", ""}
+	c["SHA512"] = constantDescription{"Sha512", ""}
+	c["SHA3224"] = constantDescription{"Sha3224", ""}
+	c["SHA3256"] = constantDescription{"Sha3256", ""}
+	c["SHA3384"] = constantDescription{"Sha3384", ""}
+	c["SHA3512"] = constantDescription{"Sha3512", ""}
+
+	c["this"] = constantDescription{constructor: "newThis"}
+	c["lastBlock"] = constantDescription{constructor: "newLastBlock"}
+	return c
+}
+
+func constantsV4() map[string]constantDescription {
+	return constantsV3()
+}
+
+func constructorsFromConstants(m map[string]string, c map[string]constantDescription) {
+	for _, v := range c {
+		if v.constructor == "" {
+			m[v.typeName] = fmt.Sprintf("create%s", v.typeName)
+		}
+	}
+}
+func createConstants(sb *strings.Builder, ver string, c map[string]constantDescription) {
+	keys := make([]string, 0, len(c))
+	for k := range c {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	sb.WriteString(fmt.Sprintf("const _constants_%s = \"%s\"\n", ver, strings.Join(keys, "")))
+	m := make(map[string]string, len(keys))
+	for _, k := range keys {
+		if c[k].constructor == "" {
+			m[k] = fmt.Sprintf("new%s", c[k].typeName)
+		} else {
+			m[k] = c[k].constructor
+		}
+	}
+	sb.WriteString(fmt.Sprintf("var _constructors_%s = [...]rideConstructor{", ver))
+	for i, k := range keys {
+		sb.WriteString(m[k])
+		if i < len(m)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("}\n")
+	idx := 0
+	sb.WriteString(fmt.Sprintf("var _c_index_%s = [...]int{%d, ", ver, idx))
+	for i, k := range keys {
+		idx += len(k)
+		sb.WriteString(fmt.Sprintf("%d", idx))
+		if i < len(keys)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("}\n\n")
+
+	sb.WriteString(fmt.Sprintf("func constant%s(id int) rideConstructor {\n", ver))
+	sb.WriteString(fmt.Sprintf("if id < 0 || id > %d {\n", len(keys)-1))
+	sb.WriteString("return nil\n")
+	sb.WriteString("}\n")
+	sb.WriteString(fmt.Sprintf("return _constructors_%s[id]\n}\n", ver))
+	sb.WriteString(fmt.Sprintf("func checkConstant%s(name string) (byte, bool) {\n", ver))
+	sb.WriteString(fmt.Sprintf("for i := 0; i <= %d; i++ {\n", len(keys)-1))
+	sb.WriteString(fmt.Sprintf("if _constants_%s[_c_index_%s[i]:_c_index_%s[i+1]] == name {\n", ver, ver, ver))
+	sb.WriteString("return byte(i), true\n")
+	sb.WriteString("}\n}\n")
+	sb.WriteString("return 0, false\n")
+	sb.WriteString("}\n\n")
+}
+
+func createConstructors(sb *strings.Builder, c map[string]constantDescription) {
+	for _, v := range c {
+		if v.constructor == "" {
+			tn := v.typeName
+			sb.WriteString(fmt.Sprintf("func new%s(rideEnvironment) rideType {\n", tn))
+			sb.WriteString(fmt.Sprintf("return rideNamedType{name: \"%s\"}\n", tn))
+			sb.WriteString("}\n\n")
+			sb.WriteString(fmt.Sprintf("func create%s(...rideType) (rideType, error) {\n", tn))
+			sb.WriteString(fmt.Sprintf("return rideNamedType{name: \"%s\"}, nil\n", tn))
+			sb.WriteString("}\n\n")
+		}
+	}
+}
+
+func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c map[string]int) {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -412,6 +531,16 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string) {
 	sb.WriteString(fmt.Sprintf("var _functions_%s = [...]rideFunction{", ver))
 	for i, k := range keys {
 		sb.WriteString(m[k])
+		if i < len(m)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("}\n")
+
+	// Create list of costs
+	sb.WriteString(fmt.Sprintf("var _catalogue_%s = [...]int{", ver))
+	for i, k := range keys {
+		sb.WriteString(strconv.Itoa(c[k]))
 		if i < len(m)-1 {
 			sb.WriteString(", ")
 		}
@@ -437,7 +566,7 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string) {
 	sb.WriteString("return \"\"\n")
 	sb.WriteString("}\n")
 	sb.WriteString(fmt.Sprintf("return _names_%s[_index_%s[i]:_index_%s[i+1]]\n}\n", ver, ver, ver))
-	sb.WriteString(fmt.Sprintf("func functions%s(id int) rideFunction {\n", ver))
+	sb.WriteString(fmt.Sprintf("func function%s(id int) rideFunction {\n", ver))
 	sb.WriteString(fmt.Sprintf("if id < 0 || id > %d {\n", len(keys)-1))
 	sb.WriteString("return nil\n")
 	sb.WriteString("}\n")
@@ -449,6 +578,11 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string) {
 	sb.WriteString("}\n}\n")
 	sb.WriteString("return 0, false\n")
 	sb.WriteString("}\n")
+	sb.WriteString(fmt.Sprintf("func cost%s(id int) int {\n", ver))
+	sb.WriteString(fmt.Sprintf("if id < 0 || id > %d {\n", len(keys)-1))
+	sb.WriteString("return -1\n")
+	sb.WriteString("}\n")
+	sb.WriteString(fmt.Sprintf("return _catalogue_%s[id]\n}\n", ver))
 }
 
 func main() {
@@ -456,15 +590,34 @@ func main() {
 	sb.WriteString("// Code generated by fride/generate/main.go. DO NOT EDIT.\n")
 	sb.WriteString("\n")
 	sb.WriteString("package fride\n")
-	createFunctionsList(sb, "V2", functionsV2())
-	createFunctionsList(sb, "V3", functionsV3())
-	createFunctionsList(sb, "V4", functionsV4())
+	createFunctionsList(sb, "V2", functionsV2(), catalogueV2())
+	createFunctionsList(sb, "V3", functionsV3(), catalogueV3())
+	createFunctionsList(sb, "V4", functionsV4(), catalogueV4())
 	code := sb.String()
 	b, err := format.Source([]byte(code))
 	if err != nil {
 		panic(err)
 	}
 	err = ioutil.WriteFile("functions.go", b, 0644)
+	if err != nil {
+		panic(err)
+	}
+
+	sb = new(strings.Builder)
+	sb.WriteString("// Code generated by fride/generate/main.go. DO NOT EDIT.\n")
+	sb.WriteString("\n")
+	sb.WriteString("package fride\n")
+	createConstants(sb, "V1", constantsV1())
+	createConstants(sb, "V2", constantsV2())
+	createConstants(sb, "V3", constantsV3())
+	createConstants(sb, "V4", constantsV4())
+	createConstructors(sb, constantsV4())
+	code = sb.String()
+	b, err = format.Source([]byte(code))
+	if err != nil {
+		panic(err)
+	}
+	err = ioutil.WriteFile("constants.go", b, 0644)
 	if err != nil {
 		panic(err)
 	}

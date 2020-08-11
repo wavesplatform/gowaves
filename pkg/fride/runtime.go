@@ -127,7 +127,27 @@ func (a rideUnit) eq(other rideType) bool {
 	return a.instanceOf() == other.instanceOf()
 }
 
+type rideNamedType struct {
+	name string
+}
+
+func (a rideNamedType) instanceOf() string {
+	return a.name
+}
+
+func (a rideNamedType) eq(other rideType) bool {
+	return a.instanceOf() == other.instanceOf()
+}
+
 type rideFunction func(args ...rideType) (rideType, error)
+
+type rideEnvironment interface {
+	transaction() rideObject
+	this() rideObject
+	block() rideObject
+}
+
+type rideConstructor func(environment rideEnvironment) rideType
 
 func fetch(from rideType, prop rideType) (rideType, error) {
 	obj, ok := from.(rideObject)

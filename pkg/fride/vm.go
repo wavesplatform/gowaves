@@ -14,6 +14,10 @@ func Run(program *Program) (RideResult, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "run")
 	}
+	gcs, err := selectConstants(program.LibVersion)
+	if err != nil {
+		return nil, errors.Wrap(err, "run")
+	}
 	np, err := selectFunctionNameProvider(program.LibVersion)
 	if err != nil {
 		return nil, errors.Wrap(err, "run")
@@ -22,6 +26,7 @@ func Run(program *Program) (RideResult, error) {
 		code:         program.Code,
 		constants:    program.Constants,
 		functions:    fs,
+		globals:      gcs,
 		stack:        make([]rideType, 0, 2),
 		frames:       make([]frame, 0, 2),
 		ip:           0,
@@ -47,6 +52,7 @@ type vm struct {
 	ip           int
 	constants    []rideType
 	functions    func(int) rideFunction
+	globals      func(int) rideConstructor
 	stack        []rideType
 	frames       []frame
 	functionName func(int) string
@@ -135,21 +141,6 @@ func (m *vm) run() (RideResult, error) {
 				return nil, err
 			}
 			m.push(res)
-		//case OpStore:
-		//	scope, n := m.scope()
-		//	if n < 0 {
-		//		return nil, errors.Errorf("failed to store variable: no frame")
-		//	}
-		//	c := m.constant()
-		//	name, ok := c.(rideString)
-		//	if !ok {
-		//		return nil, errors.Errorf("not a string value '%v' of type '%T'", c, c)
-		//	}
-		//	value, err := m.pop()
-		//	if err != nil {
-		//		return nil, errors.Wrapf(err, "failed to store variable '%s'", name)
-		//	}
-		//	scope.variables[name] = value
 		case OpLoad:
 			c := m.constant()
 			name, ok := c.(rideString)
@@ -161,9 +152,14 @@ func (m *vm) run() (RideResult, error) {
 				return nil, errors.Wrap(err, "failed to load variable")
 			}
 			m.push(v)
+		case OpLoadLocal:
+
 		case OpReturn:
 			m.ip = m.returnPosition()             // Continue from return position
 			m.frames = m.frames[:len(m.frames)-1] // Removing the current call stack frame
+		case OpHalt:
+			return nil, nil
+		case OpGlobal:
 		default:
 			return nil, errors.Errorf("unknown code %#x", op)
 		}

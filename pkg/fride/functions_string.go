@@ -155,7 +155,7 @@ func indexOfSubstring(args ...rideType) (rideType, error) {
 	}
 	i := runesIndex(string(s1), string(s2))
 	if i == -1 {
-		return rideUnit{}, nil
+		return &rideUnit{}, nil
 	}
 	return rideInt(i), nil
 }

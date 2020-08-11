@@ -4,45 +4,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func selectFunctions(v int) (func(id int) rideFunction, error) {
-	switch v {
-	case 1, 2:
-		return functionsV2, nil
-	case 3:
-		return functionsV3, nil
-	case 4:
-		return functionsV4, nil
-	default:
-		return nil, errors.Errorf("unsupported library version '%d'", v)
-	}
-}
-
-func selectFunctionChecker(v int) (func(name string) (byte, bool), error) {
-	switch v {
-	case 1, 2:
-		return checkFunctionV2, nil
-	case 3:
-		return checkFunctionV3, nil
-	case 4:
-		return checkFunctionV4, nil
-	default:
-		return nil, errors.Errorf("unsupported library version '%d'", v)
-	}
-}
-
-func selectFunctionNameProvider(v int) (func(int) string, error) {
-	switch v {
-	case 1, 2:
-		return functionNameV2, nil
-	case 3:
-		return functionNameV3, nil
-	case 4:
-		return functionNameV4, nil
-	default:
-		return nil, errors.Errorf("unsupported library version '%d'", v)
-	}
-}
-
 func checkArgs(args []rideType, count int) error {
 	if len(args) != count {
 		return errors.Errorf("%d is invalid number of arguments, expected %d", len(args), count)

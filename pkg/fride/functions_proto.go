@@ -136,38 +136,6 @@ func stringValueFromState(...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func ceiling(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func down(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func floor(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func halfDown(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func halfEven(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func halfUp(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func md5(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func noAlg(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
 func scriptResult(...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
@@ -176,52 +144,12 @@ func scriptTransfer(...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func sha1(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func sha224(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func rideSha256(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func sha3224(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func sha3256(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func sha3384(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func sha3512(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func sha384(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func sha512(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
 func transferSet(...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
 func unit(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
-}
-
-func up(...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
+	return rideUnit{}, nil
 }
 
 func writeSet(...rideType) (rideType, error) {

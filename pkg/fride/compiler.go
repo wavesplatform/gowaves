@@ -11,13 +11,18 @@ import (
 )
 
 func Compile(tree *Tree) (*Program, error) {
-	check, err := selectFunctionChecker(tree.LibVersion)
+	fCheck, err := selectFunctionChecker(tree.LibVersion)
+	if err != nil {
+		return nil, errors.Wrap(err, "compile")
+	}
+	cCheck, err := selectConstantsChecker(tree.LibVersion)
 	if err != nil {
 		return nil, errors.Wrap(err, "compile")
 	}
 	c := &compiler{
 		constants:     newRideConstants(),
-		checkFunction: check,
+		checkFunction: fCheck,
+		checkConstant: cCheck,
 		values:        make([]rideValue, 0),
 		functions:     make([]*localFunction, 0),
 		declarations:  make([]rideDeclaration, 0),
@@ -28,7 +33,7 @@ func Compile(tree *Tree) (*Program, error) {
 	if err != nil {
 		return nil, err
 	}
-	bb.WriteByte(OpReturn)
+	bb.WriteByte(OpHalt)
 	for _, d := range c.declarations {
 		pos := bb.Len()
 		c.patcher.setOrigin(d.buffer(), pos)
@@ -57,6 +62,7 @@ func Compile(tree *Tree) (*Program, error) {
 type compiler struct {
 	constants     *rideConstants
 	checkFunction func(string) (byte, bool)
+	checkConstant func(string) (byte, bool)
 	values        []rideValue
 	functions     []*localFunction
 	declarations  []rideDeclaration
@@ -187,22 +193,30 @@ func (c *compiler) assignmentNode(bb *bytes.Buffer, node *AssignmentNode) error 
 }
 
 func (c *compiler) referenceNode(bb *bytes.Buffer, node *ReferenceNode) error {
-	v, err := c.lookupValue(node.Name)
-	if err != nil {
-		return err
-	}
-	switch value := v.(type) {
-	case *localValue:
-		bb.WriteByte(OpLoadLocal)
-		bb.Write(encode(value.position))
+	id, ok := c.checkConstant(node.Name)
+	if ok {
+		//Globally declared constant
+		bb.WriteByte(OpGlobal)
+		bb.WriteByte(id)
 		return nil
-	case *globalValue:
-		bb.WriteByte(OpLoad)
-		value.refer(c.patcher.add(bb))
-		bb.Write([]byte{0xff, 0xff})
-		return nil
-	default:
-		return errors.Errorf("unexpected value type '%T'", value)
+	} else {
+		v, err := c.lookupValue(node.Name)
+		if err != nil {
+			return err
+		}
+		switch value := v.(type) {
+		case *localValue:
+			bb.WriteByte(OpLoadLocal)
+			bb.Write(encode(value.position))
+			return nil
+		case *globalValue:
+			bb.WriteByte(OpLoad)
+			value.refer(c.patcher.add(bb))
+			bb.Write([]byte{0xff, 0xff})
+			return nil
+		default:
+			return errors.Errorf("unexpected value type '%T'", value)
+		}
 	}
 }
 
