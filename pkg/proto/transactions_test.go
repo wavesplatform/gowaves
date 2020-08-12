@@ -4024,12 +4024,12 @@ func TestLeaseCancelWithProofsToJSON(t *testing.T) {
 		ts := uint64(time.Now().UnixNano() / 1000000)
 		tx := NewUnsignedLeaseCancelWithProofs(2, 'T', pk, l, tc.fee, ts)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"type\":9,\"version\":2,\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}", base58.Encode(pk[:]), tc.lease, tc.fee, ts)
+			ej := fmt.Sprintf("{\"type\":9,\"version\":2,\"chainId\":%d,\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}", 'T', base58.Encode(pk[:]), tc.lease, tc.fee, ts)
 			assert.Equal(t, ej, string(j))
 			if err := tx.Sign(TestNetScheme, sk); assert.NoError(t, err) {
 				if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-					esj := fmt.Sprintf("{\"type\":9,\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
-						base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.lease, tc.fee, ts)
+					esj := fmt.Sprintf("{\"type\":9,\"version\":2,\"chainId\":%d,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"leaseId\":\"%s\",\"fee\":%d,\"timestamp\":%d}",
+						'T', base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.lease, tc.fee, ts)
 					assert.Equal(t, esj, string(sj))
 				}
 			}
