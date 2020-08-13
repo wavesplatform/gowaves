@@ -185,7 +185,7 @@ func (m *vm) push(v rideType) {
 
 func (m *vm) pop() (rideType, error) {
 	if len(m.stack) == 0 {
-		return nil, errors.New("empty stack")
+		return nil, errors.New("empty callStack")
 	}
 	value := m.stack[len(m.stack)-1]
 	m.stack = m.stack[:len(m.stack)-1]
