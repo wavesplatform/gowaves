@@ -209,7 +209,8 @@ func errorForSmartAsset(res ast.Result, asset crypto.Digest) error {
 	if res.Throw {
 		text = fmt.Sprintf("Transaction is not allowed by token-script id %s: throw from asset script.", asset.String())
 	} else {
-		text = fmt.Sprintf("Transaction is not allowed by token-script id %s.", asset.String())
+		// scala compatible error message
+		text = fmt.Sprintf("Transaction is not allowed by token-script id %s. Transaction is not allowed by script of the asset", asset.String())
 	}
 	return errors.New(text)
 }
@@ -267,7 +268,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 	}
 	// Empty keys rejected since protobuf version.
 	if proto.IsProtobufTx(tx) && ia.countEmptyDataEntryKeys(info.actions) > 0 {
-		return proto.DAppError, info.failedChanges, errors.Errorf("Empty keys aren't allowed in tx version >= %d", tx.Version)
+		return proto.DAppError, info.failedChanges, errs.NewTxValidationError(fmt.Sprintf("Empty keys aren't allowed in tx version >= %d", tx.Version))
 	}
 	// Perform actions.
 	for _, action := range info.actions {

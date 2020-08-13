@@ -239,6 +239,7 @@ func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (out *
 }
 
 func apiError(err error) error {
+	err = errors.Cause(err)
 	switch e := err.(type) {
 	case *errs.NonPositiveAmount:
 		return status.Errorf(codes.InvalidArgument, "non-positive amount "+err.Error())
@@ -272,7 +273,7 @@ func apiError(err error) error {
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	case *errs.TransactionNotAllowedByScript:
 		if e.IsAssetScript() {
-			return status.Errorf(codes.InvalidArgument, "Transaction is not allowed by token-script: %s", err)
+			return status.Errorf(codes.InvalidArgument, "Transaction is not allowed by token-script: %s: Transaction is not allowed by script of the asset", err)
 		}
 		return status.Errorf(codes.InvalidArgument, "Transaction is not allowed by account-script")
 	default:

@@ -88,7 +88,7 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 func NewVariablesFromScriptAction(scheme proto.Scheme, action proto.ScriptAction, invokerPK crypto.PublicKey, txID crypto.Digest, txTimestamp uint64) (map[string]Expr, error) {
 	out := make(map[string]Expr)
 	switch a := action.(type) {
-	case proto.ReissueScriptAction:
+	case *proto.ReissueScriptAction:
 		out["quantity"] = NewLong(a.Quantity)
 		out["assetId"] = NewBytes(a.AssetID.Bytes())
 		out["reissuable"] = NewBoolean(a.Reissuable)
@@ -105,7 +105,7 @@ func NewVariablesFromScriptAction(scheme proto.Scheme, action proto.ScriptAction
 		out["bodyBytes"] = NewUnit()
 		out["proofs"] = NewUnit()
 		out[InstanceFieldName] = NewString("ReissueTransaction")
-	case proto.BurnScriptAction:
+	case *proto.BurnScriptAction:
 		out["quantity"] = NewLong(a.Quantity)
 		out["assetId"] = NewBytes(a.AssetID.Bytes())
 		out["id"] = NewBytes(txID.Bytes())
@@ -123,7 +123,7 @@ func NewVariablesFromScriptAction(scheme proto.Scheme, action proto.ScriptAction
 		out[InstanceFieldName] = NewString("BurnTransaction")
 		return out, nil
 	default:
-		return nil, errors.New("unsupported script action")
+		return nil, errors.Errorf("unsupported script action '%T'", action)
 	}
 	return out, nil
 }
