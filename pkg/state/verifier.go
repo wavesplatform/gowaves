@@ -37,7 +37,7 @@ type verifyTask struct {
 
 func checkTx(tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, scheme proto.Scheme) error {
 	if _, err := tx.Validate(); err != nil {
-		return errors.Wrap(err, "invalid tx data")
+		return errs.Extend(err, "invalid tx data")
 	}
 	if !checkTxSig {
 		return nil

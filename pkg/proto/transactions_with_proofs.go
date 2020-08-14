@@ -179,6 +179,15 @@ func NewUnsignedIssueWithProofs(v, chainID byte, senderPK crypto.PublicKey, name
 	return &IssueWithProofs{Type: IssueTransaction, Version: v, ChainID: chainID, Script: script, Issue: i}
 }
 
+func validContentType(t byte) bool {
+	return t >= 1 && t <= 3
+}
+
+// version in range [0, 5)
+func validStdVersion(v byte) bool {
+	return v < 5
+}
+
 func (tx *IssueWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxIssueTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for IssueWithProofs", tx.Version)
@@ -187,7 +196,28 @@ func (tx *IssueWithProofs) Validate() (Transaction, error) {
 	if !ok {
 		return tx, err
 	}
-	//TODO: add script and scheme validations
+	if tx.NonEmptyScript() {
+		if !validStdVersion(tx.Script[0]) {
+			return tx, errors.Errorf("Invalid version of script: %d", tx.Script[0])
+		}
+
+		if tx.Script[0] == 0 { // version byte
+			if len(tx.Script) <= 2 {
+				return tx, errors.Errorf("Illegal length of script: %d", len(tx.Script))
+			}
+			if !validContentType(tx.Script[1]) {
+				return tx, errors.Errorf("Invalid content type of script: %d", tx.Script[1])
+			}
+			if tx.Script[2] > 4 { // 4 is current max script version
+				return tx, errors.Errorf("Invalid version of script: %d", tx.Script[2])
+			}
+
+		}
+
+		if !tx.Script.IsValidChecksum() {
+			return tx, errors.Errorf("Invalid checksum: %+v", []byte(tx.Script))
+		}
+	}
 	return tx, nil
 }
 

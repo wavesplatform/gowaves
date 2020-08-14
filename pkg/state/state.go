@@ -1278,12 +1278,12 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		}
 		select {
 		case verifyError := <-chans.errChan:
-			return nil, wrapErr(ValidationError, verifyError)
+			return nil, verifyError
 		case chans.tasksChan <- task:
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
 		if err := s.addNewBlock(block, lastAppliedBlock, initialisation, chans, curHeight); err != nil {
-			return nil, wrapErr(TxValidationError, err)
+			return nil, err
 		}
 		headers[pos] = block.BlockHeader
 		pos++
