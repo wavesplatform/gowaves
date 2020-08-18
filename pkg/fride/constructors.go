@@ -1,5 +1,12 @@
 package fride
 
+func newHeight(env rideEnvironment) rideType {
+	if env == nil {
+		return rideUnit{}
+	}
+	return env.height()
+}
+
 func newTx(env rideEnvironment) rideType {
 	if env == nil {
 		return rideUnit{}

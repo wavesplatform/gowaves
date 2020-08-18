@@ -142,6 +142,7 @@ func (a rideNamedType) eq(other rideType) bool {
 type rideFunction func(args ...rideType) (rideType, error)
 
 type rideEnvironment interface {
+	height() rideInt
 	transaction() rideObject
 	this() rideObject
 	block() rideObject

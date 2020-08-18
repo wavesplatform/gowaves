@@ -175,6 +175,7 @@ func (c *compiler) conditionalNode(bb *bytes.Buffer, node *ConditionalNode) erro
 }
 
 func (c *compiler) assignmentNode(bb *bytes.Buffer, node *AssignmentNode) error {
+	bb.WriteByte(OpBlockDeclaration)
 	err := c.pushGlobalValue(node.Name, node.Expression)
 	if err != nil {
 		return err
@@ -221,6 +222,7 @@ func (c *compiler) referenceNode(bb *bytes.Buffer, node *ReferenceNode) error {
 }
 
 func (c *compiler) functionDeclarationNode(bb *bytes.Buffer, node *FunctionDeclarationNode) error {
+	bb.WriteByte(OpBlockDeclaration)
 	err := c.pushFunction(node.Name, node.Arguments, node.Body)
 	if err != nil {
 		return err

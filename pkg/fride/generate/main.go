@@ -407,7 +407,11 @@ type constantDescription struct {
 }
 
 func constantsV1() map[string]constantDescription {
-	return map[string]constantDescription{"tx": {constructor: "newTx"}, "unit": {constructor: "newUnit"}}
+	return map[string]constantDescription{
+		"tx":     {constructor: "newTx"},
+		"unit":   {constructor: "newUnit"},
+		"height": {constructor: "newHeight"},
+	}
 }
 
 func constantsV2() map[string]constantDescription {
