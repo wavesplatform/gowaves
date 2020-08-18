@@ -224,7 +224,7 @@ func (e *estimatorV1) estimate() error {
 				e.ip = jp // Continue to expression's body
 			}
 		case OpLoadLocal:
-			e.scope.add(5) // 5 for every function argument
+			e.scope.add(8) // 5 for every function argument
 			e.ip += 2
 		case OpReturn:
 			ret, err := e.scope.pop()
