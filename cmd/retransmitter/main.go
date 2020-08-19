@@ -52,6 +52,18 @@ func skipUselessMessages(header proto.Header) bool {
 	}
 }
 
+var defaultPeers = map[string]string{
+	"wavesW": "35.156.19.4:6868,52.50.69.247:6868,52.52.46.76:6868,52.57.147.71:6868,52.214.55.18:6868,54.176.190.226:6868",
+	"wavesT": "52.51.92.182:6863,52.231.205.53:6863,52.30.47.67:6863,52.28.66.217:6863",
+	"wavesS": "217.100.219.251:6861",
+}
+
+var schemes = map[string]byte{
+	"wavesW": proto.MainNetScheme,
+	"wavesT": proto.TestNetScheme,
+	"wavesS": proto.StageNetScheme,
+}
+
 func main() {
 	// delay before exit
 	defer func() {
@@ -74,14 +86,12 @@ func main() {
 	var wavesNetwork string
 	var cpuprofile string
 	var memprofile string
-	var scheme byte
 	flag.StringVarP(&bind, "bind", "b", "", "Local address listen on")
 	flag.StringVarP(&decl, "decl", "d", "", "Declared Address")
 	flag.StringVarP(&addresses, "addresses", "a", "", "Addresses connect to")
 	flag.StringVarP(&wavesNetwork, "wavesnetwork", "n", "", "Required, waves network, should be wavesW or wavesT or wavesD")
 	flag.StringVarP(&cpuprofile, "cpuprofile", "", "", "write cpu profile to file")
 	flag.StringVarP(&memprofile, "memprofile", "", "", "write memory profile to this file")
-	scheme = byte(*flag.Uint8P("scheme", "", 'W', "network byte scheme"))
 	flag.Parse()
 
 	if cpuprofile != "" {
@@ -89,7 +99,7 @@ func main() {
 	}
 
 	switch wavesNetwork {
-	case "wavesW", "wavesT", "wavesD":
+	case "wavesW", "wavesT", "wavesS":
 	default:
 		zap.S().Errorf("expected waves network to be wavesW or wavesT or wavesD, found %s", wavesNetwork)
 		return
@@ -124,11 +134,16 @@ func main() {
 
 	spawner := retransmit.NewPeerSpawner(pool, skipUselessMessages, parent, wavesNetwork, declAddr)
 
+	scheme := schemes[wavesNetwork]
 	behaviour := retransmit.NewBehaviour(knownPeers, spawner, scheme)
 
 	r := retransmit.NewRetransmitter(behaviour, parent)
 
 	r.Run(ctx)
+
+	if addresses == "" {
+		addresses = defaultPeers[wavesNetwork]
+	}
 
 	for _, a := range strings.Split(addresses, ",") {
 		a = strings.Trim(a, " ")
