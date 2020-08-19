@@ -28,7 +28,7 @@ func Run(program *Program) (RideResult, error) {
 		functions:    fs,
 		globals:      gcs,
 		stack:        make([]rideType, 0, 2),
-		frames:       make([]frame, 0, 2),
+		calls:        make([]frame, 0, 2),
 		ip:           0,
 		functionName: np,
 	}
@@ -36,14 +36,22 @@ func Run(program *Program) (RideResult, error) {
 }
 
 type frame struct {
-	back      int
-	variables map[rideString]rideType
+	function bool
+	back     int
+	args     []rideValue
 }
 
-func newFrame(pos int) frame {
+func newExpressionFrame(pos int) frame {
 	return frame{
-		back:      pos,
-		variables: make(map[rideString]rideType),
+		back: pos,
+	}
+}
+
+func newFunctionFrame(pos int, args []rideValue) frame {
+	return frame{
+		function: true,
+		back:     pos,
+		args:     args,
 	}
 }
 
@@ -54,7 +62,7 @@ type vm struct {
 	functions    func(int) rideFunction
 	globals      func(int) rideConstructor
 	stack        []rideType
-	frames       []frame
+	calls        []frame
 	functionName func(int) string
 }
 
@@ -62,12 +70,10 @@ func (m *vm) run() (RideResult, error) {
 	if m.stack != nil {
 		m.stack = m.stack[0:0]
 	}
-	if m.frames != nil {
-		m.frames = m.frames[0:0]
+	if m.calls != nil {
+		m.calls = m.calls[0:0]
 	}
 	m.ip = 0
-	m.frames = append(m.frames, newFrame(len(m.code)))
-
 	for m.ip < len(m.code) {
 		op := m.code[m.ip]
 		m.ip++
@@ -84,16 +90,16 @@ func (m *vm) run() (RideResult, error) {
 		case OpFalse:
 			m.push(rideBoolean(false))
 		case OpJump:
-			offset := m.arg16()
-			m.ip += int(offset)
+			pos := m.arg16()
+			m.ip = int(pos)
 		case OpJumpIfFalse:
-			offset := m.arg16()
+			pos := m.arg16()
 			v, ok := m.current().(rideBoolean)
 			if !ok {
 				return nil, errors.Errorf("not a boolean value '%v' of type '%T'", m.current(), m.current())
 			}
 			if !v {
-				m.ip += int(offset)
+				m.ip = int(pos)
 			}
 		case OpProperty:
 			obj, err := m.pop()
@@ -107,19 +113,12 @@ func (m *vm) run() (RideResult, error) {
 			}
 			m.push(v)
 		case OpCall:
-			c := m.constant()
-			name, ok := c.(rideString)
-			if !ok {
-				return nil, errors.Errorf("not a function name but '%v' of type '%s'", c, c.instanceOf())
-			}
-			fp, err := m.resolve(string(name))
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to call user function '%s'", name)
-			}
-			scope := newFrame(m.ip) // Creating new function frame with return position
-			m.frames = append(m.frames, scope)
-			m.ip = fp // Continue to function code
+			pos := m.arg16()
+			frame := newFunctionFrame(m.ip, len(m.stack)) // Creating new function frame with return position
+			m.frames = append(m.frames, frame)
+			m.ip = int(pos) // Continue to function
 		case OpExternalCall:
+			// Before calling external function all parameters must be evaluated and placed on stack
 			id := m.code[m.ip]
 			m.ip++
 			cnt := int(m.code[m.ip])
@@ -141,42 +140,40 @@ func (m *vm) run() (RideResult, error) {
 				return nil, err
 			}
 			m.push(res)
-		case OpLoad:
-			c := m.constant()
-			name, ok := c.(rideString)
-			if !ok {
-				return nil, errors.Errorf("not a str value '%v' of type '%T'", c, c)
-			}
-			v, err := m.value(name)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to load variable")
-			}
-			m.push(v)
+		case OpLoad: // Evaluate expression behind a LET declaration
+			pos := m.arg16()
+			frame := newFrame(m.ip) // Creating new function frame with return position
+			m.frames = append(m.frames, frame)
+			m.ip = int(pos) // Continue to expression
 		case OpLoadLocal:
 
 		case OpReturn:
-			m.ip = m.returnPosition()             // Continue from return position
-			m.frames = m.frames[:len(m.frames)-1] // Removing the current call stack frame
+			l := len(m.frames)
+			var f frame
+			f, m.frames = m.frames[l-1], m.frames[:l-1]
+			m.ip = f.back
 		case OpHalt:
-			return nil, nil
+			if len(m.stack) > 0 {
+				v, err := m.pop()
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get result value")
+				}
+				switch tv := v.(type) {
+				case rideBoolean:
+					return ScriptResult(tv), nil
+				default:
+					return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
+				}
+			}
+			return nil, errors.New("no result after script execution")
 		case OpGlobal:
+		case OpBlockDeclaration:
+			//Meta information - nothing to do
 		default:
 			return nil, errors.Errorf("unknown code %#x", op)
 		}
 	}
-	if len(m.stack) > 0 {
-		v, err := m.pop()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get result value")
-		}
-		switch tv := v.(type) {
-		case rideBoolean:
-			return ScriptResult(tv), nil
-		default:
-			return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
-		}
-	}
-	return nil, errors.New("no result after script execution")
+	return nil, errors.New("broken code")
 }
 
 func (m *vm) push(v rideType) {

@@ -2,7 +2,9 @@ package fride
 
 import (
 	"encoding/base64"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -189,7 +191,7 @@ func TestEstimatorCommonDebug(t *testing.T) {
 		v3      int
 	}{
 		{`func first(a: Int, b: Int) = {let x = a + b; x}; first(1, 2) == 0`, "AwoBAAAABWZpcnN0AAAAAgAAAAFhAAAAAWIEAAAAAXgJAABkAAAAAgUAAAABYQUAAAABYgUAAAABeAkAAAAAAAACCQEAAAAFZmlyc3QAAAACAAAAAAAAAAABAAAAAAAAAAACAAAAAAAAAAAAm+QHtw==", 33, 33, 8},
-		{`match tx {case tx: TransferTransaction => isDefined(tx.feeAssetId) case _ => false}`, "AgQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQEAAAAJaXNEZWZpbmVkAAAAAQgFAAAAAnR4AAAACmZlZUFzc2V0SWQHXC5tqw==", 58, 58, 43},
+		//{`match tx {case tx: TransferTransaction => isDefined(tx.feeAssetId) case _ => false}`, "AgQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQEAAAAJaXNEZWZpbmVkAAAAAQgFAAAAAnR4AAAACmZlZUFzc2V0SWQHXC5tqw==", 58, 58, 43},
 	} {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err, test.comment)
@@ -202,9 +204,11 @@ func TestEstimatorCommonDebug(t *testing.T) {
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, program, test.comment)
 
+		start := time.Now()
 		c1, err := EstimateV1(program)
 		require.NoError(t, err, test.comment)
 		assert.Equal(t, test.v1, c1, test.comment)
+		fmt.Println(test.comment, ":", time.Since(start))
 	}
 }
 
