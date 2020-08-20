@@ -68,6 +68,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 		Remote:     remote,
 		Parent:     params.Parent,
 		Pool:       params.Pool,
+		Peer:       p,
 	}); err != nil {
 		zap.S().Errorf("peer.Handle(): %v\n", err)
 		return

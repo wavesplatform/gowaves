@@ -217,6 +217,27 @@ func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transacti
 					return nil, err
 				}
 				return &tx, nil
+			case byte(proto.SetAssetScriptTransaction):
+				var tx proto.SetAssetScriptWithProofs
+				err := tx.UnmarshalBinary(txb, scheme)
+				if err != nil {
+					return nil, err
+				}
+				return &tx, nil
+			case byte(proto.InvokeScriptTransaction):
+				var tx proto.InvokeScriptWithProofs
+				err := tx.UnmarshalBinary(txb, scheme)
+				if err != nil {
+					return nil, err
+				}
+				return &tx, nil
+			case byte(proto.UpdateAssetInfoTransaction):
+				var tx proto.UpdateAssetInfoWithProofs
+				err := tx.UnmarshalBinary(txb, scheme)
+				if err != nil {
+					return nil, err
+				}
+				return &tx, nil
 			default:
 				return nil, errors.New("unknown transaction")
 			}
