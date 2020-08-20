@@ -66,6 +66,14 @@ func NewBlockIDFromBase58(s string) (BlockID, error) {
 	return NewBlockIDFromDigest(dig), nil
 }
 
+func MustBlockIDFromBase58(s string) BlockID {
+	block, err := NewBlockIDFromBase58(s)
+	if err != nil {
+		panic(err)
+	}
+	return block
+}
+
 func NewBlockIDFromSignature(sig crypto.Signature) BlockID {
 	return BlockID{sig: sig, idType: SignatureID}
 }
