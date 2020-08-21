@@ -34,87 +34,86 @@ func TestBlocks_HeightBySignature(t *testing.T) {
 	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/height/2TXfMcQNHJVmkbNoznZrFRLaQHiBayFV9mzxt4VJkyXmxe9aGNn5A2unzUX4M2tqiHEfaWdfCBBo8zJQQpFrCKUY", resp.Request.URL.String())
 }
 
+func TestBlocks_HeightByID(t *testing.T) {
+	blockID := proto.MustBlockIDFromBase58("BPYUSbYJ8mQakwuw3s6ekhaTZVGKR9GeLi2DyvULo9Li")
+	client := client(t, NewMockHttpRequestFromString(blocksHeightBySignatureJson, 200))
+	body, resp, err :=
+		client.Blocks.HeightByID(
+			context.Background(),
+			blockID,
+		)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.NotEmpty(t, body.Height)
+	assert.Contains(t, resp.Request.URL.String(), "/blocks/height/"+blockID.String())
+}
+
 var blocksHeadersAtJson = `
 {
-  "version": 2,
-  "timestamp": 1485532386874,
-  "reference": "2DqubQMMBt4ot7y8F37JKWLV9J1Fvn35b4TBLGc3A9gzRvL4DweknWghxYJLYf8edDtDZujCbu1Cwqr19kC8jy12",
+  "version": 5,
+  "timestamp": 1597938747696,
+  "reference": "FMhCcVyk5cYyTf1jt3Umm4Bd4aMyJjMyexFACwL2QT38",
   "nxt-consensus": {
-    "base-target": 279,
-    "generation-signature": "GdXMcQzP99TJMsKX37v6BqVDcbC1xd26fgk5LRjhQUhR"
+    "base-target": 1492,
+    "generation-signature": "6BrNWM8b5TV1R6EtVDSp3iA68B9N249ZNoENMGYZsMPMvhrwFzXyLDBuuWTSmNLiNY1o7KbYdG1NEaSG3cTRibpi1G7Fipa9HNBJoFaWpZuebh5Adq6hcrwHt8MNBdBXVw7"
   },
-  "generator": "3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh",
-  "signature": "4rnYtWNE8WV4heso4q86Uwbcf1XZR5ShfszaKzyRg7aELP2Su3sFUhcCrQCyBA9SbE4T8pkd2AnLKnwBHwhUKaDq",
-  "blocksize": 29882,
-  "transactionCount": 100,
-  "height": 370
-}`
+  "transactionsRoot": "D4bn122GiEqs99z526GdhYETJqctLHGSmWokypEo9qu",
+  "id": "FbucusqZMjWESTikjuehmHzZqL29XtQ1s77HEmEMTAFC",
+  "features": [],
+  "desiredReward": -1,
+  "generator": "3MS55nqhYKLbLZmRExmUN3H6RSWkr9c2VC5",
+  "generatorPublicKey": "HZ5dJMfWfGAgzdyPKN6CLikudPgvgMigvyvbVY6x81kG",
+  "signature": "G7xXESHEk7M8a9pbZjGeiHHJf1ApxzA5e7Tm2K14M7E8FRyTxxrnncu3qjLGxT3HRw7mfrCLYxVNccjAYwZF2dD",
+  "blocksize": 294,
+  "transactionCount": 0,
+  "height": 430196,
+  "totalFee": 0,
+  "reward": 600000000,
+  "VRF": "G2BVihveZLJhYdnsqetiheGu6yHxRUDZArNb6juK5N5D"
+}
+`
 
 func TestBlocks_HeadersAt(t *testing.T) {
-	reference, _ := crypto.NewSignatureFromBase58("2DqubQMMBt4ot7y8F37JKWLV9J1Fvn35b4TBLGc3A9gzRvL4DweknWghxYJLYf8edDtDZujCbu1Cwqr19kC8jy12")
-	ref := proto.NewBlockIDFromSignature(reference)
-	generator, _ := proto.NewAddressFromString("3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh")
-	signature, _ := crypto.NewSignatureFromBase58("4rnYtWNE8WV4heso4q86Uwbcf1XZR5ShfszaKzyRg7aELP2Su3sFUhcCrQCyBA9SbE4T8pkd2AnLKnwBHwhUKaDq")
-
-	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
-		Client:  NewMockHttpRequestFromString(blocksHeadersAtJson, 200),
-	})
-	require.Nil(t, err)
+	client := client(t, NewMockHttpRequestFromString(blocksHeadersAtJson, 200))
 	body, resp, err :=
 		client.Blocks.HeadersAt(context.Background(), 370)
 	require.NoError(t, err)
-	headers := &Headers{
-		Version:   2,
-		Timestamp: 1485532386874,
-		Reference: ref,
-		NxtConsensus: NxtConsensus{
-			BaseTarget:          279,
-			GenerationSignature: "GdXMcQzP99TJMsKX37v6BqVDcbC1xd26fgk5LRjhQUhR",
-		},
-		Features:         nil,
-		Generator:        generator,
-		Signature:        signature,
-		Blocksize:        29882,
-		TransactionCount: 100,
-		Height:           370,
-	}
-
-	assert.NotNil(t, resp)
-	assert.Equal(t, headers, body)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/headers/at/370", resp.Request.URL.String())
+	require.IsType(t, &Headers{}, body)
+	require.NotNil(t, resp)
 }
 
 var blocksHeadersLastJson = `
 {
-  "version": 3,
-  "timestamp": 1542018438521,
-  "reference": "5AP9TZaUXmK2M5dL2oLZVAF4wGdpB7fPoiQ6N7gPaZ6K6yc1uUpuqhJDNAGX5oYUjq8DUXh54h8vswBu5kye6Fb4",
+  "version": 5,
+  "timestamp": 1597936488387,
+  "reference": "AxJAZ2enMUxC8jLA57fE5TcRWTZRp4936MENidqYo5JG",
   "nxt-consensus": {
-    "base-target": 941,
-    "generation-signature": "6fZ2coD4arq6jezTNHQXHLnUQqVvKwCTxQL8BzpqbYGZ"
+    "base-target": 1508,
+    "generation-signature": "3XJ5xFAdPHz2VcgCNAidgBhUuXa1sKX5baE7KxxrVcwHCMa5yjf8pDVasSvtdsQgbQkocZ9vBduAhpZ7Sinx166Rx1Gx1GD4csQC7NUWwDjXtCMkVZr2tPJuYmKwK3gHxGz"
   },
+  "transactionsRoot": "D4bn122GiEqs99z526GdhYETJqctLHGSmWokypEo9qu",
+  "id": "D9J4vNcQmdz9PyTK3gSirPLTqMK3QpsTTzrRZhQSfvo",
   "features": [],
-  "generator": "3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8",
-  "signature": "3gTwUyQ995T1zmjsSZM6s6zCrWQh9JcFotfCetAaEMh6QYGFXPVgQsmudDtyLFsgrBfaS7GjPzAmpY2CkbLxEG5j",
-  "blocksize": 225,
+  "desiredReward": -1,
+  "generator": "3MSNMcqyweiM9cWpvf4Fn8GAWeuPstxj2hK",
+  "generatorPublicKey": "289xpUrYrKbLjaKkqH3XNhfecukcYRaDRT3JDrvkvQRU",
+  "signature": "5zxFHWBkg2F6E9MvwPSNRjWFJ5YTRPgmSZ9ZpBDyLcFyaAnXRGHuLFm8FWDp9pUN6JsCqyqi6FyRaUVdoQTXLdU7",
+  "blocksize": 294,
   "transactionCount": 0,
-  "height": 372323
+  "height": 430159,
+  "totalFee": 0,
+  "reward": 600000000,
+  "VRF": "4mkk3pwfh5Vva8eSqgJtxF8P6JskqA1tHk7BZJ5g9ZBB"
 }
 `
 
 func TestBlocks_HeadersLast(t *testing.T) {
-	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
-		Client:  NewMockHttpRequestFromString(blocksHeadersLastJson, 200),
-	})
-	require.Nil(t, err)
+	client := client(t, NewMockHttpRequestFromString(blocksHeadersLastJson, 200))
 	body, resp, err :=
 		client.Blocks.HeadersLast(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.IsType(t, &Headers{}, body)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/headers/last", resp.Request.URL.String())
 }
 
 var blocksHeadersSetJson = `
@@ -249,17 +248,12 @@ var blocksHeightJson = `
 }`
 
 func TestBlocks_Height(t *testing.T) {
-	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com",
-		Client:  NewMockHttpRequestFromString(blocksHeightJson, 200),
-	})
-	require.Nil(t, err)
+	client := client(t, NewMockHttpRequestFromString(blocksHeightJson, 200))
 	body, resp, err :=
 		client.Blocks.Height(context.Background())
 	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	require.EqualValues(t, 375491, body.Height)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/height", resp.Request.URL.String())
+	require.NotNil(t, resp)
+	require.NotEqual(t, uint64(0), body.Height)
 }
 
 func TestBlocks_Child(t *testing.T) {
@@ -465,17 +459,13 @@ var blocksSeqJson = `
 ]`
 
 func TestBlocks_Seq(t *testing.T) {
-	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com/",
-		Client:  NewMockHttpRequestFromString(blocksSeqJson, 200),
-	})
-	require.Nil(t, err)
+	client := client(t, NewMockHttpRequestFromString(blocksSeqJson, 200))
 	body, resp, err :=
 		client.Blocks.Seq(context.Background(), 1, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
-	require.Equal(t, 5, len(body[0].Transactions))
-	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/seq/1/1", resp.Request.URL.String())
+	require.NotEmpty(t, len(body[0].Transactions))
+	require.Contains(t, resp.Request.URL.String(), "/blocks/seq/1/1")
 }
 
 func TestNewBlocks(t *testing.T) {

@@ -119,22 +119,14 @@ var addressesBalanceJson = `
 }`
 
 func TestAddresses_Balance(t *testing.T) {
-	address, _ := proto.NewAddressFromString("3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8")
-	client, err := NewClient(Options{
-		BaseUrl: "https://testnode1.wavesnodes.com/",
-		Client:  NewMockHttpRequestFromString(addressesBalanceJson, 200),
-	})
-	require.NoError(t, err)
+	address, _ := proto.NewAddressFromString("3MTsJTRzVZ6bmJ5dh4sp1U3Dr5iQmVtZ6Em")
+	client := client(t, NewMockHttpRequestFromString(addressesBalanceJson, 200))
 	body, resp, err :=
 		client.Addresses.Balance(context.Background(), address)
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.Equal(t, &AddressesBalance{
-		Address:       address,
-		Confirmations: 0,
-		Balance:       37983033403592,
-	}, body)
-	assert.Equal(t, "https://testnode1.wavesnodes.com/addresses/balance/3NBVqYXrapgJP9atQccdBPAgJPwHDKkh6A8", resp.Request.URL.String())
+	assert.IsType(t, &AddressesBalance{}, body)
+	assert.Contains(t, resp.Request.URL.String(), "/addresses/balance/"+address.String())
 }
 
 var addressesEffectiveBalance = `
