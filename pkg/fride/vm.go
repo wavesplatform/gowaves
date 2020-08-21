@@ -6,39 +6,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Run(program *Program) (RideResult, error) {
-	if program == nil {
-		return nil, errors.New("empty program")
-	}
-	fs, err := selectFunctions(program.LibVersion)
-	if err != nil {
-		return nil, errors.Wrap(err, "run")
-	}
-	gcs, err := selectConstants(program.LibVersion)
-	if err != nil {
-		return nil, errors.Wrap(err, "run")
-	}
-	np, err := selectFunctionNameProvider(program.LibVersion)
-	if err != nil {
-		return nil, errors.Wrap(err, "run")
-	}
-	m := vm{
-		code:         program.Code,
-		constants:    program.Constants,
-		functions:    fs,
-		globals:      gcs,
-		stack:        make([]rideType, 0, 2),
-		calls:        make([]frame, 0, 2),
-		ip:           0,
-		functionName: np,
-	}
-	return m.run()
-}
-
 type frame struct {
 	function bool
 	back     int
-	args     []rideValue
+	args     []rideType
 }
 
 func newExpressionFrame(pos int) frame {
@@ -47,7 +18,7 @@ func newExpressionFrame(pos int) frame {
 	}
 }
 
-func newFunctionFrame(pos int, args []rideValue) frame {
+func newFunctionFrame(pos int, args []rideType) frame {
 	return frame{
 		function: true,
 		back:     pos,
@@ -91,7 +62,7 @@ func (m *vm) run() (RideResult, error) {
 			m.push(rideBoolean(false))
 		case OpJump:
 			pos := m.arg16()
-			m.ip = int(pos)
+			m.ip = pos
 		case OpJumpIfFalse:
 			pos := m.arg16()
 			v, ok := m.current().(rideBoolean)
@@ -99,7 +70,7 @@ func (m *vm) run() (RideResult, error) {
 				return nil, errors.Errorf("not a boolean value '%v' of type '%T'", m.current(), m.current())
 			}
 			if !v {
-				m.ip = int(pos)
+				m.ip = pos
 			}
 		case OpProperty:
 			obj, err := m.pop()
@@ -114,26 +85,33 @@ func (m *vm) run() (RideResult, error) {
 			m.push(v)
 		case OpCall:
 			pos := m.arg16()
-			frame := newFunctionFrame(m.ip, len(m.stack)) // Creating new function frame with return position
-			m.frames = append(m.frames, frame)
-			m.ip = int(pos) // Continue to function
+			cnt := m.arg16()
+			in := make([]rideType, cnt)
+			for i := cnt - 1; i >= 0; i-- {
+				v, err := m.pop()
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to call function at position %d", pos)
+				}
+				in[i] = v
+			}
+			frame := newFunctionFrame(m.ip, in) // Creating new function frame with return position
+			m.calls = append(m.calls, frame)
+			m.ip = pos // Continue to function
 		case OpExternalCall:
 			// Before calling external function all parameters must be evaluated and placed on stack
-			id := m.code[m.ip]
-			m.ip++
-			cnt := int(m.code[m.ip])
-			m.ip++
+			id := m.arg16()
+			cnt := m.arg16()
 			in := make([]rideType, cnt) // Prepare input parameters for external call
 			for i := cnt - 1; i >= 0; i-- {
 				v, err := m.pop()
 				if err != nil {
-					return nil, errors.Wrapf(err, "failed to call external function '%s'", m.functionName(int(id)))
+					return nil, errors.Wrapf(err, "failed to call external function '%s'", m.functionName(id))
 				}
 				in[i] = v
 			}
-			fn := m.functions(int(id))
+			fn := m.functions(id)
 			if fn == nil {
-				return nil, errors.Errorf("external function '%s' not implemented", m.functionName(int(id)))
+				return nil, errors.Errorf("external function '%s' not implemented", m.functionName(id))
 			}
 			res, err := fn(in...)
 			if err != nil {
@@ -142,15 +120,24 @@ func (m *vm) run() (RideResult, error) {
 			m.push(res)
 		case OpLoad: // Evaluate expression behind a LET declaration
 			pos := m.arg16()
-			frame := newFrame(m.ip) // Creating new function frame with return position
-			m.frames = append(m.frames, frame)
-			m.ip = int(pos) // Continue to expression
+			frame := newExpressionFrame(m.ip) // Creating new function frame with return position
+			m.calls = append(m.calls, frame)
+			m.ip = pos // Continue to expression
 		case OpLoadLocal:
-
+			n := m.arg16()
+			l := len(m.calls)
+			if l == 0 {
+				return nil, errors.New("failed to load argument on stack")
+			}
+			frame := m.calls[l-1]
+			if l := len(frame.args); l < n+1 {
+				return nil, errors.New("invalid arguments count")
+			}
+			m.push(frame.args[n])
 		case OpReturn:
-			l := len(m.frames)
+			l := len(m.calls)
 			var f frame
-			f, m.frames = m.frames[l-1], m.frames[:l-1]
+			f, m.calls = m.calls[l-1], m.calls[:l-1]
 			m.ip = f.back
 		case OpHalt:
 			if len(m.stack) > 0 {
@@ -167,8 +154,8 @@ func (m *vm) run() (RideResult, error) {
 			}
 			return nil, errors.New("no result after script execution")
 		case OpGlobal:
-		case OpBlockDeclaration:
-			//Meta information - nothing to do
+			//TODO: implement
+			//id := m.arg16()
 		default:
 			return nil, errors.Errorf("unknown code %#x", op)
 		}
@@ -193,18 +180,11 @@ func (m *vm) current() rideType {
 	return m.stack[len(m.stack)-1]
 }
 
-func (m *vm) arg16() uint16 {
+func (m *vm) arg16() int {
 	//TODO: add check
 	res := binary.BigEndian.Uint16(m.code[m.ip : m.ip+2])
 	m.ip += 2
-	return res
-}
-
-func (m *vm) arg8() uint8 {
-	//TODO: add check
-	res := m.code[m.ip]
-	m.ip++
-	return res
+	return int(res)
 }
 
 func (m *vm) constant() rideType {
@@ -213,11 +193,11 @@ func (m *vm) constant() rideType {
 }
 
 func (m *vm) scope() (*frame, int) {
-	n := len(m.frames) - 1
+	n := len(m.calls) - 1
 	if n < 0 {
 		return nil, n
 	}
-	return &m.frames[n], n
+	return &m.calls[n], n
 }
 
 func (m *vm) resolve(name string) (int, error) {
@@ -227,33 +207,33 @@ func (m *vm) resolve(name string) (int, error) {
 }
 
 func (m *vm) returnPosition() int {
-	if l := len(m.frames); l > 0 {
-		return m.frames[l-1].back
+	if l := len(m.calls); l > 0 {
+		return m.calls[l-1].back
 	}
 	return len(m.code)
 }
 
-func (m *vm) value(name rideString) (rideType, error) {
-	s, n := m.scope()
-	switch n {
-	case -1:
-		return nil, errors.Errorf("no frame to look up variable '%s'", name)
-	case 0:
-		v, ok := s.variables[name]
-		if !ok {
-			return nil, errors.Errorf("variable '%s' not found", name)
-		}
-		return v, nil
-	default:
-		v, ok := s.variables[name]
-		if ok {
-			return v, nil
-		}
-		global := m.frames[0]
-		v, ok = global.variables[name]
-		if !ok {
-			return nil, errors.Errorf("variable '%s' not found", name)
-		}
-		return v, nil
-	}
-}
+//func (m *vm) value(name rideString) (rideType, error) {
+//	s, n := m.scope()
+//	switch n {
+//	case -1:
+//		return nil, errors.Errorf("no frame to look up variable '%s'", name)
+//	case 0:
+//		v, ok := s.variables[name]
+//		if !ok {
+//			return nil, errors.Errorf("variable '%s' not found", name)
+//		}
+//		return v, nil
+//	default:
+//		v, ok := s.variables[name]
+//		if ok {
+//			return v, nil
+//		}
+//		global := m.frames[0]
+//		v, ok = global.variables[name]
+//		if !ok {
+//			return nil, errors.Errorf("variable '%s' not found", name)
+//		}
+//		return v, nil
+//	}
+//}

@@ -21,10 +21,10 @@ func functionV2(id int) rideFunction {
 	}
 	return _functions_V2[id]
 }
-func checkFunctionV2(name string) (byte, bool) {
+func checkFunctionV2(name string) (uint16, bool) {
 	for i := 0; i <= 67; i++ {
 		if _names_V2[_index_V2[i]:_index_V2[i+1]] == name {
-			return byte(i), true
+			return uint16(i), true
 		}
 	}
 	return 0, false
@@ -55,10 +55,10 @@ func functionV3(id int) rideFunction {
 	}
 	return _functions_V3[id]
 }
-func checkFunctionV3(name string) (byte, bool) {
+func checkFunctionV3(name string) (uint16, bool) {
 	for i := 0; i <= 127; i++ {
 		if _names_V3[_index_V3[i]:_index_V3[i+1]] == name {
-			return byte(i), true
+			return uint16(i), true
 		}
 	}
 	return 0, false
@@ -89,10 +89,10 @@ func functionV4(id int) rideFunction {
 	}
 	return _functions_V4[id]
 }
-func checkFunctionV4(name string) (byte, bool) {
+func checkFunctionV4(name string) (uint16, bool) {
 	for i := 0; i <= 182; i++ {
 		if _names_V4[_index_V4[i]:_index_V4[i+1]] == name {
-			return byte(i), true
+			return uint16(i), true
 		}
 	}
 	return 0, false

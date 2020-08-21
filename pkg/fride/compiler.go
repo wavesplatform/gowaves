@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Compile(tree *Tree) (*Program, error) {
+func Compile(tree *Tree) (RideScript, error) {
 	fCheck, err := selectFunctionChecker(tree.LibVersion)
 	if err != nil {
 		return nil, errors.Wrap(err, "compile")
@@ -28,8 +28,31 @@ func Compile(tree *Tree) (*Program, error) {
 		declarations:  make([]rideDeclaration, 0),
 		patcher:       newPatcher(),
 	}
+	if tree.IsDApp() {
+		return c.compileDAppScript(tree)
+	}
+	return c.compileSimpleScript(tree)
+}
+
+type rideCallable struct {
+	name      string
+	parameter string
+}
+
+type compiler struct {
+	constants     *rideConstants
+	checkFunction func(string) (uint16, bool)
+	checkConstant func(string) (uint16, bool)
+	values        []rideValue
+	functions     []*localFunction
+	declarations  []rideDeclaration
+	patcher       *patcher
+	callable      *rideCallable
+}
+
+func (c *compiler) compileSimpleScript(tree *Tree) (*SimpleScript, error) {
 	bb := new(bytes.Buffer)
-	err = c.compile(bb, tree.Verifier)
+	err := c.compile(bb, tree.Verifier)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +74,7 @@ func Compile(tree *Tree) (*Program, error) {
 	for pos, addr := range patches {
 		binary.BigEndian.PutUint16(code[pos:], addr)
 	}
-	return &Program{
+	return &SimpleScript{
 		LibVersion: tree.LibVersion,
 		EntryPoint: 0,
 		Code:       bb.Bytes(),
@@ -59,14 +82,78 @@ func Compile(tree *Tree) (*Program, error) {
 	}, nil
 }
 
-type compiler struct {
-	constants     *rideConstants
-	checkFunction func(string) (byte, bool)
-	checkConstant func(string) (byte, bool)
-	values        []rideValue
-	functions     []*localFunction
-	declarations  []rideDeclaration
-	patcher       *patcher
+func (c *compiler) compileDAppScript(tree *Tree) (*DAppScript, error) {
+	// Compile global declarations.
+	// Each declaration goes to the declaration stack with code compiled in its own buffer.
+	functions := make(map[string]callable)
+	bb := new(bytes.Buffer)
+	for _, node := range tree.Declarations {
+		err := c.compile(bb, node)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, n := range tree.Functions {
+		fn, ok := n.(*FunctionDeclarationNode)
+		if !ok {
+			return nil, errors.Errorf("invalid node type %T", n)
+		}
+		c.callable = &rideCallable{
+			name:      fn.Name,
+			parameter: fn.invocationParameter,
+		}
+		err := c.compile(bb, fn)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if tree.HasVerifier() {
+		v, ok := tree.Verifier.(*FunctionDeclarationNode)
+		if !ok {
+			return nil, errors.Errorf("invalid node type for DApp's verifier '%T'", tree.Verifier)
+		}
+		c.callable = &rideCallable{
+			name:      "", // Verifier has empty name
+			parameter: v.invocationParameter,
+		}
+		err := c.compile(bb, v)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// All declarations goes here after public functions and verifier
+	for _, d := range c.declarations {
+		pos := bb.Len()
+		c.patcher.setOrigin(d.buffer(), pos)
+		bb.Write(patchedCode(d.buffer(), pos))
+		if c := d.callable(); c != nil {
+			bb.WriteByte(OpHalt)
+			// Add reference to entry point
+			functions[c.name] = callable{
+				entryPoint:    pos,
+				parameterName: c.parameter,
+			}
+		} else {
+			bb.WriteByte(OpReturn)
+		}
+		for _, ref := range d.references() {
+			c.patcher.setPosition(ref, uint16(pos))
+		}
+	}
+	code := bb.Bytes()
+	patches, err := c.patcher.get()
+	if err != nil {
+		return nil, err
+	}
+	for pos, addr := range patches {
+		binary.BigEndian.PutUint16(code[pos:], addr)
+	}
+	return &DAppScript{
+		LibVersion:  tree.LibVersion,
+		Code:        bb.Bytes(),
+		Constants:   c.constants.items,
+		EntryPoints: functions,
+	}, nil
 }
 
 func (c *compiler) compile(bb *bytes.Buffer, node Node) error {
@@ -175,30 +262,33 @@ func (c *compiler) conditionalNode(bb *bytes.Buffer, node *ConditionalNode) erro
 }
 
 func (c *compiler) assignmentNode(bb *bytes.Buffer, node *AssignmentNode) error {
-	bb.WriteByte(OpBlockDeclaration)
-	err := c.pushGlobalValue(node.Name, node.Expression)
+	err := c.pushGlobalValue(node.Name, node.Expression, c.callable)
 	if err != nil {
 		return err
 	}
-
-	err = c.compile(bb, node.Block)
-	if err != nil {
-		return err
+	if node.Block != nil {
+		err = c.compile(bb, node.Block)
+		if err != nil {
+			return err
+		}
+		err = c.popValue()
+		if err != nil {
+			return err
+		}
+	} else {
+		err = c.peekValue()
+		if err != nil {
+			return err
+		}
 	}
-	err = c.popValue()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
 func (c *compiler) referenceNode(bb *bytes.Buffer, node *ReferenceNode) error {
-	id, ok := c.checkConstant(node.Name)
-	if ok {
+	if id, ok := c.checkConstant(node.Name); ok {
 		//Globally declared constant
 		bb.WriteByte(OpGlobal)
-		bb.WriteByte(id)
+		bb.Write(encode(id))
 		return nil
 	} else {
 		v, err := c.lookupValue(node.Name)
@@ -222,18 +312,32 @@ func (c *compiler) referenceNode(bb *bytes.Buffer, node *ReferenceNode) error {
 }
 
 func (c *compiler) functionDeclarationNode(bb *bytes.Buffer, node *FunctionDeclarationNode) error {
-	bb.WriteByte(OpBlockDeclaration)
-	err := c.pushFunction(node.Name, node.Arguments, node.Body)
+	var args []string
+	if c.callable != nil { // DApp callable function
+		args = make([]string, len(node.Arguments)+1)
+		args[0] = c.callable.parameter
+		copy(args[1:], node.Arguments)
+	} else {
+		args = node.Arguments
+	}
+	err := c.pushFunction(node.Name, args, node.Body, c.callable)
 	if err != nil {
 		return err
 	}
-	err = c.compile(bb, node.Block)
-	if err != nil {
-		return err
-	}
-	err = c.popFunction()
-	if err != nil {
-		return err
+	if node.Block != nil {
+		err = c.compile(bb, node.Block)
+		if err != nil {
+			return err
+		}
+		err = c.popFunction()
+		if err != nil {
+			return err
+		}
+	} else {
+		err = c.peekFunction()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -245,13 +349,13 @@ func (c *compiler) callNode(bb *bytes.Buffer, node *FunctionCallNode) error {
 			return err
 		}
 	}
-	id, ok := c.checkFunction(node.Name)
-	if ok {
+	cnt := encode(uint16(len(node.Arguments)))
+
+	if id, ok := c.checkFunction(node.Name); ok {
 		//External function
-		cnt := byte(len(node.Arguments))
 		bb.WriteByte(OpExternalCall)
-		bb.WriteByte(id)
-		bb.WriteByte(cnt)
+		bb.Write(encode(id))
+		bb.Write(cnt)
 	} else {
 		//Internal function
 		decl, err := c.lookupFunction(node.Name)
@@ -261,6 +365,7 @@ func (c *compiler) callNode(bb *bytes.Buffer, node *FunctionCallNode) error {
 		bb.WriteByte(OpCall)
 		decl.call(c.patcher.add(bb))
 		bb.Write([]byte{0xff, 0xff})
+		bb.Write(cnt)
 	}
 	return nil
 }
@@ -279,8 +384,9 @@ func (c *compiler) propertyNode(bb *bytes.Buffer, node *PropertyNode) error {
 	return nil
 }
 
-func (c *compiler) pushGlobalValue(name string, node Node) error {
-	d := newGlobalValue(name)
+func (c *compiler) pushGlobalValue(name string, node Node, annex *rideCallable) error {
+	d := newGlobalValue(name, annex)
+	c.callable = nil
 	c.values = append(c.values, d)
 	err := c.compile(d.bb, node)
 	if err != nil {
@@ -297,7 +403,18 @@ func (c *compiler) popValue() error {
 	var v rideValue
 	v, c.values = c.values[l-1], c.values[:l-1]
 	if d, ok := v.(rideDeclaration); ok {
-		//TODO: originally was `append([]rideDeclaration{d}, c.declarations...)` to store the order. Argh!
+		c.declarations = append(c.declarations, d)
+	}
+	return nil
+}
+
+func (c *compiler) peekValue() error {
+	l := len(c.values)
+	if l == 0 {
+		return errors.New("failed to peek value from empty stack")
+	}
+	v := c.values[l-1]
+	if d, ok := v.(rideDeclaration); ok {
 		c.declarations = append(c.declarations, d)
 	}
 	return nil
@@ -312,12 +429,13 @@ func (c *compiler) lookupValue(name string) (rideValue, error) {
 	return nil, errors.Errorf("value '%s' is not declared", name)
 }
 
-func (c *compiler) pushFunction(name string, args []string, node Node) error {
-	d := newLocalFunction(name, args)
+func (c *compiler) pushFunction(name string, args []string, node Node, annex *rideCallable) error {
+	d := newLocalFunction(name, args, annex)
 	c.functions = append(c.functions, d)
 	for i, a := range args {
 		c.values = append(c.values, newLocalValue(a, i))
 	}
+	c.callable = nil
 	err := c.compile(d.bb, node)
 	if err != nil {
 		return err
@@ -332,6 +450,22 @@ func (c *compiler) popFunction() error {
 	}
 	var f *localFunction
 	f, c.functions = c.functions[l-1], c.functions[:l-1]
+	for range f.args {
+		err := c.popValue()
+		if err != nil {
+			return err
+		}
+	}
+	c.declarations = append(c.declarations, f)
+	return nil
+}
+
+func (c *compiler) peekFunction() error {
+	l := len(c.functions)
+	if l == 0 {
+		return errors.New("failed to peek function from empty stack")
+	}
+	f := c.functions[l-1]
 	for range f.args {
 		err := c.popValue()
 		if err != nil {
@@ -396,6 +530,7 @@ func (c *rideConstants) append(value rideType) (uint16, error) {
 type rideDeclaration interface {
 	buffer() *bytes.Buffer
 	references() []int
+	callable() *rideCallable
 }
 
 type rideValue interface {
@@ -420,14 +555,16 @@ func (v *localValue) id() string {
 
 type globalValue struct {
 	name   string
+	annex  *rideCallable
 	bb     *bytes.Buffer
 	usages []int
 	using  []*globalValue
 }
 
-func newGlobalValue(name string) *globalValue {
+func newGlobalValue(name string, annex *rideCallable) *globalValue {
 	return &globalValue{
 		name:   name,
+		annex:  annex,
 		bb:     new(bytes.Buffer),
 		usages: make([]int, 0),
 		using:  make([]*globalValue, 0),
@@ -450,16 +587,22 @@ func (v *globalValue) refer(patch int) {
 	v.usages = append(v.usages, patch)
 }
 
+func (v *globalValue) callable() *rideCallable {
+	return v.annex
+}
+
 type localFunction struct {
 	name  string
+	annex *rideCallable
 	bb    *bytes.Buffer
 	calls []int
 	args  []string
 }
 
-func newLocalFunction(name string, args []string) *localFunction {
+func newLocalFunction(name string, args []string, annex *rideCallable) *localFunction {
 	return &localFunction{
 		name:  name,
+		annex: annex,
 		bb:    new(bytes.Buffer),
 		calls: make([]int, 0),
 		args:  args,
@@ -476,6 +619,10 @@ func (f *localFunction) references() []int {
 
 func (f *localFunction) call(pos int) {
 	f.calls = append(f.calls, pos)
+}
+
+func (f *localFunction) callable() *rideCallable {
+	return f.annex
 }
 
 type patch struct {
@@ -558,8 +705,10 @@ func patchedCode(bb *bytes.Buffer, origin int) []byte {
 			addr := bts[i+1 : i+3]
 			update(addr, origin)
 			i += 3
-		case OpPush, OpProperty, OpCall, OpExternalCall, OpLoad, OpLoadLocal:
+		case OpPush, OpProperty, OpLoad, OpLoadLocal, OpGlobal:
 			i += 3
+		case OpCall, OpExternalCall:
+			i += 5
 		default:
 			i++
 		}

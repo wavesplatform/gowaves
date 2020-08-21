@@ -1,13 +1,13 @@
 package fride
 
-func newHeight(env rideEnvironment) rideType {
+func newHeight(env RideEnvironment) rideType {
 	if env == nil {
 		return rideUnit{}
 	}
 	return env.height()
 }
 
-func newTx(env rideEnvironment) rideType {
+func newTx(env RideEnvironment) rideType {
 	if env == nil {
 		return rideUnit{}
 	}
@@ -17,7 +17,7 @@ func newTx(env rideEnvironment) rideType {
 	return env.transaction()
 }
 
-func newLastBlock(env rideEnvironment) rideType {
+func newLastBlock(env RideEnvironment) rideType {
 	if env == nil {
 		return rideUnit{}
 	}
@@ -27,7 +27,7 @@ func newLastBlock(env rideEnvironment) rideType {
 	return env.block()
 }
 
-func newThis(env rideEnvironment) rideType {
+func newThis(env RideEnvironment) rideType {
 	if env == nil {
 		return rideUnit{}
 	}
@@ -37,10 +37,10 @@ func newThis(env rideEnvironment) rideType {
 	return env.this()
 }
 
-func newUnit(rideEnvironment) rideType {
+func newUnit(RideEnvironment) rideType {
 	return rideUnit{}
 }
 
-func newNil(rideEnvironment) rideType {
+func newNil(RideEnvironment) rideType {
 	return nil
 }

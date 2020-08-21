@@ -14,15 +14,15 @@ func TestExecution(t *testing.T) {
 		source  string
 		res     bool
 	}{
-		//{`V1: true`, "AQa3b8tH", true},
-		//{`V3: let x = 1; true`, "AwQAAAABeAAAAAAAAAAAAQbtAkXn", true},
-		//{`V3: let x = "abc"; true`, "AwQAAAABeAIAAAADYWJjBrpUkE4=", true},
-		//{`V1: let i = 1; let s = "string"; toString(i) == s`, "AQQAAAABaQAAAAAAAAAAAQQAAAABcwIAAAAGc3RyaW5nCQAAAAAAAAIJAAGkAAAAAQUAAAABaQUAAAABcwIsH74=", false},
-		//{`V3: let i = 12345; let s = "12345"; toString(i) == s`, "AwQAAAABaQAAAAAAAAAwOQQAAAABcwIAAAAFMTIzNDUJAAAAAAAAAgkAAaQAAAABBQAAAAFpBQAAAAFz1B1iCw==", true},
-		//{`V3: if (true) then {let r = true; r} else {let r = false; r}`, "AwMGBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXJ/ok0E", true},
-		//{`V3: if (false) then {let r = true; r} else {let r = false; r}`, "AwMHBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXI+tfo1", false},
+		{`V1: true`, "AQa3b8tH", true},
+		{`V3: let x = 1; true`, "AwQAAAABeAAAAAAAAAAAAQbtAkXn", true},
+		{`V3: let x = "abc"; true`, "AwQAAAABeAIAAAADYWJjBrpUkE4=", true},
+		{`V1: let i = 1; let s = "string"; toString(i) == s`, "AQQAAAABaQAAAAAAAAAAAQQAAAABcwIAAAAGc3RyaW5nCQAAAAAAAAIJAAGkAAAAAQUAAAABaQUAAAABcwIsH74=", false},
+		{`V3: let i = 12345; let s = "12345"; toString(i) == s`, "AwQAAAABaQAAAAAAAAAwOQQAAAABcwIAAAAFMTIzNDUJAAAAAAAAAgkAAaQAAAABBQAAAAFpBQAAAAFz1B1iCw==", true},
+		{`V3: if (true) then {let r = true; r} else {let r = false; r}`, "AwMGBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXJ/ok0E", true},
+		{`V3: if (false) then {let r = true; r} else {let r = false; r}`, "AwMHBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXI+tfo1", false},
 		{`V3: func abs(i:Int) = if (i >= 0) then i else -i; abs(-10) == 10`, "AwoBAAAAA2FicwAAAAEAAAABaQMJAABnAAAAAgUAAAABaQAAAAAAAAAAAAUAAAABaQkBAAAAAS0AAAABBQAAAAFpCQAAAAAAAAIJAQAAAANhYnMAAAABAP/////////2AAAAAAAAAAAKmp8BWw==", true},
-		//{`V3: let ref = 999; func g(a: Int) = ref; func f(ref: Int) = g(ref); f(1) == 999`, "AwQAAAADcmVmAAAAAAAAAAPnCgEAAAABZwAAAAEAAAABYQUAAAADcmVmCgEAAAABZgAAAAEAAAADcmVmCQEAAAABZwAAAAEFAAAAA3JlZgkAAAAAAAACCQEAAAABZgAAAAEAAAAAAAAAAAEAAAAAAAAAA+fjknmW", true},
+		{`V3: let ref = 999; func g(a: Int) = ref; func f(ref: Int) = g(ref); f(1) == 999`, "AwQAAAADcmVmAAAAAAAAAAPnCgEAAAABZwAAAAEAAAABYQUAAAADcmVmCgEAAAABZgAAAAEAAAADcmVmCQEAAAABZwAAAAEFAAAAA3JlZgkAAAAAAAACCQEAAAABZgAAAAEAAAAAAAAAAAEAAAAAAAAAA+fjknmW", true},
 	} {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err, test.comment)
@@ -31,11 +31,11 @@ func TestExecution(t *testing.T) {
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 
-		program, err := Compile(tree)
+		script, err := Compile(tree)
 		require.NoError(t, err, test.comment)
-		assert.NotNil(t, program, test.comment)
+		assert.NotNil(t, script, test.comment)
 
-		res, err := Run(program)
+		res, err := script.Run(nil) //TODO: pass real value
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, res, test.comment)
 		r, ok := res.(ScriptResult)
@@ -54,7 +54,7 @@ func BenchmarkSimplestScript(b *testing.B) {
 		prg, err := Compile(tree)
 		require.NoError(b, err)
 		assert.NotNil(b, prg)
-		res, err := Run(prg)
+		res, err := prg.Run(nil) //TODO: pass real value
 		require.NoError(b, err)
 		r := res.(ScriptResult)
 		assert.True(b, bool(r))
@@ -84,7 +84,7 @@ func BenchmarkEval(b *testing.B) {
 	assert.NotNil(b, prg)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		res, err := Run(prg)
+		res, err := prg.Run(nil) //TODO: pass real value
 		require.NoError(b, err)
 		r := res.(ScriptResult)
 		assert.True(b, bool(r))

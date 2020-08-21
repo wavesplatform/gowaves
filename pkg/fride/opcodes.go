@@ -1,19 +1,22 @@
 package fride
 
+// Operation code is 1 byte.
+// Parameter is 2 bytes length
+
 const (
-	OpPush             byte = iota //00 - 3 Put constant on stack, parameter: constant ID (2 bytes)
-	OpPop                          //01 - 1 Removes value from stack
-	OpTrue                         //02 - 1 Put True value on stack
-	OpFalse                        //03 - 1 Put False value on stack
-	OpJump                         //04 - 3 Moves instruction pointer to new position, parameter: new position (2 bytes)
-	OpJumpIfFalse                  //05 - 3 Moves instruction pointer to new position if value on stack is False, parameter: new position (2 bytes)
-	OpProperty                     //06 - 3 Puts value of object's property on stack, parameter: constant ID that holds name of the property (2 bytes)
-	OpCall                         //07 - 3 Call a function declared at given address, parameter: position of function declaration (2 bytes)
-	OpExternalCall                 //08 - 3 Call a built-in function, parameters: function ID (1 byte), number of arguments (1 byte)
-	OpLoad                         //09 - 3 Load a value declared at address, parameter: position of declaration (2 bytes)
-	OpLoadLocal                    //0a - 3 Load an argument of function call on stack at given position, parameter: position on stack (2 bytes)
-	OpReturn                       //0b - 1 Returns from declaration to stored position
-	OpHalt                         //0c - 1 Halts execution immediately
-	OpGlobal                       //0d - 2 Load global constant, parameter: global constant ID (1 byte)
-	OpBlockDeclaration             //0e - 1 Noop that marks the place of block declaration
+	OpHalt         byte = iota //00 - Halts program execution. No parameters.
+	OpReturn                   //01 - Returns from declaration to stored position. No parameters.
+	OpPush                     //02 - Put constant on stack. One parameter: constant ID.
+	OpPop                      //03 - Removes value from stack. No parameters.
+	OpTrue                     //04 - Put True value on stack. No parameters.
+	OpFalse                    //05 - Put False value on stack. No parameters.
+	OpJump                     //06 - Moves instruction pointer to new position. One parameter: new position.
+	OpJumpIfFalse              //07 - Moves instruction pointer to new position if value on stack is False. One parameter: new position.
+	OpProperty                 //08 - Puts value of object's property on stack. One parameter: constant ID that holds name of the property.
+	OpExternalCall             //09 - Call a standard library function. Two parameters: function ID, number of arguments.
+	OpCall                     //0a - Call a function declared at given address. Two parameters: position of function declaration, number of arguments.
+	OpGlobal                   //0b - Load global constant. One parameter: global constant ID.
+	OpLoad                     //0c - Evaluates an expression that declared at address. One parameter: position of declaration.
+	OpLoadLocal                //0d - Load an argument of function call on stack. One parameter: argument number.
+	OpRef                      //0e - Put reference to expression/function on stack. One parameter: position of declaration.
 )

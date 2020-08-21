@@ -15,7 +15,7 @@ func selectFunctions(v int) (func(id int) rideFunction, error) {
 	}
 }
 
-func selectFunctionChecker(v int) (func(name string) (byte, bool), error) {
+func selectFunctionChecker(v int) (func(name string) (uint16, bool), error) {
 	switch v {
 	case 1, 2:
 		return checkFunctionV2, nil
@@ -69,7 +69,7 @@ func selectConstants(v int) (func(int) rideConstructor, error) {
 	}
 }
 
-func selectConstantsChecker(v int) (func(name string) (byte, bool), error) {
+func selectConstantsChecker(v int) (func(name string) (uint16, bool), error) {
 	switch v {
 	case 1:
 		return checkConstantV1, nil

@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func EstimateV1(program *Program) (int, error) {
+func EstimateV1(program *SimpleScript) (int, error) {
 	if program == nil {
 		return 0, errors.New("empty program")
 	}
@@ -252,8 +252,8 @@ func (e *estimatorV1) estimate() error {
 		case OpGlobal:
 			e.scope.add(2)
 			e.ip++
-		case OpBlockDeclaration:
-			e.scope.add(5)
+		//case OpBlockDeclaration:
+		//	e.scope.add(5)
 		default:
 			return errors.Errorf("unknown operation code %#x", op)
 		}

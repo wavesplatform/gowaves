@@ -164,11 +164,11 @@ func TestEstimatorCommon(t *testing.T) {
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 
-		program, err := Compile(tree)
+		script, err := Compile(tree)
 		require.NoError(t, err, test.comment)
-		assert.NotNil(t, program, test.comment)
+		assert.NotNil(t, script, test.comment)
 
-		c1, err := EstimateV1(program)
+		c1, err := script.Estimate(1)
 		require.NoError(t, err, test.comment)
 		assert.Equal(t, test.v1, c1, test.comment)
 
@@ -200,12 +200,12 @@ func TestEstimatorCommonDebug(t *testing.T) {
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 
-		program, err := Compile(tree)
+		script, err := Compile(tree)
 		require.NoError(t, err, test.comment)
-		assert.NotNil(t, program, test.comment)
+		assert.NotNil(t, script, test.comment)
 
 		start := time.Now()
-		c1, err := EstimateV1(program)
+		c1, err := script.Estimate(1)
 		require.NoError(t, err, test.comment)
 		assert.Equal(t, test.v1, c1, test.comment)
 		fmt.Println(test.comment, ":", time.Since(start))

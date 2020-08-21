@@ -141,14 +141,14 @@ func (a rideNamedType) eq(other rideType) bool {
 
 type rideFunction func(args ...rideType) (rideType, error)
 
-type rideEnvironment interface {
+type RideEnvironment interface {
 	height() rideInt
 	transaction() rideObject
 	this() rideObject
 	block() rideObject
 }
 
-type rideConstructor func(environment rideEnvironment) rideType
+type rideConstructor func(environment RideEnvironment) rideType
 
 func fetch(from rideType, prop rideType) (rideType, error) {
 	obj, ok := from.(rideObject)
