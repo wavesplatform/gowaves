@@ -2,9 +2,12 @@ package client
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func TestNewDebug(t *testing.T) {
@@ -156,4 +159,61 @@ func TestDebug_ConfigInfo(t *testing.T) {
 	assert.True(t, len(body) > 0)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/debug/configInfo?full=false", resp.Request.URL.String())
 	assert.NotEmpty(t, resp.Request.Header.Get(ApiKeyHeader))
+}
+
+var balancesHistoryJson = `
+[
+  {
+    "height": 435572,
+    "balance": 9452947750000
+  },
+  {
+    "height": 435070,
+    "balance": 9453947850000
+  }
+]
+`
+
+func TestDebug_BalancesHistory(t *testing.T) {
+	client := client(t, NewMockHttpRequestFromString(balancesHistoryJson, 200))
+	body, resp, err :=
+		client.Debug.BalancesHistory(context.Background(), proto.MustAddressFromString("3MgSuT5FfeMrwwZCbztqLhQpcJNxySaFEiT"))
+	require.Nil(t, err)
+	require.NotNil(t, resp)
+	assert.True(t, len(body) > 0)
+	assert.Contains(t, resp.Request.URL.String(), "/debug/balances/history")
+}
+
+var stateChangesJson = `
+{
+  "id": "83fxPJzEaQjEnVNGZ4TB4AdJrzCuFhy3xJkhVxY3dGf7",
+  "height": 50,
+  "stateChanges": {
+    "data": [
+      {
+        "type": "integer",
+        "key": "key",
+        "value": 5
+      }
+    ],
+    "transfers": [
+      {
+        "address": "3MgSuT5FfeMrwwZCbztqLhQpcJNxySaFEiT",
+        "asset": "83fxPJzEaQjEnVNGZ4TB4AdJrzCuFhy3xJkhVxY3dGf7",
+        "amount": 90
+      }
+    ]
+  }
+}
+
+`
+
+func TestDebug_StateChanges(t *testing.T) {
+	client := client(t, NewMockHttpRequestFromString(stateChangesJson, 200))
+	body, resp, err :=
+		client.Debug.StateChanges(context.Background(), crypto.MustDigestFromBase58("83fxPJzEaQjEnVNGZ4TB4AdJrzCuFhy3xJkhVxY3dGf7"))
+	require.Nil(t, err)
+	require.NotNil(t, resp)
+	assert.NotEmpty(t, body)
+	assert.Contains(t, resp.Request.URL.String(), "/debug/stateChanges/info/")
 }
