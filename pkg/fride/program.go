@@ -18,7 +18,7 @@ type SimpleScript struct {
 	EntryPoint int
 	Code       []byte
 	Constants  []rideType
-	Meta       programMeta
+	Meta       *scriptMeta
 }
 
 func (s *SimpleScript) Run(env RideEnvironment) (RideResult, error) {
@@ -52,7 +52,49 @@ func (s *SimpleScript) Run(env RideEnvironment) (RideResult, error) {
 }
 
 func (s *SimpleScript) Estimate(v int) (int, error) {
-	return 0, errors.New("not implemented")
+	c, err := selectCostProvider(s.LibVersion)
+	if err != nil {
+		return 0, errors.Wrap(err, "estimate")
+	}
+	n, err := selectFunctionNameProvider(s.LibVersion)
+	if err != nil {
+		return 0, errors.Wrap(err, "estimate")
+	}
+	switch v {
+	case 1:
+		e := estimatorV1{
+			code:  s.Code,
+			meta:  s.Meta,
+			ip:    0,
+			costs: c,
+			names: n,
+			scope: newEstimatorScopeV1(),
+		}
+		e.scope.submerge() // Add initial scope to stack
+		err = e.estimate()
+		if err != nil {
+			return 0, errors.Wrap(err, "estimate")
+		}
+		return e.scope.current(), nil
+	case 2:
+		return 0, errors.New("not implemented")
+	case 3:
+		e := estimatorV3{
+			code:  s.Code,
+			ip:    0,
+			costs: c,
+			names: n,
+			scope: newEstimatorScopeV3(),
+		}
+		e.scope.submerge() // Add initial scope to stack
+		err = e.estimate()
+		if err != nil {
+			return 0, errors.Wrap(err, "estimate")
+		}
+		return e.scope.current(), nil
+	default:
+		return 0, errors.Errorf("unsupported estimator version '%d'", v)
+	}
 }
 
 func (s *SimpleScript) code() []byte {
@@ -63,8 +105,8 @@ type DAppScript struct {
 	LibVersion  int
 	Code        []byte
 	Constants   []rideType
-	Meta        programMeta
 	EntryPoints map[string]callable
+	Meta        *scriptMeta
 }
 
 func (s *DAppScript) Run(env RideEnvironment) (RideResult, error) {

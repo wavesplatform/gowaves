@@ -212,28 +212,3 @@ func (m *vm) returnPosition() int {
 	}
 	return len(m.code)
 }
-
-//func (m *vm) value(name rideString) (rideType, error) {
-//	s, n := m.scope()
-//	switch n {
-//	case -1:
-//		return nil, errors.Errorf("no frame to look up variable '%s'", name)
-//	case 0:
-//		v, ok := s.variables[name]
-//		if !ok {
-//			return nil, errors.Errorf("variable '%s' not found", name)
-//		}
-//		return v, nil
-//	default:
-//		v, ok := s.variables[name]
-//		if ok {
-//			return v, nil
-//		}
-//		global := m.frames[0]
-//		v, ok = global.variables[name]
-//		if !ok {
-//			return nil, errors.Errorf("variable '%s' not found", name)
-//		}
-//		return v, nil
-//	}
-//}

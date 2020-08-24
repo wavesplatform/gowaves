@@ -23,7 +23,18 @@ func (s *declarationSymbol) address() int {
 	return s.addr
 }
 
-type programMeta struct {
-	blocks map[int]int // Number of blocks declared at position (key)
+type scriptMeta struct {
+	blocks  map[int]int // Number of blocks declared at position (key)
 	symbols map[int]symbol
+}
+
+func newScriptMeta() *scriptMeta {
+	return &scriptMeta{
+		blocks:  make(map[int]int),
+		symbols: make(map[int]symbol),
+	}
+}
+
+func (m *scriptMeta) addBlock(pos int) {
+	m.blocks[pos]++
 }

@@ -27,16 +27,12 @@ func Compile(tree *Tree) (RideScript, error) {
 		functions:     make([]*localFunction, 0),
 		declarations:  make([]rideDeclaration, 0),
 		patcher:       newPatcher(),
+		meta:          newScriptMeta(),
 	}
 	if tree.IsDApp() {
 		return c.compileDAppScript(tree)
 	}
 	return c.compileSimpleScript(tree)
-}
-
-type rideCallable struct {
-	name      string
-	parameter string
 }
 
 type compiler struct {
@@ -48,6 +44,7 @@ type compiler struct {
 	declarations  []rideDeclaration
 	patcher       *patcher
 	callable      *rideCallable
+	meta          *scriptMeta
 }
 
 func (c *compiler) compileSimpleScript(tree *Tree) (*SimpleScript, error) {
@@ -79,6 +76,7 @@ func (c *compiler) compileSimpleScript(tree *Tree) (*SimpleScript, error) {
 		EntryPoint: 0,
 		Code:       bb.Bytes(),
 		Constants:  c.constants.items,
+		Meta:       c.meta,
 	}, nil
 }
 
@@ -153,6 +151,7 @@ func (c *compiler) compileDAppScript(tree *Tree) (*DAppScript, error) {
 		Code:        bb.Bytes(),
 		Constants:   c.constants.items,
 		EntryPoints: functions,
+		Meta:        c.meta,
 	}, nil
 }
 
@@ -483,6 +482,11 @@ func (c *compiler) lookupFunction(name string) (*localFunction, error) {
 		}
 	}
 	return nil, errors.Errorf("function '%s' is not declared", name)
+}
+
+type rideCallable struct {
+	name      string
+	parameter string
 }
 
 type rideConstants struct {
