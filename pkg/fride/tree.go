@@ -2,10 +2,6 @@ package fride
 
 type Node interface {
 	node()
-}
-
-type DeclarationNode interface {
-	Node
 	SetBlock(node Node)
 }
 
@@ -14,6 +10,8 @@ type LongNode struct {
 }
 
 func (*LongNode) node() {}
+
+func (*LongNode) SetBlock(Node) {}
 
 func NewLongNode(v int64) *LongNode {
 	return &LongNode{Value: v}
@@ -25,6 +23,8 @@ type BytesNode struct {
 
 func (*BytesNode) node() {}
 
+func (*BytesNode) SetBlock(Node) {}
+
 func NewBytesNode(v []byte) *BytesNode {
 	return &BytesNode{Value: v}
 }
@@ -35,6 +35,8 @@ type StringNode struct {
 
 func (*StringNode) node() {}
 
+func (*StringNode) SetBlock(Node) {}
+
 func NewStringNode(v string) *StringNode {
 	return &StringNode{Value: v}
 }
@@ -44,6 +46,8 @@ type BooleanNode struct {
 }
 
 func (*BooleanNode) node() {}
+
+func (*BooleanNode) SetBlock(Node) {}
 
 func NewBooleanNode(v bool) *BooleanNode {
 	return &BooleanNode{Value: v}
@@ -56,6 +60,8 @@ type ConditionalNode struct {
 }
 
 func (*ConditionalNode) node() {}
+
+func (*ConditionalNode) SetBlock(Node) {}
 
 func NewConditionalNode(condition, trueExpression, falseExpression Node) *ConditionalNode {
 	return &ConditionalNode{
@@ -89,7 +95,9 @@ type ReferenceNode struct {
 	Name string
 }
 
-func (ReferenceNode) node() {}
+func (*ReferenceNode) node() {}
+
+func (*ReferenceNode) SetBlock(Node) {}
 
 func NewReferenceNode(name string) *ReferenceNode {
 	return &ReferenceNode{Name: name}
@@ -125,6 +133,8 @@ type FunctionCallNode struct {
 
 func (*FunctionCallNode) node() {}
 
+func (*FunctionCallNode) SetBlock(Node) {}
+
 func NewFunctionCallNode(name string, arguments []Node) *FunctionCallNode {
 	return &FunctionCallNode{
 		Name:      name,
@@ -138,6 +148,8 @@ type PropertyNode struct {
 }
 
 func (*PropertyNode) node() {}
+
+func (*PropertyNode) SetBlock(Node) {}
 
 func NewPropertyNode(name string, object Node) *PropertyNode {
 	return &PropertyNode{

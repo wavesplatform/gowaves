@@ -161,7 +161,7 @@ func (s *Synchronizer) applyBlock(height int, id proto.BlockID, txs []proto.Tran
 }
 
 func (s *Synchronizer) nodeHeight() (int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	c := g.NewBlocksApiClient(s.conn)
@@ -173,7 +173,7 @@ func (s *Synchronizer) nodeHeight() (int, error) {
 }
 
 func (s *Synchronizer) block(height int, full bool) (*g.BlockWithHeight, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	return g.NewBlocksApiClient(s.conn).GetBlock(ctx, &g.BlockRequest{IncludeTransactions: full, Request: &g.BlockRequest_Height{Height: int32(height)}}, grpc.EmptyCallOption{})
 }

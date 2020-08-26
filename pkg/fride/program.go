@@ -79,19 +79,20 @@ func (s *SimpleScript) Estimate(v int) (int, error) {
 	case 2:
 		return 0, errors.New("not implemented")
 	case 3:
-		e := estimatorV3{
-			code:  s.Code,
-			ip:    0,
-			costs: c,
-			names: n,
-			scope: newEstimatorScopeV3(),
-		}
-		e.scope.submerge() // Add initial scope to stack
-		err = e.estimate()
-		if err != nil {
-			return 0, errors.Wrap(err, "estimate")
-		}
-		return e.scope.current(), nil
+		//e := estimatorV3{
+		//	code:  s.Code,
+		//	ip:    0,
+		//	costs: c,
+		//	names: n,
+		//	scope: newEstimatorScopeV3(),
+		//}
+		//e.scope.submerge() // Add initial scope to stack
+		//err = e.estimate()
+		//if err != nil {
+		//	return 0, errors.Wrap(err, "estimate")
+		//}
+		//return e.scope.current(), nil
+		return 0, errors.New("not implemented")
 	default:
 		return 0, errors.Errorf("unsupported estimator version '%d'", v)
 	}

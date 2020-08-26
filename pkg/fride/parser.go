@@ -276,7 +276,7 @@ func (p *parser) parseNext() (Node, error) {
 		}
 		ac := int(argumentsCount)
 		arguments := make([]Node, ac)
-		for i := 0; i < int(ac); i++ {
+		for i := 0; i < ac; i++ {
 			arg, err := p.parseNext()
 			if err != nil {
 				return nil, err
@@ -369,7 +369,7 @@ func (p *parser) readFunctionName(ft byte) (string, error) {
 	}
 }
 
-func (p *parser) readDeclaration() (DeclarationNode, error) {
+func (p *parser) readDeclaration() (Node, error) {
 	dt, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err

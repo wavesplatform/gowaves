@@ -385,7 +385,7 @@ func (e *Estimator) estimate(expr ast.Expr) (uint64, error) {
 		var fc uint64
 		callContext := e.contexts.curr()
 		if fd, ok := callContext.declaration(ce.Name); ok {
-			// Estimate parameters that was passed to the function
+			// estimate parameters that was passed to the function
 			fc += uint64(ce.Argc * 5)
 			ac, err := e.estimate(ce.Argv)
 			if err != nil {

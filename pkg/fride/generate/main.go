@@ -551,6 +551,15 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 	}
 	sb.WriteString("}\n")
 
+	sb.WriteString(fmt.Sprintf("var Catalogue%s = map[string]int{", ver))
+	for i, k := range keys {
+		sb.WriteString(fmt.Sprintf("\"%s\":%d", k, c[k]))
+		if i < len(m)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("}\n")
+
 	// Create string of concatenated names of functions
 	sb.WriteString(fmt.Sprintf("const _names_%s = \"%s\"\n", ver, strings.Join(keys, "")))
 
