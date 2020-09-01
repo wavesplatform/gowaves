@@ -25,7 +25,7 @@ func TestValidatorImpl_Validate(t *testing.T) {
 	now := time.Now()
 
 	m := NewMockstateWrapper(ctrl)
-	v := NewValidator(m, tm(now))
+	v := NewValidator(m, tm(now), 86400*1000)
 
 	m.EXPECT().TopBlock().Return(emptyBlock)
 	m.EXPECT().
