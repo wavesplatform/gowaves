@@ -85,7 +85,9 @@ func SetupLogger(level string) (*zap.Logger, *zap.SugaredLogger) {
 	return logger, logger.Sugar()
 }
 
-func ParseDuration(str string) (uint64, error) {
+type seconds = uint64
+
+func ParseDuration(str string) (seconds, error) {
 	if str == "" {
 		return 0, errors.New("empty string")
 	}

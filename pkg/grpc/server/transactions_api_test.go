@@ -33,7 +33,7 @@ func TestGetTransactions(t *testing.T) {
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	sch := createWallet(ctx, st, sets)
-	err = server.initServer(st, utxpool.New(utxSize, utxpool.NewValidator(st, ntptime.Stub{}), sets), sch)
+	err = server.initServer(st, utxpool.New(utxSize, utxpool.NewValidator(st, ntptime.Stub{}, 86400*1000), sets), sch)
 	require.NoError(t, err)
 
 	conn := connect(t, grpcTestAddr)

@@ -61,7 +61,7 @@ var (
 	disableOutgoingConnections            = flag.Bool("no-connections", false, "Disable outgoing network connections to peers. Default value is false.")
 	minerVoteFeatures                     = flag.String("vote", "", "Miner vote features")
 	reward                                = flag.String("reward", "", "Miner reward: for example 600000000")
-	minerDelayParam                       = flag.String("outdate", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
+	outdatePeriod                         = flag.String("outdate", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
 	walletPath                            = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
 	walletPassword                        = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
 	limitConnectionsS                     = flag.String("limit-connections", "30", "N incoming and outgoing connections")
@@ -106,7 +106,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("bind-address: %s", *bindAddress)
 	zap.S().Debugf("vote: %s", *minerVoteFeatures)
 	zap.S().Debugf("reward: %s", *reward)
-	zap.S().Debugf("miner-delay: %s", *minerDelayParam)
+	zap.S().Debugf("miner-delay: %s", *outdatePeriod)
 	zap.S().Debugf("disable-miner %v", *disableMiner)
 	zap.S().Debugf("wallet-path: %s", *walletPath)
 	zap.S().Debugf("wallet-password: %s", *walletPassword)
@@ -216,7 +216,7 @@ func main() {
 		return
 	}
 
-	outdatePeriod, err := common.ParseDuration(*minerDelayParam)
+	outdatePeriodSeconds, err := common.ParseDuration(*outdatePeriod)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -265,7 +265,7 @@ func main() {
 	mb := 1024 * 1014
 	pool := bytespool.NewBytesPool(64, mb+(mb/2))
 
-	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(state, ntptm), cfg)
+	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(state, ntptm, outdatePeriodSeconds*1000), cfg)
 
 	parent := peer.NewParent()
 
@@ -291,7 +291,7 @@ func main() {
 		cfg,
 		ntptm,
 		scheduler.NewMinerConsensus(peerManager, *minPeersMining),
-		proto.NewTimestampFromUSeconds(outdatePeriod),
+		proto.NewTimestampFromUSeconds(outdatePeriodSeconds),
 	)
 	if *disableMiner {
 		sched = scheduler.DisabledScheduler{}
@@ -317,7 +317,7 @@ func main() {
 	peerManager.SetConnectPeers(!*disableOutgoingConnections)
 	go miner.Run(ctx, mine, sched, services.InternalChannel)
 
-	n := node.NewNode(services, declAddr, bindAddr, proto.NewTimestampFromUSeconds(outdatePeriod))
+	n := node.NewNode(services, declAddr, bindAddr, proto.NewTimestampFromUSeconds(outdatePeriodSeconds))
 	go n.Run(ctx, parent, services.InternalChannel)
 
 	go sched.Reschedule()
