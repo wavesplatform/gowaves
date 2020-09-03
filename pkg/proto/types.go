@@ -2394,9 +2394,8 @@ func (e *DeleteDataEntry) UnmarshalBinary(data []byte) error {
 func (e DeleteDataEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		K string  `json:"key"`
-		T string  `json:"type"`
 		V *string `json:"value"`
-	}{e.Key, e.GetValueType().String(), nil})
+	}{e.Key, nil})
 }
 
 //UnmarshalJSON reads the entry from JSON.
@@ -2429,7 +2428,7 @@ func guessDataEntryType(dataEntryType DataEntryType) (DataEntry, error) {
 		r = &BinaryDataEntry{}
 	case "string":
 		r = &StringDataEntry{}
-	case "delete":
+	case "":
 		r = &DeleteDataEntry{}
 	}
 	if r == nil {
