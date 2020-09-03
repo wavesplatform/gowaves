@@ -2477,13 +2477,13 @@ func Reissue(s Scope, e Exprs) (Expr, error) {
 	if !ok {
 		return nil, errors.Errorf("%s: expected first argument to be '*BytesExpr', got '%T'", funcName, rs[0])
 	}
-	reissuable, ok := rs[1].(*BooleanExpr)
+	quantity, ok := rs[1].(*LongExpr)
 	if !ok {
-		return nil, errors.Errorf("%s: expected second argument to be '*BooleanExpr', got '%T'", funcName, rs[1])
+		return nil, errors.Errorf("%s: expected second argument to be '*LongExpr', got '%T'", funcName, rs[1])
 	}
-	quantity, ok := rs[2].(*LongExpr)
+	reissuable, ok := rs[2].(*BooleanExpr)
 	if !ok {
-		return nil, errors.Errorf("%s: expected third argument to be '*LongExpr', got '%T'", funcName, rs[2])
+		return nil, errors.Errorf("%s: expected third argument to be '*BooleanExpr', got '%T'", funcName, rs[2])
 	}
 	r, err := NewReissueExpr(assetID.Value, quantity.Value, reissuable.Value)
 	if err != nil {

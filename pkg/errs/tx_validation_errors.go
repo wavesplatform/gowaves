@@ -212,3 +212,67 @@ func NewAssetIssuedByOtherAddress(message string) *AssetIssuedByOtherAddress {
 func (a AssetIssuedByOtherAddress) Extend(message string) error {
 	return NewAssetIssuedByOtherAddress(fmtExtend(a, message))
 }
+
+type FeeValidation struct {
+	message string
+}
+
+func (a FeeValidation) Error() string {
+	return a.message
+}
+
+func NewFeeValidation(message string) *FeeValidation {
+	return &FeeValidation{
+		message: message,
+	}
+}
+
+func (a FeeValidation) Extend(message string) error {
+	return NewFeeValidation(fmtExtend(a, message))
+}
+
+type AssetUpdateInterval struct {
+	message string
+}
+
+func (a AssetUpdateInterval) Error() string {
+	return a.message
+}
+
+func NewAssetUpdateInterval(message string) *AssetUpdateInterval {
+	return &AssetUpdateInterval{
+		message: message,
+	}
+}
+
+func (a AssetUpdateInterval) Extend(message string) error {
+	return NewAssetUpdateInterval(fmtExtend(a, message))
+}
+
+type TransactionNotAllowedByScript struct {
+	message string
+	asset   []byte
+}
+
+func (a TransactionNotAllowedByScript) Asset() []byte {
+	return a.asset
+}
+
+func (a TransactionNotAllowedByScript) IsAssetScript() bool {
+	return len(a.asset) > 0
+}
+
+func (a TransactionNotAllowedByScript) Error() string {
+	return a.message
+}
+
+func NewTransactionNotAllowedByScript(message string, asset []byte) *TransactionNotAllowedByScript {
+	return &TransactionNotAllowedByScript{
+		message: message,
+		asset:   asset,
+	}
+}
+
+func (a TransactionNotAllowedByScript) Extend(message string) error {
+	return NewTransactionNotAllowedByScript(fmtExtend(a, message), a.asset)
+}

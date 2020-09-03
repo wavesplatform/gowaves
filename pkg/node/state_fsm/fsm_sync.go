@@ -39,7 +39,7 @@ type SyncFsm struct {
 
 func (a *SyncFsm) Transaction(p Peer, t proto.Transaction) (FSM, Async, error) {
 	err := a.baseInfo.utx.Add(t)
-	if err != nil {
+	if err == nil {
 		a.baseInfo.BroadcastTransaction(t, p)
 	}
 	return a, nil, err

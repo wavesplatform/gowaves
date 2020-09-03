@@ -12,7 +12,7 @@ import (
 )
 
 func TestAssetScriptExtraFee(t *testing.T) {
-	to, path, err := createSponsoredAssets()
+	to, path, err := createSponsoredAssets(true)
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {
@@ -50,7 +50,7 @@ func TestAssetScriptExtraFee(t *testing.T) {
 }
 
 func TestAccountScriptExtraFee(t *testing.T) {
-	to, path, err := createSponsoredAssets()
+	to, path, err := createSponsoredAssets(true)
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {
@@ -83,7 +83,7 @@ func TestAccountScriptExtraFee(t *testing.T) {
 }
 
 func TestCheckMinFeeWaves(t *testing.T) {
-	to, path, err := createSponsoredAssets()
+	to, path, err := createSponsoredAssets(true)
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {
@@ -132,7 +132,7 @@ func TestCheckMinFeeWaves(t *testing.T) {
 }
 
 func TestCheckMinFeeAsset(t *testing.T) {
-	to, path, err := createSponsoredAssets()
+	to, path, err := createSponsoredAssets(true)
 	assert.NoError(t, err, "createSponsoredAssets() failed")
 
 	defer func() {

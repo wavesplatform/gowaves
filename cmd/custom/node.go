@@ -199,7 +199,7 @@ func main() {
 		proto.NewTimestampFromUSeconds(outdateSeconds),
 	)
 
-	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm), custom)
+	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm, outdateSeconds*1000), custom)
 
 	blockApplier := blocks_applier.NewBlocksApplier()
 

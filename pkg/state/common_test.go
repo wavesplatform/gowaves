@@ -51,6 +51,7 @@ const (
 var (
 	blockID0 = genBlockId(1)
 	blockID1 = genBlockId(2)
+	blockID2 = genBlockId(3)
 )
 
 type testAddrData struct {
@@ -87,7 +88,6 @@ func defaultAppendTxParams(t *testing.T) *appendTxParams {
 		checkerInfo:    defaultCheckerInfo(t),
 		blockInfo:      defaultBlockInfo(),
 		block:          defaultBlock(),
-		checkScripts:   true,
 		acceptFailed:   false,
 		validatingUtx:  false,
 		initialisation: false,
@@ -218,6 +218,22 @@ func defaultTestKeyValParams() keyvalue.KeyValParams {
 	return keyvalue.KeyValParams{CacheParams: defaultTestCacheParams(), BloomFilterParams: defaultTestBloomFilterParams()}
 }
 
+func defaultNFT() *assetInfo {
+	return &assetInfo{
+		assetConstInfo{
+			issuer:   testGlobal.issuerInfo.pk,
+			decimals: 0,
+		},
+		assetChangeableInfo{
+			quantity:                 *big.NewInt(1),
+			name:                     "asset",
+			description:              "description",
+			lastNameDescChangeHeight: 1,
+			reissuable:               false,
+		},
+	}
+}
+
 func defaultAssetInfo(reissuable bool) *assetInfo {
 	return &assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -321,6 +337,13 @@ func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
 	for _, id := range ids {
 		s.addBlock(t, id)
 	}
+	s.flush(t)
+}
+
+func (s *testStorageObjects) createAssetUsingInfo(t *testing.T, assetID crypto.Digest, info *assetInfo) {
+	s.addBlock(t, blockID0)
+	err := s.entities.assets.issueAsset(assetID, info, blockID0)
+	assert.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
 }
 

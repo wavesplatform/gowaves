@@ -8,36 +8,32 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-const DELTA = 86400 * 1000 / 6 // 4 hours
-
 type Validator interface {
 	Validate(t proto.Transaction) error
 }
 
 type ValidatorImpl struct {
-	state stateWrapper
-	tm    types.Time
+	state     stateWrapper
+	tm        types.Time
+	outdateMs uint64
 }
 
-func NewValidator(state stateWrapper, tm types.Time) *ValidatorImpl {
+func NewValidator(state stateWrapper, tm types.Time, outdateMs uint64) *ValidatorImpl {
 	return &ValidatorImpl{
-		state: state,
-		tm:    tm,
+		state:     state,
+		tm:        tm,
+		outdateMs: outdateMs,
 	}
 }
 
 func (a *ValidatorImpl) Validate(t proto.Transaction) error {
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
-	if currentTimestamp-lastKnownBlock.Timestamp > DELTA {
+	if currentTimestamp-lastKnownBlock.Timestamp > a.outdateMs {
 		return errors.New("state outdated, transaction not accepted")
 	}
-	checkScripts, err := needToCheckScriptsInUtx(a.state)
-	if err != nil {
-		return err
-	}
 	return a.state.TxValidation(func(validation state.TxValidation) error {
-		return validation.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, checkScripts)
+		return validation.ValidateNextTx(t, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
 	})
 }
 

@@ -19,7 +19,7 @@ type NGFsm struct {
 
 func (a *NGFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
 	err := a.utx.Add(t)
-	if err != nil {
+	if err == nil {
 		a.BroadcastTransaction(t, p)
 	}
 	return a, nil, err

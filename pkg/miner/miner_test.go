@@ -77,7 +77,7 @@ func createMicroBlock(keyBlock *proto.Block, tr proto.Transactions, keyPair prot
 		TotalResBlockSigField: newBlock.BlockSignature,
 	}
 
-	err = micro.Sign(priv)
+	err = micro.Sign(proto.MainNetScheme, priv)
 	if err != nil {
 		return nil, err
 	}

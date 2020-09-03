@@ -1278,12 +1278,12 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		}
 		select {
 		case verifyError := <-chans.errChan:
-			return nil, wrapErr(ValidationError, verifyError)
+			return nil, verifyError
 		case chans.tasksChan <- task:
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
 		if err := s.addNewBlock(block, lastAppliedBlock, initialisation, chans, curHeight); err != nil {
-			return nil, wrapErr(TxValidationError, err)
+			return nil, err
 		}
 		headers[pos] = block.BlockHeader
 		pos++
@@ -1485,11 +1485,14 @@ func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {
 
 func (s *stateManager) ResetValidationList() {
 	s.reset()
+	if err := s.stor.scriptsStorage.clear(); err != nil {
+		zap.S().Fatalf("Failed to clear scripts cache after UTX validation: %v", err)
+	}
 }
 
 // For UTX validation.
-func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, checkScripts bool) error {
-	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, checkScripts); err != nil {
+func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, acceptFailed bool) error {
+	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, acceptFailed); err != nil {
 		return err
 	}
 	return nil
@@ -1938,6 +1941,27 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 		res.ScriptInfo = *scriptInfo
 	}
 	return res, nil
+}
+
+func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	fn := s.stor.assets.assetInfo
+	nfts, err := s.stor.balances.nftList(*addr, limit, afterAssetID, fn)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	infos := make([]*proto.FullAssetInfo, len(nfts))
+	for i, nft := range nfts {
+		info, err := s.FullAssetInfo(nft)
+		if err != nil {
+			return nil, wrapErr(RetrievalError, err)
+		}
+		infos[i] = info
+	}
+	return infos, nil
 }
 
 func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {

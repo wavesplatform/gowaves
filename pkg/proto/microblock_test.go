@@ -25,14 +25,14 @@ func TestMicroBlock_Marshaling(t *testing.T) {
 	}
 
 	buf := &bytes.Buffer{}
-	_, _ = m.WriteTo(buf)
+	_, _ = m.WriteTo(MainNetScheme, buf)
 
 	m2 := MicroBlock{}
 	_ = m2.UnmarshalBinary(buf.Bytes(), MainNetScheme)
 
 	require.Equal(t, m, m2)
 
-	rs, err := m.VerifySignature()
+	rs, err := m.VerifySignature(MainNetScheme)
 	require.NoError(t, err)
 	require.True(t, rs)
 }

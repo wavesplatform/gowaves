@@ -78,6 +78,8 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 		return newVariablesFromCreateAliasWithProofs(scheme, tx)
 	case *proto.SetScriptWithProofs:
 		return newVariablesFromSetScriptWithProofs(scheme, tx)
+	case *proto.UpdateAssetInfoWithProofs:
+		return newVariablesFromUpdateAssetInfoWithProofs(scheme, tx)
 	default:
 		return nil, errors.Errorf("NewVariablesFromTransaction not implemented for %T", tx)
 	}
@@ -86,7 +88,7 @@ func NewVariablesFromTransaction(scheme byte, t proto.Transaction) (map[string]E
 func NewVariablesFromScriptAction(scheme proto.Scheme, action proto.ScriptAction, invokerPK crypto.PublicKey, txID crypto.Digest, txTimestamp uint64) (map[string]Expr, error) {
 	out := make(map[string]Expr)
 	switch a := action.(type) {
-	case proto.ReissueScriptAction:
+	case *proto.ReissueScriptAction:
 		out["quantity"] = NewLong(a.Quantity)
 		out["assetId"] = NewBytes(a.AssetID.Bytes())
 		out["reissuable"] = NewBoolean(a.Reissuable)
@@ -103,7 +105,7 @@ func NewVariablesFromScriptAction(scheme proto.Scheme, action proto.ScriptAction
 		out["bodyBytes"] = NewUnit()
 		out["proofs"] = NewUnit()
 		out[InstanceFieldName] = NewString("ReissueTransaction")
-	case proto.BurnScriptAction:
+	case *proto.BurnScriptAction:
 		out["quantity"] = NewLong(a.Quantity)
 		out["assetId"] = NewBytes(a.AssetID.Bytes())
 		out["id"] = NewBytes(txID.Bytes())
@@ -121,7 +123,7 @@ func NewVariablesFromScriptAction(scheme proto.Scheme, action proto.ScriptAction
 		out[InstanceFieldName] = NewString("BurnTransaction")
 		return out, nil
 	default:
-		return nil, errors.New("unsupported script action")
+		return nil, errors.Errorf("unsupported script action '%T'", action)
 	}
 	return out, nil
 }
@@ -1096,5 +1098,39 @@ func newVariablesFromSetScriptWithProofs(scheme proto.Scheme, tx *proto.SetScrip
 	out["bodyBytes"] = NewBytes(bts)
 	out["proofs"] = makeProofs(tx.Proofs)
 	out[InstanceFieldName] = NewString("SetScriptTransaction")
+	return out, nil
+}
+
+func newVariablesFromUpdateAssetInfoWithProofs(scheme proto.Scheme, tx *proto.UpdateAssetInfoWithProofs) (map[string]Expr, error) {
+	funcName := "newVariablesFromUpdateAssetInfoWithProofs"
+
+	out := make(map[string]Expr)
+
+	out["name"] = NewString(tx.Name)
+	out["description"] = NewString(tx.Description)
+	out["feeAssetId"] = makeOptionalAsset(tx.FeeAsset)
+	out["assetId"] = NewBytes(tx.AssetID.Bytes())
+	id, err := tx.GetID(scheme)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["id"] = NewBytes(common.Dup(id))
+	out["fee"] = NewLong(int64(tx.Fee))
+	out["timestamp"] = NewLong(int64(tx.Timestamp))
+	out["version"] = NewLong(int64(tx.Version))
+
+	addr, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["sender"] = NewAddressFromProtoAddress(addr)
+	out["senderPublicKey"] = NewBytes(common.Dup(tx.SenderPK.Bytes()))
+	bts, err := proto.MarshalTxBody(scheme, tx)
+	if err != nil {
+		return nil, errors.Wrap(err, funcName)
+	}
+	out["bodyBytes"] = NewBytes(bts)
+	out["proofs"] = makeProofs(tx.Proofs)
+	out[InstanceFieldName] = NewString("UpdateAssetInfoTransaction")
 	return out, nil
 }

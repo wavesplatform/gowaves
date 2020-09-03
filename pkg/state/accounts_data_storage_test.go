@@ -64,6 +64,7 @@ func TestRetrieveEntries(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
+	to.stor.addBlock(t, blockID2)
 	to.stor.addBlock(t, blockID0)
 	addr0 := testGlobal.senderInfo.addr
 	entry0 := &proto.IntegerDataEntry{Key: "Whatever", Value: int64(100500)}

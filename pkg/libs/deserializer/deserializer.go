@@ -2,13 +2,13 @@ package deserializer
 
 import (
 	"encoding/binary"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 type Deserializer struct {
 	b []byte
-	//pos int
 }
 
 func NewDeserializer(b []byte) *Deserializer {
@@ -70,6 +70,37 @@ func (a *Deserializer) Uint32() (uint32, error) {
 	return out, nil
 }
 
+func (a *Deserializer) Uint64() (uint64, error) {
+	l := 8
+	if len(a.b) < l {
+		return 0, errors.Errorf(
+			"not enough bytes to deserialize uint32, expected at least %d, found %d",
+			l,
+			len(a.b))
+	}
+	out := binary.BigEndian.Uint64(a.b[:l])
+	a.b = a.b[l:]
+	return out, nil
+}
+
+func (a *Deserializer) Uint16() (uint16, error) {
+	l := 2
+	if len(a.b) < l {
+		return 0, errors.Errorf(
+			"not enough bytes to deserialize uint32, expected at least %d, found %d",
+			l,
+			len(a.b))
+	}
+	out := binary.BigEndian.Uint16(a.b[:l])
+	a.b = a.b[l:]
+	return out, nil
+}
+
+// Length of the rest bytes.
+func (a *Deserializer) Len() int {
+	return len(a.b)
+}
+
 func (a *Deserializer) Bytes(length uint) ([]byte, error) {
 	if length > uint(len(a.b)) {
 		return nil, errors.Errorf(
@@ -92,4 +123,12 @@ func (a *Deserializer) PublicKey() (crypto.PublicKey, error) {
 			l)
 	}
 	return crypto.NewPublicKeyFromBytes(bts)
+}
+
+func (a *Deserializer) ByteStringWithUint16Len() ([]byte, error) {
+	l, err := a.Uint16()
+	if err != nil {
+		return nil, err
+	}
+	return a.Bytes(uint(l))
 }

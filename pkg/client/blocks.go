@@ -61,19 +61,43 @@ func (a *Blocks) HeightBySignature(ctx context.Context, id string) (*BlocksHeigh
 	return out, response, nil
 }
 
-type Headers struct {
-	Version          uint64           `json:"version"`
-	Timestamp        uint64           `json:"timestamp"`
-	Reference        proto.BlockID    `json:"reference"`
-	NxtConsensus     NxtConsensus     `json:"nxt-consensus"`
-	Features         []uint64         `json:"features"`
-	Generator        proto.Address    `json:"generator"`
-	Signature        crypto.Signature `json:"signature"`
-	Blocksize        uint64           `json:"blocksize"`
-	TransactionCount uint64           `json:"transactionCount"`
-	Height           uint64           `json:"height"`
+func (a *Blocks) HeightByID(ctx context.Context, id proto.BlockID) (*BlocksHeight, *Response, error) {
+	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/height/%s", id.String()))
+	if err != nil {
+		return nil, nil, err
+	}
+	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	ID proto.BlockID `json:"id"`
+	out := new(BlocksHeight)
+	response, err := doHttp(ctx, a.options, req, out)
+	if err != nil {
+		return nil, response, err
+	}
+
+	return out, response, nil
+}
+
+type Headers struct {
+	Version            uint64           `json:"version"`
+	Timestamp          uint64           `json:"timestamp"`
+	Reference          proto.BlockID    `json:"reference"`
+	NxtConsensus       NxtConsensus     `json:"nxt-consensus"`
+	TransactionsRoot   string           `json:"transactionsRoot"`
+	Features           []uint64         `json:"features"`
+	DesiredReward      int64            `json:"desiredReward"`
+	Generator          proto.Address    `json:"generator"`
+	GeneratorPublicKey string           `json:"generatorPublicKey"`
+	Signature          crypto.Signature `json:"signature"`
+	Blocksize          uint64           `json:"blocksize"`
+	TransactionCount   uint64           `json:"transactionCount"`
+	Height             uint64           `json:"height"`
+	TotalFee           int64            `json:"totalFee"`
+	Reward             int64            `json:"reward"`
+	VRF                string           `json:"VRF"`
+	ID                 proto.BlockID    `json:"id"`
 }
 
 type NxtConsensus struct {

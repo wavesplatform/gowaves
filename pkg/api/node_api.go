@@ -273,6 +273,12 @@ func (a *NodeApi) poolTransactions(w http.ResponseWriter, _ *http.Request) {
 	sendJson(w, rs)
 }
 
+func (a *NodeApi) unconfirmedSize(w http.ResponseWriter, _ *http.Request) {
+	sendJson(w, map[string]int{
+		"size": a.app.PoolTransactions(),
+	})
+}
+
 type rollbackRequest struct {
 	Height uint64 `json:"height"`
 }

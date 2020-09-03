@@ -8,6 +8,7 @@ import (
 	"path"
 
 	"github.com/howeyc/gopass"
+	"github.com/mr-tron/base58"
 	flag "github.com/spf13/pflag"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 )
@@ -26,6 +27,7 @@ Available Commands:
 type Opts struct {
 	Force        bool
 	PathToWallet string
+	Base58       bool
 }
 
 func main() {
@@ -33,6 +35,7 @@ func main() {
 
 	flag.BoolVarP(&opts.Force, "force", "f", false, "Overwrite existing wallet")
 	flag.StringVarP(&opts.PathToWallet, "wallet", "w", "", "Path to wallet")
+	flag.BoolVarP(&opts.Base58, "base58", "b", false, "Input seed as Base58 encoded string")
 
 	flag.Parse()
 
@@ -126,6 +129,14 @@ func addToWallet(opts Opts) {
 	if err != nil {
 		fmt.Println("Interrupt")
 		return
+	}
+
+	if opts.Base58 {
+		seed, err = base58.Decode(string(seed))
+		if err != nil {
+			fmt.Printf("Err: %s\n", err.Error())
+			return
+		}
 	}
 
 	err = wlt.AddSeed(seed)

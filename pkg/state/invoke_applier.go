@@ -169,6 +169,19 @@ func (ia *invokeApplier) countIssuedAssets(actions []proto.ScriptAction) (uint64
 	return issuedAssetsCount, nil
 }
 
+func (ia *invokeApplier) countEmptyDataEntryKeys(actions []proto.ScriptAction) uint64 {
+	var out uint64 = 0
+	for _, action := range actions {
+		switch a := action.(type) {
+		case *proto.DataEntryScriptAction:
+			if len(a.Entry.GetKey()) == 0 {
+				out = +1
+			}
+		}
+	}
+	return out
+}
+
 func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, initialisation bool) uint64 {
 	scriptRuns := uint64(0)
 	for _, action := range actions {
@@ -196,7 +209,8 @@ func errorForSmartAsset(res ast.Result, asset crypto.Digest) error {
 	if res.Throw {
 		text = fmt.Sprintf("Transaction is not allowed by token-script id %s: throw from asset script.", asset.String())
 	} else {
-		text = fmt.Sprintf("Transaction is not allowed by token-script id %s.", asset.String())
+		// scala compatible error message
+		text = fmt.Sprintf("Transaction is not allowed by token-script id %s. Transaction is not allowed by script of the asset", asset.String())
 	}
 	return errors.New(text)
 }
@@ -251,6 +265,10 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 	totalChanges := feeAndPaymentChanges
 	if err := ia.saveIntermediateDiff(totalChanges.diff); err != nil {
 		return proto.DAppError, info.failedChanges, err
+	}
+	// Empty keys rejected since protobuf version.
+	if proto.IsProtobufTx(tx) && ia.countEmptyDataEntryKeys(info.actions) > 0 {
+		return proto.DAppError, info.failedChanges, errs.NewTxValidationError(fmt.Sprintf("Empty keys aren't allowed in tx version >= %d", tx.Version))
 	}
 	// Perform actions.
 	for _, action := range info.actions {
@@ -390,7 +408,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 			quantityDiff := big.NewInt(a.Quantity)
 			if assetInfo.quantity.Cmp(quantityDiff) == -1 {
-				return proto.DAppError, info.failedChanges, errors.New("trying to burn more assets than exist at all")
+				return proto.DAppError, info.failedChanges, errs.NewAccountBalanceError("trying to burn more assets than exist at all")
 			}
 			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, info.scriptPK, info.blockInfo, *tx.ID, tx.Timestamp, info.initialisation, info.acceptFailed)
 			if err != nil {
@@ -469,6 +487,8 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		ia.invokeDiffStor.invokeDiffsStor.reset()
 	}()
 
+	// If BlockV5 feature is not activated, we never accept failed transactions.
+	info.acceptFailed = info.blockV5Activated && info.acceptFailed
 	// Check sender script, if any.
 	if info.senderScripted {
 		if err := ia.sc.callAccountScriptWithTx(tx, info.blockInfo, info.initialisation); err != nil {
@@ -516,11 +536,6 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if err != nil {
 		return nil, err
 	}
-	if !info.checkScripts {
-		// Special mode when we don't check any fallible scripts.
-		res := &invocationResult{failed: true, changes: failedChanges}
-		return ia.handleInvocationResult(tx, info, res)
-	}
 	// Call script function.
 	ok, scriptActions, err := ia.sc.invokeFunction(script, tx, info.blockInfo, *scriptAddr, info.initialisation)
 	if !ok {
@@ -537,6 +552,9 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
 	scriptRuns := uint64(len(paymentSmartAssets)) + actionScriptRuns
+	if info.senderScripted {
+		scriptRuns += 1
+	}
 	var res invocationResult
 	code, changes, err := ia.fallibleValidation(tx, &addlInvokeInfo{
 		fallibleValidationParams: info,
@@ -630,7 +648,7 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 	}
 	if wavesFee < minWavesFee {
 		feeAssetStr := tx.FeeAsset.String()
-		return errors.Errorf("Fee in %s for InvokeScriptTransaction (%d in %s) with %d total scripts invoked does not exceed minimal value of %d WAVES", feeAssetStr, tx.Fee, feeAssetStr, scriptRuns, minWavesFee)
+		return errs.NewFeeValidation(fmt.Sprintf("Fee in %s for InvokeScriptTransaction (%d in %s) with %d total scripts invoked does not exceed minimal value of %d WAVES", feeAssetStr, tx.Fee, feeAssetStr, scriptRuns, minWavesFee))
 	}
 	return nil
 }

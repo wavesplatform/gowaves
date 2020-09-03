@@ -68,13 +68,17 @@ func (a *UtxImpl) AllTransactions() []*types.TransactionWithBytes {
 }
 
 func (a *UtxImpl) Add(t proto.Transaction) error {
-	bts, err := t.MarshalBinary()
+	bts, err := proto.MarshalTx(a.settings.AddressSchemeCharacter, t)
 	if err != nil {
 		return err
 	}
 	return a.addWithBytes(t, bts)
 }
 
+// TODO: add flag here to distinguish adding using API and accepting
+// through the network from other nodes.
+// When API is used, we should check all scripts completely.
+// When adding from the network, only free complexity limit is checked.
 func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()

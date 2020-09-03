@@ -6,6 +6,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -85,7 +86,11 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 		return nil, errors.Errorf("failed to add balance and min balance diff: %v\n", err)
 	}
 	if minBalance < 0 {
-		return nil, errors.Errorf("negative intermediate balance: balance is %d; diff is: %d\n", profile.balance, diff.minBalance)
+		return nil, errors.Errorf(
+			"negative intermediate balance (Attempt to transfer unavailable funds): balance is %d; diff is: %d\n",
+			profile.balance,
+			diff.minBalance,
+		)
 	}
 	// Check main balance diff.
 	newBalance, err := common.AddInt64(diff.balance, int64(profile.balance))
@@ -93,7 +98,7 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 		return nil, errors.Errorf("failed to add balance and balance diff: %v\n", err)
 	}
 	if newBalance < 0 {
-		return nil, errors.New("negative result balance")
+		return nil, errors.New("negative result balance (Attempt to transfer unavailable funds)")
 	}
 	newLeaseIn, err := common.AddInt64(diff.leaseIn, profile.leaseIn)
 	if err != nil {
@@ -105,7 +110,7 @@ func (diff *balanceDiff) applyTo(profile *balanceProfile) (*balanceProfile, erro
 		return nil, errors.Errorf("failed to add leaseOut and leaseOut diff: %v\n", err)
 	}
 	if (newBalance-newLeaseOut < 0) && !diff.allowLeasedTransfer {
-		return nil, errors.New("leased balance is greater than own")
+		return nil, errs.NewTxValidationError("Reason: Cannot lease more than own")
 	}
 	// Create new profile.
 	newProfile := &balanceProfile{}
@@ -123,7 +128,7 @@ func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
 		return 0, errors.Errorf("failed to add balance and min balance diff: %v\n", err)
 	}
 	if minBalance < 0 {
-		return 0, errors.New("negative intermediate asset balance")
+		return 0, errors.New("negative intermediate asset balance (Attempt to transfer unavailable funds)")
 	}
 	// Chech main balance diff.
 	newBalance, err := common.AddInt64(diff.balance, int64(balance))
@@ -131,7 +136,7 @@ func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
 		return 0, errors.Errorf("failed to add balance and balance diff: %v\n", err)
 	}
 	if newBalance < 0 {
-		return 0, errors.New("negative result balance")
+		return 0, errors.New("negative result balance (Attempt to transfer unavailable funds)")
 	}
 	return uint64(newBalance), nil
 }

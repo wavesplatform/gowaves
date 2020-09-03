@@ -179,6 +179,15 @@ func NewUnsignedIssueWithProofs(v, chainID byte, senderPK crypto.PublicKey, name
 	return &IssueWithProofs{Type: IssueTransaction, Version: v, ChainID: chainID, Script: script, Issue: i}
 }
 
+func validContentType(t byte) bool {
+	return t >= 1 && t <= 3
+}
+
+// version in range [0, 5)
+func validStdVersion(v byte) bool {
+	return v < 5
+}
+
 func (tx *IssueWithProofs) Validate() (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxIssueTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for IssueWithProofs", tx.Version)
@@ -187,7 +196,28 @@ func (tx *IssueWithProofs) Validate() (Transaction, error) {
 	if !ok {
 		return tx, err
 	}
-	//TODO: add script and scheme validations
+	if tx.NonEmptyScript() {
+		if !validStdVersion(tx.Script[0]) {
+			return tx, errors.Errorf("Invalid version of script: %d", tx.Script[0])
+		}
+
+		if tx.Script[0] == 0 { // version byte
+			if len(tx.Script) <= 2 {
+				return tx, errors.Errorf("Illegal length of script: %d", len(tx.Script))
+			}
+			if !validContentType(tx.Script[1]) {
+				return tx, errors.Errorf("Invalid content type of script: %d", tx.Script[1])
+			}
+			if tx.Script[2] > 4 { // 4 is current max script version
+				return tx, errors.Errorf("Invalid version of script: %d", tx.Script[2])
+			}
+
+		}
+
+		if !tx.Script.IsValidChecksum() {
+			return tx, errors.Errorf("Invalid checksum: %+v", []byte(tx.Script))
+		}
+	}
 	return tx, nil
 }
 
@@ -2011,7 +2041,7 @@ func (tx *LeaseWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 type LeaseCancelWithProofs struct {
 	Type    TransactionType `json:"type"`
 	Version byte            `json:"version,omitempty"`
-	ChainID byte            `json:"-"`
+	ChainID byte            `json:"chainId"`
 	ID      *crypto.Digest  `json:"id,omitempty"`
 	Proofs  *ProofsV1       `json:"proofs,omitempty"`
 	LeaseCancel
@@ -4184,6 +4214,10 @@ type InvokeScriptWithProofs struct {
 	Timestamp       uint64           `json:"timestamp,omitempty"`
 }
 
+func (tx *InvokeScriptWithProofs) ProtobufVersion() byte {
+	return 2
+}
+
 func (tx *InvokeScriptWithProofs) BinarySize() int {
 	return 4 + tx.Proofs.BinarySize() + crypto.PublicKeySize + tx.FunctionCall.BinarySize() + tx.ScriptRecipient.BinarySize() + tx.Payments.BinarySize() + tx.FeeAsset.BinarySize() + 16
 }
@@ -4655,7 +4689,7 @@ func (tx *UpdateAssetInfoWithProofs) Validate() (Transaction, error) {
 		return tx, errs.NewInvalidName("incorrect number of bytes in the asset's name")
 	}
 	if l := len(tx.Description); l > maxDescriptionLen {
-		return tx, errors.New("incorrect number of bytes in the asset's description")
+		return tx, errs.NewTooBigArray("incorrect number of bytes in the asset's description")
 	}
 	return tx, nil
 }

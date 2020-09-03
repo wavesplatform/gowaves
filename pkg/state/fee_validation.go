@@ -1,8 +1,11 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -124,23 +127,54 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 	return fee, nil
 }
 
-func scriptsCost(tx proto.Transaction, params *feeValidationParams) (uint64, error) {
-	scriptsCost := uint64(0)
+type txCosts struct {
+	smartAssets      uint64
+	smartAssetsFee   uint64
+	smartAccounts    uint64
+	smartAccountsFee uint64
+	total            uint64
+}
+
+func newTxCosts(smartAssets, smartAccounts uint64) *txCosts {
+	smartAssetsFee := smartAssets * scriptExtraFee
+	smartAccountsFee := smartAccounts * scriptExtraFee
+	return &txCosts{
+		smartAssets:      smartAssets,
+		smartAssetsFee:   smartAssetsFee,
+		smartAccounts:    smartAccounts,
+		smartAccountsFee: smartAccountsFee,
+		total:            smartAssetsFee + smartAccountsFee,
+	}
+}
+
+// toString is mostly added for integration tests compatibility with Scala.
+func (tc *txCosts) toString() string {
+	if tc.smartAccounts == 0 && tc.smartAssets == 0 {
+		return ""
+	}
+	str := "State check failed. Reason: "
+	if tc.smartAccounts > 0 {
+		str += fmt.Sprintf("Transaction sent from smart account. Requires %d extra fee. ", tc.smartAccountsFee)
+	}
+	if tc.smartAssets > 0 {
+		str += fmt.Sprintf("Transaction involves %d scripted assets. Requires %d extra fee.", tc.smartAssets, tc.smartAssetsFee)
+	}
+	return str
+}
+
+func scriptsCost(tx proto.Transaction, params *feeValidationParams) (*txCosts, error) {
+	smartAssets := uint64(len(params.txAssets.smartAssets))
 	senderAddr, err := proto.NewAddressFromPublicKey(params.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	// TODO: figure out if scripts without verifier count here.
 	accountScripted, err := params.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !params.initialisation)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
+	smartAccounts := uint64(0)
 	if accountScripted {
-		scriptsCost += scriptExtraFee
-	}
-	if params.txAssets.smartAssets != nil {
-		// Add extra fee for each of smart assets found.
-		scriptsCost += scriptExtraFee * uint64(len(params.txAssets.smartAssets))
+		smartAccounts = 1
 	}
 	// TODO: the code below is wrong, because scripts for fee assets are never run.
 	// Even if sponsorship is disabled, and fee assets can be smart, we don't run scripts for them,
@@ -150,24 +184,24 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (uint64, err
 	if params.txAssets.feeAsset.Present {
 		hasScript := params.stor.scriptsStorage.newestIsSmartAsset(params.txAssets.feeAsset.ID, !params.initialisation)
 		if hasScript {
-			scriptsCost += scriptExtraFee
+			smartAssets += 1
 		}
 	}
-	return scriptsCost, nil
+	return newTxCosts(smartAssets, smartAccounts), nil
 }
 
-func minFeeInWaves(tx proto.Transaction, params *feeValidationParams) (uint64, error) {
+func minFeeInWaves(tx proto.Transaction, params *feeValidationParams) (*txCosts, error) {
 	feeInUnits, err := minFeeInUnits(params, tx)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	minFee := feeInUnits * FeeUnit
-	scriptsCost, err := scriptsCost(tx, params)
+	cost, err := scriptsCost(tx, params)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	minFee += scriptsCost
-	return minFee, nil
+	cost.total += minFee
+	return cost, nil
 }
 
 func checkMinFeeWaves(tx proto.Transaction, params *feeValidationParams) error {
@@ -176,8 +210,9 @@ func checkMinFeeWaves(tx proto.Transaction, params *feeValidationParams) error {
 		return errors.Errorf("failed to calculate min fee in Waves: %v\n", err)
 	}
 	fee := tx.GetFee()
-	if fee < minWaves {
-		return errors.Errorf("fee %d is less than minimum value of %d\n", fee, minWaves)
+	if fee < minWaves.total {
+		feeInfoStr := minWaves.toString()
+		return errs.NewFeeValidation(fmt.Sprintf("Fee %d does not exceed minimal value of %d WAVES. %s", fee, minWaves.total, feeInfoStr))
 	}
 	return nil
 }
@@ -185,22 +220,23 @@ func checkMinFeeWaves(tx proto.Transaction, params *feeValidationParams) error {
 func checkMinFeeAsset(tx proto.Transaction, feeAssetID crypto.Digest, params *feeValidationParams) error {
 	isSponsored, err := params.stor.sponsoredAssets.newestIsSponsored(feeAssetID, !params.initialisation)
 	if err != nil {
-		return errors.Errorf("newestIsSponsored: %v\n", err)
+		return errors.Errorf("newestIsSponsored: %v", err)
 	}
 	if !isSponsored {
-		return errors.Errorf("asset %s is not sponsored", feeAssetID.String())
+		return errs.NewTxValidationError(fmt.Sprintf("Asset %s is not sponsored, cannot be used to pay fees", feeAssetID.String()))
 	}
 	minWaves, err := minFeeInWaves(tx, params)
 	if err != nil {
 		return errors.Errorf("failed to calculate min fee in Waves: %v\n", err)
 	}
-	minAsset, err := params.stor.sponsoredAssets.wavesToSponsoredAsset(feeAssetID, minWaves)
+	minAsset, err := params.stor.sponsoredAssets.wavesToSponsoredAsset(feeAssetID, minWaves.total)
 	if err != nil {
 		return errors.Errorf("wavesToSponsoredAsset() failed: %v\n", err)
 	}
 	fee := tx.GetFee()
 	if fee < minAsset {
-		return errors.Errorf("fee %d is less than minimum value of %d\n", fee, minAsset)
+		feeInfoStr := minWaves.toString()
+		return errs.NewFeeValidation(fmt.Sprintf("does not exceed minimal value of 100000 WAVES or %d %s. %s", minAsset, feeAssetID, feeInfoStr))
 	}
 	return nil
 }

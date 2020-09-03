@@ -110,7 +110,7 @@ func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.I
 	defer to.state.stor.dropUncertain()
 
 	res, err := to.state.appender.ia.applyInvokeScript(tx, info)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = to.state.appender.diffStor.saveTxDiff(res.changes.diff)
 	assert.NoError(t, err)
 	if res.status {
@@ -651,6 +651,7 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 
 	info := to.fallibleValidationParams(t)
 	info.acceptFailed = true
+	info.blockV5Activated = true
 	to.setDApp(t, "ride4_asset.base64", testGlobal.recipientInfo)
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)

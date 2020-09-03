@@ -11,6 +11,8 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/util/iterators"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -118,7 +120,12 @@ func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsA
 		return status.Errorf(codes.FailedPrecondition, err.Error())
 	}
 	filter := newTxFilterInvoke(ftr)
-	iter, err := s.newStateIterator(ftr.getSenderRecipient())
+	var iter state.TransactionIterator
+	if len(req.TransactionIds) > 0 {
+		iter = iterators.NewTxByIdIterator(s.state, req.TransactionIds)
+	} else {
+		iter, err = s.newStateIterator(ftr.getSenderRecipient())
+	}
 	if err != nil {
 		return status.Errorf(codes.Internal, err.Error())
 	}
@@ -232,7 +239,8 @@ func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (out *
 }
 
 func apiError(err error) error {
-	switch err.(type) {
+	err = errors.Cause(err)
+	switch e := err.(type) {
 	case *errs.NonPositiveAmount:
 		return status.Errorf(codes.InvalidArgument, "non-positive amount "+err.Error())
 	case *errs.TooBigArray:
@@ -256,9 +264,18 @@ func apiError(err error) error {
 	case *errs.DuplicatedDataKeys:
 		return status.Errorf(codes.InvalidArgument, "Duplicated keys found: %s", err)
 	case *errs.UnknownAsset:
-		return status.Errorf(codes.InvalidArgument, "Assets should be issued before they can be traded: %s", err)
+		return status.Errorf(codes.InvalidArgument, "Referenced assetId not found: %s", err)
 	case *errs.AssetIssuedByOtherAddress:
 		return status.Errorf(codes.InvalidArgument, "Asset was issued by other address: %s", err)
+	case *errs.FeeValidation:
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	case *errs.AssetUpdateInterval:
+		return status.Errorf(codes.InvalidArgument, err.Error())
+	case *errs.TransactionNotAllowedByScript:
+		if e.IsAssetScript() {
+			return status.Errorf(codes.InvalidArgument, "Transaction is not allowed by token-script: %s: Transaction is not allowed by script of the asset", err)
+		}
+		return status.Errorf(codes.InvalidArgument, "Transaction is not allowed by account-script")
 	default:
 		return status.Errorf(codes.Internal, err.Error())
 	}

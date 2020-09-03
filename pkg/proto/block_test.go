@@ -199,7 +199,7 @@ func TestBlockGetSignature(t *testing.T) {
 	}
 }
 
-func TestTransactions_WriteTo(t *testing.T) {
+func TestTransactions_WriteToBinary(t *testing.T) {
 	secret, public, err := crypto.GenerateKeyPair([]byte("test"))
 	assert.NoError(t, err)
 	alias, err := NewAliasFromString("alias:T:aaaa")
@@ -211,7 +211,7 @@ func TestTransactions_WriteTo(t *testing.T) {
 	buf := new(bytes.Buffer)
 	ts := Transactions{createAlias}
 
-	_, err = ts.WriteTo(buf)
+	_, err = ts.WriteToBinary(buf)
 	require.NoError(t, err)
 
 	length := binary.BigEndian.Uint32(buf.Bytes()[:4])

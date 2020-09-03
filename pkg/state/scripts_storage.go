@@ -106,6 +106,10 @@ func (r *scriptRecord) unmarshalBinary(data []byte) error {
 	return nil
 }
 
+// TODO: LRU cache for script ASTs here only makes sense at the import stage.
+// It shouldn't be used at all when the node does rollbacks or validates UTX,
+// because it has to be cleared after each rollback or UTX validation,
+// which makes it inefficient.
 type scriptsStorage struct {
 	hs    *historyStorage
 	cache *lru

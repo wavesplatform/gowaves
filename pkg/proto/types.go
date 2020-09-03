@@ -2499,7 +2499,10 @@ type ScriptInfo struct {
 	Complexity uint64
 }
 
-func (s ScriptInfo) ToProtobuf() *pb.ScriptData {
+func (s *ScriptInfo) ToProtobuf() *pb.ScriptData {
+	if s == nil {
+		return &pb.ScriptData{}
+	}
 	return &pb.ScriptData{
 		ScriptBytes: s.Bytes,
 		ScriptText:  s.Base64,
@@ -2539,6 +2542,17 @@ func (s Script) MarshalJSON() ([]byte, error) {
 	sb.WriteString(s.String())
 	sb.WriteRune('"')
 	return []byte(sb.String()), nil
+}
+
+func (s Script) IsValidChecksum() bool {
+	if len(s)-4 < 0 {
+		return false
+	}
+	k, err := crypto.SecureHash(s[:len(s)-4])
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(k.Bytes()[:4], s[len(s)-4:])
 }
 
 // UnmarshalJSON reads Script from it's JSON representation

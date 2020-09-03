@@ -2,13 +2,15 @@ package client
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type MockHttpRequest struct {
@@ -77,4 +79,25 @@ func TestJoinUrl(t *testing.T) {
 	url, err = joinUrl("https://clinton.vostokservices.com/node-0", "/consensus/basetarget")
 	require.NoError(t, err)
 	assert.Equal(t, "https://clinton.vostokservices.com/node-0/consensus/basetarget", url.String())
+}
+
+func client(t *testing.T, doer Doer) *Client {
+	url, _ := os.LookupEnv("GOWAVES_CLIENT_URL")
+	if len(url) > 0 {
+		client, err := NewClient(Options{
+			BaseUrl: url,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return client
+	}
+	client, err := NewClient(Options{
+		BaseUrl: "https://nodes-stagenet.wavesnodes.com",
+		Client:  doer,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return client
 }

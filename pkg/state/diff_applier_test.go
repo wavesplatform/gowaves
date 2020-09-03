@@ -154,5 +154,5 @@ func TestTransferOverspend(t *testing.T) {
 	assert.NoError(t, err, "createDiffTransferWithSig() failed")
 	err = to.applier.validateBalancesChanges(txChanges.diff.balancesChanges(), true)
 	assert.Error(t, err, "validateBalancesChanges() did not fail with overspend when it is not allowed")
-	assert.EqualError(t, err, "validation failed: negative asset balance: negative intermediate asset balance\n")
+	assert.EqualError(t, err, "validation failed: negative asset balance: negative intermediate asset balance (Attempt to transfer unavailable funds)\n")
 }

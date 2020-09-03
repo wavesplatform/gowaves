@@ -66,6 +66,14 @@ func NewBlockIDFromBase58(s string) (BlockID, error) {
 	return NewBlockIDFromDigest(dig), nil
 }
 
+func MustBlockIDFromBase58(s string) BlockID {
+	block, err := NewBlockIDFromBase58(s)
+	if err != nil {
+		panic(err)
+	}
+	return block
+}
+
 func NewBlockIDFromSignature(sig crypto.Signature) BlockID {
 	return BlockID{sig: sig, idType: SignatureID}
 }
@@ -614,7 +622,7 @@ func (b *Block) WriteToWithoutSignature(w io.Writer) (int64, error) {
 	} else {
 		s.Byte(byte(b.TransactionCount))
 	}
-	if _, err := b.Transactions.WriteTo(s); err != nil {
+	if _, err := b.Transactions.WriteToBinary(s); err != nil {
 		return 0, err
 	}
 
@@ -818,7 +826,7 @@ func (a Transactions) BinarySize() int {
 func (a Transactions) MarshalBinary() ([]byte, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
-	_, err := a.WriteTo(buf)
+	_, err := a.WriteToBinary(buf)
 	if err != nil {
 		return nil, err
 	}
@@ -827,7 +835,31 @@ func (a Transactions) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-func (a Transactions) WriteTo(w io.Writer) (int64, error) {
+func (a Transactions) WriteTo(proto bool, scheme Scheme, w io.Writer) (int64, error) {
+	if !proto {
+		return a.WriteToBinary(w)
+	}
+	s := serializer.New(w)
+	for _, t := range a {
+		bts, err := t.MarshalSignedToProtobuf(scheme)
+		if err != nil {
+			return 0, err
+		}
+
+		err = s.Uint32(uint32(len(bts)))
+		if err != nil {
+			return 0, err
+		}
+
+		err = s.Bytes(bts)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return s.N(), nil
+}
+
+func (a Transactions) WriteToBinary(w io.Writer) (int64, error) {
 	s := serializer.New(w)
 	for _, t := range a {
 		bts, err := t.MarshalBinary()
