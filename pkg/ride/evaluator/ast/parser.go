@@ -173,7 +173,7 @@ func (f *flags) walk(iter *BytesReader) (Expr, error) {
 		}
 		f.blockV2 = true
 		return b, nil
-	case E_ARR:
+	case E_LIST:
 		a, err := f.readArray(iter)
 		if err != nil {
 			return nil, err
