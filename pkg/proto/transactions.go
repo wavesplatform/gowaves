@@ -379,6 +379,8 @@ func GuessTransactionType(t *TransactionTypeVersion) (Transaction, error) {
 		out = &SetAssetScriptWithProofs{}
 	case InvokeScriptTransaction: // 16
 		out = &InvokeScriptWithProofs{}
+	case UpdateAssetInfoTransaction:
+		out = &UpdateAssetInfoWithProofs{}
 	}
 	if out == nil {
 		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)
