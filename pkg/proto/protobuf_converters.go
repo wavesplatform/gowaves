@@ -959,7 +959,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		rtx = &UpdateAssetInfoWithProofs{
 			Type:        UpdateAssetInfoTransaction,
 			Version:     v,
-			ChainID:     SchemeJson(scheme),
+			ChainID:     scheme,
 			SenderPK:    c.publicKey(tx.SenderPublicKey),
 			AssetID:     c.digest(d.UpdateAssetInfo.AssetId),
 			Name:        d.UpdateAssetInfo.Name,

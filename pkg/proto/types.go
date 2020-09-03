@@ -55,26 +55,6 @@ const (
 type Timestamp = uint64
 type Score = big.Int
 type Scheme = byte
-
-// SchemeJson is type which supports JSON encoding / decoding of schemes.
-type SchemeJson byte
-
-func (s SchemeJson) MarshalJSON() ([]byte, error) {
-	return json.Marshal(string(s))
-}
-
-func (s *SchemeJson) UnmarshalJSON(data []byte) error {
-	var str string
-	if err := json.Unmarshal(data, &str); err != nil {
-		return err
-	}
-	if len(str) != 1 {
-		return errors.New("invalid string length")
-	}
-	*s = SchemeJson(str[0])
-	return nil
-}
-
 type Height = uint64
 
 var jsonNullBytes = []byte{0x6e, 0x75, 0x6c, 0x6c}
