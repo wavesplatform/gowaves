@@ -243,3 +243,7 @@ func lastIndexOfSubstring(...rideType) (rideType, error) {
 func lastIndexOfSubstringWithOffset(...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
+
+func makeString(...rideType) (rideType, error) {
+	return nil, errors.New("not implemented")
+}

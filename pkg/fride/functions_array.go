@@ -113,3 +113,7 @@ func min(...rideType) (rideType, error) {
 func contains(...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
+
+func containsElement(...rideType) (rideType, error) {
+	return nil, errors.New("not implemented")
+}

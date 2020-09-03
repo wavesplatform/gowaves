@@ -304,18 +304,23 @@ func functionsV4() map[string]string {
 
 	// New functions
 	m["contains"] = "contains"
+	m["containsElement"] = "containsElement"
 	m["valueOrElse"] = "valueOrElse"
+	m["405"] = "median"
+	m["406"] = "max"
+	m["407"] = "min"
+	m["800"] = "unlimitedGroth16Verify"
+	m["900"] = "ecRecover"
+	m["1007"] = "accountWavesBalance"
+	m["1008"] = "accountAssetBalance"
+	m["1062"] = "addressFromString"
 	m["1080"] = "calculateAssetID"
+	m["1100"] = "limitedCreateList"
 	m["1101"] = "appendToList"
 	m["1102"] = "concatList"
 	m["1103"] = "indexOfList"
 	m["1104"] = "lastIndexOfList"
-	m["405"] = "median"
-	m["406"] = "max"
-	m["407"] = "min"
-	m["1100"] = "limitedCreateList"
-	m["800"] = "unlimitedGroth16Verify"
-	m["900"] = "ecRecover"
+	m["1209"] = "makeString"
 	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		m[strconv.Itoa(2400+i)] = fmt.Sprintf("limitedGroth16Verify_%d", l)
 	}
@@ -331,6 +336,7 @@ func functionsV4() map[string]string {
 	m["701"] = "rebuildMerkleRoot"
 	m["1090"] = "simplifiedIssue"
 	m["1091"] = "fullIssue"
+	m["@extrNative(1062)"] = "addressFromString"
 	return m
 }
 
@@ -348,7 +354,8 @@ func catalogueV4() map[string]int {
 	m["Issue"] = 7
 	m["Reissue"] = 3
 	m["Burn"] = 2
-	m["contains"] = 20
+	m["contains"] = 3
+	m["containsElement"] = 5
 	m["valueOrElse"] = 13
 	m["405"] = 10
 	m["406"] = 3
@@ -356,6 +363,9 @@ func catalogueV4() map[string]int {
 	m["701"] = 30
 	m["800"] = 3900
 	m["900"] = 70
+	m["1007"] = 10
+	m["1008"] = 10
+	m["1062"] = 1
 	m["1070"] = 5
 	m["1080"] = 10
 	m["1100"] = 2
@@ -363,6 +373,7 @@ func catalogueV4() map[string]int {
 	m["1102"] = 10
 	m["1103"] = 5
 	m["1104"] = 5
+	m["1209"] = 30
 	m["2400"] = 1900
 	m["2401"] = 2000
 	m["2402"] = 2150
@@ -398,6 +409,7 @@ func catalogueV4() map[string]int {
 	m["2901"] = 25
 	m["2902"] = 50
 	m["2903"] = 100
+	m["@extrNative(1062)"] = 1
 	return m
 }
 

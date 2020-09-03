@@ -231,3 +231,11 @@ func sponsorship(...rideType) (rideType, error) {
 func wavesBalanceV4(...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
+
+func accountWavesBalance(...rideType) (rideType, error) {
+	return nil, errors.New("not implemented")
+}
+
+func accountAssetBalance(...rideType) (rideType, error) {
+	return nil, errors.New("not implemented")
+}
