@@ -39,7 +39,7 @@ const (
 	booleanArgumentLen   = 1
 	binaryArgumentMinLen = 1 + 4
 	stringArgumentMinLen = 1 + 4
-	arrayArgumentMinLen  = 1 + 4
+	listArgumentMinLen   = 1 + 4
 	PriceConstant        = 100000000
 	MaxOrderAmount       = 100 * PriceConstant * PriceConstant
 	MaxOrderTTL          = uint64((30 * 24 * time.Hour) / time.Millisecond)
@@ -2572,8 +2572,8 @@ func (vt ArgumentValueType) String() string {
 		return "binary"
 	case ArgumentString:
 		return "string"
-	case ArgumentArray:
-		return "array"
+	case ArgumentList:
+		return "list"
 	default:
 		return ""
 	}
@@ -2586,7 +2586,7 @@ const (
 	ArgumentBoolean    = ArgumentValueType(99) // Nonexistent RIDE type is used
 	ArgumentValueTrue  = ArgumentValueType(reader.E_TRUE)
 	ArgumentValueFalse = ArgumentValueType(reader.E_FALSE)
-	ArgumentArray      = ArgumentValueType(reader.E_ARR)
+	ArgumentList       = ArgumentValueType(reader.E_LIST)
 )
 
 type Argument interface {
@@ -2612,8 +2612,8 @@ func guessArgumentType(argumentType ArgumentType) (Argument, error) {
 		r = &BinaryArgument{}
 	case "string":
 		r = &StringArgument{}
-	case "array":
-		r = &ArrayArgument{}
+	case "list":
+		r = &ListArgument{}
 	}
 	if r == nil {
 		return nil, errors.Errorf("unknown value type '%s' of Argument", argumentType.Type)
@@ -2711,8 +2711,8 @@ func (a *Arguments) UnmarshalBinary(data []byte) error {
 			var sa StringArgument
 			err = sa.UnmarshalBinary(data)
 			arg = &sa
-		case ArgumentArray:
-			var aa ArrayArgument
+		case ArgumentList:
+			var aa ListArgument
 			err = aa.UnmarshalBinary(data)
 			arg = &aa
 		default:
@@ -3029,28 +3029,28 @@ func (a *StringArgument) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-type ArrayArgument struct {
+type ListArgument struct {
 	Items Arguments
 }
 
-func NewArrayArgument(items Arguments) *ArrayArgument {
-	return &ArrayArgument{Items: items}
+func NewListArgument(items Arguments) *ListArgument {
+	return &ListArgument{Items: items}
 }
 
 //GetValueType returns the type of value of the argument.
-func (a ArrayArgument) GetValueType() ArgumentValueType {
-	return ArgumentArray
+func (a ListArgument) GetValueType() ArgumentValueType {
+	return ArgumentList
 }
 
-func (a ArrayArgument) BinarySize() int {
+func (a ListArgument) BinarySize() int {
 	return 1 + a.Items.BinarySize()
 }
 
 //MarshalBinary converts the argument to its byte representation.
-func (a ArrayArgument) MarshalBinary() ([]byte, error) {
+func (a ListArgument) MarshalBinary() ([]byte, error) {
 	buf := make([]byte, a.BinarySize())
 	pos := 0
-	buf[pos] = byte(ArgumentArray)
+	buf[pos] = byte(ArgumentList)
 	pos++
 	b, err := a.Items.MarshalBinary()
 	if err != nil {
@@ -3061,8 +3061,8 @@ func (a ArrayArgument) MarshalBinary() ([]byte, error) {
 }
 
 //Serialize argument to its byte representation.
-func (a ArrayArgument) Serialize(s *serializer.Serializer) error {
-	err := s.Byte(byte(ArgumentArray))
+func (a ListArgument) Serialize(s *serializer.Serializer) error {
+	err := s.Byte(byte(ArgumentList))
 	if err != nil {
 		return err
 	}
@@ -3070,12 +3070,12 @@ func (a ArrayArgument) Serialize(s *serializer.Serializer) error {
 }
 
 //UnmarshalBinary reads an StringArgument structure from bytes.
-func (a *ArrayArgument) UnmarshalBinary(data []byte) error {
-	if l := len(data); l < arrayArgumentMinLen {
-		return errors.Errorf("invalid data length for ArrayArgument, expected not less than %d, received %d", arrayArgumentMinLen, l)
+func (a *ListArgument) UnmarshalBinary(data []byte) error {
+	if l := len(data); l < listArgumentMinLen {
+		return errors.Errorf("invalid data length for ListArgument, expected not less than %d, received %d", listArgumentMinLen, l)
 	}
-	if t := data[0]; t != byte(ArgumentArray) {
-		return errors.Errorf("unexpected value type %d for ArrayArgument, expected %d", t, ArgumentArray)
+	if t := data[0]; t != byte(ArgumentList) {
+		return errors.Errorf("unexpected value type %d for ListArgument, expected %d", t, ArgumentList)
 	}
 	data = data[1:]
 	args := new(Arguments)
@@ -3088,7 +3088,7 @@ func (a *ArrayArgument) UnmarshalBinary(data []byte) error {
 }
 
 //MarshalJSON writes the entry to its JSON representation.
-func (a ArrayArgument) MarshalJSON() ([]byte, error) {
+func (a ListArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string     `json:"type"`
 		V []Argument `json:"value"`
@@ -3096,7 +3096,7 @@ func (a ArrayArgument) MarshalJSON() ([]byte, error) {
 }
 
 //UnmarshalJSON reads the entry from JSON.
-func (a *ArrayArgument) UnmarshalJSON(value []byte) error {
+func (a *ListArgument) UnmarshalJSON(value []byte) error {
 	tmp := struct {
 		T string    `json:"type"`
 		V Arguments `json:"value"`
