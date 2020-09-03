@@ -4636,7 +4636,7 @@ type UpdateAssetInfoWithProofs struct {
 	Version     byte             `json:"version,omitempty"`
 	ID          *crypto.Digest   `json:"id,omitempty"`
 	Proofs      *ProofsV1        `json:"proofs,omitempty"`
-	ChainID     SchemeJson       `json:"chainId"`
+	ChainID     byte             `json:"chainId"`
 	SenderPK    crypto.PublicKey `json:"senderPublicKey"`
 	AssetID     crypto.Digest    `json:"assetId"`
 	Name        string           `json:"name"`
@@ -4738,7 +4738,7 @@ func NewUnsignedUpdateAssetInfoWithProofs(v, chainID byte, assetID crypto.Digest
 	return &UpdateAssetInfoWithProofs{
 		Type:        UpdateAssetInfoTransaction,
 		Version:     v,
-		ChainID:     SchemeJson(chainID),
+		ChainID:     chainID,
 		SenderPK:    senderPK,
 		AssetID:     assetID,
 		Name:        name,
