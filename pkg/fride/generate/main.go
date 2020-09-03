@@ -141,10 +141,10 @@ func catalogueV2() map[string]int {
 	m["dropRight"] = 19
 	m["!"] = 11
 	m["-"] = 9
-	m["getInteger"] = 10
-	m["getBoolean"] = 10
-	m["getBinary"] = 10
-	m["getString"] = 10
+	m["getInteger"] = 30
+	m["getBoolean"] = 30
+	m["getBinary"] = 30
+	m["getString"] = 30
 	m["addressFromPublicKey"] = 82
 	m["wavesBalance"] = 109
 	m["Address"] = 1

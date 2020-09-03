@@ -4,46 +4,50 @@ import (
 	"github.com/pkg/errors"
 )
 
+type fd struct {
+	cost   int
+	usages []string
+}
 type fsV3 struct {
 	parent    *fsV3
-	functions map[string]int
+	functions map[string]fd
 }
 
 func newFsV3() *fsV3 {
-	return &fsV3{parent: nil, functions: make(map[string]int)}
+	return &fsV3{parent: nil, functions: make(map[string]fd)}
 }
 
 func (f *fsV3) spawn() *fsV3 {
 	return &fsV3{
 		parent:    f,
-		functions: make(map[string]int),
+		functions: make(map[string]fd),
 	}
 }
 
-func (f *fsV3) set(key string, cost int) {
-	f.functions[key] = cost
+func (f *fsV3) set(key string, cost int, usages []string) {
+	f.functions[key] = fd{cost, usages}
 }
 
-func (f *fsV3) get(key string) (int, error) {
-	function, ok := f.functions[key]
+func (f *fsV3) get(key string) (int, []string, error) {
+	fd, ok := f.functions[key]
 	if !ok {
 		if f.parent == nil {
-			return 0, errors.Errorf("user function '%s' not found", key)
+			return 0, nil, errors.Errorf("user function '%s' not found", key)
 		}
 		return f.parent.get(key)
 	}
-	return function, nil
+	return fd.cost, fd.usages, nil
 }
 
 type estimationScopeV3 struct {
-	used      map[string]struct{}
+	usages    [][]string
 	functions *fsV3
 	builtin   map[string]int
 }
 
 func newEstimationScopeV3(functions map[string]int) *estimationScopeV3 {
 	return &estimationScopeV3{
-		used:      make(map[string]struct{}),
+		usages:    make([][]string, 0),
 		functions: newFsV3(),
 		builtin:   functions,
 	}
@@ -59,15 +63,55 @@ func (s *estimationScopeV3) restore(fs *fsV3) {
 	s.functions = fs
 }
 
-func (s *estimationScopeV3) setFunction(id string, cost int) {
-	s.functions.set(id, cost)
+func (s *estimationScopeV3) setFunction(id string, cost int, usages []string) {
+	s.functions.set(id, cost, usages)
 }
 
-func (s *estimationScopeV3) function(id string) (int, error) {
+func (s *estimationScopeV3) function(id string) (int, []string, error) {
 	if c, ok := s.builtin[id]; ok {
-		return c, nil
+		return c, nil, nil
 	}
 	return s.functions.get(id)
+}
+
+func (s *estimationScopeV3) used(id string) bool {
+	if l := len(s.usages); l > 0 {
+		for i := len(s.usages[l-1]) - 1; i >= 0; i-- {
+			if s.usages[l-1][i] == id {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *estimationScopeV3) remove(id string) {
+	if l := len(s.usages); l > 0 {
+		for i := len(s.usages[l-1]) - 1; i >= 0; i-- {
+			if s.usages[l-1][i] == id {
+				s.usages[l-1] = append(s.usages[l-1][:i], s.usages[l-1][i+1:]...)
+			}
+		}
+	}
+}
+
+func (s *estimationScopeV3) use(id string) {
+	if l := len(s.usages); l > 0 {
+		s.usages[l-1] = append(s.usages[l-1], id)
+	}
+}
+
+func (s *estimationScopeV3) submerge() {
+	s.usages = append(s.usages, make([]string, 0))
+}
+
+func (s *estimationScopeV3) emerge() []string {
+	if l := len(s.usages); l > 0 {
+		var r []string
+		r, s.usages = s.usages[l-1], s.usages[:l-1]
+		return r
+	}
+	return nil
 }
 
 type treeEstimatorV3 struct {
@@ -92,10 +136,12 @@ func newTreeEstimatorV3(tree *Tree) (*treeEstimatorV3, error) {
 
 func (e *treeEstimatorV3) estimate() (int, int, map[string]int, error) {
 	if !e.tree.IsDApp() {
+		e.scope.submerge()
 		c, err := e.walk(e.tree.Verifier)
 		if err != nil {
 			return 0, 0, nil, err
 		}
+		e.scope.emerge()
 		return c, c, nil, nil
 	}
 	max := 0
@@ -105,10 +151,12 @@ func (e *treeEstimatorV3) estimate() (int, int, map[string]int, error) {
 		if !ok {
 			return 0, 0, nil, errors.New("invalid callable declaration")
 		}
+		e.scope.submerge()
 		c, err := e.walk(e.wrapFunction(function))
 		if err != nil {
 			return 0, 0, nil, err
 		}
+		e.scope.emerge()
 		m[function.Name] = c
 		if c > max {
 			max = c
@@ -120,10 +168,12 @@ func (e *treeEstimatorV3) estimate() (int, int, map[string]int, error) {
 		if !ok {
 			return 0, 0, nil, errors.New("invalid verifier declaration")
 		}
+		e.scope.submerge()
 		c, err := e.walk(e.wrapFunction(verifier))
 		if err != nil {
 			return 0, 0, nil, err
 		}
+		e.scope.emerge()
 		vc = c
 		if c > max {
 			max = c
@@ -176,13 +226,13 @@ func (e *treeEstimatorV3) walk(node Node) (int, error) {
 
 	case *AssignmentNode:
 		id := n.Name
-		_, overlapped := e.scope.used[id]
-		delete(e.scope.used, id)
+		overlapped := e.scope.used(id)
+		e.scope.remove(id)
 		c, err := e.walk(n.Block)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate block after declaration of variable '%s'", id)
 		}
-		if _, used := e.scope.used[id]; used {
+		if e.scope.used(id) {
 			tmp := e.scope.save()
 			le, err := e.walk(n.Expression)
 			if err != nil {
@@ -192,25 +242,27 @@ func (e *treeEstimatorV3) walk(node Node) (int, error) {
 			c = c + le
 		}
 		if overlapped {
-			e.scope.used[id] = struct{}{}
+			e.scope.use(id)
 		} else {
-			delete(e.scope.used, id)
+			e.scope.remove(id)
 		}
 		return c, nil
 
 	case *ReferenceNode:
-		e.scope.used[n.Name] = struct{}{}
+		e.scope.use(n.Name)
 		return 1, nil
 
 	case *FunctionDeclarationNode:
 		id := n.Name
 		tmp := e.scope.save()
+		e.scope.submerge()
 		fc, err := e.walk(n.Body)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate cost of function '%s'", id)
 		}
+		bodyUsages := e.scope.emerge()
 		e.scope.restore(tmp)
-		e.scope.setFunction(id, fc)
+		e.scope.setFunction(id, fc, bodyUsages)
 		bc, err := e.walk(n.Block)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate block after declaration of function '%s'", id)
@@ -219,9 +271,12 @@ func (e *treeEstimatorV3) walk(node Node) (int, error) {
 
 	case *FunctionCallNode:
 		id := n.Name
-		fc, err := e.scope.function(id)
+		fc, bu, err := e.scope.function(id)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate the call of function '%s'", id)
+		}
+		for _, u := range bu {
+			e.scope.use(u)
 		}
 		ac := 0
 		for i, a := range n.Arguments {
