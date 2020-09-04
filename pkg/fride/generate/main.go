@@ -337,6 +337,7 @@ func functionsV4() map[string]string {
 	m["1090"] = "simplifiedIssue"
 	m["1091"] = "fullIssue"
 	m["@extrNative(1062)"] = "addressFromString"
+
 	return m
 }
 
@@ -354,25 +355,56 @@ func catalogueV4() map[string]int {
 	m["Issue"] = 7
 	m["Reissue"] = 3
 	m["Burn"] = 2
-	m["contains"] = 3
-	m["containsElement"] = 5
-	m["valueOrElse"] = 13
-	m["405"] = 10
+	m["SponsorFee"] = 2
+
+	m["201"] = 6
+	m["202"] = 6
+	m["203"] = 2
+	m["300"] = 20
+	m["303"] = 20
+	m["304"] = 20
+	m["405"] = 20
 	m["406"] = 3
 	m["407"] = 3
+	m["411"] = 8
+	m["500"] = 200
+	m["501"] = 200
+	m["502"] = 200
+	m["503"] = 200
+	m["504"] = 1000
+	m["600"] = 3
+	m["601"] = 1
+	m["602"] = 35
+	m["603"] = 40
 	m["701"] = 30
 	m["800"] = 3900
 	m["900"] = 70
+	m["1004"] = 15
 	m["1007"] = 10
 	m["1008"] = 10
+	m["1050"] = 10
+	m["1051"] = 10
+	m["1052"] = 10
+	m["1053"] = 10
 	m["1062"] = 1
 	m["1070"] = 5
 	m["1080"] = 10
-	m["1100"] = 2
-	m["1101"] = 3
-	m["1102"] = 10
+	m["1090"] = 1
+	m["1091"] = 1
+	m["1100"] = 1
+	m["1101"] = 1
+	m["1102"] = 4
 	m["1103"] = 5
 	m["1104"] = 5
+	m["1200"] = 7
+	m["1201"] = 1
+	m["1202"] = 1
+	m["1203"] = 3
+	m["1204"] = 3
+	m["1205"] = 75
+	m["1206"] = 2
+	m["1207"] = 3
+	m["1208"] = 3
 	m["1209"] = 30
 	m["2400"] = 1900
 	m["2401"] = 2000
@@ -409,7 +441,28 @@ func catalogueV4() map[string]int {
 	m["2901"] = 25
 	m["2902"] = 50
 	m["2903"] = 100
+
+	m["@extrNative(1050)"] = 10
+	m["@extrNative(1051)"] = 10
+	m["@extrNative(1052)"] = 10
+	m["@extrNative(1053)"] = 10
 	m["@extrNative(1062)"] = 1
+
+	m["contains"] = 3
+	m["containsElement"] = 5
+	m["value"] = 2
+	m["valueOrElse"] = 2
+	m["valueOrErrorMessage"] = 2
+	m["addressFromPublicKey"] = 63
+	m["dropRightBytes"] = 6
+	m["takeRightBytes"] = 6 // For bytes, also takeRight(bytes) should be 6
+	m["takeRight"] = 20     // For strings
+	m["dropRight"] = 20     // For strings
+	m["drop"] = 6
+	m["take"] = 20
+	m["cons"] = 1
+	m["parseIntValue"] = 2
+
 	return m
 }
 
