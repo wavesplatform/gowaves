@@ -20,7 +20,7 @@ const E_FALSE byte = 7
 const E_GETTER byte = 8
 const E_FUNCALL byte = 9
 const E_BLOCK_V2 byte = 10
-const E_ARR byte = 11
+const E_LIST byte = 11
 
 const DEC_LET byte = 0
 const DEC_FUNC byte = 1

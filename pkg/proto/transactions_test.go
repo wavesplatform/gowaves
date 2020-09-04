@@ -5696,7 +5696,6 @@ func TestInvokeScriptWithProofsValidations(t *testing.T) {
 		{ScriptPayments{{12345, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, math.MaxInt64 + 1, "fee is too big", 1},
 		{ScriptPayments{{12345, *a1}}, strings.Repeat("foo", 100), Arguments{}, 13245, "function name is too big", 1},
 		{ScriptPayments{{12345, *a1}}, "foo", repeat(StringArgument{Value: "some value should be ok"}, 100), 13245, "too many arguments", 1},
-		{ScriptPayments{{12345, *a1}, {67890, *a2}}, "foo", Arguments{}, 10000, "no more than one payment is allowed", 1},
 		{ScriptPayments{{0, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, 1234, "at least one payment has a non-positive amount", 1},
 		{ScriptPayments{{math.MaxInt64 + 123, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, 12345, "at least one payment has a too big amount", 1},
 		{ScriptPayments{}, "foo", Arguments{IntegerArgument{Value: 1234567890}}, 1, "unexpected version 3 for InvokeScriptWithProofs", 3},
@@ -6079,12 +6078,11 @@ func TestUpdateAssetInfoWithProofsToJSON(t *testing.T) {
 		}
 		tx := NewUnsignedUpdateAssetInfoWithProofs(1, tc.chain, aid, pk, tc.name, tc.description, ts, *a, tc.fee)
 		if j, err := json.Marshal(tx); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"type\":17,\"version\":1,\"chainId\":\"%c\",\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"feeAssetId\":%s,\"fee\":%d,\"timestamp\":%d}", tc.chain, base58.Encode(pk[:]), aid.String(), tc.name, tc.description, feeAssetIDJSON, tc.fee, ts)
+			ej := fmt.Sprintf(`{"type":17,"version":1,"chainId":%d,"senderPublicKey":"%s","assetId":"%s","name":"%s","description":"%s","feeAssetId":%s,"fee":%d,"timestamp":%d}`, tc.chain, base58.Encode(pk[:]), aid.String(), tc.name, tc.description, feeAssetIDJSON, tc.fee, ts)
 			assert.Equal(t, ej, string(j))
 			if err := tx.Sign(tc.chain, sk); assert.NoError(t, err) {
 				if sj, err := json.Marshal(tx); assert.NoError(t, err) {
-					esj := fmt.Sprintf("{\"type\":17,\"version\":1,\"id\":\"%s\",\"proofs\":[\"%s\"],\"chainId\":\"%c\",\"senderPublicKey\":\"%s\",\"assetId\":\"%s\",\"name\":\"%s\",\"description\":\"%s\",\"feeAssetId\":%s,\"fee\":%d,\"timestamp\":%d}",
-
+					esj := fmt.Sprintf(`{"type":17,"version":1,"id":"%s","proofs":["%s"],"chainId":%d,"senderPublicKey":"%s","assetId":"%s","name":"%s","description":"%s","feeAssetId":%s,"fee":%d,"timestamp":%d}`,
 						base58.Encode(tx.ID[:]), base58.Encode(tx.Proofs.Proofs[0]), tc.chain, base58.Encode(pk[:]), aid.String(), tc.name, tc.description, feeAssetIDJSON, tc.fee, ts)
 					assert.Equal(t, esj, string(sj))
 				}
@@ -6095,7 +6093,7 @@ func TestUpdateAssetInfoWithProofsToJSON(t *testing.T) {
 
 func TestUpdateAssetInfoWithProofsFromJSON(t *testing.T) {
 	var js = `
-		{"type":17,"version":1,"id":"2Eikmt2YrNyXvDkHueHkzvxs7y9RMWyhrUcMpzg4G6dJ","proofs":["NRb2MtFkrJN9kZrCH6smgfMWXiuFiTaPn81ceWosWvL3ByX3YtqosK4iP3yeu2BBFVh1YT2yq3sAwjky5jEiXSo"],"chainId":"W","senderPublicKey":"3qTkgmBYFjdSEtib9C4b3yHiEexyJ59A5ZVjSvXsg569","assetId":"BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6","name":"AssetName","description":"description of asset","feeAssetId":"J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR","fee":1234567890,"timestamp":1583406542756}
+		{"type":17,"version":1,"id":"2Eikmt2YrNyXvDkHueHkzvxs7y9RMWyhrUcMpzg4G6dJ","proofs":["NRb2MtFkrJN9kZrCH6smgfMWXiuFiTaPn81ceWosWvL3ByX3YtqosK4iP3yeu2BBFVh1YT2yq3sAwjky5jEiXSo"],"chainId":87,"senderPublicKey":"3qTkgmBYFjdSEtib9C4b3yHiEexyJ59A5ZVjSvXsg569","assetId":"BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6","name":"AssetName","description":"description of asset","feeAssetId":"J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR","fee":1234567890,"timestamp":1583406542756}
 	`
 	spk, err := crypto.NewPublicKeyFromBase58("3qTkgmBYFjdSEtib9C4b3yHiEexyJ59A5ZVjSvXsg569")
 	require.NoError(t, err)
@@ -6108,7 +6106,7 @@ func TestUpdateAssetInfoWithProofsFromJSON(t *testing.T) {
 	assert.Equal(t, 1234567890, int(tx.Fee))
 	assert.True(t, tx.FeeAsset.Present)
 	assert.Equal(t, 1, len(tx.Proofs.Proofs))
-	assert.Equal(t, MainNetScheme, Scheme(tx.ChainID))
+	assert.Equal(t, MainNetScheme, tx.ChainID)
 	assert.Equal(t, spk[:], tx.SenderPK[:])
 	assert.Equal(t, "AssetName", tx.Name)
 	assert.Equal(t, "description of asset", tx.Description)
