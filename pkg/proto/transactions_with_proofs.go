@@ -4301,10 +4301,6 @@ func (tx *InvokeScriptWithProofs) Validate() (Transaction, error) {
 	if len(tx.FunctionCall.Name) > maxFunctionNameBytes {
 		return tx, errors.New("function name is too big")
 	}
-	if len(tx.Payments) > 1 {
-		return tx, errors.New("no more than one payment is allowed")
-	}
-	assets := make(map[OptionalAsset]struct{})
 	for _, p := range tx.Payments {
 		if p.Amount == 0 {
 			return tx, errors.New("at least one payment has a non-positive amount")
@@ -4312,11 +4308,6 @@ func (tx *InvokeScriptWithProofs) Validate() (Transaction, error) {
 		if !validJVMLong(p.Amount) {
 			return tx, errors.New("at least one payment has a too big amount")
 		}
-		_, ok := assets[p.Asset]
-		if ok {
-			return tx, errors.New("duplicate assets")
-		}
-		assets[p.Asset] = struct{}{}
 	}
 	//TODO: check blockchain scheme and script type
 	return tx, nil
