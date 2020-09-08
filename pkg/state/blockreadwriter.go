@@ -243,10 +243,10 @@ func newBlockReadWriter(
 		headerOffsetLen:   headerOffsetLen,
 		height:            height,
 	}
-	if err := rw.syncWithDb(); err != nil {
+	if err := rw.loadProtobufInfo(); err != nil {
 		return nil, err
 	}
-	if err := rw.loadProtobufInfo(); err != nil {
+	if err := rw.syncWithDb(); err != nil {
 		return nil, err
 	}
 	return rw, nil

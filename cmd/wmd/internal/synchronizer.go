@@ -195,7 +195,7 @@ func (s *Synchronizer) nodeBlock(height int) (proto.BlockHeader, []proto.Transac
 	cnv := proto.ProtobufConverter{}
 	res, err := s.block(height, true)
 	if err != nil {
-		return proto.BlockHeader{}, nil, err
+		return proto.BlockHeader{}, nil, errors.Wrap(err, "failed to get block from node")
 	}
 	header, err := cnv.BlockHeader(res.Block)
 	if err != nil {

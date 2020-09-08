@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -196,4 +197,14 @@ func TimestampMillisToTime(ts uint64) time.Time {
 	s := ts64 / 1000
 	ns := ts64 % 1000 * 1000000
 	return time.Unix(s, ns)
+}
+
+// Replaces invalid utf8 characters with '?'.
+func ReplaceInvalidUtf8Chars(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == utf8.RuneError {
+			return '?'
+		}
+		return r
+	}, s)
 }
