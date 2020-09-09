@@ -231,6 +231,10 @@ func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (out *
 	if err != nil {
 		return nil, apiError(err)
 	}
+	t, err = t.Validate()
+	if err != nil {
+		return nil, apiError(err)
+	}
 	err = broadcast(ctx, s.services.InternalChannel, t)
 	if err != nil {
 		return nil, apiError(err)

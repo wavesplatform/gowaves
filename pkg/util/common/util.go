@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -201,10 +200,12 @@ func TimestampMillisToTime(ts uint64) time.Time {
 
 // Replaces invalid utf8 characters with '?'.
 func ReplaceInvalidUtf8Chars(s string) string {
-	return strings.Map(func(r rune) rune {
-		if r == utf8.RuneError {
-			return '?'
-		}
-		return r
-	}, s)
+	var b strings.Builder
+
+	// Ranging over a string in Go produces runes. When the range keyword
+	// encounters an invalid UTF-8 encoding, it returns REPLACEMENT CHARACTER.
+	for _, v := range s {
+		b.WriteRune(v)
+	}
+	return b.String()
 }

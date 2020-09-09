@@ -1000,11 +1000,7 @@ func (c *ProtobufConverter) extractFirstSignature(proofs *ProofsV1) *crypto.Sign
 }
 
 func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transaction, error) {
-	tx, err := c.signedTransaction(stx)
-	if err != nil {
-		return tx, err
-	}
-	return tx.Validate()
+	return c.signedTransaction(stx)
 }
 
 func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transaction, error) {
