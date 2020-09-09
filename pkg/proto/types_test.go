@@ -952,7 +952,7 @@ func TestDeleteDataEntryJSONRoundTrip(t *testing.T) {
 		v := DeleteDataEntry{test}
 		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
 			js := string(b)
-			ejs := fmt.Sprintf("{\"key\":\"%s\",\"type\":\"delete\",\"value\":null}", test)
+			ejs := fmt.Sprintf("{\"key\":\"%s\",\"value\":null}", test)
 			assert.Equal(t, ejs, js)
 			var av DeleteDataEntry
 			if err := av.UnmarshalJSON(b); assert.NoError(t, err) {
@@ -983,6 +983,9 @@ func TestDataEntriesUnmarshalJSON(t *testing.T) {
 		},
 		{"[{\"key\":\"k1\",\"type\":\"integer\",\"value\":12345},{\"key\":\"k2\",\"type\":\"boolean\",\"value\":true},{\"key\":\"k3\",\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"},{\"key\":\"k4\",\"type\":\"string\",\"value\":\"blah-blah\"}]",
 			DataEntries{&IntegerDataEntry{Key: "k1", Value: 12345}, &BooleanDataEntry{Key: "k2", Value: true}, &BinaryDataEntry{Key: "k3", Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}, &StringDataEntry{Key: "k4", Value: "blah-blah"}},
+		},
+		{"[{\"key\":\"k1\",\"value\":null}]",
+			DataEntries{&DeleteDataEntry{Key: "k1"}},
 		},
 	}
 	for _, tc := range tests {
@@ -1146,9 +1149,9 @@ func TestArrayArgumentBinarySize(t *testing.T) {
 		{nil, 1 + 4},
 		{[]Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}}, 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1},
 		{[]Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}, 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1 + 1 + 4 + 6},
-		{[]Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}, &ArrayArgument{Items: []Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}}}, 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1 + 1 + 4 + 6 + 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1 + 1 + 4 + 6},
+		{[]Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}, &ListArgument{Items: []Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}}}, 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1 + 1 + 4 + 6 + 1 + 4 + 9 + 1 + 4 + 5 + 1 + 1 + 1 + 4 + 6},
 	} {
-		v := ArrayArgument{Items: test.args}
+		v := ListArgument{Items: test.args}
 		assert.Equal(t, test.size, v.BinarySize())
 	}
 }
@@ -1286,15 +1289,15 @@ func TestArrayArgumentBinaryRoundTrip(t *testing.T) {
 		nil,
 		{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}},
 		{&IntegerArgument{0}, &StringArgument{""}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{}}},
-		{&IntegerArgument{math.MaxInt32}, &StringArgument{strings.Repeat("12345", 100)}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}, &ArrayArgument{Items: []Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}}},
+		{&IntegerArgument{math.MaxInt32}, &StringArgument{strings.Repeat("12345", 100)}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}, &ListArgument{Items: []Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}}},
 	} {
-		v := ArrayArgument{Items: test}
+		v := ListArgument{Items: test}
 		if b, err := v.MarshalBinary(); assert.NoError(t, err) {
-			var aa ArrayArgument
+			var aa ListArgument
 			if err := aa.UnmarshalBinary(b); assert.NoError(t, err) {
 				assert.NotNil(t, aa)
 				assert.Equal(t, test, aa.Items)
-				assert.Equal(t, ArgumentArray, aa.GetValueType())
+				assert.Equal(t, ArgumentList, aa.GetValueType())
 			}
 		}
 	}
@@ -1305,15 +1308,15 @@ func TestArrayArgumentJSONRoundTrip(t *testing.T) {
 		nil,
 		{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}},
 		{&IntegerArgument{0}, &StringArgument{""}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{}}},
-		{&IntegerArgument{math.MaxInt32}, &StringArgument{strings.Repeat("12345", 100)}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}, &ArrayArgument{Items: []Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}}},
+		{&IntegerArgument{math.MaxInt32}, &StringArgument{strings.Repeat("12345", 100)}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}, &ListArgument{Items: []Argument{&IntegerArgument{12345}, &StringArgument{"12345"}, &BooleanArgument{true}, &BooleanArgument{false}, &BinaryArgument{[]byte{0, 1, 2, 3, 4, 5}}}}},
 	} {
-		v := ArrayArgument{Items: test}
+		v := ListArgument{Items: test}
 		if b, err := v.MarshalJSON(); assert.NoError(t, err) {
-			var aa ArrayArgument
+			var aa ListArgument
 			if err := aa.UnmarshalJSON(b); assert.NoError(t, err) {
 				assert.NotNil(t, aa)
 				assert.Equal(t, test, aa.Items)
-				assert.Equal(t, ArgumentArray, aa.GetValueType())
+				assert.Equal(t, ArgumentList, aa.GetValueType())
 			}
 		}
 	}
@@ -1503,6 +1506,7 @@ func TestFunctionCallJSONRoundTrip(t *testing.T) {
 		{fc: FunctionCall{Name: "foobar2", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}}}, js: "{\"function\":\"foobar2\",\"args\":[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true}]}"},
 		{fc: FunctionCall{Name: "foobar3", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}}}, js: "{\"function\":\"foobar3\",\"args\":[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"}]}"},
 		{fc: FunctionCall{Name: "foobar4", Arguments: Arguments{&IntegerArgument{Value: 12345}, &BooleanArgument{Value: true}, &BinaryArgument{Value: B58Bytes{0x24, 0x7f, 0x71, 0x14, 0x1d, 0x1d, 0x05, 0x80, 0x17, 0xf4, 0x1a, 0x21, 0x62, 0xad, 0x3a, 0x70, 0xca, 0xed, 0xc2, 0xd6, 0xbd, 0x98, 0x4a, 0x1a, 0x8f, 0x46, 0x92, 0x56, 0x92, 0xc0, 0xa7, 0x27}}, &StringArgument{Value: "blah-blah"}}}, js: "{\"function\":\"foobar4\",\"args\":[{\"type\":\"integer\",\"value\":12345},{\"type\":\"boolean\",\"value\":true},{\"type\":\"binary\",\"value\":\"base64:JH9xFB0dBYAX9BohYq06cMrtwta9mEoaj0aSVpLApyc=\"},{\"type\":\"string\",\"value\":\"blah-blah\"}]}"},
+		{fc: FunctionCall{Name: "foobar5", Arguments: Arguments{&ListArgument{Items: []Argument{&StringArgument{Value: "bar"}, &StringArgument{Value: "baz"}}}}}, js: "{\"function\":\"foobar5\",\"args\":[{\"type\":\"list\",\"value\":[{\"type\":\"string\",\"value\":\"bar\"},{\"type\":\"string\",\"value\":\"baz\"}]}]}"},
 	}
 	for _, tc := range tests {
 		if b, err := json.Marshal(tc.fc); assert.NoError(t, err) {
