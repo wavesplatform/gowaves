@@ -72,3 +72,9 @@ func TestParseDuration(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestReplaceInvalidUtf8Chars(t *testing.T) {
+	s := string([]byte{0xE0, 0x80, 0x80})
+	s2 := ReplaceInvalidUtf8Chars(s)
+	require.Equal(t, "���", s2)
+}

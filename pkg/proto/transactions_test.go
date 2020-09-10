@@ -6261,3 +6261,17 @@ func recipientFromString(s string) (Recipient, error) {
 func TestTransactionTypeInfo_String(t *testing.T) {
 	require.NotEmpty(t, TransactionTypeInfo{}.String())
 }
+
+func TestIssue_ToProtobufWithInvalidUtf8String(t *testing.T) {
+	kp, _ := NewKeyPair([]byte("test"))
+	// invalid utf8 string
+	s := string([]byte{0xE0, 0x80, 0x80})
+
+	is := NewUnsignedIssueWithSig(kp.Public, s, s, 100, 1, false, 1, 1)
+	err := is.Sign(MainNetScheme, kp.Secret)
+	require.NoError(t, err)
+
+	bts, err := is.MarshalSignedToProtobuf(MainNetScheme)
+	require.NoError(t, err)
+	require.NotEmpty(t, bts)
+}

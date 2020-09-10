@@ -13,6 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 //TransactionType
@@ -1078,8 +1079,8 @@ func (i *Issue) UnmarshalBinary(data []byte) error {
 
 func (i *Issue) ToProtobuf() *g.Transaction_Issue {
 	return &g.Transaction_Issue{Issue: &g.IssueTransactionData{
-		Name:        i.Name,
-		Description: i.Description,
+		Name:        common.ReplaceInvalidUtf8Chars(i.Name),
+		Description: common.ReplaceInvalidUtf8Chars(i.Description),
 		Amount:      int64(i.Quantity),
 		Decimals:    int32(i.Decimals),
 		Reissuable:  i.Reissuable,
