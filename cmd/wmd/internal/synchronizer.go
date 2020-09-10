@@ -108,7 +108,7 @@ func (s *Synchronizer) synchronize() {
 		}
 		err = s.applyBlocks(ch+1, rh)
 		if err != nil && !strings.Contains(err.Error(), "Invalid status code") {
-			zap.S().Errorf("Failed to apply blocks: %v", err)
+			zap.S().Errorf("Failed to apply blocks: %+v", err)
 			return
 		}
 		if s.symbols != nil {
@@ -132,7 +132,7 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 		}
 		err = s.applyBlock(h, header.BlockID(), txs, len(txs), header.GenPublicKey)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "failed apply block at height %d", h)
 		}
 	}
 	return nil

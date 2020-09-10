@@ -376,7 +376,7 @@ func (c *ProtobufConverter) transfers(scheme byte, transfers []*g.MassTransferTr
 		e := MassTransferEntry{
 			Recipient: rcp,
 			Amount: c.uint64v(tr.Amount, func(i int64) error {
-				return ValidatePositiveAmount(i, "One of the transfers has negative amount")
+				return errors.WithStack(ValidateNonNegativeAmount(i, "One of the transfers has negative amount"))
 			}),
 		}
 		if c.err != nil {
