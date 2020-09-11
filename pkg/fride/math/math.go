@@ -27,7 +27,7 @@ func convertToResult(v *decimal.Big, scale int, mode decimal.RoundingMode) (int6
 	return res, nil
 }
 
-func pow(base, exponent int64, baseScale, exponentScale, resultScale int, mode decimal.RoundingMode) (int64, error) {
+func Pow(base, exponent int64, baseScale, exponentScale, resultScale int, mode decimal.RoundingMode) (int64, error) {
 	if baseScale < 0 || baseScale > 8 ||
 		exponentScale < 0 || exponentScale > 8 ||
 		resultScale < 0 || resultScale > 8 {
@@ -71,7 +71,7 @@ func Fraction(value, numerator, denominator int64) (int64, error) {
 	return res, nil
 }
 
-func log(base, exponent int64, baseScale, exponentScale, resultScale int, mode decimal.RoundingMode) (int64, error) {
+func Log(base, exponent int64, baseScale, exponentScale, resultScale int, mode decimal.RoundingMode) (int64, error) {
 	if baseScale < 0 || baseScale > 8 ||
 		exponentScale < 0 || exponentScale > 8 ||
 		resultScale < 0 || resultScale > 8 {

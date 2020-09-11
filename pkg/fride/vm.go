@@ -27,6 +27,7 @@ func newFunctionFrame(pos int, args []rideType) frame {
 }
 
 type vm struct {
+	env          RideEnvironment
 	code         []byte
 	ip           int
 	constants    []rideType
@@ -113,7 +114,7 @@ func (m *vm) run() (RideResult, error) {
 			if fn == nil {
 				return nil, errors.Errorf("external function '%s' not implemented", m.functionName(id))
 			}
-			res, err := fn(in...)
+			res, err := fn(m.env, in...)
 			if err != nil {
 				return nil, err
 			}

@@ -16,7 +16,7 @@ func booleanArg(args []rideType) (rideBoolean, error) {
 	return b, nil
 }
 
-func booleanToBytes(args ...rideType) (rideType, error) {
+func booleanToBytes(_ RideEnvironment, args ...rideType) (rideType, error) {
 	b, err := booleanArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "booleanToBytes")
@@ -28,10 +28,10 @@ func booleanToBytes(args ...rideType) (rideType, error) {
 	}
 }
 
-func booleanToString(args ...rideType) (rideType, error) {
+func booleanToString(_ RideEnvironment, args ...rideType) (rideType, error) {
 	b, err := booleanArg(args)
 	if err != nil {
-		return nil, errors.Wrap(err, "booleanToBytes")
+		return nil, errors.Wrap(err, "booleanToString")
 	}
 	if b {
 		return rideString("true"), nil
@@ -40,6 +40,10 @@ func booleanToString(args ...rideType) (rideType, error) {
 	}
 }
 
-func unaryNot(args ...rideType) (rideType, error) {
-	return nil, errors.New("not implemented")
+func unaryNot(_ RideEnvironment, args ...rideType) (rideType, error) {
+	b, err := booleanArg(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "unaryNot")
+	}
+	return !b, nil
 }

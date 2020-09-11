@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const instanceFieldName = "$instance"
@@ -111,7 +112,63 @@ func (a rideAddress) eq(other rideType) bool {
 		return bytes.Equal(a[:], o[:])
 	case rideBytes:
 		return bytes.Equal(a[:], o[:])
-	//TODO: add case to compare with rideRecipient
+	case rideRecipient:
+		return o.Address != nil && bytes.Equal(a[:], o.Address[:])
+	default:
+		return false
+	}
+}
+
+type rideAddressLike []byte
+
+func (a rideAddressLike) instanceOf() string {
+	return "Address"
+}
+
+func (a rideAddressLike) eq(other rideType) bool {
+	switch o := other.(type) {
+	case rideAddress:
+		return bytes.Equal(a[:], o[:])
+	case rideBytes:
+		return bytes.Equal(a[:], o[:])
+	case rideRecipient:
+		return o.Address != nil && bytes.Equal(a[:], o.Address[:])
+	default:
+		return false
+	}
+}
+
+type rideRecipient proto.Recipient
+
+func (a rideRecipient) instanceOf() string {
+	return "Recipient"
+}
+
+func (a rideRecipient) eq(other rideType) bool {
+	switch o := other.(type) {
+	case rideRecipient:
+		return a.Address == o.Address && a.Alias == o.Alias
+	case rideAddress:
+		return a.Address != nil && bytes.Equal(a.Address[:], o[:])
+	case rideBytes:
+		return a.Address != nil && bytes.Equal(a.Address[:], o[:])
+	default:
+		return false
+	}
+}
+
+type rideAlias proto.Alias
+
+func (a rideAlias) instanceOf() string {
+	return "Alias"
+}
+
+func (a rideAlias) eq(other rideType) bool {
+	switch o := other.(type) {
+	case rideRecipient:
+		return o.Alias != nil && a.Alias == o.Alias.Alias
+	case rideAlias:
+		return a.Alias == o.Alias
 	default:
 		return false
 	}
@@ -139,16 +196,46 @@ func (a rideNamedType) eq(other rideType) bool {
 	return a.instanceOf() == other.instanceOf()
 }
 
-type rideFunction func(args ...rideType) (rideType, error)
+type rideList []rideType
 
+func (a rideList) instanceOf() string {
+	return "List"
+}
+
+func (a rideList) eq(other rideType) bool {
+	if a.instanceOf() != other.instanceOf() {
+		return false
+	}
+	o, ok := other.(rideList)
+	if !ok {
+		return false
+	}
+	if len(a) != len(o) {
+		return false
+	}
+	for i, item := range a {
+		if !item.eq(o[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+type rideFunction func(env RideEnvironment, args ...rideType) (rideType, error)
+
+//go:generate moq -out runtime_test.go . RideEnvironment:MockRideEnvironment
 type RideEnvironment interface {
+	scheme() byte
 	height() rideInt
 	transaction() rideObject
 	this() rideObject
 	block() rideObject
+	txID() rideType // Invoke transaction ID
+	state() types.SmartState
+	checkMessageLength(int) bool
 }
 
-type rideConstructor func(environment RideEnvironment) rideType
+type rideConstructor func(RideEnvironment) rideType
 
 func fetch(from rideType, prop rideType) (rideType, error) {
 	obj, ok := from.(rideObject)

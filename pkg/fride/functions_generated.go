@@ -6,142 +6,142 @@ import (
 	"github.com/pkg/errors"
 )
 
-func limitedGroth16Verify_1(...rideType) (rideType, error) {
+func limitedGroth16Verify_1(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_2(...rideType) (rideType, error) {
+func limitedGroth16Verify_2(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_3(...rideType) (rideType, error) {
+func limitedGroth16Verify_3(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_4(...rideType) (rideType, error) {
+func limitedGroth16Verify_4(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_5(...rideType) (rideType, error) {
+func limitedGroth16Verify_5(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_6(...rideType) (rideType, error) {
+func limitedGroth16Verify_6(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_7(...rideType) (rideType, error) {
+func limitedGroth16Verify_7(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_8(...rideType) (rideType, error) {
+func limitedGroth16Verify_8(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_9(...rideType) (rideType, error) {
+func limitedGroth16Verify_9(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_10(...rideType) (rideType, error) {
+func limitedGroth16Verify_10(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_11(...rideType) (rideType, error) {
+func limitedGroth16Verify_11(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_12(...rideType) (rideType, error) {
+func limitedGroth16Verify_12(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_13(...rideType) (rideType, error) {
+func limitedGroth16Verify_13(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_14(...rideType) (rideType, error) {
+func limitedGroth16Verify_14(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func limitedGroth16Verify_15(...rideType) (rideType, error) {
+func limitedGroth16Verify_15(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func sigVerify_16(...rideType) (rideType, error) {
+func sigVerify_16(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func sigVerify_32(...rideType) (rideType, error) {
+func sigVerify_32(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func sigVerify_64(...rideType) (rideType, error) {
+func sigVerify_64(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func sigVerify_128(...rideType) (rideType, error) {
+func sigVerify_128(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func rsaVerify_16(...rideType) (rideType, error) {
+func rsaVerify_16(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func rsaVerify_32(...rideType) (rideType, error) {
+func rsaVerify_32(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func rsaVerify_64(...rideType) (rideType, error) {
+func rsaVerify_64(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func rsaVerify_128(...rideType) (rideType, error) {
+func rsaVerify_128(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func keccak256_16(...rideType) (rideType, error) {
+func keccak256_16(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func keccak256_32(...rideType) (rideType, error) {
+func keccak256_32(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func keccak256_64(...rideType) (rideType, error) {
+func keccak256_64(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func keccak256_128(...rideType) (rideType, error) {
+func keccak256_128(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func blake2b256_16(...rideType) (rideType, error) {
+func blake2b256_16(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func blake2b256_32(...rideType) (rideType, error) {
+func blake2b256_32(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func blake2b256_64(...rideType) (rideType, error) {
+func blake2b256_64(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func blake2b256_128(...rideType) (rideType, error) {
+func blake2b256_128(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func sha256_16(...rideType) (rideType, error) {
+func sha256_16(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func sha256_32(...rideType) (rideType, error) {
+func sha256_32(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func sha256_64(...rideType) (rideType, error) {
+func sha256_64(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }
 
-func sha256_128(...rideType) (rideType, error) {
+func sha256_128(env RideEnvironment, args ...rideType) (rideType, error) {
 	return nil, errors.New("not implemented")
 }

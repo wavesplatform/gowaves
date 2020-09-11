@@ -286,35 +286,37 @@ func functionsV4() map[string]string {
 	delete(m, "WriteSet")
 	delete(m, "TransferSet")
 	delete(m, "DataEntry")
-	// Replace functions
-	m["wavesBalance"] = "wavesBalanceV4"
-	m["1003"] = "assetBalanceV4"
-	m["1004"] = "assetInfoV4"
 	// New constructors
 	m["IntegerEntry"] = "checkedIntDataEntry"
 	m["BooleanEntry"] = "checkedBooleanDataEntry"
 	m["BinaryEntry"] = "checkedBytesDataEntry"
 	m["StringEntry"] = "checkedStringDataEntry"
 	m["DeleteEntry"] = "checkedDeleteEntry"
-	//TODO: remove Issue constructor after updating test script in pkg/state/testdata/scripts/ride4_asset.base64
-	m["Issue"] = "issue"
 	m["Reissue"] = "reissue"
 	m["Burn"] = "burn"
 	m["SponsorFee"] = "sponsorship"
 
-	// New functions
+	// Functions
+	delete(m, "wavesBalance") // Remove wavesBalanceV3
 	m["contains"] = "contains"
 	m["containsElement"] = "containsElement"
 	m["valueOrElse"] = "valueOrElse"
 	m["405"] = "median"
 	m["406"] = "max"
 	m["407"] = "min"
+	delete(m, "700") // remove CheckMerkleProof
+	m["701"] = "rebuildMerkleRoot"
 	m["800"] = "unlimitedGroth16Verify"
 	m["900"] = "ecRecover"
-	m["1007"] = "accountWavesBalance"
-	m["1008"] = "accountAssetBalance"
+	delete(m, "1003") // Remove assetBalanceV3
+	m["1004"] = "assetInfoV4"
+	m["1007"] = "wavesBalanceV4"
+	m["1008"] = "assetBalanceV4"
 	m["1062"] = "addressFromString"
+	m["1070"] = "transferFromProtobuf"
 	m["1080"] = "calculateAssetID"
+	m["1090"] = "simplifiedIssue"
+	m["1091"] = "fullIssue"
 	m["1100"] = "limitedCreateList"
 	m["1101"] = "appendToList"
 	m["1102"] = "concatList"
@@ -331,11 +333,6 @@ func functionsV4() map[string]string {
 		m[strconv.Itoa(2800+i)] = fmt.Sprintf("blake2b256_%d", l)
 		m[strconv.Itoa(2900+i)] = fmt.Sprintf("sha256_%d", l)
 	}
-	m["1070"] = "transferFromProtobuf"
-	delete(m, "700") // remove CheckMerkleProof
-	m["701"] = "rebuildMerkleRoot"
-	m["1090"] = "simplifiedIssue"
-	m["1091"] = "fullIssue"
 	m["@extrNative(1062)"] = "addressFromString"
 
 	return m
@@ -352,7 +349,6 @@ func catalogueV4() map[string]int {
 	m["BinaryEntry"] = 2
 	m["StringEntry"] = 2
 	m["DeleteEntry"] = 1
-	m["Issue"] = 7
 	m["Reissue"] = 3
 	m["Burn"] = 2
 	m["SponsorFee"] = 2
@@ -582,7 +578,7 @@ func createConstructors(sb *strings.Builder, c map[string]constantDescription) {
 			sb.WriteString(fmt.Sprintf("func new%s(RideEnvironment) rideType {\n", tn))
 			sb.WriteString(fmt.Sprintf("return rideNamedType{name: \"%s\"}\n", tn))
 			sb.WriteString("}\n\n")
-			sb.WriteString(fmt.Sprintf("func create%s(...rideType) (rideType, error) {\n", tn))
+			sb.WriteString(fmt.Sprintf("func create%s(env RideEnvironment, args ...rideType) (rideType, error) {\n", tn))
 			sb.WriteString(fmt.Sprintf("return rideNamedType{name: \"%s\"}, nil\n", tn))
 			sb.WriteString("}\n\n")
 		}
@@ -708,32 +704,32 @@ func main() {
 	sb.WriteString("\"github.com/pkg/errors\"\n")
 	sb.WriteString(")\n")
 	for _, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
-		sb.WriteString(fmt.Sprintf("func limitedGroth16Verify_%d(...rideType) (rideType, error) {\n", l))
+		sb.WriteString(fmt.Sprintf("func limitedGroth16Verify_%d(env RideEnvironment, args ...rideType) (rideType, error) {\n", l))
 		sb.WriteString("return nil, errors.New(\"not implemented\")\n")
 		sb.WriteString("}\n\n")
 	}
 	for _, l := range []int{16, 32, 64, 128} {
-		sb.WriteString(fmt.Sprintf("func sigVerify_%d(...rideType) (rideType, error) {\n", l))
+		sb.WriteString(fmt.Sprintf("func sigVerify_%d(env RideEnvironment, args ...rideType) (rideType, error) {\n", l))
 		sb.WriteString("return nil, errors.New(\"not implemented\")\n")
 		sb.WriteString("}\n\n")
 	}
 	for _, l := range []int{16, 32, 64, 128} {
-		sb.WriteString(fmt.Sprintf("func rsaVerify_%d(...rideType) (rideType, error) {\n", l))
+		sb.WriteString(fmt.Sprintf("func rsaVerify_%d(env RideEnvironment, args ...rideType) (rideType, error) {\n", l))
 		sb.WriteString("return nil, errors.New(\"not implemented\")\n")
 		sb.WriteString("}\n\n")
 	}
 	for _, l := range []int{16, 32, 64, 128} {
-		sb.WriteString(fmt.Sprintf("func keccak256_%d(...rideType) (rideType, error) {\n", l))
+		sb.WriteString(fmt.Sprintf("func keccak256_%d(env RideEnvironment, args ...rideType) (rideType, error) {\n", l))
 		sb.WriteString("return nil, errors.New(\"not implemented\")\n")
 		sb.WriteString("}\n\n")
 	}
 	for _, l := range []int{16, 32, 64, 128} {
-		sb.WriteString(fmt.Sprintf("func blake2b256_%d(...rideType) (rideType, error) {\n", l))
+		sb.WriteString(fmt.Sprintf("func blake2b256_%d(env RideEnvironment, args ...rideType) (rideType, error) {\n", l))
 		sb.WriteString("return nil, errors.New(\"not implemented\")\n")
 		sb.WriteString("}\n\n")
 	}
 	for _, l := range []int{16, 32, 64, 128} {
-		sb.WriteString(fmt.Sprintf("func sha256_%d(...rideType) (rideType, error) {\n", l))
+		sb.WriteString(fmt.Sprintf("func sha256_%d(env RideEnvironment, args ...rideType) (rideType, error) {\n", l))
 		sb.WriteString("return nil, errors.New(\"not implemented\")\n")
 		sb.WriteString("}\n\n")
 	}

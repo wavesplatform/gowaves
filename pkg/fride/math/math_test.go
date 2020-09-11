@@ -60,7 +60,7 @@ func TestPow(t *testing.T) {
 		{0, 8, 0, 8, 8, decimal.ToNearestAway, false, 100000000},
 	}
 	for i, tc := range tests {
-		r, err := pow(tc.base, tc.exponent, tc.basePrecision, tc.exponentPrecision, tc.resultPrecision, tc.mode)
+		r, err := Pow(tc.base, tc.exponent, tc.basePrecision, tc.exponentPrecision, tc.resultPrecision, tc.mode)
 		if tc.error {
 			assert.Error(t, err, i)
 			continue
@@ -93,7 +93,7 @@ func TestLog(t *testing.T) {
 		{16, 0, 2, 0, -1, decimal.ToPositiveInf, true, 0},
 	}
 	for _, tc := range tests {
-		r, err := log(tc.base, tc.exponent, tc.basePrecision, tc.exponentPrecision, tc.resultPrecision, tc.mode)
+		r, err := Log(tc.base, tc.exponent, tc.basePrecision, tc.exponentPrecision, tc.resultPrecision, tc.mode)
 		if tc.error {
 			assert.Error(t, err)
 			continue
@@ -141,13 +141,13 @@ func TestTestNetDApp_HGT44HrsSSD5cjANV6wtWNB9VKS3y7hhoNXEDWB56Lu9(t *testing.T) 
 	require.NoError(t, err)
 	assert.Equal(t, 6301369, int(deltaT))
 
-	sqrtDeltaT, err := pow(deltaT, 5, factorDecimals, 1, factorDecimals, decimal.ToNearestAway /*HALFUP*/)
+	sqrtDeltaT, err := Pow(deltaT, 5, factorDecimals, 1, factorDecimals, decimal.ToNearestAway /*HALFUP*/)
 	require.NoError(t, err)
 	assert.Equal(t, 25102528, int(sqrtDeltaT))
 
 	p, err := Fraction(sigma, sqrtDeltaT, 100)
 	require.NoError(t, err)
-	up, err := pow(e, p, factorDecimals, factorDecimals, factorDecimals, decimal.ToNearestAway /*HALFUP*/)
+	up, err := Pow(e, p, factorDecimals, factorDecimals, factorDecimals, decimal.ToNearestAway /*HALFUP*/)
 	require.NoError(t, err)
 	assert.Equal(t, 105148668, int(up))
 
@@ -158,14 +158,14 @@ func TestTestNetDApp_HGT44HrsSSD5cjANV6wtWNB9VKS3y7hhoNXEDWB56Lu9(t *testing.T) 
 	p, err = Fraction(-r, deltaT, 100)
 	require.NoError(t, err)
 	assert.Equal(t, -378082, int(p))
-	df, err := pow(e, p, factorDecimals, factorDecimals, factorDecimals, decimal.ToNearestAway /*HALFUP*/)
+	df, err := Pow(e, p, factorDecimals, factorDecimals, factorDecimals, decimal.ToNearestAway /*HALFUP*/)
 	require.NoError(t, err)
 	assert.True(t, df > 0)
 	assert.Equal(t, 99622632, int(df))
 
 	p, err = Fraction(r, deltaT, 100)
 	require.NoError(t, err)
-	p0, err := pow(e, p, factorDecimals, factorDecimals, factorDecimals, decimal.ToNearestAway /*HALFUP*/)
+	p0, err := Pow(e, p, factorDecimals, factorDecimals, factorDecimals, decimal.ToNearestAway /*HALFUP*/)
 	require.NoError(t, err)
 	pUp, err := Fraction(p0-down, factor, up-down)
 	require.NoError(t, err)
@@ -176,11 +176,11 @@ func TestTestNetDApp_HGT44HrsSSD5cjANV6wtWNB9VKS3y7hhoNXEDWB56Lu9(t *testing.T) 
 
 	a0, err := Fraction(up, 1, factor)
 	require.NoError(t, err)
-	a1, err := pow(a0, 4, factorDecimals, 0, factorDecimals, decimal.ToNearestAway /*HALFUP*/)
+	a1, err := Pow(a0, 4, factorDecimals, 0, factorDecimals, decimal.ToNearestAway /*HALFUP*/)
 	require.NoError(t, err)
 	a2, err := Fraction(down, 1, factor)
 	require.NoError(t, err)
-	a3, err := pow(a2, 0, factorDecimals, 0, factorDecimals, decimal.ToNearestAway /*HALFUP*/)
+	a3, err := Pow(a2, 0, factorDecimals, 0, factorDecimals, decimal.ToNearestAway /*HALFUP*/)
 	require.NoError(t, err)
 	firstProjectedPrice := S * a1 * a3
 	assert.Equal(t, 0, int(firstProjectedPrice))
