@@ -4,7 +4,7 @@ import (
 	"bytes"
 	c1 "crypto"
 	"crypto/rsa"
-	"crypto/sha256"
+	sh256 "crypto/sha256"
 	"crypto/x509"
 
 	c2 "github.com/wavesplatform/gowaves/pkg/fride/crypto"
@@ -173,24 +173,24 @@ func addressFromRecipient(env RideEnvironment, args ...rideType) (rideType, erro
 	return nil, errors.Errorf("addressFromRecipient: unable to get address from recipient '%s'", recipient)
 }
 
-func unlimitedSigVerify(env RideEnvironment, args ...rideType) (rideType, error) {
+func sigVerify(env RideEnvironment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
-		return nil, errors.Wrap(err, "unlimitedSigVerify")
+		return nil, errors.Wrap(err, "sigVerify")
 	}
 	message, ok := args[0].(rideBytes)
 	if !ok {
-		return nil, errors.Errorf("unlimitedSigVerify: unexpected argument type '%s'", args[0].instanceOf())
+		return nil, errors.Errorf("sigVerify: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	if l := len(message); !env.checkMessageLength(l) {
-		return nil, errors.Errorf("unlimitedSigVerify: invalid message size %d", l)
+		return nil, errors.Errorf("sigVerify: invalid message size %d", l)
 	}
 	signature, ok := args[1].(rideBytes)
 	if !ok {
-		return nil, errors.Errorf("unlimitedSigVerify: unexpected argument type '%s'", args[1].instanceOf())
+		return nil, errors.Errorf("sigVerify: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	pkb, ok := args[2].(rideBytes)
 	if !ok {
-		return nil, errors.Errorf("unlimitedSigVerify: unexpected argument type '%s'", args[2].instanceOf())
+		return nil, errors.Errorf("sigVerify: unexpected argument type '%s'", args[2].instanceOf())
 	}
 	pk, err := crypto.NewPublicKeyFromBytes(pkb)
 	if err != nil {
@@ -204,38 +204,38 @@ func unlimitedSigVerify(env RideEnvironment, args ...rideType) (rideType, error)
 	return rideBoolean(ok), nil
 }
 
-func unlimitedKeccak256(_ RideEnvironment, args ...rideType) (rideType, error) {
+func keccak256(_ RideEnvironment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
-		return nil, errors.Wrap(err, "unlimitedKeccak256")
+		return nil, errors.Wrap(err, "keccak256")
 	}
 	d, err := crypto.Keccak256(data)
 	if err != nil {
-		return nil, errors.Wrap(err, "unlimitedKeccak256")
+		return nil, errors.Wrap(err, "keccak256")
 	}
 	return rideBytes(d.Bytes()), nil
 }
 
-func unlimitedBlake2b256(_ RideEnvironment, args ...rideType) (rideType, error) {
+func blake2b256(_ RideEnvironment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
-		return nil, errors.Wrap(err, "unlimitedBlake2b256")
+		return nil, errors.Wrap(err, "blake2b256")
 	}
 	d, err := crypto.FastHash(data)
 	if err != nil {
-		return nil, errors.Wrap(err, "unlimitedBlake2b256")
+		return nil, errors.Wrap(err, "blake2b256")
 	}
 	return rideBytes(d.Bytes()), nil
 }
 
-func unlimitedSha256(_ RideEnvironment, args ...rideType) (rideType, error) {
+func sha256(_ RideEnvironment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
-		return nil, errors.Wrap(err, "unlimitedSha256")
+		return nil, errors.Wrap(err, "sha256")
 	}
-	h := sha256.New()
+	h := sh256.New()
 	if _, err = h.Write(data); err != nil {
-		return nil, errors.Wrap(err, "unlimitedSha256")
+		return nil, errors.Wrap(err, "sha256")
 	}
 	d := h.Sum(nil)
 	return rideBytes(d), nil
@@ -366,33 +366,33 @@ func addressToString(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideAddress(addr), nil
 }
 
-func unlimitedRSAVerify(_ RideEnvironment, args ...rideType) (rideType, error) {
+func rsaVerify(_ RideEnvironment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
-		return nil, errors.Wrap(err, "unlimitedRSAVerify")
+		return nil, errors.Wrap(err, "rsaVerify")
 	}
 	digest, err := digest(args[0])
 	if err != nil {
-		return nil, errors.Wrap(err, "unlimitedRSAVerify")
+		return nil, errors.Wrap(err, "rsaVerify")
 	}
 	message, ok := args[1].(rideBytes)
 	if !ok {
-		return nil, errors.Errorf("unlimitedRSAVerify: unexpected argument type '%s'", args[1].instanceOf())
+		return nil, errors.Errorf("rsaVerify: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	sig, ok := args[2].(rideBytes)
 	if !ok {
-		return nil, errors.Errorf("unlimitedRSAVerify: unexpected argument type '%s'", args[2].instanceOf())
+		return nil, errors.Errorf("rsaVerify: unexpected argument type '%s'", args[2].instanceOf())
 	}
 	pk, ok := args[3].(rideBytes)
 	if !ok {
-		return nil, errors.Errorf("unlimitedRSAVerify: unexpected argument type '%s'", args[3].instanceOf())
+		return nil, errors.Errorf("rsaVerify unexpected argument type '%s'", args[3].instanceOf())
 	}
 	key, err := x509.ParsePKIXPublicKey(pk)
 	if err != nil {
-		return nil, errors.Wrap(err, "unlimitedRSAVerify: invalid public key")
+		return nil, errors.Wrap(err, "rsaVerify: invalid public key")
 	}
 	k, ok := key.(*rsa.PublicKey)
 	if !ok {
-		return nil, errors.New("unlimitedRSAVerify: not an RSA key")
+		return nil, errors.New("rsaVerify: not an RSA key")
 	}
 	d := message
 	if digest != 0 {
@@ -402,7 +402,7 @@ func unlimitedRSAVerify(_ RideEnvironment, args ...rideType) (rideType, error) {
 	}
 	ok, err = c2.VerifyPKCS1v15(k, digest, d, sig)
 	if err != nil {
-		return nil, errors.Wrap(err, "unlimitedRSAVerify")
+		return nil, errors.Wrap(err, "rsaVerify")
 	}
 	return rideBoolean(ok), nil
 }
@@ -643,7 +643,12 @@ func rebuildMerkleRoot(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(root[:]), nil
 }
 
-func unlimitedGroth16Verify(_ RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify(_ RideEnvironment, _ ...rideType) (rideType, error) {
+	//TODO: implement
+	return rideBoolean(true), nil
+}
+
+func bn256Groth16Verify(_ RideEnvironment, _ ...rideType) (rideType, error) {
 	//TODO: implement
 	return rideBoolean(true), nil
 }

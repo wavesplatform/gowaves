@@ -37,10 +37,10 @@ func functionsV2() map[string]string {
 	m["412"] = "booleanToBytes"
 	m["420"] = "intToString"
 	m["421"] = "booleanToString"
-	m["500"] = "unlimitedSigVerify"
-	m["501"] = "unlimitedKeccak256"
-	m["502"] = "unlimitedBlake2b256"
-	m["503"] = "unlimitedSha256"
+	m["500"] = "sigVerify"
+	m["501"] = "keccak256"
+	m["502"] = "blake2b256"
+	m["503"] = "sha256"
 	m["600"] = "toBase58"
 	m["601"] = "fromBase58"
 	m["602"] = "toBase64"
@@ -159,7 +159,7 @@ func functionsV3() map[string]string {
 	m := functionsV2()
 	m["108"] = "pow"
 	m["109"] = "log"
-	m["504"] = "unlimitedRSAVerify"
+	m["504"] = "rsaVerify"
 	m["604"] = "toBase16"
 	m["605"] = "fromBase16"
 	m["700"] = "checkMerkleProof"
@@ -306,7 +306,8 @@ func functionsV4() map[string]string {
 	m["407"] = "min"
 	delete(m, "700") // remove CheckMerkleProof
 	m["701"] = "rebuildMerkleRoot"
-	m["800"] = "unlimitedGroth16Verify"
+	m["800"] = "bls12Groth16Verify"
+	m["801"] = "bn256Groth16Verify"
 	m["900"] = "ecRecover"
 	delete(m, "1003") // Remove assetBalanceV3
 	m["1004"] = "assetInfoV4"
@@ -324,7 +325,10 @@ func functionsV4() map[string]string {
 	m["1104"] = "lastIndexOfList"
 	m["1209"] = "makeString"
 	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
-		m[strconv.Itoa(2400+i)] = fmt.Sprintf("limitedGroth16Verify_%d", l)
+		m[strconv.Itoa(2400+i)] = fmt.Sprintf("bls12Groth16Verify_%d", l)
+	}
+	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
+		m[strconv.Itoa(2450+i)] = fmt.Sprintf("bn256Groth16Verify_%d", l)
 	}
 	for i, l := range []int{16, 32, 64, 128} {
 		m[strconv.Itoa(2500+i)] = fmt.Sprintf("sigVerify_%d", l)
@@ -373,7 +377,8 @@ func catalogueV4() map[string]int {
 	m["602"] = 35
 	m["603"] = 40
 	m["701"] = 30
-	m["800"] = 3900
+	m["800"] = 2700 // BLS12
+	m["801"] = 1650 // BN256
 	m["900"] = 70
 	m["1004"] = 15
 	m["1007"] = 10
@@ -402,41 +407,23 @@ func catalogueV4() map[string]int {
 	m["1207"] = 3
 	m["1208"] = 3
 	m["1209"] = 30
-	m["2400"] = 1900
-	m["2401"] = 2000
-	m["2402"] = 2150
-	m["2403"] = 2300
-	m["2404"] = 2450
-	m["2405"] = 2550
-	m["2406"] = 2700
-	m["2407"] = 2900
-	m["2408"] = 3000
-	m["2409"] = 3150
-	m["2410"] = 3250
-	m["2411"] = 3400
-	m["2412"] = 3500
-	m["2413"] = 3650
-	m["2414"] = 3750
-	m["2500"] = 100
-	m["2501"] = 110
-	m["2502"] = 125
-	m["2503"] = 150
-	m["2600"] = 100
-	m["2601"] = 500
-	m["2602"] = 550
-	m["2603"] = 625
-	m["2700"] = 10
-	m["2701"] = 25
-	m["2702"] = 50
-	m["2703"] = 100
-	m["2800"] = 10
-	m["2801"] = 25
-	m["2802"] = 50
-	m["2803"] = 100
-	m["2900"] = 10
-	m["2901"] = 25
-	m["2902"] = 50
-	m["2903"] = 100
+	for i, c := range []int{1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600} {
+		m[strconv.Itoa(2400+i)] = c
+	}
+	for i, c := range []int{800, 850, 950, 1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350, 1400, 1450, 1550, 1600} {
+		m[strconv.Itoa(2450+i)] = c
+	}
+	for i, c := range []int{47, 57, 70, 102, 172} {
+		m[strconv.Itoa(2500+i)] = c
+	}
+	for i, c := range []int{500, 550, 625, 750} {
+		m[strconv.Itoa(2600+i)] = c
+	}
+	for i, c := range []int{10, 25, 50, 100} {
+		m[strconv.Itoa(2700+i)] = c
+		m[strconv.Itoa(2800+i)] = c
+		m[strconv.Itoa(2900+i)] = c
+	}
 
 	m["@extrNative(1050)"] = 10
 	m["@extrNative(1051)"] = 10
@@ -701,36 +688,156 @@ func main() {
 	sb.WriteString("\n")
 	sb.WriteString("package fride\n")
 	sb.WriteString("import (")
+	sb.WriteString("\"crypto/rsa\"\n")
+	sb.WriteString("sh256 \"crypto/sha256\"\n")
+	sb.WriteString("\"crypto/x509\"\n")
 	sb.WriteString("\"github.com/pkg/errors\"\n")
+	sb.WriteString("\"github.com/wavesplatform/gowaves/pkg/crypto\"\n")
+	sb.WriteString("c2 \"github.com/wavesplatform/gowaves/pkg/fride/crypto\"\n")
 	sb.WriteString(")\n")
 	for _, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
-		sb.WriteString(fmt.Sprintf("func limitedGroth16Verify_%d(env RideEnvironment, args ...rideType) (rideType, error) {\n", l))
-		sb.WriteString("return nil, errors.New(\"not implemented\")\n")
+		fn := fmt.Sprintf("bls12Groth16Verify_%d", l)
+		sb.WriteString(fmt.Sprintf("func %s(env RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString("//TODO: implement\n")
+		sb.WriteString("return rideBoolean(true), nil\n")
+		sb.WriteString("}\n\n")
+	}
+	for _, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
+		fn := fmt.Sprintf("bn256Groth16Verify_%d", l)
+		sb.WriteString(fmt.Sprintf("func %s(env RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString("//TODO: implement\n")
+		sb.WriteString("return rideBoolean(true), nil\n")
+		sb.WriteString("}\n\n")
+	}
+	for _, l := range []int{8, 16, 32, 64, 128} {
+		fn := fmt.Sprintf("sigVerify_%d", l)
+		sb.WriteString(fmt.Sprintf("func %s(env RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString("if err := checkArgs(args, 3); err != nil {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("message, ok := args[0].(rideBytes)\n")
+		sb.WriteString("if !ok {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Errorf(\"%s: unexpected argument type '%%s'\", args[0].instanceOf())\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString(fmt.Sprintf("if l := len(message); l > %d*1024 {\n", l))
+		sb.WriteString(fmt.Sprintf("return nil, errors.Errorf(\"%s: invalid message size %%d\", l)\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("signature, ok := args[1].(rideBytes)\n")
+		sb.WriteString("if !ok {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Errorf(\"%s: unexpected argument type '%%s'\", args[1].instanceOf())\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("pkb, ok := args[2].(rideBytes)\n")
+		sb.WriteString("if !ok {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Errorf(\"%s: unexpected argument type '%%s'\", args[2].instanceOf())\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("pk, err := crypto.NewPublicKeyFromBytes(pkb)\n")
+		sb.WriteString("if err != nil {\n")
+		sb.WriteString("return rideBoolean(false), nil\n")
+		sb.WriteString("}\n")
+		sb.WriteString("sig, err := crypto.NewSignatureFromBytes(signature)\n")
+		sb.WriteString("if err != nil {\n")
+		sb.WriteString("return rideBoolean(false), nil\n")
+		sb.WriteString("}\n")
+		sb.WriteString("ok = crypto.Verify(pk, sig, message)\n")
+		sb.WriteString("return rideBoolean(ok), nil\n")
 		sb.WriteString("}\n\n")
 	}
 	for _, l := range []int{16, 32, 64, 128} {
-		sb.WriteString(fmt.Sprintf("func sigVerify_%d(env RideEnvironment, args ...rideType) (rideType, error) {\n", l))
-		sb.WriteString("return nil, errors.New(\"not implemented\")\n")
+		fn := fmt.Sprintf("rsaVerify_%d", l)
+		sb.WriteString(fmt.Sprintf("func %s(_ RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString("if err := checkArgs(args, 4); err != nil {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("digest, err := digest(args[0])\n")
+		sb.WriteString("if err != nil {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("message, ok := args[1].(rideBytes)\n")
+		sb.WriteString("if !ok {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Errorf(\"%s: unexpected argument type '%%s'\", args[1].instanceOf())\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString(fmt.Sprintf("if l := len(message); l > %d*1024 {\n", l))
+		sb.WriteString(fmt.Sprintf("return nil, errors.Errorf(\"%s: invalid message size %%d\", l)\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("sig, ok := args[2].(rideBytes)\n")
+		sb.WriteString("if !ok {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Errorf(\"%s: unexpected argument type '%%s'\", args[2].instanceOf())\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("pk, ok := args[3].(rideBytes)\n")
+		sb.WriteString("if !ok {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Errorf(\"%s: unexpected argument type '%%s'\", args[3].instanceOf())\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("key, err := x509.ParsePKIXPublicKey(pk)\n")
+		sb.WriteString("if err != nil {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s: invalid public key\")\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("k, ok := key.(*rsa.PublicKey)\n")
+		sb.WriteString("if !ok {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.New(\"%s: not an RSA key\")\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("d := message\n")
+		sb.WriteString("if digest != 0 {\n")
+		sb.WriteString("h := digest.New()\n")
+		sb.WriteString("_, _ = h.Write(message)\n")
+		sb.WriteString("d = h.Sum(nil)\n")
+		sb.WriteString("}\n")
+		sb.WriteString("ok, err = c2.VerifyPKCS1v15(k, digest, d, sig)\n")
+		sb.WriteString("if err != nil {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("return rideBoolean(ok), nil\n")
 		sb.WriteString("}\n\n")
 	}
 	for _, l := range []int{16, 32, 64, 128} {
-		sb.WriteString(fmt.Sprintf("func rsaVerify_%d(env RideEnvironment, args ...rideType) (rideType, error) {\n", l))
-		sb.WriteString("return nil, errors.New(\"not implemented\")\n")
+		fn := fmt.Sprintf("keccak256_%d", l)
+		sb.WriteString(fmt.Sprintf("func %s(env RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString("data, err := bytesOrStringArg(args)\n")
+		sb.WriteString("if err != nil {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString(fmt.Sprintf("if l := len(data); l > %d*1024 {\n", l))
+		sb.WriteString(fmt.Sprintf("return nil, errors.Errorf(\"%s: invalid data size %%d\", l)\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("d, err := crypto.Keccak256(data)\n")
+		sb.WriteString("if err != nil {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("return rideBytes(d.Bytes()), nil\n")
 		sb.WriteString("}\n\n")
 	}
 	for _, l := range []int{16, 32, 64, 128} {
-		sb.WriteString(fmt.Sprintf("func keccak256_%d(env RideEnvironment, args ...rideType) (rideType, error) {\n", l))
-		sb.WriteString("return nil, errors.New(\"not implemented\")\n")
+		fn := fmt.Sprintf("blake2b256_%d", l)
+		sb.WriteString(fmt.Sprintf("func %s(_ RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString("data, err := bytesOrStringArg(args)\n")
+		sb.WriteString("if err != nil {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString(fmt.Sprintf("if l := len(data); l > %d*1024 {\n", l))
+		sb.WriteString(fmt.Sprintf("return nil, errors.Errorf(\"%s: invalid data size %%d\", l)\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("d, err := crypto.FastHash(data)\n")
+		sb.WriteString("if err != nil {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("return rideBytes(d.Bytes()), nil\n")
 		sb.WriteString("}\n\n")
 	}
 	for _, l := range []int{16, 32, 64, 128} {
-		sb.WriteString(fmt.Sprintf("func blake2b256_%d(env RideEnvironment, args ...rideType) (rideType, error) {\n", l))
-		sb.WriteString("return nil, errors.New(\"not implemented\")\n")
-		sb.WriteString("}\n\n")
-	}
-	for _, l := range []int{16, 32, 64, 128} {
-		sb.WriteString(fmt.Sprintf("func sha256_%d(env RideEnvironment, args ...rideType) (rideType, error) {\n", l))
-		sb.WriteString("return nil, errors.New(\"not implemented\")\n")
+		fn := fmt.Sprintf("sha256_%d", l)
+		sb.WriteString(fmt.Sprintf("func %s(_ RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString("data, err := bytesOrStringArg(args)\n")
+		sb.WriteString("if err != nil {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString(fmt.Sprintf("if l := len(data); l > %d*1024 {\n", l))
+		sb.WriteString(fmt.Sprintf("return nil, errors.Errorf(\"%s: invalid data size %%d\", l)\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("h := sh256.New()\n")
+		sb.WriteString("if _, err = h.Write(data); err != nil {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
+		sb.WriteString("}\n")
+		sb.WriteString("d := h.Sum(nil)\n")
+		sb.WriteString("return rideBytes(d), nil\n")
 		sb.WriteString("}\n\n")
 	}
 	code = sb.String()

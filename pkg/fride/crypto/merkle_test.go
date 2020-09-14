@@ -24,7 +24,7 @@ func TestMerkleRootHash(t *testing.T) {
 		require.NoError(t, err)
 		proof, err := base64.StdEncoding.DecodeString(test.proof)
 		require.NoError(t, err)
-		actual, err := merkleRootHash(leaf, proof)
+		actual, err := MerkleRootHash(leaf, proof)
 		require.NoError(t, err)
 		assert.ElementsMatch(t, root, actual)
 	}

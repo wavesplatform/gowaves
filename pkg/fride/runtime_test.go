@@ -39,6 +39,9 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             transactionFunc: func() rideObject {
 // 	               panic("mock out the transaction method")
 //             },
+//             txIDFunc: func() rideType {
+// 	               panic("mock out the txID method")
+//             },
 //         }
 //
 //         // use mockedRideEnvironment in code that requires RideEnvironment
@@ -67,6 +70,9 @@ type MockRideEnvironment struct {
 	// transactionFunc mocks the transaction method.
 	transactionFunc func() rideObject
 
+	// txIDFunc mocks the txID method.
+	txIDFunc func() rideType
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// block holds details about calls to the block method.
@@ -92,6 +98,9 @@ type MockRideEnvironment struct {
 		// transaction holds details about calls to the transaction method.
 		transaction []struct {
 		}
+		// txID holds details about calls to the txID method.
+		txID []struct {
+		}
 	}
 	lockblock              sync.RWMutex
 	lockcheckMessageLength sync.RWMutex
@@ -100,6 +109,7 @@ type MockRideEnvironment struct {
 	lockstate              sync.RWMutex
 	lockthis               sync.RWMutex
 	locktransaction        sync.RWMutex
+	locktxID               sync.RWMutex
 }
 
 // block calls blockFunc.
@@ -286,5 +296,31 @@ func (mock *MockRideEnvironment) transactionCalls() []struct {
 	mock.locktransaction.RLock()
 	calls = mock.calls.transaction
 	mock.locktransaction.RUnlock()
+	return calls
+}
+
+// txID calls txIDFunc.
+func (mock *MockRideEnvironment) txID() rideType {
+	if mock.txIDFunc == nil {
+		panic("MockRideEnvironment.txIDFunc: method is nil but RideEnvironment.txID was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.locktxID.Lock()
+	mock.calls.txID = append(mock.calls.txID, callInfo)
+	mock.locktxID.Unlock()
+	return mock.txIDFunc()
+}
+
+// txIDCalls gets all the calls that were made to txID.
+// Check the length with:
+//     len(mockedRideEnvironment.txIDCalls())
+func (mock *MockRideEnvironment) txIDCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.locktxID.RLock()
+	calls = mock.calls.txID
+	mock.locktxID.RUnlock()
 	return calls
 }

@@ -157,6 +157,11 @@ func (a rideRecipient) eq(other rideType) bool {
 	}
 }
 
+func (a rideRecipient) String() string {
+	r := proto.Recipient(a)
+	return r.String()
+}
+
 type rideAlias proto.Alias
 
 func (a rideAlias) instanceOf() string {

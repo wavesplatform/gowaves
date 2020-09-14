@@ -2,7 +2,7 @@ package fride
 
 import (
 	"bytes"
-	"crypto/sha256"
+	sh256 "crypto/sha256"
 	"encoding/binary"
 	"strconv"
 
@@ -53,7 +53,7 @@ type parser struct {
 }
 
 func newParser(source []byte) (*parser, error) {
-	id := sha256.Sum256(source)
+	id := sh256.Sum256(source)
 	size := len(source) - 4
 	if size <= 0 {
 		return nil, errors.Errorf("invalid source length %d", size)
