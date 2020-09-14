@@ -197,3 +197,15 @@ func TimestampMillisToTime(ts uint64) time.Time {
 	ns := ts64 % 1000 * 1000000
 	return time.Unix(s, ns)
 }
+
+// Replaces invalid utf8 characters with '?'.
+func ReplaceInvalidUtf8Chars(s string) string {
+	var b strings.Builder
+
+	// Ranging over a string in Go produces runes. When the range keyword
+	// encounters an invalid UTF-8 encoding, it returns REPLACEMENT CHARACTER.
+	for _, v := range s {
+		b.WriteRune(v)
+	}
+	return b.String()
+}
