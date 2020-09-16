@@ -516,6 +516,14 @@ func createConstants(sb *strings.Builder, ver string, c map[string]constantDescr
 	}
 	sort.Strings(keys)
 
+	sb.WriteString(fmt.Sprintf("var Constants%s = []string{", ver))
+	for i, k := range keys {
+		sb.WriteString(fmt.Sprintf("\"%s\"", k))
+		if i < len(keys)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("}\n")
 	sb.WriteString(fmt.Sprintf("const _constants_%s = \"%s\"\n", ver, strings.Join(keys, "")))
 	m := make(map[string]string, len(keys))
 	for _, k := range keys {
