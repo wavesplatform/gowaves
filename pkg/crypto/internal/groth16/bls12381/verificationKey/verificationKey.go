@@ -65,7 +65,7 @@ func GetVerificationKeyFromCompressed(vk []byte) (*VerificationKey, error) {
 
 	// IC []G1
 	var ic []*bls.PointG1
-	for  {
+	for {
 		_, err := reader.Read(g1Repr)
 		if err == io.EOF {
 			break

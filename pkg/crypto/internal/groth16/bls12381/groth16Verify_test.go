@@ -7,9 +7,8 @@ import (
 	"testing"
 )
 
-
 func TestGroth16Verify(t *testing.T) {
-	for _, test := range []struct{
+	for _, test := range []struct {
 		vk     string
 		proof  string
 		inputs string

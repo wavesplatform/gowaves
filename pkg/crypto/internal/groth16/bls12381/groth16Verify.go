@@ -9,14 +9,12 @@ import (
 	"math/big"
 )
 
-
-
 func ReadInputs(inputs []byte) ([]fr.Element, error) {
 	var result []fr.Element
 	const sizeUint64 = 8
 	const lenOneFrElement = 4
 
-	if len(inputs) % 32 != 0 {
+	if len(inputs)%32 != 0 {
 		return nil, errors.New("inputs should be % 32 = 0")
 	}
 
@@ -50,19 +48,18 @@ func makeSliceBigInt(inputs []fr.Element) []*big.Int {
 }
 
 func Groth16Verify(vk []byte, proof []byte, inputs []byte) (bool, error) {
-	if len(vk) % 48 != 0 {
+	if len(vk)%48 != 0 {
 		return false, errors.New("invalid vk length, should be multiple of 48")
 	}
-	if len(inputs) % 32 != 0 {
+	if len(inputs)%32 != 0 {
 		return false, errors.New("invalid inputs length, should be multiple of 32")
 	}
-	if len(vk) / 48 != len(inputs) / 32 + 8 {
+	if len(vk)/48 != len(inputs)/32+8 {
 		return false, errors.New("invalid vk or proof length")
 	}
 	if len(proof) != 192 {
 		return false, errors.New("invalid proof length, should be 192 bytes")
 	}
-
 
 	vkT, err := VerificationKey.GetVerificationKeyFromCompressed(vk)
 	if err != nil {
@@ -77,7 +74,7 @@ func Groth16Verify(vk []byte, proof []byte, inputs []byte) (bool, error) {
 		return false, err
 	}
 
-	if len(inputsFr) != len(inputs) / 32 || len(vkT.Ic) != len(inputs) / 32 + 1 {
+	if len(inputsFr) != len(inputs)/32 || len(vkT.Ic) != len(inputs)/32+1 {
 		return false, err
 	}
 	return Verifier.ProofVerify(vkT, proofT, makeSliceBigInt(inputsFr))

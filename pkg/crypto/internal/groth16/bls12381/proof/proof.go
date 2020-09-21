@@ -11,7 +11,7 @@ type Proof struct {
 	C *bls.PointG1
 }
 
-func GetProofFromCompressed(proof []byte) (*Proof, error){
+func GetProofFromCompressed(proof []byte) (*Proof, error) {
 	reader := bytes.NewReader(proof)
 
 	var g1Repr = make([]byte, 48)

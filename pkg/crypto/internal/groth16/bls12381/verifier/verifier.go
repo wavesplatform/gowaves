@@ -28,4 +28,3 @@ func ProofVerify(vk *verificationKey.VerificationKey, proof *proof.Proof, inputs
 	// (-A) * B + alpha * beta + inputs * gamma + C * delta == 1
 	return pair.Result().IsOne(), nil
 }
-
