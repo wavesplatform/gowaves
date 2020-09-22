@@ -2,15 +2,11 @@ package bls12381
 
 import (
 	"errors"
-	"github.com/consensys/gurvy/bls381/fr"
-	Proof "github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12381/proof"
-	VerificationKey "github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12381/verificationKey"
-	Verifier "github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12381/verifier"
 	"math/big"
 )
 
-func ReadInputs(inputs []byte) ([]fr.Element, error) {
-	var result []fr.Element
+func ReadInputs(inputs []byte) ([]*big.Int, error) {
+	var result []*big.Int
 	const sizeUint64 = 8
 	const lenOneFrElement = 4
 
@@ -24,27 +20,17 @@ func ReadInputs(inputs []byte) ([]fr.Element, error) {
 	var currentOffset int
 	var oldOffSet int
 
-	// Put to []fr.Element every 32 bytes: [0:32], [32:64], ...
+	// Appending every 32 bytes [0..32], [32..64], ...
 	for i := 0; i < lenFrElements; i++ {
 		currentOffset += frReprSize
-		elem := fr.One()
-		elem.SetBytes(inputs[oldOffSet:currentOffset])
+		elem := new(big.Int)
+		elem.SetBytes((inputs)[oldOffSet:currentOffset])
 		oldOffSet += frReprSize
 
 		result = append(result, elem)
 	}
 
 	return result, nil
-}
-
-func makeSliceBigInt(inputs []fr.Element) []*big.Int {
-	publicInput := make([]*big.Int, 0)
-	for _, v := range inputs {
-		z := new(big.Int)
-		z.SetBytes(v.Bytes())
-		publicInput = append(publicInput, z)
-	}
-	return publicInput
 }
 
 func Groth16Verify(vk []byte, proof []byte, inputs []byte) (bool, error) {
@@ -61,11 +47,11 @@ func Groth16Verify(vk []byte, proof []byte, inputs []byte) (bool, error) {
 		return false, errors.New("invalid proof length, should be 192 bytes")
 	}
 
-	vkT, err := VerificationKey.GetVerificationKeyFromCompressed(vk)
+	vkT, err := GetVerificationKeyFromCompressed(vk)
 	if err != nil {
 		return false, err
 	}
-	proofT, err := Proof.GetProofFromCompressed(proof)
+	proofT, err := GetProofFromCompressed(proof)
 	if err != nil {
 		return false, err
 	}
@@ -77,5 +63,5 @@ func Groth16Verify(vk []byte, proof []byte, inputs []byte) (bool, error) {
 	if len(inputsFr) != len(inputs)/32 || len(vkT.Ic) != len(inputs)/32+1 {
 		return false, err
 	}
-	return Verifier.ProofVerify(vkT, proofT, makeSliceBigInt(inputsFr))
+	return ProofVerify(vkT, proofT, inputsFr)
 }

@@ -1,4 +1,4 @@
-package proof
+package bls12381
 
 import (
 	"bytes"

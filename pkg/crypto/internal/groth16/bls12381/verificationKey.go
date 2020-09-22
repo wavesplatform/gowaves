@@ -1,4 +1,4 @@
-package verificationKey
+package bls12381
 
 import (
 	"bytes"

@@ -1,14 +1,12 @@
-package verifier
+package bls12381
 
 import (
 	"errors"
 	bls "github.com/kilic/bls12-381"
-	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12381/proof"
-	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12381/verificationKey"
 	"math/big"
 )
 
-func ProofVerify(vk *verificationKey.VerificationKey, proof *proof.Proof, inputs []*big.Int) (bool, error) {
+func ProofVerify(vk *VerificationKey, proof *Proof, inputs []*big.Int) (bool, error) {
 	if len(inputs)+1 != len(vk.Ic) {
 		return false, errors.New("len(inputs)+1 != len(vk.IC)")
 	}
