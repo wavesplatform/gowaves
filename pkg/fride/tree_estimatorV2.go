@@ -217,13 +217,11 @@ func (e *treeEstimatorV2) walk(node Node) (int, error) {
 
 	case *FunctionDeclarationNode:
 		id := n.Name
-		vp, fp, op := e.scope.save()
 		e.scope.setFunction(n)
 		bc, err := e.walk(n.Block)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate block after declaration of function '%s'", id)
 		}
-		e.scope.restore(vp, fp, op)
 		return bc + 5, nil
 
 	case *FunctionCallNode:
@@ -279,8 +277,6 @@ func (e *treeEstimatorV2) walk(node Node) (int, error) {
 		for _, o := range overlapped {
 			if vn, err := e.scope.value(o.id); err == nil {
 				e.scope.setOverlap(o.id, vn)
-			} else {
-				e.scope.setOverlap(o.id, o.n)
 			}
 			e.scope.setValue(o.id, o.n)
 		}
