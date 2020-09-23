@@ -1,10 +1,9 @@
-package bls12381
+package crypto
 
 import (
 	b64 "encoding/base64"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"testing"
 )
 
@@ -82,7 +81,7 @@ func TestGroth16VerifyBLS(t *testing.T) {
 		require.NoError(t, err)
 		inputs, err := b64.StdEncoding.DecodeString(test.inputs)
 		require.NoError(t, err)
-		bls := crypto.Bls12381{}
+		bls := Bls12381{}
 		ok, err := bls.Groth16Verify(vk, proof, inputs)
 		if test.ok {
 			require.NoError(t, err)
@@ -101,7 +100,7 @@ func BenchmarkGroth16Verify0inputsBLS(b *testing.B) {
 	vk, _ := b64.StdEncoding.DecodeString(vkTest)
 	proof, _ := b64.StdEncoding.DecodeString(proofTest)
 	inputs, _ := b64.StdEncoding.DecodeString(inputsTest)
-	bls := crypto.Bls12381{}
+	bls := Bls12381{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		result, err := bls.Groth16Verify(vk, proof, inputs)
@@ -121,7 +120,7 @@ func BenchmarkGroth16Verify1inputsBLS(b *testing.B) {
 	vk, _ := b64.StdEncoding.DecodeString(vkTest)
 	proof, _ := b64.StdEncoding.DecodeString(proofTest)
 	inputs, _ := b64.StdEncoding.DecodeString(inputsTest)
-	bls := crypto.Bls12381{}
+	bls := Bls12381{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		result, err := bls.Groth16Verify(vk, proof, inputs)
@@ -142,7 +141,7 @@ func BenchmarkGroth16Verify15inputsBLS(b *testing.B) {
 	vk, _ := b64.StdEncoding.DecodeString(vkTest)
 	proof, _ := b64.StdEncoding.DecodeString(proofTest)
 	inputs, _ := b64.StdEncoding.DecodeString(inputsTest)
-	bls := crypto.Bls12381{}
+	bls := Bls12381{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		result, err := bls.Groth16Verify(vk, proof, inputs)
@@ -163,7 +162,7 @@ func BenchmarkGroth16Verify16inputsBLS(b *testing.B) {
 	vk, _ := b64.StdEncoding.DecodeString(vkTest)
 	proof, _ := b64.StdEncoding.DecodeString(proofTest)
 	inputs, _ := b64.StdEncoding.DecodeString(inputsTest)
-	bls := crypto.Bls12381{}
+	bls := Bls12381{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		result, err := bls.Groth16Verify(vk, proof, inputs)

@@ -5,11 +5,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12381"
 )
 
-type Bls12381 struct {}
+type Bls12381 struct{}
 
-type Bn256 struct {}
-
-
+type Bn256 struct{}
 
 func (Bls12381) Groth16Verify(vk []byte, proof []byte, inputs []byte) (bool, error) {
 	if len(vk)%48 != 0 {
