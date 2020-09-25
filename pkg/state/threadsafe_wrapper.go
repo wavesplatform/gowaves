@@ -175,6 +175,12 @@ func (a *ThreadSafeReadWrapper) AllFeatures() ([]int16, error) {
 	return a.s.AllFeatures()
 }
 
+func (a *ThreadSafeReadWrapper) EstimatorVersion() (int, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.EstimatorVersion()
+}
+
 func (a *ThreadSafeReadWrapper) AddrByAlias(alias proto.Alias) (proto.Address, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

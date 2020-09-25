@@ -490,6 +490,21 @@ func (mr *MockStateInfoMockRecorder) AllFeatures() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllFeatures", reflect.TypeOf((*MockStateInfo)(nil).AllFeatures))
 }
 
+// EstimatorVersion mocks base method
+func (m *MockStateInfo) EstimatorVersion() (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EstimatorVersion")
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EstimatorVersion indicates an expected call of EstimatorVersion
+func (mr *MockStateInfoMockRecorder) EstimatorVersion() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockStateInfo)(nil).EstimatorVersion))
+}
+
 // AddrByAlias mocks base method
 func (m *MockStateInfo) AddrByAlias(alias proto.Alias) (proto.Address, error) {
 	m.ctrl.T.Helper()
@@ -1546,6 +1561,21 @@ func (m *MockState) AllFeatures() ([]int16, error) {
 func (mr *MockStateMockRecorder) AllFeatures() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllFeatures", reflect.TypeOf((*MockState)(nil).AllFeatures))
+}
+
+// EstimatorVersion mocks base method
+func (m *MockState) EstimatorVersion() (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EstimatorVersion")
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EstimatorVersion indicates an expected call of EstimatorVersion
+func (mr *MockStateMockRecorder) EstimatorVersion() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockState)(nil).EstimatorVersion))
 }
 
 // AddrByAlias mocks base method

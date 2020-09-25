@@ -76,7 +76,7 @@ func (ia *invokeApplier) newPaymentFromTransferScriptAction(scriptAddr *proto.Ad
 	}, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediateBalance bool, info *fallibleValidationParams) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediateBalance bool, _ *fallibleValidationParams) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := byteKey(pmt.sender, pmt.asset.ToID())
 	senderBalanceDiff := -int64(pmt.amount)
@@ -104,7 +104,7 @@ func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr *proto.Address, 
 func (ia *invokeApplier) newTxDiffFromScriptIssue(scriptAddr *proto.Address, action *proto.IssueScriptAction) (txDiff, error) {
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: *scriptAddr, asset: action.ID[:]}
-	senderAssetBalanceDiff := int64(action.Quantity)
+	senderAssetBalanceDiff := action.Quantity
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
 	}
@@ -420,7 +420,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			// Update asset's info
 			// Modify asset.
 			change := &assetBurnChange{
-				diff: int64(a.Quantity),
+				diff: a.Quantity,
 			}
 			if err := ia.stor.assets.burnAssetUncertain(a.AssetID, change, !info.initialisation); err != nil {
 				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to burn asset")
@@ -478,7 +478,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 }
 
 // applyInvokeScript checks InvokeScript transaction, creates its balance diffs and adds changes to `uncertain` storage.
-// If the transaction does not fail, changes are commited (moved from uncertain to normal storage)
+// If the transaction does not fail, changes are committed (moved from uncertain to normal storage)
 // later in performInvokeScriptWithProofs().
 // If the transaction fails, performInvokeScriptWithProofs() is not called and changes are discarded later using dropUncertain().
 func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams) (*applicationResult, error) {

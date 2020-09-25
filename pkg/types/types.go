@@ -54,6 +54,7 @@ type SmartState interface {
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 
+	EstimatorVersion() (int, error)
 	IsNotFound(err error) bool
 }
 

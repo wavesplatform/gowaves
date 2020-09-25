@@ -8,6 +8,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestIsDApp(t *testing.T) {
+	for _, test := range []struct {
+		source string
+		res    bool
+	}{
+		{"", false},
+		{"AQQAAAABaQAAAAAAAAAAAQQAAAABcwIAAAAGc3RyaW5nCQAAAAAAAAIJAAGkAAAAAQUAAAABaQUAAAABcwIsH73=", false},
+		{"BAkAAfQAAAADCAUAAAACdHgAAAAJYm9keUJ5dGVzCQABkQAAAAIIBQAAAAJ0eAAAAAZwcm9vZnMAAAAAAAAAAAAIBQAAAAJ0eAAAAA9zZW5kZXJQdWJsaWNLZXnYG58I", false},
+		{"AAIDAAAAAAAAAAIIAQAAAAAAAAAAAAAAAQAAAAJ0eAEAAAAGdmVyaWZ5AAAAAAcysh6J", true},
+		{"AAIDAAAAAAAAAAIIAQAAAAIAAAAAAWEAAAAAAAAAAAEBAAAAA2luYwAAAAEAAAABdgkAAGQAAAACBQAAAAF2AAAAAAAAAAABAAAAAAAAAAEAAAACdHgBAAAABnZlcmlmeQAAAAAJAAAAAAAAAgkBAAAAA2luYwAAAAEFAAAAAWEAAAAAAAAAAAJtD5WX", true},
+	} {
+		src, err := base64.StdEncoding.DecodeString(test.source)
+		require.NoError(t, err)
+		r := IsDApp(src)
+		assert.Equal(t, test.res, r)
+	}
+}
+
 func TestErrors(t *testing.T) {
 	for _, test := range []struct {
 		source string

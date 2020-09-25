@@ -58,20 +58,24 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
 	r, err := a.callVerifyScript(script, obj, this, lastBlock)
 	if err != nil {
-		return errors.Errorf("failed to call account script on order '%s'; error: %v", base58.Encode(id), err)
+		return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
 	}
 	if !r.Value {
-		return errors.Errorf("account script on order '%s' failed; returned value is false", base58.Encode(id))
+		return errors.Errorf("account script on order '%s' returned false result", base58.Encode(id))
 	}
 	if r.Throw {
-		return errors.Errorf("account script on order '%s' thrown error; thrown message: %s", base58.Encode(id), r.Message)
+		return errors.Errorf("account script on order '%s' thrown error with message: %s", base58.Encode(id), r.Message)
 	}
 	// Increase complexity.
-	complexity, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(sender, !initialisation)
+	ev, err := a.state.EstimatorVersion()
 	if err != nil {
-		return errors.Wrap(err, "newestScriptComplexityByAddr")
+		return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
 	}
-	a.recentTxComplexity += complexity.verifierComplexity
+	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(sender, ev, !initialisation)
+	if err != nil {
+		return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
+	}
+	a.recentTxComplexity += uint64(est.Verifier)
 	return nil
 }
 
@@ -102,14 +106,18 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 		if !r.Value {
 			return errs.NewTransactionNotAllowedByScript(r.Error().Error(), nil)
 		}
-		return errors.Errorf("account script on transaction '%s' failed; error: %v", base58.Encode(id), r.Error())
+		return errors.Errorf("account script on transaction '%s' failed with error: %v", base58.Encode(id), r.Error())
 	}
 	// Increase complexity.
-	complexity, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, !initialisation)
+	ev, err := a.state.EstimatorVersion()
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
-	a.recentTxComplexity += complexity.verifierComplexity
+	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, ev, !initialisation)
+	if err != nil {
+		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
+	}
+	a.recentTxComplexity += uint64(est.Verifier)
 	return nil
 }
 
@@ -154,11 +162,15 @@ func (a *scriptCaller) callAssetScriptCommon(
 		return ast.Result{}, errors.Errorf("script failure on asset '%s' with error: %s", assetID.String(), r.Error())
 	}
 	// Increase complexity.
-	complexityRecord, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, !initialisation)
+	ev, err := a.state.EstimatorVersion()
 	if err != nil {
-		return ast.Result{}, err
+		return ast.Result{}, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 	}
-	a.recentTxComplexity += complexityRecord.complexity
+	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, ev, !initialisation)
+	if err != nil {
+		return ast.Result{}, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
+	}
+	a.recentTxComplexity += uint64(est.Verifier)
 	return r, nil
 }
 
@@ -194,16 +206,28 @@ func (a *scriptCaller) callAssetScript(
 func (a *scriptCaller) invokeFunction(script ast.Script, tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) (bool, []proto.ScriptAction, error) {
 	this := ast.NewAddressFromProtoAddress(scriptAddress)
 	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	ok, actions, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
+	_, actions, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
 	if err != nil {
-		return ok, nil, errors.Wrapf(err, "transaction ID %s", tx.ID.String())
+		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
 	// Increase complexity.
-	complexityRecord, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, !initialisation)
+	ev, err := a.state.EstimatorVersion()
 	if err != nil {
-		return false, nil, errors.Wrap(err, "newestScriptComplexityByAsset()")
+		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
-	a.recentTxComplexity += complexityRecord.byFuncs[tx.FunctionCall.Name]
+	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, ev, !initialisation)
+	if err != nil {
+		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+	}
+	fn := tx.FunctionCall.Name
+	if fn == "" && tx.FunctionCall.Default {
+		fn = "default"
+	}
+	c, ok := est.Functions[fn]
+	if !ok {
+		return false, nil, errors.Errorf("no estimation for function '%s' on invocation of transaction '%s'", fn, tx.ID.String())
+	}
+	a.recentTxComplexity += uint64(c)
 	return ok, actions, nil
 }
 

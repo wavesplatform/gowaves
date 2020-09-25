@@ -159,3 +159,7 @@ func (a State) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]
 func (a State) NewestFullWavesBalance(recipient proto.Recipient) (*proto.FullWavesBalance, error) {
 	return &a.FullWavesBalance, nil
 }
+
+func (a State) EstimatorVersion() (int, error) {
+	return 3, nil
+}

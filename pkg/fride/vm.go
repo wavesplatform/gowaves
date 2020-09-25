@@ -193,23 +193,23 @@ func (m *vm) constant() rideType {
 	return m.constants[m.arg16()]
 }
 
-func (m *vm) scope() (*frame, int) {
-	n := len(m.calls) - 1
-	if n < 0 {
-		return nil, n
-	}
-	return &m.calls[n], n
-}
+//func (m *vm) scope() (*frame, int) {
+//	n := len(m.calls) - 1
+//	if n < 0 {
+//		return nil, n
+//	}
+//	return &m.calls[n], n
+//}
 
-func (m *vm) resolve(name string) (int, error) {
-	_ = name
-	//TODO: implement
-	return 0, errors.New("not implemented")
-}
+//func (m *vm) resolve(name string) (int, error) {
+//	_ = name
+//	//TODO: implement
+//	return 0, errors.New("not implemented")
+//}
 
-func (m *vm) returnPosition() int {
-	if l := len(m.calls); l > 0 {
-		return m.calls[l-1].back
-	}
-	return len(m.code)
-}
+//func (m *vm) returnPosition() int {
+//	if l := len(m.calls); l > 0 {
+//		return m.calls[l-1].back
+//	}
+//	return len(m.code)
+//}

@@ -475,8 +475,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		initialisation:   params.initialisation,
 		currentTimestamp: params.block.Timestamp,
 		blockID:          blockID,
-		blockVersion:     params.block.Version,
-		height:           params.height,
+		//blockVersion:     params.block.Version,
+		height: params.height,
 	}
 	if hasParent {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
@@ -697,8 +697,8 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		currentTimestamp: currentTimestamp,
 		parentTimestamp:  parentTimestamp,
 		blockID:          block.BlockID(),
-		blockVersion:     version,
-		height:           blockInfo.Height,
+		//blockVersion:     version,
+		height: blockInfo.Height,
 	}
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {

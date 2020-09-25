@@ -427,3 +427,7 @@ func (p *parser) readMeta() (ScriptMeta, error) {
 		Bytes:   b,
 	}, nil
 }
+
+func IsDApp(data []byte) bool {
+	return len(data) > 0 && data[0] == 0
+}

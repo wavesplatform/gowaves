@@ -644,7 +644,7 @@ type patcher struct {
 func newPatcher() *patcher {
 	return &patcher{
 		count:   0,
-		buffers: make(map[*bytes.Buffer][]patch, 0),
+		buffers: make(map[*bytes.Buffer][]patch),
 	}
 }
 

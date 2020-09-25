@@ -31,12 +31,7 @@ func NewMicroMiner(services services.Services) *MicroMiner {
 	}
 }
 
-func (a *MicroMiner) Micro(
-	minedBlock *proto.Block,
-	rest proto.MiningLimits,
-	keyPair proto.KeyPair,
-	vrf []byte) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
-
+func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
 	// way to stop mine microblocks
 	if minedBlock == nil {
 		return nil, nil, rest, errors.New("no block provided")
@@ -67,7 +62,7 @@ func (a *MicroMiner) Micro(
 	binSize := 0
 
 	var appliedTransactions []*types.TransactionWithBytes
-	var unAppliedTransactions []*types.TransactionWithBytes
+	var inapplicable []*types.TransactionWithBytes
 
 	_ = a.state.Map(func(s state.NonThreadSafeState) error {
 		defer s.ResetValidationList()
@@ -83,14 +78,13 @@ func (a *MicroMiner) Micro(
 			binTr := t.B
 			transactionLenBytes := 4
 			if binSize+len(binTr)+transactionLenBytes > rest.MaxTxsSizeInBytes {
-				unAppliedTransactions = append(unAppliedTransactions, t)
+				inapplicable = append(inapplicable, t)
 				continue
 			}
 
 			// In miner we pack transactions from UTX into new block.
 			// We should accept failed transactions here.
-			acceptFailed := true
-			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, acceptFailed)
+			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, true)
 			if state.IsTxCommitmentError(err) {
 				// This should not happen in practice.
 				// Reset state, tx count, return applied transactions to UTX.
@@ -103,7 +97,7 @@ func (a *MicroMiner) Micro(
 				continue
 			}
 			if err != nil {
-				unAppliedTransactions = append(unAppliedTransactions, t)
+				inapplicable = append(inapplicable, t)
 				continue
 			}
 
@@ -114,9 +108,9 @@ func (a *MicroMiner) Micro(
 		return nil
 	})
 
-	// return unapplied transactions
-	for _, unapplied := range unAppliedTransactions {
-		_ = a.utx.AddWithBytes(unapplied.T, unapplied.B)
+	// return inapplicable transactions
+	for _, tx := range inapplicable {
+		_ = a.utx.AddWithBytes(tx.T, tx.B)
 	}
 
 	// no transactions applied, skip

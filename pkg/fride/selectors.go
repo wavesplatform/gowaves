@@ -83,4 +83,3 @@ func selectConstantsChecker(v int) (func(name string) (uint16, bool), error) {
 		return nil, errors.Errorf("unsupported library version '%d'", v)
 	}
 }
-

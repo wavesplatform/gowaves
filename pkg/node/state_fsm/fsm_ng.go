@@ -139,7 +139,7 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 		zap.S().Debug("Reschedule form NGFsm.mineMicro defer")
 		a.Reschedule()
 	}()
-	block, micro, rest, err := a.microMiner.Micro(minedBlock, rest, keyPair, vrf)
+	block, micro, rest, err := a.microMiner.Micro(minedBlock, rest, keyPair)
 	if err == miner.NoTransactionsErr {
 		return a, Tasks(NewMineMicroTask(5*time.Second, minedBlock, rest, keyPair, vrf)), nil
 	}
