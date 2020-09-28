@@ -218,18 +218,18 @@ func bytesToUTF8String(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideString(b), nil
 }
 
-func bytesToLong(_ RideEnvironment, args ...rideType) (rideType, error) {
+func bytesToInt(_ RideEnvironment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
-		return nil, errors.Wrap(err, "bytesToLong")
+		return nil, errors.Wrap(err, "bytesToInt")
 	}
 	if l := len(b); l < 8 {
-		return nil, errors.Errorf("bytesToLong: %d is too little bytes to make int value", l)
+		return nil, errors.Errorf("bytesToInt: %d is too little bytes to make int value", l)
 	}
 	return rideInt(binary.BigEndian.Uint64(b)), nil
 }
 
-func bytesToLongWithOffset(_ RideEnvironment, args ...rideType) (rideType, error) {
+func bytesToIntWithOffset(_ RideEnvironment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToLongWithOffset")

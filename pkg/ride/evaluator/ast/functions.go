@@ -46,18 +46,18 @@ func DataEntries(params ...*DataEntryExpr) []*DataEntryExpr {
 	return params
 }
 
-func NativeGtLong(s Scope, e Exprs) (Expr, error) {
-	return mathLong("NativeGtLong", func(i int64, i2 int64) (Expr, error) {
-		return NewBoolean(i > i2), nil
-	}, s, e)
-}
-
-func NativeGeLong(s Scope, e Exprs) (Expr, error) {
-	return mathLong("NativeGeLong", func(i int64, i2 int64) (Expr, error) {
-		return NewBoolean(i >= i2), nil
-	}, s, e)
-}
-
+//func NativeGtLong(s Scope, e Exprs) (Expr, error) {
+//	return mathLong("NativeGtLong", func(i int64, i2 int64) (Expr, error) {
+//		return NewBoolean(i > i2), nil
+//	}, s, e)
+//}
+//
+//func NativeGeLong(s Scope, e Exprs) (Expr, error) {
+//	return mathLong("NativeGeLong", func(i int64, i2 int64) (Expr, error) {
+//		return NewBoolean(i >= i2), nil
+//	}, s, e)
+//}
+//
 // Equality
 func NativeEq(s Scope, e Exprs) (Expr, error) {
 	if l := len(e); l != 2 {
@@ -361,115 +361,115 @@ func NativeIsInstanceOf(s Scope, e Exprs) (Expr, error) {
 }
 
 // Integer sum
-func NativeSumLong(s Scope, e Exprs) (Expr, error) {
-	return mathLong("NativeSumLong", func(i int64, i2 int64) (Expr, error) {
-		return NewLong(i + i2), nil
-	}, s, e)
-}
-
-// Integer substitution
-func NativeSubLong(s Scope, e Exprs) (Expr, error) {
-	return mathLong("NativeSubLong", func(i int64, i2 int64) (Expr, error) {
-		return NewLong(i - i2), nil
-	}, s, e)
-}
-
-// Integer multiplication
-func NativeMulLong(s Scope, e Exprs) (Expr, error) {
-	return mathLong("NativeMulLong", func(i int64, i2 int64) (Expr, error) {
-		return NewLong(i * i2), nil
-	}, s, e)
-}
+//func NativeSumLong(s Scope, e Exprs) (Expr, error) {
+//	return mathLong("NativeSumLong", func(i int64, i2 int64) (Expr, error) {
+//		return NewLong(i + i2), nil
+//	}, s, e)
+//}
+//
+//// Integer substitution
+//func NativeSubLong(s Scope, e Exprs) (Expr, error) {
+//	return mathLong("NativeSubLong", func(i int64, i2 int64) (Expr, error) {
+//		return NewLong(i - i2), nil
+//	}, s, e)
+//}
+//
+//// Integer multiplication
+//func NativeMulLong(s Scope, e Exprs) (Expr, error) {
+//	return mathLong("NativeMulLong", func(i int64, i2 int64) (Expr, error) {
+//		return NewLong(i * i2), nil
+//	}, s, e)
+//}
 
 // Integer division
-func NativeDivLong(s Scope, e Exprs) (Expr, error) {
-	return mathLong("NativeDivLong", func(x int64, y int64) (Expr, error) {
-		if y == 0 {
-			return nil, errors.New("zero division")
-		}
-		return NewLong(floorDiv(x, y)), nil
-	}, s, e)
-}
-
-// Modulo
-func NativeModLong(s Scope, e Exprs) (Expr, error) {
-	return mathLong("NativeDivLong", func(i int64, i2 int64) (Expr, error) {
-		if i2 == 0 {
-			return nil, errors.New("zero division")
-		}
-		return NewLong(modDivision(i, i2)), nil
-	}, s, e)
-}
+//func NativeDivLong(s Scope, e Exprs) (Expr, error) {
+//	return mathLong("NativeDivLong", func(x int64, y int64) (Expr, error) {
+//		if y == 0 {
+//			return nil, errors.New("zero division")
+//		}
+//		return NewLong(floorDiv(x, y)), nil
+//	}, s, e)
+//}
+//
+//// Modulo
+//func NativeModLong(s Scope, e Exprs) (Expr, error) {
+//	return mathLong("NativeDivLong", func(i int64, i2 int64) (Expr, error) {
+//		if i2 == 0 {
+//			return nil, errors.New("zero division")
+//		}
+//		return NewLong(modDivision(i, i2)), nil
+//	}, s, e)
+//}
 
 // Multiply and division with big integer intermediate representation
-func NativeFractionLong(s Scope, e Exprs) (Expr, error) {
-	const funcName = "NativeFractionLong"
-	if l := len(e); l != 3 {
-		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
-	}
-	rs, err := e.EvaluateAll(s)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	value, ok := rs[0].(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
-	}
-	numerator, ok := rs[1].(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
-	}
-	denominator, ok := rs[2].(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s third argument expected to be *LongExpr, got %T", funcName, rs[2])
-	}
-	res, err := fraction(value.Value, numerator.Value, denominator.Value)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	return NewLong(res), nil
-}
-
-//NativePowLong calculates power.
-func NativePowLong(s Scope, e Exprs) (Expr, error) {
-	const funcName = "NativePowLong"
-	if l := len(e); l != 6 {
-		return nil, errors.Errorf("%s: invalid number of parameters, expected 6, received %d", funcName, l)
-	}
-	rs, err := e.EvaluateAll(s)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	base, ok := rs[0].(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
-	}
-	bp, ok := rs[1].(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
-	}
-	exponent, ok := rs[2].(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s third argument expected to be *LongExpr, got %T", funcName, rs[2])
-	}
-	ep, ok := rs[3].(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s 4th argument expected to be *LongExpr, got %T", funcName, rs[3])
-	}
-	rp, ok := rs[4].(*LongExpr)
-	if !ok {
-		return nil, errors.Errorf("%s 5th argument expected to be *LongExpr, got %T", funcName, rs[4])
-	}
-	round, err := roundingMode(rs[5])
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	r, err := pow(base.Value, exponent.Value, int(bp.Value), int(ep.Value), int(rp.Value), round)
-	if err != nil {
-		return nil, errors.Wrap(err, funcName)
-	}
-	return NewLong(r), nil
-}
+//func NativeFractionLong(s Scope, e Exprs) (Expr, error) {
+//	const funcName = "NativeFractionLong"
+//	if l := len(e); l != 3 {
+//		return nil, errors.Errorf("%s: invalid params, expected 2, passed %d", funcName, l)
+//	}
+//	rs, err := e.EvaluateAll(s)
+//	if err != nil {
+//		return nil, errors.Wrap(err, funcName)
+//	}
+//	value, ok := rs[0].(*LongExpr)
+//	if !ok {
+//		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
+//	}
+//	numerator, ok := rs[1].(*LongExpr)
+//	if !ok {
+//		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
+//	}
+//	denominator, ok := rs[2].(*LongExpr)
+//	if !ok {
+//		return nil, errors.Errorf("%s third argument expected to be *LongExpr, got %T", funcName, rs[2])
+//	}
+//	res, err := fraction(value.Value, numerator.Value, denominator.Value)
+//	if err != nil {
+//		return nil, errors.Wrap(err, funcName)
+//	}
+//	return NewLong(res), nil
+//}
+//
+////NativePowLong calculates power.
+//func NativePowLong(s Scope, e Exprs) (Expr, error) {
+//	const funcName = "NativePowLong"
+//	if l := len(e); l != 6 {
+//		return nil, errors.Errorf("%s: invalid number of parameters, expected 6, received %d", funcName, l)
+//	}
+//	rs, err := e.EvaluateAll(s)
+//	if err != nil {
+//		return nil, errors.Wrap(err, funcName)
+//	}
+//	base, ok := rs[0].(*LongExpr)
+//	if !ok {
+//		return nil, errors.Errorf("%s first argument expected to be *LongExpr, got %T", funcName, rs[0])
+//	}
+//	bp, ok := rs[1].(*LongExpr)
+//	if !ok {
+//		return nil, errors.Errorf("%s second argument expected to be *LongExpr, got %T", funcName, rs[1])
+//	}
+//	exponent, ok := rs[2].(*LongExpr)
+//	if !ok {
+//		return nil, errors.Errorf("%s third argument expected to be *LongExpr, got %T", funcName, rs[2])
+//	}
+//	ep, ok := rs[3].(*LongExpr)
+//	if !ok {
+//		return nil, errors.Errorf("%s 4th argument expected to be *LongExpr, got %T", funcName, rs[3])
+//	}
+//	rp, ok := rs[4].(*LongExpr)
+//	if !ok {
+//		return nil, errors.Errorf("%s 5th argument expected to be *LongExpr, got %T", funcName, rs[4])
+//	}
+//	round, err := roundingMode(rs[5])
+//	if err != nil {
+//		return nil, errors.Wrap(err, funcName)
+//	}
+//	r, err := pow(base.Value, exponent.Value, int(bp.Value), int(ep.Value), int(rp.Value), round)
+//	if err != nil {
+//		return nil, errors.Wrap(err, funcName)
+//	}
+//	return NewLong(r), nil
+//}
 
 // NativeLogLong calculates logarithm.
 func NativeLogLong(s Scope, e Exprs) (Expr, error) {

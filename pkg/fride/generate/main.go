@@ -170,8 +170,8 @@ func functionsV3() map[string]string {
 	m["1061"] = "addressToString"
 	m["1100"] = "createList"
 	m["1200"] = "bytesToUTF8String"
-	m["1201"] = "bytesToLong"
-	m["1202"] = "bytesToLongWithOffset"
+	m["1201"] = "bytesToInt"
+	m["1202"] = "bytesToIntWithOffset"
 	m["1203"] = "indexOfSubstring"
 	m["1204"] = "indexOfSubstringWithOffset"
 	m["1205"] = "splitString"
@@ -330,8 +330,10 @@ func functionsV4() map[string]string {
 	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		m[strconv.Itoa(2450+i)] = fmt.Sprintf("bn256Groth16Verify_%d", l)
 	}
-	for i, l := range []int{16, 32, 64, 128} {
+	for i, l := range []int{8, 16, 32, 64, 128} {
 		m[strconv.Itoa(2500+i)] = fmt.Sprintf("sigVerify_%d", l)
+	}
+	for i, l := range []int{16, 32, 64, 128} {
 		m[strconv.Itoa(2600+i)] = fmt.Sprintf("rsaVerify_%d", l)
 		m[strconv.Itoa(2700+i)] = fmt.Sprintf("keccak256_%d", l)
 		m[strconv.Itoa(2800+i)] = fmt.Sprintf("blake2b256_%d", l)
@@ -389,6 +391,7 @@ func catalogueV4() map[string]int {
 	m["1051"] = 10
 	m["1052"] = 10
 	m["1053"] = 10
+	m["1060"] = 5
 	m["1062"] = 1
 	m["1070"] = 5
 	m["1080"] = 10

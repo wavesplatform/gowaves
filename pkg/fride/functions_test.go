@@ -11,7 +11,7 @@ func TestNames(t *testing.T) {
 	assert.Equal(t, "!", functionNameV2(0))
 	assert.Equal(t, "!=", functionNameV3(1))
 	assert.Equal(t, "wavesBalance", functionNameV2(67))
-	assert.Equal(t, "Down", functionNameV4(180))
+	assert.Equal(t, "DeleteEntry", functionNameV4(180))
 }
 
 func TestCheckFunction(t *testing.T) {
@@ -31,9 +31,10 @@ func TestCheckFunction(t *testing.T) {
 }
 
 func BenchmarkCheckFunction(b *testing.B) {
+	l := len(_functions_V4)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		id := rand.Intn(len(_functions_V4))
+		id := rand.Intn(l)
 		name := functionNameV4(id)
 		_, ok := checkFunctionV4(name)
 		assert.True(b, ok)
@@ -42,16 +43,11 @@ func BenchmarkCheckFunction(b *testing.B) {
 
 func BenchmarkCheckFunctionMap(b *testing.B) {
 	l := len(_functions_V4)
-	m := make(map[string]int)
-	for i := 0; i < l; i++ {
-		n := functionNameV4(i)
-		m[n] = i
-	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		id := rand.Intn(l)
 		name := functionNameV4(id)
-		_, ok := m[name]
+		_, ok := CatalogueV4[name]
 		assert.True(b, ok)
 	}
 }
