@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
@@ -120,7 +121,7 @@ func concatBytes(_ RideEnvironment, args ...rideType) (rideType, error) {
 	}
 	out := make([]byte, l)
 	copy(out, b1)
-	copy(out[:len(b1)], b2)
+	copy(out[len(b1):], b2)
 	return rideBytes(out), nil
 }
 
@@ -139,7 +140,7 @@ func fromBase58(_ RideEnvironment, args ...rideType) (rideType, error) {
 	}
 	str := string(s)
 	if str == "" {
-		return rideBytes(nil), nil
+		return rideBytes{}, nil
 	}
 	r, err := base58.Decode(str)
 	if err != nil {
@@ -215,7 +216,10 @@ func bytesToUTF8String(_ RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToUTF8String")
 	}
-	return rideString(b), nil
+	if s := string(b); utf8.ValidString(s) {
+		return rideString(s), nil
+	}
+	return nil, errors.Errorf("invalid UTF-8 sequence")
 }
 
 func bytesToInt(_ RideEnvironment, args ...rideType) (rideType, error) {

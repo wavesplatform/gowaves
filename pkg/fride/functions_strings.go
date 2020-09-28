@@ -55,7 +55,7 @@ func twoStringsAndIntArgs(args []rideType) (string, string, int, error) {
 	if args[1] == nil {
 		return "", "", 0, errors.Errorf("argument 2 is empty")
 	}
-	if args[3] == nil {
+	if args[2] == nil {
 		return "", "", 0, errors.Errorf("argument 3 is empty")
 	}
 	s1, ok := args[0].(rideString)
@@ -111,26 +111,26 @@ func concatStrings(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideString(out), nil
 }
 
-func takeStrings(_ RideEnvironment, args ...rideType) (rideType, error) {
+func takeString(_ RideEnvironment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
-		return nil, errors.Wrap(err, "takeStrings")
+		return nil, errors.Wrap(err, "takeString")
 	}
 	return takeRideString(s, n), nil
 }
 
-func dropStrings(_ RideEnvironment, args ...rideType) (rideType, error) {
+func dropString(_ RideEnvironment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
-		return nil, errors.Wrap(err, "dropStrings")
+		return nil, errors.Wrap(err, "dropString")
 	}
 	return dropRideString(s, n), nil
 }
 
-func sizeStrings(_ RideEnvironment, args ...rideType) (rideType, error) {
+func sizeString(_ RideEnvironment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
-		return nil, errors.Wrap(err, "sizeStrings")
+		return nil, errors.Wrap(err, "sizeString")
 	}
 	return rideInt(utf8.RuneCountInString(string(s))), nil
 }
@@ -142,36 +142,24 @@ func indexOfSubstring(_ RideEnvironment, args ...rideType) (rideType, error) {
 	}
 	i := runesIndex(s1, s2)
 	if i == -1 {
-		return &rideUnit{}, nil
+		return rideUnit{}, nil
 	}
 	return rideInt(i), nil
 }
 
 func indexOfSubstringWithOffset(_ RideEnvironment, args ...rideType) (rideType, error) {
-	if err := checkArgs(args, 3); err != nil {
-		return nil, errors.Wrap(err, "indexOfSubstringWithOffset")
+	s1, s2, n, err := twoStringsAndIntArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "lastIndexOfSubstringWithOffset")
 	}
-	s1, ok := args[0].(rideString)
-	if !ok {
-		return nil, errors.Errorf("indexOfSubstringWithOffset: argument 1 is not of type 'String' but '%s'", args[0].instanceOf())
-	}
-	s2, ok := args[1].(rideString)
-	if !ok {
-		return nil, errors.Errorf("indexOfSubstringWithOffset: argument 2 is not of type 'String' but '%s'", args[1].instanceOf())
-	}
-	i, ok := args[2].(rideInt)
-	if !ok {
-		return nil, errors.Errorf("indexOfSubstringWithOffset: argument 3 is not of type 'Int' but '%s'", args[2].instanceOf())
-	}
-	offset := int(i)
-	if offset < 0 || offset > utf8.RuneCountInString(string(s1)) {
+	if n < 0 || n > utf8.RuneCountInString(s1) {
 		return rideUnit{}, nil
 	}
-	idx := runesIndex(runesDrop(string(s1), offset), string(s2))
-	if idx == -1 {
+	i := runesIndex(runesDrop(s1, n), s2)
+	if i == -1 {
 		return rideUnit{}, nil
 	}
-	return rideInt(int64(i) + int64(offset)), nil
+	return rideInt(i + n), nil
 }
 
 func stringToBytes(_ RideEnvironment, args ...rideType) (rideType, error) {
@@ -180,27 +168,6 @@ func stringToBytes(_ RideEnvironment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "stringToBytes")
 	}
 	return rideBytes(s), nil
-}
-
-func runesIndex(s, sub string) int {
-	if i := strings.Index(s, sub); i >= 0 {
-		return utf8.RuneCountInString(s[:i])
-	}
-	return -1
-}
-
-func runesDrop(s string, n int) string {
-	runes := []rune(s)
-	out := make([]rune, len(runes)-n)
-	copy(out, runes[n:])
-	res := string(out)
-	return res
-}
-
-func runesTake(s string, n int) string {
-	out := make([]rune, n)
-	copy(out, []rune(s)[:n])
-	return string(out)
 }
 
 func dropRightString(_ RideEnvironment, args ...rideType) (rideType, error) {
@@ -323,6 +290,27 @@ func contains(_ RideEnvironment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "contains")
 	}
 	return rideBoolean(strings.Contains(s1, s2)), nil
+}
+
+func runesIndex(s, sub string) int {
+	if i := strings.Index(s, sub); i >= 0 {
+		return utf8.RuneCountInString(s[:i])
+	}
+	return -1
+}
+
+func runesDrop(s string, n int) string {
+	runes := []rune(s)
+	out := make([]rune, len(runes)-n)
+	copy(out, runes[n:])
+	res := string(out)
+	return res
+}
+
+func runesTake(s string, n int) string {
+	out := make([]rune, n)
+	copy(out, []rune(s)[:n])
+	return string(out)
 }
 
 func takeRideString(s string, n int) rideString {

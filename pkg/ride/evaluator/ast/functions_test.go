@@ -3,10 +3,8 @@ package ast
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"math/rand"
 	"testing"
 	"time"
@@ -20,81 +18,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
-//func TestNativeSumLong(t *testing.T) {
-//	params1 := Exprs{NewLong(5), NewLong(4)}
-//	rs, err := NativeSumLong(newEmptyScopeV1(), params1)
-//	require.NoError(t, err)
-//	assert.Equal(t, NewLong(9), rs)
-//
-//	params2 := Exprs{NewLong(5), NewBoolean(true)}
-//	_, err = NativeSumLong(newEmptyScopeV1(), params2)
-//	require.Error(t, err)
-//}
-//
-//func TestNativeSubLong(t *testing.T) {
-//	params1 := Exprs{NewLong(5), NewLong(4)}
-//	rs, err := NativeSubLong(newEmptyScopeV1(), params1)
-//	require.NoError(t, err)
-//	assert.Equal(t, NewLong(1), rs)
-//
-//	params2 := Exprs{NewLong(5), NewBoolean(true)}
-//	_, err = NativeSubLong(newEmptyScopeV1(), params2)
-//	require.Error(t, err)
-//}
-//
-//func TestNativeMulLong(t *testing.T) {
-//	params1 := Exprs{NewLong(5), NewLong(2)}
-//	rs, err := NativeMulLong(newEmptyScopeV1(), params1)
-//	require.NoError(t, err)
-//	assert.Equal(t, NewLong(10), rs)
-//
-//	params2 := Exprs{NewLong(5), NewBoolean(true)}
-//	_, err = NativeMulLong(newEmptyScopeV1(), params2)
-//	require.Error(t, err)
-//}
-//
-//func TestNativeGeLong(t *testing.T) {
-//	params1 := Exprs{NewLong(5), NewLong(5)}
-//	rs, err := NativeGeLong(newEmptyScopeV1(), params1)
-//	require.NoError(t, err)
-//	assert.Equal(t, NewBoolean(true), rs)
-//
-//	params2 := Exprs{NewLong(5), NewBoolean(true)}
-//	_, err = NativeGeLong(newEmptyScopeV1(), params2)
-//	require.Error(t, err)
-//}
-//
-//func TestNativeGtLong(t *testing.T) {
-//	params1 := Exprs{NewLong(5), NewLong(4)}
-//	rs, err := NativeGtLong(newEmptyScopeV1(), params1)
-//	require.NoError(t, err)
-//	assert.Equal(t, NewBoolean(true), rs)
-//
-//	params2 := Exprs{NewLong(5), NewBoolean(true)}
-//	_, err = NativeGtLong(newEmptyScopeV1(), params2)
-//	require.Error(t, err)
-//}
-//
-//func TestNativeDivLong(t *testing.T) {
-//	params1 := Exprs{NewLong(9), NewLong(2)}
-//	rs, err := NativeDivLong(newEmptyScopeV1(), params1)
-//	require.NoError(t, err)
-//	assert.Equal(t, NewLong(4), rs)
-//
-//	rs, err = NativeDivLong(newEmptyScopeV1(), Exprs{NewLong(-1), NewLong(20000)})
-//	require.NoError(t, err)
-//	assert.Equal(t, NewLong(-1), rs)
-//
-//	params2 := Exprs{NewLong(5), NewBoolean(true)}
-//	_, err = NativeDivLong(newEmptyScopeV1(), params2)
-//	require.Error(t, err)
-//
-//	// zero division
-//	params3 := Exprs{NewLong(9), NewLong(0)}
-//	_, err = NativeDivLong(newEmptyScopeV1(), params3)
-//	require.Error(t, err)
-//}
-//
 func TestUserAddressFromString(t *testing.T) {
 	ma, err := proto.NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
 	require.NoError(t, err)
@@ -309,102 +232,11 @@ func TestNativeTransferTransactionByID(t *testing.T) {
 	})
 }
 
-func TestNativeSizeBytes(t *testing.T) {
-	rs, err := NativeSizeBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc"))))
-	require.NoError(t, err)
-	assert.Equal(t, NewLong(3), rs)
-}
-
-func TestNativeTake(t *testing.T) {
-	rs, err := NativeTakeBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc")), NewLong(2)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("ab")), rs)
-
-	rs, err = NativeTakeBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc")), NewLong(4)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("abc")), rs)
-
-	rs, err = NativeTakeBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc")), NewLong(-4)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("")), rs)
-}
-
-func TestNativeDropBytes(t *testing.T) {
-	rs, err := NativeDropBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abcdef")), NewLong(2)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("cdef")), rs)
-
-	rs, err = NativeDropBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc")), NewLong(4)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("")), rs)
-}
-
-func TestNativeConcatBytes(t *testing.T) {
-	rs, err := NativeConcatBytes(newEmptyScopeV1(), NewExprs(NewBytes([]byte("abc")), NewBytes([]byte("def"))))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("abcdef")), rs)
-}
-
-func TestNativeConcatStrings(t *testing.T) {
-	rs, err := NativeConcatStrings(newEmptyScopeV1(), NewExprs(NewString("abc"), NewString("def")))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("abcdef"), rs)
-}
-
-func TestNativeTakeStrings(t *testing.T) {
-	for _, test := range []struct {
-		in  string
-		len int64
-		out string
-	}{
-		{"abcdef", 4, "abcd"},
-		{"abcdef", -4, ""},
-		{"привет", 4, "прив"},
-		{"t", 1, "t"},
-		{"t", 0, ""},
-		{"", 1, ""},
-	} {
-		rs, err := NativeTakeStrings(newEmptyScopeV1(), NewExprs(NewString(test.in), NewLong(test.len)))
-		require.NoError(t, err)
-		assert.Equal(t, NewString(test.out), rs)
-	}
-}
-
-func TestNativeDropStrings(t *testing.T) {
-	for _, test := range []struct {
-		in  string
-		len int64
-		out string
-	}{
-		{"abcdef", 4, "ef"},
-		{"привет", 4, "ет"},
-		{"t", 1, ""},
-		{"test", 5, ""},
-		{"test", -5, "test"},
-	} {
-		rs, err := NativeDropStrings(newEmptyScopeV1(), NewExprs(NewString(test.in), NewLong(test.len)))
-		require.NoError(t, err)
-		assert.Equal(t, NewString(test.out), rs)
-	}
-}
-
-func TestNativeSizeString(t *testing.T) {
-	rs2, err := NativeSizeString(newEmptyScopeV1(), NewExprs(NewString("привет")))
-	require.NoError(t, err)
-	assert.Equal(t, NewLong(6), rs2)
-}
-
 func TestNativeSizeList(t *testing.T) {
 	rs, err := NativeSizeList(newEmptyScopeV1(), Params(NewExprs(NewLong(1))))
 	require.NoError(t, err)
 	assert.Equal(t, NewLong(1), rs)
 }
-
-//func TestNativeLongToBytes(t *testing.T) {
-//	rs, err := NativeLongToBytes(newEmptyScopeV1(), Params(NewLong(1)))
-//	require.NoError(t, err)
-//	assert.Equal(t, NewBytes([]byte{0, 0, 0, 0, 0, 0, 0, 1}), rs)
-//}
 
 func TestNativeThrow(t *testing.T) {
 	rs, err := NativeThrow(newEmptyScopeV1(), Params(NewString("mess")))
@@ -416,65 +248,6 @@ func TestNativeThrow(t *testing.T) {
 	}
 }
 
-//func TestNativeModLong(t *testing.T) {
-//	for _, test := range []struct {
-//		x int64
-//		y int64
-//		z int64
-//	}{
-//		{10, 6, 4},
-//		{-10, 6, 2},
-//		{10, -6, -2},
-//		{-10, -6, -4},
-//		{2, 2, 0},
-//	} {
-//		rs, err := NativeModLong(newEmptyScopeV1(), Params(NewLong(test.x), NewLong(test.y)))
-//		require.NoError(t, err)
-//		assert.Equal(t, NewLong(test.z), rs)
-//	}
-//}
-//
-//func TestFloorDiv(t *testing.T) {
-//	for _, test := range []struct {
-//		x int64
-//		y int64
-//		z int64
-//	}{
-//		{10, 6, 1},
-//		{-10, 6, -2},
-//		{10, -6, -2},
-//		{-10, -6, 1},
-//	} {
-//		assert.EqualValues(t, test.z, floorDiv(test.x, test.y))
-//	}
-//}
-//
-//func TestNativeFractionLong(t *testing.T) {
-//	// works with big integers
-//	rs1, err := NativeFractionLong(newEmptyScopeV1(), Params(NewLong(math.MaxInt64), NewLong(4), NewLong(6)))
-//	require.NoError(t, err)
-//	assert.Equal(t, NewLong(6148914691236517204), rs1)
-//
-//	// and works with usual integers
-//	rs2, err := NativeFractionLong(newEmptyScopeV1(), NewExprs(NewLong(8), NewLong(4), NewLong(2)))
-//	require.NoError(t, err)
-//	assert.Equal(t, NewLong(16), rs2)
-//
-//	// overflow
-//	_, err = NativeFractionLong(newEmptyScopeV1(), NewExprs(NewLong(math.MaxInt64), NewLong(4), NewLong(1)))
-//	require.Error(t, err)
-//
-//	// zero division
-//	_, err = NativeFractionLong(newEmptyScopeV1(), NewExprs(NewLong(math.MaxInt64), NewLong(4), NewLong(0)))
-//	require.Error(t, err)
-//}
-
-func TestNativeStringToBytes(t *testing.T) {
-	rs, err := NativeStringToBytes(newEmptyScopeV1(), NewExprs(NewString("привет")))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("привет")), rs)
-}
-
 func TestNativeBooleanToBytes(t *testing.T) {
 	rs1, err := NativeBooleanToBytes(newEmptyScopeV1(), Params(NewBoolean(true)))
 	require.NoError(t, err)
@@ -484,12 +257,6 @@ func TestNativeBooleanToBytes(t *testing.T) {
 	assert.Equal(t, NewBytes([]byte{0}), rs2)
 }
 
-//func TestNativeLongToString(t *testing.T) {
-//	rs1, err := NativeLongToString(newEmptyScopeV1(), Params(NewLong(100500)))
-//	require.NoError(t, err)
-//	assert.Equal(t, NewString("100500"), rs1)
-//}
-//
 func TestNativeBooleanToString(t *testing.T) {
 	rs1, err := NativeBooleanToString(newEmptyScopeV1(), Params(NewBoolean(true)))
 	require.NoError(t, err)
@@ -498,65 +265,6 @@ func TestNativeBooleanToString(t *testing.T) {
 	rs2, err := NativeBooleanToString(newEmptyScopeV1(), Params(NewBoolean(false)))
 	require.NoError(t, err)
 	assert.Equal(t, NewString("false"), rs2)
-}
-
-var testBytes = []byte{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}
-
-func TestNativeToBase58(t *testing.T) {
-	rs1, err := NativeToBase58(newEmptyScopeV1(), Params(NewBytes(testBytes)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM"), rs1)
-}
-
-func TestNativeFromBase58(t *testing.T) {
-	rs1, err := NativeFromBase58(newEmptyScopeV1(), Params(NewString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM")))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes(testBytes), rs1)
-}
-
-func TestNativeToBase64(t *testing.T) {
-	rs1, err := NativeToBase64(newEmptyScopeV1(), Params(NewBytes(testBytes)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q="), rs1)
-}
-
-func TestNativeFromBase64(t *testing.T) {
-	rs1, err := NativeFromBase64(newEmptyScopeV1(), Params(NewString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q=")))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes(testBytes), rs1)
-}
-
-func TestNativeToBase16(t *testing.T) {
-	rs1, err := NativeToBase16(newEmptyScopeV1(), Params(NewBytes(testBytes)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("5468697320697320612073696d706c6520737472696e6720666f722074657374"), rs1)
-}
-
-func TestNativeFromBase16(t *testing.T) {
-	rs1, err := NativeFromBase16(newEmptyScopeV1(), Params(NewString("5468697320697320612073696d706c6520737472696e6720666f722074657374")))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes(testBytes), rs1)
-}
-
-func TestNativeFromBase64String(t *testing.T) {
-	for _, test := range []struct {
-		str string
-		b   []byte
-	}{
-		{"AQa3b8tH", []uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}},
-		{"base64:AQa3b8tH", []uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}},
-		{"base64:", []byte{}},
-	} {
-		rs, err := NativeFromBase64(newEmptyScopeV1(), Params(NewString(test.str)))
-		require.NoError(t, err)
-		assert.Equal(t, NewBytes(test.b), rs)
-	}
-}
-
-func TestNativeToBse64String(t *testing.T) {
-	rs1, err := NativeToBase64(newEmptyScopeV1(), Params(NewBytes([]uint8{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47})))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("AQa3b8tH"), rs1)
 }
 
 func TestNativeAssetBalance_FromAddress(t *testing.T) {
@@ -762,64 +470,6 @@ func TestUserExtract(t *testing.T) {
 	require.EqualError(t, err, "extract() called on unit value")
 }
 
-func TestUserDropRightBytes(t *testing.T) {
-	rs, err := UserDropRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(2)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("hel")), rs)
-
-	rs, err = UserDropRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(10)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("")), rs)
-
-	rs, err = UserDropRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(-5)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("hello")), rs)
-}
-
-func TestUserTakeRight(t *testing.T) {
-	rs, err := UserTakeRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(2)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("lo")), rs)
-
-	rs, err = UserTakeRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(10)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("hello")), rs)
-
-	rs, err = UserTakeRightBytes(newEmptyScopeV1(), Params(NewBytes([]byte("hello")), NewLong(5)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte("hello")), rs)
-}
-
-func TestUserTakeRightString(t *testing.T) {
-	rs, err := UserTakeRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(2)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("lo"), rs)
-
-	rs, err = UserTakeRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(20)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("hello"), rs)
-}
-
-func TestUserDropRightString(t *testing.T) {
-	rs1, err := UserDropRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(2)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("hel"), rs1)
-
-	rs1, err = UserDropRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(20)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString(""), rs1)
-
-	rs1, err = UserDropRightString(newEmptyScopeV1(), Params(NewString("hello"), NewLong(-3)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("hello"), rs1)
-}
-
-//func TestUserUnaryMinus(t *testing.T) {
-//	rs1, err := UserUnaryMinus(newEmptyScopeV1(), Params(NewLong(2)))
-//	require.NoError(t, err)
-//	assert.Equal(t, NewLong(-2), rs1)
-//}
-//
 func TestUserUnaryNot(t *testing.T) {
 	rs1, err := UserUnaryNot(newEmptyScopeV1(), Params(NewBoolean(true)))
 	require.NoError(t, err)
@@ -869,30 +519,6 @@ func TestUserAlias(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, NewAliasFromProtoAlias(*alias), rs1)
 }
-
-//func TestNativePowLong(t *testing.T) {
-//	r, err := NativePowLong(newEmptyScopeV1(), NewExprs(NewLong(12), NewLong(1), NewLong(3456), NewLong(3), NewLong(2), &DownExpr{}))
-//	require.NoError(t, err)
-//	assert.Equal(t, NewLong(187), r)
-//
-//	r, err = NativePowLong(newEmptyScopeV1(), NewExprs(NewLong(12), NewLong(1), NewLong(3456), NewLong(3), NewLong(2), &UpExpr{}))
-//	require.NoError(t, err)
-//	assert.Equal(t, NewLong(188), r)
-//
-//	// overflow
-//	_, err = NativeFractionLong(newEmptyScopeV1(), NewExprs(NewLong(math.MaxInt64), NewLong(0), NewLong(100), NewLong(0), NewLong(0), &UpExpr{}))
-//	require.Error(t, err)
-//}
-//
-//func TestNativeLogLong(t *testing.T) {
-//	r, err := NativeLogLong(newEmptyScopeV1(), NewExprs(NewLong(16), NewLong(0), NewLong(2), NewLong(0), NewLong(0), &UpExpr{}))
-//	require.NoError(t, err)
-//	assert.Equal(t, NewLong(4), r)
-//
-//	r, err = NativeLogLong(newEmptyScopeV1(), NewExprs(NewLong(100), NewLong(0), NewLong(10), NewLong(0), NewLong(0), &UpExpr{}))
-//	require.NoError(t, err)
-//	assert.Equal(t, NewLong(2), r)
-//}
 
 func TestNativeRSAVerify(t *testing.T) {
 	pk, err := base64.StdEncoding.DecodeString("MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAkDg8m0bCDX7fTbBlHZm+BZIHVOfC2I4klRbjSqwFi/eCdfhGjYRYvu/frpSO0LIm0beKOUvwat6DY4dEhNt2PW3UeQvT2udRQ9VBcpwaJlLreCr837sn4fa9UG9FQFaGofSww1O9eBBjwMXeZr1jOzR9RBIwoL1TQkIkZGaDXRltEaMxtNnzotPfF3vGIZZuZX4CjiitHaSC0zlmQrEL3BDqqoLwo3jq8U3Zz8XUMyQElwufGRbZqdFCeiIs/EoHiJm8q8CVExRoxB0H/vE2uDFK/OXLGTgfwnDlrCa/qGt9Zsb8raUSz9IIHx72XB+kOXTt/GOuW7x2dJvTJIqKTwIDAQAB")
@@ -993,280 +619,6 @@ func TestNativeAddressToString(t *testing.T) {
 		s, ok := r.(*StringExpr)
 		assert.True(t, ok)
 		assert.Equal(t, test.result, test.str == s.Value)
-	}
-}
-
-func TestNativeBytesToUTF8String(t *testing.T) {
-	for _, test := range []struct {
-		expressions Exprs
-		err         bool
-		result      Expr
-	}{
-		{NewExprs(NewBytes([]byte("blah-blah-blah"))), false, NewString("blah-blah-blah")},
-		{NewExprs(NewBytes([]byte("blah-blah-blah")), NewString("a-a-a-a")), true, NewString("blah-blah-blah")},
-		{NewExprs(NewString("blah-blah-blah")), true, NewString("blah-blah-blah")},
-	} {
-		r, err := NativeBytesToUTF8String(newEmptyScopeV1(), test.expressions)
-		if test.err {
-			assert.Error(t, err)
-			continue
-		}
-		require.NoError(t, err)
-		assert.Equal(t, test.result, r)
-	}
-}
-
-func b(v int64) []byte {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, uint64(v))
-	return buf
-}
-
-//func TestNativeBytesToLong(t *testing.T) {
-//	for _, test := range []struct {
-//		expressions Exprs
-//		error       bool
-//		result      Expr
-//	}{
-//		{NewExprs(NewBytes(b(123456))), false, NewLong(123456)},
-//		{NewExprs(NewBytes(b(-123456))), false, NewLong(-123456)},
-//		{NewExprs(NewBytes(b(math.MaxInt64))), false, NewLong(math.MaxInt64)},
-//		{NewExprs(NewBytes(b(math.MinInt64))), false, NewLong(math.MinInt64)},
-//		{NewExprs(NewBytes(append(b(0), []byte{1, 2, 3, 4, 5}...))), false, NewLong(0)},
-//		{NewExprs(), true, NewLong(0)},
-//		{NewExprs(NewBytes(b(12345)), NewString("blah")), true, NewLong(0)},
-//		{NewExprs(NewBytes([]byte{0, 1, 2, 3, 4, 5})), true, NewLong(0)},
-//	} {
-//		r, err := NativeBytesToLong(newEmptyScopeV1(), test.expressions)
-//		if test.error {
-//			assert.Error(t, err)
-//			continue
-//		}
-//		require.NoError(t, err)
-//		assert.Equal(t, test.result, r)
-//	}
-//}
-
-func in(a, b []byte, p int) []byte {
-	r := make([]byte, len(a))
-	copy(r, a)
-	copy(r[p:], b)
-	return r
-}
-
-func TestNativeBytesToLongWithOffset(t *testing.T) {
-	arr := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f}
-	b := func(v int64) []byte {
-		buf := make([]byte, 8)
-		binary.BigEndian.PutUint64(buf, uint64(v))
-		return buf
-	}
-	for _, test := range []struct {
-		expressions Exprs
-		error       bool
-		result      Expr
-	}{
-		{NewExprs(NewBytes(b(123456)), NewLong(0)), false, NewLong(123456)},
-		{NewExprs(NewBytes(b(-123456)), NewLong(0)), false, NewLong(-123456)},
-		{NewExprs(NewBytes(in(arr, b(math.MaxInt64), 3)), NewLong(3)), false, NewLong(math.MaxInt64)},
-		{NewExprs(NewBytes(in(arr, b(math.MinInt64), 6)), NewLong(6)), false, NewLong(math.MinInt64)},
-		{NewExprs(), true, NewLong(0)},
-		{NewExprs(NewBytes(b(12345)), NewString("blah")), true, NewLong(0)},
-		{NewExprs(NewBytes([]byte{0, 1, 2, 3, 4, 5})), true, NewLong(0)},
-		{NewExprs(NewBytes(in(arr, b(math.MinInt64), 6)), NewLong(16)), true, NewLong(0)},
-	} {
-		r, err := NativeBytesToLongWithOffset(newEmptyScopeV1(), test.expressions)
-		if test.error {
-			assert.Error(t, err)
-			continue
-		}
-		require.NoError(t, err)
-		assert.Equal(t, test.result, r)
-	}
-}
-
-func TestNativeIndexOfSubstring(t *testing.T) {
-	for _, test := range []struct {
-		expressions Exprs
-		error       bool
-		result      Expr
-	}{
-		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("brown")), false, NewLong(6)},
-		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("cafe")), false, NewUnit()},
-		{NewExprs(), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah")), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
-	} {
-		r, err := NativeIndexOfSubstring(newEmptyScopeV1(), test.expressions)
-		if test.error {
-			assert.Error(t, err)
-			continue
-		}
-		require.NoError(t, err)
-		assert.Equal(t, test.result, r)
-	}
-}
-
-func TestNativeIndexOfSubstringWithOffset(t *testing.T) {
-	for _, test := range []struct {
-		expressions Exprs
-		error       bool
-		result      Expr
-	}{
-		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("brown"), NewLong(0)), false, NewLong(6)},
-		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(10)), false, NewLong(25)},
-		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("brown"), NewLong(10)), false, NewUnit()},
-		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("fox"), NewLong(1000)), false, NewUnit()},
-		{NewExprs(), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah")), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah"), NewLong(1), NewString("xxx")), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah"), NewString("xxx"), NewString("0")), true, NewUnit()},
-	} {
-		r, err := NativeIndexOfSubstringWithOffset(newEmptyScopeV1(), test.expressions)
-		if test.error {
-			assert.Error(t, err)
-			continue
-		}
-		require.NoError(t, err)
-		assert.Equal(t, test.result, r)
-	}
-}
-
-func TestNativeSplitString(t *testing.T) {
-	for _, test := range []struct {
-		expressions Exprs
-		error       bool
-		result      Expr
-	}{
-		{NewExprs(NewString("abcdefg"), NewString("")), false, NewExprs(NewString("a"), NewString("b"), NewString("c"), NewString("d"), NewString("e"), NewString("f"), NewString("g"))},
-		{NewExprs(NewString("one two three four"), NewString(" ")), false, NewExprs(NewString("one"), NewString("two"), NewString("three"), NewString("four"))},
-		{NewExprs(), true, NewExprs()},
-		{NewExprs(NewString("blah-blah-blah")), true, NewExprs()},
-		{NewExprs(NewLong(0), NewString("one two three four")), true, NewExprs()},
-		{NewExprs(NewString("one two three four"), NewLong(0)), true, NewExprs()},
-	} {
-		r, err := NativeSplitString(newEmptyScopeV1(), test.expressions)
-		if test.error {
-			assert.Error(t, err)
-			continue
-		}
-		require.NoError(t, err)
-		assert.Equal(t, test.result, r)
-	}
-}
-
-func TestNativeParseInt(t *testing.T) {
-	for _, test := range []struct {
-		expressions Exprs
-		error       bool
-		result      Expr
-	}{
-		{NewExprs(NewString("123345")), false, NewLong(123345)},
-		{NewExprs(NewString("0")), false, NewLong(0)},
-		{NewExprs(NewString(fmt.Sprint(math.MaxInt64))), false, NewLong(math.MaxInt64)},
-		{NewExprs(NewString(fmt.Sprint(math.MinInt64))), false, NewLong(math.MinInt64)},
-		{NewExprs(NewString("")), false, NewUnit()},
-		{NewExprs(NewString("abcd")), false, NewUnit()},
-		{NewExprs(NewString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")), false, NewUnit()},
-		{NewExprs(), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
-		{NewExprs(NewLong(1)), true, NewUnit()},
-	} {
-		r, err := NativeParseInt(newEmptyScopeV1(), test.expressions)
-		if test.error {
-			assert.Error(t, err)
-			continue
-		}
-		require.NoError(t, err)
-		assert.Equal(t, test.result, r)
-	}
-}
-
-func TestUserParseIntValue(t *testing.T) {
-	f := wrapWithExtract(NativeParseInt, "UserParseIntValue")
-	for _, test := range []struct {
-		expressions Exprs
-		error       bool
-		result      Expr
-	}{
-		{NewExprs(NewString("123345")), false, NewLong(123345)},
-		{NewExprs(NewString("0")), false, NewLong(0)},
-		{NewExprs(NewString(fmt.Sprint(math.MaxInt64))), false, NewLong(math.MaxInt64)},
-		{NewExprs(NewString(fmt.Sprint(math.MinInt64))), false, NewLong(math.MinInt64)},
-		{NewExprs(NewString("")), true, NewUnit()},
-		{NewExprs(NewString("abcd")), true, NewUnit()},
-		{NewExprs(NewString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")), true, NewUnit()},
-		{NewExprs(), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
-		{NewExprs(NewLong(1)), true, NewUnit()},
-	} {
-		r, err := f(newEmptyScopeV1(), test.expressions)
-		if test.error {
-			assert.Error(t, err)
-			continue
-		}
-		require.NoError(t, err)
-		assert.Equal(t, test.result, r)
-	}
-}
-
-func TestNativeLastIndexOfSubstring(t *testing.T) {
-	for _, test := range []struct {
-		expressions Exprs
-		error       bool
-		result      Expr
-	}{
-		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe")), false, NewLong(25)},
-		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("cafe")), false, NewUnit()},
-		{NewExprs(), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah")), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
-	} {
-		r, err := NativeLastIndexOfSubstring(newEmptyScopeV1(), test.expressions)
-		if test.error {
-			assert.Error(t, err)
-			continue
-		}
-		require.NoError(t, err)
-		assert.Equal(t, test.result, r)
-	}
-}
-
-func TestNativeLastIndexOfSubstringWithOffset(t *testing.T) {
-	for _, test := range []struct {
-		expressions Exprs
-		error       bool
-		result      Expr
-	}{
-		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(30)), false, NewLong(25)},
-		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(25)), false, NewLong(25)},
-		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(10)), false, NewLong(5)},
-		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(5)), false, NewLong(5)},
-		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(4)), false, NewUnit()},
-		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(0)), false, NewUnit()},
-		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("bebe"), NewLong(-2)), false, NewUnit()},
-		{NewExprs(NewString("aaa"), NewString("a"), NewLong(0)), false, NewLong(0)},
-		{NewExprs(NewString("aaa"), NewString("b"), NewLong(0)), false, NewUnit()},
-		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("dead"), NewLong(11)), false, NewLong(10)},
-		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("dead"), NewLong(10)), false, NewLong(10)},
-		{NewExprs(NewString("cafe bebe dead beef cafe bebe"), NewString("dead"), NewLong(9)), false, NewUnit()},
-		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("brown"), NewLong(12)), false, NewLong(6)},
-		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("fox"), NewLong(14)), false, NewLong(12)},
-		{NewExprs(NewString("quick brown fox jumps over the lazy dog"), NewString("fox"), NewLong(13)), false, NewLong(12)},
-		{NewExprs(), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah")), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah"), NewLong(1)), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah"), NewLong(1), NewString("xxx")), true, NewUnit()},
-		{NewExprs(NewString("blah-blah-blah"), NewString("xxx"), NewString("0")), true, NewUnit()},
-	} {
-		r, err := NativeLastIndexOfSubstringWithOffset(newEmptyScopeV1(), test.expressions)
-		if test.error {
-			assert.Error(t, err)
-			continue
-		}
-		require.NoError(t, err)
-		assert.Equal(t, test.result, r)
 	}
 }
 
@@ -1440,23 +792,6 @@ func TestDataTransaction(t *testing.T) {
 			assert.EqualError(t, err, test.message)
 			continue
 		}
-		require.NoError(t, err)
-		assert.Equal(t, test.result, r)
-	}
-}
-
-func TestContains(t *testing.T) {
-	for _, test := range []struct {
-		expressions Exprs
-		result      Expr
-	}{
-		{NewExprs(NewString("ride"), NewString("ide")), NewBoolean(true)},
-		{NewExprs(NewString("string"), NewString("substring")), NewBoolean(false)},
-		{NewExprs(NewString(""), NewString("")), NewBoolean(true)},
-		{NewExprs(NewString("ride"), NewString("")), NewBoolean(true)},
-		{NewExprs(NewString(""), NewString("ride")), NewBoolean(false)},
-	} {
-		r, err := Contains(newEmptyScopeV4(), test.expressions)
 		require.NoError(t, err)
 		assert.Equal(t, test.result, r)
 	}
