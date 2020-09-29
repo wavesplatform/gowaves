@@ -22,18 +22,20 @@ type MicroblockMiner struct {
 	services    services.Services
 	features    Features
 	// reward vote 600000000
-	reward int64
+	reward                          int64
+	maxTransactionTimeForwardOffset proto.Timestamp
 }
 
-func NewMicroblockMiner(services services.Services, features Features, reward int64) *MicroblockMiner {
+func NewMicroblockMiner(services services.Services, features Features, reward int64, maxTransactionTimeForwardOffset proto.Timestamp) *MicroblockMiner {
 	return &MicroblockMiner{
-		utx:         services.UtxPool,
-		state:       services.State,
-		peer:        services.Peers,
-		constraints: DefaultConstraints(),
-		services:    services,
-		features:    features,
-		reward:      reward,
+		utx:                             services.UtxPool,
+		state:                           services.State,
+		peer:                            services.Peers,
+		constraints:                     DefaultConstraints(),
+		services:                        services,
+		features:                        features,
+		reward:                          reward,
+		maxTransactionTimeForwardOffset: maxTransactionTimeForwardOffset,
 	}
 }
 
@@ -41,6 +43,13 @@ func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k
 	nxt := proto.NxtConsensus{
 		BaseTarget:   baseTarget,
 		GenSignature: gs,
+	}
+	// This prevents miner of creating excessive quantity of blocks.
+	// If time is too outdate, that just create 1 block with minimal sensible time.
+	ts := t
+	now := a.services.Time.Now()
+	if t < proto.NewTimestampFromTime(now)-a.maxTransactionTimeForwardOffset {
+		ts = proto.NewTimestampFromTime(now) - a.maxTransactionTimeForwardOffset
 	}
 
 	bi, err := a.state.MapR(func(info state.StateInfo) (interface{}, error) {
@@ -52,7 +61,7 @@ func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k
 		if err != nil {
 			return nil, err
 		}
-		b, err := MineBlock(v, nxt, k, validatedFeatured, t, parent, a.reward, a.services.Scheme)
+		b, err := MineBlock(v, nxt, k, validatedFeatured, ts, parent, a.reward, a.services.Scheme)
 		if err != nil {
 			return nil, err
 		}
