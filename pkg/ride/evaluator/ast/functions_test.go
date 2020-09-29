@@ -248,25 +248,6 @@ func TestNativeThrow(t *testing.T) {
 	}
 }
 
-func TestNativeBooleanToBytes(t *testing.T) {
-	rs1, err := NativeBooleanToBytes(newEmptyScopeV1(), Params(NewBoolean(true)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte{1}), rs1)
-	rs2, err := NativeBooleanToBytes(newEmptyScopeV1(), Params(NewBoolean(false)))
-	require.NoError(t, err)
-	assert.Equal(t, NewBytes([]byte{0}), rs2)
-}
-
-func TestNativeBooleanToString(t *testing.T) {
-	rs1, err := NativeBooleanToString(newEmptyScopeV1(), Params(NewBoolean(true)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("true"), rs1)
-
-	rs2, err := NativeBooleanToString(newEmptyScopeV1(), Params(NewBoolean(false)))
-	require.NoError(t, err)
-	assert.Equal(t, NewString("false"), rs2)
-}
-
 func TestNativeAssetBalance_FromAddress(t *testing.T) {
 	addr, err := proto.NewAddressFromString("3N2YHKSnQTUmka4pocTt71HwSSAiUWBcojK")
 	require.NoError(t, err)
