@@ -14,19 +14,30 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func addressFromString(_ RideEnvironment, args ...rideType) (rideType, error) {
-	if err := checkArgs(args, 1); err != nil {
-		return nil, errors.Wrap(err, "addressFromString")
-	}
-	v, ok := args[0].(rideString)
-	if !ok {
-		return nil, errors.Errorf("addressFromString: unexpected argument type '%s'", args[0].instanceOf())
-	}
-	a, err := proto.NewAddressFromString(string(v))
+func addressFromString(env RideEnvironment, args ...rideType) (rideType, error) {
+	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "addressFromString")
 	}
+	a, err := proto.NewAddressFromString(string(s))
+	if err != nil {
+		return rideUnit{}, nil
+	}
+	if a[1] != env.scheme() {
+		return rideUnit{}, nil
+	}
 	return rideAddress(a), nil
+}
+
+func addressValueFromString(env RideEnvironment, args ...rideType) (rideType, error) {
+	r, err := addressFromString(env, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "addressValueFromString")
+	}
+	if _, ok := r.(rideUnit); ok {
+		return nil, Throw{Message: "failed to extract from Unit value"}
+	}
+	return r, nil
 }
 
 func transactionByID(env RideEnvironment, args ...rideType) (rideType, error) {
@@ -181,7 +192,7 @@ func sigVerify(env RideEnvironment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("sigVerify: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	if l := len(message); !env.checkMessageLength(l) {
+	if l := len(message); env != nil && !env.checkMessageLength(l) {
 		return nil, errors.Errorf("sigVerify: invalid message size %d", l)
 	}
 	signature, ok := args[1].(rideBytes)
@@ -204,10 +215,13 @@ func sigVerify(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func keccak256(_ RideEnvironment, args ...rideType) (rideType, error) {
+func keccak256(env RideEnvironment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256")
+	}
+	if l := len(data); env != nil && !env.checkMessageLength(l) {
+		return nil, errors.Errorf("keccak256: invalid data size %d", l)
 	}
 	d, err := crypto.Keccak256(data)
 	if err != nil {
@@ -216,10 +230,13 @@ func keccak256(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func blake2b256(_ RideEnvironment, args ...rideType) (rideType, error) {
+func blake2b256(env RideEnvironment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256")
+	}
+	if l := len(data); env != nil && !env.checkMessageLength(l) {
+		return nil, errors.Errorf("blake2b256: invalid data size %d", l)
 	}
 	d, err := crypto.FastHash(data)
 	if err != nil {
@@ -228,10 +245,13 @@ func blake2b256(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func sha256(_ RideEnvironment, args ...rideType) (rideType, error) {
+func sha256(env RideEnvironment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sha256")
+	}
+	if l := len(data); env != nil && !env.checkMessageLength(l) {
+		return nil, errors.Errorf("sha256: invalid data size %d", l)
 	}
 	h := sh256.New()
 	if _, err = h.Write(data); err != nil {
@@ -352,18 +372,15 @@ func transferByID(env RideEnvironment, args ...rideType) (rideType, error) {
 }
 
 func addressToString(env RideEnvironment, args ...rideType) (rideType, error) {
-	s, err := stringArg(args)
-	if err != nil {
+	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "addressToString")
 	}
-	addr, err := proto.NewAddressFromString(string(s))
-	if err != nil {
-		return rideUnit{}, nil
+	a, ok := args[0].(rideAddress)
+	if !ok {
+		return nil, errors.Errorf("addressToString: invalid argument type '%s'", args[0].instanceOf())
 	}
-	if addr[1] != env.scheme() {
-		return rideUnit{}, nil
-	}
-	return rideAddress(addr), nil
+	s := proto.Address(a).String()
+	return rideString(s), nil
 }
 
 func rsaVerify(_ RideEnvironment, args ...rideType) (rideType, error) {
@@ -467,7 +484,7 @@ func transferFromProtobuf(env RideEnvironment, args ...rideType) (rideType, erro
 	if err != nil {
 		return nil, errors.Wrap(err, "transferFromProtobuf")
 	}
-	var tx proto.TransferWithProofs
+	tx := new(proto.TransferWithProofs)
 	err = tx.UnmarshalSignedFromProtobuf(b)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferFromProtobuf")

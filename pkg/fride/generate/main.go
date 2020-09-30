@@ -197,7 +197,7 @@ func functionsV3() map[string]string {
 	m["@extrUser(getBoolean)"] = "booleanValueFromArrayByIndex"
 	m["@extrUser(getBinary)"] = "bytesValueFromArrayByIndex"
 	m["@extrUser(getString)"] = "stringValueFromArrayByIndex"
-	m["@extrUser(addressFromString)"] = "addressFromString"
+	m["@extrUser(addressFromString)"] = "addressValueFromString"
 	m["parseIntValue"] = "parseIntValue"
 	m["value"] = "value"
 	m["valueOrErrorMessage"] = "valueOrErrorMessage"

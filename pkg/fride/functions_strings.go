@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const maxRunesLength = 32767
+const maxMessageLength = 32 * 1024
 
 func stringArg(args []rideType) (rideString, error) {
 	if len(args) != 1 {
@@ -105,8 +105,8 @@ func concatStrings(_ RideEnvironment, args ...rideType) (rideType, error) {
 	}
 	out := s1 + s2
 	lengthInRunes := utf8.RuneCountInString(out)
-	if lengthInRunes > maxRunesLength {
-		return nil, errors.Errorf("concatStrings: length of result (%d) is greater than allowed (%d)", lengthInRunes, maxRunesLength)
+	if lengthInRunes > maxMessageLength {
+		return nil, errors.Errorf("concatStrings: length of result (%d) is greater than allowed (%d)", lengthInRunes, maxMessageLength)
 	}
 	return rideString(out), nil
 }
@@ -278,8 +278,8 @@ func makeString(_ RideEnvironment, args ...rideType) (rideType, error) {
 	if pc > 1 {
 		expectedLength = pl + (pc-1)*len(sep)
 	}
-	if expectedLength > maxRunesLength {
-		return nil, errors.Errorf("makeString: resulting length %d exceeds maximum allowed %d", expectedLength, maxRunesLength)
+	if expectedLength > maxMessageLength {
+		return nil, errors.Errorf("makeString: resulting length %d exceeds maximum allowed %d", expectedLength, maxMessageLength)
 	}
 	return rideString(strings.Join(parts, sep)), nil
 }

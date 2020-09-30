@@ -155,8 +155,10 @@ func (m *vm) run() (RideResult, error) {
 			}
 			return nil, errors.New("no result after script execution")
 		case OpGlobal:
-			//TODO: implement
-			//id := m.arg16()
+			id := m.arg16()
+			constructor := m.globals(id)
+			v := constructor(m.env)
+			m.push(v)
 		default:
 			return nil, errors.Errorf("unknown code %#x", op)
 		}

@@ -36,7 +36,7 @@ func TestConcatStrings(t *testing.T) {
 	}
 }
 
-func TestTakeStrings(t *testing.T) {
+func TestTakeString(t *testing.T) {
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -64,7 +64,7 @@ func TestTakeStrings(t *testing.T) {
 	}
 }
 
-func TestDropStrings(t *testing.T) {
+func TestDropString(t *testing.T) {
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -92,7 +92,7 @@ func TestDropStrings(t *testing.T) {
 	}
 }
 
-func TestSizeStrings(t *testing.T) {
+func TestSizeString(t *testing.T) {
 	for _, test := range []struct {
 		args []rideType
 		fail bool

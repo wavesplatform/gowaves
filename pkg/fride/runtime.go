@@ -228,7 +228,7 @@ func (a rideList) eq(other rideType) bool {
 
 type rideFunction func(env RideEnvironment, args ...rideType) (rideType, error)
 
-//go:generate moq -out runtime_test.go . RideEnvironment:MockRideEnvironment
+//go:generate moq -out runtime_moq_test.go . RideEnvironment:MockRideEnvironment
 type RideEnvironment interface {
 	scheme() byte
 	height() rideInt
