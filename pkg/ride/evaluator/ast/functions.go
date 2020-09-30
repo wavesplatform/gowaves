@@ -2741,7 +2741,7 @@ func limitedGroth16Verify(limit int) Callable {
 			return nil, errors.Errorf("%s: invalid size of inputs %d bytes, must not exceed %d bytes", fn, l, limit*32)
 		}
 		// TODO something is wrong, tests in functions_test.go:1654,1655 are not correct.
-		ok, err = crypto.Bn256{}.Groth16Verify(key.Value, proof.Value, inputs.Value)
+		ok, err = crypto.Dummy{}.Groth16Verify(key.Value, proof.Value, inputs.Value)
 		if err != nil {
 			return nil, errors.Wrap(err, fn)
 		}
