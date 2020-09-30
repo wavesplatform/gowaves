@@ -2,7 +2,7 @@ package bn256
 
 import (
 	"bytes"
-	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bn256/utils/bn254"
+	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bn256/utils/bn254" //nolint
 )
 
 type Proof struct {
