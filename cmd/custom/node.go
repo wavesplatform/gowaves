@@ -222,7 +222,7 @@ func main() {
 		Time:            ntptm,
 	}
 
-	Miner := miner.NewMicroblockMiner(services, features, reward)
+	Miner := miner.NewMicroblockMiner(services, features, reward, proto.NewTimestampFromUSeconds(outdateSeconds))
 	go miner.Run(ctx, Miner, scheduler, InternalCh)
 
 	n := node.NewNode(services, declAddr, declAddr, proto.NewTimestampFromUSeconds(outdateSeconds))
