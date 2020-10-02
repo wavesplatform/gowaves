@@ -40,6 +40,25 @@ func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm stat
 	return fsm, nil, nil
 }
 
+func PeersAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+	rs, err := services.Peers.KnownPeers()
+	if err != nil {
+		zap.L().Error("failed got known peers", zap.Error(err))
+		return fsm, nil, err
+	}
+	m := mess.Message.(*proto.PeersMessage).Peers
+	if len(m) == 0 {
+		return fsm, nil, nil
+	}
+	for _, p := range m {
+		rs = append(rs, proto.TCPAddr{
+			IP:   p.Addr,
+			Port: int(p.Port),
+		})
+	}
+	return fsm, nil, services.Peers.UpdateKnownPeers(rs)
+}
+
 func BlockAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	b := &proto.Block{}
 	err := b.UnmarshalBinary(mess.Message.(*proto.BlockMessage).BlockBytes, services.Scheme)
@@ -220,6 +239,7 @@ func CreateActions() map[reflect.Type]Action {
 	return map[reflect.Type]Action{
 		reflect.TypeOf(&proto.ScoreMessage{}):             ScoreAction,
 		reflect.TypeOf(&proto.GetPeersMessage{}):          GetPeersAction,
+		reflect.TypeOf(&proto.PeersMessage{}):             PeersAction,
 		reflect.TypeOf(&proto.BlockMessage{}):             BlockAction,
 		reflect.TypeOf(&proto.GetBlockMessage{}):          GetBlockAction,
 		reflect.TypeOf(&proto.SignaturesMessage{}):        SignaturesAction,
