@@ -14,9 +14,15 @@ import (
 	"go.uber.org/zap"
 )
 
+/**
+usage:
+go run cmd/genconfig/genconfig.go --scheme-byte=C --time-shift=-1h --seed=test1:100_000_000_000_000 > config.json
+*/
+
 type Cli struct {
 	SchemeByte string   `kong:"schemebyte,help='Scheme byte.',required"`
 	Seed       []string `kong:"seed,help='Seeds.',"`
+	TimeShift  string   `kong:"help='Format: +1h, -2h3s.',optional"`
 }
 
 func init() {
@@ -30,6 +36,15 @@ func main() {
 	kong.Parse(&cli)
 
 	t := proto.NewTimestampFromTime(time.Now())
+
+	if cli.TimeShift != "" {
+		d, err := time.ParseDuration(cli.TimeShift)
+		if err != nil {
+			zap.S().Fatal(err)
+			return
+		}
+		t = proto.NewTimestampFromTime(time.Now().Add(d))
+	}
 
 	inf := []interface{}{}
 	for _, v := range cli.Seed {
@@ -50,6 +65,7 @@ func main() {
 
 	s := *settings.DefaultCustomSettings
 	s.Genesis = *genesis
+	s.AddressSchemeCharacter = cli.SchemeByte[0]
 
 	js, err := json.Marshal(s)
 	if err != nil {
