@@ -221,7 +221,7 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 		}
 		return DAppResult(actions), nil
 	case rideList:
-		actions := make([]proto.ScriptAction, 0, len(res))
+		actions := make([]proto.ScriptAction, len(res))
 		for i, item := range res {
 			a, err := convertToAction(e.env, item)
 			if err != nil {

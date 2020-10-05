@@ -2565,3 +2565,55 @@ func TestJSONParsing(t *testing.T) {
 	require.True(t, ok)
 	assert.True(t, r.Result())
 }
+
+func TestDAppWithFullIssue(t *testing.T) {
+	code := "AAIEAAAAAAAAAAcIAhIDCgEIAAAAAAAAAAEAAAABaQEAAAAFaXNzdWUAAAABAAAABG5hbWUJAARMAAAAAgkABEMAAAAHBQAAAARuYW1lAgAAAAtkZXNjcmlwdGlvbgAAAAAAAAGGoAAAAAAAAAAAAgYFAAAABHVuaXQAAAAAAAAAAAAFAAAAA25pbAAAAABNz7Zz"
+	src, err := base64.StdEncoding.DecodeString(code)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	id := bytes.Repeat([]byte{0}, 32)
+	env := &MockRideEnvironment{
+		txIDFunc: func() rideType {
+			return rideBytes(id)
+		},
+	}
+	res, err := CallFunction(env, tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	assert.Equal(t, 1, len(r.ScriptActions()))
+	a := r.ScriptActions()[0]
+	issue, ok := a.(*proto.IssueScriptAction)
+	assert.True(t, ok)
+	assert.Equal(t, "xxx", issue.Name)
+}
+
+func TestDAppWithSimpleIssue(t *testing.T) {
+	code := "AAIEAAAAAAAAAAcIAhIDCgEIAAAAAAAAAAEAAAABaQEAAAAFaXNzdWUAAAABAAAABG5hbWUJAARMAAAAAgkABEIAAAAFBQAAAARuYW1lAgAAAAtkZXNjcmlwdGlvbgAAAAAAAAGGoAAAAAAAAAAAAgYFAAAAA25pbAAAAAAOKB/n"
+	src, err := base64.StdEncoding.DecodeString(code)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	id := bytes.Repeat([]byte{0}, 32)
+	env := &MockRideEnvironment{
+		txIDFunc: func() rideType {
+			return rideBytes(id)
+		},
+	}
+	res, err := CallFunction(env, tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	assert.Equal(t, 1, len(r.ScriptActions()))
+	a := r.ScriptActions()[0]
+	issue, ok := a.(*proto.IssueScriptAction)
+	assert.True(t, ok)
+	assert.Equal(t, "xxx", issue.Name)
+}

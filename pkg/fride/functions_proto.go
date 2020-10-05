@@ -580,7 +580,7 @@ func simplifiedIssue(_ RideEnvironment, args ...rideType) (rideType, error) {
 }
 
 func fullIssue(_ RideEnvironment, args ...rideType) (rideType, error) {
-	if err := checkArgs(args, 5); err != nil {
+	if err := checkArgs(args, 7); err != nil {
 		return nil, errors.Wrap(err, "simplifiedIssue")
 	}
 	name, ok := args[0].(rideString)
