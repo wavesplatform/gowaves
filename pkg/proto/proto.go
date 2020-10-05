@@ -835,7 +835,10 @@ func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 	length := U32(len(m.Peers))
 	c.W(length.WriteTo(buf))
 
-	for _, k := range m.Peers {
+	for i, k := range m.Peers {
+		if i >= 1000 {
+			break
+		}
 		c.W(k.WriteTo(buf))
 	}
 
