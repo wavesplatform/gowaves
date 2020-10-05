@@ -26,8 +26,12 @@ type IncomingPeerParams struct {
 }
 
 func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
-	c := params.Conn
 	ctx, cancel := context.WithCancel(ctx)
+	return runIncomingPeer(ctx, cancel, params)
+}
+
+func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params IncomingPeerParams) error {
+	c := params.Conn
 
 	readHandshake := proto.Handshake{}
 	_, err := readHandshake.ReadFrom(c)
