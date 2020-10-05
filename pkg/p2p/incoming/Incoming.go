@@ -27,6 +27,7 @@ type IncomingPeerParams struct {
 
 func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
 	c := params.Conn
+	ctx, cancel := context.WithCancel(ctx)
 
 	readHandshake := proto.Handshake{}
 	_, err := readHandshake.ReadFrom(c)
@@ -68,7 +69,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
 
 	remote := peer.NewRemote()
 	connection := conn.WrapConnection(c, params.Pool, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
-	peerImpl := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote)
+	peerImpl := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote, cancel)
 
 	out := peer.InfoMessage{
 		Peer: peerImpl,
