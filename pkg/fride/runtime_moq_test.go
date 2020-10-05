@@ -27,13 +27,16 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             heightFunc: func() rideInt {
 // 	               panic("mock out the height method")
 //             },
+//             invocationFunc: func() rideObject {
+// 	               panic("mock out the invocation method")
+//             },
 //             schemeFunc: func() byte {
 // 	               panic("mock out the scheme method")
 //             },
 //             stateFunc: func() types.SmartState {
 // 	               panic("mock out the state method")
 //             },
-//             thisFunc: func() rideObject {
+//             thisFunc: func() rideType {
 // 	               panic("mock out the this method")
 //             },
 //             transactionFunc: func() rideObject {
@@ -58,6 +61,9 @@ type MockRideEnvironment struct {
 	// heightFunc mocks the height method.
 	heightFunc func() rideInt
 
+	// invocationFunc mocks the invocation method.
+	invocationFunc func() rideObject
+
 	// schemeFunc mocks the scheme method.
 	schemeFunc func() byte
 
@@ -65,7 +71,7 @@ type MockRideEnvironment struct {
 	stateFunc func() types.SmartState
 
 	// thisFunc mocks the this method.
-	thisFunc func() rideObject
+	thisFunc func() rideType
 
 	// transactionFunc mocks the transaction method.
 	transactionFunc func() rideObject
@@ -86,6 +92,9 @@ type MockRideEnvironment struct {
 		// height holds details about calls to the height method.
 		height []struct {
 		}
+		// invocation holds details about calls to the invocation method.
+		invocation []struct {
+		}
 		// scheme holds details about calls to the scheme method.
 		scheme []struct {
 		}
@@ -105,6 +114,7 @@ type MockRideEnvironment struct {
 	lockblock              sync.RWMutex
 	lockcheckMessageLength sync.RWMutex
 	lockheight             sync.RWMutex
+	lockinvocation         sync.RWMutex
 	lockscheme             sync.RWMutex
 	lockstate              sync.RWMutex
 	lockthis               sync.RWMutex
@@ -195,6 +205,32 @@ func (mock *MockRideEnvironment) heightCalls() []struct {
 	return calls
 }
 
+// invocation calls invocationFunc.
+func (mock *MockRideEnvironment) invocation() rideObject {
+	if mock.invocationFunc == nil {
+		panic("MockRideEnvironment.invocationFunc: method is nil but RideEnvironment.invocation was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockinvocation.Lock()
+	mock.calls.invocation = append(mock.calls.invocation, callInfo)
+	mock.lockinvocation.Unlock()
+	return mock.invocationFunc()
+}
+
+// invocationCalls gets all the calls that were made to invocation.
+// Check the length with:
+//     len(mockedRideEnvironment.invocationCalls())
+func (mock *MockRideEnvironment) invocationCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockinvocation.RLock()
+	calls = mock.calls.invocation
+	mock.lockinvocation.RUnlock()
+	return calls
+}
+
 // scheme calls schemeFunc.
 func (mock *MockRideEnvironment) scheme() byte {
 	if mock.schemeFunc == nil {
@@ -248,7 +284,7 @@ func (mock *MockRideEnvironment) stateCalls() []struct {
 }
 
 // this calls thisFunc.
-func (mock *MockRideEnvironment) this() rideObject {
+func (mock *MockRideEnvironment) this() rideType {
 	if mock.thisFunc == nil {
 		panic("MockRideEnvironment.thisFunc: method is nil but RideEnvironment.this was just called")
 	}

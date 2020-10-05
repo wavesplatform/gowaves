@@ -62,7 +62,37 @@ type DAppScript struct {
 }
 
 func (s *DAppScript) Run(env RideEnvironment) (RideResult, error) {
-	return nil, errors.New("not implemented")
+	if _, ok := s.EntryPoints[""]; !ok {
+		return nil, errors.Errorf("no verifier")
+	}
+	fs, err := selectFunctions(s.LibVersion)
+	if err != nil {
+		return nil, errors.Wrap(err, "script execution failed")
+	}
+	gcs, err := selectConstants(s.LibVersion)
+	if err != nil {
+		return nil, errors.Wrap(err, "script execution failed")
+	}
+	np, err := selectFunctionNameProvider(s.LibVersion)
+	if err != nil {
+		return nil, errors.Wrap(err, "script execution failed")
+	}
+	m := vm{
+		env:          env,
+		code:         s.Code,
+		ip:           0,
+		constants:    s.Constants,
+		functions:    fs,
+		globals:      gcs,
+		stack:        make([]rideType, 0, 2),
+		calls:        make([]frame, 0, 2),
+		functionName: np,
+	}
+	r, err := m.run()
+	if err != nil {
+		return nil, errors.Wrap(err, "script execution failed")
+	}
+	return r, nil
 }
 
 func (s *DAppScript) code() []byte {

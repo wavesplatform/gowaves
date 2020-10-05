@@ -371,7 +371,7 @@ func transferByID(env RideEnvironment, args ...rideType) (rideType, error) {
 	return obj, nil
 }
 
-func addressToString(env RideEnvironment, args ...rideType) (rideType, error) {
+func addressToString(_ RideEnvironment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "addressToString")
 	}
@@ -501,6 +501,19 @@ func transferFromProtobuf(env RideEnvironment, args ...rideType) (rideType, erro
 	return obj, nil
 }
 
+func calcAssetID(env RideEnvironment, name, description rideString, decimals, quantity rideInt, reissuable rideBoolean, nonce rideInt) (rideBytes, error) {
+	pid, ok := env.txID().(rideBytes)
+	if !ok {
+		return nil, errors.New("calculateAssetID: no parent transaction ID found")
+	}
+	d, err := crypto.NewDigestFromBytes(pid)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateAssetID")
+	}
+	id := proto.GenerateIssueScriptActionID(string(name), string(description), int64(decimals), int64(quantity), bool(reissuable), int64(nonce), d)
+	return id.Bytes(), nil
+}
+
 func calculateAssetID(env RideEnvironment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "calculateAssetID")
@@ -511,14 +524,6 @@ func calculateAssetID(env RideEnvironment, args ...rideType) (rideType, error) {
 	issue, ok := args[0].(rideObject)
 	if !ok {
 		return nil, errors.New("calculateAssetID: not an object")
-	}
-	pid, ok := env.txID().(rideBytes)
-	if !ok {
-		return nil, errors.New("calculateAssetID: no parent transaction ID found")
-	}
-	d, err := crypto.NewDigestFromBytes(pid)
-	if err != nil {
-		return nil, errors.Wrap(err, "calculateAssetID")
 	}
 	name, err := stringProperty(issue, "name")
 	if err != nil {
@@ -544,9 +549,7 @@ func calculateAssetID(env RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "calculateAssetID")
 	}
-	id := proto.GenerateIssueScriptActionID(string(name), string(description), int64(decimals), int64(quantity),
-		bool(reissuable), int64(nonce), d)
-	return rideBytes(id.Bytes()), nil
+	return calcAssetID(env, name, description, decimals, quantity, reissuable, nonce)
 }
 
 func simplifiedIssue(_ RideEnvironment, args ...rideType) (rideType, error) {
@@ -934,8 +937,11 @@ func scriptTransfer(_ RideEnvironment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "scriptTransfer")
 	}
-	recipient, ok := args[0].(rideRecipient)
-	if !ok {
+	var recipient rideType
+	switch tr := args[0].(type) {
+	case rideRecipient, rideAlias, rideAddress:
+		recipient = tr
+	default:
 		return nil, errors.Errorf("scriptTransfer: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	amount, ok := args[1].(rideInt)

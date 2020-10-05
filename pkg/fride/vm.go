@@ -79,7 +79,11 @@ func (m *vm) run() (RideResult, error) {
 				return nil, errors.Wrap(err, "failed to get object")
 			}
 			prop := m.constant()
-			v, err := fetch(obj, prop)
+			p, ok := prop.(rideString)
+			if !ok {
+				return nil, errors.Errorf("invalid property name type '%s'", prop.instanceOf())
+			}
+			v, err := obj.get(string(p))
 			if err != nil {
 				return nil, err
 			}
@@ -126,6 +130,9 @@ func (m *vm) run() (RideResult, error) {
 			m.ip = pos // Continue to expression
 		case OpLoadLocal:
 			n := m.arg16()
+			for i := len(m.calls) - 1; i >= 0; i-- {
+
+			}
 			l := len(m.calls)
 			if l == 0 {
 				return nil, errors.New("failed to load argument on stack")

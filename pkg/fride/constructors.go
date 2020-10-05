@@ -11,30 +11,44 @@ func newTx(env RideEnvironment) rideType {
 	if env == nil {
 		return rideUnit{}
 	}
-	if env.transaction() == nil {
+	tx := env.transaction()
+	if tx == nil {
 		return rideUnit{}
 	}
-	return env.transaction()
+	return tx
 }
 
 func newLastBlock(env RideEnvironment) rideType {
 	if env == nil {
 		return rideUnit{}
 	}
-	if env.block() == nil {
+	b := env.block()
+	if b == nil {
 		return rideUnit{}
 	}
-	return env.block()
+	return b
 }
 
 func newThis(env RideEnvironment) rideType {
 	if env == nil {
 		return rideUnit{}
 	}
-	if env.this() == nil {
+	this := env.this()
+	if this == nil {
 		return rideUnit{}
 	}
-	return env.this()
+	return this
+}
+
+func newInvocation(env RideEnvironment) rideType {
+	if env == nil {
+		return rideUnit{}
+	}
+	inv := env.invocation()
+	if inv == nil {
+		return rideUnit{}
+	}
+	return inv
 }
 
 func newUnit(RideEnvironment) rideType {
@@ -42,5 +56,5 @@ func newUnit(RideEnvironment) rideType {
 }
 
 func newNil(RideEnvironment) rideType {
-	return nil
+	return rideList(nil)
 }

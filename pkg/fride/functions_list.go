@@ -231,8 +231,14 @@ func getList(_ RideEnvironment, args ...rideType) (rideType, error) {
 }
 
 func createList(_ RideEnvironment, args ...rideType) (rideType, error) {
-	if err := checkArgs(args, 2); err != nil {
-		return nil, errors.Wrap(err, "createList")
+	if len(args) != 2 {
+		return nil, errors.Errorf("createList: %d is invalid number of arguments, expected %d", len(args), 2)
+	}
+	if args[0] == nil {
+		return nil, errors.Errorf("createList: empty head")
+	}
+	if args[1] == nil {
+		return rideList{args[0]}, nil
 	}
 	tail, ok := args[1].(rideList)
 	if !ok {
@@ -478,8 +484,6 @@ func findItem(list rideList, key rideString, entryType, valueType string) (rideT
 			if o["key"].eq(key) {
 				return o["value"], nil
 			}
-		default:
-			return nil, errors.Errorf("unexpected type of list item '%s'", item.instanceOf())
 		}
 	}
 	return rideUnit{}, nil

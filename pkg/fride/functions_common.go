@@ -2,6 +2,8 @@ package fride
 
 import (
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const defaultThrowMessage = "Explicit script termination"
@@ -12,7 +14,7 @@ func checkArgs(args []rideType, count int) error {
 	}
 	for n, arg := range args {
 		if arg == nil {
-			return errors.Errorf("argument %d is empty", n)
+			return errors.Errorf("argument %d is empty", n+1)
 		}
 	}
 	return nil
@@ -109,10 +111,38 @@ func valueOrElse(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return args[0], nil
 }
 
-func stringProperty(obj rideObject, key string) (rideString, error) {
-	p, ok := obj[rideString(key)]
+func bytesProperty(obj rideType, key string) (rideBytes, error) {
+	p, err := obj.get(key)
+	if err != nil {
+		return nil, err
+	}
+	r, ok := p.(rideBytes)
 	if !ok {
-		return "", errors.Errorf("property '%s' not found", key)
+		return nil, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
+	}
+	return r, nil
+}
+
+func digestProperty(obj rideType, key string) (crypto.Digest, error) {
+	p, err := obj.get(key)
+	if err != nil {
+		return crypto.Digest{}, err
+	}
+	b, ok := p.(rideBytes)
+	if !ok {
+		return crypto.Digest{}, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
+	}
+	r, err := crypto.NewDigestFromBytes(b)
+	if err != nil {
+		return crypto.Digest{}, err
+	}
+	return r, nil
+}
+
+func stringProperty(obj rideType, key string) (rideString, error) {
+	p, err := obj.get(key)
+	if err != nil {
+		return "", err
 	}
 	r, ok := p.(rideString)
 	if !ok {
@@ -121,10 +151,10 @@ func stringProperty(obj rideObject, key string) (rideString, error) {
 	return r, nil
 }
 
-func intProperty(obj rideObject, key string) (rideInt, error) {
-	p, ok := obj[rideString(key)]
-	if !ok {
-		return 0, errors.Errorf("property '%s' not found", key)
+func intProperty(obj rideType, key string) (rideInt, error) {
+	p, err := obj.get(key)
+	if err != nil {
+		return 0, err
 	}
 	r, ok := p.(rideInt)
 	if !ok {
@@ -133,16 +163,54 @@ func intProperty(obj rideObject, key string) (rideInt, error) {
 	return r, nil
 }
 
-func booleanProperty(obj rideObject, key string) (rideBoolean, error) {
-	p, ok := obj[rideString(key)]
-	if !ok {
-		return false, errors.Errorf("property '%s' not found", key)
+func booleanProperty(obj rideType, key string) (rideBoolean, error) {
+	p, err := obj.get(key)
+	if err != nil {
+		return false, err
 	}
 	r, ok := p.(rideBoolean)
 	if !ok {
 		return false, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
 	}
 	return r, nil
+}
+
+func optionalAssetProperty(obj rideType, key string) (proto.OptionalAsset, error) {
+	p, err := obj.get(key)
+	if err != nil {
+		return proto.OptionalAsset{}, err
+	}
+	switch v := p.(type) {
+	case rideUnit:
+		return proto.OptionalAsset{Present: false}, nil
+	case rideBytes:
+		a, err := proto.NewOptionalAssetFromBytes(v)
+		if err != nil {
+			return proto.OptionalAsset{}, err
+		}
+		return *a, nil
+	default:
+		return proto.OptionalAsset{}, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
+	}
+}
+
+func recipientProperty(obj rideType, key string) (proto.Recipient, error) {
+	p, err := obj.get(key)
+	if err != nil {
+		return proto.Recipient{}, err
+	}
+	var recipient proto.Recipient
+	switch tp := p.(type) {
+	case rideRecipient:
+		recipient = proto.Recipient(tp)
+	case rideAddress:
+		recipient = proto.NewRecipientFromAddress(proto.Address(tp))
+	case rideAlias:
+		recipient = proto.NewRecipientFromAlias(proto.Alias(tp))
+	default:
+		return proto.Recipient{}, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
+	}
+	return recipient, nil
 }
 
 func extractValue(v rideType) (rideType, error) {

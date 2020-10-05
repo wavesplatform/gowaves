@@ -115,8 +115,12 @@ func (c *compiler) compileDAppScript(tree *Tree) (*DAppScript, error) {
 		if err != nil {
 			return nil, err
 		}
+		functions[""] = callable{
+			entryPoint:    0,
+			parameterName: v.invocationParameter,
+		}
 	}
-	// All declarations goes here after public functions and verifier
+	// All declarations goes here after verifier and public functions
 	for _, d := range c.declarations {
 		pos := bb.Len()
 		c.patcher.setOrigin(d.buffer(), pos)
@@ -435,6 +439,12 @@ func (c *compiler) pushFunction(name string, args []string, node Node, annex *ri
 	if err != nil {
 		return err
 	}
+	for range args {
+		err := c.popValue()
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -445,12 +455,6 @@ func (c *compiler) popFunction() error {
 	}
 	var f *localFunction
 	f, c.functions = c.functions[l-1], c.functions[:l-1]
-	for range f.args {
-		err := c.popValue()
-		if err != nil {
-			return err
-		}
-	}
 	c.declarations = append(c.declarations, f)
 	return nil
 }
@@ -461,12 +465,6 @@ func (c *compiler) peekFunction() error {
 		return errors.New("failed to peek function from empty stack")
 	}
 	f := c.functions[l-1]
-	for range f.args {
-		err := c.popValue()
-		if err != nil {
-			return err
-		}
-	}
 	c.declarations = append(c.declarations, f)
 	return nil
 }

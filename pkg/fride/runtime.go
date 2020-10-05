@@ -21,6 +21,7 @@ func (a Throw) Error() string {
 type rideType interface {
 	instanceOf() string
 	eq(other rideType) bool
+	get(prop string) (rideType, error)
 }
 
 type rideBoolean bool
@@ -36,6 +37,10 @@ func (b rideBoolean) eq(other rideType) bool {
 	return false
 }
 
+func (b rideBoolean) get(prop string) (rideType, error) {
+	return nil, errors.Errorf("type '%s' has no property '%s'", b.instanceOf(), prop)
+}
+
 type rideInt int64
 
 func (l rideInt) instanceOf() string {
@@ -47,6 +52,10 @@ func (l rideInt) eq(other rideType) bool {
 		return l == o
 	}
 	return false
+}
+
+func (l rideInt) get(prop string) (rideType, error) {
+	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
 }
 
 type rideString string
@@ -62,6 +71,10 @@ func (s rideString) eq(other rideType) bool {
 	return false
 }
 
+func (s rideString) get(prop string) (rideType, error) {
+	return nil, errors.Errorf("type '%s' has no property '%s'", s.instanceOf(), prop)
+}
+
 type rideBytes []byte
 
 func (b rideBytes) instanceOf() string {
@@ -75,7 +88,11 @@ func (b rideBytes) eq(other rideType) bool {
 	return false
 }
 
-type rideObject map[rideString]rideType
+func (b rideBytes) get(prop string) (rideType, error) {
+	return nil, errors.Errorf("type '%s' has no property '%s'", b.instanceOf(), prop)
+}
+
+type rideObject map[string]rideType
 
 func (o rideObject) instanceOf() string {
 	if s, ok := o[instanceFieldName].(rideString); ok {
@@ -100,6 +117,14 @@ func (o rideObject) eq(other rideType) bool {
 	return false
 }
 
+func (o rideObject) get(prop string) (rideType, error) {
+	v, ok := o[prop]
+	if !ok {
+		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
+	}
+	return v, nil
+}
+
 type rideAddress proto.Address
 
 func (a rideAddress) instanceOf() string {
@@ -116,6 +141,15 @@ func (a rideAddress) eq(other rideType) bool {
 		return o.Address != nil && bytes.Equal(a[:], o.Address[:])
 	default:
 		return false
+	}
+}
+
+func (a rideAddress) get(prop string) (rideType, error) {
+	switch prop {
+	case "bytes":
+		return rideBytes(a[:]), nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 	}
 }
 
@@ -138,6 +172,15 @@ func (a rideAddressLike) eq(other rideType) bool {
 	}
 }
 
+func (a rideAddressLike) get(prop string) (rideType, error) {
+	switch prop {
+	case "bytes":
+		return rideBytes(a[:]), nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
+	}
+}
+
 type rideRecipient proto.Recipient
 
 func (a rideRecipient) instanceOf() string {
@@ -154,6 +197,23 @@ func (a rideRecipient) eq(other rideType) bool {
 		return a.Address != nil && bytes.Equal(a.Address[:], o[:])
 	default:
 		return false
+	}
+}
+
+func (a rideRecipient) get(prop string) (rideType, error) {
+	switch prop {
+	case "bytes":
+		if a.Address != nil {
+			return rideBytes(a.Address[:]), nil
+		}
+		return rideUnit{}, nil
+	case "alias":
+		if a.Alias != nil {
+			return rideAlias(*a.Alias), nil
+		}
+		return rideUnit{}, nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 	}
 }
 
@@ -179,6 +239,15 @@ func (a rideAlias) eq(other rideType) bool {
 	}
 }
 
+func (a rideAlias) get(prop string) (rideType, error) {
+	switch prop {
+	case "alias":
+		return rideString(a.Alias), nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
+	}
+}
+
 type rideUnit struct{}
 
 func (a rideUnit) instanceOf() string {
@@ -187,6 +256,10 @@ func (a rideUnit) instanceOf() string {
 
 func (a rideUnit) eq(other rideType) bool {
 	return a.instanceOf() == other.instanceOf()
+}
+
+func (a rideUnit) get(prop string) (rideType, error) {
+	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
 type rideNamedType struct {
@@ -199,6 +272,10 @@ func (a rideNamedType) instanceOf() string {
 
 func (a rideNamedType) eq(other rideType) bool {
 	return a.instanceOf() == other.instanceOf()
+}
+
+func (a rideNamedType) get(prop string) (rideType, error) {
+	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
 type rideList []rideType
@@ -226,6 +303,10 @@ func (a rideList) eq(other rideType) bool {
 	return true
 }
 
+func (a rideList) get(prop string) (rideType, error) {
+	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
+}
+
 type rideFunction func(env RideEnvironment, args ...rideType) (rideType, error)
 
 //go:generate moq -out runtime_moq_test.go . RideEnvironment:MockRideEnvironment
@@ -233,26 +314,12 @@ type RideEnvironment interface {
 	scheme() byte
 	height() rideInt
 	transaction() rideObject
-	this() rideObject
+	this() rideType
 	block() rideObject
 	txID() rideType // Invoke transaction ID
 	state() types.SmartState
 	checkMessageLength(int) bool
+	invocation() rideObject // Invocation object made of invoke transaction
 }
 
 type rideConstructor func(RideEnvironment) rideType
-
-func fetch(from rideType, prop rideType) (rideType, error) {
-	obj, ok := from.(rideObject)
-	if ok {
-		name, ok := prop.(rideString)
-		if !ok {
-			return nil, errors.Errorf("unable to fetch by property of invalid type '%T'", prop)
-		}
-		prop, ok := obj[name]
-		if ok {
-			return prop, nil
-		}
-	}
-	return nil, errors.Errorf("unable to fetch from non object type '%T'", from)
-}

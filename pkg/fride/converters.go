@@ -85,30 +85,37 @@ func fullAssetInfoToObject(info proto.FullAssetInfo) rideObject {
 	return obj
 }
 
-func blockHeaderToObject(_ byte, _ *proto.BlockHeader, _ proto.Height) (rideObject, error) {
-	return nil, errors.New("not implemented")
+func blockInfoToObject(info proto.BlockInfo) rideObject {
+	r := make(rideObject)
+	r[instanceFieldName] = rideString("BlockInfo")
+	r["timestamp"] = rideInt(info.Timestamp)
+	r["height"] = rideInt(info.Height)
+	r["baseTarget"] = rideInt(info.BaseTarget)
+	r["generationSignature"] = rideBytes(common.Dup(info.GenerationSignature.Bytes()))
+	r["generator"] = rideBytes(common.Dup(info.Generator.Bytes()))
+	r["generatorPublicKey"] = rideBytes(common.Dup(info.GeneratorPublicKey.Bytes()))
+	r["vfr"] = rideUnit{}
+	if len(info.VRF) > 0 {
+		r["vrf"] = rideBytes(common.Dup(info.VRF.Bytes()))
+	}
+	return r
 }
 
-//func transferToObject(scheme byte, tx *proto.Transaction) (rideObject, error) {
-//switch t := tx.(type) {
-//case *proto.TransferWithProofs:
-//	rs, err := transferTonewVariablesFromTransferWithProofs(s.Scheme(), t)
-//	if err != nil {
-//		return nil, errors.Wrap(err, funcName)
-//	}
-//	return NewObject(rs), nil
-//case *proto.TransferWithSig:
-//	rs, err := newVariablesFromTransferWithSig(s.Scheme(), t)
-//	if err != nil {
-//		return nil, errors.Wrap(err, funcName)
-//	}
-//	return NewObject(rs), nil
-//default:
-//	return rideUnit{}, nil
-//}
-
-//return nil, errors.New("not implemented")
-//}
+func blockHeaderToObject(_ byte, header *proto.BlockHeader, _ proto.Height) (rideObject, error) {
+	//TODO: implement
+	r := make(rideObject)
+	r["timestamp"] = rideInt(header.Timestamp)
+	r["height"] = rideInt(header.Height)
+	r["baseTarget"] = rideInt(header.BaseTarget)
+	r["generationSignature"] = rideBytes(common.Dup(header.GenSignature.Bytes()))
+	//r["generator"] = rideBytes(common.Dup(header.geGenerator.Bytes()))
+	r["generatorPublicKey"] = rideBytes(common.Dup(header.GenPublicKey.Bytes()))
+	r["vfr"] = rideUnit{}
+	//if len(header..VRF) > 0 {
+	//	r["vrf"] = rideBytes(common.Dup(info.VRF.Bytes()))
+	//}
+	return r, nil
+}
 
 func genesisToObject(scheme byte, tx *proto.Genesis) (rideObject, error) {
 	body, err := proto.MarshalTxBody(scheme, tx)
@@ -200,6 +207,9 @@ func issueWithProofsToObject(scheme byte, tx *proto.IssueWithProofs) (rideObject
 	r["decimals"] = rideInt(tx.Decimals)
 	r["reissuable"] = rideBoolean(tx.Reissuable)
 	r["script"] = rideUnit{}
+	if tx.NonEmptyScript() {
+		r["script"] = rideBytes(common.Dup(tx.Script))
+	}
 	r["fee"] = rideInt(tx.Fee)
 	r["timestamp"] = rideInt(tx.Timestamp)
 	r["bodyBytes"] = rideBytes(body)
@@ -667,15 +677,20 @@ func massTransferWithProofsToObject(scheme byte, tx *proto.MassTransferWithProof
 
 func dataEntryToObject(entry proto.DataEntry) rideType {
 	r := make(rideObject)
+	r[instanceFieldName] = rideString("DataEntry")
 	r["key"] = rideString(entry.GetKey())
 	switch e := entry.(type) {
 	case *proto.IntegerDataEntry:
+		r[instanceFieldName] = rideString("IntegerEntry")
 		r["value"] = rideInt(e.Value)
 	case *proto.BooleanDataEntry:
+		r[instanceFieldName] = rideString("BooleanEntry")
 		r["value"] = rideBoolean(e.Value)
 	case *proto.BinaryDataEntry:
+		r[instanceFieldName] = rideString("BinaryEntry")
 		r["value"] = rideBytes(e.Value)
 	case *proto.StringDataEntry:
+		r[instanceFieldName] = rideString("StringEntry")
 		r["value"] = rideString(e.Value)
 	default:
 		return rideUnit{}
@@ -882,8 +897,320 @@ func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWit
 	return r, nil
 }
 
+func convertArgument(arg proto.Argument) (rideType, error) {
+	switch a := arg.(type) {
+	case *proto.IntegerArgument:
+		return rideInt(a.Value), nil
+	case *proto.BooleanArgument:
+		return rideBoolean(a.Value), nil
+	case *proto.StringArgument:
+		return rideString(a.Value), nil
+	case *proto.BinaryArgument:
+		return rideBytes(a.Value), nil
+	case *proto.ListArgument:
+		r := make(rideList, len(a.Items))
+		for i, item := range a.Items {
+			var err error
+			r[i], err = convertArgument(item)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to convert argument")
+			}
+		}
+		return r, nil
+	default:
+		return nil, errors.Errorf("unknown argument type %T", arg)
+	}
+}
+
+func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (rideObject, error) {
+	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, err
+	}
+	r := make(rideObject)
+	r[instanceFieldName] = rideString("Invocation")
+	r["transactionId"] = rideBytes(tx.ID.Bytes())
+	r["caller"] = rideAddress(sender)
+	r["callerPublicKey"] = rideBytes(common.Dup(tx.SenderPK.Bytes()))
+	switch v {
+	case 4:
+		payments := make(rideList, len(tx.Payments))
+		for i, p := range tx.Payments {
+			payments[i] = attachedPaymentToObject(p)
+		}
+		r["payments"] = payments
+	default:
+		r["payment"] = rideUnit{}
+		if len(tx.Payments) > 0 {
+			r["payment"] = attachedPaymentToObject(tx.Payments[0])
+		}
+	}
+	r["feeAssetId"] = optionalAsset(tx.FeeAsset)
+	r["fee"] = rideInt(tx.Fee)
+	return r, nil
+}
+
 func balanceDetailsToObject(_ *proto.FullWavesBalance) (rideObject, error) {
 	return nil, errors.New("not implemented")
+}
+
+func objectToActions(env RideEnvironment, obj rideType) ([]proto.ScriptAction, error) {
+	switch obj.instanceOf() {
+	case "WriteSet":
+		data, err := obj.get("data")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert WriteSet to actions")
+		}
+		list, ok := data.(rideList)
+		if !ok {
+			return nil, errors.Errorf("data is not a list")
+		}
+		res := make([]proto.ScriptAction, len(list))
+		for i, entry := range list {
+			action, err := convertToAction(env, entry)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to convert item %d of type '%s'", i+1, entry.instanceOf())
+			}
+			res[i] = action
+		}
+		return res, nil
+
+	case "TransferSet":
+		transfers, err := obj.get("transfers")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert TransferSet to actions")
+		}
+		list, ok := transfers.(rideList)
+		if !ok {
+			return nil, errors.Errorf("transfers is not a list")
+		}
+		res := make([]proto.ScriptAction, len(list))
+		for i, transfer := range list {
+			action, err := convertToAction(env, transfer)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to convert transfer %d of type '%s'", i+1, transfer.instanceOf())
+			}
+			res[i] = action
+		}
+		return res, nil
+
+	case "ScriptResult":
+		actions := make([]proto.ScriptAction, 0)
+		writes, err := obj.get("writeSet")
+		if err != nil {
+			return nil, errors.Wrap(err, "ScriptResult has no writes")
+		}
+		transfers, err := obj.get("transferSet")
+		if err != nil {
+			return nil, errors.Wrap(err, "ScriptResult has no transfers")
+		}
+		wa, err := objectToActions(env, writes)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert writes to ScriptActions")
+		}
+		actions = append(actions, wa...)
+		ta, err := objectToActions(env, transfers)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert transfers to ScriptActions")
+		}
+		actions = append(actions, ta...)
+		return actions, nil
+	default:
+		return nil, errors.Errorf("unexpected type '%s'", obj.instanceOf())
+	}
+}
+
+func getKeyProperty(v rideType) (string, error) {
+	k, err := v.get("key")
+	if err != nil {
+		return "", err
+	}
+	key, ok := k.(rideString)
+	if !ok {
+		return "", errors.Errorf("property is not a String")
+	}
+	return string(key), nil
+}
+
+func convertToAction(env RideEnvironment, obj rideType) (proto.ScriptAction, error) {
+	switch obj.instanceOf() {
+	case "Burn":
+		id, err := digestProperty(obj, "assetId")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Burn to ScriptAction")
+		}
+		quantity, err := intProperty(obj, "quantity")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Burn to ScriptAction")
+		}
+		return &proto.BurnScriptAction{AssetID: id, Quantity: int64(quantity)}, nil
+	case "BinaryEntry":
+		key, err := getKeyProperty(obj)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert BinaryEntry to ScriptAction")
+		}
+		b, err := bytesProperty(obj, "value")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert BinaryEntry to ScriptAction")
+		}
+		return &proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: key, Value: b}}, nil
+	case "BooleanEntry":
+		key, err := getKeyProperty(obj)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert BooleanEntry to ScriptAction")
+		}
+		b, err := booleanProperty(obj, "value")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert BooleanEntry to ScriptAction")
+		}
+		return &proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: key, Value: bool(b)}}, nil
+	case "DeleteEntry":
+		key, err := getKeyProperty(obj)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert DeleteEntry to ScriptAction")
+		}
+		return &proto.DataEntryScriptAction{Entry: &proto.DeleteDataEntry{Key: key}}, nil
+	case "IntegerEntry":
+		key, err := getKeyProperty(obj)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert IntegerEntry to ScriptAction")
+		}
+		i, err := intProperty(obj, "value")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert IntegerEntry to ScriptAction")
+		}
+		return &proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: key, Value: int64(i)}}, nil
+	case "StringEntry":
+		key, err := getKeyProperty(obj)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert StringEntry to ScriptAction")
+		}
+		s, err := stringProperty(obj, "value")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert StringEntry to ScriptAction")
+		}
+		return &proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: key, Value: string(s)}}, nil
+	case "DataEntry":
+		key, err := getKeyProperty(obj)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert DataEntry to ScriptAction")
+		}
+		v, err := obj.get("value")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert DataEntry to ScriptAction")
+		}
+		switch tv := v.(type) {
+		case rideInt:
+			return &proto.DataEntryScriptAction{Entry: &proto.IntegerDataEntry{Key: key, Value: int64(tv)}}, nil
+		case rideBoolean:
+			return &proto.DataEntryScriptAction{Entry: &proto.BooleanDataEntry{Key: key, Value: bool(tv)}}, nil
+		case rideString:
+			return &proto.DataEntryScriptAction{Entry: &proto.StringDataEntry{Key: key, Value: string(tv)}}, nil
+		case rideBytes:
+			return &proto.DataEntryScriptAction{Entry: &proto.BinaryDataEntry{Key: key, Value: tv}}, nil
+		default:
+			return nil, errors.Errorf("unexpected type of DataEntry '%s'", v.instanceOf())
+		}
+	case "Issue":
+		parent := env.txID()
+		if parent.instanceOf() == "Unit" {
+			return nil, errors.New("empty parent for IssueExpr")
+		}
+		name, err := stringProperty(obj, "name")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Issue to ScriptAction")
+		}
+		description, err := stringProperty(obj, "description")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Issue to ScriptAction")
+		}
+		decimals, err := intProperty(obj, "decimals")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Issue to ScriptAction")
+		}
+		quantity, err := intProperty(obj, "quantity")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Issue to ScriptAction")
+		}
+		reissuable, err := booleanProperty(obj, "isReissuable")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Issue to ScriptAction")
+		}
+		nonce, err := intProperty(obj, "nonce")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Issue to ScriptAction")
+		}
+		id, err := calcAssetID(env, name, description, decimals, quantity, reissuable, nonce)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Issue to ScriptAction")
+		}
+		d, err := crypto.NewDigestFromBytes(id)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Issue to ScriptAction")
+		}
+		return &proto.IssueScriptAction{
+			ID:          d,
+			Name:        string(name),
+			Description: string(description),
+			Quantity:    int64(quantity),
+			Decimals:    int32(decimals),
+			Reissuable:  bool(reissuable),
+			Script:      nil,
+			Nonce:       int64(nonce),
+		}, nil
+	case "Reissue":
+		id, err := digestProperty(obj, "assetId")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Reissue to ScriptAction")
+		}
+		quantity, err := intProperty(obj, "quantity")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Reissue to ScriptAction")
+		}
+		reissuable, err := booleanProperty(obj, "isReissuable")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Reissue to ScriptAction")
+		}
+		return &proto.ReissueScriptAction{
+			AssetID:    id,
+			Quantity:   int64(quantity),
+			Reissuable: bool(reissuable),
+		}, nil
+	case "ScriptTransfer":
+		recipient, err := recipientProperty(obj, "recipient")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
+		}
+		amount, err := intProperty(obj, "amount")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
+		}
+		asset, err := optionalAssetProperty(obj, "asset")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
+		}
+		return &proto.TransferScriptAction{
+			Recipient: recipient,
+			Amount:    int64(amount),
+			Asset:     asset,
+		}, nil
+	case "SponsorFee":
+		id, err := digestProperty(obj, "assetId")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert SponsorFee to ScriptAction")
+		}
+		fee, err := intProperty(obj, "minSponsoredAssetFee")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert SponsorFee to ScriptAction")
+		}
+		return &proto.SponsorshipScriptAction{
+			AssetID: id,
+			MinFee:  int64(fee),
+		}, nil
+
+	default:
+		return nil, errors.Errorf("unexpected type '%s'", obj.instanceOf())
+	}
 }
 
 func optionalAsset(o proto.OptionalAsset) rideType {
@@ -898,10 +1225,10 @@ func signatureToProofs(sig *crypto.Signature) rideList {
 	if sig != nil {
 		r[0] = rideBytes(sig.Bytes())
 	} else {
-		r[0] = make(rideBytes, 0)
+		r[0] = rideBytes(nil)
 	}
 	for i := 1; i < 8; i++ {
-		r[i] = make(rideBytes, 0)
+		r[i] = rideBytes(nil)
 	}
 	return r
 }
@@ -914,7 +1241,7 @@ func proofs(proofs *proto.ProofsV1) rideList {
 			r[i] = rideBytes(common.Dup(proofs.Proofs[i].Bytes()))
 			continue
 		}
-		r[i] = make(rideBytes, 0)
+		r[i] = rideBytes(nil)
 	}
 	return r
 }
