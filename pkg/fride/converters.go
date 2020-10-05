@@ -64,7 +64,7 @@ func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) 
 	}
 }
 
-func assetInfoToObject(info proto.AssetInfo) rideObject {
+func assetInfoToObject(info *proto.AssetInfo) rideObject {
 	obj := make(rideObject)
 	obj[instanceFieldName] = rideString("Asset")
 	obj["id"] = rideBytes(info.ID.Bytes())
@@ -78,14 +78,14 @@ func assetInfoToObject(info proto.AssetInfo) rideObject {
 	return obj
 }
 
-func fullAssetInfoToObject(info proto.FullAssetInfo) rideObject {
-	obj := assetInfoToObject(info.AssetInfo)
+func fullAssetInfoToObject(info *proto.FullAssetInfo) rideObject {
+	obj := assetInfoToObject(&info.AssetInfo)
 	obj["name"] = rideString(info.Name)
 	obj["description"] = rideString(info.Description)
 	return obj
 }
 
-func blockInfoToObject(info proto.BlockInfo) rideObject {
+func blockInfoToObject(info *proto.BlockInfo) rideObject {
 	r := make(rideObject)
 	r[instanceFieldName] = rideString("BlockInfo")
 	r["timestamp"] = rideInt(info.Timestamp)
@@ -950,6 +950,25 @@ func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (r
 	return r, nil
 }
 
+func scriptTransferToObject(tr *proto.FullScriptTransfer) rideObject {
+	r := make(rideObject)
+	r[instanceFieldName] = rideString("TransferTransaction")
+	r["version"] = rideUnit{}
+	r["id"] = rideBytes(tr.ID.Bytes())
+	r["sender"] = rideAddress(tr.Sender)
+	r["senderPublicKey"] = rideUnit{}
+	r["recipient"] = rideRecipient(tr.Recipient)
+	r["assetId"] = optionalAsset(tr.Asset)
+	r["amount"] = rideInt(tr.Amount)
+	r["feeAssetId"] = rideUnit{}
+	r["fee"] = rideUnit{}
+	r["timestamp"] = rideInt(tr.Timestamp)
+	r["attachment"] = rideUnit{}
+	r["bodyBytes"] = rideUnit{}
+	r["proofs"] = rideUnit{}
+	return r
+}
+
 func balanceDetailsToObject(_ *proto.FullWavesBalance) (rideObject, error) {
 	return nil, errors.New("not implemented")
 }
@@ -1211,6 +1230,44 @@ func convertToAction(env RideEnvironment, obj rideType) (proto.ScriptAction, err
 	default:
 		return nil, errors.Errorf("unexpected type '%s'", obj.instanceOf())
 	}
+}
+
+func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.PublicKey, id crypto.Digest, timestamp uint64) (rideObject, error) {
+	address, err := proto.NewAddressFromPublicKey(scheme, pk)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to convert action to object")
+	}
+	r := make(rideObject)
+	switch a := action.(type) {
+	case *proto.ReissueScriptAction:
+		r[instanceFieldName] = rideString("ReissueTransaction")
+		r["version"] = rideInt(0)
+		r["id"] = rideBytes(id.Bytes())
+		r["sender"] = rideAddress(address)
+		r["senderPublicKey"] = rideBytes(common.Dup(pk.Bytes()))
+		r["assetId"] = rideBytes(a.AssetID.Bytes())
+		r["quantity"] = rideInt(a.Quantity)
+		r["reissuable"] = rideBoolean(a.Reissuable)
+		r["fee"] = rideInt(0)
+		r["timestamp"] = rideInt(timestamp)
+		r["bodyBytes"] = rideUnit{}
+		r["proofs"] = rideUnit{}
+	case *proto.BurnScriptAction:
+		r[instanceFieldName] = rideString("BurnTransaction")
+		r["id"] = rideBytes(id.Bytes())
+		r["version"] = rideInt(0)
+		r["sender"] = rideAddress(address)
+		r["senderPublicKey"] = rideBytes(common.Dup(pk.Bytes()))
+		r["assetId"] = rideBytes(a.AssetID.Bytes())
+		r["quantity"] = rideInt(a.Quantity)
+		r["fee"] = rideInt(0)
+		r["timestamp"] = rideInt(timestamp)
+		r["bodyBytes"] = rideUnit{}
+		r["proofs"] = rideUnit{}
+	default:
+		return nil, errors.Errorf("unsupported script action '%T'", action)
+	}
+	return r, nil
 }
 
 func optionalAsset(o proto.OptionalAsset) rideType {

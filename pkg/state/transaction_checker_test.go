@@ -1,6 +1,7 @@
 package state
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -10,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -998,8 +998,10 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	scriptV3Path := filepath.Join(dir, "testdata", "scripts", "version3.base64")
 	scriptBase64, err := ioutil.ReadFile(scriptV3Path)
 	assert.NoError(t, err)
-	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
+	scriptBytes := make([]byte, base64.StdEncoding.DecodedLen(len(scriptBase64)))
+	n, err := base64.StdEncoding.Decode(scriptBytes, scriptBase64)
 	assert.NoError(t, err)
+	scriptBytes = scriptBytes[:n]
 	prevScript := tx.Script
 	tx.Script = scriptBytes
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
@@ -1011,8 +1013,10 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	complexScriptPath := filepath.Join(dir, "testdata", "scripts", "exceeds_complexity.base64")
 	scriptBase64, err = ioutil.ReadFile(complexScriptPath)
 	assert.NoError(t, err)
-	scriptBytes, err = reader.ScriptBytesFromBase64(scriptBase64)
+	scriptBytes = make([]byte, base64.StdEncoding.DecodedLen(len(scriptBase64)))
+	n, err = base64.StdEncoding.Decode(scriptBytes, scriptBase64)
 	assert.NoError(t, err)
+	scriptBytes = scriptBytes[:n]
 	tx.Script = scriptBytes
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkSetScriptWithProofs did not fail with Script that exceeds complexity limit")

@@ -35,7 +35,7 @@ func addressValueFromString(env RideEnvironment, args ...rideType) (rideType, er
 		return nil, errors.Wrap(err, "addressValueFromString")
 	}
 	if _, ok := r.(rideUnit); ok {
-		return nil, Throw{Message: "failed to extract from Unit value"}
+		return rideThrow("failed to extract from Unit value"), nil
 	}
 	return r, nil
 }
@@ -316,7 +316,7 @@ func assetInfoV3(env RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetInfoV3")
 	}
-	return assetInfoToObject(*info), nil
+	return assetInfoToObject(info), nil
 }
 
 func assetInfoV4(env RideEnvironment, args ...rideType) (rideType, error) {
@@ -332,7 +332,7 @@ func assetInfoV4(env RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetInfoV4")
 	}
-	return fullAssetInfoToObject(*info), nil
+	return fullAssetInfoToObject(info), nil
 }
 
 func blockInfoByHeight(env RideEnvironment, args ...rideType) (rideType, error) {

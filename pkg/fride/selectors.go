@@ -41,19 +41,19 @@ func selectFunctionNameProvider(v int) (func(int) string, error) {
 	}
 }
 
-func selectCostProvider(v int) (func(int) int, error) {
-	switch v {
-	case 1, 2:
-		return costV2, nil
-	case 3:
-		return costV3, nil
-	case 4:
-		return costV4, nil
-	default:
-		return nil, errors.Errorf("unsupported library version '%d'", v)
-	}
-}
-
+//func selectCostProvider(v int) (func(int) int, error) {
+//	switch v {
+//	case 1, 2:
+//		return costV2, nil
+//	case 3:
+//		return costV3, nil
+//	case 4:
+//		return costV4, nil
+//	default:
+//		return nil, errors.Errorf("unsupported library version '%d'", v)
+//	}
+//}
+//
 func selectConstants(v int) (func(int) rideConstructor, error) {
 	switch v {
 	case 1:

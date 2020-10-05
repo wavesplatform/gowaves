@@ -204,9 +204,9 @@ func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, ini
 	return scriptRuns
 }
 
-func errorForSmartAsset(res fride.ScriptResult, asset crypto.Digest) error {
+func errorForSmartAsset(res fride.RideResult, asset crypto.Digest) error {
 	var text string
-	if res.Throw {
+	if res.UserError() != "" {
 		text = fmt.Sprintf("Transaction is not allowed by token-script id %s: throw from asset script.", asset.String())
 	} else {
 		// scala compatible error message
@@ -234,7 +234,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 		if err != nil {
 			return proto.DAppError, info.failedChanges, errors.Errorf("failed to call asset %s script on payment: %v", smartAsset.String(), err)
 		}
-		if r.Failed() {
+		if !r.Result() {
 			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset(r, smartAsset)
 		}
 	}
@@ -295,7 +295,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				if err != nil {
 					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to call asset script on transfer set")
 				}
-				if res.Failed() {
+				if !res.Result() {
 					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(res, a.Asset.ID)
 				}
 			}
@@ -505,7 +505,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if err != nil {
 		return nil, errors.Wrap(err, "recipientToAddress() failed")
 	}
-	script, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
+	tree, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 	}
@@ -515,11 +515,11 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we done it before.
-	if len(tx.Payments) == 2 && script.Version < 4 {
-		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", script.Version)
+	if len(tx.Payments) == 2 && tree.LibVersion < 4 {
+		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
 	}
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
-	disableSelfTransfers := info.acceptFailed && script.Version >= 4
+	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
 	if disableSelfTransfers && len(tx.Payments) > 0 {
 		sender, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, tx.SenderPK)
 		if err != nil {
@@ -537,7 +537,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		return nil, err
 	}
 	// Call script function.
-	ok, scriptActions, err := ia.sc.invokeFunction(script, tx, info.blockInfo, *scriptAddr, info.initialisation)
+	ok, scriptActions, err := ia.sc.invokeFunction(tree, tx, info.blockInfo, *scriptAddr, info.initialisation)
 	if !ok {
 		// When ok is false, it means that we could not even start invocation.
 		// We just return error in such case.
@@ -654,19 +654,22 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 }
 
 func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
-	blockInfo *proto.BlockInfo, txID crypto.Digest, txTimestamp uint64, initialisation, acceptFailed bool) (bool, ast.Result, error) {
+	blockInfo *proto.BlockInfo, txID crypto.Digest, txTimestamp uint64, initialisation, acceptFailed bool) (bool, fride.RideResult, error) {
 	isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(asset, !initialisation)
 	if !isSmartAsset {
-		return true, ast.Result{}, nil
+		return true, nil, nil
 	}
-	obj, err := ast.NewVariablesFromScriptAction(ia.settings.AddressSchemeCharacter, action, callerPK, txID, txTimestamp)
+	env, err := fride.NewEnvironment(ia.settings.AddressSchemeCharacter, ia.state)
 	if err != nil {
-		return false, ast.Result{}, err
+		return false, nil, err
 	}
-	res, err := ia.sc.callAssetScriptCommon(obj, asset, blockInfo, initialisation, acceptFailed)
+	err = env.SetTransactionFromScriptAction(action, callerPK, txID, txTimestamp)
 	if err != nil {
-		return false, ast.Result{}, err
+		return false, nil, err
 	}
-	ok := !res.Failed()
-	return ok, res, nil
+	res, err := ia.sc.callAssetScriptCommon(env, asset, blockInfo, initialisation, acceptFailed)
+	if err != nil {
+		return false, nil, err
+	}
+	return res.Result(), res, nil
 }

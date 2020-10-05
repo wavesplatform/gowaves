@@ -5,8 +5,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
+	"github.com/wavesplatform/gowaves/pkg/fride"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -33,10 +33,6 @@ func newScriptCaller(
 	}, nil
 }
 
-func (a *scriptCaller) callVerifyScript(script ast.Script, obj map[string]ast.Expr, this, lastBlock ast.Expr) (ast.Result, error) {
-	return script.Verify(a.settings.AddressSchemeCharacter, a.state, obj, this, lastBlock)
-}
-
 func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
 	sender, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, order.GetSenderPK())
 	if err != nil {
@@ -46,25 +42,30 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	if err != nil {
 		return err
 	}
-	script, err := a.stor.scriptsStorage.newestScriptByAddr(sender, !initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(sender, !initialisation)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve account script")
 	}
-	obj, err := ast.NewVariablesFromOrder(a.settings.AddressSchemeCharacter, order)
+	env, err := fride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
+	if err != nil {
+		return errors.Wrap(err, "failed to create RIDE environment")
+	}
+	env.SetThisFromAddress(sender)
+	env.SetLastBlock(lastBlockInfo)
+	env.ChooseSizeCheck(tree.LibVersion)
+	err = env.SetTransactionFromOrder(order)
 	if err != nil {
 		return errors.Wrap(err, "failed to convert order")
 	}
-	this := ast.NewAddressFromProtoAddress(sender)
-	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	r, err := a.callVerifyScript(script, obj, this, lastBlock)
+	r, err := fride.CallVerifier(env, tree)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
 	}
-	if !r.Value {
+	if !r.Result() {
+		if r.UserError() != "" {
+			return errors.Errorf("account script on order '%s' thrown error with message: %s", base58.Encode(id), r.UserError())
+		}
 		return errors.Errorf("account script on order '%s' returned false result", base58.Encode(id))
-	}
-	if r.Throw {
-		return errors.Errorf("account script on order '%s' thrown error with message: %s", base58.Encode(id), r.Message)
 	}
 	// Increase complexity.
 	ev, err := a.state.EstimatorVersion()
@@ -84,7 +85,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	if err != nil {
 		return err
 	}
-	script, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !initialisation)
 	if err != nil {
 		return err
 	}
@@ -92,21 +93,25 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	if err != nil {
 		return err
 	}
-	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
-	if err != nil {
-		return err
-	}
-	this := ast.NewAddressFromProtoAddress(senderAddr)
-	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	r, err := a.callVerifyScript(script, obj, this, lastBlock)
+	env, err := fride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
-	if r.Failed() {
-		if !r.Value {
-			return errs.NewTransactionNotAllowedByScript(r.Error().Error(), nil)
+	env.SetThisFromAddress(senderAddr)
+	env.SetLastBlock(lastBlockInfo)
+	err = env.SetTransaction(tx)
+	if err != nil {
+		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
+	}
+	r, err := fride.CallVerifier(env, tree)
+	if err != nil {
+		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
+	}
+	if !r.Result() {
+		if r.UserError() != "" {
+			return errors.Errorf("account script on transaction '%s' failed with error: %v", base58.Encode(id), r.UserError())
 		}
-		return errors.Errorf("account script on transaction '%s' failed with error: %v", base58.Encode(id), r.Error())
+		return errs.NewTransactionNotAllowedByScript(r.UserError(), nil)
 	}
 	// Increase complexity.
 	ev, err := a.state.EstimatorVersion()
@@ -121,92 +126,85 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	return nil
 }
 
-func (a *scriptCaller) callAssetScriptCommon(
-	obj map[string]ast.Expr,
-	assetID crypto.Digest,
-	lastBlockInfo *proto.BlockInfo,
-	initialisation bool,
-	acceptFailed bool,
-) (ast.Result, error) {
-	script, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
+func (a *scriptCaller) callAssetScriptCommon(env *fride.Environment, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool, acceptFailed bool) (fride.RideResult, error) {
+	tree, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
 	if err != nil {
-		return ast.Result{}, err
+		return nil, err
 	}
-	var this ast.Expr
-	switch script.Version {
+	env.ChooseSizeCheck(tree.LibVersion)
+	switch tree.LibVersion {
 	case 4:
 		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
 		if err != nil {
-			return ast.Result{}, err
+			return nil, err
 		}
-		this = ast.NewObjectFromAssetInfoV4(*assetInfo)
+		env.SetThisFromFullAssetInfo(assetInfo)
 	default:
 		assetInfo, err := a.state.NewestAssetInfo(assetID)
 		if err != nil {
-			return ast.Result{}, err
+			return nil, err
 		}
-		this = ast.NewObjectFromAssetInfoV3(*assetInfo)
+		env.SetThisFromAssetInfo(assetInfo)
 	}
-	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	r, err := a.callVerifyScript(script, obj, this, lastBlock)
+	env.SetLastBlock(lastBlockInfo)
+	r, err := fride.CallVerifier(env, tree)
 	if err != nil {
-		return ast.Result{}, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
+		return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 	}
-	if r.Failed() && !acceptFailed {
-		if r.Throw {
-			return ast.Result{}, errors.Errorf("script failure on asset '%s' with error: %s", assetID.String(), r.Error())
-		}
-		if !r.Value {
-			return ast.Result{}, errs.NewTransactionNotAllowedByScript(r.Error().Error(), assetID.Bytes())
-		}
-		return ast.Result{}, errors.Errorf("script failure on asset '%s' with error: %s", assetID.String(), r.Error())
+	if !r.Result() && !acceptFailed {
+		return nil, errs.NewTransactionNotAllowedByScript(r.UserError(), assetID.Bytes())
 	}
 	// Increase complexity.
 	ev, err := a.state.EstimatorVersion()
 	if err != nil {
-		return ast.Result{}, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
+		return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 	}
 	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, ev, !initialisation)
 	if err != nil {
-		return ast.Result{}, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
+		return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 	}
 	a.recentTxComplexity += uint64(est.Verifier)
 	return r, nil
 }
 
-func (a *scriptCaller) callAssetScriptWithScriptTransfer(
-	tr *proto.FullScriptTransfer,
-	assetID crypto.Digest,
-	lastBlockInfo *proto.BlockInfo,
-	initialisation bool,
-	acceptFailed bool,
-) (ast.Result, error) {
-	obj, err := ast.NewVariablesFromScriptTransfer(tr)
+func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTransfer, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool, acceptFailed bool) (fride.RideResult, error) {
+	env, err := fride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
-		return ast.Result{}, errors.Wrap(err, "failed to convert transaction")
+		return nil, err
 	}
-	return a.callAssetScriptCommon(obj, assetID, lastBlockInfo, initialisation, acceptFailed)
+	env.SetTransactionFromScriptTransfer(tr)
+	return a.callAssetScriptCommon(env, assetID, lastBlockInfo, initialisation, acceptFailed)
 }
 
-func (a *scriptCaller) callAssetScript(
-	tx proto.Transaction,
-	assetID crypto.Digest,
-	lastBlockInfo *proto.BlockInfo,
-	initialisation bool,
-	acceptFailed bool,
-) (ast.Result, error) {
-	obj, err := ast.NewVariablesFromTransaction(a.settings.AddressSchemeCharacter, tx)
-	obj["proofs"] = ast.NewUnit() // Proofs are not accessible from asset's script
+func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool, acceptFailed bool) (fride.RideResult, error) {
+	env, err := fride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
-		return ast.Result{}, errors.Wrap(err, "failed to convert transaction")
+		return nil, err
 	}
-	return a.callAssetScriptCommon(obj, assetID, lastBlockInfo, initialisation, acceptFailed)
+	err = env.SetTransactionWithoutProofs(tx)
+	if err != nil {
+		return nil, err
+	}
+	return a.callAssetScriptCommon(env, assetID, lastBlockInfo, initialisation, acceptFailed)
 }
 
-func (a *scriptCaller) invokeFunction(script ast.Script, tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) (bool, []proto.ScriptAction, error) {
-	this := ast.NewAddressFromProtoAddress(scriptAddress)
-	lastBlock := ast.NewObjectFromBlockInfo(*lastBlockInfo)
-	_, actions, err := script.CallFunction(a.settings.AddressSchemeCharacter, a.state, tx, this, lastBlock)
+func (a *scriptCaller) invokeFunction(tree *fride.Tree, tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) (bool, []proto.ScriptAction, error) {
+	env, err := fride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
+	if err != nil {
+		return false, nil, errors.Wrap(err, "failed to create RIDE environment")
+	}
+	env.SetThisFromAddress(scriptAddress)
+	env.SetLastBlock(lastBlockInfo)
+	err = env.SetTransaction(tx)
+	if err != nil {
+		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+	}
+	err = env.SetInvoke(tx, tree.LibVersion)
+	if err != nil {
+		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+	}
+	env.ChooseSizeCheck(tree.LibVersion)
+	r, err := fride.CallFunction(env, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
@@ -228,7 +226,7 @@ func (a *scriptCaller) invokeFunction(script ast.Script, tx *proto.InvokeScriptW
 		return false, nil, errors.Errorf("no estimation for function '%s' on invocation of transaction '%s'", fn, tx.ID.String())
 	}
 	a.recentTxComplexity += uint64(c)
-	return ok, actions, nil
+	return r.Result(), r.ScriptActions(), nil
 }
 
 func (a *scriptCaller) getTotalComplexity() uint64 {

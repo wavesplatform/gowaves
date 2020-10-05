@@ -64,8 +64,8 @@ func TestAddressValueFromString(t *testing.T) {
 		r    rideType
 	}{
 		{[]rideType{rideString(ma.String())}, false, rideAddress(ma)},
-		{[]rideType{rideString("3MpV2xvvcWUcv8FLDKJ9ZRrQpEyF8nFwRUM")}, true, nil},
-		{[]rideType{rideString("fake address")}, true, nil},
+		{[]rideType{rideString("3MpV2xvvcWUcv8FLDKJ9ZRrQpEyF8nFwRUM")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideString("fake address")}, false, rideThrow("failed to extract from Unit value")},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{}, true, nil},
 		{[]rideType{rideInt(12345)}, true, nil},

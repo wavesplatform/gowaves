@@ -84,7 +84,7 @@ func TestExecution(t *testing.T) {
 		assert.NotNil(t, res, test.comment)
 		r, ok := res.(ScriptResult)
 		assert.True(t, ok, test.comment)
-		assert.Equal(t, test.res, bool(r), test.comment)
+		assert.Equal(t, test.res, r.Result(), test.comment)
 	}
 }
 
@@ -377,7 +377,7 @@ func TestFunctions(t *testing.T) {
 			assert.NotNil(t, res, test.name)
 			r, ok := res.(ScriptResult)
 			assert.True(t, ok, test.name)
-			assert.Equal(t, test.result, bool(r), test.name)
+			assert.Equal(t, test.result, r.Result(), test.name)
 		}
 	}
 }
@@ -395,7 +395,7 @@ func BenchmarkSimplestScript(b *testing.B) {
 		res, err := prg.Run(nil)
 		require.NoError(b, err)
 		r := res.(ScriptResult)
-		assert.True(b, bool(r))
+		assert.True(b, r.Result())
 	}
 }
 
@@ -425,7 +425,7 @@ func BenchmarkEval(b *testing.B) {
 		res, err := prg.Run(nil) //TODO: pass real value
 		require.NoError(b, err)
 		r := res.(ScriptResult)
-		assert.True(b, bool(r))
+		assert.True(b, r.Result())
 	}
 }
 

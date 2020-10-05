@@ -210,8 +210,10 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 		return nil, err
 	}
 	switch res := r.(type) {
+	case rideThrow:
+		return ScriptResult{msg: string(res), res: false}, nil
 	case rideBoolean:
-		return ScriptResult(res), nil
+		return ScriptResult{res: bool(res)}, nil
 	case rideObject:
 		actions, err := objectToActions(e.env, res)
 		if err != nil {
@@ -233,6 +235,10 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 	}
 }
 
+func isThrow(r rideType) bool {
+	return r.instanceOf() == "Throw"
+}
+
 func (e *treeEvaluator) walk(node Node) (rideType, error) {
 	switch n := node.(type) {
 	case *LongNode:
@@ -252,6 +258,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to estimate the condition of if")
 		}
+		if isThrow(ce) {
+			return ce, nil
+		}
 		cr, ok := ce.(rideBoolean)
 		if !ok {
 			return nil, errors.Errorf("not a boolean")
@@ -268,6 +277,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		r, err := e.walk(n.Block)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate block after declaration of variable '%s'", id)
+		}
+		if isThrow(r) {
+			return r, nil
 		}
 		err = e.s.popValue()
 		if err != nil {
@@ -292,6 +304,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to evaluate expression of scope value '%s'", id)
 			}
+			if isThrow(r) {
+				return r, nil
+			}
 			e.s.pushValue(id, r)
 			return r, nil
 		}
@@ -303,6 +318,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		r, err := e.walk(n.Block)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate block after declaration of function '%s'", id)
+		}
+		if isThrow(r) {
+			return r, nil
 		}
 		err = e.s.popUserFunction()
 		if err != nil {
@@ -319,6 +337,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 				a, err := e.walk(arg) // materialize argument
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, id)
+				}
+				if isThrow(a) {
+					return a, nil
 				}
 				args[i] = a
 			}
@@ -342,6 +363,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to materialize argument '%s' of user function '%s", an, id)
 			}
+			if isThrow(av) {
+				return av, nil
+			}
 			e.s.pushValue(an, av)
 			fs = append(fs, esValue{id: an, value: av})
 		}
@@ -358,6 +382,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		obj, err := e.walk(n.Object)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate an object to get property '%s' on it", name)
+		}
+		if isThrow(obj) {
+			return obj, nil
 		}
 		v, err := obj.get(name)
 		if err != nil {

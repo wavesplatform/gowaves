@@ -155,7 +155,7 @@ func (m *vm) run() (RideResult, error) {
 				}
 				switch tv := v.(type) {
 				case rideBoolean:
-					return ScriptResult(tv), nil
+					return ScriptResult{res: bool(tv)}, nil
 				default:
 					return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
 				}

@@ -82,7 +82,7 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 
 		r, ok := res.(ScriptResult)
 		assert.True(t, ok, test.comment)
-		assert.Equal(t, test.res, bool(r), test.comment)
+		assert.Equal(t, test.res, r.Result(), test.comment)
 	}
 }
 
@@ -230,7 +230,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		//
 		{"EQ", `5 == 5`, `AQkAAAAAAAACAAAAAAAAAAAFAAAAAAAAAAAFqWG0Fw==`, env, true, false},
 		{"ISINSTANCEOF", `match tx {case t : TransferTransaction => true case _  => false}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGB5yQ/+k=`, env, true, false},
-		{`THROW`, `true && throw("mess")`, `AQMGCQAAAgAAAAECAAAABG1lc3MH7PDwAQ==`, env, false, true},
+		{`THROW`, `true && throw("mess")`, `AQMGCQAAAgAAAAECAAAABG1lc3MH7PDwAQ==`, env, false, false},
 		{`SUM_LONG`, `1 + 1 > 0`, `AQkAAGYAAAACCQAAZAAAAAIAAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAABiJjSk`, env, true, false},
 		{`SUB_LONG`, `2 - 1 > 0`, `AQkAAGYAAAACCQAAZQAAAAIAAAAAAAAAAAIAAAAAAAAAAAEAAAAAAAAAAABqsps1`, env, true, false},
 		{`GT_LONG`, `1 > 0`, `AQkAAGYAAAACAAAAAAAAAAABAAAAAAAAAAAAyAIM4w==`, env, true, false},
@@ -332,7 +332,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			assert.NotNil(t, res, test.name)
 			r, ok := res.(ScriptResult)
 			assert.True(t, ok, test.name)
-			assert.Equal(t, test.result, bool(r), test.name)
+			assert.Equal(t, test.result, r.Result(), test.name)
 		}
 	}
 }
@@ -358,7 +358,7 @@ func TestOverlapping(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
-	assert.True(t, bool(r))
+	assert.True(t, r.Result())
 }
 
 func TestUserFunctionsInExpression(t *testing.T) {
@@ -381,7 +381,7 @@ func TestUserFunctionsInExpression(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
-	assert.True(t, bool(r))
+	assert.True(t, r.Result())
 }
 
 func TestDataFunctions(t *testing.T) {
@@ -406,6 +406,7 @@ func TestDataFunctions(t *testing.T) {
 	}))
 	require.NoError(t, data.Sign(proto.MainNetScheme, secret))
 	txObj, err := transactionToObject('W', data)
+	require.NoError(t, err)
 	env := &MockRideEnvironment{
 		transactionFunc: func() rideObject {
 			return txObj
@@ -441,7 +442,7 @@ func TestDataFunctions(t *testing.T) {
 		require.NoError(t, err, test.name)
 		r, ok := res.(ScriptResult)
 		require.True(t, ok, test.name)
-		assert.Equal(t, test.result, bool(r), test.name)
+		assert.Equal(t, test.result, r.Result(), test.name)
 	}
 }
 
@@ -644,7 +645,7 @@ func TestDappVerify(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
-	assert.False(t, bool(r))
+	assert.False(t, r.Result())
 }
 
 func TestDappVerifySuccessful(t *testing.T) {
@@ -676,7 +677,7 @@ func TestDappVerifySuccessful(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
-	assert.True(t, bool(r))
+	assert.True(t, r.Result())
 }
 
 func TestTransferSet(t *testing.T) {
@@ -851,7 +852,7 @@ func TestMatchOverwrite(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
-	assert.True(t, bool(r))
+	assert.True(t, r.Result())
 }
 
 func TestFailSript1(t *testing.T) {
@@ -910,7 +911,7 @@ func TestFailSript1(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
-	assert.True(t, bool(r))
+	assert.True(t, r.Result())
 }
 
 func TestFailSript2(t *testing.T) {
@@ -1022,7 +1023,7 @@ func TestFailSript2(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
-	assert.True(t, bool(r))
+	assert.True(t, r.Result())
 }
 
 func TestWhaleDApp(t *testing.T) {
@@ -1062,7 +1063,7 @@ func TestWhaleDApp(t *testing.T) {
 	gs := crypto.MustBytesFromBase58("8XgXc3Sh5KyscRs7YwuNy8YrrAS3bX4EeYpqczZf5Sxn")
 	gen, err := proto.NewAddressFromString("3P5hx8Lw6nCYgFkQcwHkFZQnwbfF7DfhyyP")
 	require.NoError(t, err)
-	blockInfo := proto.BlockInfo{
+	blockInfo := &proto.BlockInfo{
 		Timestamp:           1564703482444,
 		Height:              1642207,
 		BaseTarget:          80,
@@ -1194,7 +1195,7 @@ func TestExchangeDApp(t *testing.T) {
 	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3PMR8zZMswxrVdidk2mZAvRAXtJPSRJjt76")
 	require.NoError(t, err)
-	blockInfo := proto.BlockInfo{
+	blockInfo := &proto.BlockInfo{
 		Timestamp:           1566052715248,
 		Height:              1665137,
 		BaseTarget:          69,
@@ -1357,7 +1358,7 @@ func TestBankDApp(t *testing.T) {
 	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3PMR8zZMswxrVdidk2mZAvRAXtJPSRJjt76")
 	require.NoError(t, err)
-	blockInfo := proto.BlockInfo{
+	blockInfo := &proto.BlockInfo{
 		Timestamp:           1566052715248,
 		Height:              1665137,
 		BaseTarget:          69,
@@ -1484,7 +1485,7 @@ func TestLigaDApp1(t *testing.T) {
 	gs := crypto.MustBytesFromBase58("A9CAzLPzCzweUH4hBmaWHxNeqHDMipiEee8HphivNs4h")
 	gen, err := proto.NewAddressFromString("3NB1Yz7fH1bJ2gVDjyJnuyKNTdMFARkKEpV")
 	require.NoError(t, err)
-	blockInfo := proto.BlockInfo{
+	blockInfo := &proto.BlockInfo{
 		Timestamp:           1564398502318,
 		Height:              607280,
 		BaseTarget:          1155,
@@ -1637,7 +1638,7 @@ func TestLigaDApp1(t *testing.T) {
 	gs = crypto.MustBytesFromBase58("CDhrqb9p6x5V5dav1Kj1ffQjtrhUk6QVjiB6KPhbkeDs")
 	gen, err = proto.NewAddressFromString("3MxyKNmnQkVuDCG9AzMpixKCdUWXfMUsxdg")
 	require.NoError(t, err)
-	blockInfo = proto.BlockInfo{
+	blockInfo = &proto.BlockInfo{
 		Timestamp:           1564398522337,
 		Height:              607281,
 		BaseTarget:          1155,
@@ -1817,7 +1818,7 @@ func TestTestingDApp(t *testing.T) {
 	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
 	require.NoError(t, err)
-	blockInfo := proto.BlockInfo{
+	blockInfo := &proto.BlockInfo{
 		Timestamp:           1567938316714,
 		Height:              666972,
 		BaseTarget:          1550,
@@ -1940,7 +1941,7 @@ func TestDropElementDApp(t *testing.T) {
 	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
 	require.NoError(t, err)
-	blockInfo := proto.BlockInfo{
+	blockInfo := &proto.BlockInfo{
 		Timestamp:           1567938316714,
 		Height:              762110,
 		BaseTarget:          1550,
@@ -2056,7 +2057,7 @@ func TestMathDApp(t *testing.T) {
 	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
 	require.NoError(t, err)
-	blockInfo := proto.BlockInfo{
+	blockInfo := &proto.BlockInfo{
 		Timestamp:           1567938316714,
 		Height:              844761,
 		BaseTarget:          1550,
@@ -2170,7 +2171,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
 	require.NoError(t, err)
-	blockInfo := proto.BlockInfo{
+	blockInfo := &proto.BlockInfo{
 		Timestamp:           1567938316714,
 		Height:              844761,
 		BaseTarget:          1550,
@@ -2296,7 +2297,7 @@ func Test8Ball(t *testing.T) {
 	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
 	require.NoError(t, err)
-	blockInfo := proto.BlockInfo{
+	blockInfo := &proto.BlockInfo{
 		Timestamp:           1567938316714,
 		Height:              844761,
 		BaseTarget:          1550,
@@ -2419,7 +2420,7 @@ func TestIntegerEntry(t *testing.T) {
 	gs := crypto.MustBytesFromBase58("AWH9QVEnmN6VjRyEfs93UtAiCkwrNJ2phKYe25KFNCz")
 	gen, err := proto.NewAddressFromString("3MxTeL8dKLUGh9B1A2aaZxQ8BLL22bDdm6G")
 	require.NoError(t, err)
-	blockInfo := proto.BlockInfo{
+	blockInfo := &proto.BlockInfo{
 		Timestamp:           1567938316714,
 		Height:              844761,
 		BaseTarget:          1550,
@@ -2525,7 +2526,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
-	assert.True(t, bool(r))
+	assert.True(t, r.Result())
 
 	/*
 		{-# STDLIB_VERSION 4 #-}
@@ -2546,7 +2547,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 	require.NoError(t, err)
 	r, ok = res.(ScriptResult)
 	require.True(t, ok)
-	assert.True(t, bool(r))
+	assert.True(t, r.Result())
 }
 
 func TestJSONParsing(t *testing.T) {
@@ -2562,5 +2563,5 @@ func TestJSONParsing(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
-	assert.True(t, bool(r))
+	assert.True(t, r.Result())
 }
