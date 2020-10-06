@@ -577,3 +577,21 @@ func TestParsePacked(t *testing.T) {
 		require.EqualError(t, err, "GetBlockMessage: expected data at least 49, found 18")
 	})
 }
+
+func TestPeersMessage_Marshalling(t *testing.T) {
+	t.Run("Test overflow", func(t *testing.T) {
+		p := PeersMessage{}
+		for i := uint16(0); i < 1100; i++ {
+			p.Peers = append(p.Peers, PeerInfo{
+				Addr: net.ParseIP("127.0.0.1"),
+				Port: i,
+			})
+		}
+
+		buf := &bytes.Buffer{}
+		_, _ = p.WriteTo(buf)
+
+		p2 := PeersMessage{}
+		require.NoError(t, p2.UnmarshalBinary(buf.Bytes()))
+	})
+}
