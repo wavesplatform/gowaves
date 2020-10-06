@@ -3,6 +3,7 @@ package fride
 import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 type esConstant struct {
@@ -18,7 +19,7 @@ type esValue struct {
 
 type esFunction struct {
 	fn *FunctionDeclarationNode
-	fs []esValue
+	sp int
 }
 
 type evaluationScope struct {
@@ -59,14 +60,6 @@ func (s *evaluationScope) popValue() error {
 	return nil
 }
 
-func (s *evaluationScope) branch() []esValue {
-	vs := make([]esValue, len(s.values))
-	for i, v := range s.values {
-		vs[i] = v
-	}
-	return vs
-}
-
 func (s *evaluationScope) constant(id string) (rideType, bool) {
 	if c, ok := s.constants[id]; ok {
 		if c.value == nil {
@@ -79,19 +72,19 @@ func (s *evaluationScope) constant(id string) (rideType, bool) {
 	return nil, false
 }
 
-func (s *evaluationScope) value(id string) (esValue, error) {
+func (s *evaluationScope) value(id string) (esValue, bool) {
 	for i := len(s.values) - 1; i >= 0; i-- {
-		if s.values[i].id == id {
-			return s.values[i], nil
+		if v := s.values[i]; v.id == id {
+			return v, true
 		}
 	}
-	return esValue{}, errors.Errorf("value '%s' not found", id)
+	return esValue{}, false
 }
 
 func (s *evaluationScope) pushUserFunction(uf *FunctionDeclarationNode) {
 	s.user = append(s.user, esFunction{
 		fn: uf,
-		fs: s.branch(),
+		sp: len(s.values),
 	})
 }
 
@@ -104,14 +97,14 @@ func (s *evaluationScope) popUserFunction() error {
 	return nil
 }
 
-func (s *evaluationScope) userFunction(id string) (*FunctionDeclarationNode, []esValue, error) {
+func (s *evaluationScope) userFunction(id string) (*FunctionDeclarationNode, int, error) {
 	for i := len(s.user) - 1; i >= 0; i-- {
 		f := s.user[i]
 		if f.fn.Name == id {
-			return f.fn, f.fs, nil
+			return f.fn, f.sp, nil
 		}
 	}
-	return nil, nil, errors.Errorf("user function '%s' is not found", id)
+	return nil, 0, errors.Errorf("user function '%s' is not found", id)
 }
 
 func newEvaluationScope(v int, env RideEnvironment) (evaluationScope, error) {
@@ -289,12 +282,12 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 
 	case *ReferenceNode:
 		id := n.Name
-		if v, ok := e.s.constant(id); ok {
-			return v, nil
-		}
-		v, err := e.s.value(id)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get reference '%s'", id)
+		v, ok := e.s.value(id)
+		if !ok {
+			if v, ok := e.s.constant(id); ok {
+				return v, nil
+			}
+			return nil, errors.Errorf("value '%s' not found", id)
 		}
 		if v.value == nil {
 			if v.expression == nil {
@@ -349,14 +342,24 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			}
 			return r, nil
 		}
-		uf, fs, err := e.s.userFunction(id)
+		uf, fsp, err := e.s.userFunction(id)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to call function '%s'", id)
 		}
 		if len(n.Arguments) != len(uf.Arguments) {
 			return nil, errors.Errorf("mismatched arguments number of user function '%s'", id)
 		}
-		tmp := e.s.values
+		sp := len(e.s.values)
+		defer func() {
+			if len(e.s.values) < sp {
+				panic("broken stack")
+			}
+			e.s.values = e.s.values[:sp]
+		}()
+		for i := 0; i < fsp; i++ {
+			e.s.values = append(e.s.values, e.s.values[i])
+		}
+		args := make([]esValue, len(n.Arguments))
 		for i, arg := range n.Arguments {
 			an := uf.Arguments[i]
 			av, err := e.walk(arg) // materialize argument
@@ -366,15 +369,19 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			if isThrow(av) {
 				return av, nil
 			}
-			e.s.pushValue(an, av)
-			fs = append(fs, esValue{id: an, value: av})
+			args[i] = esValue{
+				id:         an,
+				value:      av,
+				expression: nil,
+			}
 		}
-		e.s.values = fs
+		for _, arg := range args {
+			e.s.values = append(e.s.values, arg)
+		}
 		r, err := e.walk(uf.Body)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", id)
 		}
-		e.s.values = tmp
 		return r, nil
 
 	case *PropertyNode:
@@ -397,6 +404,13 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 	}
 }
 
+func (e *treeEvaluator) printStack() {
+	zap.S().Warnf("STACK:")
+	for _, v := range e.s.values {
+		zap.S().Warnf("\tSV: %v; V: %v(%T)", v, v.value, v.value)
+	}
+}
+
 func treeVerifierEvaluator(env RideEnvironment, tree *Tree) (*treeEvaluator, error) {
 	s, err := newEvaluationScope(tree.LibVersion, env)
 	if err != nil {
@@ -414,7 +428,7 @@ func treeVerifierEvaluator(env RideEnvironment, tree *Tree) (*treeEvaluator, err
 					return nil, errors.Wrap(err, "invalid declaration")
 				}
 			}
-			s.constants[verifier.invocationParameter] = esConstant{c: newInvocation}
+			s.constants[verifier.invocationParameter] = esConstant{c: newTx}
 			return &treeEvaluator{
 				f:   verifier.Body, // In DApp verifier is a function, so we have to pass its body
 				s:   s,

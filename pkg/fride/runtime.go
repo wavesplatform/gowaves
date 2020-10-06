@@ -207,6 +207,8 @@ func (a rideRecipient) eq(other rideType) bool {
 		return a.Address == o.Address && a.Alias == o.Alias
 	case rideAddress:
 		return a.Address != nil && bytes.Equal(a.Address[:], o[:])
+	case rideAlias:
+		return a.Alias != nil && a.Alias.Alias == o.Alias
 	case rideBytes:
 		return a.Address != nil && bytes.Equal(a.Address[:], o[:])
 	default:

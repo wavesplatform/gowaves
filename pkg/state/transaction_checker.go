@@ -30,8 +30,19 @@ type checkerInfo struct {
 	currentTimestamp uint64
 	parentTimestamp  uint64
 	blockID          proto.BlockID
-	estimatorVersion int
+	blockVersion     proto.BlockVersion
 	height           uint64
+}
+
+func (i *checkerInfo) estimatorVersion() int {
+	switch i.blockVersion {
+	case proto.ProtoBlockVersion:
+		return 3
+	case proto.RewardBlockVersion:
+		return 2
+	default:
+		return 1
+	}
 }
 
 type transactionChecker struct {
@@ -365,7 +376,7 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 		// No script checks / actions are needed.
 		return nil, nil
 	}
-	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion)
+	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion())
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
@@ -974,7 +985,7 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 		}
 		return nil, nil
 	}
-	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion)
+	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion())
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
@@ -1013,7 +1024,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if !isSmartAsset {
 		return nil, errs.NewTxValidationError("Reason: Cannot set script on an asset issued without a script. Referenced assetId not found")
 	}
-	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion)
+	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion())
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}

@@ -7,10 +7,9 @@ import (
 	sh256 "crypto/sha256"
 	"crypto/x509"
 
-	c2 "github.com/wavesplatform/gowaves/pkg/fride/crypto"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	c2 "github.com/wavesplatform/gowaves/pkg/fride/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -345,7 +344,11 @@ func blockInfoByHeight(env RideEnvironment, args ...rideType) (rideType, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
-	obj, err := blockHeaderToObject(env.scheme(), header, height)
+	vrf, err := env.state().BlockVRF(header, height)
+	if err != nil {
+		return nil, errors.Wrap(err, "blockInfoByHeight")
+	}
+	obj, err := blockHeaderToObject(env.scheme(), header, vrf)
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}

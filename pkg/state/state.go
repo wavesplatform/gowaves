@@ -1531,7 +1531,7 @@ func (s *stateManager) VotesNum(featureID int16) (uint64, error) {
 }
 
 func (s *stateManager) IsActivated(featureID int16) (bool, error) {
-	activated, err := s.stor.features.isActivated(featureID)
+	activated, err := s.stor.features.newestIsActivated(featureID)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}

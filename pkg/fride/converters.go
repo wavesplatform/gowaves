@@ -101,26 +101,29 @@ func blockInfoToObject(info *proto.BlockInfo) rideObject {
 	return r
 }
 
-func blockHeaderToObject(_ byte, header *proto.BlockHeader, _ proto.Height) (rideObject, error) {
-	//TODO: implement
+func blockHeaderToObject(scheme byte, header *proto.BlockHeader, vrf []byte) (rideObject, error) {
+	address, err := proto.NewAddressFromPublicKey(scheme, header.GenPublicKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "blockHeaderToObject")
+	}
 	r := make(rideObject)
 	r["timestamp"] = rideInt(header.Timestamp)
 	r["height"] = rideInt(header.Height)
 	r["baseTarget"] = rideInt(header.BaseTarget)
 	r["generationSignature"] = rideBytes(common.Dup(header.GenSignature.Bytes()))
-	//r["generator"] = rideBytes(common.Dup(header.geGenerator.Bytes()))
+	r["generator"] = rideAddress(address)
 	r["generatorPublicKey"] = rideBytes(common.Dup(header.GenPublicKey.Bytes()))
 	r["vfr"] = rideUnit{}
-	//if len(header..VRF) > 0 {
-	//	r["vrf"] = rideBytes(common.Dup(info.VRF.Bytes()))
-	//}
+	if len(vrf) > 0 {
+		r["vrf"] = rideBytes(common.Dup(vrf))
+	}
 	return r, nil
 }
 
 func genesisToObject(scheme byte, tx *proto.Genesis) (rideObject, error) {
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return nil, errors.Wrap(err, "paymentToObject")
+		return nil, errors.Wrap(err, "genesisToObject")
 	}
 	r := make(rideObject)
 	r[instanceFieldName] = rideString("GenesisTransaction")
