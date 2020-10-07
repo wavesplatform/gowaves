@@ -832,13 +832,17 @@ func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 	buf := new(bytes.Buffer)
 
 	c := collect_writes.CollectInt64{}
-	length := U32(len(m.Peers))
+
+	peers := m.Peers
+
+	if len(peers) > 1000 {
+		peers = peers[:1000]
+	}
+
+	length := U32(len(peers))
 	c.W(length.WriteTo(buf))
 
-	for i, k := range m.Peers {
-		if i >= 1000 {
-			break
-		}
+	for _, k := range peers {
 		c.W(k.WriteTo(buf))
 	}
 
@@ -900,15 +904,16 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 	}
 	peersCount := binary.BigEndian.Uint32(data[0:4])
 	data = data[4:]
-	for i := uint32(0); i < peersCount; i += 8 {
+	for i := uint32(0); i < peersCount; i++ {
 		var peer PeerInfo
-		if uint32(len(data)) < i+8 {
-			return errors.New("PeersMessage UnmarshalBinary: invalid data size")
+		if uint32(len(data)) < 8 {
+			return errors.Errorf("PeersMessage UnmarshalBinary: invalid peers count: expected %d, found %d", peersCount, len(m.Peers))
 		}
-		if err := peer.UnmarshalBinary(data[i : i+8]); err != nil {
+		if err := peer.UnmarshalBinary(data[:8]); err != nil {
 			return err
 		}
 		m.Peers = append(m.Peers, peer)
+		data = data[8:]
 	}
 
 	return nil
