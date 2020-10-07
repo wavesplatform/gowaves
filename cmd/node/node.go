@@ -43,6 +43,8 @@ import (
 
 var version = proto.Version{Major: 1, Minor: 2, Patch: 3}
 
+const maxTransactionTimeForwardOffset = 300 // seconds
+
 var (
 	logLevel                              = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
 	statePath                             = flag.String("state-path", "", "Path to node's state directory")
@@ -50,6 +52,7 @@ var (
 	peerAddresses                         = flag.String("peers", "", "Addresses of peers to connect to")
 	declAddr                              = flag.String("declared-address", "", "Address to listen on")
 	nodeName                              = flag.String("name", "gowaves", "Node name.")
+	cfgPath                               = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
 	apiAddr                               = flag.String("api-address", "", "Address for REST API")
 	apiKey                                = flag.String("api-key", "", "Api key")
 	grpcAddr                              = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
@@ -61,12 +64,12 @@ var (
 	disableOutgoingConnections            = flag.Bool("no-connections", false, "Disable outgoing network connections to peers. Default value is false.")
 	minerVoteFeatures                     = flag.String("vote", "", "Miner vote features")
 	reward                                = flag.String("reward", "", "Miner reward: for example 600000000")
-	outdatePeriod                         = flag.String("outdate", "4h", "Interval after last block then generation is allowed. example 1d4h30m")
-	walletPath                            = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
-	walletPassword                        = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
-	limitConnectionsS                     = flag.String("limit-connections", "30", "N incoming and outgoing connections")
-	minPeersMining                        = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining")
-	disableMiner                          = flag.Bool("disable-miner", false, "Disable miner. Enabled by default")
+	outdatePeriod                         = flag.String("outdate", "4h", "Interval after last block then generation is allowed. Example 1d4h30m")
+	walletPath                            = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default.")
+	walletPassword                        = flag.String("wallet-password", "", "Pass password for wallet.")
+	limitConnectionsS                     = flag.String("limit-connections", "30", "N incoming and outgoing connections.")
+	minPeersMining                        = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining.")
+	disableMiner                          = flag.Bool("disable-miner", false, "Disable miner. Enabled by default.")
 	profiler                              = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
 	integrationGenesisSignature           = flag.String("integration.genesis.signature", "", "Integration. Genesis signature.")
 	integrationGenesisTimestamp           = flag.Int("integration.genesis.timestamp", 0, "??")
@@ -150,10 +153,22 @@ func main() {
 		cfg = applyIntegrationSettings(cfg)
 		zap.S().Debugf("cfg: %+v", cfg)
 	} else {
-		cfg, err = settings.BlockchainSettingsByTypeName(*blockchainType)
-		if err != nil {
-			zap.S().Error(err)
-			return
+		if *cfgPath != "" {
+			f, err := os.Open(*cfgPath)
+			if err != nil {
+				zap.S().Fatalf("Failed to open configuration file: %v", err)
+			}
+			defer func() { _ = f.Close() }()
+			cfg, err = settings.ReadBlockchainSettings(f)
+			if err != nil {
+				zap.S().Fatalf("Failed to read configuration file: %v", err)
+			}
+		} else {
+			cfg, err = settings.BlockchainSettingsByTypeName(*blockchainType)
+			if err != nil {
+				zap.S().Error(err)
+				return
+			}
 		}
 	}
 
@@ -313,7 +328,7 @@ func main() {
 		MinPeersMining:  *minPeersMining,
 	}
 
-	mine := miner.NewMicroblockMiner(services, features, reward)
+	mine := miner.NewMicroblockMiner(services, features, reward, maxTransactionTimeForwardOffset)
 	peerManager.SetConnectPeers(!*disableOutgoingConnections)
 	go miner.Run(ctx, mine, sched, services.InternalChannel)
 

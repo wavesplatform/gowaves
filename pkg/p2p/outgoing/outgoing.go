@@ -45,7 +45,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 	}
 	p.connection = connection
 
-	peerImpl := peer.NewPeerImpl(*handshake, connection, peer.Outgoing, remote)
+	peerImpl := peer.NewPeerImpl(*handshake, connection, peer.Outgoing, remote, cancel)
 
 	connected := peer.InfoMessage{
 		Peer: peerImpl,

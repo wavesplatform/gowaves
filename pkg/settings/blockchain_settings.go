@@ -108,6 +108,7 @@ var (
 			AverageBlockDelaySeconds:   60,
 			MaxBaseTarget:              math.MaxUint64,
 			MinUpdateAssetInfoInterval: 100000,
+			BlockRewardTerm:            100000,
 		},
 	}
 )
