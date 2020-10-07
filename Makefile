@@ -4,6 +4,8 @@ SOURCE=$(shell find . -name '*.go' | grep -v vendor/)
 SOURCE_DIRS = cmd pkg
 
 VERSION=$(shell git describe --tags --always --dirty)
+DEB_VER=$(shell git describe --tags --abbrev=0 | cut -c 2-)
+DEB_HASH=$(shell git rev-parse HEAD)
 
 export GO111MODULE=on
 
@@ -172,3 +174,71 @@ proto:
 
 build-integration-linux:
 	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/integration ./cmd/integration
+
+build-wmd-deb-package-linux:
+	@mkdir -p ./build/wmd/DEBIAN
+	@touch ./build/wmd/DEBIAN/control ./build/wmd/DEBIAN/preinst ./build/wmd/DEBIAN/postinst
+	@cp ./cmd/wmd/symbols.txt ./build/wmd
+	@cp ./build/bin/linux-amd64/wmd ./build/wmd
+	@chmod 0775 ./build/wmd/DEBIAN/control
+	@chmod 0775 ./build/wmd/DEBIAN/preinst
+	@chmod 0775 ./build/wmd/DEBIAN/postinst
+	@echo "Package: wmd\n\
+Version: ${DEB_VER}\n\
+Section: misc\n\
+Priority: extra\n\
+Architecture: all\n\
+Depends: bash\n\
+Essential: no\n\
+Maintainer: ${ORGANISATION}.com\n\
+Description: It is waves market data as systemd service. Hash: ${DEB_HASH}" >> ./build/wmd/DEBIAN/control
+	@echo "#!/bin/bash\n\
+# Creating directordy for logs and giving its rights\n\
+sudo mkdir /var/log/wmd\n\
+sudo chown syslog wmd\n\
+# Creating wmd.service file and put config to\n\
+touch wmd.service\n\
+echo \"[Unit]\n\
+Description=WMD\n\
+ConditionPathExists=/usr/share/wmd\n\
+After=network.target\n\
+[Service]\n\
+Type=simple\n\
+User=wmd\n\
+Group=wmd\n\
+LimitNOFILE=1024\n\
+Restart=on-failure\n\
+RestartSec=10\n\
+startLimitIntervalSec=60\n\
+WorkingDirectory=/usr/share/wmd\n\
+ExecStart=/usr/share/wmd/wmd -db /var/lib/wmd/ -address 0.0.0.0:6990 -node mainnet-aws-ir-1.wavesnodes.com:6870 -symbols /usr/share/wmd/symbols.txt -sync-interval 1\n\
+# make sure log directory exists and owned by syslog\n\
+PermissionsStartOnly=true\n\
+ExecStartPre=/bin/mkdir -p /var/log/wmd\n\
+ExecStartPre=/bin/chown syslog:adm /var/log/wmd\n\
+ExecStartPre=/bin/chmod 755 /var/log/wmd\n\
+StandardOutput=syslog\n\
+StandardError=syslog\n\
+SyslogIdentifier=wmd\n\
+[Install]\n\
+WantedBy=multi-user.target\" >> wmd.service\n\
+sudo useradd wmd -s /sbin/nologin -M\n\
+sudo mv wmd.service /lib/systemd/system/\n\
+sudo chmod 755 /lib/systemd/system/wmd.service\n\
+sudo mkdir /usr/share/wmd/\n\
+sudo chown wmd:wmd /usr/share/wmd\n\
+sudo mkdir /var/lib/wmd\n\
+sudo chown wmd:wmd /var/lib/wmd\n\
+sudo cp wmd /usr/share/wmd/\n\
+sudo cp symbols.txt /usr/share/wmd/\n\
+sudo systemctl enable wmd.service\n\
+sudo systemctl start wmd.service" >> ./build/wmd/DEBIAN/postinst
+	@echo "#!/bin/bash\n\
+sudo rm -f symbols.txt\n\
+sudo rm -f wmd" >> ./build/wmd/DEBIAN/preinst
+	@dpkg-deb --build ./build/wmd
+	@mv ./build/wmd.deb wmd_${VERSION}.deb
+	@mv wmd_${VERSION}.deb ./build/dist
+	@rm -rf ./build/wmd
+
+
