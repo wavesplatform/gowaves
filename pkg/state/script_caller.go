@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"go.uber.org/zap"
 )
 
 type scriptCaller struct {
@@ -207,6 +208,9 @@ func (a *scriptCaller) invokeFunction(tree *fride.Tree, tx *proto.InvokeScriptWi
 	r, err := fride.CallFunction(env, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+	}
+	if sr, ok := r.(fride.ScriptResult); ok {
+		zap.S().Warnf("invokeFunction: tx=%s; fn=%s -> r=%b, m=%s", tx.ID.String(), tx.FunctionCall.Name, sr.Result(), sr.UserError())
 	}
 	// Increase complexity.
 	ev, err := a.state.EstimatorVersion()

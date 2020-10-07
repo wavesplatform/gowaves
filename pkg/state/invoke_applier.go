@@ -12,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"go.uber.org/zap"
 )
 
 type invokeApplier struct {
@@ -541,8 +542,10 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if !ok {
 		// When ok is false, it means that we could not even start invocation.
 		// We just return error in such case.
+		zap.S().Warnf("applyInvokeScript: Exit 10: ok=%b, err=%v", ok, err)
 		return nil, errors.Wrap(err, "invokeFunction() failed")
-	} else if err != nil {
+	}
+	if err != nil {
 		// If ok is true, but error is not nil, it means that invocation has failed.
 		if !info.acceptFailed {
 			return nil, errors.Wrap(err, "invokeFunction() failed")
@@ -555,7 +558,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if info.senderScripted {
 		scriptRuns += 1
 	}
-	var res invocationResult
+	var res *invocationResult
 	code, changes, err := ia.fallibleValidation(tx, &addlInvokeInfo{
 		fallibleValidationParams: info,
 		scriptAddr:               scriptAddr,
@@ -571,7 +574,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		if !info.acceptFailed {
 			return nil, err
 		}
-		res = invocationResult{
+		res = &invocationResult{
 			failed:     true,
 			code:       code,
 			text:       err.Error(),
@@ -580,14 +583,14 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 			changes:    changes,
 		}
 	} else {
-		res = invocationResult{
+		res = &invocationResult{
 			failed:     false,
 			scriptRuns: scriptRuns,
 			actions:    scriptActions,
 			changes:    changes,
 		}
 	}
-	return ia.handleInvocationResult(tx, info, &res)
+	return ia.handleInvocationResult(tx, info, res)
 }
 
 type invocationResult struct {

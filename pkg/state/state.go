@@ -456,9 +456,11 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err := state.loadLastBlock(); err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	if err := state.checkProtobufActivation(); err != nil {
+	h, err := state.Height()
+	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
+	state.checkProtobufActivation(h + 1)
 	return state, nil
 }
 
@@ -563,16 +565,11 @@ func (s *stateManager) handleGenesisBlock(block proto.Block) error {
 	return nil
 }
 
-func (s *stateManager) checkProtobufActivation() error {
-	activated, err := s.stor.features.newestIsActivated(int16(settings.BlockV5))
-	if err != nil {
-		return errors.Errorf("newestIsActivated() failed: %v", err)
+func (s *stateManager) checkProtobufActivation(height uint64) {
+	activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockV5), height)
+	if activated {
+		s.rw.setProtobufActivated()
 	}
-	if !activated {
-		return nil
-	}
-	s.rw.setProtobufActivated()
-	return nil
 }
 
 func (s *stateManager) loadLastBlock() error {
@@ -594,7 +591,7 @@ func (s *stateManager) TopBlock() *proto.Block {
 
 func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
 	var vrf []byte = nil
-	if blockHeader.Version >= proto.ProtoBlockVersion {
+	if blockHeader.Version >= proto.ProtobufBlockVersion {
 		pos := &consensus.FairPosCalculatorV2{} // BlockV5 and FairPoSV2 are activated at the same time
 		gsp := &consensus.VRFGenerationSignatureProvider{}
 		hitSourceHeader, err := s.NewestHeaderByHeight(pos.HeightForHit(height))
@@ -1155,12 +1152,6 @@ func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID, _ bool
 	if err := s.stor.features.finishVoting(nextBlockHeight, blockID); err != nil {
 		return err
 	}
-	// Check if protobuf is now activated.
-	// blockReadWriter will mark current offset as
-	// start of protobuf-encoded objects.
-	if err := s.checkProtobufActivation(); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -1285,6 +1276,11 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		if err := s.addNewBlock(block, lastAppliedBlock, initialisation, chans, curHeight); err != nil {
 			return nil, err
 		}
+		if s.needToFinishVotingPeriod(params.blockchainHeight + 1) {
+			// If we need to finish voting period on the next block (h+1) then
+			// we have to check that protobuf will be activated on next block
+			s.checkProtobufActivation(params.blockchainHeight + 2)
+		}
 		headers[pos] = block.BlockHeader
 		pos++
 		ids = append(ids, block.BlockID())
@@ -1315,7 +1311,7 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		return nil, wrapErr(ModificationError, err)
 	}
 	zap.S().Infof(
-		"Height: %d; Block ID: %s, sig: %s, ts: %d",
+		"Height: %d; Block ID: %s, GenSig: %s, ts: %d",
 		height+uint64(blocksNumber),
 		lastAppliedBlock.BlockID().String(),
 		base58.Encode(lastAppliedBlock.GenSignature),
@@ -1491,8 +1487,8 @@ func (s *stateManager) ResetValidationList() {
 }
 
 // For UTX validation.
-func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, _ proto.BlockVersion, acceptFailed bool) error {
-	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, acceptFailed); err != nil {
+func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, acceptFailed bool) error {
+	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, acceptFailed); err != nil {
 		return err
 	}
 	return nil

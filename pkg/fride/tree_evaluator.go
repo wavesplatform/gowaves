@@ -3,7 +3,6 @@ package fride
 import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type esConstant struct {
@@ -25,9 +24,10 @@ type esFunction struct {
 type evaluationScope struct {
 	env       RideEnvironment
 	constants map[string]esConstant
-	values    []esValue
-	sfs       map[string]rideFunction
+	cs        [][]esValue
+	system    map[string]rideFunction
 	user      []esFunction
+	cl        int
 }
 
 func (s *evaluationScope) declare(n Node) error {
@@ -44,20 +44,15 @@ func (s *evaluationScope) declare(n Node) error {
 }
 
 func (s *evaluationScope) pushExpression(id string, n Node) {
-	s.values = append(s.values, esValue{id: id, expression: n})
+	s.cs[len(s.cs)-1] = append(s.cs[len(s.cs)-1], esValue{id: id, expression: n})
 }
 
 func (s *evaluationScope) pushValue(id string, v rideType) {
-	s.values = append(s.values, esValue{id: id, value: v})
+	s.cs[len(s.cs)-1] = append(s.cs[len(s.cs)-1], esValue{id: id, value: v})
 }
 
-func (s *evaluationScope) popValue() error {
-	l := len(s.values)
-	if l == 0 {
-		return errors.New("empty value scope")
-	}
-	s.values = s.values[:l-1]
-	return nil
+func (s *evaluationScope) popValue() {
+	s.cs[len(s.cs)-1] = s.cs[len(s.cs)-1][:len(s.cs[len(s.cs)-1])-1]
 }
 
 func (s *evaluationScope) constant(id string) (rideType, bool) {
@@ -72,9 +67,25 @@ func (s *evaluationScope) constant(id string) (rideType, bool) {
 	return nil, false
 }
 
+func lookup(s []esValue, id string) (esValue, bool) {
+	for i := len(s) - 1; i >= 0; i-- {
+		if v := s[i]; v.id == id {
+			return v, true
+		}
+	}
+	return esValue{}, false
+}
+
 func (s *evaluationScope) value(id string) (esValue, bool) {
-	for i := len(s.values) - 1; i >= 0; i-- {
-		if v := s.values[i]; v.id == id {
+	if p := len(s.cs) - 1; p >= 0 {
+		v, ok := lookup(s.cs[p], id)
+		if ok {
+			return v, true
+		}
+	}
+	for i := s.cl - 1; i >= 0; i-- {
+		v, ok := lookup(s.cs[i], id)
+		if ok {
 			return v, true
 		}
 	}
@@ -82,10 +93,7 @@ func (s *evaluationScope) value(id string) (esValue, bool) {
 }
 
 func (s *evaluationScope) pushUserFunction(uf *FunctionDeclarationNode) {
-	s.user = append(s.user, esFunction{
-		fn: uf,
-		sp: len(s.values),
-	})
+	s.user = append(s.user, esFunction{fn: uf, sp: len(s.cs)})
 }
 
 func (s *evaluationScope) popUserFunction() error {
@@ -99,9 +107,9 @@ func (s *evaluationScope) popUserFunction() error {
 
 func (s *evaluationScope) userFunction(id string) (*FunctionDeclarationNode, int, error) {
 	for i := len(s.user) - 1; i >= 0; i-- {
-		f := s.user[i]
-		if f.fn.Name == id {
-			return f.fn, f.sp, nil
+		uf := s.user[i]
+		if uf.fn.Name == id {
+			return uf.fn, uf.sp, nil
 		}
 	}
 	return nil, 0, errors.Errorf("user function '%s' is not found", id)
@@ -150,7 +158,8 @@ func newEvaluationScope(v int, env RideEnvironment) (evaluationScope, error) {
 	}
 	return evaluationScope{
 		constants: cs,
-		sfs:       fs,
+		system:    fs,
+		cs:        [][]esValue{make([]esValue, 0)},
 		env:       env,
 	}, nil
 }
@@ -274,10 +283,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		if isThrow(r) {
 			return r, nil
 		}
-		err = e.s.popValue()
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to evaluate declaration of variable '%s'", id)
-		}
+		e.s.popValue()
 		return r, nil
 
 	case *ReferenceNode:
@@ -323,7 +329,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 
 	case *FunctionCallNode:
 		id := n.Name
-		f, ok := e.s.sfs[id]
+		f, ok := e.s.system[id]
 		if ok { // System function
 			args := make([]rideType, len(n.Arguments))
 			for i, arg := range n.Arguments {
@@ -342,23 +348,15 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			}
 			return r, nil
 		}
-		uf, fsp, err := e.s.userFunction(id)
+		uf, cl, err := e.s.userFunction(id)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to call function '%s'", id)
 		}
 		if len(n.Arguments) != len(uf.Arguments) {
 			return nil, errors.Errorf("mismatched arguments number of user function '%s'", id)
 		}
-		sp := len(e.s.values)
-		defer func() {
-			if len(e.s.values) < sp {
-				panic("broken stack")
-			}
-			e.s.values = e.s.values[:sp]
-		}()
-		for i := 0; i < fsp; i++ {
-			e.s.values = append(e.s.values, e.s.values[i])
-		}
+		var tmp int
+		tmp, e.s.cl = e.s.cl, cl
 		args := make([]esValue, len(n.Arguments))
 		for i, arg := range n.Arguments {
 			an := uf.Arguments[i]
@@ -369,19 +367,18 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			if isThrow(av) {
 				return av, nil
 			}
-			args[i] = esValue{
-				id:         an,
-				value:      av,
-				expression: nil,
-			}
+			args[i] = esValue{id: an, value: av}
 		}
-		for _, arg := range args {
-			e.s.values = append(e.s.values, arg)
+		e.s.cs = append(e.s.cs, make([]esValue, len(args)))
+		for i, arg := range args {
+			e.s.cs[len(e.s.cs)-1][i] = arg
 		}
 		r, err := e.walk(uf.Body)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", id)
 		}
+		e.s.cs = e.s.cs[:len(e.s.cs)-1]
+		e.s.cl = tmp
 		return r, nil
 
 	case *PropertyNode:
@@ -401,13 +398,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 
 	default:
 		return nil, errors.Errorf("unsupported type of node '%T'", node)
-	}
-}
-
-func (e *treeEvaluator) printStack() {
-	zap.S().Warnf("STACK:")
-	for _, v := range e.s.values {
-		zap.S().Warnf("\tSV: %v; V: %v(%T)", v, v.value, v.value)
 	}
 }
 

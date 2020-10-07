@@ -91,7 +91,7 @@ func (a *MicroBlock) UnmarshalBinary(b []byte, scheme Scheme) error {
 		return errors.Wrap(err, "failed to unmarshal microblock version")
 	}
 
-	proto := a.VersionField >= byte(ProtoBlockVersion)
+	proto := a.VersionField >= byte(ProtobufBlockVersion)
 	if proto {
 		ref, err := d.Digest()
 		if err != nil {
@@ -190,7 +190,7 @@ func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, e
 	s.Bytes(a.TotalResBlockSigField[:])
 	s.Uint32(uint32(a.Transactions.BinarySize() + 4))
 	s.Uint32(a.TransactionCount)
-	proto := a.VersionField >= byte(ProtoBlockVersion)
+	proto := a.VersionField >= byte(ProtobufBlockVersion)
 	if _, err := a.Transactions.WriteTo(proto, scheme, s); err != nil {
 		return 0, err
 	}

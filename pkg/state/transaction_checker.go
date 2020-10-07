@@ -36,7 +36,7 @@ type checkerInfo struct {
 
 func (i *checkerInfo) estimatorVersion() int {
 	switch i.blockVersion {
-	case proto.ProtoBlockVersion:
+	case proto.ProtobufBlockVersion:
 		return 3
 	case proto.RewardBlockVersion:
 		return 2

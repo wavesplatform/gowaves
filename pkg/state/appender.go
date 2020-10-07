@@ -680,7 +680,7 @@ func (a *txAppender) handleFallible(tx proto.Transaction, info *fallibleValidati
 }
 
 // For UTX validation.
-func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, acceptFailed bool) error {
+func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, acceptFailed bool) error {
 	// TODO: Doesn't work correctly if miner doesn't work in NG mode.
 	// In this case it returns the last block instead of what is being mined.
 	block, err := a.currentBlock()
@@ -697,8 +697,8 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		currentTimestamp: currentTimestamp,
 		parentTimestamp:  parentTimestamp,
 		blockID:          block.BlockID(),
-		//blockVersion:     version,
-		height: blockInfo.Height,
+		blockVersion:     version,
+		height:           blockInfo.Height,
 	}
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {

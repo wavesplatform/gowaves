@@ -107,6 +107,7 @@ func blockHeaderToObject(scheme byte, header *proto.BlockHeader, vrf []byte) (ri
 		return nil, errors.Wrap(err, "blockHeaderToObject")
 	}
 	r := make(rideObject)
+	r[instanceFieldName] = rideString("BlockInfo")
 	r["timestamp"] = rideInt(header.Timestamp)
 	r["height"] = rideInt(header.Height)
 	r["baseTarget"] = rideInt(header.BaseTarget)

@@ -216,7 +216,7 @@ func (cv *ConsensusValidator) validBlockVersionAtHeight(blockchainHeight uint64)
 		return proto.GenesisBlockVersion, errors.Wrap(err, "IsActiveAtHeight failed")
 	}
 	if blockV5Activated {
-		return proto.ProtoBlockVersion, nil
+		return proto.ProtobufBlockVersion, nil
 	} else if blockRewardActivated {
 		return proto.RewardBlockVersion, nil
 	} else if blockchainHeight > cv.settings.BlockVersion3AfterHeight {
