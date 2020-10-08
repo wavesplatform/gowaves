@@ -9,7 +9,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 type scriptCaller struct {
@@ -210,7 +209,7 @@ func (a *scriptCaller) invokeFunction(tree *fride.Tree, tx *proto.InvokeScriptWi
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
 	if sr, ok := r.(fride.ScriptResult); ok {
-		zap.S().Warnf("invokeFunction: tx=%s; fn=%s -> r=%b, m=%s", tx.ID.String(), tx.FunctionCall.Name, sr.Result(), sr.UserError())
+		return false, nil, errors.Errorf("unexpected ScriptResult: %v", sr)
 	}
 	// Increase complexity.
 	ev, err := a.state.EstimatorVersion()
@@ -230,7 +229,11 @@ func (a *scriptCaller) invokeFunction(tree *fride.Tree, tx *proto.InvokeScriptWi
 		return false, nil, errors.Errorf("no estimation for function '%s' on invocation of transaction '%s'", fn, tx.ID.String())
 	}
 	a.recentTxComplexity += uint64(c)
-	return r.Result(), r.ScriptActions(), nil
+	err = nil
+	if !r.Result() { // Replace failure status with an error
+		err = errors.Errorf("call failed: %s", r.UserError())
+	}
+	return true, r.ScriptActions(), err
 }
 
 func (a *scriptCaller) getTotalComplexity() uint64 {

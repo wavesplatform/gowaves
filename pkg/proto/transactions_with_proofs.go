@@ -4589,8 +4589,8 @@ func (tx *InvokeScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, err
 		return nil, err
 	}
 	payments := make([]*g.Amount, len(tx.Payments))
-	for i, pmt := range tx.Payments {
-		payments[i] = &g.Amount{AssetId: pmt.Asset.ToID(), Amount: int64(pmt.Amount)}
+	for i := range tx.Payments {
+		payments[i] = &g.Amount{AssetId: tx.Payments[i].Asset.ToID(), Amount: int64(tx.Payments[i].Amount)}
 	}
 	rcpProto, err := tx.ScriptRecipient.ToProtobuf()
 	if err != nil {

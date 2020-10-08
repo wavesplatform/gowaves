@@ -793,9 +793,11 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	generating, err := s.NewestGeneratingBalance(account)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+	var generating uint64 = 0
+	gb, err := s.NewestGeneratingBalance(account)
+	if err == nil {
+		generating = gb
+		//return nil, wrapErr(RetrievalError, err)
 	}
 	return &proto.FullWavesBalance{
 		Regular:    profile.balance,

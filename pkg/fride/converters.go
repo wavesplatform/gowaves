@@ -830,20 +830,13 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	if err != nil {
 		return nil, errors.Wrap(err, "invokeScriptWithProofsToObject")
 	}
-	var args rideList
-	for _, arg := range tx.FunctionCall.Arguments {
-		switch t := arg.(type) {
-		case *proto.BooleanArgument:
-			args = append(args, rideBoolean(t.Value))
-		case *proto.IntegerArgument:
-			args = append(args, rideInt(t.Value))
-		case *proto.StringArgument:
-			args = append(args, rideString(t.Value))
-		case *proto.BinaryArgument:
-			args = append(args, rideBytes(common.Dup(t.Value)))
-		default:
-			return nil, errors.Errorf("invokeScriptWithProofsToObject: invalid argument type %T", arg)
+	args := make(rideList, len(tx.FunctionCall.Arguments))
+	for i, arg := range tx.FunctionCall.Arguments {
+		a, err := convertArgument(arg)
+		if err != nil {
+			return nil, errors.Wrap(err, "invokeScriptWithProofsToObject")
 		}
+		args[i] = a
 	}
 	r := make(rideObject)
 	r[instanceFieldName] = rideString("InvokeScriptTransaction")
@@ -973,8 +966,14 @@ func scriptTransferToObject(tr *proto.FullScriptTransfer) rideObject {
 	return r
 }
 
-func balanceDetailsToObject(_ *proto.FullWavesBalance) (rideObject, error) {
-	return nil, errors.New("not implemented")
+func balanceDetailsToObject(fwb *proto.FullWavesBalance) rideObject {
+	r := make(rideObject)
+	r[instanceFieldName] = rideString("BalanceDetails")
+	r["available"] = rideInt(fwb.Available)
+	r["regular"] = rideInt(fwb.Regular)
+	r["generating"] = rideInt(fwb.Generating)
+	r["effective"] = rideInt(fwb.Effective)
+	return r
 }
 
 func objectToActions(env RideEnvironment, obj rideType) ([]proto.ScriptAction, error) {
@@ -1209,13 +1208,15 @@ func convertToAction(env RideEnvironment, obj rideType) (proto.ScriptAction, err
 			return nil, errors.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
 		}
 		asset, err := optionalAssetProperty(obj, "asset")
+		invalidAsset := false
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
+			invalidAsset = true
 		}
 		return &proto.TransferScriptAction{
-			Recipient: recipient,
-			Amount:    int64(amount),
-			Asset:     asset,
+			Recipient:    recipient,
+			Amount:       int64(amount),
+			Asset:        asset,
+			InvalidAsset: invalidAsset,
 		}, nil
 	case "SponsorFee":
 		id, err := digestProperty(obj, "assetId")

@@ -286,7 +286,15 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 			isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(a.Asset.ID, !info.initialisation)
 			if isSmartAsset {
-				fullTr, err := proto.NewFullScriptTransfer(a, tx)
+				sender := tx.ScriptRecipient.Address
+				if sender == nil {
+					addr, err := recipientToAddress(tx.ScriptRecipient, ia.stor.aliases, !info.initialisation)
+					if err != nil {
+						return proto.DAppError, info.failedChanges, errors.Wrap(err, "fallibleValidation")
+					}
+					sender = addr
+				}
+				fullTr, err := proto.NewFullScriptTransfer(a, *sender, tx)
 				if err != nil {
 					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to convert transfer to full script transfer")
 				}

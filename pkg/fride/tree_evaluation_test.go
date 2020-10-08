@@ -517,9 +517,9 @@ func TestDappCallable(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	actions := []proto.ScriptAction(r)
+	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	require.EqualValues(t,
 		&proto.ScriptResult{
@@ -584,9 +584,9 @@ func TestDappDefaultFunc(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	actions := []proto.ScriptAction(r)
+	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	require.EqualValues(t,
 		&proto.ScriptResult{
@@ -709,7 +709,7 @@ func TestTransferSet(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	actions := []proto.ScriptAction(r)
+	require.True(t, r.res)
 
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
@@ -717,7 +717,7 @@ func TestTransferSet(t *testing.T) {
 		Asset:     proto.OptionalAsset{Present: false},
 	}
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	require.EqualValues(t,
 		&proto.ScriptResult{
@@ -761,9 +761,9 @@ func TestScriptResult(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	actions := []proto.ScriptAction(r)
+	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
@@ -1141,9 +1141,9 @@ func TestWhaleDApp(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	actions := []proto.ScriptAction(r)
+	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -1267,9 +1267,9 @@ func TestExchangeDApp(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	actions := []proto.ScriptAction(r)
+	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	assert.NoError(t, err)
 
 	ev, err := base64.StdEncoding.DecodeString("AAAAAAABhqAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLw==")
@@ -1576,10 +1576,11 @@ func TestLigaDApp1(t *testing.T) {
 
 	res, err := CallFunction(env, tree, "stage2", proto.Arguments{})
 	require.NoError(t, err)
-	actions, ok := res.(DAppResult)
+	r, ok := res.(DAppResult)
 	require.True(t, ok)
+	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -1759,10 +1760,11 @@ func TestLigaDApp1(t *testing.T) {
 
 	res, err = CallFunction(env, tree, "stage31", args2)
 	require.NoError(t, err)
-	actions, ok = res.(DAppResult)
+	r, ok = res.(DAppResult)
 	require.True(t, ok)
+	require.True(t, r.res)
 
-	sr, err = proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites = []*proto.DataEntryScriptAction{
@@ -1887,10 +1889,11 @@ func TestTestingDApp(t *testing.T) {
 
 	res, err := CallFunction(env, tree, "main", arguments)
 	require.NoError(t, err)
-	actions, ok := res.(DAppResult)
+	r, ok := res.(DAppResult)
 	require.True(t, ok)
+	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -1999,10 +2002,11 @@ func TestDropElementDApp(t *testing.T) {
 
 	res, err := CallFunction(env, tree, "dropElementInArray", arguments)
 	require.NoError(t, err)
-	actions, ok := res.(DAppResult)
+	r, ok := res.(DAppResult)
 	require.True(t, ok)
+	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -2112,10 +2116,11 @@ func TestMathDApp(t *testing.T) {
 
 	res, err := CallFunction(env, tree, "coxRossRubinsteinCall", arguments)
 	require.NoError(t, err)
-	actions, ok := res.(DAppResult)
+	r, ok := res.(DAppResult)
 	require.True(t, ok)
+	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -2237,10 +2242,11 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 	assert.NotNil(t, tree)
 	res, err := CallFunction(env, tree, "deposit", arguments)
 	require.NoError(t, err)
-	actions, ok := res.(DAppResult)
+	r, ok := res.(DAppResult)
 	require.True(t, ok)
+	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -2365,10 +2371,11 @@ func Test8Ball(t *testing.T) {
 	assert.NotNil(t, tree)
 	res, err := CallFunction(env, tree, "tellme", arguments)
 	require.NoError(t, err)
-	actions, ok := res.(DAppResult)
+	r, ok := res.(DAppResult)
 	require.True(t, ok)
+	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -2714,10 +2721,11 @@ func TestBadType(t *testing.T) {
 	assert.NotNil(t, tree)
 	res, err := CallFunction(env, tree, "initDraw", arguments)
 	require.NoError(t, err)
-	actions, ok := res.(DAppResult)
+	r, ok := res.(DAppResult)
 	require.True(t, ok)
+	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(actions, proto.ScriptErrorMessage{})
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{

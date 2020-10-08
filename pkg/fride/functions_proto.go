@@ -297,9 +297,9 @@ func wavesBalanceV4(env RideEnvironment, args ...rideType) (rideType, error) {
 	}
 	balance, err := env.state().NewestFullWavesBalance(r)
 	if err != nil {
-		return nil, errors.Wrap(err, "wavesBalanceV4")
+		return nil, errors.Wrapf(err, "wavesBalanceV4(%s)", r.String())
 	}
-	return balanceDetailsToObject(balance)
+	return balanceDetailsToObject(balance), nil
 }
 
 func assetInfoV3(env RideEnvironment, args ...rideType) (rideType, error) {

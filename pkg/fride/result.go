@@ -25,16 +25,20 @@ func (r ScriptResult) ScriptActions() []proto.ScriptAction {
 	return nil
 }
 
-type DAppResult []proto.ScriptAction
+type DAppResult struct {
+	res     bool // true - success, false - call failed, read msg
+	actions []proto.ScriptAction
+	msg     string
+}
 
 func (r DAppResult) Result() bool {
-	return true
+	return r.res
 }
 
 func (r DAppResult) UserError() string {
-	return ""
+	return r.msg
 }
 
 func (r DAppResult) ScriptActions() []proto.ScriptAction {
-	return r
+	return r.actions
 }

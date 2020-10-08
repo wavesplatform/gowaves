@@ -201,6 +201,9 @@ func selectFunctionNames(v int) ([]string, error) {
 }
 
 type treeEvaluator struct {
+	dapp bool
+	//limit int
+	//cost  int
 	f   Node
 	s   evaluationScope
 	env RideEnvironment
@@ -213,7 +216,10 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 	}
 	switch res := r.(type) {
 	case rideThrow:
-		return ScriptResult{msg: string(res), res: false}, nil
+		if e.dapp {
+			return DAppResult{res: false, msg: string(res)}, nil
+		}
+		return ScriptResult{res: false, msg: string(res)}, nil
 	case rideBoolean:
 		return ScriptResult{res: bool(res)}, nil
 	case rideObject:
@@ -221,7 +227,7 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
-		return DAppResult(actions), nil
+		return DAppResult{true, actions, ""}, nil
 	case rideList:
 		actions := make([]proto.ScriptAction, len(res))
 		for i, item := range res {
@@ -231,11 +237,16 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 			}
 			actions[i] = a
 		}
-		return DAppResult(actions), nil
+		return DAppResult{res: true, actions: actions}, nil
 	default:
 		return nil, errors.Errorf("unexpected result type '%T'", r)
 	}
 }
+
+//
+//func (e *treeEvaluator) exceeded() bool {
+//	return e.limit > 0 && e.cost >= e.limit
+//}
 
 func isThrow(r rideType) bool {
 	return r.instanceOf() == "Throw"
@@ -420,17 +431,19 @@ func treeVerifierEvaluator(env RideEnvironment, tree *Tree) (*treeEvaluator, err
 			}
 			s.constants[verifier.invocationParameter] = esConstant{c: newTx}
 			return &treeEvaluator{
-				f:   verifier.Body, // In DApp verifier is a function, so we have to pass its body
-				s:   s,
-				env: env,
+				dapp: tree.IsDApp(),
+				f:    verifier.Body, // In DApp verifier is a function, so we have to pass its body
+				s:    s,
+				env:  env,
 			}, nil
 		}
 		return nil, errors.Wrap(err, "no verifier declaration")
 	}
 	return &treeEvaluator{
-		f:   tree.Verifier, // In simple scripts verifier is an expression itself
-		s:   s,
-		env: env,
+		dapp: tree.IsDApp(),
+		f:    tree.Verifier, // In simple scripts verifier is an expression itself
+		s:    s,
+		env:  env,
 	}, nil
 }
 
@@ -465,7 +478,7 @@ func treeFunctionEvaluator(env RideEnvironment, tree *Tree, name string, args pr
 				}
 				s.pushValue(function.Arguments[i], a)
 			}
-			return &treeEvaluator{f: function.Body, s: s, env: env}, nil
+			return &treeEvaluator{dapp: true, f: function.Body, s: s, env: env}, nil
 		}
 	}
 	return nil, errors.Errorf("function '%s' not found", name)
