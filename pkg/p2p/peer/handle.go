@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func bytesToMessage(b []byte, id string, resendTo chan ProtoMessage, pool bytespool.Pool, p Peer) error {
+func bytesToMessage(b []byte, preHandle func(message proto.Message) bool, resendTo chan ProtoMessage, pool bytespool.Pool, p Peer) error {
 	defer func() {
 		pool.Put(b)
 	}()
@@ -18,6 +18,9 @@ func bytesToMessage(b []byte, id string, resendTo chan ProtoMessage, pool bytesp
 	m, err := proto.UnmarshalMessage(b)
 	if err != nil {
 		return err
+	}
+	if preHandle != nil && preHandle(m) {
+		return nil
 	}
 
 	mess := ProtoMessage{
@@ -28,7 +31,7 @@ func bytesToMessage(b []byte, id string, resendTo chan ProtoMessage, pool bytesp
 	select {
 	case resendTo <- mess:
 	default:
-		zap.S().Debugf("failed to resend to Parent, channel is full: %s, %T", id, m)
+		zap.S().Debugf("failed to resend to Parent, channel is full: %s, %T", m)
 	}
 	return nil
 }
@@ -41,6 +44,7 @@ type HandlerParams struct {
 	Parent     Parent
 	Pool       bytespool.Pool
 	Peer       Peer
+	PreHandler func(message proto.Message) bool
 }
 
 // for Handle doesn't matter outgoing or incoming Connection, it just send and receive messages
@@ -52,7 +56,7 @@ func Handle(params HandlerParams) error {
 			return errors.Wrap(params.Ctx.Err(), "Handle")
 
 		case bts := <-params.Remote.FromCh:
-			err := bytesToMessage(bts, params.ID, params.Parent.MessageCh, params.Pool, params.Peer)
+			err := bytesToMessage(bts, params.PreHandler, params.Parent.MessageCh, params.Pool, params.Peer)
 			if err != nil {
 				out := InfoMessage{
 					Peer:  params.Peer,

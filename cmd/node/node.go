@@ -285,7 +285,7 @@ func main() {
 
 	parent := peer.NewParent()
 
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version, utx)
 
 	peerStorage, err := peer_manager.NewJsonFileStorage(path)
 	if err != nil {

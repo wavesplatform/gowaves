@@ -12,6 +12,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+type UtxPool interface {
+	AddBytes([]byte) error
+}
+
 func noSkip(_ proto.Header) bool {
 	return false
 }
@@ -30,9 +34,10 @@ type PeerSpawnerImpl struct {
 	nodeName     string
 	nodeNonce    uint64
 	version      proto.Version
+	utx          UtxPool
 }
 
-func NewPeerSpawner(pool bytespool.Pool, parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
+func NewPeerSpawner(pool bytespool.Pool, parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version, utx UtxPool) *PeerSpawnerImpl {
 	return &PeerSpawnerImpl{
 		pool:         pool,
 		skipFunc:     noSkip,
@@ -42,6 +47,7 @@ func NewPeerSpawner(pool bytespool.Pool, parent peer.Parent, WavesNetwork string
 		nodeName:     nodeName,
 		nodeNonce:    nodeNonce,
 		version:      version,
+		utx:          utx,
 	}
 }
 
@@ -55,6 +61,7 @@ func (a *PeerSpawnerImpl) SpawnOutgoing(ctx context.Context, address proto.TCPAd
 		Skip:         a.skipFunc,
 		NodeName:     a.nodeName,
 		NodeNonce:    a.nodeNonce,
+		UtxPool:      a.utx,
 	}
 
 	return outgoing.EstablishConnection(ctx, params, a.version)
@@ -68,6 +75,7 @@ func (a *PeerSpawnerImpl) SpawnIncoming(ctx context.Context, c net.Conn) error {
 		Parent:       a.parent,
 		DeclAddr:     a.declAddr,
 		Pool:         a.pool,
+		UtxPool:      a.utx,
 
 		NodeName:  a.nodeName,
 		NodeNonce: a.nodeNonce,
