@@ -757,7 +757,7 @@ func checkedStringDataEntry(_ RideEnvironment, args ...rideType) (rideType, erro
 	if !ok {
 		return nil, errors.Errorf("checkedStringDataEntry: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	value, ok := args[1].(rideInt)
+	value, ok := args[1].(rideString)
 	if !ok {
 		return nil, errors.Errorf("checkedStringDataEntry: unexpected argument type '%s'", args[0].instanceOf())
 	}

@@ -144,7 +144,7 @@ func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, start
 			return errors.Wrap(err, "block timestamp validation failed")
 		}
 		if err := cv.validateBaseTarget(height, &header, parent, greatGrandParent); err != nil {
-			return errors.Wrap(err, "base target validation failed")
+			return errors.Wrapf(err, "base target validation failed at %d", height)
 		}
 		if err := cv.validateBlockVersion(&header, height); err != nil {
 			return errors.Wrap(err, "block version validation failed")

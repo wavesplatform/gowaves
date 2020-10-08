@@ -12,7 +12,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 type invokeApplier struct {
@@ -542,7 +541,6 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if !ok {
 		// When ok is false, it means that we could not even start invocation.
 		// We just return error in such case.
-		zap.S().Warnf("applyInvokeScript: Exit 10: ok=%b, err=%v", ok, err)
 		return nil, errors.Wrap(err, "invokeFunction() failed")
 	}
 	if err != nil {
