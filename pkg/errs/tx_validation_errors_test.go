@@ -53,6 +53,7 @@ func TestNewAssetIsNotReissuable(t *testing.T) {
 
 func TestNewTxValidationError(t *testing.T) {
 	require.EqualError(t, NewTxValidationError("a").Extend("b"), "b: a")
+	require.True(t, IsValidationError(NewTxValidationError("")))
 }
 
 func TestNewAssetIssuedByOtherAddress(t *testing.T) {

@@ -84,6 +84,7 @@ func NewToSelf(message string) *ToSelf {
 
 // This struct provides message as is, without adding additional message info.
 type TxValidationError struct {
+	ValidationErrorImpl
 	message string
 }
 
@@ -100,6 +101,7 @@ func NewTxValidationError(message string) *TxValidationError {
 }
 
 type AssetIsNotReissuable struct {
+	ValidationErrorImpl
 	message string
 }
 
@@ -116,6 +118,7 @@ func NewAssetIsNotReissuable(message string) *AssetIsNotReissuable {
 }
 
 type AliasTaken struct {
+	ValidationErrorImpl
 	message string
 }
 
@@ -132,6 +135,7 @@ func NewAliasTaken(message string) *AliasTaken {
 }
 
 type Mistiming struct {
+	ValidationErrorImpl
 	message string
 }
 
@@ -148,6 +152,7 @@ func NewMistiming(message string) *Mistiming {
 }
 
 type EmptyDataKey struct {
+	ValidationErrorImpl
 	message string
 }
 

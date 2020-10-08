@@ -1,8 +1,11 @@
 package consensus
 
 import (
+	"fmt"
+
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -233,10 +236,10 @@ func (cv *ConsensusValidator) validateBlockVersion(block *proto.BlockHeader, blo
 		return err
 	}
 	if block.Version > proto.PlainBlockVersion && blockchainHeight <= cv.settings.BlockVersion3AfterHeight {
-		return errors.Errorf("block version 3 or higher can only appear at height greater than %v", cv.settings.BlockVersion3AfterHeight)
+		return errs.NewBlockValidationError(fmt.Sprintf("block version 3 or higher can only appear at height greater than %v", cv.settings.BlockVersion3AfterHeight))
 	}
 	if block.Version < validVersion {
-		return errors.Errorf("block version %v is less than valid version %v for height %v", block.Version, validVersion, blockchainHeight)
+		return errs.NewBlockValidationError(fmt.Sprintf("block version %v is less than valid version %v for height %v", block.Version, validVersion, blockchainHeight))
 	}
 	return nil
 }
