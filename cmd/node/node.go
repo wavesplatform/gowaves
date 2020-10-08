@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/mr-tron/base58"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
@@ -357,6 +358,16 @@ func main() {
 		if err != nil {
 			zap.S().Errorf("Failed to start API: %v", err)
 		}
+	}()
+
+	go func() {
+		//http.Handle("/metrics", promhttp.Handler())
+		h := http.NewServeMux()
+		h.Handle("/metrics", promhttp.Handler())
+		server := &http.Server{Addr: ":6871", Handler: h}
+		_ = server.ListenAndServe()
+		//server.l
+		//_ = http.ListenAndServe()
 	}()
 
 	if *enableGrpcApi {

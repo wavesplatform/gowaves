@@ -113,6 +113,18 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 	}()
 
 	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(1 * time.Second):
+				zap.S().Info("metricInternalChannelSize: ", len(p.MessageCh))
+				metricInternalChannelSize.Set(float64(len(p.MessageCh)))
+			}
+		}
+	}()
+
+	go func() {
 		if err := a.Serve(ctx); err != nil {
 			return
 		}
