@@ -1,6 +1,7 @@
 package peer
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -17,15 +18,17 @@ type PeerImpl struct {
 	direction Direction
 	remote    Remote
 	id        string
+	cancel    context.CancelFunc
 }
 
-func NewPeerImpl(handshake proto.Handshake, conn conn.Connection, direction Direction, remote Remote) *PeerImpl {
+func NewPeerImpl(handshake proto.Handshake, conn conn.Connection, direction Direction, remote Remote, cancel context.CancelFunc) *PeerImpl {
 	return &PeerImpl{
 		handshake: handshake,
 		conn:      conn,
 		direction: direction,
 		remote:    remote,
 		id:        id(conn.Conn().RemoteAddr().String(), handshake.NodeNonce),
+		cancel:    cancel,
 	}
 }
 
@@ -34,6 +37,7 @@ func (a *PeerImpl) Direction() Direction {
 }
 
 func (a *PeerImpl) Close() error {
+	defer a.cancel()
 	return a.conn.Close()
 }
 
