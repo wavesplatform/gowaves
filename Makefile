@@ -241,4 +241,65 @@ sudo rm -f wmd" >> ./build/wmd/DEBIAN/preinst
 	@mv wmd_${VERSION}.deb ./build/dist
 	@rm -rf ./build/wmd
 
-
+build-gowaves-node-deb-package-linux:
+	@mkdir -p ./build/gowaves/DEBIAN
+	@touch ./build/gowaves/DEBIAN/control ./build/gowaves/DEBIAN/preinst ./build/gowaves/DEBIAN/postinst
+	@cp ./build/bin/linux-amd64/node ./build/gowaves/gowaves
+	@chmod 0775 ./build/gowaves/DEBIAN/control
+	@chmod 0775 ./build/gowaves/DEBIAN/preinst
+	@chmod 0775 ./build/gowaves/DEBIAN/postinst
+	@echo "Package: gowaves\n\
+Version: ${DEB_VER}\n\
+Section: misc\n\
+Priority: extra\n\
+Architecture: all\n\
+Depends: bash\n\
+Essential: no\n\
+Maintainer: ${ORGANISATION}.com\n\
+Description: It is gowaves node as systemd service. Hash: ${DEB_HASH}" >> ./build/gowaves/DEBIAN/control
+	@echo "#!/bin/bash\n\
+# Creating directordy for logs and giving its rights\n\
+sudo mkdir /var/log/gowaves\n\
+sudo chown syslog gowaves\n\
+# Creating gowaves.service file and put config to\n\
+touch gowaves.service\n\
+echo \"[Unit]\n\
+Description=Gowaves MainNet node\n\
+ConditionPathExists=/usr/share/gowaves\n\
+After=network.target\n\
+[Service]\n\
+Type=simple\n\
+User=gowaves\n\
+Group=gowaves\n\
+LimitNOFILE=1024\n\
+Restart=on-failure\n\
+RestartSec=60\n\
+startLimitIntervalSec=60\n\
+WorkingDirectory=/usr/share/gowaves\n\
+ExecStart=/usr/share/gowaves/gowaves -state-path /var/lib/gowaves/ -api-address 0.0.0.0:8080\n\
+# make sure log directory exists and owned by syslog\n\
+PermissionsStartOnly=true\n\
+ExecStartPre=/bin/mkdir -p /var/log/gowaves\n\
+ExecStartPre=/bin/chown syslog:adm /var/log/gowaves\n\
+ExecStartPre=/bin/chmod 755 /var/log/gowaves\n\
+StandardOutput=syslog\n\
+StandardError=syslog\n\
+SyslogIdentifier=gowaves\n\
+[Install]\n\
+WantedBy=multi-user.target\" >> gowaves.service\n\
+sudo useradd gowaves -s /sbin/nologin -M\n\
+sudo mv gowaves.service /lib/systemd/system/\n\
+sudo chmod 755 /lib/systemd/system/gowaves.service\n\
+sudo mkdir /usr/share/gowaves/\n\
+sudo chown gowaves:gowaves /usr/share/gowaves\n\
+sudo mkdir /var/lib/gowaves\n\
+sudo chown gowaves:gowaves /var/lib/gowaves\n\
+sudo cp gowaves /usr/share/gowaves/\n\
+sudo systemctl enable gowaves.service\n\
+sudo systemctl start gowaves.service" >> ./build/gowaves/DEBIAN/postinst
+	@echo "#!/bin/bash\n\
+sudo rm -f gowaves" >> ./build/gowaves/DEBIAN/preinst
+	@dpkg-deb --build ./build/gowaves
+	@mv ./build/gowaves.deb gowaves_${VERSION}.deb
+	@mv gowaves_${VERSION}.deb ./build/dist
+	@rm -rf ./build/gowaves
