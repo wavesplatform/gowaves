@@ -118,7 +118,6 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 			case <-ctx.Done():
 				return
 			case <-time.After(1 * time.Second):
-				zap.S().Info("metricInternalChannelSize: ", len(p.MessageCh))
 				metricInternalChannelSize.Set(float64(len(p.MessageCh)))
 			}
 		}
@@ -186,27 +185,6 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 	}
 }
 
-type BlockIds struct {
-	ids    []proto.BlockID
-	unique map[proto.BlockID]struct{}
-}
-
-func (a *BlockIds) Ids() []proto.BlockID {
-	return a.ids
-}
-
-func NewBlockIds(ids ...proto.BlockID) *BlockIds {
-	unique := make(map[proto.BlockID]struct{})
-	for _, v := range ids {
-		unique[v] = struct{}{}
-	}
-
-	return &BlockIds{
-		ids:    ids,
-		unique: unique,
-	}
-}
-
 func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner, a state_fsm.Async) {
 	for _, t := range a {
 		func(t tasks.Task) {
@@ -218,17 +196,4 @@ func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner
 			})
 		}(t)
 	}
-}
-
-func (a *BlockIds) Exists(id proto.BlockID) bool {
-	_, ok := a.unique[id]
-	return ok
-}
-
-func (a *BlockIds) Revert() *BlockIds {
-	out := make([]proto.BlockID, len(a.ids))
-	for k, v := range a.ids {
-		out[len(a.ids)-1-k] = v
-	}
-	return NewBlockIds(out...)
 }

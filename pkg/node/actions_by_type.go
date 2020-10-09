@@ -24,6 +24,7 @@ func ScoreAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM)
 }
 
 func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+	metricGetPeersMessage.Inc()
 	rs, err := services.Peers.KnownPeers()
 	if err != nil {
 		zap.L().Error("failed got known peers", zap.Error(err))
@@ -41,6 +42,7 @@ func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm stat
 }
 
 func PeersAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+	metricPeersMessage.Inc()
 	rs, err := services.Peers.KnownPeers()
 	if err != nil {
 		zap.L().Error("failed got known peers", zap.Error(err))
