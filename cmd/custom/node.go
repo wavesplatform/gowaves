@@ -24,6 +24,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -189,7 +190,9 @@ func main() {
 
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version, utx)
 
-	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state, int(limitConnections))
+	peerStorage := storage.NewBinaryStorage(path)
+
+	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, peerStorage, int(limitConnections))
 	go peerManager.Run(ctx)
 
 	scheduler := scheduler2.NewScheduler(

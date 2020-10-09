@@ -31,6 +31,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -287,12 +288,7 @@ func main() {
 
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version, utx)
 
-	peerStorage, err := peer_manager.NewJsonFileStorage(path)
-	if err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
+	peerStorage := storage.NewBinaryStorage(path)
 
 	peerManager := peer_manager.NewPeerManager(
 		peerSpawnerImpl,

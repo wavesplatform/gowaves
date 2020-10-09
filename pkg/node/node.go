@@ -165,7 +165,6 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 			case *peer.Connected:
 				fsm, async, err = fsm.NewPeer(t.Peer)
 			case error:
-				zap.S().Error("infoCH error ", m.Peer, t)
 				fsm, async, err = fsm.PeerError(m.Peer, t)
 			}
 		case mess := <-p.MessageCh:
@@ -176,9 +175,6 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 				continue
 			}
 			fsm, async, err = action(a.services, mess, fsm)
-		}
-		if err != nil {
-			zap.S().Errorf("Failure during synchronization: %v", err)
 		}
 		spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
 		zap.S().Debugf("FSM %T", fsm)

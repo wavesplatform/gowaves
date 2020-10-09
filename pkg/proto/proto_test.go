@@ -595,3 +595,11 @@ func TestPeersMessage_Marshalling(t *testing.T) {
 		require.NoError(t, p2.UnmarshalBinary(buf.Bytes()))
 	})
 }
+
+func TestTCPAddr_ToUint64(t *testing.T) {
+	a := NewTCPAddrFromString("127.0.0.1:6868")
+	rs := a.ToUint64()
+	b := NewTcpAddrFromUint64(rs)
+
+	require.True(t, a.Equal(b))
+}

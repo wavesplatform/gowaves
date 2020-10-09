@@ -25,8 +25,26 @@ var metricGetPeersMessage = prometheus.NewCounter(
 	},
 )
 
+var metricBlockMessage = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Namespace: "messages",
+		Name:      "block",
+		Help:      "Counter of Block message.",
+	},
+)
+
+var metricGetBlockMessage = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Namespace: "messages",
+		Name:      "get_block",
+		Help:      "Counter of GetBlock message.",
+	},
+)
+
 func init() {
 	prometheus.MustRegister(metricInternalChannelSize)
 	prometheus.MustRegister(metricPeersMessage)
 	prometheus.MustRegister(metricGetPeersMessage)
+	prometheus.MustRegister(metricBlockMessage)
+	prometheus.MustRegister(metricGetBlockMessage)
 }
