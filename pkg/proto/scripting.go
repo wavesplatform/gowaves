@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
@@ -292,8 +293,9 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 }
 
 type ActionsValidationRestrictions struct {
-	DisableSelfTransfers bool
-	ScriptAddress        Address
+	DisableSelfTransfers     bool
+	ScriptAddress            Address
+	KeySizeValidationVersion byte
 }
 
 func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions) error {
@@ -307,8 +309,15 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			if dataEntriesCount > maxDataEntryScriptActions {
 				return errors.Errorf("number of data entries produced by script is more than allowed %d", maxDataEntryScriptActions)
 			}
-			if len(utf16.Encode([]rune(ta.Entry.GetKey()))) > maxKeySize {
-				return errors.New("key is too large")
+			switch restrictions.KeySizeValidationVersion {
+			case 1:
+				if len(utf16.Encode([]rune(ta.Entry.GetKey()))) > maxKeySize {
+					return errs.NewTooBigArray("key is too large")
+				}
+			default:
+				if len([]byte(ta.Entry.GetKey())) > maxPBKeySize {
+					return errs.NewTooBigArray("key is too large")
+				}
 			}
 			dataEntriesSize += ta.Entry.BinarySize()
 			if dataEntriesSize > maxDataEntryScriptActionsSizeInBytes {
@@ -337,8 +346,8 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
-			if ta.Quantity <= 0 {
-				return errors.New("negative or zero quantity")
+			if ta.Quantity < 0 {
+				return errors.New("negative quantity")
 			}
 			if ta.Decimals < 0 || ta.Decimals > maxDecimals {
 				return errors.New("invalid decimals")

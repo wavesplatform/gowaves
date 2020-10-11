@@ -225,6 +225,7 @@ type addlInvokeInfo struct {
 	actions              []proto.ScriptAction
 	paymentSmartAssets   []crypto.Digest
 	disableSelfTransfers bool
+	libVersion           byte
 }
 
 func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, info *addlInvokeInfo) (proto.TxFailureReason, txBalanceChanges, error) {
@@ -244,7 +245,15 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 		return proto.DAppError, info.failedChanges, errors.New("ScriptResult; failed to resolve aliases")
 	}
 	// Validate produced actions.
-	restrictions := proto.ActionsValidationRestrictions{DisableSelfTransfers: info.disableSelfTransfers, ScriptAddress: *info.scriptAddr}
+	var keySizeValidationVersion byte = 1
+	if info.libVersion == 4 {
+		keySizeValidationVersion = 2
+	}
+	restrictions := proto.ActionsValidationRestrictions{
+		DisableSelfTransfers:     info.disableSelfTransfers,
+		ScriptAddress:            *info.scriptAddr,
+		KeySizeValidationVersion: keySizeValidationVersion,
+	}
 	if err := proto.ValidateActions(info.actions, restrictions); err != nil {
 		return proto.DAppError, info.failedChanges, err
 	}
@@ -574,6 +583,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		actions:                  scriptActions,
 		paymentSmartAssets:       paymentSmartAssets,
 		disableSelfTransfers:     disableSelfTransfers,
+		libVersion:               byte(tree.LibVersion),
 	})
 	if err != nil {
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.

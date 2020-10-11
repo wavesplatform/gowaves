@@ -135,7 +135,7 @@ func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	newAddrNum := lastAddrNum + uint64(s.addrNum)
+	newAddrNum := lastAddrNum + s.addrNum
 	s.addrNum++
 	s.addrToNumMem[addr] = newAddrNum
 	addrToNum := accountStorAddrToNumKey{addr}
@@ -444,7 +444,7 @@ func (s *accountsDataStorage) flush() error {
 	if err != nil {
 		return err
 	}
-	newAddrNum := lastAddrNum + uint64(s.addrNum)
+	newAddrNum := lastAddrNum + s.addrNum
 	if err := s.setLastAddrNum(newAddrNum); err != nil {
 		return err
 	}

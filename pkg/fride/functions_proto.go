@@ -166,21 +166,24 @@ func addressFromRecipient(env RideEnvironment, args ...rideType) (rideType, erro
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "addressFromRecipient")
 	}
-	recipient, ok := args[0].(rideRecipient)
-	if !ok {
+	switch r := args[0].(type) {
+	case rideRecipient:
+		if r.Address != nil {
+			return rideAddress(*r.Address), nil
+		}
+		if r.Alias != nil {
+			addr, err := env.state().NewestAddrByAlias(*r.Alias)
+			if err != nil {
+				return nil, errors.Wrap(err, "addressFromRecipient")
+			}
+			return rideAddress(addr), nil
+		}
+		return nil, errors.Errorf("addressFromRecipient: unable to get address from recipient '%s'", r)
+	case rideAddress:
+		return r, nil
+	default:
 		return nil, errors.Errorf("addressFromRecipient: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	if recipient.Address != nil {
-		return rideAddress(*recipient.Address), nil
-	}
-	if recipient.Alias != nil {
-		addr, err := env.state().NewestAddrByAlias(*recipient.Alias)
-		if err != nil {
-			return nil, errors.Wrap(err, "addressFromRecipient")
-		}
-		return rideAddress(addr), nil
-	}
-	return nil, errors.Errorf("addressFromRecipient: unable to get address from recipient '%s'", recipient)
 }
 
 func sigVerify(env RideEnvironment, args ...rideType) (rideType, error) {
