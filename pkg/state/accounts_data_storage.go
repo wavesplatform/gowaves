@@ -182,12 +182,9 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 	}
 	if s.calculateHashes {
 		r := &dataEntryRecordForHashes{
-			addr: &addr,
-			key:  []byte(entry.GetKey()),
-		}
-		if entry.GetValueType() != proto.DataDelete {
-			// No value should be set for deletion.
-			r.value = valueBytes
+			addr:  &addr,
+			key:   []byte(entry.GetKey()),
+			value: valueBytes,
 		}
 		if err := s.hasher.push(keyStr, r, blockID); err != nil {
 			return err
