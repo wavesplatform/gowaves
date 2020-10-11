@@ -211,7 +211,7 @@ Restart=on-failure\n\
 RestartSec=10\n\
 startLimitIntervalSec=60\n\
 WorkingDirectory=/usr/share/wmd\n\
-ExecStart=/usr/share/wmd/wmd -db /var/lib/wmd/ -address 0.0.0.0:6990 -node mainnet-aws-ir-1.wavesnodes.com:6870 -symbols /usr/share/wmd/symbols.txt -sync-interval 1\n\
+ExecStart=/usr/share/wmd/wmd -db /var/lib/wmd/ -address 0.0.0.0:6990 -node grpc.wavesnodes.com:6870 -symbols /usr/share/wmd/symbols.txt -sync-interval 1\n\
 # make sure log directory exists and owned by syslog\n\
 PermissionsStartOnly=true\n\
 ExecStartPre=/bin/mkdir -p /var/log/wmd\n\
