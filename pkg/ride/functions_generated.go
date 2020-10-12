@@ -12,153 +12,783 @@ import (
 )
 
 func bls12Groth16Verify_1(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_1")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_1: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_1: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_1: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*1 {
+		return nil, errors.Errorf("bls12Groth16Verify_1: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_2(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_2")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_2: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_2: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_2: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*2 {
+		return nil, errors.Errorf("bls12Groth16Verify_2: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_3(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_3")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_3: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_3: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_3: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*3 {
+		return nil, errors.Errorf("bls12Groth16Verify_3: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_4(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_4")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_4: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_4: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_4: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*4 {
+		return nil, errors.Errorf("bls12Groth16Verify_4: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_5(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_5")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_5: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_5: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_5: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*5 {
+		return nil, errors.Errorf("bls12Groth16Verify_5: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_6(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_6")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_6: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_6: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_6: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*6 {
+		return nil, errors.Errorf("bls12Groth16Verify_6: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_7(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_7")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_7: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_7: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_7: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*7 {
+		return nil, errors.Errorf("bls12Groth16Verify_7: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_8(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_8")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_8: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_8: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_8: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*8 {
+		return nil, errors.Errorf("bls12Groth16Verify_8: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_9(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_9")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_9: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_9: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_9: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*9 {
+		return nil, errors.Errorf("bls12Groth16Verify_9: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_10(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_10")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_10: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_10: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_10: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*10 {
+		return nil, errors.Errorf("bls12Groth16Verify_10: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_11(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_11")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_11: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_11: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_11: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*11 {
+		return nil, errors.Errorf("bls12Groth16Verify_11: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_12(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_12")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_12: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_12: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_12: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*12 {
+		return nil, errors.Errorf("bls12Groth16Verify_12: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_13(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_13")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_13: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_13: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_13: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*13 {
+		return nil, errors.Errorf("bls12Groth16Verify_13: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_14(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_14")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_14: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_14: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_14: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*14 {
+		return nil, errors.Errorf("bls12Groth16Verify_14: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bls12Groth16Verify_15(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify_15")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_15: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_15: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify_15: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*15 {
+		return nil, errors.Errorf("bls12Groth16Verify_15: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_1(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_1")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_1: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_1: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_1: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*1 {
+		return nil, errors.Errorf("bn256Groth16Verify_1: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_2(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_2")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_2: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_2: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_2: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*2 {
+		return nil, errors.Errorf("bn256Groth16Verify_2: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_3(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_3")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_3: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_3: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_3: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*3 {
+		return nil, errors.Errorf("bn256Groth16Verify_3: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_4(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_4")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_4: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_4: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_4: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*4 {
+		return nil, errors.Errorf("bn256Groth16Verify_4: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_5(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_5")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_5: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_5: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_5: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*5 {
+		return nil, errors.Errorf("bn256Groth16Verify_5: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_6(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_6")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_6: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_6: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_6: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*6 {
+		return nil, errors.Errorf("bn256Groth16Verify_6: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_7(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_7")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_7: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_7: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_7: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*7 {
+		return nil, errors.Errorf("bn256Groth16Verify_7: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_8(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_8")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_8: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_8: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_8: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*8 {
+		return nil, errors.Errorf("bn256Groth16Verify_8: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_9(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_9")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_9: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_9: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_9: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*9 {
+		return nil, errors.Errorf("bn256Groth16Verify_9: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_10(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_10")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_10: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_10: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_10: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*10 {
+		return nil, errors.Errorf("bn256Groth16Verify_10: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_11(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_11")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_11: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_11: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_11: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*11 {
+		return nil, errors.Errorf("bn256Groth16Verify_11: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_12(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_12")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_12: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_12: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_12: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*12 {
+		return nil, errors.Errorf("bn256Groth16Verify_12: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_13(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_13")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_13: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_13: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_13: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*13 {
+		return nil, errors.Errorf("bn256Groth16Verify_13: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_14(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_14")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_14: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_14: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_14: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*14 {
+		return nil, errors.Errorf("bn256Groth16Verify_14: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func bn256Groth16Verify_15(env RideEnvironment, args ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify_15")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_15: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_15: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify_15: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if l := len(inputs); l > 32*15 {
+		return nil, errors.Errorf("bn256Groth16Verify_15: invalid inputs size %d", l)
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return rideUnit{}, err
+	}
+	return rideBoolean(ok), nil
 }
 
 func sigVerify_8(env RideEnvironment, args ...rideType) (rideType, error) {
