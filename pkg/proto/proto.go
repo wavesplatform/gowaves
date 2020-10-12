@@ -1272,7 +1272,7 @@ func MessageByBlock(block *Block, scheme Scheme) (Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	if block.Version >= ProtoBlockVersion {
+	if block.Version >= ProtobufBlockVersion {
 		return &PBBlockMessage{bts}, nil
 	} else {
 		return &BlockMessage{bts}, nil

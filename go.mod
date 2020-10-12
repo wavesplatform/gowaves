@@ -11,6 +11,7 @@ require (
 	github.com/coocood/freecache v1.1.0
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
 	github.com/ericlagergren/decimal v0.0.0-20190912144844-2c3e3e1ef942
+	github.com/fxamacker/cbor/v2 v2.2.0
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
@@ -40,12 +41,12 @@ require (
 	go.uber.org/atomic v1.4.0
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.10.0
-	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
-	golang.org/x/net v0.0.0-20200506145744-7e3656a0809f // indirect
-	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
-	google.golang.org/genproto v0.0.0-20200511104702-f5ebc3bea380 // indirect
-	google.golang.org/grpc v1.29.1
-	google.golang.org/protobuf v1.23.0
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/net v0.0.0-20201006153459-a7d1128ccaa0 // indirect
+	golang.org/x/sys v0.0.0-20201008064518-c1f3e3309c71 // indirect
+	google.golang.org/genproto v0.0.0-20201007142714-5c0e72c5e71e // indirect
+	google.golang.org/grpc v1.32.0
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.2.8 // indirect

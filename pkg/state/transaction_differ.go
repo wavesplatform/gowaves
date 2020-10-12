@@ -130,7 +130,7 @@ func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
 	if minBalance < 0 {
 		return 0, errors.New("negative intermediate asset balance (Attempt to transfer unavailable funds)")
 	}
-	// Chech main balance diff.
+	// Check main balance diff.
 	newBalance, err := common.AddInt64(diff.balance, int64(balance))
 	if err != nil {
 		return 0, errors.Errorf("failed to add balance and balance diff: %v\n", err)
@@ -842,7 +842,7 @@ func (td *transactionDiffer) createDiffForExchangeFeeValidation(transaction prot
 	if err := diff.appendBalanceDiff(matcherKey.bytes(), newBalanceDiff(-matcherFee, 0, 0, true)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	senderFee := int64(sellOrder.GetMatcherFee())
+	senderFee := int64(tx.GetSellMatcherFee())
 	senderFeeKey := td.orderFeeKey(senderAddr, sellOrder)
 	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(-senderFee, 0, 0, true)); err != nil {
 		return txBalanceChanges{}, err
@@ -851,7 +851,7 @@ func (td *transactionDiffer) createDiffForExchangeFeeValidation(transaction prot
 	if err := diff.appendBalanceDiff(matcherFeeFromSenderKey, newBalanceDiff(senderFee, 0, 0, true)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	receiverFee := int64(buyOrder.GetMatcherFee())
+	receiverFee := int64(tx.GetBuyMatcherFee())
 	receiverFeeKey := td.orderFeeKey(receiverAddr, buyOrder)
 	if err := diff.appendBalanceDiff(receiverFeeKey, newBalanceDiff(-receiverFee, 0, 0, true)); err != nil {
 		return txBalanceChanges{}, err

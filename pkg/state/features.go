@@ -165,12 +165,12 @@ func (f *features) newestFeatureVotes(featureID int16) (uint64, error) {
 	return f.votesFromRecord(recordBytes)
 }
 
-func (f *features) printActivationLog(featureID int16) {
+func (f *features) printActivationLog(featureID int16, height uint64) {
 	info, ok := f.definedFeaturesInfo[settings.Feature(featureID)]
 	if ok {
-		zap.S().Infof("Activating feature %d (%s)", featureID, info.Description)
+		zap.S().Infof("Activating feature %d (%s) at height %d", featureID, info.Description, height)
 	} else {
-		zap.S().Warnf("Activating UNKNOWN feature %d", featureID)
+		zap.S().Warnf("Activating UNKNOWN feature %d at height %d", featureID, height)
 	}
 	if !ok || !info.Implemented {
 		zap.S().Warn("FATAL: UNKNOWN/UNIMPLEMENTED feature has been activated on the blockchain!")
@@ -189,7 +189,7 @@ func (f *features) activateFeature(featureID int16, r *activatedFeaturesRecord, 
 	if err != nil {
 		return err
 	}
-	f.printActivationLog(featureID)
+	f.printActivationLog(featureID, r.activationHeight)
 	return f.hs.addNewEntry(activatedFeature, keyBytes, recordBytes, blockID)
 }
 
@@ -314,12 +314,12 @@ func (f *features) activationHeight(featureID int16) (uint64, error) {
 	return record.activationHeight, nil
 }
 
-func (f *features) printApprovalLog(featureID int16) {
+func (f *features) printApprovalLog(featureID int16, height uint64) {
 	info, ok := f.definedFeaturesInfo[settings.Feature(featureID)]
 	if ok {
-		zap.S().Infof("Approving feature %d (%s)", featureID, info.Description)
+		zap.S().Infof("Approving feature %d (%s) at height %d", featureID, info.Description, height)
 	} else {
-		zap.S().Infof("Approving UNKNOWN feature %d", featureID)
+		zap.S().Infof("Approving UNKNOWN feature %d at height %d", featureID, height)
 	}
 	if !ok || !info.Implemented {
 		zap.S().Warn("WARNING: UNKNOWN/UNIMPLEMENTED feature has been approved on the blockchain!")
@@ -338,7 +338,7 @@ func (f *features) approveFeature(featureID int16, r *approvedFeaturesRecord, bl
 	if err != nil {
 		return err
 	}
-	f.printApprovalLog(featureID)
+	f.printApprovalLog(featureID, r.approvalHeight)
 	return f.hs.addNewEntry(approvedFeature, keyBytes, recordBytes, blockID)
 }
 

@@ -456,9 +456,11 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err := state.loadLastBlock(); err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	if err := state.checkProtobufActivation(); err != nil {
+	h, err := state.Height()
+	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
+	state.checkProtobufActivation(h + 1)
 	return state, nil
 }
 
@@ -519,7 +521,7 @@ func (s *stateManager) addGenesisBlock() error {
 	return nil
 }
 
-func (s *stateManager) applyPreactivatedFeatures(features []int16, blockID proto.BlockID) error {
+func (s *stateManager) applyPreActivatedFeatures(features []int16, blockID proto.BlockID) error {
 	for _, featureID := range features {
 		approvalRequest := &approvedFeaturesRecord{1}
 		if err := s.stor.features.approveFeature(featureID, approvalRequest, blockID); err != nil {
@@ -555,24 +557,19 @@ func (s *stateManager) handleGenesisBlock(block proto.Block) error {
 		if err := s.addGenesisBlock(); err != nil {
 			return errors.Errorf("failed to apply/save genesis: %v", err)
 		}
-		// We apply preactivated features after genesis block, so they aren't active in genesis itself.
-		if err := s.applyPreactivatedFeatures(s.settings.PreactivatedFeatures, block.BlockID()); err != nil {
-			return errors.Errorf("failed to apply preactivated features: %v\n", err)
+		// We apply pre-activated features after genesis block, so they aren't active in genesis itself.
+		if err := s.applyPreActivatedFeatures(s.settings.PreactivatedFeatures, block.BlockID()); err != nil {
+			return errors.Errorf("failed to apply pre-activated features: %v\n", err)
 		}
 	}
 	return nil
 }
 
-func (s *stateManager) checkProtobufActivation() error {
-	activated, err := s.stor.features.newestIsActivated(int16(settings.BlockV5))
-	if err != nil {
-		return errors.Errorf("newestIsActivated() failed: %v", err)
+func (s *stateManager) checkProtobufActivation(height uint64) {
+	activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockV5), height)
+	if activated {
+		s.rw.setProtobufActivated()
 	}
-	if !activated {
-		return nil
-	}
-	s.rw.setProtobufActivated()
-	return nil
 }
 
 func (s *stateManager) loadLastBlock() error {
@@ -594,7 +591,7 @@ func (s *stateManager) TopBlock() *proto.Block {
 
 func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
 	var vrf []byte = nil
-	if blockHeader.Version >= proto.ProtoBlockVersion {
+	if blockHeader.Version >= proto.ProtobufBlockVersion {
 		pos := &consensus.FairPosCalculatorV2{} // BlockV5 and FairPoSV2 are activated at the same time
 		gsp := &consensus.VRFGenerationSignatureProvider{}
 		hitSourceHeader, err := s.NewestHeaderByHeight(pos.HeightForHit(height))
@@ -796,9 +793,11 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	generating, err := s.NewestGeneratingBalance(account)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+	var generating uint64 = 0
+	gb, err := s.NewestGeneratingBalance(account)
+	if err == nil {
+		generating = gb
+		//return nil, wrapErr(RetrievalError, err)
 	}
 	return &proto.FullWavesBalance{
 		Regular:    profile.balance,
@@ -1150,21 +1149,15 @@ func (s *stateManager) blockchainHeightAction(params *heightActionParams) error 
 	return nil
 }
 
-func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID, initialisation bool) error {
+func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID, _ bool) error {
 	nextBlockHeight := height + 1
 	if err := s.stor.features.finishVoting(nextBlockHeight, blockID); err != nil {
-		return err
-	}
-	// Check if protobuf is now activated.
-	// blockReadWriter will mark current offset as
-	// start of protobuf-encoded objects.
-	if err := s.checkProtobufActivation(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *stateManager) updateBlockReward(height uint64, blockID proto.BlockID, initialisation bool) error {
+func (s *stateManager) updateBlockReward(height uint64, blockID proto.BlockID, _ bool) error {
 	if err := s.stor.monetaryPolicy.updateBlockReward(height, blockID); err != nil {
 		return err
 	}
@@ -1195,11 +1188,11 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initia
 			return err
 		}
 	} else if height == s.settings.BlockVersion3AfterHeight {
-		overflowAddrs, err := s.stor.balances.cancelLeaseOverflows(blockID)
+		overflowAddresses, err := s.stor.balances.cancelLeaseOverflows(blockID)
 		if err != nil {
 			return err
 		}
-		if err := s.stor.leases.cancelLeases(overflowAddrs, blockID); err != nil {
+		if err := s.stor.leases.cancelLeases(overflowAddresses, blockID); err != nil {
 			return err
 		}
 	} else if dataTxActivated && height == dataTxHeight {
@@ -1285,6 +1278,11 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		if err := s.addNewBlock(block, lastAppliedBlock, initialisation, chans, curHeight); err != nil {
 			return nil, err
 		}
+		if s.needToFinishVotingPeriod(params.blockchainHeight + 1) {
+			// If we need to finish voting period on the next block (h+1) then
+			// we have to check that protobuf will be activated on next block
+			s.checkProtobufActivation(params.blockchainHeight + 2)
+		}
 		headers[pos] = block.BlockHeader
 		pos++
 		ids = append(ids, block.BlockID())
@@ -1315,7 +1313,7 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 		return nil, wrapErr(ModificationError, err)
 	}
 	zap.S().Infof(
-		"Height: %d; Block ID: %s, sig: %s, ts: %d",
+		"Height: %d; Block ID: %s, GenSig: %s, ts: %d",
 		height+uint64(blocksNumber),
 		lastAppliedBlock.BlockID().String(),
 		base58.Encode(lastAppliedBlock.GenSignature),
@@ -1531,7 +1529,7 @@ func (s *stateManager) VotesNum(featureID int16) (uint64, error) {
 }
 
 func (s *stateManager) IsActivated(featureID int16) (bool, error) {
-	activated, err := s.stor.features.isActivated(featureID)
+	activated, err := s.stor.features.newestIsActivated(featureID)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
@@ -1580,6 +1578,31 @@ func (s *stateManager) AllFeatures() ([]int16, error) {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return features, nil
+}
+
+func (s *stateManager) EstimatorVersion() (int, error) {
+	blockV5, err := s.IsActivated(int16(settings.BlockV5))
+	if err != nil {
+		return 0, err
+	}
+	if blockV5 {
+		return 3, nil
+	}
+	blockReward, err := s.IsActivated(int16(settings.BlockReward))
+	if err != nil {
+		return 0, err
+	}
+	if blockReward {
+		return 2, nil
+	}
+	smartAccounts, err := s.IsActivated(int16(settings.SmartAccounts))
+	if err != nil {
+		return 0, err
+	}
+	if smartAccounts {
+		return 1, nil
+	}
+	return 0, errors.Errorf("inactive RIDE")
 }
 
 // Accounts data storage.
@@ -1974,7 +1997,11 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 		return nil, wrapErr(RetrievalError, err)
 	}
 	text := base64.StdEncoding.EncodeToString(scriptBytes)
-	complexity, err := s.stor.scriptsComplexity.scriptComplexityByAddress(*addr, true)
+	ev, err := s.EstimatorVersion()
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	est, err := s.stor.scriptsComplexity.scriptComplexityByAddress(*addr, ev, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1982,12 +2009,11 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	// TODO: switch complexity to DApp's complexity if verifier is incorrect for DApp.
 	return &proto.ScriptInfo{
 		Version:    version,
 		Bytes:      scriptBytes,
 		Base64:     text,
-		Complexity: complexity.verifierComplexity,
+		Complexity: uint64(est.Estimation),
 	}, nil
 }
 
@@ -1997,7 +2023,11 @@ func (s *stateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptIn
 		return nil, wrapErr(RetrievalError, err)
 	}
 	text := base64.StdEncoding.EncodeToString(scriptBytes)
-	complexity, err := s.stor.scriptsComplexity.scriptComplexityByAsset(assetID, true)
+	ev, err := s.EstimatorVersion()
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	est, err := s.stor.scriptsComplexity.scriptComplexityByAsset(assetID, ev, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2009,7 +2039,7 @@ func (s *stateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptIn
 		Version:    version,
 		Bytes:      scriptBytes,
 		Base64:     text,
-		Complexity: complexity.complexity,
+		Complexity: uint64(est.Estimation),
 	}, nil
 }
 
@@ -2019,7 +2049,11 @@ func (s *stateManager) NewestScriptInfoByAsset(assetID crypto.Digest) (*proto.Sc
 		return nil, wrapErr(RetrievalError, err)
 	}
 	text := base64.StdEncoding.EncodeToString(scriptBytes)
-	complexity, err := s.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, true)
+	ev, err := s.EstimatorVersion()
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	est, err := s.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, ev, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2031,7 +2065,7 @@ func (s *stateManager) NewestScriptInfoByAsset(assetID crypto.Digest) (*proto.Sc
 		Version:    version,
 		Bytes:      scriptBytes,
 		Base64:     text,
-		Complexity: complexity.complexity,
+		Complexity: uint64(est.Estimation),
 	}, nil
 }
 
