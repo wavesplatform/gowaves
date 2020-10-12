@@ -2,9 +2,10 @@ package crypto
 
 import (
 	b64 "encoding/base64"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestGroth16VerifyBLS(t *testing.T) {
