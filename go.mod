@@ -15,12 +15,12 @@ require (
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
-	github.com/golang/snappy v0.0.1 // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/howeyc/gopass v0.0.0-20190910152052-7cb4b85ec19c
 	github.com/influxdata/influxdb1-client v0.0.0-20200515024757-02f0bf5dbca3
 	github.com/jinzhu/copier v0.0.0-20190625015134-976e0346caa8
-	github.com/kr/pretty v0.1.0 // indirect
+	github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391
+	github.com/kilic/bn254 v0.0.0-20200902152204-ab63fe16fead
 	github.com/magiconair/properties v1.8.1
 	github.com/mr-tron/base58 v1.1.2
 	github.com/onsi/ginkgo v1.10.1 // indirect
@@ -34,9 +34,8 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
-	github.com/steakknife/hamming v0.0.0-20180906055917-c99c65617cd3 // indirect
 	github.com/stretchr/testify v1.6.1
-	github.com/syndtr/goleveldb v1.0.0
+	github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/xenolf/lego v2.7.2+incompatible
 	go.uber.org/atomic v1.4.0
