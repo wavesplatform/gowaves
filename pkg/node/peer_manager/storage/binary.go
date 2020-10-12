@@ -54,7 +54,6 @@ func (a *BinaryStorage) loadCache(cache *Peers, file string) error {
 	bts, err := ioutil.ReadFile(file)
 	if err != nil {
 		if os.IsNotExist(err) {
-			cache = &Peers{}
 			return nil
 		}
 		return err

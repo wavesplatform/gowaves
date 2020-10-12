@@ -73,6 +73,7 @@ var (
 	minPeersMining                        = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining.")
 	disableMiner                          = flag.Bool("disable-miner", false, "Disable miner. Enabled by default.")
 	profiler                              = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
+	prometheus                            = flag.String("prometheus", "", "Provide collected metrics by prometheus client.")
 	integrationGenesisSignature           = flag.String("integration.genesis.signature", "", "Integration. Genesis signature.")
 	integrationGenesisTimestamp           = flag.Int("integration.genesis.timestamp", 0, "??")
 	integrationGenesisBlockTimestamp      = flag.Int("integration.genesis.block-timestamp", 0, "??")
@@ -357,13 +358,12 @@ func main() {
 	}()
 
 	go func() {
-		//http.Handle("/metrics", promhttp.Handler())
-		h := http.NewServeMux()
-		h.Handle("/metrics", promhttp.Handler())
-		server := &http.Server{Addr: ":6871", Handler: h}
-		_ = server.ListenAndServe()
-		//server.l
-		//_ = http.ListenAndServe()
+		if *prometheus != "" {
+			h := http.NewServeMux()
+			h.Handle("/metrics", promhttp.Handler())
+			server := &http.Server{Addr: *prometheus, Handler: h}
+			_ = server.ListenAndServe()
+		}
 	}()
 
 	if *enableGrpcApi {
