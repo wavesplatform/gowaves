@@ -6,8 +6,8 @@ import (
 	"io"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/fride"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
 const (
@@ -17,8 +17,8 @@ const (
 	maxCacheBytes = maxCacheSize * scriptSize
 )
 
-func scriptBytesToTree(script proto.Script) (*fride.Tree, error) {
-	tree, err := fride.Parse(script)
+func scriptBytesToTree(script proto.Script) (*ride.Tree, error) {
+	tree, err := ride.Parse(script)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func (ss *scriptsStorage) newestScriptBytesByKey(key []byte, filter bool) (proto
 	return record.script, nil
 }
 
-func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (*fride.Tree, crypto.PublicKey, error) {
+func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (*ride.Tree, crypto.PublicKey, error) {
 	var record scriptRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
 		return nil, crypto.PublicKey{}, err
@@ -193,7 +193,7 @@ func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (*fride.T
 	return tree, record.pk, err
 }
 
-func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (*fride.Tree, error) {
+func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (*ride.Tree, error) {
 	recordBytes, err := ss.hs.newestTopEntryData(key, filter)
 	if err != nil {
 		return nil, err
@@ -202,7 +202,7 @@ func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (*fride.
 	return tree, err
 }
 
-func (ss *scriptsStorage) scriptTreeByKey(key []byte, filter bool) (*fride.Tree, error) {
+func (ss *scriptsStorage) scriptTreeByKey(key []byte, filter bool) (*ride.Tree, error) {
 	recordBytes, err := ss.hs.topEntryData(key, filter)
 	if err != nil {
 		return nil, err
@@ -270,7 +270,7 @@ func (ss *scriptsStorage) isSmartAsset(assetID crypto.Digest, filter bool) (bool
 	return scriptExists(recordBytes), nil
 }
 
-func (ss *scriptsStorage) newestScriptByAsset(assetID crypto.Digest, filter bool) (*fride.Tree, error) {
+func (ss *scriptsStorage) newestScriptByAsset(assetID crypto.Digest, filter bool) (*ride.Tree, error) {
 	if r, ok := ss.uncertainAssetScripts[assetID]; ok {
 		if r.scriptIsEmpty() {
 			return nil, proto.ErrNotFound
@@ -290,7 +290,7 @@ func (ss *scriptsStorage) newestScriptByAsset(assetID crypto.Digest, filter bool
 	return tree, nil
 }
 
-func (ss *scriptsStorage) scriptByAsset(assetID crypto.Digest, filter bool) (*fride.Tree, error) {
+func (ss *scriptsStorage) scriptByAsset(assetID crypto.Digest, filter bool) (*ride.Tree, error) {
 	key := assetScriptKey{assetID}
 	return ss.scriptTreeByKey(key.bytes(), filter)
 }
@@ -367,7 +367,7 @@ func (ss *scriptsStorage) accountHasScript(addr proto.Address, filter bool) (boo
 	return scriptExists(recordBytes), nil
 }
 
-func (ss *scriptsStorage) newestScriptByAddr(addr proto.Address, filter bool) (*fride.Tree, error) {
+func (ss *scriptsStorage) newestScriptByAddr(addr proto.Address, filter bool) (*ride.Tree, error) {
 	key := accountScriptKey{addr}
 	keyBytes := key.bytes()
 	if tree, has := ss.cache.get(keyBytes); has {
@@ -391,7 +391,7 @@ func (ss *scriptsStorage) newestScriptPKByAddr(addr proto.Address, filter bool) 
 	return pk, err
 }
 
-func (ss *scriptsStorage) scriptByAddr(addr proto.Address, filter bool) (*fride.Tree, error) {
+func (ss *scriptsStorage) scriptByAddr(addr proto.Address, filter bool) (*ride.Tree, error) {
 	key := accountScriptKey{addr}
 	return ss.scriptTreeByKey(key.bytes(), filter)
 }

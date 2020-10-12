@@ -4,8 +4,8 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/fride"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
 type scriptsComplexity struct {
@@ -16,59 +16,59 @@ func newScriptsComplexity(hs *historyStorage) *scriptsComplexity {
 	return &scriptsComplexity{hs: hs}
 }
 
-func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address, ev int, filter bool) (*fride.TreeEstimation, error) {
+func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address, ev int, filter bool) (*ride.TreeEstimation, error) {
 	key := accountScriptComplexityKey{ev, addr}
 	recordBytes, err := sc.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
-	record := new(fride.TreeEstimation)
+	record := new(ride.TreeEstimation)
 	if err = cbor.Unmarshal(recordBytes, record); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal account script complexities record")
 	}
 	return record, nil
 }
 
-func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset crypto.Digest, ev int, filter bool) (*fride.TreeEstimation, error) {
+func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset crypto.Digest, ev int, filter bool) (*ride.TreeEstimation, error) {
 	key := assetScriptComplexityKey{ev, asset}
 	recordBytes, err := sc.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
-	record := new(fride.TreeEstimation)
+	record := new(ride.TreeEstimation)
 	if err = cbor.Unmarshal(recordBytes, record); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal asset script complexities record")
 	}
 	return record, nil
 }
 
-func (sc *scriptsComplexity) scriptComplexityByAsset(asset crypto.Digest, ev int, filter bool) (*fride.TreeEstimation, error) {
+func (sc *scriptsComplexity) scriptComplexityByAsset(asset crypto.Digest, ev int, filter bool) (*ride.TreeEstimation, error) {
 	key := assetScriptComplexityKey{ev, asset}
 	recordBytes, err := sc.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
-	record := new(fride.TreeEstimation)
+	record := new(ride.TreeEstimation)
 	if err := cbor.Unmarshal(recordBytes, record); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal asset script complexities record")
 	}
 	return record, nil
 }
 
-func (sc *scriptsComplexity) scriptComplexityByAddress(addr proto.Address, ev int, filter bool) (*fride.TreeEstimation, error) {
+func (sc *scriptsComplexity) scriptComplexityByAddress(addr proto.Address, ev int, filter bool) (*ride.TreeEstimation, error) {
 	key := accountScriptComplexityKey{ev, addr}
 	recordBytes, err := sc.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
 	}
-	record := new(fride.TreeEstimation)
+	record := new(ride.TreeEstimation)
 	if err := cbor.Unmarshal(recordBytes, record); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal account script complexities record")
 	}
 	return record, nil
 }
 
-func (sc *scriptsComplexity) saveComplexitiesForAddr(addr proto.Address, estimations map[int]fride.TreeEstimation, blockID proto.BlockID) error {
+func (sc *scriptsComplexity) saveComplexitiesForAddr(addr proto.Address, estimations map[int]ride.TreeEstimation, blockID proto.BlockID) error {
 	for v, e := range estimations {
 		recordBytes, err := cbor.Marshal(e)
 		if err != nil {
@@ -83,7 +83,7 @@ func (sc *scriptsComplexity) saveComplexitiesForAddr(addr proto.Address, estimat
 	return nil
 }
 
-func (sc *scriptsComplexity) saveComplexitiesForAsset(asset crypto.Digest, estimations map[int]fride.TreeEstimation, blockID proto.BlockID) error {
+func (sc *scriptsComplexity) saveComplexitiesForAsset(asset crypto.Digest, estimations map[int]ride.TreeEstimation, blockID proto.BlockID) error {
 	for v, e := range estimations {
 		recordBytes, err := cbor.Marshal(e)
 		if err != nil {

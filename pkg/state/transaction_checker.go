@@ -10,8 +10,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
-	"github.com/wavesplatform/gowaves/pkg/fride"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -80,7 +80,7 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 	return nil
 }
 
-func (tc *transactionChecker) checkScriptComplexity(tree *fride.Tree, estimation fride.TreeEstimation) error {
+func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation ride.TreeEstimation) error {
 	var maxComplexity int
 	switch tree.LibVersion {
 	case 1, 2:
@@ -98,8 +98,8 @@ func (tc *transactionChecker) checkScriptComplexity(tree *fride.Tree, estimation
 	return nil
 }
 
-func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int) (map[int]fride.TreeEstimation, error) {
-	tree, err := fride.Parse(script)
+func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int) (map[int]ride.TreeEstimation, error) {
+	tree, err := ride.Parse(script)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to build AST")
 	}
@@ -114,9 +114,9 @@ func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion 
 		return nil, errs.Extend(err, "script activation check failed")
 	}
 
-	estimations := make(map[int]fride.TreeEstimation)
+	estimations := make(map[int]ride.TreeEstimation)
 	for ev := estimatorVersion; ev <= maxEstimatorVersion; ev++ {
-		est, err := fride.EstimateTree(tree, ev)
+		est, err := ride.EstimateTree(tree, ev)
 		if err != nil {
 			return nil, errs.Extend(err, "failed to estimate script complexity")
 		}

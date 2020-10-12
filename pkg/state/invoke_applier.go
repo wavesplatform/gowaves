@@ -8,8 +8,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
-	"github.com/wavesplatform/gowaves/pkg/fride"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -204,7 +204,7 @@ func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, ini
 	return scriptRuns
 }
 
-func errorForSmartAsset(res fride.RideResult, asset crypto.Digest) error {
+func errorForSmartAsset(res ride.RideResult, asset crypto.Digest) error {
 	var text string
 	if res.UserError() != "" {
 		text = fmt.Sprintf("Transaction is not allowed by token-script id %s: throw from asset script.", asset.String())
@@ -673,12 +673,12 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 }
 
 func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
-	blockInfo *proto.BlockInfo, txID crypto.Digest, txTimestamp uint64, initialisation, acceptFailed bool) (bool, fride.RideResult, error) {
+	blockInfo *proto.BlockInfo, txID crypto.Digest, txTimestamp uint64, initialisation, acceptFailed bool) (bool, ride.RideResult, error) {
 	isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(asset, !initialisation)
 	if !isSmartAsset {
 		return true, nil, nil
 	}
-	env, err := fride.NewEnvironment(ia.settings.AddressSchemeCharacter, ia.state)
+	env, err := ride.NewEnvironment(ia.settings.AddressSchemeCharacter, ia.state)
 	if err != nil {
 		return false, nil, err
 	}

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/fride"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -36,22 +36,22 @@ func TestSaveComplexityForAddr(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
 
-	est1 := fride.TreeEstimation{
+	est1 := ride.TreeEstimation{
 		Estimation: 1234567890,
 		Verifier:   11111,
 		Functions:  map[string]int{"lightFunc": 123, "heavyFunc": 1000, "superHeavyFunc": 1234567890},
 	}
-	est2 := fride.TreeEstimation{
+	est2 := ride.TreeEstimation{
 		Estimation: 5647382910,
 		Verifier:   22222,
 		Functions:  map[string]int{"lightFunc": 456, "heavyFunc": 2000, "superHeavyFunc": 5647382910},
 	}
-	est3 := fride.TreeEstimation{
+	est3 := ride.TreeEstimation{
 		Estimation: 9876543210,
 		Verifier:   33333,
 		Functions:  map[string]int{"lightFunc": 789, "heavyFunc": 3000, "superHeavyFunc": 9876543210},
 	}
-	estimations := map[int]fride.TreeEstimation{1: est1, 2: est2, 3: est3}
+	estimations := map[int]ride.TreeEstimation{1: est1, 2: est2, 3: est3}
 	err = to.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, blockID0)
 	assert.NoError(t, err)
 	res1, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 1, true)
@@ -90,10 +90,10 @@ func TestSaveComplexityForAsset(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	asset := testGlobal.asset0.asset.ID
-	est1 := fride.TreeEstimation{Estimation: 500, Verifier: 500}
-	est2 := fride.TreeEstimation{Estimation: 600, Verifier: 600}
-	est3 := fride.TreeEstimation{Estimation: 700, Verifier: 700}
-	estimations := map[int]fride.TreeEstimation{1: est1, 2: est2, 3: est3}
+	est1 := ride.TreeEstimation{Estimation: 500, Verifier: 500}
+	est2 := ride.TreeEstimation{Estimation: 600, Verifier: 600}
+	est3 := ride.TreeEstimation{Estimation: 700, Verifier: 700}
+	estimations := map[int]ride.TreeEstimation{1: est1, 2: est2, 3: est3}
 	err = to.scriptsComplexity.saveComplexitiesForAsset(asset, estimations, blockID0)
 	assert.NoError(t, err)
 	res1, err := to.scriptsComplexity.newestScriptComplexityByAsset(asset, 1, true)
