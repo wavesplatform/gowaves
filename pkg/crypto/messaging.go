@@ -18,10 +18,10 @@ const (
 )
 
 func SharedKey(sk SecretKey, pk PublicKey, prefix []byte) ([]byte, error) {
-	var k, k1, k2 [KeySize]byte
-	copy(k1[:], sk[:])
-	copy(k2[:], pk[:])
-	curve25519.ScalarMult(&k, &k1, &k2)
+	k, err := curve25519.X25519(sk[:], pk[:])
+	if err != nil {
+		return nil, err
+	}
 	h1 := sha256.New()
 	if _, err := h1.Write(prefix); err != nil {
 		return nil, err
