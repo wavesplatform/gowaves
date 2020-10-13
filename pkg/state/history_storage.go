@@ -131,8 +131,7 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 	assetScriptComplexity: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   assetScriptComplexityRecordSize + 4,
+		fixedSize:    false,
 	},
 	rewardVotes: {
 		needToFilter: true,

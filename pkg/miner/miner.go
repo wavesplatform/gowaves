@@ -86,7 +86,7 @@ func blockVersion(state state.StateInfo) (proto.BlockVersion, error) {
 		return 0, err
 	}
 	if blockV5Activated {
-		return proto.ProtoBlockVersion, nil
+		return proto.ProtobufBlockVersion, nil
 	}
 	height, err := state.Height()
 	if err != nil {

@@ -2,9 +2,10 @@ package crypto
 
 import (
 	"errors"
+	"math/big"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12381"
 	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bn256"
-	"math/big"
 )
 
 type Bls12381 struct{}
@@ -92,7 +93,7 @@ func (Bn256) Groth16Verify(vk []byte, proof []byte, inputs []byte) (bool, error)
 	if err != nil {
 		return false, err
 	}
-	proofT, _ := bn256.GetProofFromCompressed(proof)
+	proofT, err := bn256.GetProofFromCompressed(proof)
 	if err != nil {
 		return false, err
 	}

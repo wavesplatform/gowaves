@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
@@ -27,9 +28,10 @@ func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
 
 // TransferScriptAction is an action to emit transfer of asset.
 type TransferScriptAction struct {
-	Recipient Recipient
-	Amount    int64
-	Asset     OptionalAsset
+	Recipient    Recipient
+	Amount       int64
+	Asset        OptionalAsset
+	InvalidAsset bool
 }
 
 func (a TransferScriptAction) scriptAction() {}
@@ -291,8 +293,9 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 }
 
 type ActionsValidationRestrictions struct {
-	DisableSelfTransfers bool
-	ScriptAddress        Address
+	DisableSelfTransfers     bool
+	ScriptAddress            Address
+	KeySizeValidationVersion byte
 }
 
 func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions) error {
@@ -306,8 +309,15 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			if dataEntriesCount > maxDataEntryScriptActions {
 				return errors.Errorf("number of data entries produced by script is more than allowed %d", maxDataEntryScriptActions)
 			}
-			if len(utf16.Encode([]rune(ta.Entry.GetKey()))) > maxKeySize {
-				return errors.New("key is too large")
+			switch restrictions.KeySizeValidationVersion {
+			case 1:
+				if len(utf16.Encode([]rune(ta.Entry.GetKey()))) > maxKeySize {
+					return errs.NewTooBigArray("key is too large")
+				}
+			default:
+				if len([]byte(ta.Entry.GetKey())) > maxPBKeySize {
+					return errs.NewTooBigArray("key is too large")
+				}
 			}
 			dataEntriesSize += ta.Entry.BinarySize()
 			if dataEntriesSize > maxDataEntryScriptActionsSizeInBytes {
@@ -322,6 +332,9 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			if ta.Amount < 0 {
 				return errors.New("negative transfer amount")
 			}
+			if ta.InvalidAsset {
+				return errors.New("invalid asset")
+			}
 			if restrictions.DisableSelfTransfers {
 				if ta.Recipient.Address.Eq(restrictions.ScriptAddress) {
 					return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
@@ -333,8 +346,8 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
-			if ta.Quantity <= 0 {
-				return errors.New("negative or zero quantity")
+			if ta.Quantity < 0 {
+				return errors.New("negative quantity")
 			}
 			if ta.Decimals < 0 || ta.Decimals > maxDecimals {
 				return errors.New("invalid decimals")

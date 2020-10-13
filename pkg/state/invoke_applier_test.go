@@ -1,6 +1,7 @@
 package state
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,8 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -38,6 +38,7 @@ func createInvokeApplierTestObjects(t *testing.T) (*invokeApplierTestObjects, st
 	err = state.stateDB.addBlock(blockID0)
 	assert.NoError(t, err)
 	to := &invokeApplierTestObjects{state}
+	to.activateFeature(t, int16(settings.SmartAccounts))
 	to.activateFeature(t, int16(settings.Ride4DApps))
 	return to, dataDir
 }
@@ -68,17 +69,11 @@ func (to *invokeApplierTestObjects) setAndCheckInitialWavesBalance(t *testing.T,
 }
 
 func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.Address, pk crypto.PublicKey, script proto.Script) {
-	scriptAst, err := ast.BuildScript(reader.NewBytesReader(script))
-	assert.NoError(t, err)
-	estimator := estimatorByScript(scriptAst, 1)
-	complexity, err := estimator.Estimate(scriptAst)
-	assert.NoError(t, err)
-	r := &accountScriptComplexityRecord{
-		verifierComplexity: complexity.Verifier,
-		byFuncs:            complexity.Functions,
-		estimator:          byte(estimator.Version),
-	}
-	err = to.state.stor.scriptsComplexity.saveComplexityForAddr(addr, r, blockID0)
+	tree, err := ride.Parse(script)
+	require.NoError(t, err)
+	estimation, err := ride.EstimateTree(tree, 1)
+	require.NoError(t, err)
+	err = to.state.stor.scriptsComplexity.saveComplexitiesForAddr(addr, map[int]ride.TreeEstimation{1: estimation}, blockID0)
 	assert.NoError(t, err, "failed to save complexity for address")
 	err = to.state.stor.scriptsStorage.setAccountScript(addr, script, pk, blockID0)
 	assert.NoError(t, err, "failed to set account script")
@@ -90,9 +85,10 @@ func (to *invokeApplierTestObjects) setDApp(t *testing.T, dappFilename string, d
 	dAppPath := filepath.Join(dir, "testdata", "scripts", dappFilename)
 	scriptBase64, err := ioutil.ReadFile(dAppPath)
 	assert.NoError(t, err, "ReadFile() failed")
-	scriptBytes, err := reader.ScriptBytesFromBase64(scriptBase64)
+	scriptBytes := make([]byte, base64.StdEncoding.DecodedLen(len(scriptBase64)))
+	l, err := base64.StdEncoding.Decode(scriptBytes, scriptBase64)
 	assert.NoError(t, err, "ScriptBytesFromBase64() failed")
-	to.setScript(t, dappAddr.addr, dappAddr.pk, scriptBytes)
+	to.setScript(t, dappAddr.addr, dappAddr.pk, scriptBytes[:l])
 }
 
 func (to *invokeApplierTestObjects) activateFeature(t *testing.T, feature int16) {

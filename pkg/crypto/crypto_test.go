@@ -224,7 +224,7 @@ func BenchmarkSign(b *testing.B) {
 }
 
 func BenchmarkVerify(b *testing.B) {
-	for size := 64; size <= 2048; size *= 2 {
+	for size := 64; size <= 32768; size *= 2 {
 		b.Run(fmt.Sprintf("%dB", size), func(b *testing.B) {
 			data := make([]byte, size)
 			if _, err := rand.Read(data); err != nil {

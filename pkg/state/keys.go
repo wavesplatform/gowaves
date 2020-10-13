@@ -567,24 +567,28 @@ func (k *assetScriptKey) bytes() []byte {
 }
 
 type accountScriptComplexityKey struct {
+	ver  int
 	addr proto.Address
 }
 
 func (k *accountScriptComplexityKey) bytes() []byte {
-	buf := make([]byte, 1+proto.AddressSize)
+	buf := make([]byte, 2+proto.AddressSize)
 	buf[0] = accountScriptComplexityKeyPrefix
-	copy(buf[1:], k.addr[:])
+	buf[1] = byte(k.ver)
+	copy(buf[2:], k.addr[:])
 	return buf
 }
 
 type assetScriptComplexityKey struct {
+	ver   int
 	asset crypto.Digest
 }
 
 func (k *assetScriptComplexityKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
+	buf := make([]byte, 2+crypto.DigestSize)
 	buf[0] = assetScriptComplexityKeyPrefix
-	copy(buf[1:], k.asset[:])
+	buf[1] = byte(k.ver)
+	copy(buf[2:], k.asset[:])
 	return buf
 }
 

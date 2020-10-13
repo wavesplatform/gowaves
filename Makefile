@@ -43,7 +43,7 @@ vendor:
 	go mod vendor
 
 vetcheck:
-	go list ./... | grep -v bn254 | xargs go vet -v
+	go list ./... | grep -v bn254 | xargs go vet
 	golangci-lint run --skip-dirs pkg/crypto/internal/groth16/bn256/utils/bn254
 
 build-chaincmp-linux:

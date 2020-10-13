@@ -120,7 +120,7 @@ func (s *Symbols) UpdateFromOracle(conn *grpc.ClientConn) error {
 	if state := conn.GetState(); state != connectivity.Ready {
 		return errors.Errorf("invalid gRPC connection state: %s", state.String())
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	c := g.NewAccountsApiClient(conn)

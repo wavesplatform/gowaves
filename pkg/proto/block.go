@@ -25,7 +25,7 @@ const (
 	PlainBlockVersion
 	NgBlockVersion
 	RewardBlockVersion
-	ProtoBlockVersion
+	ProtobufBlockVersion
 )
 
 type Marshaller interface {
@@ -105,7 +105,7 @@ func NewBlockIDFromBytes(data []byte) (BlockID, error) {
 }
 
 func (id BlockID) IsValid(version BlockVersion) bool {
-	if version >= ProtoBlockVersion {
+	if version >= ProtobufBlockVersion {
 		return id.idType == DigestID
 	}
 	return id.idType == SignatureID
@@ -196,7 +196,7 @@ func featuresFromBinary(data []byte) ([]int16, error) {
 }
 
 func (b *BlockHeader) GenerateBlockID(scheme Scheme) error {
-	if b.Version < ProtoBlockVersion {
+	if b.Version < ProtobufBlockVersion {
 		b.ID = NewBlockIDFromSignature(b.BlockSignature)
 		return nil
 	}
@@ -213,14 +213,14 @@ func (b *BlockHeader) GenerateBlockID(scheme Scheme) error {
 }
 
 func (b *BlockHeader) BlockID() BlockID {
-	if b.Version < ProtoBlockVersion {
+	if b.Version < ProtobufBlockVersion {
 		return NewBlockIDFromSignature(b.BlockSignature)
 	}
 	return b.ID
 }
 
 func (b *BlockHeader) MarshalHeader(scheme Scheme) ([]byte, error) {
-	if b.Version >= ProtoBlockVersion {
+	if b.Version >= ProtobufBlockVersion {
 		return b.MarshalHeaderToProtobuf(scheme)
 	}
 	return b.MarshalHeaderToBinary()
@@ -290,7 +290,7 @@ func (b *BlockHeader) HeaderToProtobufWithHeight(currentScheme Scheme, height ui
 }
 
 func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
-	if b.Version >= ProtoBlockVersion {
+	if b.Version >= ProtobufBlockVersion {
 		return nil, errors.New("BlockHeader.MarshalHeaderToBinary: binary format is not defined for Block versions > 4")
 	}
 	res := make([]byte, 1+8+64+4+8+32+4)
@@ -341,7 +341,7 @@ func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte, scheme Scheme) (err
 	}()
 
 	b.Version = BlockVersion(data[0])
-	if b.Version >= ProtoBlockVersion {
+	if b.Version >= ProtobufBlockVersion {
 		return errors.New("binary format is not defined for Block versions > 4")
 	}
 	b.Timestamp = binary.BigEndian.Uint64(data[1:9])
@@ -424,7 +424,7 @@ type Block struct {
 }
 
 func (b *Block) Marshal(scheme Scheme) ([]byte, error) {
-	if b.Version >= ProtoBlockVersion {
+	if b.Version >= ProtobufBlockVersion {
 		return b.MarshalToProtobuf(scheme)
 	} else {
 		return b.MarshalBinary()
@@ -439,7 +439,7 @@ func (b *Block) Clone() *Block {
 
 func (b *Block) Sign(scheme Scheme, secret crypto.SecretKey) error {
 	var bb []byte
-	if b.Version >= ProtoBlockVersion {
+	if b.Version >= ProtobufBlockVersion {
 		b, err := b.MarshalHeaderToProtobufWithoutSignature(scheme)
 		if err != nil {
 			return err
@@ -471,7 +471,7 @@ func (b *Block) SetTransactionsRoot(scheme Scheme) error {
 }
 
 func (b *Block) SetTransactionsRootIfPossible(scheme Scheme) error {
-	if b.Version < ProtoBlockVersion {
+	if b.Version < ProtobufBlockVersion {
 		return nil
 	}
 	return b.SetTransactionsRoot(scheme)
@@ -479,7 +479,7 @@ func (b *Block) SetTransactionsRootIfPossible(scheme Scheme) error {
 
 func (b *Block) VerifySignature(scheme Scheme) (bool, error) {
 	var bb []byte
-	if b.Version >= ProtoBlockVersion {
+	if b.Version >= ProtobufBlockVersion {
 		b, err := b.MarshalHeaderToProtobufWithoutSignature(scheme)
 		if err != nil {
 			return false, err
@@ -498,7 +498,7 @@ func (b *Block) VerifySignature(scheme Scheme) (bool, error) {
 
 func (b *Block) VerifyTransactionsRoot(scheme Scheme) (bool, error) {
 	// For old versions of Block always return true
-	if b.Version < ProtoBlockVersion {
+	if b.Version < ProtobufBlockVersion {
 		return true, nil
 	}
 	rh, err := b.transactionsRoot(scheme)
@@ -510,7 +510,7 @@ func (b *Block) VerifyTransactionsRoot(scheme Scheme) (bool, error) {
 
 // MarshalBinary encodes Block to binary form
 func (b *Block) MarshalBinary() ([]byte, error) {
-	if b.Version >= ProtoBlockVersion {
+	if b.Version >= ProtobufBlockVersion {
 		return nil, errors.New("binary format is not defined for Block versions > 4")
 	}
 	buf := bytebufferpool.Get()
@@ -527,7 +527,7 @@ func (b *Block) MarshalBinary() ([]byte, error) {
 }
 
 func (b *Block) WriteTo(w io.Writer) (int64, error) {
-	if b.Version >= ProtoBlockVersion {
+	if b.Version >= ProtobufBlockVersion {
 		return 0, errors.New("binary format is not defined for Block versions > 4")
 	}
 	n, err := b.WriteToWithoutSignature(w)
@@ -600,7 +600,7 @@ func (b *Block) ToProtobufWithHeight(currentScheme Scheme, height uint64) (*pb.B
 //WriteToWithoutSignature writes binary representation of block into Writer.
 //It does not sign and write signature.
 func (b *Block) WriteToWithoutSignature(w io.Writer) (int64, error) {
-	if b.Version >= ProtoBlockVersion {
+	if b.Version >= ProtobufBlockVersion {
 		return 0, errors.New("binary format is not defined for Block versions > 4")
 	}
 	s := serializer.NewNonFallable(w)
@@ -654,7 +654,7 @@ func (b *Block) UnmarshalBinary(data []byte, scheme Scheme) (err error) {
 	}()
 
 	b.Version = BlockVersion(data[0])
-	if b.Version >= ProtoBlockVersion {
+	if b.Version >= ProtobufBlockVersion {
 		return errors.New("binary format is not defined for Block versions > 4")
 	}
 	b.Timestamp = binary.BigEndian.Uint64(data[1:9])
@@ -716,8 +716,8 @@ func (b *Block) UnmarshalBinary(data []byte, scheme Scheme) (err error) {
 }
 
 func (b *Block) transactionsRoot(scheme Scheme) ([]byte, error) {
-	if b.Version < ProtoBlockVersion {
-		return nil, errors.Errorf("no transactions root prior block version %d, current version %d", ProtoBlockVersion, b.Version)
+	if b.Version < ProtobufBlockVersion {
+		return nil, errors.Errorf("no transactions root prior block version %d, current version %d", ProtobufBlockVersion, b.Version)
 	}
 	tree, err := crypto.NewMerkleTree()
 	if err != nil {
@@ -753,7 +753,7 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockI
 	if version <= RewardBlockVersion {
 		b.TransactionBlockLength = uint32(transactions.BinarySize() + 4)
 	}
-	if version >= ProtoBlockVersion {
+	if version >= ProtobufBlockVersion {
 		err := b.SetTransactionsRoot(scheme)
 		if err != nil {
 			return nil, err
@@ -802,7 +802,7 @@ type BlockMarshaller struct {
 }
 
 func (a BlockMarshaller) Marshal(scheme Scheme) ([]byte, error) {
-	if a.b.Version >= ProtoBlockVersion {
+	if a.b.Version >= ProtobufBlockVersion {
 		return a.b.MarshalToProtobuf(scheme)
 	} else {
 		return a.b.MarshalBinary()

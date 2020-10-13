@@ -11,11 +11,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/estimation"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"go.uber.org/zap"
 )
 
 const (
@@ -24,6 +21,8 @@ const (
 
 	maxVerifierScriptSize = 8 * KiB
 	maxContractScriptSize = 32 * KiB
+
+	maxEstimatorVersion = 3
 )
 
 type checkerInfo struct {
@@ -33,6 +32,17 @@ type checkerInfo struct {
 	blockID          proto.BlockID
 	blockVersion     proto.BlockVersion
 	height           uint64
+}
+
+func (i *checkerInfo) estimatorVersion() int {
+	switch i.blockVersion {
+	case proto.ProtobufBlockVersion:
+		return 3
+	case proto.RewardBlockVersion:
+		return 2
+	default:
+		return 1
+	}
 }
 
 type transactionChecker struct {
@@ -49,96 +59,73 @@ func newTransactionChecker(
 	return &transactionChecker{genesis, stor, settings}, nil
 }
 
-func (tc *transactionChecker) scriptActivation(script *ast.Script) error {
+func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) error {
 	rideForDAppsActivated, err := tc.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
 		return errs.Extend(err, "transactionChecker scriptActivation isActivated")
 	}
-	multiPaymentsActivated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
+	blockV5Activated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return err
 	}
-	if script.Version == 3 && !rideForDAppsActivated {
+	if libVersion == 3 && !rideForDAppsActivated {
 		return errors.New("Ride4DApps feature must be activated for scripts version 3")
 	}
-	if script.Version == 3 && script.HasArrays && !multiPaymentsActivated {
-		return errors.New("MultiPaymentInvokeScript feature must be activated for scripts that have array parameters")
-	}
-	if script.HasBlockV2 && !rideForDAppsActivated {
+	if hasBlockV2 && !rideForDAppsActivated {
 		return errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
 	}
-	if script.Version == 4 && !multiPaymentsActivated {
+	if libVersion == 4 && !blockV5Activated {
 		return errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
 	}
 	return nil
 }
 
-func (tc *transactionChecker) checkScriptComplexity(script *ast.Script, complexity estimation.Costs) error {
-	var maxComplexity uint64
-	switch script.Version {
+func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation ride.TreeEstimation) error {
+	var maxComplexity int
+	switch tree.LibVersion {
 	case 1, 2:
 		maxComplexity = 2000
 	case 3, 4:
 		maxComplexity = 4000
 	}
-	complexityVal := complexity.Verifier
-	if script.IsDapp() {
-		complexityVal = complexity.DApp
+	complexity := estimation.Verifier
+	if tree.IsDApp() {
+		complexity = estimation.Estimation
 	}
-	if complexityVal > maxComplexity {
-		// TODO: fix estimator and enable this check later.
-		zap.S().Warnf("ERROR: script complexity %d exceeds maximum allowed complexity of %d", complexityVal, maxComplexity)
+	if complexity > maxComplexity {
+		return errors.Errorf("script complexity %d exceeds maximum allowed complexity of %d", complexity, maxComplexity)
 	}
 	return nil
 }
 
-func estimatorByScript(script *ast.Script, version int) *estimation.Estimator {
-	var variables map[string]ast.Expr
-	var cat *estimation.Catalogue
-	switch script.Version {
-	case 1, 2:
-		variables = ast.VariablesV2()
-		cat = estimation.NewCatalogueV2()
-	case 3:
-		variables = ast.VariablesV3()
-		cat = estimation.NewCatalogueV3()
-	case 4:
-		variables = ast.VariablesV4()
-		cat = estimation.NewCatalogueV4()
-	}
-	return estimation.NewEstimator(version, cat, variables)
-}
-
-type scriptInfo struct {
-	complexity       estimation.Costs
-	estimatorVersion byte
-	isDApp           bool
-}
-
-func (tc *transactionChecker) checkScript(scriptBytes proto.Script, estimatorVersion int) (*scriptInfo, error) {
-	script, err := ast.BuildScript(reader.NewBytesReader(scriptBytes))
+func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int) (map[int]ride.TreeEstimation, error) {
+	tree, err := ride.Parse(script)
 	if err != nil {
-		return nil, errs.Extend(err, "failed to build ast from script bytes")
+		return nil, errs.Extend(err, "failed to build AST")
 	}
 	maxSize := maxVerifierScriptSize
-	if script.IsDapp() {
+	if tree.IsDApp() {
 		maxSize = maxContractScriptSize
 	}
-	if len(scriptBytes) > maxSize {
-		return nil, errors.Errorf("script size %d is greater than limit of %d", len(scriptBytes), maxSize)
+	if len(script) > maxSize {
+		return nil, errors.Errorf("script size %d is greater than limit of %d", len(script), maxSize)
 	}
-	if err := tc.scriptActivation(script); err != nil {
+	if err := tc.scriptActivation(tree.LibVersion, tree.HasBlockV2); err != nil {
 		return nil, errs.Extend(err, "script activation check failed")
 	}
-	estimator := estimatorByScript(script, estimatorVersion)
-	complexity, err := estimator.Estimate(script)
-	if err != nil {
-		return nil, errs.Extend(err, "failed to estimate script complexity")
+
+	estimations := make(map[int]ride.TreeEstimation)
+	for ev := estimatorVersion; ev <= maxEstimatorVersion; ev++ {
+		est, err := ride.EstimateTree(tree, ev)
+		if err != nil {
+			return nil, errs.Extend(err, "failed to estimate script complexity")
+		}
+		estimations[ev] = est
 	}
-	if err := tc.checkScriptComplexity(script, complexity); err != nil {
-		return nil, errors.Errorf("checkScriptComplexity(): %v", err)
+	if err := tc.checkScriptComplexity(tree, estimations[estimatorVersion]); err != nil {
+		return nil, errors.Wrap(err, "failed to check script complexity")
 	}
-	return &scriptInfo{complexity, byte(estimator.Version), script.IsDapp()}, nil
+	return estimations, nil
 }
 
 type txAssets struct {
@@ -373,15 +360,6 @@ func (tc *transactionChecker) checkIssueWithSig(transaction proto.Transaction, i
 	return nil, nil
 }
 
-func (tc *transactionChecker) estimatorVersion(info *checkerInfo) int {
-	switch info.blockVersion {
-	case 4:
-		return 2
-	default:
-		return 1
-	}
-}
-
 func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.IssueWithProofs)
 	if !ok {
@@ -398,17 +376,13 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 		// No script checks / actions are needed.
 		return nil, nil
 	}
-	scriptInf, err := tc.checkScript(tx.Script, tc.estimatorVersion(info))
+	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion())
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
 	assetID := *tx.ID
-	r := &assetScriptComplexityRecord{
-		complexity: scriptInf.complexity.Verifier,
-		estimator:  scriptInf.estimatorVersion,
-	}
-	// Save complexity to storage so we won't have to calculate it every time the script is called.
-	if err := tc.stor.scriptsComplexity.saveComplexityForAsset(assetID, r, info.blockID); err != nil {
+	// Save complexities to storage so we won't have to calculate it every time the script is called.
+	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, estimations, info.blockID); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -426,11 +400,11 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 		return errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 	if info.currentTimestamp <= tc.settings.InvalidReissueInSameBlockUntilTime {
-		// Due to bugs in existing blockchain it is valid to reissue non-reissueable asset in this time period.
+		// Due to bugs in existing blockchain it is valid to reissue non-reissuable asset in this time period.
 		return nil
 	}
 	if (info.currentTimestamp >= tc.settings.ReissueBugWindowTimeStart) && (info.currentTimestamp <= tc.settings.ReissueBugWindowTimeEnd) {
-		// Due to bugs in existing blockchain it is valid to reissue non-reissueable asset in this time period.
+		// Due to bugs in existing blockchain it is valid to reissue non-reissuable asset in this time period.
 		return nil
 	}
 	if !assetInfo.reissuable {
@@ -988,17 +962,6 @@ func (tc *transactionChecker) checkSponsorshipWithProofs(transaction proto.Trans
 	return nil, nil
 }
 
-func (tc *transactionChecker) newAccountScriptComplexityRecordFromInfo(info *scriptInfo) *accountScriptComplexityRecord {
-	r := &accountScriptComplexityRecord{
-		verifierComplexity: info.complexity.Verifier,
-		estimator:          info.estimatorVersion,
-	}
-	if info.isDApp {
-		r.byFuncs = info.complexity.Functions
-	}
-	return r
-}
-
 func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.SetScriptWithProofs)
 	if !ok {
@@ -1011,31 +974,23 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, err
 	}
-	senderAddr, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
+	addr, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
 		return nil, err
 	}
 	if len(tx.Script) == 0 {
 		// No script checks / actions are needed.
-		if err := tc.stor.scriptsComplexity.saveComplexityForAddr(
-			senderAddr,
-			&accountScriptComplexityRecord{},
-			info.blockID,
-		); err != nil {
+		if err := tc.stor.scriptsComplexity.saveComplexitiesForAddr(addr, nil, info.blockID); err != nil {
 			return nil, err
 		}
 		return nil, nil
 	}
-	scriptInf, err := tc.checkScript(tx.Script, tc.estimatorVersion(info))
+	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion())
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
 	// Save complexity to storage so we won't have to calculate it every time the script is called.
-	if err := tc.stor.scriptsComplexity.saveComplexityForAddr(
-		senderAddr,
-		tc.newAccountScriptComplexityRecordFromInfo(scriptInf),
-		info.blockID,
-	); err != nil {
+	if err := tc.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, info.blockID); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -1069,16 +1024,12 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if !isSmartAsset {
 		return nil, errs.NewTxValidationError("Reason: Cannot set script on an asset issued without a script. Referenced assetId not found")
 	}
-	scriptInf, err := tc.checkScript(tx.Script, tc.estimatorVersion(info))
+	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion())
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
-	r := &assetScriptComplexityRecord{
-		complexity: scriptInf.complexity.Verifier,
-		estimator:  scriptInf.estimatorVersion,
-	}
 	// Save complexity to storage so we won't have to calculate it every time the script is called.
-	if err := tc.stor.scriptsComplexity.saveComplexityForAsset(tx.AssetID, r, info.blockID); err != nil {
+	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(tx.AssetID, estimations, info.blockID); err != nil {
 		return nil, errs.Extend(err, "saveComplexityForAsset")
 	}
 	return smartAssets, nil
@@ -1171,7 +1122,7 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 	}
 	updateAllowedAt := lastUpdateHeight + tc.settings.MinUpdateAssetInfoInterval
 	blockHeight := info.height + 1
-	if blockHeight <= updateAllowedAt {
+	if blockHeight < updateAllowedAt {
 		return nil, errs.NewAssetUpdateInterval(fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d", tx.AssetID.String(), updateAllowedAt, blockHeight))
 	}
 	return smartAssets, nil

@@ -71,6 +71,7 @@ type StateInfo interface {
 	IsApprovedAtHeight(featureID int16, height proto.Height) (bool, error)
 	ApprovalHeight(featureID int16) (proto.Height, error)
 	AllFeatures() ([]int16, error)
+	EstimatorVersion() (int, error)
 
 	// Aliases.
 	AddrByAlias(alias proto.Alias) (proto.Address, error)
