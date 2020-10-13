@@ -303,3 +303,66 @@ sudo rm -f gowaves" >> ./build/gowaves/DEBIAN/preinst
 	@mv ./build/gowaves.deb gowaves_${VERSION}.deb
 	@mv gowaves_${VERSION}.deb ./build/dist
 	@rm -rf ./build/gowaves
+
+build-gowaves-testnet-node-deb-package-linux:
+	@mkdir -p ./build/gowaves-testnet/DEBIAN
+	@touch ./build/gowaves-testnet/DEBIAN/control ./build/gowaves-testnet/DEBIAN/preinst ./build/gowaves-testnet/DEBIAN/postinst
+	@cp ./build/bin/linux-amd64/node ./build/gowaves-testnet/gowaves-testnet
+	@chmod 0775 ./build/gowaves-testnet/DEBIAN/control
+	@chmod 0775 ./build/gowaves-testnet/DEBIAN/preinst
+	@chmod 0775 ./build/gowaves-testnet/DEBIAN/postinst
+	@echo "Package: gowaves-testnet\n\
+Version: ${DEB_VER}\n\
+Section: misc\n\
+Priority: extra\n\
+Architecture: all\n\
+Depends: bash\n\
+Essential: no\n\
+Maintainer: ${ORGANISATION}.com\n\
+Description: It is gowaves-testnet node as systemd service. Hash: ${DEB_HASH}" >> ./build/gowaves-testnet/DEBIAN/control
+	@echo "#!/bin/bash\n\
+# Creating directordy for logs and giving its rights\n\
+sudo mkdir /var/log/gowaves-testnet\n\
+sudo chown syslog gowaves-testnet\n\
+# Creating gowaves-testnet.service file and put config to\n\
+touch gowaves-testnet.service\n\
+echo \"[Unit]\n\
+Description=gowaves-testnet MainNet node\n\
+ConditionPathExists=/usr/share/gowaves-testnet\n\
+After=network.target\n\
+[Service]\n\
+Type=simple\n\
+User=gowaves-testnet\n\
+Group=gowaves-testnet\n\
+LimitNOFILE=1024\n\
+Restart=on-failure\n\
+RestartSec=60\n\
+startLimitIntervalSec=60\n\
+WorkingDirectory=/usr/share/gowaves-testnet\n\
+ExecStart=/usr/share/gowaves-testnet/gowaves-testnet -state-path /var/lib/gowaves-testnet/ -api-address 0.0.0.0:8090 -peers 159.69.126.149:6863,94.130.105.239:6863,159.69.126.153:6863,94.130.172.201:6863 -blockchain-type testnet\n\
+# make sure log directory exists and owned by syslog\n\
+PermissionsStartOnly=true\n\
+ExecStartPre=/bin/mkdir -p /var/log/gowaves-testnet\n\
+ExecStartPre=/bin/chown syslog:adm /var/log/gowaves-testnet\n\
+ExecStartPre=/bin/chmod 755 /var/log/gowaves-testnet\n\
+StandardOutput=syslog\n\
+StandardError=syslog\n\
+SyslogIdentifier=gowaves-testnet\n\
+[Install]\n\
+WantedBy=multi-user.target\" >> gowaves-testnet.service\n\
+sudo useradd gowaves-testnet -s /sbin/nologin -M\n\
+sudo mv gowaves-testnet.service /lib/systemd/system/\n\
+sudo chmod 755 /lib/systemd/system/gowaves-testnet.service\n\
+sudo mkdir /usr/share/gowaves-testnet/\n\
+sudo chown gowaves-testnet:gowaves-testnet /usr/share/gowaves-testnet\n\
+sudo mkdir /var/lib/gowaves-testnet\n\
+sudo chown gowaves-testnet:gowaves-testnet /var/lib/gowaves-testnet\n\
+sudo cp gowaves-testnet /usr/share/gowaves-testnet/\n\
+sudo systemctl enable gowaves-testnet.service\n\
+sudo systemctl start gowaves-testnet.service" >> ./build/gowaves-testnet/DEBIAN/postinst
+	@echo "#!/bin/bash\n\
+sudo rm -f gowaves-testnet" >> ./build/gowaves-testnet/DEBIAN/preinst
+	@dpkg-deb --build ./build/gowaves-testnet
+	@mv ./build/gowaves-testnet.deb gowaves-testnet_${VERSION}.deb
+	@mv gowaves-testnet_${VERSION}.deb ./build/dist
+	#@rm -rf ./build/gowaves-testnet
