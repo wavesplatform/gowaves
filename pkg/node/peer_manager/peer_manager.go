@@ -302,15 +302,6 @@ func (a *PeerManagerImpl) UpdateKnownPeers(known []proto.TCPAddr) error {
 
 func (a *PeerManagerImpl) KnownPeers() ([]proto.TCPAddr, error) {
 	return a.state.Known()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if len(rs) == 0 {
-	//	return nil, nil
-	//}
-	//out := make([]proto.TCPAddr, len(rs))
-	//copy(out, rs)
-	//return out, nil
 }
 
 func (a *PeerManagerImpl) Close() {
