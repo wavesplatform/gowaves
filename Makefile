@@ -365,4 +365,4 @@ sudo rm -f gowaves-testnet" >> ./build/gowaves-testnet/DEBIAN/preinst
 	@dpkg-deb --build ./build/gowaves-testnet
 	@mv ./build/gowaves-testnet.deb gowaves-testnet_${VERSION}.deb
 	@mv gowaves-testnet_${VERSION}.deb ./build/dist
-	#@rm -rf ./build/gowaves-testnet
+	@rm -rf ./build/gowaves-testnet
