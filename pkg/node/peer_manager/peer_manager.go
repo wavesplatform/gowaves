@@ -116,9 +116,10 @@ type PeerManagerImpl struct {
 	suspended        suspended
 	connectPeers     bool // spawn outgoing
 	limitConnections int
+	version          proto.Version
 }
 
-func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections int) *PeerManagerImpl {
+func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections int, version proto.Version) *PeerManagerImpl {
 	return &PeerManagerImpl{
 		spawner:          spawner,
 		active:           make(map[peer.Peer]peerInfo),
@@ -127,6 +128,7 @@ func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections i
 		suspended:        suspended{},
 		connectPeers:     true,
 		limitConnections: limitConnections,
+		version:          version,
 	}
 }
 
@@ -174,6 +176,16 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 	if a.IsSuspended(p) {
 		p.Close()
 		return errors.New("peer is suspended")
+	}
+	if p.Handshake().Version.CmpMinor(a.version) >= 2 {
+		err := errors.Errorf(
+			"versions are too different, current %s, connected %s",
+			a.version.String(),
+			p.Handshake().Version.String(),
+		)
+		a.Suspend(p, err.Error())
+		p.Close()
+		return err
 	}
 
 	in, out := a.InOutCount()

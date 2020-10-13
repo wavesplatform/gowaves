@@ -192,7 +192,7 @@ func main() {
 
 	peerStorage := storage.NewBinaryStorage(path)
 
-	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, peerStorage, int(limitConnections))
+	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, peerStorage, int(limitConnections), version)
 	go peerManager.Run(ctx)
 
 	scheduler := scheduler2.NewScheduler(

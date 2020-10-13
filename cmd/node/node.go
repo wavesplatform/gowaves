@@ -295,6 +295,7 @@ func main() {
 		peerSpawnerImpl,
 		peerStorage,
 		int(limitConnections),
+		version,
 	)
 	go peerManager.Run(ctx)
 
