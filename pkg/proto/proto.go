@@ -185,6 +185,24 @@ func (a Version) Cmp(other Version) int {
 	return 0
 }
 
+// Compare minor version.
+// If equal return 0.
+// If diff only 1 version (for example 1.14 and 1.13), then 1
+// If more then 1 version, then return 2.
+func (a Version) CmpMinor(other Version) int {
+	if a.Major != other.Major {
+		return 2
+	}
+	if a.Minor == other.Minor {
+		return 0
+	}
+	rs := a.Minor - other.Minor
+	if rs*rs == 1 {
+		return 1
+	}
+	return 2
+}
+
 func NewVersionFromString(version string) (*Version, error) {
 	parts := strings.Split(version, ".")
 	if l := len(parts); l <= 0 || l > 3 {

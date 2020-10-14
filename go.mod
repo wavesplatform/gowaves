@@ -48,7 +48,6 @@ require (
 	google.golang.org/genproto v0.0.0-20201007142714-5c0e72c5e71e // indirect
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.25.0
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )

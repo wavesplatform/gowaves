@@ -520,6 +520,19 @@ func TestVersion_Cmp(t *testing.T) {
 	require.Equal(t, -1, Version{1, 2, 0}.Cmp(Version{1, 2, 1}))
 }
 
+func TestVersion_CmpMinor(t *testing.T) {
+	// Check equals.
+	require.Equal(t, 0, Version{1, 2, 0}.CmpMinor(Version{1, 2, 0}))
+	// Check patch version has no effect.
+	require.Equal(t, 0, Version{1, 2, 0}.CmpMinor(Version{1, 2, 3}))
+	// Check diff only 1 version
+	require.Equal(t, 1, Version{1, 2, 0}.CmpMinor(Version{1, 1, 0}))
+	// Check totally different.
+	require.Equal(t, 2, Version{1, 3, 0}.CmpMinor(Version{1, 1, 0}))
+	// Check major.
+	require.Equal(t, 2, Version{0, 1, 0}.CmpMinor(Version{1, 1, 0}))
+}
+
 func TestGetBlockMessage_MarshalBinary(t *testing.T) {
 	t.Run("parse signature from huge byte array", func(t *testing.T) {
 		b := GetBlockMessage{
