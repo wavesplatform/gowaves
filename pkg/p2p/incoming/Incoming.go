@@ -7,28 +7,27 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
-	"github.com/wavesplatform/gowaves/pkg/p2p/common"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
-type UtxPool interface {
-	AddBytes([]byte) error
+type DuplicateChecker interface {
+	Add([]byte) bool
 }
 
 type IncomingPeerParams struct {
-	WavesNetwork string
-	Conn         net.Conn
-	Parent       peer.Parent
-	DeclAddr     proto.TCPAddr
-	Pool         bytespool.Pool
-	Skip         conn.SkipFilter
-	NodeName     string
-	NodeNonce    uint64
-	Version      proto.Version
-	UtxPool      UtxPool
+	WavesNetwork     string
+	Conn             net.Conn
+	Parent           peer.Parent
+	DeclAddr         proto.TCPAddr
+	Pool             bytespool.Pool
+	Skip             conn.SkipFilter
+	NodeName         string
+	NodeNonce        uint64
+	Version          proto.Version
+	DuplicateChecker DuplicateChecker
 }
 
 func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
@@ -90,15 +89,13 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Inco
 	params.Parent.InfoCh <- out
 
 	return peer.Handle(peer.HandlerParams{
-		Ctx:        ctx,
-		ID:         peerImpl.ID(),
-		Connection: connection,
-		Remote:     remote,
-		Parent:     params.Parent,
-		Pool:       params.Pool,
-		Peer:       peerImpl,
-		PreHandler: func(message proto.Message) bool {
-			return common.PreHandler(message, params.UtxPool)
-		},
+		Ctx:              ctx,
+		ID:               peerImpl.ID(),
+		Connection:       connection,
+		Remote:           remote,
+		Parent:           params.Parent,
+		Pool:             params.Pool,
+		Peer:             peerImpl,
+		DuplicateChecker: params.DuplicateChecker,
 	})
 }

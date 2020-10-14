@@ -188,7 +188,7 @@ func main() {
 
 	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm, outdateSeconds*1000), custom)
 
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version, utx)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
 
 	peerStorage := storage.NewBinaryStorage(path)
 

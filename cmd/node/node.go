@@ -287,7 +287,7 @@ func main() {
 
 	parent := peer.NewParent()
 
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version, utx)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version)
 
 	peerStorage := storage.NewBinaryStorage(path)
 

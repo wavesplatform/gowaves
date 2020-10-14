@@ -1,17 +1,30 @@
 package common
 
-import "github.com/wavesplatform/gowaves/pkg/proto"
+import (
+	"sync"
 
-type UtxPool interface {
-	AddBytes([]byte) error
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+)
+
+// Keep last hash of network message.
+type DuplicateChecker struct {
+	last crypto.Digest
+	lock sync.Mutex
 }
 
-func PreHandler(message proto.Message, u UtxPool) (handled bool) {
-	switch m := message.(type) {
-	case *proto.TransactionMessage:
-		_ = u.AddBytes(m.Transaction)
-		return true
-	default:
+// Creates new DuplicateChecker.
+func NewDuplicateChecker() *DuplicateChecker {
+	return &DuplicateChecker{}
+}
+
+// Compares new bytes with previous, if equal message is now new.
+func (a *DuplicateChecker) Add(b []byte) (isNew bool) {
+	digest := crypto.MustFastHash(b)
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	if a.last == digest {
 		return false
 	}
+	a.last = digest
+	return true
 }

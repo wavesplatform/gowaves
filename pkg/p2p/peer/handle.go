@@ -10,17 +10,23 @@ import (
 	"go.uber.org/zap"
 )
 
-func bytesToMessage(b []byte, preHandle func(message proto.Message) bool, resendTo chan ProtoMessage, pool bytespool.Pool, p Peer) error {
+type DuplicateChecker interface {
+	Add([]byte) (isNew bool)
+}
+
+func bytesToMessage(b []byte, d DuplicateChecker, resendTo chan ProtoMessage, pool bytespool.Pool, p Peer) error {
 	defer func() {
 		pool.Put(b)
 	}()
 
+	isNew := d.Add(b)
+	if !isNew {
+		return nil
+	}
+
 	m, err := proto.UnmarshalMessage(b)
 	if err != nil {
 		return err
-	}
-	if preHandle != nil && preHandle(m) {
-		return nil
 	}
 
 	mess := ProtoMessage{
@@ -37,14 +43,14 @@ func bytesToMessage(b []byte, preHandle func(message proto.Message) bool, resend
 }
 
 type HandlerParams struct {
-	Ctx        context.Context
-	ID         string
-	Connection conn.Connection
-	Remote     Remote
-	Parent     Parent
-	Pool       bytespool.Pool
-	Peer       Peer
-	PreHandler func(message proto.Message) bool
+	Ctx              context.Context
+	ID               string
+	Connection       conn.Connection
+	Remote           Remote
+	Parent           Parent
+	Pool             bytespool.Pool
+	Peer             Peer
+	DuplicateChecker DuplicateChecker
 }
 
 // for Handle doesn't matter outgoing or incoming Connection, it just send and receive messages
@@ -56,7 +62,7 @@ func Handle(params HandlerParams) error {
 			return errors.Wrap(params.Ctx.Err(), "Handle")
 
 		case bts := <-params.Remote.FromCh:
-			err := bytesToMessage(bts, params.PreHandler, params.Parent.MessageCh, params.Pool, params.Peer)
+			err := bytesToMessage(bts, params.DuplicateChecker, params.Parent.MessageCh, params.Pool, params.Peer)
 			if err != nil {
 				out := InfoMessage{
 					Peer:  params.Peer,
