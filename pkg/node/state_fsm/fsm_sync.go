@@ -94,7 +94,7 @@ func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
 			return NewIdleFsm(a.baseInfo), nil, err
 		}
 	}
-	return NewIdleFsm(a.baseInfo), nil, nil
+	return a, nil, nil
 }
 
 func (a *SyncFsm) BlockIDs(peer Peer, sigs []proto.BlockID) (FSM, Async, error) {
