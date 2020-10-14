@@ -7,11 +7,16 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/p2p/common"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
+
+type UtxPool interface {
+	AddBytes([]byte) error
+}
 
 type IncomingPeerParams struct {
 	WavesNetwork string
@@ -23,6 +28,7 @@ type IncomingPeerParams struct {
 	NodeName     string
 	NodeNonce    uint64
 	Version      proto.Version
+	UtxPool      UtxPool
 }
 
 func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
@@ -91,5 +97,8 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Inco
 		Parent:     params.Parent,
 		Pool:       params.Pool,
 		Peer:       peerImpl,
+		PreHandler: func(message proto.Message) bool {
+			return common.PreHandler(message, params.UtxPool)
+		},
 	})
 }

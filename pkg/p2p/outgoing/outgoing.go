@@ -7,11 +7,16 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/p2p/common"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
+
+type UtxPool interface {
+	AddBytes([]byte) error
+}
 
 type EstablishParams struct {
 	Address      proto.TCPAddr
@@ -22,6 +27,7 @@ type EstablishParams struct {
 	Skip         conn.SkipFilter
 	NodeName     string
 	NodeNonce    uint64
+	UtxPool      UtxPool
 }
 
 func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Version) error {
@@ -64,6 +70,9 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		Parent:     params.Parent,
 		Pool:       params.Pool,
 		Peer:       peerImpl,
+		PreHandler: func(message proto.Message) bool {
+			return common.PreHandler(message, params.UtxPool)
+		},
 	})
 }
 

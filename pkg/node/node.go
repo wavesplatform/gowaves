@@ -113,6 +113,17 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 	}()
 
 	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(1 * time.Second):
+				metricInternalChannelSize.Set(float64(len(p.MessageCh)))
+			}
+		}
+	}()
+
+	go func() {
 		if err := a.Serve(ctx); err != nil {
 			return
 		}
@@ -154,7 +165,6 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 			case *peer.Connected:
 				fsm, async, err = fsm.NewPeer(t.Peer)
 			case error:
-				zap.S().Error("infoCH error ", m.Peer, t)
 				fsm, async, err = fsm.PeerError(m.Peer, t)
 			}
 		case mess := <-p.MessageCh:
@@ -167,31 +177,10 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 			fsm, async, err = action(a.services, mess, fsm)
 		}
 		if err != nil {
-			zap.S().Errorf("Failure during synchronization: %v", err)
+			zap.S().Error(err)
 		}
 		spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
 		zap.S().Debugf("FSM %T", fsm)
-	}
-}
-
-type BlockIds struct {
-	ids    []proto.BlockID
-	unique map[proto.BlockID]struct{}
-}
-
-func (a *BlockIds) Ids() []proto.BlockID {
-	return a.ids
-}
-
-func NewBlockIds(ids ...proto.BlockID) *BlockIds {
-	unique := make(map[proto.BlockID]struct{})
-	for _, v := range ids {
-		unique[v] = struct{}{}
-	}
-
-	return &BlockIds{
-		ids:    ids,
-		unique: unique,
 	}
 }
 
@@ -206,17 +195,4 @@ func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner
 			})
 		}(t)
 	}
-}
-
-func (a *BlockIds) Exists(id proto.BlockID) bool {
-	_, ok := a.unique[id]
-	return ok
-}
-
-func (a *BlockIds) Revert() *BlockIds {
-	out := make([]proto.BlockID, len(a.ids))
-	for k, v := range a.ids {
-		out[len(a.ids)-1-k] = v
-	}
-	return NewBlockIds(out...)
 }

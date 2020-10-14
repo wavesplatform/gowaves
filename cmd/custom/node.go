@@ -24,6 +24,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -185,9 +186,13 @@ func main() {
 
 	parent := peer.NewParent()
 
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
+	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm, outdateSeconds*1000), custom)
 
-	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, state, int(limitConnections))
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version, utx)
+
+	peerStorage := storage.NewBinaryStorage(path)
+
+	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, peerStorage, int(limitConnections))
 	go peerManager.Run(ctx)
 
 	scheduler := scheduler2.NewScheduler(
@@ -199,8 +204,6 @@ func main() {
 		proto.NewTimestampFromUSeconds(outdateSeconds),
 	)
 
-	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm, outdateSeconds*1000), custom)
-
 	blockApplier := blocks_applier.NewBlocksApplier()
 
 	async := runner.NewAsync()
@@ -208,7 +211,7 @@ func main() {
 
 	InternalCh := messages.NewInternalChannel()
 
-	services := services.Services{
+	var services = services.Services{
 		State:           state,
 		Peers:           peerManager,
 		Scheduler:       scheduler,
@@ -221,7 +224,6 @@ func main() {
 		InternalChannel: InternalCh,
 		Time:            ntptm,
 	}
-
 	Miner := miner.NewMicroblockMiner(services, features, reward, proto.NewTimestampFromUSeconds(outdateSeconds))
 	go miner.Run(ctx, Miner, scheduler, InternalCh)
 

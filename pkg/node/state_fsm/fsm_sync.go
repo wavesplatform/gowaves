@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
@@ -175,6 +176,9 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 		return err
 	})
 	if err != nil {
+		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
+			a.baseInfo.peers.Suspend(conf.peerSyncWith, err.Error())
+		}
 		for _, b := range blocks {
 			metrics.BlockDeclinedFromExtension(b)
 		}

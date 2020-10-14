@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/mr-tron/base58"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
@@ -30,6 +31,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -71,6 +73,7 @@ var (
 	minPeersMining                        = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining.")
 	disableMiner                          = flag.Bool("disable-miner", false, "Disable miner. Enabled by default.")
 	profiler                              = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
+	prometheus                            = flag.String("prometheus", "", "Provide collected metrics by prometheus client.")
 	integrationGenesisSignature           = flag.String("integration.genesis.signature", "", "Integration. Genesis signature.")
 	integrationGenesisTimestamp           = flag.Int("integration.genesis.timestamp", 0, "??")
 	integrationGenesisBlockTimestamp      = flag.Int("integration.genesis.block-timestamp", 0, "??")
@@ -284,14 +287,9 @@ func main() {
 
 	parent := peer.NewParent()
 
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version, utx)
 
-	peerStorage, err := peer_manager.NewJsonFileStorage(path)
-	if err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
+	peerStorage := storage.NewBinaryStorage(path)
 
 	peerManager := peer_manager.NewPeerManager(
 		peerSpawnerImpl,
@@ -356,6 +354,15 @@ func main() {
 		err := api.Run(ctx, conf.HttpAddr, webApi)
 		if err != nil {
 			zap.S().Errorf("Failed to start API: %v", err)
+		}
+	}()
+
+	go func() {
+		if *prometheus != "" {
+			h := http.NewServeMux()
+			h.Handle("/metrics", promhttp.Handler())
+			server := &http.Server{Addr: *prometheus, Handler: h}
+			_ = server.ListenAndServe()
 		}
 	}()
 

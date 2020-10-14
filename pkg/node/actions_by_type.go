@@ -24,6 +24,7 @@ func ScoreAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM)
 }
 
 func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+	metricGetPeersMessage.Inc()
 	rs, err := services.Peers.KnownPeers()
 	if err != nil {
 		zap.L().Error("failed got known peers", zap.Error(err))
@@ -41,6 +42,7 @@ func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm stat
 }
 
 func PeersAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+	metricPeersMessage.Inc()
 	rs, err := services.Peers.KnownPeers()
 	if err != nil {
 		zap.L().Error("failed got known peers", zap.Error(err))
@@ -60,6 +62,7 @@ func PeersAction(services services.Services, mess peer.ProtoMessage, fsm state_f
 }
 
 func BlockAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+	metricBlockMessage.Inc()
 	b := &proto.Block{}
 	err := b.UnmarshalBinary(mess.Message.(*proto.BlockMessage).BlockBytes, services.Scheme)
 	if err != nil {
@@ -69,6 +72,7 @@ func BlockAction(services services.Services, mess peer.ProtoMessage, fsm state_f
 }
 
 func GetBlockAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+	metricGetBlockMessage.Inc()
 	block, err := services.State.Block(mess.Message.(*proto.GetBlockMessage).BlockID)
 	if err != nil {
 		return fsm, nil, err

@@ -184,6 +184,9 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 			return errors.New("exceed incoming connections limit")
 		}
 	case peer.Outgoing:
+		if !p.Handshake().DeclaredAddr.Empty() {
+			_ = a.state.AddKnown(proto.TCPAddr(p.Handshake().DeclaredAddr))
+		}
 		if out >= a.limitConnections {
 			_ = p.Close()
 			return errors.New("exceed outgoing connections limit")
@@ -282,20 +285,7 @@ func (a *PeerManagerImpl) Suspended() []string {
 }
 
 func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr string) {
-	peers, err := a.state.Peers()
-	if err == nil {
-		tcpAddr := proto.NewTCPAddrFromString(addr)
-		if tcpAddr.Port > 0 {
-			peers = append(peers, tcpAddr)
-			err = a.state.SavePeers(peers)
-			if err != nil {
-				zap.S().Info(err)
-			}
-		}
-	} else {
-		zap.S().Info(err)
-	}
-
+	_ = a.state.Add([]proto.TCPAddr{proto.NewTCPAddrFromString(addr)})
 	go func() {
 		if err := a.spawner.SpawnOutgoing(ctx, proto.NewTCPAddrFromString(addr)); err != nil {
 			zap.S().Info(err)
@@ -307,20 +297,11 @@ func (a *PeerManagerImpl) UpdateKnownPeers(known []proto.TCPAddr) error {
 	if len(known) == 0 {
 		return nil
 	}
-	return a.state.SavePeers(known)
+	return a.state.Add(known)
 }
 
 func (a *PeerManagerImpl) KnownPeers() ([]proto.TCPAddr, error) {
-	rs, err := a.state.Peers()
-	if err != nil {
-		return nil, err
-	}
-	if len(rs) == 0 {
-		return nil, nil
-	}
-	out := make([]proto.TCPAddr, len(rs))
-	copy(out, rs)
-	return out, nil
+	return a.state.Known()
 }
 
 func (a *PeerManagerImpl) Close() {
