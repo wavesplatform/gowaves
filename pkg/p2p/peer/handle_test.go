@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/wavesplatform/gowaves/pkg/p2p/common"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
@@ -59,14 +60,14 @@ func TestHandleReceive(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		err := Handle(HandlerParams{
-			Ctx:        ctx,
-			Connection: c,
-			Parent:     parent,
-			Remote:     remote,
-			Pool:       bytespool.NewBytesPool(1, 15*1024),
+		_ = Handle(HandlerParams{
+			Ctx:              ctx,
+			Connection:       c,
+			Parent:           parent,
+			Remote:           remote,
+			Pool:             bytespool.NewBytesPool(1, 15*1024),
+			DuplicateChecker: common.NewDuplicateChecker(),
 		})
-		t.Logf("Error: %v\n", err)
 		wg.Done()
 	}()
 	remote.FromCh <- byte_helpers.TransferWithSig.MessageBytes
@@ -82,13 +83,12 @@ func TestHandleError(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		err := Handle(HandlerParams{
+		_ = Handle(HandlerParams{
 			Ctx:        ctx,
 			Connection: &mockConnection{},
 			Remote:     remote,
 			Parent:     parent,
 		})
-		t.Logf("Error: %v\n", err)
 		wg.Done()
 	}()
 	err := errors.New("error")
