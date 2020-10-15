@@ -1,19 +1,18 @@
 package state
 
 import (
-	"fmt"
-
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
 type element struct {
 	key        string
-	value      ast.Script
+	value      ride.Tree
 	prev, next *element
 	bytes      uint64
 }
 
-var defaultValue ast.Script
+var defaultValue ride.Tree
 
 type lru struct {
 	maxSize, maxBytes, size, bytesUsed uint64
@@ -25,7 +24,7 @@ type lru struct {
 
 func newLru(maxSize, maxBytes uint64) (*lru, error) {
 	if maxSize == 0 || maxBytes == 0 {
-		return nil, fmt.Errorf("cache size must be > 0")
+		return nil, errors.Errorf("cache size must be > 0")
 	}
 	return &lru{
 		maxSize:  maxSize,
@@ -83,7 +82,7 @@ func (l *lru) makeFreeSpace(bytes uint64) {
 	}
 }
 
-func (l *lru) get(key []byte) (value ast.Script, has bool) {
+func (l *lru) get(key []byte) (value ride.Tree, has bool) {
 	var e *element
 	e, has = l.m[string(key)]
 	if !has {
@@ -94,7 +93,7 @@ func (l *lru) get(key []byte) (value ast.Script, has bool) {
 	return e.value, true
 }
 
-func (l *lru) set(key []byte, value ast.Script, bytes uint64) (existed bool) {
+func (l *lru) set(key []byte, value ride.Tree, bytes uint64) (existed bool) {
 	keyStr := string(key)
 	e, has := l.m[keyStr]
 	if has {

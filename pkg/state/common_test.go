@@ -1,6 +1,7 @@
 package state
 
 import (
+	"encoding/base64"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -14,8 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -154,7 +154,7 @@ type testGlobalVars struct {
 	recipientInfo *testAddrData
 
 	scriptBytes []byte
-	scriptAst   ast.Script
+	scriptAst   *ride.Tree
 }
 
 var testGlobal testGlobalVars
@@ -193,16 +193,16 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	scriptBytes, err := reader.ScriptBytesFromBase64Str(scriptBase64)
+	scriptBytes, err := base64.StdEncoding.DecodeString(scriptBase64)
 	if err != nil {
 		log.Fatalf("Failed to decode script from base64: %v\n", err)
 	}
 	testGlobal.scriptBytes = scriptBytes
-	scriptAst, err := ast.BuildScript(reader.NewBytesReader(testGlobal.scriptBytes))
+	scriptAst, err := ride.Parse(testGlobal.scriptBytes)
 	if err != nil {
 		log.Fatalf("BuildAst: %v\n", err)
 	}
-	testGlobal.scriptAst = *scriptAst
+	testGlobal.scriptAst = scriptAst
 	os.Exit(m.Run())
 }
 

@@ -406,7 +406,7 @@ func TestBlockVerifyRootHash(t *testing.T) {
 	// Block
 	block := Block{
 		BlockHeader: BlockHeader{
-			Version:              ProtoBlockVersion,
+			Version:              ProtobufBlockVersion,
 			Timestamp:            1,
 			Parent:               parent,
 			FeaturesCount:        0,

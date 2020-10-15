@@ -135,7 +135,7 @@ func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	newAddrNum := lastAddrNum + uint64(s.addrNum)
+	newAddrNum := lastAddrNum + s.addrNum
 	s.addrNum++
 	s.addrToNumMem[addr] = newAddrNum
 	addrToNum := accountStorAddrToNumKey{addr}
@@ -182,12 +182,9 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 	}
 	if s.calculateHashes {
 		r := &dataEntryRecordForHashes{
-			addr: &addr,
-			key:  []byte(entry.GetKey()),
-		}
-		if entry.GetValueType() != proto.DataDelete {
-			// No value should be set for deletion.
-			r.value = valueBytes
+			addr:  &addr,
+			key:   []byte(entry.GetKey()),
+			value: valueBytes,
 		}
 		if err := s.hasher.push(keyStr, r, blockID); err != nil {
 			return err
@@ -447,7 +444,7 @@ func (s *accountsDataStorage) flush() error {
 	if err != nil {
 		return err
 	}
-	newAddrNum := lastAddrNum + uint64(s.addrNum)
+	newAddrNum := lastAddrNum + s.addrNum
 	if err := s.setLastAddrNum(newAddrNum); err != nil {
 		return err
 	}

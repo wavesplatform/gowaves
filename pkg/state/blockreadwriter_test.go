@@ -469,7 +469,7 @@ func TestProtobufReadWrite(t *testing.T) {
 	prevId := proto.NewBlockIDFromDigest(crypto.Digest{})
 	for i := range protobufBlocks {
 		// Change blocks version to protobuf since we activated protobuf.
-		protobufBlocks[i].Version = proto.ProtoBlockVersion
+		protobufBlocks[i].Version = proto.ProtobufBlockVersion
 		// Update parents.
 		protobufBlocks[i].Parent = prevId
 		// Regenerate ID.

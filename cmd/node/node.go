@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/mr-tron/base58"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
@@ -30,6 +31,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -71,6 +73,7 @@ var (
 	minPeersMining                        = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining.")
 	disableMiner                          = flag.Bool("disable-miner", false, "Disable miner. Enabled by default.")
 	profiler                              = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
+	prometheus                            = flag.String("prometheus", "", "Provide collected metrics by prometheus client.")
 	integrationGenesisSignature           = flag.String("integration.genesis.signature", "", "Integration. Genesis signature.")
 	integrationGenesisTimestamp           = flag.Int("integration.genesis.timestamp", 0, "??")
 	integrationGenesisBlockTimestamp      = flag.Int("integration.genesis.block-timestamp", 0, "??")
@@ -83,7 +86,7 @@ var (
 
 var defaultPeers = map[string]string{
 	"mainnet":  "35.156.19.4:6868,52.50.69.247:6868,52.52.46.76:6868,52.57.147.71:6868,52.214.55.18:6868,54.176.190.226:6868",
-	"testnet":  "52.51.92.182:6863,52.231.205.53:6863,52.30.47.67:6863,52.28.66.217:6863",
+	"testnet":  "159.69.126.149:6863,94.130.105.239:6863,159.69.126.153:6863,94.130.172.201:6863",
 	"stagenet": "217.100.219.251:6861",
 }
 
@@ -243,7 +246,7 @@ func main() {
 	params.ProvideExtendedApi = *serveExtendedApi
 	params.BuildStateHashes = *buildStateHashes
 	params.Time = ntptm
-	state, err := state.NewState(path, params, cfg)
+	st, err := state.NewState(path, params, cfg)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -257,7 +260,7 @@ func main() {
 		return
 	}
 
-	features, err = miner.ValidateFeatures(state, features)
+	features, err = miner.ValidateFeatures(st, features)
 	if err != nil {
 		cancel()
 		zap.S().Error(err)
@@ -265,7 +268,7 @@ func main() {
 	}
 
 	// Check if we need to start serving extended API right now.
-	if err := node.MaybeEnableExtendedApi(state, ntptm); err != nil {
+	if err := node.MaybeEnableExtendedApi(st, ntptm); err != nil {
 		zap.S().Error(err)
 		cancel()
 		return
@@ -280,28 +283,24 @@ func main() {
 	mb := 1024 * 1014
 	pool := bytespool.NewBytesPool(64, mb+(mb/2))
 
-	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(state, ntptm, outdatePeriodSeconds*1000), cfg)
+	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(st, ntptm, outdatePeriodSeconds*1000), cfg)
 
 	parent := peer.NewParent()
 
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version)
 
-	peerStorage, err := peer_manager.NewJsonFileStorage(path)
-	if err != nil {
-		zap.S().Error(err)
-		cancel()
-		return
-	}
+	peerStorage := storage.NewBinaryStorage(path)
 
 	peerManager := peer_manager.NewPeerManager(
 		peerSpawnerImpl,
 		peerStorage,
 		int(limitConnections),
+		version,
 	)
 	go peerManager.Run(ctx)
 
 	var sched Scheduler = scheduler.NewScheduler(
-		state,
+		st,
 		wal,
 		cfg,
 		ntptm,
@@ -313,8 +312,8 @@ func main() {
 	}
 	blockApplier := blocks_applier.NewBlocksApplier()
 
-	services := services.Services{
-		State:           state,
+	svs := services.Services{
+		State:           st,
 		Peers:           peerManager,
 		Scheduler:       sched,
 		BlocksApplier:   blockApplier,
@@ -328,12 +327,12 @@ func main() {
 		MinPeersMining:  *minPeersMining,
 	}
 
-	mine := miner.NewMicroblockMiner(services, features, reward, maxTransactionTimeForwardOffset)
+	mine := miner.NewMicroblockMiner(svs, features, reward, maxTransactionTimeForwardOffset)
 	peerManager.SetConnectPeers(!*disableOutgoingConnections)
-	go miner.Run(ctx, mine, sched, services.InternalChannel)
+	go miner.Run(ctx, mine, sched, svs.InternalChannel)
 
-	n := node.NewNode(services, declAddr, bindAddr, proto.NewTimestampFromUSeconds(outdatePeriodSeconds))
-	go n.Run(ctx, parent, services.InternalChannel)
+	n := node.NewNode(svs, declAddr, bindAddr, proto.NewTimestampFromUSeconds(outdatePeriodSeconds))
+	go n.Run(ctx, parent, svs.InternalChannel)
 
 	go sched.Reschedule()
 
@@ -344,14 +343,14 @@ func main() {
 		}
 	}
 
-	app, err := api.NewApp(*apiKey, sched, services)
+	app, err := api.NewApp(*apiKey, sched, svs)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
 		return
 	}
 
-	webApi := api.NewNodeApi(app, state, n)
+	webApi := api.NewNodeApi(app, st, n)
 	go func() {
 		err := api.Run(ctx, conf.HttpAddr, webApi)
 		if err != nil {
@@ -359,8 +358,17 @@ func main() {
 		}
 	}()
 
+	go func() {
+		if *prometheus != "" {
+			h := http.NewServeMux()
+			h.Handle("/metrics", promhttp.Handler())
+			server := &http.Server{Addr: *prometheus, Handler: h}
+			_ = server.ListenAndServe()
+		}
+	}()
+
 	if *enableGrpcApi {
-		grpcServer, err := server.NewServer(services)
+		grpcServer, err := server.NewServer(svs)
 		if err != nil {
 			zap.S().Errorf("Failed to create gRPC server: %v", err)
 		}
@@ -406,7 +414,7 @@ func applyIntegrationSettings(blockchainSettings *settings.BlockchainSettings) *
 	for _, t := range blockchainSettings.Genesis.Transactions {
 		t.(*proto.Genesis).Timestamp = uint64(*integrationGenesisTimestamp)
 	}
-	blockchainSettings.AddressSchemeCharacter = proto.Scheme((*integrationAddressSchemeCharacter)[0])
+	blockchainSettings.AddressSchemeCharacter = (*integrationAddressSchemeCharacter)[0]
 	blockchainSettings.AverageBlockDelaySeconds = blockchainSettings.AverageBlockDelaySeconds / 2
 	blockchainSettings.MinUpdateAssetInfoInterval = uint64(*integrationMinAssetInfoUpdateInterval)
 

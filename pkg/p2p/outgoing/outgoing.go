@@ -13,15 +13,20 @@ import (
 	"go.uber.org/zap"
 )
 
+type DuplicateChecker interface {
+	Add([]byte) (isNew bool)
+}
+
 type EstablishParams struct {
-	Address      proto.TCPAddr
-	WavesNetwork string
-	Parent       peer.Parent
-	Pool         bytespool.Pool
-	DeclAddr     proto.TCPAddr
-	Skip         conn.SkipFilter
-	NodeName     string
-	NodeNonce    uint64
+	Address          proto.TCPAddr
+	WavesNetwork     string
+	Parent           peer.Parent
+	Pool             bytespool.Pool
+	DeclAddr         proto.TCPAddr
+	Skip             conn.SkipFilter
+	NodeName         string
+	NodeNonce        uint64
+	DuplicateChecker DuplicateChecker
 }
 
 func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Version) error {
@@ -57,13 +62,14 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 	zap.S().Debugf("connected %s, id: %s", params.Address, peerImpl.ID())
 
 	return peer.Handle(peer.HandlerParams{
-		Ctx:        ctx,
-		ID:         peerImpl.ID(),
-		Connection: p.connection,
-		Remote:     remote,
-		Parent:     params.Parent,
-		Pool:       params.Pool,
-		Peer:       peerImpl,
+		Ctx:              ctx,
+		ID:               peerImpl.ID(),
+		Connection:       p.connection,
+		Remote:           remote,
+		Parent:           params.Parent,
+		Pool:             params.Pool,
+		Peer:             peerImpl,
+		DuplicateChecker: params.DuplicateChecker,
 	})
 }
 
