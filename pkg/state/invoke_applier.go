@@ -9,7 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -76,7 +76,7 @@ func (ia *invokeApplier) newPaymentFromTransferScriptAction(scriptAddr *proto.Ad
 	}, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediateBalance bool, info *fallibleValidationParams) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediateBalance bool, _ *fallibleValidationParams) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := byteKey(pmt.sender, pmt.asset.ToID())
 	senderBalanceDiff := -int64(pmt.amount)
@@ -104,7 +104,7 @@ func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr *proto.Address, 
 func (ia *invokeApplier) newTxDiffFromScriptIssue(scriptAddr *proto.Address, action *proto.IssueScriptAction) (txDiff, error) {
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: *scriptAddr, asset: action.ID[:]}
-	senderAssetBalanceDiff := int64(action.Quantity)
+	senderAssetBalanceDiff := action.Quantity
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
 	}
@@ -204,9 +204,9 @@ func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, ini
 	return scriptRuns
 }
 
-func errorForSmartAsset(res ast.Result, asset crypto.Digest) error {
+func errorForSmartAsset(res ride.RideResult, asset crypto.Digest) error {
 	var text string
-	if res.Throw {
+	if res.UserError() != "" {
 		text = fmt.Sprintf("Transaction is not allowed by token-script id %s: throw from asset script.", asset.String())
 	} else {
 		// scala compatible error message
@@ -225,6 +225,7 @@ type addlInvokeInfo struct {
 	actions              []proto.ScriptAction
 	paymentSmartAssets   []crypto.Digest
 	disableSelfTransfers bool
+	libVersion           byte
 }
 
 func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, info *addlInvokeInfo) (proto.TxFailureReason, txBalanceChanges, error) {
@@ -234,7 +235,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 		if err != nil {
 			return proto.DAppError, info.failedChanges, errors.Errorf("failed to call asset %s script on payment: %v", smartAsset.String(), err)
 		}
-		if r.Failed() {
+		if !r.Result() {
 			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset(r, smartAsset)
 		}
 	}
@@ -244,7 +245,15 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 		return proto.DAppError, info.failedChanges, errors.New("ScriptResult; failed to resolve aliases")
 	}
 	// Validate produced actions.
-	restrictions := proto.ActionsValidationRestrictions{DisableSelfTransfers: info.disableSelfTransfers, ScriptAddress: *info.scriptAddr}
+	var keySizeValidationVersion byte = 1
+	if info.libVersion == 4 {
+		keySizeValidationVersion = 2
+	}
+	restrictions := proto.ActionsValidationRestrictions{
+		DisableSelfTransfers:     info.disableSelfTransfers,
+		ScriptAddress:            *info.scriptAddr,
+		KeySizeValidationVersion: keySizeValidationVersion,
+	}
 	if err := proto.ValidateActions(info.actions, restrictions); err != nil {
 		return proto.DAppError, info.failedChanges, err
 	}
@@ -286,7 +295,15 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 			isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(a.Asset.ID, !info.initialisation)
 			if isSmartAsset {
-				fullTr, err := proto.NewFullScriptTransfer(a, tx)
+				sender := tx.ScriptRecipient.Address
+				if sender == nil {
+					addr, err := recipientToAddress(tx.ScriptRecipient, ia.stor.aliases, !info.initialisation)
+					if err != nil {
+						return proto.DAppError, info.failedChanges, errors.Wrap(err, "fallibleValidation")
+					}
+					sender = addr
+				}
+				fullTr, err := proto.NewFullScriptTransfer(a, *sender, tx)
 				if err != nil {
 					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to convert transfer to full script transfer")
 				}
@@ -295,7 +312,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				if err != nil {
 					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to call asset script on transfer set")
 				}
-				if res.Failed() {
+				if !res.Result() {
 					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(res, a.Asset.ID)
 				}
 			}
@@ -420,7 +437,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			// Update asset's info
 			// Modify asset.
 			change := &assetBurnChange{
-				diff: int64(a.Quantity),
+				diff: a.Quantity,
 			}
 			if err := ia.stor.assets.burnAssetUncertain(a.AssetID, change, !info.initialisation); err != nil {
 				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to burn asset")
@@ -478,7 +495,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 }
 
 // applyInvokeScript checks InvokeScript transaction, creates its balance diffs and adds changes to `uncertain` storage.
-// If the transaction does not fail, changes are commited (moved from uncertain to normal storage)
+// If the transaction does not fail, changes are committed (moved from uncertain to normal storage)
 // later in performInvokeScriptWithProofs().
 // If the transaction fails, performInvokeScriptWithProofs() is not called and changes are discarded later using dropUncertain().
 func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams) (*applicationResult, error) {
@@ -505,7 +522,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if err != nil {
 		return nil, errors.Wrap(err, "recipientToAddress() failed")
 	}
-	script, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
+	tree, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 	}
@@ -515,11 +532,11 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we done it before.
-	if len(tx.Payments) == 2 && script.Version < 4 {
-		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", script.Version)
+	if len(tx.Payments) == 2 && tree.LibVersion < 4 {
+		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
 	}
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
-	disableSelfTransfers := info.acceptFailed && script.Version >= 4
+	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
 	if disableSelfTransfers && len(tx.Payments) > 0 {
 		sender, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, tx.SenderPK)
 		if err != nil {
@@ -537,12 +554,13 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		return nil, err
 	}
 	// Call script function.
-	ok, scriptActions, err := ia.sc.invokeFunction(script, tx, info.blockInfo, *scriptAddr, info.initialisation)
+	ok, scriptActions, err := ia.sc.invokeFunction(tree, tx, info.blockInfo, *scriptAddr, info.initialisation)
 	if !ok {
 		// When ok is false, it means that we could not even start invocation.
 		// We just return error in such case.
 		return nil, errors.Wrap(err, "invokeFunction() failed")
-	} else if err != nil {
+	}
+	if err != nil {
 		// If ok is true, but error is not nil, it means that invocation has failed.
 		if !info.acceptFailed {
 			return nil, errors.Wrap(err, "invokeFunction() failed")
@@ -555,7 +573,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if info.senderScripted {
 		scriptRuns += 1
 	}
-	var res invocationResult
+	var res *invocationResult
 	code, changes, err := ia.fallibleValidation(tx, &addlInvokeInfo{
 		fallibleValidationParams: info,
 		scriptAddr:               scriptAddr,
@@ -565,13 +583,14 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		actions:                  scriptActions,
 		paymentSmartAssets:       paymentSmartAssets,
 		disableSelfTransfers:     disableSelfTransfers,
+		libVersion:               byte(tree.LibVersion),
 	})
 	if err != nil {
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
 		if !info.acceptFailed {
 			return nil, err
 		}
-		res = invocationResult{
+		res = &invocationResult{
 			failed:     true,
 			code:       code,
 			text:       err.Error(),
@@ -580,14 +599,14 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 			changes:    changes,
 		}
 	} else {
-		res = invocationResult{
+		res = &invocationResult{
 			failed:     false,
 			scriptRuns: scriptRuns,
 			actions:    scriptActions,
 			changes:    changes,
 		}
 	}
-	return ia.handleInvocationResult(tx, info, &res)
+	return ia.handleInvocationResult(tx, info, res)
 }
 
 type invocationResult struct {
@@ -654,19 +673,22 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 }
 
 func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
-	blockInfo *proto.BlockInfo, txID crypto.Digest, txTimestamp uint64, initialisation, acceptFailed bool) (bool, ast.Result, error) {
+	blockInfo *proto.BlockInfo, txID crypto.Digest, txTimestamp uint64, initialisation, acceptFailed bool) (bool, ride.RideResult, error) {
 	isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(asset, !initialisation)
 	if !isSmartAsset {
-		return true, ast.Result{}, nil
+		return true, nil, nil
 	}
-	obj, err := ast.NewVariablesFromScriptAction(ia.settings.AddressSchemeCharacter, action, callerPK, txID, txTimestamp)
+	env, err := ride.NewEnvironment(ia.settings.AddressSchemeCharacter, ia.state)
 	if err != nil {
-		return false, ast.Result{}, err
+		return false, nil, err
 	}
-	res, err := ia.sc.callAssetScriptCommon(obj, asset, blockInfo, initialisation, acceptFailed)
+	err = env.SetTransactionFromScriptAction(action, callerPK, txID, txTimestamp)
 	if err != nil {
-		return false, ast.Result{}, err
+		return false, nil, err
 	}
-	ok := !res.Failed()
-	return ok, res, nil
+	res, err := ia.sc.callAssetScriptCommon(env, asset, blockInfo, initialisation, acceptFailed)
+	if err != nil {
+		return false, nil, err
+	}
+	return res.Result(), res, nil
 }

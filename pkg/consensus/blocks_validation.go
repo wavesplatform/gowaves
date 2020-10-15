@@ -1,8 +1,11 @@
 package consensus
 
 import (
+	"fmt"
+
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -144,7 +147,7 @@ func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, start
 			return errors.Wrap(err, "block timestamp validation failed")
 		}
 		if err := cv.validateBaseTarget(height, &header, parent, greatGrandParent); err != nil {
-			return errors.Wrap(err, "base target validation failed")
+			return errors.Wrapf(err, "base target validation failed at %d", height)
 		}
 		if err := cv.validateBlockVersion(&header, height); err != nil {
 			return errors.Wrap(err, "block version validation failed")
@@ -216,7 +219,7 @@ func (cv *ConsensusValidator) validBlockVersionAtHeight(blockchainHeight uint64)
 		return proto.GenesisBlockVersion, errors.Wrap(err, "IsActiveAtHeight failed")
 	}
 	if blockV5Activated {
-		return proto.ProtoBlockVersion, nil
+		return proto.ProtobufBlockVersion, nil
 	} else if blockRewardActivated {
 		return proto.RewardBlockVersion, nil
 	} else if blockchainHeight > cv.settings.BlockVersion3AfterHeight {
@@ -233,10 +236,10 @@ func (cv *ConsensusValidator) validateBlockVersion(block *proto.BlockHeader, blo
 		return err
 	}
 	if block.Version > proto.PlainBlockVersion && blockchainHeight <= cv.settings.BlockVersion3AfterHeight {
-		return errors.Errorf("block version 3 or higher can only appear at height greater than %v", cv.settings.BlockVersion3AfterHeight)
+		return errs.NewBlockValidationError(fmt.Sprintf("block version 3 or higher can only appear at height greater than %v", cv.settings.BlockVersion3AfterHeight))
 	}
 	if block.Version < validVersion {
-		return errors.Errorf("block version %v is less than valid version %v for height %v", block.Version, validVersion, blockchainHeight)
+		return errs.NewBlockValidationError(fmt.Sprintf("block version %v is less than valid version %v for height %v", block.Version, validVersion, blockchainHeight))
 	}
 	return nil
 }

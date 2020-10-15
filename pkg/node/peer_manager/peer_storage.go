@@ -5,6 +5,8 @@ import (
 )
 
 type PeerStorage interface {
-	SavePeers([]proto.TCPAddr) error
-	Peers() ([]proto.TCPAddr, error)
+	All() ([]proto.TCPAddr, error)
+	Known() ([]proto.TCPAddr, error)
+	AddKnown(proto.TCPAddr) error
+	Add([]proto.TCPAddr) error
 }

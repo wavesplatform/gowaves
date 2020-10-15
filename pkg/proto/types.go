@@ -21,7 +21,6 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
-	"github.com/wavesplatform/gowaves/pkg/ride/evaluator/reader"
 )
 
 const (
@@ -104,14 +103,14 @@ func (b *B58Bytes) UnmarshalJSON(value []byte) error {
 		return errors.Wrap(err, "failed to unmarshal B58Bytes from JSON")
 	}
 	if s == "" {
-		*b = B58Bytes([]byte{})
+		*b = []byte{}
 		return nil
 	}
 	v, err := base58.Decode(s)
 	if err != nil {
 		return errors.Wrap(err, "failed to decode B58Bytes")
 	}
-	*b = B58Bytes(v)
+	*b = v
 	return nil
 }
 
@@ -322,24 +321,24 @@ const (
 	sellOrderName = "sell"
 )
 
-func (o OrderType) String() string {
-	if o == 0 {
+func (t OrderType) String() string {
+	if t == 0 {
 		return buyOrderName
 	}
 	return sellOrderName
 }
 
 //MarshalJSON writes value of OrderType to JSON representation.
-func (o OrderType) MarshalJSON() ([]byte, error) {
+func (t OrderType) MarshalJSON() ([]byte, error) {
 	var sb strings.Builder
 	sb.WriteRune('"')
-	sb.WriteString(o.String())
+	sb.WriteString(t.String())
 	sb.WriteRune('"')
 	return []byte(sb.String()), nil
 }
 
 //UnmarshalJSON reads the OrderType value from JSON value.
-func (o *OrderType) UnmarshalJSON(value []byte) error {
+func (t *OrderType) UnmarshalJSON(value []byte) error {
 	s := string(value)
 	if s == jsonNull {
 		return nil
@@ -350,9 +349,9 @@ func (o *OrderType) UnmarshalJSON(value []byte) error {
 	}
 	switch strings.ToLower(s) {
 	case buyOrderName:
-		*o = Buy
+		*t = Buy
 	case sellOrderName:
-		*o = Sell
+		*t = Sell
 	default:
 		return errors.Errorf("incorrect OrderType '%s'", s)
 	}
@@ -771,7 +770,7 @@ func (o *OrderV1) bodyUnmarshalBinary(data []byte) error {
 	return o.OrderBody.UnmarshalBinary(data)
 }
 
-func (o *OrderV1) GenerateID(scheme Scheme) error {
+func (o *OrderV1) GenerateID(_ Scheme) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return err
@@ -785,7 +784,7 @@ func (o *OrderV1) GenerateID(scheme Scheme) error {
 }
 
 //Sign adds a signature to the order.
-func (o *OrderV1) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+func (o *OrderV1) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV1")
@@ -804,7 +803,7 @@ func (o *OrderV1) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV1) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV1) Verify(_ Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if o.Signature == nil {
 		return false, errors.New("empty signature")
 	}
@@ -961,7 +960,7 @@ func (o *OrderV2) GetExpiration() uint64 {
 	return o.Expiration
 }
 
-func (o *OrderV2) GenerateID(scheme Scheme) error {
+func (o *OrderV2) GenerateID(_ Scheme) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return err
@@ -1011,7 +1010,7 @@ func (o *OrderV2) bodyUnmarshalBinary(data []byte) error {
 }
 
 //Sign adds a signature to the order.
-func (o *OrderV2) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+func (o *OrderV2) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV2")
@@ -1032,7 +1031,7 @@ func (o *OrderV2) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV2) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV2) Verify(_ Scheme, publicKey crypto.PublicKey) (bool, error) {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV2")
@@ -1047,13 +1046,13 @@ func (o *OrderV2) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal OrderV2 to bytes")
 	}
 	bl := len(bb)
-	pb, err := o.Proofs.MarshalBinary()
+	pfb, err := o.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal OrderV2 to bytes")
 	}
-	buf := make([]byte, bl+len(pb))
+	buf := make([]byte, bl+len(pfb))
 	copy(buf, bb)
-	copy(buf[bl:], pb)
+	copy(buf[bl:], pfb)
 	return buf, nil
 }
 
@@ -1185,7 +1184,7 @@ func (o *OrderV3) GetExpiration() uint64 {
 	return o.Expiration
 }
 
-func (o *OrderV3) GenerateID(scheme Scheme) error {
+func (o *OrderV3) GenerateID(_ Scheme) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return err
@@ -1260,7 +1259,7 @@ func (o *OrderV3) bodyUnmarshalBinary(data []byte) error {
 }
 
 //Sign adds a signature to the order.
-func (o *OrderV3) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
+func (o *OrderV3) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to sign OrderV3")
@@ -1281,7 +1280,7 @@ func (o *OrderV3) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV3) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV3) Verify(_ Scheme, publicKey crypto.PublicKey) (bool, error) {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV3")
@@ -1296,13 +1295,13 @@ func (o *OrderV3) MarshalBinary() ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal OrderV3 to bytes")
 	}
 	bl := len(bb)
-	pb, err := o.Proofs.MarshalBinary()
+	pfb, err := o.Proofs.MarshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal OrderV3 to bytes")
 	}
-	buf := make([]byte, bl+len(pb))
+	buf := make([]byte, bl+len(pfb))
 	copy(buf, bb)
-	copy(buf[bl:], pb)
+	copy(buf[bl:], pfb)
 	return buf, nil
 }
 
@@ -2553,7 +2552,7 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal Script form JSON")
 	}
-	*s = Script(sb[:n])
+	*s = sb[:n]
 	return nil
 }
 
@@ -2579,13 +2578,13 @@ func (vt ArgumentValueType) String() string {
 }
 
 const (
-	ArgumentInteger    = ArgumentValueType(reader.E_LONG)
-	ArgumentBinary     = ArgumentValueType(reader.E_BYTES)
-	ArgumentString     = ArgumentValueType(reader.E_STRING)
+	ArgumentInteger    = ArgumentValueType(0)  // E_LONG
+	ArgumentBinary     = ArgumentValueType(1)  // E_BYTES
+	ArgumentString     = ArgumentValueType(2)  // E_STRING
 	ArgumentBoolean    = ArgumentValueType(99) // Nonexistent RIDE type is used
-	ArgumentValueTrue  = ArgumentValueType(reader.E_TRUE)
-	ArgumentValueFalse = ArgumentValueType(reader.E_FALSE)
-	ArgumentList       = ArgumentValueType(reader.E_LIST)
+	ArgumentValueTrue  = ArgumentValueType(6)  // E_TRUE
+	ArgumentValueFalse = ArgumentValueType(7)  // E_FALSE
+	ArgumentList       = ArgumentValueType(11) // E_LIST
 )
 
 type Argument interface {
@@ -3114,11 +3113,16 @@ type FunctionCall struct {
 	Arguments Arguments
 }
 
+const (
+	tokenFunctionCall = 9
+	tokenUserFunction = 1
+)
+
 func (c FunctionCall) Serialize(s *serializer.Serializer) error {
 	if c.Default {
 		return s.Byte(0)
 	}
-	err := s.Bytes([]byte{1, reader.E_FUNCALL, reader.FH_USER})
+	err := s.Bytes([]byte{1, tokenFunctionCall, tokenUserFunction})
 	if err != nil {
 		return err
 	}
@@ -3139,8 +3143,8 @@ func (c FunctionCall) MarshalBinary() ([]byte, error) {
 	}
 	buf := make([]byte, c.BinarySize())
 	buf[0] = 1
-	buf[1] = reader.E_FUNCALL
-	buf[2] = reader.FH_USER
+	buf[1] = tokenFunctionCall
+	buf[2] = tokenUserFunction
 	PutStringWithUInt32Len(buf[3:], c.Name)
 	ab, err := c.Arguments.MarshalBinary()
 	if err != nil {
@@ -3162,10 +3166,10 @@ func (c *FunctionCall) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < 1+1+4 {
 		return errors.Errorf("%d is not enough bytes of FunctionCall", l)
 	}
-	if data[0] != reader.E_FUNCALL {
+	if data[0] != tokenFunctionCall {
 		return errors.Errorf("unexpected expression type %d, expected E_FUNCALL", data[0])
 	}
-	if data[1] != reader.FH_USER {
+	if data[1] != tokenUserFunction {
 		return errors.Errorf("unexpected function type %d, expected a user function", data[1])
 	}
 	var err error
@@ -3232,12 +3236,12 @@ type FullScriptTransfer struct {
 	ID        *crypto.Digest
 }
 
-func NewFullScriptTransfer(action *TransferScriptAction, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+func NewFullScriptTransfer(action *TransferScriptAction, sender Address, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,
 		Recipient: action.Recipient,
-		Sender:    *tx.ScriptRecipient.Address,
+		Sender:    sender,
 		Timestamp: tx.Timestamp,
 		ID:        tx.ID,
 	}, nil
@@ -3431,7 +3435,7 @@ func (s FieldsHashes) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func (s *FieldsHashes) UnmasrhalJSON(value []byte) error {
+func (s *FieldsHashes) UnmarshalJSON(value []byte) error {
 	var sh fieldsHashesJS
 	if err := json.Unmarshal(value, &sh); err != nil {
 		return err

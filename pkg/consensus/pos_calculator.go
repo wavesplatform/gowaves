@@ -22,10 +22,12 @@ const (
 	baseTargetGamma      = 64
 	meanCalculationDepth = 3
 	// Fair PoS values.
-	c1     = float64(70000)
-	c2     = float64(500000000000000000)
-	tMinV1 = float64(5000)
-	tMinV2 = float64(15000)
+	c1           = float64(70000)
+	c2           = float64(500000000000000000)
+	tMinV1       = float64(5000)
+	delayDeltaV1 = 0
+	tMinV2       = float64(15000)
+	delayDeltaV2 = 8
 )
 
 type Hit = big.Int
@@ -224,17 +226,18 @@ func calculateBaseTarget(
 	confirmedTimestamp uint64,
 	greatGrandParentTimestamp uint64,
 	applyingBlockTimestamp uint64,
+	delayDelta uint64,
 ) (types.BaseTarget, error) {
-	maxDelay := normalize(90, targetBlockDelaySeconds)
-	minDelay := normalize(30, targetBlockDelaySeconds)
+	maxDelay := normalize(90-delayDelta, targetBlockDelaySeconds)
+	minDelay := normalize(30+delayDelta, targetBlockDelaySeconds)
 	if greatGrandParentTimestamp == 0 {
 		return confirmedTarget, nil
 	}
 	average := (applyingBlockTimestamp - greatGrandParentTimestamp) / 3 / 1000
 	if float64(average) > maxDelay {
-		return (confirmedTarget + uint64(math.Max(1, float64(confirmedTarget/100)))), nil
+		return confirmedTarget + uint64(math.Max(1, float64(confirmedTarget/100))), nil
 	} else if float64(average) < minDelay {
-		return (confirmedTarget - uint64(math.Max(1, float64(confirmedTarget/100)))), nil
+		return confirmedTarget - uint64(math.Max(1, float64(confirmedTarget/100))), nil
 	} else {
 		return confirmedTarget, nil
 	}
@@ -271,7 +274,7 @@ func (calc *FairPosCalculatorV1) CalculateBaseTarget(
 	applyingBlockTimestamp uint64,
 ) (types.BaseTarget, error) {
 	return calculateBaseTarget(targetBlockDelaySeconds, confirmedHeight, confirmedTarget, confirmedTimestamp,
-		greatGrandParentTimestamp, applyingBlockTimestamp)
+		greatGrandParentTimestamp, applyingBlockTimestamp, delayDeltaV1)
 }
 
 func (calc *FairPosCalculatorV1) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
@@ -294,7 +297,7 @@ func (calc *FairPosCalculatorV2) CalculateBaseTarget(
 	applyingBlockTimestamp uint64,
 ) (types.BaseTarget, error) {
 	return calculateBaseTarget(targetBlockDelaySeconds, confirmedHeight, confirmedTarget, confirmedTimestamp,
-		greatGrandParentTimestamp, applyingBlockTimestamp)
+		greatGrandParentTimestamp, applyingBlockTimestamp, delayDeltaV2)
 }
 
 func (calc *FairPosCalculatorV2) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {

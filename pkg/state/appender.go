@@ -280,8 +280,8 @@ func (a *txAppender) needToCheckOrdersSigs(transaction proto.Transaction, initia
 	return !o1Scripted, !o2Scripted, nil
 }
 
-func (a *txAppender) saveTransactionIdByAddresses(addrs []proto.Address, txID []byte, blockID proto.BlockID, filter bool) error {
-	for _, addr := range addrs {
+func (a *txAppender) saveTransactionIdByAddresses(addresses []proto.Address, txID []byte, blockID proto.BlockID, filter bool) error {
+	for _, addr := range addresses {
 		if err := a.atx.saveTxIdByAddress(addr, txID, blockID, filter); err != nil {
 			return err
 		}
@@ -319,7 +319,7 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 	if params.validatingUtx {
 		// Save transaction to in-mem storage.
 		if err := a.rw.writeTransactionToMem(tx, !res.status); err != nil {
-			return wrapErr(TxCommitmentError, errors.Errorf("failed to write tranasction to in mem stor: %v", err))
+			return wrapErr(TxCommitmentError, errors.Errorf("failed to write transaction to in mem stor: %v", err))
 		}
 	} else {
 		// Count tx fee.
@@ -646,7 +646,7 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 		if err != nil && !info.acceptFailed {
 			return nil, err
 		}
-		if err != nil || res.Failed() {
+		if err != nil || !res.Result() {
 			// Smart asset script failed, return failed diff.
 			return &applicationResult{false, scriptsRuns, failedChanges}, nil
 		}
