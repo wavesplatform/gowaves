@@ -80,7 +80,7 @@ sudo mkdir /usr/share/waves/
 sudo chown waves:waves /usr/share/waves
 sudo mkdir /var/lib/waves
 sudo chown waves:waves /var/lib/waves
-sudo cp waves /usr/share/waves/
+sudo cp node /usr/share/waves/
 ```
 
 To enable, start and stop the service use commands:
@@ -138,7 +138,7 @@ sudo mkdir /usr/share/waves-testnet/
 sudo chown waves-testnet:waves-testnet /usr/share/waves-testnet
 sudo mkdir /var/lib/waves-testnet
 sudo chown waves-testnet:waves-testnet /var/lib/waves-testnet
-sudo cp waves /usr/share/waves-testnet/
+sudo cp node /usr/share/waves-testnet/
 ```
 
 ```bash
