@@ -116,8 +116,7 @@ RestartSec=60
 startLimitIntervalSec=60
 
 WorkingDirectory=/usr/share/waves-testnet
-ExecStart=/usr/share/waves-testnet/node -state-path /var/lib/waves-testnet/ -api-address 0.0.0.0:8090 -peers 52.51.92.182:6863,52.231.205.53:6863,52.30.47.67:6863,52.28.66.217:6863 -blockchain-type testnet
-
+ExecStart=/usr/share/waves-testnet/node -state-path /var/lib/waves-testnet/ -api-address 0.0.0.0:8090 -peers 159.69.126.149:6863,94.130.105.239:6863,159.69.126.153:6863,94.130.172.201:6863 -blockchain-type testnet
 # make sure log directory exists and owned by syslog
 PermissionsStartOnly=true
 ExecStartPre=/bin/mkdir -p /var/log/waves-testnet
