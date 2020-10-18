@@ -19,7 +19,7 @@ type txFilter struct {
 func newTxFilter(scheme byte, req *g.TransactionsRequest) (*txFilter, error) {
 	res := &txFilter{}
 	res.scheme = scheme
-	var c proto.ProtobufConverter
+	c := proto.ProtobufConverter{FallbackChainID: scheme}
 	var err error
 	if req.Sender != nil {
 		res.sender, err = c.Address(scheme, req.Sender)

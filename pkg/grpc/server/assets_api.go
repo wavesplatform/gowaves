@@ -27,7 +27,7 @@ func (s *Server) GetInfo(ctx context.Context, req *g.AssetRequest) (*g.AssetInfo
 }
 
 func (s *Server) GetNFTList(req *g.NFTRequest, srv g.AssetsApi_GetNFTListServer) error {
-	var c proto.ProtobufConverter
+	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, err.Error())

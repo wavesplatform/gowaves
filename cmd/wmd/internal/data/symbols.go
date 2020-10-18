@@ -43,13 +43,19 @@ type Symbols struct {
 	tokens  map[crypto.Digest]string
 	mu      sync.RWMutex
 	oracle  proto.Address
+	scheme  byte
 }
 
-func NewSymbolsFromFile(name string, oracle proto.Address) (*Symbols, error) {
+func NewSymbolsFromFile(name string, oracle proto.Address, scheme byte) (*Symbols, error) {
 	wrapError := func(err error) error {
 		return errors.Wrapf(err, "failed to import symbols from file '%s'", name)
 	}
-	r := &Symbols{map[string]crypto.Digest{proto.WavesAssetName: WavesID}, map[crypto.Digest]string{WavesID: proto.WavesAssetName}, sync.RWMutex{}, oracle}
+	r := &Symbols{
+		tickers: map[string]crypto.Digest{proto.WavesAssetName: WavesID},
+		tokens:  map[crypto.Digest]string{WavesID: proto.WavesAssetName},
+		oracle:  oracle,
+		scheme:  scheme,
+	}
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, wrapError(err)
@@ -130,7 +136,7 @@ func (s *Symbols) UpdateFromOracle(conn *grpc.ClientConn) error {
 		return err
 	}
 	var msg g.DataEntryResponse
-	converter := proto.ProtobufConverter{}
+	converter := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	count := 0
 	s.mu.Lock()
 	defer s.mu.Unlock()

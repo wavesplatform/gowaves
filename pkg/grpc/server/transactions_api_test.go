@@ -314,7 +314,7 @@ func TestSign(t *testing.T) {
 	req := &g.SignRequest{Transaction: txProto, SignerPublicKey: pk.Bytes()}
 	res, err := cl.Sign(ctx, req)
 	require.NoError(t, err)
-	var c proto.ProtobufConverter
+	c := proto.ProtobufConverter{FallbackChainID: server.scheme}
 	resTx, err := c.SignedTransaction(res)
 	require.NoError(t, err)
 	transfer, ok := resTx.(*proto.TransferWithSig)
