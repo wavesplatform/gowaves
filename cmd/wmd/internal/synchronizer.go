@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"bytes"
 	"context"
 	"strings"
 	"time"
@@ -23,13 +22,13 @@ type Synchronizer struct {
 	conn      *grpc.ClientConn
 	storage   *state.Storage
 	scheme    byte
-	matcher   crypto.PublicKey
+	matchers  []crypto.PublicKey
 	ticker    *time.Ticker
 	lag       int
 	symbols   *data.Symbols
 }
 
-func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme byte, matcher crypto.PublicKey, node string, interval int, lag int, symbols *data.Symbols) (*Synchronizer, error) {
+func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme byte, matchers []crypto.PublicKey, node string, interval int, lag int, symbols *data.Symbols) (*Synchronizer, error) {
 	conn, err := grpc.Dial(node, grpc.WithInsecure())
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create new synchronizer")
@@ -38,7 +37,7 @@ func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme b
 	t := time.NewTicker(d)
 	zap.S().Infof("Synchronization interval set to %v", d)
 	done := make(chan struct{})
-	s := Synchronizer{interrupt: interrupt, done: done, conn: conn, storage: storage, scheme: scheme, matcher: matcher, ticker: t, lag: lag, symbols: symbols}
+	s := Synchronizer{interrupt: interrupt, done: done, conn: conn, storage: storage, scheme: scheme, matchers: matchers, ticker: t, lag: lag, symbols: symbols}
 	go s.run()
 	return &s, nil
 }
@@ -126,11 +125,11 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 		if s.interrupted() {
 			return errors.New("synchronization was interrupted")
 		}
-		header, txs, err := s.nodeBlock(h)
+		id, miner, txs, err := s.nodeBlock(h)
 		if err != nil {
 			return err
 		}
-		err = s.applyBlock(h, header.BlockID(), txs, len(txs), header.GenPublicKey)
+		err = s.applyBlock(h, id, txs, miner)
 		if err != nil {
 			return errors.Wrapf(err, "failed apply block at height %d", h)
 		}
@@ -140,11 +139,11 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 
 var emptyID = proto.BlockID{}
 
-func (s *Synchronizer) applyBlock(height int, id proto.BlockID, txs []proto.Transaction, count int, miner crypto.PublicKey) error {
+func (s *Synchronizer) applyBlock(height int, id proto.BlockID, txs []proto.Transaction, miner crypto.PublicKey) error {
 	if id == emptyID {
 		return errors.Errorf("Empty block id at height: %d", height)
 	}
-	zap.S().Infof("Applying block '%s' at %d containing %d transactions", id.String(), height, count)
+	zap.S().Infof("Applying block '%s' at %d containing %d transactions", id.String(), height, len(txs))
 	trades, issues, assets, accounts, aliases, err := s.extractTransactions(txs, miner)
 	if err != nil {
 		return err
@@ -179,7 +178,7 @@ func (s *Synchronizer) block(height int, full bool) (*g.BlockWithHeight, error) 
 }
 
 func (s *Synchronizer) nodeBlockID(height int) (proto.BlockID, error) {
-	cnv := proto.ProtobufConverter{}
+	cnv := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	res, err := s.block(height, false)
 	if err != nil {
 		return proto.BlockID{}, err
@@ -191,21 +190,21 @@ func (s *Synchronizer) nodeBlockID(height int) (proto.BlockID, error) {
 	return header.BlockID(), nil
 }
 
-func (s *Synchronizer) nodeBlock(height int) (proto.BlockHeader, []proto.Transaction, error) {
-	cnv := proto.ProtobufConverter{}
+func (s *Synchronizer) nodeBlock(height int) (proto.BlockID, crypto.PublicKey, []proto.Transaction, error) {
+	cnv := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	res, err := s.block(height, true)
 	if err != nil {
-		return proto.BlockHeader{}, nil, errors.Wrap(err, "failed to get block from node")
+		return proto.BlockID{}, crypto.PublicKey{}, nil, errors.Wrap(err, "failed to get block from node")
 	}
 	header, err := cnv.BlockHeader(res.Block)
 	if err != nil {
-		return proto.BlockHeader{}, nil, err
+		return proto.BlockID{}, crypto.PublicKey{}, nil, err
 	}
 	txs, err := cnv.BlockTransactions(res.Block)
 	if err != nil {
-		return proto.BlockHeader{}, nil, err
+		return proto.BlockID{}, crypto.PublicKey{}, nil, err
 	}
-	return header, txs, nil
+	return header.ID, header.GenPublicKey, txs, nil
 }
 
 func (s *Synchronizer) findLastCommonHeight(start, stop int) (int, error) {
@@ -334,7 +333,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.ExchangeWithSig:
 			zap.S().Debugf("%d: ExchangeWithSig: %v", i, t)
-			if bytes.Equal(s.matcher[:], t.SenderPK[:]) {
+			if s.checkMatcher(t.SenderPK) {
 				t, err := data.NewTradeFromExchangeWithSig(s.scheme, t)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithSig")
@@ -349,7 +348,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 
 		case *proto.ExchangeWithProofs:
 			zap.S().Debugf("%d: ExchangeWithProofs: %v", i, t)
-			if bytes.Equal(s.matcher[:], t.SenderPK[:]) {
+			if s.checkMatcher(t.SenderPK) {
 				t, err := data.NewTradeFromExchangeWithProofs(s.scheme, t)
 				if err != nil {
 					return nil, nil, nil, nil, nil, wrapErr(err, "ExchangeWithProofs")
@@ -407,4 +406,13 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 		}
 	}
 	return trades, issueChanges, assetChanges, accountChanges, binds, nil
+}
+
+func (s *Synchronizer) checkMatcher(pk crypto.PublicKey) bool {
+	for _, m := range s.matchers {
+		if m == pk {
+			return true
+		}
+	}
+	return false
 }

@@ -206,7 +206,7 @@ func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsAp
 }
 
 func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*pb.SignedTransaction, error) {
-	var c proto.ProtobufConverter
+	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	tx, err := c.Transaction(req.Transaction)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
@@ -226,7 +226,7 @@ func (s *Server) Sign(ctx context.Context, req *g.SignRequest) (*pb.SignedTransa
 }
 
 func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (out *pb.SignedTransaction, err error) {
-	var c proto.ProtobufConverter
+	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	t, err := c.SignedTransaction(tx)
 	if err != nil {
 		return nil, apiError(err)

@@ -223,15 +223,18 @@ func findLastCommonHeight(interrupt <-chan struct{}, clients []*client.Client, s
 	return r, nil
 }
 
-type nodeHeader struct {
-	id     int
-	header *client.Headers
-	err    error
+type nodeBlockInfo struct {
+	id        int
+	blockID   proto.BlockID
+	height    uint64
+	generator proto.Address
+	blockTime uint64
+	err       error
 }
 
 func differentIdsCount(clients []*client.Client, height int) (int, error) {
-	ch := make(chan nodeHeader, len(clients))
-	info := make(map[int]*client.Headers)
+	ch := make(chan nodeBlockInfo, len(clients))
+	info := make(map[int]nodeBlockInfo)
 	m := make(map[proto.BlockID]bool)
 	for i, c := range clients {
 		go func(id int, cl *client.Client) {
@@ -239,28 +242,35 @@ func differentIdsCount(clients []*client.Client, height int) (int, error) {
 			defer cancel()
 			header, resp, err := cl.Blocks.HeadersAt(ctx, uint64(height))
 			if err != nil {
-				ch <- nodeHeader{id, header, err}
+				if resp != nil && resp.StatusCode == http.StatusNotFound {
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+					defer cancel()
+					block, _, err := cl.Blocks.At(ctx, uint64(height))
+					if err != nil {
+						ch <- nodeBlockInfo{id: id, err: err}
+						return
+					}
+					ch <- nodeBlockInfo{id: id, height: block.Height, blockID: block.ID, generator: block.Generator, blockTime: block.Timestamp}
+					return
+				}
+				ch <- nodeBlockInfo{id: id, err: err}
 				return
 			}
-			if rc := resp.StatusCode; rc != 200 {
-				ch <- nodeHeader{id, header, errors.Errorf("unexpected response code %d", rc)}
-				return
-			}
-			ch <- nodeHeader{id, header, nil}
+			ch <- nodeBlockInfo{id: id, height: header.Height, blockID: header.ID, generator: header.Generator, blockTime: header.Timestamp}
 		}(i, c)
 	}
 	for range clients {
-		h := <-ch
-		if h.err != nil {
-			return 0, errors.Wrapf(h.err, "failed to get block header from %dth client", h.id)
+		bi := <-ch
+		if bi.err != nil {
+			return 0, errors.Wrapf(bi.err, "failed to get block header from %dth client", bi.id)
 		}
-		info[h.id] = h.header
-		m[h.header.ID] = true
+		info[bi.id] = bi
+		m[bi.blockID] = true
 	}
 	for i := 0; i < len(info); i++ {
 		v := info[i]
-		t := time.Unix(0, int64(v.Timestamp*1000000))
-		zap.S().Debugf("id: %d, h: %d, block: %s, generator: %s, time: %s", i, v.Height, v.ID.String(), v.Generator.String(), t.String())
+		t := time.Unix(0, int64(v.blockTime*1000000))
+		zap.S().Debugf("id: %d, h: %d, block: %s, generator: %s, time: %s", i, v.height, v.blockID.String(), v.generator.String(), t.String())
 	}
 	return len(m), nil
 }
@@ -276,7 +286,6 @@ func min(values []int) int {
 }
 
 func showUsageAndExit() {
-	//fmt.Println()
 	_, _ = fmt.Fprintf(os.Stderr, "\nUsage of chaincmp %s\n", version)
 	flag.PrintDefaults()
 }
