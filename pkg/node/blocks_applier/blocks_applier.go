@@ -2,6 +2,7 @@ package blocks_applier
 
 import (
 	"math/big"
+	"runtime"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -120,6 +121,7 @@ func NewBlocksApplier() *BlocksApplier {
 
 func (a *BlocksApplier) Apply(state state.State, blocks []*proto.Block) (proto.Height, error) {
 	_, h, err := a.inner.apply(state, blocks)
+	runtime.GC()
 	return h, err
 }
 

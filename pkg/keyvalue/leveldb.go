@@ -42,6 +42,7 @@ func (b *batch) Put(key, val []byte) {
 
 func (b *batch) addToFilter(filter BloomFilter) error {
 	b.mu.Lock()
+	defer b.mu.Unlock()
 	for _, pair := range b.pairs {
 		if !pair.deletion {
 			if err := filter.add(pair.key); err != nil {
@@ -49,7 +50,6 @@ func (b *batch) addToFilter(filter BloomFilter) error {
 			}
 		}
 	}
-	b.mu.Unlock()
 	return nil
 }
 
