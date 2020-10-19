@@ -40,7 +40,7 @@ func (b *batch) Put(key, val []byte) {
 	b.mu.Unlock()
 }
 
-func (b *batch) addToFilter(filter *bloomFilter) error {
+func (b *batch) addToFilter(filter BloomFilter) error {
 	b.mu.Lock()
 	for _, pair := range b.pairs {
 		if !pair.deletion {
@@ -90,13 +90,15 @@ func (b *batch) Reset() {
 
 type KeyVal struct {
 	db     *leveldb.DB
-	filter *bloomFilter
+	filter BloomFilter //*bloomFilter
 	cache  *freecache.Cache
 	mu     *sync.RWMutex
 }
 
 func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 	zap.S().Info("Loading stored bloom filter...")
+	kv.filter = NewBloomFilterStub(params)
+	return nil
 	filter, err := newBloomFilterFromStore(params)
 	if err == nil {
 		kv.filter = filter
