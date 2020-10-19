@@ -132,7 +132,7 @@ func main() {
 	if *profiler {
 		zap.S().Infof("Starting built-in profiler on 'http://localhost:6060/debug/pprof/'")
 		go func() {
-			zap.S().Warn(http.ListenAndServe("localhost:6060", nil))
+			zap.S().Warn(http.ListenAndServe(":6060", nil))
 		}()
 	}
 
