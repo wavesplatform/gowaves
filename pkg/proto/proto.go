@@ -185,6 +185,24 @@ func (a Version) Cmp(other Version) int {
 	return 0
 }
 
+// Compare minor version.
+// If equal return 0.
+// If diff only 1 version (for example 1.14 and 1.13), then 1
+// If more then 1 version, then return 2.
+func (a Version) CmpMinor(other Version) int {
+	if a.Major != other.Major {
+		return 2
+	}
+	if a.Minor == other.Minor {
+		return 0
+	}
+	rs := a.Minor - other.Minor
+	if rs*rs == 1 {
+		return 1
+	}
+	return 2
+}
+
 func NewVersionFromString(version string) (*Version, error) {
 	parts := strings.Split(version, ".")
 	if l := len(parts); l <= 0 || l > 3 {
@@ -322,6 +340,25 @@ func (a TCPAddr) WriteTo(w io.Writer) (int64, error) {
 	return int64(n + n2), nil
 }
 
+// ToStaticSize converts TCPAddr to 8-byte array.
+func (a TCPAddr) ToUint64() uint64 {
+	ip := uint64(a.ipToUint32()) << 32
+	ip = ip | uint64(a.Port)
+	return ip
+}
+
+func (a TCPAddr) ipToUint32() uint32 {
+	if len(a.IP) == 16 {
+		return binary.BigEndian.Uint32(a.IP[12:16])
+	}
+	return binary.BigEndian.Uint32(a.IP)
+}
+
+// Equal checks if ip address and port are equal.
+func (a TCPAddr) Equal(other TCPAddr) bool {
+	return a.IP.Equal(other.IP) && a.Port == other.Port
+}
+
 func NewTCPAddrFromString(s string) TCPAddr {
 	host, port, err := net.SplitHostPort(s)
 	if err != nil {
@@ -333,6 +370,19 @@ func NewTCPAddrFromString(s string) TCPAddr {
 		return TCPAddr{}
 	}
 	return NewTCPAddr(ip, int(p))
+}
+
+func NewTcpAddrFromUint64(value uint64) TCPAddr {
+	var (
+		ip    = make([]byte, 4)
+		port  = uint32(value)
+		ipVal = uint32(value >> 32)
+	)
+	binary.BigEndian.PutUint32(ip, ipVal)
+	return TCPAddr{
+		IP:   ip,
+		Port: int(port),
+	}
 }
 
 func (a TCPAddr) ToIpPort() IpPort {

@@ -72,6 +72,18 @@ func (a *UtxImpl) Add(t proto.Transaction) error {
 	if err != nil {
 		return err
 	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.addWithBytes(t, bts)
+}
+
+func (a *UtxImpl) AddBytes(bts []byte) error {
+	t, err := proto.BytesToTransaction(bts, a.settings.AddressSchemeCharacter)
+	if err != nil {
+		return err
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	return a.addWithBytes(t, bts)
 }
 

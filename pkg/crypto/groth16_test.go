@@ -1,3 +1,5 @@
+//+build groth16
+
 package crypto
 
 import (

@@ -13,16 +13,21 @@ import (
 	"go.uber.org/zap"
 )
 
+type DuplicateChecker interface {
+	Add([]byte) bool
+}
+
 type IncomingPeerParams struct {
-	WavesNetwork string
-	Conn         net.Conn
-	Parent       peer.Parent
-	DeclAddr     proto.TCPAddr
-	Pool         bytespool.Pool
-	Skip         conn.SkipFilter
-	NodeName     string
-	NodeNonce    uint64
-	Version      proto.Version
+	WavesNetwork     string
+	Conn             net.Conn
+	Parent           peer.Parent
+	DeclAddr         proto.TCPAddr
+	Pool             bytespool.Pool
+	Skip             conn.SkipFilter
+	NodeName         string
+	NodeNonce        uint64
+	Version          proto.Version
+	DuplicateChecker DuplicateChecker
 }
 
 func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
@@ -84,12 +89,13 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Inco
 	params.Parent.InfoCh <- out
 
 	return peer.Handle(peer.HandlerParams{
-		Ctx:        ctx,
-		ID:         peerImpl.ID(),
-		Connection: connection,
-		Remote:     remote,
-		Parent:     params.Parent,
-		Pool:       params.Pool,
-		Peer:       peerImpl,
+		Ctx:              ctx,
+		ID:               peerImpl.ID(),
+		Connection:       connection,
+		Remote:           remote,
+		Parent:           params.Parent,
+		Pool:             params.Pool,
+		Peer:             peerImpl,
+		DuplicateChecker: params.DuplicateChecker,
 	})
 }

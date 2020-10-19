@@ -1,3 +1,5 @@
+//+build groth16
+
 package bn254
 
 import (

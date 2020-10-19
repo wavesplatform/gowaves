@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.14
+go 1.15
 
 require (
 	github.com/OneOfOne/xxhash v1.2.5 // indirect
@@ -27,6 +27,7 @@ require (
 	github.com/onsi/gomega v1.7.0 // indirect
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.8.1
+	github.com/prometheus/client_golang v1.7.1
 	github.com/rakyll/statik v0.1.7
 	github.com/seiflotfy/cuckoofilter v0.0.0-20190302225222-764cb5258d9b
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
@@ -47,7 +48,6 @@ require (
 	google.golang.org/genproto v0.0.0-20201007142714-5c0e72c5e71e // indirect
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.25.0
-	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )

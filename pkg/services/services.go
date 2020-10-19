@@ -24,6 +24,7 @@ type MicroBlockInvCache interface {
 }
 
 type Services struct {
+	NodeName        string
 	State           state.State
 	Peers           peer_manager.PeerManager
 	Scheduler       types.Scheduler
