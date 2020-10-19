@@ -59,7 +59,8 @@ func SignedTxFromProtobuf(data []byte) (Transaction, error) {
 }
 
 type ProtobufConverter struct {
-	err error
+	FallbackChainID byte
+	err             error
 }
 
 func (c *ProtobufConverter) Address(scheme byte, addr []byte) (Address, error) {
@@ -116,7 +117,7 @@ func (c *ProtobufConverter) byte(value int32, context ...string) byte {
 	return byte(value)
 }
 
-func (c *ProtobufConverter) bytev(value int32, validators ...func(int32) error) byte {
+func (c *ProtobufConverter) byteValidated(value int32, validators ...func(int32) error) byte {
 	if c.err != nil {
 		return 0
 	}
@@ -352,7 +353,11 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 			OrderBody: body,
 		}
 	}
-	if err := order.GenerateID(byte(o.ChainId)); err != nil {
+	scheme := c.byte(o.ChainId)
+	if scheme == 0 {
+		scheme = c.FallbackChainID
+	}
+	if err := order.GenerateID(scheme); err != nil {
 		c.err = err
 	}
 	return order
@@ -387,12 +392,12 @@ func (c *ProtobufConverter) transfers(scheme byte, transfers []*g.MassTransferTr
 	return r
 }
 
-func (c *ProtobufConverter) attachment(att []byte, untyped bool) Attachment {
+func (c *ProtobufConverter) attachment(att []byte) Attachment {
 	// this cast is required, tests fill fall if remove!
 	if len(att) == 0 {
 		return Attachment{}
 	}
-	return Attachment(att)
+	return att
 }
 
 func (c *ProtobufConverter) entry(entry *g.DataTransactionData_DataEntry) DataEntry {
@@ -599,6 +604,9 @@ func (c *ProtobufConverter) reset() {
 func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) {
 	ts := c.uint64(tx.Timestamp)
 	scheme := c.byte(tx.ChainId)
+	if scheme == 0 {
+		scheme = c.FallbackChainID
+	}
 	v := c.byte(tx.Version)
 	var rtx Transaction
 	switch d := tx.Data.(type) {
@@ -640,7 +648,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Quantity: c.uint64v(d.Issue.Amount, func(v int64) error {
 				return ValidatePositiveAmount(v, "quantity")
 			}),
-			Decimals: c.bytev(d.Issue.Decimals, func(value int32) error {
+			Decimals: c.byteValidated(d.Issue.Decimals, func(value int32) error {
 				return nil
 			}),
 			Reissuable: d.Issue.Reissuable,
@@ -671,12 +679,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			c.reset()
 			return nil, err
 		}
-		protobufVersion, ok := ProtobufTransactionsVersions[TransferTransaction]
-		if !ok {
-			c.reset()
-			return nil, errors.New("can not find protobuf version of TransferTransaction")
-		}
-		untyped := v < protobufVersion
 		pt := Transfer{
 			SenderPK:    c.publicKey(tx.SenderPublicKey),
 			AmountAsset: aa,
@@ -685,7 +687,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Amount:      amount,
 			Fee:         fee,
 			Recipient:   rcp,
-			Attachment:  c.attachment(d.Transfer.Attachment, untyped),
+			Attachment:  c.attachment(d.Transfer.Attachment),
 		}
 		if tx.Version >= 2 {
 			rtx = &TransferWithProofs{
@@ -873,12 +875,6 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 		}
 
 	case *g.Transaction_MassTransfer:
-		protobufVersion, ok := ProtobufTransactionsVersions[MassTransferTransaction]
-		if !ok {
-			c.reset()
-			return nil, errors.New("can not find protobuf version of MassTransferTransaction")
-		}
-		untyped := v < protobufVersion
 		rtx = &MassTransferWithProofs{
 			Type:       MassTransferTransaction,
 			Version:    v,
@@ -887,7 +883,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Transfers:  c.transfers(scheme, d.MassTransfer.Transfers),
 			Timestamp:  ts,
 			Fee:        c.amount(tx.Fee),
-			Attachment: c.attachment(d.MassTransfer.Attachment, untyped),
+			Attachment: c.attachment(d.MassTransfer.Attachment),
 		}
 
 	case *g.Transaction_DataTransaction:
@@ -1220,7 +1216,11 @@ func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 		c.reset()
 		return BlockHeader{}, err
 	}
-	if err := header.GenerateBlockID(byte(block.Header.ChainId)); err != nil {
+	scheme := c.byte(block.Header.ChainId)
+	if scheme == 0 {
+		scheme = c.FallbackChainID
+	}
+	if err := header.GenerateBlockID(scheme); err != nil {
 		return BlockHeader{}, err
 	}
 	return header, nil
