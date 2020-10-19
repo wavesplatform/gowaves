@@ -67,9 +67,9 @@ func (a *PersistFsm) Halt() (FSM, Async, error) {
 func NewPersistTransition(info BaseInfo) (FSM, Async, error) {
 	t := tasks.NewFuncTask(func(ctx context.Context, output chan tasks.AsyncTask) error {
 		err := info.storage.PersistAddressTransactions()
-		output <- tasks.AsyncTask{
+		tasks.SendAsyncTask(output, tasks.AsyncTask{
 			TaskType: tasks.PersistComplete,
-		}
+		})
 		return err
 	}, tasks.PersistComplete)
 

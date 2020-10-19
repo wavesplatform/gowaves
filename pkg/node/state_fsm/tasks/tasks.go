@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 const (
@@ -15,6 +16,15 @@ const (
 
 	PersistComplete
 )
+
+// Sends task into channel with overflow check.
+func SendAsyncTask(output chan AsyncTask, task AsyncTask) {
+	select {
+	case output <- task:
+	default:
+		zap.S().Errorf("AsyncTask channel is full %T", task)
+	}
+}
 
 type TaskType int
 
@@ -50,9 +60,9 @@ func (a AskPeersTask) Type() int {
 
 func (a AskPeersTask) Run(ctx context.Context, output chan AsyncTask) error {
 	<-time.After(5 * time.Second)
-	output <- AsyncTask{
+	SendAsyncTask(output, AsyncTask{
 		TaskType: a.type_,
-	}
+	})
 
 	in := time.NewTicker(a.d)
 	defer in.Stop()
@@ -62,9 +72,9 @@ func (a AskPeersTask) Run(ctx context.Context, output chan AsyncTask) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-in.C:
-			output <- AsyncTask{
+			SendAsyncTask(output, AsyncTask{
 				TaskType: a.type_,
-			}
+			})
 		}
 	}
 }
@@ -88,10 +98,10 @@ func (PingTask) Run(ctx context.Context, output chan AsyncTask) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-t.C:
-			output <- AsyncTask{
+			SendAsyncTask(output, AsyncTask{
 				TaskType: PING,
 				Data:     nil,
-			}
+			})
 		}
 	}
 }
@@ -132,10 +142,10 @@ func (a MineMicroTask) Run(ctx context.Context, output chan AsyncTask) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-time.After(a.timeout):
-		output <- AsyncTask{
+		SendAsyncTask(output, AsyncTask{
 			TaskType: a.Type(),
 			Data:     a.MineMicroTaskData,
-		}
+		})
 	}
 	return nil
 }

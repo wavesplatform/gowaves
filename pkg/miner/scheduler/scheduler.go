@@ -377,7 +377,6 @@ func (a *SchedulerImpl) reschedule(confirmedBlock *proto.Block, confirmedBlockHe
 			default:
 				zap.S().Debug("Scheduler: cannot emit a.mine, chan is full")
 			}
-
 		}
 	}
 }

@@ -45,38 +45,81 @@ Run the node as follows:
 
 By default the node starts as MainNet node. To start TestNet node pass the `testnet` as blockchain type and comma separated list of TestNet peer's addresses:
 ```bash
-./node -state-path [path to node state directory] -peers 52.51.92.182:6863,52.231.205.53:6863,52.30.47.67:6863,52.28.66.217:6863 -blockchain-type testnet
+./node -state-path [path to node state directory] -blockchain-type testnet
 ``` 
+
+### How to setup block generation
+
+Node has two parameters that allows to setup loading of private keys from a wallet file. 
+
+```
+-wallet-path [path to wallet file]
+-wallet-password [password string]
+```
+
+For example:
+
+```
+./node -state-path ~/gowaves-testnet/ -blockchain-type testnet -wallet-path ~/testnet.wallet -wallet-password 'some super secret password' 
+```
+
+Once provided with such parameters node tries to load and use private keys for block generation.
+
+#### How to create wallet file
+
+To create a wallet file use `wallet` utility. Please download an appropriate version of `wallet` utility from the [Releases](https://github.com/wavesplatform/gowaves/releases) page.
+The following command will add a seed to wallet file:
+
+```
+./wallet add -w [path to wallet file]
+```
+
+Utility asks for a seed phrase and a password to encrypt the new wallet file. If wallet file doesn't exists it will be created.
+
+It is possible to provide not a seed phrase but a Base58 encoded seed in format compatible with waves.exchange application. To do so add `-b` flag:
+
+```
+./wallet add -w [path to wallet file] -b
+```
+
+And enter the string of Base58 encoded seed then asked.
+
+To list the seed execute the following command and provide the password then asked. 
+
+```
+./wallet show -w [path to wallet file]
+```
  
 ### What's done
 
- * Full blockchain support of Waves version 1.1
- * Full support of RIDE version 3
+ * Full blockchain support of Waves version 1.2
+ * Full support of RIDE version 4
+ * Full support of gRPC API
+ * Block generation
+ * Partial and very limited support of REST API
  * Fast optimized import of blockchain
+ * Fast optimizes RIDE evaluation
  
 ### Known issues
 
- * Unstable network synchronization, first thing to improve
- * Uneven script estimation, overestimated scripts leads to warning
  * Reduced REST API, only few methods are available
- * No block generation (mining) for now, it's implemented but intentionally switched off
-
+ 
 ### Future plans
 
- * Complete gRPC API and extensive integration testing
- * RIDE optimization
- * Support of RIDE v4 and Waves v1.2 new features
- * Built-in wallet for full block generation (mining) support
+ * Full support of REST API
+ * Extensive integration testing
+ * RIDE v5, RIDE cross-DApp invocations and continuations
  
 ### Building from sources
 
-Go version 1.12 or later is required to build the `node`, `importer` and other tools. 
+Go version 1.12 or later is required to build the `node`, `importer`, `wallet` and other tools. 
 
 Build as usual or execute the appropriate `make` task:
 
 ```bash
 make release-importer
 make release-node
+...
 ```
 
 ## Other Tools
