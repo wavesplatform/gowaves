@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal"
@@ -35,7 +36,7 @@ func run() error {
 		lag            = flag.Int("lag", 1, "Synchronization lag behind the node, blocks. Default value 1 block.")
 		address        = flag.String("address", ":6990", "Local network address to bind the HTTP API of the service on. Default value is :6990.")
 		db             = flag.String("db", "", "Path to data base folder. No default value.")
-		matcher        = flag.String("matcher", "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy", "Matcher's public key in form of Base58 string.")
+		matchersList   = flag.String("matchers", "E3UwaHCQCySghK3zwNB8EDHoc3b8uhzGPFz3gHmWon4W,7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy,9cpfKN9suPNvfeUNphzxXMjcnn974eme8ZhWUjaktzU5", "Matcher's public keys in form of Base58 string, comma separated.")
 		oracle         = flag.String("oracle", "3P661nhk56WzFHCmQNKXjZGADxLHNY3LxP3", "Address of the tickers oracle, default for MainNet")
 		scheme         = flag.String("scheme", "W", "Blockchain scheme symbol. Defaults to 'W'.")
 		symbolsFile    = flag.String("symbols", "", "Path to file of symbol substitutions. No default value.")
@@ -97,7 +98,7 @@ func run() error {
 		zap.S().Errorf("Invalid configuration: %v", err)
 		return err
 	}
-	sch := (byte)((*scheme)[0])
+	sch := (*scheme)[0]
 
 	if *node == "" {
 		err := errors.New("empty node address")
@@ -156,9 +157,17 @@ func run() error {
 		return nil
 	}
 
-	matcherPK, err := crypto.NewPublicKeyFromBase58(*matcher)
-	if err != nil {
-		zap.S().Errorf("Incorrect matcher's address: %v", err)
+	matchers := make([]crypto.PublicKey, 0)
+	for _, ms := range strings.Split(*matchersList, ",") {
+		pk, err := crypto.NewPublicKeyFromBase58(strings.TrimSpace(ms))
+		if err != nil {
+			zap.S().Errorf("Failed to parse matcher's public key '%s': %v", ms, err)
+			return err
+		}
+		matchers = append(matchers, pk)
+	}
+	if len(matchers) == 0 {
+		zap.S().Errorf("Empty matchers list")
 		return err
 	}
 
@@ -168,7 +177,7 @@ func run() error {
 		return err
 	}
 
-	symbols, err := data.NewSymbolsFromFile(*symbolsFile, oracleAddr)
+	symbols, err := data.NewSymbolsFromFile(*symbolsFile, oracleAddr, sch)
 	if err != nil {
 		zap.S().Errorf("Failed to load symbol substitutions: %v", err)
 		return nil
@@ -190,7 +199,7 @@ func run() error {
 			zap.S().Errorf("Failed to import blockchain from file: %v", err)
 			return err
 		}
-		importer := internal.NewImporter(interrupt, sch, &storage, matcherPK)
+		importer := internal.NewImporter(interrupt, sch, &storage, matchers)
 		err := importer.Import(*importFile)
 		if err != nil {
 			zap.S().Errorf("Failed to import blockchain file '%s': %v", *importFile, err)
@@ -213,7 +222,7 @@ func run() error {
 	}
 
 	var synchronizerDone <-chan struct{}
-	s, err := internal.NewSynchronizer(interrupt, &storage, sch, matcherPK, *node, *interval, *lag, symbols)
+	s, err := internal.NewSynchronizer(interrupt, &storage, sch, matchers, *node, *interval, *lag, symbols)
 	if err != nil {
 		zap.S().Errorf("Failed to start synchronization: %v", err)
 		return err

@@ -13,7 +13,7 @@ import (
 )
 
 func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalancesServer) error {
-	var c proto.ProtobufConverter
+	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, err.Error())
@@ -45,7 +45,7 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 }
 
 func (s *Server) GetScript(ctx context.Context, req *g.AccountRequest) (*g.ScriptData, error) {
-	var c proto.ProtobufConverter
+	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
@@ -80,7 +80,7 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 	if !extendedApi {
 		return status.Errorf(codes.FailedPrecondition, "Node's state does not have information required for extended API")
 	}
-	var c proto.ProtobufConverter
+	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, err.Error())
@@ -114,7 +114,7 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 }
 
 func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEntriesServer) error {
-	var c proto.ProtobufConverter
+	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, err.Error())
