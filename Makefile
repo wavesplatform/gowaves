@@ -72,7 +72,7 @@ build-wmd-windows:
 
 release-wmd: ver build-wmd-linux build-wmd-darwin build-wmd-windows
 
-dist-wmd: release-wmd
+dist-wmd: release-wmd build-wmd-deb-package
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/wmd_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/wmd*
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/wmd_$(VERSION)_Linux-64bit.tar.gz ./wmd*
@@ -96,7 +96,7 @@ build-node-windows:
 
 release-node: ver build-node-linux build-node-darwin build-node-windows
 
-dist-node: release-node
+dist-node: release-node build-node-mainnet-deb-package build-node-testnet-deb-package
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/node_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/node*
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/node_$(VERSION)_Linux-64bit.tar.gz ./node*
@@ -175,194 +175,48 @@ proto:
 build-integration-linux:
 	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/integration ./cmd/integration
 
-build-wmd-deb-package-linux:
+build-wmd-deb-package: release-wmd
+	@mkdir -p build/dist
 	@mkdir -p ./build/wmd/DEBIAN
-	@touch ./build/wmd/DEBIAN/control ./build/wmd/DEBIAN/preinst ./build/wmd/DEBIAN/postinst
 	@cp ./cmd/wmd/symbols.txt ./build/wmd
 	@cp ./build/bin/linux-amd64/wmd ./build/wmd
+	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Waves Market Data System Service|g; s|PACKAGE|wmd|g; s|EXECUTABLE|wmd|g; s|PARAMS|-db /var/lib/wmd/ -address 0.0.0.0:6990 -node grpc.wavesnodes.com:6870 -symbols /usr/share/wmd/symbols.txt -sync-interval 10|g; s|NAME|wmd|g" ./dpkg/service.service > ./build/wmd/DEBIAN/wmd.service
+	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Waves Market Data System Service/g; s/PACKAGE/wmd/g" ./dpkg/control > ./build/wmd/DEBIAN/control
+	@sed "s/PACKAGE/wmd/g; s/NAME/wmd/g; s/EXECUTABLE/wmd/g; s|EXTRAS|sudo cp symbols.txt /usr/share/wmd/|g;" ./dpkg/postinst > ./build/wmd/DEBIAN/postinst
+	@sed "s/PACKAGE/wmd/g" ./dpkg/preinst > ./build/wmd/DEBIAN/preinst
 	@chmod 0775 ./build/wmd/DEBIAN/control
 	@chmod 0775 ./build/wmd/DEBIAN/preinst
 	@chmod 0775 ./build/wmd/DEBIAN/postinst
-	@echo "Package: wmd\n\
-Version: ${DEB_VER}\n\
-Section: misc\n\
-Priority: extra\n\
-Architecture: all\n\
-Depends: bash\n\
-Essential: no\n\
-Maintainer: ${ORGANISATION}.com\n\
-Description: It is waves market data as systemd service. Hash: ${DEB_HASH}" >> ./build/wmd/DEBIAN/control
-	@echo "#!/bin/bash\n\
-# Creating directordy for logs and giving its rights\n\
-sudo mkdir /var/log/wmd\n\
-sudo chown syslog wmd\n\
-# Creating wmd.service file and put config to\n\
-touch wmd.service\n\
-echo \"[Unit]\n\
-Description=WMD\n\
-ConditionPathExists=/usr/share/wmd\n\
-After=network.target\n\
-[Service]\n\
-Type=simple\n\
-User=wmd\n\
-Group=wmd\n\
-LimitNOFILE=1024\n\
-Restart=on-failure\n\
-RestartSec=10\n\
-startLimitIntervalSec=60\n\
-WorkingDirectory=/usr/share/wmd\n\
-ExecStart=/usr/share/wmd/wmd -db /var/lib/wmd/ -address 0.0.0.0:6990 -node grpc.wavesnodes.com:6870 -symbols /usr/share/wmd/symbols.txt -sync-interval 10\n\
-# make sure log directory exists and owned by syslog\n\
-PermissionsStartOnly=true\n\
-ExecStartPre=/bin/mkdir -p /var/log/wmd\n\
-ExecStartPre=/bin/chown syslog:adm /var/log/wmd\n\
-ExecStartPre=/bin/chmod 755 /var/log/wmd\n\
-StandardOutput=syslog\n\
-StandardError=syslog\n\
-SyslogIdentifier=wmd\n\
-[Install]\n\
-WantedBy=multi-user.target\" >> wmd.service\n\
-sudo useradd wmd -s /sbin/nologin -M\n\
-sudo mv wmd.service /lib/systemd/system/\n\
-sudo chmod 755 /lib/systemd/system/wmd.service\n\
-sudo mkdir /usr/share/wmd/\n\
-sudo chown wmd:wmd /usr/share/wmd\n\
-sudo mkdir /var/lib/wmd\n\
-sudo chown wmd:wmd /var/lib/wmd\n\
-sudo cp wmd /usr/share/wmd/\n\
-sudo cp symbols.txt /usr/share/wmd/\n\
-sudo systemctl enable wmd.service\n\
-sudo systemctl start wmd.service" >> ./build/wmd/DEBIAN/postinst
-	@echo "#!/bin/bash\n\
-sudo rm -f symbols.txt\n\
-sudo rm -f wmd" >> ./build/wmd/DEBIAN/preinst
 	@dpkg-deb --build ./build/wmd
-	@mv ./build/wmd.deb wmd_${VERSION}.deb
-	@mv wmd_${VERSION}.deb ./build/dist
+	@mv ./build/wmd.deb ./build/dist/wmd_${VERSION}.deb
 	@rm -rf ./build/wmd
 
-build-gowaves-node-deb-package-linux:
-	@mkdir -p ./build/gowaves/DEBIAN
-	@touch ./build/gowaves/DEBIAN/control ./build/gowaves/DEBIAN/preinst ./build/gowaves/DEBIAN/postinst
-	@cp ./build/bin/linux-amd64/node ./build/gowaves/gowaves
-	@chmod 0775 ./build/gowaves/DEBIAN/control
-	@chmod 0775 ./build/gowaves/DEBIAN/preinst
-	@chmod 0775 ./build/gowaves/DEBIAN/postinst
-	@echo "Package: gowaves\n\
-Version: ${DEB_VER}\n\
-Section: misc\n\
-Priority: extra\n\
-Architecture: all\n\
-Depends: bash\n\
-Essential: no\n\
-Maintainer: ${ORGANISATION}.com\n\
-Description: It is gowaves node as systemd service. Hash: ${DEB_HASH}" >> ./build/gowaves/DEBIAN/control
-	@echo "#!/bin/bash\n\
-# Creating directordy for logs and giving its rights\n\
-sudo mkdir /var/log/gowaves\n\
-sudo chown syslog gowaves\n\
-# Creating gowaves.service file and put config to\n\
-touch gowaves.service\n\
-echo \"[Unit]\n\
-Description=Gowaves MainNet node\n\
-ConditionPathExists=/usr/share/gowaves\n\
-After=network.target\n\
-[Service]\n\
-Type=simple\n\
-User=gowaves\n\
-Group=gowaves\n\
-LimitNOFILE=1024\n\
-Restart=on-failure\n\
-RestartSec=60\n\
-startLimitIntervalSec=60\n\
-WorkingDirectory=/usr/share/gowaves\n\
-ExecStart=/usr/share/gowaves/gowaves -state-path /var/lib/gowaves/ -api-address 0.0.0.0:8080\n\
-# make sure log directory exists and owned by syslog\n\
-PermissionsStartOnly=true\n\
-ExecStartPre=/bin/mkdir -p /var/log/gowaves\n\
-ExecStartPre=/bin/chown syslog:adm /var/log/gowaves\n\
-ExecStartPre=/bin/chmod 755 /var/log/gowaves\n\
-StandardOutput=syslog\n\
-StandardError=syslog\n\
-SyslogIdentifier=gowaves\n\
-[Install]\n\
-WantedBy=multi-user.target\" >> gowaves.service\n\
-sudo useradd gowaves -s /sbin/nologin -M\n\
-sudo mv gowaves.service /lib/systemd/system/\n\
-sudo chmod 755 /lib/systemd/system/gowaves.service\n\
-sudo mkdir /usr/share/gowaves/\n\
-sudo chown gowaves:gowaves /usr/share/gowaves\n\
-sudo mkdir /var/lib/gowaves\n\
-sudo chown gowaves:gowaves /var/lib/gowaves\n\
-sudo cp gowaves /usr/share/gowaves/\n\
-sudo systemctl enable gowaves.service\n\
-sudo systemctl start gowaves.service" >> ./build/gowaves/DEBIAN/postinst
-	@echo "#!/bin/bash\n\
-sudo rm -f gowaves" >> ./build/gowaves/DEBIAN/preinst
-	@dpkg-deb --build ./build/gowaves
-	@mv ./build/gowaves.deb gowaves_${VERSION}.deb
-	@mv gowaves_${VERSION}.deb ./build/dist
-	@rm -rf ./build/gowaves
+build-node-mainnet-deb-package: release-node
+	@mkdir -p build/dist
+	@mkdir -p ./build/gowaves-mainnet/DEBIAN
+	@cp ./build/bin/linux-amd64/node ./build/gowaves-mainnet/
+	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for MainNet System Service|g; s|PACKAGE|gowaves-mainnet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-mainnet/ -api-address 0.0.0.0:8080|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-mainnet/DEBIAN/gowaves-mainnet.service
+	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for MainNet System Service/g; s/PACKAGE/gowaves-mainnet/g" ./dpkg/control > ./build/gowaves-mainnet/DEBIAN/control
+	@sed "s/PACKAGE/gowaves-mainnet/g; s/NAME/gowaves/g; s/EXECUTABLE/node/g; s|EXTRAS||g;" ./dpkg/postinst > ./build/gowaves-mainnet/DEBIAN/postinst
+	@sed "s/PACKAGE/gowaves-mainnet/g" ./dpkg/preinst > ./build/gowaves-mainnet/DEBIAN/preinst
+	@chmod 0775 ./build/gowaves-mainnet/DEBIAN/control
+	@chmod 0775 ./build/gowaves-mainnet/DEBIAN/preinst
+	@chmod 0775 ./build/gowaves-mainnet/DEBIAN/postinst
+	@dpkg-deb --build ./build/gowaves-mainnet
+	@mv ./build/gowaves-mainnet.deb ./build/dist/gowaves-mainnet_${VERSION}.deb
+	@rm -rf ./build/gowaves-mainnet
 
-build-gowaves-testnet-node-deb-package-linux:
+build-node-testnet-deb-package: release-node
+	@mkdir -p build/dist
 	@mkdir -p ./build/gowaves-testnet/DEBIAN
-	@touch ./build/gowaves-testnet/DEBIAN/control ./build/gowaves-testnet/DEBIAN/preinst ./build/gowaves-testnet/DEBIAN/postinst
-	@cp ./build/bin/linux-amd64/node ./build/gowaves-testnet/gowaves-testnet
+	@cp ./build/bin/linux-amd64/node ./build/gowaves-testnet/
+	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for TestNet System Service|g; s|PACKAGE|gowaves-testnet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-testnet/ -api-address 0.0.0.0:8090 -blockchain-type testnet|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-testnet/DEBIAN/gowaves-testnet.service
+	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for TestNet System Service/g; s/PACKAGE/gowaves-testnet/g" ./dpkg/control > ./build/gowaves-testnet/DEBIAN/control
+	@sed "s/PACKAGE/gowaves-testnet/g; s/NAME/gowaves/g; s/EXECUTABLE/node/g; s|EXTRAS||g;" ./dpkg/postinst > ./build/gowaves-testnet/DEBIAN/postinst
+	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/preinst > ./build/gowaves-testnet/DEBIAN/preinst
 	@chmod 0775 ./build/gowaves-testnet/DEBIAN/control
 	@chmod 0775 ./build/gowaves-testnet/DEBIAN/preinst
 	@chmod 0775 ./build/gowaves-testnet/DEBIAN/postinst
-	@echo "Package: gowaves-testnet\n\
-Version: ${DEB_VER}\n\
-Section: misc\n\
-Priority: extra\n\
-Architecture: all\n\
-Depends: bash\n\
-Essential: no\n\
-Maintainer: ${ORGANISATION}.com\n\
-Description: It is gowaves-testnet node as systemd service. Hash: ${DEB_HASH}" >> ./build/gowaves-testnet/DEBIAN/control
-	@echo "#!/bin/bash\n\
-# Creating directordy for logs and giving its rights\n\
-sudo mkdir /var/log/gowaves-testnet\n\
-sudo chown syslog gowaves-testnet\n\
-# Creating gowaves-testnet.service file and put config to\n\
-touch gowaves-testnet.service\n\
-echo \"[Unit]\n\
-Description=gowaves-testnet MainNet node\n\
-ConditionPathExists=/usr/share/gowaves-testnet\n\
-After=network.target\n\
-[Service]\n\
-Type=simple\n\
-User=gowaves-testnet\n\
-Group=gowaves-testnet\n\
-LimitNOFILE=1024\n\
-Restart=on-failure\n\
-RestartSec=60\n\
-startLimitIntervalSec=60\n\
-WorkingDirectory=/usr/share/gowaves-testnet\n\
-ExecStart=/usr/share/gowaves-testnet/gowaves-testnet -state-path /var/lib/gowaves-testnet/ -api-address 0.0.0.0:8090 -peers 159.69.126.149:6863,94.130.105.239:6863,159.69.126.153:6863,94.130.172.201:6863 -blockchain-type testnet\n\
-# make sure log directory exists and owned by syslog\n\
-PermissionsStartOnly=true\n\
-ExecStartPre=/bin/mkdir -p /var/log/gowaves-testnet\n\
-ExecStartPre=/bin/chown syslog:adm /var/log/gowaves-testnet\n\
-ExecStartPre=/bin/chmod 755 /var/log/gowaves-testnet\n\
-StandardOutput=syslog\n\
-StandardError=syslog\n\
-SyslogIdentifier=gowaves-testnet\n\
-[Install]\n\
-WantedBy=multi-user.target\" >> gowaves-testnet.service\n\
-sudo useradd gowaves-testnet -s /sbin/nologin -M\n\
-sudo mv gowaves-testnet.service /lib/systemd/system/\n\
-sudo chmod 755 /lib/systemd/system/gowaves-testnet.service\n\
-sudo mkdir /usr/share/gowaves-testnet/\n\
-sudo chown gowaves-testnet:gowaves-testnet /usr/share/gowaves-testnet\n\
-sudo mkdir /var/lib/gowaves-testnet\n\
-sudo chown gowaves-testnet:gowaves-testnet /var/lib/gowaves-testnet\n\
-sudo cp gowaves-testnet /usr/share/gowaves-testnet/\n\
-sudo systemctl enable gowaves-testnet.service\n\
-sudo systemctl start gowaves-testnet.service" >> ./build/gowaves-testnet/DEBIAN/postinst
-	@echo "#!/bin/bash\n\
-sudo rm -f gowaves-testnet" >> ./build/gowaves-testnet/DEBIAN/preinst
 	@dpkg-deb --build ./build/gowaves-testnet
-	@mv ./build/gowaves-testnet.deb gowaves-testnet_${VERSION}.deb
-	@mv gowaves-testnet_${VERSION}.deb ./build/dist
+	@mv ./build/gowaves-testnet.deb ./build/dist/gowaves-testnet_${VERSION}.deb
 	@rm -rf ./build/gowaves-testnet

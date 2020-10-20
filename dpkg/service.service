@@ -1,0 +1,24 @@
+[Unit]
+Description=DESCRIPTION VERSION
+ConditionPathExists=/usr/share/PACKAGE
+After=network.target
+
+[Service]
+Type=simple
+User=NAME
+Group=NAME
+LimitNOFILE=1024
+Restart=on-failure
+RestartSec=60
+WorkingDirectory=/usr/share/PACKAGE
+PermissionsStartOnly=true
+ExecStart=/usr/share/PACKAGE/EXECUTABLE PARAMS
+ExecStartPre=/bin/mkdir -p /var/log/PACKAGE
+ExecStartPre=/bin/chown syslog:adm /var/log/PACKAGE
+ExecStartPre=/bin/chmod 755 /var/log/PACKAGE
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=PACKAGE
+
+[Install]
+WantedBy=multi-user.target

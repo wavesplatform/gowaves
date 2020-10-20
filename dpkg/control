@@ -1,0 +1,8 @@
+Package: PACKAGE
+Version: DEB_VER
+Section: utils
+Priority: standard
+Maintainer: waves.tech
+Description: DESCRIPTION VERSION
+Architecture: amd64
+Depends: bash
