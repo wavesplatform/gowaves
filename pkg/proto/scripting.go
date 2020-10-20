@@ -253,7 +253,7 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 	if msg == nil {
 		return errors.New("empty protobuf message")
 	}
-	c := ProtobufConverter{}
+	c := ProtobufConverter{FallbackChainID: scheme}
 	data := make([]*DataEntryScriptAction, len(msg.Data))
 	for i, e := range msg.Data {
 		de, err := c.Entry(e)
