@@ -1,6 +1,6 @@
 #!/bin/bash
 sudo mkdir /var/log/PACKAGE
-sudo chown syslog PACKAGE
+sudo chown syslog EXECUTABLE
 sudo useradd NAME -s /sbin/nologin -M
 sudo mv PACKAGE.service /lib/systemd/system/
 sudo chmod 755 /lib/systemd/system/PACKAGE.service
