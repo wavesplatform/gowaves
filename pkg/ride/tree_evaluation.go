@@ -23,3 +23,16 @@ func CallFunction(env RideEnvironment, tree *Tree, name string, args proto.Argum
 	}
 	return e.evaluate()
 }
+//allactions List
+//
+//actions1 = dapp1.func1()
+////callfunction
+//
+//append(action1)
+//
+//actions2 = dapp2.func2()
+////callfunction
+//append(actions2)
+//
+//
+//allactions

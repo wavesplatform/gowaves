@@ -204,7 +204,11 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
-	r, err := ride.CallFunction(env, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
+//
+	var tempStateIface ride.TemporaryStateIface
+	tempState := ride.InitTemporaryState(tempStateIface, env)
+//f
+	r, err := ride.CallFunction(tempState.GetCurrentEnv(), tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
