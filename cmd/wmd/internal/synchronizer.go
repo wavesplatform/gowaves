@@ -137,6 +137,63 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 	return nil
 }
 
+func (s *Synchronizer) applyBlocksRange(start, end int) error {
+	zap.S().Infof("Synchronizing %d blocks in range starting from height %d", end-start+1, start)
+	
+	ids, miners, txss, err := s.nodeBlockRange(start, end)
+	if err != nil {
+		return err
+	}
+	for h := start; h <= end; h++ {
+		if s.interrupted() {
+			return errors.New("synchronization was interrupted")
+		}
+		err = s.applyBlock(h, ids[h], txss[h], miners[h])
+		if err != nil {
+			return errors.Wrapf(err, "failed apply block at height %d", h)
+		}
+	}
+	return nil
+}
+
+func (s *Synchronizer) nodeBlockRange(start int, end int) ([]proto.BlockID, []crypto.PublicKey, [][]proto.Transaction, error) {
+	cnv := proto.ProtobufConverter{FallbackChainID: s.scheme}
+	results, err := s.blockRange(start, end, true)
+	if err != nil {
+		return []proto.BlockID{}, []crypto.PublicKey{}, nil, errors.Wrap(err, "failed to get block from node")
+	}
+
+	txss := make([][]proto.Transaction, 1)
+	headersIDs := make([]proto.BlockID, 1)
+	headersGenPublicKeys := make([]crypto.PublicKey, 1)
+	for res, err := results.Recv(); err != nil; res, err = results.Recv() {
+		header, err := cnv.BlockHeader(res.Block)
+		if err != nil {
+			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
+		}
+		headersIDs = append(headersIDs, header.ID)
+		headersGenPublicKeys = append(headersGenPublicKeys, header.GenPublicKey)
+
+		txs, err := cnv.BlockTransactions(res.Block)
+		if err != nil {
+			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
+		}
+		txss = append(txss, txs)
+	}
+	return headersIDs, headersGenPublicKeys, txss, nil
+}
+
+func (s *Synchronizer) blockRange(start int, end int, full bool) (g.BlocksApi_GetBlockRangeClient, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // Am i sure?
+	defer cancel()
+	return g.NewBlocksApiClient(s.conn).GetBlockRange(ctx, &g.BlockRangeRequest{
+		FromHeight:          uint32(start),
+		ToHeight:            uint32(end),
+		Filter:              nil, // Am I sure?
+		IncludeTransactions: full,
+	}, grpc.EmptyCallOption{})
+}
+
 var emptyID = proto.BlockID{}
 
 func (s *Synchronizer) applyBlock(height int, id proto.BlockID, txs []proto.Transaction, miner crypto.PublicKey) error {
