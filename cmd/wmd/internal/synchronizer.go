@@ -139,7 +139,7 @@ func (s *Synchronizer) applyBlocks(start, end int) error {
 
 func (s *Synchronizer) applyBlocksRange(start, end int) error {
 	zap.S().Infof("Synchronizing %d blocks in range starting from height %d", end-start+1, start)
-	
+
 	ids, miners, txss, err := s.nodeBlockRange(start, end)
 	if err != nil {
 		return err
