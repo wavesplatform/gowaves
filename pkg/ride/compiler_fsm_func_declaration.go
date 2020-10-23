@@ -51,7 +51,7 @@ func (a FuncDeclarationFsm) Call(name string, argc uint16) Fsm {
 }
 
 func (a FuncDeclarationFsm) Reference(name string) Fsm {
-	panic("implement me")
+	return reference(a, a.params, name)
 }
 
 func (a FuncDeclarationFsm) Boolean(v bool) Fsm {
@@ -63,7 +63,7 @@ func (a FuncDeclarationFsm) String(s string) Fsm {
 }
 
 func (a FuncDeclarationFsm) Condition() Fsm {
-	panic("implement me")
+	return conditionalTransition(a, a.params)
 }
 
 func (a FuncDeclarationFsm) TrueBranch() Fsm {
