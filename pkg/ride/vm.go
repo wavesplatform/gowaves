@@ -45,7 +45,7 @@ func (m *vm) run() (RideResult, error) {
 	if m.calls != nil {
 		m.calls = m.calls[0:0]
 	}
-	m.ip = 0
+	//m.ip = 0
 	for m.ip < len(m.code) {
 		op := m.code[m.ip]
 		m.ip++
@@ -63,10 +63,16 @@ func (m *vm) run() (RideResult, error) {
 			m.push(rideBoolean(false))
 		case OpJump:
 			pos := m.arg16()
+			current := m.ip
 			m.ip = pos
+			m.calls = append(m.calls, newExpressionFrame(current))
 		case OpJumpIfFalse:
 			pos := m.arg16()
-			v, ok := m.current().(rideBoolean)
+			val, err := m.pop()
+			if err != nil {
+				return nil, errors.Wrap(err, "OpJumpIfFalse")
+			}
+			v, ok := val.(rideBoolean)
 			if !ok {
 				return nil, errors.Errorf("not a boolean value '%v' of type '%T'", m.current(), m.current())
 			}
@@ -144,23 +150,38 @@ func (m *vm) run() (RideResult, error) {
 			m.push(frame.args[n])
 		case OpReturn:
 			l := len(m.calls)
+			if l == 0 {
+				if len(m.stack) > 0 {
+					v, err := m.pop()
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to get result value")
+					}
+					switch tv := v.(type) {
+					case rideBoolean:
+						return ScriptResult{res: bool(tv)}, nil
+					default:
+						return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
+					}
+				}
+				return nil, errors.New("no result after script execution")
+			}
 			var f frame
 			f, m.calls = m.calls[l-1], m.calls[:l-1]
 			m.ip = f.back
-		case OpHalt:
-			if len(m.stack) > 0 {
-				v, err := m.pop()
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get result value")
-				}
-				switch tv := v.(type) {
-				case rideBoolean:
-					return ScriptResult{res: bool(tv)}, nil
-				default:
-					return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
-				}
-			}
-			return nil, errors.New("no result after script execution")
+		//case OpHalt:
+		//	if len(m.stack) > 0 {
+		//		v, err := m.pop()
+		//		if err != nil {
+		//			return nil, errors.Wrap(err, "failed to get result value")
+		//		}
+		//		switch tv := v.(type) {
+		//		case rideBoolean:
+		//			return ScriptResult{res: bool(tv)}, nil
+		//		default:
+		//			return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
+		//		}
+		//	}
+		//	return nil, errors.New("no result after script execution")
 		case OpGlobal:
 			id := m.arg16()
 			constructor := m.globals(id)
