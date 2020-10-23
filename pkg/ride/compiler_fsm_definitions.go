@@ -6,6 +6,10 @@ type DefinitionFsm struct {
 	params
 }
 
+func (a DefinitionFsm) FuncDeclaration(name string, args []string) Fsm {
+	return funcDeclarationFsmTransition(a, a.params, name, args)
+}
+
 func (a DefinitionFsm) Bytes(b []byte) Fsm {
 	panic("Illegal call `Bytes` on `DefinitionFsm`")
 }

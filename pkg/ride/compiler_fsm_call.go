@@ -10,6 +10,10 @@ type CallFsm struct {
 	argc uint16
 }
 
+func (a CallFsm) FuncDeclaration(name string, args []string) Fsm {
+	return funcDeclarationFsmTransition(a, a.params, name, args)
+}
+
 func (a CallFsm) Bytes(b []byte) Fsm {
 	return constant(a, a.params, rideBytes(b))
 }
@@ -56,9 +60,16 @@ func (a CallFsm) Long(value int64) Fsm {
 }
 
 func (a CallFsm) Return() Fsm {
-	n, ok := a.f(a.name)
+	// check user functions
+	n, ok := a.r.get(a.name)
+	if ok {
+		a.b.call(n, a.argc)
+		return a.prev
+	}
+
+	n, ok = a.f(a.name)
 	if !ok {
-		panic(fmt.Sprintf("function names %s not found", a.name))
+		panic(fmt.Sprintf("function named %s not found", a.name))
 	}
 	a.b.externalCall(n, a.argc)
 	return a.prev

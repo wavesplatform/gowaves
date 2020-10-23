@@ -44,8 +44,7 @@ func ccc(f Fsm, node Node) (Fsm, error) {
 		}
 		return f.Return(), nil
 	case *FunctionDeclarationNode:
-		// TODO
-		fsm, err := ccc(f.Assigment(n.Name), n.Body)
+		fsm, err := ccc(f.FuncDeclaration(n.Name, n.Arguments), n.Body)
 		if err != nil {
 			return fsm, err
 		}

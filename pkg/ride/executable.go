@@ -13,16 +13,23 @@ func (a *Executable) Run(environment RideEnvironment) (RideResult, error) {
 		return nil, err
 	}
 
-	ctx := newContext()
-	ctx = ctx.add("tx", environment.transaction())
+	provider, err := selectFunctionNameProvider(a.LibVersion)
+	if err != nil {
+		return nil, err
+	}
+	//ctx := newContext()
+	//ctx = ctx.add("tx", environment.transaction())
 
 	v := vm{
 		code:      a.ByteCode,
 		ip:        int(a.EntryPoints[""]),
 		constants: a.Constants,
 		functions: fSelect,
-		context:   ctx,
+		//context:   ctx,
+		functionName: provider,
 	}
+
+	//v.push(environment.transaction())
 
 	return v.run()
 }

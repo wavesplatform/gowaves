@@ -66,6 +66,13 @@ func (b *builder) externalCall(id uint16, argc uint16) {
 	b.w.Write(encode(argc))
 }
 
+// Call user defined function.
+func (b *builder) call(id uint16, argc uint16) {
+	b.w.WriteByte(OpCall)
+	b.w.Write(encode(id))
+	b.w.Write(encode(argc))
+}
+
 func (b *builder) startPos() {
 	b.startAt = uint16(b.w.Len())
 }
@@ -78,10 +85,10 @@ func (b *builder) jpmIfFalse() {
 	b.w.WriteByte(OpJumpIfFalse)
 }
 
-func (b *builder) fillContext(id constid) {
-	b.w.WriteByte(OpFillContext)
-	b.w.Write(encode(id))
-}
+//func (b *builder) fillContext(id constid) {
+//	b.w.WriteByte(OpFillContext)
+//	b.w.Write(encode(id))
+//}
 
 type constants struct {
 	values []rideType

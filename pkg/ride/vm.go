@@ -2,47 +2,48 @@ package ride
 
 import (
 	"encoding/binary"
-	"fmt"
 
-	im "github.com/frozen/immutable_map"
+	//im "github.com/frozen/immutable_map"
 	"github.com/pkg/errors"
 )
 
-type Context interface {
-	add(name string, rideType2 rideType) Context
-	get(name string) (rideType, bool)
-}
-type ContextImpl struct {
-	m *im.Map
-}
-
-func newContext() Context {
-	return ContextImpl{m: im.New()}
-}
-
-func (a ContextImpl) add(name string, value rideType) Context {
-	return ContextImpl{
-		m: a.m.Insert([]byte(name), value),
-	}
-}
-
-func (a ContextImpl) get(name string) (rideType, bool) {
-	v, ok := a.m.Get([]byte(name))
-	if !ok {
-		return nil, ok
-	}
-	return v.(rideType), ok
-}
+//type Context interface {
+//	add(name string, rideType2 rideType) Context
+//	get(name string) (rideType, bool)
+//}
+//type ContextImpl struct {
+//	m *im.Map
+//}
+//
+//func newContext() Context {
+//	return ContextImpl{m: im.New()}
+//}
+//
+//func (a ContextImpl) add(name string, value rideType) Context {
+//	return ContextImpl{
+//		m: a.m.Insert([]byte(name), value),
+//	}
+//}
+//
+//func (a ContextImpl) get(name string) (rideType, bool) {
+//	v, ok := a.m.Get([]byte(name))
+//	if !ok {
+//		return nil, ok
+//	}
+//	return v.(rideType), ok
+//}
 
 type frame struct {
-	function bool
-	back     int
-	args     []rideType
+	function  bool
+	back      int
+	args      []rideType
+	stackSize int
 }
 
-func newExpressionFrame(pos int) frame {
+func newExpressionFrame(pos int, stackSize int) frame {
 	return frame{
-		back: pos,
+		back:      pos,
+		stackSize: stackSize,
 	}
 }
 
@@ -64,7 +65,6 @@ type vm struct {
 	stack        []rideType
 	calls        []frame
 	functionName func(int) string
-	context      Context
 }
 
 func (m *vm) run() (RideResult, error) {
@@ -94,7 +94,7 @@ func (m *vm) run() (RideResult, error) {
 			pos := m.arg16()
 			current := m.ip
 			m.ip = pos
-			m.calls = append(m.calls, newExpressionFrame(current))
+			m.calls = append(m.calls, newExpressionFrame(current, len(m.stack)))
 		case OpJumpIfFalse:
 			pos := m.arg16()
 			val, err := m.pop()
@@ -160,7 +160,7 @@ func (m *vm) run() (RideResult, error) {
 			m.push(res)
 		case OpLoad: // Evaluate expression behind a LET declaration
 			pos := m.arg16()
-			frame := newExpressionFrame(m.ip) // Creating new function frame with return position
+			frame := newExpressionFrame(m.ip, len(m.stack)) // Creating new function frame with return position
 			m.calls = append(m.calls, frame)
 			m.ip = pos // Continue to expression
 		case OpLoadLocal:
@@ -217,14 +217,21 @@ func (m *vm) run() (RideResult, error) {
 			v := constructor(m.env)
 			m.push(v)
 
-		case OpFillContext:
-			id := m.arg16()
-			str := m.constants[id].(rideString)
-			value, ok := m.context.get(string(str))
-			if !ok {
-				panic(fmt.Sprintf("value %s not found in context", str))
-			}
-			m.push(value)
+		//case OpFillContext:
+		//	id := m.arg16()
+		//	str := m.constants[id].(rideString)
+		//	value, ok := m.context.get(string(str))
+		//	if !ok {
+		//		panic(fmt.Sprintf("value %s not found in context", str))
+		//	}
+		//	m.push(value)
+		case OpPushFromFrame:
+			// TODO very tricky
+			// The only way to achieve `OpPushFromFrame` is to OpJump, but it modifies m.calls,
+			// so we need to refer len(m.calls)-2.
+
+			last := m.calls[len(m.calls)-2]
+			m.push(last.args[m.arg16()])
 
 		default:
 			return nil, errors.Errorf("unknown code %#x", op)
@@ -233,8 +240,9 @@ func (m *vm) run() (RideResult, error) {
 	return nil, errors.New("broken code")
 }
 
-func (m *vm) push(v rideType) {
+func (m *vm) push(v rideType) constid {
 	m.stack = append(m.stack, v)
+	return uint16(len(m.stack) - 1)
 }
 
 func (m *vm) pop() (rideType, error) {

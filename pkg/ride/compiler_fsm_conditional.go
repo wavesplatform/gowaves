@@ -7,6 +7,10 @@ type ConditionalFsm struct {
 	patchPosition uint16
 }
 
+func (a ConditionalFsm) FuncDeclaration(name string, args []string) Fsm {
+	panic("Illegal call FuncDeclaration on ConditionalFsm")
+}
+
 func (a ConditionalFsm) Bytes(b []byte) Fsm {
 	return constant(a, a.params, rideBytes(b))
 }

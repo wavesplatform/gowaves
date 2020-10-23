@@ -8,6 +8,10 @@ type AssigmentFsm struct {
 	offset uint16
 }
 
+func (a AssigmentFsm) FuncDeclaration(name string, args []string) Fsm {
+	return funcDeclarationFsmTransition(a, a.params, name, args)
+}
+
 func (a AssigmentFsm) Bytes(b []byte) Fsm {
 	return constant(a, a.params, rideBytes(b))
 }
@@ -43,16 +47,18 @@ func newAssigmentFsm(prev Fsm, p params, name string) Fsm {
 			b: p.b,
 			c: p.c,
 			f: p.f,
-			// Create new scope, so assigment in assigment can't affect global state.
-			r: newReferences(p.r),
+			r: p.r,
 		},
 		name:   name,
 		offset: p.b.len(),
 	}
 }
 
+// Create new scope, so assigment in assigment can't affect global state.
 func (a AssigmentFsm) Assigment(name string) Fsm {
-	return assigmentFsmTransition(a, a.params, name)
+	params := a.params
+	params.r = newReferences(params.r)
+	return assigmentFsmTransition(a, params, name)
 }
 
 func (a AssigmentFsm) Return() Fsm {
