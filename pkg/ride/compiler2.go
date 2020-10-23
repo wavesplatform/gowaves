@@ -50,6 +50,9 @@ func ccc(f Fsm, node Node) (Fsm, error) {
 			return fsm, err
 		}
 		return ccc(fsm.Return(), n.Block)
+	//case *PropertyNode:
+	//	n.Object
+	//	n.Name
 	default:
 		return f, errors.Errorf("unknown type %T", node)
 	}

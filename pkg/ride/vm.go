@@ -2,9 +2,37 @@ package ride
 
 import (
 	"encoding/binary"
+	"fmt"
 
+	im "github.com/frozen/immutable_map"
 	"github.com/pkg/errors"
 )
+
+type Context interface {
+	add(name string, rideType2 rideType) Context
+	get(name string) (rideType, bool)
+}
+type ContextImpl struct {
+	m *im.Map
+}
+
+func newContext() Context {
+	return ContextImpl{m: im.New()}
+}
+
+func (a ContextImpl) add(name string, value rideType) Context {
+	return ContextImpl{
+		m: a.m.Insert([]byte(name), value),
+	}
+}
+
+func (a ContextImpl) get(name string) (rideType, bool) {
+	v, ok := a.m.Get([]byte(name))
+	if !ok {
+		return nil, ok
+	}
+	return v.(rideType), ok
+}
 
 type frame struct {
 	function bool
@@ -36,6 +64,7 @@ type vm struct {
 	stack        []rideType
 	calls        []frame
 	functionName func(int) string
+	context      Context
 }
 
 func (m *vm) run() (RideResult, error) {
@@ -187,6 +216,16 @@ func (m *vm) run() (RideResult, error) {
 			constructor := m.globals(id)
 			v := constructor(m.env)
 			m.push(v)
+
+		case OpFillContext:
+			id := m.arg16()
+			str := m.constants[id].(rideString)
+			value, ok := m.context.get(string(str))
+			if !ok {
+				panic(fmt.Sprintf("value %s not found in context", str))
+			}
+			m.push(value)
+
 		default:
 			return nil, errors.Errorf("unknown code %#x", op)
 		}

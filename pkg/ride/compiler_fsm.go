@@ -1,7 +1,5 @@
 package ride
 
-import "fmt"
-
 type Fsm interface {
 	Assigment(name string) Fsm
 	Return() Fsm
@@ -25,6 +23,8 @@ type params struct {
 	c *constants
 	// relation of variables and it's offset.
 	r *references
+	// global variables defined not in script.
+	ctx Context
 	// way to get function id.
 	f FunctionChecker
 }
@@ -56,7 +56,10 @@ func constant(a Fsm, params params, rideType rideType) Fsm {
 func reference(f Fsm, params params, name string) Fsm {
 	pos, ok := params.r.get(name)
 	if !ok {
-		panic(fmt.Sprintf("reference %s not found", name))
+		index := params.c.put(rideString(name))
+		params.b.fillContext(index)
+		//panic(fmt.Sprintf("reference %s not found", name))
+		return f
 	}
 	params.b.jump(pos)
 	return f

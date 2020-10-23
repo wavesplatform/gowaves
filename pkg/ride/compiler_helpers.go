@@ -2,6 +2,8 @@ package ride
 
 import "bytes"
 
+type constid = uint16
+
 type builder struct {
 	w       *bytes.Buffer
 	startAt uint16
@@ -74,6 +76,11 @@ func (b *builder) build() (uint16, []byte) {
 
 func (b *builder) jpmIfFalse() {
 	b.w.WriteByte(OpJumpIfFalse)
+}
+
+func (b *builder) fillContext(id constid) {
+	b.w.WriteByte(OpFillContext)
+	b.w.Write(encode(id))
 }
 
 type constants struct {

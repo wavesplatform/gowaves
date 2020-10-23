@@ -13,11 +13,15 @@ func (a *Executable) Run(environment RideEnvironment) (RideResult, error) {
 		return nil, err
 	}
 
+	ctx := newContext()
+	ctx = ctx.add("tx", environment.transaction())
+
 	v := vm{
 		code:      a.ByteCode,
 		ip:        int(a.EntryPoints[""]),
 		constants: a.Constants,
 		functions: fSelect,
+		context:   ctx,
 	}
 
 	return v.run()

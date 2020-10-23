@@ -14,9 +14,10 @@ const (
 	OpJumpIfFalse              //07 - Moves instruction pointer to new position if value on stack is False. One parameter: new position.
 	OpProperty                 //08 - Puts value of object's property on stack. One parameter: constant ID that holds name of the property.
 	OpExternalCall             //09 - Call a standard library function. Two parameters: function ID, number of arguments.
-	OpCall                     //0a - Call a function declared at given address. Two parameters: position of function declaration, number of arguments.
-	OpGlobal                   //0b - Load global constant. One parameter: global constant ID.
-	OpLoad                     //0c - Evaluates an expression that declared at address. One parameter: position of declaration.
-	OpLoadLocal                //0d - Load an argument of function call on stack. One parameter: argument number.
-	OpRef                      //0e - Put reference to expression/function on stack. One parameter: position of declaration.
+	OpCall                     //10 - Call a function declared at given address. Two parameters: position of function declaration, number of arguments.
+	OpGlobal                   //11 - Load global constant. One parameter: global constant ID.
+	OpLoad                     //12 - Evaluates an expression that declared at address. One parameter: position of declaration.
+	OpLoadLocal                //13 - Load an argument of function call on stack. One parameter: argument number.
+	OpRef                      //14 - Put reference to expression/function on stack. One parameter: position of declaration.
+	OpFillContext              //15 - Put reference to expression/function on stack. One parameter: position of declaration.
 )
