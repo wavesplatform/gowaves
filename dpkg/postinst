@@ -1,0 +1,14 @@
+#!/bin/bash
+sudo mkdir /var/log/PACKAGE
+sudo chown syslog EXECUTABLE
+sudo useradd NAME -s /sbin/nologin -M
+sudo mv PACKAGE.service /lib/systemd/system/
+sudo chmod 755 /lib/systemd/system/PACKAGE.service
+sudo mkdir /usr/share/PACKAGE/
+sudo chown NAME:NAME /usr/share/PACKAGE
+sudo mkdir /var/lib/PACKAGE
+sudo chown NAME:NAME /var/lib/PACKAGE
+sudo cp EXECUTABLE /usr/share/PACKAGE/
+EXTRAS
+sudo systemctl enable PACKAGE.service
+sudo systemctl start PACKAGE.service
