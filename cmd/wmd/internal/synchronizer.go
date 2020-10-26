@@ -159,7 +159,10 @@ func (s *Synchronizer) applyBlocksRange(start, end int) error {
 
 func (s *Synchronizer) nodeBlockRange(start int, end int) ([]proto.BlockID, []crypto.PublicKey, [][]proto.Transaction, error) {
 	cnv := proto.ProtobufConverter{FallbackChainID: s.scheme}
-	results, err := s.blockRange(start, end, true)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	stream, err := s.blockRange(start,end,ctx,true)
 	if err != nil {
 		return []proto.BlockID{}, []crypto.PublicKey{}, nil, errors.Wrap(err, "failed to get block from node")
 	}
@@ -167,15 +170,19 @@ func (s *Synchronizer) nodeBlockRange(start int, end int) ([]proto.BlockID, []cr
 	txss := make([][]proto.Transaction, 1)
 	headersIDs := make([]proto.BlockID, 1)
 	headersGenPublicKeys := make([]crypto.PublicKey, 1)
-	for res, err := results.Recv(); err != nil; res, err = results.Recv() {
-		header, err := cnv.BlockHeader(res.Block)
+	for h := start; h <= end; h++ {
+		block, err := stream.Recv()
+		if err != nil {
+			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
+		}
+		header, err := cnv.BlockHeader(block.Block)
 		if err != nil {
 			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
 		}
 		headersIDs = append(headersIDs, header.ID)
 		headersGenPublicKeys = append(headersGenPublicKeys, header.GenPublicKey)
 
-		txs, err := cnv.BlockTransactions(res.Block)
+		txs, err := cnv.BlockTransactions(block.Block)
 		if err != nil {
 			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
 		}
@@ -184,13 +191,11 @@ func (s *Synchronizer) nodeBlockRange(start int, end int) ([]proto.BlockID, []cr
 	return headersIDs, headersGenPublicKeys, txss, nil
 }
 
-func (s *Synchronizer) blockRange(start int, end int, full bool) (g.BlocksApi_GetBlockRangeClient, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // Am i sure?
-	defer cancel()
+func (s *Synchronizer) blockRange(start int, end int,ctx context.Context ,full bool) (g.BlocksApi_GetBlockRangeClient, error) {
 	return g.NewBlocksApiClient(s.conn).GetBlockRange(ctx, &g.BlockRangeRequest{
 		FromHeight:          uint32(start),
 		ToHeight:            uint32(end),
-		Filter:              nil, // Am I sure?
+		Filter:              nil,
 		IncludeTransactions: full,
 	}, grpc.EmptyCallOption{})
 }
