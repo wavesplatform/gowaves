@@ -108,7 +108,7 @@ func (s *Synchronizer) synchronize() {
 		const delta = 10
 		err = s.applyBlocksRange(ch+1, rh, delta)
 		if err != nil && !strings.Contains(err.Error(), "Invalid status code") {
-			zap.S().Errorf("Failed to apply blocks: %+v", err)
+			zap.S().Errorf("Failed to apply blocks: %v", err)
 			return
 		}
 		if s.symbols != nil {
@@ -121,8 +121,7 @@ func (s *Synchronizer) synchronize() {
 }
 
 func (s *Synchronizer) applyBlocksRange(start, end, delta int) error {
-	zap.S().Infof("Synchronizing %d blocks in range starting from height %d with delta ", end-start+1, start, delta)
-
+	zap.S().Infof("Synchronizing %d blocks in range starting from height %d with delta %d", end-start+1, start, delta)
 	cnv := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -131,7 +130,7 @@ func (s *Synchronizer) applyBlocksRange(start, end, delta int) error {
 			return errors.New("synchronization was interrupted")
 		}
 		if h+delta > end {
-			delta = end - h
+			delta = end - h + 1
 		}
 		stream, err := s.blockRange(h, h+delta, ctx, true)
 		if err != nil {
@@ -141,10 +140,10 @@ func (s *Synchronizer) applyBlocksRange(start, end, delta int) error {
 		ids, miners, txss, err := s.recvBlockRange(h, delta, stream, cnv)
 
 		if err != nil {
-			return errors.Wrapf(err, "failed to recv %d blocks from node from height %d to height %d ", delta, start, end)
+			return errors.Wrapf(err, "failed to receive %d blocks from node from height %d to height %d ", delta, start, end)
 		}
-		for i := h; i <= h+delta; i++ {
-			err = s.applyBlock(i, ids[i], txss[i], miners[i])
+		for i := 0; i <= delta; i++ {
+			err = s.applyBlock(h+i, ids[i], txss[i], miners[i])
 			if err != nil {
 				return errors.Wrapf(err, "failed apply block at height %d", h)
 			}
