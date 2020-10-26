@@ -105,9 +105,10 @@ func (s *Synchronizer) synchronize() {
 			}
 			ch = rollbackHeight - 1
 		}
-		err = s.applyBlocks(ch+1, rh)
+		const delta = 10
+		err = s.applyBlocksRange(ch+1, rh, delta)
 		if err != nil && !strings.Contains(err.Error(), "Invalid status code") {
-			zap.S().Errorf("Failed to apply blocks: %+v", err)
+			zap.S().Errorf("Failed to apply blocks: %v", err)
 			return
 		}
 		if s.symbols != nil {
@@ -119,22 +120,72 @@ func (s *Synchronizer) synchronize() {
 	}
 }
 
-func (s *Synchronizer) applyBlocks(start, end int) error {
-	zap.S().Infof("Synchronizing %d blocks starting from height %d", end-start+1, start)
-	for h := start; h <= end; h++ {
+func (s *Synchronizer) applyBlocksRange(start, end, delta int) error {
+	zap.S().Infof("Synchronizing %d blocks in range starting from height %d with delta %d", end-start+1, start, delta)
+	cnv := proto.ProtobufConverter{FallbackChainID: s.scheme}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	for h := start; h <= end; h += delta {
 		if s.interrupted() {
 			return errors.New("synchronization was interrupted")
 		}
-		id, miner, txs, err := s.nodeBlock(h)
-		if err != nil {
-			return err
+		if h+delta > end {
+			delta = end - h + 1
 		}
-		err = s.applyBlock(h, id, txs, miner)
+		stream, err := s.blockRange(h, h+delta, ctx, true)
 		if err != nil {
-			return errors.Wrapf(err, "failed apply block at height %d", h)
+			return errors.Wrapf(err, "failed to get %d blocks from node from height %d to height %d ", delta, start, end)
 		}
+
+		ids, miners, txss, err := s.recvBlockRange(h, delta, stream, cnv)
+
+		if err != nil {
+			return errors.Wrapf(err, "failed to receive %d blocks from node from height %d to height %d ", delta, start, end)
+		}
+		for i := 0; i < delta; i++ {
+			err = s.applyBlock(h+i, ids[i], txss[i], miners[i])
+			if err != nil {
+				return errors.Wrapf(err, "failed apply block at height %d", h)
+			}
+		}
+
 	}
 	return nil
+}
+
+func (s *Synchronizer) recvBlockRange(h int, delta int, stream g.BlocksApi_GetBlockRangeClient, cnv proto.ProtobufConverter) ([]proto.BlockID, []crypto.PublicKey, [][]proto.Transaction, error) {
+	var txss [][]proto.Transaction
+	var headersIDs []proto.BlockID
+	var headersGenPublicKeys []crypto.PublicKey
+	for i := h; i <= h+delta; i++ {
+		block, err := stream.Recv()
+		if err != nil {
+			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
+		}
+		header, err := cnv.BlockHeader(block.Block)
+		if err != nil {
+			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
+		}
+		headersIDs = append(headersIDs, header.ID)
+		headersGenPublicKeys = append(headersGenPublicKeys, header.GenPublicKey)
+
+		txs, err := cnv.BlockTransactions(block.Block)
+		if err != nil {
+			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
+		}
+		txss = append(txss, txs)
+	}
+
+	return headersIDs, headersGenPublicKeys, txss, nil
+}
+
+func (s *Synchronizer) blockRange(start int, end int, ctx context.Context, full bool) (g.BlocksApi_GetBlockRangeClient, error) {
+	return g.NewBlocksApiClient(s.conn).GetBlockRange(ctx, &g.BlockRangeRequest{
+		FromHeight:          uint32(start),
+		ToHeight:            uint32(end),
+		Filter:              nil,
+		IncludeTransactions: full,
+	}, grpc.EmptyCallOption{})
 }
 
 var emptyID = proto.BlockID{}
@@ -188,23 +239,6 @@ func (s *Synchronizer) nodeBlockID(height int) (proto.BlockID, error) {
 		return proto.BlockID{}, err
 	}
 	return header.BlockID(), nil
-}
-
-func (s *Synchronizer) nodeBlock(height int) (proto.BlockID, crypto.PublicKey, []proto.Transaction, error) {
-	cnv := proto.ProtobufConverter{FallbackChainID: s.scheme}
-	res, err := s.block(height, true)
-	if err != nil {
-		return proto.BlockID{}, crypto.PublicKey{}, nil, errors.Wrap(err, "failed to get block from node")
-	}
-	header, err := cnv.BlockHeader(res.Block)
-	if err != nil {
-		return proto.BlockID{}, crypto.PublicKey{}, nil, err
-	}
-	txs, err := cnv.BlockTransactions(res.Block)
-	if err != nil {
-		return proto.BlockID{}, crypto.PublicKey{}, nil, err
-	}
-	return header.ID, header.GenPublicKey, txs, nil
 }
 
 func (s *Synchronizer) findLastCommonHeight(start, stop int) (int, error) {
