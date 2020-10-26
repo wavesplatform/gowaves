@@ -106,7 +106,8 @@ func (s *Synchronizer) synchronize() {
 			ch = rollbackHeight - 1
 		}
 		//err = s.applyBlocks(ch+1, rh)
-		err = s.applyBlocksRange(ch+1, rh)
+		const delta = 10
+		err = s.applyBlocksRange(ch+1, rh, delta)
 		if err != nil && !strings.Contains(err.Error(), "Invalid status code") {
 			zap.S().Errorf("Failed to apply blocks: %+v", err)
 			return
@@ -138,16 +139,29 @@ func (s *Synchronizer) synchronize() {
 //	return nil
 //}
 
-func (s *Synchronizer) applyBlocksRange(start, end int) error {
-	zap.S().Infof("Synchronizing %d blocks in range starting from height %d", end-start+1, start)
+func (s *Synchronizer) applyBlocksRange(start, end, delta int) error {
+	zap.S().Infof("Synchronizing %d blocks in range starting from height %d with delta ", end-start+1, start, delta)
 
-	ids, miners, txss, err := s.nodeBlockRange(start, end)
-	if err != nil {
-		return err
-	}
-	for h := start; h <= end; h++ {
+	cnv := proto.ProtobufConverter{FallbackChainID: s.scheme}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	for h := start; h <= end; h += delta {
 		if s.interrupted() {
 			return errors.New("synchronization was interrupted")
+		}
+		if h + delta > end {
+			delta = end - h
+		}
+		stream, err := s.blockRange(h, h + delta, ctx, true)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get %d blocks from node from height %d to height %d ", delta, start, end)
+		}
+
+		ids, miners, txss, err := s.recvBlockRange(h, delta, stream, cnv)
+
+
+		if err != nil {
+			return errors.Wrapf(err, "failed to recv %d blocks from node from height %d to height %d ", delta, start, end)
 		}
 		err = s.applyBlock(h, ids[h], txss[h], miners[h])
 		if err != nil {
@@ -157,20 +171,11 @@ func (s *Synchronizer) applyBlocksRange(start, end int) error {
 	return nil
 }
 
-func (s *Synchronizer) nodeBlockRange(start int, end int) ([]proto.BlockID, []crypto.PublicKey, [][]proto.Transaction, error) {
-	cnv := proto.ProtobufConverter{FallbackChainID: s.scheme}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	stream, err := s.blockRange(start, end, ctx, true)
-	if err != nil {
-		return []proto.BlockID{}, []crypto.PublicKey{}, nil, errors.Wrap(err, "failed to get block from node")
-	}
-
-	txss := make([][]proto.Transaction, 1)
-	headersIDs := make([]proto.BlockID, 1)
-	headersGenPublicKeys := make([]crypto.PublicKey, 1)
-	for h := start; h <= end; h++ {
+func (s *Synchronizer) recvBlockRange(h int, delta int, stream g.BlocksApi_GetBlockRangeClient, cnv proto.ProtobufConverter) ([]proto.BlockID, []crypto.PublicKey, [][]proto.Transaction, error) {
+	var txss [][]proto.Transaction
+	var headersIDs []proto.BlockID
+	var headersGenPublicKeys []crypto.PublicKey
+	for i := h; i <= h + delta; i++ {
 		block, err := stream.Recv()
 		if err != nil {
 			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
@@ -188,6 +193,7 @@ func (s *Synchronizer) nodeBlockRange(start int, end int) ([]proto.BlockID, []cr
 		}
 		txss = append(txss, txs)
 	}
+
 	return headersIDs, headersGenPublicKeys, txss, nil
 }
 
