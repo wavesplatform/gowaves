@@ -105,7 +105,6 @@ func (s *Synchronizer) synchronize() {
 			}
 			ch = rollbackHeight - 1
 		}
-		//err = s.applyBlocks(ch+1, rh)
 		const delta = 10
 		err = s.applyBlocksRange(ch+1, rh, delta)
 		if err != nil && !strings.Contains(err.Error(), "Invalid status code") {
@@ -120,24 +119,6 @@ func (s *Synchronizer) synchronize() {
 		}
 	}
 }
-
-//func (s *Synchronizer) applyBlocks(start, end int) error {
-//	zap.S().Infof("Synchronizing %d blocks starting from height %d", end-start+1, start)
-//	for h := start; h <= end; h++ {
-//		if s.interrupted() {
-//			return errors.New("synchronization was interrupted")
-//		}
-//		id, miner, txs, err := s.nodeBlock(h)
-//		if err != nil {
-//			return err
-//		}
-//		err = s.applyBlock(h, id, txs, miner)
-//		if err != nil {
-//			return errors.Wrapf(err, "failed apply block at height %d", h)
-//		}
-//	}
-//	return nil
-//}
 
 func (s *Synchronizer) applyBlocksRange(start, end, delta int) error {
 	zap.S().Infof("Synchronizing %d blocks in range starting from height %d with delta ", end-start+1, start, delta)
@@ -257,23 +238,6 @@ func (s *Synchronizer) nodeBlockID(height int) (proto.BlockID, error) {
 	}
 	return header.BlockID(), nil
 }
-
-//func (s *Synchronizer) nodeBlock(height int) (proto.BlockID, crypto.PublicKey, []proto.Transaction, error) {
-//	cnv := proto.ProtobufConverter{FallbackChainID: s.scheme}
-//	res, err := s.block(height, true)
-//	if err != nil {
-//		return proto.BlockID{}, crypto.PublicKey{}, nil, errors.Wrap(err, "failed to get block from node")
-//	}
-//	header, err := cnv.BlockHeader(res.Block)
-//	if err != nil {
-//		return proto.BlockID{}, crypto.PublicKey{}, nil, err
-//	}
-//	txs, err := cnv.BlockTransactions(res.Block)
-//	if err != nil {
-//		return proto.BlockID{}, crypto.PublicKey{}, nil, err
-//	}
-//	return header.ID, header.GenPublicKey, txs, nil
-//}
 
 func (s *Synchronizer) findLastCommonHeight(start, stop int) (int, error) {
 	var r int
