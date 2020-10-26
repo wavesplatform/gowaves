@@ -162,7 +162,7 @@ func (s *Synchronizer) nodeBlockRange(start int, end int) ([]proto.BlockID, []cr
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	stream, err := s.blockRange(start,end,ctx,true)
+	stream, err := s.blockRange(start, end, ctx, true)
 	if err != nil {
 		return []proto.BlockID{}, []crypto.PublicKey{}, nil, errors.Wrap(err, "failed to get block from node")
 	}
@@ -191,7 +191,7 @@ func (s *Synchronizer) nodeBlockRange(start int, end int) ([]proto.BlockID, []cr
 	return headersIDs, headersGenPublicKeys, txss, nil
 }
 
-func (s *Synchronizer) blockRange(start int, end int,ctx context.Context ,full bool) (g.BlocksApi_GetBlockRangeClient, error) {
+func (s *Synchronizer) blockRange(start int, end int, ctx context.Context, full bool) (g.BlocksApi_GetBlockRangeClient, error) {
 	return g.NewBlocksApiClient(s.conn).GetBlockRange(ctx, &g.BlockRangeRequest{
 		FromHeight:          uint32(start),
 		ToHeight:            uint32(end),
