@@ -143,10 +143,13 @@ func (s *Synchronizer) applyBlocksRange(start, end, delta int) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to recv %d blocks from node from height %d to height %d ", delta, start, end)
 		}
-		err = s.applyBlock(h, ids[h], txss[h], miners[h])
-		if err != nil {
-			return errors.Wrapf(err, "failed apply block at height %d", h)
+		for i := h; i <= h+delta; i++ {
+			err = s.applyBlock(i, ids[i], txss[i], miners[i])
+			if err != nil {
+				return errors.Wrapf(err, "failed apply block at height %d", h)
+			}
 		}
+
 	}
 	return nil
 }
