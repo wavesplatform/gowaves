@@ -341,6 +341,9 @@ func (a *DataFeedAPI) trades(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sort.Sort(data.TradesByTimestampBackward(tis))
+	if len(tis) < limit {
+		limit = len(tis)
+	}
 	err = json.NewEncoder(w).Encode(tis[:limit])
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal Trades to JSON: %s", err.Error()), http.StatusInternalServerError)
