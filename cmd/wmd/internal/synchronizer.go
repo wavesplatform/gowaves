@@ -132,7 +132,7 @@ func (s *Synchronizer) applyBlocksRange(start, end, delta int) error {
 		if h+delta > end {
 			delta = end - h + 1
 		}
-		stream, err := s.blockRange(h, h+delta, ctx, true)
+		stream, err := s.blockRange(h, h+delta-1, ctx, true)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get %d blocks from node from height %d to height %d ", delta, start, end)
 		}
@@ -157,7 +157,7 @@ func (s *Synchronizer) recvBlockRange(h int, delta int, stream g.BlocksApi_GetBl
 	var txss [][]proto.Transaction
 	var headersIDs []proto.BlockID
 	var headersGenPublicKeys []crypto.PublicKey
-	for i := h; i <= h+delta; i++ {
+	for i := h; i < h+delta; i++ {
 		block, err := stream.Recv()
 		if err != nil {
 			return []proto.BlockID{}, []crypto.PublicKey{}, nil, err
