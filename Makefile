@@ -177,46 +177,79 @@ build-integration-linux:
 
 build-wmd-deb-package: release-wmd
 	@mkdir -p build/dist
+
 	@mkdir -p ./build/wmd/DEBIAN
-	@cp ./cmd/wmd/symbols.txt ./build/wmd
-	@cp ./build/bin/linux-amd64/wmd ./build/wmd
-	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Waves Market Data System Service|g; s|PACKAGE|wmd|g; s|EXECUTABLE|wmd|g; s|PARAMS|-db /var/lib/wmd/ -address 0.0.0.0:6990 -node grpc.wavesnodes.com:6870 -symbols /usr/share/wmd/symbols.txt -sync-interval 10|g; s|NAME|wmd|g" ./dpkg/service.service > ./build/wmd/wmd.service
 	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Waves Market Data System Service/g; s/PACKAGE/wmd/g" ./dpkg/control > ./build/wmd/DEBIAN/control
-	@sed "s/PACKAGE/wmd/g; s/NAME/wmd/g; s/EXECUTABLE/wmd/g; s|EXTRAS|sudo cp symbols.txt /usr/share/wmd/|g;" ./dpkg/postinst > ./build/wmd/DEBIAN/postinst
-	@sed "s/PACKAGE/wmd/g" ./dpkg/preinst > ./build/wmd/DEBIAN/preinst
-	@chmod 0775 ./build/wmd/DEBIAN/control
-	@chmod 0775 ./build/wmd/DEBIAN/preinst
+	@sed "s/PACKAGE/wmd/g; s/NAME/wmd/g;" ./dpkg/postinst > ./build/wmd/DEBIAN/postinst
+	@sed "s/PACKAGE/wmd/g" ./dpkg/postrm > ./build/wmd/DEBIAN/postrm
+	@sed "s/PACKAGE/wmd/g" ./dpkg/prerm > ./build/wmd/DEBIAN/prerm
+	@chmod 0644 ./build/wmd/DEBIAN/control
 	@chmod 0775 ./build/wmd/DEBIAN/postinst
+	@chmod 0775 ./build/wmd/DEBIAN/postrm
+	@chmod 0775 ./build/wmd/DEBIAN/prerm
+
+	@mkdir -p ./build/wmd/lib/systemd/system
+	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Waves Market Data System Service|g; s|PACKAGE|wmd|g; s|EXECUTABLE|wmd|g; s|PARAMS|-db /var/lib/wmd/ -address 0.0.0.0:6990 -node grpc.wavesnodes.com:6870 -symbols /usr/share/wmd/symbols.txt -sync-interval 10|g; s|NAME|wmd|g" ./dpkg/service.service > ./build/wmd/lib/systemd/system/wmd.service
+
+	@mkdir -p ./build/wmd/usr/share/wmd
+	@cp ./cmd/wmd/symbols.txt ./build/wmd/usr/share/wmd/
+	@cp ./build/bin/linux-amd64/wmd ./build/wmd/usr/share/wmd/
+
+	@mkdir -p ./build/wmd/var/lib/wmd/
+	@mkdir -p ./build/wmd/var/log/wmd/
+	
 	@dpkg-deb --build ./build/wmd
 	@mv ./build/wmd.deb ./build/dist/wmd_${VERSION}.deb
 	@rm -rf ./build/wmd
 
 build-node-mainnet-deb-package: release-node
 	@mkdir -p build/dist
+
 	@mkdir -p ./build/gowaves-mainnet/DEBIAN
-	@cp ./build/bin/linux-amd64/node ./build/gowaves-mainnet/
-	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for MainNet System Service|g; s|PACKAGE|gowaves-mainnet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-mainnet/ -api-address 0.0.0.0:8080|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-mainnet/gowaves-mainnet.service
 	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for MainNet System Service/g; s/PACKAGE/gowaves-mainnet/g" ./dpkg/control > ./build/gowaves-mainnet/DEBIAN/control
-	@sed "s/PACKAGE/gowaves-mainnet/g; s/NAME/gowaves/g; s/EXECUTABLE/node/g; s|EXTRAS||g;" ./dpkg/postinst > ./build/gowaves-mainnet/DEBIAN/postinst
-	@sed "s/PACKAGE/gowaves-mainnet/g" ./dpkg/preinst > ./build/gowaves-mainnet/DEBIAN/preinst
-	@chmod 0775 ./build/gowaves-mainnet/DEBIAN/control
-	@chmod 0775 ./build/gowaves-mainnet/DEBIAN/preinst
+	@sed "s/PACKAGE/gowaves-mainnet/g; s/NAME/gowaves/g;" ./dpkg/postinst > ./build/gowaves-mainnet/DEBIAN/postinst
+	@sed "s/PACKAGE/gowaves-mainnet/g" ./dpkg/postrm > ./build/gowaves-mainnet/DEBIAN/postrm
+	@sed "s/PACKAGE/gowaves-mainnet/g" ./dpkg/prerm > ./build/gowaves-mainnet/DEBIAN/prerm
+	@chmod 0644 ./build/gowaves-mainnet/DEBIAN/control
 	@chmod 0775 ./build/gowaves-mainnet/DEBIAN/postinst
+	@chmod 0775 ./build/gowaves-mainnet/DEBIAN/postrm
+	@chmod 0775 ./build/gowaves-mainnet/DEBIAN/prerm
+
+	@mkdir -p ./build/gowaves-mainnet/lib/systemd/system
+	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for MainNet System Service|g; s|PACKAGE|gowaves-mainnet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-mainnet/ -api-address 0.0.0.0:8080|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-mainnet/lib/systemd/system/gowaves-mainnet.service
+
+	@mkdir -p ./build/gowaves-mainnet/usr/share/gowaves-mainnet
+	@cp ./build/bin/linux-amd64/node ./build/gowaves-mainnet/usr/share/gowaves-mainnet
+
+	@mkdir -p ./build/gowaves-mainnet/var/lib/gowaves-mainnet/
+	@mkdir -p ./build/gowaves-mainnet/var/log/gowaves-mainnet/
+	
 	@dpkg-deb --build ./build/gowaves-mainnet
 	@mv ./build/gowaves-mainnet.deb ./build/dist/gowaves-mainnet_${VERSION}.deb
 	@rm -rf ./build/gowaves-mainnet
 
 build-node-testnet-deb-package: release-node
 	@mkdir -p build/dist
+
 	@mkdir -p ./build/gowaves-testnet/DEBIAN
-	@cp ./build/bin/linux-amd64/node ./build/gowaves-testnet/
-	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for TestNet System Service|g; s|PACKAGE|gowaves-testnet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-testnet/ -api-address 0.0.0.0:8090 -blockchain-type testnet|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-testnet/gowaves-testnet.service
 	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for TestNet System Service/g; s/PACKAGE/gowaves-testnet/g" ./dpkg/control > ./build/gowaves-testnet/DEBIAN/control
-	@sed "s/PACKAGE/gowaves-testnet/g; s/NAME/gowaves/g; s/EXECUTABLE/node/g; s|EXTRAS||g;" ./dpkg/postinst > ./build/gowaves-testnet/DEBIAN/postinst
-	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/preinst > ./build/gowaves-testnet/DEBIAN/preinst
-	@chmod 0775 ./build/gowaves-testnet/DEBIAN/control
-	@chmod 0775 ./build/gowaves-testnet/DEBIAN/preinst
+	@sed "s/PACKAGE/gowaves-testnet/g; s/NAME/gowaves/g;" ./dpkg/postinst > ./build/gowaves-testnet/DEBIAN/postinst
+	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/postrm > ./build/gowaves-testnet/DEBIAN/postrm
+	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/prerm > ./build/gowaves-testnet/DEBIAN/prerm
+	@chmod 0644 ./build/gowaves-testnet/DEBIAN/control
 	@chmod 0775 ./build/gowaves-testnet/DEBIAN/postinst
+	@chmod 0775 ./build/gowaves-testnet/DEBIAN/postrm
+	@chmod 0775 ./build/gowaves-testnet/DEBIAN/prerm
+
+	@mkdir -p ./build/gowaves-testnet/lib/systemd/system
+	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for TestNet System Service|g; s|PACKAGE|gowaves-testnet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-testnet/ -api-address 0.0.0.0:8090 -blockchain-type testnet|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-testnet/lib/systemd/system/gowaves-testnet.service
+
+	@mkdir -p ./build/gowaves-testnet/usr/share/gowaves-testnet
+	@cp ./build/bin/linux-amd64/node ./build/gowaves-testnet/usr/share/gowaves-testnet
+
+	@mkdir -p ./build/gowaves-testnet/var/lib/gowaves-testnet/
+	@mkdir -p ./build/gowaves-testnet/var/log/gowaves-testnet/
+	
 	@dpkg-deb --build ./build/gowaves-testnet
 	@mv ./build/gowaves-testnet.deb ./build/dist/gowaves-testnet_${VERSION}.deb
 	@rm -rf ./build/gowaves-testnet
