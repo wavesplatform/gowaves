@@ -70,7 +70,6 @@ func (b *builder) externalCall(id uint16, argc uint16) {
 func (b *builder) call(id uint16, argc uint16) {
 	b.w.WriteByte(OpCall)
 	b.w.Write(encode(id))
-	b.w.Write(encode(argc))
 }
 
 func (b *builder) startPos() {
@@ -83,6 +82,14 @@ func (b *builder) build() (uint16, []byte) {
 
 func (b *builder) jpmIfFalse() {
 	b.w.WriteByte(OpJumpIfFalse)
+}
+
+func (b *builder) writeByte(p byte) {
+	b.w.WriteByte(p)
+}
+
+func (b *builder) write(i []byte) {
+	b.w.Write(i)
 }
 
 //func (b *builder) fillContext(id constid) {

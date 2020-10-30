@@ -34,46 +34,59 @@ import (
 //}
 
 type frame struct {
-	function  bool
-	back      int
-	args      []rideType
-	stackSize int
+	function bool
+	back     int
+	context  []int
+	future   []int
 }
 
-func newExpressionFrame(pos int, stackSize int) frame {
+func newExpressionFrame(pos int) frame {
 	return frame{
-		back:      pos,
-		stackSize: stackSize,
+		back: pos,
 	}
 }
 
-func newFunctionFrame(pos int, args []rideType) frame {
+func newFrameContext(pos int, context args, future args) frame {
 	return frame{
-		function: true,
-		back:     pos,
-		args:     args,
+		back:    pos,
+		context: context,
+		future:  future,
 	}
 }
+
+//func newFunctionFrame(pos int, args []int) frame {
+//	return frame{
+//		function: true,
+//		back:     pos,
+//		args:     args,
+//	}
+//}
+
+type args = []int
 
 type vm struct {
-	env          RideEnvironment
-	code         []byte
-	ip           int
-	constants    []rideType
-	functions    func(int) rideFunction
-	globals      func(int) rideConstructor
-	stack        []rideType
-	calls        []frame
+	env       RideEnvironment
+	code      []byte
+	ip        int
+	constants []rideType
+	functions func(int) rideFunction
+	globals   func(int) rideConstructor
+	stack     []rideType
+	//calls        []frame
 	functionName func(int) string
+	context      []args
+	jpms         []int
 }
 
 func (m *vm) run() (RideResult, error) {
 	if m.stack != nil {
 		m.stack = m.stack[0:0]
 	}
-	if m.calls != nil {
-		m.calls = m.calls[0:0]
-	}
+	// set context, current and future
+	m.context = append(m.context, args{}, args{})
+	//if m.calls != nil {
+	//	m.calls = m.calls[0:0]
+	//}
 	//m.ip = 0
 	for m.ip < len(m.code) {
 		op := m.code[m.ip]
@@ -92,9 +105,10 @@ func (m *vm) run() (RideResult, error) {
 			m.push(rideBoolean(false))
 		case OpJump:
 			pos := m.arg16()
-			current := m.ip
+			//current := m.ip
+			m.jpms = append(m.jpms, m.ip)
 			m.ip = pos
-			m.calls = append(m.calls, newExpressionFrame(current, len(m.stack)))
+			//m.calls = append(m.calls, newExpressionFrame(current))
 		case OpJumpIfFalse:
 			pos := m.arg16()
 			val, err := m.pop()
@@ -125,18 +139,23 @@ func (m *vm) run() (RideResult, error) {
 			m.push(v)
 		case OpCall:
 			pos := m.arg16()
-			cnt := m.arg16()
-			in := make([]rideType, cnt)
-			for i := cnt - 1; i >= 0; i-- {
-				v, err := m.pop()
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to call function at position %d", pos)
-				}
-				in[i] = v
-			}
-			frame := newFunctionFrame(m.ip, in) // Creating new function frame with return position
-			m.calls = append(m.calls, frame)
-			m.ip = pos // Continue to function
+			//cnt := m.arg16()
+			//in := make([]rideType, cnt)
+			//for i := cnt - 1; i >= 0; i-- {
+			//	v, err := m.pop()
+			//	if err != nil {
+			//		return nil, errors.Wrapf(err, "failed to call function at position %d", pos)
+			//	}
+			//	in[i] = v
+			//}
+			//argid := m.arg16()
+			//m.calls = append(m.calls, newFrameContext(m.ip, m.context, m.args))
+			m.jpms = append(m.jpms, m.ip)
+			m.ip = pos
+			m.context = append(m.context, args{})
+			//m.context = m.args
+			//m.args = nil
+
 		case OpExternalCall:
 			// Before calling external function all parameters must be evaluated and placed on stack
 			id := m.arg16()
@@ -158,27 +177,27 @@ func (m *vm) run() (RideResult, error) {
 				return nil, err
 			}
 			m.push(res)
-		case OpLoad: // Evaluate expression behind a LET declaration
-			pos := m.arg16()
-			frame := newExpressionFrame(m.ip, len(m.stack)) // Creating new function frame with return position
-			m.calls = append(m.calls, frame)
-			m.ip = pos // Continue to expression
-		case OpLoadLocal:
-			n := m.arg16()
-			for i := len(m.calls) - 1; i >= 0; i-- {
-
-			}
-			l := len(m.calls)
-			if l == 0 {
-				return nil, errors.New("failed to load argument on stack")
-			}
-			frame := m.calls[l-1]
-			if l := len(frame.args); l < n+1 {
-				return nil, errors.New("invalid arguments count")
-			}
-			m.push(frame.args[n])
+		//case OpLoad: // Evaluate expression behind a LET declaration
+		//	pos := m.arg16()
+		//	frame := newExpressionFrame(m.ip) // Creating new function frame with return position
+		//	m.calls = append(m.calls, frame)
+		//	m.ip = pos // Continue to expression
+		//case OpLoadLocal:
+		//	n := m.arg16()
+		//	for i := len(m.calls) - 1; i >= 0; i-- {
+		//
+		//	}
+		//	l := len(m.calls)
+		//	if l == 0 {
+		//		return nil, errors.New("failed to load argument on stack")
+		//	}
+		//	frame := m.calls[l-1]
+		//	if l := len(frame.args); l < n+1 {
+		//		return nil, errors.New("invalid arguments count")
+		//	}
+		//	m.push(frame.args[n])
 		case OpReturn:
-			l := len(m.calls)
+			l := len(m.jpms)
 			if l == 0 {
 				if len(m.stack) > 0 {
 					v, err := m.pop()
@@ -194,9 +213,11 @@ func (m *vm) run() (RideResult, error) {
 				}
 				return nil, errors.New("no result after script execution")
 			}
-			var f frame
-			f, m.calls = m.calls[l-1], m.calls[:l-1]
-			m.ip = f.back
+			//var f frame
+			m.ip, m.jpms = m.jpms[l-1], m.jpms[:l-1]
+			//m.ip = m.jpms[l-1]
+			//m.context = f.context
+			//m.args = f.future
 		//case OpHalt:
 		//	if len(m.stack) > 0 {
 		//		v, err := m.pop()
@@ -217,21 +238,25 @@ func (m *vm) run() (RideResult, error) {
 			v := constructor(m.env)
 			m.push(v)
 
-		//case OpFillContext:
-		//	id := m.arg16()
-		//	str := m.constants[id].(rideString)
-		//	value, ok := m.context.get(string(str))
-		//	if !ok {
-		//		panic(fmt.Sprintf("value %s not found in context", str))
-		//	}
-		//	m.push(value)
-		case OpPushFromFrame:
-			// TODO very tricky
-			// The only way to achieve `OpPushFromFrame` is to OpJump, but it modifies m.calls,
-			// so we need to refer len(m.calls)-2.
+		case OpPushArg:
+			arg := m.arg16()
+			last := len(m.context) - 1
+			m.context[last] = append(m.context[last], arg)
 
-			last := m.calls[len(m.calls)-2]
-			m.push(last.args[m.arg16()])
+		case OpGotoArg:
+			argid := m.arg16()
+			current := len(m.context) - 2
+			m.jpms = append(m.jpms, m.ip)
+			//m.calls = append(m.calls, newFrameContext(m.ip, m.context, m.args))
+			m.ip = m.context[current][argid]
+			//m.context = m.args
+			//m.args = nil
+
+		case OpPushCtx:
+			m.context = append(m.context, args{})
+		case OpPopCtx:
+			m.context = m.context[:len(m.context)-2]
+			m.context = append(m.context, args{})
 
 		default:
 			return nil, errors.Errorf("unknown code %#x", op)
@@ -239,6 +264,16 @@ func (m *vm) run() (RideResult, error) {
 	}
 	return nil, errors.New("broken code")
 }
+
+//func (m *vm) goTo(pos int) {
+//	f := m.nextFrame
+//	f.back = pos
+//
+//	m.calls = append(m.calls, f)
+//	m.ip = pos // Continue to function
+//	m.args = m.curFrame
+//	m.curFrame = m.nextFrame
+//}
 
 func (m *vm) push(v rideType) constid {
 	m.stack = append(m.stack, v)

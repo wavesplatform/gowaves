@@ -33,6 +33,7 @@ type params struct {
 func long(f Fsm, params params, value int64) Fsm {
 	index := params.c.put(rideInt(value))
 	params.b.push(index)
+	params.b.ret()
 	return f
 }
 

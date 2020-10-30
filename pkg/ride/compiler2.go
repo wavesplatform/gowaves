@@ -13,9 +13,10 @@ func ccc(f Fsm, node Node) (Fsm, error) {
 	case *LongNode:
 		return f.Long(n.Value), nil
 	case *FunctionCallNode:
+		var err error
 		f = f.Call(n.Name, uint16(len(n.Arguments)))
 		for i := range n.Arguments {
-			f, err := ccc(f, n.Arguments[i])
+			f, err = ccc(f, n.Arguments[i])
 			if err != nil {
 				return f, err
 			}

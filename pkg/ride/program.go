@@ -33,14 +33,14 @@ func (s *SimpleScript) Run(env RideEnvironment) (RideResult, error) {
 		return nil, errors.Wrap(err, "simple script execution failed")
 	}
 	m := vm{
-		env:          env,
-		code:         s.Code,
-		ip:           0,
-		constants:    s.Constants,
-		functions:    fs,
-		globals:      gcs,
-		stack:        make([]rideType, 0, 2),
-		calls:        make([]frame, 0, 2),
+		env:       env,
+		code:      s.Code,
+		ip:        0,
+		constants: s.Constants,
+		functions: fs,
+		globals:   gcs,
+		stack:     make([]rideType, 0, 2),
+		//calls:        make([]frame, 0, 2),
 		functionName: np,
 	}
 	r, err := m.run()
@@ -78,14 +78,14 @@ func (s *DAppScript) Run(env RideEnvironment) (RideResult, error) {
 		return nil, errors.Wrap(err, "script execution failed")
 	}
 	m := vm{
-		env:          env,
-		code:         s.Code,
-		ip:           0,
-		constants:    s.Constants,
-		functions:    fs,
-		globals:      gcs,
-		stack:        make([]rideType, 0, 2),
-		calls:        make([]frame, 0, 2),
+		env:       env,
+		code:      s.Code,
+		ip:        0,
+		constants: s.Constants,
+		functions: fs,
+		globals:   gcs,
+		stack:     make([]rideType, 0, 2),
+		//calls:        make([]frame, 0, 2),
 		functionName: np,
 	}
 	r, err := m.run()

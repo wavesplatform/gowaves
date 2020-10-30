@@ -14,11 +14,15 @@ const (
 	OpJumpIfFalse               //07 - Moves instruction pointer to new position if value on stack is False. One parameter: new position.
 	OpProperty                  //08 - Puts value of object's property on stack. One parameter: constant ID that holds name of the property.
 	OpExternalCall              //09 - Call a standard library function. Two parameters: function ID, number of arguments.
-	OpCall                      //10 - Call a function declared at given address. Two parameters: position of function declaration, number of arguments.
-	OpGlobal                    //11 - Load global constant. One parameter: global constant ID.
-	OpLoad                      //12 - Evaluates an expression that declared at address. One parameter: position of declaration.
-	OpLoadLocal                 //13 - Load an argument of function call on stack. One parameter: argument number.
-	OpRef                       //14 - Put reference to expression/function on stack. One parameter: position of declaration.
-	OpFillContext               //15 - Put reference to expression/function on stack. One parameter: position of declaration.
-	OpPushFromFrame             //16
+	OpCall                      //10 0xa - Call a function declared at given address. One parameter: position of function declaration.
+	OpGlobal                    //11 0xb - Load global constant. One parameter: global constant ID.
+	OpLoad                      //12 0xc - Evaluates an expression that declared at address. One parameter: position of declaration.
+	OpLoadLocal                 //13 0xd - Load an argument of function call on stack. One parameter: argument number.
+	OpRef                       //14 0xe - Put reference to expression/function on stack. One parameter: position of declaration.
+	OpFillContext               //15 0xf - Put reference to expression/function on stack. One parameter: position of declaration.
+	OpPushFromFrame             //16 0x10
+	OpPushArg                   //17 0x11 - Push value to frame: one param.
+	OpGotoArg                   //18 0x12 - Go to value stored in argument N: one param.
+	OpPushCtx                   //19 0x13
+	OpPopCtx                    //20 0x14
 )

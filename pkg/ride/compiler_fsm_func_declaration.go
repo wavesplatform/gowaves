@@ -1,10 +1,21 @@
 package ride
 
+type arguments []string
+
+func (a arguments) pos(name string) int {
+	for i := range a {
+		if a[i] == name {
+			return i
+		}
+	}
+	return -1
+}
+
 type FuncDeclarationFsm struct {
 	params
 	prev        Fsm
 	name        string
-	args        []string
+	args        arguments
 	offset      uint16
 	globalScope *references
 }
@@ -12,14 +23,14 @@ type FuncDeclarationFsm struct {
 func funcDeclarationFsmTransition(prev Fsm, params params, name string, args []string) Fsm {
 	// save reference to global scope, where code lower that function will be able to use it.
 	globalScope := params.r
-	// all variable we add only visible to current scope,
-	// avoid corrupting parent state.
+	//// all variable we add only visible to current scope,
+	//// avoid corrupting parent state.
 	params.r = newReferences(params.r)
 	for i := range args {
 		params.r.set(args[i], params.b.len())
-		params.b.w.WriteByte(OpPushFromFrame)
+		params.b.w.WriteByte(OpGotoArg)
 		params.b.w.Write(encode(uint16(i)))
-		params.b.ret()
+		params.b.w.WriteByte(OpReturn)
 	}
 
 	return &FuncDeclarationFsm{
@@ -38,12 +49,15 @@ func (a FuncDeclarationFsm) Assigment(name string) Fsm {
 
 func (a FuncDeclarationFsm) Return() Fsm {
 	a.globalScope.set(a.name, a.offset)
+	a.b.writeByte(OpPopCtx)
 	a.b.ret()
 	return a.prev
 }
 
 func (a FuncDeclarationFsm) Long(value int64) Fsm {
-	panic("implement me")
+	index := a.params.c.put(rideInt(value))
+	a.params.b.push(index)
+	return a
 }
 
 func (a FuncDeclarationFsm) Call(name string, argc uint16) Fsm {
