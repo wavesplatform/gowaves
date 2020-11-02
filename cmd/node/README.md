@@ -80,7 +80,7 @@ sudo mkdir /usr/share/waves/
 sudo chown waves:waves /usr/share/waves
 sudo mkdir /var/lib/waves
 sudo chown waves:waves /var/lib/waves
-sudo cp waves /usr/share/waves/
+sudo cp node /usr/share/waves/
 ```
 
 To enable, start and stop the service use commands:
@@ -116,8 +116,7 @@ RestartSec=60
 startLimitIntervalSec=60
 
 WorkingDirectory=/usr/share/waves-testnet
-ExecStart=/usr/share/waves-testnet/node -state-path /var/lib/waves-testnet/ -api-address 0.0.0.0:8090 -peers 52.51.92.182:6863,52.231.205.53:6863,52.30.47.67:6863,52.28.66.217:6863 -blockchain-type testnet
-
+ExecStart=/usr/share/waves-testnet/node -state-path /var/lib/waves-testnet/ -api-address 0.0.0.0:8090 -peers 159.69.126.149:6863,94.130.105.239:6863,159.69.126.153:6863,94.130.172.201:6863 -blockchain-type testnet
 # make sure log directory exists and owned by syslog
 PermissionsStartOnly=true
 ExecStartPre=/bin/mkdir -p /var/log/waves-testnet
@@ -139,7 +138,7 @@ sudo mkdir /usr/share/waves-testnet/
 sudo chown waves-testnet:waves-testnet /usr/share/waves-testnet
 sudo mkdir /var/lib/waves-testnet
 sudo chown waves-testnet:waves-testnet /var/lib/waves-testnet
-sudo cp waves /usr/share/waves-testnet/
+sudo cp node /usr/share/waves-testnet/
 ```
 
 ```bash

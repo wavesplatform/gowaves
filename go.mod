@@ -26,7 +26,7 @@ require (
 	github.com/onsi/ginkgo v1.10.1 // indirect
 	github.com/onsi/gomega v1.7.0 // indirect
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
-	github.com/pkg/errors v0.8.1
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
 	github.com/rakyll/statik v0.1.7
 	github.com/seiflotfy/cuckoofilter v0.0.0-20190302225222-764cb5258d9b
