@@ -1,14 +1,55 @@
-#!/bin/bash
-sudo mkdir /var/log/PACKAGE
-sudo chown syslog EXECUTABLE
-sudo useradd NAME -s /sbin/nologin -M
-sudo mv PACKAGE.service /lib/systemd/system/
-sudo chmod 755 /lib/systemd/system/PACKAGE.service
-sudo mkdir /usr/share/PACKAGE/
-sudo chown NAME:NAME /usr/share/PACKAGE
-sudo mkdir /var/lib/PACKAGE
-sudo chown NAME:NAME /var/lib/PACKAGE
-sudo cp EXECUTABLE /usr/share/PACKAGE/
-EXTRAS
-sudo systemctl enable PACKAGE.service
-sudo systemctl start PACKAGE.service
+#!/bin/sh
+set -e
+# Automatically added by dh_systemd_enable/12.10ubuntu1
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	# This will only remove masks created by d-s-h on package removal.
+	deb-systemd-helper unmask 'PACKAGE.service' >/dev/null || true
+
+	# was-enabled defaults to true, so new installations run enable.
+	if deb-systemd-helper --quiet was-enabled 'PACKAGE.service'; then
+		# Enables the unit on first installation, creates new
+		# symlinks on upgrades if the unit file has changed.
+		deb-systemd-helper enable 'PACKAGE.service' >/dev/null || true
+	else
+		# Update the statefile to add new symlinks (if any), which need to be
+		# cleaned up on purge. Also remove old symlinks.
+		deb-systemd-helper update-state 'PACKAGE.service' >/dev/null || true
+	fi
+fi
+# End automatically added section
+# Automatically added by dh_systemd_start/12.10ubuntu1
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	if [ -d /run/systemd/system ]; then
+		systemctl --system daemon-reload >/dev/null || true
+		if [ -n "$2" ]; then
+			_dh_action=restart
+		else
+			_dh_action=start
+		fi
+		deb-systemd-invoke $_dh_action 'PACKAGE.service' >/dev/null || true
+	fi
+fi
+# End automatically added section
+# Automatically added by dh_installinit/12.10ubuntu1
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	if [ -x "/etc/init.d/PACKAGE" ]; then
+		update-rc.d PACKAGE defaults >/dev/null
+		if [ -n "$2" ]; then
+			_dh_action=restart
+		else
+			_dh_action=start
+		fi
+		invoke-rc.d PACKAGE $_dh_action || exit 1
+	fi
+fi
+# End automatically added section
+
+if [ "$1" = "configure" ] ; then
+	if [ `sed -n "/^NAME/p" /etc/passwd` ]; then
+		echo "User NAME already exists"
+	else 
+		useradd NAME -s /sbin/nologin -M
+	fi
+	chown NAME:NAME /usr/share/PACKAGE
+	chown NAME:NAME /var/lib/PACKAGE
+fi
