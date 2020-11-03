@@ -79,8 +79,13 @@ func (a CallUserFsm) Return() Fsm {
 	}
 	//if ok {
 	a.b.startPos()
-	for _, pos := range a.argn {
+	for i, pos := range a.argn {
 		a.b.writeByte(OpPushArg)
+		uniqid, ok := a.r.get(fmt.Sprintf("%s$%d", a.name, i))
+		if !ok {
+			panic(fmt.Sprintf("no function param id `%s` stored in references", fmt.Sprintf("%s$%d", a.name, i)))
+		}
+		a.b.write(encode(uniqid))
 		a.b.write(encode(pos))
 		//a.b.writeByte(OpReturn)
 	}

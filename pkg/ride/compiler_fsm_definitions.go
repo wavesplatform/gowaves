@@ -15,6 +15,7 @@ func (a DefinitionFsm) Bytes(b []byte) Fsm {
 }
 
 func (a DefinitionFsm) Condition() Fsm {
+	a.b.startPos()
 	return conditionalTransition(a, a.params)
 }
 
@@ -34,13 +35,14 @@ type BuildExecutable interface {
 	BuildExecutable(version int) *Executable
 }
 
-func NewDefinitionsFsm(b *builder, c *constants, r *references, f FunctionChecker) Fsm {
+func NewDefinitionsFsm(b *builder, c *constants, r *references, u *uniqid, f FunctionChecker) Fsm {
 	return &DefinitionFsm{
 		params: params{
 			b: b,
 			c: c,
 			r: r,
 			f: f,
+			u: u,
 		},
 	}
 }

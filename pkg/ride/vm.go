@@ -76,6 +76,7 @@ type vm struct {
 	functionName func(int) string
 	context      []args
 	jpms         []int
+	mem          map[uint16]uint16
 }
 
 func (m *vm) run() (RideResult, error) {
@@ -84,6 +85,7 @@ func (m *vm) run() (RideResult, error) {
 	}
 	// set context, current and future
 	m.context = append(m.context, args{}, args{})
+	m.mem = make(map[uint16]uint16)
 	//if m.calls != nil {
 	//	m.calls = m.calls[0:0]
 	//}
@@ -239,16 +241,18 @@ func (m *vm) run() (RideResult, error) {
 			m.push(v)
 
 		case OpPushArg:
-			arg := m.arg16()
-			last := len(m.context) - 1
-			m.context[last] = append(m.context[last], arg)
+			id := m.arg16()
+			value := m.arg16()
+			m.mem[uint16(id)] = uint16(value)
+			//last := len(m.context) - 1
+			//m.context[last] = append(m.context[last], arg)
 
-		case OpGotoArg:
+		case OpUseArg:
 			argid := m.arg16()
-			current := len(m.context) - 2
+			//current := len(m.context) - 2
 			m.jpms = append(m.jpms, m.ip)
 			//m.calls = append(m.calls, newFrameContext(m.ip, m.context, m.args))
-			m.ip = m.context[current][argid]
+			m.ip = int(m.mem[uint16(argid)])
 			//m.context = m.args
 			//m.args = nil
 

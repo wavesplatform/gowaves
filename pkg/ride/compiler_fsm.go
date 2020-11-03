@@ -17,6 +17,19 @@ type Fsm interface {
 	FuncDeclaration(name string, args []string) Fsm
 }
 
+type uniqid struct {
+	id uint16
+}
+
+func (a *uniqid) next() uint16 {
+	a.id++
+	return a.id
+}
+
+func (a uniqid) cur() uint16 {
+	return a.id
+}
+
 type FunctionChecker func(string) (uint16, bool)
 
 type params struct {
@@ -28,6 +41,8 @@ type params struct {
 	r *references
 	// way to get function id.
 	f FunctionChecker
+	// unique id for func params
+	u *uniqid
 }
 
 func long(f Fsm, params params, value int64) Fsm {

@@ -70,8 +70,9 @@ func compileSimpleScript(libVersion int, node Node) (*Executable, error) {
 	b := newBuilder()
 	c := newConstants()
 	r := newReferences(nil)
+	u := &uniqid{}
 
-	f := NewDefinitionsFsm(b, c, r, fCheck)
+	f := NewDefinitionsFsm(b, c, r, u, fCheck)
 	f, err = ccc(f, node)
 	if err != nil {
 		return nil, err

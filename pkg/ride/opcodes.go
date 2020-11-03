@@ -22,7 +22,7 @@ const (
 	OpFillContext               //15 0xf - Put reference to expression/function on stack. One parameter: position of declaration.
 	OpPushFromFrame             //16 0x10
 	OpPushArg                   //17 0x11 - Push value to frame: one param.
-	OpGotoArg                   //18 0x12 - Go to value stored in argument N: one param.
+	OpUseArg                    //18 0x12 - Go to value stored in argument N: one param.
 	OpPushCtx                   //19 0x13
 	OpPopCtx                    //20 0x14
 )

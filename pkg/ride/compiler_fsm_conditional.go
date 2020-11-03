@@ -33,6 +33,7 @@ func (a ConditionalFsm) TrueBranch() Fsm {
 }
 
 func (a ConditionalFsm) FalseBranch() Fsm {
+	a.b.ret()
 	a.b.patch(a.patchPosition, encode(a.b.len()))
 	return a
 }

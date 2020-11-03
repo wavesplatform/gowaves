@@ -1,5 +1,7 @@
 package ride
 
+import "fmt"
+
 type arguments []string
 
 func (a arguments) pos(name string) int {
@@ -28,8 +30,10 @@ func funcDeclarationFsmTransition(prev Fsm, params params, name string, args []s
 	params.r = newReferences(params.r)
 	for i := range args {
 		params.r.set(args[i], params.b.len())
-		params.b.w.WriteByte(OpGotoArg)
-		params.b.w.Write(encode(uint16(i)))
+		// set to global
+		globalScope.set(fmt.Sprintf("%s$%d", name, i), params.u.next())
+		params.b.w.WriteByte(OpUseArg)
+		params.b.w.Write(encode(params.u.cur()))
 		params.b.w.WriteByte(OpReturn)
 	}
 
