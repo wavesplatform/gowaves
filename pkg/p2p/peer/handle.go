@@ -19,9 +19,11 @@ func bytesToMessage(b []byte, d DuplicateChecker, resendTo chan ProtoMessage, po
 		pool.Put(b)
 	}()
 
-	isNew := d.Add(b)
-	if !isNew {
-		return nil
+	if d != nil {
+		isNew := d.Add(b)
+		if !isNew {
+			return nil
+		}
 	}
 
 	m, err := proto.UnmarshalMessage(b)
