@@ -134,7 +134,7 @@ func (a *DataFeedAPI) routes() chi.Router {
 	return r
 }
 
-func (a *DataFeedAPI) status(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) status(w http.ResponseWriter, _ *http.Request) {
 	h, err := a.Storage.Height()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
@@ -153,7 +153,7 @@ func (a *DataFeedAPI) status(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *DataFeedAPI) getSymbols(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) getSymbols(w http.ResponseWriter, _ *http.Request) {
 	s := a.Symbols.All()
 	err := json.NewEncoder(w).Encode(s)
 	if err != nil {
@@ -162,7 +162,7 @@ func (a *DataFeedAPI) getSymbols(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *DataFeedAPI) markets(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) markets(w http.ResponseWriter, _ *http.Request) {
 	markets, err := a.Storage.Markets()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to collect Markets: %s", err.Error()), http.StatusInternalServerError)
@@ -177,13 +177,13 @@ func (a *DataFeedAPI) markets(w http.ResponseWriter, r *http.Request) {
 		}
 		aai, err := a.Storage.AssetInfo(m.AmountAsset)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
-			return
+			zap.S().Warnf("Failed to load AssetInfo: %s", err.Error())
+			continue // Skip assets with unavailable info, probably issued by InvokeScript transaction
 		}
 		pai, err := a.Storage.AssetInfo(m.PriceAsset)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
-			return
+			zap.S().Warnf("Failed to load AssetInfo: %s", err.Error())
+			continue // Skip assets with unavailable info, probably issued by InvokeScript transaction
 		}
 		aab, err := a.getIssuerBalance(aai.IssuerAddress, m.AmountAsset)
 		if err != nil {
@@ -207,7 +207,7 @@ func (a *DataFeedAPI) markets(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *DataFeedAPI) tickers(w http.ResponseWriter, r *http.Request) {
+func (a *DataFeedAPI) tickers(w http.ResponseWriter, _ *http.Request) {
 	markets, err := a.Storage.Markets()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to collect Tickers: %s", err), http.StatusInternalServerError)
@@ -222,13 +222,13 @@ func (a *DataFeedAPI) tickers(w http.ResponseWriter, r *http.Request) {
 		}
 		aai, err := a.Storage.AssetInfo(m.AmountAsset)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
-			return
+			zap.S().Warnf("Failed to load AssetInfo: %s", err.Error())
+			continue // Skip assets with unavailable info, probably issued by InvokeScript transaction
 		}
 		pai, err := a.Storage.AssetInfo(m.PriceAsset)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to load AssetInfo: %s", err.Error()), http.StatusInternalServerError)
-			return
+			zap.S().Warnf("Failed to load AssetInfo: %s", err.Error())
+			continue // Skip assets with unavailable info, probably issued by InvokeScript transaction
 		}
 		aab, err := a.getIssuerBalance(aai.IssuerAddress, m.AmountAsset)
 		if err != nil {
@@ -341,6 +341,9 @@ func (a *DataFeedAPI) trades(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sort.Sort(data.TradesByTimestampBackward(tis))
+	if len(tis) < limit {
+		limit = len(tis)
+	}
 	err = json.NewEncoder(w).Encode(tis[:limit])
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal Trades to JSON: %s", err.Error()), http.StatusInternalServerError)
