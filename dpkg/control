@@ -1,0 +1,7 @@
+Package: PACKAGE
+Version: DEB_VER
+Architecture: amd64
+Maintainer: waves.tech
+Section: utils
+Priority: standard
+Description: DESCRIPTION VERSION
