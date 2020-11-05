@@ -17,16 +17,14 @@ func (a *Executable) Run(environment RideEnvironment) (RideResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	//ctx := newContext()
-	//ctx = ctx.add("tx", environment.transaction())
 
 	v := vm{
-		code:      a.ByteCode,
-		ip:        int(a.EntryPoints[""]),
-		constants: a.Constants,
-		functions: fSelect,
-		//context:   ctx,
+		code:         a.ByteCode,
+		ip:           int(a.EntryPoints[""]),
+		constants:    a.Constants,
+		functions:    mergeWithPredefined(fSelect, predefined),
 		functionName: provider,
+		env:          environment,
 	}
 
 	//v.push(environment.transaction())

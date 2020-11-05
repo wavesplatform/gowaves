@@ -204,7 +204,7 @@ func (a rideRecipient) instanceOf() string {
 func (a rideRecipient) eq(other rideType) bool {
 	switch o := other.(type) {
 	case rideRecipient:
-		return a.Address == o.Address && a.Alias == o.Alias
+		return proto.Recipient(a).Eq(proto.Recipient(o))
 	case rideAddress:
 		return a.Address != nil && bytes.Equal(a.Address[:], o[:])
 	case rideAlias:

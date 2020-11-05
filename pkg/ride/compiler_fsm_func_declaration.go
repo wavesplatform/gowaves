@@ -22,6 +22,10 @@ type FuncDeclarationFsm struct {
 	globalScope *references
 }
 
+func (a FuncDeclarationFsm) Property(name string) Fsm {
+	panic("FuncDeclarationFsm Property")
+}
+
 func funcDeclarationFsmTransition(prev Fsm, params params, name string, args []string) Fsm {
 	// save reference to global scope, where code lower that function will be able to use it.
 	globalScope := params.r

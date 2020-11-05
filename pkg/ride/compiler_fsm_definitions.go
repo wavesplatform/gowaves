@@ -6,6 +6,13 @@ type DefinitionFsm struct {
 	params
 }
 
+func (a DefinitionFsm) Property(name string) Fsm {
+	a.b.writeByte(OpProperty)
+	index := a.params.c.put(rideString(name))
+	a.params.b.push(index)
+	return a
+}
+
 func (a DefinitionFsm) FuncDeclaration(name string, args []string) Fsm {
 	return funcDeclarationFsmTransition(a, a.params, name, args)
 }
@@ -35,15 +42,9 @@ type BuildExecutable interface {
 	BuildExecutable(version int) *Executable
 }
 
-func NewDefinitionsFsm(b *builder, c *constants, r *references, u *uniqid, f FunctionChecker) Fsm {
+func NewDefinitionsFsm(params params) Fsm {
 	return &DefinitionFsm{
-		params: params{
-			b: b,
-			c: c,
-			r: r,
-			f: f,
-			u: u,
-		},
+		params: params,
 	}
 }
 

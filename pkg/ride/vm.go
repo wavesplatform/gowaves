@@ -141,22 +141,9 @@ func (m *vm) run() (RideResult, error) {
 			m.push(v)
 		case OpCall:
 			pos := m.arg16()
-			//cnt := m.arg16()
-			//in := make([]rideType, cnt)
-			//for i := cnt - 1; i >= 0; i-- {
-			//	v, err := m.pop()
-			//	if err != nil {
-			//		return nil, errors.Wrapf(err, "failed to call function at position %d", pos)
-			//	}
-			//	in[i] = v
-			//}
-			//argid := m.arg16()
-			//m.calls = append(m.calls, newFrameContext(m.ip, m.context, m.args))
 			m.jpms = append(m.jpms, m.ip)
 			m.ip = pos
 			m.context = append(m.context, args{})
-			//m.context = m.args
-			//m.args = nil
 
 		case OpExternalCall:
 			// Before calling external function all parameters must be evaluated and placed on stack
@@ -244,23 +231,11 @@ func (m *vm) run() (RideResult, error) {
 			id := m.arg16()
 			value := m.arg16()
 			m.mem[uint16(id)] = uint16(value)
-			//last := len(m.context) - 1
-			//m.context[last] = append(m.context[last], arg)
 
 		case OpUseArg:
 			argid := m.arg16()
-			//current := len(m.context) - 2
 			m.jpms = append(m.jpms, m.ip)
-			//m.calls = append(m.calls, newFrameContext(m.ip, m.context, m.args))
 			m.ip = int(m.mem[uint16(argid)])
-			//m.context = m.args
-			//m.args = nil
-
-		case OpPushCtx:
-			m.context = append(m.context, args{})
-		case OpPopCtx:
-			m.context = m.context[:len(m.context)-2]
-			m.context = append(m.context, args{})
 
 		default:
 			return nil, errors.Errorf("unknown code %#x", op)

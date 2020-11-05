@@ -15,6 +15,7 @@ type Fsm interface {
 	FalseBranch() Fsm
 	Bytes(b []byte) Fsm
 	FuncDeclaration(name string, args []string) Fsm
+	Property(name string) Fsm
 }
 
 type uniqid struct {
@@ -33,16 +34,18 @@ func (a uniqid) cur() uint16 {
 type FunctionChecker func(string) (uint16, bool)
 
 type params struct {
-	// wrapper on bytes.Buffer with handy methods.
+	// Wrapper on bytes.Buffer with handy methods.
 	b *builder
-	// slice of constants.
+	// Slice of constants.
 	c *constants
-	// relation of variables and it's offset.
+	// Relation of variables and it's offset.
 	r *references
-	// way to get function id.
+	// Way to get function id.
 	f FunctionChecker
-	// unique id for func params
+	// Unique id for func params.
 	u *uniqid
+	// Predefined variables.
+	predef predef
 }
 
 func long(f Fsm, params params, value int64) Fsm {
@@ -73,6 +76,12 @@ func constant(a Fsm, params params, rideType rideType) Fsm {
 func reference(f Fsm, params params, name string) Fsm {
 	pos, ok := params.r.get(name)
 	if !ok {
+		if n, ok := params.predef.get(name); ok {
+			params.b.writeByte(OpExternalCall)
+			params.b.write(encode(n.id))
+			params.b.write(encode(0))
+			return f
+		}
 		//index := params.c.put(rideString(name))
 		//params.b.fillContext(index)
 		panic(fmt.Sprintf("reference %s not found", name))

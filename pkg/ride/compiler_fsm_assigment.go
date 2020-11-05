@@ -8,6 +8,10 @@ type AssigmentFsm struct {
 	offset uint16
 }
 
+func (a AssigmentFsm) Property(name string) Fsm {
+	panic("AssigmentFsm Property")
+}
+
 func (a AssigmentFsm) FuncDeclaration(name string, args []string) Fsm {
 	return funcDeclarationFsmTransition(a, a.params, name, args)
 }

@@ -12,6 +12,10 @@ type CallUserFsm struct {
 	argn []uint16
 }
 
+func (a CallUserFsm) Property(name string) Fsm {
+	panic("CallUserFsm Property")
+}
+
 func (a CallUserFsm) FuncDeclaration(name string, args []string) Fsm {
 	return funcDeclarationFsmTransition(a, a.params, name, args)
 }

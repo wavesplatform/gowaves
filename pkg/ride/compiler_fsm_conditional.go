@@ -7,6 +7,10 @@ type ConditionalFsm struct {
 	patchPosition uint16
 }
 
+func (a ConditionalFsm) Property(name string) Fsm {
+	panic("ConditionalFsm Property")
+}
+
 func (a ConditionalFsm) FuncDeclaration(name string, args []string) Fsm {
 	panic("Illegal call FuncDeclaration on ConditionalFsm")
 }

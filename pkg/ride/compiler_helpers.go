@@ -139,3 +139,39 @@ func (a *references) get(name string) (uint16, bool) {
 func (a *references) set(name string, offset uint16) {
 	a.refs[name] = offset
 }
+
+type predefFunc struct {
+	id uint16
+	f  rideFunction
+}
+
+type predef map[string]predefFunc
+
+func newPredef() predef {
+	return make(map[string]predefFunc)
+}
+
+func (a predef) set(name string, id uint16, f rideFunction) {
+	a[name] = predefFunc{
+		id: id,
+		f:  f,
+	}
+}
+
+func (a predef) get(name string) (predefFunc, bool) {
+	rs, ok := a[name]
+	return rs, ok
+}
+
+func (a predef) iter() map[string]predefFunc {
+	return a
+}
+
+func (a predef) getn(id int) rideFunction {
+	for _, v := range a {
+		if v.id == uint16(id) {
+			return v.f
+		}
+	}
+	return nil
+}

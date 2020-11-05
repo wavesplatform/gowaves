@@ -12,6 +12,17 @@ type CallSystemFsm struct {
 	argn []uint16
 }
 
+func property(f Fsm, p params, name string) Fsm {
+	p.b.writeByte(OpProperty)
+	index := p.c.put(rideString(name))
+	p.b.push(index)
+	return f
+}
+
+func (a CallSystemFsm) Property(name string) Fsm {
+	return property(a, a.params, name)
+}
+
 func (a CallSystemFsm) FuncDeclaration(name string, args []string) Fsm {
 	return funcDeclarationFsmTransition(a, a.params, name, args)
 }
@@ -85,6 +96,10 @@ func (a CallSystemFsm) Return() Fsm {
 	//a.b.startPos()
 	n, ok := a.f(a.name)
 	if !ok {
+		//if p, ok := a.predef.get(a.name); ok {
+		//	a.b.externalCall(p.id, a.argc)
+		//	return a.prev
+		//}
 		panic(fmt.Sprintf("system function named `%s` not found", a.name))
 	}
 	//for _, pos := range a.argn {

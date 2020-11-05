@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
 //go:generate moq -pkg ride -out types_moq_test.go ../types SmartState:MockSmartState
@@ -463,7 +464,7 @@ func testTransferWithProofs() *proto.TransferWithProofs {
 }
 
 func testTransferObject() rideObject {
-	obj, err := transferWithProofsToObject('T', testTransferWithProofs())
+	obj, err := transferWithProofsToObject('T', byte_helpers.TransferWithProofs.Transaction)
 	if err != nil {
 		panic(err)
 	}

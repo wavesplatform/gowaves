@@ -1,6 +1,8 @@
 package ride
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+)
 
 func ccc(f Fsm, node Node) (Fsm, error) {
 	switch n := node.(type) {
@@ -50,9 +52,17 @@ func ccc(f Fsm, node Node) (Fsm, error) {
 			return fsm, err
 		}
 		return ccc(fsm.Return(), n.Block)
-	//case *PropertyNode:
-	//	n.Object
-	//	n.Name
+	case *PropertyNode:
+		//f = f.Call("$property", 2)
+		//f, err := ccc(f, n.Object)
+		//if err != nil {
+		//	return f, err
+		//}
+		//f.(params).b.writeByte(OpProperty)
+
+		return ccc(f.Property(n.Name), n.Object)
+		//n.Object
+		//n.Name
 	default:
 		return f, errors.Errorf("unknown type %T", node)
 	}
@@ -72,7 +82,19 @@ func compileSimpleScript(libVersion int, node Node) (*Executable, error) {
 	r := newReferences(nil)
 	u := &uniqid{}
 
-	f := NewDefinitionsFsm(b, c, r, u, fCheck)
+	//predefs := newPredef()
+	//predefs.set("tx", math.MaxUint16, tx)
+
+	params := params{
+		b:      b,
+		c:      c,
+		r:      r,
+		f:      fCheck,
+		u:      u,
+		predef: predefined,
+	}
+
+	f := NewDefinitionsFsm(params)
 	f, err = ccc(f, node)
 	if err != nil {
 		return nil, err
