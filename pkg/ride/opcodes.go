@@ -17,4 +17,9 @@ const (
 	OpCall                     //10 0xa - Call a function declared at given address. One parameter: position of function declaration.
 	OpSetArg                   //11 0xb - Set value into cell. Two parameters: constant id and cell id.
 	OpUseArg                   //12 0xc - Use stored value in cell. One param: cell id.
+
+	// odd, will be removed.
+	OpGlobal
+	OpLoadLocal
+	OpLoad
 )
