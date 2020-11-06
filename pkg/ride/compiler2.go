@@ -53,16 +53,11 @@ func ccc(f Fsm, node Node) (Fsm, error) {
 		}
 		return ccc(fsm.Return(), n.Block)
 	case *PropertyNode:
-		//f = f.Call("$property", 2)
-		//f, err := ccc(f, n.Object)
-		//if err != nil {
-		//	return f, err
-		//}
-		//f.(params).b.writeByte(OpProperty)
-
-		return ccc(f.Property(n.Name), n.Object)
-		//n.Object
-		//n.Name
+		f, err := ccc(f.Property(n.Name), n.Object)
+		if err != nil {
+			return f, err
+		}
+		return f.Return(), nil
 	default:
 		return f, errors.Errorf("unknown type %T", node)
 	}
@@ -82,9 +77,6 @@ func compileSimpleScript(libVersion int, node Node) (*Executable, error) {
 	r := newReferences(nil)
 	u := &uniqid{}
 
-	//predefs := newPredef()
-	//predefs.set("tx", math.MaxUint16, tx)
-
 	params := params{
 		b:      b,
 		c:      c,
@@ -94,7 +86,7 @@ func compileSimpleScript(libVersion int, node Node) (*Executable, error) {
 		predef: predefined,
 	}
 
-	f := NewDefinitionsFsm(params)
+	f := NewMain(params)
 	f, err = ccc(f, node)
 	if err != nil {
 		return nil, err

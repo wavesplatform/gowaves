@@ -13,7 +13,7 @@ func (a arguments) pos(name string) int {
 	return -1
 }
 
-type FuncDeclarationFsm struct {
+type FuncDeclarationState struct {
 	params
 	prev        Fsm
 	name        string
@@ -22,8 +22,8 @@ type FuncDeclarationFsm struct {
 	globalScope *references
 }
 
-func (a FuncDeclarationFsm) Property(name string) Fsm {
-	panic("FuncDeclarationFsm Property")
+func (a FuncDeclarationState) Property(name string) Fsm {
+	panic("FuncDeclarationState Property")
 }
 
 func funcDeclarationFsmTransition(prev Fsm, params params, name string, args []string) Fsm {
@@ -41,7 +41,7 @@ func funcDeclarationFsmTransition(prev Fsm, params params, name string, args []s
 		params.b.w.WriteByte(OpReturn)
 	}
 
-	return &FuncDeclarationFsm{
+	return &FuncDeclarationState{
 		prev:        prev,
 		name:        name,
 		args:        args,
@@ -51,55 +51,55 @@ func funcDeclarationFsmTransition(prev Fsm, params params, name string, args []s
 	}
 }
 
-func (a FuncDeclarationFsm) Assigment(name string) Fsm {
+func (a FuncDeclarationState) Assigment(name string) Fsm {
 	return assigmentFsmTransition(a, a.params, name)
 }
 
-func (a FuncDeclarationFsm) Return() Fsm {
+func (a FuncDeclarationState) Return() Fsm {
 	a.globalScope.set(a.name, a.offset)
 	a.b.writeByte(OpPopCtx)
 	a.b.ret()
 	return a.prev
 }
 
-func (a FuncDeclarationFsm) Long(value int64) Fsm {
+func (a FuncDeclarationState) Long(value int64) Fsm {
 	index := a.params.c.put(rideInt(value))
 	a.params.b.push(index)
 	return a
 }
 
-func (a FuncDeclarationFsm) Call(name string, argc uint16) Fsm {
+func (a FuncDeclarationState) Call(name string, argc uint16) Fsm {
 	return callTransition(a, a.params, name, argc)
 }
 
-func (a FuncDeclarationFsm) Reference(name string) Fsm {
+func (a FuncDeclarationState) Reference(name string) Fsm {
 	return reference(a, a.params, name)
 }
 
-func (a FuncDeclarationFsm) Boolean(v bool) Fsm {
+func (a FuncDeclarationState) Boolean(v bool) Fsm {
 	panic("implement me")
 }
 
-func (a FuncDeclarationFsm) String(s string) Fsm {
+func (a FuncDeclarationState) String(s string) Fsm {
 	panic("implement me")
 }
 
-func (a FuncDeclarationFsm) Condition() Fsm {
+func (a FuncDeclarationState) Condition() Fsm {
 	return conditionalTransition(a, a.params)
 }
 
-func (a FuncDeclarationFsm) TrueBranch() Fsm {
+func (a FuncDeclarationState) TrueBranch() Fsm {
 	panic("implement me")
 }
 
-func (a FuncDeclarationFsm) FalseBranch() Fsm {
+func (a FuncDeclarationState) FalseBranch() Fsm {
 	panic("implement me")
 }
 
-func (a FuncDeclarationFsm) Bytes(b []byte) Fsm {
+func (a FuncDeclarationState) Bytes(b []byte) Fsm {
 	panic("implement me")
 }
 
-func (a FuncDeclarationFsm) FuncDeclaration(name string, args []string) Fsm {
-	panic("Illegal call `FuncDeclaration` is `FuncDeclarationFsm`")
+func (a FuncDeclarationState) FuncDeclaration(name string, args []string) Fsm {
+	panic("Illegal call `FuncDeclaration` is `FuncDeclarationState`")
 }

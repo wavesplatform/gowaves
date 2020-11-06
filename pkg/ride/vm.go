@@ -65,16 +65,14 @@ func newFrameContext(pos int, context args, future args) frame {
 type args = []int
 
 type vm struct {
-	env       RideEnvironment
-	code      []byte
-	ip        int
-	constants []rideType
-	functions func(int) rideFunction
-	globals   func(int) rideConstructor
-	stack     []rideType
-	//calls        []frame
+	env          RideEnvironment
+	code         []byte
+	ip           int
+	constants    []rideType
+	functions    func(int) rideFunction
+	globals      func(int) rideConstructor
+	stack        []rideType
 	functionName func(int) string
-	context      []args
 	jpms         []int
 	mem          map[uint16]uint16
 }
@@ -83,13 +81,7 @@ func (m *vm) run() (RideResult, error) {
 	if m.stack != nil {
 		m.stack = m.stack[0:0]
 	}
-	// set context, current and future
-	m.context = append(m.context, args{}, args{})
 	m.mem = make(map[uint16]uint16)
-	//if m.calls != nil {
-	//	m.calls = m.calls[0:0]
-	//}
-	//m.ip = 0
 	for m.ip < len(m.code) {
 		op := m.code[m.ip]
 		m.ip++
@@ -107,10 +99,8 @@ func (m *vm) run() (RideResult, error) {
 			m.push(rideBoolean(false))
 		case OpJump:
 			pos := m.arg16()
-			//current := m.ip
 			m.jpms = append(m.jpms, m.ip)
 			m.ip = pos
-			//m.calls = append(m.calls, newExpressionFrame(current))
 		case OpJumpIfFalse:
 			pos := m.arg16()
 			val, err := m.pop()
@@ -143,7 +133,6 @@ func (m *vm) run() (RideResult, error) {
 			pos := m.arg16()
 			m.jpms = append(m.jpms, m.ip)
 			m.ip = pos
-			m.context = append(m.context, args{})
 
 		case OpExternalCall:
 			// Before calling external function all parameters must be evaluated and placed on stack
@@ -166,25 +155,6 @@ func (m *vm) run() (RideResult, error) {
 				return nil, err
 			}
 			m.push(res)
-		//case OpLoad: // Evaluate expression behind a LET declaration
-		//	pos := m.arg16()
-		//	frame := newExpressionFrame(m.ip) // Creating new function frame with return position
-		//	m.calls = append(m.calls, frame)
-		//	m.ip = pos // Continue to expression
-		//case OpLoadLocal:
-		//	n := m.arg16()
-		//	for i := len(m.calls) - 1; i >= 0; i-- {
-		//
-		//	}
-		//	l := len(m.calls)
-		//	if l == 0 {
-		//		return nil, errors.New("failed to load argument on stack")
-		//	}
-		//	frame := m.calls[l-1]
-		//	if l := len(frame.args); l < n+1 {
-		//		return nil, errors.New("invalid arguments count")
-		//	}
-		//	m.push(frame.args[n])
 		case OpReturn:
 			l := len(m.jpms)
 			if l == 0 {
@@ -202,32 +172,9 @@ func (m *vm) run() (RideResult, error) {
 				}
 				return nil, errors.New("no result after script execution")
 			}
-			//var f frame
 			m.ip, m.jpms = m.jpms[l-1], m.jpms[:l-1]
-			//m.ip = m.jpms[l-1]
-			//m.context = f.context
-			//m.args = f.future
-		//case OpHalt:
-		//	if len(m.stack) > 0 {
-		//		v, err := m.pop()
-		//		if err != nil {
-		//			return nil, errors.Wrap(err, "failed to get result value")
-		//		}
-		//		switch tv := v.(type) {
-		//		case rideBoolean:
-		//			return ScriptResult{res: bool(tv)}, nil
-		//		default:
-		//			return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
-		//		}
-		//	}
-		//	return nil, errors.New("no result after script execution")
-		case OpGlobal:
-			id := m.arg16()
-			constructor := m.globals(id)
-			v := constructor(m.env)
-			m.push(v)
 
-		case OpPushArg:
+		case OpSetArg:
 			id := m.arg16()
 			value := m.arg16()
 			m.mem[uint16(id)] = uint16(value)
@@ -243,16 +190,6 @@ func (m *vm) run() (RideResult, error) {
 	}
 	return nil, errors.New("broken code")
 }
-
-//func (m *vm) goTo(pos int) {
-//	f := m.nextFrame
-//	f.back = pos
-//
-//	m.calls = append(m.calls, f)
-//	m.ip = pos // Continue to function
-//	m.args = m.curFrame
-//	m.curFrame = m.nextFrame
-//}
 
 func (m *vm) push(v rideType) constid {
 	m.stack = append(m.stack, v)
@@ -283,24 +220,3 @@ func (m *vm) constant() rideType {
 	//TODO: add check
 	return m.constants[m.arg16()]
 }
-
-//func (m *vm) scope() (*frame, int) {
-//	n := len(m.calls) - 1
-//	if n < 0 {
-//		return nil, n
-//	}
-//	return &m.calls[n], n
-//}
-
-//func (m *vm) resolve(name string) (int, error) {
-//	_ = name
-//	//TODO: implement
-//	return 0, errors.New("not implemented")
-//}
-
-//func (m *vm) returnPosition() int {
-//	if l := len(m.calls); l > 0 {
-//		return m.calls[l-1].back
-//	}
-//	return len(m.code)
-//}

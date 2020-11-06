@@ -3,7 +3,7 @@ package ride
 import "fmt"
 
 // Function call
-type CallSystemFsm struct {
+type CallSystemState struct {
 	prev Fsm
 	params
 	name string
@@ -12,42 +12,35 @@ type CallSystemFsm struct {
 	argn []uint16
 }
 
-func property(f Fsm, p params, name string) Fsm {
-	p.b.writeByte(OpProperty)
-	index := p.c.put(rideString(name))
-	p.b.push(index)
-	return f
+func (a CallSystemState) Property(name string) Fsm {
+	return propertyTransition(a, a.params, name)
 }
 
-func (a CallSystemFsm) Property(name string) Fsm {
-	return property(a, a.params, name)
-}
-
-func (a CallSystemFsm) FuncDeclaration(name string, args []string) Fsm {
+func (a CallSystemState) FuncDeclaration(name string, args []string) Fsm {
 	return funcDeclarationFsmTransition(a, a.params, name, args)
 }
 
-func (a CallSystemFsm) Bytes(b []byte) Fsm {
+func (a CallSystemState) Bytes(b []byte) Fsm {
 	return constant(a, a.params, rideBytes(b))
 }
 
-func (a CallSystemFsm) Condition() Fsm {
+func (a CallSystemState) Condition() Fsm {
 	return conditionalTransition(a, a.params)
 }
 
-func (a CallSystemFsm) TrueBranch() Fsm {
+func (a CallSystemState) TrueBranch() Fsm {
 	panic("Illegal call `TrueBranch` on CallFsm")
 }
 
-func (a CallSystemFsm) FalseBranch() Fsm {
+func (a CallSystemState) FalseBranch() Fsm {
 	panic("Illegal call `FalseBranch` on CallFsm")
 }
 
-func (a CallSystemFsm) String(s string) Fsm {
+func (a CallSystemState) String(s string) Fsm {
 	return str(a, a.params, s)
 }
 
-func (a CallSystemFsm) Boolean(v bool) Fsm {
+func (a CallSystemState) Boolean(v bool) Fsm {
 	return boolean(a, a.params, v)
 }
 
@@ -59,7 +52,7 @@ func callTransition(prev Fsm, params params, name string, argc uint16) Fsm {
 }
 
 func newCallSystemFsm(prev Fsm, params params, name string, argc uint16) Fsm {
-	return &CallSystemFsm{
+	return &CallSystemState{
 		prev:   prev,
 		params: params,
 		name:   name,
@@ -67,24 +60,24 @@ func newCallSystemFsm(prev Fsm, params params, name string, argc uint16) Fsm {
 	}
 }
 
-func (a CallSystemFsm) Assigment(name string) Fsm {
+func (a CallSystemState) Assigment(name string) Fsm {
 	return assigmentFsmTransition(a, a.params, name)
 }
 
-func (a CallSystemFsm) Long(value int64) Fsm {
+func (a CallSystemState) Long(value int64) Fsm {
 	index := a.params.c.put(rideInt(value))
 	a.params.b.push(index)
 	return a
 }
 
-func (a CallSystemFsm) Return() Fsm {
+func (a CallSystemState) Return() Fsm {
 
 	//// check user functions
 	//n, ok := a.r.get(a.name)
 	//if ok {
 	//	a.b.startPos()
 	//	for _, pos := range a.argn {
-	//		a.b.writeByte(OpPushArg)
+	//		a.b.writeByte(OpSetArg)
 	//		a.b.write(encode(pos))
 	//		//a.b.writeByte(OpReturn)
 	//	}
@@ -110,10 +103,10 @@ func (a CallSystemFsm) Return() Fsm {
 	return a.prev
 }
 
-func (a CallSystemFsm) Call(name string, argc uint16) Fsm {
+func (a CallSystemState) Call(name string, argc uint16) Fsm {
 	return callTransition(a, a.params, name, argc)
 }
 
-func (a CallSystemFsm) Reference(name string) Fsm {
+func (a CallSystemState) Reference(name string) Fsm {
 	return reference(a, a.params, name)
 }

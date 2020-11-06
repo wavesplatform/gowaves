@@ -3,7 +3,7 @@ package ride
 import "fmt"
 
 // Function call
-type CallUserFsm struct {
+type CallUserState struct {
 	prev Fsm
 	params
 	name string
@@ -12,35 +12,35 @@ type CallUserFsm struct {
 	argn []uint16
 }
 
-func (a CallUserFsm) Property(name string) Fsm {
-	panic("CallUserFsm Property")
+func (a CallUserState) Property(name string) Fsm {
+	panic("CallUserState Property")
 }
 
-func (a CallUserFsm) FuncDeclaration(name string, args []string) Fsm {
+func (a CallUserState) FuncDeclaration(name string, args []string) Fsm {
 	return funcDeclarationFsmTransition(a, a.params, name, args)
 }
 
-func (a CallUserFsm) Bytes(b []byte) Fsm {
+func (a CallUserState) Bytes(b []byte) Fsm {
 	return constant(a, a.params, rideBytes(b))
 }
 
-func (a CallUserFsm) Condition() Fsm {
+func (a CallUserState) Condition() Fsm {
 	return conditionalTransition(a, a.params)
 }
 
-func (a CallUserFsm) TrueBranch() Fsm {
+func (a CallUserState) TrueBranch() Fsm {
 	panic("Illegal call `TrueBranch` on CallFsm")
 }
 
-func (a CallUserFsm) FalseBranch() Fsm {
+func (a CallUserState) FalseBranch() Fsm {
 	panic("Illegal call `FalseBranch` on CallFsm")
 }
 
-func (a CallUserFsm) String(s string) Fsm {
+func (a CallUserState) String(s string) Fsm {
 	return str(a, a.params, s)
 }
 
-func (a CallUserFsm) Boolean(v bool) Fsm {
+func (a CallUserState) Boolean(v bool) Fsm {
 	pos := a.b.len()
 	a.b.writeByte(OpTrue)
 	a.argn = append(a.argn, pos)
@@ -53,7 +53,7 @@ func (a CallUserFsm) Boolean(v bool) Fsm {
 //}
 
 func newCallUserFsm(prev Fsm, params params, name string, argc uint16) Fsm {
-	return &CallUserFsm{
+	return &CallUserState{
 		prev:   prev,
 		params: params,
 		name:   name,
@@ -61,11 +61,11 @@ func newCallUserFsm(prev Fsm, params params, name string, argc uint16) Fsm {
 	}
 }
 
-func (a CallUserFsm) Assigment(name string) Fsm {
+func (a CallUserState) Assigment(name string) Fsm {
 	return assigmentFsmTransition(a, a.params, name)
 }
 
-func (a CallUserFsm) Long(value int64) Fsm {
+func (a CallUserState) Long(value int64) Fsm {
 	pos := a.b.len()
 	index := a.params.c.put(rideInt(value))
 	a.params.b.push(index)
@@ -74,47 +74,31 @@ func (a CallUserFsm) Long(value int64) Fsm {
 	return a
 }
 
-func (a CallUserFsm) Return() Fsm {
-
+func (a CallUserState) Return() Fsm {
 	// check user functions
 	n, ok := a.r.get(a.name)
 	if !ok {
 		panic(fmt.Sprintf("user function `%s` not found", a.name))
 	}
-	//if ok {
 	a.b.startPos()
 	for i, pos := range a.argn {
-		a.b.writeByte(OpPushArg)
+		a.b.writeByte(OpSetArg)
 		uniqid, ok := a.r.get(fmt.Sprintf("%s$%d", a.name, i))
 		if !ok {
 			panic(fmt.Sprintf("no function param id `%s` stored in references", fmt.Sprintf("%s$%d", a.name, i)))
 		}
 		a.b.write(encode(uniqid))
 		a.b.write(encode(pos))
-		//a.b.writeByte(OpReturn)
 	}
 
 	a.b.call(n, a.argc)
 	return a.prev
-	//}
-
-	//a.b.startPos()
-	//n, ok = a.f(a.name)
-	//if !ok {
-	//	panic(fmt.Sprintf("function named %s not found", a.name))
-	//}
-	//for _, pos := range a.argn {
-	//	a.b.writeByte(OpJump)
-	//	a.b.write(encode(pos))
-	//}
-	//a.b.externalCall(n, a.argc)
-	//return a.prev
 }
 
-func (a CallUserFsm) Call(name string, argc uint16) Fsm {
+func (a CallUserState) Call(name string, argc uint16) Fsm {
 	return callTransition(a, a.params, name, argc)
 }
 
-func (a CallUserFsm) Reference(name string) Fsm {
+func (a CallUserState) Reference(name string) Fsm {
 	return reference(a, a.params, name)
 }

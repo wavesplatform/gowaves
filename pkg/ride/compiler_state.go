@@ -60,6 +60,12 @@ func boolean(f Fsm, params params, value bool) Fsm {
 	return f
 }
 
+func bts(f Fsm, params params, value []byte) Fsm {
+	index := params.c.put(rideBytes(value))
+	params.b.push(index)
+	return f
+}
+
 func str(a Fsm, params params, s string) Fsm {
 	index := params.c.put(rideString(s))
 	params.b.push(index)
