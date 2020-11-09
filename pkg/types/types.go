@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -39,6 +40,8 @@ type SmartState interface {
 	NewestTransactionByID([]byte) (proto.Transaction, error)
 	NewestTransactionHeightByID([]byte) (uint64, error)
 
+	InvokeFunctionFromDApp(*ride.Tree, proto.Arguments) (bool, []proto.ScriptAction, error)
+	//TODO (args, name, ...)
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error)

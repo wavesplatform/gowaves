@@ -13,19 +13,17 @@ func CallVerifier(env RideEnvironment, tree *Tree) (RideResult, error) {
 	return e.evaluate()
 }
 
-func processCallDApp(args proto.Arguments) {
-	dappAdress := args[0]
-	funcName := args[1]
-	args := args[2:]
-
-
-
+func invokeFunctionFromDApp(rideEnv RideEnvironment, tree *Tree, args proto.Arguments) (bool, error) {
+	rideEnv.state().InvokeFunctionFromDApp(tree, args)
+	// TODO
+	return true, nil
 }
 
 func CallFunction(env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
+
 	if name == "callDApp" {
-		processCallDApp(args)
-		//return
+		invokeFunctionFromDApp(env, tree, args)
+		// return
 	}
 	if name == "" {
 		name = "default"

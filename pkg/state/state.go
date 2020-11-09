@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -462,6 +463,84 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	}
 	state.checkProtobufActivation(h + 1)
 	return state, nil
+}
+
+type dAppFunction struct {
+	dAppAddress proto.Address
+	function    proto.FunctionCall
+	args        proto.Arguments
+}
+
+func invokeFunc(a *scriptCaller, tree *ride.Tree, dAppFuncCall dAppFunction) (bool, []proto.ScriptAction, error) {
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
+	if err != nil {
+		return false, nil, errors.Wrap(err, "failed to create RIDE environment")
+	}
+	env.SetThisFromAddress(dAppFuncCall.dAppAddress)
+	// env.SetLastBlock(lastBlockInfo)
+	//err = env.SetTransaction(tx)
+	//if err != nil {
+	//	return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+	//}
+	//err = env.SetInvoke(tx, tree.LibVersion)
+	//if err != nil {
+	//	return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+	//}
+	env.ChooseSizeCheck(tree.LibVersion)
+	r, err := ride.CallFunction(env, tree, dAppFuncCall.function.Name, dAppFuncCall.args)
+	if err != nil {
+		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", dAppFuncCall.function.Name)
+	}
+	if sr, ok := r.(ride.ScriptResult); ok {
+		return false, nil, errors.Errorf("unexpected ScriptResult: %v", sr)
+	}
+	// Increase complexity.
+	ev, err := a.state.EstimatorVersion()
+	if err != nil {
+		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", dAppFuncCall.function.Name)
+	}
+	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(dAppFuncCall.dAppAddress, ev, false)
+	if err != nil {
+		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", dAppFuncCall.function.Name)
+	}
+	fn := dAppFuncCall.function.Name
+	if fn == "" && dAppFuncCall.function.Default {
+		fn = "default"
+	}
+	c, ok := est.Functions[fn]
+	if !ok {
+		return false, nil, errors.Errorf("no estimation for function '%s' on invocation", fn)
+	}
+	a.recentTxComplexity += uint64(c)
+	err = nil
+	if !r.Result() { // Replace failure status with an error
+		err = errors.Errorf("call failed: %s", r.UserError())
+	}
+	return true, r.ScriptActions(), err
+}
+
+func (s *stateManager) InvokeFunctionFromDApp(tree *ride.Tree, args proto.Arguments) (bool, []proto.ScriptAction, error) {
+	binaryAddr, err := args[0].MarshalBinary()
+	if err != nil {
+		return false, nil, errors.Errorf("Failed to marshal binaryAddr")
+	}
+	binaryFunctionNameFromDApp, err := args[1].MarshalBinary()
+	if err != nil {
+		return false, nil, errors.Errorf("Failed to marshal fn name")
+	}
+	argsForFnFromDApp := args[2:]
+
+	scriptAddress, err := proto.NewAddressFromBytes(binaryAddr)
+	if err != nil {
+		return false, nil, errors.Errorf("Failed to get dApp adress from bytes")
+	}
+	newFn := proto.FunctionCall{}
+	newFn.UnmarshalBinary(binaryFunctionNameFromDApp)
+
+	dAppFuncCall := dAppFunction{dAppAddress: scriptAddress, function: newFn, args: argsForFnFromDApp}
+
+	return invokeFunc(s.appender.sc, tree, dAppFuncCall)
+
 }
 
 func (s *stateManager) Mutex() *lock.RwMutex {
