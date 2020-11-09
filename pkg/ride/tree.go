@@ -181,3 +181,7 @@ func (t *Tree) HasVerifier() bool {
 func (t *Tree) IsDApp() bool {
 	return t.AppVersion != scriptApplicationVersion
 }
+
+func (t *Tree) GetTree() *Tree {
+	return t
+}

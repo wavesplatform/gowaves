@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/types/rideTypes"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -471,7 +472,7 @@ type dAppFunction struct {
 	args        proto.Arguments
 }
 
-func invokeFunc(a *scriptCaller, tree *ride.Tree, dAppFuncCall dAppFunction) (bool, []proto.ScriptAction, error) {
+func invokeFunc(a *scriptCaller, tree rideTypes.Tree, dAppFuncCall dAppFunction) (bool, []proto.ScriptAction, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "failed to create RIDE environment")
@@ -486,8 +487,8 @@ func invokeFunc(a *scriptCaller, tree *ride.Tree, dAppFuncCall dAppFunction) (bo
 	//if err != nil {
 	//	return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	//}
-	env.ChooseSizeCheck(tree.LibVersion)
-	r, err := ride.CallFunction(env, tree, dAppFuncCall.function.Name, dAppFuncCall.args)
+	env.ChooseSizeCheck(tree.GetTree().LibVersion)
+	r, err := ride.CallFunction(env, tree.GetTree(), dAppFuncCall.function.Name, dAppFuncCall.args)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", dAppFuncCall.function.Name)
 	}
@@ -519,7 +520,7 @@ func invokeFunc(a *scriptCaller, tree *ride.Tree, dAppFuncCall dAppFunction) (bo
 	return true, r.ScriptActions(), err
 }
 
-func (s *stateManager) InvokeFunctionFromDApp(tree *ride.Tree, args proto.Arguments) (bool, []proto.ScriptAction, error) {
+func (s *stateManager) InvokeFunctionFromDApp(tree rideTypes.Tree, args proto.Arguments) (bool, []proto.ScriptAction, error) {
 	binaryAddr, err := args[0].MarshalBinary()
 	if err != nil {
 		return false, nil, errors.Errorf("Failed to marshal binaryAddr")
@@ -538,8 +539,7 @@ func (s *stateManager) InvokeFunctionFromDApp(tree *ride.Tree, args proto.Argume
 	newFn.UnmarshalBinary(binaryFunctionNameFromDApp)
 
 	dAppFuncCall := dAppFunction{dAppAddress: scriptAddress, function: newFn, args: argsForFnFromDApp}
-
-	return invokeFunc(s.appender.sc, tree, dAppFuncCall)
+	return invokeFunc(s.appender.sc, tree.GetTree(), dAppFuncCall)
 
 }
 
