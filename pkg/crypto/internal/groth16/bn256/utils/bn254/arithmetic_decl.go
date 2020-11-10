@@ -1,4 +1,16 @@
+// +build amd64,!generic
+
 package bn254
+
+import "golang.org/x/sys/cpu"
+
+func init() {
+	if !cpu.X86.HasADX || !cpu.X86.HasBMI2 {
+		mul = mulNoADX
+	}
+}
+
+var mul func(c, a, b *fe) = mulNoADX
 
 func square(c, a *fe) {
 	mul(c, a, a)
@@ -40,4 +52,7 @@ func double(c, a *fe)
 func doubleAssign(a *fe)
 
 //go:noescape
-func mul(c, a, b *fe)
+func mulNoADX(c, a, b *fe)
+
+//go:noescape
+func mulADX(c, a, b *fe)
