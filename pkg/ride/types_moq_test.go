@@ -7,7 +7,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/types/rideTypes"
 	"sync"
 )
 
@@ -245,7 +244,7 @@ type MockSmartState struct {
 	lockRetrieveNewestStringEntry   sync.RWMutex
 }
 
-func (mock *MockSmartState) InvokeFunctionFromDApp(tree rideTypes.Tree, arguments proto.Arguments) (bool, []proto.ScriptAction, error) {
+func (mock *MockSmartState) InvokeFunctionFromDApp(p proto.Address, call proto.FunctionCall) (bool, []proto.ScriptAction, error) {
 	panic("implement me")
 }
 

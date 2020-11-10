@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/ride"
-	"github.com/wavesplatform/gowaves/pkg/types/rideTypes"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -466,18 +465,18 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
-type dAppFunction struct {
+type Invoke struct {
 	dAppAddress proto.Address
 	function    proto.FunctionCall
-	args        proto.Arguments
 }
 
-func invokeFunc(a *scriptCaller, tree rideTypes.Tree, dAppFuncCall dAppFunction) (bool, []proto.ScriptAction, error) {
+func invokeFunc(a *scriptCaller, invoke Invoke, tree *ride.Tree) (bool, []proto.ScriptAction, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "failed to create RIDE environment")
 	}
-	env.SetThisFromAddress(dAppFuncCall.dAppAddress)
+
+	env.SetThisFromAddress(invoke.dAppAddress)
 	// env.SetLastBlock(lastBlockInfo)
 	//err = env.SetTransaction(tx)
 	//if err != nil {
@@ -487,10 +486,10 @@ func invokeFunc(a *scriptCaller, tree rideTypes.Tree, dAppFuncCall dAppFunction)
 	//if err != nil {
 	//	return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	//}
-	env.ChooseSizeCheck(tree.GetTree().LibVersion)
-	r, err := ride.CallFunction(env, tree.GetTree(), dAppFuncCall.function.Name, dAppFuncCall.args)
+	env.ChooseSizeCheck(tree.LibVersion)
+	r, err := ride.CallFunction(env, tree, invoke.function.Name, invoke.function.Arguments)
 	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", dAppFuncCall.function.Name)
+		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", invoke.function.Name)
 	}
 	if sr, ok := r.(ride.ScriptResult); ok {
 		return false, nil, errors.Errorf("unexpected ScriptResult: %v", sr)
@@ -498,14 +497,14 @@ func invokeFunc(a *scriptCaller, tree rideTypes.Tree, dAppFuncCall dAppFunction)
 	// Increase complexity.
 	ev, err := a.state.EstimatorVersion()
 	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", dAppFuncCall.function.Name)
+		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", invoke.function.Name)
 	}
-	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(dAppFuncCall.dAppAddress, ev, false)
+	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(invoke.dAppAddress, ev, false)
 	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", dAppFuncCall.function.Name)
+		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", invoke.function.Name)
 	}
-	fn := dAppFuncCall.function.Name
-	if fn == "" && dAppFuncCall.function.Default {
+	fn := invoke.function.Name
+	if fn == "" && invoke.function.Default {
 		fn = "default"
 	}
 	c, ok := est.Functions[fn]
@@ -520,27 +519,13 @@ func invokeFunc(a *scriptCaller, tree rideTypes.Tree, dAppFuncCall dAppFunction)
 	return true, r.ScriptActions(), err
 }
 
-func (s *stateManager) InvokeFunctionFromDApp(tree rideTypes.Tree, args proto.Arguments) (bool, []proto.ScriptAction, error) {
-	binaryAddr, err := args[0].MarshalBinary()
+func (s *stateManager) InvokeFunctionFromDApp(address proto.Address, fn proto.FunctionCall) (bool, []proto.ScriptAction, error) {
+	invoke := Invoke{dAppAddress: address, function: fn}
+	tree, err := s.stor.scriptsStorage.newestScriptByAddr(address, false)
 	if err != nil {
-		return false, nil, errors.Errorf("Failed to marshal binaryAddr")
+		return false, nil, errors.Wrapf(err, "Failed to get tree: called newestScriptByAddr")
 	}
-	binaryFunctionNameFromDApp, err := args[1].MarshalBinary()
-	if err != nil {
-		return false, nil, errors.Errorf("Failed to marshal fn name")
-	}
-	argsForFnFromDApp := args[2:]
-
-	scriptAddress, err := proto.NewAddressFromBytes(binaryAddr)
-	if err != nil {
-		return false, nil, errors.Errorf("Failed to get dApp adress from bytes")
-	}
-	newFn := proto.FunctionCall{}
-	newFn.UnmarshalBinary(binaryFunctionNameFromDApp)
-
-	dAppFuncCall := dAppFunction{dAppAddress: scriptAddress, function: newFn, args: argsForFnFromDApp}
-	return invokeFunc(s.appender.sc, tree.GetTree(), dAppFuncCall)
-
+	return invokeFunc(s.appender.sc, invoke, tree)
 }
 
 func (s *stateManager) Mutex() *lock.RwMutex {
