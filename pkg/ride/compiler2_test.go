@@ -3,6 +3,8 @@ package ride
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -259,7 +261,6 @@ func TestDoubleCall(t *testing.T) {
 	require.Equal(t,
 		[]byte{
 			OpPush, 0, 0,
-			OpPopCtx,
 			OpReturn,
 
 			OpCall, 0, 0,
@@ -300,10 +301,11 @@ func TestCallWithConstArg(t *testing.T) {
 		[]byte{
 			OpUseArg, 0, 1, OpReturn, // arguments section
 			OpJump, 0, 0, // Function execution code. One line: reference to `v` argument.
-			OpPopCtx,
 			OpReturn,
 
-			OpTrue, OpReturn,
+			OpTrue, OpReturn, // define constant
+
+			// call function
 			OpSetArg, 0, 1, 0, 9,
 			OpCall, 0, 4,
 
@@ -314,4 +316,206 @@ func TestCallWithConstArg(t *testing.T) {
 	rs, err := f.Run(nil)
 	require.NoError(t, err)
 	require.Equal(t, true, rs.Result())
+}
+
+/*
+
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE DAPP #-}
+
+
+@Callable(i)
+func deposit () = {
+    let pmt = extract(i.payment)
+    if (isDefined(pmt.assetId))
+        then throw("can hold waves only at the moment")
+        else {
+            let currentKey = toBase58String(i.caller.bytes)
+            let currentAmount =             match getInteger(this, currentKey) {
+                case a: Int =>
+                    a
+                case _ =>
+                    0
+            }
+            let newAmount = (currentAmount + pmt.amount)
+            WriteSet([DataEntry(currentKey, newAmount)])
+            }
+    }
+
+
+
+@Callable(i)
+func withdraw (amount) = {
+    let currentKey = toBase58String(i.caller.bytes)
+    let currentAmount =     match getInteger(this, currentKey) {
+        case a: Int =>
+            a
+        case _ =>
+            0
+    }
+    let newAmount = (currentAmount - amount)
+    if ((0 > amount))
+        then throw("Can't withdraw negative amount")
+        else if ((0 > newAmount))
+            then throw("Not enough balance")
+            else ScriptResult(WriteSet([DataEntry(currentKey, newAmount)]), TransferSet([ScriptTransfer(i.caller, amount, unit)]))
+    }
+
+
+@Verifier(tx)
+func verify () = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+
+*/
+
+func TestCompileDapp(t *testing.T) {
+	source := "AAIDAAAAAAAAAAkIARIAEgMKAQEAAAAAAAAAAgAAAAFpAQAAAAdkZXBvc2l0AAAAAAQAAAADcG10CQEAAAAHZXh0cmFjdAAAAAEIBQAAAAFpAAAAB3BheW1lbnQDCQEAAAAJaXNEZWZpbmVkAAAAAQgFAAAAA3BtdAAAAAdhc3NldElkCQAAAgAAAAECAAAAIWNhbiBob2xkIHdhdmVzIG9ubHkgYXQgdGhlIG1vbWVudAQAAAAKY3VycmVudEtleQkAAlgAAAABCAgFAAAAAWkAAAAGY2FsbGVyAAAABWJ5dGVzBAAAAA1jdXJyZW50QW1vdW50BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAACmN1cnJlbnRLZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAA0ludAQAAAABYQUAAAAHJG1hdGNoMAUAAAABYQAAAAAAAAAAAAQAAAAJbmV3QW1vdW50CQAAZAAAAAIFAAAADWN1cnJlbnRBbW91bnQIBQAAAANwbXQAAAAGYW1vdW50CQEAAAAIV3JpdGVTZXQAAAABCQAETAAAAAIJAQAAAAlEYXRhRW50cnkAAAACBQAAAApjdXJyZW50S2V5BQAAAAluZXdBbW91bnQFAAAAA25pbAAAAAFpAQAAAAh3aXRoZHJhdwAAAAEAAAAGYW1vdW50BAAAAApjdXJyZW50S2V5CQACWAAAAAEICAUAAAABaQAAAAZjYWxsZXIAAAAFYnl0ZXMEAAAADWN1cnJlbnRBbW91bnQEAAAAByRtYXRjaDAJAAQaAAAAAgUAAAAEdGhpcwUAAAAKY3VycmVudEtleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAFhBQAAAAckbWF0Y2gwBQAAAAFhAAAAAAAAAAAABAAAAAluZXdBbW91bnQJAABlAAAAAgUAAAANY3VycmVudEFtb3VudAUAAAAGYW1vdW50AwkAAGYAAAACAAAAAAAAAAAABQAAAAZhbW91bnQJAAACAAAAAQIAAAAeQ2FuJ3Qgd2l0aGRyYXcgbmVnYXRpdmUgYW1vdW50AwkAAGYAAAACAAAAAAAAAAAABQAAAAluZXdBbW91bnQJAAACAAAAAQIAAAASTm90IGVub3VnaCBiYWxhbmNlCQEAAAAMU2NyaXB0UmVzdWx0AAAAAgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgUAAAAKY3VycmVudEtleQUAAAAJbmV3QW1vdW50BQAAAANuaWwJAQAAAAtUcmFuc2ZlclNldAAAAAEJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyBQAAAAZhbW91bnQFAAAABHVuaXQFAAAAA25pbAAAAAEAAAACdHgBAAAABnZlcmlmeQAAAAAJAAH0AAAAAwgFAAAAAnR4AAAACWJvZHlCeXRlcwkAAZEAAAACCAUAAAACdHgAAAAGcHJvb2ZzAAAAAAAAAAAACAUAAAACdHgAAAAPc2VuZGVyUHVibGljS2V54232jg=="
+	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+		return byte_helpers.TransferWithProofs.Transaction, nil
+	}}
+	env := &MockRideEnvironment{
+		transactionFunc: testTransferObject,
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		schemeFunc: func() byte {
+			return 'T'
+		},
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+	}
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileSimpleScript(tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	res, err := script.Run(env)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+	r, ok := res.(ScriptResult)
+	assert.True(t, ok)
+	assert.Equal(t, true, r.Result())
+}
+
+/*
+
+
+base64:AwoBAAAAAWYAAAABAAAAA2tleQQAAAAHJG1hdGNoMAkABBwAAAACBQAAAAR0aGlzBQAAAANrZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAACkJ5dGVWZWN0b3IEAAAAAWEFAAAAByRtYXRjaDAAAAAAAAAAAAEAAAAAAAAAAAAEAAAAAWEJAQAAAAFmAAAAAQIAAAABYQQAAAABYgkBAAAAAWYAAAABAgAAAAFiBAAAAAFjCQEAAAABZgAAAAECAAAAAWMEAAAAAWQJAQAAAAFmAAAAAQIAAAABZAQAAAABZQkBAAAAAWYAAAABAgAAAAFlAwkAAAAAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIFAAAAAWEFAAAAAWIFAAAAAWMFAAAAAWQFAAAAAWUAAAAAAAAAAAUJAAH0AAAAAwgFAAAAAnR4AAAACWJvZHlCeXRlcwkAAZEAAAACCAUAAAACdHgAAAAGcHJvb2ZzAAAAAAAAAAAACAUAAAACdHgAAAAPc2VuZGVyUHVibGljS2V5B4xspLY=
+
+
+*/
+
+func Test2121(t *testing.T) {
+	source := `AwoBAAAAAWYAAAABAAAAA2tleQQAAAAHJG1hdGNoMAkABBwAAAACBQAAAAR0aGlzBQAAAANrZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAACkJ5dGVWZWN0b3IEAAAAAWEFAAAAByRtYXRjaDAAAAAAAAAAAAEAAAAAAAAAAAAEAAAAAWEJAQAAAAFmAAAAAQIAAAABYQQAAAABYgkBAAAAAWYAAAABAgAAAAFiBAAAAAFjCQEAAAABZgAAAAECAAAAAWMEAAAAAWQJAQAAAAFmAAAAAQIAAAABZAQAAAABZQkBAAAAAWYAAAABAgAAAAFlAwkAAAAAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIFAAAAAWEFAAAAAWIFAAAAAWMFAAAAAWQFAAAAAWUAAAAAAAAAAAUJAAH0AAAAAwgFAAAAAnR4AAAACWJvZHlCeXRlcwkAAZEAAAACCAUAAAACdHgAAAAGcHJvb2ZzAAAAAAAAAAAACAUAAAACdHgAAAAPc2VuZGVyUHVibGljS2V5B4xspLY=`
+	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+		return byte_helpers.TransferWithProofs.Transaction, nil
+	}}
+	env := &MockRideEnvironment{
+		transactionFunc: testTransferObject,
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		schemeFunc: func() byte {
+			return 'T'
+		},
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+		thisFunc: func() rideType {
+			return testTransferObject()
+		},
+	}
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	t.Log(detree(tree.Verifier))
+
+	script, err := CompileSimpleScript(tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	res, err := script.Run(env)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+	r, ok := res.(ScriptResult)
+	assert.True(t, ok)
+	assert.Equal(t, true, r.Result())
+}
+
+func detree(tree Node) string {
+	s := &strings.Builder{}
+	detree_(s, tree, 0)
+	return s.String()
+}
+
+func detree_(s *strings.Builder, tree Node, shift int) {
+	switch n := tree.(type) {
+	case *FunctionDeclarationNode:
+		s.WriteString(fmt.Sprintf("func %s(", n.Name))
+		for _, a := range n.Arguments {
+			s.WriteString(a)
+			s.WriteString(",")
+		}
+		s.WriteString(") {\n")
+		s.WriteString(strings.Repeat(" ", shift+1))
+		detree_(s, n.Body, shift+1)
+		s.WriteString("}\n")
+		detree_(s, n.Block, shift)
+
+	case *AssignmentNode:
+		s.WriteString(fmt.Sprintf("let %s = ", n.Name))
+		detree_(s, n.Expression, shift)
+		s.WriteString("\n")
+		detree_(s, n.Block, shift)
+
+	case *ConditionalNode:
+		s.WriteString(strings.Repeat(" ", shift*4))
+		s.WriteString(fmt.Sprintf("if ("))
+		detree_(s, n.Condition, shift)
+		s.WriteString(") {\n")
+		s.WriteString(strings.Repeat(" ", (shift+1)*4))
+		detree_(s, n.TrueExpression, shift+1)
+		s.WriteString("} else {\n")
+		s.WriteString(strings.Repeat(" ", (shift+1)*4))
+		detree_(s, n.FalseExpression, shift+1)
+		s.WriteString("}\n")
+	case *FunctionCallNode:
+		s.WriteString(n.Name)
+		s.WriteString("(")
+		for _, a := range n.Arguments {
+			detree_(s, a, shift)
+			s.WriteString(",")
+		}
+		s.WriteString(")")
+	case *ReferenceNode:
+		s.WriteString(n.Name)
+	case *StringNode:
+		s.WriteString(`"`)
+		s.WriteString(n.Value)
+		s.WriteString(`"`)
+	case *PropertyNode:
+		detree_(s, n.Object, shift)
+		s.WriteString(".")
+		s.WriteString(n.Name)
+	case *BooleanNode:
+		s.WriteString(fmt.Sprintf("%t", n.Value))
+	case *LongNode:
+		s.WriteString(fmt.Sprintf("%d", n.Value))
+	default:
+		panic(fmt.Sprintf("unknown type %T", n))
+	}
+	//return s.String()
 }

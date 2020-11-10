@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"go.uber.org/zap"
 )
 
 type scriptCaller struct {
@@ -103,6 +104,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
+	zap.S().Debug(tx.GetID(a.settings.AddressSchemeCharacter))
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))

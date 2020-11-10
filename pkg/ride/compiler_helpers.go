@@ -145,33 +145,50 @@ type predefFunc struct {
 	f  rideFunction
 }
 
-type predef map[string]predefFunc
-
-func newPredef() predef {
-	return make(map[string]predefFunc)
+type predef struct {
+	prev *predef
+	m    map[string]predefFunc
 }
 
-func (a predef) set(name string, id uint16, f rideFunction) {
-	a[name] = predefFunc{
+func newPredef(prev *predef) *predef {
+	return &predef{
+		prev: prev,
+		m:    make(map[string]predefFunc),
+	}
+}
+
+func newPredefWithValue(prev *predef, name string, id uint16, f rideFunction) *predef {
+	p := newPredef(prev)
+	p.set(name, id, f)
+	return p
+}
+
+func (a *predef) set(name string, id uint16, f rideFunction) {
+	a.m[name] = predefFunc{
 		id: id,
 		f:  f,
 	}
 }
 
-func (a predef) get(name string) (predefFunc, bool) {
-	rs, ok := a[name]
-	return rs, ok
+func (a *predef) get(name string) (predefFunc, bool) {
+	if a == nil {
+		return predefFunc{}, false
+	}
+	rs, ok := a.m[name]
+	if ok {
+		return rs, ok
+	}
+	return a.prev.get(name)
 }
 
-func (a predef) iter() map[string]predefFunc {
-	return a
-}
-
-func (a predef) getn(id int) rideFunction {
-	for _, v := range a {
+func (a *predef) getn(id int) rideFunction {
+	if a == nil {
+		return nil
+	}
+	for _, v := range a.m {
 		if v.id == uint16(id) {
 			return v.f
 		}
 	}
-	return nil
+	return a.prev.getn(id)
 }

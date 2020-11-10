@@ -7,63 +7,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-//type Context interface {
-//	add(name string, rideType2 rideType) Context
-//	get(name string) (rideType, bool)
-//}
-//type ContextImpl struct {
-//	m *im.Map
-//}
-//
-//func newContext() Context {
-//	return ContextImpl{m: im.New()}
-//}
-//
-//func (a ContextImpl) add(name string, value rideType) Context {
-//	return ContextImpl{
-//		m: a.m.Insert([]byte(name), value),
-//	}
-//}
-//
-//func (a ContextImpl) get(name string) (rideType, bool) {
-//	v, ok := a.m.Get([]byte(name))
-//	if !ok {
-//		return nil, ok
-//	}
-//	return v.(rideType), ok
-//}
-
-type frame struct {
-	function bool
-	back     int
-	context  []int
-	future   []int
-}
-
-func newExpressionFrame(pos int) frame {
-	return frame{
-		back: pos,
-	}
-}
-
-func newFrameContext(pos int, context args, future args) frame {
-	return frame{
-		back:    pos,
-		context: context,
-		future:  future,
-	}
-}
-
-//func newFunctionFrame(pos int, args []int) frame {
-//	return frame{
-//		function: true,
-//		back:     pos,
-//		args:     args,
-//	}
-//}
-
-type args = []int
-
 type vm struct {
 	env          RideEnvironment
 	code         []byte
@@ -73,16 +16,23 @@ type vm struct {
 	globals      func(int) rideConstructor
 	stack        []rideType
 	functionName func(int) string
-	jpms         []int
+	jmps         []int
 	mem          map[uint16]uint16
 }
 
 func (m *vm) run() (RideResult, error) {
+	numOperations := 0
+	limitOperations := 10000
 	if m.stack != nil {
 		m.stack = m.stack[0:0]
 	}
 	m.mem = make(map[uint16]uint16)
 	for m.ip < len(m.code) {
+		if numOperations >= limitOperations {
+			return nil, errors.New("limit operations exceed")
+		}
+		numOperations++
+
 		op := m.code[m.ip]
 		m.ip++
 		switch op {
@@ -99,7 +49,7 @@ func (m *vm) run() (RideResult, error) {
 			m.push(rideBoolean(false))
 		case OpJump:
 			pos := m.arg16()
-			m.jpms = append(m.jpms, m.ip)
+			m.jmps = append(m.jmps, m.ip)
 			m.ip = pos
 		case OpJumpIfFalse:
 			pos := m.arg16()
@@ -131,7 +81,7 @@ func (m *vm) run() (RideResult, error) {
 			m.push(v)
 		case OpCall:
 			pos := m.arg16()
-			m.jpms = append(m.jpms, m.ip)
+			m.jmps = append(m.jmps, m.ip)
 			m.ip = pos
 
 		case OpExternalCall:
@@ -156,7 +106,7 @@ func (m *vm) run() (RideResult, error) {
 			}
 			m.push(res)
 		case OpReturn:
-			l := len(m.jpms)
+			l := len(m.jmps)
 			if l == 0 {
 				if len(m.stack) > 0 {
 					v, err := m.pop()
@@ -172,7 +122,7 @@ func (m *vm) run() (RideResult, error) {
 				}
 				return nil, errors.New("no result after script execution")
 			}
-			m.ip, m.jpms = m.jpms[l-1], m.jpms[:l-1]
+			m.ip, m.jmps = m.jmps[l-1], m.jmps[:l-1]
 
 		case OpSetArg:
 			id := m.arg16()
@@ -181,8 +131,12 @@ func (m *vm) run() (RideResult, error) {
 
 		case OpUseArg:
 			argid := m.arg16()
-			m.jpms = append(m.jpms, m.ip)
-			m.ip = int(m.mem[uint16(argid)])
+			m.jmps = append(m.jmps, m.ip)
+			value, ok := m.mem[uint16(argid)]
+			if !ok {
+				return nil, errors.Errorf("no value at argument %d, last jump from %d", argid, m.jmps[len(m.jmps)-1])
+			}
+			m.ip = int(value)
 
 		default:
 			return nil, errors.Errorf("unknown code %#x", op)

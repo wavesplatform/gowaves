@@ -47,7 +47,7 @@ func ccc(f Fsm, node Node) (Fsm, error) {
 		}
 		return f.Return(), nil
 	case *FunctionDeclarationNode:
-		fsm, err := ccc(f.FuncDeclaration(n.Name, n.Arguments), n.Body)
+		fsm, err := ccc(f.Func(n.Name, n.Arguments, n.invocationParameter), n.Body)
 		if err != nil {
 			return fsm, err
 		}
@@ -58,6 +58,9 @@ func ccc(f Fsm, node Node) (Fsm, error) {
 			return f, err
 		}
 		return f.Return(), nil
+	case nil:
+		// it should be dapp
+		return f, nil
 	default:
 		return f, errors.Errorf("unknown type %T", node)
 	}

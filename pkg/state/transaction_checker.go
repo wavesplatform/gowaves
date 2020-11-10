@@ -979,7 +979,7 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 		return nil, err
 	}
 	if len(tx.Script) == 0 {
-		// No script checks / actions are needed.
+		// No script checks/actions are needed.
 		if err := tc.stor.scriptsComplexity.saveComplexitiesForAddr(addr, nil, info.blockID); err != nil {
 			return nil, err
 		}

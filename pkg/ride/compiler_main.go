@@ -9,8 +9,8 @@ func (a MainState) Property(name string) Fsm {
 	return propertyTransition(a, a.params, name)
 }
 
-func (a MainState) FuncDeclaration(name string, args []string) Fsm {
-	return funcDeclarationFsmTransition(a, a.params, name, args)
+func (a MainState) Func(name string, args []string, invoke string) Fsm {
+	return funcTransition(a, a.params, name, args, invoke)
 }
 
 func (a MainState) Bytes(b []byte) Fsm {
@@ -53,7 +53,7 @@ func (a MainState) Return() Fsm {
 	return a
 }
 
-func (a MainState) Long(value int64) Fsm {
+func (a MainState) Long(int64) Fsm {
 	panic("Illegal call Long on MainState")
 }
 

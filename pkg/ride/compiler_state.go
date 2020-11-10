@@ -14,7 +14,7 @@ type Fsm interface {
 	TrueBranch() Fsm
 	FalseBranch() Fsm
 	Bytes(b []byte) Fsm
-	FuncDeclaration(name string, args []string) Fsm
+	Func(name string, args []string, invokeParam string) Fsm
 	Property(name string) Fsm
 }
 
@@ -45,7 +45,7 @@ type params struct {
 	// Unique id for func params.
 	u *uniqid
 	// Predefined variables.
-	predef predef
+	predef *predef
 }
 
 func long(f Fsm, params params, value int64) Fsm {
@@ -79,6 +79,13 @@ func constant(a Fsm, params params, rideType rideType) Fsm {
 	return a
 }
 
+func putConstant(params params, rideType rideType) uint16 {
+	pos := params.b.len()
+	index := params.c.put(rideType)
+	params.b.push(index)
+	return pos
+}
+
 func reference(f Fsm, params params, name string) Fsm {
 	pos, ok := params.r.get(name)
 	if !ok {
@@ -88,10 +95,7 @@ func reference(f Fsm, params params, name string) Fsm {
 			params.b.write(encode(0))
 			return f
 		}
-		//index := params.c.put(rideString(name))
-		//params.b.fillContext(index)
 		panic(fmt.Sprintf("reference %s not found", name))
-		//return f
 	}
 	params.b.jump(pos)
 	return f

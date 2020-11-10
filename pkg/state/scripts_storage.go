@@ -8,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"go.uber.org/zap"
 )
 
 const (
@@ -18,6 +19,7 @@ const (
 )
 
 func scriptBytesToTree(script proto.Script) (*ride.Tree, error) {
+	zap.S().Error("script: ", script)
 	tree, err := ride.Parse(script)
 	if err != nil {
 		return nil, err

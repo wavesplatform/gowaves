@@ -61,8 +61,8 @@ func (a PropertyState) Bytes(b []byte) Fsm {
 	return bts(a, a.params, b)
 }
 
-func (a PropertyState) FuncDeclaration(name string, args []string) Fsm {
-	panic("Illegal call `FuncDeclaration` on PropertyState")
+func (a PropertyState) Func(name string, args []string, invoke string) Fsm {
+	panic("Illegal call `Func` on PropertyState")
 }
 
 func (a PropertyState) Property(name string) Fsm {

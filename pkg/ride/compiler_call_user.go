@@ -16,12 +16,14 @@ func (a CallUserState) Property(name string) Fsm {
 	panic("CallUserState Property")
 }
 
-func (a CallUserState) FuncDeclaration(name string, args []string) Fsm {
-	return funcDeclarationFsmTransition(a, a.params, name, args)
+func (a CallUserState) Func(name string, args []string, invoke string) Fsm {
+	return funcTransition(a, a.params, name, args, invoke)
 }
 
 func (a CallUserState) Bytes(b []byte) Fsm {
-	return constant(a, a.params, rideBytes(b))
+	a.argn = append(a.argn, putConstant(a.params, rideBytes(b)))
+	a.b.ret()
+	return a
 }
 
 func (a CallUserState) Condition() Fsm {
@@ -37,7 +39,9 @@ func (a CallUserState) FalseBranch() Fsm {
 }
 
 func (a CallUserState) String(s string) Fsm {
-	return str(a, a.params, s)
+	a.argn = append(a.argn, putConstant(a.params, rideString(s)))
+	a.b.ret()
+	return a
 }
 
 func (a CallUserState) Boolean(v bool) Fsm {
@@ -66,10 +70,7 @@ func (a CallUserState) Assigment(name string) Fsm {
 }
 
 func (a CallUserState) Long(value int64) Fsm {
-	pos := a.b.len()
-	index := a.params.c.put(rideInt(value))
-	a.params.b.push(index)
-	a.argn = append(a.argn, pos)
+	a.argn = append(a.argn, putConstant(a.params, rideInt(value)))
 	a.b.ret()
 	return a
 }

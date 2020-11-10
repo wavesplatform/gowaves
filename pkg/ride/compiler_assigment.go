@@ -12,8 +12,8 @@ func (a AssigmentState) Property(name string) Fsm {
 	panic("AssigmentState Property")
 }
 
-func (a AssigmentState) FuncDeclaration(name string, args []string) Fsm {
-	return funcDeclarationFsmTransition(a, a.params, name, args)
+func (a AssigmentState) Func(name string, args []string, invoke string) Fsm {
+	return funcTransition(a, a.params, name, args, invoke)
 }
 
 func (a AssigmentState) Bytes(b []byte) Fsm {

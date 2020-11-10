@@ -11,8 +11,8 @@ func (a ConditionalState) Property(name string) Fsm {
 	panic("ConditionalState Property")
 }
 
-func (a ConditionalState) FuncDeclaration(name string, args []string) Fsm {
-	panic("Illegal call FuncDeclaration on ConditionalState")
+func (a ConditionalState) Func(name string, args []string, invoke string) Fsm {
+	panic("Illegal call Func on ConditionalState")
 }
 
 func (a ConditionalState) Bytes(b []byte) Fsm {

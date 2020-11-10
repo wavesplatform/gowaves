@@ -9,7 +9,7 @@ func tx(env RideEnvironment, _ ...rideType) (rideType, error) {
 	return env.transaction(), nil
 }
 
-func mergeWithPredefined(f func(id int) rideFunction, p predef) func(id int) rideFunction {
+func mergeWithPredefined(f func(id int) rideFunction, p *predef) func(id int) rideFunction {
 	return func(id int) rideFunction {
 		if c := p.getn(id); c != nil {
 			return c
@@ -18,8 +18,22 @@ func mergeWithPredefined(f func(id int) rideFunction, p predef) func(id int) rid
 	}
 }
 
-var predefined predef = map[string]predefFunc{
+func this(env RideEnvironment, _ ...rideType) (rideType, error) {
+	return env.this(), nil
+}
+
+var predefinedFunctions = map[string]predefFunc{
 	"tx":    {id: math.MaxUint16 - 0, f: tx},
 	"unit":  {id: math.MaxUint16 - 1, f: unit},
 	"NOALG": {id: math.MaxUint16 - 2, f: createNoAlg},
+	"this":  {id: math.MaxUint16 - 3, f: this},
+}
+
+var predefined *predef
+
+func init() {
+	predefined = newPredef(nil)
+	for k, v := range predefinedFunctions {
+		predefined.set(k, v.id, v.f)
+	}
 }

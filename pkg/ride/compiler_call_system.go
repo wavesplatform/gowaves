@@ -16,8 +16,8 @@ func (a CallSystemState) Property(name string) Fsm {
 	return propertyTransition(a, a.params, name)
 }
 
-func (a CallSystemState) FuncDeclaration(name string, args []string) Fsm {
-	return funcDeclarationFsmTransition(a, a.params, name, args)
+func (a CallSystemState) Func(name string, args []string, invoke string) Fsm {
+	return funcTransition(a, a.params, name, args, invoke)
 }
 
 func (a CallSystemState) Bytes(b []byte) Fsm {

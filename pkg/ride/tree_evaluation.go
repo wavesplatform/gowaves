@@ -5,12 +5,20 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func CallVerifier(env RideEnvironment, tree *Tree) (RideResult, error) {
+func CallVerifier2(env RideEnvironment, tree *Tree) (RideResult, error) {
 	e, err := treeVerifierEvaluator(env, tree)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call verifier")
 	}
 	return e.evaluate()
+}
+
+func CallVerifier(env RideEnvironment, tree *Tree) (RideResult, error) {
+	compiled, err := CompileSimpleScript(tree)
+	if err != nil {
+		return nil, errors.Wrap(err, "call compile script")
+	}
+	return compiled.Run(env)
 }
 
 func CallFunction(env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {

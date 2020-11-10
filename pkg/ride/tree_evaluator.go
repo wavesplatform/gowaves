@@ -413,6 +413,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 }
 
 func treeVerifierEvaluator(env RideEnvironment, tree *Tree) (*treeEvaluator, error) {
+
 	s, err := newEvaluationScope(tree.LibVersion, env)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create scope")
