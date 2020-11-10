@@ -43,7 +43,7 @@ type SmartState interface {
 	AddingBlockHeight() (uint64, error)
 	NewestTransactionByID([]byte) (proto.Transaction, error)
 	NewestTransactionHeightByID([]byte) (uint64, error)
-	InvokeFunctionFromDApp(proto.Address, proto.FunctionCall) (bool, []proto.ScriptAction, error)
+	InvokeFunctionFromDApp(invoke proto.Invoke) (bool, []proto.ScriptAction, error)
 	//TODO (args, name, ...)
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.

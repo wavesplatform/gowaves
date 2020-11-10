@@ -465,18 +465,18 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
-type Invoke struct {
-	dAppAddress proto.Address
-	function    proto.FunctionCall
-}
-
-func invokeFunc(a *scriptCaller, invoke Invoke, tree *ride.Tree) (bool, []proto.ScriptAction, error) {
+func invokeFunc(a *scriptCaller, invoke proto.Invoke, tree *ride.Tree) (bool, []proto.ScriptAction, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "failed to create RIDE environment")
 	}
 
-	env.SetThisFromAddress(invoke.dAppAddress)
+	addr, err := proto.NewAddressFromString(invoke.DAppAddress)
+	if err != nil {
+		return false, nil, errors.Wrap(err, "failed to get address from string: called NewAddressFromString")
+	}
+
+	env.SetThisFromAddress(addr)
 	// env.SetLastBlock(lastBlockInfo)
 	//err = env.SetTransaction(tx)
 	//if err != nil {
@@ -487,9 +487,12 @@ func invokeFunc(a *scriptCaller, invoke Invoke, tree *ride.Tree) (bool, []proto.
 	//	return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	//}
 	env.ChooseSizeCheck(tree.LibVersion)
-	r, err := ride.CallFunction(env, tree, invoke.function.Name, invoke.function.Arguments)
+
+	// TODO convert arguments from []string (invoke.FunctionArguments) to proto.Arguments
+	var args proto.Arguments
+	r, err := ride.CallFunction(env, tree, invoke.FunctionName, args)
 	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", invoke.function.Name)
+		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", invoke.FunctionName)
 	}
 	if sr, ok := r.(ride.ScriptResult); ok {
 		return false, nil, errors.Errorf("unexpected ScriptResult: %v", sr)
@@ -497,14 +500,14 @@ func invokeFunc(a *scriptCaller, invoke Invoke, tree *ride.Tree) (bool, []proto.
 	// Increase complexity.
 	ev, err := a.state.EstimatorVersion()
 	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", invoke.function.Name)
+		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", invoke.FunctionName)
 	}
-	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(invoke.dAppAddress, ev, false)
+	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(addr, ev, false)
 	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", invoke.function.Name)
+		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", invoke.FunctionName)
 	}
-	fn := invoke.function.Name
-	if fn == "" && invoke.function.Default {
+	fn := invoke.FunctionName
+	if fn == "" {
 		fn = "default"
 	}
 	c, ok := est.Functions[fn]
@@ -519,12 +522,17 @@ func invokeFunc(a *scriptCaller, invoke Invoke, tree *ride.Tree) (bool, []proto.
 	return true, r.ScriptActions(), err
 }
 
-func (s *stateManager) InvokeFunctionFromDApp(address proto.Address, fn proto.FunctionCall) (bool, []proto.ScriptAction, error) {
-	invoke := Invoke{dAppAddress: address, function: fn}
-	tree, err := s.stor.scriptsStorage.newestScriptByAddr(address, false)
+func (s *stateManager) InvokeFunctionFromDApp(invoke proto.Invoke) (bool, []proto.ScriptAction, error) {
+	addr, err := proto.NewAddressFromString(invoke.DAppAddress)
+	if err != nil {
+		return false, nil, errors.Wrapf(err, "Failed to get address: called NewAddressFromString")
+	}
+
+	tree, err := s.stor.scriptsStorage.newestScriptByAddr(addr, false)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "Failed to get tree: called newestScriptByAddr")
 	}
+
 	return invokeFunc(s.appender.sc, invoke, tree)
 }
 

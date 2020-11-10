@@ -1,6 +1,7 @@
 package ride
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -366,6 +367,15 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		if len(n.Arguments) != len(uf.Arguments) {
 			return nil, errors.Errorf("mismatched arguments number of user function '%s'", id)
 		}
+
+		if n.Name == "callDApp" {
+			ok, res, err := invokeFunctionFromDApp(e.env.state(), uf.Arguments)
+			if err != nil {
+				fmt.Println(ok, res)
+			}
+			// TODO
+		}
+
 		var tmp int
 		tmp, e.s.cl = e.s.cl, cl
 		args := make([]esValue, len(n.Arguments))

@@ -244,7 +244,7 @@ type MockSmartState struct {
 	lockRetrieveNewestStringEntry   sync.RWMutex
 }
 
-func (mock *MockSmartState) InvokeFunctionFromDApp(p proto.Address, call proto.FunctionCall) (bool, []proto.ScriptAction, error) {
+func (mock *MockSmartState) InvokeFunctionFromDApp(invoke proto.Invoke) (bool, []proto.ScriptAction, error) {
 	panic("implement me")
 }
 
