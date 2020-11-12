@@ -24,7 +24,7 @@ func (b *builder) writeStub(len int) (position uint16) {
 }
 
 func (b *builder) push(uint162 uint16) {
-	b.w.WriteByte(OpPush)
+	b.w.WriteByte(OpRef)
 	b.w.Write(encode(uint162))
 }
 
@@ -45,7 +45,7 @@ func (b *builder) ret() {
 }
 
 func (b *builder) jump(uint162 uint16) {
-	b.w.WriteByte(OpJump)
+	b.w.WriteByte(OpRef)
 	b.w.Write(encode(uint162))
 }
 
@@ -92,27 +92,31 @@ func (b *builder) write(i []byte) {
 	b.w.Write(i)
 }
 
-//func (b *builder) fillContext(id constid) {
-//	b.w.WriteByte(OpFillContext)
-//	b.w.Write(encode(id))
-//}
-
-type constants struct {
-	values []rideType
+type point struct {
+	position uint16
+	value    rideType
+	fn       rideFunction
 }
 
-func newConstants() *constants {
-	return &constants{}
+type cell struct {
+	values map[uniqueid]point
 }
 
-func (a *constants) put(value rideType) uint16 {
-	a.values = append(a.values, value)
-	return uint16(len(a.values) - 1)
+func newCell() *cell {
+	return &cell{
+		values: make(map[uniqueid]point),
+	}
 }
 
-func (a *constants) constants() []rideType {
-	return a.values
+func (a *cell) set(u uniqueid, result rideType, fn rideFunction, position uint16) {
+	a.values[u] = point{
+		position: position,
+		value:    result,
+		fn:       fn,
+	}
 }
+
+type uniqueid = uint16
 
 type references struct {
 	prev *references
@@ -126,7 +130,7 @@ func newReferences(prev *references) *references {
 	}
 }
 
-func (a *references) get(name string) (uint16, bool) {
+func (a *references) get(name string) (uniqueid, bool) {
 	if a == nil {
 		return 0, false
 	}
@@ -136,8 +140,8 @@ func (a *references) get(name string) (uint16, bool) {
 	return a.prev.get(name)
 }
 
-func (a *references) set(name string, offset uint16) {
-	a.refs[name] = offset
+func (a *references) set(name string, uniq uniqueid) {
+	a.refs[name] = uniq
 }
 
 type predefFunc struct {

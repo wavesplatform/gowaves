@@ -17,7 +17,8 @@ type vm struct {
 	stack        []rideType
 	functionName func(int) string
 	jmps         []int
-	mem          map[uint16]uint16
+	cache        map[int]rideType
+	ref          map[uint16]point
 }
 
 func (m *vm) run() (RideResult, error) {
@@ -26,7 +27,7 @@ func (m *vm) run() (RideResult, error) {
 	if m.stack != nil {
 		m.stack = m.stack[0:0]
 	}
-	m.mem = make(map[uint16]uint16)
+
 	for m.ip < len(m.code) {
 		if numOperations >= limitOperations {
 			return nil, errors.New("limit operations exceed")
@@ -43,14 +44,14 @@ func (m *vm) run() (RideResult, error) {
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to pop value")
 			}
-		case OpTrue:
-			m.push(rideBoolean(true))
-		case OpFalse:
-			m.push(rideBoolean(false))
 		case OpJump:
 			pos := m.arg16()
-			m.jmps = append(m.jmps, m.ip)
-			m.ip = pos
+			if rs, ok := m.cache[pos]; ok {
+				m.push(rs)
+			} else {
+				m.jmps = append(m.jmps, m.ip)
+				m.ip = pos
+			}
 		case OpJumpIfFalse:
 			pos := m.arg16()
 			val, err := m.pop()
@@ -69,7 +70,7 @@ func (m *vm) run() (RideResult, error) {
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get object")
 			}
-			prop := m.constant()
+			prop := m.ref[m.uint16()].value
 			p, ok := prop.(rideString)
 			if !ok {
 				return nil, errors.Errorf("invalid property name type '%s'", prop.instanceOf())
@@ -125,18 +126,28 @@ func (m *vm) run() (RideResult, error) {
 			m.ip, m.jmps = m.jmps[l-1], m.jmps[:l-1]
 
 		case OpSetArg:
-			id := m.arg16()
-			value := m.arg16()
-			m.mem[uint16(id)] = uint16(value)
+			from := m.uint16()
+			to := m.uint16()
+			m.ref[to] = m.ref[from]
 
-		case OpUseArg:
-			argid := m.arg16()
-			m.jmps = append(m.jmps, m.ip)
-			value, ok := m.mem[uint16(argid)]
+		case OpRef:
+			refID := m.uint16()
+			point, ok := m.ref[refID]
 			if !ok {
-				return nil, errors.Errorf("no value at argument %d, last jump from %d", argid, m.jmps[len(m.jmps)-1])
+				return nil, errors.Errorf("reference %d not found", refID)
 			}
-			m.ip = int(value)
+			if point.value != nil {
+				m.push(point.value)
+			} else if point.fn != nil {
+				rs, err := point.fn(m.env)
+				if err != nil {
+					return nil, err
+				}
+				m.push(rs)
+			} else {
+				m.jmps = append(m.jmps, m.ip)
+				m.ip = int(point.position)
+			}
 
 		default:
 			return nil, errors.Errorf("unknown code %#x", op)
@@ -168,6 +179,13 @@ func (m *vm) arg16() int {
 	res := binary.BigEndian.Uint16(m.code[m.ip : m.ip+2])
 	m.ip += 2
 	return int(res)
+}
+
+func (m *vm) uint16() uint16 {
+	//TODO: add check
+	res := binary.BigEndian.Uint16(m.code[m.ip : m.ip+2])
+	m.ip += 2
+	return res
 }
 
 func (m *vm) constant() rideType {

@@ -75,19 +75,21 @@ func compileSimpleScript(libVersion int, node Node) (*Executable, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := newBuilder()
-	c := newConstants()
-	r := newReferences(nil)
 	u := &uniqid{}
+	b := newBuilder()
+	r := newReferences(nil)
+	c := newCell()
 
 	params := params{
-		b:      b,
-		c:      c,
-		r:      r,
-		f:      fCheck,
-		u:      u,
-		predef: predefined,
+		b: b,
+		r: r,
+		f: fCheck,
+		u: u,
+		c: c,
 	}
+	//mergeWithPredefined()
+
+	params.addPredefined("tx", 65535, tx)
 
 	f := NewMain(params)
 	f, err = ccc(f, node)

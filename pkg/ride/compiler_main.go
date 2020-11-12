@@ -77,7 +77,7 @@ func (a MainState) BuildExecutable(version int) *Executable {
 	return &Executable{
 		LibVersion:  version,
 		ByteCode:    code,
-		Constants:   a.c.constants(),
+		References:  a.c.values,
 		EntryPoints: map[string]uint16{"": startAt},
 	}
 }

@@ -65,8 +65,7 @@ func (a CallSystemState) Assigment(name string) Fsm {
 }
 
 func (a CallSystemState) Long(value int64) Fsm {
-	index := a.params.c.put(rideInt(value))
-	a.params.b.push(index)
+	a.b.push(a.constant(rideInt(value)))
 	return a
 }
 

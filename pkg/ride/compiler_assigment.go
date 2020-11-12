@@ -17,7 +17,7 @@ func (a AssigmentState) Func(name string, args []string, invoke string) Fsm {
 }
 
 func (a AssigmentState) Bytes(b []byte) Fsm {
-	return constant(a, a.params, rideBytes(b))
+	return bts(a, a.params, b)
 }
 
 func (a AssigmentState) Condition() Fsm {
@@ -63,7 +63,9 @@ func (a AssigmentState) Assigment(name string) Fsm {
 func (a AssigmentState) Return() Fsm {
 	a.b.ret()
 	// store reference on variable and it's offset.
-	a.r.set(a.name, a.offset)
+	n := a.u.next()
+	a.c.set(n, nil, nil, a.offset)
+	a.r.set(a.name, n)
 	return a.prev
 }
 

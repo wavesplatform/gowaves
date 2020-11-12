@@ -9,7 +9,16 @@ type CallUserState struct {
 	name string
 	argc uint16
 	// positions of arguments
-	argn []uint16
+	argn []uniqueid
+}
+
+func newCallUserFsm(prev Fsm, params params, name string, argc uint16) Fsm {
+	return &CallUserState{
+		prev:   prev,
+		params: params,
+		name:   name,
+		argc:   argc,
+	}
 }
 
 func (a CallUserState) Property(name string) Fsm {
@@ -22,7 +31,6 @@ func (a CallUserState) Func(name string, args []string, invoke string) Fsm {
 
 func (a CallUserState) Bytes(b []byte) Fsm {
 	a.argn = append(a.argn, putConstant(a.params, rideBytes(b)))
-	a.b.ret()
 	return a
 }
 
@@ -40,29 +48,12 @@ func (a CallUserState) FalseBranch() Fsm {
 
 func (a CallUserState) String(s string) Fsm {
 	a.argn = append(a.argn, putConstant(a.params, rideString(s)))
-	a.b.ret()
 	return a
 }
 
 func (a CallUserState) Boolean(v bool) Fsm {
-	pos := a.b.len()
-	a.b.writeByte(OpTrue)
-	a.argn = append(a.argn, pos)
-	a.b.ret()
+	a.argn = append(a.argn, putConstant(a.params, rideBoolean(v)))
 	return a
-}
-
-//func callTransition(prev Fsm, params params, name string, argc uint16) Fsm {
-//	return newCallFsm(prev, params, name, argc)
-//}
-
-func newCallUserFsm(prev Fsm, params params, name string, argc uint16) Fsm {
-	return &CallUserState{
-		prev:   prev,
-		params: params,
-		name:   name,
-		argc:   argc,
-	}
 }
 
 func (a CallUserState) Assigment(name string) Fsm {
@@ -71,7 +62,6 @@ func (a CallUserState) Assigment(name string) Fsm {
 
 func (a CallUserState) Long(value int64) Fsm {
 	a.argn = append(a.argn, putConstant(a.params, rideInt(value)))
-	a.b.ret()
 	return a
 }
 
@@ -81,15 +71,14 @@ func (a CallUserState) Return() Fsm {
 	if !ok {
 		panic(fmt.Sprintf("user function `%s` not found", a.name))
 	}
-	a.b.startPos()
 	for i, pos := range a.argn {
 		a.b.writeByte(OpSetArg)
-		uniqid, ok := a.r.get(fmt.Sprintf("%s$%d", a.name, i))
+		funcParamID, ok := a.r.get(fmt.Sprintf("%s$%d", a.name, i))
 		if !ok {
 			panic(fmt.Sprintf("no function param id `%s` stored in references", fmt.Sprintf("%s$%d", a.name, i)))
 		}
-		a.b.write(encode(uniqid))
 		a.b.write(encode(pos))
+		a.b.write(encode(funcParamID))
 	}
 
 	a.b.call(n, a.argc)
@@ -101,5 +90,10 @@ func (a CallUserState) Call(name string, argc uint16) Fsm {
 }
 
 func (a CallUserState) Reference(name string) Fsm {
+	rs, ok := a.r.get(name)
+	if !ok {
+		panic("CallUserState Reference " + name + " not found")
+	}
+	a.argn = append(a.argn, rs)
 	return reference(a, a.params, name)
 }

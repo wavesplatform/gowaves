@@ -5,6 +5,7 @@ type Executable struct {
 	ByteCode    []byte
 	Constants   []rideType
 	EntryPoints map[string]uint16
+	References  map[uniqueid]point
 }
 
 func (a *Executable) Run(environment RideEnvironment) (RideResult, error) {
@@ -25,6 +26,7 @@ func (a *Executable) Run(environment RideEnvironment) (RideResult, error) {
 		functions:    mergeWithPredefined(fSelect, predefined),
 		functionName: provider,
 		env:          environment,
+		ref:          a.References,
 	}
 
 	//v.push(environment.transaction())

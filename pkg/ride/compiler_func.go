@@ -37,17 +37,15 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 	// avoid corrupting parent state.
 	params.r = newReferences(params.r)
 	for i := range args {
-		params.r.set(args[i], params.b.len())
+		e := params.u.next()
+		params.r.set(args[i], e)
 		// set to global
-		globalScope.set(fmt.Sprintf("%s$%d", name, i), params.u.next())
-		params.b.w.WriteByte(OpUseArg)
-		params.b.w.Write(encode(params.u.cur()))
-		params.b.w.WriteByte(OpReturn)
+		globalScope.set(fmt.Sprintf("%s$%d", name, i), e)
 	}
 	// assume that it's verifier
 	if invokeParam != "" {
 		// tx
-		params.predef = newPredefWithValue(params.predef, "tx", math.MaxUint16, tx)
+		//params.predef = newPredefWithValue(params.predef, "tx", math.MaxUint16, tx)
 		pos := params.b.len()
 		params.b.writeByte(OpExternalCall)
 		params.b.write(encode(math.MaxUint16))
@@ -74,12 +72,10 @@ func (a FuncState) Assigment(name string) Fsm {
 func (a FuncState) Return() Fsm {
 	a.globalScope.set(a.name, a.offset)
 	// TODO clean args
-	//a.b.writeByte(OpPopCtx)
 	a.b.ret()
 
 	// if function has invoke param, it means no other code will be provided.
 	if a.invokeParam != "" {
-		a.b.startPos()
 		a.b.writeByte(OpCall)
 		a.b.write(encode(a.offset))
 	}
@@ -88,8 +84,7 @@ func (a FuncState) Return() Fsm {
 }
 
 func (a FuncState) Long(value int64) Fsm {
-	index := a.params.c.put(rideInt(value))
-	a.params.b.push(index)
+	a.params.b.push(a.constant(rideInt(value)))
 	return a
 }
 

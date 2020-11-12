@@ -36,8 +36,6 @@ type FunctionChecker func(string) (uint16, bool)
 type params struct {
 	// Wrapper on bytes.Buffer with handy methods.
 	b *builder
-	// Slice of constants.
-	c *constants
 	// Relation of variables and it's offset.
 	r *references
 	// Way to get function id.
@@ -45,58 +43,56 @@ type params struct {
 	// Unique id for func params.
 	u *uniqid
 	// Predefined variables.
-	predef *predef
+	c *cell
+}
+
+func (a *params) addPredefined(name string, id uniqueid, fn rideFunction) {
+	a.r.set(name, id)
+	a.c.set(id, nil, fn, 0)
+}
+
+func (a *params) constant(value rideType) uniqueid {
+	n := a.u.next()
+	a.c.set(n, value, nil, 0)
+	return n
 }
 
 func long(f Fsm, params params, value int64) Fsm {
-	index := params.c.put(rideInt(value))
-	params.b.push(index)
-	params.b.ret()
+	params.b.push(params.constant(rideInt(value)))
 	return f
 }
 
 func boolean(f Fsm, params params, value bool) Fsm {
-	params.b.bool(value)
+	params.b.push(params.constant(rideBoolean(value)))
 	return f
 }
 
 func bts(f Fsm, params params, value []byte) Fsm {
-	index := params.c.put(rideBytes(value))
-	params.b.push(index)
+	params.b.push(params.constant(rideBytes(value)))
 	return f
 }
 
-func str(a Fsm, params params, s string) Fsm {
-	index := params.c.put(rideString(s))
-	params.b.push(index)
+func str(a Fsm, params params, value string) Fsm {
+	params.b.push(params.constant(rideString(value)))
 	return a
 }
 
-// TODO: remove duplicate
-func constant(a Fsm, params params, rideType rideType) Fsm {
-	index := params.c.put(rideType)
-	params.b.push(index)
+func constant(a Fsm, params params, value rideType) Fsm {
+	params.b.push(params.constant(value))
 	return a
 }
 
 func putConstant(params params, rideType rideType) uint16 {
-	pos := params.b.len()
-	index := params.c.put(rideType)
-	params.b.push(index)
-	return pos
+	index := params.constant(rideType)
+	return index
 }
 
 func reference(f Fsm, params params, name string) Fsm {
 	pos, ok := params.r.get(name)
 	if !ok {
-		if n, ok := params.predef.get(name); ok {
-			params.b.writeByte(OpExternalCall)
-			params.b.write(encode(n.id))
-			params.b.write(encode(0))
-			return f
-		}
 		panic(fmt.Sprintf("reference %s not found", name))
 	}
+	//params.b
 	params.b.jump(pos)
 	return f
 }

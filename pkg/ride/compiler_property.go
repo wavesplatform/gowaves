@@ -20,7 +20,7 @@ func (a PropertyState) Assigment(name string) Fsm {
 
 func (a PropertyState) Return() Fsm {
 	a.b.writeByte(OpProperty)
-	index := a.params.c.put(rideString(a.name))
+	index := a.constant(rideString(a.name))
 	a.params.b.write(encode(index))
 	return a.prev
 }
