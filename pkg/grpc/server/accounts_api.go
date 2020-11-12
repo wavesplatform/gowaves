@@ -19,15 +19,15 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
+	if len(req.Assets) == 0 {
+		if err := s.sendWavesBalance(rcp, srv); err != nil {
+			return status.Errorf(codes.Internal, err.Error())
+		}
+	}
 	for _, asset := range req.Assets {
-		var res g.BalanceResponse
 		if len(asset) == 0 {
-			// Waves.
-			balanceInfo, err := s.state.FullWavesBalance(rcp)
-			if err != nil {
-				res.Balance = &g.BalanceResponse_Waves{Waves: &g.BalanceResponse_WavesBalances{}}
-			} else {
-				res.Balance = &g.BalanceResponse_Waves{Waves: balanceInfo.ToProtobuf()}
+			if err := s.sendWavesBalance(rcp, srv); err != nil {
+				return status.Errorf(codes.Internal, err.Error())
 			}
 		} else {
 			// Asset.
@@ -35,10 +35,11 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 			if err != nil {
 				return status.Errorf(codes.NotFound, err.Error())
 			}
+			var res g.BalanceResponse
 			res.Balance = &g.BalanceResponse_Asset{Asset: &pb.Amount{AssetId: asset, Amount: int64(balance)}}
-		}
-		if err := srv.Send(&res); err != nil {
-			return status.Errorf(codes.Internal, err.Error())
+			if err := srv.Send(&res); err != nil {
+				return status.Errorf(codes.Internal, err.Error())
+			}
 		}
 	}
 	return nil
@@ -53,23 +54,6 @@ func (s *Server) GetScript(ctx context.Context, req *g.AccountRequest) (*g.Scrip
 	rcp := proto.NewRecipientFromAddress(addr)
 	scriptInfo, _ := s.state.ScriptInfoByAccount(rcp)
 	return scriptInfo.ToProtobuf(), nil
-}
-
-type getActiveLeasesHandler struct {
-	srv g.AccountsApi_GetActiveLeasesServer
-	s   *Server
-}
-
-func (h *getActiveLeasesHandler) handle(tx proto.Transaction, failed bool) error {
-	res, err := h.s.transactionToTransactionResponse(tx, true, failed)
-	if err != nil {
-		return errors.Wrap(err, "failed to form transaction response")
-	}
-	err = h.srv.Send(res)
-	if err != nil {
-		return errors.Wrap(err, "failed to send")
-	}
-	return nil
 }
 
 func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetActiveLeasesServer) error {
@@ -164,4 +148,32 @@ func (s *Server) ResolveAlias(ctx context.Context, req *wrappers.StringValue) (*
 	}
 	addrBody := addr.Body()
 	return &wrappers.BytesValue{Value: addrBody}, nil
+}
+
+func (s *Server) sendWavesBalance(rcp proto.Recipient, srv g.AccountsApi_GetBalancesServer) error {
+	var res g.BalanceResponse
+	balanceInfo, err := s.state.FullWavesBalance(rcp)
+	if err != nil {
+		res.Balance = &g.BalanceResponse_Waves{Waves: &g.BalanceResponse_WavesBalances{}}
+	} else {
+		res.Balance = &g.BalanceResponse_Waves{Waves: balanceInfo.ToProtobuf()}
+	}
+	return srv.Send(&res)
+}
+
+type getActiveLeasesHandler struct {
+	srv g.AccountsApi_GetActiveLeasesServer
+	s   *Server
+}
+
+func (h *getActiveLeasesHandler) handle(tx proto.Transaction, failed bool) error {
+	res, err := h.s.transactionToTransactionResponse(tx, true, failed)
+	if err != nil {
+		return errors.Wrap(err, "failed to form transaction response")
+	}
+	err = h.srv.Send(res)
+	if err != nil {
+		return errors.Wrap(err, "failed to send")
+	}
+	return nil
 }
