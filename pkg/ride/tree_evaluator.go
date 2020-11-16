@@ -244,11 +244,6 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 	}
 }
 
-//
-//func (e *treeEvaluator) exceeded() bool {
-//	return e.limit > 0 && e.cost >= e.limit
-//}
-
 func isThrow(r rideType) bool {
 	return r.instanceOf() == "Throw"
 }
@@ -368,14 +363,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			return nil, errors.Errorf("mismatched arguments number of user function '%s'", id)
 		}
 
-		if n.Name == "callDApp" {
-			ok, res, err := invokeFunctionFromDApp(e.env.state(), uf.Arguments)
-			if err != nil {
-				fmt.Println(ok, res)
-			}
-			// TODO
-		}
-
 		var tmp int
 		tmp, e.s.cl = e.s.cl, cl
 		args := make([]esValue, len(n.Arguments))
@@ -394,6 +381,33 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		for i, arg := range args {
 			e.s.cs[len(e.s.cs)-1][i] = arg
 		}
+
+		if n.Name == "callDApp" {
+			addr := args[0].value
+			funcName := args[1].value
+			recipient, err := extractRecipient(addr)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get recipient from addr, user function '%s", id)
+			}
+
+			args := make([]rideType, len(n.Arguments))
+			for i, arg := range n.Arguments {
+				a, err := e.walk(arg) // materialize argument
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, id)
+				}
+				if isThrow(a) {
+					return a, nil
+				}
+				args[i] = a
+			}
+
+			res, err := invokeFunctionFromDApp(e.env, recipient, funcName, args[2:])
+			if err != nil {
+				fmt.Println(ok, res)
+			}
+		}
+
 		r, err := e.walk(uf.Body)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", id)
@@ -457,6 +471,40 @@ func treeVerifierEvaluator(env RideEnvironment, tree *Tree) (*treeEvaluator, err
 	}, nil
 }
 
+func treeFunctionEvaluatorForInvokeDAppFromDApp(env RideEnvironment, tree *Tree, name string, args []rideType) (*treeEvaluator, error) {
+	s, err := newEvaluationScope(tree.LibVersion, env)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create scope")
+	}
+	for _, declaration := range tree.Declarations {
+		err = s.declare(declaration)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid declaration")
+		}
+	}
+	if !tree.IsDApp() {
+		return nil, errors.Errorf("unable to call function '%s' on simple script", name)
+	}
+	for i := 0; i < len(tree.Functions); i++ {
+		function, ok := tree.Functions[i].(*FunctionDeclarationNode)
+		if !ok {
+			return nil, errors.New("invalid callable declaration")
+		}
+		if function.Name == name {
+			s.constants[function.invocationParameter] = esConstant{c: newInvocation}
+			if l := len(args); l != len(function.Arguments) {
+				return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
+			}
+			// without conversion
+			for i, arg := range args {
+				s.pushValue(function.Arguments[i], arg)
+			}
+			return &treeEvaluator{dapp: true, f: function.Body, s: s, env: env}, nil
+		}
+	}
+	return nil, errors.Errorf("function '%s' not found", name)
+}
+
 func treeFunctionEvaluator(env RideEnvironment, tree *Tree, name string, args proto.Arguments) (*treeEvaluator, error) {
 	s, err := newEvaluationScope(tree.LibVersion, env)
 	if err != nil {
@@ -481,6 +529,7 @@ func treeFunctionEvaluator(env RideEnvironment, tree *Tree, name string, args pr
 			if l := len(args); l != len(function.Arguments) {
 				return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
 			}
+
 			for i, arg := range args {
 				a, err := convertArgument(arg)
 				if err != nil {

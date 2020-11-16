@@ -244,10 +244,6 @@ type MockSmartState struct {
 	lockRetrieveNewestStringEntry   sync.RWMutex
 }
 
-func (mock *MockSmartState) InvokeFunctionFromDApp(invoke proto.Invoke) (bool, []proto.ScriptAction, error) {
-	panic("implement me")
-}
-
 // AddingBlockHeight calls AddingBlockHeightFunc.
 func (mock *MockSmartState) AddingBlockHeight() (uint64, error) {
 	if mock.AddingBlockHeightFunc == nil {

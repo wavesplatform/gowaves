@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/ride"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -463,77 +462,6 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	}
 	state.checkProtobufActivation(h + 1)
 	return state, nil
-}
-
-func invokeFunc(a *scriptCaller, invoke proto.Invoke, tree *ride.Tree) (bool, []proto.ScriptAction, error) {
-	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
-	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to create RIDE environment")
-	}
-
-	addr, err := proto.NewAddressFromString(invoke.DAppAddress)
-	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to get address from string: called NewAddressFromString")
-	}
-
-	env.SetThisFromAddress(addr)
-	// env.SetLastBlock(lastBlockInfo)
-	//err = env.SetTransaction(tx)
-	//if err != nil {
-	//	return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
-	//}
-	//err = env.SetInvoke(tx, tree.LibVersion)
-	//if err != nil {
-	//	return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
-	//}
-	env.ChooseSizeCheck(tree.LibVersion)
-
-	// TODO convert arguments from []string (invoke.FunctionArguments) to proto.Arguments
-	var args proto.Arguments
-	r, err := ride.CallFunction(env, tree, invoke.FunctionName, args)
-	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", invoke.FunctionName)
-	}
-	if sr, ok := r.(ride.ScriptResult); ok {
-		return false, nil, errors.Errorf("unexpected ScriptResult: %v", sr)
-	}
-	// Increase complexity.
-	ev, err := a.state.EstimatorVersion()
-	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", invoke.FunctionName)
-	}
-	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(addr, ev, false)
-	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of dApp with function name '%s' failed", invoke.FunctionName)
-	}
-	fn := invoke.FunctionName
-	if fn == "" {
-		fn = "default"
-	}
-	c, ok := est.Functions[fn]
-	if !ok {
-		return false, nil, errors.Errorf("no estimation for function '%s' on invocation", fn)
-	}
-	a.recentTxComplexity += uint64(c)
-	err = nil
-	if !r.Result() { // Replace failure status with an error
-		err = errors.Errorf("call failed: %s", r.UserError())
-	}
-	return true, r.ScriptActions(), err
-}
-
-func (s *stateManager) InvokeFunctionFromDApp(invoke proto.Invoke) (bool, []proto.ScriptAction, error) {
-	addr, err := proto.NewAddressFromString(invoke.DAppAddress)
-	if err != nil {
-		return false, nil, errors.Wrapf(err, "Failed to get address: called NewAddressFromString")
-	}
-
-	tree, err := s.stor.scriptsStorage.newestScriptByAddr(addr, false)
-	if err != nil {
-		return false, nil, errors.Wrapf(err, "Failed to get tree: called newestScriptByAddr")
-	}
-
-	return invokeFunc(s.appender.sc, invoke, tree)
 }
 
 func (s *stateManager) Mutex() *lock.RwMutex {

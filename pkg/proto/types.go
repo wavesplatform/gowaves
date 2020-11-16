@@ -3113,12 +3113,6 @@ type FunctionCall struct {
 	Arguments Arguments
 }
 
-type Invoke struct {
-	DAppAddress       string
-	FunctionName      string
-	FunctionArguments []string
-}
-
 const (
 	tokenFunctionCall = 9
 	tokenUserFunction = 1

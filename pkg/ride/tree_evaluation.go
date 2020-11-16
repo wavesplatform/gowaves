@@ -1,9 +1,9 @@
 package ride
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 func CallVerifier(env RideEnvironment, tree *Tree) (RideResult, error) {
@@ -14,12 +14,26 @@ func CallVerifier(env RideEnvironment, tree *Tree) (RideResult, error) {
 	return e.evaluate()
 }
 
-func invokeFunctionFromDApp(state types.SmartState, args []string) (bool, []proto.ScriptAction, error) {
-	invoke := proto.Invoke{DAppAddress: args[0],
-		FunctionName:      args[1],
-		FunctionArguments: args[2:]}
+func invokeFunctionFromDApp(env RideEnvironment, recipient proto.Recipient, fnName rideType, args []rideType) (RideResult, error) {
+	var tree *Tree // TODO get tree from address
+	if recipient.Address != nil {
+		fmt.Println("dump")
+		// tree = getTree(recipient.Address)
+	}
 
-	return state.InvokeFunctionFromDApp(invoke)
+	var funcName string
+	switch fn := fnName.(type) {
+	case rideString:
+		funcName = string(fn)
+	default:
+		return nil, errors.Errorf("wrong function name argument type %T", fnName)
+	}
+
+	e, err := treeFunctionEvaluatorForInvokeDAppFromDApp(env, tree, funcName, args)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to call function '%s'", funcName)
+	}
+	return e.evaluate()
 }
 
 func CallFunction(env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
