@@ -229,6 +229,7 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
+		e.actions = append(e.actions, actions...)
 		return DAppResult{true, actions, ""}, nil
 	case rideList:
 		for _, item := range res {

@@ -472,8 +472,18 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 		}
 		return script, nil
 	}
-
-	return nil, errors.Errorf("Address from recipient is nil")
+	if recipient.Alias != nil {
+		address, err := s.NewestAddrByAlias(*recipient.Alias)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to get address by alias")
+		}
+		script, err := s.stor.scriptsStorage.scriptBytesByAddr(address, false)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to get script by address")
+		}
+		return script, nil
+	}
+	return nil, errors.Errorf("Address and alias from recipient are nil")
 }
 
 func (s *stateManager) Mutex() *lock.RwMutex {
