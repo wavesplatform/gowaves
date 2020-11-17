@@ -464,6 +464,18 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
+func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+	if recipient.Address != nil {
+		script, err := s.stor.scriptsStorage.scriptBytesByAddr(*recipient.Address, false)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to get script by address")
+		}
+		return script, nil
+	}
+
+	return nil, errors.Errorf("Address from recipient is nil")
+}
+
 func (s *stateManager) Mutex() *lock.RwMutex {
 	return lock.NewRwMutex(s.mu)
 }

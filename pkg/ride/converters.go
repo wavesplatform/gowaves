@@ -919,36 +919,6 @@ func convertArgument(arg proto.Argument) (rideType, error) {
 	}
 }
 
-//func unconvertArgument(arg rideType) (proto.Argument, error) {
-//	switch a := arg.(type) {
-//	case rideInt:
-//		v := proto.NewIntegerArgument(int64(a))
-//		return v, nil
-//	case rideBoolean:
-//		v := proto.NewBooleanArgument(bool(a))
-//		return v, nil
-//	case rideString:
-//		v := proto.NewStringArgument(string(a))
-//		return v, nil
-//	case rideBytes:
-//		v := proto.NewBinaryArgument([]byte(a))
-//		return v, nil
-//	case rideList:
-//		items := make(proto.Arguments, len(a))
-//		for i, item := range a  {
-//			var err error
-//			items[i], err = unconvertArgument(item)
-//			if err != nil {
-//				return nil, errors.Wrap(err, "failed to unconvert argument")
-//			}
-//		}
-//		v := proto.NewListArgument(items)
-//		return v, nil
-//	default:
-//		return nil, errors.Errorf("unknown argument type %T", arg)
-//	}
-//}
-
 func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (rideObject, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {

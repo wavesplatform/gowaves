@@ -209,11 +209,19 @@ type treeEvaluator struct {
 	env RideEnvironment
 }
 
-func (e *treeEvaluator) evaluate(invoke *InternalInvokeResult) (RideResult, error) {
-	r, err := e.walk(e.f, invoke)
+var wasInvokeDAppFromDApp = false
+var resultDAppFromDApp RideResult
+
+func (e *treeEvaluator) evaluate() (RideResult, error) {
+	r, err := e.walk(e.f)
 	if err != nil {
 		return nil, err
 	}
+
+	if wasInvokeDAppFromDApp {
+		return resultDAppFromDApp, nil
+	}
+
 	switch res := r.(type) {
 	case rideThrow:
 		if e.dapp {
@@ -247,7 +255,7 @@ func isThrow(r rideType) bool {
 	return r.instanceOf() == "Throw"
 }
 
-func (e *treeEvaluator) walk(node Node, invoke *InternalInvokeResult) (rideType, error) {
+func (e *treeEvaluator) walk(node Node) (rideType, error) {
 	switch n := node.(type) {
 	case *LongNode:
 		return rideInt(n.Value), nil
@@ -262,7 +270,7 @@ func (e *treeEvaluator) walk(node Node, invoke *InternalInvokeResult) (rideType,
 		return rideString(n.Value), nil
 
 	case *ConditionalNode:
-		ce, err := e.walk(n.Condition, invoke)
+		ce, err := e.walk(n.Condition)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to estimate the condition of if")
 		}
@@ -274,15 +282,15 @@ func (e *treeEvaluator) walk(node Node, invoke *InternalInvokeResult) (rideType,
 			return nil, errors.Errorf("not a boolean")
 		}
 		if cr {
-			return e.walk(n.TrueExpression, invoke)
+			return e.walk(n.TrueExpression)
 		} else {
-			return e.walk(n.FalseExpression, invoke)
+			return e.walk(n.FalseExpression)
 		}
 
 	case *AssignmentNode:
 		id := n.Name
 		e.s.pushExpression(id, n.Expression)
-		r, err := e.walk(n.Block, invoke)
+		r, err := e.walk(n.Block)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate block after declaration of variable '%s'", id)
 		}
@@ -305,7 +313,7 @@ func (e *treeEvaluator) walk(node Node, invoke *InternalInvokeResult) (rideType,
 			if v.expression == nil {
 				return nil, errors.Errorf("scope value '%s' is empty", id)
 			}
-			r, err := e.walk(v.expression, invoke)
+			r, err := e.walk(v.expression)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to evaluate expression of scope value '%s'", id)
 			}
@@ -320,7 +328,7 @@ func (e *treeEvaluator) walk(node Node, invoke *InternalInvokeResult) (rideType,
 	case *FunctionDeclarationNode:
 		id := n.Name
 		e.s.pushUserFunction(n)
-		r, err := e.walk(n.Block, invoke)
+		r, err := e.walk(n.Block)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate block after declaration of function '%s'", id)
 		}
@@ -339,7 +347,7 @@ func (e *treeEvaluator) walk(node Node, invoke *InternalInvokeResult) (rideType,
 		if ok { // System function
 			args := make([]rideType, len(n.Arguments))
 			for i, arg := range n.Arguments {
-				a, err := e.walk(arg, invoke) // materialize argument
+				a, err := e.walk(arg) // materialize argument
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, id)
 				}
@@ -367,7 +375,7 @@ func (e *treeEvaluator) walk(node Node, invoke *InternalInvokeResult) (rideType,
 		args := make([]esValue, len(n.Arguments))
 		for i, arg := range n.Arguments {
 			an := uf.Arguments[i]
-			av, err := e.walk(arg, invoke) // materialize argument
+			av, err := e.walk(arg) // materialize argument
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to materialize argument '%s' of user function '%s", an, id)
 			}
@@ -391,7 +399,7 @@ func (e *treeEvaluator) walk(node Node, invoke *InternalInvokeResult) (rideType,
 
 			args := make([]rideType, len(n.Arguments))
 			for i, arg := range n.Arguments {
-				a, err := e.walk(arg, invoke) // materialize argument
+				a, err := e.walk(arg) // materialize argument
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, id)
 				}
@@ -401,16 +409,16 @@ func (e *treeEvaluator) walk(node Node, invoke *InternalInvokeResult) (rideType,
 				args[i] = a
 			}
 
-			res, err := invokeFunctionFromDApp(e.env, recipient, funcName, args[2:], invoke)
+			res, err := invokeFunctionFromDApp(e.env, recipient, funcName, args[2:])
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp of system function '%s'", id)
 			}
-			invoke.result = res
-			invoke.isDAppFromDappInvoke = true
+			resultDAppFromDApp = res
+			wasInvokeDAppFromDApp = true
 			return nil, nil
 		}
 
-		r, err := e.walk(uf.Body, invoke)
+		r, err := e.walk(uf.Body)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", id)
 		}
@@ -420,7 +428,7 @@ func (e *treeEvaluator) walk(node Node, invoke *InternalInvokeResult) (rideType,
 
 	case *PropertyNode:
 		name := n.Name
-		obj, err := e.walk(n.Object, invoke)
+		obj, err := e.walk(n.Object)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate an object to get property '%s' on it", name)
 		}

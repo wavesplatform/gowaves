@@ -244,6 +244,10 @@ type MockSmartState struct {
 	lockRetrieveNewestStringEntry   sync.RWMutex
 }
 
+func (mock *MockSmartState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+	panic("implement me")
+}
+
 // AddingBlockHeight calls AddingBlockHeightFunc.
 func (mock *MockSmartState) AddingBlockHeight() (uint64, error) {
 	if mock.AddingBlockHeightFunc == nil {

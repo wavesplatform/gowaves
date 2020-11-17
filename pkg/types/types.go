@@ -43,7 +43,7 @@ type SmartState interface {
 	AddingBlockHeight() (uint64, error)
 	NewestTransactionByID([]byte) (proto.Transaction, error)
 	NewestTransactionHeightByID([]byte) (uint64, error)
-	//TODO (args, name, ...)
+	GetByteTree(recipient proto.Recipient) (proto.Script, error)
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error)
