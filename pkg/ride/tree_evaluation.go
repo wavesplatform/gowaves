@@ -47,7 +47,5 @@ func CallFunction(env RideEnvironment, tree *Tree, name string, args proto.Argum
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to call function '%s'", name)
 	}
-	r, err := e.evaluate()
-
-	return r, err
+	return e.evaluate()
 }
