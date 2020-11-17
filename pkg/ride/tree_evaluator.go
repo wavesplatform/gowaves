@@ -204,22 +204,16 @@ type treeEvaluator struct {
 	dapp bool
 	//limit int
 	//cost  int
-	f   Node
-	s   evaluationScope
-	env RideEnvironment
+	f       Node
+	s       evaluationScope
+	env     RideEnvironment
+	actions []proto.ScriptAction
 }
-
-var wasInvokeDAppFromDApp = false
-var resultDAppFromDApp RideResult
 
 func (e *treeEvaluator) evaluate() (RideResult, error) {
 	r, err := e.walk(e.f)
 	if err != nil {
 		return nil, err
-	}
-
-	if wasInvokeDAppFromDApp {
-		return resultDAppFromDApp, nil
 	}
 
 	switch res := r.(type) {
@@ -237,15 +231,14 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 		}
 		return DAppResult{true, actions, ""}, nil
 	case rideList:
-		actions := make([]proto.ScriptAction, len(res))
-		for i, item := range res {
+		for _, item := range res {
 			a, err := convertToAction(e.env, item)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to convert evaluation result")
 			}
-			actions[i] = a
+			e.actions = append(e.actions, a)
 		}
-		return DAppResult{res: true, actions: actions}, nil
+		return DAppResult{res: true, actions: e.actions}, nil
 	default:
 		return nil, errors.Errorf("unexpected result type '%T'", r)
 	}
@@ -413,9 +406,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp of system function '%s'", id)
 			}
-			resultDAppFromDApp = res
-			wasInvokeDAppFromDApp = true
-			return nil, nil
+			e.actions = append(e.actions, res.ScriptActions()...)
 		}
 
 		r, err := e.walk(uf.Body)
