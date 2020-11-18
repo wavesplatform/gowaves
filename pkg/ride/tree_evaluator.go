@@ -407,6 +407,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp of system function '%s'", id)
 			}
+			res.Result()
 			e.actions = append(e.actions, res.ScriptActions()...)
 		}
 

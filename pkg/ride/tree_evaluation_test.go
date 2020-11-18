@@ -783,6 +783,51 @@ func TestScriptResult(t *testing.T) {
 	)
 }
 
+func TestInvokeDAppFromDApp(t *testing.T) {
+	/*
+
+		{-# STDLIB_VERSION 4 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		func callDApp(addr:Address, fn:String, args:List[Int]) = {([],true)}
+
+		@Callable(i)
+		func test1() = {
+		  let dapp = Address(base58'11111111')
+		  let fn = "other_function"
+		  let x = getIntegerValue(Address(base58'1111111'),"key")
+		  if (x == x) then {
+		    let args = [1,2,3]
+		    let res = callDApp(dapp, fn, args)
+		    res._1
+		  } else {
+		    throw()
+		  }
+		}
+
+	*/
+	env, _ := testInvokeEnv(false)
+	//addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
+	//require.NoError(t, err)
+
+	code := "AAIEAAAAAAAAAAQIAhIAAAAAAQEAAAAIY2FsbERBcHAAAAADAAAABGFkZHIAAAACZm4AAAAEYXJncwkABRQAAAACBQAAAANuaWwGAAAAAQAAAAFpAQAAAAV0ZXN0MQAAAAAEAAAABGRhcHAJAQAAAAdBZGRyZXNzAAAAAQEAAAAIAAAAAAAAAAAEAAAAAmZuAgAAAA5vdGhlcl9mdW5jdGlvbgQAAAABeAkBAAAAEUBleHRyTmF0aXZlKDEwNTApAAAAAgkBAAAAB0FkZHJlc3MAAAABAQAAAAcAAAAAAAAAAgAAAANrZXkDCQAAAAAAAAIFAAAAAXgFAAAAAXgEAAAABGFyZ3MJAARMAAAAAgAAAAAAAAAAAQkABEwAAAACAAAAAAAAAAACCQAETAAAAAIAAAAAAAAAAAMFAAAAA25pbAQAAAADcmVzCQEAAAAIY2FsbERBcHAAAAADBQAAAARkYXBwBQAAAAJmbgUAAAAEYXJncwgFAAAAA3JlcwAAAAJfMQkBAAAABXRocm93AAAAAAAAAADXOGhx"
+	src, err := base64.StdEncoding.DecodeString(code)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	res, err := CallFunction(env, tree, "test1", proto.Arguments{})
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	//require.True(t, r.res) // should be true
+	require.False(t, r.res)
+
+}
+
 func TestMatchOverwrite(t *testing.T) {
 	/*
 		{-# STDLIB_VERSION 1 #-}
