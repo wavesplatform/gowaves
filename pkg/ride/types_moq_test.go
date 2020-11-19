@@ -29,6 +29,9 @@ var _ types.SmartState = &MockSmartState{}
 //             EstimatorVersionFunc: func() (int, error) {
 // 	               panic("mock out the EstimatorVersion method")
 //             },
+//             GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+// 	               panic("mock out the GetByteTree method")
+//             },
 //             IsNotFoundFunc: func(err error) bool {
 // 	               panic("mock out the IsNotFound method")
 //             },
@@ -87,6 +90,9 @@ type MockSmartState struct {
 	// EstimatorVersionFunc mocks the EstimatorVersion method.
 	EstimatorVersionFunc func() (int, error)
 
+	// GetByteTreeFunc mocks the GetByteTree method.
+	GetByteTreeFunc func(recipient proto.Recipient) (proto.Script, error)
+
 	// IsNotFoundFunc mocks the IsNotFound method.
 	IsNotFoundFunc func(err error) bool
 
@@ -143,6 +149,11 @@ type MockSmartState struct {
 		}
 		// EstimatorVersion holds details about calls to the EstimatorVersion method.
 		EstimatorVersion []struct {
+		}
+		// GetByteTree holds details about calls to the GetByteTree method.
+		GetByteTree []struct {
+			// Recipient is the recipient argument value.
+			Recipient proto.Recipient
 		}
 		// IsNotFound holds details about calls to the IsNotFound method.
 		IsNotFound []struct {
@@ -228,6 +239,7 @@ type MockSmartState struct {
 	lockAddingBlockHeight           sync.RWMutex
 	lockBlockVRF                    sync.RWMutex
 	lockEstimatorVersion            sync.RWMutex
+	lockGetByteTree                 sync.RWMutex
 	lockIsNotFound                  sync.RWMutex
 	lockNewestAccountBalance        sync.RWMutex
 	lockNewestAddrByAlias           sync.RWMutex
@@ -242,10 +254,6 @@ type MockSmartState struct {
 	lockRetrieveNewestBooleanEntry  sync.RWMutex
 	lockRetrieveNewestIntegerEntry  sync.RWMutex
 	lockRetrieveNewestStringEntry   sync.RWMutex
-}
-
-func (mock *MockSmartState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
-	panic("implement me")
 }
 
 // AddingBlockHeight calls AddingBlockHeightFunc.
@@ -332,6 +340,37 @@ func (mock *MockSmartState) EstimatorVersionCalls() []struct {
 	mock.lockEstimatorVersion.RLock()
 	calls = mock.calls.EstimatorVersion
 	mock.lockEstimatorVersion.RUnlock()
+	return calls
+}
+
+// GetByteTree calls GetByteTreeFunc.
+func (mock *MockSmartState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+	if mock.GetByteTreeFunc == nil {
+		panic("MockSmartState.GetByteTreeFunc: method is nil but SmartState.GetByteTree was just called")
+	}
+	callInfo := struct {
+		Recipient proto.Recipient
+	}{
+		Recipient: recipient,
+	}
+	mock.lockGetByteTree.Lock()
+	mock.calls.GetByteTree = append(mock.calls.GetByteTree, callInfo)
+	mock.lockGetByteTree.Unlock()
+	return mock.GetByteTreeFunc(recipient)
+}
+
+// GetByteTreeCalls gets all the calls that were made to GetByteTree.
+// Check the length with:
+//     len(mockedSmartState.GetByteTreeCalls())
+func (mock *MockSmartState) GetByteTreeCalls() []struct {
+	Recipient proto.Recipient
+} {
+	var calls []struct {
+		Recipient proto.Recipient
+	}
+	mock.lockGetByteTree.RLock()
+	calls = mock.calls.GetByteTree
+	mock.lockGetByteTree.RUnlock()
 	return calls
 }
 

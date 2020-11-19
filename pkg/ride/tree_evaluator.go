@@ -403,7 +403,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 				args[i] = a
 			}
 
-			res, err := invokeFunctionFromDApp(e.env, recipient, funcName, args[2:])
+			res, err := invokeFunctionFromDApp(e.env, recipient, funcName, args[2])
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp of system function '%s'", id)
 			}

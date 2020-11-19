@@ -784,34 +784,50 @@ func TestScriptResult(t *testing.T) {
 }
 
 func TestInvokeDAppFromDApp(t *testing.T) {
-	/*
 
-		{-# STDLIB_VERSION 4 #-}
-		{-# CONTENT_TYPE DAPP #-}
-		{-# SCRIPT_TYPE ACCOUNT #-}
+	/* script 1
+	{-# STDLIB_VERSION 4 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
 
-		func callDApp(addr:Address, fn:String, args:List[Int]) = {([],true)}
+	func callDApp(addr:Address, fn:String, args:List[Int]) = {([],true)}
 
-		@Callable(i)
-		func test1() = {
-		  let dapp = Address(base58'11111111')
-		  let fn = "other_function"
-		  let x = getIntegerValue(Address(base58'1111111'),"key")
-		  if (x == x) then {
-		    let args = [1,2,3]
-		    let res = callDApp(dapp, fn, args)
-		    res._1
-		  } else {
-		    throw()
-		  }
-		}
-
+	@Callable(i)
+	func test() = {
+	  let res = callDApp(Address(base58'3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP'), "settle", [1,2])
+	  res._1
+	}
 	*/
-	env, _ := testInvokeEnv(false)
-	//addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, tx.SenderPK)
-	//require.NoError(t, err)
 
-	code := "AAIEAAAAAAAAAAQIAhIAAAAAAQEAAAAIY2FsbERBcHAAAAADAAAABGFkZHIAAAACZm4AAAAEYXJncwkABRQAAAACBQAAAANuaWwGAAAAAQAAAAFpAQAAAAV0ZXN0MQAAAAAEAAAABGRhcHAJAQAAAAdBZGRyZXNzAAAAAQEAAAAIAAAAAAAAAAAEAAAAAmZuAgAAAA5vdGhlcl9mdW5jdGlvbgQAAAABeAkBAAAAEUBleHRyTmF0aXZlKDEwNTApAAAAAgkBAAAAB0FkZHJlc3MAAAABAQAAAAcAAAAAAAAAAgAAAANrZXkDCQAAAAAAAAIFAAAAAXgFAAAAAXgEAAAABGFyZ3MJAARMAAAAAgAAAAAAAAAAAQkABEwAAAACAAAAAAAAAAACCQAETAAAAAIAAAAAAAAAAAMFAAAAA25pbAQAAAADcmVzCQEAAAAIY2FsbERBcHAAAAADBQAAAARkYXBwBQAAAAJmbgUAAAAEYXJncwgFAAAAA3JlcwAAAAJfMQkBAAAABXRocm93AAAAAAAAAADXOGhx"
+	/* script 2
+	{-# STDLIB_VERSION 4 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func settle(x:Int, y:Int) = {
+	  let asset = Issue("Asset", "", x+y, 0, true, unit, 0);
+	  [asset]
+	}
+	*/
+	id := bytes.Repeat([]byte{0}, 32)
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				GetByteTreeFunc: func(recipient proto.Recipient)(proto.Script, error){
+					code := "AAIEAAAAAAAAAAgIAhIECgIBAQAAAAAAAAABAAAAAWkBAAAABnNldHRsZQAAAAIAAAABeAAAAAF5BAAAAAVhc3NldAkABEMAAAAHAgAAAAVBc3NldAIAAAAACQAAZAAAAAIFAAAAAXgFAAAAAXkAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAACQAETAAAAAIFAAAABWFzc2V0BQAAAANuaWwAAAAA9HH6yQ=="
+					script, err := base64.StdEncoding.DecodeString(code)
+					require.NoError(t, err)
+					return script, nil
+				},
+			}
+		},
+		txIDFunc: func() rideType {
+			return rideBytes(id)
+		},
+	}
+
+	code := "AAIEAAAAAAAAAAQIAhIAAAAAAQEAAAAIY2FsbERBcHAAAAADAAAABGFkZHIAAAACZm4AAAAEYXJncwkABRQAAAACBQAAAANuaWwGAAAAAQAAAAFpAQAAAAR0ZXN0AAAAAAQAAAADcmVzCQEAAAAIY2FsbERBcHAAAAADCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXI7OtElyTpMrsOf5PRtbNVk0t+xD7Y5h6AgAAAAZzZXR0bGUJAARMAAAAAgAAAAAAAAAAAQkABEwAAAACAAAAAAAAAAACBQAAAANuaWwIBQAAAANyZXMAAAACXzEAAAAASe0/FQ=="
 	src, err := base64.StdEncoding.DecodeString(code)
 	require.NoError(t, err)
 
@@ -819,12 +835,11 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallFunction(env, tree, "test1", proto.Arguments{})
+	res, err := CallFunction(env, tree, "test", proto.Arguments{})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	//require.True(t, r.res) // should be true
-	require.False(t, r.res)
+	require.True(t, r.res)
 
 }
 

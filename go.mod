@@ -22,6 +22,7 @@ require (
 	github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391
 	github.com/kilic/bn254 v0.0.0-20200902152204-ab63fe16fead
 	github.com/magiconair/properties v1.8.1
+	github.com/matryer/moq v0.1.4 // indirect
 	github.com/mr-tron/base58 v1.1.2
 	github.com/onsi/ginkgo v1.10.1 // indirect
 	github.com/onsi/gomega v1.7.0 // indirect
