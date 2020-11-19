@@ -13,7 +13,7 @@ func CallVerifier(env RideEnvironment, tree *Tree) (RideResult, error) {
 	return e.evaluate()
 }
 
-func invokeFunctionFromDApp(env RideEnvironment, recipient proto.Recipient, fnName rideType, listArgs rideType) (RideResult, error) {
+func invokeFunctionFromDApp(env RideEnvironment, recipient proto.Recipient, fnName rideType, listArgs rideList) (RideResult, error) {
 	funcName, ok := fnName.(rideString)
 	if !ok {
 		return nil, errors.Errorf("wrong function name argument type %T", fnName)
@@ -28,12 +28,8 @@ func invokeFunctionFromDApp(env RideEnvironment, recipient proto.Recipient, fnNa
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get tree by script")
 	}
-	args, ok := listArgs.(rideList)
-	//var args []rideType
-	//for _,arg := range rideList {
-	//	args = append(args, arg)
-	//}
-	e, err := treeFunctionEvaluatorForInvokeDAppFromDApp(env, tree, string(funcName), args)
+
+	e, err := treeFunctionEvaluatorForInvokeDAppFromDApp(env, tree, string(funcName), listArgs)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to call function '%s'", funcName)
 	}

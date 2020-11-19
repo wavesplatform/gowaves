@@ -814,7 +814,7 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 	env := &MockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
-				GetByteTreeFunc: func(recipient proto.Recipient)(proto.Script, error){
+				GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
 					code := "AAIEAAAAAAAAAAgIAhIECgIBAQAAAAAAAAABAAAAAWkBAAAABnNldHRsZQAAAAIAAAABeAAAAAF5BAAAAAVhc3NldAkABEMAAAAHAgAAAAVBc3NldAIAAAAACQAAZAAAAAIFAAAAAXgFAAAAAXkAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAACQAETAAAAAIFAAAABWFzc2V0BQAAAANuaWwAAAAA9HH6yQ=="
 					script, err := base64.StdEncoding.DecodeString(code)
 					require.NoError(t, err)

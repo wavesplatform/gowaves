@@ -384,31 +384,25 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		}
 
 		if n.Name == "callDApp" {
-			addr := args[0].value
+			addrOrAlias := args[0].value
 			funcName := args[1].value
-			recipient, err := extractRecipient(addr)
+			listArg, ok := args[2].value.(rideList)
+			if !ok {
+				return nil, errors.Errorf("argument for DApp function %s is not rideList", funcName)
+			}
+
+			recipient, err := extractRecipient(addrOrAlias)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get recipient from addr, user function '%s", id)
 			}
 
-			args := make([]rideType, len(n.Arguments))
-			for i, arg := range n.Arguments {
-				a, err := e.walk(arg) // materialize argument
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, id)
-				}
-				if isThrow(a) {
-					return a, nil
-				}
-				args[i] = a
-			}
-
-			res, err := invokeFunctionFromDApp(e.env, recipient, funcName, args[2])
+			res, err := invokeFunctionFromDApp(e.env, recipient, funcName, listArg)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp of system function '%s'", id)
 			}
-			res.Result()
-			e.actions = append(e.actions, res.ScriptActions()...)
+			if res.Result() {
+				e.actions = append(e.actions, res.ScriptActions()...)
+			}
 		}
 
 		r, err := e.walk(uf.Body)
