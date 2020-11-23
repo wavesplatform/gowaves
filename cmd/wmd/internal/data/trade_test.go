@@ -51,3 +51,20 @@ func TestTradeBinaryRoundTrip(t *testing.T) {
 		assert.Equal(t, tr, atr)
 	}
 }
+
+func TestNewTradeInfo(t *testing.T) {
+	for _, test := range []struct {
+		tr     Trade
+		aap    uint
+		pap    uint
+		price  string
+		amount string
+	}{
+		{Trade{Price: 3422660097000000, Amount: 1}, 2, 8, "34.22660097", "0.01"},
+		{Trade{Price: 22327, Amount: 14184001434}, 8, 8, "0.00022327", "141.84001434"},
+	} {
+		info := NewTradeInfo(test.tr, test.aap, test.pap)
+		assert.Equal(t, test.price, info.Price.String())
+		assert.Equal(t, test.amount, info.Amount.String())
+	}
+}
