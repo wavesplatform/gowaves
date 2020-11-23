@@ -33,11 +33,6 @@ type TransactionWithBytes struct {
 	B []byte
 }
 
-type Node interface {
-	node()
-	SetBlock(node Node)
-}
-
 // state for smart contracts
 type SmartState interface {
 	AddingBlockHeight() (uint64, error)
