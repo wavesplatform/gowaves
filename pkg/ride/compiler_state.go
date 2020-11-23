@@ -16,6 +16,7 @@ type Fsm interface {
 	Bytes(b []byte) Fsm
 	Func(name string, args []string, invokeParam string) Fsm
 	Property(name string) Fsm
+	retAssigment(pos uint16) Fsm
 }
 
 type uniqid struct {

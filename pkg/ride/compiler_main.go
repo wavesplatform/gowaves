@@ -3,6 +3,12 @@ package ride
 // Initial state, contains only assigments and last expression.
 type MainState struct {
 	params
+	retAssig uint16
+}
+
+func (a MainState) retAssigment(pos uint16) Fsm {
+	a.retAssig = pos
+	return a
 }
 
 func (a MainState) Property(name string) Fsm {

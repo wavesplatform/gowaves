@@ -10,6 +10,14 @@ type CallSystemState struct {
 	argc uint16
 	// positions of arguments
 	argn []uint16
+	// Position where we started write code for current state.
+	startedAt uint16
+	retAssig  uint16
+}
+
+func (a CallSystemState) retAssigment(pos uint16) Fsm {
+	a.retAssig = pos
+	return a
 }
 
 func (a CallSystemState) Property(name string) Fsm {
@@ -53,10 +61,11 @@ func callTransition(prev Fsm, params params, name string, argc uint16) Fsm {
 
 func newCallSystemFsm(prev Fsm, params params, name string, argc uint16) Fsm {
 	return &CallSystemState{
-		prev:   prev,
-		params: params,
-		name:   name,
-		argc:   argc,
+		prev:      prev,
+		params:    params,
+		name:      name,
+		argc:      argc,
+		startedAt: params.b.len(),
 	}
 }
 
@@ -70,36 +79,12 @@ func (a CallSystemState) Long(value int64) Fsm {
 }
 
 func (a CallSystemState) Return() Fsm {
-
-	//// check user functions
-	//n, ok := a.r.get(a.name)
-	//if ok {
-	//	a.b.startPos()
-	//	for _, pos := range a.argn {
-	//		a.b.writeByte(OpSetArg)
-	//		a.b.write(encode(pos))
-	//		//a.b.writeByte(OpReturn)
-	//	}
-	//
-	//	a.b.call(n, a.argc)
-	//	return a.prev
-	//}
-
-	//a.b.startPos()
 	n, ok := a.f(a.name)
 	if !ok {
-		//if p, ok := a.predef.get(a.name); ok {
-		//	a.b.externalCall(p.id, a.argc)
-		//	return a.prev
-		//}
 		panic(fmt.Sprintf("system function named `%s` not found", a.name))
 	}
-	//for _, pos := range a.argn {
-	//	a.b.writeByte(OpJump)
-	//	a.b.write(encode(pos))
-	//}
 	a.b.externalCall(n, a.argc)
-	return a.prev
+	return a.prev.retAssigment(a.startedAt)
 }
 
 func (a CallSystemState) Call(name string, argc uint16) Fsm {

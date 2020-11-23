@@ -82,6 +82,11 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 }
 
 func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
+	id, err := tx.GetID(a.settings.AddressSchemeCharacter)
+	if err != nil {
+		return err
+	}
+	idString := base58.Encode(id)
 	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
 		return err
@@ -90,10 +95,8 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	if err != nil {
 		return err
 	}
-	id, err := tx.GetID(a.settings.AddressSchemeCharacter)
-	if err != nil {
-		return err
-	}
+	zap.S().Error(ride.Decompiler(tree.Verifier))
+
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
@@ -104,14 +107,23 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
-	zap.S().Debug(tx.GetID(a.settings.AddressSchemeCharacter))
+	//zap.S().Debug(tx.GetID(a.settings.AddressSchemeCharacter))
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
+
+	//r2, err := ride.CallVerifier2(env, tree)
+	//if err != nil {
+	//	return errors.Wrapf(err, "R2: failed to call account script on transaction '%s'", base58.Encode(id))
+	//}
+	//if !r.Eq(r2) {
+	//	return errors.Wrapf(err, "R1 != R2: failed to call account script on transaction '%s'", base58.Encode(id))
+	//}
+
 	if !r.Result() {
 		if r.UserError() != "" {
-			return errors.Errorf("account script on transaction '%s' failed with error: %v", base58.Encode(id), r.UserError())
+			return errors.Errorf("account script on transaction '%s' failed with error: %v", idString, r.UserError())
 		}
 		return errs.NewTransactionNotAllowedByScript("script failed", id)
 	}

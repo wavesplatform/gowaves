@@ -79,6 +79,7 @@ func compileSimpleScript(libVersion int, node Node) (*Executable, error) {
 	b := newBuilder()
 	r := newReferences(nil)
 	c := newCell()
+	b.writeByte(OpReturn)
 
 	params := params{
 		b: b,
@@ -87,9 +88,9 @@ func compileSimpleScript(libVersion int, node Node) (*Executable, error) {
 		u: u,
 		c: c,
 	}
-	//mergeWithPredefined()
-
-	params.addPredefined("tx", 65535, tx)
+	for k, v := range predefinedFunctions {
+		params.addPredefined(k, v.id, v.f)
+	}
 
 	f := NewMain(params)
 	f, err = ccc(f, node)

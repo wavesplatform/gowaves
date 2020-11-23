@@ -2,6 +2,7 @@ package proto
 
 import (
 	"encoding/binary"
+	"fmt"
 	"unicode/utf16"
 
 	"github.com/pkg/errors"
@@ -9,6 +10,23 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
+
+type ScriptActions []ScriptAction
+
+func (a ScriptActions) Eq(b ScriptActions) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		left := fmt.Sprintf("%+v", a[i])
+		right := fmt.Sprintf("%+v", b[i])
+		if left != right {
+			return false
+		}
+	}
+	return true
+}
 
 // ScriptAction common interface of script invocation actions.
 type ScriptAction interface {

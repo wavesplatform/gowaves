@@ -3,8 +3,7 @@ package ride
 import (
 	"bytes"
 	"encoding/base64"
-	"fmt"
-	"strings"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -54,9 +53,15 @@ func Test_ccc(t *testing.T) {
 }
 
 func Test22(t *testing.T) {
-	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
-		return byte_helpers.TransferWithProofs.Transaction, nil
-	}}
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			t.Log("key: ", key)
+			return nil, errors.New("not found")
+		},
+	}
 	env := &MockRideEnvironment{
 		transactionFunc: testTransferObject,
 		stateFunc: func() types.SmartState {
@@ -64,6 +69,9 @@ func Test22(t *testing.T) {
 		},
 		schemeFunc: func() byte {
 			return 'T'
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
 		},
 	}
 	for _, test := range []struct {
@@ -81,9 +89,11 @@ func Test22(t *testing.T) {
 		{`V3: if (false) then {let r = true; r} else {let r = false; r}`, "AwMHBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXI+tfo1", nil, false},
 		{`V3: func abs(i:Int) = if (i >= 0) then i else -i; abs(-10) == 10`, "AwoBAAAAA2FicwAAAAEAAAABaQMJAABnAAAAAgUAAAABaQAAAAAAAAAAAAUAAAABaQkBAAAAAS0AAAABBQAAAAFpCQAAAAAAAAIJAQAAAANhYnMAAAABAP/////////2AAAAAAAAAAAKmp8BWw==", env, true},
 		{`V3: func a() = 1; a() == 2`, "BAoBAAAAAWEAAAAAAAAAAAAAAAABCQAAAAAAAAIJAQAAAAFhAAAAAAAAAAAAAAAAAsVdmuc=", env, false},
+		{`V3: func abc() = true; abc()`, "BAoBAAAAA2FiYwAAAAAGCQEAAAADYWJjAAAAANHu1ew=", env, true},
 		{`V3: func id(v: Boolean) = v; id(true)`, "BAoBAAAAAmlkAAAAAQAAAAF2BQAAAAF2CQEAAAACaWQAAAABBglAaUs=", env, true},
 		{`V3: 1 == 1`, "BAkAAAAAAAACAAAAAAAAAAABAAAAAAAAAAABq0EiMw==", env, true},
 		{`V3: let x = 1; func add(i: Int) = i + 1; add(x) == 2`, "AwQAAAABeAAAAAAAAAAAAQoBAAAAA2FkZAAAAAEAAAABaQkAAGQAAAACBQAAAAFpAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAF4AAAAAAAAAAACfr6U6w==", env, true},
+		{`V3: let x = if (true) then true else false; x`, "BAQAAAABeAMGBgcFAAAAAXgCINPC", env, true},
 		{`V3: let b = base16'0000000000000001'; func add(b: ByteVector) = toInt(b) + 1; add(b) == 2`, "AwQAAAABYgEAAAAIAAAAAAAAAAEKAQAAAANhZGQAAAABAAAAAWIJAABkAAAAAgkABLEAAAABBQAAAAFiAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAFiAAAAAAAAAAACX00biA==", nil, true},
 		{`V3: let b = base16'0000000000000001'; func add(v: ByteVector) = toInt(v) + 1; add(b) == 2`, "AwQAAAABYgEAAAAIAAAAAAAAAAEKAQAAAANhZGQAAAABAAAAAXYJAABkAAAAAgkABLEAAAABBQAAAAF2AAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAFiAAAAAAAAAAACI7gYxg==", nil, true},
 		{`V3: let b = base16'0000000000000001'; func add(v: ByteVector) = toInt(b) + 1; add(b) == 2`, "AwQAAAABYgEAAAAIAAAAAAAAAAEKAQAAAANhZGQAAAABAAAAAXYJAABkAAAAAgkABLEAAAABBQAAAAFiAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAFiAAAAAAAAAAAChRvwnQ==", nil, true},
@@ -97,12 +107,12 @@ func Test22(t *testing.T) {
 		{`let x =  throw(); true || x`, `AQQAAAABeAkBAAAABXRocm93AAAAAAMGBgUAAAABeKRnLds=`, env, true},
 		// Global variables
 		{`tx == tx`, "BAkAAAAAAAACBQAAAAJ0eAUAAAACdHhnqgP4", env, true},
-		{`tx.id == base58''`, `AQkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAAJBtD70=`, env, false},
+		//{`tx.id == base58''`, `AQkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAAJBtD70=`, env, false},
 		//{`tx.id == base58'H5C8bRzbUTMePSDVVxjiNKDUwk6CKzfZGTP2Rs7aCjsV'`, `BAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAIO7N5luRDUgN1SJ4kFmy/Ni8U2H6k7bpszok5tlLlRVgHwSHyg==`, env, true},
-		{`let x = tx.id == base58'a';true`, `AQQAAAABeAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAASEGjR0kcA==`, env, true},
-		{`tx.proofs[0] != base58'' && tx.proofs[1] == base58''`, `BAMJAQAAAAIhPQAAAAIJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAAEAAAAACQAAAAAAAAIJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAQEAAAAAB106gzM=`, env, true},
-		{`match tx {case t : TransferTransaction | MassTransferTransaction | ExchangeTransaction => true; case _ => false}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNFeGNoYW5nZVRyYW5zYWN0aW9uBgMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24GCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGB6Ilvok=`, env, true},
-		{`V2: match transactionById(tx.id) {case  t: Unit => false case _ => true}`, `AgQAAAAHJG1hdGNoMAkAA+gAAAABCAUAAAACdHgAAAACaWQDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABFVuaXQEAAAAAXQFAAAAByRtYXRjaDAHBp9TFcQ=`, env, true},
+		//{`let x = tx.id == base58'a';true`, `AQQAAAABeAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAASEGjR0kcA==`, env, true},
+		//{`tx.proofs[0] != base58'' && tx.proofs[1] == base58''`, `BAMJAQAAAAIhPQAAAAIJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAAEAAAAACQAAAAAAAAIJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAQEAAAAAB106gzM=`, env, true},
+		//{`match tx {case t : TransferTransaction | MassTransferTransaction | ExchangeTransaction => true; case _ => false}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNFeGNoYW5nZVRyYW5zYWN0aW9uBgMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24GCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGB6Ilvok=`, env, true},
+		//{`V2: match transactionById(tx.id) {case  t: Unit => false case _ => true}`, `AgQAAAAHJG1hdGNoMAkAA+gAAAABCAUAAAACdHgAAAACaWQDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABFVuaXQEAAAAAXQFAAAAByRtYXRjaDAHBp9TFcQ=`, env, true},
 		//{`Up() == UP`, `AwkAAAAAAAACCQEAAAACVXAAAAAABQAAAAJVUPGUxeg=`, env, true},
 		//{`HalfUp() == HALFUP`, `AwkAAAAAAAACCQEAAAAGSGFsZlVwAAAAAAUAAAAGSEFMRlVQbUfpTQ==`, nil, true},
 		//{`let a0 = NoAlg() == NOALG; let a1 = Md5() == MD5; let a2 = Sha1() == SHA1; let a3 = Sha224() == SHA224; let a4 = Sha256() == SHA256; let a5 = Sha384() == SHA384; let a6 = Sha512() == SHA512; let a7 = Sha3224() == SHA3224; let a8 = Sha3256() == SHA3256; let a9 = Sha3384() == SHA3384; let a10 = Sha3512() == SHA3512; a0 && a1 && a2 && a3 && a4 && a5 && a6 && a7 && a8 && a9 && a10`, `AwQAAAACYTAJAAAAAAAAAgkBAAAABU5vQWxnAAAAAAUAAAAFTk9BTEcEAAAAAmExCQAAAAAAAAIJAQAAAANNZDUAAAAABQAAAANNRDUEAAAAAmEyCQAAAAAAAAIJAQAAAARTaGExAAAAAAUAAAAEU0hBMQQAAAACYTMJAAAAAAAAAgkBAAAABlNoYTIyNAAAAAAFAAAABlNIQTIyNAQAAAACYTQJAAAAAAAAAgkBAAAABlNoYTI1NgAAAAAFAAAABlNIQTI1NgQAAAACYTUJAAAAAAAAAgkBAAAABlNoYTM4NAAAAAAFAAAABlNIQTM4NAQAAAACYTYJAAAAAAAAAgkBAAAABlNoYTUxMgAAAAAFAAAABlNIQTUxMgQAAAACYTcJAAAAAAAAAgkBAAAAB1NoYTMyMjQAAAAABQAAAAdTSEEzMjI0BAAAAAJhOAkAAAAAAAACCQEAAAAHU2hhMzI1NgAAAAAFAAAAB1NIQTMyNTYEAAAAAmE5CQAAAAAAAAIJAQAAAAdTaGEzMzg0AAAAAAUAAAAHU0hBMzM4NAQAAAADYTEwCQAAAAAAAAIJAQAAAAdTaGEzNTEyAAAAAAUAAAAHU0hBMzUxMgMDAwMDAwMDAwMFAAAAAmEwBQAAAAJhMQcFAAAAAmEyBwUAAAACYTMHBQAAAAJhNAcFAAAAAmE1BwUAAAACYTYHBQAAAAJhNwcFAAAAAmE4BwUAAAACYTkHBQAAAANhMTAHRc/wAA==`, env, true},
@@ -195,6 +205,43 @@ func TestCallExternal(t *testing.T) {
 			OpReturn,
 		},
 		f.ByteCode)
+}
+
+// let x = if (true) then true else false; x
+func TestIfConditionRightByteCode(t *testing.T) {
+	n := &AssignmentNode{
+		Name: "x",
+		Expression: &ConditionalNode{
+			Condition:       &BooleanNode{Value: true},
+			TrueExpression:  &BooleanNode{Value: true},
+			FalseExpression: &BooleanNode{Value: false},
+		},
+		Block: &ReferenceNode{
+			Name: "x",
+		},
+	}
+
+	f, err := compileSimpleScript(3, n)
+	require.NoError(t, err)
+
+	require.Equal(t,
+		[]byte{
+			OpReturn,
+			OpRef, 0, 1,
+			OpJumpIfFalse, 0, 11, 0, 15, 0, 19,
+			OpRef, 0, 2,
+			OpReturn,
+			OpRef, 0, 3,
+			OpReturn,
+			OpReturn,
+			OpRef, 0, 4,
+			OpReturn,
+		},
+		f.ByteCode)
+
+	rs, err := f.Run(nil)
+	require.NoError(t, err)
+	require.Equal(t, true, rs.Result())
 }
 
 //func a() = 1; a() == 1
@@ -442,9 +489,14 @@ base64:AwoBAAAAAWYAAAABAAAAA2tleQQAAAAHJG1hdGNoMAkABBwAAAACBQAAAAR0aGlzBQAAAANrZ
 
 func Test2121(t *testing.T) {
 	source := `AwoBAAAAAWYAAAABAAAAA2tleQQAAAAHJG1hdGNoMAkABBwAAAACBQAAAAR0aGlzBQAAAANrZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAACkJ5dGVWZWN0b3IEAAAAAWEFAAAAByRtYXRjaDAAAAAAAAAAAAEAAAAAAAAAAAAEAAAAAWEJAQAAAAFmAAAAAQIAAAABYQQAAAABYgkBAAAAAWYAAAABAgAAAAFiBAAAAAFjCQEAAAABZgAAAAECAAAAAWMEAAAAAWQJAQAAAAFmAAAAAQIAAAABZAQAAAABZQkBAAAAAWYAAAABAgAAAAFlAwkAAAAAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIFAAAAAWEFAAAAAWIFAAAAAWMFAAAAAWQFAAAAAWUAAAAAAAAAAAUJAAH0AAAAAwgFAAAAAnR4AAAACWJvZHlCeXRlcwkAAZEAAAACCAUAAAACdHgAAAAGcHJvb2ZzAAAAAAAAAAAACAUAAAACdHgAAAAPc2VuZGVyUHVibGljS2V5B4xspLY=`
-	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
-		return byte_helpers.TransferWithProofs.Transaction, nil
-	}}
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			return &proto.BinaryDataEntry{}, nil
+		},
+	}
 	env := &MockRideEnvironment{
 		transactionFunc: testTransferObject,
 		stateFunc: func() types.SmartState {
@@ -457,7 +509,12 @@ func Test2121(t *testing.T) {
 			return true
 		},
 		thisFunc: func() rideType {
-			return testTransferObject()
+			addr, err := proto.NewAddressFromString("3MfnF2zbXiM89zxcenPVT9fa4qfVJqeCZzj")
+			if err != nil {
+				panic(err)
+			}
+
+			return rideAddress(addr)
 		},
 	}
 
@@ -468,7 +525,7 @@ func Test2121(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	t.Log(detree(tree.Verifier))
+	t.Log(Decompiler(tree.Verifier))
 
 	script, err := CompileSimpleScript(tree)
 	require.NoError(t, err)
@@ -482,67 +539,122 @@ func Test2121(t *testing.T) {
 	assert.Equal(t, true, r.Result())
 }
 
-func detree(tree Node) string {
-	s := &strings.Builder{}
-	detree_(s, tree, 0)
-	return s.String()
+/*
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func id(v: Boolean) = {
+    if (v) then {
+        let x = throw("a")
+        1
+    } else {
+        let x = throw("b")
+        2
+    }
 }
 
-func detree_(s *strings.Builder, tree Node, shift int) {
-	switch n := tree.(type) {
-	case *FunctionDeclarationNode:
-		s.WriteString(fmt.Sprintf("func %s(", n.Name))
-		for _, a := range n.Arguments {
-			s.WriteString(a)
-			s.WriteString(",")
-		}
-		s.WriteString(") {\n")
-		s.WriteString(strings.Repeat(" ", shift+1))
-		detree_(s, n.Body, shift+1)
-		s.WriteString("}\n")
-		detree_(s, n.Block, shift)
+1 == id(true)
 
-	case *AssignmentNode:
-		s.WriteString(fmt.Sprintf("let %s = ", n.Name))
-		detree_(s, n.Expression, shift)
-		s.WriteString("\n")
-		detree_(s, n.Block, shift)
-
-	case *ConditionalNode:
-		s.WriteString(strings.Repeat(" ", shift*4))
-		s.WriteString(fmt.Sprintf("if ("))
-		detree_(s, n.Condition, shift)
-		s.WriteString(") {\n")
-		s.WriteString(strings.Repeat(" ", (shift+1)*4))
-		detree_(s, n.TrueExpression, shift+1)
-		s.WriteString("} else {\n")
-		s.WriteString(strings.Repeat(" ", (shift+1)*4))
-		detree_(s, n.FalseExpression, shift+1)
-		s.WriteString("}\n")
-	case *FunctionCallNode:
-		s.WriteString(n.Name)
-		s.WriteString("(")
-		for _, a := range n.Arguments {
-			detree_(s, a, shift)
-			s.WriteString(",")
-		}
-		s.WriteString(")")
-	case *ReferenceNode:
-		s.WriteString(n.Name)
-	case *StringNode:
-		s.WriteString(`"`)
-		s.WriteString(n.Value)
-		s.WriteString(`"`)
-	case *PropertyNode:
-		detree_(s, n.Object, shift)
-		s.WriteString(".")
-		s.WriteString(n.Name)
-	case *BooleanNode:
-		s.WriteString(fmt.Sprintf("%t", n.Value))
-	case *LongNode:
-		s.WriteString(fmt.Sprintf("%d", n.Value))
-	default:
-		panic(fmt.Sprintf("unknown type %T", n))
+*/
+func TestIfStmt(t *testing.T) {
+	source := `BAoBAAAAAmlkAAAAAQAAAAF2AwUAAAABdgQAAAABeAkAAAIAAAABAgAAAAFhAAAAAAAAAAABBAAAAAF4CQAAAgAAAAECAAAAAWIAAAAAAAAAAAIJAAAAAAAAAgAAAAAAAAAAAQkBAAAAAmlkAAAAAQYYAiEb`
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
 	}
-	//return s.String()
+	env := &MockRideEnvironment{
+		transactionFunc: testTransferObject,
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		schemeFunc: func() byte {
+			return 'T'
+		},
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+	}
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileSimpleScript(tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	res, err := script.Run(env)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+	r, ok := res.(ScriptResult)
+	assert.True(t, ok)
+	assert.Equal(t, true, r.Result())
+}
+
+/*
+
+
+let dd = @extrNative(1050)(this,"dd",);
+func f(key) {
+	let $match0 = getBinary(this,key);
+	if (instanceOf($match0,"ByteVector")) {
+		let a = $match0;
+		2-1
+	} else {
+		0
+	}
+}
+let a = ((((f("a",) + f("b",)) + f("c",)) + f("d",)) + f("e",));
+let b = ((((f("g",) + f("h",)) + f("i",)) + f("j",)) + f("k",));
+let c = ((((f("a",) + f("b",)) + f("c",)) + f("d",)) + f("k",));
+let d = ((((f("g",) + f("h",)) + f("i",)) + f("j",)) + f("e",));
+let e = ((((f("a",) + f("b",)) + f("c",)) + f("j",)) + f("e",));
+let g = ((f("g",) + f("h",)) + value(f("i",),));
+if (
+	if (
+		if (
+			if (
+				if (
+					if (
+						if ((dd == 1)) {
+							(a == 5)
+						} else {
+							false
+						}
+						) { (b == parseIntValue("0",)) } else { false }) { (c == 4) } else { false }) { (d == parseIntValue("1",)) } else { false }) { (e == 4) } else { false }) { (g == parseIntValue("0",)) } else { false }) { true } else { 500(tx.bodyBytes,401(tx.proofs,0,),tx.senderPublicKey,) }
+
+
+
+AwQAAAACZGQJAQAAABFAZXh0ck5hdGl2ZSgxMDUwKQAAAAIFAAAABHRoaXMCAAAAAmRkCgEAAAABZgAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEHAAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAKQnl0ZVZlY3RvcgQAAAABYQUAAAAHJG1hdGNoMAkAAGUAAAACAAAAAAAAAAACAAAAAAAAAAABAAAAAAAAAAAABAAAAAFhCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAQAAAAFmAAAAAQIAAAABYQkBAAAAAWYAAAABAgAAAAFiCQEAAAABZgAAAAECAAAAAWMJAQAAAAFmAAAAAQIAAAABZAkBAAAAAWYAAAABAgAAAAFlBAAAAAFiCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAQAAAAFmAAAAAQIAAAABZwkBAAAAAWYAAAABAgAAAAFoCQEAAAABZgAAAAECAAAAAWkJAQAAAAFmAAAAAQIAAAABagkBAAAAAWYAAAABAgAAAAFrBAAAAAFjCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAQAAAAFmAAAAAQIAAAABYQkBAAAAAWYAAAABAgAAAAFiCQEAAAABZgAAAAECAAAAAWMJAQAAAAFmAAAAAQIAAAABZAkBAAAAAWYAAAABAgAAAAFrBAAAAAFkCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAQAAAAFmAAAAAQIAAAABZwkBAAAAAWYAAAABAgAAAAFoCQEAAAABZgAAAAECAAAAAWkJAQAAAAFmAAAAAQIAAAABagkBAAAAAWYAAAABAgAAAAFlBAAAAAFlCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAQAAAAFmAAAAAQIAAAABYQkBAAAAAWYAAAABAgAAAAFiCQEAAAABZgAAAAECAAAAAWMJAQAAAAFmAAAAAQIAAAABagkBAAAAAWYAAAABAgAAAAFlBAAAAAFnCQAAZAAAAAIJAABkAAAAAgkBAAAAAWYAAAABAgAAAAFnCQEAAAABZgAAAAECAAAAAWgJAQAAAAV2YWx1ZQAAAAEJAQAAAAFmAAAAAQIAAAABaQMDAwMDAwMJAAAAAAAAAgUAAAACZGQAAAAAAAAAAAEJAAAAAAAAAgUAAAABYQAAAAAAAAAABQcJAAAAAAAAAgUAAAABYgkBAAAADXBhcnNlSW50VmFsdWUAAAABAgAAAAEwBwkAAAAAAAACBQAAAAFjAAAAAAAAAAAEBwkAAAAAAAACBQAAAAFkCQEAAAANcGFyc2VJbnRWYWx1ZQAAAAECAAAAATEHCQAAAAAAAAIFAAAAAWUAAAAAAAAAAAQHCQAAAAAAAAIFAAAAAWcJAQAAAA1wYXJzZUludFZhbHVlAAAAAQIAAAABMAcGCQAB9AAAAAMIBQAAAAJ0eAAAAAlib2R5Qnl0ZXMJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAAgFAAAAAnR4AAAAD3NlbmRlclB1YmxpY0tlebYLD8w=
+
+*/
+
+func Test44(t *testing.T) {
+	source := "AwQAAAACZGQJAQAAABFAZXh0ck5hdGl2ZSgxMDUwKQAAAAIFAAAABHRoaXMCAAAAAmRkCgEAAAABZgAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEHAAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAKQnl0ZVZlY3RvcgQAAAABYQUAAAAHJG1hdGNoMAkAAGUAAAACAAAAAAAAAAACAAAAAAAAAAABAAAAAAAAAAAABAAAAAFhCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAQAAAAFmAAAAAQIAAAABYQkBAAAAAWYAAAABAgAAAAFiCQEAAAABZgAAAAECAAAAAWMJAQAAAAFmAAAAAQIAAAABZAkBAAAAAWYAAAABAgAAAAFlBAAAAAFiCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAQAAAAFmAAAAAQIAAAABZwkBAAAAAWYAAAABAgAAAAFoCQEAAAABZgAAAAECAAAAAWkJAQAAAAFmAAAAAQIAAAABagkBAAAAAWYAAAABAgAAAAFrBAAAAAFjCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAQAAAAFmAAAAAQIAAAABYQkBAAAAAWYAAAABAgAAAAFiCQEAAAABZgAAAAECAAAAAWMJAQAAAAFmAAAAAQIAAAABZAkBAAAAAWYAAAABAgAAAAFrBAAAAAFkCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAQAAAAFmAAAAAQIAAAABZwkBAAAAAWYAAAABAgAAAAFoCQEAAAABZgAAAAECAAAAAWkJAQAAAAFmAAAAAQIAAAABagkBAAAAAWYAAAABAgAAAAFlBAAAAAFlCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIJAQAAAAFmAAAAAQIAAAABYQkBAAAAAWYAAAABAgAAAAFiCQEAAAABZgAAAAECAAAAAWMJAQAAAAFmAAAAAQIAAAABagkBAAAAAWYAAAABAgAAAAFlBAAAAAFnCQAAZAAAAAIJAABkAAAAAgkBAAAAAWYAAAABAgAAAAFnCQEAAAABZgAAAAECAAAAAWgJAQAAAAV2YWx1ZQAAAAEJAQAAAAFmAAAAAQIAAAABaQMDAwMDAwMJAAAAAAAAAgUAAAACZGQAAAAAAAAAAAEJAAAAAAAAAgUAAAABYQAAAAAAAAAABQcJAAAAAAAAAgUAAAABYgkBAAAADXBhcnNlSW50VmFsdWUAAAABAgAAAAEwBwkAAAAAAAACBQAAAAFjAAAAAAAAAAAEBwkAAAAAAAACBQAAAAFkCQEAAAANcGFyc2VJbnRWYWx1ZQAAAAECAAAAATEHCQAAAAAAAAIFAAAAAWUAAAAAAAAAAAQHCQAAAAAAAAIFAAAAAWcJAQAAAA1wYXJzZUludFZhbHVlAAAAAQIAAAABMAcGCQAB9AAAAAMIBQAAAAJ0eAAAAAlib2R5Qnl0ZXMJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAAgFAAAAAnR4AAAAD3NlbmRlclB1YmxpY0tlebYLD8w="
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileSimpleScript(tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	t.Log(Decompiler(tree.Verifier))
+
+	//res, err := script.Run(env)
+	//require.NoError(t, err)
+	//assert.NotNil(t, res)
+	//r, ok := res.(ScriptResult)
+	//assert.True(t, ok)
+	//assert.Equal(t, true, r.Result())
+
 }

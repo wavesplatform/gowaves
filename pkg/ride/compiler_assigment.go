@@ -6,6 +6,12 @@ type AssigmentState struct {
 	prev   Fsm
 	name   string
 	offset uint16
+	ret    uint16
+}
+
+func (a AssigmentState) retAssigment(pos uint16) Fsm {
+	a.ret = pos
+	return a
 }
 
 func (a AssigmentState) Property(name string) Fsm {
@@ -66,7 +72,7 @@ func (a AssigmentState) Return() Fsm {
 	n := a.u.next()
 	a.c.set(n, nil, nil, a.offset)
 	a.r.set(a.name, n)
-	return a.prev
+	return a.prev.retAssigment(a.params.b.len())
 }
 
 func (a AssigmentState) Long(value int64) Fsm {

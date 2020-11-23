@@ -12,6 +12,10 @@ type CallUserState struct {
 	argn []uniqueid
 }
 
+func (a CallUserState) retAssigment(pos uint16) Fsm {
+	panic("implement me")
+}
+
 func newCallUserFsm(prev Fsm, params params, name string, argc uint16) Fsm {
 	return &CallUserState{
 		prev:   prev,
@@ -81,7 +85,12 @@ func (a CallUserState) Return() Fsm {
 		a.b.write(encode(funcParamID))
 	}
 
-	a.b.call(n, a.argc)
+	point, ok := a.params.c.get(n)
+	if !ok {
+		panic(fmt.Sprintf("no point %d found in cell", n))
+	}
+
+	a.b.call(point.position, a.argc)
 	return a.prev
 }
 
@@ -95,5 +104,5 @@ func (a CallUserState) Reference(name string) Fsm {
 		panic("CallUserState Reference " + name + " not found")
 	}
 	a.argn = append(a.argn, rs)
-	return reference(a, a.params, name)
+	return a
 }

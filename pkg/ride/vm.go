@@ -53,7 +53,11 @@ func (m *vm) run() (RideResult, error) {
 				m.ip = pos
 			}
 		case OpJumpIfFalse:
-			pos := m.arg16()
+			posTrue := m.arg16()
+			posFalse := m.arg16()
+			posNext := m.arg16()
+			m.jmps = append(m.jmps, posNext)
+
 			val, err := m.pop()
 			if err != nil {
 				return nil, errors.Wrap(err, "OpJumpIfFalse")
@@ -62,8 +66,10 @@ func (m *vm) run() (RideResult, error) {
 			if !ok {
 				return nil, errors.Errorf("not a boolean value '%v' of type '%T'", m.current(), m.current())
 			}
-			if !v {
-				m.ip = pos
+			if v {
+				m.ip = posTrue
+			} else {
+				m.ip = posFalse
 			}
 		case OpProperty:
 			obj, err := m.pop()
@@ -105,6 +111,9 @@ func (m *vm) run() (RideResult, error) {
 			if err != nil {
 				return nil, err
 			}
+			if isThrow(res) {
+				return nil, errors.Errorf("terminated execution by throw with message %q", res)
+			}
 			m.push(res)
 		case OpReturn:
 			l := len(m.jmps)
@@ -116,7 +125,7 @@ func (m *vm) run() (RideResult, error) {
 					}
 					switch tv := v.(type) {
 					case rideBoolean:
-						return ScriptResult{res: bool(tv)}, nil
+						return ScriptResult{res: bool(tv), operations: numOperations}, nil
 					default:
 						return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
 					}

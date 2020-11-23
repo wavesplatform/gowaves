@@ -116,6 +116,11 @@ func (a *cell) set(u uniqueid, result rideType, fn rideFunction, position uint16
 	}
 }
 
+func (a *cell) get(u uniqueid) (point, bool) {
+	rs, ok := a.values[u]
+	return rs, ok
+}
+
 type uniqueid = uint16
 
 type references struct {

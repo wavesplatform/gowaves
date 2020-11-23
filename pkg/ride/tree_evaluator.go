@@ -227,7 +227,7 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
-		return DAppResult{true, actions, ""}, nil
+		return DAppResult{res: true, actions: actions, msg: ""}, nil
 	case rideList:
 		actions := make([]proto.ScriptAction, len(res))
 		for i, item := range res {
@@ -242,11 +242,6 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 		return nil, errors.Errorf("unexpected result type '%T'", r)
 	}
 }
-
-//
-//func (e *treeEvaluator) exceeded() bool {
-//	return e.limit > 0 && e.cost >= e.limit
-//}
 
 func isThrow(r rideType) bool {
 	return r.instanceOf() == "Throw"
