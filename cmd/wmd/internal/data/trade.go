@@ -183,7 +183,7 @@ func NewTradeInfo(trade Trade, amountAssetPrecision, priceAssetPrecision uint) T
 		ID:        trade.TransactionID,
 		Confirmed: true,
 		OrderType: trade.OrderType,
-		Price:     *NewDecimal(trade.Price, priceAssetPrecision),
+		Price:     *NewDecimal(trade.Price, 8+priceAssetPrecision-amountAssetPrecision), // decimalPrice * 10^(8 + priceAssetDecimals - amountAssetDecimals)
 		Amount:    *NewDecimal(trade.Amount, amountAssetPrecision),
 		Buyer:     trade.Buyer,
 		Seller:    trade.Seller,

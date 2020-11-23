@@ -76,10 +76,13 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 }
 
 func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote peer.Remote, declAddr proto.TCPAddr) (conn.Connection, *proto.Handshake, error) {
-	possibleVersions := []uint32{15, 14, 16}
+	possibleVersions := []proto.Version{
+		{Major: 1, Minor: 2, Patch: 0},
+		{Major: 1, Minor: 1, Patch: 0},
+	}
 	index := 0
 
-	for i := 0; i < 20; i++ {
+	for i := 0; i < len(possibleVersions); i++ {
 
 		c, err := net.Dial("tcp", a.params.Address)
 		if err != nil {
@@ -94,7 +97,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 
 		handshake := proto.Handshake{
 			AppName:      wavesNetwork,
-			Version:      proto.Version{Major: 0, Minor: possibleVersions[index%len(possibleVersions)], Patch: 0},
+			Version:      possibleVersions[index%len(possibleVersions)],
 			NodeName:     "retransmitter",
 			NodeNonce:    0x0,
 			DeclaredAddr: proto.HandshakeTCPAddr(declAddr),
