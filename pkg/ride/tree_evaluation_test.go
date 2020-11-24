@@ -821,6 +821,7 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 						code := "AAIEAAAAAAAAAAgIAhIECgIBAQAAAAAAAAABAAAAAWkBAAAABnNldHRsZQAAAAIAAAABeAAAAAF5BAAAAAVhc3NldAkABEMAAAAHAgAAAAVBc3NldAIAAAAACQAAZAAAAAIFAAAAAXgFAAAAAXkAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAACQAETAAAAAIFAAAABWFzc2V0BQAAAANuaWwAAAAA9HH6yQ=="
 						script, err = base64.StdEncoding.DecodeString(code)
 						require.NoError(t, err)
+						return script, nil
 					}
 
 					return script, nil
