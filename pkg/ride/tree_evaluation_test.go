@@ -810,58 +810,71 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 	  [asset]
 	}
 	*/
+	type Scripts struct {
+		firstScript  string
+		secondScript string
+	}
+
+	addressScripts := make(map[string]Scripts)
+	addressScripts["3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP"] = Scripts{
+		firstScript:  "AAIEAAAAAAAAAAQIAhIAAAAAAQEAAAAIY2FsbERBcHAAAAADAAAABGFkZHIAAAACZm4AAAAEYXJncwkABRQAAAACBQAAAANuaWwGAAAAAQAAAAFpAQAAAAR0ZXN0AAAAAAQAAAADcmVzCQEAAAAIY2FsbERBcHAAAAADCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXI7OtElyTpMrsOf5PRtbNVk0t+xD7Y5h6AgAAAAZzZXR0bGUJAARMAAAAAgAAAAAAAAAAAQkABEwAAAACAAAAAAAAAAACBQAAAANuaWwIBQAAAANyZXMAAAACXzEAAAAASe0/FQ==",
+		secondScript: "AAIEAAAAAAAAAAgIAhIECgIBAQAAAAAAAAABAAAAAWkBAAAABnNldHRsZQAAAAIAAAABeAAAAAF5BAAAAAVhc3NldAkABEMAAAAHAgAAAAVBc3NldAIAAAAACQAAZAAAAAIFAAAAAXgFAAAAAXkAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAACQAETAAAAAIFAAAABWFzc2V0BQAAAANuaWwAAAAA9HH6yQ=="}
+
 	id := bytes.Repeat([]byte{0}, 32)
-	env := &MockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
-					var script proto.Script
-					var err error
-					if recipient.Address.String() == "3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP" {
-						code := "AAIEAAAAAAAAAAgIAhIECgIBAQAAAAAAAAABAAAAAWkBAAAABnNldHRsZQAAAAIAAAABeAAAAAF5BAAAAAVhc3NldAkABEMAAAAHAgAAAAVBc3NldAIAAAAACQAAZAAAAAIFAAAAAXgFAAAAAXkAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAACQAETAAAAAIFAAAABWFzc2V0BQAAAANuaWwAAAAA9HH6yQ=="
-						script, err = base64.StdEncoding.DecodeString(code)
-						require.NoError(t, err)
+
+	for address, scripts := range addressScripts {
+
+		env := &MockRideEnvironment{
+			stateFunc: func() types.SmartState {
+				return &MockSmartState{
+					GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+						var script proto.Script
+						var err error
+						if recipient.Address.String() == address {
+							script, err = base64.StdEncoding.DecodeString(scripts.secondScript)
+							require.NoError(t, err)
+							return script, nil
+						}
+
 						return script, nil
-					}
+					},
+				}
+			},
+			txIDFunc: func() rideType {
+				return rideBytes(id)
+			},
+		}
 
-					return script, nil
-				},
-			}
-		},
-		txIDFunc: func() rideType {
-			return rideBytes(id)
-		},
+		src, err := base64.StdEncoding.DecodeString(scripts.firstScript)
+		require.NoError(t, err)
+
+		tree, err := Parse(src)
+		require.NoError(t, err)
+		assert.NotNil(t, tree)
+
+		res, err := CallFunction(env, tree, "test", proto.Arguments{})
+		require.NoError(t, err)
+		r, ok := res.(DAppResult)
+		require.True(t, ok)
+		require.True(t, r.res)
+
+		sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+		require.NoError(t, err)
+
+		expectedDataWrites := []*proto.IssueScriptAction{
+			{ID: sr.Issues[0].ID, Name: "Asset", Description: "", Quantity: 3, Decimals: 0, Reissuable: true, Script: nil, Nonce: 0},
+		}
+		expectedResult := &proto.ScriptResult{
+			DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+			Transfers:    make([]*proto.TransferScriptAction, 0),
+			Issues:       expectedDataWrites,
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		}
+		assert.Equal(t, expectedResult, sr)
 	}
 
-	code := "AAIEAAAAAAAAAAQIAhIAAAAAAQEAAAAIY2FsbERBcHAAAAADAAAABGFkZHIAAAACZm4AAAAEYXJncwkABRQAAAACBQAAAANuaWwGAAAAAQAAAAFpAQAAAAR0ZXN0AAAAAAQAAAADcmVzCQEAAAAIY2FsbERBcHAAAAADCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXI7OtElyTpMrsOf5PRtbNVk0t+xD7Y5h6AgAAAAZzZXR0bGUJAARMAAAAAgAAAAAAAAAAAQkABEwAAAACAAAAAAAAAAACBQAAAANuaWwIBQAAAANyZXMAAAACXzEAAAAASe0/FQ=="
-	src, err := base64.StdEncoding.DecodeString(code)
-	require.NoError(t, err)
-
-	tree, err := Parse(src)
-	require.NoError(t, err)
-	assert.NotNil(t, tree)
-
-	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-	require.NoError(t, err)
-	r, ok := res.(DAppResult)
-	require.True(t, ok)
-	require.True(t, r.res)
-
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
-	require.NoError(t, err)
-
-	expectedDataWrites := []*proto.IssueScriptAction{
-		{ID: sr.Issues[0].ID, Name: "Asset", Description: "", Quantity: 3, Decimals: 0, Reissuable: true, Script: nil, Nonce: 0},
-	}
-	expectedResult := &proto.ScriptResult{
-		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
-		Transfers:    make([]*proto.TransferScriptAction, 0),
-		Issues:       expectedDataWrites,
-		Reissues:     make([]*proto.ReissueScriptAction, 0),
-		Burns:        make([]*proto.BurnScriptAction, 0),
-		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
-	}
-	assert.Equal(t, expectedResult, sr)
 }
 
 func TestMatchOverwrite(t *testing.T) {
