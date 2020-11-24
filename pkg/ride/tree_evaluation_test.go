@@ -815,9 +815,14 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
-					code := "AAIEAAAAAAAAAAgIAhIECgIBAQAAAAAAAAABAAAAAWkBAAAABnNldHRsZQAAAAIAAAABeAAAAAF5BAAAAAVhc3NldAkABEMAAAAHAgAAAAVBc3NldAIAAAAACQAAZAAAAAIFAAAAAXgFAAAAAXkAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAACQAETAAAAAIFAAAABWFzc2V0BQAAAANuaWwAAAAA9HH6yQ=="
-					script, err := base64.StdEncoding.DecodeString(code)
-					require.NoError(t, err)
+					var script proto.Script
+					var err error
+					if recipient.Address.String() == "3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP"{
+						code := "AAIEAAAAAAAAAAgIAhIECgIBAQAAAAAAAAABAAAAAWkBAAAABnNldHRsZQAAAAIAAAABeAAAAAF5BAAAAAVhc3NldAkABEMAAAAHAgAAAAVBc3NldAIAAAAACQAAZAAAAAIFAAAAAXgFAAAAAXkAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAACQAETAAAAAIFAAAABWFzc2V0BQAAAANuaWwAAAAA9HH6yQ=="
+						script, err = base64.StdEncoding.DecodeString(code)
+						require.NoError(t, err)
+					}
+
 					return script, nil
 				},
 			}
@@ -841,6 +846,23 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
+
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+
+	expectedDataWrites := []*proto.IssueScriptAction{
+		{ID: sr.Issues[0].ID, Name: "Asset", Description: "", Quantity: 3, Decimals: 0, Reissuable: true, Script: nil, Nonce: 0},
+
+	}
+	expectedResult := &proto.ScriptResult{
+		DataEntries: make([]*proto.DataEntryScriptAction, 0),
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:  expectedDataWrites,
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+	}
+	assert.Equal(t, expectedResult, sr)
 }
 
 func TestMatchOverwrite(t *testing.T) {
