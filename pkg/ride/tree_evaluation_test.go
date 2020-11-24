@@ -822,6 +822,10 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 
 	id := bytes.Repeat([]byte{0}, 32)
 
+	expectedDataWrites := []*proto.IssueScriptAction{
+		{Name: "Asset", Description: "", Quantity: 3, Decimals: 0, Reissuable: true, Script: nil, Nonce: 0},
+	}
+	i := 0
 	for address, scripts := range addressScripts {
 
 		env := &MockRideEnvironment{
@@ -844,6 +848,11 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 				return rideBytes(id)
 			},
 		}
+		pid, ok := env.txID().(rideBytes)
+		require.True(t, ok)
+		d, err := crypto.NewDigestFromBytes(pid)
+		require.NoError(t, err)
+		expectedDataWrites[i].ID = proto.GenerateIssueScriptActionID(expectedDataWrites[i].Name, expectedDataWrites[i].Description, int64(expectedDataWrites[i].Decimals), expectedDataWrites[i].Quantity, expectedDataWrites[i].Reissuable, expectedDataWrites[i].Nonce, d)
 
 		src, err := base64.StdEncoding.DecodeString(scripts.firstScript)
 		require.NoError(t, err)
@@ -861,9 +870,6 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 		sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 		require.NoError(t, err)
 
-		expectedDataWrites := []*proto.IssueScriptAction{
-			{ID: sr.Issues[0].ID, Name: "Asset", Description: "", Quantity: 3, Decimals: 0, Reissuable: true, Script: nil, Nonce: 0},
-		}
 		expectedResult := &proto.ScriptResult{
 			DataEntries:  make([]*proto.DataEntryScriptAction, 0),
 			Transfers:    make([]*proto.TransferScriptAction, 0),
@@ -873,6 +879,7 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 		}
 		assert.Equal(t, expectedResult, sr)
+		i++
 	}
 
 }
