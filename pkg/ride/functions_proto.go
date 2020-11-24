@@ -1028,6 +1028,14 @@ func sponsorship(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return obj, nil
 }
 
+func attachedPayment(_ RideEnvironment, args ...rideType) (rideType, error) {
+	r := make(rideObject)
+	r[instanceFieldName] = rideString("AttachedPayment")
+	r["assetId"] = args[0].(rideBytes)
+	r["amount"] = args[1].(rideInt)
+	return r, nil
+}
+
 func extractRecipient(v rideType) (proto.Recipient, error) {
 	var r proto.Recipient
 	switch a := v.(type) {

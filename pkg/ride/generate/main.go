@@ -295,6 +295,7 @@ func functionsV4() map[string]string {
 	m["Reissue"] = "reissue"
 	m["Burn"] = "burn"
 	m["SponsorFee"] = "sponsorship"
+	m["AttachedPayment"] = "attachedPayment"
 
 	// Functions
 	delete(m, "wavesBalance") // Remove wavesBalanceV3
@@ -360,6 +361,7 @@ func catalogueV4() map[string]int {
 	m["Reissue"] = 3
 	m["Burn"] = 2
 	m["SponsorFee"] = 2
+	m["AttachedPayment"] = 2
 
 	m["201"] = 6
 	m["202"] = 6
