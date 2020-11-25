@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 type assetBalanceKey struct {
@@ -257,7 +258,8 @@ func putAssets(bs *blockState, batch *leveldb.Batch, height uint32, assetChanges
 			return errors.Wrapf(err, "failed to update assets")
 		}
 		if !ok {
-			return errors.Errorf("failed to locate asset to update")
+			zap.S().Warnf("Failed to locate asset '%s'", u.AssetID.String())
+			continue
 		}
 		//Update history only for the first change at the height
 		if _, ok := historyUpdated[hk]; !ok {
@@ -377,13 +379,16 @@ func putAccounts(bs *blockState, batch *leveldb.Batch, height uint32, accountCha
 		if err != nil {
 			return errors.Wrapf(err, "failed to find that the address '%s' issued asset '%s'", addr.String(), u.Asset.String())
 		}
-		if ok { //This is an issuer's account
+		if ok {
+			//This is an issuer's account
 			err := updateBalanceAndHistory(bs, batch, height, addr, u.Asset, u.In, u.Out)
 			if err != nil {
 				return errors.Wrapf(err, "failed to update balance of address '%s' for asset '%s'", addr.String(), u.Asset.String())
 			}
-		} else { //This is not an issuer's account, but maybe this is a sponsored asset
-			if u.MinersReward { // in this case if this also a miner's reward
+		} else {
+			//This is not an issuer's account, but maybe this is a sponsored asset
+			if u.MinersReward {
+				// in this case if this also a miner's reward
 				a, ok, err := bs.assetInfo(u.Asset)
 				if err != nil {
 					return errors.Wrapf(err, "failed to get the sponsorship for '%s'", u.Asset.String())
