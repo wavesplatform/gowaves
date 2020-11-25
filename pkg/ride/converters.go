@@ -82,6 +82,7 @@ func fullAssetInfoToObject(info *proto.FullAssetInfo) rideObject {
 	obj := assetInfoToObject(&info.AssetInfo)
 	obj["name"] = rideString(info.Name)
 	obj["description"] = rideString(info.Description)
+	obj["minSponsoredFee"] = rideInt(info.SponsorshipCost)
 	return obj
 }
 
