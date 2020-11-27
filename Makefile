@@ -96,7 +96,7 @@ build-node-windows:
 
 release-node: ver build-node-linux build-node-darwin build-node-windows
 
-dist-node: release-node build-node-mainnet-deb-package build-node-testnet-deb-package
+dist-node: release-node build-node-mainnet-deb-package build-node-testnet-deb-package build-node-stagenet-deb-package
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/node_$(VERSION)_Windows-64bit.zip ./bin/windows-amd64/node*
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/node_$(VERSION)_Linux-64bit.tar.gz ./node*
@@ -253,3 +253,29 @@ build-node-testnet-deb-package: release-node
 	@dpkg-deb --build ./build/gowaves-testnet
 	@mv ./build/gowaves-testnet.deb ./build/dist/gowaves-testnet_${VERSION}.deb
 	@rm -rf ./build/gowaves-testnet
+
+build-node-stagenet-deb-package: release-node
+	@mkdir -p build/dist
+
+	@mkdir -p ./build/gowaves-stagenet/DEBIAN
+	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for StageNet System Service/g; s/PACKAGE/gowaves-stagenet/g" ./dpkg/control > ./build/gowaves-stagenet/DEBIAN/control
+	@sed "s/PACKAGE/gowaves-stagenet/g; s/NAME/gowaves/g;" ./dpkg/postinst > ./build/gowaves-stagenet/DEBIAN/postinst
+	@sed "s/PACKAGE/gowaves-stagenet/g" ./dpkg/postrm > ./build/gowaves-stagenet/DEBIAN/postrm
+	@sed "s/PACKAGE/gowaves-stagenet/g" ./dpkg/prerm > ./build/gowaves-stagenet/DEBIAN/prerm
+	@chmod 0644 ./build/gowaves-stagenet/DEBIAN/control
+	@chmod 0775 ./build/gowaves-stagenet/DEBIAN/postinst
+	@chmod 0775 ./build/gowaves-stagenet/DEBIAN/postrm
+	@chmod 0775 ./build/gowaves-stagenet/DEBIAN/prerm
+
+	@mkdir -p ./build/gowaves-stagenet/lib/systemd/system
+	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for StageNet System Service|g; s|PACKAGE|gowaves-stagenet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-stagenet/ -api-address 0.0.0.0:8100 -blockchain-type stagenet|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-stagenet/lib/systemd/system/gowaves-stagenet.service
+
+	@mkdir -p ./build/gowaves-stagenet/usr/share/gowaves-stagenet
+	@cp ./build/bin/linux-amd64/node ./build/gowaves-stagenet/usr/share/gowaves-stagenet
+
+	@mkdir -p ./build/gowaves-stagenet/var/lib/gowaves-stagenet/
+	@mkdir -p ./build/gowaves-stagenet/var/log/gowaves-stagenet/
+
+	@dpkg-deb --build ./build/gowaves-stagenet
+	@mv ./build/gowaves-stagenet.deb ./build/dist/gowaves-stagenet_${VERSION}.deb
+	@rm -rf ./build/gowaves-stagenet
