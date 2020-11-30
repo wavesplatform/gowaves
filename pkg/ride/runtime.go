@@ -333,7 +333,9 @@ type RideEnvironment interface {
 	this() rideType
 	block() rideObject
 	txID() rideType // Invoke transaction ID
-	state() types.SmartState
+	state() *types.SmartState
+	realState() types.SmartState
+	interlayerState() types.SmartState
 	checkMessageLength(int) bool
 	invocation() rideObject // Invocation object made of invoke transaction
 }

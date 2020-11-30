@@ -9,6 +9,7 @@ import (
 type Environment struct {
 	sch   proto.Scheme
 	st    types.SmartState
+	interlayerSt types.SmartState
 	h     rideInt
 	tx    rideObject
 	id    rideType
@@ -26,6 +27,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, 
 	return &Environment{
 		sch:   scheme,
 		st:    state,
+		interlayerSt: state,
 		h:     rideInt(height),
 		tx:    nil,
 		id:    nil,
@@ -140,7 +142,11 @@ func (e *Environment) txID() rideType {
 }
 
 func (e *Environment) state() types.SmartState {
-	return e.st
+	return e.interlayerSt
+}
+
+func (e *Environment) realState() *types.SmartState {
+	return &e.st
 }
 
 func (e *Environment) checkMessageLength(l int) bool {

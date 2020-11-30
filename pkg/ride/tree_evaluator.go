@@ -1,6 +1,7 @@
 package ride
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -215,6 +216,9 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	realState := e.env.realState()
+	realState = e.env.state()
+	fmt.Println(realState)
 
 	switch res := r.(type) {
 	case rideThrow:
