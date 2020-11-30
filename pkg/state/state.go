@@ -327,10 +327,6 @@ func (n *newBlocks) reset() {
 	n.curPos = 0
 }
 
-type interlayerState struct {
-	state *stateManager
-}
-
 type stateManager struct {
 	mu *sync.RWMutex // `mu` is used outside of state and returned in Mutex() function.
 

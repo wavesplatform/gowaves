@@ -122,6 +122,10 @@ type MockRideEnvironment struct {
 	locktxID               sync.RWMutex
 }
 
+func (mock *MockRideEnvironment) apply() {
+
+}
+
 // block calls blockFunc.
 func (mock *MockRideEnvironment) block() rideObject {
 	if mock.blockFunc == nil {

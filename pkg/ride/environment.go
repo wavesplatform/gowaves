@@ -7,16 +7,16 @@ import (
 )
 
 type Environment struct {
-	sch   proto.Scheme
-	st    types.SmartState
+	sch          proto.Scheme
+	st           types.SmartState
 	interlayerSt types.SmartState
-	h     rideInt
-	tx    rideObject
-	id    rideType
-	th    rideType
-	b     rideObject
-	check func(int) bool
-	inv   rideObject
+	h            rideInt
+	tx           rideObject
+	id           rideType
+	th           rideType
+	b            rideObject
+	check        func(int) bool
+	inv          rideObject
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, error) {
@@ -25,16 +25,16 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, 
 		return nil, err
 	}
 	return &Environment{
-		sch:   scheme,
-		st:    state,
+		sch:          scheme,
+		st:           state,
 		interlayerSt: state,
-		h:     rideInt(height),
-		tx:    nil,
-		id:    nil,
-		th:    nil,
-		b:     nil,
-		check: func(int) bool { return true },
-		inv:   nil,
+		h:            rideInt(height),
+		tx:           nil,
+		id:           nil,
+		th:           nil,
+		b:            nil,
+		check:        func(int) bool { return true },
+		inv:          nil,
 	}, nil
 }
 
@@ -142,11 +142,12 @@ func (e *Environment) txID() rideType {
 }
 
 func (e *Environment) state() types.SmartState {
-	return e.interlayerSt
+	//return e.interlayerSt
+	return e.st
 }
 
-func (e *Environment) realState() *types.SmartState {
-	return &e.st
+func (e *Environment) apply() {
+	e.st = e.interlayerSt
 }
 
 func (e *Environment) checkMessageLength(l int) bool {
