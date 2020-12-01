@@ -363,9 +363,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		if len(n.Arguments) != len(uf.Arguments) {
 			return nil, errors.Errorf("mismatched arguments number of user function '%s'", id)
 		}
-
-		var tmp int
-		tmp, e.s.cl = e.s.cl, cl
+    
 		args := make([]esValue, len(n.Arguments))
 		for i, arg := range n.Arguments {
 			an := uf.Arguments[i]
@@ -382,6 +380,8 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		for i, arg := range args {
 			e.s.cs[len(e.s.cs)-1][i] = arg
 		}
+    var tmp int
+		tmp, e.s.cl = e.s.cl, cl
 
 		if n.Name == "callDApp" {
 			addrOrAlias := args[0].value
@@ -405,7 +405,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 				e.env.applyToState(res.ScriptActions())
 			}
 		}
-
+    
 		r, err := e.walk(uf.Body)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", id)

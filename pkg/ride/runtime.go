@@ -297,7 +297,7 @@ func (a rideNamedType) get(prop string) (rideType, error) {
 type rideList []rideType
 
 func (a rideList) instanceOf() string {
-	return "List"
+	return "List[Any]"
 }
 
 func (a rideList) eq(other rideType) bool {
