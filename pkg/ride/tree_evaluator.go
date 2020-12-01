@@ -223,7 +223,6 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 		}
 		return ScriptResult{res: false, msg: string(res)}, nil
 	case rideBoolean:
-		//e.env.apply()
 		return ScriptResult{res: bool(res)}, nil
 	case rideObject:
 		actions, err := objectToActions(e.env, res)
@@ -231,7 +230,6 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
 		e.actions = append(e.actions, actions...)
-		//e.env.apply()
 		return DAppResult{true, actions, ""}, nil
 	case rideList:
 		for _, item := range res {
@@ -241,7 +239,6 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 			}
 			e.actions = append(e.actions, a)
 		}
-		//e.env.apply()
 		return DAppResult{res: true, actions: e.actions}, nil
 	default:
 		return nil, errors.Errorf("unexpected result type '%T'", r)
