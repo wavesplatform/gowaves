@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/mr-tron/base58"
@@ -2926,6 +2927,14 @@ func mustBytesFromBase64(s string) []byte {
 	return b
 }
 
+func mustIntFromString(s string) int {
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 func TestZeroReissue(t *testing.T) {
 	txID, err := crypto.NewDigestFromBase58("BbVsHJpTJKhuMTco6MTV984fR1dHMLiwUuDjepbsYi45")
 	require.NoError(t, err)
@@ -3102,6 +3111,84 @@ func TestZeroReissue(t *testing.T) {
 	assert.Equal(t, expectedResult, sr)
 }
 
+type jsonDataProvider struct {
+	strings  map[string]string
+	ints     map[string]int
+	bools    map[string]bool
+	binaries map[string][]byte
+}
+
+func newJsonDataProvider(s string) *jsonDataProvider {
+	strings := make(map[string]string)
+	ints := make(map[string]int)
+	bools := make(map[string]bool)
+	binaries := make(map[string][]byte)
+	var data []struct {
+		Entry struct {
+			Key         string  `json:"key"`
+			BoolValue   *bool   `json:"boolValue"`
+			StringVale  *string `json:"stringValue"`
+			IntValue    *string `json:"intValue"`
+			BinaryValue *string `json:"binaryValue"`
+		} `json:"entry"`
+	}
+	err := json.Unmarshal([]byte(s), &data)
+	if err != nil {
+		panic(err)
+	}
+	for _, d := range data {
+		key := d.Entry.Key
+		switch {
+		case d.Entry.BoolValue != nil:
+			bools[key] = *d.Entry.BoolValue
+		case d.Entry.StringVale != nil:
+			strings[key] = *d.Entry.StringVale
+		case d.Entry.IntValue != nil:
+			ints[key] = mustIntFromString(*d.Entry.IntValue)
+		case d.Entry.BinaryValue != nil:
+			binaries[key] = mustBytesFromBase64(*d.Entry.BinaryValue)
+		}
+	}
+	return &jsonDataProvider{
+		strings:  strings,
+		ints:     ints,
+		bools:    bools,
+		binaries: binaries,
+	}
+}
+
+func (p *jsonDataProvider) getBool(k string) (*proto.BooleanDataEntry, error) {
+	v, ok := p.bools[k]
+	if !ok {
+		return nil, errors.Errorf("bool value not found by key '%s'", k)
+	}
+	return &proto.BooleanDataEntry{Key: k, Value: v}, nil
+}
+
+func (p *jsonDataProvider) getString(k string) (*proto.StringDataEntry, error) {
+	v, ok := p.strings[k]
+	if !ok {
+		return nil, errors.Errorf("string value not found by key '%s'", k)
+	}
+	return &proto.StringDataEntry{Key: k, Value: v}, nil
+}
+
+func (p *jsonDataProvider) getInt(k string) (*proto.IntegerDataEntry, error) {
+	v, ok := p.ints[k]
+	if !ok {
+		return nil, errors.Errorf("int value not found by key '%s'", k)
+	}
+	return &proto.IntegerDataEntry{Key: k, Value: int64(v)}, nil
+}
+
+func (p *jsonDataProvider) getBinary(k string) (*proto.BinaryDataEntry, error) {
+	v, ok := p.binaries[k]
+	if !ok {
+		return nil, errors.Errorf("binary value not found by key '%s'", k)
+	}
+	return &proto.BinaryDataEntry{Key: k, Value: v}, nil
+}
+
 func TestStageNet2(t *testing.T) {
 	txID, err := crypto.NewDigestFromBase58("9vt45R9y63Xwcseat59BchUjfJGHSuN5LeTK6Pd6cFUM")
 	require.NoError(t, err)
@@ -3146,25 +3233,7 @@ func TestStageNet2(t *testing.T) {
 		Generator:           genAddr,
 		GeneratorPublicKey:  genPK,
 	}
-	booleanEntries := map[string]bool{
-		"status": true,
-	}
-	stringEntries := map[string]string{
-		"aa":            "3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC",
-		"dappAddress":   "3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC",
-		"masterAddress": "3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz",
-		"assetIdTokenB": "WAVES",
-	}
-	intEntries := map[string]int64{
-		"total_amount":       600900000,
-		"amountTokenA":       10000,
-		"amountTokenB":       10000,
-		"exchange_count":     0,
-		"share_token_supply": 10000,
-	}
-	binaryEntries := map[string][]byte{
-		"share_token_id": mustBytesFromBase64("Q3Uk9ZN5g5+xynU7VGPXUg1eVga04VYXnnZ0q+M1dxQ="),
-	}
+	dp := newJsonDataProvider(`[{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"aa","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"dappAddress","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"total_amount","intValue":"600900000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"masterAddress","stringValue":"3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"assetId_2020-10-3","stringValue":"Eo7N1sjexrfu6mx5LrG3suovSaXaBNnmYfvqJsMzSYE8"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"assetId_2020-10-5","stringValue":"J2j4PRKXuUKUZCP345EXAHYF2gRg15JsYQYtFT4GNPda"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_total_amount_2020-10-3","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_total_amount_2020-10-5","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","stringValue":"2020-11-23"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","stringValue":"2020-11-11"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","stringValue":"2020-09-30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_limit","stringValue":"2020-10-3"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_limit","stringValue":"2020-10-5"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_limit","stringValue":"2020-10-3"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_limit","stringValue":"2020-10-5"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_amount","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_amount","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_assetId","stringValue":"GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_assetId","stringValue":"9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_assetId","stringValue":"3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_assetId","stringValue":"fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_assetId","stringValue":"Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_assetId","stringValue":"AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_assetId","stringValue":"DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_assetId","stringValue":"5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_assetId","stringValue":"6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_assetId","stringValue":"BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_unitPrice","intValue":"300"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_unitPrice","intValue":"300"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_description","stringValue":"みんな電力公式"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"dappAddress","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"masterAddress","stringValue":"3MSvD3m1R8Z3v8SAztrt1afp28vRdsMwxAu"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"asset_total_amount","intValue":"100000"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT","stringValue":"{\"name\":\"ママママママママっまm\",\"description\":\"retail user\"}"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MktJgV2eTmcCqtyQaeqiiHkQ1eY3EH5Tdb","stringValue":"{\"name\":\"ママママママママっまm\",\"description\":\"retail user\"}"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MRiqDCpFntSEud3Co8bdQygjSwB515zyS5_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MSvD3m1R8Z3v8SAztrt1afp28vRdsMwxAu_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MUJS7P4W3XyP2pnAJUGqkstSAiU4Ac2YdA_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MZyZAgAJmXmJs5gDihnMvZ7HCLxe6zVVpU_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MfF8z9y9nUUuHTeKiGFGoWXnUrRPbEcNiD_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3Mh5b5UttYteWjd5Mku43kajZFKX9z5WNxZ_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MjBN2kiRB6JmoEVEC42ZNMX9ibx5iZ9Mih_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MktJgV2eTmcCqtyQaeqiiHkQ1eY3EH5Tdb_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3Mm9VfS5424Vn4oNKv1DSh7Htk6FhQReEuP_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MmNtj9n49UgGapeh1Sg8Nd8jfQGDbqRTkx_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3P35F9e1QdcHkBMbYtovuMUmsxxCqo9DF1d_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PLXmyBua1pAH4y3aHjMqJrcJEcyrWMP1EB_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PMoTnMU6U4hx8km23iZJ6Akis6JKhcxhUn_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PNVubsGCrnMHLXvg1gYidcP3G7HUC5fAuZ_active","boolValue":true}}]`)
 	env := &MockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 451323
@@ -3187,32 +3256,16 @@ func TestStageNet2(t *testing.T) {
 					return &proto.FullWavesBalance{Available: 5000000000}, nil
 				},
 				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-					v, ok := booleanEntries[key]
-					if !ok {
-						return nil, errors.New("fail")
-					}
-					return &proto.BooleanDataEntry{Key: key, Value: v}, nil
+					return dp.getBool(key)
 				},
 				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-					v, ok := stringEntries[key]
-					if !ok {
-						return nil, errors.New("fail")
-					}
-					return &proto.StringDataEntry{Key: key, Value: v}, nil
+					return dp.getString(key)
 				},
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-					v, ok := intEntries[key]
-					if !ok {
-						return nil, errors.New("fail")
-					}
-					return &proto.IntegerDataEntry{Key: key, Value: v}, nil
+					return dp.getInt(key)
 				},
 				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-					v, ok := binaryEntries[key]
-					if !ok {
-						return nil, errors.New("fail")
-					}
-					return &proto.BinaryDataEntry{Key: key, Value: v}, nil
+					return dp.getBinary(key)
 				},
 			}
 		},
@@ -3269,4 +3322,62 @@ func TestStageNet2(t *testing.T) {
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
+}
+
+func TestRecipientAddressToString(t *testing.T) {
+	/*
+		{-# STDLIB_VERSION 4 #-}
+		{-# CONTENT_TYPE EXPRESSION #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		match tx {
+		    case tr: TransferTransaction =>
+		        match tr.recipient {
+		            case a: Address => toString(a) == "3N61Xs9cTetvoP1uZSrtuRxxJ4A4RCR7a4G"
+		            case _ => false
+		        }
+		    case _ => false
+		}
+	*/
+	s := "BAQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAnRyBQAAAAckbWF0Y2gwBAAAAAckbWF0Y2gxCAUAAAACdHIAAAAJcmVjaXBpZW50AwkAAAEAAAACBQAAAAckbWF0Y2gxAgAAAAdBZGRyZXNzBAAAAAFhBQAAAAckbWF0Y2gxCQAAAAAAAAIJAAQlAAAAAQUAAAABYQIAAAAjM042MVhzOWNUZXR2b1AxdVpTcnR1Unh4SjRBNFJDUjdhNEcHBzdCrWM="
+	src, err := base64.StdEncoding.DecodeString(s)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	id := crypto.MustDigestFromBase58("2RW5wedbBi9PTEM9Ao5s5Y7U25FD7PepujC2CS7Qeta1")
+	tx := &proto.TransferWithProofs{
+		Type:    proto.TransferTransaction,
+		Version: 3,
+		ID:      &id,
+		Proofs:  proto.NewProofs(),
+		Transfer: proto.Transfer{
+			SenderPK:    crypto.PublicKey{},
+			AmountAsset: proto.OptionalAsset{},
+			FeeAsset:    proto.OptionalAsset{},
+			Timestamp:   0,
+			Amount:      0,
+			Fee:         0,
+			Recipient:   proto.NewRecipientFromAddress(proto.MustAddressFromString("3N61Xs9cTetvoP1uZSrtuRxxJ4A4RCR7a4G")),
+			Attachment:  nil,
+		},
+	}
+	env := &MockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		checkMessageLengthFunc: v3check,
+	}
+
+	res, err := CallVerifier(env, tree)
+	require.NoError(t, err)
+	r, ok := res.(ScriptResult)
+	require.True(t, ok)
+	assert.True(t, r.Result())
 }
