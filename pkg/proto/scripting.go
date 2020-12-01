@@ -364,8 +364,8 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
-			if ta.Quantity <= 0 {
-				return errors.New("negative or zero quantity")
+			if ta.Quantity < 0 {
+				return errors.New("negative quantity")
 			}
 
 		case *BurnScriptAction:
@@ -373,8 +373,8 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
-			if ta.Quantity <= 0 {
-				return errors.New("negative or zero quantity")
+			if ta.Quantity < 0 {
+				return errors.New("negative quantity")
 			}
 
 		case *SponsorshipScriptAction:

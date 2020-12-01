@@ -2917,3 +2917,187 @@ func TestNoDeclaration(t *testing.T) {
 	}
 	assert.Equal(t, expectedResult, sr)
 }
+
+func mustBytesFromBase64(s string) []byte {
+	b, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func TestZeroReissue(t *testing.T) {
+	txID, err := crypto.NewDigestFromBase58("BbVsHJpTJKhuMTco6MTV984fR1dHMLiwUuDjepbsYi45")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("3fNyidPXzaXhdJdhzvKuNbZ3D5tSQGe9Txuy8gZamhhEdwzpVQwrmupvqDm6hHfnoFA1XkTQ773iCpQTef68P71t")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("289xpUrYrKbLjaKkqH3XNhfecukcYRaDRT3JDrvkvQRU")
+	require.NoError(t, err)
+	address, err := proto.NewAddressFromString("3MYx35iDGa74cDGfXLUGrrBKAtyeLpMTNC8")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(address)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "replenishment",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{proto.ScriptPayment{Amount: 10000, Asset: proto.OptionalAsset{}}, proto.ScriptPayment{Amount: 10000, Asset: proto.OptionalAsset{}}},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             1000000,
+		Timestamp:       1599205729886,
+	}
+	genPK := crypto.MustPublicKeyFromBase58("BeaUPHHepTBnfjt9jxv53S4PnQELfxs8XgJX6hNqu3vu")
+	gs := crypto.MustBytesFromBase58("72945rtzGJUfCPq5TXioePGMZLNHgu444phMBpCegcL1ettVKiS88W2gr296g5DBzLe1AHs9ZRgbuPf7dLP5s4ZV8YtXhUVm2YLEoueSVQAfBEdAbHEk8wH2PjP8CL1B49S")
+	genAddr, err := proto.NewAddressFromString("3Mmfx11MzJQq9s45ewtTbVC6fzqzDhzAFJ7")
+	require.NoError(t, err)
+	blockInfo := &proto.BlockInfo{
+		Timestamp:           1599205725997,
+		Height:              451323,
+		BaseTarget:          1216,
+		GenerationSignature: gs,
+		Generator:           genAddr,
+		GeneratorPublicKey:  genPK,
+	}
+	booleanEntries := map[string]bool{
+		"status": true,
+	}
+	stringEntries := map[string]string{
+		"owner":         "3N3AeA5FWm7EHheHoik8BBEA3GXXJosnVY8",
+		"version":       "0.0.2",
+		"assetIdTokenA": "WAVES",
+		"assetIdTokenB": "WAVES",
+	}
+	intEntries := map[string]int64{
+		"comission":          0,
+		"amountTokenA":       10000,
+		"amountTokenB":       10000,
+		"exchange_count":     0,
+		"share_token_supply": 10000,
+	}
+	binaryEntries := map[string][]byte{
+		"share_token_id": mustBytesFromBase64("Q3Uk9ZN5g5+xynU7VGPXUg1eVga04VYXnnZ0q+M1dxQ="),
+	}
+	env := &MockRideEnvironment{
+		heightFunc: func() rideInt {
+			return 451323
+		},
+		schemeFunc: func() byte {
+			return proto.StageNetScheme
+		},
+		blockFunc: func() rideObject {
+			return blockInfoToObject(blockInfo)
+		},
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				AddingBlockHeightFunc: func() (uint64, error) {
+					return 451323, nil
+				},
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+					return false, nil
+				},
+				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
+					return &proto.FullWavesBalance{Available: 5000000000}, nil
+				},
+				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+					v, ok := booleanEntries[key]
+					if !ok {
+						return nil, errors.New("fail")
+					}
+					return &proto.BooleanDataEntry{Key: key, Value: v}, nil
+				},
+				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+					v, ok := stringEntries[key]
+					if !ok {
+						return nil, errors.New("fail")
+					}
+					return &proto.StringDataEntry{Key: key, Value: v}, nil
+				},
+				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+					v, ok := intEntries[key]
+					if !ok {
+						return nil, errors.New("fail")
+					}
+					return &proto.IntegerDataEntry{Key: key, Value: v}, nil
+				},
+				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+					v, ok := binaryEntries[key]
+					if !ok {
+						return nil, errors.New("fail")
+					}
+					return &proto.BinaryDataEntry{Key: key, Value: v}, nil
+				},
+			}
+		},
+		thisFunc: func() rideType {
+			return rideAddress(address)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.StageNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			obj, err := invocationToObject(4, proto.StageNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		checkMessageLengthFunc: v3check,
+	}
+
+	code := "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ABN0b2tlblJlY2VpdmVBbW91bnRBCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAAxhbW91bnRUb2tlbkIFAAAAE3Rva2VuUmVjZWl2ZUFtb3VudEIJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAANYXNzZXRJZFRva2VuQQUAAAATYXNzZXRJZFRva2VuU3RyaW5nQQkABEwAAAACCQEAAAALU3RyaW5nRW50cnkAAAACAgAAAA1hc3NldElkVG9rZW5CBQAAABNhc3NldElkVG9rZW5TdHJpbmdCCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAA5leGNoYW5nZV9jb3VudAAAAAAAAAAAAAkABEwAAAACCQEAAAAMQm9vbGVhbkVudHJ5AAAAAgIAAAAGc3RhdHVzBgkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAAJY29taXNzaW9uBQAAAAljb21pc3Npb24JAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAAHdmVyc2lvbgUAAAAHdmVyc2lvbgkABEwAAAACCQEAAAALU3RyaW5nRW50cnkAAAACAgAAAAVvd25lcgkAAlgAAAABBQAAAAVvd25lcgkABEwAAAACCQAEQgAAAAUFAAAADnNoYXJlVG9rZW5OYW1lBQAAAA5zaGFyZVRva2VuTmFtZQUAAAAXc2hhcmVUb2tlbkluaXRpYWxBbW91bnQAAAAAAAAAAAAGCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAApjb250ZXh0T2JqAAAABmNhbGxlcgUAAAAXc2hhcmVUb2tlbkluaXRpYWxBbW91bnQFAAAAEXNoYXJlVG9rZW5Bc3NldElkCQAETAAAAAIJAQAAAAtCaW5hcnlFbnRyeQAAAAICAAAADnNoYXJlX3Rva2VuX2lkBQAAABFzaGFyZVRva2VuQXNzZXRJZAkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAASc2hhcmVfdG9rZW5fc3VwcGx5BQAAABdzaGFyZVRva2VuSW5pdGlhbEFtb3VudAUAAAADbmlsAAAACmNvbnRleHRPYmoBAAAADXJlcGxlbmlzaG1lbnQAAAAABAAAAAhwYXltZW50QQkBAAAABXZhbHVlAAAAAQkAAZEAAAACCAUAAAAKY29udGV4dE9iagAAAAhwYXltZW50cwAAAAAAAAAAAAQAAAAIcGF5bWVudEIJAQAAAAV2YWx1ZQAAAAEJAAGRAAAAAggFAAAACmNvbnRleHRPYmoAAAAIcGF5bWVudHMAAAAAAAAAAAEEAAAAEGFzc2V0SWRSZWNlaXZlZEEIBQAAAAhwYXltZW50QQAAAAdhc3NldElkBAAAABN0b2tlblJlY2VpdmVBbW91bnRBCAUAAAAIcGF5bWVudEEAAAAGYW1vdW50BAAAABBhc3NldElkUmVjZWl2ZWRCCAUAAAAIcGF5bWVudEIAAAAHYXNzZXRJZAQAAAATdG9rZW5SZWNlaXZlQW1vdW50QggFAAAACHBheW1lbnRCAAAABmFtb3VudAQAAAARZEFwcFRva2Vuc0Ftb3VudEEEAAAAByRtYXRjaDAFAAAADWFzc2V0SWRUb2tlbkEDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABFVuaXQEAAAADWFzc2V0SWRUb2tlbkEFAAAAByRtYXRjaDAICQAD7wAAAAEFAAAABHRoaXMAAAAJYXZhaWxhYmxlAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAApCeXRlVmVjdG9yBAAAAA1hc3NldElkVG9rZW5BBQAAAAckbWF0Y2gwCQAD8AAAAAIFAAAABHRoaXMFAAAADWFzc2V0SWRUb2tlbkEJAAACAAAAAQIAAAALTWF0Y2ggZXJyb3IEAAAAEWRBcHBUb2tlbnNBbW91bnRCBAAAAAckbWF0Y2gwBQAAAA1hc3NldElkVG9rZW5CAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAARVbml0BAAAAA1hc3NldElkVG9rZW5CBQAAAAckbWF0Y2gwCAkAA+8AAAABBQAAAAR0aGlzAAAACWF2YWlsYWJsZQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAKQnl0ZVZlY3RvcgQAAAANYXNzZXRJZFRva2VuQgUAAAAHJG1hdGNoMAkAA/AAAAACBQAAAAR0aGlzBQAAAA1hc3NldElkVG9rZW5CCQAAAgAAAAECAAAAC01hdGNoIGVycm9yAwMJAQAAAAIhPQAAAAIFAAAAEGFzc2V0SWRSZWNlaXZlZEEFAAAADWFzc2V0SWRUb2tlbkEGCQEAAAACIT0AAAACBQAAABBhc3NldElkUmVjZWl2ZWRCBQAAAA1hc3NldElkVG9rZW5CCQAAAgAAAAECAAAAEGluY29ycmVjdCBhc3NldHMEAAAACnRva2VuUmF0aW8JAABrAAAAAwkAAGgAAAACBQAAABN0b2tlblJlY2VpdmVBbW91bnRBBQAAABFkQXBwVG9rZW5zQW1vdW50QgAAAAAAAAAD6AkAAGgAAAACBQAAABN0b2tlblJlY2VpdmVBbW91bnRCBQAAABFkQXBwVG9rZW5zQW1vdW50QQQAAAAQdG9rZW5TaGFyZVN1cHBseQkBAAAAEUBleHRyTmF0aXZlKDEwNTApAAAAAgUAAAAEdGhpcwIAAAASc2hhcmVfdG9rZW5fc3VwcGx5AwkBAAAAASEAAAABAwkAAGYAAAACBQAAAAp0b2tlblJhdGlvAAAAAAAAAAPnCQAAZgAAAAIAAAAAAAAAA+kFAAAACnRva2VuUmF0aW8HCQAAAgAAAAECAAAAEGluY29ycmVjdCBhc3NldHMEAAAAFXNoYXJlVG9rZW5Ub1BheUFtb3VudAkAAGkAAAACCQAAaAAAAAIFAAAAE3Rva2VuUmVjZWl2ZUFtb3VudEEFAAAAEHRva2VuU2hhcmVTdXBwbHkFAAAAEWRBcHBUb2tlbnNBbW91bnRBCQAETAAAAAIJAQAAAAdSZWlzc3VlAAAAAwUAAAARYXNzZXRJZFRva2VuU2hhcmUFAAAAFXNoYXJlVG9rZW5Ub1BheUFtb3VudAYJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAACmNvbnRleHRPYmoAAAAGY2FsbGVyBQAAABVzaGFyZVRva2VuVG9QYXlBbW91bnQFAAAAEWFzc2V0SWRUb2tlblNoYXJlCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAABJzaGFyZV90b2tlbl9zdXBwbHkJAABkAAAAAgUAAAAQdG9rZW5TaGFyZVN1cHBseQUAAAAVc2hhcmVUb2tlblRvUGF5QW1vdW50BQAAAANuaWwAAAAApj0Y9A=="
+	src, err := base64.StdEncoding.DecodeString(code)
+	require.NoError(t, err)
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	res, err := CallFunction(env, tree, "replenishment", arguments)
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	require.True(t, r.res)
+
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+
+	expectedDataWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.IntegerDataEntry{Key: "share_token_supply", Value: 10000}},
+	}
+	expectedTransfers := []*proto.TransferScriptAction{
+		{
+			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3MSNMcqyweiM9cWpvf4Fn8GAWeuPstxj2hK")),
+			Amount:    0,
+			Asset: proto.OptionalAsset{
+				Present: true,
+				ID:      crypto.MustDigestFromBase58("5YKvHw6nEbVckCje1khnM5XZPRufzSxU29kV2hZXc9co"),
+			},
+		},
+	}
+	expectedReissues := []*proto.ReissueScriptAction{
+		{
+			AssetID:    crypto.MustDigestFromBase58("5YKvHw6nEbVckCje1khnM5XZPRufzSxU29kV2hZXc9co"),
+			Quantity:   0,
+			Reissuable: true,
+		},
+	}
+	expectedResult := &proto.ScriptResult{
+		DataEntries:  expectedDataWrites,
+		Transfers:    expectedTransfers,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     expectedReissues,
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+	}
+	assert.Equal(t, expectedResult, sr)
+}
