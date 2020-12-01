@@ -334,7 +334,7 @@ type RideEnvironment interface {
 	block() rideObject
 	txID() rideType // Invoke transaction ID
 	state() types.SmartState
-	apply()
+	applyToState(actions []proto.ScriptAction) // don't forget to support this method in Mock
 	checkMessageLength(int) bool
 	invocation() rideObject // Invocation object made of invoke transaction
 }

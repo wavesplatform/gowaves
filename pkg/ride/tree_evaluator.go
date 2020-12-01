@@ -405,6 +405,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			}
 			if res.Result() {
 				e.actions = append(e.actions, res.ScriptActions()...)
+				e.env.applyToState(res.ScriptActions())
 			}
 		}
 

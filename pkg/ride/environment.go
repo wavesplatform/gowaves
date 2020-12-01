@@ -1,15 +1,114 @@
 package ride
 
 import (
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
+
+//type interlayerState struct {
+//
+//}
+
+func (wrappedSt *wrappedState) AddingBlockHeight() (uint64, error) {
+	return wrappedSt.state.AddingBlockHeight()
+}
+func (wrappedSt *wrappedState) NewestTransactionByID(id []byte) (proto.Transaction, error) {
+	return wrappedSt.state.NewestTransactionByID(id)
+}
+func (wrappedSt *wrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
+	return wrappedSt.state.NewestTransactionHeightByID(id)
+}
+func (wrappedSt *wrappedState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+	return wrappedSt.state.GetByteTree(recipient)
+}
+func (wrappedSt *wrappedState) NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error) {
+	return wrappedSt.state.NewestRecipientToAddress(recipient)
+}
+
+
+//-----//
+
+
+func (wrappedSt *wrappedState) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+	addr, err := wrappedSt.state.NewestRecipientToAddress(account)
+	if err != nil {
+		return 0, errors.Wrap(err, "Failed to get script by recipient")
+	}
+	if asset == nil {
+		profile, err := s.newestWavesBalanceProfile(*addr)
+		if err != nil {
+			return 0, wrapErr(RetrievalError, err)
+		}
+		return profile.balance, nil
+	}
+	balance, err := s.newestAssetBalance(*addr, asset)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return balance, nil
+}
+func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
+
+}
+func (wrappedSt *wrappedState) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
+
+}
+func (wrappedSt *wrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+
+}
+func (wrappedSt *wrappedState) RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+
+}
+func (wrappedSt *wrappedState) RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+
+}
+func (wrappedSt *wrappedState) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+
+}
+func (wrappedSt *wrappedState) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
+
+}
+func (wrappedSt *wrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+
+}
+func (wrappedSt *wrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+
+}
+
+func (wrappedSt *wrappedState) applyActionsToState(actions []proto.ScriptAction) {
+	wrappedSt.actions = append(wrappedSt.actions, actions...)
+}
+
+
+//---------//
+
+func (wrappedSt *wrappedState) NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error) {
+	return wrappedSt.state.NewestHeaderByHeight(height)
+}
+func (wrappedSt *wrappedState) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+	return wrappedSt.state.BlockVRF(blockHeader, height)
+}
+
+func (wrappedSt *wrappedState) EstimatorVersion() (int, error) {
+	return wrappedSt.state.EstimatorVersion()
+}
+func (wrappedSt *wrappedState) IsNotFound(err error) bool {
+	return wrappedSt.state.IsNotFound(err)
+}
+
+
+type wrappedState struct {
+	state types.SmartState
+	tmpState types.SmartState
+	actions []proto.ScriptAction
+}
+
 type Environment struct {
 	sch          proto.Scheme
-	st           types.SmartState
-	interlayerSt types.SmartState
+	st 		 	 wrappedState
 	h            rideInt
 	tx           rideObject
 	id           rideType
@@ -24,10 +123,10 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, 
 	if err != nil {
 		return nil, err
 	}
+	wrappedSt := wrappedState{state: state, tmpState: state}
 	return &Environment{
 		sch:          scheme,
-		st:           state,
-		interlayerSt: state,
+		st:           wrappedSt,
 		h:            rideInt(height),
 		tx:           nil,
 		id:           nil,
@@ -142,12 +241,11 @@ func (e *Environment) txID() rideType {
 }
 
 func (e *Environment) state() types.SmartState {
-	//return e.interlayerSt
-	return e.st
+	return &e.st
 }
 
-func (e *Environment) apply() {
-	e.st = e.interlayerSt
+func (e *Environment) applyToState(actions []proto.ScriptAction) {
+	e.st.actions = append(e.st.actions, actions...)
 }
 
 func (e *Environment) checkMessageLength(l int) bool {
