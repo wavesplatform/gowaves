@@ -3,14 +3,15 @@ package ride
 // Assigment: let x = 5
 type AssigmentState struct {
 	params
-	prev   Fsm
-	name   string
-	offset uint16
-	ret    uint16
+	prev      Fsm
+	name      string
+	startedAt uint16
+	//ret       uint16
+	constant rideType
 }
 
-func (a AssigmentState) retAssigment(pos uint16) Fsm {
-	a.ret = pos
+func (a AssigmentState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
+	//a.ret = pos
 	return a
 }
 
@@ -23,7 +24,8 @@ func (a AssigmentState) Func(name string, args []string, invoke string) Fsm {
 }
 
 func (a AssigmentState) Bytes(b []byte) Fsm {
-	return bts(a, a.params, b)
+	a.constant = rideBytes(b)
+	return a
 }
 
 func (a AssigmentState) Condition() Fsm {
@@ -39,11 +41,13 @@ func (a AssigmentState) FalseBranch() Fsm {
 }
 
 func (a AssigmentState) String(s string) Fsm {
-	return constant(a, a.params, rideString(s))
+	a.constant = rideString(s)
+	return a
 }
 
 func (a AssigmentState) Boolean(v bool) Fsm {
-	return boolean(a, a.params, v)
+	a.constant = rideBoolean(v)
+	return a
 }
 
 func assigmentFsmTransition(prev Fsm, params params, name string) Fsm {
@@ -52,10 +56,10 @@ func assigmentFsmTransition(prev Fsm, params params, name string) Fsm {
 
 func newAssigmentFsm(prev Fsm, p params, name string) Fsm {
 	return AssigmentState{
-		prev:   prev,
-		params: p,
-		name:   name,
-		offset: p.b.len(),
+		prev:      prev,
+		params:    p,
+		name:      name,
+		startedAt: p.b.len(),
 	}
 }
 
@@ -70,13 +74,18 @@ func (a AssigmentState) Return() Fsm {
 	a.b.ret()
 	// store reference on variable and it's offset.
 	n := a.u.next()
-	a.c.set(n, nil, nil, a.offset)
+	if a.constant != nil {
+		a.c.set(n, a.constant, nil, 0, a.name)
+	} else {
+		a.c.set(n, nil, nil, a.startedAt, a.name)
+	}
 	a.r.set(a.name, n)
-	return a.prev.retAssigment(a.params.b.len())
+	return a.prev.retAssigment(a.startedAt, a.params.b.len())
 }
 
 func (a AssigmentState) Long(value int64) Fsm {
-	return long(a, a.params, value)
+	a.constant = rideInt(value)
+	return a
 }
 
 func (a AssigmentState) Call(name string, argc uint16) Fsm {

@@ -6,8 +6,9 @@ type PropertyState struct {
 	params
 }
 
-func (a PropertyState) retAssigment(pos uint16) Fsm {
-	panic("implement me")
+func (a PropertyState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
+	//panic("implement me")
+	return a
 }
 
 func propertyTransition(prev Fsm, params params, name string) Fsm {
@@ -34,7 +35,7 @@ func (a PropertyState) Long(value int64) Fsm {
 }
 
 func (a PropertyState) Call(name string, argc uint16) Fsm {
-	panic("Illegal call `Call` on PropertyState")
+	return callTransition(a, a.params, name, argc)
 }
 
 func (a PropertyState) Reference(name string) Fsm {
@@ -70,5 +71,5 @@ func (a PropertyState) Func(name string, args []string, invoke string) Fsm {
 }
 
 func (a PropertyState) Property(name string) Fsm {
-	panic("Illegal call `Property` on PropertyState")
+	return propertyTransition(a, a.params, name)
 }

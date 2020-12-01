@@ -6,8 +6,8 @@ type MainState struct {
 	retAssig uint16
 }
 
-func (a MainState) retAssigment(pos uint16) Fsm {
-	a.retAssig = pos
+func (a MainState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
+	a.retAssig = startedAt
 	return a
 }
 

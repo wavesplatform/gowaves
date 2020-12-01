@@ -29,7 +29,5 @@ func (a *Executable) Run(environment RideEnvironment) (RideResult, error) {
 		ref:          a.References,
 	}
 
-	//v.push(environment.transaction())
-
 	return v.run()
 }

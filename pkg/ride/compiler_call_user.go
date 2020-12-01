@@ -9,19 +9,26 @@ type CallUserState struct {
 	name string
 	argc uint16
 	// positions of arguments
-	argn []uniqueid
+	argn      []uniqueid
+	ret       func(s CallUserState, at uint16, to uint16)
+	startedAt uint16
 }
 
-func (a CallUserState) retAssigment(pos uint16) Fsm {
-	panic("implement me")
+func (a CallUserState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
+	if a.ret != nil {
+		a.ret(a, startedAt, endedAt)
+	}
+	a.ret = nil
+	return a
 }
 
 func newCallUserFsm(prev Fsm, params params, name string, argc uint16) Fsm {
 	return &CallUserState{
-		prev:   prev,
-		params: params,
-		name:   name,
-		argc:   argc,
+		prev:      prev,
+		params:    params,
+		name:      name,
+		argc:      argc,
+		startedAt: params.b.len(),
 	}
 }
 
@@ -91,10 +98,20 @@ func (a CallUserState) Return() Fsm {
 	}
 
 	a.b.call(point.position, a.argc)
-	return a.prev
+	return a.prev.retAssigment(a.startedAt, a.b.len())
 }
 
 func (a CallUserState) Call(name string, argc uint16) Fsm {
+	n := a.u.next()
+	a.c.set(n, nil, nil, 0, fmt.Sprintf("function as paramentr: %s$%d", name, n))
+	a.argn = append(a.argn, n)
+	if a.ret != nil {
+		panic("already assigned")
+	}
+	a.ret = func(state CallUserState, startedAt uint16, endedAt uint16) {
+		a.b.writeByte(OpCache)
+		a.b.write(encode(n))
+	}
 	return callTransition(a, a.params, name, argc)
 }
 

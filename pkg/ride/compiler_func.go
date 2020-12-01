@@ -24,10 +24,11 @@ type FuncState struct {
 	globalScope    *references
 	invokeParam    string
 	lastStmtOffset uint16
+	startedAt      uint16
 }
 
-func (a FuncState) retAssigment(pos uint16) Fsm {
-	a.lastStmtOffset = pos
+func (a FuncState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
+	a.lastStmtOffset = startedAt
 	return a
 }
 
@@ -36,6 +37,7 @@ func (a FuncState) Property(name string) Fsm {
 }
 
 func funcTransition(prev Fsm, params params, name string, args []string, invokeParam string) Fsm {
+	startedAt := params.b.len()
 	// save reference to global scope, where code lower that function will be able to use it.
 	globalScope := params.r
 	// all variable we add only visible to current scope,
@@ -50,15 +52,16 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 	// assume that it's verifier
 	if invokeParam != "" {
 		// tx
-		pos, ok := params.r.get("tx")
-		if !ok {
-			panic("no `tx` in function call")
-		}
-		params.b.writeByte(OpExternalCall)
-		params.b.write(encode(math.MaxUint16))
-		params.b.write(encode(0))
-		params.b.writeByte(OpReturn)
-		params.r.set(invokeParam, pos)
+		//pos, ok := params.r.get("tx")
+		//if !ok {
+		//	panic("no `tx` in function call")
+		//}
+		//params.b.writeByte(OpExternalCall)
+		//params.b.write(encode(math.MaxUint16))
+		//params.b.write(encode(0))
+		//params.b.writeByte(OpReturn)
+		//params.r.set(invokeParam, pos)
+		params.r.set(invokeParam, math.MaxUint16)
 	}
 
 	return &FuncState{
@@ -69,6 +72,7 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 		//offset:      params.b.len(),
 		globalScope: globalScope,
 		invokeParam: invokeParam,
+		startedAt:   startedAt,
 	}
 }
 
@@ -79,7 +83,7 @@ func (a FuncState) Assigment(name string) Fsm {
 func (a FuncState) Return() Fsm {
 	funcID := a.params.u.next()
 	a.globalScope.set(a.name, funcID)
-	a.params.c.set(funcID, nil, nil, a.lastStmtOffset)
+	a.params.c.set(funcID, nil, nil, a.lastStmtOffset, a.name)
 	// TODO clean args
 	a.b.ret()
 
@@ -90,7 +94,7 @@ func (a FuncState) Return() Fsm {
 		a.b.write(encode(a.lastStmtOffset))
 	}
 
-	return a.prev.retAssigment(a.b.len())
+	return a.prev.retAssigment(a.startedAt, a.b.len())
 }
 
 func (a FuncState) Long(value int64) Fsm {

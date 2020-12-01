@@ -72,6 +72,9 @@ func Decompiler(tree Node) string {
 func detree(s *strings.Builder, tree Node) {
 	switch n := tree.(type) {
 	case *FunctionDeclarationNode:
+		if n.invocationParameter != "" {
+			s.WriteString("@" + n.invocationParameter + "@")
+		}
 		s.WriteString(fmt.Sprintf("func %s(", n.Name))
 		for i, a := range n.Arguments {
 			s.WriteString(a)
@@ -112,6 +115,8 @@ func detree(s *strings.Builder, tree Node) {
 		s.WriteString(fmt.Sprintf("%t", n.Value))
 	case *LongNode:
 		s.WriteString(fmt.Sprintf("%d", n.Value))
+	case nil:
+		// nothing
 	default:
 		panic(fmt.Sprintf("unknown type %T", n))
 	}

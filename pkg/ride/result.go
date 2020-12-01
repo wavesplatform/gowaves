@@ -1,6 +1,9 @@
 package ride
 
-import "github.com/wavesplatform/gowaves/pkg/proto"
+import (
+	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+)
 
 type RideResult interface {
 	Result() bool
@@ -56,9 +59,9 @@ func (r DAppResult) ScriptActions() proto.ScriptActions {
 }
 
 func (r DAppResult) Eq(other RideResult) bool {
-	switch a := other.(type) {
+	switch other.(type) {
 	case DAppResult:
-		return a.res == r.res && a.msg == r.msg && a.actions.Eq(r.actions)
+		return assert.ObjectsAreEqual(r, other)
 	default:
 		return false
 	}

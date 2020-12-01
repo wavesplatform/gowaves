@@ -93,9 +93,10 @@ func (b *builder) write(i []byte) {
 }
 
 type point struct {
-	position uint16
-	value    rideType
-	fn       rideFunction
+	position  uint16
+	value     rideType
+	fn        rideFunction
+	debugInfo string
 }
 
 type cell struct {
@@ -108,11 +109,12 @@ func newCell() *cell {
 	}
 }
 
-func (a *cell) set(u uniqueid, result rideType, fn rideFunction, position uint16) {
+func (a *cell) set(u uniqueid, result rideType, fn rideFunction, position uint16, debug string) {
 	a.values[u] = point{
-		position: position,
-		value:    result,
-		fn:       fn,
+		position:  position,
+		value:     result,
+		fn:        fn,
+		debugInfo: debug,
 	}
 }
 

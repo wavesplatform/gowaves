@@ -5,6 +5,7 @@ import (
 
 	//im "github.com/frozen/immutable_map"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type vm struct {
@@ -17,13 +18,13 @@ type vm struct {
 	stack        []rideType
 	functionName func(int) string
 	jmps         []int
-	cache        map[int]rideType
 	ref          map[uint16]point
+	cache        bool
 }
 
 func (m *vm) run() (RideResult, error) {
 	numOperations := 0
-	limitOperations := 10000
+	limitOperations := 100000
 	if m.stack != nil {
 		m.stack = m.stack[0:0]
 	}
@@ -46,12 +47,10 @@ func (m *vm) run() (RideResult, error) {
 			}
 		case OpJump:
 			pos := m.arg16()
-			if rs, ok := m.cache[pos]; ok {
-				m.push(rs)
-			} else {
-				m.jmps = append(m.jmps, m.ip)
-				m.ip = pos
-			}
+
+			m.jmps = append(m.jmps, m.ip)
+			m.ip = pos
+
 		case OpJumpIfFalse:
 			posTrue := m.arg16()
 			posFalse := m.arg16()
@@ -109,7 +108,7 @@ func (m *vm) run() (RideResult, error) {
 			}
 			res, err := fn(m.env, in...)
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrapf(err, "iteration %d", numOperations)
 			}
 			if isThrow(res) {
 				return nil, errors.Errorf("terminated execution by throw with message %q", res)
@@ -126,6 +125,22 @@ func (m *vm) run() (RideResult, error) {
 					switch tv := v.(type) {
 					case rideBoolean:
 						return ScriptResult{res: bool(tv), operations: numOperations}, nil
+					case rideObject:
+						actions, err := objectToActions(m.env, tv)
+						if err != nil {
+							return nil, errors.Wrap(err, "failed to convert evaluation result")
+						}
+						return DAppResult{res: true, actions: actions, msg: ""}, nil
+					case rideList:
+						actions := make([]proto.ScriptAction, len(tv))
+						for i, item := range tv {
+							a, err := convertToAction(m.env, item)
+							if err != nil {
+								return nil, errors.Wrap(err, "failed to convert evaluation result")
+							}
+							actions[i] = a
+						}
+						return DAppResult{res: true, actions: actions}, nil
 					default:
 						return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
 					}
@@ -137,7 +152,19 @@ func (m *vm) run() (RideResult, error) {
 		case OpSetArg:
 			from := m.uint16()
 			to := m.uint16()
+			// for debug purpose
+			x := m.ref[from]
+			_ = x
 			m.ref[to] = m.ref[from]
+		case OpCache:
+			refID := m.uint16()
+			value, err := m.pop()
+			if err != nil {
+				return nil, errors.Wrap(err, "no value to cache")
+			}
+			m.ref[refID] = point{
+				value: value,
+			}
 
 		case OpRef:
 			refID := m.uint16()
@@ -159,7 +186,7 @@ func (m *vm) run() (RideResult, error) {
 			}
 
 		default:
-			return nil, errors.Errorf("unknown code %#x", op)
+			return nil, errors.Errorf("unknown code %#x, at iteration %d", op, numOperations)
 		}
 	}
 	return nil, errors.New("broken code")

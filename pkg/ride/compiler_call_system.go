@@ -12,11 +12,11 @@ type CallSystemState struct {
 	argn []uint16
 	// Position where we started write code for current state.
 	startedAt uint16
-	retAssig  uint16
+	//retAssig  uint16
 }
 
-func (a CallSystemState) retAssigment(pos uint16) Fsm {
-	a.retAssig = pos
+func (a CallSystemState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
+	//a.retAssig = pos
 	return a
 }
 
@@ -84,7 +84,7 @@ func (a CallSystemState) Return() Fsm {
 		panic(fmt.Sprintf("system function named `%s` not found", a.name))
 	}
 	a.b.externalCall(n, a.argc)
-	return a.prev.retAssigment(a.startedAt)
+	return a.prev.retAssigment(a.startedAt, a.b.len())
 }
 
 func (a CallSystemState) Call(name string, argc uint16) Fsm {

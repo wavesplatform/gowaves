@@ -16,7 +16,7 @@ type Fsm interface {
 	Bytes(b []byte) Fsm
 	Func(name string, args []string, invokeParam string) Fsm
 	Property(name string) Fsm
-	retAssigment(pos uint16) Fsm
+	retAssigment(startedAt uint16, endedAt uint16) Fsm
 }
 
 type uniqid struct {
@@ -45,16 +45,18 @@ type params struct {
 	u *uniqid
 	// Predefined variables.
 	c *cell
+	// Transaction ID, for debug purpose.
+	txID string
 }
 
 func (a *params) addPredefined(name string, id uniqueid, fn rideFunction) {
 	a.r.set(name, id)
-	a.c.set(id, nil, fn, 0)
+	a.c.set(id, nil, fn, 0, name)
 }
 
 func (a *params) constant(value rideType) uniqueid {
 	n := a.u.next()
-	a.c.set(n, value, nil, 0)
+	a.c.set(n, value, nil, 0, fmt.Sprintf("constant %q", value))
 	return n
 }
 
@@ -83,7 +85,7 @@ func constant(a Fsm, params params, value rideType) Fsm {
 	return a
 }
 
-func putConstant(params params, rideType rideType) uint16 {
+func putConstant(params params, rideType rideType) uniqueid {
 	index := params.constant(rideType)
 	return index
 }
@@ -91,7 +93,7 @@ func putConstant(params params, rideType rideType) uint16 {
 func reference(f Fsm, params params, name string) Fsm {
 	pos, ok := params.r.get(name)
 	if !ok {
-		panic(fmt.Sprintf("reference %s not found", name))
+		panic(fmt.Sprintf("reference %s not found, tx %s", name, params.txID))
 	}
 	//params.b
 	params.b.jump(pos)

@@ -58,7 +58,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	if err != nil {
 		return errors.Wrap(err, "failed to convert order")
 	}
-	r, err := ride.CallVerifier(env, tree)
+	r, err := ride.CallVerifier("scriptCaller callAccountScriptWithOrder", env, tree)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
 	}
@@ -86,7 +86,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	if err != nil {
 		return err
 	}
-	idString := base58.Encode(id)
+	txID := base58.Encode(id)
 	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	if err != nil {
 		return err
 	}
-	zap.S().Error(ride.Decompiler(tree.Verifier))
+	//zap.S().Error(ride.Decompiler(tree.Verifier))
 
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
@@ -108,7 +108,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
 	//zap.S().Debug(tx.GetID(a.settings.AddressSchemeCharacter))
-	r, err := ride.CallVerifier(env, tree)
+	r, err := ride.CallVerifier(txID, env, tree)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
@@ -123,7 +123,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 
 	if !r.Result() {
 		if r.UserError() != "" {
-			return errors.Errorf("account script on transaction '%s' failed with error: %v", idString, r.UserError())
+			return errors.Errorf("account script on transaction '%s' failed with error: %v", txID, r.UserError())
 		}
 		return errs.NewTransactionNotAllowedByScript("script failed", id)
 	}
@@ -161,7 +161,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.Environment, assetID cryp
 		env.SetThisFromAssetInfo(assetInfo)
 	}
 	env.SetLastBlock(lastBlockInfo)
-	r, err := ride.CallVerifier(env, tree)
+	r, err := ride.CallVerifier("scriptCaller callAssetScriptCommon", env, tree)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 	}
@@ -203,6 +203,8 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 }
 
 func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) (bool, []proto.ScriptAction, error) {
+	txID := tx.ID.String()
+	_ = txID
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "failed to create RIDE environment")
@@ -218,7 +220,16 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
-	r, err := ride.CallFunction(env, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
+
+	for i, f := range tree.Functions {
+		rs := ride.Decompiler(f)
+		zap.S().Error(i, " == ", rs)
+
+	}
+
+	//zap.S().Error(ride.Decompiler(tree.))
+
+	r, err := ride.CallFunction(txID, env, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}

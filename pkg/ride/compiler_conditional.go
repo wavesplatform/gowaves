@@ -30,8 +30,8 @@ type ConditionalState struct {
 	rets              []uint16
 }
 
-func (a ConditionalState) retAssigment(pos uint16) Fsm {
-	a.retAssig = pos
+func (a ConditionalState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
+	//a.retAssig = pos
 	return a
 }
 
@@ -83,7 +83,7 @@ func (a ConditionalState) Return() Fsm {
 	a.b.patch(a.patchTruePosition, encode(a.rets[1]))
 	a.b.patch(a.patchFalsePosition, encode(a.rets[2]))
 	a.b.patch(a.patchNextPosition, encode(a.b.len()))
-	return a.prev.retAssigment(a.startedAt)
+	return a.prev.retAssigment(a.startedAt, a.b.len())
 }
 
 func (a ConditionalState) Long(value int64) Fsm {
