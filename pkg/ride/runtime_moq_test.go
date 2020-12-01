@@ -4,6 +4,7 @@
 package ride
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"sync"
 )
@@ -18,6 +19,9 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //
 //         // make and configure a mocked RideEnvironment
 //         mockedRideEnvironment := &MockRideEnvironment{
+//             applyToStateFunc: func(actions []proto.ScriptAction)  {
+// 	               panic("mock out the applyToState method")
+//             },
 //             blockFunc: func() rideObject {
 // 	               panic("mock out the block method")
 //             },
@@ -52,6 +56,9 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //
 //     }
 type MockRideEnvironment struct {
+	// applyToStateFunc mocks the applyToState method.
+	applyToStateFunc func(actions []proto.ScriptAction)
+
 	// blockFunc mocks the block method.
 	blockFunc func() rideObject
 
@@ -81,6 +88,11 @@ type MockRideEnvironment struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// applyToState holds details about calls to the applyToState method.
+		applyToState []struct {
+			// Actions is the actions argument value.
+			Actions []proto.ScriptAction
+		}
 		// block holds details about calls to the block method.
 		block []struct {
 		}
@@ -111,6 +123,7 @@ type MockRideEnvironment struct {
 		txID []struct {
 		}
 	}
+	lockapplyToState       sync.RWMutex
 	lockblock              sync.RWMutex
 	lockcheckMessageLength sync.RWMutex
 	lockheight             sync.RWMutex
@@ -122,8 +135,35 @@ type MockRideEnvironment struct {
 	locktxID               sync.RWMutex
 }
 
-func (mock *MockRideEnvironment) apply() {
+// applyToState calls applyToStateFunc.
+func (mock *MockRideEnvironment) applyToState(actions []proto.ScriptAction) {
+	if mock.applyToStateFunc == nil {
+		return
+	}
+	callInfo := struct {
+		Actions []proto.ScriptAction
+	}{
+		Actions: actions,
+	}
+	mock.lockapplyToState.Lock()
+	mock.calls.applyToState = append(mock.calls.applyToState, callInfo)
+	mock.lockapplyToState.Unlock()
+	mock.applyToStateFunc(actions)
+}
 
+// applyToStateCalls gets all the calls that were made to applyToState.
+// Check the length with:
+//     len(mockedRideEnvironment.applyToStateCalls())
+func (mock *MockRideEnvironment) applyToStateCalls() []struct {
+	Actions []proto.ScriptAction
+} {
+	var calls []struct {
+		Actions []proto.ScriptAction
+	}
+	mock.lockapplyToState.RLock()
+	calls = mock.calls.applyToState
+	mock.lockapplyToState.RUnlock()
+	return calls
 }
 
 // block calls blockFunc.

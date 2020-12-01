@@ -256,6 +256,10 @@ type MockSmartState struct {
 	lockRetrieveNewestStringEntry   sync.RWMutex
 }
 
+func (mock *MockSmartState) NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error) {
+	return nil, nil
+}
+
 // AddingBlockHeight calls AddingBlockHeightFunc.
 func (mock *MockSmartState) AddingBlockHeight() (uint64, error) {
 	if mock.AddingBlockHeightFunc == nil {

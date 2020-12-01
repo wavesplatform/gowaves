@@ -1,12 +1,10 @@
 package ride
 
 import (
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
-
 
 //type interlayerState struct {
 //
@@ -28,60 +26,87 @@ func (wrappedSt *wrappedState) NewestRecipientToAddress(recipient proto.Recipien
 	return wrappedSt.state.NewestRecipientToAddress(recipient)
 }
 
-
 //-----//
+//const wavesBalanceKeySize = 1 + proto.AddressSize
+//const wavesBalanceKeyPrefix byte = iota
 
+//type wavesBalanceKey struct {
+//	address proto.Address
+//}
+
+//func (k *wavesBalanceKey) bytes() []byte {
+//	buf := make([]byte, wavesBalanceKeySize)
+//	buf[0] = wavesBalanceKeyPrefix
+//	copy(buf[1:], k.address[:])
+//	return buf
+//}
 
 func (wrappedSt *wrappedState) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
-	addr, err := wrappedSt.state.NewestRecipientToAddress(account)
-	if err != nil {
-		return 0, errors.Wrap(err, "Failed to get script by recipient")
-	}
-	if asset == nil {
-		profile, err := s.newestWavesBalanceProfile(*addr)
-		if err != nil {
-			return 0, wrapErr(RetrievalError, err)
-		}
-		return profile.balance, nil
-	}
-	balance, err := s.newestAssetBalance(*addr, asset)
-	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
-	}
-	return balance, nil
+	//addr, err := wrappedSt.state.NewestRecipientToAddress(account)
+	//if err != nil {
+	//	return 0, errors.Wrap(err, "Failed to get script by recipient")
+	//}
+	////key := wavesBalanceKey{address: *addr}
+	//
+	//newProfile := &balanceProfile{}
+	//newProfile.balance = uint64(newBalance)
+	//newProfile.leaseIn = newLeaseIn
+	//newProfile.leaseOut = newLeaseOut
+	//
+	//
+	//
+	//
+	//if asset == nil {
+	//	profile, err := s.newestWavesBalanceProfile(*addr)
+	//	if err != nil {
+	//		return 0, wrapErr(RetrievalError, err)
+	//	}
+	//	return profile.balance, nil
+	//}
+	//balance, err := s.newestAssetBalance(*addr, asset)
+	//if err != nil {
+	//	return 0, wrapErr(RetrievalError, err)
+	//}
+	//return balance, nil
+	//TODO
+	return wrappedSt.state.NewestAccountBalance(account, asset)
 }
 func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
-
+	//TODO
+	return wrappedSt.state.NewestFullWavesBalance(account)
 }
 func (wrappedSt *wrappedState) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
-
+	//TODO
+	return wrappedSt.state.NewestAddrByAlias(alias)
 }
 func (wrappedSt *wrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-
+	//TODO
+	return wrappedSt.state.RetrieveNewestIntegerEntry(account, key)
 }
 func (wrappedSt *wrappedState) RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-
+	//TODO
+	return wrappedSt.state.RetrieveNewestBooleanEntry(account, key)
 }
 func (wrappedSt *wrappedState) RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-
+	//TODO
+	return wrappedSt.state.RetrieveNewestStringEntry(account, key)
 }
 func (wrappedSt *wrappedState) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-
+	//TODO
+	return wrappedSt.state.RetrieveNewestBinaryEntry(account, key)
 }
 func (wrappedSt *wrappedState) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
-
+	//TODO
+	return wrappedSt.state.NewestAssetIsSponsored(assetID)
 }
 func (wrappedSt *wrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
-
+	//TODO
+	return wrappedSt.state.NewestAssetInfo(assetID)
 }
 func (wrappedSt *wrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
-
+	//TODO
+	return wrappedSt.state.NewestFullAssetInfo(assetID)
 }
-
-func (wrappedSt *wrappedState) applyActionsToState(actions []proto.ScriptAction) {
-	wrappedSt.actions = append(wrappedSt.actions, actions...)
-}
-
 
 //---------//
 
@@ -99,23 +124,22 @@ func (wrappedSt *wrappedState) IsNotFound(err error) bool {
 	return wrappedSt.state.IsNotFound(err)
 }
 
-
 type wrappedState struct {
-	state types.SmartState
+	state    types.SmartState
 	tmpState types.SmartState
-	actions []proto.ScriptAction
+	actions  []proto.ScriptAction
 }
 
 type Environment struct {
-	sch          proto.Scheme
-	st 		 	 wrappedState
-	h            rideInt
-	tx           rideObject
-	id           rideType
-	th           rideType
-	b            rideObject
-	check        func(int) bool
-	inv          rideObject
+	sch   proto.Scheme
+	st    wrappedState
+	h     rideInt
+	tx    rideObject
+	id    rideType
+	th    rideType
+	b     rideObject
+	check func(int) bool
+	inv   rideObject
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, error) {
@@ -125,15 +149,15 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, 
 	}
 	wrappedSt := wrappedState{state: state, tmpState: state}
 	return &Environment{
-		sch:          scheme,
-		st:           wrappedSt,
-		h:            rideInt(height),
-		tx:           nil,
-		id:           nil,
-		th:           nil,
-		b:            nil,
-		check:        func(int) bool { return true },
-		inv:          nil,
+		sch:   scheme,
+		st:    wrappedSt,
+		h:     rideInt(height),
+		tx:    nil,
+		id:    nil,
+		th:    nil,
+		b:     nil,
+		check: func(int) bool { return true },
+		inv:   nil,
 	}, nil
 }
 
