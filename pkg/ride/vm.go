@@ -24,10 +24,10 @@ type vm struct {
 
 func (m *vm) run() (RideResult, error) {
 	numOperations := 0
-	limitOperations := 100000
-	if m.stack != nil {
-		m.stack = m.stack[0:0]
-	}
+	limitOperations := 20000
+	//if m.stack != nil {
+	//	m.stack = m.stack[0:0]
+	//}
 
 	for m.ip < len(m.code) {
 		if numOperations >= limitOperations {
@@ -38,16 +38,8 @@ func (m *vm) run() (RideResult, error) {
 		op := m.code[m.ip]
 		m.ip++
 		switch op {
-		case OpPush:
-			m.push(m.constant())
-		case OpPop:
-			_, err := m.pop()
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to pop value")
-			}
 		case OpJump:
 			pos := m.arg16()
-
 			m.jmps = append(m.jmps, m.ip)
 			m.ip = pos
 
@@ -82,7 +74,7 @@ func (m *vm) run() (RideResult, error) {
 			}
 			v, err := obj.get(string(p))
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "vm OpProperty")
 			}
 			m.push(v)
 		case OpCall:

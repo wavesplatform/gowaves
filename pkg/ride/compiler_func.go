@@ -2,7 +2,6 @@ package ride
 
 import (
 	"fmt"
-	"math"
 )
 
 type arguments []string
@@ -43,14 +42,10 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 	// all variable we add only visible to current scope,
 	// avoid corrupting parent state.
 	params.r = newReferences(params.r)
-	for i := range args {
-		e := params.u.next()
-		params.r.set(args[i], e)
-		// set to global
-		globalScope.set(fmt.Sprintf("%s$%d", name, i), e)
-	}
-	// assume that it's verifier
+
+	// Function call: verifier or not.
 	if invokeParam != "" {
+		args = append([]string{invokeParam}, args...)
 		// tx
 		//pos, ok := params.r.get("tx")
 		//if !ok {
@@ -61,7 +56,13 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 		//params.b.write(encode(0))
 		//params.b.writeByte(OpReturn)
 		//params.r.set(invokeParam, pos)
-		params.r.set(invokeParam, math.MaxUint16)
+		//params.r.set(invokeParam, params.u.next())
+	}
+	for i := range args {
+		e := params.u.next()
+		params.r.set(args[i], e)
+		// set to global
+		globalScope.set(fmt.Sprintf("%s$%d", name, i), e)
 	}
 
 	return &FuncState{
@@ -90,6 +91,14 @@ func (a FuncState) Return() Fsm {
 	// if function has invoke param, it means no other code will be provided.
 	if a.invokeParam != "" {
 		a.b.startPos()
+		for i := len(a.args) - 1; i >= 0; i-- {
+			a.b.writeByte(OpCache)
+			uniq, ok := a.params.r.get(a.args[i])
+			if !ok {
+				panic("function param `" + a.args[i] + "` not found")
+			}
+			a.b.write(encode(uniq))
+		}
 		a.b.writeByte(OpCall)
 		a.b.write(encode(a.lastStmtOffset))
 	}

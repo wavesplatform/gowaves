@@ -125,7 +125,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 		if r.UserError() != "" {
 			return errors.Errorf("account script on transaction '%s' failed with error: %v", txID, r.UserError())
 		}
-		return errs.NewTransactionNotAllowedByScript("script failed", id)
+		return errors.Wrap(errs.NewTransactionNotAllowedByScript("script failed", id), txID)
 	}
 	// Increase complexity.
 	ev, err := a.state.EstimatorVersion()

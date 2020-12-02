@@ -19,7 +19,7 @@ func CallVerifier3(txID string, env RideEnvironment, tree *Tree) (RideResult, er
 	if err != nil {
 		return nil, errors.Wrap(err, "call compile script")
 	}
-	return compiled.Run(env)
+	return compiled.Run(env, []rideType{env.transaction()})
 }
 
 func CallVerifier(txID string, env RideEnvironment, tree *Tree) (RideResult, error) {
@@ -28,13 +28,13 @@ func CallVerifier(txID string, env RideEnvironment, tree *Tree) (RideResult, err
 		return nil, err
 	}
 
-	//r, err := CallVerifier2(env, tree)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if !r.Eq(r2) {
-	//	return nil, errors.New("R1 != R2: failed to call account script on transaction ")
-	//}
+	r2, err := CallVerifier2(env, tree)
+	if err != nil {
+		return nil, err
+	}
+	if !r.Eq(r2) {
+		return nil, errors.New("R1 != R2: failed to call account script on transaction ")
+	}
 	return r, nil
 }
 
@@ -69,9 +69,26 @@ func CallFunction2(txID string, env RideEnvironment, tree *Tree, name string, ar
 	if name == "" {
 		name = "default"
 	}
-	f, err := CompileFunction(txID, tree, name, args)
+	f, numArgs, err := CompileFunction(txID, tree, name, args)
 	if err != nil {
 		return nil, err
 	}
-	return f.Run(env)
+	if l := len(args); l != numArgs {
+		return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
+	}
+	applyArgs := make([]rideType, 0, len(args)+1)
+	applyArgs = append(applyArgs, env.invocation())
+	for _, arg := range args {
+		a, err := convertArgument(arg)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to call function '%s'", name)
+		}
+		//s.pushValue(function.Arguments[i], a)
+		applyArgs = append(applyArgs, a)
+		//namedArgument{
+		//	name: function.Arguments[i],
+		//	arg:  a,
+		//})
+	}
+	return f.Run(env, applyArgs)
 }

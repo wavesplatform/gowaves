@@ -87,7 +87,7 @@ func Test22(t *testing.T) {
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 
-		script, err := CompileVerifier(tree)
+		script, err := CompileVerifier("", tree)
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, script, test.comment)
 
@@ -156,7 +156,7 @@ func TestCallExternal(t *testing.T) {
 		},
 	}
 
-	f, err := compileVerifier(3, n)
+	f, err := compileFunction("", 3, []Node{n}, nil)
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -184,7 +184,7 @@ func TestIfConditionRightByteCode(t *testing.T) {
 		},
 	}
 
-	f, err := compileVerifier(3, n)
+	f, err := compileFunction("", 3, []Node{n}, nil)
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -229,7 +229,7 @@ func TestDoubleCall(t *testing.T) {
 		},
 	}
 
-	f, err := compileVerifier(3, n)
+	f, err := compileFunction("", 3, []Node{n}, nil)
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -269,7 +269,7 @@ func TestCallWithConstArg(t *testing.T) {
 		invocationParameter: "",
 	}
 
-	f, err := compileVerifier(3, n)
+	f, err := compileFunction("", 3, []Node{n}, nil)
 	require.NoError(t, err)
 
 	bt := []byte{
@@ -322,7 +322,7 @@ func TestMultipleCallConstantFuncArgument(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	script, err := CompileVerifier(tree)
+	script, err := CompileVerifier("", tree)
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
@@ -432,7 +432,7 @@ func TestCompileDapp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	script, err := CompileVerifier(tree)
+	script, err := CompileVerifier("", tree)
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
@@ -492,7 +492,7 @@ func Test2121(t *testing.T) {
 
 	t.Log(Decompiler(tree.Verifier))
 
-	script, err := CompileVerifier(tree)
+	script, err := CompileVerifier("", tree)
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
@@ -549,7 +549,7 @@ func TestIfStmt(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	script, err := CompileVerifier(tree)
+	script, err := CompileVerifier("", tree)
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
@@ -609,7 +609,7 @@ func Test44(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	script, err := CompileVerifier(tree)
+	script, err := CompileVerifier("", tree)
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
@@ -699,7 +699,7 @@ func Test777(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	script, err := CompileVerifier(tree)
+	script, err := CompileVerifier("", tree)
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
@@ -752,7 +752,7 @@ func Test888(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	script, err := CompileVerifier(tree)
+	script, err := CompileVerifier("", tree)
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
@@ -823,7 +823,7 @@ func TestNoDuplicateCallToState(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	script, err := CompileVerifier(tree)
+	script, err := CompileVerifier("", tree)
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 

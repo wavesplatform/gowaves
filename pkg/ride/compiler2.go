@@ -84,7 +84,7 @@ func CompileVerifier(txID string, tree *Tree) (*Executable, error) {
 			//		return nil, errors.Wrap(err, "invalid declaration")
 			//	}
 			//}
-			return compileFunction(txID, tree.LibVersion, append(tree.Declarations, tree.Verifier), nil)
+			return compileFunction(txID, tree.LibVersion, append(tree.Declarations, tree.Verifier))
 			//s.constants[verifier.invocationParameter] = esConstant{c: newTx}
 			//return &treeEvaluator{
 			//	dapp: tree.IsDApp(),
@@ -95,7 +95,7 @@ func CompileVerifier(txID string, tree *Tree) (*Executable, error) {
 		}
 		return nil, errors.New("no verifier declaration")
 	}
-	return compileFunction(txID, tree.LibVersion, []Node{tree.Verifier}, nil)
+	return compileFunction(txID, tree.LibVersion, []Node{tree.Verifier})
 }
 
 type namedArgument struct {
@@ -103,7 +103,9 @@ type namedArgument struct {
 	arg  rideType
 }
 
-func CompileFunction(txID string, tree *Tree, name string, args proto.Arguments) (*Executable, error) {
+type functionArgumentsCount = int
+
+func CompileFunction(txID string, tree *Tree, name string, args proto.Arguments) (*Executable, functionArgumentsCount, error) {
 	//s, err := newEvaluationScope(tree.LibVersion, env)
 	//if err != nil {
 	//	return nil, errors.Wrap(err, "failed to create scope")
@@ -116,35 +118,41 @@ func CompileFunction(txID string, tree *Tree, name string, args proto.Arguments)
 	//	zap.S().Errorf("decl #%d ?? %s", i, Decompiler(declaration))
 	//}
 	if !tree.IsDApp() {
-		return nil, errors.Errorf("unable to call function '%s' on simple script", name)
+		return nil, 0, errors.Errorf("unable to call function '%s' on simple script", name)
 	}
 	for i := 0; i < len(tree.Functions); i++ {
 		function, ok := tree.Functions[i].(*FunctionDeclarationNode)
 		if !ok {
-			return nil, errors.New("invalid callable declaration")
+			return nil, 0, errors.New("invalid callable declaration")
 		}
 		if function.Name == name {
 			//s.constants[function.invocationParameter] = esConstant{c: newInvocation}
-			if l := len(args); l != len(function.Arguments) {
-				return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
+			//if l := len(args); l != len(function.Arguments) {
+			//	return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
+			//}
+			//applyArgs := make([]rideType, 0, len(args))
+			//for _, arg := range args {
+			//	a, err := convertArgument(arg)
+			//	if err != nil {
+			//		return nil, errors.Wrapf(err, "failed to call function '%s'", name)
+			//	}
+			//	//s.pushValue(function.Arguments[i], a)
+			//	applyArgs = append(applyArgs, a)
+			//	//namedArgument{
+			//	//	name: function.Arguments[i],
+			//	//	arg:  a,
+			//	//})
+			//}
+
+			rs, err := compileFunction(txID, tree.LibVersion, append(tree.Declarations, function))
+			if err != nil {
+				return rs, 0, err
 			}
-			applyArgs := make([]namedArgument, 0, len(args))
-			for i, arg := range args {
-				a, err := convertArgument(arg)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to call function '%s'", name)
-				}
-				//s.pushValue(function.Arguments[i], a)
-				applyArgs = append(applyArgs, namedArgument{
-					name: function.Arguments[i],
-					arg:  a,
-				})
-			}
-			return compileFunction(txID, tree.LibVersion, append(tree.Declarations, function), applyArgs)
+			return rs, len(function.Arguments), nil
 			//return &treeEvaluator{dapp: true, f: function.Body, s: s, env: env}, nil
 		}
 	}
-	return nil, errors.Errorf("function '%s' not found", name)
+	return nil, 0, errors.Errorf("function '%s' not found", name)
 
 	//return compileFunction(t.LibVersion, t)
 }
@@ -184,7 +192,7 @@ func compileVerifier(libVersion int, node Node) (*Executable, error) {
 }
 */
 
-func compileFunction(txID string, libVersion int, nodes []Node, args []namedArgument) (*Executable, error) {
+func compileFunction(txID string, libVersion int, nodes []Node) (*Executable, error) {
 	fCheck, err := selectFunctionChecker(libVersion)
 	if err != nil {
 		return nil, err
@@ -215,12 +223,16 @@ func compileFunction(txID string, libVersion int, nodes []Node, args []namedArgu
 	//	)
 	//}
 
-	for _, arg := range args {
-		params.r.set(
-			arg.name,
-			params.constant(arg.arg),
-		)
-	}
+	//for _, arg := range args {
+	//	params.r.set(
+	//		arg.name,
+	//		params.constant(arg.arg),
+	//	)
+	////}
+	//args2 := make([]rideType, len(args))
+	//for i := range args {
+	//	args2[i] = args[i].arg
+	//}
 
 	f := NewMain(params)
 	for _, node := range nodes {
