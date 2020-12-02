@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/mr-tron/base58"
@@ -2916,4 +2917,467 @@ func TestNoDeclaration(t *testing.T) {
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
+}
+
+func mustBytesFromBase64(s string) []byte {
+	b, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func mustIntFromString(s string) int {
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+func TestZeroReissue(t *testing.T) {
+	txID, err := crypto.NewDigestFromBase58("BbVsHJpTJKhuMTco6MTV984fR1dHMLiwUuDjepbsYi45")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("3fNyidPXzaXhdJdhzvKuNbZ3D5tSQGe9Txuy8gZamhhEdwzpVQwrmupvqDm6hHfnoFA1XkTQ773iCpQTef68P71t")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("289xpUrYrKbLjaKkqH3XNhfecukcYRaDRT3JDrvkvQRU")
+	require.NoError(t, err)
+	address, err := proto.NewAddressFromString("3MYx35iDGa74cDGfXLUGrrBKAtyeLpMTNC8")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(address)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "replenishment",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{proto.ScriptPayment{Amount: 10000, Asset: proto.OptionalAsset{}}, proto.ScriptPayment{Amount: 10000, Asset: proto.OptionalAsset{}}},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             1000000,
+		Timestamp:       1599205729886,
+	}
+	genPK := crypto.MustPublicKeyFromBase58("BeaUPHHepTBnfjt9jxv53S4PnQELfxs8XgJX6hNqu3vu")
+	gs := crypto.MustBytesFromBase58("72945rtzGJUfCPq5TXioePGMZLNHgu444phMBpCegcL1ettVKiS88W2gr296g5DBzLe1AHs9ZRgbuPf7dLP5s4ZV8YtXhUVm2YLEoueSVQAfBEdAbHEk8wH2PjP8CL1B49S")
+	genAddr, err := proto.NewAddressFromString("3Mmfx11MzJQq9s45ewtTbVC6fzqzDhzAFJ7")
+	require.NoError(t, err)
+	blockInfo := &proto.BlockInfo{
+		Timestamp:           1599205725997,
+		Height:              451323,
+		BaseTarget:          1216,
+		GenerationSignature: gs,
+		Generator:           genAddr,
+		GeneratorPublicKey:  genPK,
+	}
+	booleanEntries := map[string]bool{
+		"status": true,
+	}
+	stringEntries := map[string]string{
+		"owner":         "3N3AeA5FWm7EHheHoik8BBEA3GXXJosnVY8",
+		"version":       "0.0.2",
+		"assetIdTokenA": "WAVES",
+		"assetIdTokenB": "WAVES",
+	}
+	intEntries := map[string]int64{
+		"comission":          0,
+		"amountTokenA":       10000,
+		"amountTokenB":       10000,
+		"exchange_count":     0,
+		"share_token_supply": 10000,
+	}
+	binaryEntries := map[string][]byte{
+		"share_token_id": mustBytesFromBase64("Q3Uk9ZN5g5+xynU7VGPXUg1eVga04VYXnnZ0q+M1dxQ="),
+	}
+	env := &MockRideEnvironment{
+		heightFunc: func() rideInt {
+			return 451323
+		},
+		schemeFunc: func() byte {
+			return proto.StageNetScheme
+		},
+		blockFunc: func() rideObject {
+			return blockInfoToObject(blockInfo)
+		},
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				AddingBlockHeightFunc: func() (uint64, error) {
+					return 451323, nil
+				},
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+					return false, nil
+				},
+				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
+					return &proto.FullWavesBalance{Available: 5000000000}, nil
+				},
+				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+					v, ok := booleanEntries[key]
+					if !ok {
+						return nil, errors.New("fail")
+					}
+					return &proto.BooleanDataEntry{Key: key, Value: v}, nil
+				},
+				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+					v, ok := stringEntries[key]
+					if !ok {
+						return nil, errors.New("fail")
+					}
+					return &proto.StringDataEntry{Key: key, Value: v}, nil
+				},
+				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+					v, ok := intEntries[key]
+					if !ok {
+						return nil, errors.New("fail")
+					}
+					return &proto.IntegerDataEntry{Key: key, Value: v}, nil
+				},
+				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+					v, ok := binaryEntries[key]
+					if !ok {
+						return nil, errors.New("fail")
+					}
+					return &proto.BinaryDataEntry{Key: key, Value: v}, nil
+				},
+			}
+		},
+		thisFunc: func() rideType {
+			return rideAddress(address)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.StageNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			obj, err := invocationToObject(4, proto.StageNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		checkMessageLengthFunc: v3check,
+	}
+
+	code := "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ABN0b2tlblJlY2VpdmVBbW91bnRBCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAAxhbW91bnRUb2tlbkIFAAAAE3Rva2VuUmVjZWl2ZUFtb3VudEIJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAANYXNzZXRJZFRva2VuQQUAAAATYXNzZXRJZFRva2VuU3RyaW5nQQkABEwAAAACCQEAAAALU3RyaW5nRW50cnkAAAACAgAAAA1hc3NldElkVG9rZW5CBQAAABNhc3NldElkVG9rZW5TdHJpbmdCCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAA5leGNoYW5nZV9jb3VudAAAAAAAAAAAAAkABEwAAAACCQEAAAAMQm9vbGVhbkVudHJ5AAAAAgIAAAAGc3RhdHVzBgkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAAJY29taXNzaW9uBQAAAAljb21pc3Npb24JAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAAHdmVyc2lvbgUAAAAHdmVyc2lvbgkABEwAAAACCQEAAAALU3RyaW5nRW50cnkAAAACAgAAAAVvd25lcgkAAlgAAAABBQAAAAVvd25lcgkABEwAAAACCQAEQgAAAAUFAAAADnNoYXJlVG9rZW5OYW1lBQAAAA5zaGFyZVRva2VuTmFtZQUAAAAXc2hhcmVUb2tlbkluaXRpYWxBbW91bnQAAAAAAAAAAAAGCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAApjb250ZXh0T2JqAAAABmNhbGxlcgUAAAAXc2hhcmVUb2tlbkluaXRpYWxBbW91bnQFAAAAEXNoYXJlVG9rZW5Bc3NldElkCQAETAAAAAIJAQAAAAtCaW5hcnlFbnRyeQAAAAICAAAADnNoYXJlX3Rva2VuX2lkBQAAABFzaGFyZVRva2VuQXNzZXRJZAkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAASc2hhcmVfdG9rZW5fc3VwcGx5BQAAABdzaGFyZVRva2VuSW5pdGlhbEFtb3VudAUAAAADbmlsAAAACmNvbnRleHRPYmoBAAAADXJlcGxlbmlzaG1lbnQAAAAABAAAAAhwYXltZW50QQkBAAAABXZhbHVlAAAAAQkAAZEAAAACCAUAAAAKY29udGV4dE9iagAAAAhwYXltZW50cwAAAAAAAAAAAAQAAAAIcGF5bWVudEIJAQAAAAV2YWx1ZQAAAAEJAAGRAAAAAggFAAAACmNvbnRleHRPYmoAAAAIcGF5bWVudHMAAAAAAAAAAAEEAAAAEGFzc2V0SWRSZWNlaXZlZEEIBQAAAAhwYXltZW50QQAAAAdhc3NldElkBAAAABN0b2tlblJlY2VpdmVBbW91bnRBCAUAAAAIcGF5bWVudEEAAAAGYW1vdW50BAAAABBhc3NldElkUmVjZWl2ZWRCCAUAAAAIcGF5bWVudEIAAAAHYXNzZXRJZAQAAAATdG9rZW5SZWNlaXZlQW1vdW50QggFAAAACHBheW1lbnRCAAAABmFtb3VudAQAAAARZEFwcFRva2Vuc0Ftb3VudEEEAAAAByRtYXRjaDAFAAAADWFzc2V0SWRUb2tlbkEDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABFVuaXQEAAAADWFzc2V0SWRUb2tlbkEFAAAAByRtYXRjaDAICQAD7wAAAAEFAAAABHRoaXMAAAAJYXZhaWxhYmxlAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAApCeXRlVmVjdG9yBAAAAA1hc3NldElkVG9rZW5BBQAAAAckbWF0Y2gwCQAD8AAAAAIFAAAABHRoaXMFAAAADWFzc2V0SWRUb2tlbkEJAAACAAAAAQIAAAALTWF0Y2ggZXJyb3IEAAAAEWRBcHBUb2tlbnNBbW91bnRCBAAAAAckbWF0Y2gwBQAAAA1hc3NldElkVG9rZW5CAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAARVbml0BAAAAA1hc3NldElkVG9rZW5CBQAAAAckbWF0Y2gwCAkAA+8AAAABBQAAAAR0aGlzAAAACWF2YWlsYWJsZQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAKQnl0ZVZlY3RvcgQAAAANYXNzZXRJZFRva2VuQgUAAAAHJG1hdGNoMAkAA/AAAAACBQAAAAR0aGlzBQAAAA1hc3NldElkVG9rZW5CCQAAAgAAAAECAAAAC01hdGNoIGVycm9yAwMJAQAAAAIhPQAAAAIFAAAAEGFzc2V0SWRSZWNlaXZlZEEFAAAADWFzc2V0SWRUb2tlbkEGCQEAAAACIT0AAAACBQAAABBhc3NldElkUmVjZWl2ZWRCBQAAAA1hc3NldElkVG9rZW5CCQAAAgAAAAECAAAAEGluY29ycmVjdCBhc3NldHMEAAAACnRva2VuUmF0aW8JAABrAAAAAwkAAGgAAAACBQAAABN0b2tlblJlY2VpdmVBbW91bnRBBQAAABFkQXBwVG9rZW5zQW1vdW50QgAAAAAAAAAD6AkAAGgAAAACBQAAABN0b2tlblJlY2VpdmVBbW91bnRCBQAAABFkQXBwVG9rZW5zQW1vdW50QQQAAAAQdG9rZW5TaGFyZVN1cHBseQkBAAAAEUBleHRyTmF0aXZlKDEwNTApAAAAAgUAAAAEdGhpcwIAAAASc2hhcmVfdG9rZW5fc3VwcGx5AwkBAAAAASEAAAABAwkAAGYAAAACBQAAAAp0b2tlblJhdGlvAAAAAAAAAAPnCQAAZgAAAAIAAAAAAAAAA+kFAAAACnRva2VuUmF0aW8HCQAAAgAAAAECAAAAEGluY29ycmVjdCBhc3NldHMEAAAAFXNoYXJlVG9rZW5Ub1BheUFtb3VudAkAAGkAAAACCQAAaAAAAAIFAAAAE3Rva2VuUmVjZWl2ZUFtb3VudEEFAAAAEHRva2VuU2hhcmVTdXBwbHkFAAAAEWRBcHBUb2tlbnNBbW91bnRBCQAETAAAAAIJAQAAAAdSZWlzc3VlAAAAAwUAAAARYXNzZXRJZFRva2VuU2hhcmUFAAAAFXNoYXJlVG9rZW5Ub1BheUFtb3VudAYJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAACmNvbnRleHRPYmoAAAAGY2FsbGVyBQAAABVzaGFyZVRva2VuVG9QYXlBbW91bnQFAAAAEWFzc2V0SWRUb2tlblNoYXJlCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAABJzaGFyZV90b2tlbl9zdXBwbHkJAABkAAAAAgUAAAAQdG9rZW5TaGFyZVN1cHBseQUAAAAVc2hhcmVUb2tlblRvUGF5QW1vdW50BQAAAANuaWwAAAAApj0Y9A=="
+	src, err := base64.StdEncoding.DecodeString(code)
+	require.NoError(t, err)
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	res, err := CallFunction(env, tree, "replenishment", arguments)
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	require.True(t, r.res)
+
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+
+	expectedDataWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.IntegerDataEntry{Key: "share_token_supply", Value: 10000}},
+	}
+	expectedTransfers := []*proto.TransferScriptAction{
+		{
+			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3MSNMcqyweiM9cWpvf4Fn8GAWeuPstxj2hK")),
+			Amount:    0,
+			Asset: proto.OptionalAsset{
+				Present: true,
+				ID:      crypto.MustDigestFromBase58("5YKvHw6nEbVckCje1khnM5XZPRufzSxU29kV2hZXc9co"),
+			},
+		},
+	}
+	expectedReissues := []*proto.ReissueScriptAction{
+		{
+			AssetID:    crypto.MustDigestFromBase58("5YKvHw6nEbVckCje1khnM5XZPRufzSxU29kV2hZXc9co"),
+			Quantity:   0,
+			Reissuable: true,
+		},
+	}
+	expectedResult := &proto.ScriptResult{
+		DataEntries:  expectedDataWrites,
+		Transfers:    expectedTransfers,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     expectedReissues,
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+	}
+	assert.Equal(t, expectedResult, sr)
+}
+
+type jsonDataProvider struct {
+	strings  map[string]string
+	ints     map[string]int
+	bools    map[string]bool
+	binaries map[string][]byte
+}
+
+func newJsonDataProvider(s string) *jsonDataProvider {
+	strings := make(map[string]string)
+	ints := make(map[string]int)
+	bools := make(map[string]bool)
+	binaries := make(map[string][]byte)
+	var data []struct {
+		Entry struct {
+			Key         string  `json:"key"`
+			BoolValue   *bool   `json:"boolValue"`
+			StringVale  *string `json:"stringValue"`
+			IntValue    *string `json:"intValue"`
+			BinaryValue *string `json:"binaryValue"`
+		} `json:"entry"`
+	}
+	err := json.Unmarshal([]byte(s), &data)
+	if err != nil {
+		panic(err)
+	}
+	for _, d := range data {
+		key := d.Entry.Key
+		switch {
+		case d.Entry.BoolValue != nil:
+			bools[key] = *d.Entry.BoolValue
+		case d.Entry.StringVale != nil:
+			strings[key] = *d.Entry.StringVale
+		case d.Entry.IntValue != nil:
+			ints[key] = mustIntFromString(*d.Entry.IntValue)
+		case d.Entry.BinaryValue != nil:
+			binaries[key] = mustBytesFromBase64(*d.Entry.BinaryValue)
+		}
+	}
+	return &jsonDataProvider{
+		strings:  strings,
+		ints:     ints,
+		bools:    bools,
+		binaries: binaries,
+	}
+}
+
+func (p *jsonDataProvider) getBool(k string) (*proto.BooleanDataEntry, error) {
+	v, ok := p.bools[k]
+	if !ok {
+		return nil, errors.Errorf("bool value not found by key '%s'", k)
+	}
+	return &proto.BooleanDataEntry{Key: k, Value: v}, nil
+}
+
+func (p *jsonDataProvider) getString(k string) (*proto.StringDataEntry, error) {
+	v, ok := p.strings[k]
+	if !ok {
+		return nil, errors.Errorf("string value not found by key '%s'", k)
+	}
+	return &proto.StringDataEntry{Key: k, Value: v}, nil
+}
+
+func (p *jsonDataProvider) getInt(k string) (*proto.IntegerDataEntry, error) {
+	v, ok := p.ints[k]
+	if !ok {
+		return nil, errors.Errorf("int value not found by key '%s'", k)
+	}
+	return &proto.IntegerDataEntry{Key: k, Value: int64(v)}, nil
+}
+
+func (p *jsonDataProvider) getBinary(k string) (*proto.BinaryDataEntry, error) {
+	v, ok := p.binaries[k]
+	if !ok {
+		return nil, errors.Errorf("binary value not found by key '%s'", k)
+	}
+	return &proto.BinaryDataEntry{Key: k, Value: v}, nil
+}
+
+func TestStageNet2(t *testing.T) {
+	txID, err := crypto.NewDigestFromBase58("9vt45R9y63Xwcseat59BchUjfJGHSuN5LeTK6Pd6cFUM")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("5umzUJtYh4KQADV8TsgphYrtafyve1ahfUVVmygVSbCeJXCYz7ivXipJbkB4hqqKvvt48ocU5oi3TT198UnuPZzD")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("9pe2JtkhuJAwRcvSJFBYJQVxNPfRSeq39XUCw6E4Rk8c")
+	require.NoError(t, err)
+	address, err := proto.NewAddressFromString("3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(address)
+	arguments := proto.Arguments{&proto.StringArgument{Value: "listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb"}, &proto.IntegerArgument{Value: 500000}}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "purchaseToken",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{proto.ScriptPayment{Amount: 10000, Asset: proto.OptionalAsset{}}, proto.ScriptPayment{Amount: 10000, Asset: proto.OptionalAsset{}}},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             1300000,
+		Timestamp:       1599565088614,
+	}
+	genPK := crypto.MustPublicKeyFromBase58("289xpUrYrKbLjaKkqH3XNhfecukcYRaDRT3JDrvkvQRU")
+	gs := crypto.MustBytesFromBase58("FHujZ5xfeqkp7H3yKhUmSd2Fc7vwTcLPcrCBiYmVnX2aeCoe6EwGXzuJMhGhsjRaSA3SGtG6kGEMDDTnMVyqMW3kRC1r1xqsnpoR1tN7vwmeALGEY8xQnwrkae8znRrHMJB")
+	genAddr, err := proto.NewAddressFromString("3MSNMcqyweiM9cWpvf4Fn8GAWeuPstxj2hK")
+	require.NoError(t, err)
+	blockInfo := &proto.BlockInfo{
+		Timestamp:           1599565042591,
+		Height:              457303,
+		BaseTarget:          1313,
+		GenerationSignature: gs,
+		Generator:           genAddr,
+		GeneratorPublicKey:  genPK,
+	}
+	dp := newJsonDataProvider(`[{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"aa","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"dappAddress","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"total_amount","intValue":"600900000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"masterAddress","stringValue":"3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"assetId_2020-10-3","stringValue":"Eo7N1sjexrfu6mx5LrG3suovSaXaBNnmYfvqJsMzSYE8"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"assetId_2020-10-5","stringValue":"J2j4PRKXuUKUZCP345EXAHYF2gRg15JsYQYtFT4GNPda"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_total_amount_2020-10-3","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_total_amount_2020-10-5","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","stringValue":"2020-11-23"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","stringValue":"2020-11-11"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","stringValue":"2020-09-30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_limit","stringValue":"2020-10-3"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_limit","stringValue":"2020-10-5"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_limit","stringValue":"2020-10-3"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_limit","stringValue":"2020-10-5"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_amount","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_amount","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_assetId","stringValue":"GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_assetId","stringValue":"9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_assetId","stringValue":"3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_assetId","stringValue":"fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_assetId","stringValue":"Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_assetId","stringValue":"AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_assetId","stringValue":"DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_assetId","stringValue":"5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_assetId","stringValue":"6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_assetId","stringValue":"BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_unitPrice","intValue":"300"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_unitPrice","intValue":"300"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_description","stringValue":"みんな電力公式"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"dappAddress","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"masterAddress","stringValue":"3MSvD3m1R8Z3v8SAztrt1afp28vRdsMwxAu"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"asset_total_amount","intValue":"100000"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT","stringValue":"{\"name\":\"ママママママママっまm\",\"description\":\"retail user\"}"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MktJgV2eTmcCqtyQaeqiiHkQ1eY3EH5Tdb","stringValue":"{\"name\":\"ママママママママっまm\",\"description\":\"retail user\"}"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MRiqDCpFntSEud3Co8bdQygjSwB515zyS5_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MSvD3m1R8Z3v8SAztrt1afp28vRdsMwxAu_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MUJS7P4W3XyP2pnAJUGqkstSAiU4Ac2YdA_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MZyZAgAJmXmJs5gDihnMvZ7HCLxe6zVVpU_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MfF8z9y9nUUuHTeKiGFGoWXnUrRPbEcNiD_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3Mh5b5UttYteWjd5Mku43kajZFKX9z5WNxZ_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MjBN2kiRB6JmoEVEC42ZNMX9ibx5iZ9Mih_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MktJgV2eTmcCqtyQaeqiiHkQ1eY3EH5Tdb_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3Mm9VfS5424Vn4oNKv1DSh7Htk6FhQReEuP_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MmNtj9n49UgGapeh1Sg8Nd8jfQGDbqRTkx_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3P35F9e1QdcHkBMbYtovuMUmsxxCqo9DF1d_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PLXmyBua1pAH4y3aHjMqJrcJEcyrWMP1EB_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PMoTnMU6U4hx8km23iZJ6Akis6JKhcxhUn_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PNVubsGCrnMHLXvg1gYidcP3G7HUC5fAuZ_active","boolValue":true}}]`)
+	env := &MockRideEnvironment{
+		heightFunc: func() rideInt {
+			return 451323
+		},
+		schemeFunc: func() byte {
+			return proto.StageNetScheme
+		},
+		blockFunc: func() rideObject {
+			return blockInfoToObject(blockInfo)
+		},
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				AddingBlockHeightFunc: func() (uint64, error) {
+					return 451323, nil
+				},
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+					return false, nil
+				},
+				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
+					return &proto.FullWavesBalance{Available: 5000000000}, nil
+				},
+				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+					return dp.getBool(key)
+				},
+				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+					return dp.getString(key)
+				},
+				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+					return dp.getInt(key)
+				},
+				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+					return dp.getBinary(key)
+				},
+			}
+		},
+		thisFunc: func() rideType {
+			return rideAddress(address)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.StageNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			obj, err := invocationToObject(4, proto.StageNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		checkMessageLengthFunc: v3check,
+	}
+
+	code := "AAIEAAAAAAAAACsIAhIGCgQIAQEIEgUKAwEICBIDCgEIEgQKAggBEgMKAQgSAwoBCBIDCgEIAAAAGwAAAAAFYWRtaW4BAAAAIAj8cpFuriBeYVtrdATBbLEGiGP0beK8x+YDq9aX3ZNqAAAAAAtkYXBwQWRkcmVzcwkAAlgAAAABCAUAAAAEdGhpcwAAAAVieXRlcwAAAAAETk9ORQIAAAALbm8gZXhpc3RpbmcAAAAABExJU1QJAQAAABFAZXh0ck5hdGl2ZSgxMDYyKQAAAAECAAAAIzNNa3RKZ1YyZVRtY0NxdHlRYWVxaWlIa1ExZVkzRUg1VGRiAQAAAAtmZXRjaFN0cmluZwAAAAIAAAAFYWxpYXMAAAADa2V5BAAAAAckbWF0Y2gwCQAEHQAAAAIFAAAABWFsaWFzBQAAAANrZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABlN0cmluZwQAAAABYQUAAAAHJG1hdGNoMAUAAAABYQUAAAAETk9ORQEAAAAMZmV0Y2hJbnRlZ2VyAAAAAgAAAAVhbGlhcwAAAANrZXkEAAAAByRtYXRjaDAJAAQaAAAAAgUAAAAFYWxpYXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAFhBQAAAAckbWF0Y2gwBQAAAAFhAAAAAAAAAAAAAQAAAAlnZXRNYXN0ZXIAAAAACQEAAAALZmV0Y2hTdHJpbmcAAAACBQAAAARMSVNUAgAAAA1tYXN0ZXJBZGRyZXNzAQAAABBnZXRBY2NvdW50U3RhdHVzAAAAAQAAAAdhZGRyZXNzCQEAAAARQGV4dHJOYXRpdmUoMTA1MSkAAAACBQAAAARMSVNUCQABLAAAAAIFAAAAB2FkZHJlc3MCAAAAB19hY3RpdmUBAAAAFmdldEFzc2V0VG90YWxBbW91bnRLZXkAAAABAAAAB2Fzc2V0SWQJAAEsAAAAAgIAAAATYXNzZXRfdG90YWxfYW1vdW50XwUAAAAHYXNzZXRJZAEAAAAYZ2V0QXNzZXRUb3RhbEFtb3VudFZhbHVlAAAAAQAAAAdhc3NldElkCQEAAAAMZmV0Y2hJbnRlZ2VyAAAAAgUAAAAEdGhpcwkBAAAAFmdldEFzc2V0VG90YWxBbW91bnRLZXkAAAABBQAAAAdhc3NldElkAQAAAAtnZXRMaW1pdEtleQAAAAEAAAAHYXNzZXRJZAkAASwAAAACAgAAAAZsaW1pdF8FAAAAB2Fzc2V0SWQBAAAADWdldExpbWl0VmFsdWUAAAABAAAAB2Fzc2V0SWQJAQAAAAtmZXRjaFN0cmluZwAAAAIFAAAABHRoaXMJAQAAAAtnZXRMaW1pdEtleQAAAAEFAAAAB2Fzc2V0SWQBAAAACWdldElzc3VlcgAAAAEAAAAHYXNzZXRJZAQAAAAHJG1hdGNoMAkAA+wAAAABCQACWQAAAAEFAAAAB2Fzc2V0SWQDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABUFzc2V0BAAAAAFhBQAAAAckbWF0Y2gwCAUAAAABYQAAAAZpc3N1ZXIJAAACAAAAAQIAAAAPaW52YWxpZCBhc3NldElkAQAAAA5nZXRUb3RhbEFtb3VudAAAAAAJAQAAAAxmZXRjaEludGVnZXIAAAACBQAAAAR0aGlzAgAAAAx0b3RhbF9hbW91bnQBAAAACmdldExpc3RLZXkAAAACAAAAB2FkZHJlc3MAAAAHYXNzZXRJZAQAAAAKc2VlZFBocmFzZQkAASwAAAACBQAAAAdhZGRyZXNzBQAAAAdhc3NldElkCQABLAAAAAICAAAAB2xpc3RlZF8JAAJYAAAAAQkAAfcAAAABCQABmwAAAAEFAAAACnNlZWRQaHJhc2UBAAAAEGdldExpc3RBbW91bnRLZXkAAAABAAAAB2xpc3RLZXkJAAEsAAAAAgUAAAAHbGlzdEtleQIAAAAHX2Ftb3VudAEAAAAPZ2V0TGlzdEFzc2V0S2V5AAAAAQAAAAdsaXN0S2V5CQABLAAAAAIFAAAAB2xpc3RLZXkCAAAACF9hc3NldElkAQAAAA9nZXRMaXN0T3duZXJLZXkAAAABAAAAB2xpc3RLZXkJAAEsAAAAAgUAAAAHbGlzdEtleQIAAAAGX293bmVyAQAAABNnZXRMaXN0VW5pdFByaWNlS2V5AAAAAQAAAAdsaXN0S2V5CQABLAAAAAIFAAAAB2xpc3RLZXkCAAAACl91bml0UHJpY2UBAAAAFWdldExpc3REZXNjcmlwdGlvbktleQAAAAEAAAAHbGlzdEtleQkAASwAAAACBQAAAAdsaXN0S2V5AgAAAAxfZGVzY3JpcHRpb24BAAAAEmdldExpc3RBbW91bnRWYWx1ZQAAAAEAAAAHbGlzdEtleQkBAAAADGZldGNoSW50ZWdlcgAAAAIFAAAABHRoaXMJAQAAABBnZXRMaXN0QW1vdW50S2V5AAAAAQUAAAAHbGlzdEtleQEAAAARZ2V0TGlzdEFzc2V0VmFsdWUAAAABAAAAB2xpc3RLZXkJAQAAAAtmZXRjaFN0cmluZwAAAAIFAAAABHRoaXMJAQAAAA9nZXRMaXN0QXNzZXRLZXkAAAABBQAAAAdsaXN0S2V5AQAAABFnZXRMaXN0T3duZXJWYWx1ZQAAAAEAAAAHbGlzdEtleQkBAAAAC2ZldGNoU3RyaW5nAAAAAgUAAAAEdGhpcwkBAAAAD2dldExpc3RPd25lcktleQAAAAEFAAAAB2xpc3RLZXkBAAAAFWdldExpc3RVbml0UHJpY2VWYWx1ZQAAAAEAAAAHbGlzdEtleQkBAAAADGZldGNoSW50ZWdlcgAAAAIFAAAABHRoaXMJAQAAABNnZXRMaXN0VW5pdFByaWNlS2V5AAAAAQUAAAAHbGlzdEtleQEAAAAXZ2V0TGlzdERlc2NyaXB0aW9uVmFsdWUAAAABAAAAB2xpc3RLZXkJAQAAAAtmZXRjaFN0cmluZwAAAAIFAAAABHRoaXMJAQAAABVnZXRMaXN0RGVzY3JpcHRpb25LZXkAAAABBQAAAAdsaXN0S2V5AQAAAAp1cGRhdGVMaXN0AAAABQAAAAVvd25lcgAAAAZhbW91bnQAAAAHYXNzZXRJZAAAAAl1bml0UHJpY2UAAAALZGVzY3JpcHRpb24EAAAAB2xpc3RLZXkJAQAAAApnZXRMaXN0S2V5AAAAAgUAAAAFb3duZXIFAAAAB2Fzc2V0SWQJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAIJAQAAABBnZXRMaXN0QW1vdW50S2V5AAAAAQUAAAAHbGlzdEtleQkAAGQAAAACCQEAAAASZ2V0TGlzdEFtb3VudFZhbHVlAAAAAQUAAAAHbGlzdEtleQUAAAAGYW1vdW50CQAETAAAAAIJAQAAAAtTdHJpbmdFbnRyeQAAAAIJAQAAAA9nZXRMaXN0QXNzZXRLZXkAAAABBQAAAAdsaXN0S2V5BQAAAAdhc3NldElkCQAETAAAAAIJAQAAAAtTdHJpbmdFbnRyeQAAAAIJAQAAAA9nZXRMaXN0T3duZXJLZXkAAAABBQAAAAdsaXN0S2V5BQAAAAVvd25lcgkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgkBAAAAE2dldExpc3RVbml0UHJpY2VLZXkAAAABBQAAAAdsaXN0S2V5BQAAAAl1bml0UHJpY2UJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgkBAAAAFWdldExpc3REZXNjcmlwdGlvbktleQAAAAEFAAAAB2xpc3RLZXkFAAAAC2Rlc2NyaXB0aW9uBQAAAANuaWwBAAAACmRlbGV0ZUxpc3QAAAACAAAAB2FkZHJlc3MAAAAHYXNzZXRJZAQAAAADa2V5CQEAAAAKZ2V0TGlzdEtleQAAAAIFAAAAB2FkZHJlc3MFAAAAB2Fzc2V0SWQJAARMAAAAAgkBAAAAC0RlbGV0ZUVudHJ5AAAAAQkBAAAAEGdldExpc3RBbW91bnRLZXkAAAABBQAAAANrZXkJAARMAAAAAgkBAAAAC0RlbGV0ZUVudHJ5AAAAAQkBAAAAD2dldExpc3RBc3NldEtleQAAAAEFAAAAA2tleQkABEwAAAACCQEAAAALRGVsZXRlRW50cnkAAAABCQEAAAAPZ2V0TGlzdE93bmVyS2V5AAAAAQUAAAADa2V5CQAETAAAAAIJAQAAAAtEZWxldGVFbnRyeQAAAAEJAQAAABNnZXRMaXN0VW5pdFByaWNlS2V5AAAAAQUAAAADa2V5CQAETAAAAAIJAQAAAAtEZWxldGVFbnRyeQAAAAEJAQAAABVnZXRMaXN0RGVzY3JpcHRpb25LZXkAAAABBQAAAANrZXkFAAAAA25pbAAAAAcAAAABaQEAAAAVaXNzdWVBbmRSZWdpc3RlckFzc2V0AAAABAAAAAdhc3NldElkAAAABmFtb3VudAAAAAl1bml0UHJpY2UAAAAFbGltaXQEAAAAB3Rva2VuSWQJAAJZAAAAAQUAAAAHYXNzZXRJZAQAAAAFdG9rZW4EAAAAByRtYXRjaDAJAAPsAAAAAQUAAAAHdG9rZW5JZAMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAFQXNzZXQEAAAAAWEFAAAAByRtYXRjaDAFAAAAAWEJAAACAAAAAQIAAAAUdG9rZW4gZG9lcyBub3QgZXhpc3QDCQEAAAACIT0AAAACCQACWAAAAAEICAUAAAABaQAAAAZjYWxsZXIAAAAFYnl0ZXMJAQAAAAlnZXRNYXN0ZXIAAAAACQAAAgAAAAECAAAAH3lvdSBjYW5ub3QgaW52b2tlIHRoaXMgZnVuY3Rpb24DCQEAAAACIT0AAAACCQAEJQAAAAEIBQAAAAV0b2tlbgAAAAZpc3N1ZXIFAAAAC2RhcHBBZGRyZXNzCQAAAgAAAAECAAAAFGludmFsaWQgdG9rZW4gaXNzdWVyBAAAAAlvcGVyYXRpb24JAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgkBAAAAC2dldExpbWl0S2V5AAAAAQUAAAAHYXNzZXRJZAUAAAAFbGltaXQJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAIJAQAAABZnZXRBc3NldFRvdGFsQW1vdW50S2V5AAAAAQUAAAAHYXNzZXRJZAkAAGQAAAACCQEAAAAYZ2V0QXNzZXRUb3RhbEFtb3VudFZhbHVlAAAAAQUAAAAHYXNzZXRJZAUAAAAGYW1vdW50CQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAAx0b3RhbF9hbW91bnQJAABkAAAAAgkBAAAADmdldFRvdGFsQW1vdW50AAAAAAUAAAAGYW1vdW50CQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACCQABLAAAAAICAAAACnVuaXRQcmljZV8FAAAAB2Fzc2V0SWQFAAAACXVuaXRQcmljZQUAAAADbmlsCQAETgAAAAIFAAAACW9wZXJhdGlvbgkBAAAACnVwZGF0ZUxpc3QAAAAFBQAAAAtkYXBwQWRkcmVzcwUAAAAGYW1vdW50BQAAAAdhc3NldElkBQAAAAl1bml0UHJpY2UCAAAAFeOBv+OCk+OBqumbu+WKm+WFrOW8jwAAAAFpAQAAAARsaXN0AAAAAwAAAAl1bml0UHJpY2UAAAAHYXNzZXRJZAAAAAtkZXNjcmlwdGlvbgQAAAAGYW1vdW50CAkAAZEAAAACCAUAAAABaQAAAAhwYXltZW50cwAAAAAAAAAAAAAAAAZhbW91bnQEAAAADHRva2VuQXNzZXRJZAgJAAGRAAAAAggFAAAAAWkAAAAIcGF5bWVudHMAAAAAAAAAAAAAAAAHYXNzZXRJZAQAAAAFYXNzZXQJAAJZAAAAAQUAAAAHYXNzZXRJZAQAAAAHYmFsYW5jZQkAA/AAAAACCAUAAAABaQAAAAZjYWxsZXIFAAAABWFzc2V0BAAAAAdpbnZva2VyCQACWAAAAAEICAUAAAABaQAAAAZjYWxsZXIAAAAFYnl0ZXMDCQAAAAAAAAIJAQAAABBnZXRBY2NvdW50U3RhdHVzAAAAAQUAAAAHaW52b2tlcgcJAAACAAAAAQIAAAAtcGxlYXNlIHJlZ2lzdGVyIGFzIGFuIGFjY291bnQgb2YgdGhpcyBzZXJ2aWNlAwkAAGYAAAACBQAAAAZhbW91bnQFAAAAB2JhbGFuY2UJAAACAAAAAQIAAAAceW91IGRvIG5vdCBvd24gZW5vdWdoIGFtb3VudAMJAQAAAAIhPQAAAAIFAAAADHRva2VuQXNzZXRJZAUAAAAFYXNzZXQJAAACAAAAAQIAAAAPaW5jb3JyZWN0IHRva2VuCQEAAAAKdXBkYXRlTGlzdAAAAAUFAAAAB2ludm9rZXIFAAAABmFtb3VudAUAAAAHYXNzZXRJZAUAAAAJdW5pdFByaWNlBQAAAAtkZXNjcmlwdGlvbgAAAAFpAQAAAAZkZWxpc3QAAAABAAAACWxpc3RlZEtleQQAAAAFb3duZXIJAQAAABFnZXRMaXN0T3duZXJWYWx1ZQAAAAEFAAAACWxpc3RlZEtleQQAAAAHaW52b2tlcgkAAlgAAAABCAgFAAAAAWkAAAAGY2FsbGVyAAAABWJ5dGVzBAAAAAdhc3NldElkCQEAAAARZ2V0TGlzdEFzc2V0VmFsdWUAAAABBQAAAAlsaXN0ZWRLZXkEAAAABmFtb3VudAkBAAAAEmdldExpc3RBbW91bnRWYWx1ZQAAAAEFAAAACWxpc3RlZEtleQQAAAAFYXNzZXQJAAJZAAAAAQUAAAAHYXNzZXRJZAMJAAAAAAAAAgkBAAAAEGdldEFjY291bnRTdGF0dXMAAAABBQAAAAdpbnZva2VyBwkAAAIAAAABAgAAABF5b3UgaGF2ZSBubyByaWdodAMJAAAAAAAAAgUAAAAGYW1vdW50AAAAAAAAAAAACQAAAgAAAAEJAAEsAAAAAgIAAAAlcmVxdWVzdGVkIGl0ZW0gZG9lcyBub3QgZXhpc3Q6IGtleSA9IAUAAAAJbGlzdGVkS2V5AwkBAAAAAiE9AAAAAgUAAAAFb3duZXIFAAAAB2ludm9rZXIJAAACAAAAAQIAAAAdeW91IGFyZSBub3QgdGhlIGNvcnJlY3Qgb3duZXIEAAAACm9wZXJhdGlvbnMJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwkBAAAAEUBleHRyTmF0aXZlKDEwNjIpAAAAAQUAAAAHaW52b2tlcgkBAAAAEmdldExpc3RBbW91bnRWYWx1ZQAAAAEFAAAACWxpc3RlZEtleQUAAAAFYXNzZXQFAAAAA25pbAkABE4AAAACBQAAAApvcGVyYXRpb25zCQEAAAAKZGVsZXRlTGlzdAAAAAIFAAAAB2ludm9rZXIFAAAAB2Fzc2V0SWQAAAABaQEAAAANcHVyY2hhc2VUb2tlbgAAAAIAAAAHbGlzdEtleQAAAAZhbW91bnQEAAAAB2ludm9rZXIJAAJYAAAAAQgIBQAAAAFpAAAABmNhbGxlcgAAAAVieXRlcwQAAAAIc3VwcGxpZXIJAQAAABFnZXRMaXN0T3duZXJWYWx1ZQAAAAEFAAAAB2xpc3RLZXkEAAAAB2Fzc2V0SWQJAQAAABFnZXRMaXN0QXNzZXRWYWx1ZQAAAAEFAAAAB2xpc3RLZXkEAAAADGxpc3RlZEFtb3VudAkBAAAAEmdldExpc3RBbW91bnRWYWx1ZQAAAAEFAAAAB2xpc3RLZXkEAAAABWFzc2V0CQACWQAAAAEFAAAAB2Fzc2V0SWQDCQAAZgAAAAIFAAAABmFtb3VudAUAAAAMbGlzdGVkQW1vdW50CQAAAgAAAAECAAAAIGNhbm5vdCBwdXJjaGFzZSBtb3JlIHRoYW4gbGlzdGVkAwkAAAAAAAACCQEAAAAQZ2V0QWNjb3VudFN0YXR1cwAAAAEFAAAAB2ludm9rZXIHCQAAAgAAAAECAAAAFnVzZXIgaXMgbm90IGF1dGhvcml6ZWQDCQAAAAAAAAIFAAAABmFtb3VudAUAAAAMbGlzdGVkQW1vdW50CQAETgAAAAIJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwkBAAAAEUBleHRyTmF0aXZlKDEwNjIpAAAAAQUAAAAHaW52b2tlcgUAAAAGYW1vdW50BQAAAAVhc3NldAUAAAADbmlsCQEAAAAKZGVsZXRlTGlzdAAAAAIFAAAACHN1cHBsaWVyBQAAAAdhc3NldElkCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMJAQAAABFAZXh0ck5hdGl2ZSgxMDYyKQAAAAEFAAAAB2ludm9rZXIFAAAABmFtb3VudAUAAAAFYXNzZXQJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAIJAQAAABBnZXRMaXN0QW1vdW50S2V5AAAAAQUAAAAHbGlzdEtleQkAAGUAAAACCQEAAAASZ2V0TGlzdEFtb3VudFZhbHVlAAAAAQUAAAAHbGlzdEtleQUAAAAGYW1vdW50BQAAAANuaWwAAAABaQEAAAAZcmVkZWVtTGlzdGVkVG9rZW5CeU1pbmRlbgAAAAEAAAAHYXNzZXRJZAQAAAAHaW52b2tlcgkAAlgAAAABCAgFAAAAAWkAAAAGY2FsbGVyAAAABWJ5dGVzCQEAAAAKZGVsZXRlTGlzdAAAAAIFAAAAB2ludm9rZXIFAAAAB2Fzc2V0SWQAAAABaQEAAAAEYnVybgAAAAEAAAAHYXNzZXRJZAQAAAAHYWRkcmVzcwkAAlgAAAABCAgFAAAAAWkAAAAGY2FsbGVyAAAABWJ5dGVzBAAAAAVhc3NldAkAAlkAAAABBQAAAAdhc3NldElkBAAAAAdsaXN0S2V5CQEAAAAKZ2V0TGlzdEtleQAAAAIFAAAAC2RhcHBBZGRyZXNzBQAAAAdhc3NldElkBAAAAAZhbW91bnQJAAPwAAAAAgUAAAAEdGhpcwUAAAAFYXNzZXQDCQEAAAACIT0AAAACBQAAAAdhZGRyZXNzCQEAAAAJZ2V0TWFzdGVyAAAAAAkAAAIAAAABAgAAABl5b3UgZG8gbm90IGhhdmUgdGhlIHJpZ2h0AwkBAAAAAiE9AAAAAgUAAAAGYW1vdW50CQEAAAAYZ2V0QXNzZXRUb3RhbEFtb3VudFZhbHVlAAAAAQUAAAAHYXNzZXRJZAkAAAIAAAABCQABLAAAAAICAAAAH2RhcHBzIG11c3QgcmVkZWVtIGFsbCB0b2tlbiBvZiAFAAAAB2Fzc2V0SWQJAAROAAAAAgkABEwAAAACCQEAAAAEQnVybgAAAAIFAAAABWFzc2V0BQAAAAZhbW91bnQJAARMAAAAAgkBAAAAC0RlbGV0ZUVudHJ5AAAAAQkBAAAAFmdldEFzc2V0VG90YWxBbW91bnRLZXkAAAABBQAAAAdhc3NldElkCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAAx0b3RhbF9hbW91bnQJAABlAAAAAgkBAAAADmdldFRvdGFsQW1vdW50AAAAAAUAAAAGYW1vdW50BQAAAANuaWwJAQAAAApkZWxldGVMaXN0AAAAAgUAAAALZGFwcEFkZHJlc3MFAAAAB2Fzc2V0SWQAAAABaQEAAAAMcHVyY2hhc2VFbGVjAAAAAQAAAAdhc3NldElkBAAAAAZhbW91bnQICQABkQAAAAIIBQAAAAFpAAAACHBheW1lbnRzAAAAAAAAAAAAAAAABmFtb3VudAQAAAAMcGF5bWVudEFzc2V0CAkAAZEAAAACCAUAAAABaQAAAAhwYXltZW50cwAAAAAAAAAAAAAAAAdhc3NldElkBAAAAAVvd25lcgkAAlgAAAABCAgFAAAAAWkAAAAGY2FsbGVyAAAABWJ5dGVzBAAAAAVhc3NldAkAAlkAAAABBQAAAAdhc3NldElkAwkAAAAAAAACBQAAAAxwYXltZW50QXNzZXQFAAAABWFzc2V0CQAAAgAAAAECAAAAFXlvdSBjYW4gdXNlIG9ubHkgZW5lYwkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgkBAAAAFmdldEFzc2V0VG90YWxBbW91bnRLZXkAAAABBQAAAAdhc3NldElkCQAAZQAAAAIJAQAAABhnZXRBc3NldFRvdGFsQW1vdW50VmFsdWUAAAABBQAAAAdhc3NldElkBQAAAAZhbW91bnQJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAADHRvdGFsX2Ftb3VudAkAAGUAAAACCQEAAAAOZ2V0VG90YWxBbW91bnQAAAAABQAAAAZhbW91bnQJAARMAAAAAgkBAAAABEJ1cm4AAAACBQAAAAVhc3NldAUAAAAGYW1vdW50BQAAAANuaWwAAAABAAAAAnR4AQAAAAZ2ZXJpZnkAAAAABAAAAAckbWF0Y2gwBQAAAAJ0eAMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXSW52b2tlU2NyaXB0VHJhbnNhY3Rpb24EAAAAAWEFAAAAByRtYXRjaDAGCQAB9AAAAAMIBQAAAAJ0eAAAAAlib2R5Qnl0ZXMJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAAUAAAAFYWRtaW5jCSQA"
+	src, err := base64.StdEncoding.DecodeString(code)
+	require.NoError(t, err)
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	res, err := CallFunction(env, tree, "purchaseToken", arguments)
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	require.True(t, r.res)
+
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+
+	expectedDataWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.IntegerDataEntry{Key: "listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_amount", Value: 99500000}},
+	}
+	expectedTransfers := []*proto.TransferScriptAction{
+		{
+			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT")),
+			Amount:    500000,
+			Asset: proto.OptionalAsset{
+				Present: true,
+				ID:      crypto.MustDigestFromBase58("3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2"),
+			},
+		},
+	}
+	expectedResult := &proto.ScriptResult{
+		DataEntries:  expectedDataWrites,
+		Transfers:    expectedTransfers,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+	}
+	assert.Equal(t, expectedResult, sr)
+}
+
+func TestRecipientAddressToString(t *testing.T) {
+	/*
+		{-# STDLIB_VERSION 4 #-}
+		{-# CONTENT_TYPE EXPRESSION #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		match tx {
+		    case tr: TransferTransaction =>
+		        match tr.recipient {
+		            case a: Address => toString(a) == "3N61Xs9cTetvoP1uZSrtuRxxJ4A4RCR7a4G"
+		            case _ => false
+		        }
+		    case _ => false
+		}
+	*/
+	s := "BAQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAnRyBQAAAAckbWF0Y2gwBAAAAAckbWF0Y2gxCAUAAAACdHIAAAAJcmVjaXBpZW50AwkAAAEAAAACBQAAAAckbWF0Y2gxAgAAAAdBZGRyZXNzBAAAAAFhBQAAAAckbWF0Y2gxCQAAAAAAAAIJAAQlAAAAAQUAAAABYQIAAAAjM042MVhzOWNUZXR2b1AxdVpTcnR1Unh4SjRBNFJDUjdhNEcHBzdCrWM="
+	src, err := base64.StdEncoding.DecodeString(s)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	id := crypto.MustDigestFromBase58("2RW5wedbBi9PTEM9Ao5s5Y7U25FD7PepujC2CS7Qeta1")
+	tx := &proto.TransferWithProofs{
+		Type:    proto.TransferTransaction,
+		Version: 3,
+		ID:      &id,
+		Proofs:  proto.NewProofs(),
+		Transfer: proto.Transfer{
+			SenderPK:    crypto.PublicKey{},
+			AmountAsset: proto.OptionalAsset{},
+			FeeAsset:    proto.OptionalAsset{},
+			Timestamp:   0,
+			Amount:      0,
+			Fee:         0,
+			Recipient:   proto.NewRecipientFromAddress(proto.MustAddressFromString("3N61Xs9cTetvoP1uZSrtuRxxJ4A4RCR7a4G")),
+			Attachment:  nil,
+		},
+	}
+	env := &MockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		checkMessageLengthFunc: v3check,
+	}
+
+	res, err := CallVerifier(env, tree)
+	require.NoError(t, err)
+	r, ok := res.(ScriptResult)
+	require.True(t, ok)
+	assert.True(t, r.Result())
 }
