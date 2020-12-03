@@ -24,6 +24,10 @@ type FuncState struct {
 	invokeParam    string
 	lastStmtOffset uint16
 	startedAt      uint16
+
+	// References that defined inside function.
+	// Should be cleared before exit.
+	assigments []uniqueid
 }
 
 func (a FuncState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
@@ -78,14 +82,23 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 }
 
 func (a FuncState) Assigment(name string) Fsm {
-	return assigmentFsmTransition(a, a.params, name)
+	n := a.params.u.next()
+	a.assigments = append(a.assigments, n)
+	return assigmentFsmTransition(a, a.params, name, n)
 }
 
 func (a FuncState) Return() Fsm {
 	funcID := a.params.u.next()
 	a.globalScope.set(a.name, funcID)
-	a.params.c.set(funcID, nil, nil, a.lastStmtOffset, a.name)
+	a.params.c.set(funcID, nil, nil, a.lastStmtOffset, false, a.name)
 	// TODO clean args
+
+	// Clean internal assigments.
+	for i := len(a.assigments) - 1; i >= 0; i-- {
+		a.b.writeByte(OpClearCache)
+		a.b.write(encode(a.assigments[i]))
+	}
+
 	a.b.ret()
 
 	// if function has invoke param, it means no other code will be provided.

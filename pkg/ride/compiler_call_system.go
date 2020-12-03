@@ -70,7 +70,8 @@ func newCallSystemFsm(prev Fsm, params params, name string, argc uint16) Fsm {
 }
 
 func (a CallSystemState) Assigment(name string) Fsm {
-	return assigmentFsmTransition(a, a.params, name)
+	//return assigmentFsmTransition(a, a.params, name)
+	panic("illegal transition")
 }
 
 func (a CallSystemState) Long(value int64) Fsm {

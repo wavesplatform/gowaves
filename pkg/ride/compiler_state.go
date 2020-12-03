@@ -51,12 +51,12 @@ type params struct {
 
 func (a *params) addPredefined(name string, id uniqueid, fn rideFunction) {
 	a.r.set(name, id)
-	a.c.set(id, nil, fn, 0, name)
+	a.c.set(id, nil, fn, 0, false, name)
 }
 
 func (a *params) constant(value rideType) uniqueid {
 	n := a.u.next()
-	a.c.set(n, value, nil, 0, fmt.Sprintf("constant %q", value))
+	a.c.set(n, value, nil, 0, false, fmt.Sprintf("constant %q", value))
 	return n
 }
 

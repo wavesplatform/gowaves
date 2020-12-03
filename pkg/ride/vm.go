@@ -169,6 +169,17 @@ func (m *vm) run() (RideResult, error) {
 			m.ref[refID] = point{
 				value: value,
 			}
+		case OpClearCache:
+			refID := m.uint16()
+			point, ok := m.ref[refID]
+			if !ok {
+				return nil, errors.Errorf("OpClearCache: no ref with id %d", refID)
+			}
+			// Clear cache only if its not constant.
+			if !point.constant {
+				point.value = nil
+				m.ref[refID] = point
+			}
 
 		case OpRef:
 			refID := m.uint16()

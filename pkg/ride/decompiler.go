@@ -3,6 +3,8 @@ package ride
 import (
 	"fmt"
 	"strings"
+
+	"github.com/mr-tron/base58"
 )
 
 type detreeType = func(s *strings.Builder, tree Node)
@@ -115,6 +117,9 @@ func detree(s *strings.Builder, tree Node) {
 		s.WriteString(fmt.Sprintf("%t", n.Value))
 	case *LongNode:
 		s.WriteString(fmt.Sprintf("%d", n.Value))
+	case *BytesNode:
+		s.WriteString("b58:")
+		s.WriteString(base58.Encode(n.Value))
 	case nil:
 		// nothing
 	default:

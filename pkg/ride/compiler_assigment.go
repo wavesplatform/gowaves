@@ -8,7 +8,11 @@ type AssigmentState struct {
 	startedAt uint16
 	//ret       uint16
 	constant rideType
-	n        uniqueid
+	// ref id
+	n uniqueid
+
+	// Clean internal assigments.
+	assigments []uniqueid
 }
 
 func (a AssigmentState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
@@ -51,17 +55,17 @@ func (a AssigmentState) Boolean(v bool) Fsm {
 	return a
 }
 
-func assigmentFsmTransition(prev Fsm, params params, name string) Fsm {
-	return newAssigmentFsm(prev, params, name)
+func assigmentFsmTransition(prev Fsm, params params, name string, n uniqueid) Fsm {
+	return newAssigmentFsm(prev, params, name, n)
 }
 
-func newAssigmentFsm(prev Fsm, p params, name string) Fsm {
+func newAssigmentFsm(prev Fsm, p params, name string, n uniqueid) Fsm {
 	return AssigmentState{
 		prev:      prev,
 		params:    p,
 		name:      name,
 		startedAt: p.b.len(),
-		n:         p.u.next(),
+		n:         n,
 	}
 }
 
@@ -69,19 +73,25 @@ func newAssigmentFsm(prev Fsm, p params, name string) Fsm {
 func (a AssigmentState) Assigment(name string) Fsm {
 	params := a.params
 	params.r = newReferences(params.r)
-	return assigmentFsmTransition(a, params, name)
+	// TODO clear var in var
+	n := a.params.u.next()
+	a.assigments = append(a.assigments, n)
+	return assigmentFsmTransition(a, params, name, params.u.next())
 }
 
 func (a AssigmentState) Return() Fsm {
-	a.b.writeByte(OpCache)
-	a.b.write(encode(a.n))
-	a.b.ret()
-	// store reference on variable and it's offset.
-
+	for i := len(a.assigments) - 1; i >= 0; i-- {
+		a.b.writeByte(OpClearCache)
+		a.b.write(encode(a.assigments[i]))
+	}
+	// constant
 	if a.constant != nil {
-		a.c.set(a.n, a.constant, nil, 0, a.name)
+		a.c.set(a.n, a.constant, nil, 0, true, a.name)
 	} else {
-		a.c.set(a.n, nil, nil, a.startedAt, a.name)
+		a.c.set(a.n, nil, nil, a.startedAt, false, a.name)
+		a.b.writeByte(OpCache)
+		a.b.write(encode(a.n))
+		a.b.ret()
 	}
 	a.r.set(a.name, a.n)
 	return a.prev.retAssigment(a.startedAt, a.params.b.len())

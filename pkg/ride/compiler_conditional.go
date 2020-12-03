@@ -28,10 +28,12 @@ type ConditionalState struct {
 	trueStartedAt     uint16
 	falseStartedAt    uint16
 	rets              []uint16
+
+	// Clean assigments after exit.
+	assigments []uniqueid
 }
 
 func (a ConditionalState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
-	//a.retAssig = pos
 	return a
 }
 
@@ -75,10 +77,16 @@ func (a ConditionalState) FalseBranch() Fsm {
 }
 
 func (a ConditionalState) Assigment(name string) Fsm {
-	return assigmentFsmTransition(a, a.params, name)
+	n := a.params.u.next()
+	a.assigments = append(a.assigments, n)
+	return assigmentFsmTransition(a, a.params, name, n)
 }
 
 func (a ConditionalState) Return() Fsm {
+	for i := len(a.assigments) - 1; i >= 0; i-- {
+		a.b.writeByte(OpClearCache)
+		a.b.write(encode(a.assigments[i]))
+	}
 	a.b.ret()
 	a.b.patch(a.patchTruePosition, encode(a.rets[1]))
 	a.b.patch(a.patchFalsePosition, encode(a.rets[2]))

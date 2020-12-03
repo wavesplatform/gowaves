@@ -96,6 +96,7 @@ type point struct {
 	position  uint16
 	value     rideType
 	fn        rideFunction
+	constant  bool
 	debugInfo string
 }
 
@@ -109,11 +110,12 @@ func newCell() *cell {
 	}
 }
 
-func (a *cell) set(u uniqueid, result rideType, fn rideFunction, position uint16, debug string) {
+func (a *cell) set(u uniqueid, result rideType, fn rideFunction, position uint16, constant bool, debug string) {
 	a.values[u] = point{
 		position:  position,
 		value:     result,
 		fn:        fn,
+		constant:  constant,
 		debugInfo: debug,
 	}
 }

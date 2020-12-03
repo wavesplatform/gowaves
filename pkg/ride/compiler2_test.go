@@ -201,6 +201,7 @@ func TestIfConditionRightByteCode(t *testing.T) {
 
 			OpReturn,
 			OpRef, 0, 1,
+			OpClearCache, 0, 1,
 			OpReturn,
 		},
 		f.ByteCode)
@@ -253,6 +254,46 @@ func TestDoubleCall(t *testing.T) {
 	rs, err := f.Run(nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, true, rs.Result())
+}
+
+/*
+func abc() {
+	let x = 5
+	let y = 6
+	x
+}
+*/
+func TestClearInternalVariables(t *testing.T) {
+	n := &FunctionDeclarationNode{
+		Name:      "abc",
+		Arguments: nil,
+		Body: &AssignmentNode{
+			Name:       "x",
+			Expression: &LongNode{Value: 5},
+			Block: &AssignmentNode{
+				Name:       "y",
+				Expression: &LongNode{Value: 6},
+				Block: &ReferenceNode{
+					Name: "x",
+				},
+			},
+		},
+	}
+
+	f, err := compileFunction("", 3, []Node{n})
+	require.NoError(t, err)
+
+	require.Equal(t,
+		[]byte{
+			OpReturn,
+			OpRef, 0, 1,
+			OpClearCache, 0, 2,
+			OpClearCache, 0, 1,
+			OpReturn,
+
+			OpReturn,
+		},
+		f.ByteCode)
 }
 
 // func id(v: Boolean) = v; id(true)

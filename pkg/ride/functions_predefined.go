@@ -27,7 +27,12 @@ func height(env RideEnvironment, _ ...rideType) (rideType, error) {
 }
 
 func nilFunc(env RideEnvironment, _ ...rideType) (rideType, error) {
-	return rideList{}, nil
+	var out rideList = nil
+	return out, nil
+}
+
+func retRideType() rideList {
+	return nil
 }
 
 var predefinedFunctions = map[string]predefFunc{

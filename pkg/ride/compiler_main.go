@@ -4,6 +4,8 @@ package ride
 type MainState struct {
 	params
 	retAssig uint16
+
+	assigments []uniqueid
 }
 
 func (a MainState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
@@ -51,10 +53,16 @@ func NewMain(params params) Fsm {
 }
 
 func (a MainState) Assigment(name string) Fsm {
-	return assigmentFsmTransition(a, a.params, name)
+	n := a.params.u.next()
+	a.assigments = append(a.assigments, n)
+	return assigmentFsmTransition(a, a.params, name, n)
 }
 
 func (a MainState) Return() Fsm {
+	for i := len(a.assigments) - 1; i >= 0; i-- {
+		a.b.writeByte(OpClearCache)
+		a.b.write(encode(a.assigments[i]))
+	}
 	a.b.ret()
 	return a
 }

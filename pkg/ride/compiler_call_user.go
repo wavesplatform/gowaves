@@ -68,7 +68,8 @@ func (a CallUserState) Boolean(v bool) Fsm {
 }
 
 func (a CallUserState) Assigment(name string) Fsm {
-	return assigmentFsmTransition(a, a.params, name)
+	//return assigmentFsmTransition(a, a.params, name)
+	panic("illegal transition")
 }
 
 func (a CallUserState) Long(value int64) Fsm {
@@ -103,7 +104,7 @@ func (a CallUserState) Return() Fsm {
 
 func (a CallUserState) Call(name string, argc uint16) Fsm {
 	n := a.u.next()
-	a.c.set(n, nil, nil, 0, fmt.Sprintf("function as paramentr: %s$%d", name, n))
+	a.c.set(n, nil, nil, 0, false, fmt.Sprintf("function as paramentr: %s$%d", name, n))
 	a.argn = append(a.argn, n)
 	if a.ret != nil {
 		panic("already assigned")
