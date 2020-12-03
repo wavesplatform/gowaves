@@ -98,6 +98,7 @@ func (a FuncState) Return() Fsm {
 				panic("function param `" + a.args[i] + "` not found")
 			}
 			a.b.write(encode(uniq))
+			a.b.writeByte(OpPop)
 		}
 		a.b.writeByte(OpCall)
 		a.b.write(encode(a.lastStmtOffset))

@@ -10,16 +10,22 @@ type RideResult interface {
 	UserError() string
 	ScriptActions() proto.ScriptActions
 	Eq(RideResult) bool
+	Calls() []callLog
 }
 
 type ScriptResult struct {
 	res        bool
 	msg        string
 	operations int
+	calls      []callLog
 }
 
 func (r ScriptResult) Result() bool {
 	return r.res
+}
+
+func (r ScriptResult) Calls() []callLog {
+	return r.calls
 }
 
 func (r ScriptResult) UserError() string {
@@ -44,10 +50,15 @@ type DAppResult struct {
 	actions    proto.ScriptActions
 	msg        string
 	operations int
+	calls      []callLog
 }
 
 func (r DAppResult) Result() bool {
 	return r.res
+}
+
+func (r DAppResult) Calls() []callLog {
+	return r.calls
 }
 
 func (r DAppResult) UserError() string {

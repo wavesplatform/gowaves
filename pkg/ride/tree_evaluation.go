@@ -33,6 +33,26 @@ func CallVerifier(txID string, env RideEnvironment, tree *Tree) (RideResult, err
 		return nil, err
 	}
 	if !r.Eq(r2) {
+		c1 := r.Calls()
+		c2 := r2.Calls()
+		max := len(c1)
+		if len(c2) > len(c1) {
+			max = len(c2)
+		}
+		for i := 0; i < max; i++ {
+			zap.S().Error("R1 != R2: failed to call account script on transaction ")
+			if i <= len(c1)-1 {
+				zap.S().Error(c1[i])
+			} else {
+				zap.S().Error("<empty>")
+			}
+			if i <= len(c2)-1 {
+				zap.S().Error(c2[i])
+			} else {
+				zap.S().Error("<empty>")
+			}
+		}
+
 		return nil, errors.New("R1 != R2: failed to call account script on transaction ")
 	}
 	return r, nil
@@ -59,8 +79,10 @@ func CallFunction(txID string, env RideEnvironment, tree *Tree, name string, arg
 		return nil, errors.Wrap(err, "call function by vm")
 	}
 	if !rs1.Eq(rs2) {
-		zap.S().Errorf("result mismatch tree %+q  vm %+q", rs1, rs2)
-		return nil, errors.New("result mismatch")
+		zap.S().Errorf("%s, result mismatch", txID)
+		zap.S().Errorf("tree: %+q", rs1)
+		zap.S().Errorf("vm  : %+q", rs2)
+		return nil, errors.New(txID + ": result mismatch")
 	}
 	return rs2, nil
 }

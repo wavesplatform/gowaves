@@ -8,6 +8,7 @@ type AssigmentState struct {
 	startedAt uint16
 	//ret       uint16
 	constant rideType
+	n        uniqueid
 }
 
 func (a AssigmentState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
@@ -60,6 +61,7 @@ func newAssigmentFsm(prev Fsm, p params, name string) Fsm {
 		params:    p,
 		name:      name,
 		startedAt: p.b.len(),
+		n:         p.u.next(),
 	}
 }
 
@@ -71,15 +73,17 @@ func (a AssigmentState) Assigment(name string) Fsm {
 }
 
 func (a AssigmentState) Return() Fsm {
+	a.b.writeByte(OpCache)
+	a.b.write(encode(a.n))
 	a.b.ret()
 	// store reference on variable and it's offset.
-	n := a.u.next()
+
 	if a.constant != nil {
-		a.c.set(n, a.constant, nil, 0, a.name)
+		a.c.set(a.n, a.constant, nil, 0, a.name)
 	} else {
-		a.c.set(n, nil, nil, a.startedAt, a.name)
+		a.c.set(a.n, nil, nil, a.startedAt, a.name)
 	}
-	a.r.set(a.name, n)
+	a.r.set(a.name, a.n)
 	return a.prev.retAssigment(a.startedAt, a.params.b.len())
 }
 

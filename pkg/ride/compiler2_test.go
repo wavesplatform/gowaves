@@ -91,7 +91,7 @@ func Test22(t *testing.T) {
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, script, test.comment)
 
-		res, err := script.Run(test.env)
+		res, err := script.Run(test.env, nil)
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, res, test.comment)
 		r, ok := res.(ScriptResult)
@@ -156,7 +156,7 @@ func TestCallExternal(t *testing.T) {
 		},
 	}
 
-	f, err := compileFunction("", 3, []Node{n}, nil)
+	f, err := compileFunction("", 3, []Node{n})
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -184,25 +184,28 @@ func TestIfConditionRightByteCode(t *testing.T) {
 		},
 	}
 
-	f, err := compileFunction("", 3, []Node{n}, nil)
+	f, err := compileFunction("", 3, []Node{n})
 	require.NoError(t, err)
 
 	require.Equal(t,
 		[]byte{
 			OpReturn,
-			OpRef, 0, 1,
-			OpJumpIfFalse, 0, 11, 0, 15, 0, 19,
 			OpRef, 0, 2,
-			OpReturn,
+			OpJumpIfFalse, 0, 11, 0, 15, 0, 19,
 			OpRef, 0, 3,
 			OpReturn,
-			OpReturn,
 			OpRef, 0, 4,
+			OpReturn,
+
+			OpCache, 0, 1,
+
+			OpReturn,
+			OpRef, 0, 1,
 			OpReturn,
 		},
 		f.ByteCode)
 
-	rs, err := f.Run(nil)
+	rs, err := f.Run(nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, true, rs.Result())
 }
@@ -229,7 +232,7 @@ func TestDoubleCall(t *testing.T) {
 		},
 	}
 
-	f, err := compileFunction("", 3, []Node{n}, nil)
+	f, err := compileFunction("", 3, []Node{n})
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -247,7 +250,7 @@ func TestDoubleCall(t *testing.T) {
 
 	require.EqualValues(t, 5, f.EntryPoints[""])
 
-	rs, err := f.Run(nil)
+	rs, err := f.Run(nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, true, rs.Result())
 }
@@ -269,7 +272,7 @@ func TestCallWithConstArg(t *testing.T) {
 		invocationParameter: "",
 	}
 
-	f, err := compileFunction("", 3, []Node{n}, nil)
+	f, err := compileFunction("", 3, []Node{n})
 	require.NoError(t, err)
 
 	bt := []byte{
@@ -290,7 +293,7 @@ func TestCallWithConstArg(t *testing.T) {
 	//f.ByteCode = bt
 	//f.EntryPoints[""] = 4
 
-	rs, err := f.Run(nil)
+	rs, err := f.Run(nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, true, rs.Result())
 }
@@ -326,7 +329,7 @@ func TestMultipleCallConstantFuncArgument(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	res, err := script.Run(env)
+	res, err := script.Run(env, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	r, ok := res.(ScriptResult)
@@ -436,7 +439,7 @@ func TestCompileDapp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	res, err := script.Run(env)
+	res, err := script.Run(env, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	r, ok := res.(ScriptResult)
@@ -496,7 +499,7 @@ func Test2121(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	res, err := script.Run(env)
+	res, err := script.Run(env, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	r, ok := res.(ScriptResult)
@@ -553,7 +556,7 @@ func TestIfStmt(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	res, err := script.Run(env)
+	res, err := script.Run(env, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	r, ok := res.(ScriptResult)
@@ -703,7 +706,7 @@ func Test777(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	res, err := script.Run(env)
+	res, err := script.Run(env, nil)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	r, ok := res.(ScriptResult)
@@ -756,7 +759,7 @@ func Test888(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	_, err = script.Run(env)
+	_, err = script.Run(env, nil)
 	require.Equal(t, err.Error(), "terminated execution by throw with message \"1\"")
 }
 
@@ -827,6 +830,6 @@ func TestNoDuplicateCallToState(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	_, err = script.Run(env)
+	_, err = script.Run(env, nil)
 	require.NoError(t, err)
 }

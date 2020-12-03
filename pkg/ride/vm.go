@@ -20,6 +20,7 @@ type vm struct {
 	jmps         []int
 	ref          map[uint16]point
 	cache        bool
+	calls        []callLog
 }
 
 func (m *vm) run() (RideResult, error) {
@@ -38,6 +39,11 @@ func (m *vm) run() (RideResult, error) {
 		op := m.code[m.ip]
 		m.ip++
 		switch op {
+		case OpPop:
+			_, err := m.pop()
+			if err != nil {
+				return nil, err
+			}
 		case OpJump:
 			pos := m.arg16()
 			m.jmps = append(m.jmps, m.ip)
@@ -99,6 +105,11 @@ func (m *vm) run() (RideResult, error) {
 				return nil, errors.Errorf("external function '%s' not implemented", m.functionName(id))
 			}
 			res, err := fn(m.env, in...)
+			m.calls = append(m.calls, callLog{
+				name:   m.functionName(id),
+				args:   in,
+				result: res,
+			})
 			if err != nil {
 				return nil, errors.Wrapf(err, "iteration %d", numOperations)
 			}
@@ -116,13 +127,13 @@ func (m *vm) run() (RideResult, error) {
 					}
 					switch tv := v.(type) {
 					case rideBoolean:
-						return ScriptResult{res: bool(tv), operations: numOperations}, nil
+						return ScriptResult{res: bool(tv), operations: numOperations, calls: m.calls}, nil
 					case rideObject:
 						actions, err := objectToActions(m.env, tv)
 						if err != nil {
 							return nil, errors.Wrap(err, "failed to convert evaluation result")
 						}
-						return DAppResult{res: true, actions: actions, msg: ""}, nil
+						return DAppResult{res: true, actions: actions, msg: "", calls: m.calls}, nil
 					case rideList:
 						actions := make([]proto.ScriptAction, len(tv))
 						for i, item := range tv {
@@ -132,7 +143,7 @@ func (m *vm) run() (RideResult, error) {
 							}
 							actions[i] = a
 						}
-						return DAppResult{res: true, actions: actions}, nil
+						return DAppResult{res: true, actions: actions, calls: m.calls}, nil
 					default:
 						return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
 					}
@@ -154,6 +165,7 @@ func (m *vm) run() (RideResult, error) {
 			if err != nil {
 				return nil, errors.Wrap(err, "no value to cache")
 			}
+			m.push(value)
 			m.ref[refID] = point{
 				value: value,
 			}

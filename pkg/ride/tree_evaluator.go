@@ -200,13 +200,18 @@ func selectFunctionNames(v int) ([]string, error) {
 	}
 }
 
+type callLog struct {
+	name   string
+	args   []rideType
+	result rideType
+}
+
 type treeEvaluator struct {
-	dapp bool
-	//limit int
-	//cost  int
-	f   Node
-	s   evaluationScope
-	env RideEnvironment
+	dapp  bool
+	f     Node
+	s     evaluationScope
+	env   RideEnvironment
+	calls []callLog
 }
 
 func (e *treeEvaluator) evaluate() (RideResult, error) {
@@ -217,17 +222,17 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 	switch res := r.(type) {
 	case rideThrow:
 		if e.dapp {
-			return DAppResult{res: false, msg: string(res)}, nil
+			return DAppResult{res: false, msg: string(res), calls: e.calls}, nil
 		}
-		return ScriptResult{res: false, msg: string(res)}, nil
+		return ScriptResult{res: false, msg: string(res), calls: e.calls}, nil
 	case rideBoolean:
-		return ScriptResult{res: bool(res)}, nil
+		return ScriptResult{res: bool(res), calls: e.calls}, nil
 	case rideObject:
 		actions, err := objectToActions(e.env, res)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
-		return DAppResult{res: true, actions: actions, msg: ""}, nil
+		return DAppResult{res: true, actions: actions, msg: "", calls: e.calls}, nil
 	case rideList:
 		actions := make([]proto.ScriptAction, len(res))
 		for i, item := range res {
@@ -237,7 +242,7 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 			}
 			actions[i] = a
 		}
-		return DAppResult{res: true, actions: actions}, nil
+		return DAppResult{res: true, actions: actions, calls: e.calls}, nil
 	default:
 		return nil, errors.Errorf("unexpected result type '%T'", r)
 	}
@@ -349,6 +354,11 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 				args[i] = a
 			}
 			r, err := f(e.env, args...)
+			e.calls = append(e.calls, callLog{
+				name:   id,
+				args:   args,
+				result: r,
+			})
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to call system function '%s'", id)
 			}

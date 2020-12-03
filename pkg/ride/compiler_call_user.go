@@ -111,6 +111,7 @@ func (a CallUserState) Call(name string, argc uint16) Fsm {
 	a.ret = func(state CallUserState, startedAt uint16, endedAt uint16) {
 		a.b.writeByte(OpCache)
 		a.b.write(encode(n))
+		a.b.writeByte(OpPop)
 	}
 	return callTransition(a, a.params, name, argc)
 }
