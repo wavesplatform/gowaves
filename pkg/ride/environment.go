@@ -75,19 +75,27 @@ func (wrappedSt *wrappedState) NewestAddrByAlias(alias proto.Alias) (proto.Addre
 	return wrappedSt.state.NewestAddrByAlias(alias)
 }
 func (wrappedSt *wrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-	//TODO
+	if intDataEntry := wrappedSt.diff.getIntFromDataEntryByKey(key); intDataEntry != nil {
+		return intDataEntry, nil
+	}
 	return wrappedSt.state.RetrieveNewestIntegerEntry(account, key)
 }
 func (wrappedSt *wrappedState) RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-	//TODO
+	if boolDataEntry := wrappedSt.diff.getBoolFromDataEntryByKey(key); boolDataEntry != nil {
+		return boolDataEntry, nil
+	}
 	return wrappedSt.state.RetrieveNewestBooleanEntry(account, key)
 }
 func (wrappedSt *wrappedState) RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-	//TODO
+	if stringDataEntry := wrappedSt.diff.getStringFromDataEntryByKey(key); stringDataEntry != nil {
+		return stringDataEntry, nil
+	}
 	return wrappedSt.state.RetrieveNewestStringEntry(account, key)
 }
 func (wrappedSt *wrappedState) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-	//TODO
+	if binaryDataEntry := wrappedSt.diff.getBinaryFromDataEntryByKey(key); binaryDataEntry != nil {
+		return binaryDataEntry, nil
+	}
 	return wrappedSt.state.RetrieveNewestBinaryEntry(account, key)
 }
 func (wrappedSt *wrappedState) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
@@ -336,10 +344,53 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 			}
 
 			if res.Entry.GetValueType() == proto.DataDelete {
-				var deleteEntry proto.DeleteDataEntry
-				deleteEntry.Key = res.Entry.GetKey()
 
-				e.st.diff.diffDataEntr.diffDelete = append(e.st.diff.diffDataEntr.diffDelete, deleteEntry)
+				key := res.Entry.GetKey()
+
+				for i, intDataEntry := range e.st.diff.diffDataEntr.diffInteger {
+					if key == intDataEntry.Key {
+						length := len(e.st.diff.diffDataEntr.diffInteger)
+
+						e.st.diff.diffDataEntr.diffInteger[i] = e.st.diff.diffDataEntr.diffInteger[length-1] // Copy last element to index i.
+						e.st.diff.diffDataEntr.diffInteger = e.st.diff.diffDataEntr.diffInteger[:length-1]   // Truncate
+
+						return nil
+					}
+				}
+
+				for i, stringDataEntry := range e.st.diff.diffDataEntr.diffString {
+					if key == stringDataEntry.Key {
+						length := len(e.st.diff.diffDataEntr.diffString)
+
+						e.st.diff.diffDataEntr.diffString[i] = e.st.diff.diffDataEntr.diffString[length-1] // Copy last element to index i.
+						e.st.diff.diffDataEntr.diffString = e.st.diff.diffDataEntr.diffString[:length-1]   // Truncate
+
+						return nil
+					}
+				}
+
+				for i, boolDataEntry := range e.st.diff.diffDataEntr.diffBool {
+					if key == boolDataEntry.Key {
+						length := len(e.st.diff.diffDataEntr.diffBool)
+
+						e.st.diff.diffDataEntr.diffBool[i] = e.st.diff.diffDataEntr.diffBool[length-1] // Copy last element to index i.
+						e.st.diff.diffDataEntr.diffBool = e.st.diff.diffDataEntr.diffBool[:length-1]   // Truncate
+
+						return nil
+					}
+				}
+
+				for i, binaryDataEntry := range e.st.diff.diffDataEntr.diffBinary {
+					if key == binaryDataEntry.Key {
+						length := len(e.st.diff.diffDataEntr.diffBinary)
+
+						e.st.diff.diffDataEntr.diffBinary[i] = e.st.diff.diffDataEntr.diffBinary[length-1] // Copy last element to index i.
+						e.st.diff.diffDataEntr.diffBinary = e.st.diff.diffDataEntr.diffBinary[:length-1]   // Truncate
+
+						return nil
+					}
+				}
+
 			}
 
 		default:

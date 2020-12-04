@@ -10,11 +10,46 @@ type diffDataEntry struct {
 	diffBool    []proto.BooleanDataEntry
 	diffString  []proto.StringDataEntry
 	diffBinary  []proto.BinaryDataEntry
-	diffDelete  []proto.DeleteDataEntry
 }
 
 type diffState struct {
 	diffDataEntr diffDataEntry
+}
+
+func (diffSt *diffState) getIntFromDataEntryByKey(key string) *proto.IntegerDataEntry {
+	for _, intDataEntry := range diffSt.diffDataEntr.diffInteger {
+		if key == intDataEntry.Key {
+			return &intDataEntry
+		}
+	}
+	return nil
+}
+
+func (diffSt *diffState) getBoolFromDataEntryByKey(key string) *proto.BooleanDataEntry {
+	for _, boolDataEntry := range diffSt.diffDataEntr.diffBool {
+		if key == boolDataEntry.Key {
+			return &boolDataEntry
+		}
+	}
+	return nil
+}
+
+func (diffSt *diffState) getStringFromDataEntryByKey(key string) *proto.StringDataEntry {
+	for _, stringDataEntry := range diffSt.diffDataEntr.diffString {
+		if key == stringDataEntry.Key {
+			return &stringDataEntry
+		}
+	}
+	return nil
+}
+
+func (diffSt *diffState) getBinaryFromDataEntryByKey(key string) *proto.BinaryDataEntry {
+	for _, binaryDataEntry := range diffSt.diffDataEntr.diffBinary {
+		if key == binaryDataEntry.Key {
+			return &binaryDataEntry
+		}
+	}
+	return nil
 }
 
 //func newDiffState() *diffState {
