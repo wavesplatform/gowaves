@@ -1,6 +1,8 @@
 package ride
 
 import (
+	"encoding/binary"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -29,7 +31,7 @@ func (wrappedSt *wrappedState) NewestRecipientToAddress(recipient proto.Recipien
 //-----//
 //const wavesBalanceKeySize = 1 + proto.AddressSize
 //const wavesBalanceKeyPrefix byte = iota
-
+//
 //type wavesBalanceKey struct {
 //	address proto.Address
 //}
@@ -46,14 +48,7 @@ func (wrappedSt *wrappedState) NewestAccountBalance(account proto.Recipient, ass
 	//if err != nil {
 	//	return 0, errors.Wrap(err, "Failed to get script by recipient")
 	//}
-	////key := wavesBalanceKey{address: *addr}
-	//
-	//newProfile := &balanceProfile{}
-	//newProfile.balance = uint64(newBalance)
-	//newProfile.leaseIn = newLeaseIn
-	//newProfile.leaseOut = newLeaseOut
-	//
-	//
+	//key := wavesBalanceKey{address: *addr}
 	//
 	//
 	//if asset == nil {
@@ -127,7 +122,7 @@ func (wrappedSt *wrappedState) IsNotFound(err error) bool {
 type wrappedState struct {
 	state    types.SmartState
 	tmpState types.SmartState
-	actions  []proto.ScriptAction
+	diff     diffState
 }
 
 type Environment struct {
@@ -268,8 +263,91 @@ func (e *Environment) state() types.SmartState {
 	return &e.st
 }
 
-func (e *Environment) applyToState(actions []proto.ScriptAction) {
-	e.st.actions = append(e.st.actions, actions...)
+func (e *Environment) applyToState(actions []proto.ScriptAction) error {
+
+	for _, action := range actions {
+		switch res := action.(type) {
+
+		case proto.DataEntryScriptAction:
+			if res.Entry.GetValueType() == proto.DataInteger {
+
+				bVal, err := res.Entry.MarshalValue()
+				if err != nil {
+					return errors.Wrap(err, "failed to marshal IntegerDataEntry bytes from value")
+				}
+				value := int64(binary.BigEndian.Uint64(bVal[1:]))
+
+				var intEntry proto.IntegerDataEntry
+				intEntry.Value = value
+				intEntry.Key = res.Entry.GetKey()
+
+				e.st.diff.diffDataEntr.diffInteger = append(e.st.diff.diffDataEntr.diffInteger, intEntry)
+			}
+
+			if res.Entry.GetValueType() == proto.DataBoolean {
+				bVal, err := res.Entry.MarshalValue()
+				if err != nil {
+					return err // TODO
+				}
+				value, err := proto.Bool(bVal[1:])
+				if err != nil {
+					return errors.Wrap(err, "failed to unmarshal BooleanDataEntry value from bytes")
+				}
+
+				var boolEntry proto.BooleanDataEntry
+				boolEntry.Value = value
+				boolEntry.Key = res.Entry.GetKey()
+
+				e.st.diff.diffDataEntr.diffBool = append(e.st.diff.diffDataEntr.diffBool, boolEntry)
+			}
+
+			if res.Entry.GetValueType() == proto.DataBinary {
+				bVal, err := res.Entry.MarshalValue()
+				if err != nil {
+					return err // TODO
+				}
+				value, err := proto.BytesWithUInt16Len(bVal[1:])
+				if err != nil {
+					return errors.Wrap(err, "failed to unmarshal BinaryDataEntry value from bytes")
+				}
+
+				var binaryEntry proto.BinaryDataEntry
+				binaryEntry.Value = value
+				binaryEntry.Key = res.Entry.GetKey()
+
+				e.st.diff.diffDataEntr.diffBinary = append(e.st.diff.diffDataEntr.diffBinary, binaryEntry)
+			}
+
+			if res.Entry.GetValueType() == proto.DataString {
+				bVal, err := res.Entry.MarshalValue()
+				if err != nil {
+					return err // TODO
+				}
+				value, err := proto.StringWithUInt16Len(bVal[1:])
+				if err != nil {
+					return errors.Wrap(err, "failed to unmarshal StringDataEntry value from bytes")
+				}
+
+				var stringEntry proto.StringDataEntry
+				stringEntry.Value = value
+				stringEntry.Key = res.Entry.GetKey()
+
+				e.st.diff.diffDataEntr.diffString = append(e.st.diff.diffDataEntr.diffString, stringEntry)
+			}
+
+			if res.Entry.GetValueType() == proto.DataDelete {
+				var deleteEntry proto.DeleteDataEntry
+				deleteEntry.Key = res.Entry.GetKey()
+
+				e.st.diff.diffDataEntr.diffDelete = append(e.st.diff.diffDataEntr.diffDelete, deleteEntry)
+			}
+
+		default:
+
+		}
+
+	}
+	return nil
 }
 
 func (e *Environment) checkMessageLength(l int) bool {

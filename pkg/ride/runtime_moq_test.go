@@ -19,7 +19,7 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //
 //         // make and configure a mocked RideEnvironment
 //         mockedRideEnvironment := &MockRideEnvironment{
-//             applyToStateFunc: func(actions []proto.ScriptAction)  {
+//             applyToStateFunc: func(actions []proto.ScriptAction) error {
 // 	               panic("mock out the applyToState method")
 //             },
 //             blockFunc: func() rideObject {
@@ -57,7 +57,7 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //     }
 type MockRideEnvironment struct {
 	// applyToStateFunc mocks the applyToState method.
-	applyToStateFunc func(actions []proto.ScriptAction)
+	applyToStateFunc func(actions []proto.ScriptAction) error
 
 	// blockFunc mocks the block method.
 	blockFunc func() rideObject
@@ -136,9 +136,9 @@ type MockRideEnvironment struct {
 }
 
 // applyToState calls applyToStateFunc.
-func (mock *MockRideEnvironment) applyToState(actions []proto.ScriptAction) {
+func (mock *MockRideEnvironment) applyToState(actions []proto.ScriptAction) error {
 	if mock.applyToStateFunc == nil {
-		return
+		return nil
 	}
 	callInfo := struct {
 		Actions []proto.ScriptAction
@@ -148,7 +148,7 @@ func (mock *MockRideEnvironment) applyToState(actions []proto.ScriptAction) {
 	mock.lockapplyToState.Lock()
 	mock.calls.applyToState = append(mock.calls.applyToState, callInfo)
 	mock.lockapplyToState.Unlock()
-	mock.applyToStateFunc(actions)
+	return mock.applyToStateFunc(actions)
 }
 
 // applyToStateCalls gets all the calls that were made to applyToState.

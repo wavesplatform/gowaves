@@ -402,7 +402,11 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			}
 			if res.Result() {
 				e.actions = append(e.actions, res.ScriptActions()...)
-				e.env.applyToState(res.ScriptActions())
+				err := e.env.applyToState(res.ScriptActions())
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to apply actions to state")
+
+				}
 			}
 		}
 
