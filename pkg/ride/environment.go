@@ -28,6 +28,10 @@ func (wrappedSt *wrappedState) NewestRecipientToAddress(recipient proto.Recipien
 	return wrappedSt.state.NewestRecipientToAddress(recipient)
 }
 
+func (wrappedSt *wrappedState) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
+	return wrappedSt.state.NewestAddrByAlias(alias)
+}
+
 //-----//
 //const wavesBalanceKeySize = 1 + proto.AddressSize
 //const wavesBalanceKeyPrefix byte = iota
@@ -44,56 +48,66 @@ func (wrappedSt *wrappedState) NewestRecipientToAddress(recipient proto.Recipien
 //}
 
 func (wrappedSt *wrappedState) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
-	//addr, err := wrappedSt.state.NewestRecipientToAddress(account)
-	//if err != nil {
-	//	return 0, errors.Wrap(err, "Failed to get script by recipient")
-	//}
-	//key := wavesBalanceKey{address: *addr}
-	//
-	//
-	//if asset == nil {
-	//	profile, err := s.newestWavesBalanceProfile(*addr)
-	//	if err != nil {
-	//		return 0, wrapErr(RetrievalError, err)
-	//	}
-	//	return profile.balance, nil
-	//}
-	//balance, err := s.newestAssetBalance(*addr, asset)
-	//if err != nil {
-	//	return 0, wrapErr(RetrievalError, err)
-	//}
-	//return balance, nil
-	//TODO
-	return wrappedSt.state.NewestAccountBalance(account, asset)
+	balance, err := wrappedSt.state.NewestAccountBalance(account, asset)
+	if err != nil {
+		return 0, err
+	}
+	if balanceDiff := wrappedSt.diff.findBalance(account, asset); balanceDiff != nil {
+		resBalance := int64(balance) + balanceDiff.amount
+		if resBalance >= 0 {
+			return uint64(resBalance), nil
+		} else {
+			return 0, errors.Errorf("The resulting balance is negative")
+		}
+	}
+	return balance, nil
 }
 func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
-	//TODO
-	return wrappedSt.state.NewestFullWavesBalance(account)
+	balance, err := wrappedSt.state.NewestFullWavesBalance(account)
+	if err != nil {
+		return nil, err
+	}
+
+	if wavesBalanceDiff := wrappedSt.diff.findWavesBalance(account); wavesBalanceDiff != nil {
+		resRegular := wavesBalanceDiff.regular + int64(balance.Regular)
+		resGenerating := wavesBalanceDiff.generating + int64(balance.Generating)
+		resAvailable := wavesBalanceDiff.available + int64(balance.Available)
+		resEffective := wavesBalanceDiff.effective + int64(balance.Effective)
+
+		if resRegular >= 0 && resGenerating >= 0 && resAvailable >= 0 && resEffective >= 0 {
+			return &proto.FullWavesBalance{Regular: uint64(resRegular),
+				Generating: uint64(resGenerating),
+				Available:  uint64(resAvailable),
+				Effective:  uint64(resEffective),
+				LeaseIn:    balance.LeaseIn,
+				LeaseOut:   balance.LeaseOut}, nil
+		} else {
+			return nil, errors.Errorf("The resulting balance is negative")
+		}
+	}
+	return balance, nil
 }
-func (wrappedSt *wrappedState) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
-	//TODO
-	return wrappedSt.state.NewestAddrByAlias(alias)
-}
+
 func (wrappedSt *wrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-	if intDataEntry := wrappedSt.diff.getIntFromDataEntryByKey(key); intDataEntry != nil {
+	if intDataEntry := wrappedSt.diff.findIntFromDataEntryByKey(key); intDataEntry != nil {
 		return intDataEntry, nil
 	}
 	return wrappedSt.state.RetrieveNewestIntegerEntry(account, key)
 }
 func (wrappedSt *wrappedState) RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-	if boolDataEntry := wrappedSt.diff.getBoolFromDataEntryByKey(key); boolDataEntry != nil {
+	if boolDataEntry := wrappedSt.diff.findBoolFromDataEntryByKey(key); boolDataEntry != nil {
 		return boolDataEntry, nil
 	}
 	return wrappedSt.state.RetrieveNewestBooleanEntry(account, key)
 }
 func (wrappedSt *wrappedState) RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-	if stringDataEntry := wrappedSt.diff.getStringFromDataEntryByKey(key); stringDataEntry != nil {
+	if stringDataEntry := wrappedSt.diff.findStringFromDataEntryByKey(key); stringDataEntry != nil {
 		return stringDataEntry, nil
 	}
 	return wrappedSt.state.RetrieveNewestStringEntry(account, key)
 }
 func (wrappedSt *wrappedState) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-	if binaryDataEntry := wrappedSt.diff.getBinaryFromDataEntryByKey(key); binaryDataEntry != nil {
+	if binaryDataEntry := wrappedSt.diff.findBinaryFromDataEntryByKey(key); binaryDataEntry != nil {
 		return binaryDataEntry, nil
 	}
 	return wrappedSt.state.RetrieveNewestBinaryEntry(account, key)
@@ -289,109 +303,125 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 				intEntry.Value = value
 				intEntry.Key = res.Entry.GetKey()
 
-				e.st.diff.diffDataEntr.diffInteger = append(e.st.diff.diffDataEntr.diffInteger, intEntry)
+				e.st.diff.dataEntry.diffInteger = append(e.st.diff.dataEntry.diffInteger, intEntry)
 			}
 
 			if res.Entry.GetValueType() == proto.DataBoolean {
 				bVal, err := res.Entry.MarshalValue()
 				if err != nil {
-					return err // TODO
+					return errors.Wrap(err, "failed to marshal value value from Bool Entry")
 				}
 				value, err := proto.Bool(bVal[1:])
 				if err != nil {
-					return errors.Wrap(err, "failed to unmarshal BooleanDataEntry value from bytes")
+					return errors.Wrap(err, "failed to cast bytes value to bool format")
 				}
 
 				var boolEntry proto.BooleanDataEntry
 				boolEntry.Value = value
 				boolEntry.Key = res.Entry.GetKey()
 
-				e.st.diff.diffDataEntr.diffBool = append(e.st.diff.diffDataEntr.diffBool, boolEntry)
+				e.st.diff.dataEntry.diffBool = append(e.st.diff.dataEntry.diffBool, boolEntry)
 			}
 
 			if res.Entry.GetValueType() == proto.DataBinary {
 				bVal, err := res.Entry.MarshalValue()
 				if err != nil {
-					return err // TODO
+					return errors.Wrap(err, "failed to marshal value value from Binary Entry")
 				}
 				value, err := proto.BytesWithUInt16Len(bVal[1:])
 				if err != nil {
-					return errors.Wrap(err, "failed to unmarshal BinaryDataEntry value from bytes")
+					return errors.Wrap(err, "failed to cast binary value to binary format")
 				}
 
 				var binaryEntry proto.BinaryDataEntry
 				binaryEntry.Value = value
 				binaryEntry.Key = res.Entry.GetKey()
 
-				e.st.diff.diffDataEntr.diffBinary = append(e.st.diff.diffDataEntr.diffBinary, binaryEntry)
+				e.st.diff.dataEntry.diffBinary = append(e.st.diff.dataEntry.diffBinary, binaryEntry)
 			}
 
 			if res.Entry.GetValueType() == proto.DataString {
 				bVal, err := res.Entry.MarshalValue()
 				if err != nil {
-					return err // TODO
+					return errors.Wrap(err, "failed to marshal value value from String Entry")
 				}
 				value, err := proto.StringWithUInt16Len(bVal[1:])
 				if err != nil {
-					return errors.Wrap(err, "failed to unmarshal StringDataEntry value from bytes")
+					return errors.Wrap(err, "failed to cast binary value to binary format")
 				}
 
 				var stringEntry proto.StringDataEntry
 				stringEntry.Value = value
 				stringEntry.Key = res.Entry.GetKey()
 
-				e.st.diff.diffDataEntr.diffString = append(e.st.diff.diffDataEntr.diffString, stringEntry)
+				e.st.diff.dataEntry.diffString = append(e.st.diff.dataEntry.diffString, stringEntry)
 			}
 
 			if res.Entry.GetValueType() == proto.DataDelete {
 
 				key := res.Entry.GetKey()
 
-				for i, intDataEntry := range e.st.diff.diffDataEntr.diffInteger {
+				for i, intDataEntry := range e.st.diff.dataEntry.diffInteger {
 					if key == intDataEntry.Key {
-						length := len(e.st.diff.diffDataEntr.diffInteger)
+						length := len(e.st.diff.dataEntry.diffInteger)
 
-						e.st.diff.diffDataEntr.diffInteger[i] = e.st.diff.diffDataEntr.diffInteger[length-1] // Copy last element to index i.
-						e.st.diff.diffDataEntr.diffInteger = e.st.diff.diffDataEntr.diffInteger[:length-1]   // Truncate
+						e.st.diff.dataEntry.diffInteger[i] = e.st.diff.dataEntry.diffInteger[length-1] // Copy last element to index i.
+						e.st.diff.dataEntry.diffInteger = e.st.diff.dataEntry.diffInteger[:length-1]   // Truncate
 
 						return nil
 					}
 				}
 
-				for i, stringDataEntry := range e.st.diff.diffDataEntr.diffString {
+				for i, stringDataEntry := range e.st.diff.dataEntry.diffString {
 					if key == stringDataEntry.Key {
-						length := len(e.st.diff.diffDataEntr.diffString)
+						length := len(e.st.diff.dataEntry.diffString)
 
-						e.st.diff.diffDataEntr.diffString[i] = e.st.diff.diffDataEntr.diffString[length-1] // Copy last element to index i.
-						e.st.diff.diffDataEntr.diffString = e.st.diff.diffDataEntr.diffString[:length-1]   // Truncate
+						e.st.diff.dataEntry.diffString[i] = e.st.diff.dataEntry.diffString[length-1]
+						e.st.diff.dataEntry.diffString = e.st.diff.dataEntry.diffString[:length-1]
 
 						return nil
 					}
 				}
 
-				for i, boolDataEntry := range e.st.diff.diffDataEntr.diffBool {
+				for i, boolDataEntry := range e.st.diff.dataEntry.diffBool {
 					if key == boolDataEntry.Key {
-						length := len(e.st.diff.diffDataEntr.diffBool)
+						length := len(e.st.diff.dataEntry.diffBool)
 
-						e.st.diff.diffDataEntr.diffBool[i] = e.st.diff.diffDataEntr.diffBool[length-1] // Copy last element to index i.
-						e.st.diff.diffDataEntr.diffBool = e.st.diff.diffDataEntr.diffBool[:length-1]   // Truncate
+						e.st.diff.dataEntry.diffBool[i] = e.st.diff.dataEntry.diffBool[length-1]
+						e.st.diff.dataEntry.diffBool = e.st.diff.dataEntry.diffBool[:length-1]
 
 						return nil
 					}
 				}
 
-				for i, binaryDataEntry := range e.st.diff.diffDataEntr.diffBinary {
+				for i, binaryDataEntry := range e.st.diff.dataEntry.diffBinary {
 					if key == binaryDataEntry.Key {
-						length := len(e.st.diff.diffDataEntr.diffBinary)
+						length := len(e.st.diff.dataEntry.diffBinary)
 
-						e.st.diff.diffDataEntr.diffBinary[i] = e.st.diff.diffDataEntr.diffBinary[length-1] // Copy last element to index i.
-						e.st.diff.diffDataEntr.diffBinary = e.st.diff.diffDataEntr.diffBinary[:length-1]   // Truncate
+						e.st.diff.dataEntry.diffBinary[i] = e.st.diff.dataEntry.diffBinary[length-1]
+						e.st.diff.dataEntry.diffBinary = e.st.diff.dataEntry.diffBinary[:length-1]
 
 						return nil
 					}
 				}
 
 			}
+		case proto.TransferScriptAction:
+			var balance diffBalance
+
+			balance.account = res.Recipient
+			balance.assetID = res.Asset.ID
+			balance.amount = res.Amount
+			e.st.diff.balance = append(e.st.diff.balance, balance)
+
+			var wavesBalance diffWavesBalance
+			wavesBalance.account = res.Recipient
+			wavesBalance.regular = res.Amount
+			wavesBalance.available = res.Amount
+			wavesBalance.generating = res.Amount
+			wavesBalance.effective = res.Amount
+
+			e.st.diff.wavesBalance = append(e.st.diff.wavesBalance, wavesBalance)
 
 		default:
 
