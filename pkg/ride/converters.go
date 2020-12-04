@@ -859,7 +859,7 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 		r["payments"] = pl
 	default:
 		r["payment"] = rideUnit{}
-		r["payments"] = rideUnit{}
+		r["payments"] = make(rideList, 0)
 	}
 	r["feeAssetId"] = optionalAsset(tx.FeeAsset)
 	r["function"] = rideString(tx.FunctionCall.Name)
