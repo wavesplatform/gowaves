@@ -44,7 +44,7 @@ func (b *builder) ret() {
 	b.w.WriteByte(OpReturn)
 }
 
-func (b *builder) jump(uint162 uint16) {
+func (b *builder) ref(uint162 uint16) {
 	b.w.WriteByte(OpRef)
 	b.w.Write(encode(uint162))
 }
@@ -93,11 +93,11 @@ func (b *builder) write(i []byte) {
 }
 
 type point struct {
-	position  uint16
-	value     rideType
-	fn        rideFunction
-	constant  bool
-	debugInfo string
+	position  uint16       `cbor:"0,keyasint"`
+	value     rideType     `cbor:"1,keyasint"`
+	fn        rideFunction `cbor:"-"`
+	constant  bool         `cbor:"2,keyasint"`
+	debugInfo string       `cbor:"3,keyasint"`
 }
 
 type cell struct {

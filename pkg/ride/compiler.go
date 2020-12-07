@@ -242,7 +242,7 @@ func (c *compiler) conditionalNode(bb *bytes.Buffer, node *ConditionalNode) erro
 	end := bb.Len()
 	bb.Write([]byte{0xff, 0xff})
 
-	// Patch jump to alternative branch
+	// Patch ref to alternative branch
 	code := bb.Bytes()
 	binary.BigEndian.PutUint16(code[otherwise:], uint16(bb.Len()))
 
@@ -253,7 +253,7 @@ func (c *compiler) conditionalNode(bb *bytes.Buffer, node *ConditionalNode) erro
 		return err
 	}
 
-	// Patch jump to the end of alternative branch
+	// Patch ref to the end of alternative branch
 	code = bb.Bytes()
 	binary.BigEndian.PutUint16(code[end:], uint16(bb.Len()))
 

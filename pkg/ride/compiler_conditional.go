@@ -83,14 +83,16 @@ func (a ConditionalState) Assigment(name string) Fsm {
 }
 
 func (a ConditionalState) Return() Fsm {
+	a.b.ret() // return for false branch
+	endPos := a.b.len()
 	for i := len(a.assigments) - 1; i >= 0; i-- {
 		a.b.writeByte(OpClearCache)
 		a.b.write(encode(a.assigments[i]))
 	}
-	a.b.ret()
+
 	a.b.patch(a.patchTruePosition, encode(a.rets[1]))
 	a.b.patch(a.patchFalsePosition, encode(a.rets[2]))
-	a.b.patch(a.patchNextPosition, encode(a.b.len()))
+	a.b.patch(a.patchNextPosition, encode(endPos))
 	return a.prev.retAssigment(a.startedAt, a.b.len())
 }
 

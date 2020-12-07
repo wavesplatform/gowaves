@@ -3,6 +3,7 @@ package ride
 import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 func ccc(f Fsm, node Node) (Fsm, error) {
@@ -236,6 +237,7 @@ func compileFunction(txID string, libVersion int, nodes []Node) (*Executable, er
 
 	f := NewMain(params)
 	for _, node := range nodes {
+		zap.S().Error(Decompiler(node))
 		f, err = ccc(f, node)
 		if err != nil {
 			return nil, err

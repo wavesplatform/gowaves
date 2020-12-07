@@ -43,8 +43,29 @@ var defuncs = map[string]func(s *strings.Builder, name string, nodes []Node, f d
 	"101": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		infix(s, "-", nodes, f)
 	},
+	"104": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		infix(s, "*", nodes, f)
+	},
+	"105": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		infix(s, "/", nodes, f)
+	},
+	"300": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		infix(s, "+", nodes, f)
+	},
 	"1": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "instanceOf", nodes, f)
+	},
+	"401": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "getList", nodes, f)
+	},
+	"420": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "toString", nodes, f)
+	},
+	"600": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "toBase58String", nodes, f)
+	},
+	"2": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "throw", nodes, f)
 	},
 	"1052": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "getBinary", nodes, f)
@@ -57,9 +78,11 @@ func defunc(s *strings.Builder, name string, nodes []Node, f detreeType) {
 	} else {
 		s.WriteString(name)
 		s.WriteString("(")
-		for _, a := range nodes {
+		for i, a := range nodes {
 			detree(s, a)
-			s.WriteString(",")
+			if len(nodes)-1 != i {
+				s.WriteString(",")
+			}
 		}
 		s.WriteString(")")
 	}

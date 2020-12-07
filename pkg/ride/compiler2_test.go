@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/base64"
 	"errors"
+	"strconv"
 	"testing"
 
+	//"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -21,6 +23,15 @@ func Test22(t *testing.T) {
 		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 			t.Log("key: ", key)
 			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
 		},
 	}
 	env := &MockRideEnvironment{
@@ -69,6 +80,7 @@ func Test22(t *testing.T) {
 		{`let x =  throw(); true`, `AQQAAAABeAkBAAAABXRocm93AAAAAAa7bgf4`, nil, true},
 		{`let x =  throw(); true || x`, `AQQAAAABeAkBAAAABXRocm93AAAAAAMGBgUAAAABeKRnLds=`, env, true},
 		{`tx == tx`, "BAkAAAAAAAACBQAAAAJ0eAUAAAACdHhnqgP4", env, true},
+		{fcall1, "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA=", env, false},
 		//{`tx.id == base58''`, `AQkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAAJBtD70=`, env, false},
 		//{`tx.id == base58'H5C8bRzbUTMePSDVVxjiNKDUwk6CKzfZGTP2Rs7aCjsV'`, `BAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAIO7N5luRDUgN1SJ4kFmy/Ni8U2H6k7bpszok5tlLlRVgHwSHyg==`, env, true},
 		//{`let x = tx.id == base58'a';true`, `AQQAAAABeAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAASEGjR0kcA==`, env, true},
@@ -806,41 +818,64 @@ func Test888(t *testing.T) {
 
 /*
 
-{-# STDLIB_VERSION 4 #-}
-{-# CONTENT_TYPE EXPRESSION #-}
+{-# STDLIB_VERSION 3 #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE DAPP #-}
 
-func f() = {
-    getIntegerValue(this, "1")
+func getStringByAddressAndKey(address: Address, key: String) = match getString(address, key) {
+    case a: String =>
+        a
+    case _ =>
+        ""
 }
 
-func f2(value: Int) = {
-    value == value
+func getStringByKey(key: String) = match getString(this, key) {
+    case a: String =>
+        a
+    case _ =>
+        ""
 }
 
-f2(f())
+let LastConfirmTxKey = "last_confirm_tx"
+let NeutrinoContractKey = "neutrino_contract"
+let ControlContractKey = "control_contract"
+let neutrinoContract = addressFromStringValue(getStringByKey(NeutrinoContractKey))
+let controlContract = addressFromStringValue(getStringByAddressAndKey(neutrinoContract, ControlContractKey))
+let lastConfirmTx = getStringByAddressAndKey(controlContract, LastConfirmTxKey)
+
+@Verifier(tx)
+func verify () = (lastConfirmTx == toBase58String(tx.id))
 
 */
 func TestNoDuplicateCallToState(t *testing.T) {
-	source := `BAoBAAAAAWYAAAAACQEAAAARQGV4dHJOYXRpdmUoMTA1MCkAAAACBQAAAAR0aGlzAgAAAAExCgEAAAACZjIAAAABAAAABXZhbHVlCQAAAAAAAAIFAAAABXZhbHVlBQAAAAV2YWx1ZQkBAAAAAmYyAAAAAQkBAAAAAWYAAAAAjuqz7g==`
-
-	alreadyCalled := false
+	source := `AAIDAAAAAAAAAAIIAQAAAAgBAAAAGGdldFN0cmluZ0J5QWRkcmVzc0FuZEtleQAAAAIAAAAHYWRkcmVzcwAAAANrZXkEAAAAByRtYXRjaDAJAAQdAAAAAgUAAAAHYWRkcmVzcwUAAAADa2V5AwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAAZTdHJpbmcEAAAAAWEFAAAAByRtYXRjaDAFAAAAAWECAAAAAAEAAAAOZ2V0U3RyaW5nQnlLZXkAAAABAAAAA2tleQQAAAAHJG1hdGNoMAkABB0AAAACBQAAAAR0aGlzBQAAAANrZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABlN0cmluZwQAAAABYQUAAAAHJG1hdGNoMAUAAAABYQIAAAAAAAAAABBMYXN0Q29uZmlybVR4S2V5AgAAAA9sYXN0X2NvbmZpcm1fdHgAAAAAE05ldXRyaW5vQ29udHJhY3RLZXkCAAAAEW5ldXRyaW5vX2NvbnRyYWN0AAAAABJDb250cm9sQ29udHJhY3RLZXkCAAAAEGNvbnRyb2xfY29udHJhY3QAAAAAEG5ldXRyaW5vQ29udHJhY3QJAQAAABxAZXh0clVzZXIoYWRkcmVzc0Zyb21TdHJpbmcpAAAAAQkBAAAADmdldFN0cmluZ0J5S2V5AAAAAQUAAAATTmV1dHJpbm9Db250cmFjdEtleQAAAAAPY29udHJvbENvbnRyYWN0CQEAAAAcQGV4dHJVc2VyKGFkZHJlc3NGcm9tU3RyaW5nKQAAAAEJAQAAABhnZXRTdHJpbmdCeUFkZHJlc3NBbmRLZXkAAAACBQAAABBuZXV0cmlub0NvbnRyYWN0BQAAABJDb250cm9sQ29udHJhY3RLZXkAAAAADWxhc3RDb25maXJtVHgJAQAAABhnZXRTdHJpbmdCeUFkZHJlc3NBbmRLZXkAAAACBQAAAA9jb250cm9sQ29udHJhY3QFAAAAEExhc3RDb25maXJtVHhLZXkAAAAAAAAAAQAAAAJ0eAEAAAAGdmVyaWZ5AAAAAAkAAAAAAAACBQAAAA1sYXN0Q29uZmlybVR4CQACWAAAAAEIBQAAAAJ0eAAAAAJpZJO+lgc=`
 
 	state := &MockSmartState{
 		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
 			return byte_helpers.TransferWithProofs.Transaction, nil
 		},
-		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-			t.Log("key: ", key)
-			return nil, errors.New("not found")
+		//RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+		//	t.Log("key: ", key)
+		//	return nil, errors.New("not found")
+		//},
+		RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+			switch key {
+			case "neutrino_contract":
+				return &proto.StringDataEntry{Value: "3MVHscMp4C3JjeaEiZB6fxeomPZdYEHyamY"}, nil
+			case "last_confirm_tx":
+				return &proto.StringDataEntry{Value: "3M9uzVzrAAYEKSHXzKaPhw7iQjwDi9BRJysHZHpbqXJm"}, nil
+			case "control_contract":
+				return &proto.StringDataEntry{Value: "3MQdbE6dK59FHxh5rf4biQdyXhdEf3L1R5W"}, nil
+			}
+			panic(key)
 		},
 		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-			if alreadyCalled {
-				panic("duplicate call")
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
 			}
-			alreadyCalled = true
 			return &proto.IntegerDataEntry{
-				Value: 0,
+				Value: v,
 			}, nil
 		},
 	}
@@ -850,10 +885,11 @@ func TestNoDuplicateCallToState(t *testing.T) {
 			return state
 		},
 		schemeFunc: func() byte {
-			return 'T'
+			return 'S'
 		},
 		thisFunc: func() rideType {
-			return rideAddress{}
+			b := [26]byte{1, 83, 122, 149, 83, 66, 227, 147, 59, 198, 33, 214, 105, 255, 17, 4, 168, 100, 213, 112, 143, 31, 192, 98, 166, 126}
+			return rideAddress(b)
 		},
 		heightFunc: func() rideInt {
 			return 1
@@ -871,6 +907,46 @@ func TestNoDuplicateCallToState(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	_, err = script.Run(env, nil)
+	rs, err := script.Run(env, []rideType{env.transaction()})
+	for _, c := range rs.Calls() {
+		t.Log(c)
+	}
+	//t.Log(rs.Calls())
 	require.NoError(t, err)
+
+	//t.Log(rs.Calls())
+	require.False(t, rs.Result())
 }
+
+//type points struct {
+//	value []point `cbor:"0,keyasint"`
+//}
+
+//func TestSerialize(t *testing.T) {
+//
+//	//m := points{
+//	//	value: []point{
+//	//		{value: rideBoolean(true)},
+//	//		{value: rideInt(5), constant: true},
+//	//	},
+//	//}
+//	m := point{
+//		position:  43,
+//		value:     rideUnit{},
+//		fn:        nil,
+//		constant:  true,
+//		debugInfo: "bla",
+//	}
+//
+//	rs, err := cbor.Marshal(m)
+//	require.NoError(t, err)
+//
+//	t.Log(rs)
+//
+//	var m2 point
+//
+//	err = cbor.Unmarshal(rs, &m2)
+//	require.NoError(t, err)
+//	t.Log(m2)
+//
+//}

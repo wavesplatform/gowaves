@@ -56,7 +56,7 @@ func (a *params) addPredefined(name string, id uniqueid, fn rideFunction) {
 
 func (a *params) constant(value rideType) uniqueid {
 	n := a.u.next()
-	a.c.set(n, value, nil, 0, false, fmt.Sprintf("constant %q", value))
+	a.c.set(n, value, nil, 0, true, fmt.Sprintf("constant %q", value))
 	return n
 }
 
@@ -96,6 +96,6 @@ func reference(f Fsm, params params, name string) Fsm {
 		panic(fmt.Sprintf("reference %s not found, tx %s", name, params.txID))
 	}
 	//params.b
-	params.b.jump(pos)
+	params.b.ref(pos)
 	return f
 }

@@ -114,7 +114,9 @@ func (m *vm) run() (RideResult, error) {
 				return nil, errors.Wrapf(err, "iteration %d", numOperations)
 			}
 			if isThrow(res) {
-				return nil, errors.Errorf("terminated execution by throw with message %q", res)
+				return ScriptResult{
+					calls: m.calls,
+				}, errors.Errorf("terminated execution by throw with message %q on iteration %d", res, numOperations)
 			}
 			m.push(res)
 		case OpReturn:
@@ -166,9 +168,9 @@ func (m *vm) run() (RideResult, error) {
 				return nil, errors.Wrap(err, "no value to cache")
 			}
 			m.push(value)
-			m.ref[refID] = point{
-				value: value,
-			}
+			point := m.ref[refID]
+			point.value = value
+			m.ref[refID] = point
 		case OpClearCache:
 			refID := m.uint16()
 			point, ok := m.ref[refID]

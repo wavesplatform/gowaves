@@ -62,12 +62,17 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 		//params.r.set(invokeParam, pos)
 		//params.r.set(invokeParam, params.u.next())
 	}
+	//assigments := []uniqueid{}
 	for i := range args {
 		e := params.u.next()
+		//assigments = append(assigments, e)
 		params.r.set(args[i], e)
 		// set to global
 		globalScope.set(fmt.Sprintf("%s$%d", name, i), e)
 	}
+	//if invokeParam != "" {
+	//	assigments = assigments[1:]
+	//}
 
 	return &FuncState{
 		prev:   prev,
@@ -78,6 +83,7 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 		globalScope: globalScope,
 		invokeParam: invokeParam,
 		startedAt:   startedAt,
+		//assigments:  assigments,
 	}
 }
 

@@ -40,16 +40,16 @@ func CallVerifier(txID string, env RideEnvironment, tree *Tree) (RideResult, err
 			max = len(c2)
 		}
 		for i := 0; i < max; i++ {
-			zap.S().Error("R1 != R2: failed to call account script on transaction ")
+			//zap.S().Error("R1 != R2: failed to call account script on transaction ")
 			if i <= len(c1)-1 {
-				zap.S().Error(c1[i])
+				zap.S().Error(i, " ", c1[i])
 			} else {
-				zap.S().Error("<empty>")
+				zap.S().Error(i, " ", "<empty>")
 			}
 			if i <= len(c2)-1 {
-				zap.S().Error(c2[i])
+				zap.S().Error(i, " ", c2[i])
 			} else {
-				zap.S().Error("<empty>")
+				zap.S().Error(i, " ", "<empty>")
 			}
 		}
 
@@ -70,20 +70,20 @@ func CallFunction3(env RideEnvironment, tree *Tree, name string, args proto.Argu
 }
 
 func CallFunction(txID string, env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
-	rs1, err := CallFunction3(env, tree, name, args)
-	if err != nil {
-		return nil, errors.Wrap(err, "call function by tree")
-	}
+	//rs1, err := CallFunction3(env, tree, name, args)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, "call function by tree")
+	//}
 	rs2, err := CallFunction2(txID, env, tree, name, args)
 	if err != nil {
 		return nil, errors.Wrap(err, "call function by vm")
 	}
-	if !rs1.Eq(rs2) {
-		zap.S().Errorf("%s, result mismatch", txID)
-		zap.S().Errorf("tree: %+q", rs1)
-		zap.S().Errorf("vm  : %+q", rs2)
-		return nil, errors.New(txID + ": result mismatch")
-	}
+	//if !rs1.Eq(rs2) {
+	//	zap.S().Errorf("%s, result mismatch", txID)
+	//	zap.S().Errorf("tree: %+q", rs1)
+	//	zap.S().Errorf("vm  : %+q", rs2)
+	//	return nil, errors.New(txID + ": result mismatch")
+	//}
 	return rs2, nil
 }
 
