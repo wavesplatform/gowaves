@@ -5,11 +5,11 @@ type MainState struct {
 	params
 	retAssig uint16
 
-	assigments []uniqueid
+	assigments []AssigmentState
 }
 
-func (a MainState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
-	a.retAssig = startedAt
+func (a MainState) retAssigment(as AssigmentState) Fsm {
+	a.assigments = append(a.assigments, as)
 	return a
 }
 
@@ -54,14 +54,20 @@ func NewMain(params params) Fsm {
 
 func (a MainState) Assigment(name string) Fsm {
 	n := a.params.u.next()
-	a.assigments = append(a.assigments, n)
+	//a.assigments = append(a.assigments, n)
+	a.r.set(name, n)
 	return assigmentFsmTransition(a, a.params, name, n)
 }
 
 func (a MainState) Return() Fsm {
+
+	for _, v := range a.assigments {
+		v.Write()
+	}
+
 	for i := len(a.assigments) - 1; i >= 0; i-- {
 		a.b.writeByte(OpClearCache)
-		a.b.write(encode(a.assigments[i]))
+		a.b.write(encode(a.assigments[i].n))
 	}
 	a.b.ret()
 	return a

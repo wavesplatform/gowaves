@@ -27,11 +27,11 @@ type FuncState struct {
 
 	// References that defined inside function.
 	// Should be cleared before exit.
-	assigments []uniqueid
+	assigments []AssigmentState
 }
 
-func (a FuncState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
-	a.lastStmtOffset = startedAt
+func (a FuncState) retAssigment(as AssigmentState) Fsm {
+	a.assigments = append(a.assigments, as) /// []uniqueid
 	return a
 }
 
@@ -89,7 +89,7 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 
 func (a FuncState) Assigment(name string) Fsm {
 	n := a.params.u.next()
-	a.assigments = append(a.assigments, n)
+	//a.assigments = append(a.assigments, n)
 	return assigmentFsmTransition(a, a.params, name, n)
 }
 
@@ -102,7 +102,7 @@ func (a FuncState) Return() Fsm {
 	// Clean internal assigments.
 	for i := len(a.assigments) - 1; i >= 0; i-- {
 		a.b.writeByte(OpClearCache)
-		a.b.write(encode(a.assigments[i]))
+		a.b.write(encode(a.assigments[i].n))
 	}
 
 	a.b.ret()
@@ -123,7 +123,7 @@ func (a FuncState) Return() Fsm {
 		a.b.write(encode(a.lastStmtOffset))
 	}
 
-	return a.prev.retAssigment(a.startedAt, a.b.len())
+	return a.prev //.retAssigment(a.startedAt, a.b.len())
 }
 
 func (a FuncState) Long(value int64) Fsm {

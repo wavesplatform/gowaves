@@ -14,12 +14,13 @@ type CallUserState struct {
 	startedAt uint16
 }
 
-func (a CallUserState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
-	if a.ret != nil {
-		a.ret(a, startedAt, endedAt)
-	}
-	a.ret = nil
-	return a
+func (a CallUserState) retAssigment(state AssigmentState) Fsm {
+	panic("CallUserState retAssigment")
+	//if a.ret != nil {
+	//	a.ret(a, startedAt, endedAt)
+	//}
+	//a.ret = nil
+	//return a
 }
 
 func newCallUserFsm(prev Fsm, params params, name string, argc uint16) Fsm {
@@ -99,7 +100,7 @@ func (a CallUserState) Return() Fsm {
 	}
 
 	a.b.call(point.position, a.argc)
-	return a.prev.retAssigment(a.startedAt, a.b.len())
+	return a.prev //.retAssigment(a.startedAt, a.b.len())
 }
 
 func (a CallUserState) Call(name string, argc uint16) Fsm {

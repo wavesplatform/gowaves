@@ -30,10 +30,14 @@ type ConditionalState struct {
 	rets              []uint16
 
 	// Clean assigments after exit.
-	assigments []uniqueid
+	assigments []AssigmentState
+	//assigmentIndex int
 }
 
-func (a ConditionalState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
+func (a ConditionalState) retAssigment(v AssigmentState) Fsm {
+	//panic("ConditionalState retAssigment")
+	//return a
+	a.assigments = append(a.assigments, v)
 	return a
 }
 
@@ -55,6 +59,8 @@ func conditionalTransition(prev Fsm, params params) Fsm {
 		prev:      prev,
 		params:    params,
 		startedAt: params.b.len(),
+		//assigments:     make([][]AssigmentState, 3),
+		//assigmentIndex: 0,
 	}
 }
 
@@ -78,22 +84,28 @@ func (a ConditionalState) FalseBranch() Fsm {
 
 func (a ConditionalState) Assigment(name string) Fsm {
 	n := a.params.u.next()
-	a.assigments = append(a.assigments, n)
+	//a.assigments = append(a.assigments, n)
+	a.r.set(name, n)
 	return assigmentFsmTransition(a, a.params, name, n)
 }
 
 func (a ConditionalState) Return() Fsm {
 	a.b.ret() // return for false branch
 	endPos := a.b.len()
+
+	for _, v := range a.assigments {
+		v.Write()
+	}
+
 	for i := len(a.assigments) - 1; i >= 0; i-- {
 		a.b.writeByte(OpClearCache)
-		a.b.write(encode(a.assigments[i]))
+		a.b.write(encode(a.assigments[i].n))
 	}
 
 	a.b.patch(a.patchTruePosition, encode(a.rets[1]))
 	a.b.patch(a.patchFalsePosition, encode(a.rets[2]))
 	a.b.patch(a.patchNextPosition, encode(endPos))
-	return a.prev.retAssigment(a.startedAt, a.b.len())
+	return a.prev //.retAssigment(a.startedAt, a.b.len())
 }
 
 func (a ConditionalState) Long(value int64) Fsm {

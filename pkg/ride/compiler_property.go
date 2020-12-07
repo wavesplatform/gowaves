@@ -6,9 +6,9 @@ type PropertyState struct {
 	params
 }
 
-func (a PropertyState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
-	//panic("implement me")
-	return a
+func (a PropertyState) retAssigment(as AssigmentState) Fsm {
+	panic("implement me")
+	//return a
 }
 
 func propertyTransition(prev Fsm, params params, name string) Fsm {

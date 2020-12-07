@@ -3,9 +3,9 @@ package ride
 // Assigment: let x = 5
 type AssigmentState struct {
 	params
-	prev      Fsm
-	name      string
-	startedAt uint16
+	prev Fsm
+	name string
+	//startedAt uint16
 	//ret       uint16
 	constant rideType
 	// ref id
@@ -15,8 +15,9 @@ type AssigmentState struct {
 	assigments []uniqueid
 }
 
-func (a AssigmentState) retAssigment(startedAt uint16, endedAt uint16) Fsm {
+func (a AssigmentState) retAssigment(state AssigmentState) Fsm {
 	//a.ret = pos
+	panic("assig in assig")
 	return a
 }
 
@@ -61,11 +62,11 @@ func assigmentFsmTransition(prev Fsm, params params, name string, n uniqueid) Fs
 
 func newAssigmentFsm(prev Fsm, p params, name string, n uniqueid) Fsm {
 	return AssigmentState{
-		prev:      prev,
-		params:    p,
-		name:      name,
-		startedAt: p.b.len(),
-		n:         n,
+		prev:   prev,
+		params: p,
+		name:   name,
+		//startedAt: p.b.len(),
+		n: n,
 	}
 }
 
@@ -80,21 +81,40 @@ func (a AssigmentState) Assigment(name string) Fsm {
 }
 
 func (a AssigmentState) Return() Fsm {
-	for i := len(a.assigments) - 1; i >= 0; i-- {
-		a.b.writeByte(OpClearCache)
-		a.b.write(encode(a.assigments[i]))
-	}
+	//for i := len(a.assigments) - 1; i >= 0; i-- {
+	//	a.b.writeByte(OpClearCache)
+	//	a.b.write(encode(a.assigments[i]))
+	//}
+	//// constant
+	//if a.constant != nil {
+	//	a.c.set(a.n, a.constant, nil, 0, true, a.name)
+	//} else {
+	//	a.c.set(a.n, nil, nil, a.startedAt, false, a.name)
+	//	a.b.writeByte(OpCache)
+	//	a.b.write(encode(a.n))
+	//	a.b.ret()
+	//}
+	//a.r.set(a.name, a.n)
+	//return a.prev.retAssigment(a.startedAt, a.params.b.len())
+	return a.prev.retAssigment(a)
+}
+
+func (a AssigmentState) Write() {
+	//for i := len(a.assigments) - 1; i >= 0; i-- {
+	//	a.b.writeByte(OpClearCache)
+	//	a.b.write(encode(a.assigments[i]))
+	//}
 	// constant
 	if a.constant != nil {
 		a.c.set(a.n, a.constant, nil, 0, true, a.name)
 	} else {
-		a.c.set(a.n, nil, nil, a.startedAt, false, a.name)
+		a.c.set(a.n, nil, nil, a.b.len(), false, a.name)
 		a.b.writeByte(OpCache)
 		a.b.write(encode(a.n))
 		a.b.ret()
 	}
 	a.r.set(a.name, a.n)
-	return a.prev.retAssigment(a.startedAt, a.params.b.len())
+	return //a.prev.retAssigment(a.startedAt, a.params.b.len())
 }
 
 func (a AssigmentState) Long(value int64) Fsm {
