@@ -845,10 +845,18 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 
 						return script, nil
 					},
+					NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+						return &proto.Address{}, nil
+					},
 				}
 			},
 			txIDFunc: func() rideType {
 				return rideBytes(id)
+			},
+			setNewDAppAddressFunc: func(address proto.Address) {
+			},
+			applyToStateFunc: func(actions []proto.ScriptAction) error {
+				return nil
 			},
 		}
 		pid, ok := env.txID().(rideBytes)

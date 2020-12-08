@@ -8,12 +8,12 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-//type interlayerState struct {
-//
-//}
-
 func (wrappedSt *wrappedState) AddingBlockHeight() (uint64, error) {
 	return wrappedSt.state.AddingBlockHeight()
+}
+
+func (wrappedSt *wrappedState) NewestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
+	return wrappedSt.state.NewestScriptPKByAddr(addr, filter)
 }
 func (wrappedSt *wrappedState) NewestTransactionByID(id []byte) (proto.Transaction, error) {
 	return wrappedSt.state.NewestTransactionByID(id)
@@ -32,21 +32,6 @@ func (wrappedSt *wrappedState) NewestAddrByAlias(alias proto.Alias) (proto.Addre
 	return wrappedSt.state.NewestAddrByAlias(alias)
 }
 
-//-----//
-//const wavesBalanceKeySize = 1 + proto.AddressSize
-//const wavesBalanceKeyPrefix byte = iota
-//
-//type wavesBalanceKey struct {
-//	address proto.Address
-//}
-
-//func (k *wavesBalanceKey) bytes() []byte {
-//	buf := make([]byte, wavesBalanceKeySize)
-//	buf[0] = wavesBalanceKeyPrefix
-//	copy(buf[1:], k.address[:])
-//	return buf
-//}
-
 func (wrappedSt *wrappedState) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
 	balance, err := wrappedSt.state.NewestAccountBalance(account, asset)
 	if err != nil {
@@ -62,6 +47,7 @@ func (wrappedSt *wrappedState) NewestAccountBalance(account proto.Recipient, ass
 	}
 	return balance, nil
 }
+
 func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
 	balance, err := wrappedSt.state.NewestFullWavesBalance(account)
 	if err != nil {
@@ -81,9 +67,10 @@ func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (
 				Effective:  uint64(resEffective),
 				LeaseIn:    balance.LeaseIn,
 				LeaseOut:   balance.LeaseOut}, nil
-		} else {
-			return nil, errors.Errorf("The resulting balance is negative")
 		}
+
+		return nil, errors.Errorf("The resulting balance is negative")
+
 	}
 	return balance, nil
 }
@@ -113,12 +100,68 @@ func (wrappedSt *wrappedState) RetrieveNewestBinaryEntry(account proto.Recipient
 	return wrappedSt.state.RetrieveNewestBinaryEntry(account, key)
 }
 func (wrappedSt *wrappedState) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
-	//TODO
+	if cost := wrappedSt.diff.findSponsorship(assetID); cost != nil {
+		if *cost == 0 {
+			return false, nil
+		}
+		return true, nil
+	}
 	return wrappedSt.state.NewestAssetIsSponsored(assetID)
 }
 func (wrappedSt *wrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
-	//TODO
-	return wrappedSt.state.NewestAssetInfo(assetID)
+	searchNewAsset := wrappedSt.diff.findNewAsset(assetID)
+
+	if searchNewAsset == nil {
+
+		assetFromStore, err := wrappedSt.state.NewestAssetInfo(assetID)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get asset's info from store")
+		}
+
+		if oldAssetFromDiff := wrappedSt.diff.findOldAsset(assetID); oldAssetFromDiff != nil {
+			quantity := int64(assetFromStore.Quantity) + oldAssetFromDiff.diffQuantity
+
+			if quantity >= 0 {
+				assetFromStore.Quantity = uint64(quantity)
+				return assetFromStore, nil
+			}
+
+			return nil, errors.Errorf("quantity of the asset is negative")
+		}
+
+		return assetFromStore, nil
+	}
+
+	addr, err := wrappedSt.NewestRecipientToAddress(searchNewAsset.dAppIssuer)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get address from recipient in NewestAssetInfo")
+	}
+
+	issuerPK, err := wrappedSt.NewestScriptPKByAddr(*addr, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get issuerPK from address in NewestAssetInfo")
+	}
+
+	scripted := false
+	if searchNewAsset.script != nil {
+		scripted = true
+	}
+
+	sponsored, err := wrappedSt.NewestAssetIsSponsored(assetID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find out sponsoring of the asset")
+	}
+
+	return &proto.AssetInfo{
+		ID:              searchNewAsset.assetID,
+		Quantity:        uint64(searchNewAsset.quantity),
+		Decimals:        uint8(searchNewAsset.decimals),
+		Issuer:          *addr,
+		IssuerPublicKey: issuerPK,
+		Reissuable:      searchNewAsset.reissuable,
+		Scripted:        scripted,
+		Sponsored:       sponsored,
+	}, nil
 }
 func (wrappedSt *wrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
 	//TODO
@@ -285,6 +328,10 @@ func (e *Environment) state() types.SmartState {
 	return &e.st
 }
 
+func (e *Environment) setNewDAppAddress(address proto.Address) {
+	e.SetThisFromAddress(address)
+}
+
 func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 
 	for _, action := range actions {
@@ -303,7 +350,7 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 				intEntry.Value = value
 				intEntry.Key = res.Entry.GetKey()
 
-				e.st.diff.dataEntry.diffInteger = append(e.st.diff.dataEntry.diffInteger, intEntry)
+				e.st.diff.dataEntries.diffInteger = append(e.st.diff.dataEntries.diffInteger, intEntry)
 			}
 
 			if res.Entry.GetValueType() == proto.DataBoolean {
@@ -320,7 +367,7 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 				boolEntry.Value = value
 				boolEntry.Key = res.Entry.GetKey()
 
-				e.st.diff.dataEntry.diffBool = append(e.st.diff.dataEntry.diffBool, boolEntry)
+				e.st.diff.dataEntries.diffBool = append(e.st.diff.dataEntries.diffBool, boolEntry)
 			}
 
 			if res.Entry.GetValueType() == proto.DataBinary {
@@ -337,7 +384,7 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 				binaryEntry.Value = value
 				binaryEntry.Key = res.Entry.GetKey()
 
-				e.st.diff.dataEntry.diffBinary = append(e.st.diff.dataEntry.diffBinary, binaryEntry)
+				e.st.diff.dataEntries.diffBinary = append(e.st.diff.dataEntries.diffBinary, binaryEntry)
 			}
 
 			if res.Entry.GetValueType() == proto.DataString {
@@ -354,52 +401,52 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 				stringEntry.Value = value
 				stringEntry.Key = res.Entry.GetKey()
 
-				e.st.diff.dataEntry.diffString = append(e.st.diff.dataEntry.diffString, stringEntry)
+				e.st.diff.dataEntries.diffString = append(e.st.diff.dataEntries.diffString, stringEntry)
 			}
 
 			if res.Entry.GetValueType() == proto.DataDelete {
 
 				key := res.Entry.GetKey()
 
-				for i, intDataEntry := range e.st.diff.dataEntry.diffInteger {
+				for i, intDataEntry := range e.st.diff.dataEntries.diffInteger {
 					if key == intDataEntry.Key {
-						length := len(e.st.diff.dataEntry.diffInteger)
+						length := len(e.st.diff.dataEntries.diffInteger)
 
-						e.st.diff.dataEntry.diffInteger[i] = e.st.diff.dataEntry.diffInteger[length-1] // Copy last element to index i.
-						e.st.diff.dataEntry.diffInteger = e.st.diff.dataEntry.diffInteger[:length-1]   // Truncate
+						e.st.diff.dataEntries.diffInteger[i] = e.st.diff.dataEntries.diffInteger[length-1] // Copy last element to index i.
+						e.st.diff.dataEntries.diffInteger = e.st.diff.dataEntries.diffInteger[:length-1]   // Truncate
 
 						return nil
 					}
 				}
 
-				for i, stringDataEntry := range e.st.diff.dataEntry.diffString {
+				for i, stringDataEntry := range e.st.diff.dataEntries.diffString {
 					if key == stringDataEntry.Key {
-						length := len(e.st.diff.dataEntry.diffString)
+						length := len(e.st.diff.dataEntries.diffString)
 
-						e.st.diff.dataEntry.diffString[i] = e.st.diff.dataEntry.diffString[length-1]
-						e.st.diff.dataEntry.diffString = e.st.diff.dataEntry.diffString[:length-1]
+						e.st.diff.dataEntries.diffString[i] = e.st.diff.dataEntries.diffString[length-1]
+						e.st.diff.dataEntries.diffString = e.st.diff.dataEntries.diffString[:length-1]
 
 						return nil
 					}
 				}
 
-				for i, boolDataEntry := range e.st.diff.dataEntry.diffBool {
+				for i, boolDataEntry := range e.st.diff.dataEntries.diffBool {
 					if key == boolDataEntry.Key {
-						length := len(e.st.diff.dataEntry.diffBool)
+						length := len(e.st.diff.dataEntries.diffBool)
 
-						e.st.diff.dataEntry.diffBool[i] = e.st.diff.dataEntry.diffBool[length-1]
-						e.st.diff.dataEntry.diffBool = e.st.diff.dataEntry.diffBool[:length-1]
+						e.st.diff.dataEntries.diffBool[i] = e.st.diff.dataEntries.diffBool[length-1]
+						e.st.diff.dataEntries.diffBool = e.st.diff.dataEntries.diffBool[:length-1]
 
 						return nil
 					}
 				}
 
-				for i, binaryDataEntry := range e.st.diff.dataEntry.diffBinary {
+				for i, binaryDataEntry := range e.st.diff.dataEntries.diffBinary {
 					if key == binaryDataEntry.Key {
-						length := len(e.st.diff.dataEntry.diffBinary)
+						length := len(e.st.diff.dataEntries.diffBinary)
 
-						e.st.diff.dataEntry.diffBinary[i] = e.st.diff.dataEntry.diffBinary[length-1]
-						e.st.diff.dataEntry.diffBinary = e.st.diff.dataEntry.diffBinary[:length-1]
+						e.st.diff.dataEntries.diffBinary[i] = e.st.diff.dataEntries.diffBinary[length-1]
+						e.st.diff.dataEntries.diffBinary = e.st.diff.dataEntries.diffBinary[:length-1]
 
 						return nil
 					}
@@ -407,24 +454,92 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 
 			}
 		case proto.TransferScriptAction:
-			var balance diffBalance
 
-			balance.account = res.Recipient
-			balance.assetID = res.Asset.ID
-			balance.amount = res.Amount
-			e.st.diff.balance = append(e.st.diff.balance, balance)
+			if searchBalance := e.st.diff.findBalance(res.Recipient, res.Asset.ID.Bytes()); searchBalance != nil {
+				searchBalance.amount += res.Amount
+			} else {
+				var balance diffBalance
 
-			var wavesBalance diffWavesBalance
-			wavesBalance.account = res.Recipient
-			wavesBalance.regular = res.Amount
-			wavesBalance.available = res.Amount
-			wavesBalance.generating = res.Amount
-			wavesBalance.effective = res.Amount
+				balance.recipient = res.Recipient
+				balance.assetID = res.Asset.ID
+				balance.amount = res.Amount
+				e.st.diff.balances = append(e.st.diff.balances, balance)
+			}
 
-			e.st.diff.wavesBalance = append(e.st.diff.wavesBalance, wavesBalance)
+			if searchWavesBalance := e.st.diff.findWavesBalance(res.Recipient); searchWavesBalance != nil {
+				searchWavesBalance.regular += res.Amount
+				searchWavesBalance.available += res.Amount
+				searchWavesBalance.generating += res.Amount
+				searchWavesBalance.effective += res.Amount
+			} else {
+				var wavesBalance diffWavesBalance
+
+				wavesBalance.recipient = res.Recipient
+				wavesBalance.regular = res.Amount
+				wavesBalance.available = res.Amount
+				wavesBalance.generating = res.Amount
+				wavesBalance.effective = res.Amount
+
+				e.st.diff.wavesBalances = append(e.st.diff.wavesBalances, wavesBalance)
+			}
+
+		case proto.SponsorshipScriptAction:
+
+			var sponsorship diffSponsorship
+			sponsorship.assetID = res.AssetID
+			sponsorship.MinFee = res.MinFee
+
+			e.st.diff.sponsorships = append(e.st.diff.sponsorships, sponsorship)
+		case proto.IssueScriptAction:
+			var assetInfo diffNewAssetInfo
+
+			issuerAddr := proto.Address(e.th.(rideAddress))
+
+			assetInfo.dAppIssuer = proto.NewRecipientFromAddress(issuerAddr)
+			assetInfo.assetID = res.ID
+			assetInfo.name = res.Name
+			assetInfo.description = res.Description
+			assetInfo.quantity = res.Quantity
+			assetInfo.decimals = res.Decimals
+			assetInfo.reissuable = res.Reissuable
+			assetInfo.script = res.Script
+			assetInfo.nonce = res.Nonce
+
+			e.st.diff.newAssetsInfo = append(e.st.diff.newAssetsInfo, assetInfo)
+
+		case proto.ReissueScriptAction:
+			searchNewAsset := e.st.diff.findNewAsset(res.AssetID)
+			if searchNewAsset == nil {
+				var assetInfo diffOldAssetInfo
+
+				issuerAddr := proto.Address(e.th.(rideAddress))
+
+				assetInfo.dAppIssuer = proto.NewRecipientFromAddress(issuerAddr)
+				assetInfo.assetID = res.AssetID
+				assetInfo.diffQuantity = res.Quantity
+
+				e.st.diff.oldAssetsInfo = append(e.st.diff.oldAssetsInfo, assetInfo)
+				break
+			}
+			searchNewAsset.quantity += res.Quantity
+
+		case proto.BurnScriptAction:
+			searchAsset := e.st.diff.findNewAsset(res.AssetID)
+			if searchAsset == nil {
+				var assetInfo diffOldAssetInfo
+
+				issuerAddr := proto.Address(e.th.(rideAddress))
+
+				assetInfo.dAppIssuer = proto.NewRecipientFromAddress(issuerAddr)
+				assetInfo.assetID = res.AssetID
+				assetInfo.diffQuantity = -res.Quantity
+
+				e.st.diff.oldAssetsInfo = append(e.st.diff.oldAssetsInfo, assetInfo)
+				break
+			}
+			searchAsset.quantity -= res.Quantity
 
 		default:
-
 		}
 
 	}

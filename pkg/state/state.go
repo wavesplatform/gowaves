@@ -672,6 +672,10 @@ func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
 	return s.Block(blockID)
 }
 
+func (s *stateManager) NewestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
+	return s.stor.scriptsStorage.NewestScriptPKByAddr(addr, filter)
+}
+
 func (s *stateManager) AddingBlockHeight() (uint64, error) {
 	return s.rw.addingBlockHeight(), nil
 }

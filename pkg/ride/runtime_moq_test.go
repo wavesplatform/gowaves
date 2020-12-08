@@ -37,6 +37,9 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             schemeFunc: func() byte {
 // 	               panic("mock out the scheme method")
 //             },
+//             setNewDAppAddressFunc: func(address proto.Address)  {
+// 	               panic("mock out the setNewDAppAddress method")
+//             },
 //             stateFunc: func() types.SmartState {
 // 	               panic("mock out the state method")
 //             },
@@ -74,6 +77,9 @@ type MockRideEnvironment struct {
 	// schemeFunc mocks the scheme method.
 	schemeFunc func() byte
 
+	// setNewDAppAddressFunc mocks the setNewDAppAddress method.
+	setNewDAppAddressFunc func(address proto.Address)
+
 	// stateFunc mocks the state method.
 	stateFunc func() types.SmartState
 
@@ -110,6 +116,11 @@ type MockRideEnvironment struct {
 		// scheme holds details about calls to the scheme method.
 		scheme []struct {
 		}
+		// setNewDAppAddress holds details about calls to the setNewDAppAddress method.
+		setNewDAppAddress []struct {
+			// Address is the address argument value.
+			Address proto.Address
+		}
 		// state holds details about calls to the state method.
 		state []struct {
 		}
@@ -129,6 +140,7 @@ type MockRideEnvironment struct {
 	lockheight             sync.RWMutex
 	lockinvocation         sync.RWMutex
 	lockscheme             sync.RWMutex
+	locksetNewDAppAddress  sync.RWMutex
 	lockstate              sync.RWMutex
 	lockthis               sync.RWMutex
 	locktransaction        sync.RWMutex
@@ -138,7 +150,7 @@ type MockRideEnvironment struct {
 // applyToState calls applyToStateFunc.
 func (mock *MockRideEnvironment) applyToState(actions []proto.ScriptAction) error {
 	if mock.applyToStateFunc == nil {
-		return nil
+		panic("MockRideEnvironment.applyToStateFunc: method is nil but RideEnvironment.applyToState was just called")
 	}
 	callInfo := struct {
 		Actions []proto.ScriptAction
@@ -298,6 +310,37 @@ func (mock *MockRideEnvironment) schemeCalls() []struct {
 	mock.lockscheme.RLock()
 	calls = mock.calls.scheme
 	mock.lockscheme.RUnlock()
+	return calls
+}
+
+// setNewDAppAddress calls setNewDAppAddressFunc.
+func (mock *MockRideEnvironment) setNewDAppAddress(address proto.Address) {
+	if mock.setNewDAppAddressFunc == nil {
+		panic("MockRideEnvironment.setNewDAppAddressFunc: method is nil but RideEnvironment.setNewDAppAddress was just called")
+	}
+	callInfo := struct {
+		Address proto.Address
+	}{
+		Address: address,
+	}
+	mock.locksetNewDAppAddress.Lock()
+	mock.calls.setNewDAppAddress = append(mock.calls.setNewDAppAddress, callInfo)
+	mock.locksetNewDAppAddress.Unlock()
+	mock.setNewDAppAddressFunc(address)
+}
+
+// setNewDAppAddressCalls gets all the calls that were made to setNewDAppAddress.
+// Check the length with:
+//     len(mockedRideEnvironment.setNewDAppAddressCalls())
+func (mock *MockRideEnvironment) setNewDAppAddressCalls() []struct {
+	Address proto.Address
+} {
+	var calls []struct {
+		Address proto.Address
+	}
+	mock.locksetNewDAppAddress.RLock()
+	calls = mock.calls.setNewDAppAddress
+	mock.locksetNewDAppAddress.RUnlock()
 	return calls
 }
 

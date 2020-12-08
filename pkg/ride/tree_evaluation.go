@@ -14,6 +14,13 @@ func CallVerifier(env RideEnvironment, tree *Tree) (RideResult, error) {
 }
 
 func invokeFunctionFromDApp(env RideEnvironment, recipient proto.Recipient, fnName rideType, listArgs rideList) (RideResult, error) {
+
+	address, err := env.state().NewestRecipientToAddress(recipient)
+	if err != nil {
+		return nil, errors.Errorf("cannot get address from dApp")
+	}
+	env.setNewDAppAddress(*address)
+
 	funcName, ok := fnName.(rideString)
 	if !ok {
 		return nil, errors.Errorf("wrong function name argument type %T", fnName)

@@ -381,7 +381,7 @@ func (ss *scriptsStorage) newestScriptByAddr(addr proto.Address, filter bool) (*
 	return tree, nil
 }
 
-func (ss *scriptsStorage) newestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
+func (ss *scriptsStorage) NewestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
 	key := accountScriptKey{addr}
 	recordBytes, err := ss.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
