@@ -164,11 +164,82 @@ func (wrappedSt *wrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.As
 	}, nil
 }
 func (wrappedSt *wrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
-	//TODO
-	return wrappedSt.state.NewestFullAssetInfo(assetID)
+	searchNewAsset := wrappedSt.diff.findNewAsset(assetID)
+
+	if searchNewAsset == nil {
+
+		assetFromStore, err := wrappedSt.state.NewestFullAssetInfo(assetID)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get asset's info from store")
+		}
+
+		if oldAssetFromDiff := wrappedSt.diff.findOldAsset(assetID); oldAssetFromDiff != nil {
+			quantity := int64(assetFromStore.Quantity) + oldAssetFromDiff.diffQuantity
+
+			if quantity >= 0 {
+				assetFromStore.Quantity = uint64(quantity)
+				return assetFromStore, nil
+			}
+
+			return nil, errors.Errorf("quantity of the asset is negative")
+		}
+
+		return assetFromStore, nil
+	}
+
+	addr, err := wrappedSt.NewestRecipientToAddress(searchNewAsset.dAppIssuer)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get address from recipient in NewestAssetInfo")
+	}
+
+	issuerPK, err := wrappedSt.NewestScriptPKByAddr(*addr, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get issuerPK from address in NewestAssetInfo")
+	}
+
+	scripted := false
+	if searchNewAsset.script != nil {
+		scripted = true
+	}
+
+	sponsored, err := wrappedSt.NewestAssetIsSponsored(assetID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find out sponsoring of the asset")
+	}
+
+
+	assetInfo := proto.AssetInfo{
+		ID:              searchNewAsset.assetID,
+		Quantity:        uint64(searchNewAsset.quantity),
+		Decimals:        uint8(searchNewAsset.decimals),
+		Issuer:          *addr,
+		IssuerPublicKey: issuerPK,
+		Reissuable:      searchNewAsset.reissuable,
+		Scripted:        scripted,
+		Sponsored:       sponsored,
+	}
+	scriptInfo := proto.ScriptInfo{
+		Bytes: searchNewAsset.script,
+
+	}
+
+	sponsorshipCost := int64(0)
+	if sponsorship := wrappedSt.diff.findSponsorship(searchNewAsset.assetID); sponsorship != nil {
+		sponsorshipCost = *sponsorship
+	}
+
+
+	return &proto.FullAssetInfo{
+		AssetInfo: assetInfo,
+		Name: searchNewAsset.name,
+		Description: searchNewAsset.description,
+		ScriptInfo: scriptInfo,
+		SponsorshipCost: uint64(sponsorshipCost),
+
+
+	}, nil
 }
 
-//---------//
 
 func (wrappedSt *wrappedState) NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error) {
 	return wrappedSt.state.NewestHeaderByHeight(height)
