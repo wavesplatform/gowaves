@@ -207,7 +207,6 @@ func (wrappedSt *wrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*prot
 		return nil, errors.Wrap(err, "failed to find out sponsoring of the asset")
 	}
 
-
 	assetInfo := proto.AssetInfo{
 		ID:              searchNewAsset.assetID,
 		Quantity:        uint64(searchNewAsset.quantity),
@@ -220,7 +219,6 @@ func (wrappedSt *wrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*prot
 	}
 	scriptInfo := proto.ScriptInfo{
 		Bytes: searchNewAsset.script,
-
 	}
 
 	sponsorshipCost := int64(0)
@@ -228,18 +226,14 @@ func (wrappedSt *wrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*prot
 		sponsorshipCost = *sponsorship
 	}
 
-
 	return &proto.FullAssetInfo{
-		AssetInfo: assetInfo,
-		Name: searchNewAsset.name,
-		Description: searchNewAsset.description,
-		ScriptInfo: scriptInfo,
+		AssetInfo:       assetInfo,
+		Name:            searchNewAsset.name,
+		Description:     searchNewAsset.description,
+		ScriptInfo:      scriptInfo,
 		SponsorshipCost: uint64(sponsorshipCost),
-
-
 	}, nil
 }
-
 
 func (wrappedSt *wrappedState) NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error) {
 	return wrappedSt.state.NewestHeaderByHeight(height)
