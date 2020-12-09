@@ -5,11 +5,12 @@ type MainState struct {
 	params
 	retAssig uint16
 
-	assigments []AssigmentState
+	deferred  []Deferred
+	deferreds *deferreds
 }
 
-func (a MainState) retAssigment(as AssigmentState) Fsm {
-	a.assigments = append(a.assigments, as)
+func (a MainState) retAssigment(state Fsm) Fsm {
+	a.deferred = append(a.deferred, state.(Deferred))
 	return a
 }
 
@@ -26,8 +27,8 @@ func (a MainState) Bytes(b []byte) Fsm {
 }
 
 func (a MainState) Condition() Fsm {
-	a.b.startPos()
-	return conditionalTransition(a, a.params)
+	//a.b.startPos()
+	return conditionalTransition(a, a.params, a.deferreds)
 }
 
 func (a MainState) TrueBranch() Fsm {
@@ -49,27 +50,39 @@ type BuildExecutable interface {
 func NewMain(params params) Fsm {
 	return &MainState{
 		params: params,
+		deferreds: &deferreds{
+			name: "main",
+		},
 	}
 }
 
 func (a MainState) Assigment(name string) Fsm {
 	n := a.params.u.next()
 	//a.assigments = append(a.assigments, n)
-	a.r.set(name, n)
-	return assigmentFsmTransition(a, a.params, name, n)
+	//a.r.set(name, n)
+	return assigmentFsmTransition(a, a.params, name, n, a.deferreds)
 }
 
 func (a MainState) Return() Fsm {
-
-	for _, v := range a.assigments {
-		v.Write()
+	reversed := reverse(a.deferred)
+	for _, v := range reversed[:1] {
+		v.Write(a.params)
 	}
-
-	for i := len(a.assigments) - 1; i >= 0; i-- {
-		a.b.writeByte(OpClearCache)
-		a.b.write(encode(a.assigments[i].n))
+	for _, v := range a.deferreds.Get() {
+		v.deferred.Clean()
 	}
 	a.b.ret()
+	for _, v := range reversed[1:] {
+		v.Write(a.params)
+		a.b.ret()
+	}
+
+	for _, v := range a.deferreds.Get() {
+		pos := a.b.len()
+		a.c.set(v.uniq, nil, nil, pos, false, v.debug)
+		v.deferred.Write(a.params)
+		a.b.ret()
+	}
 	return a
 }
 
@@ -78,18 +91,17 @@ func (a MainState) Long(int64) Fsm {
 }
 
 func (a MainState) Call(name string, argc uint16) Fsm {
-	a.b.startPos()
-	return callTransition(a, a.params, name, argc)
+	return callTransition(a, a.params, name, argc, a.deferreds)
 }
 
 func (a MainState) Reference(name string) Fsm {
-	a.b.startPos()
-	return reference(a, a.params, name)
+	a.deferred = append(a.deferred, reference(a, a.params, name))
+	return a
 }
 
 func (a MainState) Boolean(v bool) Fsm {
-	a.b.startPos()
-	return boolean(a, a.params, v)
+	a.deferred = append(a.deferred, a.constant(rideBoolean(v)))
+	return a
 }
 
 func (a MainState) BuildExecutable(version int) *Executable {
@@ -100,4 +112,12 @@ func (a MainState) BuildExecutable(version int) *Executable {
 		References:  a.c.values,
 		EntryPoints: map[string]uint16{"": startAt},
 	}
+}
+
+func (a MainState) Write(_ params) {
+
+}
+
+func (a MainState) Clean() {
+
 }

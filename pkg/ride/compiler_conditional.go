@@ -30,18 +30,18 @@ type ConditionalState struct {
 	rets              []uint16
 
 	// Clean assigments after exit.
-	assigments []AssigmentState
-	//assigmentIndex int
+	deferred  []Deferred
+	deferreds Deferreds
+
+	condN uniqueid
 }
 
-func (a ConditionalState) retAssigment(v AssigmentState) Fsm {
-	//panic("ConditionalState retAssigment")
-	//return a
-	a.assigments = append(a.assigments, v)
+func (a ConditionalState) retAssigment(v Fsm) Fsm {
+	a.deferred = append(a.deferred, v.(Deferred))
 	return a
 }
 
-func (a ConditionalState) Property(name string) Fsm {
+func (a ConditionalState) Property(string) Fsm {
 	panic("ConditionalState Property")
 }
 
@@ -50,35 +50,31 @@ func (a ConditionalState) Func(name string, args []string, invoke string) Fsm {
 }
 
 func (a ConditionalState) Bytes(b []byte) Fsm {
-	a.rets = append(a.rets, a.params.b.len())
-	return constant(a, a.params, rideBytes(b))
+	//a.rets = append(a.rets, a.params.b.len())
+	//return constant(a, a.params, rideBytes(b))
+	panic("")
 }
 
-func conditionalTransition(prev Fsm, params params) Fsm {
+func conditionalTransition(prev Fsm, params params, deferreds Deferreds) Fsm {
 	return ConditionalState{
 		prev:      prev,
 		params:    params,
 		startedAt: params.b.len(),
-		//assigments:     make([][]AssigmentState, 3),
-		//assigmentIndex: 0,
+		//deferred:  make([[]Deferred, 3),
+		deferreds: deferreds,
 	}
 }
 
 func (a ConditionalState) Condition() Fsm {
 	a.rets = append(a.rets, a.params.b.len())
-	return conditionalTransition(a, a.params)
+	return conditionalTransition(a, a.params, a.deferreds)
 }
 
 func (a ConditionalState) TrueBranch() Fsm {
-	a.b.jpmIfFalse()
-	a.patchTruePosition = a.b.writeStub(2)
-	a.patchFalsePosition = a.b.writeStub(2)
-	a.patchNextPosition = a.b.writeStub(2)
 	return a
 }
 
 func (a ConditionalState) FalseBranch() Fsm {
-	a.b.ret()
 	return a
 }
 
@@ -86,50 +82,88 @@ func (a ConditionalState) Assigment(name string) Fsm {
 	n := a.params.u.next()
 	//a.assigments = append(a.assigments, n)
 	a.r.set(name, n)
-	return assigmentFsmTransition(a, a.params, name, n)
-}
-
-func (a ConditionalState) Return() Fsm {
-	a.b.ret() // return for false branch
-	endPos := a.b.len()
-
-	for _, v := range a.assigments {
-		v.Write()
-	}
-
-	for i := len(a.assigments) - 1; i >= 0; i-- {
-		a.b.writeByte(OpClearCache)
-		a.b.write(encode(a.assigments[i].n))
-	}
-
-	a.b.patch(a.patchTruePosition, encode(a.rets[1]))
-	a.b.patch(a.patchFalsePosition, encode(a.rets[2]))
-	a.b.patch(a.patchNextPosition, encode(endPos))
-	return a.prev //.retAssigment(a.startedAt, a.b.len())
+	return assigmentFsmTransition(a, a.params, name, n, a.deferreds)
 }
 
 func (a ConditionalState) Long(value int64) Fsm {
-	a.rets = append(a.rets, a.params.b.len())
-	return long(a, a.params, value)
+	a.deferred = append(a.deferred, a.constant(rideInt(value)))
+	return a
 }
 
 func (a ConditionalState) Call(name string, argc uint16) Fsm {
-	a.rets = append(a.rets, a.params.b.len())
-	// TODO check if we need ret here
-	return callTransition(a, a.params, name, argc)
+	//a.rets = append(a.rets, a.params.b.len())
+	return callTransition(a, a.params, name, argc, a.deferreds)
+	//panic("")
 }
 
 func (a ConditionalState) Reference(name string) Fsm {
-	a.rets = append(a.rets, a.params.b.len())
-	return reference(a, a.params, name)
+	//a.rets = append(a.rets, a.params.b.len())
+	//return reference(a, a.params, name)
+	//panic("")
+	a.deferred = append(a.deferred, reference(a, a.params, name))
+	return a
 }
 
 func (a ConditionalState) Boolean(v bool) Fsm {
-	a.rets = append(a.rets, a.params.b.len())
-	return boolean(a, a.params, v)
+	a.deferred = append(a.deferred, a.constant(rideBoolean(v)))
+	return a
 }
 
 func (a ConditionalState) String(s string) Fsm {
-	a.rets = append(a.rets, a.params.b.len())
-	return str(a, a.params, s)
+	//a.rets = append(a.rets, a.params.b.len())
+	//return str(a, a.params, s)
+	panic("")
+}
+
+func (a ConditionalState) Return() Fsm {
+	if len(a.deferred) != 3 {
+		panic("len(a.deferred) != 3")
+	}
+	a.condN = a.u.next()
+	a.deferreds.Add(a.deferred[0], a.condN, "condition cond")
+	return a.prev.retAssigment(a) //.retAssigment(a.startedAt, a.b.len())
+}
+
+func (a ConditionalState) Write(_ params) {
+	if len(a.deferred) != 3 {
+		panic("len(a.deferred) != 3")
+	}
+
+	//condB := a.deferred[0]
+	trueB := a.deferred[1]
+	falsB := a.deferred[2]
+
+	a.b.writeByte(OpRef)
+	a.b.write(encode(a.condN))
+
+	a.b.jpmIfFalse()
+	a.patchTruePosition = a.b.writeStub(2)
+	//a.b.write(encode(a.b.len()))
+	a.patchFalsePosition = a.b.writeStub(2)
+	a.patchNextPosition = a.b.writeStub(2)
+
+	a.b.patch(a.patchTruePosition, encode(a.b.len()))
+	//writeDeferred(a.params, trueB)
+	//a.b.ret()
+	trueB.Write(a.params)
+	a.b.ret()
+
+	a.b.patch(a.patchFalsePosition, encode(a.b.len()))
+	falsB.Write(a.params)
+	a.b.ret()
+
+	//for _, v := range condB[1:] {
+	//	v.Write(a.params)
+	//}
+
+	a.b.patch(a.patchNextPosition, encode(a.b.len()))
+	//for _, v := range condB[1:] {
+	//	v.Clean()
+	//}
+	a.b.ret()
+
+	//writeDeferred(a.params, a.deferred)
+}
+func (a ConditionalState) Clean() {
+	//panic("ConditionalState Clean")
 }

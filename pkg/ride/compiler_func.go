@@ -1,37 +1,52 @@
 package ride
 
-import (
-	"fmt"
-)
+import "fmt"
 
 type arguments []string
 
-func (a arguments) pos(name string) int {
-	for i := range a {
-		if a[i] == name {
-			return i
-		}
-	}
-	return -1
+type Deferreds interface {
+	Add(Deferred, uniqueid, string)
+}
+
+type dd struct {
+	deferred Deferred
+	uniq     uniqueid
+	debug    string
+}
+
+type deferreds struct {
+	name string
+	d    []dd
+}
+
+func (a *deferreds) Add(deferred2 Deferred, n uniqueid, debug string) {
+	a.d = append(a.d, dd{
+		deferred: deferred2,
+		uniq:     n,
+		debug:    debug,
+	})
+}
+
+func (a *deferreds) Get() []dd {
+	return a.d
 }
 
 type FuncState struct {
 	params
-	prev           Fsm
-	name           string
-	args           arguments
-	globalScope    *references
-	invokeParam    string
-	lastStmtOffset uint16
-	startedAt      uint16
+	prev        Fsm
+	name        string
+	args        arguments
+	n           uniqueid
+	invokeParam string
 
 	// References that defined inside function.
-	// Should be cleared before exit.
-	assigments []AssigmentState
+	deferred []Deferred
+	defers   *deferreds
+	//exe      Fsm
 }
 
-func (a FuncState) retAssigment(as AssigmentState) Fsm {
-	a.assigments = append(a.assigments, as) /// []uniqueid
+func (a FuncState) retAssigment(as Fsm) Fsm {
+	a.deferred = append(a.deferred, as.(Deferred))
 	return a
 }
 
@@ -40,9 +55,9 @@ func (a FuncState) Property(name string) Fsm {
 }
 
 func funcTransition(prev Fsm, params params, name string, args []string, invokeParam string) Fsm {
-	startedAt := params.b.len()
 	// save reference to global scope, where code lower that function will be able to use it.
-	globalScope := params.r
+	n := params.u.next()
+	params.r.set(name, n)
 	// all variable we add only visible to current scope,
 	// avoid corrupting parent state.
 	params.r = newReferences(params.r)
@@ -50,111 +65,101 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 	// Function call: verifier or not.
 	if invokeParam != "" {
 		args = append([]string{invokeParam}, args...)
-		// tx
-		//pos, ok := params.r.get("tx")
-		//if !ok {
-		//	panic("no `tx` in function call")
-		//}
-		//params.b.writeByte(OpExternalCall)
-		//params.b.write(encode(math.MaxUint16))
-		//params.b.write(encode(0))
-		//params.b.writeByte(OpReturn)
-		//params.r.set(invokeParam, pos)
-		//params.r.set(invokeParam, params.u.next())
 	}
-	//assigments := []uniqueid{}
 	for i := range args {
 		e := params.u.next()
 		//assigments = append(assigments, e)
 		params.r.set(args[i], e)
 		// set to global
-		globalScope.set(fmt.Sprintf("%s$%d", name, i), e)
+		//globalScope.set(fmt.Sprintf("%s$%d", name, i), e)
 	}
 	//if invokeParam != "" {
 	//	assigments = assigments[1:]
 	//}
 
 	return &FuncState{
-		prev:   prev,
-		name:   name,
-		args:   args,
-		params: params,
-		//offset:      params.b.len(),
-		globalScope: globalScope,
+		prev:        prev,
+		name:        name,
+		args:        args,
+		params:      params,
+		n:           n,
 		invokeParam: invokeParam,
-		startedAt:   startedAt,
-		//assigments:  assigments,
+		defers: &deferreds{
+			name: "func " + name,
+		},
 	}
 }
 
 func (a FuncState) Assigment(name string) Fsm {
 	n := a.params.u.next()
 	//a.assigments = append(a.assigments, n)
-	return assigmentFsmTransition(a, a.params, name, n)
+	return assigmentFsmTransition(a, a.params, name, n, a.defers)
 }
 
 func (a FuncState) Return() Fsm {
-	funcID := a.params.u.next()
-	a.globalScope.set(a.name, funcID)
-	a.params.c.set(funcID, nil, nil, a.lastStmtOffset, false, a.name)
-	// TODO clean args
+	/*
+		funcID := a.params.u.next()
+		a.globalScope.set(a.name, funcID)
+		a.params.c.set(funcID, nil, nil, a.lastStmtOffset, false, a.name)
+		// TODO clean args
 
-	// Clean internal assigments.
-	for i := len(a.assigments) - 1; i >= 0; i-- {
-		a.b.writeByte(OpClearCache)
-		a.b.write(encode(a.assigments[i].n))
-	}
-
-	a.b.ret()
-
-	// if function has invoke param, it means no other code will be provided.
-	if a.invokeParam != "" {
-		a.b.startPos()
-		for i := len(a.args) - 1; i >= 0; i-- {
-			a.b.writeByte(OpCache)
-			uniq, ok := a.params.r.get(a.args[i])
-			if !ok {
-				panic("function param `" + a.args[i] + "` not found")
-			}
-			a.b.write(encode(uniq))
-			a.b.writeByte(OpPop)
+		// Clean internal assigments.
+		for i := len(a.assigments) - 1; i >= 0; i-- {
+			a.b.writeByte(OpClearCache)
+			a.b.write(encode(a.assigments[i].n))
 		}
-		a.b.writeByte(OpCall)
-		a.b.write(encode(a.lastStmtOffset))
-	}
 
-	return a.prev //.retAssigment(a.startedAt, a.b.len())
+		a.b.ret()
+
+		// if function has invoke param, it means no other code will be provided.
+		if a.invokeParam != "" {
+			a.b.startPos()
+			for i := len(a.args) - 1; i >= 0; i-- {
+				a.b.writeByte(OpCache)
+				uniq, ok := a.params.r.get(a.args[i])
+				if !ok {
+					panic("function param `" + a.args[i] + "` not found")
+				}
+				a.b.write(encode(uniq))
+				a.b.writeByte(OpPop)
+			}
+			a.b.writeByte(OpCall)
+			a.b.write(encode(a.lastStmtOffset))
+		}
+
+
+	*/
+	return a.prev.retAssigment(a) //.retAssigment(a.startedAt, a.b.len())
 }
 
 func (a FuncState) Long(value int64) Fsm {
-	a.lastStmtOffset = a.b.len()
-	a.params.b.push(a.constant(rideInt(value)))
+	a.deferred = append(a.deferred, a.constant(rideInt(value)))
 	return a
 }
 
 func (a FuncState) Call(name string, argc uint16) Fsm {
-	a.lastStmtOffset = a.b.len()
-	return callTransition(a, a.params, name, argc)
+	return callTransition(a, a.params, name, argc, a.defers)
 }
 
 func (a FuncState) Reference(name string) Fsm {
-	a.lastStmtOffset = a.b.len()
-	return reference(a, a.params, name)
+	a.deferred = append(a.deferred, reference(a, a.params, name))
+	return a
 }
 
-func (a FuncState) Boolean(v bool) Fsm {
-	a.lastStmtOffset = a.b.len()
-	return constant(a, a.params, rideBoolean(v))
+func (a FuncState) Boolean(value bool) Fsm {
+	a.deferred = append(a.deferred, a.constant(rideBoolean(value)))
+	return a
 }
 
 func (a FuncState) String(s string) Fsm {
-	a.lastStmtOffset = a.b.len()
-	return constant(a, a.params, rideString(s))
+	//a.lastStmtOffset = a.b.len()
+	//return constant(a, a.params, rideString(s))
+	panic("a")
 }
 
 func (a FuncState) Condition() Fsm {
-	a.lastStmtOffset = a.b.len()
-	return conditionalTransition(a, a.params)
+	//a.lastStmtOffset = a.b.len()
+	return conditionalTransition(a, a.params, a.defers)
 }
 
 func (a FuncState) TrueBranch() Fsm {
@@ -166,10 +171,38 @@ func (a FuncState) FalseBranch() Fsm {
 }
 
 func (a FuncState) Bytes(b []byte) Fsm {
-	a.lastStmtOffset = a.b.len()
-	return constant(a, a.params, rideBytes(b))
+	//a.lastStmtOffset = a.b.len()
+	//return constant(a, a.params, rideBytes(b))
+	panic("a")
 }
 
 func (a FuncState) Func(name string, args []string, _ string) Fsm {
 	panic("Illegal call `Func` is `FuncState`")
+}
+
+func (a FuncState) Clean() {
+
+}
+
+func (a FuncState) Write(_ params) {
+	pos := a.b.len()
+	a.params.c.set(a.n, nil, nil, pos, false, fmt.Sprintf("function %s", a.name))
+	//writeDeferred(a.params, a.deferred)
+	if len(a.deferred) != 1 {
+		panic("len(a.deferred) != 1")
+	}
+	a.deferred[0].Write(a.params)
+
+	// End of function body. Clear and write assigments.
+	for _, v := range a.defers.Get() {
+		v.deferred.Clean()
+	}
+	a.b.ret()
+
+	for _, v := range a.defers.Get() {
+		pos := a.b.len()
+		a.c.set(v.uniq, nil, nil, pos, false, v.debug)
+		v.deferred.Write(a.params)
+	}
+
 }

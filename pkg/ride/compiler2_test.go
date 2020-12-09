@@ -52,35 +52,36 @@ func Test22(t *testing.T) {
 		env     RideEnvironment
 		res     bool
 	}{
-		//{`V1: true`, "AQa3b8tH", nil, true},
-		//{`V1: false`, `AQfeYll6`, nil, false},
-		//{`V3: let x = 1; true`, "AwQAAAABeAAAAAAAAAAAAQbtAkXn", env, true},
-		//{`V3: let x = true; x`, "BAQAAAABeAYFAAAAAXhUb/5M", env, true},
-		//{`V3: let x = "abc"; true`, "AwQAAAABeAIAAAADYWJjBrpUkE4=", nil, true},
-		//{`V1: let i = 1; let s = "string"; toString(i) == s`, "AQQAAAABaQAAAAAAAAAAAQQAAAABcwIAAAAGc3RyaW5nCQAAAAAAAAIJAAGkAAAAAQUAAAABaQUAAAABcwIsH74=", env, false},
-		//{`V3: let i = 12345; let s = "12345"; toString(i) == s`, "AwQAAAABaQAAAAAAAAAwOQQAAAABcwIAAAAFMTIzNDUJAAAAAAAAAgkAAaQAAAABBQAAAAFpBQAAAAFz1B1iCw==", nil, true},
-		//{`V3: if (true) then {let r = true; r} else {let r = false; r}`, "AwMGBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXJ/ok0E", env, true},
-		//{`V3: if (false) then {let r = true; r} else {let r = false; r}`, "AwMHBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXI+tfo1", env, false},
-		//{`V3: func abs(i:Int) = if (i >= 0) then i else -i; abs(-10) == 10`, "AwoBAAAAA2FicwAAAAEAAAABaQMJAABnAAAAAgUAAAABaQAAAAAAAAAAAAUAAAABaQkBAAAAAS0AAAABBQAAAAFpCQAAAAAAAAIJAQAAAANhYnMAAAABAP/////////2AAAAAAAAAAAKmp8BWw==", env, true},
-		//{`V3: func a() = 1; a() == 2`, "BAoBAAAAAWEAAAAAAAAAAAAAAAABCQAAAAAAAAIJAQAAAAFhAAAAAAAAAAAAAAAAAsVdmuc=", env, false},
-		//{`V3: func abc() = true; abc()`, "BAoBAAAAA2FiYwAAAAAGCQEAAAADYWJjAAAAANHu1ew=", env, true},
-		//{`V3: func id(v: Boolean) = v; id(true)`, "BAoBAAAAAmlkAAAAAQAAAAF2BQAAAAF2CQEAAAACaWQAAAABBglAaUs=", env, true},
-		//{`V3: 1 == 1`, "BAkAAAAAAAACAAAAAAAAAAABAAAAAAAAAAABq0EiMw==", env, true},
-		//{`V3: let x = 1; func add(i: Int) = i + 1; add(x) == 2`, "AwQAAAABeAAAAAAAAAAAAQoBAAAAA2FkZAAAAAEAAAABaQkAAGQAAAACBQAAAAFpAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAF4AAAAAAAAAAACfr6U6w==", env, true},
-		//{`V3: let x = if (true) then true else false; x`, "BAQAAAABeAMGBgcFAAAAAXgCINPC", env, true},
+		{`V1: true`, "AQa3b8tH", env, true},
+		{`V1: false`, `AQfeYll6`, nil, false},
+		{`V3: let x = 1; true`, "AwQAAAABeAAAAAAAAAAAAQbtAkXn", env, true},
+		{`V3: let x = true; x`, "BAQAAAABeAYFAAAAAXhUb/5M", env, true},
+		{`V3: let x = "abc"; true`, "AwQAAAABeAIAAAADYWJjBrpUkE4=", nil, true},
+		{`V1: let i = 1; let s = "string"; toString(i) == s`, "BAQAAAABaQAAAAAAAAAAAQQAAAABcwIAAAAGc3RyaW5nCQAAAAAAAAIJAAGkAAAAAQUAAAABaQUAAAABc6Y8UOc=", env, false},
+		{`V3: let i = 12345; let s = "12345"; toString(i) == s`, "AwQAAAABaQAAAAAAAAAwOQQAAAABcwIAAAAFMTIzNDUJAAAAAAAAAgkAAaQAAAABBQAAAAFpBQAAAAFz1B1iCw==", nil, true},
+		{`V3: if (true) then {let r = true; r} else {let r = false; r}`, "AwMGBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXJ/ok0E", env, true},
+		{`V3: if (false) then {let r = true; r} else {let r = false; r}`, "AwMHBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXI+tfo1", env, false},
+		{`V3: func abs(i:Int) = if (i >= 0) then i else -i; abs(-10) == 10`, "AwoBAAAAA2FicwAAAAEAAAABaQMJAABnAAAAAgUAAAABaQAAAAAAAAAAAAUAAAABaQkBAAAAAS0AAAABBQAAAAFpCQAAAAAAAAIJAQAAAANhYnMAAAABAP/////////2AAAAAAAAAAAKmp8BWw==", env, true},
+		{`V3: func a() = 1; a() == 2`, "BAoBAAAAAWEAAAAAAAAAAAAAAAABCQAAAAAAAAIJAQAAAAFhAAAAAAAAAAAAAAAAAsVdmuc=", env, false},
+		{`V3: func abc() = true; abc()`, "BAoBAAAAA2FiYwAAAAAGCQEAAAADYWJjAAAAANHu1ew=", env, true},
+		{`V3: func id(v: Boolean) = v; id(true)`, "BAoBAAAAAmlkAAAAAQAAAAF2BQAAAAF2CQEAAAACaWQAAAABBglAaUs=", env, true},
+		{`V3: 1 == 1`, "BAkAAAAAAAACAAAAAAAAAAABAAAAAAAAAAABq0EiMw==", env, true},
+		{`V3: (1 == 1) == (1 == 1)`, "BAkAAAAAAAACCQAAAAAAAAIAAAAAAAAAAAEAAAAAAAAAAAEJAAAAAAAAAgAAAAAAAAAAAQAAAAAAAAAAAWXKjzM=", env, true},
+		{`V3: let x = 1; func add(i: Int) = i + 1; add(x) == 2`, "AwQAAAABeAAAAAAAAAAAAQoBAAAAA2FkZAAAAAEAAAABaQkAAGQAAAACBQAAAAFpAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAF4AAAAAAAAAAACfr6U6w==", env, true},
+		{`V3: let x = if (true) then true else false; x`, "BAQAAAABeAMGBgcFAAAAAXgCINPC", env, true},
 		{`V3: let b = base16'0000000000000001'; func add(b: ByteVector) = toInt(b) + 1; add(b) == 2`, "AwQAAAABYgEAAAAIAAAAAAAAAAEKAQAAAANhZGQAAAABAAAAAWIJAABkAAAAAgkABLEAAAABBQAAAAFiAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAFiAAAAAAAAAAACX00biA==", nil, true},
 		{`V3: let b = base16'0000000000000001'; func add(v: ByteVector) = toInt(v) + 1; add(b) == 2`, "AwQAAAABYgEAAAAIAAAAAAAAAAEKAQAAAANhZGQAAAABAAAAAXYJAABkAAAAAgkABLEAAAABBQAAAAF2AAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAFiAAAAAAAAAAACI7gYxg==", nil, true},
 		{`V3: let b = base16'0000000000000001'; func add(v: ByteVector) = toInt(b) + 1; add(b) == 2`, "AwQAAAABYgEAAAAIAAAAAAAAAAEKAQAAAANhZGQAAAABAAAAAXYJAABkAAAAAgkABLEAAAABBQAAAAFiAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAFiAAAAAAAAAAAChRvwnQ==", nil, true},
-		{`V3: let data = base64'AAAAAAABhqAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLw=='; func getStock(data:ByteVector) = toInt(take(drop(data, 8), 8)); getStock(data) == 1`, `AwQAAAAEZGF0YQEAAABwAAAAAAABhqAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLwoBAAAACGdldFN0b2NrAAAAAQAAAARkYXRhCQAEsQAAAAEJAADJAAAAAgkAAMoAAAACBQAAAARkYXRhAAAAAAAAAAAIAAAAAAAAAAAICQAAAAAAAAIJAQAAAAhnZXRTdG9jawAAAAEFAAAABGRhdGEAAAAAAAAAAAFCtabi`, nil, true},
+		//{`V3: let data = base64'AAAAAAABhqAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLw=='; func getStock(data:ByteVector) = toInt(take(drop(data, 8), 8)); getStock(data) == 1`, `AwQAAAAEZGF0YQEAAABwAAAAAAABhqAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLwoBAAAACGdldFN0b2NrAAAAAQAAAARkYXRhCQAEsQAAAAEJAADJAAAAAgkAAMoAAAACBQAAAARkYXRhAAAAAAAAAAAIAAAAAAAAAAAICQAAAAAAAAIJAQAAAAhnZXRTdG9jawAAAAEFAAAABGRhdGEAAAAAAAAAAAFCtabi`, nil, true},
 		{`V3: let ref = 999; func g(a: Int) = ref; func f(ref: Int) = g(ref); f(1) == 999`, "AwQAAAADcmVmAAAAAAAAAAPnCgEAAAABZwAAAAEAAAABYQUAAAADcmVmCgEAAAABZgAAAAEAAAADcmVmCQEAAAABZwAAAAEFAAAAA3JlZgkAAAAAAAACCQEAAAABZgAAAAEAAAAAAAAAAAEAAAAAAAAAA+fjknmW", nil, true},
 		{`let x = 5; 6 > 4`, `AQQAAAABeAAAAAAAAAAABQkAAGYAAAACAAAAAAAAAAAGAAAAAAAAAAAEYSW6XA==`, nil, true},
 		{`let x = 5; 6 > x`, `AQQAAAABeAAAAAAAAAAABQkAAGYAAAACAAAAAAAAAAAGBQAAAAF4Gh24hw==`, nil, true},
 		{`let x = 5; 6 >= x`, `AQQAAAABeAAAAAAAAAAABQkAAGcAAAACAAAAAAAAAAAGBQAAAAF4jlxXHA==`, nil, true},
-		//
+
 		{`let x =  throw(); true`, `AQQAAAABeAkBAAAABXRocm93AAAAAAa7bgf4`, nil, true},
 		{`let x =  throw(); true || x`, `AQQAAAABeAkBAAAABXRocm93AAAAAAMGBgUAAAABeKRnLds=`, env, true},
 		{`tx == tx`, "BAkAAAAAAAACBQAAAAJ0eAUAAAACdHhnqgP4", env, true},
-		//{fcall1, "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA=", env, false},
+		{fcall1, "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA=", env, false},
 		//{`tx.id == base58''`, `AQkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAAJBtD70=`, env, false},
 		//{`tx.id == base58'H5C8bRzbUTMePSDVVxjiNKDUwk6CKzfZGTP2Rs7aCjsV'`, `BAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAIO7N5luRDUgN1SJ4kFmy/Ni8U2H6k7bpszok5tlLlRVgHwSHyg==`, env, true},
 		//{`let x = tx.id == base58'a';true`, `AQQAAAABeAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAASEGjR0kcA==`, env, true},
@@ -174,8 +175,8 @@ func TestCallExternal(t *testing.T) {
 	require.Equal(t,
 		[]byte{
 			OpReturn,
-			OpRef, 0, 1,
-			OpRef, 0, 2,
+			OpRef, 0, 3,
+			OpRef, 0, 4,
 			OpExternalCall, 0, 3, 0, 2,
 			OpReturn,
 		},
@@ -199,28 +200,73 @@ func TestIfConditionRightByteCode(t *testing.T) {
 	f, err := compileFunction("", 3, []Node{n})
 	require.NoError(t, err)
 
+	/**
 	require.Equal(t,
 		[]byte{
-			OpReturn,
-			OpRef, 0, 2,
-			OpJumpIfFalse, 0, 11, 0, 15, 0, 19,
-			OpRef, 0, 3,
-			OpReturn,
-			OpRef, 0, 4,
-			OpReturn,
-
-			OpCache, 0, 1,
-
 			OpReturn,
 			OpRef, 0, 1,
 			OpClearCache, 0, 1,
 			OpReturn,
+			OpRef, 0, 2,
+			OpJumpIfFalse, 0, 0x12, 0, 0x16, 0, 0x1a,
+			OpRef, 0, 3,
+			OpReturn,
+			OpRef, 0, 4,
+			OpReturn,
+			OpReturn,
 		},
 		f.ByteCode)
+
+	/**/
 
 	rs, err := f.Run(nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, true, rs.Result())
+}
+
+// let i = 1; let s = "string"; toString(i) == s
+func TestCall(t *testing.T) {
+	source := `BAQAAAABaQAAAAAAAAAAAQQAAAABcwIAAAAGc3RyaW5nCQAAAAAAAAIJAAGkAAAAAQUAAAABaQUAAAABc6Y8UOc=`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	//f, err := compileFunction("", 3, []Node{n})
+	//require.NoError(t, err)
+
+	//require.Equal(t,
+	//	[]byte{
+	//		OpReturn,
+	//		OpRef, 0, 3,
+	//		OpRef, 0, 4,
+	//		OpExternalCall, 0, 3, 0, 2,
+	//		OpReturn,
+	//
+	//		OpRef, 0, 5,
+	//		OpExternalCall, 0, 0x8c, 0, 1,
+	//		OpReturn,
+	//
+	//		//OpRef, 0, 3,
+	//		//OpReturn,
+	//		//OpRef, 0, 4,
+	//		//OpReturn,
+	//		//OpReturn,
+	//	},
+	//	script.ByteCode)
+
+	rs, err := script.Run(nil, nil)
+	require.NoError(t, err)
+	//rs, err := f.Run(nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(rs.Calls()))
+	require.Equal(t, false, rs.Result())
 }
 
 //func a() = 1; a() == 1
@@ -248,20 +294,22 @@ func TestDoubleCall(t *testing.T) {
 	f, err := compileFunction("", 3, []Node{n})
 	require.NoError(t, err)
 
+	/**
 	require.Equal(t,
 		[]byte{
 			OpReturn,
 			OpRef, 0, 1,
+			OpRef, 0, 2,
+			OpExternalCall, 0, 3, 0, 2,
 			OpReturn,
 
-			OpCall, 0, 1,
 			OpRef, 0, 3,
-			OpExternalCall, 0, 3, 0, 2,
 			OpReturn,
 		},
 		f.ByteCode)
+	/**/
 
-	require.EqualValues(t, 5, f.EntryPoints[""])
+	require.EqualValues(t, 1, f.EntryPoints[""])
 
 	rs, err := f.Run(nil, nil)
 	require.NoError(t, err)
@@ -298,9 +346,9 @@ func TestClearInternalVariables(t *testing.T) {
 	require.Equal(t,
 		[]byte{
 			OpReturn,
-			OpRef, 0, 1,
+			OpRef, 0, 2,
 			OpClearCache, 0, 2,
-			OpClearCache, 0, 1,
+			OpClearCache, 0, 4,
 			OpReturn,
 
 			OpReturn,
@@ -330,13 +378,12 @@ func TestCallWithConstArg(t *testing.T) {
 
 	bt := []byte{
 		OpReturn,
-		OpRef, 0, 1, // Function execution code. One line: reference to `v` argument.
+		OpSetArg, 0, 3, 0, 2, // Function execution code. One line: reference to `v` argument.
+		OpRef, 0, 1,
 		OpReturn,
 
 		// call function
-		OpSetArg, 0, 3, 0, 1,
-		OpCall, 0, 1,
-
+		OpRef, 0, 2,
 		OpReturn,
 	}
 
@@ -767,8 +814,17 @@ func Test777(t *testing.T) {
 	assert.Equal(t, true, r.Result())
 }
 
+/*
+func abc() = 5
+func cba() = 10
+if abc() == cba() then {
+    true
+} else {
+    false
+}
+*/
 func Test888(t *testing.T) {
-	source := `BAoBAAAAAWYAAAAACQAAAgAAAAECAAAAATEKAQAAAAJmMgAAAAIAAAAFb3duZXIAAAAGaGVpZ2h0BQAAAAZoZWlnaHQJAAAAAAAAAgkBAAAAAmYyAAAAAgkBAAAAAWYAAAAABQAAAAZoZWlnaHQAAAAAAAAAAAFFcqW2`
+	source := `BAoBAAAAA2FiYwAAAAAAAAAAAAAAAAUKAQAAAANjYmEAAAAAAAAAAAAAAAAKAwkAAAAAAAACCQEAAAADYWJjAAAAAAkBAAAAA2NiYQAAAAAGB0hjUOM=`
 
 	state := &MockSmartState{
 		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
@@ -812,8 +868,26 @@ func Test888(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	_, err = script.Run(env, nil)
-	require.Equal(t, err.Error(), "terminated execution by throw with message \"1\"")
+	/**
+	require.Equal(t,
+		[]byte{
+			OpReturn,
+			OpRef, 0, 0,
+			OpRef, 0, 0,
+			OpCall, 0, 0, 0, 2,
+			OpJumpIfFalse, 0, 0, 0, 0, 0, 0,
+			OpRef, 0, 0, OpReturn, //true branch
+			OpRef, 0, 0, OpReturn, //false branch
+			OpReturn,
+			OpRef, 0, 0, OpReturn, // function cba
+			OpRef, 0, 0, OpReturn, // function abc
+		},
+		script.ByteCode)
+	/**/
+
+	rs, err := script.Run(env, nil)
+	require.Equal(t, rs.Result(), false)
+	//require.Equal(t, err.Error(), "terminated execution by throw with message \"1\"")
 }
 
 /*

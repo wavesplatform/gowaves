@@ -72,12 +72,12 @@ func (b *builder) call(id uint16, argc uint16) {
 	b.w.Write(encode(id))
 }
 
-func (b *builder) startPos() {
-	b.startAt = uint16(b.w.Len())
-}
+//func (b *builder) startPos() {
+//	b.startAt = uint16(b.w.Len())
+//}
 
 func (b *builder) build() (uint16, []byte) {
-	return b.startAt, b.w.Bytes()
+	return 1, b.w.Bytes()
 }
 
 func (b *builder) jpmIfFalse() {
@@ -204,4 +204,81 @@ func (a *predef) getn(id int) rideFunction {
 		}
 	}
 	return a.prev.getn(id)
+}
+
+func reverse(f []Deferred) []Deferred {
+	out := make([]Deferred, 0, len(f))
+	for i := len(f) - 1; i >= 0; i-- {
+		out = append(out, f[i])
+	}
+	return out
+}
+
+type Deferred interface {
+	Write
+	Clean
+}
+
+type deferred struct {
+	write func()
+	clean func()
+}
+
+func (a deferred) Write(_ params) {
+	if a.write != nil {
+		a.write()
+	}
+}
+
+func (a deferred) Clean() {
+	if a.clean != nil {
+		a.clean()
+	}
+}
+
+type constantDeferred struct {
+	n uniqueid
+}
+
+func (a constantDeferred) Write(p params) {
+	p.b.writeByte(OpRef)
+	p.b.write(encode(a.n))
+}
+
+func (a constantDeferred) Clean() {
+}
+
+func NewDeferred(writeFunc func(), cleanFunc func()) Deferred {
+	return deferred{
+		write: writeFunc,
+		clean: cleanFunc,
+	}
+}
+
+func NewConstantDeferred(n uniqueid) constantDeferred {
+	return constantDeferred{n: n}
+}
+
+func writeDeferred(params params, d []Deferred) {
+	panic("writeDeferred 1")
+	if len(d) != 1 {
+		panic("writeDeferred len != 1")
+	}
+	d2 := reverse(d)
+
+	d2[0].Write(params)
+
+	for _, v := range d2 {
+		v.Clean()
+	}
+
+	params.b.ret()
+	for _, v := range d2[1:] {
+		v.Write(params)
+	}
+}
+
+func isConstant(deferred Deferred) (uniqueid, bool) {
+	v, ok := deferred.(constantDeferred)
+	return v.n, ok
 }

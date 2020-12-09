@@ -17,8 +17,8 @@ const (
 	OpCall                     //10 0xa - Call a function declared at given address. One parameter: position of function declaration.
 	OpSetArg                   //11 0xb - FROM (global) -> TO (local): Set value into cell. Two parameters: constant id and cell id.
 	OpCache                    //12 0xc - Put constant on stack. One parameter: constant ID.
-	OpRef                      //14 0xd = ref id
-	OpClearCache               //15 0xe = ref id
+	OpRef                      //13 0xd = ref id
+	OpClearCache               //14 0xe = ref id
 
 	// odd, will be removed.
 	OpGlobal
