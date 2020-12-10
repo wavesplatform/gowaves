@@ -1025,3 +1025,30 @@ func TestNoDuplicateCallToState(t *testing.T) {
 //	t.Log(m2)
 //
 //}
+
+/*
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE DAPP #-}
+
+@Verifier(tx)
+func verify () = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+*/
+func TestDappVerifyVm(t *testing.T) {
+	source := `AAIDAAAAAAAAAAIIAQAAAAAAAAAAAAAAAQAAAAJ0eAEAAAAGdmVyaWZ5AAAAAAkAAfQAAAADCAUAAAACdHgAAAAJYm9keUJ5dGVzCQABkQAAAAIIBQAAAAJ0eAAAAAZwcm9vZnMAAAAAAAAAAAAIBQAAAAJ0eAAAAA9zZW5kZXJQdWJsaWNLZXlQ99ml`
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	rs, err := script.Run(nil, []rideType{testTransferObject()})
+	require.NoError(t, err)
+	require.Equal(t, rs.Result(), true)
+}

@@ -38,11 +38,11 @@ type FuncState struct {
 	args        arguments
 	n           uniqueid
 	invokeParam string
+	paramIds    []uniqueid
 
 	// References that defined inside function.
 	deferred []Deferred
 	defers   *deferreds
-	//exe      Fsm
 }
 
 func (a FuncState) retAssigment(as Fsm) Fsm {
@@ -54,24 +54,22 @@ func (a FuncState) Property(name string) Fsm {
 	panic("FuncState Property")
 }
 
-func funcTransition(prev Fsm, params params, name string, args []string, invokeParam string) Fsm {
-	// save reference to global scope, where code lower that function will be able to use it.
+func funcTransition(prev Fsm, params params, name string, args []string, invokeParam string) Fsm { // save reference to global scope, where code lower that function will be able to use it.
 	n := params.u.next()
 	params.r.set(name, n)
 	// all variable we add only visible to current scope,
-	// avoid corrupting parent state.
+	// avoid corrupting global scope.
 	params.r = newReferences(params.r)
 
 	// Function call: verifier or not.
 	if invokeParam != "" {
 		args = append([]string{invokeParam}, args...)
 	}
+	paramIds := make([]uniqueid, 0, len(args))
 	for i := range args {
 		e := params.u.next()
-		//assigments = append(assigments, e)
+		paramIds = append(paramIds, e)
 		params.r.set(args[i], e)
-		// set to global
-		//globalScope.set(fmt.Sprintf("%s$%d", name, i), e)
 	}
 	//if invokeParam != "" {
 	//	assigments = assigments[1:]
@@ -87,13 +85,17 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 		defers: &deferreds{
 			name: "func " + name,
 		},
+		paramIds: paramIds,
 	}
 }
 
 func (a FuncState) Assigment(name string) Fsm {
 	n := a.params.u.next()
-	//a.assigments = append(a.assigments, n)
 	return assigmentFsmTransition(a, a.params, name, n, a.defers)
+}
+
+func (a FuncState) ParamIds() []uniqueid {
+	return a.paramIds
 }
 
 func (a FuncState) Return() Fsm {
@@ -151,10 +153,9 @@ func (a FuncState) Boolean(value bool) Fsm {
 	return a
 }
 
-func (a FuncState) String(s string) Fsm {
-	//a.lastStmtOffset = a.b.len()
-	//return constant(a, a.params, rideString(s))
-	panic("a")
+func (a FuncState) String(value string) Fsm {
+	a.deferred = append(a.deferred, a.constant(rideString(value)))
+	return a
 }
 
 func (a FuncState) Condition() Fsm {

@@ -65,6 +65,15 @@ func (a MainState) Assigment(name string) Fsm {
 
 func (a MainState) Return() Fsm {
 	reversed := reverse(a.deferred)
+
+	if f, ok := reversed[0].(FuncState); ok {
+		for i := len(f.ParamIds()) - 1; i >= 0; i-- {
+			a.b.writeByte(OpCache)
+			a.b.write(encode(f.ParamIds()[i]))
+			a.b.writeByte(OpPop)
+		}
+	}
+
 	for _, v := range reversed[:1] {
 		v.Write(a.params)
 	}

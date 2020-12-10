@@ -90,6 +90,7 @@ func (a PropertyState) Write(_ params) {
 	deferred := a.constant(rideString(a.name))
 	if n, ok := isConstant(deferred); ok {
 		a.params.b.write(encode(n))
+		a.b.ret()
 	} else {
 		panic("not constant")
 	}
