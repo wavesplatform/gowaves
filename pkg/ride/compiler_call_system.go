@@ -31,9 +31,9 @@ func (a CallSystemState) Func(name string, args []string, invoke string) Fsm {
 	return funcTransition(a, a.params, name, args, invoke)
 }
 
-func (a CallSystemState) Bytes(b []byte) Fsm {
-	//return constant(a, a.params, rideBytes(b))
-	panic("c")
+func (a CallSystemState) Bytes(value []byte) Fsm {
+	a.deferred = append(a.deferred, a.constant(rideBytes(value)))
+	return a
 }
 
 func (a CallSystemState) Condition() Fsm {
@@ -146,4 +146,5 @@ func (a CallSystemState) Write(_ params) {
 		panic(fmt.Sprintf("system function named `%s` not found", a.name))
 	}
 	a.b.externalCall(n, a.argc)
+	a.b.ret()
 }

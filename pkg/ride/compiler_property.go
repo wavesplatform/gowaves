@@ -29,8 +29,8 @@ func (a PropertyState) Return() Fsm {
 	//a.b.writeByte(OpProperty)
 	//index := a.constant(rideString(a.name))
 	//a.params.b.write(encode(index))
-	//return a.prev.retAssigment(a)
-	panic("aaaaa")
+	return a.prev.retAssigment(a)
+	//panic("aaaaa")
 }
 
 func (a PropertyState) Long(value int64) Fsm {
@@ -67,8 +67,9 @@ func (a PropertyState) FalseBranch() Fsm {
 }
 
 func (a PropertyState) Bytes(b []byte) Fsm {
-	a.deferred = append(a.deferred, a.constant(rideBytes(b)))
-	return a
+	panic("PropertyState Bytes")
+	//a.deferred = append(a.deferred, a.constant(rideBytes(b)))
+	//return a
 }
 
 func (a PropertyState) Func(name string, args []string, invoke string) Fsm {
@@ -84,5 +85,12 @@ func (a PropertyState) Clean() {
 }
 
 func (a PropertyState) Write(_ params) {
-	panic("PropertyState Write")
+	a.deferred[0].Write(a.params)
+	a.b.writeByte(OpProperty)
+	deferred := a.constant(rideString(a.name))
+	if n, ok := isConstant(deferred); ok {
+		a.params.b.write(encode(n))
+	} else {
+		panic("not constant")
+	}
 }
