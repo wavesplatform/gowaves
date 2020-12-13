@@ -6,13 +6,13 @@ type PropertyState struct {
 	prev Fsm
 	name string
 	params
-	deferred  []Deferred
+	body      Deferred
 	deferreds Deferreds
 	n         uniqueid
 }
 
 func (a PropertyState) retAssigment(as Fsm) Fsm {
-	a.deferred = append(a.deferred, as)
+	a.body = as
 	return a
 }
 
@@ -30,15 +30,17 @@ func (a PropertyState) Assigment(name string) Fsm {
 }
 
 func (a PropertyState) Return() Fsm {
-	//a.b.writeByte(OpProperty)
-	//index := a.constant(rideString(a.name))
-	//a.params.b.write(encode(index))
-
+	// 2 possible variations:
+	// 1) tx.id => body is reference
+	// 2) tx.sellOrder.assetPair => body is another property
 	a.n = a.params.u.next()
-	a.deferreds.Add(a.deferred[0], a.n, fmt.Sprintf("property `%s`", a.name))
-
+	if n, ok := isConstant(a.body); ok { // body is reference
+		a.n = n
+	} else { // body is another property
+		a.n = a.u.next()
+		a.deferreds.Add(a.body, a.n, fmt.Sprintf("property== `%s`", a.name))
+	}
 	return a.prev.retAssigment(a)
-	//panic("aaaaa")
 }
 
 func (a PropertyState) Long(value int64) Fsm {
@@ -50,7 +52,7 @@ func (a PropertyState) Call(name string, argc uint16) Fsm {
 }
 
 func (a PropertyState) Reference(name string) Fsm {
-	a.deferred = append(a.deferred, reference(a, a.params, name))
+	a.body = reference(a, a.params, name)
 	return a
 }
 
@@ -94,17 +96,9 @@ func (a PropertyState) Write(_ params) {
 	a.b.writeByte(OpRef)
 	a.b.write(encode(a.n))
 	next := a.u.next()
-	a.c.set(next, rideString(a.name), nil, 0, true, fmt.Sprintf("property %s", a.name))
+	a.c.set(next, rideString(a.name), nil, 0, true, fmt.Sprintf("property?? %s", a.name))
 	a.b.writeByte(OpRef)
 	a.b.write(encode(next))
 	a.b.writeByte(OpProperty)
 	a.b.ret()
-
-	//deferred := a.constant(rideString(a.name))
-	//if n, ok := isConstant(deferred); ok {
-	//	a.params.b.write(encode(n))
-	//	a.b.ret()
-	//} else {
-	//	panic("not constant")
-	//}
 }

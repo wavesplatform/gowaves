@@ -3,38 +3,37 @@ package ride
 import (
 	"encoding/binary"
 
-	//im "github.com/frozen/immutable_map"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const limitOperations = 20000
+
 type vm struct {
-	env          RideEnvironment
-	code         []byte
-	ip           int
-	constants    []rideType
-	functions    func(int) rideFunction
-	globals      func(int) rideConstructor
-	stack        []rideType
-	functionName func(int) string
-	jmps         []int
-	ref          map[uint16]point
-	cache        bool
-	calls        []callLog
+	env           RideEnvironment
+	code          []byte
+	ip            int
+	constants     []rideType
+	functions     func(int) rideFunction
+	globals       func(int) rideConstructor
+	stack         []rideType
+	functionName  func(int) string
+	jmps          []int
+	ref           map[uint16]point
+	cache         bool
+	calls         []callLog
+	numOperations int
 }
 
-func (m *vm) run() (RideResult, error) {
-	numOperations := 0
-	limitOperations := 20000
+func (m *vm) run() (rideType, error) {
 	//if m.stack != nil {
 	//	m.stack = m.stack[0:0]
 	//}
 
 	for m.ip < len(m.code) {
-		if numOperations >= limitOperations {
-			return ScriptResult{calls: m.calls}, errors.New("limit operations exceed")
+		if m.numOperations >= limitOperations {
+			return nil, errors.New("limit operations exceed")
 		}
-		numOperations++
+		m.numOperations++
 
 		op := m.code[m.ip]
 		m.ip++
@@ -116,12 +115,10 @@ func (m *vm) run() (RideResult, error) {
 				result: res,
 			})
 			if err != nil {
-				return nil, errors.Wrapf(err, "iteration %d", numOperations)
+				return nil, errors.Wrapf(err, "iteration %d", m.numOperations)
 			}
 			if isThrow(res) {
-				return ScriptResult{
-					calls: m.calls,
-				}, errors.Errorf("terminated execution by throw with message %q on iteration %d", res, numOperations)
+				return nil, errors.Errorf("terminated execution by throw with message %q on iteration %d", res, m.numOperations)
 			}
 			m.push(res)
 		case OpReturn:
@@ -132,28 +129,7 @@ func (m *vm) run() (RideResult, error) {
 					if err != nil {
 						return nil, errors.Wrap(err, "failed to get result value")
 					}
-					switch tv := v.(type) {
-					case rideBoolean:
-						return ScriptResult{res: bool(tv), operations: numOperations, calls: m.calls}, nil
-					case rideObject:
-						actions, err := objectToActions(m.env, tv)
-						if err != nil {
-							return nil, errors.Wrap(err, "failed to convert evaluation result")
-						}
-						return DAppResult{res: true, actions: actions, msg: "", calls: m.calls}, nil
-					case rideList:
-						actions := make([]proto.ScriptAction, len(tv))
-						for i, item := range tv {
-							a, err := convertToAction(m.env, item)
-							if err != nil {
-								return nil, errors.Wrap(err, "failed to convert evaluation result")
-							}
-							actions[i] = a
-						}
-						return DAppResult{res: true, actions: actions, calls: m.calls}, nil
-					default:
-						return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
-					}
+					return v, nil
 				}
 				return nil, errors.New("no result after script execution")
 			}
@@ -208,7 +184,7 @@ func (m *vm) run() (RideResult, error) {
 			}
 
 		default:
-			return nil, errors.Errorf("unknown code %#x, at iteration %d", op, numOperations)
+			return nil, errors.Errorf("unknown code %#x, at iteration %d", op, m.numOperations)
 		}
 	}
 	return nil, errors.New("broken code")

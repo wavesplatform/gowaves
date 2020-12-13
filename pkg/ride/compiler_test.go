@@ -13,6 +13,7 @@ func c(values ...rideType) []rideType {
 	return values
 }
 
+/*
 func TestSimpleScriptsCompilation(t *testing.T) {
 	for _, test := range []struct {
 		comment   string
@@ -95,6 +96,7 @@ func TestSimpleScriptsCompilation(t *testing.T) {
 		assert.ElementsMatch(t, test.constants, script.Constants, test.comment)
 	}
 }
+*/
 
 func TestDAppScriptsCompilation(t *testing.T) {
 	for _, test := range []struct {

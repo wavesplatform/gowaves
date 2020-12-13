@@ -204,6 +204,7 @@ func (a FuncState) Write(_ params) {
 		pos := a.b.len()
 		a.c.set(v.uniq, nil, nil, pos, false, v.debug)
 		v.deferred.Write(a.params)
+		a.b.ret()
 	}
 
 }
