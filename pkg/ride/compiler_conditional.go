@@ -104,15 +104,14 @@ func (a ConditionalState) Reference(name string) Fsm {
 	return a
 }
 
-func (a ConditionalState) Boolean(v bool) Fsm {
-	a.deferred = append(a.deferred, a.constant(rideBoolean(v)))
+func (a ConditionalState) Boolean(value bool) Fsm {
+	a.deferred = append(a.deferred, a.constant(rideBoolean(value)))
 	return a
 }
 
-func (a ConditionalState) String(s string) Fsm {
-	//a.rets = append(a.rets, a.params.b.len())
-	//return str(a, a.params, s)
-	panic("")
+func (a ConditionalState) String(value string) Fsm {
+	a.deferred = append(a.deferred, a.constant(rideString(value)))
+	return a
 }
 
 func (a ConditionalState) Return() Fsm {

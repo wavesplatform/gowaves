@@ -82,9 +82,9 @@ func Test22(t *testing.T) {
 		//{`let x =  throw(); true || x`, `AQQAAAABeAkBAAAABXRocm93AAAAAAMGBgUAAAABeKRnLds=`, env, true},
 		//{`tx == tx`, "BAkAAAAAAAACBQAAAAJ0eAUAAAACdHhnqgP4", env, true},
 		//{fcall1, "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA=", env, false},
-		//{`tx.id == base58''`, `AQkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAAJBtD70=`, env, false},
-		//{`tx.id == base58'H5C8bRzbUTMePSDVVxjiNKDUwk6CKzfZGTP2Rs7aCjsV'`, `BAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAIO7N5luRDUgN1SJ4kFmy/Ni8U2H6k7bpszok5tlLlRVgHwSHyg==`, env, false},
-		//{`tx.id == tx.id`, `BAkAAAAAAAACCAUAAAACdHgAAAACaWQIBQAAAAJ0eAAAAAJpZHErpOM=`, env, true},
+		{`tx.id == base58''`, `AQkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAAJBtD70=`, env, false},
+		{`tx.id == base58'H5C8bRzbUTMePSDVVxjiNKDUwk6CKzfZGTP2Rs7aCjsV'`, `BAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAIO7N5luRDUgN1SJ4kFmy/Ni8U2H6k7bpszok5tlLlRVgHwSHyg==`, env, false},
+		{`tx.id == tx.id`, `BAkAAAAAAAACCAUAAAACdHgAAAACaWQIBQAAAAJ0eAAAAAJpZHErpOM=`, env, true},
 		{`let x = tx.id == base58'a';true`, `AQQAAAABeAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAASEGjR0kcA==`, env, true},
 		{`tx.proofs[0] != base58'' && tx.proofs[1] == base58''`, `BAMJAQAAAAIhPQAAAAIJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAAEAAAAACQAAAAAAAAIJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAQEAAAAAB106gzM=`, env, true},
 		{`match tx {case t : TransferTransaction | MassTransferTransaction | ExchangeTransaction => true; case _ => false}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNFeGNoYW5nZVRyYW5zYWN0aW9uBgMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24GCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGB6Ilvok=`, env, true},
@@ -983,6 +983,7 @@ func TestNoDuplicateCallToState(t *testing.T) {
 	assert.NotNil(t, script)
 
 	rs, err := script.Run(env, []rideType{env.transaction()})
+	require.NoError(t, err)
 	for _, c := range rs.Calls() {
 		t.Log(c)
 	}
@@ -1049,6 +1050,67 @@ func TestDappVerifyVm(t *testing.T) {
 	assert.NotNil(t, script)
 
 	rs, err := script.Run(nil, []rideType{testTransferObject()})
+	require.NoError(t, err)
+	require.Equal(t, rs.Result(), true)
+}
+
+/*
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+
+match (tx) {
+    case e:ExchangeTransaction => isDefined(e.sellOrder.assetPair.priceAsset)
+    case _ => throw("err")
+  }
+*/
+func TestMultipleProperty(t *testing.T) {
+	source := `AwQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE0V4Y2hhbmdlVHJhbnNhY3Rpb24EAAAAAWUFAAAAByRtYXRjaDAJAQAAAAlpc0RlZmluZWQAAAABCAgIBQAAAAFlAAAACXNlbGxPcmRlcgAAAAlhc3NldFBhaXIAAAAKcHJpY2VBc3NldAkAAAIAAAABAgAAAANlcnIsqB0K`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+	}
+
+	rs, err := script.Run(env, nil)
+	require.NoError(t, err)
+	require.Equal(t, rs.Result(), true)
+}
+
+func TestProperty(t *testing.T) {
+	n := &FunctionDeclarationNode{
+		invocationParameter: "tx",
+		Name:                "v",
+		Body: &PropertyNode{
+			Name: "id",
+			Object: &ReferenceNode{
+				"tx",
+			},
+		},
+	}
+	tree := &Tree{
+		Verifier:   n,
+		LibVersion: 3,
+	}
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+	}
+
+	rs, err := script.Run(env, []rideType{testExchangeWithProofsToObject()})
 	require.NoError(t, err)
 	require.Equal(t, rs.Result(), true)
 }

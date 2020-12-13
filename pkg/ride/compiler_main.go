@@ -15,7 +15,7 @@ func (a MainState) retAssigment(state Fsm) Fsm {
 }
 
 func (a MainState) Property(name string) Fsm {
-	return propertyTransition(a, a.params, name)
+	return propertyTransition(a, a.params, name, a.deferreds)
 }
 
 func (a MainState) Func(name string, args []string, invoke string) Fsm {

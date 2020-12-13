@@ -470,3 +470,11 @@ func testTransferObject() rideObject {
 	}
 	return obj
 }
+
+func testExchangeWithProofsToObject() rideObject {
+	obj, err := exchangeWithProofsToObject('T', byte_helpers.ExchangeWithProofs.Transaction)
+	if err != nil {
+		panic(err.Error())
+	}
+	return obj
+}

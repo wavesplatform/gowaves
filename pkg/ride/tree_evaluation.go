@@ -76,7 +76,7 @@ func CallFunction(txID string, env RideEnvironment, tree *Tree, name string, arg
 	//}
 	rs2, err := CallFunction2(txID, env, tree, name, args)
 	if err != nil {
-		return nil, errors.Wrap(err, "call function by vm")
+		return rs2, errors.Wrap(err, "call function by vm")
 	}
 	//if !rs1.Eq(rs2) {
 	//	zap.S().Errorf("%s, result mismatch", txID)

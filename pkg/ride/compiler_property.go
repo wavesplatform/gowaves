@@ -1,23 +1,27 @@
 package ride
 
+import "fmt"
+
 type PropertyState struct {
 	prev Fsm
 	name string
 	params
 	deferred  []Deferred
 	deferreds Deferreds
+	n         uniqueid
 }
 
 func (a PropertyState) retAssigment(as Fsm) Fsm {
-	panic("implement me")
-	//return a
+	a.deferred = append(a.deferred, as)
+	return a
 }
 
-func propertyTransition(prev Fsm, params params, name string) Fsm {
+func propertyTransition(prev Fsm, params params, name string, d Deferreds) Fsm {
 	return &PropertyState{
-		params: params,
-		prev:   prev,
-		name:   name,
+		params:    params,
+		prev:      prev,
+		name:      name,
+		deferreds: d,
 	}
 }
 
@@ -29,6 +33,10 @@ func (a PropertyState) Return() Fsm {
 	//a.b.writeByte(OpProperty)
 	//index := a.constant(rideString(a.name))
 	//a.params.b.write(encode(index))
+
+	a.n = a.params.u.next()
+	a.deferreds.Add(a.deferred[0], a.n, fmt.Sprintf("property `%s`", a.name))
+
 	return a.prev.retAssigment(a)
 	//panic("aaaaa")
 }
@@ -68,8 +76,6 @@ func (a PropertyState) FalseBranch() Fsm {
 
 func (a PropertyState) Bytes(b []byte) Fsm {
 	panic("PropertyState Bytes")
-	//a.deferred = append(a.deferred, a.constant(rideBytes(b)))
-	//return a
 }
 
 func (a PropertyState) Func(name string, args []string, invoke string) Fsm {
@@ -77,7 +83,7 @@ func (a PropertyState) Func(name string, args []string, invoke string) Fsm {
 }
 
 func (a PropertyState) Property(name string) Fsm {
-	return propertyTransition(a, a.params, name)
+	return propertyTransition(a, a.params, name, a.deferreds)
 }
 
 func (a PropertyState) Clean() {
@@ -85,13 +91,20 @@ func (a PropertyState) Clean() {
 }
 
 func (a PropertyState) Write(_ params) {
-	a.deferred[0].Write(a.params)
+	a.b.writeByte(OpRef)
+	a.b.write(encode(a.n))
+	next := a.u.next()
+	a.c.set(next, rideString(a.name), nil, 0, true, fmt.Sprintf("property %s", a.name))
+	a.b.writeByte(OpRef)
+	a.b.write(encode(next))
 	a.b.writeByte(OpProperty)
-	deferred := a.constant(rideString(a.name))
-	if n, ok := isConstant(deferred); ok {
-		a.params.b.write(encode(n))
-		a.b.ret()
-	} else {
-		panic("not constant")
-	}
+	a.b.ret()
+
+	//deferred := a.constant(rideString(a.name))
+	//if n, ok := isConstant(deferred); ok {
+	//	a.params.b.write(encode(n))
+	//	a.b.ret()
+	//} else {
+	//	panic("not constant")
+	//}
 }

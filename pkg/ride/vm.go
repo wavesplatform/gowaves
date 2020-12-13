@@ -32,7 +32,7 @@ func (m *vm) run() (RideResult, error) {
 
 	for m.ip < len(m.code) {
 		if numOperations >= limitOperations {
-			return nil, errors.New("limit operations exceed")
+			return ScriptResult{calls: m.calls}, errors.New("limit operations exceed")
 		}
 		numOperations++
 
@@ -69,14 +69,19 @@ func (m *vm) run() (RideResult, error) {
 				m.ip = posFalse
 			}
 		case OpProperty:
+
+			//n := m.uint16()
+			prop, err := m.pop()
+			if err != nil {
+				return nil, err //errors.Wrap(err, "no ref %d", n)
+			}
+			p, ok := prop.(rideString)
+			if !ok {
+				return nil, errors.Errorf("invalid property type '%T'", prop)
+			}
 			obj, err := m.pop()
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get object")
-			}
-			prop := m.ref[m.uint16()].value
-			p, ok := prop.(rideString)
-			if !ok {
-				return nil, errors.Errorf("invalid property name type '%s'", prop.instanceOf())
 			}
 			v, err := obj.get(string(p))
 			if err != nil {

@@ -30,3 +30,7 @@ func (a *Executable) Run(environment RideEnvironment, arguments []rideType) (Rid
 
 	return v.run()
 }
+
+func (a *Executable) run(environment RideEnvironment, arguments []rideType) (rideType, error) {
+	return nil, nil
+}

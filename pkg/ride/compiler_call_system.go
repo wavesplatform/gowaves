@@ -24,7 +24,7 @@ func (a CallSystemState) retAssigment(state Fsm) Fsm {
 }
 
 func (a CallSystemState) Property(name string) Fsm {
-	return propertyTransition(a, a.params, name)
+	return propertyTransition(a, a.params, name, a.deferreds)
 }
 
 func (a CallSystemState) Func(name string, args []string, invoke string) Fsm {
@@ -53,9 +53,9 @@ func (a CallSystemState) String(value string) Fsm {
 	return a
 }
 
-func (a CallSystemState) Boolean(v bool) Fsm {
-	//return boolean(a, a.params, v)
-	panic("c")
+func (a CallSystemState) Boolean(value bool) Fsm {
+	a.deferred = append(a.deferred, a.constant(rideBoolean(value)))
+	return a
 }
 
 func callTransition(prev Fsm, params params, name string, argc uint16, d Deferreds) Fsm {

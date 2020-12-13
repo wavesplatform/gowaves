@@ -51,7 +51,7 @@ func (a FuncState) retAssigment(as Fsm) Fsm {
 }
 
 func (a FuncState) Property(name string) Fsm {
-	panic("FuncState Property")
+	return propertyTransition(a, a.params, name, a.defers)
 }
 
 func funcTransition(prev Fsm, params params, name string, args []string, invokeParam string) Fsm { // save reference to global scope, where code lower that function will be able to use it.
