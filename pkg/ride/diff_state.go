@@ -2,9 +2,10 @@ package ride
 
 import (
 	"bytes"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	_ "github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type diffDataEntries struct {
@@ -15,13 +16,13 @@ type diffDataEntries struct {
 }
 
 type diffBalance struct {
-	recipient proto.Recipient
+	address proto.Address
 	assetID   crypto.Digest
 	amount    int64
 }
 
 type diffWavesBalance struct {
-	recipient  proto.Recipient
+	address  proto.Address
 	regular    int64
 	generating int64
 	available  int64
@@ -34,7 +35,7 @@ type diffSponsorship struct {
 }
 
 type diffNewAssetInfo struct {
-	dAppIssuer  proto.Recipient
+	dAppIssuer  proto.Address
 	assetID     crypto.Digest
 	name        string
 	description string
@@ -46,12 +47,13 @@ type diffNewAssetInfo struct {
 }
 
 type diffOldAssetInfo struct {
-	dAppIssuer   proto.Recipient
+	dAppIssuer   proto.Address
 	assetID      crypto.Digest
 	diffQuantity int64
 }
 
 type diffState struct {
+	state    	  types.SmartState
 	dataEntries   diffDataEntries
 	balances      []diffBalance
 	wavesBalances []diffWavesBalance
@@ -96,22 +98,30 @@ func (diffSt *diffState) findBinaryFromDataEntryByKey(key string) *proto.BinaryD
 	return nil
 }
 
-func (diffSt *diffState) findWavesBalance(account proto.Recipient) *diffWavesBalance {
+func (diffSt *diffState) findWavesBalance(recipient proto.Recipient) (*diffWavesBalance, error) {
+	address, err := diffSt.state.NewestRecipientToAddress(recipient)
+	if err != nil {
+		return nil, errors.Errorf("cannot get address from recipient")
+	}
 	for _, v := range diffSt.wavesBalances {
-		if v.recipient == account {
-			return &v
+		if v.address == *address {
+			return &v, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
-func (diffSt *diffState) findBalance(account proto.Recipient, asset []byte) *diffBalance {
+func (diffSt *diffState) findBalance(recipient proto.Recipient, asset []byte) (*diffBalance, error) {
+	address, err := diffSt.state.NewestRecipientToAddress(recipient)
+	if err != nil {
+		return nil, errors.Errorf("cannot get address from recipient")
+	}
 	for _, v := range diffSt.balances {
-		if v.recipient == account && bytes.Equal(v.assetID.Bytes(), asset) {
-			return &v
+		if v.address == *address && bytes.Equal(v.assetID.Bytes(), asset) {
+			return &v, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (diffSt *diffState) findSponsorship(assetID crypto.Digest) *int64 {
