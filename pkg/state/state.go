@@ -1839,6 +1839,8 @@ func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo,
 	}, nil
 }
 
+// NewestFullAssetInfo is used to request full asset info from RIDE,
+// because of that we don't try to get issue transaction info.
 func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
 	ai, err := s.NewestAssetInfo(assetID)
 	if err != nil {
@@ -1848,15 +1850,11 @@ func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAs
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	tx, err := s.NewestTransactionByID(assetID.Bytes())
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
 	res := &proto.FullAssetInfo{
 		AssetInfo:        *ai,
 		Name:             info.name,
 		Description:      info.description,
-		IssueTransaction: tx,
+		IssueTransaction: nil, // Always return nil in this function because this field is not used later on
 	}
 	isSponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
 	if err != nil {

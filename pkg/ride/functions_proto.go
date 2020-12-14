@@ -316,7 +316,7 @@ func assetInfoV3(env RideEnvironment, args ...rideType) (rideType, error) {
 	}
 	info, err := env.state().NewestAssetInfo(asset)
 	if err != nil {
-		return nil, errors.Wrap(err, "assetInfoV3")
+		return rideUnit{}, nil
 	}
 	return assetInfoToObject(info), nil
 }
@@ -332,7 +332,7 @@ func assetInfoV4(env RideEnvironment, args ...rideType) (rideType, error) {
 	}
 	info, err := env.state().NewestFullAssetInfo(asset)
 	if err != nil {
-		return nil, errors.Wrap(err, "assetInfoV4")
+		return rideUnit{}, nil
 	}
 	return fullAssetInfoToObject(info), nil
 }
