@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"bytes"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -9,20 +8,19 @@ import (
 )
 
 type diffDataEntries struct {
-	diffInteger []proto.IntegerDataEntry
-	diffBool    []proto.BooleanDataEntry
-	diffString  []proto.StringDataEntry
-	diffBinary  []proto.BinaryDataEntry
+	diffInteger map[string]proto.IntegerDataEntry // map[key + address.String()]
+	diffBool    map[string]proto.BooleanDataEntry
+	diffString  map[string]proto.StringDataEntry
+	diffBinary  map[string]proto.BinaryDataEntry
+	diffDDelete map[string]proto.DeleteDataEntry
 }
 
 type diffBalance struct {
-	address proto.Address
-	assetID   crypto.Digest
-	amount    int64
+	assetID crypto.Digest
+	amount  int64
 }
 
 type diffWavesBalance struct {
-	address  proto.Address
 	regular    int64
 	generating int64
 	available  int64
@@ -30,8 +28,7 @@ type diffWavesBalance struct {
 }
 
 type diffSponsorship struct {
-	assetID crypto.Digest
-	MinFee  int64
+	MinFee int64
 }
 
 type diffNewAssetInfo struct {
@@ -47,53 +44,51 @@ type diffNewAssetInfo struct {
 }
 
 type diffOldAssetInfo struct {
-	dAppIssuer   proto.Address
 	assetID      crypto.Digest
 	diffQuantity int64
 }
 
 type diffState struct {
-	state    	  types.SmartState
+	state         types.SmartState
 	dataEntries   diffDataEntries
-	balances      []diffBalance
-	wavesBalances []diffWavesBalance
-	sponsorships  []diffSponsorship
-	newAssetsInfo []diffNewAssetInfo
-	oldAssetsInfo []diffOldAssetInfo
+	balances      map[string]diffBalance      // map[address.String() + Digest.String()]
+	wavesBalances map[string]diffWavesBalance // map[address.String()]
+	sponsorships  map[string]diffSponsorship  // map[Digest.String()]
+	newAssetsInfo map[string]diffNewAssetInfo // map[address.String()]
+	oldAssetsInfo map[string]diffOldAssetInfo // map[address.String()]
 }
 
-func (diffSt *diffState) findIntFromDataEntryByKey(key string) *proto.IntegerDataEntry {
-	for _, intDataEntry := range diffSt.dataEntries.diffInteger {
-		if key == intDataEntry.Key {
-			return &intDataEntry
-		}
+func (diffSt *diffState) findIntFromDataEntryByKey(key string, address string) *proto.IntegerDataEntry {
+	if integerEntry, ok := diffSt.dataEntries.diffInteger[key+address]; ok {
+		return &integerEntry
 	}
 	return nil
 }
 
-func (diffSt *diffState) findBoolFromDataEntryByKey(key string) *proto.BooleanDataEntry {
-	for _, boolDataEntry := range diffSt.dataEntries.diffBool {
-		if key == boolDataEntry.Key {
-			return &boolDataEntry
-		}
+func (diffSt *diffState) findBoolFromDataEntryByKey(key string, address string) *proto.BooleanDataEntry {
+	if boolEntry, ok := diffSt.dataEntries.diffBool[key+address]; ok {
+		return &boolEntry
 	}
 	return nil
 }
 
-func (diffSt *diffState) findStringFromDataEntryByKey(key string) *proto.StringDataEntry {
-	for _, stringDataEntry := range diffSt.dataEntries.diffString {
-		if key == stringDataEntry.Key {
-			return &stringDataEntry
-		}
+func (diffSt *diffState) findStringFromDataEntryByKey(key string, address string) *proto.StringDataEntry {
+	if stringEntry, ok := diffSt.dataEntries.diffString[key+address]; ok {
+		return &stringEntry
 	}
 	return nil
 }
 
-func (diffSt *diffState) findBinaryFromDataEntryByKey(key string) *proto.BinaryDataEntry {
-	for _, binaryDataEntry := range diffSt.dataEntries.diffBinary {
-		if key == binaryDataEntry.Key {
-			return &binaryDataEntry
-		}
+func (diffSt *diffState) findBinaryFromDataEntryByKey(key string, address string) *proto.BinaryDataEntry {
+	if binaryEntry, ok := diffSt.dataEntries.diffBinary[key+address]; ok {
+		return &binaryEntry
+	}
+	return nil
+}
+
+func (diffSt *diffState) findDeleteFromDataEntryByKey(key string, address string) *proto.DeleteDataEntry {
+	if deleteEntry, ok := diffSt.dataEntries.diffDDelete[key+address]; ok {
+		return &deleteEntry
 	}
 	return nil
 }
@@ -103,10 +98,8 @@ func (diffSt *diffState) findWavesBalance(recipient proto.Recipient) (*diffWaves
 	if err != nil {
 		return nil, errors.Errorf("cannot get address from recipient")
 	}
-	for _, v := range diffSt.wavesBalances {
-		if v.address == *address {
-			return &v, nil
-		}
+	if wavesBalance, ok := diffSt.wavesBalances[address.String()]; ok {
+		return &wavesBalance, nil
 	}
 	return nil, nil
 }
@@ -116,37 +109,33 @@ func (diffSt *diffState) findBalance(recipient proto.Recipient, asset []byte) (*
 	if err != nil {
 		return nil, errors.Errorf("cannot get address from recipient")
 	}
-	for _, v := range diffSt.balances {
-		if v.address == *address && bytes.Equal(v.assetID.Bytes(), asset) {
-			return &v, nil
-		}
+	assetID, err := crypto.NewDigestFromBytes(asset)
+	if err != nil {
+		return nil, err
+	}
+	if balance, ok := diffSt.balances[address.String()+assetID.String()]; ok {
+		return &balance, nil
 	}
 	return nil, nil
 }
 
 func (diffSt *diffState) findSponsorship(assetID crypto.Digest) *int64 {
-	for _, v := range diffSt.sponsorships {
-		if assetID == v.assetID {
-			return &v.MinFee
-		}
+	if sponsorship, ok := diffSt.sponsorships[assetID.String()]; ok {
+		return &sponsorship.MinFee
 	}
 	return nil
 }
 
 func (diffSt *diffState) findNewAsset(assetID crypto.Digest) *diffNewAssetInfo {
-	for _, v := range diffSt.newAssetsInfo {
-		if assetID == v.assetID {
-			return &v
-		}
+	if newAsset, ok := diffSt.newAssetsInfo[assetID.String()]; ok {
+		return &newAsset
 	}
 	return nil
 }
 
 func (diffSt *diffState) findOldAsset(assetID crypto.Digest) *diffOldAssetInfo {
-	for _, v := range diffSt.oldAssetsInfo {
-		if assetID == v.assetID {
-			return &v
-		}
+	if oldAsset, ok := diffSt.oldAssetsInfo[assetID.String()]; ok {
+		return &oldAsset
 	}
 	return nil
 }

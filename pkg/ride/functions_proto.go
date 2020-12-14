@@ -1029,10 +1029,23 @@ func sponsorship(_ RideEnvironment, args ...rideType) (rideType, error) {
 }
 
 func attachedPayment(_ RideEnvironment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 2); err != nil {
+		return nil, errors.Wrap(err, "attachedPayment")
+	}
 	r := make(rideObject)
 	r[instanceFieldName] = rideString("AttachedPayment")
-	r["assetId"] = args[0].(rideBytes)
-	r["amount"] = args[1].(rideInt)
+
+	assetID, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("cannot cast args[0] to rideBytes, attachedPayment")
+	}
+	r["assetId"] = assetID
+
+	amount, ok := args[1].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("cannot cast args[1] to rideInt, attachedPayment")
+	}
+	r["amount"] = amount
 	return r, nil
 }
 

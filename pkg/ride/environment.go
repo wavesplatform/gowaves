@@ -65,38 +65,73 @@ func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (
 		resEffective := wavesBalanceDiff.effective + int64(balance.Effective)
 
 		return &proto.FullWavesBalance{Regular: uint64(resRegular),
-				Generating: uint64(resGenerating),
-				Available:  uint64(resAvailable),
-				Effective:  uint64(resEffective),
-				LeaseIn:    balance.LeaseIn,
-				LeaseOut:   balance.LeaseOut}, nil
-
-
+			Generating: uint64(resGenerating),
+			Available:  uint64(resAvailable),
+			Effective:  uint64(resEffective),
+			LeaseIn:    balance.LeaseIn,
+			LeaseOut:   balance.LeaseOut}, nil
 
 	}
 	return balance, nil
 }
 
 func (wrappedSt *wrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-	if intDataEntry := wrappedSt.diff.findIntFromDataEntryByKey(key); intDataEntry != nil {
+	address, err := wrappedSt.diff.state.NewestRecipientToAddress(account)
+	if err != nil {
+		return nil, err
+	}
+
+	if deletedDataEntry := wrappedSt.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+		return nil, nil
+	}
+
+	if intDataEntry := wrappedSt.diff.findIntFromDataEntryByKey(key, address.String()); intDataEntry != nil {
 		return intDataEntry, nil
 	}
+
 	return wrappedSt.diff.state.RetrieveNewestIntegerEntry(account, key)
 }
 func (wrappedSt *wrappedState) RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-	if boolDataEntry := wrappedSt.diff.findBoolFromDataEntryByKey(key); boolDataEntry != nil {
+	address, err := wrappedSt.diff.state.NewestRecipientToAddress(account)
+	if err != nil {
+		return nil, err
+	}
+
+	if deletedDataEntry := wrappedSt.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+		return nil, nil
+	}
+
+	if boolDataEntry := wrappedSt.diff.findBoolFromDataEntryByKey(key, address.String()); boolDataEntry != nil {
 		return boolDataEntry, nil
 	}
 	return wrappedSt.diff.state.RetrieveNewestBooleanEntry(account, key)
 }
 func (wrappedSt *wrappedState) RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-	if stringDataEntry := wrappedSt.diff.findStringFromDataEntryByKey(key); stringDataEntry != nil {
+	address, err := wrappedSt.diff.state.NewestRecipientToAddress(account)
+	if err != nil {
+		return nil, err
+	}
+
+	if deletedDataEntry := wrappedSt.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+		return nil, nil
+	}
+
+	if stringDataEntry := wrappedSt.diff.findStringFromDataEntryByKey(key, address.String()); stringDataEntry != nil {
 		return stringDataEntry, nil
 	}
 	return wrappedSt.diff.state.RetrieveNewestStringEntry(account, key)
 }
 func (wrappedSt *wrappedState) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-	if binaryDataEntry := wrappedSt.diff.findBinaryFromDataEntryByKey(key); binaryDataEntry != nil {
+	address, err := wrappedSt.diff.state.NewestRecipientToAddress(account)
+	if err != nil {
+		return nil, err
+	}
+
+	if deletedDataEntry := wrappedSt.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+		return nil, nil
+	}
+
+	if binaryDataEntry := wrappedSt.diff.findBinaryFromDataEntryByKey(key, address.String()); binaryDataEntry != nil {
 		return binaryDataEntry, nil
 	}
 	return wrappedSt.diff.state.RetrieveNewestBinaryEntry(account, key)
@@ -129,7 +164,6 @@ func (wrappedSt *wrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.As
 
 		return assetFromStore, nil
 	}
-
 
 	issuerPK, err := wrappedSt.NewestScriptPKByAddr(searchNewAsset.dAppIssuer, false)
 	if err != nil {
@@ -239,7 +273,7 @@ func (wrappedSt *wrappedState) IsNotFound(err error) bool {
 }
 
 type wrappedState struct {
-	diff     diffState
+	diff diffState
 }
 
 type Environment struct {
@@ -254,13 +288,19 @@ type Environment struct {
 	inv   rideObject
 }
 
-
 func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return nil, err
 	}
-	diffSt := diffState{state: state}
+	var dataEntries diffDataEntries
+	dataEntries.diffInteger = map[string]proto.IntegerDataEntry{}
+	dataEntries.diffBool = map[string]proto.BooleanDataEntry{}
+	dataEntries.diffString = map[string]proto.StringDataEntry{}
+	dataEntries.diffBinary = map[string]proto.BinaryDataEntry{}
+	dataEntries.diffDDelete = map[string]proto.DeleteDataEntry{}
+
+	diffSt := diffState{state: state, dataEntries: dataEntries}
 	wrappedSt := wrappedState{diff: diffSt}
 	return &Environment{
 		sch:   scheme,
@@ -395,28 +435,30 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 		case proto.DataEntryScriptAction:
 
 			switch dataEntry := res.Entry.(type) {
-			case *proto.IntegerDataEntry:
-				var intEntry proto.IntegerDataEntry
-				intEntry.Value = dataEntry.Value
-				intEntry.Key = res.Entry.GetKey()
 
-				e.st.diff.dataEntries.diffInteger = append(e.st.diff.dataEntries.diffInteger, intEntry)
+			case *proto.IntegerDataEntry:
+				intEntry := *dataEntry
+				addr := proto.Address(e.th.(rideAddress))
+
+				e.st.diff.dataEntries.diffInteger[dataEntry.Key+addr.String()] = intEntry
 
 			case *proto.BooleanDataEntry:
-				var boolEntry proto.BooleanDataEntry
-				boolEntry.Value = dataEntry.Value
-				boolEntry.Key = res.Entry.GetKey()
+				boolEntry := *dataEntry
+				addr := proto.Address(e.th.(rideAddress))
 
-				e.st.diff.dataEntries.diffBool = append(e.st.diff.dataEntries.diffBool, boolEntry)
+				e.st.diff.dataEntries.diffBool[dataEntry.Key+addr.String()] = boolEntry
+
 			case *proto.BinaryDataEntry:
-				var binaryEntry proto.BinaryDataEntry
-				binaryEntry.Value = dataEntry.Value
-				binaryEntry.Key = res.Entry.GetKey()
+				binaryEntry := *dataEntry
+				addr := proto.Address(e.th.(rideAddress))
 
-				e.st.diff.dataEntries.diffBinary = append(e.st.diff.dataEntries.diffBinary, binaryEntry)
+				e.st.diff.dataEntries.diffBinary[dataEntry.Key+addr.String()] = binaryEntry
 
 			case *proto.DeleteDataEntry:
-				//key := res.Entry.GetKey()
+				deleteEntry := *dataEntry
+				addr := proto.Address(e.th.(rideAddress))
+
+				e.st.diff.dataEntries.diffDDelete[dataEntry.Key+addr.String()] = deleteEntry
 			default:
 
 			}
@@ -428,16 +470,19 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 			}
 			if searchBalance != nil {
 				searchBalance.amount += res.Amount
+
+				// TODO списать у отправителя
+
 			} else {
-				var balance diffBalance
 				address, err := e.st.NewestRecipientToAddress(res.Recipient)
 				if err != nil {
 					return err
 				}
-				balance.address = *address
+				var balance diffBalance
 				balance.assetID = res.Asset.ID
 				balance.amount = res.Amount
-				e.st.diff.balances = append(e.st.diff.balances, balance)
+
+				e.st.diff.balances[address.String()+res.Asset.ID.String()] = balance
 			}
 			searchWavesBalance, err := e.st.diff.findWavesBalance(res.Recipient)
 			if err != nil {
@@ -449,30 +494,27 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 				searchWavesBalance.generating += res.Amount
 				searchWavesBalance.effective += res.Amount
 			} else {
-				var wavesBalance diffWavesBalance
 				address, err := e.st.NewestRecipientToAddress(res.Recipient)
 				if err != nil {
 					return err
 				}
-				wavesBalance.address = *address
+				var wavesBalance diffWavesBalance
 				wavesBalance.regular = res.Amount
 				wavesBalance.available = res.Amount
 				wavesBalance.generating = res.Amount
 				wavesBalance.effective = res.Amount
 
-				e.st.diff.wavesBalances = append(e.st.diff.wavesBalances, wavesBalance)
+				e.st.diff.wavesBalances[address.String()+res.Asset.ID.String()] = wavesBalance
 			}
 
 		case proto.SponsorshipScriptAction:
-
 			var sponsorship diffSponsorship
-			sponsorship.assetID = res.AssetID
 			sponsorship.MinFee = res.MinFee
 
-			e.st.diff.sponsorships = append(e.st.diff.sponsorships, sponsorship)
+			e.st.diff.sponsorships[res.AssetID.String()] = sponsorship
+
 		case proto.IssueScriptAction:
 			var assetInfo diffNewAssetInfo
-
 			assetInfo.dAppIssuer = proto.Address(e.th.(rideAddress))
 			assetInfo.assetID = res.ID
 			assetInfo.name = res.Name
@@ -483,18 +525,17 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 			assetInfo.script = res.Script
 			assetInfo.nonce = res.Nonce
 
-			e.st.diff.newAssetsInfo = append(e.st.diff.newAssetsInfo, assetInfo)
+			e.st.diff.newAssetsInfo[assetInfo.dAppIssuer.String()] = assetInfo
 
 		case proto.ReissueScriptAction:
 			searchNewAsset := e.st.diff.findNewAsset(res.AssetID)
 			if searchNewAsset == nil {
 				var assetInfo diffOldAssetInfo
 
-				assetInfo.dAppIssuer = proto.Address(e.th.(rideAddress))
 				assetInfo.assetID = res.AssetID
 				assetInfo.diffQuantity = res.Quantity
 
-				e.st.diff.oldAssetsInfo = append(e.st.diff.oldAssetsInfo, assetInfo)
+				e.st.diff.oldAssetsInfo[proto.Address(e.th.(rideAddress)).String()] = assetInfo
 				break
 			}
 			searchNewAsset.quantity += res.Quantity
@@ -504,12 +545,10 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 			if searchAsset == nil {
 				var assetInfo diffOldAssetInfo
 
-
-				assetInfo.dAppIssuer = proto.Address(e.th.(rideAddress))
 				assetInfo.assetID = res.AssetID
 				assetInfo.diffQuantity = -res.Quantity
 
-				e.st.diff.oldAssetsInfo = append(e.st.diff.oldAssetsInfo, assetInfo)
+				e.st.diff.oldAssetsInfo[proto.Address(e.th.(rideAddress)).String()] = assetInfo
 				break
 			}
 			searchAsset.quantity -= res.Quantity
