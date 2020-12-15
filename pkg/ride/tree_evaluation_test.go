@@ -825,9 +825,154 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 
 	id := bytes.Repeat([]byte{0}, 32)
 
-	expectedDataWrites := []*proto.IssueScriptAction{
+	expectedIsuueDataWrites := []*proto.IssueScriptAction{
 		{Name: "Asset", Description: "", Quantity: 3, Decimals: 0, Reissuable: true, Script: nil, Nonce: 0},
 	}
+	i := 0
+	for address, scripts := range addressScripts {
+
+		env := &MockRideEnvironment{
+			stateFunc: func() types.SmartState {
+				return &MockSmartState{
+					GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+						var script proto.Script
+						var err error
+						if recipient.Address.String() == address {
+							script, err = base64.StdEncoding.DecodeString(scripts.secondScript)
+							require.NoError(t, err)
+							return script, nil
+						}
+
+						return script, nil
+					},
+					NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+						addr, err := proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
+						return &addr, err
+					},
+				}
+			},
+			txIDFunc: func() rideType {
+				return rideBytes(id)
+			},
+			setNewDAppAddressFunc: func(address proto.Address) {
+			},
+			applyToStateFunc: func(actions []proto.ScriptAction) error {
+				return nil
+			},
+		}
+		pid, ok := env.txID().(rideBytes)
+		require.True(t, ok)
+		d, err := crypto.NewDigestFromBytes(pid)
+		require.NoError(t, err)
+		expectedIsuueDataWrites[i].ID = proto.GenerateIssueScriptActionID(expectedIsuueDataWrites[i].Name, expectedIsuueDataWrites[i].Description, int64(expectedIsuueDataWrites[i].Decimals), expectedIsuueDataWrites[i].Quantity, expectedIsuueDataWrites[i].Reissuable, expectedIsuueDataWrites[i].Nonce, d)
+
+		src, err := base64.StdEncoding.DecodeString(scripts.firstScript)
+		require.NoError(t, err)
+
+		tree, err := Parse(src)
+		require.NoError(t, err)
+		assert.NotNil(t, tree)
+
+		res, err := CallFunction(env, tree, "test", proto.Arguments{})
+		require.NoError(t, err)
+		r, ok := res.(DAppResult)
+		require.True(t, ok)
+		require.True(t, r.res)
+
+		sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+		require.NoError(t, err)
+
+		expectedResult := &proto.ScriptResult{
+			DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+			Transfers:    make([]*proto.TransferScriptAction, 0),
+			Issues:       expectedIsuueDataWrites,
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		}
+		assert.Equal(t, expectedResult, sr)
+		i++
+	}
+
+}
+
+func TestInvokeDAppFromDAppAllActions(t *testing.T) {
+
+	/* script 1
+	{-# STDLIB_VERSION 4 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	func callDApp(dapp:Address|Alias, function:String, arguments:List[Int], payments:List[AttachedPayment]) = {([],true)}
+
+	@Callable(i)
+	func test() = {
+	  let res = callDApp(Address(base58'3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP'), "testActions",[], [AttachedPayment(base58'', 1234), AttachedPayment(base58'', 1234)])
+	  res._1
+	}
+
+	*/
+
+	/* script 2
+	{-# STDLIB_VERSION 4 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func testActions() = {
+	  let asset = Issue("CatCoin", "", 1, 0, true, unit, 0)
+	  let assetId = asset.calculateAssetId()
+
+	  [
+		ScriptTransfer(Address(''), 3, assetId)
+	    BinaryEntry("bin", base58''),
+	    BooleanEntry("bool", true),
+	    IntegerEntry("int", 1),
+	    StringEntry("str", ""),
+	    DeleteEntry("str"),
+	    asset,
+	    Reissue(assetId, 10, false),
+	    Burn(assetId, 5),
+	  ]
+	}
+	*/
+	type Scripts struct {
+		firstScript  string
+		secondScript string
+	}
+
+	addressScripts := make(map[string]Scripts)
+	addressScripts["3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP"] = Scripts{
+		firstScript:  "AAIEAAAAAAAAAAQIAhIAAAAAAQEAAAAIY2FsbERBcHAAAAAEAAAABGRhcHAAAAAIZnVuY3Rpb24AAAAJYXJndW1lbnRzAAAACHBheW1lbnRzCQAFFAAAAAIFAAAAA25pbAYAAAABAAAAAWkBAAAABHRlc3QAAAAABAAAAANyZXMJAQAAAAhjYWxsREFwcAAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVcjs60SXJOkyuw5/k9G1s1WTS37EPtjmHoCAAAAC3Rlc3RBY3Rpb25zBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIBAAAAAAAAAAAAAAAE0gkABEwAAAACCQEAAAAPQXR0YWNoZWRQYXltZW50AAAAAgEAAAAAAAAAAAAAAATSBQAAAANuaWwIBQAAAANyZXMAAAACXzEAAAAAN8UcaQ==",
+		secondScript: "AAIEAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAALdGVzdEFjdGlvbnMAAAAABAAAAAVhc3NldAkABEMAAAAHAgAAAAdDYXRDb2luAgAAAAAAAAAAAAAAAAEAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAABAAAAAdhc3NldElkCQAEOAAAAAEFAAAABWFzc2V0CQAETAAAAAIJAQAAAAtCaW5hcnlFbnRyeQAAAAICAAAAA2JpbgEAAAAACQAETAAAAAIJAQAAAAxCb29sZWFuRW50cnkAAAACAgAAAARib29sBgkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADaW50AAAAAAAAAAABCQAETAAAAAIJAQAAAAtTdHJpbmdFbnRyeQAAAAICAAAAA3N0cgIAAAAACQAETAAAAAIJAQAAAAtEZWxldGVFbnRyeQAAAAECAAAAA3N0cgkABEwAAAACBQAAAAVhc3NldAkABEwAAAACCQEAAAAHUmVpc3N1ZQAAAAMFAAAAB2Fzc2V0SWQAAAAAAAAAAAoHCQAETAAAAAIJAQAAAARCdXJuAAAAAgUAAAAHYXNzZXRJZAAAAAAAAAAABQUAAAADbmlsAAAAAPfUy1Q="}
+
+	id := bytes.Repeat([]byte{0}, 32)
+
+	expectedIssueWrites := []*proto.IssueScriptAction{
+		{Name: "CatCoin", Description: "", Quantity: 1, Decimals: 0, Reissuable: true, Script: nil, Nonce: 0},
+	}
+	expectedReissueWrites := []*proto.ReissueScriptAction{
+		{Quantity: 10, Reissuable: false},
+	}
+
+	expectedBurnWrites := []*proto.BurnScriptAction{
+		{Quantity: 5},
+	}
+	ra, err := proto.NewAddressFromString("3PMien5gUbwzrjLxJxuzDFdWLAupWZefH7v")
+	require.NoError(t, err)
+	rcp := proto.NewRecipientFromAddress(ra)
+	expectedTransferWrites := []*proto.TransferScriptAction{
+		{Recipient: rcp, Amount: 3},
+	}
+
+	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.BinaryDataEntry{Key: "bin", Value: []byte("")}},
+		{Entry: &proto.BooleanDataEntry{Key: "bool", Value: true}},
+		{Entry: &proto.IntegerDataEntry{Key: "int", Value: 1}},
+		{Entry: &proto.StringDataEntry{Key: "str", Value: ""}},
+		{Entry: &proto.DeleteDataEntry{Key: "str"}},
+	}
+
 	i := 0
 	for address, scripts := range addressScripts {
 
@@ -863,7 +1008,10 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 		require.True(t, ok)
 		d, err := crypto.NewDigestFromBytes(pid)
 		require.NoError(t, err)
-		expectedDataWrites[i].ID = proto.GenerateIssueScriptActionID(expectedDataWrites[i].Name, expectedDataWrites[i].Description, int64(expectedDataWrites[i].Decimals), expectedDataWrites[i].Quantity, expectedDataWrites[i].Reissuable, expectedDataWrites[i].Nonce, d)
+		expectedIssueWrites[i].ID = proto.GenerateIssueScriptActionID(expectedIssueWrites[i].Name, expectedIssueWrites[i].Description, int64(expectedIssueWrites[i].Decimals), expectedIssueWrites[i].Quantity, expectedIssueWrites[i].Reissuable, expectedIssueWrites[i].Nonce, d)
+		expectedReissueWrites[i].AssetID = expectedIssueWrites[i].ID
+		expectedBurnWrites[i].AssetID = expectedIssueWrites[i].ID
+		expectedTransferWrites[i].Asset.ID = expectedIssueWrites[i].ID
 
 		src, err := base64.StdEncoding.DecodeString(scripts.firstScript)
 		require.NoError(t, err)
@@ -882,11 +1030,11 @@ func TestInvokeDAppFromDApp(t *testing.T) {
 		require.NoError(t, err)
 
 		expectedResult := &proto.ScriptResult{
-			DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+			DataEntries:  expectedDataEntryWrites,
 			Transfers:    make([]*proto.TransferScriptAction, 0),
-			Issues:       expectedDataWrites,
-			Reissues:     make([]*proto.ReissueScriptAction, 0),
-			Burns:        make([]*proto.BurnScriptAction, 0),
+			Issues:       expectedIssueWrites,
+			Reissues:     expectedReissueWrites,
+			Burns:        expectedBurnWrites,
 			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 		}
 		assert.Equal(t, expectedResult, sr)

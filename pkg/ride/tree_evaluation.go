@@ -17,7 +17,7 @@ func invokeFunctionFromDApp(env RideEnvironment, recipient proto.Recipient, fnNa
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
 	if err != nil {
-		return nil, errors.Errorf("cannot get address from dApp")
+		return nil, errors.Errorf("cannot get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
 
