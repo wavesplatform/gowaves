@@ -16,8 +16,8 @@ type diffDataEntries struct {
 }
 
 type diffBalance struct {
-	assetID    crypto.Digest
-	amount     int64
+	assetID crypto.Digest
+	amount  int64
 }
 
 type diffSponsorship struct {
