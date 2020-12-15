@@ -10,4 +10,5 @@ func getInt(key: String) = {
 
 let a = getInt("5")
 let b = getInt("6")
-a == b`
+a == b
+`

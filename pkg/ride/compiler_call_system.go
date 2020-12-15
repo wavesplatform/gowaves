@@ -18,7 +18,7 @@ type CallSystemState struct {
 	ns        []uniqueid
 }
 
-func (a CallSystemState) retAssigment(state Fsm) Fsm {
+func (a CallSystemState) backward(state Fsm) Fsm {
 	a.deferred = append(a.deferred, state.(Deferred))
 	return a
 }
@@ -109,7 +109,7 @@ func (a CallSystemState) Return() Fsm {
 		}
 	}
 
-	return a.prev.retAssigment(a)
+	return a.prev.backward(a)
 }
 
 func (a CallSystemState) Call(name string, argc uint16) Fsm {
@@ -125,7 +125,7 @@ func (a CallSystemState) Clean() {
 
 }
 
-func (a CallSystemState) Write(_ params) {
+func (a CallSystemState) Write(_ params, b []byte) {
 	if int(a.argc) != len(a.deferred) {
 		panic(fmt.Sprintf("argc %d != a.deferred %d", a.argc, len(a.deferred)))
 	}
@@ -146,5 +146,6 @@ func (a CallSystemState) Write(_ params) {
 		panic(fmt.Sprintf("system function named `%s` not found", a.name))
 	}
 	a.b.externalCall(n, a.argc)
-	a.b.ret()
+	//a.b.write(b)
+	//a.b.ret()
 }

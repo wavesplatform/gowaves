@@ -219,28 +219,28 @@ type Deferred interface {
 	Clean
 }
 
-type deferred struct {
-	write func()
-	clean func()
-}
+//type deferred struct {
+//	write func()
+//	clean func()
+//}
 
-func (a deferred) Write(_ params) {
-	if a.write != nil {
-		a.write()
-	}
-}
-
-func (a deferred) Clean() {
-	if a.clean != nil {
-		a.clean()
-	}
-}
+//func (a deferred) Write(_ params, _ []byte) {
+//	if a.write != nil {
+//		a.write()
+//	}
+//}
+//
+//func (a deferred) Clean() {
+//	if a.clean != nil {
+//		a.clean()
+//	}
+//}
 
 type constantDeferred struct {
 	n uniqueid
 }
 
-func (a constantDeferred) Write(p params) {
+func (a constantDeferred) Write(p params, _ []byte) {
 	p.b.writeByte(OpRef)
 	p.b.write(encode(a.n))
 }
@@ -248,35 +248,35 @@ func (a constantDeferred) Write(p params) {
 func (a constantDeferred) Clean() {
 }
 
-func NewDeferred(writeFunc func(), cleanFunc func()) Deferred {
-	return deferred{
-		write: writeFunc,
-		clean: cleanFunc,
-	}
-}
+//func NewDeferred(writeFunc func(), cleanFunc func()) Deferred {
+//	return deferred{
+//		write: writeFunc,
+//		clean: cleanFunc,
+//	}
+//}
 
 func NewConstantDeferred(n uniqueid) constantDeferred {
 	return constantDeferred{n: n}
 }
 
-func writeDeferred(params params, d []Deferred) {
-	panic("writeDeferred 1")
-	if len(d) != 1 {
-		panic("writeDeferred len != 1")
-	}
-	d2 := reverse(d)
-
-	d2[0].Write(params)
-
-	for _, v := range d2 {
-		v.Clean()
-	}
-
-	params.b.ret()
-	for _, v := range d2[1:] {
-		v.Write(params)
-	}
-}
+//func writeDeferred(params params, d []Deferred) {
+//	panic("writeDeferred 1")
+//	if len(d) != 1 {
+//		panic("writeDeferred len != 1")
+//	}
+//	d2 := reverse(d)
+//
+//	d2[0].Write(params)
+//
+//	for _, v := range d2 {
+//		v.Clean()
+//	}
+//
+//	params.b.ret()
+//	for _, v := range d2[1:] {
+//		v.Write(params)
+//	}
+//}
 
 func isConstant(deferred Deferred) (uniqueid, bool) {
 	v, ok := deferred.(constantDeferred)

@@ -180,7 +180,6 @@ func TestCallExternal(t *testing.T) {
 			OpRef, 0, 4,
 			OpExternalCall, 0, 3, 0, 2,
 			OpReturn,
-			OpReturn,
 		},
 		f.ByteCode)
 }
@@ -352,8 +351,8 @@ func TestClearInternalVariables(t *testing.T) {
 			OpClearCache, 0, 2,
 			OpClearCache, 0, 4,
 			OpReturn,
-			OpRef, 0, 3, OpReturn, OpReturn,
-			OpRef, 0, 5, OpReturn, OpReturn,
+			OpRef, 0, 3, OpCache, 0, 2, OpReturn, OpReturn,
+			OpRef, 0, 5, OpCache, 0, 4, OpReturn, OpReturn,
 
 			OpReturn,
 		},
@@ -385,9 +384,11 @@ func TestCallWithConstArg(t *testing.T) {
 		OpSetArg, 0, 3, 0, 2, // Function execution code. One line: reference to `v` argument.
 		OpRef, 0, 1,
 		OpReturn,
+		OpReturn,
 
 		// call function
 		OpRef, 0, 2,
+		OpReturn,
 		OpReturn,
 	}
 
@@ -552,21 +553,22 @@ func TestCompileDapp(t *testing.T) {
 }
 
 /*
-
-
-base64:AwoBAAAAAWYAAAABAAAAA2tleQQAAAAHJG1hdGNoMAkABBwAAAACBQAAAAR0aGlzBQAAAANrZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAACkJ5dGVWZWN0b3IEAAAAAWEFAAAAByRtYXRjaDAAAAAAAAAAAAEAAAAAAAAAAAAEAAAAAWEJAQAAAAFmAAAAAQIAAAABYQQAAAABYgkBAAAAAWYAAAABAgAAAAFiBAAAAAFjCQEAAAABZgAAAAECAAAAAWMEAAAAAWQJAQAAAAFmAAAAAQIAAAABZAQAAAABZQkBAAAAAWYAAAABAgAAAAFlAwkAAAAAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIFAAAAAWEFAAAAAWIFAAAAAWMFAAAAAWQFAAAAAWUAAAAAAAAAAAUJAAH0AAAAAwgFAAAAAnR4AAAACWJvZHlCeXRlcwkAAZEAAAACCAUAAAACdHgAAAAGcHJvb2ZzAAAAAAAAAAAACAUAAAACdHgAAAAPc2VuZGVyUHVibGljS2V5B4xspLY=
-
-
-*/
+ */
 
 func Test2121(t *testing.T) {
-	source := `AwoBAAAAAWYAAAABAAAAA2tleQQAAAAHJG1hdGNoMAkABBwAAAACBQAAAAR0aGlzBQAAAANrZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAACkJ5dGVWZWN0b3IEAAAAAWEFAAAAByRtYXRjaDAAAAAAAAAAAAEAAAAAAAAAAAAEAAAAAWEJAQAAAAFmAAAAAQIAAAABYQQAAAABYgkBAAAAAWYAAAABAgAAAAFiBAAAAAFjCQEAAAABZgAAAAECAAAAAWMEAAAAAWQJAQAAAAFmAAAAAQIAAAABZAQAAAABZQkBAAAAAWYAAAABAgAAAAFlAwkAAAAAAAACCQAAZAAAAAIJAABkAAAAAgkAAGQAAAACCQAAZAAAAAIFAAAAAWEFAAAAAWIFAAAAAWMFAAAAAWQFAAAAAWUAAAAAAAAAAAUJAAH0AAAAAwgFAAAAAnR4AAAACWJvZHlCeXRlcwkAAZEAAAACCAUAAAACdHgAAAAGcHJvb2ZzAAAAAAAAAAAACAUAAAACdHgAAAAPc2VuZGVyUHVibGljS2V5B4xspLY=`
+	source := `BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA=`
 	state := &MockSmartState{
 		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
 			return byte_helpers.TransferWithProofs.Transaction, nil
 		},
 		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 			return &proto.BinaryDataEntry{}, nil
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			rs, err := strconv.ParseInt(key, 10, 64)
+			return &proto.IntegerDataEntry{
+				Value: rs,
+			}, err
 		},
 	}
 	env := &MockRideEnvironment{
@@ -608,7 +610,12 @@ func Test2121(t *testing.T) {
 	assert.NotNil(t, res)
 	r, ok := res.(ScriptResult)
 	assert.True(t, ok)
-	assert.Equal(t, true, r.Result())
+
+	for i := range r.calls {
+		t.Log(r.calls[i])
+	}
+
+	assert.Equal(t, false, r.Result())
 }
 
 /*
@@ -815,7 +822,7 @@ func Test777(t *testing.T) {
 	assert.NotNil(t, res)
 	r, ok := res.(ScriptResult)
 	assert.True(t, ok)
-	assert.Equal(t, true, r.Result())
+	assert.Equal(t, false, r.Result())
 }
 
 /*
@@ -1089,15 +1096,6 @@ func TestMultipleProperty(t *testing.T) {
 	require.Equal(t, rs.Result(), true)
 }
 
-/**
-{-# STDLIB_VERSION 3 #-}
-{-# SCRIPT_TYPE ACCOUNT #-}
-{-# CONTENT_TYPE DAPP #-}
-
-@Verifier(tx)
-func verify () = ("" == toBase58String(tx.id))
-*/
-
 func TestProperty(t *testing.T) {
 	t.Run("test simple property", func(t *testing.T) {
 		n := &PropertyNode{
@@ -1171,4 +1169,212 @@ func TestProperty(t *testing.T) {
 		_, err = script.run(env, nil)
 		require.NoError(t, err)
 	})
+}
+
+/*
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let x = 1 + 1
+x == x
+*/
+func TestCacheInMain(t *testing.T) {
+	source := `BAQAAAABeAkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABCQAAAAAAAAIFAAAAAXgFAAAAAXgu3TzS`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+	}
+
+	require.Equal(t,
+		[]byte{
+			OpReturn,
+			OpRef, 0, 1,
+			OpRef, 0, 1,
+			OpExternalCall, 0, 3, 0, 2,
+			OpClearCache, 0, 1,
+			OpReturn,
+
+			OpRef, 0, 4,
+			OpRef, 0, 5,
+			OpExternalCall, 0, 5, 0, 2,
+			OpCache, 0, 1,
+			OpReturn,
+			OpReturn,
+		},
+		script.ByteCode)
+
+	rs, err := script.Run(env, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(rs.Calls()))
+	require.Equal(t, rs.Result(), true)
+}
+
+/*
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func abc() = {
+    let x = 1 + 1
+    x == x
+}
+abc()
+*/
+func TestCacheInFunc(t *testing.T) {
+	source := `BAoBAAAAA2FiYwAAAAAEAAAAAXgJAABkAAAAAgAAAAAAAAAAAQAAAAAAAAAAAQkAAAAAAAACBQAAAAF4BQAAAAF4CQEAAAADYWJjAAAAAJz8J24=`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+	}
+
+	require.Equal(t,
+		[]byte{
+			OpReturn,
+			OpRef, 0, 1,
+			OpReturn,
+			OpReturn,
+
+			OpRef, 0, 2,
+			OpRef, 0, 2,
+			OpExternalCall, 0, 3, 0, 2,
+			OpClearCache, 0, 2,
+			OpReturn,
+			OpRef, 0, 5,
+			OpRef, 0, 6,
+			OpExternalCall, 0, 5, 0, 2,
+			OpCache, 0, 2,
+			OpReturn,
+
+			OpReturn,
+			OpReturn,
+		},
+		script.ByteCode)
+
+	rs, err := script.Run(env, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(rs.Calls()))
+	require.Equal(t, rs.Result(), true)
+}
+
+/*
+func getInt(key: String) = {
+    match getInteger(this, key) {
+        case x : Int => x
+        case _ => 0
+    }
+}
+*/
+func TestCacheWithIf(t *testing.T) {
+	n := &FunctionDeclarationNode{
+		Name:      "abc",
+		Arguments: []string{"key"},
+		Body: &AssignmentNode{
+			Name: "$match0",
+			Expression: &FunctionCallNode{
+				Name: "1050",
+				Arguments: []Node{
+					&ReferenceNode{Name: "this"},
+					&ReferenceNode{Name: "key"},
+				},
+			},
+			Block: &ConditionalNode{
+				Condition: &FunctionCallNode{
+					Name: "1",
+					Arguments: []Node{
+						&ReferenceNode{Name: "$match0"},
+						&StringNode{Value: "Int"},
+					},
+				},
+				TrueExpression: &AssignmentNode{
+					Name:       "a",
+					Expression: &ReferenceNode{Name: "$match0"},
+					Block:      &ReferenceNode{Name: "a"},
+				},
+				FalseExpression: &LongNode{Value: 0},
+			},
+		},
+	}
+
+	tree := &Tree{
+		LibVersion: 3,
+		AppVersion: scriptApplicationVersion,
+		Verifier:   n,
+	}
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+	}
+
+	/*
+		require.Equal(t,
+			[]byte{
+				OpReturn,
+				OpRef, 0, 11,
+				OpJumpIfFalse, 0x0, 11, 0x0, 15, 0x0, 19,
+				OpRef, 0x0, 0x9, 0x1, // true 11
+				OpRef, 0x0, 0xa, 0x1, // false 15
+
+				// next 19
+
+				OpClearCache, 0, 11,
+				OpClearCache, 0, 11,
+				OpReturn,
+				//OpRef, 0, 5,
+				//OpProperty,
+				//OpReturn,
+				//OpReturn,
+			},
+			script.ByteCode)
+	*/
+
+	_, err = script.run(env, nil)
+	require.NoError(t, err)
+}
+
+func TestCacheInFunc1111111(t *testing.T) {
+	source := `BAkAAAAAAAACCQAAZAAAAAIAAAAAAAAAAAUJAABoAAAAAgAAAAAAAAAABQAAAAAAAAAABQAAAAAAAAAAHnckcUY=`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+	}
+
+	rs, err := script.Run(env, nil)
+	require.NoError(t, err)
+	//require.Equal(t, 2, len(rs.Calls()))
+	require.Equal(t, rs.Result(), true)
 }

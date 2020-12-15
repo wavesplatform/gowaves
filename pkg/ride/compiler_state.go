@@ -16,12 +16,12 @@ type Fsm interface {
 	Bytes(b []byte) Fsm
 	Func(name string, args []string, invokeParam string) Fsm
 	Property(name string) Fsm
-	retAssigment(state Fsm) Fsm
+	backward(state Fsm) Fsm
 	Deferred
 }
 
 type Write interface {
-	Write(params)
+	Write(params, []byte)
 }
 
 type Clean interface {

@@ -9,7 +9,7 @@ type MainState struct {
 	deferreds *deferreds
 }
 
-func (a MainState) retAssigment(state Fsm) Fsm {
+func (a MainState) backward(state Fsm) Fsm {
 	a.deferred = append(a.deferred, state.(Deferred))
 	return a
 }
@@ -66,7 +66,7 @@ func (a MainState) Assigment(name string) Fsm {
 func (a MainState) Return() Fsm {
 	reversed := reverse(a.deferred)
 
-	if f, ok := reversed[0].(FuncState); ok {
+	if f, ok := reversed[0].(FuncState); ok && f.invokeParam != "" {
 		for i := len(f.ParamIds()) - 1; i >= 0; i-- {
 			a.b.writeByte(OpCache)
 			a.b.write(encode(f.ParamIds()[i]))
@@ -75,21 +75,21 @@ func (a MainState) Return() Fsm {
 	}
 
 	for _, v := range reversed[:1] {
-		v.Write(a.params)
+		v.Write(a.params, nil)
 	}
 	for _, v := range a.deferreds.Get() {
 		v.deferred.Clean()
 	}
 	a.b.ret()
 	for _, v := range reversed[1:] {
-		v.Write(a.params)
+		v.Write(a.params, nil)
 		a.b.ret()
 	}
 
 	for _, v := range a.deferreds.Get() {
 		pos := a.b.len()
 		a.c.set(v.uniq, nil, nil, pos, false, v.debug)
-		v.deferred.Write(a.params)
+		v.deferred.Write(a.params, nil)
 		a.b.ret()
 	}
 	return a
@@ -123,7 +123,7 @@ func (a MainState) BuildExecutable(version int) *Executable {
 	}
 }
 
-func (a MainState) Write(_ params) {
+func (a MainState) Write(_ params, _ []byte) {
 
 }
 

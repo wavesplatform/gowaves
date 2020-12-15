@@ -17,7 +17,7 @@ type CallUserState struct {
 	deferreds Deferreds
 }
 
-func (a CallUserState) retAssigment(state Fsm) Fsm {
+func (a CallUserState) backward(state Fsm) Fsm {
 	a.deferred = append(a.deferred, state.(Deferred))
 	return a
 }
@@ -104,7 +104,7 @@ func (a CallUserState) Return() Fsm {
 		a.b.writeByte(OpRef)
 		a.b.write(encode(n))
 	*/
-	return a.prev.retAssigment(a) //.retAssigment(a.startedAt, a.b.len())
+	return a.prev.backward(a) //.backward(a.startedAt, a.b.len())
 }
 
 func (a CallUserState) Call(name string, argc uint16) Fsm {
@@ -136,7 +136,7 @@ func (a CallUserState) Clean() {
 
 }
 
-func (a CallUserState) Write(_ params) {
+func (a CallUserState) Write(_ params, b []byte) {
 	// check user functions
 	fn, ok := a.r.get(a.name)
 	if !ok {
@@ -165,6 +165,7 @@ func (a CallUserState) Write(_ params) {
 
 	a.b.writeByte(OpRef)
 	a.b.write(encode(fn))
+	a.b.write(b)
 	a.b.ret()
 
 	if len(ns) != len(a.deferred) {
@@ -176,28 +177,8 @@ func (a CallUserState) Write(_ params) {
 			// skip right now
 		} else {
 			a.c.set(ns[i], nil, nil, a.b.len(), false, fmt.Sprintf("sys %s param #%d", a.name, i))
-			b.Write(a.params)
+			b.Write(a.params, nil)
 			a.b.ret()
 		}
 	}
-
-	/*
-		for i := 0; i < a.argc; i++ {
-			a.b.writeByte(OpSetArg)
-			funcParamID, ok := a.r.get(a.name) // fmt.Sprintf("%s$%d", a.name, i))
-			if !ok {
-				panic(fmt.Sprintf("no function param id `%s` stored in references", fmt.Sprintf("%s$%d", a.name, i)))
-			}
-			a.b.write(encode(pos))
-			a.b.write(encode(funcParamID + 1 + uniqueid(i)))
-		}
-	*/
-
-	//_, ok = a.params.c.get(n)
-	//if !ok {
-	//	panic(fmt.Sprintf("no point %d found in cell", n))
-	//}
-
-	//a.b.call(point.position, a.argc)
-
 }

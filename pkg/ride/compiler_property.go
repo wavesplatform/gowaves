@@ -11,7 +11,7 @@ type PropertyState struct {
 	n         uniqueid
 }
 
-func (a PropertyState) retAssigment(as Fsm) Fsm {
+func (a PropertyState) backward(as Fsm) Fsm {
 	a.body = as
 	return a
 }
@@ -40,7 +40,7 @@ func (a PropertyState) Return() Fsm {
 		a.n = a.u.next()
 		a.deferreds.Add(a.body, a.n, fmt.Sprintf("property== `%s`", a.name))
 	}
-	return a.prev.retAssigment(a)
+	return a.prev.backward(a)
 }
 
 func (a PropertyState) Long(value int64) Fsm {
@@ -92,7 +92,7 @@ func (a PropertyState) Clean() {
 
 }
 
-func (a PropertyState) Write(_ params) {
+func (a PropertyState) Write(_ params, b []byte) {
 	a.b.writeByte(OpRef)
 	a.b.write(encode(a.n))
 	next := a.u.next()
@@ -100,5 +100,6 @@ func (a PropertyState) Write(_ params) {
 	a.b.writeByte(OpRef)
 	a.b.write(encode(next))
 	a.b.writeByte(OpProperty)
+	a.b.write(b)
 	a.b.ret()
 }

@@ -36,7 +36,7 @@ type ConditionalState struct {
 	condN uniqueid
 }
 
-func (a ConditionalState) retAssigment(v Fsm) Fsm {
+func (a ConditionalState) backward(v Fsm) Fsm {
 	a.deferred = append(a.deferred, v.(Deferred))
 	return a
 }
@@ -120,10 +120,10 @@ func (a ConditionalState) Return() Fsm {
 	}
 	a.condN = a.u.next()
 	a.deferreds.Add(a.deferred[0], a.condN, "condition cond")
-	return a.prev.retAssigment(a) //.retAssigment(a.startedAt, a.b.len())
+	return a.prev.backward(a) //.backward(a.startedAt, a.b.len())
 }
 
-func (a ConditionalState) Write(_ params) {
+func (a ConditionalState) Write(_ params, b []byte) {
 	if len(a.deferred) != 3 {
 		panic("len(a.deferred) != 3")
 	}
@@ -144,11 +144,11 @@ func (a ConditionalState) Write(_ params) {
 	a.b.patch(a.patchTruePosition, encode(a.b.len()))
 	//writeDeferred(a.params, trueB)
 	//a.b.ret()
-	trueB.Write(a.params)
+	trueB.Write(a.params, nil)
 	a.b.ret()
 
 	a.b.patch(a.patchFalsePosition, encode(a.b.len()))
-	falsB.Write(a.params)
+	falsB.Write(a.params, nil)
 	a.b.ret()
 
 	//for _, v := range condB[1:] {
@@ -159,7 +159,8 @@ func (a ConditionalState) Write(_ params) {
 	//for _, v := range condB[1:] {
 	//	v.Clean()
 	//}
-	a.b.ret()
+	//a.b.write(b)
+	//a.b.ret()
 
 	//writeDeferred(a.params, a.deferred)
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const limitOperations = 20000
+const limitOperations = 50000
 
 type vm struct {
 	env           RideEnvironment

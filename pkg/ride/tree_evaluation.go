@@ -70,20 +70,20 @@ func CallFunction3(env RideEnvironment, tree *Tree, name string, args proto.Argu
 }
 
 func CallFunction(txID string, env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
-	//rs1, err := CallFunction3(env, tree, name, args)
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "call function by tree")
-	//}
+	rs1, err := CallFunction3(env, tree, name, args)
+	if err != nil {
+		return nil, errors.Wrap(err, "call function by tree")
+	}
 	rs2, err := CallFunction2(txID, env, tree, name, args)
 	if err != nil {
 		return rs2, errors.Wrap(err, "call function by vm")
 	}
-	//if !rs1.Eq(rs2) {
-	//	zap.S().Errorf("%s, result mismatch", txID)
-	//	zap.S().Errorf("tree: %+q", rs1)
-	//	zap.S().Errorf("vm  : %+q", rs2)
-	//	return nil, errors.New(txID + ": result mismatch")
-	//}
+	if !rs1.Eq(rs2) {
+		zap.S().Errorf("%s, result mismatch", txID)
+		zap.S().Errorf("tree: %+q", rs1)
+		zap.S().Errorf("vm  : %+q", rs2)
+		return nil, errors.New(txID + ": result mismatch")
+	}
 	return rs2, nil
 }
 

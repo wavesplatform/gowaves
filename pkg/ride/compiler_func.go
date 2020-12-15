@@ -45,7 +45,7 @@ type FuncState struct {
 	defers   *deferreds
 }
 
-func (a FuncState) retAssigment(as Fsm) Fsm {
+func (a FuncState) backward(as Fsm) Fsm {
 	a.deferred = append(a.deferred, as.(Deferred))
 	return a
 }
@@ -99,39 +99,7 @@ func (a FuncState) ParamIds() []uniqueid {
 }
 
 func (a FuncState) Return() Fsm {
-	/*
-		funcID := a.params.u.next()
-		a.globalScope.set(a.name, funcID)
-		a.params.c.set(funcID, nil, nil, a.lastStmtOffset, false, a.name)
-		// TODO clean args
-
-		// Clean internal assigments.
-		for i := len(a.assigments) - 1; i >= 0; i-- {
-			a.b.writeByte(OpClearCache)
-			a.b.write(encode(a.assigments[i].n))
-		}
-
-		a.b.ret()
-
-		// if function has invoke param, it means no other code will be provided.
-		if a.invokeParam != "" {
-			a.b.startPos()
-			for i := len(a.args) - 1; i >= 0; i-- {
-				a.b.writeByte(OpCache)
-				uniq, ok := a.params.r.get(a.args[i])
-				if !ok {
-					panic("function param `" + a.args[i] + "` not found")
-				}
-				a.b.write(encode(uniq))
-				a.b.writeByte(OpPop)
-			}
-			a.b.writeByte(OpCall)
-			a.b.write(encode(a.lastStmtOffset))
-		}
-
-
-	*/
-	return a.prev.retAssigment(a) //.retAssigment(a.startedAt, a.b.len())
+	return a.prev.backward(a)
 }
 
 func (a FuncState) Long(value int64) Fsm {
@@ -185,14 +153,14 @@ func (a FuncState) Clean() {
 
 }
 
-func (a FuncState) Write(_ params) {
+func (a FuncState) Write(_ params, b []byte) {
 	pos := a.b.len()
 	a.params.c.set(a.n, nil, nil, pos, false, fmt.Sprintf("function %s", a.name))
 	//writeDeferred(a.params, a.deferred)
 	if len(a.deferred) != 1 {
 		panic("len(a.deferred) != 1")
 	}
-	a.deferred[0].Write(a.params)
+	a.deferred[0].Write(a.params, nil)
 
 	// End of function body. Clear and write assigments.
 	for _, v := range a.defers.Get() {
@@ -203,7 +171,7 @@ func (a FuncState) Write(_ params) {
 	for _, v := range a.defers.Get() {
 		pos := a.b.len()
 		a.c.set(v.uniq, nil, nil, pos, false, v.debug)
-		v.deferred.Write(a.params)
+		v.deferred.Write(a.params, nil)
 		a.b.ret()
 	}
 

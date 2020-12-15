@@ -70,9 +70,9 @@ func (r DAppResult) ScriptActions() proto.ScriptActions {
 }
 
 func (r DAppResult) Eq(other RideResult) bool {
-	switch other.(type) {
+	switch v := other.(type) {
 	case DAppResult:
-		return assert.ObjectsAreEqual(r, other)
+		return r.res == v.res && assert.ObjectsAreEqual(r.actions, v.actions)
 	default:
 		return false
 	}
