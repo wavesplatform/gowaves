@@ -54,15 +54,15 @@ func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (
 		return nil, err
 	}
 
-	wavesBalanceDiff, err := wrappedSt.diff.findWavesBalance(account)
+	wavesBalanceDiff, err := wrappedSt.diff.findBalance(account, nil)
 	if err != nil {
 		return nil, err
 	}
 	if wavesBalanceDiff != nil {
-		resRegular := wavesBalanceDiff.regular + int64(balance.Regular)
-		resGenerating := wavesBalanceDiff.generating + int64(balance.Generating)
-		resAvailable := wavesBalanceDiff.available + int64(balance.Available)
-		resEffective := wavesBalanceDiff.effective + int64(balance.Effective)
+		resRegular := wavesBalanceDiff.amount + int64(balance.Regular)
+		resGenerating := wavesBalanceDiff.amount + int64(balance.Generating)
+		resAvailable := wavesBalanceDiff.amount + int64(balance.Available)
+		resEffective := wavesBalanceDiff.amount + int64(balance.Effective)
 
 		return &proto.FullWavesBalance{Regular: uint64(resRegular),
 			Generating: uint64(resGenerating),
@@ -468,43 +468,16 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 			if err != nil {
 				return err
 			}
-			if searchBalance != nil {
-				searchBalance.amount += res.Amount
-
-				// TODO списать у отправителя
-
-			} else {
-				address, err := e.st.NewestRecipientToAddress(res.Recipient)
-				if err != nil {
-					return err
-				}
-				var balance diffBalance
-				balance.assetID = res.Asset.ID
-				balance.amount = res.Amount
-
-				e.st.diff.balances[address.String()+res.Asset.ID.String()] = balance
-			}
-			searchWavesBalance, err := e.st.diff.findWavesBalance(res.Recipient)
+			err = e.st.diff.changeBalance(searchBalance, res.Amount, res.Asset.ID, res.Recipient)
 			if err != nil {
 				return err
 			}
-			if searchWavesBalance != nil {
-				searchWavesBalance.regular += res.Amount
-				searchWavesBalance.available += res.Amount
-				searchWavesBalance.generating += res.Amount
-				searchWavesBalance.effective += res.Amount
-			} else {
-				address, err := e.st.NewestRecipientToAddress(res.Recipient)
-				if err != nil {
-					return err
-				}
-				var wavesBalance diffWavesBalance
-				wavesBalance.regular = res.Amount
-				wavesBalance.available = res.Amount
-				wavesBalance.generating = res.Amount
-				wavesBalance.effective = res.Amount
 
-				e.st.diff.wavesBalances[address.String()+res.Asset.ID.String()] = wavesBalance
+			senderAddr := proto.Address(e.th.(rideAddress))
+			senderRecip := proto.Recipient{Address: &senderAddr}
+			err = e.st.diff.changeBalance(searchBalance, -res.Amount, res.Asset.ID, senderRecip)
+			if err != nil {
+				return err
 			}
 
 		case proto.SponsorshipScriptAction:
