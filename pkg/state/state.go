@@ -1924,10 +1924,7 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	tx, err := s.TransactionByID(assetID.Bytes())
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
+	tx, _ := s.TransactionByID(assetID.Bytes()) // Explicitly ignore error here, in case of error tx is nil as expected
 	res := &proto.FullAssetInfo{
 		AssetInfo:        *ai,
 		Name:             info.name,
