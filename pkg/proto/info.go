@@ -2,6 +2,7 @@ package proto
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 )
 
@@ -47,9 +48,14 @@ func (i *FullAssetInfo) ToProtobuf(scheme Scheme) (*g.AssetInfoResponse, error) 
 	res.Description = i.Description
 	res.Script = i.ScriptInfo.ToProtobuf()
 	res.Sponsorship = int64(i.SponsorshipCost)
-	protoTransaction, err := i.IssueTransaction.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
+	// Issue transaction is optional here
+	var protoTransaction *waves.SignedTransaction
+	if i.IssueTransaction != nil {
+		var err error
+		protoTransaction, err = i.IssueTransaction.ToProtobufSigned(scheme)
+		if err != nil {
+			return nil, err
+		}
 	}
 	res.IssueTransaction = protoTransaction
 	res.SponsorBalance = int64(i.SponsorBalance)
