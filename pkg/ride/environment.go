@@ -36,7 +36,7 @@ func (wrappedSt *wrappedState) NewestAccountBalance(account proto.Recipient, ass
 	if err != nil {
 		return 0, err
 	}
-	balanceDiff, err := wrappedSt.diff.findBalance(account, asset)
+	balanceDiff, _, err := wrappedSt.diff.findBalance(account, asset)
 	if err != nil {
 		return 0, err
 	}
@@ -54,7 +54,7 @@ func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (
 		return nil, err
 	}
 
-	wavesBalanceDiff, err := wrappedSt.diff.findBalance(account, nil)
+	wavesBalanceDiff, _, err := wrappedSt.diff.findBalance(account, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func (wrappedSt *wrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.As
 	}
 
 	return &proto.AssetInfo{
-		ID:              searchNewAsset.assetID,
+		ID:              assetID,
 		Quantity:        uint64(searchNewAsset.quantity),
 		Decimals:        uint8(searchNewAsset.decimals),
 		Issuer:          searchNewAsset.dAppIssuer,
@@ -231,7 +231,7 @@ func (wrappedSt *wrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*prot
 	}
 
 	assetInfo := proto.AssetInfo{
-		ID:              searchNewAsset.assetID,
+		ID:              assetID,
 		Quantity:        uint64(searchNewAsset.quantity),
 		Decimals:        uint8(searchNewAsset.decimals),
 		Issuer:          searchNewAsset.dAppIssuer,
@@ -245,7 +245,7 @@ func (wrappedSt *wrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*prot
 	}
 
 	sponsorshipCost := int64(0)
-	if sponsorship := wrappedSt.diff.findSponsorship(searchNewAsset.assetID); sponsorship != nil {
+	if sponsorship := wrappedSt.diff.findSponsorship(assetID); sponsorship != nil {
 		sponsorshipCost = *sponsorship
 	}
 
@@ -288,11 +288,7 @@ type Environment struct {
 	inv   rideObject
 }
 
-func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, error) {
-	height, err := state.AddingBlockHeight()
-	if err != nil {
-		return nil, err
-	}
+func newDiffState(state types.SmartState) *diffState {
 	var dataEntries diffDataEntries
 	dataEntries.diffInteger = map[string]proto.IntegerDataEntry{}
 	dataEntries.diffBool = map[string]proto.BooleanDataEntry{}
@@ -300,8 +296,21 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, 
 	dataEntries.diffBinary = map[string]proto.BinaryDataEntry{}
 	dataEntries.diffDDelete = map[string]proto.DeleteDataEntry{}
 
-	diffSt := diffState{state: state, dataEntries: dataEntries}
-	wrappedSt := wrappedState{diff: diffSt}
+	balances := map[string]diffBalance{}
+	sponsorships := map[string]diffSponsorship{}
+	newAssetInfo := map[string]diffNewAssetInfo{}
+	oldAssetInfo := map[string]diffOldAssetInfo{}
+	return &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo}
+}
+
+func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, error) {
+	height, err := state.AddingBlockHeight()
+	if err != nil {
+		return nil, err
+	}
+
+	diffSt := newDiffState(state)
+	wrappedSt := wrappedState{diff: *diffSt}
 	return &Environment{
 		sch:   scheme,
 		st:    wrappedSt,
@@ -432,7 +441,7 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 	for _, action := range actions {
 		switch res := action.(type) {
 
-		case proto.DataEntryScriptAction:
+		case *proto.DataEntryScriptAction:
 
 			switch dataEntry := res.Entry.(type) {
 
@@ -441,6 +450,11 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 				addr := proto.Address(e.th.(rideAddress))
 
 				e.st.diff.dataEntries.diffInteger[dataEntry.Key+addr.String()] = intEntry
+			case *proto.StringDataEntry:
+				stringEntry := *dataEntry
+				addr := proto.Address(e.th.(rideAddress))
+
+				e.st.diff.dataEntries.diffString[dataEntry.Key+addr.String()] = stringEntry
 
 			case *proto.BooleanDataEntry:
 				boolEntry := *dataEntry
@@ -463,33 +477,37 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 
 			}
 
-		case proto.TransferScriptAction:
-			searchBalance, err := e.st.diff.findBalance(res.Recipient, res.Asset.ID.Bytes())
+		case *proto.TransferScriptAction:
+			searchBalance, searchAddr, err := e.st.diff.findBalance(res.Recipient, res.Asset.ID.Bytes())
 			if err != nil {
 				return err
 			}
-			err = e.st.diff.changeBalance(searchBalance, res.Amount, res.Asset.ID, res.Recipient)
+			err = e.st.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
 			if err != nil {
 				return err
 			}
 
 			senderAddr := proto.Address(e.th.(rideAddress))
 			senderRecip := proto.Recipient{Address: &senderAddr}
-			err = e.st.diff.changeBalance(searchBalance, -res.Amount, res.Asset.ID, senderRecip)
+			senderSearchBalance, senderSearchAddr, err := e.st.diff.findBalance(senderRecip, res.Asset.ID.Bytes())
 			if err != nil {
 				return err
 			}
 
-		case proto.SponsorshipScriptAction:
+			err = e.st.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecip)
+			if err != nil {
+				return err
+			}
+
+		case *proto.SponsorshipScriptAction:
 			var sponsorship diffSponsorship
 			sponsorship.MinFee = res.MinFee
 
 			e.st.diff.sponsorships[res.AssetID.String()] = sponsorship
 
-		case proto.IssueScriptAction:
+		case *proto.IssueScriptAction:
 			var assetInfo diffNewAssetInfo
 			assetInfo.dAppIssuer = proto.Address(e.th.(rideAddress))
-			assetInfo.assetID = res.ID
 			assetInfo.name = res.Name
 			assetInfo.description = res.Description
 			assetInfo.quantity = res.Quantity
@@ -498,33 +516,32 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 			assetInfo.script = res.Script
 			assetInfo.nonce = res.Nonce
 
-			e.st.diff.newAssetsInfo[assetInfo.dAppIssuer.String()] = assetInfo
+			e.st.diff.newAssetsInfo[res.ID.String()] = assetInfo
 
-		case proto.ReissueScriptAction:
+		case *proto.ReissueScriptAction:
 			searchNewAsset := e.st.diff.findNewAsset(res.AssetID)
 			if searchNewAsset == nil {
 				var assetInfo diffOldAssetInfo
 
-				assetInfo.assetID = res.AssetID
-				assetInfo.diffQuantity = res.Quantity
+				assetInfo.diffQuantity += res.Quantity
 
-				e.st.diff.oldAssetsInfo[proto.Address(e.th.(rideAddress)).String()] = assetInfo
+				e.st.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
 				break
 			}
-			searchNewAsset.quantity += res.Quantity
+			e.st.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
 
-		case proto.BurnScriptAction:
+		case *proto.BurnScriptAction:
 			searchAsset := e.st.diff.findNewAsset(res.AssetID)
 			if searchAsset == nil {
 				var assetInfo diffOldAssetInfo
 
-				assetInfo.assetID = res.AssetID
-				assetInfo.diffQuantity = -res.Quantity
+				assetInfo.diffQuantity += -res.Quantity
 
-				e.st.diff.oldAssetsInfo[proto.Address(e.th.(rideAddress)).String()] = assetInfo
+				e.st.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
+
 				break
 			}
-			searchAsset.quantity -= res.Quantity
+			e.st.diff.burnNewAsset(res.AssetID, res.Quantity)
 
 		default:
 		}

@@ -26,7 +26,6 @@ type diffSponsorship struct {
 
 type diffNewAssetInfo struct {
 	dAppIssuer  proto.Address
-	assetID     crypto.Digest
 	name        string
 	description string
 	quantity    int64
@@ -37,7 +36,6 @@ type diffNewAssetInfo struct {
 }
 
 type diffOldAssetInfo struct {
-	assetID      crypto.Digest
 	diffQuantity int64
 }
 
@@ -46,19 +44,42 @@ type diffState struct {
 	dataEntries   diffDataEntries
 	balances      map[string]diffBalance      // map[address.String() + Digest.String()] or map[address.String()] only
 	sponsorships  map[string]diffSponsorship  // map[Digest.String()]
-	newAssetsInfo map[string]diffNewAssetInfo // map[address.String()]
-	oldAssetsInfo map[string]diffOldAssetInfo // map[address.String()]
+	newAssetsInfo map[string]diffNewAssetInfo // map[assetID.String()]
+	oldAssetsInfo map[string]diffOldAssetInfo // map[assetID.String()]
 }
 
-func (diffSt *diffState) changeBalance(searchBalance *diffBalance, amount int64, assetID crypto.Digest, account proto.Recipient) error {
+func (diffSt *diffState) addBalanceTo(searchAddress string, amount int64) {
+	oldDiffBalance := diffSt.balances[searchAddress]
+	oldDiffBalance.amount += amount
+	diffSt.balances[searchAddress] = oldDiffBalance
+}
+
+func (diffSt *diffState) reissueNewAsset(assetID crypto.Digest, quantity int64, reissuable bool) {
+
+	asset := diffSt.newAssetsInfo[assetID.String()]
+	asset.reissuable = reissuable
+	asset.quantity += quantity
+	diffSt.newAssetsInfo[assetID.String()] = asset
+}
+
+func (diffSt *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
+
+	asset := diffSt.newAssetsInfo[assetID.String()]
+	asset.quantity -= quantity
+	diffSt.newAssetsInfo[assetID.String()] = asset
+}
+
+func (diffSt *diffState) changeBalance(searchBalance *diffBalance, searchAddress string, amount int64, assetID crypto.Digest, account proto.Recipient) error {
 	if searchBalance != nil {
-		searchBalance.amount += amount
+		diffSt.addBalanceTo(searchAddress, amount)
 		return nil
 	}
+
 	address, err := diffSt.state.NewestRecipientToAddress(account)
 	if err != nil {
 		return err
 	}
+
 	var balance diffBalance
 	balance.assetID = assetID
 	balance.amount = amount
@@ -102,27 +123,27 @@ func (diffSt *diffState) findDeleteFromDataEntryByKey(key string, address string
 	return nil
 }
 
-func (diffSt *diffState) findBalance(recipient proto.Recipient, asset []byte) (*diffBalance, error) {
+func (diffSt *diffState) findBalance(recipient proto.Recipient, asset []byte) (*diffBalance, string, error) {
 	address, err := diffSt.state.NewestRecipientToAddress(recipient)
 	if err != nil {
-		return nil, errors.Errorf("cannot get address from recipient")
+		return nil, "", errors.Errorf("cannot get address from recipient")
 	}
 	if asset == nil {
 		if balance, ok := diffSt.balances[address.String()]; ok {
-			return &balance, nil
+			return &balance, address.String(), nil
 		}
-		return nil, nil
+		return nil, "", nil
 	}
 
 	assetID, err := crypto.NewDigestFromBytes(asset)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if balance, ok := diffSt.balances[address.String()+assetID.String()]; ok {
-		return &balance, nil
+		return &balance, address.String() + assetID.String(), nil
 	}
 
-	return nil, nil
+	return nil, "", nil
 }
 
 func (diffSt *diffState) findSponsorship(assetID crypto.Digest) *int64 {
