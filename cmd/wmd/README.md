@@ -77,8 +77,7 @@ RestartSec=10
 startLimitIntervalSec=60
 
 WorkingDirectory=/usr/share/wmd
-ExecStart=/usr/share/wmd/wmd -db /var/lib/wmd/ -address 0.0.0.0:6990 -node mainnet-aws-ir-1.wavesnodes.com:6870 -symbols /usr/share/wmd/symbols.txt -sync-interval 1
-
+ExecStart=/usr/share/wmd/wmd -db /var/lib/wmd/ -address 0.0.0.0:6990 -node grpc.wavesnodes.com:6870 -symbols /usr/share/wmd/symbols.txt -sync-interval 10
 # make sure log directory exists and owned by syslog
 PermissionsStartOnly=true
 ExecStartPre=/bin/mkdir -p /var/log/wmd

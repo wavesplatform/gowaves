@@ -82,6 +82,7 @@ func fullAssetInfoToObject(info *proto.FullAssetInfo) rideObject {
 	obj := assetInfoToObject(&info.AssetInfo)
 	obj["name"] = rideString(info.Name)
 	obj["description"] = rideString(info.Description)
+	obj["minSponsoredFee"] = rideInt(info.SponsorshipCost)
 	return obj
 }
 
@@ -845,10 +846,11 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	r["sender"] = rideAddress(sender)
 	r["senderPublicKey"] = rideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["dApp"] = rideRecipient(tx.ScriptRecipient)
-	r["payment"] = rideUnit{}
 	switch {
 	case len(tx.Payments) == 1:
-		r["payment"] = attachedPaymentToObject(tx.Payments[0])
+		p := attachedPaymentToObject(tx.Payments[0])
+		r["payment"] = p
+		r["payments"] = rideList{p}
 	case len(tx.Payments) > 1:
 		pl := make(rideList, len(tx.Payments))
 		for i, p := range tx.Payments {
@@ -857,6 +859,7 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 		r["payments"] = pl
 	default:
 		r["payment"] = rideUnit{}
+		r["payments"] = make(rideList, 0)
 	}
 	r["feeAssetId"] = optionalAsset(tx.FeeAsset)
 	r["function"] = rideString(tx.FunctionCall.Name)

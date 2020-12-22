@@ -148,6 +148,9 @@ func (s *Symbols) UpdateFromOracle(conn *grpc.ClientConn) error {
 		switch te := entry.(type) {
 		case *proto.StringDataEntry:
 			ticker := te.Key
+			if strings.HasPrefix(ticker, "wpo_") {
+				continue
+			}
 			id, err := crypto.NewDigestFromBase58(te.Value)
 			if err != nil {
 				continue

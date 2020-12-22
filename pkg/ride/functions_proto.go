@@ -316,7 +316,7 @@ func assetInfoV3(env RideEnvironment, args ...rideType) (rideType, error) {
 	}
 	info, err := env.state().NewestAssetInfo(asset)
 	if err != nil {
-		return nil, errors.Wrap(err, "assetInfoV3")
+		return rideUnit{}, nil
 	}
 	return assetInfoToObject(info), nil
 }
@@ -332,7 +332,7 @@ func assetInfoV4(env RideEnvironment, args ...rideType) (rideType, error) {
 	}
 	info, err := env.state().NewestFullAssetInfo(asset)
 	if err != nil {
-		return nil, errors.Wrap(err, "assetInfoV4")
+		return rideUnit{}, nil
 	}
 	return fullAssetInfoToObject(info), nil
 }
@@ -381,12 +381,17 @@ func addressToString(_ RideEnvironment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "addressToString")
 	}
-	a, ok := args[0].(rideAddress)
-	if !ok {
+	switch a := args[0].(type) {
+	case rideAddress:
+		return rideString(proto.Address(a).String()), nil
+	case rideRecipient:
+		if a.Address == nil {
+			return nil, errors.Errorf("addressToString: recipient is not an Address '%s'", args[0].instanceOf())
+		}
+		return rideString(a.Address.String()), nil
+	default:
 		return nil, errors.Errorf("addressToString: invalid argument type '%s'", args[0].instanceOf())
 	}
-	s := proto.Address(a).String()
-	return rideString(s), nil
 }
 
 func rsaVerify(_ RideEnvironment, args ...rideType) (rideType, error) {

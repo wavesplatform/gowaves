@@ -198,7 +198,14 @@ func (a rideAddressLike) get(prop string) (rideType, error) {
 type rideRecipient proto.Recipient
 
 func (a rideRecipient) instanceOf() string {
-	return "Recipient"
+	switch {
+	case a.Address != nil:
+		return "Address"
+	case a.Alias != nil:
+		return "Alias"
+	default:
+		return "Recipient"
+	}
 }
 
 func (a rideRecipient) eq(other rideType) bool {
@@ -297,7 +304,7 @@ func (a rideNamedType) get(prop string) (rideType, error) {
 type rideList []rideType
 
 func (a rideList) instanceOf() string {
-	return "List"
+	return "List[Any]"
 }
 
 func (a rideList) eq(other rideType) bool {
