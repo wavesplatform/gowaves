@@ -41,18 +41,17 @@ func (a ConditionalState) backward(v Fsm) Fsm {
 	return a
 }
 
-func (a ConditionalState) Property(string) Fsm {
-	panic("ConditionalState Property")
+func (a ConditionalState) Property(name string) Fsm {
+	return propertyTransition(a, a.params, name, a.deferreds)
 }
 
 func (a ConditionalState) Func(name string, args []string, invoke string) Fsm {
 	panic("Illegal call Func on ConditionalState")
 }
 
-func (a ConditionalState) Bytes(b []byte) Fsm {
-	//a.rets = append(a.rets, a.params.b.len())
-	//return constant(a, a.params, rideBytes(b))
-	panic("")
+func (a ConditionalState) Bytes(value []byte) Fsm {
+	a.deferred = append(a.deferred, a.constant(rideBytes(value)))
+	return a
 }
 
 func conditionalTransition(prev Fsm, params params, deferreds Deferreds) Fsm {

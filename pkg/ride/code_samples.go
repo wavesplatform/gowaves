@@ -12,3 +12,13 @@ let a = getInt("5")
 let b = getInt("6")
 a == b
 `
+
+const finf = `
+func abc() = {
+    func in() = {
+        true
+    }
+    in()
+}
+abc()
+`

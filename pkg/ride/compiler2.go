@@ -85,7 +85,7 @@ func CompileVerifier(txID string, tree *Tree) (*Executable, error) {
 			//		return nil, errors.Wrap(err, "invalid declaration")
 			//	}
 			//}
-			return compileFunction(txID, tree.LibVersion, append(tree.Declarations, tree.Verifier))
+			return compileFunction(txID, tree.LibVersion, append(tree.Declarations, tree.Verifier), tree.IsDApp())
 			//s.constants[verifier.invocationParameter] = esConstant{c: newTx}
 			//return &treeEvaluator{
 			//	dapp: tree.IsDApp(),
@@ -96,7 +96,7 @@ func CompileVerifier(txID string, tree *Tree) (*Executable, error) {
 		}
 		return nil, errors.New("no verifier declaration")
 	}
-	return compileFunction(txID, tree.LibVersion, []Node{tree.Verifier})
+	return compileFunction(txID, tree.LibVersion, []Node{tree.Verifier}, tree.IsDApp())
 }
 
 type namedArgument struct {
@@ -106,7 +106,7 @@ type namedArgument struct {
 
 type functionArgumentsCount = int
 
-func CompileFunction(txID string, tree *Tree, name string, args proto.Arguments) (*Executable, functionArgumentsCount, error) {
+func CompileFunction(txID string, tree *Tree, name string, args proto.Arguments, isDapp bool) (*Executable, functionArgumentsCount, error) {
 	//s, err := newEvaluationScope(tree.LibVersion, env)
 	//if err != nil {
 	//	return nil, errors.Wrap(err, "failed to create scope")
@@ -145,7 +145,7 @@ func CompileFunction(txID string, tree *Tree, name string, args proto.Arguments)
 			//	//})
 			//}
 
-			rs, err := compileFunction(txID, tree.LibVersion, append(tree.Declarations, function))
+			rs, err := compileFunction(txID, tree.LibVersion, append(tree.Declarations, function), isDapp)
 			if err != nil {
 				return rs, 0, err
 			}
@@ -193,7 +193,7 @@ func compileVerifier(libVersion int, node Node) (*Executable, error) {
 }
 */
 
-func compileFunction(txID string, libVersion int, nodes []Node) (*Executable, error) {
+func compileFunction(txID string, libVersion int, nodes []Node, isDapp bool) (*Executable, error) {
 	fCheck, err := selectFunctionChecker(libVersion)
 	if err != nil {
 		return nil, err
@@ -246,5 +246,5 @@ func compileFunction(txID string, libVersion int, nodes []Node) (*Executable, er
 	// Just to write `OpReturn` to bytecode.
 	f = f.Return()
 
-	return f.(BuildExecutable).BuildExecutable(libVersion), nil
+	return f.(BuildExecutable).BuildExecutable(libVersion, isDapp), nil
 }

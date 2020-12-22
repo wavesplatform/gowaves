@@ -15,6 +15,8 @@ type CallUserState struct {
 
 	deferred  []Deferred
 	deferreds Deferreds
+
+	rnode []RNode
 }
 
 func (a CallUserState) backward(state Fsm) Fsm {
@@ -34,7 +36,7 @@ func newCallUserFsm(prev Fsm, params params, name string, argc uint16, d Deferre
 }
 
 func (a CallUserState) Property(name string) Fsm {
-	panic("CallUserState Property")
+	return propertyTransition(a, a.params, name, a.deferreds)
 }
 
 func (a CallUserState) Func(name string, args []string, invoke string) Fsm {
@@ -70,7 +72,7 @@ func (a CallUserState) Boolean(v bool) Fsm {
 
 func (a CallUserState) Assigment(name string) Fsm {
 	//return assigmentFsmTransition(a, a.params, name)
-	panic("illegal transition")
+	panic("CallUserState Assigment")
 }
 
 func (a CallUserState) Long(value int64) Fsm {
@@ -150,15 +152,19 @@ func (a CallUserState) Write(_ params, b []byte) {
 	var ns []uniqueid
 	for i := uint16(0); i < a.argc; i++ {
 		if n, ok := isConstant(a.deferred[i]); ok {
-			a.b.writeByte(OpSetArg)
+			a.b.writeByte(OpRef)
 			a.b.write(encode(n))
+			a.b.writeByte(OpCache)
 			a.b.write(encode(fn + 1 + i))
+			a.b.writeByte(OpPop)
 			ns = append(ns, n)
 		} else {
 			n := a.u.next()
-			a.b.writeByte(OpSetArg)
+			a.b.writeByte(OpRef)
 			a.b.write(encode(n))
+			a.b.writeByte(OpCache)
 			a.b.write(encode(fn + 1 + i))
+			a.b.writeByte(OpPop)
 			ns = append(ns, n)
 		}
 	}

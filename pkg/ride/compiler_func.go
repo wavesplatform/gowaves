@@ -46,7 +46,12 @@ type FuncState struct {
 }
 
 func (a FuncState) backward(as Fsm) Fsm {
-	a.deferred = append(a.deferred, as.(Deferred))
+	// Func in func.
+	if f, ok := as.(FuncState); ok {
+		a.defers.Add(as.(Deferred), f.n, fmt.Sprintf("func `%s`in func %s", f.name, a.name))
+	} else {
+		a.deferred = append(a.deferred, as.(Deferred))
+	}
 	return a
 }
 
@@ -139,14 +144,14 @@ func (a FuncState) FalseBranch() Fsm {
 	panic("Illegal call `FalseBranch` on `FuncState`")
 }
 
-func (a FuncState) Bytes(b []byte) Fsm {
-	//a.lastStmtOffset = a.b.len()
-	//return constant(a, a.params, rideBytes(b))
-	panic("a")
+func (a FuncState) Bytes(value []byte) Fsm {
+	a.deferred = append(a.deferred, a.constant(rideBytes(value)))
+	return a
 }
 
-func (a FuncState) Func(name string, args []string, _ string) Fsm {
-	panic("Illegal call `Func` is `FuncState`")
+func (a FuncState) Func(name string, args []string, invoke string) Fsm {
+	return funcTransition(a, a.params, name, args, invoke)
+	//panic(fmt.Sprintf("Illegal call `Func` is `FuncState` tx: %s", a.params.txID))
 }
 
 func (a FuncState) Clean() {

@@ -91,7 +91,7 @@ func CallFunction2(txID string, env RideEnvironment, tree *Tree, name string, ar
 	if name == "" {
 		name = "default"
 	}
-	f, numArgs, err := CompileFunction(txID, tree, name, args)
+	f, numArgs, err := CompileFunction(txID, tree, name, args, tree.IsDApp())
 	if err != nil {
 		return nil, err
 	}

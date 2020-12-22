@@ -83,8 +83,9 @@ func newCallSystemFsm(prev Fsm, params params, name string, argc uint16, d Defer
 }
 
 func (a CallSystemState) Assigment(name string) Fsm {
-	//return assigmentFsmTransition(a, a.params, name)
-	panic("illegal transition")
+	n := a.params.u.next()
+	return assigmentFsmTransition(a, a.params, name, n, a.deferreds)
+	//panic(fmt.Sprintf("CallSystemState Assigment %s", a.params.txID))
 }
 
 func (a CallSystemState) Long(value int64) Fsm {
@@ -146,6 +147,4 @@ func (a CallSystemState) Write(_ params, b []byte) {
 		panic(fmt.Sprintf("system function named `%s` not found", a.name))
 	}
 	a.b.externalCall(n, a.argc)
-	//a.b.write(b)
-	//a.b.ret()
 }

@@ -10,6 +10,7 @@ type Executable struct {
 	ByteCode    []byte
 	EntryPoints map[string]uint16
 	References  map[uniqueid]point
+	IsDapp      bool
 }
 
 func (a *Executable) Run(environment RideEnvironment, arguments []rideType) (RideResult, error) {
@@ -22,6 +23,11 @@ func (a *Executable) Run(environment RideEnvironment, arguments []rideType) (Rid
 		return nil, err
 	}
 	switch tv := v.(type) {
+	case rideThrow:
+		if a.IsDapp {
+			return DAppResult{res: false, msg: string(tv), calls: vm.calls}, nil
+		}
+		return ScriptResult{res: false, msg: string(tv), calls: vm.calls}, nil
 	case rideBoolean:
 		return ScriptResult{res: bool(tv), operations: vm.numOperations, calls: vm.calls}, nil
 	case rideObject:

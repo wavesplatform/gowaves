@@ -56,6 +56,8 @@ type params struct {
 	c *cell
 	// Transaction ID, for debug purpose.
 	txID string
+	//
+	rnode []RNode
 }
 
 func (a *params) addPredefined(name string, id uniqueid, fn rideFunction) {

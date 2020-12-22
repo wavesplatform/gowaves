@@ -8,6 +8,8 @@ import (
 
 const limitOperations = 50000
 
+var throwErr = errors.New("throw")
+
 type vm struct {
 	env           RideEnvironment
 	code          []byte
@@ -118,7 +120,8 @@ func (m *vm) run() (rideType, error) {
 				return nil, errors.Wrapf(err, "iteration %d", m.numOperations)
 			}
 			if isThrow(res) {
-				return nil, errors.Errorf("terminated execution by throw with message %q on iteration %d", res, m.numOperations)
+				return res, nil
+				//return nil, errors.Wrapf(throwErr, "terminated execution by throw with message %q on iteration %d", res, m.numOperations)
 			}
 			m.push(res)
 		case OpReturn:

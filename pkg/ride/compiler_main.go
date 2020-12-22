@@ -44,7 +44,7 @@ func (a MainState) String(s string) Fsm {
 }
 
 type BuildExecutable interface {
-	BuildExecutable(version int) *Executable
+	BuildExecutable(version int, isDapp bool) *Executable
 }
 
 func NewMain(params params) Fsm {
@@ -113,13 +113,14 @@ func (a MainState) Boolean(v bool) Fsm {
 	return a
 }
 
-func (a MainState) BuildExecutable(version int) *Executable {
+func (a MainState) BuildExecutable(version int, isDapp bool) *Executable {
 	startAt, code := a.b.build()
 	return &Executable{
 		LibVersion:  version,
 		ByteCode:    code,
 		References:  a.c.values,
 		EntryPoints: map[string]uint16{"": startAt},
+		IsDapp:      isDapp,
 	}
 }
 
