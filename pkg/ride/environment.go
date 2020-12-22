@@ -272,13 +272,128 @@ func (wrappedSt *wrappedState) IsNotFound(err error) bool {
 	return wrappedSt.diff.state.IsNotFound(err)
 }
 
+func (wrappedState *wrappedState) ApplyToState(actions []proto.ScriptAction) error {
+
+	for _, action := range actions {
+		switch res := action.(type) {
+
+		case *proto.DataEntryScriptAction:
+
+			switch dataEntry := res.Entry.(type) {
+
+			case *proto.IntegerDataEntry:
+				intEntry := *dataEntry
+				addr := proto.Address(wrappedState.envThis)
+
+				wrappedState.diff.dataEntries.diffInteger[dataEntry.Key+addr.String()] = intEntry
+			case *proto.StringDataEntry:
+				stringEntry := *dataEntry
+				addr := proto.Address(wrappedState.envThis)
+
+				wrappedState.diff.dataEntries.diffString[dataEntry.Key+addr.String()] = stringEntry
+
+			case *proto.BooleanDataEntry:
+				boolEntry := *dataEntry
+				addr := proto.Address(wrappedState.envThis)
+
+				wrappedState.diff.dataEntries.diffBool[dataEntry.Key+addr.String()] = boolEntry
+
+			case *proto.BinaryDataEntry:
+				binaryEntry := *dataEntry
+				addr := proto.Address(wrappedState.envThis)
+
+				wrappedState.diff.dataEntries.diffBinary[dataEntry.Key+addr.String()] = binaryEntry
+
+			case *proto.DeleteDataEntry:
+				deleteEntry := *dataEntry
+				addr := proto.Address(wrappedState.envThis)
+
+				wrappedState.diff.dataEntries.diffDDelete[dataEntry.Key+addr.String()] = deleteEntry
+			default:
+
+			}
+
+		case *proto.TransferScriptAction:
+			searchBalance, searchAddr, err := wrappedState.diff.findBalance(res.Recipient, res.Asset.ID.Bytes())
+			if err != nil {
+				return err
+			}
+			err = wrappedState.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
+			if err != nil {
+				return err
+			}
+
+			senderAddr := proto.Address(wrappedState.envThis)
+			senderRecip := proto.Recipient{Address: &senderAddr}
+			senderSearchBalance, senderSearchAddr, err := wrappedState.diff.findBalance(senderRecip, res.Asset.ID.Bytes())
+			if err != nil {
+				return err
+			}
+
+			err = wrappedState.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecip)
+			if err != nil {
+				return err
+			}
+
+		case *proto.SponsorshipScriptAction:
+			var sponsorship diffSponsorship
+			sponsorship.MinFee = res.MinFee
+
+			wrappedState.diff.sponsorships[res.AssetID.String()] = sponsorship
+
+		case *proto.IssueScriptAction:
+			var assetInfo diffNewAssetInfo
+			assetInfo.dAppIssuer = proto.Address(wrappedState.envThis)
+			assetInfo.name = res.Name
+			assetInfo.description = res.Description
+			assetInfo.quantity = res.Quantity
+			assetInfo.decimals = res.Decimals
+			assetInfo.reissuable = res.Reissuable
+			assetInfo.script = res.Script
+			assetInfo.nonce = res.Nonce
+
+			wrappedState.diff.newAssetsInfo[res.ID.String()] = assetInfo
+
+		case *proto.ReissueScriptAction:
+			searchNewAsset := wrappedState.diff.findNewAsset(res.AssetID)
+			if searchNewAsset == nil {
+				var assetInfo diffOldAssetInfo
+
+				assetInfo.diffQuantity += res.Quantity
+
+				wrappedState.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
+				break
+			}
+			wrappedState.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
+
+		case *proto.BurnScriptAction:
+			searchAsset := wrappedState.diff.findNewAsset(res.AssetID)
+			if searchAsset == nil {
+				var assetInfo diffOldAssetInfo
+
+				assetInfo.diffQuantity += -res.Quantity
+
+				wrappedState.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
+
+				break
+			}
+			wrappedState.diff.burnNewAsset(res.AssetID, res.Quantity)
+
+		default:
+		}
+
+	}
+	return nil
+}
+
 type wrappedState struct {
-	diff diffState
+	diff    diffState
+	envThis rideAddress
 }
 
 type Environment struct {
 	sch   proto.Scheme
-	st    wrappedState
+	st    types.SmartState
 	h     rideInt
 	tx    rideObject
 	id    rideType
@@ -288,8 +403,9 @@ type Environment struct {
 	inv   rideObject
 }
 
-func newDiffState(state types.SmartState) *diffState {
+func newWrappedState(state types.SmartState, envThis rideType) types.SmartState {
 	var dataEntries diffDataEntries
+
 	dataEntries.diffInteger = map[string]proto.IntegerDataEntry{}
 	dataEntries.diffBool = map[string]proto.BooleanDataEntry{}
 	dataEntries.diffString = map[string]proto.StringDataEntry{}
@@ -300,7 +416,10 @@ func newDiffState(state types.SmartState) *diffState {
 	sponsorships := map[string]diffSponsorship{}
 	newAssetInfo := map[string]diffNewAssetInfo{}
 	oldAssetInfo := map[string]diffOldAssetInfo{}
-	return &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo}
+
+	diffSt := &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo}
+	wrappedSt := wrappedState{diff: *diffSt, envThis: envThis.(rideAddress)}
+	return &wrappedSt
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, error) {
@@ -309,11 +428,9 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, 
 		return nil, err
 	}
 
-	diffSt := newDiffState(state)
-	wrappedSt := wrappedState{diff: *diffSt}
 	return &Environment{
 		sch:   scheme,
-		st:    wrappedSt,
+		st:    state,
 		h:     rideInt(height),
 		tx:    nil,
 		id:    nil,
@@ -429,7 +546,7 @@ func (e *Environment) txID() rideType {
 }
 
 func (e *Environment) state() types.SmartState {
-	return &e.st
+	return e.st
 }
 
 func (e *Environment) setNewDAppAddress(address proto.Address) {
@@ -437,117 +554,7 @@ func (e *Environment) setNewDAppAddress(address proto.Address) {
 }
 
 func (e *Environment) applyToState(actions []proto.ScriptAction) error {
-
-	for _, action := range actions {
-		switch res := action.(type) {
-
-		case *proto.DataEntryScriptAction:
-
-			switch dataEntry := res.Entry.(type) {
-
-			case *proto.IntegerDataEntry:
-				intEntry := *dataEntry
-				addr := proto.Address(e.th.(rideAddress))
-
-				e.st.diff.dataEntries.diffInteger[dataEntry.Key+addr.String()] = intEntry
-			case *proto.StringDataEntry:
-				stringEntry := *dataEntry
-				addr := proto.Address(e.th.(rideAddress))
-
-				e.st.diff.dataEntries.diffString[dataEntry.Key+addr.String()] = stringEntry
-
-			case *proto.BooleanDataEntry:
-				boolEntry := *dataEntry
-				addr := proto.Address(e.th.(rideAddress))
-
-				e.st.diff.dataEntries.diffBool[dataEntry.Key+addr.String()] = boolEntry
-
-			case *proto.BinaryDataEntry:
-				binaryEntry := *dataEntry
-				addr := proto.Address(e.th.(rideAddress))
-
-				e.st.diff.dataEntries.diffBinary[dataEntry.Key+addr.String()] = binaryEntry
-
-			case *proto.DeleteDataEntry:
-				deleteEntry := *dataEntry
-				addr := proto.Address(e.th.(rideAddress))
-
-				e.st.diff.dataEntries.diffDDelete[dataEntry.Key+addr.String()] = deleteEntry
-			default:
-
-			}
-
-		case *proto.TransferScriptAction:
-			searchBalance, searchAddr, err := e.st.diff.findBalance(res.Recipient, res.Asset.ID.Bytes())
-			if err != nil {
-				return err
-			}
-			err = e.st.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
-			if err != nil {
-				return err
-			}
-
-			senderAddr := proto.Address(e.th.(rideAddress))
-			senderRecip := proto.Recipient{Address: &senderAddr}
-			senderSearchBalance, senderSearchAddr, err := e.st.diff.findBalance(senderRecip, res.Asset.ID.Bytes())
-			if err != nil {
-				return err
-			}
-
-			err = e.st.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecip)
-			if err != nil {
-				return err
-			}
-
-		case *proto.SponsorshipScriptAction:
-			var sponsorship diffSponsorship
-			sponsorship.MinFee = res.MinFee
-
-			e.st.diff.sponsorships[res.AssetID.String()] = sponsorship
-
-		case *proto.IssueScriptAction:
-			var assetInfo diffNewAssetInfo
-			assetInfo.dAppIssuer = proto.Address(e.th.(rideAddress))
-			assetInfo.name = res.Name
-			assetInfo.description = res.Description
-			assetInfo.quantity = res.Quantity
-			assetInfo.decimals = res.Decimals
-			assetInfo.reissuable = res.Reissuable
-			assetInfo.script = res.Script
-			assetInfo.nonce = res.Nonce
-
-			e.st.diff.newAssetsInfo[res.ID.String()] = assetInfo
-
-		case *proto.ReissueScriptAction:
-			searchNewAsset := e.st.diff.findNewAsset(res.AssetID)
-			if searchNewAsset == nil {
-				var assetInfo diffOldAssetInfo
-
-				assetInfo.diffQuantity += res.Quantity
-
-				e.st.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
-				break
-			}
-			e.st.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
-
-		case *proto.BurnScriptAction:
-			searchAsset := e.st.diff.findNewAsset(res.AssetID)
-			if searchAsset == nil {
-				var assetInfo diffOldAssetInfo
-
-				assetInfo.diffQuantity += -res.Quantity
-
-				e.st.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
-
-				break
-			}
-			e.st.diff.burnNewAsset(res.AssetID, res.Quantity)
-
-		default:
-		}
-
-	}
-	return nil
+	return e.st.ApplyToState(actions)
 }
 
 func (e *Environment) checkMessageLength(l int) bool {

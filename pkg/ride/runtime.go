@@ -334,7 +334,7 @@ type RideEnvironment interface {
 	block() rideObject
 	txID() rideType // Invoke transaction ID
 	state() types.SmartState
-	applyToState(actions []proto.ScriptAction) error // don't forget to support this method in Mock
+	applyToState(actions []proto.ScriptAction) error
 	setNewDAppAddress(address proto.Address)
 	checkMessageLength(int) bool
 	invocation() rideObject // Invocation object made of invoke transaction

@@ -23,6 +23,9 @@ var _ types.SmartState = &MockSmartState{}
 //             AddingBlockHeightFunc: func() (uint64, error) {
 // 	               panic("mock out the AddingBlockHeight method")
 //             },
+//             ApplyToStateFunc: func(actions []proto.ScriptAction) error {
+// 	               panic("mock out the ApplyToState method")
+//             },
 //             BlockVRFFunc: func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
 // 	               panic("mock out the BlockVRF method")
 //             },
@@ -90,6 +93,9 @@ type MockSmartState struct {
 	// AddingBlockHeightFunc mocks the AddingBlockHeight method.
 	AddingBlockHeightFunc func() (uint64, error)
 
+	// ApplyToStateFunc mocks the ApplyToState method.
+	ApplyToStateFunc func(actions []proto.ScriptAction) error
+
 	// BlockVRFFunc mocks the BlockVRF method.
 	BlockVRFFunc func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error)
 
@@ -151,6 +157,11 @@ type MockSmartState struct {
 	calls struct {
 		// AddingBlockHeight holds details about calls to the AddingBlockHeight method.
 		AddingBlockHeight []struct {
+		}
+		// ApplyToState holds details about calls to the ApplyToState method.
+		ApplyToState []struct {
+			// Actions is the actions argument value.
+			Actions []proto.ScriptAction
 		}
 		// BlockVRF holds details about calls to the BlockVRF method.
 		BlockVRF []struct {
@@ -261,6 +272,7 @@ type MockSmartState struct {
 		}
 	}
 	lockAddingBlockHeight           sync.RWMutex
+	lockApplyToState                sync.RWMutex
 	lockBlockVRF                    sync.RWMutex
 	lockEstimatorVersion            sync.RWMutex
 	lockGetByteTree                 sync.RWMutex
@@ -305,6 +317,37 @@ func (mock *MockSmartState) AddingBlockHeightCalls() []struct {
 	mock.lockAddingBlockHeight.RLock()
 	calls = mock.calls.AddingBlockHeight
 	mock.lockAddingBlockHeight.RUnlock()
+	return calls
+}
+
+// ApplyToState calls ApplyToStateFunc.
+func (mock *MockSmartState) ApplyToState(actions []proto.ScriptAction) error {
+	if mock.ApplyToStateFunc == nil {
+		panic("MockSmartState.ApplyToStateFunc: method is nil but SmartState.ApplyToState was just called")
+	}
+	callInfo := struct {
+		Actions []proto.ScriptAction
+	}{
+		Actions: actions,
+	}
+	mock.lockApplyToState.Lock()
+	mock.calls.ApplyToState = append(mock.calls.ApplyToState, callInfo)
+	mock.lockApplyToState.Unlock()
+	return mock.ApplyToStateFunc(actions)
+}
+
+// ApplyToStateCalls gets all the calls that were made to ApplyToState.
+// Check the length with:
+//     len(mockedSmartState.ApplyToStateCalls())
+func (mock *MockSmartState) ApplyToStateCalls() []struct {
+	Actions []proto.ScriptAction
+} {
+	var calls []struct {
+		Actions []proto.ScriptAction
+	}
+	mock.lockApplyToState.RLock()
+	calls = mock.calls.ApplyToState
+	mock.lockApplyToState.RUnlock()
 	return calls
 }
 

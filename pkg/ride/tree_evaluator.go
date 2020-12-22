@@ -402,9 +402,17 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			}
 			if res.Result() {
 				e.actions = append(e.actions, res.ScriptActions()...)
-				err := e.env.applyToState(res.ScriptActions())
+				scheme := e.env.scheme()
+				st := newWrappedState(e.env.state(), e.env.this())
+				env, err := NewEnvironment(scheme, st)
 				if err != nil {
-					return nil, errors.Wrap(err, "failed to apply actions to state")
+					return nil, errors.Wrap(err, "failed to init new environment, treeEvaluator")
+				}
+				e.env = env
+
+				err = e.env.applyToState(res.ScriptActions())
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to apply actions to state, treeEvaluator")
 
 				}
 			}
