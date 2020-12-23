@@ -6,7 +6,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func CallVerifier2(env RideEnvironment, tree *Tree) (RideResult, error) {
+func CallTreeVerifier(env RideEnvironment, tree *Tree) (RideResult, error) {
 	e, err := treeVerifierEvaluator(env, tree)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call verifier")
@@ -19,6 +19,9 @@ func CallVerifier3(txID string, env RideEnvironment, tree *Tree) (RideResult, er
 	if err != nil {
 		return nil, errors.Wrap(err, "call compile script")
 	}
+	if env == nil {
+		return nil, errors.Errorf("env is nil")
+	}
 	return compiled.Run(env, []rideType{env.transaction()})
 }
 
@@ -28,7 +31,7 @@ func CallVerifier(txID string, env RideEnvironment, tree *Tree) (RideResult, err
 		return nil, err
 	}
 
-	r2, err := CallVerifier2(env, tree)
+	r2, err := CallTreeVerifier(env, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +61,7 @@ func CallVerifier(txID string, env RideEnvironment, tree *Tree) (RideResult, err
 	return r, nil
 }
 
-func CallFunction3(env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
+func CallTreeFunction(env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
 	if name == "" {
 		name = "default"
 	}
@@ -70,7 +73,7 @@ func CallFunction3(env RideEnvironment, tree *Tree, name string, args proto.Argu
 }
 
 func CallFunction(txID string, env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
-	rs1, err := CallFunction3(env, tree, name, args)
+	rs1, err := CallTreeFunction(env, tree, name, args)
 	if err != nil {
 		return nil, errors.Wrap(err, "call function by tree")
 	}

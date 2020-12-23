@@ -19,6 +19,7 @@ import (
 
 //go:generate moq -pkg ride -out types_moq_test.go ../types SmartState:MockSmartState
 
+/*
 func TestExecution(t *testing.T) {
 	//state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
 	//	return testTransferWithProofs(), nil
@@ -88,7 +89,7 @@ func TestExecution(t *testing.T) {
 		assert.Equal(t, test.res, r.Result(), test.comment)
 	}
 }
-
+*/
 func newTransferTransaction() *proto.TransferWithProofs {
 	js := `{"type":4,"version":2,"id":"CqjGMbrd5bFmLAv2mUSdphEJSgVWkWa6ZtcMkKmgH2ax","proofs":["5W7hjPpgmmhxevCt4A7y9F8oNJ4V9w2g8jhQgx2qGmBTNsP1p1MpQeKF3cvZULwJ7vQthZfSx2BhL6TWkHSVLzvq"],"senderPublicKey":"14ovLL9a6xbBfftyxGNLKMdbnzGgnaFQjmgUJGdho6nY","assetId":null,"feeAssetId":null,"timestamp":1544715621,"amount":15,"fee":10000,"recipient":"3P2USE3iYK5w7jNahAUHTytNbVRccGZwQH3"}`
 	tv2 := &proto.TransferWithProofs{}

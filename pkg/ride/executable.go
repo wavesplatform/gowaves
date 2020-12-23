@@ -1,6 +1,8 @@
 package ride
 
 import (
+	"io"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -71,10 +73,14 @@ func (a *Executable) makeVm(environment RideEnvironment, arguments []rideType) (
 	return &vm{
 		code:         a.ByteCode,
 		ip:           int(a.EntryPoints[""]),
-		functions:    mergeWithPredefined(fSelect, predefined),
+		functions:    fSelect,
 		functionName: provider,
 		env:          environment,
 		ref:          a.References,
 		stack:        arguments,
 	}, nil
+}
+
+func (a *Executable) WriteTo(w io.Writer) (int64, error) {
+	panic("Executable WriteTo")
 }

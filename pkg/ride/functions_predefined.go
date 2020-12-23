@@ -9,14 +9,14 @@ func tx(env RideEnvironment, _ ...rideType) (rideType, error) {
 	return env.transaction(), nil
 }
 
-func mergeWithPredefined(f func(id int) rideFunction, p *predef) func(id int) rideFunction {
-	return func(id int) rideFunction {
-		if c := p.getn(id); c != nil {
-			return c
-		}
-		return f(id)
-	}
-}
+//func mergeWithPredefined(f func(id int) rideFunction, p *predef) func(id int) rideFunction {
+//	return func(id int) rideFunction {
+//		if c := p.getn(id); c != nil {
+//			return c
+//		}
+//		return f(id)
+//	}
+//}
 
 func this(env RideEnvironment, _ ...rideType) (rideType, error) {
 	return env.this(), nil

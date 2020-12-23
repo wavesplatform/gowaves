@@ -216,25 +216,6 @@ func compileFunction(txID string, libVersion int, nodes []Node, isDapp bool) (*E
 		params.addPredefined(k, v.id, v.f)
 	}
 
-	//invokParam := nodes[len(nodes)-1].(*FunctionDeclarationNode).invocationParameter
-	//if invokParam != "" {
-	//	params.r.set(
-	//		invokParam,
-	//		math.MaxUint16,
-	//	)
-	//}
-
-	//for _, arg := range args {
-	//	params.r.set(
-	//		arg.name,
-	//		params.constant(arg.arg),
-	//	)
-	////}
-	//args2 := make([]rideType, len(args))
-	//for i := range args {
-	//	args2[i] = args[i].arg
-	//}
-
 	f := NewMain(params)
 	for _, node := range nodes {
 		zap.S().Error(Decompiler(node))

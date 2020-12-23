@@ -57,7 +57,6 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 		{`let x =  throw(); true`, `AQQAAAABeAkBAAAABXRocm93AAAAAAa7bgf4`, nil, true},
 		{`let x =  throw(); true || x`, `AQQAAAABeAkBAAAABXRocm93AAAAAAMGBgUAAAABeKRnLds=`, nil, true},
 		{`tx.id == base58''`, `AQkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAAJBtD70=`, env, false},
-		{`tx.id == base58'H5C8bRzbUTMePSDVVxjiNKDUwk6CKzfZGTP2Rs7aCjsV'`, `BAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAIO7N5luRDUgN1SJ4kFmy/Ni8U2H6k7bpszok5tlLlRVgHwSHyg==`, env, true},
 		{`let x = tx.id == base58'a';true`, `AQQAAAABeAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAASEGjR0kcA==`, env, true},
 		{`V4: if tx.proofs[0] != base58'' then tx.proofs[1] == base58'' else false`, `BAMJAQAAAAIhPQAAAAIJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAAEAAAAACQAAAAAAAAIJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAQEAAAAAB106gzM=`, env, true},
 		{`match tx {case t : TransferTransaction | MassTransferTransaction | ExchangeTransaction => true; case _ => false}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNFeGNoYW5nZVRyYW5zYWN0aW9uBgMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24GCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGB6Ilvok=`, env, true},
@@ -82,7 +81,7 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 
-		res, err := CallVerifier("", test.env, tree)
+		res, err := CallTreeVerifier(test.env, tree)
 		require.NoError(t, err, test.comment)
 		require.NotNil(t, res, test.comment)
 
@@ -330,7 +329,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		require.NoError(t, err, test.name)
 		assert.NotNil(t, tree, test.name)
 
-		res, err := CallVerifier("", test.env, tree)
+		res, err := CallTreeVerifier(test.env, tree)
 		if test.error {
 			assert.Error(t, err, "No error in "+test.name)
 		} else {
@@ -360,7 +359,7 @@ func TestOverlapping(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallVerifier("", nil, tree)
+	res, err := CallTreeVerifier(nil, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
@@ -383,7 +382,7 @@ func TestUserFunctionsInExpression(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallVerifier("", nil, tree)
+	res, err := CallTreeVerifier(nil, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
@@ -1577,7 +1576,7 @@ func TestLigaDApp1(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallFunction("", env, tree, "stage2", proto.Arguments{})
+	res, err := CallTreeFunction(env, tree, "stage2", proto.Arguments{})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1761,7 +1760,7 @@ func TestLigaDApp1(t *testing.T) {
 		},
 	}
 
-	res, err = CallFunction("", env, tree, "stage31", args2)
+	res, err = CallTreeFunction(env, tree, "stage31", args2)
 	require.NoError(t, err)
 	r, ok = res.(DAppResult)
 	require.True(t, ok)
@@ -2003,7 +2002,7 @@ func TestDropElementDApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallFunction("", env, tree, "dropElementInArray", arguments)
+	res, err := CallTreeFunction(env, tree, "dropElementInArray", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2117,7 +2116,7 @@ func TestMathDApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallFunction("", env, tree, "coxRossRubinsteinCall", arguments)
+	res, err := CallTreeFunction(env, tree, "coxRossRubinsteinCall", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2535,7 +2534,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, treeV3)
 
-	res, err := CallVerifier("", env, treeV3)
+	res, err := CallTreeVerifier(env, treeV3)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
@@ -2556,7 +2555,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, treeV3)
 
-	res, err = CallVerifier("", env, treeV4)
+	res, err = CallTreeVerifier(env, treeV4)
 	require.NoError(t, err)
 	r, ok = res.(ScriptResult)
 	require.True(t, ok)
@@ -2572,7 +2571,7 @@ func TestJSONParsing(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallVerifier("", nil, tree)
+	res, err := CallTreeVerifier(nil, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
@@ -2594,7 +2593,7 @@ func TestDAppWithFullIssue(t *testing.T) {
 			return rideBytes(id)
 		},
 	}
-	res, err := CallFunction("", env, tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
+	res, err := CallTreeFunction(env, tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2620,7 +2619,7 @@ func TestDAppWithSimpleIssue(t *testing.T) {
 			return rideBytes(id)
 		},
 	}
-	res, err := CallFunction("", env, tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
+	res, err := CallTreeFunction(env, tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2884,7 +2883,7 @@ func TestNoDeclaration(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	res, err := CallFunction("", env, tree, "settle", arguments)
+	res, err := CallTreeFunction(env, tree, "settle", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
