@@ -458,6 +458,23 @@ func catalogueV4() map[string]int {
 	return m
 }
 
+func functionsV5() map[string]string {
+	m := functionsV4()
+	m["1081"] = "calculateLeaseID"
+	m["1092"] = "simplifiedLease"
+	m["1093"] = "fullLease"
+
+	return m
+}
+
+func catalogueV5() map[string]int {
+	m := catalogueV4()
+	m["1081"] = 1 //TODO: put actual value here
+	m["1092"] = 1
+	m["1093"] = 1
+	return m
+}
+
 type constantDescription struct {
 	typeName    string
 	constructor string
@@ -509,6 +526,10 @@ func constantsV3() map[string]constantDescription {
 
 func constantsV4() map[string]constantDescription {
 	return constantsV3()
+}
+
+func constantsV5() map[string]constantDescription {
+	return constantsV4()
 }
 
 func constructorsFromConstants(m map[string]string, c map[string]constantDescription) {
@@ -732,6 +753,7 @@ func main() {
 	createFunctionsList(sb, "V2", functionsV2(), catalogueV2())
 	createFunctionsList(sb, "V3", functionsV3(), catalogueV3())
 	createFunctionsList(sb, "V4", functionsV4(), catalogueV4())
+	createFunctionsList(sb, "V5", functionsV5(), catalogueV5())
 	code := sb.String()
 	b, err := format.Source([]byte(code))
 	if err != nil {
@@ -750,6 +772,7 @@ func main() {
 	createConstants(sb, "V2", constantsV2())
 	createConstants(sb, "V3", constantsV3())
 	createConstants(sb, "V4", constantsV4())
+	createConstants(sb, "V5", constantsV5())
 	createConstructors(sb, constantsV4())
 	code = sb.String()
 	b, err = format.Source([]byte(code))

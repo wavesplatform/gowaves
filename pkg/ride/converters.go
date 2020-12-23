@@ -1235,6 +1235,34 @@ func convertToAction(env RideEnvironment, obj rideType) (proto.ScriptAction, err
 			MinFee:  int64(fee),
 		}, nil
 
+	case "Lease":
+		recipient, err := recipientProperty(obj, "recipient")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+		}
+		amount, err := intProperty(obj, "amount")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+		}
+		nonce, err := intProperty(obj, "nonce")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+		}
+		return &proto.LeaseScriptAction{
+			Recipient: recipient,
+			Amount:    int64(amount),
+			Nonce:     int64(nonce),
+		}, nil
+
+	case "LeaseCancel":
+		id, err := digestProperty(obj, "leaseId")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert LeaseCancel to LeaseCancelScriptAction")
+		}
+		return &proto.LeaseCancelScriptAction{
+			LeaseID: id,
+		}, nil
+
 	default:
 		return nil, errors.Errorf("unexpected type '%s'", obj.instanceOf())
 	}

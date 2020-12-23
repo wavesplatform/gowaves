@@ -150,6 +150,64 @@ func (a *SponsorshipScriptAction) ToProtobuf() *g.InvokeScriptResult_SponsorFee 
 	}
 }
 
+// LeaseScriptAction is an action to lease Waves to given account.
+type LeaseScriptAction struct {
+	ID        crypto.Digest
+	Recipient Recipient
+	Amount    int64
+	Nonce     int64
+}
+
+func (a LeaseScriptAction) scriptAction() {}
+
+func (a *LeaseScriptAction) ToProtobuf() (*g.InvokeScriptResult_Lease, error) {
+	rcp, err := a.Recipient.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
+	return &g.InvokeScriptResult_Lease{
+		Recipient: rcp,
+		Amount:    a.Amount,
+		Nonce:     a.Nonce,
+		LeaseId:   a.ID.Bytes(),
+	}, nil
+}
+
+// GenerateLeaseScriptActionID implements ID generation used in RIDE to create new ID for a Lease action.
+func GenerateLeaseScriptActionID(recipient Recipient, amount int64, nonce int64, txID crypto.Digest) crypto.Digest {
+	rl := AddressSize
+	if recipient.Alias != nil {
+		rl = 4 + len(recipient.Alias.Alias)
+	}
+	buf := make([]byte, rl+crypto.DigestSize+8+8)
+	pos := 0
+	if recipient.Alias != nil {
+		PutStringWithUInt32Len(buf[pos:], recipient.Alias.Alias)
+	} else {
+		copy(buf[pos:], recipient.Address[:])
+	}
+	pos += rl
+	copy(buf[pos:], txID[:])
+	pos += crypto.DigestSize
+	binary.BigEndian.PutUint64(buf[pos:], uint64(amount))
+	pos += 8
+	binary.BigEndian.PutUint64(buf[pos:], uint64(nonce))
+	return crypto.MustFastHash(buf)
+}
+
+// LeaseCancelScriptAction is an action that cancels previously created lease.
+type LeaseCancelScriptAction struct {
+	LeaseID crypto.Digest
+}
+
+func (a *LeaseCancelScriptAction) scriptAction() {}
+
+func (a *LeaseCancelScriptAction) ToProtobuf() *g.InvokeScriptResult_LeaseCancel {
+	return &g.InvokeScriptResult_LeaseCancel{
+		LeaseId: a.LeaseID.Bytes(),
+	}
+}
+
 type ScriptErrorMessage struct {
 	Code TxFailureReason
 	Text string
@@ -169,6 +227,8 @@ type ScriptResult struct {
 	Reissues     []*ReissueScriptAction
 	Burns        []*BurnScriptAction
 	Sponsorships []*SponsorshipScriptAction
+	Leases       []*LeaseScriptAction
+	LeaseCancels []*LeaseCancelScriptAction
 	ErrorMsg     ScriptErrorMessage
 }
 
@@ -238,6 +298,17 @@ func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
 	for i := range sr.Sponsorships {
 		sponsorships[i] = sr.Sponsorships[i].ToProtobuf()
 	}
+	leases := make([]*g.InvokeScriptResult_Lease, len(sr.Leases))
+	for i := range sr.Leases {
+		leases[i], err = sr.Leases[i].ToProtobuf()
+		if err != nil {
+			return nil, err
+		}
+	}
+	leaseCancels := make([]*g.InvokeScriptResult_LeaseCancel, len(sr.LeaseCancels))
+	for i := range sr.LeaseCancels {
+		leaseCancels[i] = sr.LeaseCancels[i].ToProtobuf()
+	}
 	return &g.InvokeScriptResult{
 		Data:         data,
 		Transfers:    transfers,
@@ -245,6 +316,8 @@ func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
 		Reissues:     reissues,
 		Burns:        burns,
 		SponsorFees:  sponsorships,
+		Leases:       leases,
+		LeaseCancels: leaseCancels,
 		ErrorMessage: sr.ErrorMsg.ToProtobuf(),
 	}, nil
 }
@@ -281,6 +354,14 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 		return err
 	}
 	sr.Sponsorships, err = c.SponsorshipScriptActions(msg.SponsorFees)
+	if err != nil {
+		return err
+	}
+	sr.Leases, err = c.LeaseScriptActions(scheme, msg.Leases)
+	if err != nil {
+		return err
+	}
+	sr.LeaseCancels, err = c.LeaseCancelScriptActions(msg.LeaseCancels)
 	if err != nil {
 		return err
 	}
@@ -384,6 +465,18 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			}
 			if ta.MinFee < 0 {
 				return errors.New("negative minimal fee")
+			}
+
+		case *LeaseScriptAction:
+			otherActionsCount++
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			}
+			if ta.Amount < 0 {
+				return errors.New("negative leasing amount")
+			}
+			if ta.Recipient.Address.Eq(restrictions.ScriptAddress) {
+				return errors.New("leasing to DApp itself are forbidden")
 			}
 
 		default:

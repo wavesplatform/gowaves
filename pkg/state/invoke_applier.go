@@ -131,22 +131,56 @@ func (ia *invokeApplier) newTxDiffFromScriptBurn(scriptAddr *proto.Address, acti
 	return diff, nil
 }
 
+func (ia *invokeApplier) newTxDiffFromScriptLease(scriptAddr *proto.Address, action *proto.LeaseScriptAction) (txDiff, error) {
+	recipientAddress := action.Recipient.Address
+	if recipientAddress == nil {
+		return nil, errors.New("transfer has unresolved aliases")
+	}
+	if scriptAddr == recipientAddress {
+		return nil, errors.New("leasing to itself is not allowed")
+	}
+	if action.Amount <= 0 {
+		return nil, errors.New("non-positive leasing amount")
+	}
+	diff := newTxDiff()
+	senderKey := wavesBalanceKey{address: *scriptAddr}
+	receiverKey := wavesBalanceKey{address: *recipientAddress}
+	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(0, 0, action.Amount, false)); err != nil {
+		return nil, err
+	}
+	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, action.Amount, 0, false)); err != nil {
+		return nil, err
+	}
+	//TODO: add leasing info creation
+	return diff, nil
+}
+
+func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(scriptAddr *proto.Address, action *proto.LeaseCancelScriptAction) (txDiff, error) {
+	ia.newTxDiffFromPayment()
+}
+
 func (ia *invokeApplier) saveIntermediateDiff(diff txDiff) error {
 	return ia.invokeDiffStor.saveTxDiff(diff)
 }
 
 func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction, initialisation bool) error {
 	for i, a := range actions {
-		tr, ok := a.(proto.TransferScriptAction)
-		if !ok {
-			continue
+		switch ta := a.(type) {
+		case proto.TransferScriptAction:
+			addr, err := recipientToAddress(ta.Recipient, ia.stor.aliases, !initialisation)
+			if err != nil {
+				return err
+			}
+			ta.Recipient = proto.NewRecipientFromAddress(*addr)
+			actions[i] = ta
+		case proto.LeaseScriptAction:
+			addr, err := recipientToAddress(ta.Recipient, ia.stor.aliases, !initialisation)
+			if err != nil {
+				return err
+			}
+			ta.Recipient = proto.NewRecipientFromAddress(*addr)
+			actions[i] = ta
 		}
-		addr, err := recipientToAddress(tr.Recipient, ia.stor.aliases, !initialisation)
-		if err != nil {
-			return err
-		}
-		tr.Recipient = proto.NewRecipientFromAddress(*addr)
-		actions[i] = tr
 	}
 	return nil
 }
@@ -477,6 +511,31 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				return proto.DAppError, info.failedChanges, errors.Errorf("can not sponsor smart asset %s", a.AssetID.String())
 			}
 			ia.stor.sponsoredAssets.sponsorAssetUncertain(a.AssetID, uint64(a.MinFee))
+		case *proto.LeaseScriptAction:
+			totalChanges.appendAddr(*info.scriptAddr)
+			addr := a.Recipient.Address
+			totalChanges.appendAddr(*addr)
+			txDiff, err := ia.newTxDiffFromScriptLease(info.scriptAddr, a)
+			if err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			if err := ia.saveIntermediateDiff(txDiff); err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			for key, balanceDiff := range txDiff {
+				if err := totalChanges.diff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+					return proto.DAppError, info.failedChanges, err
+				}
+			}
+		case *proto.LeaseCancelScriptAction:
+			li, err := ia.stor.leases.newestLeasingInfo(a.LeaseID, !info.initialisation)
+			if err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			li.isActive = false
+			totalChanges.appendAddr(li.sender)
+			totalChanges.appendAddr(li.recipient)
+
 		default:
 			return proto.DAppError, info.failedChanges, errors.Errorf("unsupported script action '%T'", a)
 		}
