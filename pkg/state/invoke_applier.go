@@ -156,7 +156,8 @@ func (ia *invokeApplier) newTxDiffFromScriptLease(scriptAddr *proto.Address, act
 }
 
 func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(scriptAddr *proto.Address, action *proto.LeaseCancelScriptAction) (txDiff, error) {
-	ia.newTxDiffFromPayment()
+	//TODO: implement
+	return nil, errors.New("not implemented")
 }
 
 func (ia *invokeApplier) saveIntermediateDiff(diff txDiff) error {
@@ -535,6 +536,18 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			li.isActive = false
 			totalChanges.appendAddr(li.sender)
 			totalChanges.appendAddr(li.recipient)
+			txDiff, err := ia.newTxDiffFromScriptLeaseCancel(info.scriptAddr, a)
+			if err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			if err := ia.saveIntermediateDiff(txDiff); err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			for key, balanceDiff := range txDiff {
+				if err := totalChanges.diff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+					return proto.DAppError, info.failedChanges, err
+				}
+			}
 
 		default:
 			return proto.DAppError, info.failedChanges, errors.Errorf("unsupported script action '%T'", a)

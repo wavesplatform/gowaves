@@ -240,6 +240,8 @@ func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptRes
 	reissues := make([]*ReissueScriptAction, 0)
 	burns := make([]*BurnScriptAction, 0)
 	sponsorships := make([]*SponsorshipScriptAction, 0)
+	leases := make([]*LeaseScriptAction, 0)
+	leaseCancels := make([]*LeaseCancelScriptAction, 0)
 	for _, a := range actions {
 		switch ta := a.(type) {
 		case *DataEntryScriptAction:
@@ -254,6 +256,10 @@ func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptRes
 			burns = append(burns, ta)
 		case *SponsorshipScriptAction:
 			sponsorships = append(sponsorships, ta)
+		case *LeaseScriptAction:
+			leases = append(leases, ta)
+		case *LeaseCancelScriptAction:
+			leaseCancels = append(leaseCancels, ta)
 		default:
 			return nil, errors.Errorf("unsupported action type '%T'", a)
 		}
@@ -265,6 +271,8 @@ func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptRes
 		Reissues:     reissues,
 		Burns:        burns,
 		Sponsorships: sponsorships,
+		Leases:       leases,
+		LeaseCancels: leaseCancels,
 		ErrorMsg:     msg,
 	}, nil
 }
