@@ -16,7 +16,7 @@ func (a *RFunc) RNode() {}
 type RLet struct {
 	Name string
 	//N    uniqueid
-	Body RNode
+	Body []RNode
 }
 
 func (a *RLet) RNode() {}
@@ -38,6 +38,31 @@ type RCall struct {
 }
 
 func (a *RCall) RNode() {}
+
+func reverseRnodes(a []RNode) []RNode {
+	out := make([]RNode, len(a))
+	for i := 0; i < len(a); i++ {
+		out[len(a)-1-i] = a[i]
+	}
+	return out
+}
+
+func (a *RCall) CallTree() []RNode {
+	d := []RNode{
+		a,
+	}
+	for i := len(a.Arguments) - 1; i >= 0; i-- {
+		switch t := a.Arguments[i].(type) {
+		case *RLong:
+			d = append(d, a.Arguments[i])
+		case *RCall:
+			d = append(d, t.CallTree()...)
+		default:
+			panic("")
+		}
+	}
+	return d
+}
 
 type RRef struct {
 	Name       string

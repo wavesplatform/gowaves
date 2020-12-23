@@ -2884,7 +2884,7 @@ func TestNoDeclaration(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	res, err := CallFunction(env, tree, "settle", arguments)
+	res, err := CallFunction("", env, tree, "settle", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3071,7 +3071,7 @@ func TestZeroReissue(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	res, err := CallFunction(env, tree, "replenishment", arguments)
+	res, err := CallFunction("", env, tree, "replenishment", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3291,7 +3291,7 @@ func TestStageNet2(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	res, err := CallFunction(env, tree, "purchaseToken", arguments)
+	res, err := CallFunction("", env, tree, "purchaseToken", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3375,7 +3375,7 @@ func TestRecipientAddressToString(t *testing.T) {
 		checkMessageLengthFunc: v3check,
 	}
 
-	res, err := CallVerifier(env, tree)
+	res, err := CallVerifier("", env, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)

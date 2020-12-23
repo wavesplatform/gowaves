@@ -1,6 +1,8 @@
 package ride
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func ReverseTree(n []Node) {
 	for i := len(n) - 1; i >= 0; i-- {
@@ -8,8 +10,8 @@ func ReverseTree(n []Node) {
 	}
 }
 
+/*
 func reverseTree(n Node, r []*RLet) RNode {
-
 	switch v := n.(type) {
 	case *FunctionDeclarationNode:
 		return &RFunc{
@@ -42,8 +44,8 @@ func reverseTree(n Node, r []*RLet) RNode {
 	default:
 		panic(fmt.Sprintf("unknown type %T", n))
 	}
-
 }
+*/
 
 //
 //func walkAssigments(n Node, r []*RLet) ([]*RLet, Node) {
@@ -59,3 +61,65 @@ func reverseTree(n Node, r []*RLet) RNode {
 //		return r, v
 //	}
 //}
+
+//func compileReverse(r RNode, out *bytes.Buffer) {
+//	switch t := r.(type) {
+//	case *RCall:
+//		for i, v := range reverseCallTree(t.CallTree()) {
+//
+//		}
+//
+//		out.Write()
+//	}
+//
+//}
+
+//func compileArguments(call *RCall, out *bytes.Buffer) {
+//	d := []RNode{
+//		call,
+//	}
+//	for i := len(call.Arguments) - 1; i >= 0; i-- {
+//		switch call.Arguments[i].(type) {
+//		case *RLong:
+//			d = append(d, RLong{})
+//		}
+//	}
+//}
+
+func reverseTree2(n Node, out []RNode, deferreds []RNode) []RNode {
+	switch t := n.(type) {
+	case *FunctionDeclarationNode:
+		out = append(out, &RFunc{Name: t.Name, Arguments: t.Arguments, Invocation: t.invocationParameter})
+		return reverseTree2(t.Body, out, nil)
+	case *AssignmentNode:
+		return reverseTree2(t.Block, out, append(deferreds, &RLet{Name: t.Name, Body: reverseTree2(t.Expression, nil, nil)}))
+	case *LongNode:
+		return append(out, &RLong{Value: t.Value})
+	case *FunctionCallNode:
+		out = append(out, reverseRnodes(flatCall(t))...)
+		return append(out, deferreds...)
+	default:
+		panic(fmt.Sprintf("unknown type %T", n))
+	}
+}
+
+func flatCall(call *FunctionCallNode) []RNode {
+	out := []RNode{
+		&RCall{
+			Name: call.Name,
+		},
+	}
+	for i := len(call.Arguments) - 1; i >= 0; i-- {
+		switch t := call.Arguments[i].(type) {
+		case *LongNode:
+			out = append(out, &RLong{Value: t.Value})
+		case *FunctionCallNode:
+			out = append(out, flatCall(t)...)
+		case *ReferenceNode:
+			out = append(out, &RRef{Name: t.Name})
+		default:
+			panic(fmt.Sprintf("unknown type %T", call.Arguments[i]))
+		}
+	}
+	return out
+}

@@ -13,6 +13,7 @@ func abc(key: String) = {
 	x + y
 }
 */
+/*
 func TestReverseFunc(t *testing.T) {
 	n := &FunctionDeclarationNode{
 		Name:      "abc",
@@ -55,6 +56,8 @@ func TestReverseFunc(t *testing.T) {
 
 }
 
+*/
+
 /*
 func abc(key: String) = {
 	match getInteger(this, key) {
@@ -64,6 +67,7 @@ func abc(key: String) = {
 			0
 }
 */
+/*
 func TestReverseFunc2(t *testing.T) {
 	n := &FunctionDeclarationNode{
 		Name:      "abc",
@@ -137,5 +141,44 @@ func TestReverseFunc2(t *testing.T) {
 		//	},
 		//},
 	}, rs)
+}
+*/
+/*
+func abc(key: String) = {
+	let x = 1
+	let y = 2
+	x + y
+}
+*/
+func TestReverse2(t *testing.T) {
+	n := &FunctionDeclarationNode{
+		Name:      "abc",
+		Arguments: []string{"key"},
+		Body: &AssignmentNode{
+			Name:       "x",
+			Expression: &LongNode{Value: 1},
+			Block: &AssignmentNode{
+				Name:       "y",
+				Expression: &LongNode{Value: 2},
+				Block: &FunctionCallNode{
+					Name: "+",
+					Arguments: []Node{
+						&ReferenceNode{Name: "x"},
+						&ReferenceNode{Name: "y"},
+					},
+				},
+			},
+		},
+	}
 
+	rs := reverseTree2(n, nil, nil)
+
+	require.Equal(t, []RNode{
+		&RFunc{Invocation: "", Name: "abc", Arguments: []string{"key"}},
+		&RRef{Name: "x"},
+		&RRef{Name: "y"},
+		&RCall{Name: "+"},
+		&RLet{Name: "x", Body: []RNode{&RLong{Value: 1}}},
+		&RLet{Name: "y", Body: []RNode{&RLong{Value: 2}}},
+	}, rs)
 }
