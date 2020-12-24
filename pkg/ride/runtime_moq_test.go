@@ -49,6 +49,9 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             schemeFunc: func() byte {
 // 	               panic("mock out the scheme method")
 //             },
+//             setInvocationSysParamFunc: func(invokeSysPar InvocationSysFuncParameters)  {
+// 	               panic("mock out the setInvocationSysParam method")
+//             },
 //             setNewDAppAddressFunc: func(address proto.Address)  {
 // 	               panic("mock out the setNewDAppAddress method")
 //             },
@@ -103,6 +106,9 @@ type MockRideEnvironment struct {
 
 	// schemeFunc mocks the scheme method.
 	schemeFunc func() byte
+
+	// setInvocationSysParamFunc mocks the setInvocationSysParam method.
+	setInvocationSysParamFunc func(invokeSysPar InvocationSysFuncParameters)
 
 	// setNewDAppAddressFunc mocks the setNewDAppAddress method.
 	setNewDAppAddressFunc func(address proto.Address)
@@ -162,6 +168,11 @@ type MockRideEnvironment struct {
 		// scheme holds details about calls to the scheme method.
 		scheme []struct {
 		}
+		// setInvocationSysParam holds details about calls to the setInvocationSysParam method.
+		setInvocationSysParam []struct {
+			// InvokeSysPar is the invokeSysPar argument value.
+			InvokeSysPar InvocationSysFuncParameters
+		}
 		// setNewDAppAddress holds details about calls to the setNewDAppAddress method.
 		setNewDAppAddress []struct {
 			// Address is the address argument value.
@@ -185,29 +196,29 @@ type MockRideEnvironment struct {
 		txID []struct {
 		}
 	}
-	lockactions            sync.RWMutex
-	lockappendAction       sync.RWMutex
-	lockappendActions      sync.RWMutex
-	lockapplyToState       sync.RWMutex
-	lockblock              sync.RWMutex
-	lockcheckMessageLength sync.RWMutex
-	lockheight             sync.RWMutex
-	lockinvocation         sync.RWMutex
-	lockinvocationSysParam sync.RWMutex
-	lockscheme             sync.RWMutex
-	locksetNewDAppAddress  sync.RWMutex
-	locksmartAppendActions sync.RWMutex
-	lockstate              sync.RWMutex
-	lockthis               sync.RWMutex
-	locktransaction        sync.RWMutex
-	locktxID               sync.RWMutex
+	lockactions               sync.RWMutex
+	lockappendAction          sync.RWMutex
+	lockappendActions         sync.RWMutex
+	lockapplyToState          sync.RWMutex
+	lockblock                 sync.RWMutex
+	lockcheckMessageLength    sync.RWMutex
+	lockheight                sync.RWMutex
+	lockinvocation            sync.RWMutex
+	lockinvocationSysParam    sync.RWMutex
+	lockscheme                sync.RWMutex
+	locksetInvocationSysParam sync.RWMutex
+	locksetNewDAppAddress     sync.RWMutex
+	locksmartAppendActions    sync.RWMutex
+	lockstate                 sync.RWMutex
+	lockthis                  sync.RWMutex
+	locktransaction           sync.RWMutex
+	locktxID                  sync.RWMutex
 }
 
 // actions calls actionsFunc.
 func (mock *MockRideEnvironment) actions() []proto.ScriptAction {
 	if mock.actionsFunc == nil {
-		return nil
-		//panic("MockRideEnvironment.actionsFunc: method is nil but RideEnvironment.actions was just called")
+		panic("MockRideEnvironment.actionsFunc: method is nil but RideEnvironment.actions was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -439,6 +450,7 @@ func (mock *MockRideEnvironment) invocationCalls() []struct {
 func (mock *MockRideEnvironment) invocationSysParam() InvocationSysFuncParameters {
 	if mock.invocationSysParamFunc == nil {
 		return InvocationSysFuncParameters{}
+		//panic("MockRideEnvironment.invocationSysParamFunc: method is nil but RideEnvironment.invocationSysParam was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -484,6 +496,37 @@ func (mock *MockRideEnvironment) schemeCalls() []struct {
 	mock.lockscheme.RLock()
 	calls = mock.calls.scheme
 	mock.lockscheme.RUnlock()
+	return calls
+}
+
+// setInvocationSysParam calls setInvocationSysParamFunc.
+func (mock *MockRideEnvironment) setInvocationSysParam(invokeSysPar InvocationSysFuncParameters) {
+	if mock.setInvocationSysParamFunc == nil {
+		panic("MockRideEnvironment.setInvocationSysParamFunc: method is nil but RideEnvironment.setInvocationSysParam was just called")
+	}
+	callInfo := struct {
+		InvokeSysPar InvocationSysFuncParameters
+	}{
+		InvokeSysPar: invokeSysPar,
+	}
+	mock.locksetInvocationSysParam.Lock()
+	mock.calls.setInvocationSysParam = append(mock.calls.setInvocationSysParam, callInfo)
+	mock.locksetInvocationSysParam.Unlock()
+	mock.setInvocationSysParamFunc(invokeSysPar)
+}
+
+// setInvocationSysParamCalls gets all the calls that were made to setInvocationSysParam.
+// Check the length with:
+//     len(mockedRideEnvironment.setInvocationSysParamCalls())
+func (mock *MockRideEnvironment) setInvocationSysParamCalls() []struct {
+	InvokeSysPar InvocationSysFuncParameters
+} {
+	var calls []struct {
+		InvokeSysPar InvocationSysFuncParameters
+	}
+	mock.locksetInvocationSysParam.RLock()
+	calls = mock.calls.setInvocationSysParam
+	mock.locksetInvocationSysParam.RUnlock()
 	return calls
 }
 

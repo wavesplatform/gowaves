@@ -537,6 +537,10 @@ func (e *Environment) invocationSysParam() InvocationSysFuncParameters {
 	return e.invSysPar
 }
 
+func (e *Environment) setInvocationSysParam(invokeSysPar InvocationSysFuncParameters) {
+	e.invSysPar = invokeSysPar
+}
+
 func (e *Environment) scheme() byte {
 	return e.sch
 }

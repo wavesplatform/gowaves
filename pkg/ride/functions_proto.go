@@ -45,6 +45,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 	invSysParam.recipient = recipient
 	invSysParam.listArg = listArg
 	invSysParam.wasInvokeCalled = true
+	env.setInvocationSysParam(invSysParam)
 
 	//res, err := invokeFunctionFromDApp(localEnv, proto.Recipient(recipient), fnName, listArg)
 	//if err != nil {

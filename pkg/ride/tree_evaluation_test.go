@@ -1386,6 +1386,9 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		invocationSysParamFunc: func() InvocationSysFuncParameters {
 			return invSysParam
 		},
+		setInvocationSysParamFunc: func(invokeSP InvocationSysFuncParameters) {
+			invSysParam = invokeSP
+		},
 		smartAppendActionsFunc: func(actions []proto.ScriptAction) error {
 			envActions = append(envActions, actions...)
 

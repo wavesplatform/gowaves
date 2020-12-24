@@ -345,6 +345,7 @@ type RideEnvironment interface {
 	applyToState(actions []proto.ScriptAction) error
 	appendActions(actions []proto.ScriptAction)
 	appendAction(action proto.ScriptAction)
+	setInvocationSysParam(invokeSysPar InvocationSysFuncParameters)
 	smartAppendActions(actions []proto.ScriptAction) error
 	actions() []proto.ScriptAction
 	setNewDAppAddress(address proto.Address)

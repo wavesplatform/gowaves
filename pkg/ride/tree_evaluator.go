@@ -256,16 +256,18 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
 		e.env.appendActions(a)
-		return DAppResult{res: true, actions: e.env.actions(), msg: ""}, nil
+		return DAppResult{res: true, actions: a, msg: ""}, nil
 	case rideList:
+		var actions []proto.ScriptAction
 		for _, item := range res {
 			a, err := convertToAction(e.env, item)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to convert evaluation result")
 			}
 			e.env.appendAction(a)
+			actions = append(actions, a)
 		}
-		return DAppResult{res: true, actions: e.env.actions()}, nil
+		return DAppResult{res: true, actions: actions}, nil
 	case tuple2:
 
 		switch resAct := res.el1.(type) {
