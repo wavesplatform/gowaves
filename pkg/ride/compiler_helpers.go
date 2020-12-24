@@ -4,14 +4,23 @@ import "bytes"
 
 type constid = uint16
 
+type Refs map[uint16]point
+
+type entrypoint struct {
+	name string
+	at   uint16
+	argn uint16
+}
+
 type builder struct {
-	w       *bytes.Buffer
-	startAt uint16
+	w           *bytes.Buffer
+	entrypoints map[string]entrypoint
 }
 
 func newBuilder() *builder {
 	return &builder{
-		w: new(bytes.Buffer),
+		w:           new(bytes.Buffer),
+		entrypoints: make(map[string]entrypoint),
 	}
 }
 
@@ -26,6 +35,14 @@ func (b *builder) writeStub(len int) (position uint16) {
 func (b *builder) push(uint162 uint16) {
 	b.w.WriteByte(OpRef)
 	b.w.Write(encode(uint162))
+}
+
+func (b *builder) setStart(name string, argn int) {
+	b.entrypoints[name] = entrypoint{
+		name: name,
+		at:   b.len(),
+		argn: uint16(argn),
+	}
 }
 
 func (b *builder) bool(v bool) {
@@ -76,8 +93,8 @@ func (b *builder) call(id uint16, argc uint16) {
 //	b.startAt = uint16(b.w.Len())
 //}
 
-func (b *builder) build() (uint16, []byte) {
-	return 1, b.w.Bytes()
+func (b *builder) build() (map[string]entrypoint, []byte) {
+	return b.entrypoints, b.w.Bytes()
 }
 
 func (b *builder) jpmIfFalse() {

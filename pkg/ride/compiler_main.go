@@ -5,12 +5,12 @@ type MainState struct {
 	params
 	retAssig uint16
 
-	deferred  []Deferred
+	body      []Deferred
 	deferreds *deferreds
 }
 
 func (a MainState) backward(state Fsm) Fsm {
-	a.deferred = append(a.deferred, state.(Deferred))
+	a.body = append(a.body, state.(Deferred))
 	return a
 }
 
@@ -64,27 +64,35 @@ func (a MainState) Assigment(name string) Fsm {
 }
 
 func (a MainState) Return() Fsm {
-	reversed := reverse(a.deferred)
-
-	if f, ok := reversed[0].(FuncState); ok && f.invokeParam != "" {
-		for i := len(f.ParamIds()) - 1; i >= 0; i-- {
-			a.b.writeByte(OpCache)
-			a.b.write(encode(f.ParamIds()[i]))
-			a.b.writeByte(OpPop)
-		}
-	}
-
-	for _, v := range reversed[:1] {
-		v.Write(a.params, nil)
-	}
 	for _, v := range a.deferreds.Get() {
 		v.deferred.Clean()
 	}
 	a.b.ret()
-	for _, v := range reversed[1:] {
-		v.Write(a.params, nil)
-		a.b.ret()
+
+	//reversed := reverse(a.body)
+	body := a.body
+	for {
+		if f, ok := body[0].(FuncState); ok && f.invokeParam != "" {
+			a.b.setStart(f.name, f.argn)
+			for i := len(f.ParamIds()) - 1; i >= 0; i-- {
+				a.b.writeByte(OpCache)
+				a.b.write(encode(f.ParamIds()[i]))
+				a.b.writeByte(OpPop)
+			}
+		}
+		a.b.setStart("", 0)
+		body[0].Write(a.params, nil)
+		body = body[1:]
+		if len(body) == 0 {
+			break
+		}
 	}
+	a.b.ret()
+
+	//for _, v := range reversed[1:] {
+	//	v.Write(a.params, nil)
+	//	a.b.ret()
+	//}
 
 	for _, v := range a.deferreds.Get() {
 		pos := a.b.len()
@@ -104,22 +112,22 @@ func (a MainState) Call(name string, argc uint16) Fsm {
 }
 
 func (a MainState) Reference(name string) Fsm {
-	a.deferred = append(a.deferred, reference(a, a.params, name))
+	a.body = append(a.body, reference(a, a.params, name))
 	return a
 }
 
 func (a MainState) Boolean(v bool) Fsm {
-	a.deferred = append(a.deferred, a.constant(rideBoolean(v)))
+	a.body = append(a.body, a.constant(rideBoolean(v)))
 	return a
 }
 
 func (a MainState) BuildExecutable(version int, isDapp bool) *Executable {
-	startAt, code := a.b.build()
+	entrypoints, code := a.b.build()
 	return &Executable{
 		LibVersion:  version,
 		ByteCode:    code,
 		References:  a.c.values,
-		EntryPoints: map[string]uint16{"": startAt},
+		EntryPoints: entrypoints,
 		IsDapp:      isDapp,
 	}
 }

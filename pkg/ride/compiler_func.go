@@ -43,6 +43,7 @@ type FuncState struct {
 	// References that defined inside function.
 	deferred []Deferred
 	defers   *deferreds
+	argn     int
 }
 
 func (a FuncState) backward(as Fsm) Fsm {
@@ -59,7 +60,8 @@ func (a FuncState) Property(name string) Fsm {
 	return propertyTransition(a, a.params, name, a.defers)
 }
 
-func funcTransition(prev Fsm, params params, name string, args []string, invokeParam string) Fsm { // save reference to global scope, where code lower that function will be able to use it.
+func funcTransition(prev Fsm, params params, name string, args []string, invokeParam string) Fsm {
+	argn := len(args)
 	n := params.u.next()
 	params.r.set(name, n)
 	// all variable we add only visible to current scope,
@@ -91,6 +93,7 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 			name: "func " + name,
 		},
 		paramIds: paramIds,
+		argn:     argn,
 	}
 }
 

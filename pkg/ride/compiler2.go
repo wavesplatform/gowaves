@@ -158,6 +158,27 @@ func CompileFunction(txID string, tree *Tree, name string, args proto.Arguments,
 	//return compileFunction(t.LibVersion, t)
 }
 
+func CompileDapp(txID string, tree *Tree) (*Executable, error) {
+	if !tree.IsDApp() {
+		return nil, errors.Errorf("unable to compile dappp")
+	}
+	//for i := 0; i < len(tree.Functions); i++ {
+	//	function, ok := tree.Functions[i].(*FunctionDeclarationNode)
+	//	if !ok {
+	//		return nil, 0, errors.New("invalid callable declaration")
+	//	}
+	//	if function.Name == name {
+	//		rs, err := compileFunction(txID, tree.LibVersion, append(tree.Declarations, function), isDapp)
+	//		if err != nil {
+	//			return rs, 0, err
+	//		}
+	//		return rs, len(function.Arguments), nil
+	//	}
+	//}
+	return compileFunction(txID, tree.LibVersion, append(tree.Declarations, tree.Functions...), true)
+	//return nil, 0, errors.Errorf("function '%s' not found", name)
+}
+
 /*
 func compileVerifier(libVersion int, node Node) (*Executable, error) {
 	fCheck, err := selectFunctionChecker(libVersion)

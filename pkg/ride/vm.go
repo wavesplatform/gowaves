@@ -14,14 +14,11 @@ type vm struct {
 	env           RideEnvironment
 	code          []byte
 	ip            int
-	constants     []rideType
 	functions     func(int) rideFunction
-	globals       func(int) rideConstructor
 	stack         []rideType
 	functionName  func(int) string
 	jmps          []int
 	ref           map[uint16]point
-	cache         bool
 	calls         []callLog
 	numOperations int
 }
@@ -224,9 +221,4 @@ func (m *vm) uint16() uint16 {
 	res := binary.BigEndian.Uint16(m.code[m.ip : m.ip+2])
 	m.ip += 2
 	return res
-}
-
-func (m *vm) constant() rideType {
-	//TODO: add check
-	return m.constants[m.arg16()]
 }
