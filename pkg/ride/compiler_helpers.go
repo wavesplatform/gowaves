@@ -93,11 +93,11 @@ func (b *builder) write(i []byte) {
 }
 
 type point struct {
-	position  uint16       `cbor:"0,keyasint"`
-	value     rideType     `cbor:"1,keyasint"`
-	fn        rideFunction `cbor:"-"`
-	constant  bool         `cbor:"2,keyasint"`
-	debugInfo string       `cbor:"3,keyasint"`
+	position  uint16   `cbor:"0,keyasint"`
+	value     rideType `cbor:"1,keyasint"`
+	fn        uint16   `cbor:"2,keyasint"`
+	constant  bool     `cbor:"3,keyasint"`
+	debugInfo string   `cbor:"4,keyasint"`
 }
 
 type cell struct {
@@ -110,7 +110,7 @@ func newCell() *cell {
 	}
 }
 
-func (a *cell) set(u uniqueid, result rideType, fn rideFunction, position uint16, constant bool, debug string) {
+func (a *cell) set(u uniqueid, result rideType, fn uint16, position uint16, constant bool, debug string) {
 	a.values[u] = point{
 		position:  position,
 		value:     result,

@@ -182,7 +182,7 @@ func (a CallUserState) Write(_ params, b []byte) {
 		if _, ok := isConstant(b); ok {
 			// skip right now
 		} else {
-			a.c.set(ns[i], nil, nil, a.b.len(), false, fmt.Sprintf("sys %s param #%d", a.name, i))
+			a.c.set(ns[i], nil, 0, a.b.len(), false, fmt.Sprintf("sys %s param #%d", a.name, i))
 			b.Write(a.params, nil)
 			a.b.ret()
 		}

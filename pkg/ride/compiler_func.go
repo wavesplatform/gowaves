@@ -160,8 +160,7 @@ func (a FuncState) Clean() {
 
 func (a FuncState) Write(_ params, b []byte) {
 	pos := a.b.len()
-	a.params.c.set(a.n, nil, nil, pos, false, fmt.Sprintf("function %s", a.name))
-	//writeDeferred(a.params, a.deferred)
+	a.params.c.set(a.n, nil, 0, pos, false, fmt.Sprintf("function %s", a.name))
 	if len(a.deferred) != 1 {
 		panic("len(a.deferred) != 1")
 	}
@@ -175,7 +174,7 @@ func (a FuncState) Write(_ params, b []byte) {
 
 	for _, v := range a.defers.Get() {
 		pos := a.b.len()
-		a.c.set(v.uniq, nil, nil, pos, false, v.debug)
+		a.c.set(v.uniq, nil, 0, pos, false, v.debug)
 		v.deferred.Write(a.params, nil)
 		a.b.ret()
 	}

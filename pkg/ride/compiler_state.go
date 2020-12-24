@@ -60,51 +60,18 @@ type params struct {
 	rnode []RNode
 }
 
-func (a *params) addPredefined(name string, id uniqueid, fn rideFunction) {
+func (a *params) addPredefined(name string, id uniqueid, fn uint16) {
 	a.r.set(name, id)
 	a.c.set(id, nil, fn, 0, false, name)
 }
 
 func (a *params) constant(value rideType) constantDeferred {
 	n := a.u.next()
-	a.c.set(n, value, nil, 0, true, fmt.Sprintf("constant %q", value))
+	a.c.set(n, value, 0, 0, true, fmt.Sprintf("constant %q", value))
 	return NewConstantDeferred(n)
 }
 
-//func long(f Fsm, params params, value int64) Fsm {
-//	params.b.push(params.constant(rideInt(value)))
-//	return f
-//}
-
-//func boolean(f Fsm, params params, value bool) Deferred {
-//	return NewDeferred(func() {
-//		params.b.push(params.constant(rideBoolean(value)))
-//	}, nil)
-//	//return f
-//}
-
-//func bts(f Fsm, params params, value []byte) Fsm {
-//	params.b.push(params.constant(rideBytes(value)))
-//	return f
-//}
-
-//func str(a Fsm, params params, value string) Deferred {
-//	return NewDeferred(func() {
-//		params.b.push(params.constant(rideString(value)))
-//	}, nil)
-//}
-
-//func constant(a Fsm, params params, value rideType) Fsm {
-//	params.b.push(params.constant(value))
-//	return a
-//}
-
-//func putConstant(params params, rideType rideType) uniqueid {
-//	index := params.constant(rideType)
-//	return index
-//}
-
-func reference(f Fsm, params params, name string) Deferred {
+func reference(_ Fsm, params params, name string) Deferred {
 	pos, ok := params.r.get(name)
 	if !ok {
 		panic(fmt.Sprintf("reference %s not found, tx %s", name, params.txID))

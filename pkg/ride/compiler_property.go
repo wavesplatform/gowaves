@@ -96,7 +96,7 @@ func (a PropertyState) Write(_ params, b []byte) {
 	a.b.writeByte(OpRef)
 	a.b.write(encode(a.n))
 	next := a.u.next()
-	a.c.set(next, rideString(a.name), nil, 0, true, fmt.Sprintf("property?? %s", a.name))
+	a.c.set(next, rideString(a.name), 0, 0, true, fmt.Sprintf("property?? %s", a.name))
 	a.b.writeByte(OpRef)
 	a.b.write(encode(next))
 	a.b.writeByte(OpProperty)

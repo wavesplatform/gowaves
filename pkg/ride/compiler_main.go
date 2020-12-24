@@ -88,7 +88,7 @@ func (a MainState) Return() Fsm {
 
 	for _, v := range a.deferreds.Get() {
 		pos := a.b.len()
-		a.c.set(v.uniq, nil, nil, pos, false, v.debug)
+		a.c.set(v.uniq, nil, 0, pos, false, v.debug)
 		v.deferred.Write(a.params, nil)
 		a.b.ret()
 	}

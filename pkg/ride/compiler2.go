@@ -213,7 +213,7 @@ func compileFunction(txID string, libVersion int, nodes []Node, isDapp bool) (*E
 		txID: txID,
 	}
 	for k, v := range predefinedFunctions {
-		params.addPredefined(k, v.id, v.f)
+		params.addPredefined(k, v.id, v.id)
 	}
 
 	f := NewMain(params)

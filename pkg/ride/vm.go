@@ -175,8 +175,9 @@ func (m *vm) run() (rideType, error) {
 			}
 			if point.value != nil {
 				m.push(point.value)
-			} else if point.fn != nil {
-				rs, err := point.fn(m.env)
+			} else if point.fn != 0 {
+				fn := predefined.getn(int(point.fn))
+				rs, err := fn(m.env)
 				if err != nil {
 					return nil, err
 				}
