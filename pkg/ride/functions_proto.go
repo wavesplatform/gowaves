@@ -13,6 +13,57 @@ import (
 	c2 "github.com/wavesplatform/gowaves/pkg/ride/crypto"
 )
 
+func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
+	localState := newWrappedState(env.state(), env.this()) // тут мы создаем вложенный стейт с прослойкой
+	err := localState.ApplyToState(env.actions())
+	if err != nil {
+		return nil, err
+	}
+	localEnv, err := NewEnvironment(env.scheme(), localState) // создаем новый env, с новым стейтом
+	localEnv.id = env.txID()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to invoke")
+	}
+
+	recipient, err := extractRecipient(args[0])
+	if err != nil {
+		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[0].instanceOf())
+	}
+
+	fnName, ok := args[1].(rideString)
+	if !ok {
+		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	listArg, ok := args[2].(rideList)
+	if !ok {
+		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[2].instanceOf())
+	}
+
+	invSysParam := env.invocationSysParam()
+	invSysParam.localEnv = localEnv
+	invSysParam.fnName = fnName
+	invSysParam.recipient = recipient
+	invSysParam.listArg = listArg
+	invSysParam.wasInvokeCalled = true
+
+	//res, err := invokeFunctionFromDApp(localEnv, proto.Recipient(recipient), fnName, listArg)
+	//if err != nil {
+	//	return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
+	//}
+	//
+	//if res.Result() {
+	//
+	//	if res.UserError() != "" {
+	//
+	//	}
+	//}
+	//err = env.appendActions(res.ScriptActions())
+	//if err != nil {
+	//	return nil, err
+	//}
+	return rideAddress(*recipient.Address), nil
+}
+
 func addressFromString(env RideEnvironment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {

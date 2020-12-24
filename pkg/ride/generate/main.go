@@ -325,6 +325,7 @@ func functionsV4() map[string]string {
 	m["1103"] = "indexOfList"
 	m["1104"] = "lastIndexOfList"
 	m["1209"] = "makeString"
+	m["1020"] = "invoke"
 	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		m[strconv.Itoa(2400+i)] = fmt.Sprintf("bls12Groth16Verify_%d", l)
 	}
@@ -414,6 +415,7 @@ func catalogueV4() map[string]int {
 	m["1207"] = 3
 	m["1208"] = 3
 	m["1209"] = 30
+	m["1020"] = 1 // TODO write true value
 	for i, c := range []int{1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600} {
 		m[strconv.Itoa(2400+i)] = c
 	}

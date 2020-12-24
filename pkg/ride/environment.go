@@ -272,7 +272,7 @@ func (wrappedSt *wrappedState) IsNotFound(err error) bool {
 	return wrappedSt.diff.state.IsNotFound(err)
 }
 
-func (wrappedState *wrappedState) ApplyToState(actions []proto.ScriptAction) error {
+func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) error {
 
 	for _, action := range actions {
 		switch res := action.(type) {
@@ -283,54 +283,54 @@ func (wrappedState *wrappedState) ApplyToState(actions []proto.ScriptAction) err
 
 			case *proto.IntegerDataEntry:
 				intEntry := *dataEntry
-				addr := proto.Address(wrappedState.envThis)
+				addr := proto.Address(wrappedSt.envThis)
 
-				wrappedState.diff.dataEntries.diffInteger[dataEntry.Key+addr.String()] = intEntry
+				wrappedSt.diff.dataEntries.diffInteger[dataEntry.Key+addr.String()] = intEntry
 			case *proto.StringDataEntry:
 				stringEntry := *dataEntry
-				addr := proto.Address(wrappedState.envThis)
+				addr := proto.Address(wrappedSt.envThis)
 
-				wrappedState.diff.dataEntries.diffString[dataEntry.Key+addr.String()] = stringEntry
+				wrappedSt.diff.dataEntries.diffString[dataEntry.Key+addr.String()] = stringEntry
 
 			case *proto.BooleanDataEntry:
 				boolEntry := *dataEntry
-				addr := proto.Address(wrappedState.envThis)
+				addr := proto.Address(wrappedSt.envThis)
 
-				wrappedState.diff.dataEntries.diffBool[dataEntry.Key+addr.String()] = boolEntry
+				wrappedSt.diff.dataEntries.diffBool[dataEntry.Key+addr.String()] = boolEntry
 
 			case *proto.BinaryDataEntry:
 				binaryEntry := *dataEntry
-				addr := proto.Address(wrappedState.envThis)
+				addr := proto.Address(wrappedSt.envThis)
 
-				wrappedState.diff.dataEntries.diffBinary[dataEntry.Key+addr.String()] = binaryEntry
+				wrappedSt.diff.dataEntries.diffBinary[dataEntry.Key+addr.String()] = binaryEntry
 
 			case *proto.DeleteDataEntry:
 				deleteEntry := *dataEntry
-				addr := proto.Address(wrappedState.envThis)
+				addr := proto.Address(wrappedSt.envThis)
 
-				wrappedState.diff.dataEntries.diffDDelete[dataEntry.Key+addr.String()] = deleteEntry
+				wrappedSt.diff.dataEntries.diffDDelete[dataEntry.Key+addr.String()] = deleteEntry
 			default:
 
 			}
 
 		case *proto.TransferScriptAction:
-			searchBalance, searchAddr, err := wrappedState.diff.findBalance(res.Recipient, res.Asset.ID.Bytes())
+			searchBalance, searchAddr, err := wrappedSt.diff.findBalance(res.Recipient, res.Asset.ID.Bytes())
 			if err != nil {
 				return err
 			}
-			err = wrappedState.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
+			err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
 			if err != nil {
 				return err
 			}
 
-			senderAddr := proto.Address(wrappedState.envThis)
+			senderAddr := proto.Address(wrappedSt.envThis)
 			senderRecip := proto.Recipient{Address: &senderAddr}
-			senderSearchBalance, senderSearchAddr, err := wrappedState.diff.findBalance(senderRecip, res.Asset.ID.Bytes())
+			senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderRecip, res.Asset.ID.Bytes())
 			if err != nil {
 				return err
 			}
 
-			err = wrappedState.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecip)
+			err = wrappedSt.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecip)
 			if err != nil {
 				return err
 			}
@@ -339,11 +339,11 @@ func (wrappedState *wrappedState) ApplyToState(actions []proto.ScriptAction) err
 			var sponsorship diffSponsorship
 			sponsorship.MinFee = res.MinFee
 
-			wrappedState.diff.sponsorships[res.AssetID.String()] = sponsorship
+			wrappedSt.diff.sponsorships[res.AssetID.String()] = sponsorship
 
 		case *proto.IssueScriptAction:
 			var assetInfo diffNewAssetInfo
-			assetInfo.dAppIssuer = proto.Address(wrappedState.envThis)
+			assetInfo.dAppIssuer = proto.Address(wrappedSt.envThis)
 			assetInfo.name = res.Name
 			assetInfo.description = res.Description
 			assetInfo.quantity = res.Quantity
@@ -352,32 +352,32 @@ func (wrappedState *wrappedState) ApplyToState(actions []proto.ScriptAction) err
 			assetInfo.script = res.Script
 			assetInfo.nonce = res.Nonce
 
-			wrappedState.diff.newAssetsInfo[res.ID.String()] = assetInfo
+			wrappedSt.diff.newAssetsInfo[res.ID.String()] = assetInfo
 
 		case *proto.ReissueScriptAction:
-			searchNewAsset := wrappedState.diff.findNewAsset(res.AssetID)
+			searchNewAsset := wrappedSt.diff.findNewAsset(res.AssetID)
 			if searchNewAsset == nil {
 				var assetInfo diffOldAssetInfo
 
 				assetInfo.diffQuantity += res.Quantity
 
-				wrappedState.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
+				wrappedSt.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
 				break
 			}
-			wrappedState.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
+			wrappedSt.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
 
 		case *proto.BurnScriptAction:
-			searchAsset := wrappedState.diff.findNewAsset(res.AssetID)
+			searchAsset := wrappedSt.diff.findNewAsset(res.AssetID)
 			if searchAsset == nil {
 				var assetInfo diffOldAssetInfo
 
 				assetInfo.diffQuantity += -res.Quantity
 
-				wrappedState.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
+				wrappedSt.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
 
 				break
 			}
-			wrappedState.diff.burnNewAsset(res.AssetID, res.Quantity)
+			wrappedSt.diff.burnNewAsset(res.AssetID, res.Quantity)
 
 		default:
 		}
@@ -391,16 +391,26 @@ type wrappedState struct {
 	envThis rideAddress
 }
 
+type InvocationSysFuncParameters struct {
+	wasInvokeCalled bool
+	localEnv        *Environment
+	recipient       proto.Recipient
+	fnName          rideString
+	listArg         rideList
+}
+
 type Environment struct {
-	sch   proto.Scheme
-	st    types.SmartState
-	h     rideInt
-	tx    rideObject
-	id    rideType
-	th    rideType
-	b     rideObject
-	check func(int) bool
-	inv   rideObject
+	sch       proto.Scheme
+	st        types.SmartState
+	act       []proto.ScriptAction
+	invSysPar InvocationSysFuncParameters
+	h         rideInt
+	tx        rideObject
+	id        rideType
+	th        rideType
+	b         rideObject
+	check     func(int) bool
+	inv       rideObject
 }
 
 func newWrappedState(state types.SmartState, envThis rideType) types.SmartState {
@@ -429,15 +439,17 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, 
 	}
 
 	return &Environment{
-		sch:   scheme,
-		st:    state,
-		h:     rideInt(height),
-		tx:    nil,
-		id:    nil,
-		th:    nil,
-		b:     nil,
-		check: func(int) bool { return true },
-		inv:   nil,
+		sch:       scheme,
+		st:        state,
+		act:       nil,
+		invSysPar: InvocationSysFuncParameters{},
+		h:         rideInt(height),
+		tx:        nil,
+		id:        nil,
+		th:        nil,
+		b:         nil,
+		check:     func(int) bool { return true },
+		inv:       nil,
 	}, nil
 }
 
@@ -521,6 +533,10 @@ func (e *Environment) SetInvoke(tx *proto.InvokeScriptWithProofs, v int) error {
 	return nil
 }
 
+func (e *Environment) invocationSysParam() InvocationSysFuncParameters {
+	return e.invSysPar
+}
+
 func (e *Environment) scheme() byte {
 	return e.sch
 }
@@ -549,6 +565,10 @@ func (e *Environment) state() types.SmartState {
 	return e.st
 }
 
+func (e *Environment) actions() []proto.ScriptAction {
+	return e.act
+}
+
 func (e *Environment) setNewDAppAddress(address proto.Address) {
 	e.SetThisFromAddress(address)
 }
@@ -557,6 +577,24 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 	return e.st.ApplyToState(actions)
 }
 
+func (e *Environment) appendActions(actions []proto.ScriptAction) {
+	e.act = append(e.act, actions...)
+}
+
+func (e *Environment) appendAction(action proto.ScriptAction) {
+	e.act = append(e.act, action)
+}
+
+func (e *Environment) smartAppendActions(actions []proto.ScriptAction) error {
+	_, ok := e.st.(*wrappedState)
+	if !ok {
+		wrappedSt := newWrappedState(e.state(), e.this())
+		e.st = wrappedSt
+	}
+	e.appendActions(actions)
+
+	return e.applyToState(e.actions())
+}
 func (e *Environment) checkMessageLength(l int) bool {
 	return e.check(l)
 }

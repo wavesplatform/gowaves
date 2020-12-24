@@ -5,16 +5,22 @@ import "github.com/wavesplatform/gowaves/pkg/proto"
 type RideResult interface {
 	Result() bool
 	UserError() string
+	UserResult() rideType
 	ScriptActions() []proto.ScriptAction
 }
 
 type ScriptResult struct {
-	res bool
-	msg string
+	res   bool
+	msg   string
+	param rideType
 }
 
 func (r ScriptResult) Result() bool {
 	return r.res
+}
+
+func (r ScriptResult) UserResult() rideType {
+	return r.param
 }
 
 func (r ScriptResult) UserError() string {
@@ -29,10 +35,15 @@ type DAppResult struct {
 	res     bool // true - success, false - call failed, read msg
 	actions []proto.ScriptAction
 	msg     string
+	param   rideType
 }
 
 func (r DAppResult) Result() bool {
 	return r.res
+}
+
+func (r DAppResult) UserResult() rideType {
+	return r.param
 }
 
 func (r DAppResult) UserError() string {
