@@ -218,7 +218,8 @@ type MockRideEnvironment struct {
 // actions calls actionsFunc.
 func (mock *MockRideEnvironment) actions() []proto.ScriptAction {
 	if mock.actionsFunc == nil {
-		panic("MockRideEnvironment.actionsFunc: method is nil but RideEnvironment.actions was just called")
+		return nil
+		//panic("MockRideEnvironment.actionsFunc: method is nil but RideEnvironment.actions was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -244,8 +245,7 @@ func (mock *MockRideEnvironment) actionsCalls() []struct {
 // appendAction calls appendActionFunc.
 func (mock *MockRideEnvironment) appendAction(action proto.ScriptAction) {
 	if mock.appendActionFunc == nil {
-		return
-		//panic("MockRideEnvironment.appendActionFunc: method is nil but RideEnvironment.appendAction was just called")
+		panic("MockRideEnvironment.appendActionFunc: method is nil but RideEnvironment.appendAction was just called")
 	}
 	callInfo := struct {
 		Action proto.ScriptAction
@@ -276,8 +276,7 @@ func (mock *MockRideEnvironment) appendActionCalls() []struct {
 // appendActions calls appendActionsFunc.
 func (mock *MockRideEnvironment) appendActions(actions []proto.ScriptAction) {
 	if mock.appendActionsFunc == nil {
-		return
-		//panic("MockRideEnvironment.appendActionsFunc: method is nil but RideEnvironment.appendActions was just called")
+		panic("MockRideEnvironment.appendActionsFunc: method is nil but RideEnvironment.appendActions was just called")
 	}
 	callInfo := struct {
 		Actions []proto.ScriptAction
@@ -308,8 +307,7 @@ func (mock *MockRideEnvironment) appendActionsCalls() []struct {
 // applyToState calls applyToStateFunc.
 func (mock *MockRideEnvironment) applyToState(actions []proto.ScriptAction) error {
 	if mock.applyToStateFunc == nil {
-		return nil
-		//panic("MockRideEnvironment.applyToStateFunc: method is nil but RideEnvironment.applyToState was just called")
+		panic("MockRideEnvironment.applyToStateFunc: method is nil but RideEnvironment.applyToState was just called")
 	}
 	callInfo := struct {
 		Actions []proto.ScriptAction
@@ -564,8 +562,7 @@ func (mock *MockRideEnvironment) setNewDAppAddressCalls() []struct {
 // smartAppendActions calls smartAppendActionsFunc.
 func (mock *MockRideEnvironment) smartAppendActions(actions []proto.ScriptAction) error {
 	if mock.smartAppendActionsFunc == nil {
-		return nil
-		//panic("MockRideEnvironment.smartAppendActionsFunc: method is nil but RideEnvironment.smartAppendActions was just called")
+		panic("MockRideEnvironment.smartAppendActionsFunc: method is nil but RideEnvironment.smartAppendActions was just called")
 	}
 	callInfo := struct {
 		Actions []proto.ScriptAction

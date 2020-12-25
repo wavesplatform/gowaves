@@ -214,33 +214,6 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	if e.env != nil {
-		if e.env.invocationSysParam().wasInvokeCalled {
-			invSysParam := e.env.invocationSysParam()
-			invSysParam.wasInvokeCalled = false
-			res, err := invokeFunctionFromDApp(
-				e.env.invocationSysParam().localEnv,
-				e.env.invocationSysParam().recipient,
-				e.env.invocationSysParam().fnName,
-				e.env.invocationSysParam().listArg)
-
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
-			}
-
-			if res.Result() {
-				if res.UserError() != "" {
-					return DAppResult{res: false, msg: res.UserError()}, nil
-				}
-			}
-			err = e.env.smartAppendActions(res.ScriptActions())
-			if err != nil {
-				return nil, err
-			}
-
-			return DAppResult{res: true, param: res.UserResult()}, nil
-		}
-	}
 
 	switch res := r.(type) {
 	case rideThrow:
@@ -255,21 +228,19 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
-		e.env.appendActions(a)
 		return DAppResult{res: true, actions: a, msg: ""}, nil
 	case rideList:
-		var actions []proto.ScriptAction
+		act := e.env.actions()
 		for _, item := range res {
 			a, err := convertToAction(e.env, item)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to convert evaluation result")
 			}
-			e.env.appendAction(a)
-			actions = append(actions, a)
+			act = append(act, a)
 		}
-		return DAppResult{res: true, actions: actions}, nil
+		return DAppResult{res: true, actions: act}, nil
 	case tuple2:
-
+		var act []proto.ScriptAction
 		switch resAct := res.el1.(type) {
 		case rideList:
 			for _, item := range resAct {
@@ -277,14 +248,14 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to convert evaluation result")
 				}
-				e.env.appendAction(a)
+				act = append(act, a)
 			}
 
 		default:
 			return nil, errors.Errorf("unexpected result type '%T'", r)
 		}
 
-		return DAppResult{res: true, actions: e.env.actions(), msg: "", param: res.el2}, nil
+		return DAppResult{res: true, actions: act, msg: "", param: res.el2}, nil
 	default:
 		return nil, errors.Errorf("unexpected result type '%T'", r)
 	}
@@ -399,6 +370,38 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to call system function '%s'", id)
 			}
+			if e.env != nil {
+				if e.env.invocationSysParam().wasInvokeCalled {
+					invSysParam := e.env.invocationSysParam()
+					invSysParam.wasInvokeCalled = false
+					res, err := invokeFunctionFromDApp(
+						e.env.invocationSysParam().localEnv,
+						e.env.invocationSysParam().recipient,
+						e.env.invocationSysParam().fnName,
+						e.env.invocationSysParam().listArg)
+
+					e.env.setInvocationSysParam(invSysParam)
+
+					if err != nil {
+						return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
+					}
+
+					//if res.Result() {
+					//	if res.UserError() != "" {
+					//
+					//	}
+					//}
+					err = e.env.smartAppendActions(res.ScriptActions())
+					if err != nil {
+						return nil, err
+					}
+
+					r = res.UserResult()
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
 			return r, nil
 		}
 		uf, cl, err := e.s.userFunction(id)
@@ -428,41 +431,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		var tmp int
 		tmp, e.s.cl = e.s.cl, cl
 
-		//if n.Name == "callDApp" {
-		//	addrOrAlias := args[0].value
-		//	funcName := args[1].value
-		//	listArg, ok := args[2].value.(rideList)
-		//	if !ok {
-		//		return nil, errors.Errorf("argument for DApp function %s is not rideList", funcName)
-		//	}
-		//
-		//	recipient, err := extractRecipient(addrOrAlias)
-		//	if err != nil {
-		//		return nil, errors.Wrapf(err, "failed to get recipient from addr, user function '%s", id)
-		//	}
-		//
-		//	res, err := invokeFunctionFromDApp(e.env, recipient, funcName, listArg)
-		//	if err != nil {
-		//		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp of system function '%s'", id)
-		//	}
-		//	if res.Result() {
-		//		e.actions = append(e.actions, res.ScriptActions()...)
-		//		scheme := e.env.scheme()
-		//		st := newWrappedState(e.env.state(), e.env.this())
-		//		env, err := NewEnvironment(scheme, st)
-		//		if err != nil {
-		//			return nil, errors.Wrap(err, "failed to init new environment, treeEvaluator")
-		//		}
-		//		e.env = env
-		//
-		//		err = e.env.applyToState(res.ScriptActions())
-		//		if err != nil {
-		//			return nil, errors.Wrap(err, "failed to apply actions to state, treeEvaluator")
-		//
-		//		}
-		//	}
-		//}
-
 		r, err := e.walk(uf.Body)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", id)
@@ -481,11 +449,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			return obj, nil
 		}
 		v, err := obj.get(name)
-		if e.env != nil {
-			if e.env.invocationSysParam().wasInvokeCalled {
-				return rideString(""), nil
-			}
-		}
 
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get property '%s'", name)
