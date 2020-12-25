@@ -391,26 +391,17 @@ type wrappedState struct {
 	envThis rideAddress
 }
 
-type InvocationSysFuncParameters struct {
-	wasInvokeCalled bool
-	localEnv        *Environment
-	recipient       proto.Recipient
-	fnName          rideString
-	listArg         rideList
-}
-
 type Environment struct {
-	sch       proto.Scheme
-	st        types.SmartState
-	act       []proto.ScriptAction
-	invSysPar InvocationSysFuncParameters
-	h         rideInt
-	tx        rideObject
-	id        rideType
-	th        rideType
-	b         rideObject
-	check     func(int) bool
-	inv       rideObject
+	sch   proto.Scheme
+	st    types.SmartState
+	act   []proto.ScriptAction
+	h     rideInt
+	tx    rideObject
+	id    rideType
+	th    rideType
+	b     rideObject
+	check func(int) bool
+	inv   rideObject
 }
 
 func newWrappedState(state types.SmartState, envThis rideType) types.SmartState {
@@ -439,17 +430,16 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, 
 	}
 
 	return &Environment{
-		sch:       scheme,
-		st:        state,
-		act:       nil,
-		invSysPar: InvocationSysFuncParameters{},
-		h:         rideInt(height),
-		tx:        nil,
-		id:        nil,
-		th:        nil,
-		b:         nil,
-		check:     func(int) bool { return true },
-		inv:       nil,
+		sch:   scheme,
+		st:    state,
+		act:   nil,
+		h:     rideInt(height),
+		tx:    nil,
+		id:    nil,
+		th:    nil,
+		b:     nil,
+		check: func(int) bool { return true },
+		inv:   nil,
 	}, nil
 }
 
@@ -533,14 +523,6 @@ func (e *Environment) SetInvoke(tx *proto.InvokeScriptWithProofs, v int) error {
 	return nil
 }
 
-func (e *Environment) invocationSysParam() InvocationSysFuncParameters {
-	return e.invSysPar
-}
-
-func (e *Environment) setInvocationSysParam(invokeSysPar InvocationSysFuncParameters) {
-	e.invSysPar = invokeSysPar
-}
-
 func (e *Environment) scheme() byte {
 	return e.sch
 }
@@ -583,10 +565,6 @@ func (e *Environment) applyToState(actions []proto.ScriptAction) error {
 
 func (e *Environment) appendActions(actions []proto.ScriptAction) {
 	e.act = append(e.act, actions...)
-}
-
-func (e *Environment) appendAction(action proto.ScriptAction) {
-	e.act = append(e.act, action)
 }
 
 func (e *Environment) smartAppendActions(actions []proto.ScriptAction) error {

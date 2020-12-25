@@ -39,21 +39,23 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[2].instanceOf())
 	}
 
-	invSysParam := env.invocationSysParam()
-	invSysParam.localEnv = localEnv
-	invSysParam.fnName = fnName
-	invSysParam.recipient = recipient
-	invSysParam.listArg = listArg
-	invSysParam.wasInvokeCalled = true
-	env.setInvocationSysParam(invSysParam)
-
 	res, err := invokeFunctionFromDApp(localEnv, recipient, fnName, listArg)
+
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
 	}
 
-	env.appendActions(res.ScriptActions())
-	return rideAddress(*recipient.Address), nil
+	//if res.Result() {
+	//	if res.UserError() != "" {
+	//
+	//	}
+	//}
+	err = env.smartAppendActions(res.ScriptActions())
+	if err != nil {
+		return nil, err
+	}
+
+	return res.UserResult(), nil
 }
 
 func addressFromString(env RideEnvironment, args ...rideType) (rideType, error) {

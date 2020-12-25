@@ -341,11 +341,8 @@ type RideEnvironment interface {
 	block() rideObject
 	txID() rideType // Invoke transaction ID
 	state() types.SmartState
-	invocationSysParam() InvocationSysFuncParameters
 	applyToState(actions []proto.ScriptAction) error
 	appendActions(actions []proto.ScriptAction)
-	appendAction(action proto.ScriptAction)
-	setInvocationSysParam(invokeSysPar InvocationSysFuncParameters)
 	smartAppendActions(actions []proto.ScriptAction) error
 	actions() []proto.ScriptAction
 	setNewDAppAddress(address proto.Address)

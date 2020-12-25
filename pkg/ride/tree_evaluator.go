@@ -370,38 +370,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to call system function '%s'", id)
 			}
-			if e.env != nil {
-				if e.env.invocationSysParam().wasInvokeCalled {
-					invSysParam := e.env.invocationSysParam()
-					invSysParam.wasInvokeCalled = false
-					res, err := invokeFunctionFromDApp(
-						e.env.invocationSysParam().localEnv,
-						e.env.invocationSysParam().recipient,
-						e.env.invocationSysParam().fnName,
-						e.env.invocationSysParam().listArg)
 
-					e.env.setInvocationSysParam(invSysParam)
-
-					if err != nil {
-						return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
-					}
-
-					//if res.Result() {
-					//	if res.UserError() != "" {
-					//
-					//	}
-					//}
-					err = e.env.smartAppendActions(res.ScriptActions())
-					if err != nil {
-						return nil, err
-					}
-
-					r = res.UserResult()
-					if err != nil {
-						return nil, err
-					}
-				}
-			}
 			return r, nil
 		}
 		uf, cl, err := e.s.userFunction(id)
