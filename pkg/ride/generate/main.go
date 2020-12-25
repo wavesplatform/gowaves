@@ -580,9 +580,15 @@ func createConstants(sb *strings.Builder, ver string, c map[string]constantDescr
 }
 
 func createConstructors(sb *strings.Builder, c map[string]constantDescription) {
-	for _, v := range c {
-		if v.constructor == "" {
-			tn := v.typeName
+	keys := make([]string, 0, len(c))
+	for k := range c {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		if c[k].constructor == "" {
+			tn := c[k].typeName
 			sb.WriteString(fmt.Sprintf("func new%s(RideEnvironment) rideType {\n", tn))
 			sb.WriteString(fmt.Sprintf("return rideNamedType{name: \"%s\"}\n", tn))
 			sb.WriteString("}\n\n")
@@ -601,13 +607,16 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 	sort.Strings(keys)
 
 	// Create sorted list of functions
-	sb.WriteString(fmt.Sprintf("var _functions_%s = [...]rideFunction{", ver))
+	sb.WriteString(fmt.Sprintf("var _functions_%s [%d]rideFunction\n", ver, len(keys)))
+	sb.WriteString("func init() {\n")
+	sb.WriteString(fmt.Sprintf("_functions_%s = [%d]rideFunction{", ver, len(keys)))
 	for i, k := range keys {
 		sb.WriteString(m[k])
 		if i < len(m)-1 {
 			sb.WriteString(", ")
 		}
 	}
+	sb.WriteString("}\n")
 	sb.WriteString("}\n")
 
 	// Create list of costs

@@ -20,10 +20,10 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		return nil, err
 	}
 	localEnv, err := NewEnvironment(env.scheme(), localState) // создаем новый env, с новым стейтом
-	localEnv.id = env.txID()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to invoke")
 	}
+	localEnv.id = env.txID()
 
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
@@ -47,21 +47,12 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 	invSysParam.wasInvokeCalled = true
 	env.setInvocationSysParam(invSysParam)
 
-	//res, err := invokeFunctionFromDApp(localEnv, proto.Recipient(recipient), fnName, listArg)
-	//if err != nil {
-	//	return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
-	//}
-	//
-	//if res.Result() {
-	//
-	//	if res.UserError() != "" {
-	//
-	//	}
-	//}
-	//err = env.appendActions(res.ScriptActions())
-	//if err != nil {
-	//	return nil, err
-	//}
+	res, err := invokeFunctionFromDApp(localEnv, recipient, fnName, listArg)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
+	}
+
+	env.appendActions(res.ScriptActions())
 	return rideAddress(*recipient.Address), nil
 }
 
