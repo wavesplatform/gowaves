@@ -132,6 +132,10 @@ func (diffSt *diffState) findBalance(recipient proto.Recipient, asset []byte) (*
 		if balance, ok := diffSt.balances[address.String()]; ok {
 			return &balance, address.String(), nil
 		}
+		emptyAsset := crypto.Digest{}
+		if balance, ok := diffSt.balances[address.String()+emptyAsset.String()]; ok {
+			return &balance, address.String(), nil
+		}
 		return nil, "", nil
 	}
 

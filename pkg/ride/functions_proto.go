@@ -39,23 +39,68 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[2].instanceOf())
 	}
 
+	var attachedPayments proto.ScriptPayments
+
+	payments := args[3].(rideList)
+	for _, value := range payments {
+		payment, ok := value.(rideObject)
+		if !ok {
+			return nil, errors.Errorf("Can't cast argument from AttachedPayments to rideObject")
+		}
+
+		assetID := payment["assetId"]
+		amount := payment["amount"]
+
+		intAmount := amount.(rideInt)
+
+		var asset crypto.Digest
+
+		switch asID := assetID.(type) {
+		case rideBytes:
+			asset, _ = crypto.NewDigestFromBytes(asID)
+		case rideUnit:
+			asset = crypto.Digest{}
+		default:
+			return nil, errors.Errorf("attachedPayment: unexpected argument type '%s'", args[0].instanceOf())
+		}
+		optAsset := proto.OptionalAsset{ID: asset}
+
+		attachedPayments = append(attachedPayments, proto.ScriptPayment{Asset: optAsset, Amount: uint64(intAmount)})
+	}
+
+	var paymentActions []proto.ScriptAction
+	for _, payment := range attachedPayments {
+		action := &proto.TransferScriptAction{Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
+		paymentActions = append(paymentActions, action)
+	}
+
+	err = env.applyToState(paymentActions)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to apply attachedPayments")
+	}
+
 	res, err := invokeFunctionFromDApp(localEnv, recipient, fnName, listArg)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
 	}
 
-	//if res.Result() {
-	//	if res.UserError() != "" {
-	//
-	//	}
-	//}
-	err = env.smartAppendActions(res.ScriptActions())
-	if err != nil {
-		return nil, err
+	if res.Result() {
+		if res.UserError() != "" {
+			return nil, errors.Errorf(res.UserError())
+		}
+		oldAddress := env.this()
+		env.setNewDAppAddress(*recipient.Address)
+		err = env.smartAppendActions(res.ScriptActions())
+		if err != nil {
+			return nil, err
+		}
+		env.setNewDAppAddress(proto.Address(oldAddress.(rideAddress)))
+
+		return res.UserResult(), nil
 	}
 
-	return res.UserResult(), nil
+	return nil, errors.Errorf("Result of Invoke is false")
 }
 
 func addressFromString(env RideEnvironment, args ...rideType) (rideType, error) {
@@ -1082,18 +1127,22 @@ func attachedPayment(_ RideEnvironment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "attachedPayment")
 	}
+
 	r := make(rideObject)
 	r[instanceFieldName] = rideString("AttachedPayment")
 
-	assetID, ok := args[0].(rideBytes)
-	if !ok {
-		return nil, errors.Errorf("cannot cast args[0] to rideBytes, attachedPayment")
+	var assetID rideType
+	switch assID := args[0].(type) {
+	case rideBytes, rideUnit:
+		assetID = assID
+	default:
+		return nil, errors.Errorf("attachedPayment: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	r["assetId"] = assetID
 
 	amount, ok := args[1].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("cannot cast args[1] to rideInt, attachedPayment")
+		return nil, errors.Errorf("attachedPayment: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	r["amount"] = amount
 	return r, nil
