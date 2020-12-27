@@ -26,9 +26,6 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return state
 		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
-		},
 		actionsFunc: func() []proto.ScriptAction {
 			return nil
 		},
@@ -106,9 +103,6 @@ func TestFunctionsEvaluation(t *testing.T) {
 	require.NoError(t, err)
 	env := &MockRideEnvironment{
 		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
 			return nil
 		},
 		checkMessageLengthFunc: v3check,
@@ -1904,17 +1898,10 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	// new test
-	actions := res.ScriptActions()
-	err = env.applyToStateFunc(actions)
-	require.NoError(t, err)
-
 	expectedDiffResult := initWrappedState(smartState(), rideAddress(address)).diff
 
 	intEntry1 := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	intEntry2 := proto.IntegerDataEntry{Key: "key", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+address.String()] = intEntry1
-	expectedDiffResult.dataEntries.diffInteger["key"+address.String()] = intEntry2
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
@@ -2455,22 +2442,20 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	// new test
-
 	expectedDiffResult := initWrappedState(smartState(), rideAddress(address)).diff
 
 	balanceMain := diffBalance{assetID: crypto.Digest{}, amount: -14}
 	balanceCallable := diffBalance{assetID: crypto.Digest{}, amount: 14}
-	intEntry1 := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	intEntry2 := proto.IntegerDataEntry{Key: "key", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry1
-	expectedDiffResult.dataEntries.diffInteger["key"+address.String()] = intEntry2
+	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
+	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
 	expectedDiffResult.balances[address.String()+crypto.Digest{}.String()] = balanceMain
 	expectedDiffResult.balances[addressCallable.String()+crypto.Digest{}.String()] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
 }
+
+
 
 func TestMatchOverwrite(t *testing.T) {
 	/*
@@ -2580,9 +2565,6 @@ func TestFailSript1(t *testing.T) {
 		transactionFunc: func() rideObject {
 			return tv
 		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
-		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
@@ -2681,9 +2663,6 @@ func TestFailSript2(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
-		},
 		heightFunc: func() rideInt {
 			return 368430
 		},
@@ -2777,14 +2756,14 @@ func TestWhaleDApp(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 368430
 		},
+		actionsFunc: func() []proto.ScriptAction {
+			return nil
+		},
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
 		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
@@ -2912,11 +2891,11 @@ func TestExchangeDApp(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 1642207
 		},
+		actionsFunc: func() []proto.ScriptAction {
+			return nil
+		},
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
 		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
@@ -3081,11 +3060,11 @@ func TestBankDApp(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
+		actionsFunc: func() []proto.ScriptAction {
+			return nil
+		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
 		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
@@ -3208,11 +3187,11 @@ func TestLigaDApp1(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 1642207
 		},
+		actionsFunc: func() []proto.ScriptAction {
+			return nil
+		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
 		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
@@ -3365,11 +3344,11 @@ func TestLigaDApp1(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 1642207
 		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
-		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
+		},
+		actionsFunc: func() []proto.ScriptAction {
+			return nil
 		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
@@ -3548,11 +3527,11 @@ func TestTestingDApp(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 1642207
 		},
+		actionsFunc: func() []proto.ScriptAction {
+			return nil
+		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
 		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
@@ -3676,7 +3655,7 @@ func TestDropElementDApp(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 1642207
 		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
+		actionsFunc: func() []proto.ScriptAction {
 			return nil
 		},
 		schemeFunc: func() byte {
@@ -3796,11 +3775,11 @@ func TestMathDApp(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 1642207
 		},
+		actionsFunc: func() []proto.ScriptAction {
+			return nil
+		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
 		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
@@ -3914,11 +3893,11 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 844761
 		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
-		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
+		},
+		actionsFunc: func() []proto.ScriptAction {
+			return nil
 		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
@@ -4046,7 +4025,7 @@ func Test8Ball(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
+		actionsFunc: func() []proto.ScriptAction {
 			return nil
 		},
 		blockFunc: func() rideObject {
@@ -4170,7 +4149,7 @@ func TestIntegerEntry(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 844761
 		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
+		actionsFunc: func() []proto.ScriptAction {
 			return nil
 		},
 		schemeFunc: func() byte {
@@ -4233,7 +4212,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
+		actionsFunc: func() []proto.ScriptAction {
 			return nil
 		},
 		stateFunc: func() types.SmartState {
@@ -4324,9 +4303,6 @@ func TestDAppWithFullIssue(t *testing.T) {
 		txIDFunc: func() rideType {
 			return rideBytes(id)
 		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
-		},
 		actionsFunc: func() []proto.ScriptAction {
 			return nil
 		},
@@ -4355,9 +4331,6 @@ func TestDAppWithSimpleIssue(t *testing.T) {
 	env := &MockRideEnvironment{
 		txIDFunc: func() rideType {
 			return rideBytes(id)
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
 		},
 		actionsFunc: func() []proto.ScriptAction {
 			return nil
@@ -4423,9 +4396,6 @@ func TestBadType(t *testing.T) {
 	env := &MockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 617907
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
 		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
@@ -4580,9 +4550,6 @@ func TestNoDeclaration(t *testing.T) {
 		},
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
 		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
@@ -4759,9 +4726,6 @@ func TestZeroReissue(t *testing.T) {
 		},
 		heightFunc: func() rideInt {
 			return 451323
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
 		},
 		schemeFunc: func() byte {
 			return proto.StageNetScheme
@@ -5001,9 +4965,6 @@ func TestStageNet2(t *testing.T) {
 		},
 		heightFunc: func() rideInt {
 			return 451323
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) error {
-			return nil
 		},
 		schemeFunc: func() byte {
 			return proto.StageNetScheme
