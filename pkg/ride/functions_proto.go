@@ -6,11 +6,11 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	c2 "github.com/wavesplatform/gowaves/pkg/ride/crypto"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
@@ -37,17 +37,30 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 	var attachedPayments proto.ScriptPayments
 
 	payments := args[3].(rideList)
+
+	invocationParam := env.invocation()
+	invocationParam["caller"] = oldAddress.(rideAddress)
+	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(oldAddress.(rideAddress)), false)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get caller public key by address")
+	}
+	invocationParam["callerPublicKey"] = rideBytes(common.Dup(callerPublicKey.Bytes()))
+	invocationParam["payments"] = payments
+	env.SetInvocation(invocationParam)
+
 	for _, value := range payments {
 		payment, ok := value.(rideObject)
 		if !ok {
-			return nil, errors.Errorf("Can't cast argument from AttachedPayments to rideObject")
+			return nil, errors.Errorf("invoke: unexpected argument type '%s'", payment.instanceOf())
 		}
 
 		assetID := payment["assetId"]
 		amount := payment["amount"]
 
-		intAmount := amount.(rideInt)
-
+		intAmount, ok := amount.(rideInt)
+		if !ok {
+			return nil, errors.Errorf("invoke: unexpected argument type '%s'", amount.instanceOf())
+		}
 		var asset crypto.Digest
 
 		switch asID := assetID.(type) {

@@ -19,6 +19,9 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //
 //         // make and configure a mocked RideEnvironment
 //         mockedRideEnvironment := &MockRideEnvironment{
+//             SetInvocationFunc: func(inv rideObject)  {
+// 	               panic("mock out the SetInvocation method")
+//             },
 //             actionsFunc: func() []proto.ScriptAction {
 // 	               panic("mock out the actions method")
 //             },
@@ -74,6 +77,9 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //
 //     }
 type MockRideEnvironment struct {
+	// SetInvocationFunc mocks the SetInvocation method.
+	SetInvocationFunc func(inv rideObject)
+
 	// actionsFunc mocks the actions method.
 	actionsFunc func() []proto.ScriptAction
 
@@ -124,6 +130,11 @@ type MockRideEnvironment struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// SetInvocation holds details about calls to the SetInvocation method.
+		SetInvocation []struct {
+			// Inv is the inv argument value.
+			Inv rideObject
+		}
 		// actions holds details about calls to the actions method.
 		actions []struct {
 		}
@@ -183,6 +194,7 @@ type MockRideEnvironment struct {
 		txID []struct {
 		}
 	}
+	lockSetInvocation      sync.RWMutex
 	lockactions            sync.RWMutex
 	lockappendActions      sync.RWMutex
 	lockapplyToState       sync.RWMutex
@@ -199,6 +211,37 @@ type MockRideEnvironment struct {
 	lockthis               sync.RWMutex
 	locktransaction        sync.RWMutex
 	locktxID               sync.RWMutex
+}
+
+// SetInvocation calls SetInvocationFunc.
+func (mock *MockRideEnvironment) SetInvocation(inv rideObject) {
+	if mock.SetInvocationFunc == nil {
+		panic("MockRideEnvironment.SetInvocationFunc: method is nil but RideEnvironment.SetInvocation was just called")
+	}
+	callInfo := struct {
+		Inv rideObject
+	}{
+		Inv: inv,
+	}
+	mock.lockSetInvocation.Lock()
+	mock.calls.SetInvocation = append(mock.calls.SetInvocation, callInfo)
+	mock.lockSetInvocation.Unlock()
+	mock.SetInvocationFunc(inv)
+}
+
+// SetInvocationCalls gets all the calls that were made to SetInvocation.
+// Check the length with:
+//     len(mockedRideEnvironment.SetInvocationCalls())
+func (mock *MockRideEnvironment) SetInvocationCalls() []struct {
+	Inv rideObject
+} {
+	var calls []struct {
+		Inv rideObject
+	}
+	mock.lockSetInvocation.RLock()
+	calls = mock.calls.SetInvocation
+	mock.lockSetInvocation.RUnlock()
+	return calls
 }
 
 // actions calls actionsFunc.

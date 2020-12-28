@@ -587,6 +587,10 @@ func (e *Environment) invocation() rideObject {
 	return e.inv
 }
 
+func (e *Environment) SetInvocation(inv rideObject) {
+	e.inv = inv
+}
+
 func (e *Environment) invCount() uint64 {
 	return e.invokeCount
 }

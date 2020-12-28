@@ -1273,7 +1273,8 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		appendActionsFunc: func(actions []proto.ScriptAction) {
 			envActions = append(envActions, actions...)
 		},
-
+		SetInvocationFunc: func(inv rideObject) {
+		},
 		smartAppendActionsFunc: func(actions []proto.ScriptAction) error {
 			envActions = append(envActions, actions...)
 
@@ -1807,6 +1808,8 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	env := &MockRideEnvironment{
 		actionsFunc: func() []proto.ScriptAction {
 			return envActions
+		},
+		SetInvocationFunc: func(inv rideObject) {
 		},
 
 		appendActionsFunc: func(actions []proto.ScriptAction) {
@@ -2346,7 +2349,8 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 		actionsFunc: func() []proto.ScriptAction {
 			return envActions
 		},
-
+		SetInvocationFunc: func(inv rideObject) {
+		},
 		appendActionsFunc: func(actions []proto.ScriptAction) {
 			envActions = append(envActions, actions...)
 		},
@@ -2909,7 +2913,8 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 		appendActionsFunc: func(actions []proto.ScriptAction) {
 			envActions = append(envActions, actions...)
 		},
-
+		SetInvocationFunc: func(inv rideObject) {
+		},
 		smartAppendActionsFunc: func(actions []proto.ScriptAction) error {
 			envActions = append(envActions, actions...)
 
@@ -3470,7 +3475,8 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 		appendActionsFunc: func(actions []proto.ScriptAction) {
 			envActions = append(envActions, actions...)
 		},
-
+		SetInvocationFunc: func(inv rideObject) {
+		},
 		smartAppendActionsFunc: func(actions []proto.ScriptAction) error {
 			envActions = append(envActions, actions...)
 
@@ -3480,7 +3486,6 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 			return proto.MainNetScheme
 		},
 		stateFunc: smartState,
-
 		txIDFunc: func() rideType {
 			return rideBytes(id)
 		},
@@ -4035,7 +4040,8 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 		appendActionsFunc: func(actions []proto.ScriptAction) {
 			envActions = append(envActions, actions...)
 		},
-
+		SetInvocationFunc: func(inv rideObject) {
+		},
 		smartAppendActionsFunc: func(actions []proto.ScriptAction) error {
 			envActions = append(envActions, actions...)
 
@@ -4539,7 +4545,8 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 		actionsFunc: func() []proto.ScriptAction {
 			return envActions
 		},
-
+		SetInvocationFunc: func(inv rideObject) {
+		},
 		appendActionsFunc: func(actions []proto.ScriptAction) {
 			envActions = append(envActions, actions...)
 		},
