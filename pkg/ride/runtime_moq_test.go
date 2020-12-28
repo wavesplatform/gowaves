@@ -37,6 +37,12 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             heightFunc: func() rideInt {
 // 	               panic("mock out the height method")
 //             },
+//             incrementInvCountFunc: func()  {
+// 	               panic("mock out the incrementInvCount method")
+//             },
+//             invCountFunc: func() uint64 {
+// 	               panic("mock out the invCount method")
+//             },
 //             invocationFunc: func() rideObject {
 // 	               panic("mock out the invocation method")
 //             },
@@ -85,6 +91,12 @@ type MockRideEnvironment struct {
 
 	// heightFunc mocks the height method.
 	heightFunc func() rideInt
+
+	// incrementInvCountFunc mocks the incrementInvCount method.
+	incrementInvCountFunc func()
+
+	// invCountFunc mocks the invCount method.
+	invCountFunc func() uint64
 
 	// invocationFunc mocks the invocation method.
 	invocationFunc func() rideObject
@@ -136,6 +148,12 @@ type MockRideEnvironment struct {
 		// height holds details about calls to the height method.
 		height []struct {
 		}
+		// incrementInvCount holds details about calls to the incrementInvCount method.
+		incrementInvCount []struct {
+		}
+		// invCount holds details about calls to the invCount method.
+		invCount []struct {
+		}
 		// invocation holds details about calls to the invocation method.
 		invocation []struct {
 		}
@@ -171,6 +189,8 @@ type MockRideEnvironment struct {
 	lockblock              sync.RWMutex
 	lockcheckMessageLength sync.RWMutex
 	lockheight             sync.RWMutex
+	lockincrementInvCount  sync.RWMutex
+	lockinvCount           sync.RWMutex
 	lockinvocation         sync.RWMutex
 	lockscheme             sync.RWMutex
 	locksetNewDAppAddress  sync.RWMutex
@@ -349,6 +369,58 @@ func (mock *MockRideEnvironment) heightCalls() []struct {
 	mock.lockheight.RLock()
 	calls = mock.calls.height
 	mock.lockheight.RUnlock()
+	return calls
+}
+
+// incrementInvCount calls incrementInvCountFunc.
+func (mock *MockRideEnvironment) incrementInvCount() {
+	if mock.incrementInvCountFunc == nil {
+		panic("MockRideEnvironment.incrementInvCountFunc: method is nil but RideEnvironment.incrementInvCount was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockincrementInvCount.Lock()
+	mock.calls.incrementInvCount = append(mock.calls.incrementInvCount, callInfo)
+	mock.lockincrementInvCount.Unlock()
+	mock.incrementInvCountFunc()
+}
+
+// incrementInvCountCalls gets all the calls that were made to incrementInvCount.
+// Check the length with:
+//     len(mockedRideEnvironment.incrementInvCountCalls())
+func (mock *MockRideEnvironment) incrementInvCountCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockincrementInvCount.RLock()
+	calls = mock.calls.incrementInvCount
+	mock.lockincrementInvCount.RUnlock()
+	return calls
+}
+
+// invCount calls invCountFunc.
+func (mock *MockRideEnvironment) invCount() uint64 {
+	if mock.invCountFunc == nil {
+		panic("MockRideEnvironment.invCountFunc: method is nil but RideEnvironment.invCount was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockinvCount.Lock()
+	mock.calls.invCount = append(mock.calls.invCount, callInfo)
+	mock.lockinvCount.Unlock()
+	return mock.invCountFunc()
+}
+
+// invCountCalls gets all the calls that were made to invCount.
+// Check the length with:
+//     len(mockedRideEnvironment.invCountCalls())
+func (mock *MockRideEnvironment) invCountCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockinvCount.RLock()
+	calls = mock.calls.invCount
+	mock.lockinvCount.RUnlock()
 	return calls
 }
 

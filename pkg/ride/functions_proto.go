@@ -14,18 +14,11 @@ import (
 )
 
 func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
+	env.incrementInvCount()
+	if env.invCount() > 9 {
+		return rideUnit{}, nil
+	}
 	oldAddress := env.this()
-
-	localState := newWrappedState(env.state(), env.this()) // тут мы создаем вложенный стейт с прослойкой
-	err := localState.ApplyToState(env.actions())
-	if err != nil {
-		return nil, err
-	}
-	localEnv, err := NewEnvironment(env.scheme(), localState) // создаем новый env, с новым стейтом
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to invoke")
-	}
-	localEnv.id = env.txID()
 
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
@@ -91,7 +84,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		if res.UserError() != "" {
 			return nil, errors.Errorf(res.UserError())
 		}
-		env.setNewDAppAddress(*recipient.Address)
+
 		err = env.smartAppendActions(res.ScriptActions())
 		env.setNewDAppAddress(proto.Address(oldAddress.(rideAddress)))
 		if err != nil {

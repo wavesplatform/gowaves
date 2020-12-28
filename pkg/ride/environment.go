@@ -392,16 +392,17 @@ type wrappedState struct {
 }
 
 type Environment struct {
-	sch   proto.Scheme
-	st    types.SmartState
-	act   []proto.ScriptAction
-	h     rideInt
-	tx    rideObject
-	id    rideType
-	th    rideType
-	b     rideObject
-	check func(int) bool
-	inv   rideObject
+	sch         proto.Scheme
+	st          types.SmartState
+	act         []proto.ScriptAction
+	h           rideInt
+	tx          rideObject
+	id          rideType
+	th          rideType
+	b           rideObject
+	check       func(int) bool
+	inv         rideObject
+	invokeCount uint64
 }
 
 func newWrappedState(state types.SmartState, envThis rideType) types.SmartState {
@@ -430,16 +431,17 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, 
 	}
 
 	return &Environment{
-		sch:   scheme,
-		st:    state,
-		act:   nil,
-		h:     rideInt(height),
-		tx:    nil,
-		id:    nil,
-		th:    nil,
-		b:     nil,
-		check: func(int) bool { return true },
-		inv:   nil,
+		sch:         scheme,
+		st:          state,
+		act:         nil,
+		h:           rideInt(height),
+		tx:          nil,
+		id:          nil,
+		th:          nil,
+		b:           nil,
+		check:       func(int) bool { return true },
+		inv:         nil,
+		invokeCount: 0,
 	}, nil
 }
 
@@ -583,4 +585,12 @@ func (e *Environment) checkMessageLength(l int) bool {
 
 func (e *Environment) invocation() rideObject {
 	return e.inv
+}
+
+func (e *Environment) invCount() uint64 {
+	return e.invokeCount
+}
+
+func (e *Environment) incrementInvCount() {
+	e.invokeCount++
 }

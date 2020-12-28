@@ -345,6 +345,8 @@ type RideEnvironment interface {
 	appendActions(actions []proto.ScriptAction)
 	smartAppendActions(actions []proto.ScriptAction) error
 	actions() []proto.ScriptAction
+	invCount() uint64
+	incrementInvCount()
 	setNewDAppAddress(address proto.Address)
 	checkMessageLength(int) bool
 	invocation() rideObject // Invocation object made of invoke transaction
