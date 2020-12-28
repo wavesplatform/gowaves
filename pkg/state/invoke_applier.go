@@ -532,9 +532,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 
 			// Add new leasing info
 			l := &leasing{true, uint64(a.Amount), *recipientAddress, *info.scriptAddr}
-			if err := ia.stor.leases.addLeasingUncertain(a.ID, l); err != nil {
-				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to add leasing info")
-			}
+			ia.stor.leases.addLeasingUncertain(a.ID, l)
 
 			txDiff, err := ia.newTxDiffFromScriptLease(info.scriptAddr, recipientAddress, a)
 			if err != nil {
