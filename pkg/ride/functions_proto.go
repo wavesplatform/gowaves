@@ -97,6 +97,9 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		}
 		env.setNewDAppAddress(proto.Address(oldAddress.(rideAddress)))
 
+		if res.UserResult() == nil {
+			return rideUnit{}, nil
+		}
 		return res.UserResult(), nil
 	}
 
