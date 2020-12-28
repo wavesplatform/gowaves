@@ -131,17 +131,7 @@ func (ia *invokeApplier) newTxDiffFromScriptBurn(scriptAddr *proto.Address, acti
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptLease(scriptAddr *proto.Address, action *proto.LeaseScriptAction) (txDiff, error) {
-	recipientAddress := action.Recipient.Address
-	if recipientAddress == nil {
-		return nil, errors.New("transfer has unresolved aliases")
-	}
-	if scriptAddr == recipientAddress {
-		return nil, errors.New("leasing to itself is not allowed")
-	}
-	if action.Amount <= 0 {
-		return nil, errors.New("non-positive leasing amount")
-	}
+func (ia *invokeApplier) newTxDiffFromScriptLease(scriptAddr, recipientAddress *proto.Address, action *proto.LeaseScriptAction) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := wavesBalanceKey{address: *scriptAddr}
 	receiverKey := wavesBalanceKey{address: *recipientAddress}
@@ -151,13 +141,22 @@ func (ia *invokeApplier) newTxDiffFromScriptLease(scriptAddr *proto.Address, act
 	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, action.Amount, 0, false)); err != nil {
 		return nil, err
 	}
-	//TODO: add leasing info creation
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(scriptAddr *proto.Address, action *proto.LeaseCancelScriptAction) (txDiff, error) {
-	//TODO: implement
-	return nil, errors.New("not implemented")
+func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(scriptAddr *proto.Address, leaseInfo *leasing) (txDiff, error) {
+	diff := newTxDiff()
+	senderKey := wavesBalanceKey{address: *scriptAddr}
+	senderLeaseOutDiff := -int64(leaseInfo.leaseAmount)
+	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(0, 0, senderLeaseOutDiff, false)); err != nil {
+		return nil, err
+	}
+	receiverKey := wavesBalanceKey{address: leaseInfo.recipient}
+	receiverLeaseInDiff := -int64(leaseInfo.leaseAmount)
+	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, receiverLeaseInDiff, 0, false)); err != nil {
+		return nil, err
+	}
+	return diff, nil
 }
 
 func (ia *invokeApplier) saveIntermediateDiff(diff txDiff) error {
@@ -320,6 +319,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 		case *proto.DataEntryScriptAction:
 			// Perform data storage writes.
 			ia.stor.accountsDataStor.appendEntryUncertain(*info.scriptAddr, a.Entry)
+
 		case *proto.TransferScriptAction:
 			// Perform transfers.
 			addr := a.Recipient.Address
@@ -366,6 +366,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					return proto.DAppError, info.failedChanges, err
 				}
 			}
+
 		case *proto.IssueScriptAction:
 			// Create asset's info.
 			assetInfo := &assetInfo{
@@ -400,6 +401,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					return proto.DAppError, info.failedChanges, err
 				}
 			}
+
 		case *proto.ReissueScriptAction:
 			// Check validity of reissue.
 			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
@@ -445,6 +447,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					return proto.DAppError, info.failedChanges, err
 				}
 			}
+
 		case *proto.BurnScriptAction:
 			// Check burn.
 			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
@@ -492,6 +495,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					return proto.DAppError, info.failedChanges, err
 				}
 			}
+
 		case *proto.SponsorshipScriptAction:
 			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
 			if err != nil {
@@ -512,11 +516,27 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				return proto.DAppError, info.failedChanges, errors.Errorf("can not sponsor smart asset %s", a.AssetID.String())
 			}
 			ia.stor.sponsoredAssets.sponsorAssetUncertain(a.AssetID, uint64(a.MinFee))
+
 		case *proto.LeaseScriptAction:
-			totalChanges.appendAddr(*info.scriptAddr)
-			addr := a.Recipient.Address
-			totalChanges.appendAddr(*addr)
-			txDiff, err := ia.newTxDiffFromScriptLease(info.scriptAddr, a)
+			recipientAddress := a.Recipient.Address
+			if recipientAddress == nil {
+				return proto.DAppError, info.failedChanges, errors.New("transfer has unresolved aliases")
+			}
+			if info.scriptAddr == recipientAddress {
+				return proto.DAppError, info.failedChanges, errors.New("leasing to itself is not allowed")
+			}
+			if a.Amount <= 0 {
+				return proto.DAppError, info.failedChanges, errors.New("non-positive leasing amount")
+			}
+			totalChanges.appendAddr(*recipientAddress)
+
+			// Add new leasing info
+			l := &leasing{true, uint64(a.Amount), *recipientAddress, *info.scriptAddr}
+			if err := ia.stor.leases.addLeasingUncertain(a.ID, l); err != nil {
+				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to add leasing info")
+			}
+
+			txDiff, err := ia.newTxDiffFromScriptLease(info.scriptAddr, recipientAddress, a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -528,15 +548,21 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					return proto.DAppError, info.failedChanges, err
 				}
 			}
+
 		case *proto.LeaseCancelScriptAction:
 			li, err := ia.stor.leases.newestLeasingInfo(a.LeaseID, !info.initialisation)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
-			li.isActive = false
+
+			// Update leasing info
+			if err := ia.stor.leases.cancelLeasingUncertain(a.LeaseID, !info.initialisation); err != nil {
+				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to cancel leasing")
+			}
+
 			totalChanges.appendAddr(li.sender)
 			totalChanges.appendAddr(li.recipient)
-			txDiff, err := ia.newTxDiffFromScriptLeaseCancel(info.scriptAddr, a)
+			txDiff, err := ia.newTxDiffFromScriptLeaseCancel(info.scriptAddr, li)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}

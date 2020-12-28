@@ -74,12 +74,19 @@ func (l *leasingRecord) unmarshalBinary(data []byte) error {
 type leases struct {
 	hs *historyStorage
 
+	uncertainLeases map[crypto.Digest]*leasing
+
 	calculateHashes bool
 	hasher          *stateHasher
 }
 
 func newLeases(hs *historyStorage, calcHashes bool) *leases {
-	return &leases{hs: hs, calculateHashes: calcHashes, hasher: newStateHasher()}
+	return &leases{
+		hs:              hs,
+		uncertainLeases: make(map[crypto.Digest]*leasing),
+		calculateHashes: calcHashes,
+		hasher:          newStateHasher(),
+	}
 }
 
 func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID proto.BlockID) error {
@@ -155,6 +162,10 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 
 // Leasing info from DB or local storage.
 func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
+	if leasing, ok := l.uncertainLeases[id]; ok {
+		return leasing, nil
+	}
+
 	key := leaseKey{leaseID: id}
 	recordBytes, err := l.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
@@ -217,6 +228,10 @@ func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID proto.Bl
 	return nil
 }
 
+func (l *leases) addLeasingUncertain(id crypto.Digest, leasing *leasing) {
+	l.uncertainLeases[id] = leasing
+}
+
 func (l *leases) cancelLeasing(id crypto.Digest, blockID proto.BlockID, filter bool) error {
 	leasing, err := l.newestLeasingInfo(id, filter)
 	if err != nil {
@@ -226,10 +241,33 @@ func (l *leases) cancelLeasing(id crypto.Digest, blockID proto.BlockID, filter b
 	return l.addLeasing(id, leasing, blockID)
 }
 
+func (l *leases) cancelLeasingUncertain(id crypto.Digest, filter bool) error {
+	leasing, err := l.newestLeasingInfo(id, filter)
+	if err != nil {
+		return errors.Errorf("failed to get leasing info: %v", err)
+	}
+	leasing.isActive = false
+	l.addLeasingUncertain(id, leasing)
+	return nil
+}
+
 func (l *leases) prepareHashes() error {
 	return l.hasher.stop()
 }
 
 func (l *leases) reset() {
 	l.hasher.reset()
+}
+
+func (l *leases) commitUncertain(blockID proto.BlockID) error {
+	for id, leasing := range l.uncertainLeases {
+		if err := l.addLeasing(id, leasing, blockID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (l *leases) dropUncertain() {
+	l.uncertainLeases = make(map[crypto.Digest]*leasing)
 }
