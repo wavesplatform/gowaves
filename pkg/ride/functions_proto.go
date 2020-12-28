@@ -14,6 +14,8 @@ import (
 )
 
 func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
+	oldAddress := env.this()
+
 	localState := newWrappedState(env.state(), env.this()) // тут мы создаем вложенный стейт с прослойкой
 	err := localState.ApplyToState(env.actions())
 	if err != nil {
@@ -79,7 +81,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrapf(err, "Failed to apply attachedPayments")
 	}
 
-	res, err := invokeFunctionFromDApp(localEnv, recipient, fnName, listArg)
+	res, err := invokeFunctionFromDApp(env, recipient, fnName, listArg)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
@@ -89,13 +91,12 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		if res.UserError() != "" {
 			return nil, errors.Errorf(res.UserError())
 		}
-		oldAddress := env.this()
 		env.setNewDAppAddress(*recipient.Address)
 		err = env.smartAppendActions(res.ScriptActions())
+		env.setNewDAppAddress(proto.Address(oldAddress.(rideAddress)))
 		if err != nil {
 			return nil, err
 		}
-		env.setNewDAppAddress(proto.Address(oldAddress.(rideAddress)))
 
 		if res.UserResult() == nil {
 			return rideUnit{}, nil
