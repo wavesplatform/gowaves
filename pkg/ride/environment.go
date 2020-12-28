@@ -575,7 +575,7 @@ func (e *Environment) smartAppendActions(actions []proto.ScriptAction) error {
 	}
 	e.appendActions(actions)
 
-	return e.applyToState(e.actions())
+	return e.applyToState(actions)
 }
 func (e *Environment) checkMessageLength(l int) bool {
 	return e.check(l)
