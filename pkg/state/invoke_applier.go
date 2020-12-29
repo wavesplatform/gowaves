@@ -280,7 +280,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 	}
 	// Validate produced actions.
 	var keySizeValidationVersion byte = 1
-	if info.libVersion == 4 {
+	if info.libVersion >= 4 {
 		keySizeValidationVersion = 2
 	}
 	restrictions := proto.ActionsValidationRestrictions{

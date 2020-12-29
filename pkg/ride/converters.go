@@ -1248,7 +1248,16 @@ func convertToAction(env RideEnvironment, obj rideType) (proto.ScriptAction, err
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
 		}
+		id, err := calcLeaseID(env, recipient, amount, nonce)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+		}
+		d, err := crypto.NewDigestFromBytes(id)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+		}
 		return &proto.LeaseScriptAction{
+			ID:        d,
 			Recipient: recipient,
 			Amount:    int64(amount),
 			Nonce:     int64(nonce),

@@ -166,23 +166,10 @@ type getActiveLeasesHandler struct {
 	s   *Server
 }
 
-func (h *getActiveLeasesHandler) resolveRecipient(rcp proto.Recipient) (*proto.Address, error) {
-	if rcp.Alias != nil {
-		addr, err := h.s.state.AddrByAlias(*rcp.Alias)
-		if err != nil {
-			return nil, err
-		}
-		return &addr, nil
-	}
-	if rcp.Address != nil {
-		return rcp.Address, nil
-	}
-	return nil, errors.New("invalid recipient")
-}
-
 func (h *getActiveLeasesHandler) handle(tx proto.Transaction, _ bool) error {
 	var id []byte
-	var sender, recipient proto.Address
+	var sender proto.Address
+	var recipient proto.Recipient
 	var amount int64
 	var err error
 	switch ltx := tx.(type) {
@@ -192,11 +179,7 @@ func (h *getActiveLeasesHandler) handle(tx proto.Transaction, _ bool) error {
 		if err != nil {
 			return err
 		}
-		addr, err := h.resolveRecipient(ltx.Recipient)
-		if err != nil {
-			return err
-		}
-		recipient = *addr
+		recipient = ltx.Recipient
 		amount = int64(ltx.Amount)
 	case *proto.LeaseWithProofs:
 		id = ltx.ID.Bytes()
@@ -204,11 +187,7 @@ func (h *getActiveLeasesHandler) handle(tx proto.Transaction, _ bool) error {
 		if err != nil {
 			return err
 		}
-		addr, err := h.resolveRecipient(ltx.Recipient)
-		if err != nil {
-			return err
-		}
-		recipient = *addr
+		recipient = ltx.Recipient
 		amount = int64(ltx.Amount)
 	default:
 		return nil
@@ -218,13 +197,17 @@ func (h *getActiveLeasesHandler) handle(tx proto.Transaction, _ bool) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get tx height by ID")
 	}
+	rcp, err := recipient.ToProtobuf()
+	if err != nil {
+		return err
+	}
 	res := &g.LeaseResponse{
 		LeaseId:             id,
 		OriginTransactionId: id,
 		Sender:              sender.Body(),
-		Recipient:           recipient.Body(),
+		Recipient:           rcp,
 		Amount:              amount,
-		Height:              int32(height),
+		Height:              int64(height),
 	}
 
 	err = h.srv.Send(res)

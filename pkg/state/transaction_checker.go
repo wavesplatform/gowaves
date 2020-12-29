@@ -68,6 +68,10 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 	if err != nil {
 		return err
 	}
+	continuationActivated, err := tc.stor.features.newestIsActivated(int16(settings.ContinuationTransaction))
+	if err != nil {
+		return err
+	}
 	if libVersion == 3 && !rideForDAppsActivated {
 		return errors.New("Ride4DApps feature must be activated for scripts version 3")
 	}
@@ -76,6 +80,9 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 	}
 	if libVersion == 4 && !blockV5Activated {
 		return errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
+	}
+	if libVersion == 5 && !continuationActivated {
+		return errors.New("ContinuationTransaction feature must be activated for scripts version 5")
 	}
 	return nil
 }

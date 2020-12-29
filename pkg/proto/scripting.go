@@ -487,6 +487,12 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 				return errors.New("leasing to DApp itself are forbidden")
 			}
 
+		case *LeaseCancelScriptAction:
+			otherActionsCount++
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			}
+
 		default:
 			return errors.Errorf("unsupported script action type '%T'", a)
 		}

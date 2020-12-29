@@ -464,7 +464,7 @@ func functionsV5() map[string]string {
 	m["1081"] = "calculateLeaseID"
 	m["1092"] = "simplifiedLease"
 	m["1093"] = "fullLease"
-
+	m["LeaseCancel"] = "leaseCancel"
 	return m
 }
 
@@ -473,6 +473,7 @@ func catalogueV5() map[string]int {
 	m["1081"] = 1 //TODO: put actual value here
 	m["1092"] = 1
 	m["1093"] = 1
+	m["LeaseCancel"] = 1
 	return m
 }
 
@@ -820,7 +821,7 @@ func main() {
 		sb.WriteString("}\n")
 		sb.WriteString("ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)\n")
 		sb.WriteString("if err != nil {\n")
-		sb.WriteString("return rideUnit{}, err\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
 		sb.WriteString("return rideBoolean(ok), nil\n")
 		sb.WriteString("}\n\n")
@@ -848,7 +849,7 @@ func main() {
 		sb.WriteString("}\n")
 		sb.WriteString("ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)\n")
 		sb.WriteString("if err != nil {\n")
-		sb.WriteString("return rideUnit{}, err\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
 		sb.WriteString("return rideBoolean(ok), nil\n")
 		sb.WriteString("}\n\n")
