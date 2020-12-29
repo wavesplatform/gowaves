@@ -4,6 +4,7 @@
 package ride
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"sync"
 )
@@ -18,6 +19,18 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //
 //         // make and configure a mocked RideEnvironment
 //         mockedRideEnvironment := &MockRideEnvironment{
+//             SetInvocationFunc: func(inv rideObject)  {
+// 	               panic("mock out the SetInvocation method")
+//             },
+//             actionsFunc: func() []proto.ScriptAction {
+// 	               panic("mock out the actions method")
+//             },
+//             appendActionsFunc: func(actions []proto.ScriptAction)  {
+// 	               panic("mock out the appendActions method")
+//             },
+//             applyToStateFunc: func(actions []proto.ScriptAction) error {
+// 	               panic("mock out the applyToState method")
+//             },
 //             blockFunc: func() rideObject {
 // 	               panic("mock out the block method")
 //             },
@@ -27,11 +40,23 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             heightFunc: func() rideInt {
 // 	               panic("mock out the height method")
 //             },
+//             incrementInvCountFunc: func()  {
+// 	               panic("mock out the incrementInvCount method")
+//             },
+//             invCountFunc: func() uint64 {
+// 	               panic("mock out the invCount method")
+//             },
 //             invocationFunc: func() rideObject {
 // 	               panic("mock out the invocation method")
 //             },
 //             schemeFunc: func() byte {
 // 	               panic("mock out the scheme method")
+//             },
+//             setNewDAppAddressFunc: func(address proto.Address)  {
+// 	               panic("mock out the setNewDAppAddress method")
+//             },
+//             smartAppendActionsFunc: func(actions []proto.ScriptAction) error {
+// 	               panic("mock out the smartAppendActions method")
 //             },
 //             stateFunc: func() types.SmartState {
 // 	               panic("mock out the state method")
@@ -52,6 +77,18 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //
 //     }
 type MockRideEnvironment struct {
+	// SetInvocationFunc mocks the SetInvocation method.
+	SetInvocationFunc func(inv rideObject)
+
+	// actionsFunc mocks the actions method.
+	actionsFunc func() []proto.ScriptAction
+
+	// appendActionsFunc mocks the appendActions method.
+	appendActionsFunc func(actions []proto.ScriptAction)
+
+	// applyToStateFunc mocks the applyToState method.
+	applyToStateFunc func(actions []proto.ScriptAction) error
+
 	// blockFunc mocks the block method.
 	blockFunc func() rideObject
 
@@ -61,11 +98,23 @@ type MockRideEnvironment struct {
 	// heightFunc mocks the height method.
 	heightFunc func() rideInt
 
+	// incrementInvCountFunc mocks the incrementInvCount method.
+	incrementInvCountFunc func()
+
+	// invCountFunc mocks the invCount method.
+	invCountFunc func() uint64
+
 	// invocationFunc mocks the invocation method.
 	invocationFunc func() rideObject
 
 	// schemeFunc mocks the scheme method.
 	schemeFunc func() byte
+
+	// setNewDAppAddressFunc mocks the setNewDAppAddress method.
+	setNewDAppAddressFunc func(address proto.Address)
+
+	// smartAppendActionsFunc mocks the smartAppendActions method.
+	smartAppendActionsFunc func(actions []proto.ScriptAction) error
 
 	// stateFunc mocks the state method.
 	stateFunc func() types.SmartState
@@ -81,6 +130,24 @@ type MockRideEnvironment struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// SetInvocation holds details about calls to the SetInvocation method.
+		SetInvocation []struct {
+			// Inv is the inv argument value.
+			Inv rideObject
+		}
+		// actions holds details about calls to the actions method.
+		actions []struct {
+		}
+		// appendActions holds details about calls to the appendActions method.
+		appendActions []struct {
+			// Actions is the actions argument value.
+			Actions []proto.ScriptAction
+		}
+		// applyToState holds details about calls to the applyToState method.
+		applyToState []struct {
+			// Actions is the actions argument value.
+			Actions []proto.ScriptAction
+		}
 		// block holds details about calls to the block method.
 		block []struct {
 		}
@@ -92,11 +159,27 @@ type MockRideEnvironment struct {
 		// height holds details about calls to the height method.
 		height []struct {
 		}
+		// incrementInvCount holds details about calls to the incrementInvCount method.
+		incrementInvCount []struct {
+		}
+		// invCount holds details about calls to the invCount method.
+		invCount []struct {
+		}
 		// invocation holds details about calls to the invocation method.
 		invocation []struct {
 		}
 		// scheme holds details about calls to the scheme method.
 		scheme []struct {
+		}
+		// setNewDAppAddress holds details about calls to the setNewDAppAddress method.
+		setNewDAppAddress []struct {
+			// Address is the address argument value.
+			Address proto.Address
+		}
+		// smartAppendActions holds details about calls to the smartAppendActions method.
+		smartAppendActions []struct {
+			// Actions is the actions argument value.
+			Actions []proto.ScriptAction
 		}
 		// state holds details about calls to the state method.
 		state []struct {
@@ -111,15 +194,142 @@ type MockRideEnvironment struct {
 		txID []struct {
 		}
 	}
+	lockSetInvocation      sync.RWMutex
+	lockactions            sync.RWMutex
+	lockappendActions      sync.RWMutex
+	lockapplyToState       sync.RWMutex
 	lockblock              sync.RWMutex
 	lockcheckMessageLength sync.RWMutex
 	lockheight             sync.RWMutex
+	lockincrementInvCount  sync.RWMutex
+	lockinvCount           sync.RWMutex
 	lockinvocation         sync.RWMutex
 	lockscheme             sync.RWMutex
+	locksetNewDAppAddress  sync.RWMutex
+	locksmartAppendActions sync.RWMutex
 	lockstate              sync.RWMutex
 	lockthis               sync.RWMutex
 	locktransaction        sync.RWMutex
 	locktxID               sync.RWMutex
+}
+
+// SetInvocation calls SetInvocationFunc.
+func (mock *MockRideEnvironment) SetInvocation(inv rideObject) {
+	if mock.SetInvocationFunc == nil {
+		panic("MockRideEnvironment.SetInvocationFunc: method is nil but RideEnvironment.SetInvocation was just called")
+	}
+	callInfo := struct {
+		Inv rideObject
+	}{
+		Inv: inv,
+	}
+	mock.lockSetInvocation.Lock()
+	mock.calls.SetInvocation = append(mock.calls.SetInvocation, callInfo)
+	mock.lockSetInvocation.Unlock()
+	mock.SetInvocationFunc(inv)
+}
+
+// SetInvocationCalls gets all the calls that were made to SetInvocation.
+// Check the length with:
+//     len(mockedRideEnvironment.SetInvocationCalls())
+func (mock *MockRideEnvironment) SetInvocationCalls() []struct {
+	Inv rideObject
+} {
+	var calls []struct {
+		Inv rideObject
+	}
+	mock.lockSetInvocation.RLock()
+	calls = mock.calls.SetInvocation
+	mock.lockSetInvocation.RUnlock()
+	return calls
+}
+
+// actions calls actionsFunc.
+func (mock *MockRideEnvironment) actions() []proto.ScriptAction {
+	if mock.actionsFunc == nil {
+		panic("MockRideEnvironment.actionsFunc: method is nil but RideEnvironment.actions was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockactions.Lock()
+	mock.calls.actions = append(mock.calls.actions, callInfo)
+	mock.lockactions.Unlock()
+	return mock.actionsFunc()
+}
+
+// actionsCalls gets all the calls that were made to actions.
+// Check the length with:
+//     len(mockedRideEnvironment.actionsCalls())
+func (mock *MockRideEnvironment) actionsCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockactions.RLock()
+	calls = mock.calls.actions
+	mock.lockactions.RUnlock()
+	return calls
+}
+
+// appendActions calls appendActionsFunc.
+func (mock *MockRideEnvironment) appendActions(actions []proto.ScriptAction) {
+	if mock.appendActionsFunc == nil {
+		panic("MockRideEnvironment.appendActionsFunc: method is nil but RideEnvironment.appendActions was just called")
+	}
+	callInfo := struct {
+		Actions []proto.ScriptAction
+	}{
+		Actions: actions,
+	}
+	mock.lockappendActions.Lock()
+	mock.calls.appendActions = append(mock.calls.appendActions, callInfo)
+	mock.lockappendActions.Unlock()
+	mock.appendActionsFunc(actions)
+}
+
+// appendActionsCalls gets all the calls that were made to appendActions.
+// Check the length with:
+//     len(mockedRideEnvironment.appendActionsCalls())
+func (mock *MockRideEnvironment) appendActionsCalls() []struct {
+	Actions []proto.ScriptAction
+} {
+	var calls []struct {
+		Actions []proto.ScriptAction
+	}
+	mock.lockappendActions.RLock()
+	calls = mock.calls.appendActions
+	mock.lockappendActions.RUnlock()
+	return calls
+}
+
+// applyToState calls applyToStateFunc.
+func (mock *MockRideEnvironment) applyToState(actions []proto.ScriptAction) error {
+	if mock.applyToStateFunc == nil {
+		panic("MockRideEnvironment.applyToStateFunc: method is nil but RideEnvironment.applyToState was just called")
+	}
+	callInfo := struct {
+		Actions []proto.ScriptAction
+	}{
+		Actions: actions,
+	}
+	mock.lockapplyToState.Lock()
+	mock.calls.applyToState = append(mock.calls.applyToState, callInfo)
+	mock.lockapplyToState.Unlock()
+	return mock.applyToStateFunc(actions)
+}
+
+// applyToStateCalls gets all the calls that were made to applyToState.
+// Check the length with:
+//     len(mockedRideEnvironment.applyToStateCalls())
+func (mock *MockRideEnvironment) applyToStateCalls() []struct {
+	Actions []proto.ScriptAction
+} {
+	var calls []struct {
+		Actions []proto.ScriptAction
+	}
+	mock.lockapplyToState.RLock()
+	calls = mock.calls.applyToState
+	mock.lockapplyToState.RUnlock()
+	return calls
 }
 
 // block calls blockFunc.
@@ -205,6 +415,58 @@ func (mock *MockRideEnvironment) heightCalls() []struct {
 	return calls
 }
 
+// incrementInvCount calls incrementInvCountFunc.
+func (mock *MockRideEnvironment) incrementInvCount() {
+	if mock.incrementInvCountFunc == nil {
+		panic("MockRideEnvironment.incrementInvCountFunc: method is nil but RideEnvironment.incrementInvCount was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockincrementInvCount.Lock()
+	mock.calls.incrementInvCount = append(mock.calls.incrementInvCount, callInfo)
+	mock.lockincrementInvCount.Unlock()
+	mock.incrementInvCountFunc()
+}
+
+// incrementInvCountCalls gets all the calls that were made to incrementInvCount.
+// Check the length with:
+//     len(mockedRideEnvironment.incrementInvCountCalls())
+func (mock *MockRideEnvironment) incrementInvCountCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockincrementInvCount.RLock()
+	calls = mock.calls.incrementInvCount
+	mock.lockincrementInvCount.RUnlock()
+	return calls
+}
+
+// invCount calls invCountFunc.
+func (mock *MockRideEnvironment) invCount() uint64 {
+	if mock.invCountFunc == nil {
+		panic("MockRideEnvironment.invCountFunc: method is nil but RideEnvironment.invCount was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockinvCount.Lock()
+	mock.calls.invCount = append(mock.calls.invCount, callInfo)
+	mock.lockinvCount.Unlock()
+	return mock.invCountFunc()
+}
+
+// invCountCalls gets all the calls that were made to invCount.
+// Check the length with:
+//     len(mockedRideEnvironment.invCountCalls())
+func (mock *MockRideEnvironment) invCountCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockinvCount.RLock()
+	calls = mock.calls.invCount
+	mock.lockinvCount.RUnlock()
+	return calls
+}
+
 // invocation calls invocationFunc.
 func (mock *MockRideEnvironment) invocation() rideObject {
 	if mock.invocationFunc == nil {
@@ -254,6 +516,68 @@ func (mock *MockRideEnvironment) schemeCalls() []struct {
 	mock.lockscheme.RLock()
 	calls = mock.calls.scheme
 	mock.lockscheme.RUnlock()
+	return calls
+}
+
+// setNewDAppAddress calls setNewDAppAddressFunc.
+func (mock *MockRideEnvironment) setNewDAppAddress(address proto.Address) {
+	if mock.setNewDAppAddressFunc == nil {
+		panic("MockRideEnvironment.setNewDAppAddressFunc: method is nil but RideEnvironment.setNewDAppAddress was just called")
+	}
+	callInfo := struct {
+		Address proto.Address
+	}{
+		Address: address,
+	}
+	mock.locksetNewDAppAddress.Lock()
+	mock.calls.setNewDAppAddress = append(mock.calls.setNewDAppAddress, callInfo)
+	mock.locksetNewDAppAddress.Unlock()
+	mock.setNewDAppAddressFunc(address)
+}
+
+// setNewDAppAddressCalls gets all the calls that were made to setNewDAppAddress.
+// Check the length with:
+//     len(mockedRideEnvironment.setNewDAppAddressCalls())
+func (mock *MockRideEnvironment) setNewDAppAddressCalls() []struct {
+	Address proto.Address
+} {
+	var calls []struct {
+		Address proto.Address
+	}
+	mock.locksetNewDAppAddress.RLock()
+	calls = mock.calls.setNewDAppAddress
+	mock.locksetNewDAppAddress.RUnlock()
+	return calls
+}
+
+// smartAppendActions calls smartAppendActionsFunc.
+func (mock *MockRideEnvironment) smartAppendActions(actions []proto.ScriptAction) error {
+	if mock.smartAppendActionsFunc == nil {
+		panic("MockRideEnvironment.smartAppendActionsFunc: method is nil but RideEnvironment.smartAppendActions was just called")
+	}
+	callInfo := struct {
+		Actions []proto.ScriptAction
+	}{
+		Actions: actions,
+	}
+	mock.locksmartAppendActions.Lock()
+	mock.calls.smartAppendActions = append(mock.calls.smartAppendActions, callInfo)
+	mock.locksmartAppendActions.Unlock()
+	return mock.smartAppendActionsFunc(actions)
+}
+
+// smartAppendActionsCalls gets all the calls that were made to smartAppendActions.
+// Check the length with:
+//     len(mockedRideEnvironment.smartAppendActionsCalls())
+func (mock *MockRideEnvironment) smartAppendActionsCalls() []struct {
+	Actions []proto.ScriptAction
+} {
+	var calls []struct {
+		Actions []proto.ScriptAction
+	}
+	mock.locksmartAppendActions.RLock()
+	calls = mock.calls.smartAppendActions
+	mock.locksmartAppendActions.RUnlock()
 	return calls
 }
 

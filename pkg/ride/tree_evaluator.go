@@ -218,6 +218,7 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	switch res := r.(type) {
 	case rideThrow:
 		if e.dapp {
@@ -227,30 +228,45 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 	case rideBoolean:
 		return ScriptResult{res: bool(res)}, nil
 	case rideObject:
-		actions, err := objectToActions(e.env, res)
+		a, err := objectToActions(e.env, res)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
-		return DAppResult{true, actions, ""}, nil
+		act := e.env.actions()
+		act = append(act, a...)
+		return DAppResult{res: true, actions: act, msg: ""}, nil
 	case rideList:
-		actions := make([]proto.ScriptAction, len(res))
-		for i, item := range res {
+		var newActions []proto.ScriptAction
+		for _, item := range res {
 			a, err := convertToAction(e.env, item)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to convert evaluation result")
 			}
-			actions[i] = a
+			newActions = append(newActions, a)
 		}
-		return DAppResult{res: true, actions: actions}, nil
+
+		return DAppResult{res: true, actions: newActions}, nil
+	case tuple2:
+		var act []proto.ScriptAction
+		switch resAct := res.el1.(type) {
+		case rideList:
+			for _, item := range resAct {
+				a, err := convertToAction(e.env, item)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to convert evaluation result")
+				}
+				act = append(act, a)
+			}
+
+		default:
+			return nil, errors.Errorf("unexpected result type '%T'", r)
+		}
+
+		return DAppResult{res: true, actions: act, msg: "", param: res.el2}, nil
 	default:
 		return nil, errors.Errorf("unexpected result type '%T'", r)
 	}
 }
-
-//
-//func (e *treeEvaluator) exceeded() bool {
-//	return e.limit > 0 && e.cost >= e.limit
-//}
 
 func isThrow(r rideType) bool {
 	return r.instanceOf() == "Throw"
@@ -361,6 +377,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to call system function '%s'", id)
 			}
+
 			return r, nil
 		}
 		uf, cl, err := e.s.userFunction(id)
@@ -370,6 +387,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		if len(n.Arguments) != len(uf.Arguments) {
 			return nil, errors.Errorf("mismatched arguments number of user function '%s'", id)
 		}
+
 		args := make([]esValue, len(n.Arguments))
 		for i, arg := range n.Arguments {
 			an := uf.Arguments[i]
@@ -388,6 +406,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		}
 		var tmp int
 		tmp, e.s.cl = e.s.cl, cl
+
 		r, err := e.walk(uf.Body)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", id)
@@ -406,6 +425,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			return obj, nil
 		}
 		v, err := obj.get(name)
+
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get property '%s'", name)
 		}
@@ -451,6 +471,40 @@ func treeVerifierEvaluator(env RideEnvironment, tree *Tree) (*treeEvaluator, err
 	}, nil
 }
 
+func treeFunctionEvaluatorForInvokeDAppFromDApp(env RideEnvironment, tree *Tree, name string, args []rideType) (*treeEvaluator, error) {
+	s, err := newEvaluationScope(tree.LibVersion, env)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create scope")
+	}
+	for _, declaration := range tree.Declarations {
+		err = s.declare(declaration)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid declaration")
+		}
+	}
+	if !tree.IsDApp() {
+		return nil, errors.Errorf("unable to call function '%s' on simple script", name)
+	}
+	for i := 0; i < len(tree.Functions); i++ {
+		function, ok := tree.Functions[i].(*FunctionDeclarationNode)
+		if !ok {
+			return nil, errors.New("invalid callable declaration")
+		}
+		if function.Name == name {
+			s.constants[function.invocationParameter] = esConstant{c: newInvocation}
+			if l := len(args); l != len(function.Arguments) {
+				return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
+			}
+			// without conversion
+			for i, arg := range args {
+				s.pushValue(function.Arguments[i], arg)
+			}
+			return &treeEvaluator{dapp: true, f: function.Body, s: s, env: env}, nil
+		}
+	}
+	return nil, errors.Errorf("function '%s' not found", name)
+}
+
 func treeFunctionEvaluator(env RideEnvironment, tree *Tree, name string, args proto.Arguments) (*treeEvaluator, error) {
 	s, err := newEvaluationScope(tree.LibVersion, env)
 	if err != nil {
@@ -475,6 +529,7 @@ func treeFunctionEvaluator(env RideEnvironment, tree *Tree, name string, args pr
 			if l := len(args); l != len(function.Arguments) {
 				return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
 			}
+
 			for i, arg := range args {
 				a, err := convertArgument(arg)
 				if err != nil {

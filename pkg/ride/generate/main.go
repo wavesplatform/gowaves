@@ -295,6 +295,7 @@ func functionsV4() map[string]string {
 	m["Reissue"] = "reissue"
 	m["Burn"] = "burn"
 	m["SponsorFee"] = "sponsorship"
+	m["AttachedPayment"] = "attachedPayment"
 
 	// Functions
 	delete(m, "wavesBalance") // Remove wavesBalanceV3
@@ -324,6 +325,7 @@ func functionsV4() map[string]string {
 	m["1103"] = "indexOfList"
 	m["1104"] = "lastIndexOfList"
 	m["1209"] = "makeString"
+	m["1020"] = "invoke"
 	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		m[strconv.Itoa(2400+i)] = fmt.Sprintf("bls12Groth16Verify_%d", l)
 	}
@@ -360,6 +362,7 @@ func catalogueV4() map[string]int {
 	m["Reissue"] = 3
 	m["Burn"] = 2
 	m["SponsorFee"] = 2
+	m["AttachedPayment"] = 2
 
 	m["201"] = 6
 	m["202"] = 6
@@ -413,6 +416,7 @@ func catalogueV4() map[string]int {
 	m["1207"] = 3
 	m["1208"] = 3
 	m["1209"] = 30
+	m["1020"] = 1 // TODO write true value
 	for i, c := range []int{1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600} {
 		m[strconv.Itoa(2400+i)] = c
 	}
@@ -599,9 +603,15 @@ func createConstants(sb *strings.Builder, ver string, c map[string]constantDescr
 }
 
 func createConstructors(sb *strings.Builder, c map[string]constantDescription) {
-	for _, v := range c {
-		if v.constructor == "" {
-			tn := v.typeName
+	keys := make([]string, 0, len(c))
+	for k := range c {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		if c[k].constructor == "" {
+			tn := c[k].typeName
 			sb.WriteString(fmt.Sprintf("func new%s(RideEnvironment) rideType {\n", tn))
 			sb.WriteString(fmt.Sprintf("return rideNamedType{name: \"%s\"}\n", tn))
 			sb.WriteString("}\n\n")
@@ -620,13 +630,16 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 	sort.Strings(keys)
 
 	// Create sorted list of functions
-	sb.WriteString(fmt.Sprintf("var _functions_%s = [...]rideFunction{", ver))
+	sb.WriteString(fmt.Sprintf("var _functions_%s [%d]rideFunction\n", ver, len(keys)))
+	sb.WriteString("func init() {\n")
+	sb.WriteString(fmt.Sprintf("_functions_%s = [%d]rideFunction{", ver, len(keys)))
 	for i, k := range keys {
 		sb.WriteString(m[k])
 		if i < len(m)-1 {
 			sb.WriteString(", ")
 		}
 	}
+	sb.WriteString("}\n")
 	sb.WriteString("}\n")
 
 	// Create list of costs

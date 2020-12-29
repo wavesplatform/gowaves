@@ -23,11 +23,17 @@ var _ types.SmartState = &MockSmartState{}
 //             AddingBlockHeightFunc: func() (uint64, error) {
 // 	               panic("mock out the AddingBlockHeight method")
 //             },
+//             ApplyToStateFunc: func(actions []proto.ScriptAction) error {
+// 	               panic("mock out the ApplyToState method")
+//             },
 //             BlockVRFFunc: func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
 // 	               panic("mock out the BlockVRF method")
 //             },
 //             EstimatorVersionFunc: func() (int, error) {
 // 	               panic("mock out the EstimatorVersion method")
+//             },
+//             GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+// 	               panic("mock out the GetByteTree method")
 //             },
 //             IsNotFoundFunc: func(err error) bool {
 // 	               panic("mock out the IsNotFound method")
@@ -52,6 +58,12 @@ var _ types.SmartState = &MockSmartState{}
 //             },
 //             NewestHeaderByHeightFunc: func(height uint64) (*proto.BlockHeader, error) {
 // 	               panic("mock out the NewestHeaderByHeight method")
+//             },
+//             NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+// 	               panic("mock out the NewestRecipientToAddress method")
+//             },
+//             NewestScriptPKByAddrFunc: func(addr proto.Address, filter bool) (crypto.PublicKey, error) {
+// 	               panic("mock out the NewestScriptPKByAddr method")
 //             },
 //             NewestTransactionByIDFunc: func(in1 []byte) (proto.Transaction, error) {
 // 	               panic("mock out the NewestTransactionByID method")
@@ -81,11 +93,17 @@ type MockSmartState struct {
 	// AddingBlockHeightFunc mocks the AddingBlockHeight method.
 	AddingBlockHeightFunc func() (uint64, error)
 
+	// ApplyToStateFunc mocks the ApplyToState method.
+	ApplyToStateFunc func(actions []proto.ScriptAction) error
+
 	// BlockVRFFunc mocks the BlockVRF method.
 	BlockVRFFunc func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error)
 
 	// EstimatorVersionFunc mocks the EstimatorVersion method.
 	EstimatorVersionFunc func() (int, error)
+
+	// GetByteTreeFunc mocks the GetByteTree method.
+	GetByteTreeFunc func(recipient proto.Recipient) (proto.Script, error)
 
 	// IsNotFoundFunc mocks the IsNotFound method.
 	IsNotFoundFunc func(err error) bool
@@ -111,6 +129,12 @@ type MockSmartState struct {
 	// NewestHeaderByHeightFunc mocks the NewestHeaderByHeight method.
 	NewestHeaderByHeightFunc func(height uint64) (*proto.BlockHeader, error)
 
+	// NewestRecipientToAddressFunc mocks the NewestRecipientToAddress method.
+	NewestRecipientToAddressFunc func(recipient proto.Recipient) (*proto.Address, error)
+
+	// NewestScriptPKByAddrFunc mocks the NewestScriptPKByAddr method.
+	NewestScriptPKByAddrFunc func(addr proto.Address, filter bool) (crypto.PublicKey, error)
+
 	// NewestTransactionByIDFunc mocks the NewestTransactionByID method.
 	NewestTransactionByIDFunc func(in1 []byte) (proto.Transaction, error)
 
@@ -134,6 +158,11 @@ type MockSmartState struct {
 		// AddingBlockHeight holds details about calls to the AddingBlockHeight method.
 		AddingBlockHeight []struct {
 		}
+		// ApplyToState holds details about calls to the ApplyToState method.
+		ApplyToState []struct {
+			// Actions is the actions argument value.
+			Actions []proto.ScriptAction
+		}
 		// BlockVRF holds details about calls to the BlockVRF method.
 		BlockVRF []struct {
 			// BlockHeader is the blockHeader argument value.
@@ -143,6 +172,11 @@ type MockSmartState struct {
 		}
 		// EstimatorVersion holds details about calls to the EstimatorVersion method.
 		EstimatorVersion []struct {
+		}
+		// GetByteTree holds details about calls to the GetByteTree method.
+		GetByteTree []struct {
+			// Recipient is the recipient argument value.
+			Recipient proto.Recipient
 		}
 		// IsNotFound holds details about calls to the IsNotFound method.
 		IsNotFound []struct {
@@ -186,6 +220,18 @@ type MockSmartState struct {
 			// Height is the height argument value.
 			Height uint64
 		}
+		// NewestRecipientToAddress holds details about calls to the NewestRecipientToAddress method.
+		NewestRecipientToAddress []struct {
+			// Recipient is the recipient argument value.
+			Recipient proto.Recipient
+		}
+		// NewestScriptPKByAddr holds details about calls to the NewestScriptPKByAddr method.
+		NewestScriptPKByAddr []struct {
+			// Addr is the addr argument value.
+			Addr proto.Address
+			// Filter is the filter argument value.
+			Filter bool
+		}
 		// NewestTransactionByID holds details about calls to the NewestTransactionByID method.
 		NewestTransactionByID []struct {
 			// In1 is the in1 argument value.
@@ -226,8 +272,10 @@ type MockSmartState struct {
 		}
 	}
 	lockAddingBlockHeight           sync.RWMutex
+	lockApplyToState                sync.RWMutex
 	lockBlockVRF                    sync.RWMutex
 	lockEstimatorVersion            sync.RWMutex
+	lockGetByteTree                 sync.RWMutex
 	lockIsNotFound                  sync.RWMutex
 	lockNewestAccountBalance        sync.RWMutex
 	lockNewestAddrByAlias           sync.RWMutex
@@ -236,6 +284,8 @@ type MockSmartState struct {
 	lockNewestFullAssetInfo         sync.RWMutex
 	lockNewestFullWavesBalance      sync.RWMutex
 	lockNewestHeaderByHeight        sync.RWMutex
+	lockNewestRecipientToAddress    sync.RWMutex
+	lockNewestScriptPKByAddr        sync.RWMutex
 	lockNewestTransactionByID       sync.RWMutex
 	lockNewestTransactionHeightByID sync.RWMutex
 	lockRetrieveNewestBinaryEntry   sync.RWMutex
@@ -267,6 +317,37 @@ func (mock *MockSmartState) AddingBlockHeightCalls() []struct {
 	mock.lockAddingBlockHeight.RLock()
 	calls = mock.calls.AddingBlockHeight
 	mock.lockAddingBlockHeight.RUnlock()
+	return calls
+}
+
+// ApplyToState calls ApplyToStateFunc.
+func (mock *MockSmartState) ApplyToState(actions []proto.ScriptAction) error {
+	if mock.ApplyToStateFunc == nil {
+		panic("MockSmartState.ApplyToStateFunc: method is nil but SmartState.ApplyToState was just called")
+	}
+	callInfo := struct {
+		Actions []proto.ScriptAction
+	}{
+		Actions: actions,
+	}
+	mock.lockApplyToState.Lock()
+	mock.calls.ApplyToState = append(mock.calls.ApplyToState, callInfo)
+	mock.lockApplyToState.Unlock()
+	return mock.ApplyToStateFunc(actions)
+}
+
+// ApplyToStateCalls gets all the calls that were made to ApplyToState.
+// Check the length with:
+//     len(mockedSmartState.ApplyToStateCalls())
+func (mock *MockSmartState) ApplyToStateCalls() []struct {
+	Actions []proto.ScriptAction
+} {
+	var calls []struct {
+		Actions []proto.ScriptAction
+	}
+	mock.lockApplyToState.RLock()
+	calls = mock.calls.ApplyToState
+	mock.lockApplyToState.RUnlock()
 	return calls
 }
 
@@ -328,6 +409,37 @@ func (mock *MockSmartState) EstimatorVersionCalls() []struct {
 	mock.lockEstimatorVersion.RLock()
 	calls = mock.calls.EstimatorVersion
 	mock.lockEstimatorVersion.RUnlock()
+	return calls
+}
+
+// GetByteTree calls GetByteTreeFunc.
+func (mock *MockSmartState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+	if mock.GetByteTreeFunc == nil {
+		panic("MockSmartState.GetByteTreeFunc: method is nil but SmartState.GetByteTree was just called")
+	}
+	callInfo := struct {
+		Recipient proto.Recipient
+	}{
+		Recipient: recipient,
+	}
+	mock.lockGetByteTree.Lock()
+	mock.calls.GetByteTree = append(mock.calls.GetByteTree, callInfo)
+	mock.lockGetByteTree.Unlock()
+	return mock.GetByteTreeFunc(recipient)
+}
+
+// GetByteTreeCalls gets all the calls that were made to GetByteTree.
+// Check the length with:
+//     len(mockedSmartState.GetByteTreeCalls())
+func (mock *MockSmartState) GetByteTreeCalls() []struct {
+	Recipient proto.Recipient
+} {
+	var calls []struct {
+		Recipient proto.Recipient
+	}
+	mock.lockGetByteTree.RLock()
+	calls = mock.calls.GetByteTree
+	mock.lockGetByteTree.RUnlock()
 	return calls
 }
 
@@ -580,6 +692,72 @@ func (mock *MockSmartState) NewestHeaderByHeightCalls() []struct {
 	mock.lockNewestHeaderByHeight.RLock()
 	calls = mock.calls.NewestHeaderByHeight
 	mock.lockNewestHeaderByHeight.RUnlock()
+	return calls
+}
+
+// NewestRecipientToAddress calls NewestRecipientToAddressFunc.
+func (mock *MockSmartState) NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error) {
+	if mock.NewestRecipientToAddressFunc == nil {
+		panic("MockSmartState.NewestRecipientToAddressFunc: method is nil but SmartState.NewestRecipientToAddress was just called")
+	}
+	callInfo := struct {
+		Recipient proto.Recipient
+	}{
+		Recipient: recipient,
+	}
+	mock.lockNewestRecipientToAddress.Lock()
+	mock.calls.NewestRecipientToAddress = append(mock.calls.NewestRecipientToAddress, callInfo)
+	mock.lockNewestRecipientToAddress.Unlock()
+	return mock.NewestRecipientToAddressFunc(recipient)
+}
+
+// NewestRecipientToAddressCalls gets all the calls that were made to NewestRecipientToAddress.
+// Check the length with:
+//     len(mockedSmartState.NewestRecipientToAddressCalls())
+func (mock *MockSmartState) NewestRecipientToAddressCalls() []struct {
+	Recipient proto.Recipient
+} {
+	var calls []struct {
+		Recipient proto.Recipient
+	}
+	mock.lockNewestRecipientToAddress.RLock()
+	calls = mock.calls.NewestRecipientToAddress
+	mock.lockNewestRecipientToAddress.RUnlock()
+	return calls
+}
+
+// NewestScriptPKByAddr calls NewestScriptPKByAddrFunc.
+func (mock *MockSmartState) NewestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
+	if mock.NewestScriptPKByAddrFunc == nil {
+		panic("MockSmartState.NewestScriptPKByAddrFunc: method is nil but SmartState.NewestScriptPKByAddr was just called")
+	}
+	callInfo := struct {
+		Addr   proto.Address
+		Filter bool
+	}{
+		Addr:   addr,
+		Filter: filter,
+	}
+	mock.lockNewestScriptPKByAddr.Lock()
+	mock.calls.NewestScriptPKByAddr = append(mock.calls.NewestScriptPKByAddr, callInfo)
+	mock.lockNewestScriptPKByAddr.Unlock()
+	return mock.NewestScriptPKByAddrFunc(addr, filter)
+}
+
+// NewestScriptPKByAddrCalls gets all the calls that were made to NewestScriptPKByAddr.
+// Check the length with:
+//     len(mockedSmartState.NewestScriptPKByAddrCalls())
+func (mock *MockSmartState) NewestScriptPKByAddrCalls() []struct {
+	Addr   proto.Address
+	Filter bool
+} {
+	var calls []struct {
+		Addr   proto.Address
+		Filter bool
+	}
+	mock.lockNewestScriptPKByAddr.RLock()
+	calls = mock.calls.NewestScriptPKByAddr
+	mock.lockNewestScriptPKByAddr.RUnlock()
 	return calls
 }
 

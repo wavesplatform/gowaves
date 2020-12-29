@@ -468,6 +468,32 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
+func (s *stateManager) ApplyToState(actions []proto.ScriptAction) error {
+	return nil
+}
+
+func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+	if recipient.Address != nil {
+		script, err := s.stor.scriptsStorage.scriptBytesByAddr(*recipient.Address, false)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to get script by address")
+		}
+		return script, nil
+	}
+	if recipient.Alias != nil {
+		address, err := s.NewestAddrByAlias(*recipient.Alias)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to get address by alias")
+		}
+		script, err := s.stor.scriptsStorage.scriptBytesByAddr(address, false)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to get script by address")
+		}
+		return script, nil
+	}
+	return nil, errors.Errorf("Address and alias from recipient are nil")
+}
+
 func (s *stateManager) Mutex() *lock.RwMutex {
 	return lock.NewRwMutex(s.mu)
 }
@@ -654,6 +680,10 @@ func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
 	return s.Block(blockID)
 }
 
+func (s *stateManager) NewestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
+	return s.stor.scriptsStorage.NewestScriptPKByAddr(addr, filter)
+}
+
 func (s *stateManager) AddingBlockHeight() (uint64, error) {
 	return s.rw.addingBlockHeight(), nil
 }
@@ -785,7 +815,7 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 }
 
 func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
-	addr, err := s.newestRecipientToAddress(account)
+	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -814,7 +844,7 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 }
 
 func (s *stateManager) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
-	addr, err := s.newestRecipientToAddress(account)
+	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -1437,7 +1467,7 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 	return s.ScoreAtHeight(height)
 }
 
-func (s *stateManager) newestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error) {
+func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error) {
 	if recipient.Address == nil {
 		return s.stor.aliases.newestAddrByAlias(recipient.Alias.Alias, true)
 	}
@@ -1464,7 +1494,7 @@ func (s *stateManager) EffectiveBalance(account proto.Recipient, startHeight, en
 }
 
 func (s *stateManager) NewestEffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
-	addr, err := s.newestRecipientToAddress(account)
+	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -1612,7 +1642,7 @@ func (s *stateManager) EstimatorVersion() (int, error) {
 // Accounts data storage.
 
 func (s *stateManager) RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
-	addr, err := s.newestRecipientToAddress(account)
+	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1648,7 +1678,7 @@ func (s *stateManager) RetrieveEntry(account proto.Recipient, key string) (proto
 }
 
 func (s *stateManager) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-	addr, err := s.newestRecipientToAddress(account)
+	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1672,7 +1702,7 @@ func (s *stateManager) RetrieveIntegerEntry(account proto.Recipient, key string)
 }
 
 func (s *stateManager) RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-	addr, err := s.newestRecipientToAddress(account)
+	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1696,7 +1726,7 @@ func (s *stateManager) RetrieveBooleanEntry(account proto.Recipient, key string)
 }
 
 func (s *stateManager) RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-	addr, err := s.newestRecipientToAddress(account)
+	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1720,7 +1750,7 @@ func (s *stateManager) RetrieveStringEntry(account proto.Recipient, key string) 
 }
 
 func (s *stateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-	addr, err := s.newestRecipientToAddress(account)
+	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
