@@ -141,6 +141,13 @@ type rcpKey struct {
 	key string
 }
 
+type fullBalance struct {
+	regular    uint64
+	generating uint64
+	available  uint64
+	effective  uint64
+}
+
 type invokeApplierTestData struct {
 	// Indicates that invocation should happen multiple times.
 	invokeMultipleTimes bool
@@ -156,9 +163,10 @@ type invokeApplierTestData struct {
 	failRes  bool
 
 	// Result state.
-	correctBalances map[rcpAsset]uint64
-	dataEntries     map[rcpKey]proto.DataEntry
-	correctAddrs    []proto.Address
+	correctBalances     map[rcpAsset]uint64
+	correctFullBalances map[proto.Recipient]fullBalance
+	dataEntries         map[rcpKey]proto.DataEntry
+	correctAddrs        []proto.Address
 }
 
 func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestObjects, info *fallibleValidationParams) {
@@ -181,7 +189,15 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 	for aa, correct := range id.correctBalances {
 		balance, err := to.state.NewestAccountBalance(aa.rcp, aa.asset())
 		assert.NoError(t, err)
-		assert.Equal(t, correct, balance)
+		assert.Equal(t, int(correct), int(balance))
+	}
+	for aa, correct := range id.correctFullBalances {
+		fb, err := to.state.NewestFullWavesBalance(aa)
+		assert.NoError(t, err)
+		assert.Equal(t, int(correct.available), int(fb.Available))
+		assert.Equal(t, int(correct.effective), int(fb.Effective))
+		assert.Equal(t, int(correct.generating), int(fb.Generating))
+		assert.Equal(t, int(correct.regular), int(fb.Regular))
 	}
 	for ak, correct := range id.dataEntries {
 		entry, err := to.state.RetrieveNewestEntry(ak.rcp, ak.key)
@@ -200,8 +216,16 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 	for aa, correct := range id.correctBalances {
 		balance, err := to.state.AccountBalance(aa.rcp, aa.asset())
 		assert.NoError(t, err)
-		assert.Equal(t, correct, balance)
+		assert.Equal(t, int(correct), int(balance))
 	}
+	//for aa, correct := range id.correctFullBalances {
+	//	fb, err := to.state.FullWavesBalance(aa)
+	//	assert.NoError(t, err)
+	//	assert.Equal(t, correct.available, fb.Available)
+	//	assert.Equal(t, correct.effective, fb.Effective)
+	//	assert.Equal(t, correct.generating, fb.Generating)
+	//	assert.Equal(t, correct.regular, fb.Regular)
+	//}
 	for ak, correct := range id.dataEntries {
 		entry, err := to.state.RetrieveEntry(ak.rcp, ak.key)
 		assert.NoError(t, err)
@@ -694,6 +718,173 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 			},
 			correctAddrs: []proto.Address{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr, // Script address should be although its balance does not change.
+			},
+		},
+	}
+	for _, tc := range tests {
+		tc.applyTest(t, to, info)
+	}
+}
+
+// Tests on leasing actions use the following script
+/*
+{-# STDLIB_VERSION 5 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE DAPP #-}
+
+@Callable(i)
+func simpleLeaseToAddress(rcp: String, amount: Int) = {
+    let addr = addressFromStringValue(rcp)
+    [Lease(addr, amount)]
+}
+
+@Callable(i)
+func detailedLeaseToAddress(rcp: String, amount: Int) = {
+    let addr = addressFromStringValue(rcp)
+    let lease = Lease(addr, amount, 0)
+    let id = calculateLeaseId(lease)
+    [lease]
+}
+
+@Callable(i)
+func simpleLeaseToAlias(rcp: String, amount: Int) = {
+    let alias = Alias(rcp)
+    [Lease(alias, amount)]
+}
+
+@Callable(i)
+func detailedLeaseToAlias(rcp: String, amount: Int) = {
+    let alias = Alias(rcp)
+    let lease = Lease(alias, amount, 0)
+    let id = calculateLeaseId(lease)
+    [lease]
+}
+
+@Callable(i)
+func simpleLeaseToSender(amount: Int) = {
+    [Lease(i.caller, amount)]
+}
+
+@Callable(i)
+func detailedLeaseToSender(amount: Int) = {
+    let lease = Lease(i.caller, amount, 0)
+    let id = calculateLeaseId(lease)
+    [lease]
+}
+
+@Callable(i)
+func cancel(id: ByteVector) = [LeaseCancel(id)]
+
+*/
+
+func TestApplyInvokeScriptWithLease(t *testing.T) {
+	to, path := createInvokeApplierTestObjects(t)
+	to.activateFeature(t, int16(settings.ContinuationTransaction))
+
+	defer func() {
+		err := to.state.Close()
+		require.NoError(t, err, "state.Close() failed")
+		err = os.RemoveAll(path)
+		require.NoError(t, err, "failed to remove test data dir")
+	}()
+
+	info := to.fallibleValidationParams(t)
+	to.setDApp(t, "ride5_leasing.base64", testGlobal.recipientInfo)
+
+	var thousandWaves int64 = 1_000 * 100_000_000
+	// Invoker pays only fee, but receives a leasing of 1000 waves
+	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee)
+	to.setAndCheckInitialWavesBalance(t, testGlobal.recipientInfo.addr, uint64(2*thousandWaves))
+
+	sender, dapp := invokeSenderRecipient()
+	fc := proto.FunctionCall{
+		Name:      "simpleLeaseToSender",
+		Arguments: []proto.Argument{&proto.IntegerArgument{Value: thousandWaves}},
+	}
+	tests := []invokeApplierTestData{
+		{
+			payments: []proto.ScriptPayment{},
+			fc:       fc,
+			errorRes: false,
+			failRes:  false,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}: 0,
+			},
+			correctFullBalances: map[proto.Recipient]fullBalance{
+				sender: {regular: 0, generating: 0, available: 0, effective: uint64(thousandWaves)},
+				dapp:   {regular: uint64(2 * thousandWaves), generating: 0, available: uint64(thousandWaves), effective: uint64(thousandWaves)},
+			},
+			correctAddrs: []proto.Address{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+		},
+	}
+	for _, tc := range tests {
+		tc.applyTest(t, to, info)
+	}
+}
+
+func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
+	to, path := createInvokeApplierTestObjects(t)
+	to.activateFeature(t, int16(settings.ContinuationTransaction))
+
+	defer func() {
+		err := to.state.Close()
+		require.NoError(t, err, "state.Close() failed")
+		err = os.RemoveAll(path)
+		require.NoError(t, err, "failed to remove test data dir")
+	}()
+
+	info := to.fallibleValidationParams(t)
+	to.setDApp(t, "ride5_leasing.base64", testGlobal.recipientInfo)
+
+	var thousandWaves int64 = 1_000 * 100_000_000
+	// Invoker pays only fee, but receives a leasing of 1000 waves
+	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, 2*invokeFee)
+	to.setAndCheckInitialWavesBalance(t, testGlobal.recipientInfo.addr, uint64(2*thousandWaves))
+
+	sender, dapp := invokeSenderRecipient()
+	fc1 := proto.FunctionCall{
+		Name:      "simpleLeaseToSender",
+		Arguments: []proto.Argument{&proto.IntegerArgument{Value: thousandWaves}},
+	}
+	tx := createInvokeScriptWithProofs(t, []proto.ScriptPayment{}, fc1, feeAsset, invokeFee)
+	id := proto.GenerateLeaseScriptActionID(sender, thousandWaves, 0, *tx.ID)
+	fc2 := proto.FunctionCall{
+		Name:      "cancel",
+		Arguments: []proto.Argument{&proto.BinaryArgument{Value: id.Bytes()}},
+	}
+	tests := []invokeApplierTestData{
+		{
+			payments: []proto.ScriptPayment{},
+			fc:       fc1,
+			errorRes: false,
+			failRes:  false,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}: invokeFee,
+			},
+			correctFullBalances: map[proto.Recipient]fullBalance{
+				sender: {regular: invokeFee, generating: 0, available: invokeFee, effective: uint64(thousandWaves) + invokeFee},
+				dapp:   {regular: uint64(2 * thousandWaves), generating: 0, available: uint64(thousandWaves), effective: uint64(thousandWaves)},
+			},
+			correctAddrs: []proto.Address{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+		},
+		{
+			payments: []proto.ScriptPayment{},
+			fc:       fc2,
+			errorRes: false,
+			failRes:  false,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}: 0,
+			},
+			correctFullBalances: map[proto.Recipient]fullBalance{
+				sender: {regular: 0, generating: 0, available: 0, effective: 0},
+				dapp:   {regular: uint64(2 * thousandWaves), generating: 0, available: uint64(2 * thousandWaves), effective: uint64(2 * thousandWaves)},
+			},
+			correctAddrs: []proto.Address{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 		},
 	}

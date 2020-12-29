@@ -90,6 +90,28 @@ func checkConstantV4(name string) (uint16, bool) {
 	return 0, false
 }
 
+var ConstantsV5 = []string{"Buy", "CEILING", "DOWN", "FLOOR", "HALFDOWN", "HALFEVEN", "HALFUP", "MD5", "NOALG", "SHA1", "SHA224", "SHA256", "SHA3224", "SHA3256", "SHA3384", "SHA3512", "SHA384", "SHA512", "Sell", "UP", "height", "lastBlock", "nil", "this", "tx", "unit"}
+
+const _constants_V5 = "BuyCEILINGDOWNFLOORHALFDOWNHALFEVENHALFUPMD5NOALGSHA1SHA224SHA256SHA3224SHA3256SHA3384SHA3512SHA384SHA512SellUPheightlastBlocknilthistxunit"
+
+var _constructors_V5 = [...]rideConstructor{newBuy, newCeiling, newDown, newFloor, newHalfDown, newHalfEven, newHalfUp, newMd5, newNoAlg, newSha1, newSha224, newSha256, newSha3224, newSha3256, newSha3384, newSha3512, newSha384, newSha512, newSell, newUp, newHeight, newLastBlock, newNil, newThis, newTx, newUnit}
+var _c_index_V5 = [...]int{0, 3, 10, 14, 19, 27, 35, 41, 44, 49, 53, 59, 65, 72, 79, 86, 93, 99, 105, 109, 111, 117, 126, 129, 133, 135, 139}
+
+func constantV5(id int) rideConstructor {
+	if id < 0 || id > 25 {
+		return nil
+	}
+	return _constructors_V5[id]
+}
+func checkConstantV5(name string) (uint16, bool) {
+	for i := 0; i <= 25; i++ {
+		if _constants_V5[_c_index_V5[i]:_c_index_V5[i+1]] == name {
+			return uint16(i), true
+		}
+	}
+	return 0, false
+}
+
 func newBuy(RideEnvironment) rideType {
 	return rideNamedType{name: "Buy"}
 }

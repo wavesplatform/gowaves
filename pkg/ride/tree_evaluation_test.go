@@ -547,6 +547,8 @@ func TestDappCallable(t *testing.T) {
 			Reissues:     make([]*proto.ReissueScriptAction, 0),
 			Burns:        make([]*proto.BurnScriptAction, 0),
 			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+			Leases:       make([]*proto.LeaseScriptAction, 0),
+			LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 		},
 		sr,
 	)
@@ -614,6 +616,8 @@ func TestDappDefaultFunc(t *testing.T) {
 			Reissues:     make([]*proto.ReissueScriptAction, 0),
 			Burns:        make([]*proto.BurnScriptAction, 0),
 			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+			Leases:       make([]*proto.LeaseScriptAction, 0),
+			LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 		},
 		sr,
 	)
@@ -742,6 +746,8 @@ func TestTransferSet(t *testing.T) {
 			Reissues:     make([]*proto.ReissueScriptAction, 0),
 			Burns:        make([]*proto.BurnScriptAction, 0),
 			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+			Leases:       make([]*proto.LeaseScriptAction, 0),
+			LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 		},
 		sr,
 	)
@@ -793,6 +799,8 @@ func TestScriptResult(t *testing.T) {
 			Reissues:     make([]*proto.ReissueScriptAction, 0),
 			Burns:        make([]*proto.BurnScriptAction, 0),
 			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+			Leases:       make([]*proto.LeaseScriptAction, 0),
+			LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 		},
 		sr,
 	)
@@ -1341,6 +1349,8 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -1882,6 +1892,8 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -2426,6 +2438,8 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -2983,6 +2997,8 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -3544,6 +3560,8 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -4110,6 +4128,8 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -4617,6 +4637,8 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -5007,6 +5029,8 @@ func TestWhaleDApp(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -5148,6 +5172,8 @@ func TestExchangeDApp(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -5452,6 +5478,8 @@ func TestLigaDApp1(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 
@@ -5641,6 +5669,8 @@ func TestLigaDApp1(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -5770,6 +5800,8 @@ func TestTestingDApp(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -5886,6 +5918,8 @@ func TestDropElementDApp(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -6010,6 +6044,8 @@ func TestMathDApp(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -6139,6 +6175,8 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -6265,6 +6303,8 @@ func Test8Ball(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -6634,6 +6674,8 @@ func TestBadType(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -6806,6 +6848,8 @@ func TestNoDeclaration(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -7001,6 +7045,8 @@ func TestZeroReissue(t *testing.T) {
 		Reissues:     expectedReissues,
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -7217,6 +7263,8 @@ func TestStageNet2(t *testing.T) {
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }

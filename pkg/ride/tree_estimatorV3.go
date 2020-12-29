@@ -128,6 +128,8 @@ func newTreeEstimatorV3(tree *Tree) (*treeEstimatorV3, error) {
 		r.scope = newEstimationScopeV3(CatalogueV3)
 	case 4:
 		r.scope = newEstimationScopeV3(CatalogueV4)
+	case 5:
+		r.scope = newEstimationScopeV3(CatalogueV5)
 	default:
 		return nil, errors.Errorf("unsupported library version %d", tree.LibVersion)
 	}

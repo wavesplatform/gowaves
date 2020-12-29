@@ -32,7 +32,7 @@ func bls12Groth16Verify_1(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_1")
 	}
 	return rideBoolean(ok), nil
 }
@@ -58,7 +58,7 @@ func bls12Groth16Verify_2(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_2")
 	}
 	return rideBoolean(ok), nil
 }
@@ -84,7 +84,7 @@ func bls12Groth16Verify_3(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_3")
 	}
 	return rideBoolean(ok), nil
 }
@@ -110,7 +110,7 @@ func bls12Groth16Verify_4(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_4")
 	}
 	return rideBoolean(ok), nil
 }
@@ -136,7 +136,7 @@ func bls12Groth16Verify_5(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_5")
 	}
 	return rideBoolean(ok), nil
 }
@@ -162,7 +162,7 @@ func bls12Groth16Verify_6(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_6")
 	}
 	return rideBoolean(ok), nil
 }
@@ -188,7 +188,7 @@ func bls12Groth16Verify_7(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_7")
 	}
 	return rideBoolean(ok), nil
 }
@@ -214,7 +214,7 @@ func bls12Groth16Verify_8(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_8")
 	}
 	return rideBoolean(ok), nil
 }
@@ -240,7 +240,7 @@ func bls12Groth16Verify_9(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_9")
 	}
 	return rideBoolean(ok), nil
 }
@@ -266,7 +266,7 @@ func bls12Groth16Verify_10(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_10")
 	}
 	return rideBoolean(ok), nil
 }
@@ -292,7 +292,7 @@ func bls12Groth16Verify_11(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_11")
 	}
 	return rideBoolean(ok), nil
 }
@@ -318,7 +318,7 @@ func bls12Groth16Verify_12(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_12")
 	}
 	return rideBoolean(ok), nil
 }
@@ -344,7 +344,7 @@ func bls12Groth16Verify_13(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_13")
 	}
 	return rideBoolean(ok), nil
 }
@@ -370,7 +370,7 @@ func bls12Groth16Verify_14(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_14")
 	}
 	return rideBoolean(ok), nil
 }
@@ -396,7 +396,7 @@ func bls12Groth16Verify_15(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_15")
 	}
 	return rideBoolean(ok), nil
 }
@@ -422,7 +422,7 @@ func bn256Groth16Verify_1(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_1")
 	}
 	return rideBoolean(ok), nil
 }
@@ -448,7 +448,7 @@ func bn256Groth16Verify_2(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_2")
 	}
 	return rideBoolean(ok), nil
 }
@@ -474,7 +474,7 @@ func bn256Groth16Verify_3(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_3")
 	}
 	return rideBoolean(ok), nil
 }
@@ -500,7 +500,7 @@ func bn256Groth16Verify_4(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_4")
 	}
 	return rideBoolean(ok), nil
 }
@@ -526,7 +526,7 @@ func bn256Groth16Verify_5(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_5")
 	}
 	return rideBoolean(ok), nil
 }
@@ -552,7 +552,7 @@ func bn256Groth16Verify_6(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_6")
 	}
 	return rideBoolean(ok), nil
 }
@@ -578,7 +578,7 @@ func bn256Groth16Verify_7(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_7")
 	}
 	return rideBoolean(ok), nil
 }
@@ -604,7 +604,7 @@ func bn256Groth16Verify_8(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_8")
 	}
 	return rideBoolean(ok), nil
 }
@@ -630,7 +630,7 @@ func bn256Groth16Verify_9(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_9")
 	}
 	return rideBoolean(ok), nil
 }
@@ -656,7 +656,7 @@ func bn256Groth16Verify_10(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_10")
 	}
 	return rideBoolean(ok), nil
 }
@@ -682,7 +682,7 @@ func bn256Groth16Verify_11(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_11")
 	}
 	return rideBoolean(ok), nil
 }
@@ -708,7 +708,7 @@ func bn256Groth16Verify_12(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_12")
 	}
 	return rideBoolean(ok), nil
 }
@@ -734,7 +734,7 @@ func bn256Groth16Verify_13(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_13")
 	}
 	return rideBoolean(ok), nil
 }
@@ -760,7 +760,7 @@ func bn256Groth16Verify_14(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_14")
 	}
 	return rideBoolean(ok), nil
 }
@@ -786,7 +786,7 @@ func bn256Groth16Verify_15(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_15")
 	}
 	return rideBoolean(ok), nil
 }
