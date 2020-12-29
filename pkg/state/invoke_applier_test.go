@@ -735,7 +735,7 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 @Callable(i)
 func simpleLeaseToAddress(rcp: String, amount: Int) = {
     let addr = addressFromStringValue(rcp)
-    [Lease(addr, amount)]
+    ([Lease(addr, amount)], unit)
 }
 
 @Callable(i)
@@ -743,13 +743,13 @@ func detailedLeaseToAddress(rcp: String, amount: Int) = {
     let addr = addressFromStringValue(rcp)
     let lease = Lease(addr, amount, 0)
     let id = calculateLeaseId(lease)
-    [lease]
+    ([lease], id)
 }
 
 @Callable(i)
 func simpleLeaseToAlias(rcp: String, amount: Int) = {
     let alias = Alias(rcp)
-    [Lease(alias, amount)]
+    ([Lease(alias, amount)], unit)
 }
 
 @Callable(i)
@@ -757,23 +757,23 @@ func detailedLeaseToAlias(rcp: String, amount: Int) = {
     let alias = Alias(rcp)
     let lease = Lease(alias, amount, 0)
     let id = calculateLeaseId(lease)
-    [lease]
+    ([lease], id)
 }
 
 @Callable(i)
 func simpleLeaseToSender(amount: Int) = {
-    [Lease(i.caller, amount)]
+    ([Lease(i.caller, amount)], unit)
 }
 
 @Callable(i)
 func detailedLeaseToSender(amount: Int) = {
     let lease = Lease(i.caller, amount, 0)
     let id = calculateLeaseId(lease)
-    [lease]
+    ([lease], id)
 }
 
 @Callable(i)
-func cancel(id: ByteVector) = [LeaseCancel(id)]
+func cancel(id: ByteVector) = ([LeaseCancel(id)], unit)
 
 */
 
