@@ -174,6 +174,8 @@ func selectConstantNames(v int) ([]string, error) {
 		return ConstantsV3, nil
 	case 4:
 		return ConstantsV4, nil
+	case 5:
+		return ConstantsV5, nil
 	default:
 		return nil, errors.Errorf("unsupported library version %d", v)
 	}
@@ -195,6 +197,8 @@ func selectFunctionNames(v int) ([]string, error) {
 		return keys(CatalogueV3), nil
 	case 4:
 		return keys(CatalogueV4), nil
+	case 5:
+		return keys(CatalogueV5), nil
 	default:
 		return nil, errors.Errorf("unsupported library version %d", v)
 	}

@@ -569,50 +569,50 @@ func simplifiedIssue(_ RideEnvironment, args ...rideType) (rideType, error) {
 	}
 	name, ok := args[0].(rideString)
 	if !ok {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[0].instanceOf())
+		return nil, errors.Errorf("simplifiedIssue: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	description, ok := args[1].(rideString)
 	if !ok {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[1].instanceOf())
+		return nil, errors.Errorf("simplifiedIssue: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	quantity, ok := args[2].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[2].instanceOf())
+		return nil, errors.Errorf("simplifiedIssue: unexpected argument type '%s'", args[2].instanceOf())
 	}
 	decimals, ok := args[3].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[3].instanceOf())
+		return nil, errors.Errorf("simplifiedIssue: unexpected argument type '%s'", args[3].instanceOf())
 	}
 	reissuable, ok := args[4].(rideBoolean)
 	if !ok {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[4].instanceOf())
+		return nil, errors.Errorf("simplifiedIssue: unexpected argument type '%s'", args[4].instanceOf())
 	}
 	return newIssue(name, description, quantity, decimals, reissuable, rideUnit{}, 0), nil
 }
 
 func fullIssue(_ RideEnvironment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 7); err != nil {
-		return nil, errors.Wrap(err, "simplifiedIssue")
+		return nil, errors.Wrap(err, "fullIssue")
 	}
 	name, ok := args[0].(rideString)
 	if !ok {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[0].instanceOf())
+		return nil, errors.Errorf("fullIssue: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	description, ok := args[1].(rideString)
 	if !ok {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[1].instanceOf())
+		return nil, errors.Errorf("fullIssue: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	quantity, ok := args[2].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[2].instanceOf())
+		return nil, errors.Errorf("fullIssue: unexpected argument type '%s'", args[2].instanceOf())
 	}
 	decimals, ok := args[3].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[3].instanceOf())
+		return nil, errors.Errorf("fullIssue: unexpected argument type '%s'", args[3].instanceOf())
 	}
 	reissuable, ok := args[4].(rideBoolean)
 	if !ok {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[4].instanceOf())
+		return nil, errors.Errorf("fullIssue: unexpected argument type '%s'", args[4].instanceOf())
 	}
 	var script rideType
 	switch s := args[5].(type) {
@@ -621,11 +621,11 @@ func fullIssue(_ RideEnvironment, args ...rideType) (rideType, error) {
 	case rideUnit:
 		script = s
 	default:
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[5].instanceOf())
+		return nil, errors.Errorf("fullIssue: unexpected argument type '%s'", args[5].instanceOf())
 	}
 	nonce, ok := args[6].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("calculateAssetID: unexpected argument type '%s'", args[6].instanceOf())
+		return nil, errors.Errorf("fullIssue: unexpected argument type '%s'", args[6].instanceOf())
 	}
 	return newIssue(name, description, quantity, decimals, reissuable, script, nonce), nil
 }
@@ -674,14 +674,50 @@ func rebuildMerkleRoot(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(root[:]), nil
 }
 
-func bls12Groth16Verify(_ RideEnvironment, _ ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+func bls12Groth16Verify(_ RideEnvironment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bls12Groth16Verify: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return nil, errors.Wrap(err, "bls12Groth16Verify")
+	}
+	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify(_ RideEnvironment, _ ...rideType) (rideType, error) {
-	//TODO: implement
-	return rideBoolean(true), nil
+func bn256Groth16Verify(_ RideEnvironment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify")
+	}
+	key, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	proof, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	inputs, ok := args[2].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("bn256Groth16Verify: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
+	if err != nil {
+		return nil, errors.Wrap(err, "bn256Groth16Verify")
+	}
+	return rideBoolean(ok), nil
 }
 
 func ecRecover(_ RideEnvironment, args ...rideType) (rideType, error) {
@@ -1148,4 +1184,103 @@ func checkAsset(v rideType) (rideType, bool) {
 	default:
 		return nil, false
 	}
+}
+
+func calcLeaseID(env RideEnvironment, recipient proto.Recipient, amount, nonce rideInt) (rideBytes, error) {
+	pid, ok := env.txID().(rideBytes)
+	if !ok {
+		return nil, errors.New("calcLeaseID: no parent transaction ID found")
+	}
+	d, err := crypto.NewDigestFromBytes(pid)
+	if err != nil {
+		return nil, errors.Wrap(err, "calcLeaseID")
+	}
+	id := proto.GenerateLeaseScriptActionID(recipient, int64(amount), int64(nonce), d)
+	return id.Bytes(), nil
+}
+
+func calculateLeaseID(env RideEnvironment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 1); err != nil {
+		return nil, errors.Wrap(err, "calculateLeaseID")
+	}
+	if t := args[0].instanceOf(); t != "Lease" {
+		return nil, errors.Errorf("calculateLeaseID: unexpected argument type '%s'", t)
+	}
+	lease, ok := args[0].(rideObject)
+	if !ok {
+		return nil, errors.New("calculateLeaseID: not an object")
+	}
+	if lease.instanceOf() != "Lease" {
+		return nil, errors.Errorf("calculateLeaseID: unexpected object type '%s'", lease.instanceOf())
+	}
+	recipient, err := recipientProperty(lease, "recipient")
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateLeaseID")
+	}
+	amount, err := intProperty(lease, "amount")
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateLeaseID")
+	}
+	nonce, err := intProperty(lease, "nonce")
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateLeaseID")
+	}
+	return calcLeaseID(env, recipient, amount, nonce)
+}
+
+func newLease(recipient rideRecipient, amount, nonce rideInt) rideObject {
+	r := make(rideObject)
+	r[instanceFieldName] = rideString("Lease")
+	r["recipient"] = recipient
+	r["amount"] = amount
+	r["nonce"] = nonce
+	return r
+}
+
+func simplifiedLease(_ RideEnvironment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 2); err != nil {
+		return nil, errors.Wrap(err, "simplifiedLease")
+	}
+	recipient, err := extractRecipient(args[0])
+	if err != nil {
+		return nil, errors.Wrap(err, "simplifiedLease")
+	}
+	amount, ok := args[1].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("simplifiedLease: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	return newLease(rideRecipient(recipient), amount, 0), nil
+}
+
+func fullLease(_ RideEnvironment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fullLease")
+	}
+	recipient, err := extractRecipient(args[0])
+	if err != nil {
+		return nil, errors.Wrap(err, "simplifiedLease")
+	}
+	amount, ok := args[1].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("fullLease: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	nonce, ok := args[2].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("fullLease: unexpected argument type '%s'", args[6].instanceOf())
+	}
+	return newLease(rideRecipient(recipient), amount, nonce), nil
+}
+
+func leaseCancel(_ RideEnvironment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 1); err != nil {
+		return nil, errors.Wrap(err, "leaseCancel")
+	}
+	id, ok := args[0].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("leaseCancel: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	obj := make(rideObject)
+	obj[instanceFieldName] = rideString("LeaseCancel")
+	obj["leaseId"] = id
+	return obj, nil
 }

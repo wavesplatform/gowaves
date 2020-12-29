@@ -131,22 +131,56 @@ func (ia *invokeApplier) newTxDiffFromScriptBurn(scriptAddr *proto.Address, acti
 	return diff, nil
 }
 
+func (ia *invokeApplier) newTxDiffFromScriptLease(scriptAddr, recipientAddress *proto.Address, action *proto.LeaseScriptAction) (txDiff, error) {
+	diff := newTxDiff()
+	senderKey := wavesBalanceKey{address: *scriptAddr}
+	receiverKey := wavesBalanceKey{address: *recipientAddress}
+	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(0, 0, action.Amount, false)); err != nil {
+		return nil, err
+	}
+	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, action.Amount, 0, false)); err != nil {
+		return nil, err
+	}
+	return diff, nil
+}
+
+func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(scriptAddr *proto.Address, leaseInfo *leasing) (txDiff, error) {
+	diff := newTxDiff()
+	senderKey := wavesBalanceKey{address: *scriptAddr}
+	senderLeaseOutDiff := -int64(leaseInfo.leaseAmount)
+	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(0, 0, senderLeaseOutDiff, false)); err != nil {
+		return nil, err
+	}
+	receiverKey := wavesBalanceKey{address: leaseInfo.recipient}
+	receiverLeaseInDiff := -int64(leaseInfo.leaseAmount)
+	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, receiverLeaseInDiff, 0, false)); err != nil {
+		return nil, err
+	}
+	return diff, nil
+}
+
 func (ia *invokeApplier) saveIntermediateDiff(diff txDiff) error {
 	return ia.invokeDiffStor.saveTxDiff(diff)
 }
 
 func (ia *invokeApplier) resolveAliases(actions []proto.ScriptAction, initialisation bool) error {
 	for i, a := range actions {
-		tr, ok := a.(proto.TransferScriptAction)
-		if !ok {
-			continue
+		switch ta := a.(type) {
+		case proto.TransferScriptAction:
+			addr, err := recipientToAddress(ta.Recipient, ia.stor.aliases, !initialisation)
+			if err != nil {
+				return err
+			}
+			ta.Recipient = proto.NewRecipientFromAddress(*addr)
+			actions[i] = ta
+		case proto.LeaseScriptAction:
+			addr, err := recipientToAddress(ta.Recipient, ia.stor.aliases, !initialisation)
+			if err != nil {
+				return err
+			}
+			ta.Recipient = proto.NewRecipientFromAddress(*addr)
+			actions[i] = ta
 		}
-		addr, err := recipientToAddress(tr.Recipient, ia.stor.aliases, !initialisation)
-		if err != nil {
-			return err
-		}
-		tr.Recipient = proto.NewRecipientFromAddress(*addr)
-		actions[i] = tr
 	}
 	return nil
 }
@@ -246,7 +280,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 	}
 	// Validate produced actions.
 	var keySizeValidationVersion byte = 1
-	if info.libVersion == 4 {
+	if info.libVersion >= 4 {
 		keySizeValidationVersion = 2
 	}
 	restrictions := proto.ActionsValidationRestrictions{
@@ -285,6 +319,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 		case *proto.DataEntryScriptAction:
 			// Perform data storage writes.
 			ia.stor.accountsDataStor.appendEntryUncertain(*info.scriptAddr, a.Entry)
+
 		case *proto.TransferScriptAction:
 			// Perform transfers.
 			addr := a.Recipient.Address
@@ -331,6 +366,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					return proto.DAppError, info.failedChanges, err
 				}
 			}
+
 		case *proto.IssueScriptAction:
 			// Create asset's info.
 			assetInfo := &assetInfo{
@@ -365,6 +401,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					return proto.DAppError, info.failedChanges, err
 				}
 			}
+
 		case *proto.ReissueScriptAction:
 			// Check validity of reissue.
 			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
@@ -410,6 +447,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					return proto.DAppError, info.failedChanges, err
 				}
 			}
+
 		case *proto.BurnScriptAction:
 			// Check burn.
 			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
@@ -457,6 +495,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					return proto.DAppError, info.failedChanges, err
 				}
 			}
+
 		case *proto.SponsorshipScriptAction:
 			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
 			if err != nil {
@@ -477,6 +516,63 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				return proto.DAppError, info.failedChanges, errors.Errorf("can not sponsor smart asset %s", a.AssetID.String())
 			}
 			ia.stor.sponsoredAssets.sponsorAssetUncertain(a.AssetID, uint64(a.MinFee))
+
+		case *proto.LeaseScriptAction:
+			recipientAddress := a.Recipient.Address
+			if recipientAddress == nil {
+				return proto.DAppError, info.failedChanges, errors.New("transfer has unresolved aliases")
+			}
+			if info.scriptAddr == recipientAddress {
+				return proto.DAppError, info.failedChanges, errors.New("leasing to itself is not allowed")
+			}
+			if a.Amount <= 0 {
+				return proto.DAppError, info.failedChanges, errors.New("non-positive leasing amount")
+			}
+			totalChanges.appendAddr(*recipientAddress)
+
+			// Add new leasing info
+			l := &leasing{true, uint64(a.Amount), *recipientAddress, *info.scriptAddr}
+			ia.stor.leases.addLeasingUncertain(a.ID, l)
+
+			txDiff, err := ia.newTxDiffFromScriptLease(info.scriptAddr, recipientAddress, a)
+			if err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			if err := ia.saveIntermediateDiff(txDiff); err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			for key, balanceDiff := range txDiff {
+				if err := totalChanges.diff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+					return proto.DAppError, info.failedChanges, err
+				}
+			}
+
+		case *proto.LeaseCancelScriptAction:
+			li, err := ia.stor.leases.newestLeasingInfo(a.LeaseID, !info.initialisation)
+			if err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+
+			// Update leasing info
+			if err := ia.stor.leases.cancelLeasingUncertain(a.LeaseID, !info.initialisation); err != nil {
+				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to cancel leasing")
+			}
+
+			totalChanges.appendAddr(li.sender)
+			totalChanges.appendAddr(li.recipient)
+			txDiff, err := ia.newTxDiffFromScriptLeaseCancel(info.scriptAddr, li)
+			if err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			if err := ia.saveIntermediateDiff(txDiff); err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			for key, balanceDiff := range txDiff {
+				if err := totalChanges.diff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+					return proto.DAppError, info.failedChanges, err
+				}
+			}
+
 		default:
 			return proto.DAppError, info.failedChanges, errors.Errorf("unsupported script action '%T'", a)
 		}

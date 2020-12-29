@@ -179,6 +179,9 @@ func (s *blockchainEntitiesStorage) commitUncertain(blockID proto.BlockID) error
 	if err := s.scriptsStorage.commitUncertain(blockID); err != nil {
 		return err
 	}
+	if err := s.leases.commitUncertain(blockID); err != nil {
+		return err
+	}
 	if err := s.sponsoredAssets.commitUncertain(blockID); err != nil {
 		return err
 	}
@@ -189,6 +192,7 @@ func (s *blockchainEntitiesStorage) dropUncertain() {
 	s.assets.dropUncertain()
 	s.accountsDataStor.dropUncertain()
 	s.scriptsStorage.dropUncertain()
+	s.leases.dropUncertain()
 	s.sponsoredAssets.dropUncertain()
 }
 

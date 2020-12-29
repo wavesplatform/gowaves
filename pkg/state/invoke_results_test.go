@@ -93,6 +93,14 @@ func TestSaveResult(t *testing.T) {
 			{AssetID: testGlobal.asset0.asset.ID, MinFee: 12345},
 			{AssetID: testGlobal.asset0.asset.ID, MinFee: 0},
 		},
+		Leases: []*proto.LeaseScriptAction{
+			{ID: testGlobal.asset0.asset.ID, Recipient: rcp, Amount: 100500, Nonce: 10},
+			{ID: testGlobal.asset1.asset.ID, Recipient: rcp, Amount: 12345, Nonce: 67890},
+		},
+		LeaseCancels: []*proto.LeaseCancelScriptAction{
+			{LeaseID: invokeID},
+			{LeaseID: testGlobal.asset0.asset.ID},
+		},
 	}
 	err = to.invokeResults.saveResult(invokeID, savedRes, blockID0)
 	require.NoError(t, err)

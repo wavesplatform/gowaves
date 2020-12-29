@@ -28,6 +28,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 	emptyReissues := make([]*ReissueScriptAction, 0)
 	emptyBurns := make([]*BurnScriptAction, 0)
 	emptySponsorships := make([]*SponsorshipScriptAction, 0)
+	emptyLeases := make([]*LeaseScriptAction, 0)
+	emptyLeaseCancels := make([]*LeaseCancelScriptAction, 0)
 	for i, test := range []ScriptResult{
 		{
 			DataEntries: []*DataEntryScriptAction{
@@ -51,6 +53,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			Reissues:     emptyReissues,
 			Burns:        emptyBurns,
 			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
 		},
 		{
 			DataEntries: []*DataEntryScriptAction{
@@ -61,6 +65,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			Reissues:     emptyReissues,
 			Burns:        emptyBurns,
 			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -73,6 +79,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			Reissues:     emptyReissues,
 			Burns:        emptyBurns,
 			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -84,6 +92,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			Reissues:     emptyReissues,
 			Burns:        emptyBurns,
 			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -98,6 +108,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			},
 			Burns:        emptyBurns,
 			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -112,6 +124,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 				{AssetID: asset0.ID, Quantity: 0},
 			},
 			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -122,6 +136,44 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			Sponsorships: []*SponsorshipScriptAction{
 				{AssetID: asset0.ID, MinFee: 12345},
 				{AssetID: asset1.ID, MinFee: 0},
+			},
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
+		},
+		{
+			DataEntries:  emptyDataEntries,
+			Transfers:    emptyTransfers,
+			Issues:       emptyIssues,
+			Reissues:     emptyReissues,
+			Burns:        emptyBurns,
+			Sponsorships: emptySponsorships,
+			Leases: []*LeaseScriptAction{
+				{
+					ID:        asset0.ID,
+					Recipient: rcp,
+					Amount:    12345,
+					Nonce:     67890,
+				},
+				{
+					ID:        asset1.ID,
+					Recipient: rcp,
+					Amount:    0,
+					Nonce:     0,
+				},
+			},
+			LeaseCancels: emptyLeaseCancels,
+		},
+		{
+			DataEntries:  emptyDataEntries,
+			Transfers:    emptyTransfers,
+			Issues:       emptyIssues,
+			Reissues:     emptyReissues,
+			Burns:        emptyBurns,
+			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: []*LeaseCancelScriptAction{
+				{LeaseID: asset0.ID},
+				{LeaseID: asset1.ID},
 			},
 		},
 	} {
@@ -169,6 +221,13 @@ func TestActionsValidation(t *testing.T) {
 			&DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
 			&TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
 		}, restrictions: ActionsValidationRestrictions{DisableSelfTransfers: true, ScriptAddress: addr0}, valid: false},
+		{actions: []ScriptAction{
+			&LeaseScriptAction{Recipient: rcp0, Amount: 100},
+		}, restrictions: ActionsValidationRestrictions{ScriptAddress: addr0}, valid: false},
+		{actions: []ScriptAction{
+			&LeaseScriptAction{Recipient: rcp0, Amount: 0},
+			&LeaseScriptAction{Recipient: rcp0, Amount: -100},
+		}, restrictions: ActionsValidationRestrictions{}, valid: false},
 	} {
 		err := ValidateActions(test.actions, test.restrictions)
 		if test.valid {
