@@ -10,10 +10,12 @@ import (
 )
 
 var (
-	logLevel       = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath      = flag.String("state-path", "", "Path to node's state directory")
-	blockchainType = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
-	height         = flag.Uint64("height", 0, "Height to rollback")
+	logLevel         = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath        = flag.String("state-path", "", "Path to node's state directory")
+	blockchainType   = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
+	height           = flag.Uint64("height", 0, "Height to rollback")
+	buildExtendedApi = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
+	buildStateHashes = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
 )
 
 func main() {
@@ -31,31 +33,39 @@ func main() {
 		return
 	}
 	params := state.DefaultStateParams()
-	state, err := state.NewState(*statePath, params, cfg)
+	params.BuildStateHashes = *buildStateHashes
+	params.StoreExtendedApiData = *buildExtendedApi
+	s, err := state.NewState(*statePath, params, cfg)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+	defer func() {
+		err = s.Close()
+		if err != nil {
+			zap.S().Errorf("Failed to close state: %v", err)
+		}
+	}()
+
+	curHeight, err := s.Height()
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	curHeight, err := state.Height()
+	zap.S().Infof("Current height: %d", curHeight)
+
+	err = s.RollbackToHeight(*height)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	zap.S().Infof("current height: %d", curHeight)
-
-	err = state.RollbackToHeight(*height)
+	curHeight, err = s.Height()
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	curHeight, err = state.Height()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	zap.S().Infof("current height: %d", curHeight)
+	zap.S().Infof("Current height: %d", curHeight)
 }
