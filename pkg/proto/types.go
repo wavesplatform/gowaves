@@ -3232,16 +3232,18 @@ type FullScriptTransfer struct {
 	Asset     OptionalAsset
 	Recipient Recipient
 	Sender    Address
+	SenderPK  crypto.PublicKey
 	Timestamp uint64
 	ID        *crypto.Digest
 }
 
-func NewFullScriptTransfer(action *TransferScriptAction, sender Address, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+func NewFullScriptTransfer(action *TransferScriptAction, sender Address, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,
 		Recipient: action.Recipient,
 		Sender:    sender,
+		SenderPK:  senderPK,
 		Timestamp: tx.Timestamp,
 		ID:        tx.ID,
 	}, nil

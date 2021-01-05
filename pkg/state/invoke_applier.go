@@ -303,7 +303,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					}
 					sender = addr
 				}
-				fullTr, err := proto.NewFullScriptTransfer(a, *sender, tx)
+				fullTr, err := proto.NewFullScriptTransfer(a, *sender, info.scriptPK, tx)
 				if err != nil {
 					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to convert transfer to full script transfer")
 				}
