@@ -28,7 +28,7 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             appendActionsFunc: func(actions []proto.ScriptAction)  {
 // 	               panic("mock out the appendActions method")
 //             },
-//             applyToStateFunc: func(actions []proto.ScriptAction) error {
+//             applyToStateFunc: func(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
 // 	               panic("mock out the applyToState method")
 //             },
 //             blockFunc: func() rideObject {
@@ -87,7 +87,7 @@ type MockRideEnvironment struct {
 	appendActionsFunc func(actions []proto.ScriptAction)
 
 	// applyToStateFunc mocks the applyToState method.
-	applyToStateFunc func(actions []proto.ScriptAction) error
+	applyToStateFunc func(actions []proto.ScriptAction) ([]proto.ScriptAction, error)
 
 	// blockFunc mocks the block method.
 	blockFunc func() rideObject
@@ -302,7 +302,7 @@ func (mock *MockRideEnvironment) appendActionsCalls() []struct {
 }
 
 // applyToState calls applyToStateFunc.
-func (mock *MockRideEnvironment) applyToState(actions []proto.ScriptAction) error {
+func (mock *MockRideEnvironment) applyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
 	if mock.applyToStateFunc == nil {
 		panic("MockRideEnvironment.applyToStateFunc: method is nil but RideEnvironment.applyToState was just called")
 	}

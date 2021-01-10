@@ -272,7 +272,7 @@ func (wrappedSt *wrappedState) IsNotFound(err error) bool {
 	return wrappedSt.diff.state.IsNotFound(err)
 }
 
-func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) error {
+func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
 
 	for _, action := range actions {
 		switch res := action.(type) {
@@ -286,11 +286,16 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) error 
 				addr := proto.Address(wrappedSt.envThis)
 
 				wrappedSt.diff.dataEntries.diffInteger[dataEntry.Key+addr.String()] = intEntry
+
+				res.Sender = addr
+
 			case *proto.StringDataEntry:
 				stringEntry := *dataEntry
 				addr := proto.Address(wrappedSt.envThis)
 
 				wrappedSt.diff.dataEntries.diffString[dataEntry.Key+addr.String()] = stringEntry
+
+				res.Sender = addr
 
 			case *proto.BooleanDataEntry:
 				boolEntry := *dataEntry
@@ -298,17 +303,23 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) error 
 
 				wrappedSt.diff.dataEntries.diffBool[dataEntry.Key+addr.String()] = boolEntry
 
+				res.Sender = addr
+
 			case *proto.BinaryDataEntry:
 				binaryEntry := *dataEntry
 				addr := proto.Address(wrappedSt.envThis)
 
 				wrappedSt.diff.dataEntries.diffBinary[dataEntry.Key+addr.String()] = binaryEntry
 
+				res.Sender = addr
+
 			case *proto.DeleteDataEntry:
 				deleteEntry := *dataEntry
 				addr := proto.Address(wrappedSt.envThis)
 
 				wrappedSt.diff.dataEntries.diffDDelete[dataEntry.Key+addr.String()] = deleteEntry
+
+				res.Sender = addr
 			default:
 
 			}
@@ -316,30 +327,34 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) error 
 		case *proto.TransferScriptAction:
 			searchBalance, searchAddr, err := wrappedSt.diff.findBalance(res.Recipient, res.Asset.ID.Bytes())
 			if err != nil {
-				return err
+				return nil, err
 			}
 			err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			senderAddr := proto.Address(wrappedSt.envThis)
 			senderRecip := proto.Recipient{Address: &senderAddr}
 			senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderRecip, res.Asset.ID.Bytes())
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			err = wrappedSt.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecip)
 			if err != nil {
-				return err
+				return nil, err
 			}
+
+			res.Sender = senderAddr
 
 		case *proto.SponsorshipScriptAction:
 			var sponsorship diffSponsorship
 			sponsorship.MinFee = res.MinFee
 
 			wrappedSt.diff.sponsorships[res.AssetID.String()] = sponsorship
+
+			res.Sender = proto.Address(wrappedSt.envThis)
 
 		case *proto.IssueScriptAction:
 			var assetInfo diffNewAssetInfo
@@ -354,6 +369,8 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) error 
 
 			wrappedSt.diff.newAssetsInfo[res.ID.String()] = assetInfo
 
+			res.Sender = proto.Address(wrappedSt.envThis)
+
 		case *proto.ReissueScriptAction:
 			searchNewAsset := wrappedSt.diff.findNewAsset(res.AssetID)
 			if searchNewAsset == nil {
@@ -365,6 +382,8 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) error 
 				break
 			}
 			wrappedSt.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
+
+			res.Sender = proto.Address(wrappedSt.envThis)
 
 		case *proto.BurnScriptAction:
 			searchAsset := wrappedSt.diff.findNewAsset(res.AssetID)
@@ -379,11 +398,13 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) error 
 			}
 			wrappedSt.diff.burnNewAsset(res.AssetID, res.Quantity)
 
+			res.Sender = proto.Address(wrappedSt.envThis)
+
 		default:
 		}
 
 	}
-	return nil
+	return actions, nil
 }
 
 type wrappedState struct {
@@ -561,7 +582,7 @@ func (e *Environment) setNewDAppAddress(address proto.Address) {
 	e.SetThisFromAddress(address)
 }
 
-func (e *Environment) applyToState(actions []proto.ScriptAction) error {
+func (e *Environment) applyToState(actions []proto.ScriptAction) ([]proto.ScriptAction,error) {
 	return e.st.ApplyToState(actions)
 }
 
@@ -575,9 +596,13 @@ func (e *Environment) smartAppendActions(actions []proto.ScriptAction) error {
 		wrappedSt := newWrappedState(e.state(), e.this())
 		e.st = wrappedSt
 	}
-	e.appendActions(actions)
 
-	return e.applyToState(actions)
+	modifiedActions, err := e.applyToState(actions)
+	if err != nil {
+		return err
+	}
+	e.appendActions(modifiedActions)
+	return nil
 }
 func (e *Environment) checkMessageLength(l int) bool {
 	return e.check(l)

@@ -82,7 +82,8 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		paymentActions = append(paymentActions, action)
 	}
 
-	err = env.applyToState(paymentActions)
+	//err = env.applyToState(paymentActions)
+	err = env.smartAppendActions(paymentActions)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to apply attachedPayments")
 	}

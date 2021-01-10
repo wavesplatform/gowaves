@@ -23,7 +23,7 @@ var _ types.SmartState = &MockSmartState{}
 //             AddingBlockHeightFunc: func() (uint64, error) {
 // 	               panic("mock out the AddingBlockHeight method")
 //             },
-//             ApplyToStateFunc: func(actions []proto.ScriptAction) error {
+//             ApplyToStateFunc: func(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
 // 	               panic("mock out the ApplyToState method")
 //             },
 //             BlockVRFFunc: func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
@@ -94,7 +94,7 @@ type MockSmartState struct {
 	AddingBlockHeightFunc func() (uint64, error)
 
 	// ApplyToStateFunc mocks the ApplyToState method.
-	ApplyToStateFunc func(actions []proto.ScriptAction) error
+	ApplyToStateFunc func(actions []proto.ScriptAction) ([]proto.ScriptAction, error)
 
 	// BlockVRFFunc mocks the BlockVRF method.
 	BlockVRFFunc func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error)
@@ -321,7 +321,7 @@ func (mock *MockSmartState) AddingBlockHeightCalls() []struct {
 }
 
 // ApplyToState calls ApplyToStateFunc.
-func (mock *MockSmartState) ApplyToState(actions []proto.ScriptAction) error {
+func (mock *MockSmartState) ApplyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
 	if mock.ApplyToStateFunc == nil {
 		panic("MockSmartState.ApplyToStateFunc: method is nil but SmartState.ApplyToState was just called")
 	}

@@ -341,7 +341,7 @@ type RideEnvironment interface {
 	block() rideObject
 	txID() rideType // Invoke transaction ID
 	state() types.SmartState
-	applyToState(actions []proto.ScriptAction) error
+	applyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error)
 	appendActions(actions []proto.ScriptAction)
 	smartAppendActions(actions []proto.ScriptAction) error
 	actions() []proto.ScriptAction
