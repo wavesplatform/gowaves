@@ -78,20 +78,21 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 
 	var paymentActions []proto.ScriptAction
 	for _, payment := range attachedPayments {
-		action := &proto.TransferScriptAction{Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
+		action := &proto.TransferScriptAction{Sender: proto.Address(oldAddress.(rideAddress)), Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
 		paymentActions = append(paymentActions, action)
 	}
 
-	//err = env.applyToState(paymentActions)
-	err = env.smartAppendActions(paymentActions)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to apply attachedPayments")
-	}
+	//env.appendActions(paymentActions)
 
 	res, err := invokeFunctionFromDApp(env, recipient, fnName, listArg)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
+	}
+
+	err = env.smartAppendActions(paymentActions)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to apply attachedPayments")
 	}
 
 	if res.Result() {

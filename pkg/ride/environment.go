@@ -325,6 +325,16 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			}
 
 		case *proto.TransferScriptAction:
+			emptyAddr := proto.Address{}
+
+			var senderAddr proto.Address
+
+			if res.Sender != emptyAddr {
+				senderAddr = res.Sender
+			} else {
+				senderAddr = proto.Address(wrappedSt.envThis)
+			}
+
 			searchBalance, searchAddr, err := wrappedSt.diff.findBalance(res.Recipient, res.Asset.ID.Bytes())
 			if err != nil {
 				return nil, err
@@ -334,7 +344,6 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				return nil, err
 			}
 
-			senderAddr := proto.Address(wrappedSt.envThis)
 			senderRecip := proto.Recipient{Address: &senderAddr}
 			senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderRecip, res.Asset.ID.Bytes())
 			if err != nil {
@@ -582,7 +591,7 @@ func (e *Environment) setNewDAppAddress(address proto.Address) {
 	e.SetThisFromAddress(address)
 }
 
-func (e *Environment) applyToState(actions []proto.ScriptAction) ([]proto.ScriptAction,error) {
+func (e *Environment) applyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
 	return e.st.ApplyToState(actions)
 }
 
