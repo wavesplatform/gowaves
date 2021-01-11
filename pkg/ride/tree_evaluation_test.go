@@ -1272,6 +1272,22 @@ var envDappFromDapp = &MockRideEnvironment{
 	},
 }
 
+func tearDown() {
+
+	wrappedSt = wrappedState{}
+	firstScript = ""
+	secondScript = ""
+	assetIDIssue = crypto.Digest{}
+	addr = proto.Address{}
+	addressCallable = proto.Address{}
+
+	envActions = nil
+	invCount = 0
+	thisAddress = proto.Address{}
+	tx = nil
+	id = nil
+}
+
 func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	/* script 1
@@ -1460,15 +1476,13 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	newAsset := diffNewAssetInfo{dAppIssuer: addressCallable, name: "CatCoin", description: "", quantity: 6, decimals: 0, reissuable: false, script: nil, nonce: 0}
 	expectedDiffResult.newAssetsInfo[assetIDIssue.String()] = newAsset
 
-	///
-	//newnewWrappedState := wrappedSt
-	//fmt.Print(newnewWrappedState)
 	assert.Equal(t, expectedDiffResult.newAssetsInfo, wrappedSt.diff.newAssetsInfo)
 	assert.Equal(t, expectedDiffResult.oldAssetsInfo, wrappedSt.diff.oldAssetsInfo)
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 	assert.Equal(t, expectedDiffResult.sponsorships, wrappedSt.diff.sponsorships)
 
+	tearDown()
 }
 
 func TestInvokeDAppFromDAppScript1(t *testing.T) {
@@ -1590,6 +1604,7 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
+	tearDown()
 }
 
 func TestInvokeDAppFromDAppScript2(t *testing.T) {
@@ -1748,6 +1763,7 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
+	tearDown()
 }
 
 func TestInvokeDAppFromDAppScript3(t *testing.T) {
@@ -1918,6 +1934,7 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
+	tearDown()
 }
 
 func TestInvokeDAppFromDAppScript4(t *testing.T) {
@@ -2088,6 +2105,7 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
+	tearDown()
 }
 
 func TestInvokeDAppFromDAppScript5(t *testing.T) {
@@ -2254,6 +2272,7 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
+	tearDown()
 }
 
 func TestInvokeDAppFromDAppScript6(t *testing.T) {
@@ -2356,6 +2375,7 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
+	tearDown()
 }
 
 func TestMatchOverwrite(t *testing.T) {

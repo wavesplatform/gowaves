@@ -468,7 +468,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
-func (s *stateManager) ApplyToState(actions []proto.ScriptAction) ([]proto.ScriptAction,error) {
+func (s *stateManager) ApplyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
 	return nil, nil
 }
 
