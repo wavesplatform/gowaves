@@ -1272,7 +1272,7 @@ var envDappFromDapp = &MockRideEnvironment{
 	},
 }
 
-func tearDown() {
+func tearDownDappFromDapp() {
 
 	wrappedSt = wrappedState{}
 	firstScript = ""
@@ -1482,7 +1482,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 	assert.Equal(t, expectedDiffResult.sponsorships, wrappedSt.diff.sponsorships)
 
-	tearDown()
+	tearDownDappFromDapp()
 }
 
 func TestInvokeDAppFromDAppScript1(t *testing.T) {
@@ -1604,7 +1604,7 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
-	tearDown()
+	tearDownDappFromDapp()
 }
 
 func TestInvokeDAppFromDAppScript2(t *testing.T) {
@@ -1763,7 +1763,7 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
-	tearDown()
+	tearDownDappFromDapp()
 }
 
 func TestInvokeDAppFromDAppScript3(t *testing.T) {
@@ -1934,7 +1934,7 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
-	tearDown()
+	tearDownDappFromDapp()
 }
 
 func TestInvokeDAppFromDAppScript4(t *testing.T) {
@@ -2105,7 +2105,7 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
-	tearDown()
+	tearDownDappFromDapp()
 }
 
 func TestInvokeDAppFromDAppScript5(t *testing.T) {
@@ -2272,7 +2272,7 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
-	tearDown()
+	tearDownDappFromDapp()
 }
 
 func TestInvokeDAppFromDAppScript6(t *testing.T) {
@@ -2375,7 +2375,7 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
-	tearDown()
+	tearDownDappFromDapp()
 }
 
 func TestMatchOverwrite(t *testing.T) {
