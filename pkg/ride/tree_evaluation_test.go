@@ -830,7 +830,9 @@ var firstScript string
 var secondScript string
 var assetIDIssue crypto.Digest
 var addr proto.Address
+var addrPK crypto.PublicKey
 var addressCallable proto.Address
+var addressCallablePK crypto.PublicKey
 
 func smartStateDappFromDapp() types.SmartState {
 	return &MockSmartState{
@@ -849,14 +851,22 @@ func smartStateDappFromDapp() types.SmartState {
 
 						wrappedSt.diff.dataEntries.diffInteger[dataEntry.Key+address.String()] = intEntry
 
-						res.Sender = address
+						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
+						if err != nil {
+							return nil, errors.Wrap(err, "failed to get public key by address")
+						}
+						res.Sender = senderPK
 					case *proto.StringDataEntry:
 						stringEntry := *dataEntry
 						address := proto.Address(wrappedSt.envThis)
 
 						wrappedSt.diff.dataEntries.diffString[dataEntry.Key+address.String()] = stringEntry
 
-						res.Sender = address
+						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
+						if err != nil {
+							return nil, errors.Wrap(err, "failed to get public key by address")
+						}
+						res.Sender = senderPK
 
 					case *proto.BooleanDataEntry:
 						boolEntry := *dataEntry
@@ -864,7 +874,11 @@ func smartStateDappFromDapp() types.SmartState {
 
 						wrappedSt.diff.dataEntries.diffBool[dataEntry.Key+address.String()] = boolEntry
 
-						res.Sender = address
+						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
+						if err != nil {
+							return nil, errors.Wrap(err, "failed to get public key by address")
+						}
+						res.Sender = senderPK
 
 					case *proto.BinaryDataEntry:
 						binaryEntry := *dataEntry
@@ -872,7 +886,11 @@ func smartStateDappFromDapp() types.SmartState {
 
 						wrappedSt.diff.dataEntries.diffBinary[dataEntry.Key+address.String()] = binaryEntry
 
-						res.Sender = address
+						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
+						if err != nil {
+							return nil, errors.Wrap(err, "failed to get public key by address")
+						}
+						res.Sender = senderPK
 
 					case *proto.DeleteDataEntry:
 						deleteEntry := *dataEntry
@@ -880,20 +898,38 @@ func smartStateDappFromDapp() types.SmartState {
 
 						wrappedSt.diff.dataEntries.diffDDelete[dataEntry.Key+address.String()] = deleteEntry
 
-						res.Sender = address
+						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
+						if err != nil {
+							return nil, errors.Wrap(err, "failed to get public key by address")
+						}
+						res.Sender = senderPK
 					default:
 
 					}
 
 				case *proto.TransferScriptAction:
-					emptyAddr := proto.Address{}
+					var senderAddress proto.Address
 
-					var senderAddr proto.Address
+					emptyPK := crypto.PublicKey{}
 
-					if res.Sender != emptyAddr {
-						senderAddr = res.Sender
+					var senderPK crypto.PublicKey
+
+					if res.Sender != emptyPK {
+						senderPK = res.Sender
+						if senderPK.String() == addrPK.String() {
+							senderAddress = addr
+						} else {
+							senderAddress = addressCallable
+						}
+
 					} else {
-						senderAddr = proto.Address(wrappedSt.envThis)
+						pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+						if err != nil {
+							return nil, errors.Wrap(err, "failed to get public key by address")
+						}
+						senderPK = pk
+
+						senderAddress = proto.Address(wrappedSt.envThis)
 					}
 
 					searchBalance, searchAddr, err := wrappedSt.diff.findBalance(res.Recipient, res.Asset.ID.Bytes())
@@ -904,8 +940,7 @@ func smartStateDappFromDapp() types.SmartState {
 					if err != nil {
 						return nil, err
 					}
-
-					senderRecipient := proto.NewRecipientFromAddress(senderAddr)
+					senderRecipient := proto.NewRecipientFromAddress(senderAddress)
 					senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderRecipient, res.Asset.ID.Bytes())
 					if err != nil {
 						return nil, err
@@ -916,7 +951,7 @@ func smartStateDappFromDapp() types.SmartState {
 						return nil, err
 					}
 
-					res.Sender = senderAddr
+					res.Sender = senderPK
 
 				case *proto.SponsorshipScriptAction:
 					var sponsorship diffSponsorship
@@ -924,8 +959,11 @@ func smartStateDappFromDapp() types.SmartState {
 
 					wrappedSt.diff.sponsorships[res.AssetID.String()] = sponsorship
 
-					address := proto.Address(wrappedSt.envThis)
-					res.Sender = address
+					senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to get public key by address")
+					}
+					res.Sender = senderPK
 
 				case *proto.IssueScriptAction:
 					var assetInfo diffNewAssetInfo
@@ -942,7 +980,11 @@ func smartStateDappFromDapp() types.SmartState {
 
 					wrappedSt.diff.newAssetsInfo[res.ID.String()] = assetInfo
 
-					res.Sender = proto.Address(wrappedSt.envThis)
+					senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to get public key by address")
+					}
+					res.Sender = senderPK
 
 				case *proto.ReissueScriptAction:
 					searchNewAsset := wrappedSt.diff.findNewAsset(res.AssetID)
@@ -956,7 +998,11 @@ func smartStateDappFromDapp() types.SmartState {
 					}
 					wrappedSt.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
 
-					res.Sender = proto.Address(wrappedSt.envThis)
+					senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to get public key by address")
+					}
+					res.Sender = senderPK
 
 				case *proto.BurnScriptAction:
 					searchAsset := wrappedSt.diff.findNewAsset(res.AssetID)
@@ -971,7 +1017,11 @@ func smartStateDappFromDapp() types.SmartState {
 					}
 					wrappedSt.diff.burnNewAsset(res.AssetID, res.Quantity)
 
-					res.Sender = proto.Address(wrappedSt.envThis)
+					senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to get public key by address")
+					}
+					res.Sender = senderPK
 
 				default:
 				}
@@ -1000,6 +1050,12 @@ func smartStateDappFromDapp() types.SmartState {
 			return 10, nil
 		},
 		NewestScriptPKByAddrFunc: func(address proto.Address, filter bool) (crypto.PublicKey, error) {
+			if address == addr {
+				return crypto.MustPublicKeyFromBase58("JBjPD1xkTTcYUVhbLp1bLJLcjDKLT3c32RVk9Rue87ZD"), nil
+			}
+			if address == addressCallable {
+				return crypto.MustPublicKeyFromBase58("8TLsCqkkroVot9dVR1WcWUN9Qx96HDfzG3hnx7NpSJA9"), nil
+			}
 			return crypto.PublicKey{}, nil
 		},
 		NewestTransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
@@ -1280,6 +1336,8 @@ func tearDownDappFromDapp() {
 	assetIDIssue = crypto.Digest{}
 	addr = proto.Address{}
 	addressCallable = proto.Address{}
+	addrPK = crypto.PublicKey{}
+	addressCallablePK = crypto.PublicKey{}
 
 	envActions = nil
 	invCount = 0
@@ -1331,6 +1389,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	  ], 17)
 	}
 	*/
+
 	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
 	require.NoError(t, err)
 	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
@@ -1346,6 +1405,11 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	addressCallable, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
 	require.NoError(t, err)
 	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
+
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	require.NoError(t, err)
 
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
@@ -1376,28 +1440,28 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	id = bytes.Repeat([]byte{0}, 32)
 
 	expectedIssueWrites := []*proto.IssueScriptAction{
-		{Sender: addressCallable, Name: "CatCoin", Description: "", Quantity: 1, Decimals: 0, Reissuable: true, Script: nil, Nonce: 0},
+		{Sender: addressCallablePK, Name: "CatCoin", Description: "", Quantity: 1, Decimals: 0, Reissuable: true, Script: nil, Nonce: 0},
 	}
 	expectedReissueWrites := []*proto.ReissueScriptAction{
-		{Sender: addressCallable, Quantity: 10, Reissuable: false},
+		{Sender: addressCallablePK, Quantity: 10, Reissuable: false},
 	}
 	expectedBurnWrites := []*proto.BurnScriptAction{
-		{Sender: addressCallable, Quantity: 5},
+		{Sender: addressCallablePK, Quantity: 5},
 	}
 
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
-		{Entry: &proto.BinaryDataEntry{Key: "bin", Value: []byte("")}, Sender: addressCallable},
-		{Entry: &proto.BooleanDataEntry{Key: "bool", Value: true}, Sender: addressCallable},
-		{Entry: &proto.IntegerDataEntry{Key: "int", Value: 1}, Sender: addressCallable},
-		{Entry: &proto.StringDataEntry{Key: "str", Value: ""}, Sender: addressCallable},
-		{Entry: &proto.DeleteDataEntry{Key: "str"}, Sender: addressCallable},
+		{Entry: &proto.BinaryDataEntry{Key: "bin", Value: []byte("")}, Sender: addressCallablePK},
+		{Entry: &proto.BooleanDataEntry{Key: "bool", Value: true}, Sender: addressCallablePK},
+		{Entry: &proto.IntegerDataEntry{Key: "int", Value: 1}, Sender: addressCallablePK},
+		{Entry: &proto.StringDataEntry{Key: "str", Value: ""}, Sender: addressCallablePK},
+		{Entry: &proto.DeleteDataEntry{Key: "str"}, Sender: addressCallablePK},
 		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 1}},
 	}
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
-		{Sender: addr, Recipient: recipientCallable, Amount: 1234, Asset: proto.OptionalAsset{}, InvalidAsset: false},
-		{Sender: addr, Recipient: recipientCallable, Amount: 1234, Asset: proto.OptionalAsset{}, InvalidAsset: false},
-		{Sender: addressCallable, Recipient: recipient, Amount: 1, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addrPK, Recipient: recipientCallable, Amount: 1234, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addrPK, Recipient: recipientCallable, Amount: 1234, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addressCallablePK, Recipient: recipient, Amount: 1, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 	}
 
 	smartState := smartStateDappFromDapp
@@ -1448,8 +1512,6 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	}
 
 	assert.Equal(t, expectedActionsResult, sr)
-
-	// new test
 
 	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
 	balance := diffBalance{amount: -2467, assetID: assetExp.ID}
@@ -1526,6 +1588,9 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
 
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	require.NoError(t, err)
+
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
 	call := proto.FunctionCall{
@@ -1553,7 +1618,7 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	id = bytes.Repeat([]byte{0}, 32)
 
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
-		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: addr},
+		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: addrPK},
 		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 1}},
 	}
 
@@ -1668,6 +1733,11 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
 
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	require.NoError(t, err)
+
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
 
@@ -1702,13 +1772,13 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	id = bytes.Repeat([]byte{0}, 32)
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
-		{Sender: addr, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}, InvalidAsset: false},
-		{Sender: addressCallable, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 	}
 
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
 
-		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: addressCallable},
+		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: addressCallablePK},
 		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 1}},
 	}
 
@@ -1845,6 +1915,11 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	require.NoError(t, err)
 	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
 
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	require.NoError(t, err)
+
 	call := proto.FunctionCall{
 		Default:   false,
 		Name:      "cancel",
@@ -1871,16 +1946,16 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	id = bytes.Repeat([]byte{0}, 32)
 
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
-		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: addressCallable},
-		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: addressCallable},
+		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: addressCallablePK},
+		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: addressCallablePK},
 		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 1}},
 	}
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
-		{Sender: addr, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}, InvalidAsset: false},
-		{Sender: addressCallable, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
-		{Sender: addr, Recipient: recipientCallable, Amount: 18, Asset: proto.OptionalAsset{}, InvalidAsset: false},
-		{Sender: addressCallable, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addrPK, Recipient: recipientCallable, Amount: 18, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 	}
 
 	smartState := smartStateDappFromDapp
@@ -2015,6 +2090,11 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 	require.NoError(t, err)
 	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
 
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	require.NoError(t, err)
+
 	call := proto.FunctionCall{
 		Default:   false,
 		Name:      "cancel",
@@ -2041,15 +2121,15 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 	id = bytes.Repeat([]byte{0}, 32)
 
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
-		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 0}, Sender: addr},
-		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: addressCallable},
+		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 0}, Sender: addrPK},
+		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: addressCallablePK},
 		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 1}},
 	}
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
-		{Sender: addr, Recipient: recipientCallable, Amount: 2, Asset: proto.OptionalAsset{}, InvalidAsset: false},
-		{Sender: addr, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}, InvalidAsset: false},
-		{Sender: addressCallable, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addrPK, Recipient: recipientCallable, Amount: 2, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 	}
 
 	smartState := smartStateDappFromDapp
@@ -2184,6 +2264,11 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 	require.NoError(t, err)
 	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
 
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	require.NoError(t, err)
+
 	call := proto.FunctionCall{
 		Default:   false,
 		Name:      "cancel",
@@ -2210,15 +2295,15 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 	id = bytes.Repeat([]byte{0}, 32)
 
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
-		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: addressCallable},
+		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: addressCallablePK},
 		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 1}},
 	}
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
-		{Sender: addressCallable, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
-		{Sender: addr, Recipient: recipientCallable, Amount: 2, Asset: proto.OptionalAsset{}, InvalidAsset: false},
-		{Sender: addr, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}, InvalidAsset: false},
-		{Sender: addressCallable, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addrPK, Recipient: recipientCallable, Amount: 2, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 	}
 
 	smartState := smartStateDappFromDapp
@@ -2305,6 +2390,7 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	addr, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
+
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
 	call := proto.FunctionCall{

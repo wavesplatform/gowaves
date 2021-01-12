@@ -6,7 +6,6 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -29,11 +28,20 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[0].instanceOf())
 	}
 
-	//TODO: The function name can be a Unit or an empty string, in this case it should be replaced with 'default'
-	fnName, ok := args[1].(rideString)
-	if !ok {
+	var fnName rideString
+	switch fnN := args[1].(type) {
+	case rideUnit:
+		fnName = "default"
+	case rideString:
+		if fnN == "" {
+			fnName = "default"
+			break
+		}
+		fnName = fnN
+	default:
 		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[1].instanceOf())
 	}
+
 	listArg, ok := args[2].(rideList)
 	if !ok {
 		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[2].instanceOf())
@@ -83,7 +91,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 
 	var paymentActions []proto.ScriptAction
 	for _, payment := range attachedPayments {
-		action := &proto.TransferScriptAction{Sender: proto.Address(callerAddress), Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
+		action := &proto.TransferScriptAction{Sender: callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
 		paymentActions = append(paymentActions, action)
 	}
 

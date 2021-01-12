@@ -287,7 +287,11 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 
 				wrappedSt.diff.dataEntries.diffInteger[dataEntry.Key+addr.String()] = intEntry
 
-				res.Sender = addr
+				senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(addr, false)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get public key by address")
+				}
+				res.Sender = senderPK
 
 			case *proto.StringDataEntry:
 				stringEntry := *dataEntry
@@ -295,7 +299,11 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 
 				wrappedSt.diff.dataEntries.diffString[dataEntry.Key+addr.String()] = stringEntry
 
-				res.Sender = addr
+				senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(addr, false)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get public key by address")
+				}
+				res.Sender = senderPK
 
 			case *proto.BooleanDataEntry:
 				boolEntry := *dataEntry
@@ -303,7 +311,11 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 
 				wrappedSt.diff.dataEntries.diffBool[dataEntry.Key+addr.String()] = boolEntry
 
-				res.Sender = addr
+				senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(addr, false)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get public key by address")
+				}
+				res.Sender = senderPK
 
 			case *proto.BinaryDataEntry:
 				binaryEntry := *dataEntry
@@ -311,7 +323,11 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 
 				wrappedSt.diff.dataEntries.diffBinary[dataEntry.Key+addr.String()] = binaryEntry
 
-				res.Sender = addr
+				senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(addr, false)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get public key by address")
+				}
+				res.Sender = senderPK
 
 			case *proto.DeleteDataEntry:
 				deleteEntry := *dataEntry
@@ -319,20 +335,37 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 
 				wrappedSt.diff.dataEntries.diffDDelete[dataEntry.Key+addr.String()] = deleteEntry
 
-				res.Sender = addr
+				senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(addr, false)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get public key by address")
+				}
+				res.Sender = senderPK
 			default:
 
 			}
 
 		case *proto.TransferScriptAction:
-			emptyAddr := proto.Address{}
+			var senderAddress proto.Address
 
-			var senderAddr proto.Address
+			emptyPK := crypto.PublicKey{}
 
-			if res.Sender != emptyAddr {
-				senderAddr = res.Sender
+			var senderPK crypto.PublicKey
+
+			if res.Sender != emptyPK {
+				senderPK = res.Sender
+				var err error
+				senderAddress, err = proto.NewAddressFromPublicKey(wrappedSt.envScheme, senderPK)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get address  by public key")
+				}
 			} else {
-				senderAddr = proto.Address(wrappedSt.envThis)
+				pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get public key by address")
+				}
+				senderPK = pk
+
+				senderAddress = proto.Address(wrappedSt.envThis)
 			}
 
 			searchBalance, searchAddr, err := wrappedSt.diff.findBalance(res.Recipient, res.Asset.ID.Bytes())
@@ -344,7 +377,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				return nil, err
 			}
 
-			senderRecipient := proto.NewRecipientFromAddress(senderAddr)
+			senderRecipient := proto.NewRecipientFromAddress(senderAddress)
 			senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderRecipient, res.Asset.ID.Bytes())
 			if err != nil {
 				return nil, err
@@ -355,7 +388,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				return nil, err
 			}
 
-			res.Sender = senderAddr
+			res.Sender = senderPK
 
 		case *proto.SponsorshipScriptAction:
 			var sponsorship diffSponsorship
@@ -363,7 +396,11 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 
 			wrappedSt.diff.sponsorships[res.AssetID.String()] = sponsorship
 
-			res.Sender = proto.Address(wrappedSt.envThis)
+			senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get public key by address")
+			}
+			res.Sender = senderPK
 
 		case *proto.IssueScriptAction:
 			var assetInfo diffNewAssetInfo
@@ -378,7 +415,11 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 
 			wrappedSt.diff.newAssetsInfo[res.ID.String()] = assetInfo
 
-			res.Sender = proto.Address(wrappedSt.envThis)
+			senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get public key by address")
+			}
+			res.Sender = senderPK
 
 		case *proto.ReissueScriptAction:
 			searchNewAsset := wrappedSt.diff.findNewAsset(res.AssetID)
@@ -392,7 +433,11 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			}
 			wrappedSt.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
 
-			res.Sender = proto.Address(wrappedSt.envThis)
+			senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get public key by address")
+			}
+			res.Sender = senderPK
 
 		case *proto.BurnScriptAction:
 			searchAsset := wrappedSt.diff.findNewAsset(res.AssetID)
@@ -407,7 +452,11 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			}
 			wrappedSt.diff.burnNewAsset(res.AssetID, res.Quantity)
 
-			res.Sender = proto.Address(wrappedSt.envThis)
+			senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get public key by address")
+			}
+			res.Sender = senderPK
 
 		default:
 		}
@@ -417,8 +466,9 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 }
 
 type wrappedState struct {
-	diff    diffState
-	envThis rideAddress
+	diff      diffState
+	envThis   rideAddress
+	envScheme proto.Scheme
 }
 
 type Environment struct {
@@ -435,7 +485,7 @@ type Environment struct {
 	invokeCount uint64
 }
 
-func newWrappedState(state types.SmartState, envThis rideType) types.SmartState {
+func newWrappedState(state types.SmartState, envThis rideType, envScheme proto.Scheme) types.SmartState {
 	var dataEntries diffDataEntries
 
 	dataEntries.diffInteger = map[string]proto.IntegerDataEntry{}
@@ -602,7 +652,7 @@ func (e *Environment) appendActions(actions []proto.ScriptAction) {
 func (e *Environment) smartAppendActions(actions []proto.ScriptAction) error {
 	_, ok := e.st.(*wrappedState)
 	if !ok {
-		wrappedSt := newWrappedState(e.state(), e.this())
+		wrappedSt := newWrappedState(e.state(), e.this(), e.sch)
 		e.st = wrappedSt
 	}
 
