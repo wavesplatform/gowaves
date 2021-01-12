@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -18,13 +19,17 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 	if env.invCount() > 9 {
 		return rideUnit{}, nil
 	}
-	oldAddress := env.this()
+	callerAddress, ok := env.this().(rideAddress)
+	if !ok {
+		return rideUnit{}, errors.Errorf("invoke: this has an unexpected type '%s'", env.this().instanceOf())
+	}
 
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
 		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[0].instanceOf())
 	}
 
+	//TODO: The function name can be a Unit or an empty string, in this case it should be replaced with 'default'
 	fnName, ok := args[1].(rideString)
 	if !ok {
 		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[1].instanceOf())
@@ -39,8 +44,8 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 	payments := args[3].(rideList)
 
 	invocationParam := env.invocation()
-	invocationParam["caller"] = oldAddress.(rideAddress)
-	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(oldAddress.(rideAddress)), false)
+	invocationParam["caller"] = callerAddress
+	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(callerAddress), false)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get caller public key by address")
 	}
@@ -78,11 +83,9 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 
 	var paymentActions []proto.ScriptAction
 	for _, payment := range attachedPayments {
-		action := &proto.TransferScriptAction{Sender: proto.Address(oldAddress.(rideAddress)), Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
+		action := &proto.TransferScriptAction{Sender: proto.Address(callerAddress), Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
 		paymentActions = append(paymentActions, action)
 	}
-
-	//env.appendActions(paymentActions)
 
 	res, err := invokeFunctionFromDApp(env, recipient, fnName, listArg)
 
@@ -101,7 +104,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		}
 
 		err = env.smartAppendActions(res.ScriptActions())
-		env.setNewDAppAddress(proto.Address(oldAddress.(rideAddress)))
+		env.setNewDAppAddress(proto.Address(callerAddress))
 		if err != nil {
 			return nil, err
 		}
