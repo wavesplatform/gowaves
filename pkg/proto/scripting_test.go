@@ -2,6 +2,7 @@ package proto
 
 import (
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"math"
 	"strings"
 	"testing"
@@ -33,15 +34,15 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 	for i, test := range []ScriptResult{
 		{
 			DataEntries: []*DataEntryScriptAction{
-				{&IntegerDataEntry{"some key", 12345}},
-				{&BooleanDataEntry{"negative value", false}},
-				{&StringDataEntry{"some key", "some value string"}},
-				{&BinaryDataEntry{Key: "k3", Value: []byte{0x24, 0x7f, 0x71, 0x14, 0x1d}}},
-				{&IntegerDataEntry{"some key2", -12345}},
-				{&BooleanDataEntry{"negative value2", true}},
-				{&StringDataEntry{"some key143", "some value2 string"}},
-				{&BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
-				{&DeleteDataEntry{Key: "xxx"}},
+				{Sender: crypto.PublicKey{}, Entry: &IntegerDataEntry{"some key", 12345}},
+				{Sender: crypto.PublicKey{}, Entry: &BooleanDataEntry{"negative value", false}},
+				{Sender: crypto.PublicKey{}, Entry: &StringDataEntry{"some key", "some value string"}},
+				{Sender: crypto.PublicKey{}, Entry: &BinaryDataEntry{Key: "k3", Value: []byte{0x24, 0x7f, 0x71, 0x14, 0x1d}}},
+				{Sender: crypto.PublicKey{}, Entry: &IntegerDataEntry{"some key2", -12345}},
+				{Sender: crypto.PublicKey{}, Entry: &BooleanDataEntry{"negative value2", true}},
+				{Sender: crypto.PublicKey{}, Entry: &StringDataEntry{"some key143", "some value2 string"}},
+				{Sender: crypto.PublicKey{}, Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
+				{Sender: crypto.PublicKey{}, Entry: &DeleteDataEntry{Key: "xxx"}},
 			},
 			Transfers: []*TransferScriptAction{
 				{Amount: math.MaxInt64, Asset: *waves, Recipient: rcp},
@@ -58,7 +59,7 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 		},
 		{
 			DataEntries: []*DataEntryScriptAction{
-				{&IntegerDataEntry{"some key", 12345}},
+				{Sender: crypto.PublicKey{}, Entry: &IntegerDataEntry{"some key", 12345}},
 			},
 			Transfers:    emptyTransfers,
 			Issues:       emptyIssues,

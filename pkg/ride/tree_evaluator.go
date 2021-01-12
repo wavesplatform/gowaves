@@ -244,8 +244,10 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 			}
 			newActions = append(newActions, a)
 		}
+		act := e.env.actions()
+		act = append(act, newActions...)
 
-		return DAppResult{res: true, actions: newActions}, nil
+		return DAppResult{res: true, actions: act}, nil
 	case tuple2:
 		var act []proto.ScriptAction
 		switch resAct := res.el1.(type) {

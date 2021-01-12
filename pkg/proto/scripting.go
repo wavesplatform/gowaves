@@ -17,7 +17,8 @@ type ScriptAction interface {
 
 // DataEntryScriptAction is an action to manipulate account data state.
 type DataEntryScriptAction struct {
-	Entry DataEntry
+	Sender crypto.PublicKey
+	Entry  DataEntry
 }
 
 func (a DataEntryScriptAction) scriptAction() {}
@@ -28,6 +29,7 @@ func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
 
 // TransferScriptAction is an action to emit transfer of asset.
 type TransferScriptAction struct {
+	Sender       crypto.PublicKey
 	Recipient    Recipient
 	Amount       int64
 	Asset        OptionalAsset
@@ -50,6 +52,7 @@ func (a *TransferScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, erro
 
 // IssueScriptAction is an action to issue a new asset as a result of script invocation.
 type IssueScriptAction struct {
+	Sender      crypto.PublicKey
 	ID          crypto.Digest // calculated field
 	Name        string        // name
 	Description string        // description
@@ -103,6 +106,7 @@ func GenerateIssueScriptActionID(name, description string, decimals, quantity in
 
 // ReissueScriptAction is an action to emit Reissue transaction as a result of script invocation.
 type ReissueScriptAction struct {
+	Sender     crypto.PublicKey
 	AssetID    crypto.Digest // assetId
 	Quantity   int64         // quantity
 	Reissuable bool          // isReissuable
@@ -120,6 +124,7 @@ func (a *ReissueScriptAction) ToProtobuf() *g.InvokeScriptResult_Reissue {
 
 // BurnScriptAction is an action to burn some assets in response to script invocation.
 type BurnScriptAction struct {
+	Sender   crypto.PublicKey
 	AssetID  crypto.Digest // assetId
 	Quantity int64         // quantity
 }
@@ -135,6 +140,7 @@ func (a *BurnScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
 
 // SponsorshipScriptAction is an action to set sponsorship for given asset in response to script invocation.
 type SponsorshipScriptAction struct {
+	Sender  crypto.PublicKey
 	AssetID crypto.Digest // assetId
 	MinFee  int64         // minSponsoredAssetFee
 }
@@ -152,6 +158,7 @@ func (a *SponsorshipScriptAction) ToProtobuf() *g.InvokeScriptResult_SponsorFee 
 
 // LeaseScriptAction is an action to lease Waves to given account.
 type LeaseScriptAction struct {
+	Sender    crypto.PublicKey
 	ID        crypto.Digest
 	Recipient Recipient
 	Amount    int64
@@ -197,6 +204,7 @@ func GenerateLeaseScriptActionID(recipient Recipient, amount int64, nonce int64,
 
 // LeaseCancelScriptAction is an action that cancels previously created lease.
 type LeaseCancelScriptAction struct {
+	Sender  crypto.PublicKey
 	LeaseID crypto.Digest
 }
 

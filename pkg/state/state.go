@@ -468,8 +468,8 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
-func (s *stateManager) ApplyToState(actions []proto.ScriptAction) error {
-	return nil
+func (s *stateManager) ApplyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
+	return nil, nil
 }
 
 func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
