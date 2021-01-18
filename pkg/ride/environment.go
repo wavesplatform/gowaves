@@ -487,8 +487,34 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
-			res.Sender = pk
 
+			wrappedSt.diff.addNewLease(res.Recipient, senderAccount, res.Amount, res.ID)
+
+			res.Sender = pk
+		case *proto.LeaseCancelScriptAction:
+
+			searchLease, ok := wrappedSt.diff.leases[res.LeaseID.String()]
+			if !ok {
+				return nil, errors.Errorf("failed to find lease by leaseID")
+			}
+			_, recipientSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Recipient, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			_, senderSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Sender, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			wrappedSt.diff.cancelLease(searchLease, senderSearchAddress, recipientSearchAddress)
+
+			pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get public key by address")
+			}
+
+			res.Sender = pk
 		default:
 		}
 	}

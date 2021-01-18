@@ -15,6 +15,11 @@ type diffDataEntries struct {
 	diffDDelete map[string]proto.DeleteDataEntry
 }
 
+type lease struct {
+	Recipient    proto.Recipient
+	leasedAmount int64
+	Sender       proto.Recipient
+}
 
 type diffBalance struct {
 	assetID    crypto.Digest
@@ -24,7 +29,6 @@ type diffBalance struct {
 	effective  int64
 	leaseIn    int64
 	leaseOut   int64
-
 }
 
 type diffSponsorship struct {
@@ -49,10 +53,11 @@ type diffOldAssetInfo struct {
 type diffState struct {
 	state         types.SmartState
 	dataEntries   diffDataEntries
-	balances      map[string]diffBalance      // map[address.String() + Digest.String()] or map[address.String()] only
+	balances      map[string]diffBalance      // map[address.String() + Digest.String()] or map[address.String()]
 	sponsorships  map[string]diffSponsorship  // map[Digest.String()]
 	newAssetsInfo map[string]diffNewAssetInfo // map[assetID.String()]
 	oldAssetsInfo map[string]diffOldAssetInfo // map[assetID.String()]
+	leases        map[string]lease            // map[leaseID.String()]
 }
 
 func (diffSt *diffState) addBalanceTo(searchAddress string, amount int64) {
@@ -77,6 +82,29 @@ func (diffSt *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
 	asset := diffSt.newAssetsInfo[assetID.String()]
 	asset.quantity -= quantity
 	diffSt.newAssetsInfo[assetID.String()] = asset
+}
+
+func (diffSt *diffState) cancelLease(searchLease lease, senderSearchAddress, recipientSearchAddress string) {
+	oldDiffBalanceRecipient := diffSt.balances[recipientSearchAddress]
+	oldDiffBalanceRecipient.available -= searchLease.leasedAmount
+	// oldDiffBalanceRecipient.generating += leasedAmount // should we sumarize
+	oldDiffBalanceRecipient.effective -= searchLease.leasedAmount
+	oldDiffBalanceRecipient.leaseIn -= searchLease.leasedAmount
+
+	diffSt.balances[recipientSearchAddress] = oldDiffBalanceRecipient
+
+	oldDiffBalanceSender := diffSt.balances[senderSearchAddress]
+	oldDiffBalanceSender.available += searchLease.leasedAmount
+	oldDiffBalanceSender.generating += searchLease.leasedAmount
+	oldDiffBalanceSender.effective += searchLease.leasedAmount
+	oldDiffBalanceSender.leaseOut -= searchLease.leasedAmount
+
+	diffSt.balances[senderSearchAddress] = oldDiffBalanceSender
+}
+
+func (diffSt *diffState) addNewLease(recipient proto.Recipient, sender proto.Recipient, leasedAmount int64, leaseID crypto.Digest) {
+	lease := lease{Recipient: recipient, Sender: sender, leasedAmount: leasedAmount}
+	diffSt.leases[leaseID.String()] = lease
 }
 
 func (diffSt *diffState) addLeaseInTo(searchAddress string, leasedAmount int64) {
