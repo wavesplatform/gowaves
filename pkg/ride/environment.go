@@ -554,8 +554,9 @@ func newWrappedState(state types.SmartState, envThis rideType, envScheme proto.S
 	sponsorships := map[string]diffSponsorship{}
 	newAssetInfo := map[string]diffNewAssetInfo{}
 	oldAssetInfo := map[string]diffOldAssetInfo{}
+	leases := map[string]lease{}
 
-	diffSt := &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo}
+	diffSt := &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo, leases: leases}
 	wrappedSt := wrappedState{diff: *diffSt, envThis: envThis.(rideAddress)}
 	return &wrappedSt
 }
