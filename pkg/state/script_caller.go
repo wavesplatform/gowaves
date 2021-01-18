@@ -133,7 +133,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.Environment, assetID cryp
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
 	switch tree.LibVersion {
-	case 4:
+	case 4, 5:
 		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
 		if err != nil {
 			return nil, err
