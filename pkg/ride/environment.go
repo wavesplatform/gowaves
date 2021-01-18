@@ -41,7 +41,7 @@ func (wrappedSt *wrappedState) NewestAccountBalance(account proto.Recipient, ass
 		return 0, err
 	}
 	if balanceDiff != nil {
-		resBalance := int64(balance) + balanceDiff.amount
+		resBalance := int64(balance) + balanceDiff.regular
 		return uint64(resBalance), nil
 
 	}
@@ -59,17 +59,19 @@ func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (
 		return nil, err
 	}
 	if wavesBalanceDiff != nil {
-		resRegular := wavesBalanceDiff.amount + int64(balance.Regular)
-		resGenerating := wavesBalanceDiff.amount + int64(balance.Generating)
-		resAvailable := wavesBalanceDiff.amount + int64(balance.Available)
-		resEffective := wavesBalanceDiff.amount + int64(balance.Effective)
+		resRegular := wavesBalanceDiff.regular + int64(balance.Regular)
+		resGenerating := wavesBalanceDiff.generating + int64(balance.Generating)
+		resAvailable := wavesBalanceDiff.available + int64(balance.Available)
+		resEffective := wavesBalanceDiff.effective + int64(balance.Effective)
+		resLeaseIn := wavesBalanceDiff.leaseIn + int64(balance.LeaseIn)
+		resLeaseOut := wavesBalanceDiff.leaseOut + int64(balance.LeaseOut)
 
 		return &proto.FullWavesBalance{Regular: uint64(resRegular),
 			Generating: uint64(resGenerating),
 			Available:  uint64(resAvailable),
 			Effective:  uint64(resEffective),
-			LeaseIn:    balance.LeaseIn,
-			LeaseOut:   balance.LeaseOut}, nil
+			LeaseIn:    uint64(resLeaseIn),
+			LeaseOut:   uint64(resLeaseOut)}, nil
 
 	}
 	return balance, nil
@@ -458,9 +460,37 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			}
 			res.Sender = senderPK
 
+		case *proto.LeaseScriptAction:
+			senderAddress := proto.Address(wrappedSt.envThis)
+
+			recipientSearchBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(res.Recipient, nil)
+			if err != nil {
+				return nil, err
+			}
+			err = wrappedSt.diff.changeLeaseIn(recipientSearchBalance, recipientSearchAddress, res.Amount, res.Recipient)
+			if err != nil {
+				return nil, err
+			}
+
+			senderAccount := proto.NewRecipientFromAddress(senderAddress)
+			senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderAccount, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			err = wrappedSt.diff.changeLeaseOut(senderSearchBalance, senderSearchAddr, res.Amount, senderAccount)
+			if err != nil {
+				return nil, err
+			}
+
+			pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(senderAddress, false)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get public key by address")
+			}
+			res.Sender = pk
+
 		default:
 		}
-
 	}
 	return actions, nil
 }
