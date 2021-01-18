@@ -196,9 +196,9 @@ func GenerateLeaseScriptActionID(recipient Recipient, amount int64, nonce int64,
 	pos += rl
 	copy(buf[pos:], txID[:])
 	pos += crypto.DigestSize
-	binary.BigEndian.PutUint64(buf[pos:], uint64(amount))
-	pos += 8
 	binary.BigEndian.PutUint64(buf[pos:], uint64(nonce))
+	pos += 8
+	binary.BigEndian.PutUint64(buf[pos:], uint64(amount))
 	return crypto.MustFastHash(buf)
 }
 

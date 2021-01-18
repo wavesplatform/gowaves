@@ -2,10 +2,11 @@ package proto
 
 import (
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"math"
 	"strings"
 	"testing"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -237,4 +238,32 @@ func TestActionsValidation(t *testing.T) {
 			require.Error(t, err, fmt.Sprintf("#%d", i))
 		}
 	}
+}
+
+func TestGenerateLeaseScriptActionID(t *testing.T) {
+	for _, test := range []struct {
+		recipient Recipient
+		amount    int64
+		nonce     int64
+		tx        crypto.Digest
+		id        string
+	}{
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 100000000, 0, crypto.MustDigestFromBase58("3JGcEMaASHc7zcJwpkuFTU3WScKtMU6KDQ5KFr53GQhV"), "HrvHDiegqPhcoKamTeTsNUcQiFot8D1KqyBirsEuCMG9"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 100000000, 0, crypto.MustDigestFromBase58("45R9UJrmCmZu1HtofbHyEmaFr2r1u5xXThGmESszVuFV"), "28yGDS82NrYBC1B4XTVYbwWpJyW7JPYTX7UtVQd1Prkw"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 50000000, 0, crypto.MustDigestFromBase58("45R9UJrmCmZu1HtofbHyEmaFr2r1u5xXThGmESszVuFV"), "GmqQBZPPAHb1u7mQJ8vVp89mcaii23jAyrbDfqYiGo6U"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 100000000, 0, crypto.MustDigestFromBase58("FBmMUrQ5GXun9LrGtHPcJYWSkkfToMReux14iSb2zf4c"), "5PmSmWMmCGh7zjf8SgvzmrUZrEKVeNL2wK12p7Y3Rezi"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 50000000, 0, crypto.MustDigestFromBase58("FBmMUrQ5GXun9LrGtHPcJYWSkkfToMReux14iSb2zf4c"), "2EgitLRfQmYckjmi16b2h3YFLBz7yKS877tb1TQRXR6Y"},
+	} {
+		id := GenerateLeaseScriptActionID(test.recipient, test.amount, test.nonce, test.tx)
+		assert.Equal(t, test.id, id.String())
+	}
+}
+
+// This function is for tests only! Could produce invalid recipient.
+func mustRecipientFromString(s string) Recipient {
+	r, err := recipientFromString(s)
+	if err != nil {
+		panic(err)
+	}
+	return r
 }
