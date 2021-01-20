@@ -54,19 +54,24 @@ func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (
 		return nil, err
 	}
 
-	wavesBalanceDiff, _, err := wrappedSt.diff.findBalance(account, nil)
+	wavesBalanceDiff, searchAddress, err := wrappedSt.diff.findBalance(account, nil)
 	if err != nil {
 		return nil, err
 	}
 	if wavesBalanceDiff != nil {
 		resRegular := wavesBalanceDiff.regular + int64(balance.Regular)
-		resGenerating := wavesBalanceDiff.generating + int64(balance.Generating)
-		resAvailable := wavesBalanceDiff.available + int64(balance.Available)
-		resEffective := wavesBalanceDiff.effective + int64(balance.Effective)
+		resAvailable := (wavesBalanceDiff.regular - wavesBalanceDiff.leaseOut) + int64(balance.Available)
+		resEffective := (wavesBalanceDiff.regular - wavesBalanceDiff.leaseOut + wavesBalanceDiff.leaseIn) + int64(balance.Effective)
 		resLeaseIn := wavesBalanceDiff.leaseIn + int64(balance.LeaseIn)
 		resLeaseOut := wavesBalanceDiff.leaseOut + int64(balance.LeaseOut)
 
-		return &proto.FullWavesBalance{Regular: uint64(resRegular),
+
+		wrappedSt.diff.addEffectiveToHistory(searchAddress, resEffective)
+
+		resGenerating := wrappedSt.diff.findMinGenerating(wrappedSt.diff.balances[searchAddress].effectiveHistory, int64(balance.Generating))
+
+		return &proto.FullWavesBalance{
+			Regular: uint64(resRegular),
 			Generating: uint64(resGenerating),
 			Available:  uint64(resAvailable),
 			Effective:  uint64(resEffective),

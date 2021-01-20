@@ -24,11 +24,9 @@ type lease struct {
 type diffBalance struct {
 	assetID    crypto.Digest
 	regular    int64
-	generating int64
-	available  int64
-	effective  int64
 	leaseIn    int64
 	leaseOut   int64
+	effectiveHistory []int64
 }
 
 type diffSponsorship struct {
@@ -63,9 +61,6 @@ type diffState struct {
 func (diffSt *diffState) addBalanceTo(searchAddress string, amount int64) {
 	oldDiffBalance := diffSt.balances[searchAddress]
 	oldDiffBalance.regular += amount
-	oldDiffBalance.available += amount
-	oldDiffBalance.generating += amount
-	oldDiffBalance.effective += amount
 	diffSt.balances[searchAddress] = oldDiffBalance
 }
 
@@ -86,20 +81,28 @@ func (diffSt *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
 
 func (diffSt *diffState) cancelLease(searchLease lease, senderSearchAddress, recipientSearchAddress string) {
 	oldDiffBalanceRecipient := diffSt.balances[recipientSearchAddress]
-	oldDiffBalanceRecipient.available -= searchLease.leasedAmount
-	// oldDiffBalanceRecipient.generating += leasedAmount // should we sumarize
-	oldDiffBalanceRecipient.effective -= searchLease.leasedAmount
 	oldDiffBalanceRecipient.leaseIn -= searchLease.leasedAmount
-
 	diffSt.balances[recipientSearchAddress] = oldDiffBalanceRecipient
 
 	oldDiffBalanceSender := diffSt.balances[senderSearchAddress]
-	oldDiffBalanceSender.available += searchLease.leasedAmount
-	oldDiffBalanceSender.generating += searchLease.leasedAmount
-	oldDiffBalanceSender.effective += searchLease.leasedAmount
 	oldDiffBalanceSender.leaseOut -= searchLease.leasedAmount
-
 	diffSt.balances[senderSearchAddress] = oldDiffBalanceSender
+}
+
+func (diffSt *diffState) findMinGenerating(effectiveHistory []int64, generatingFromState int64) int64{
+	min := generatingFromState
+	for _, value := range effectiveHistory {
+		if value < min {
+			min = value
+		}
+	}
+	return min
+}
+
+func (diffSt *diffState) addEffectiveToHistory(searchAddress string, effective int64) {
+	oldDiffBalance := diffSt.balances[searchAddress]
+	oldDiffBalance.effectiveHistory = append(oldDiffBalance.effectiveHistory, effective)
+	diffSt.balances[searchAddress] = oldDiffBalance
 }
 
 func (diffSt *diffState) addNewLease(recipient proto.Recipient, sender proto.Recipient, leasedAmount int64, leaseID crypto.Digest) {
@@ -109,9 +112,6 @@ func (diffSt *diffState) addNewLease(recipient proto.Recipient, sender proto.Rec
 
 func (diffSt *diffState) addLeaseInTo(searchAddress string, leasedAmount int64) {
 	oldDiffBalance := diffSt.balances[searchAddress]
-	oldDiffBalance.available += leasedAmount
-	// oldDiffBalance.generating += leasedAmount // should we sumarize
-	oldDiffBalance.effective += leasedAmount
 	oldDiffBalance.leaseIn += leasedAmount
 
 	diffSt.balances[searchAddress] = oldDiffBalance
@@ -129,9 +129,6 @@ func (diffSt *diffState) changeLeaseIn(searchBalance *diffBalance, searchAddress
 
 	var balance diffBalance
 	balance.assetID = crypto.Digest{}
-	balance.available = leasedAmount
-	balance.effective = leasedAmount
-	// balance.generating = leasedAmount // should we sumarize
 	balance.leaseIn = leasedAmount
 
 	diffSt.balances[address.String()+balance.assetID.String()] = balance
@@ -140,9 +137,6 @@ func (diffSt *diffState) changeLeaseIn(searchBalance *diffBalance, searchAddress
 
 func (diffSt *diffState) addLeaseOutTo(searchAddress string, leasedAmount int64) {
 	oldDiffBalance := diffSt.balances[searchAddress]
-	oldDiffBalance.available -= leasedAmount
-	oldDiffBalance.generating -= leasedAmount
-	oldDiffBalance.effective -= leasedAmount
 	oldDiffBalance.leaseOut += leasedAmount
 	diffSt.balances[searchAddress] = oldDiffBalance
 }
@@ -160,9 +154,6 @@ func (diffSt *diffState) changeLeaseOut(searchBalance *diffBalance, searchAddres
 
 	var balance diffBalance
 	balance.assetID = crypto.Digest{}
-	balance.available = -leasedAmount
-	balance.generating = -leasedAmount
-	balance.effective = -leasedAmount
 	balance.leaseOut = leasedAmount
 
 	diffSt.balances[address.String()+balance.assetID.String()] = balance
@@ -183,9 +174,6 @@ func (diffSt *diffState) changeBalance(searchBalance *diffBalance, searchAddress
 	var balance diffBalance
 	balance.assetID = assetID
 	balance.regular = amount
-	balance.available = amount
-	balance.generating = amount
-	balance.effective = amount
 
 	diffSt.balances[address.String()+assetID.String()] = balance
 	return nil
