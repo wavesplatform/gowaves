@@ -22,10 +22,10 @@ type lease struct {
 }
 
 type diffBalance struct {
-	assetID    crypto.Digest
-	regular    int64
-	leaseIn    int64
-	leaseOut   int64
+	assetID          crypto.Digest
+	regular          int64
+	leaseIn          int64
+	leaseOut         int64
 	effectiveHistory []int64
 }
 
@@ -89,7 +89,7 @@ func (diffSt *diffState) cancelLease(searchLease lease, senderSearchAddress, rec
 	diffSt.balances[senderSearchAddress] = oldDiffBalanceSender
 }
 
-func (diffSt *diffState) findMinGenerating(effectiveHistory []int64, generatingFromState int64) int64{
+func (diffSt *diffState) findMinGenerating(effectiveHistory []int64, generatingFromState int64) int64 {
 	min := generatingFromState
 	for _, value := range effectiveHistory {
 		if value < min {
@@ -99,10 +99,14 @@ func (diffSt *diffState) findMinGenerating(effectiveHistory []int64, generatingF
 	return min
 }
 
-func (diffSt *diffState) addEffectiveToHistory(searchAddress string, effective int64) {
-	oldDiffBalance := diffSt.balances[searchAddress]
+func (diffSt *diffState) addEffectiveToHistory(searchAddress string, effective int64, assetID crypto.Digest) error {
+	oldDiffBalance, ok := diffSt.balances[searchAddress+assetID.String()]
+	if !ok {
+		return errors.Errorf("Cannot find balance to add effective to history")
+	}
 	oldDiffBalance.effectiveHistory = append(oldDiffBalance.effectiveHistory, effective)
-	diffSt.balances[searchAddress] = oldDiffBalance
+	diffSt.balances[searchAddress+assetID.String()] = oldDiffBalance
+	return nil
 }
 
 func (diffSt *diffState) addNewLease(recipient proto.Recipient, sender proto.Recipient, leasedAmount int64, leaseID crypto.Digest) {
@@ -177,6 +181,25 @@ func (diffSt *diffState) changeBalance(searchBalance *diffBalance, searchAddress
 
 	diffSt.balances[address.String()+assetID.String()] = balance
 	return nil
+}
+
+func (diffSt *diffState) findLeaseByIDForCancel(leaseID crypto.Digest) (*lease, error) {
+	if lease, ok := diffSt.leases[leaseID.String()]; ok {
+		return &lease, nil
+	}
+	leaseFromStore, err := diffSt.state.NewestLeasingInfo(leaseID, false)
+	if err != nil {
+		return nil, err
+	}
+	if !leaseFromStore.IsActive {
+		return nil, nil
+	}
+	lease := lease{
+		Recipient:    proto.NewRecipientFromAddress(leaseFromStore.Recipient),
+		Sender:       proto.NewRecipientFromAddress(leaseFromStore.Sender),
+		leasedAmount: int64(leaseFromStore.LeaseAmount),
+	}
+	return &lease, nil
 }
 
 func (diffSt *diffState) findIntFromDataEntryByKey(key string, address string) *proto.IntegerDataEntry {

@@ -11,6 +11,10 @@ func (wrappedSt *wrappedState) AddingBlockHeight() (uint64, error) {
 	return wrappedSt.diff.state.AddingBlockHeight()
 }
 
+func (wrappedSt *wrappedState) NewestLeasingInfo(id crypto.Digest, filter bool) (*proto.LeaseInfo, error) {
+	return wrappedSt.diff.state.NewestLeasingInfo(id, filter)
+}
+
 func (wrappedSt *wrappedState) NewestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
 	return wrappedSt.diff.state.NewestScriptPKByAddr(addr, filter)
 }
@@ -65,13 +69,15 @@ func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (
 		resLeaseIn := wavesBalanceDiff.leaseIn + int64(balance.LeaseIn)
 		resLeaseOut := wavesBalanceDiff.leaseOut + int64(balance.LeaseOut)
 
-
-		wrappedSt.diff.addEffectiveToHistory(searchAddress, resEffective)
+		err := wrappedSt.diff.addEffectiveToHistory(searchAddress, resEffective, wavesBalanceDiff.assetID)
+		if err != nil {
+			return nil, err
+		}
 
 		resGenerating := wrappedSt.diff.findMinGenerating(wrappedSt.diff.balances[searchAddress].effectiveHistory, int64(balance.Generating))
 
 		return &proto.FullWavesBalance{
-			Regular: uint64(resRegular),
+			Regular:    uint64(resRegular),
 			Generating: uint64(resGenerating),
 			Available:  uint64(resAvailable),
 			Effective:  uint64(resEffective),
@@ -498,10 +504,14 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			res.Sender = pk
 		case *proto.LeaseCancelScriptAction:
 
-			searchLease, ok := wrappedSt.diff.leases[res.LeaseID.String()]
-			if !ok {
+			searchLease, err := wrappedSt.diff.findLeaseByIDForCancel(res.LeaseID)
+			if err != nil {
 				return nil, errors.Errorf("failed to find lease by leaseID")
 			}
+			if searchLease == nil {
+				return nil, errors.Errorf("there is no lease to cancel")
+			}
+
 			_, recipientSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Recipient, nil)
 			if err != nil {
 				return nil, err
@@ -512,7 +522,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				return nil, err
 			}
 
-			wrappedSt.diff.cancelLease(searchLease, senderSearchAddress, recipientSearchAddress)
+			wrappedSt.diff.cancelLease(*searchLease, senderSearchAddress, recipientSearchAddress)
 
 			pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
 			if err != nil {
