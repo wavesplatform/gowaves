@@ -85,12 +85,8 @@ func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (
 			LeaseOut:   uint64(resLeaseOut)}, nil
 
 	}
-	waves := crypto.Digest{}
-	err = wrappedSt.diff.changeBalance(nil, "", 0, waves, account)
-	if err != nil {
-		return nil, err
-	}
-	err = wrappedSt.diff.addEffectiveToHistory(account.Address.String()+waves.String(), int64(balance.Effective))
+	_, searchAddr := wrappedSt.diff.createNewWavesBalance(account)
+	err = wrappedSt.diff.addEffectiveToHistory(searchAddr, int64(balance.Effective))
 	if err != nil {
 		return nil, err
 	}
@@ -525,7 +521,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				return nil, err
 			}
 			if recipientBalance == nil {
-				return nil, errors.Errorf("there is no balance to cancel lease")
+				recipientBalance, recipientSearchAddress = wrappedSt.diff.createNewWavesBalance(searchLease.Recipient)
 			}
 
 			senderBalance, senderSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Sender, nil)
@@ -533,7 +529,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				return nil, err
 			}
 			if senderBalance == nil {
-				return nil, errors.Errorf("there is no balance to cancel lease")
+				recipientBalance, recipientSearchAddress = wrappedSt.diff.createNewWavesBalance(searchLease.Sender)
 			}
 
 			wrappedSt.diff.cancelLease(*searchLease, senderSearchAddress, recipientSearchAddress)

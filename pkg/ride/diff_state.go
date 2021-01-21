@@ -79,6 +79,13 @@ func (diffSt *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
 	diffSt.newAssetsInfo[assetID.String()] = asset
 }
 
+func (diffSt *diffState) createNewWavesBalance(account proto.Recipient) (*diffBalance, string) {
+	waves := crypto.Digest{}
+	balance := diffBalance{assetID: waves}
+	diffSt.balances[account.Address.String()+waves.String()] = balance
+	return &balance, account.Address.String() + waves.String()
+}
+
 func (diffSt *diffState) cancelLease(searchLease lease, senderSearchAddress, recipientSearchAddress string) {
 	oldDiffBalanceRecipient := diffSt.balances[recipientSearchAddress]
 	oldDiffBalanceRecipient.leaseIn -= searchLease.leasedAmount
