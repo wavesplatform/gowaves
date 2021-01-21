@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -1128,8 +1127,6 @@ func smartStateDappFromDapp() types.SmartState {
 			return uint64(balance), nil
 		},
 		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
-			wrS := wrappedSt
-			fmt.Print(wrS)
 			balance := 0
 
 			wavesBalanceDiff, searchAddress, err := wrappedSt.diff.findBalance(account, nil)
@@ -1430,27 +1427,28 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	*/
 
 	/* script 2
-	{-# STDLIB_VERSION 5 #-}
-	{-# CONTENT_TYPE DAPP #-}
-	{-# SCRIPT_TYPE ACCOUNT #-}
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
 
-	@Callable(i)
-	func testActions() = {
-	  let asset = Issue("CatCoin", "", 1, 0, true, unit, 0)
-	  let assetId = asset.calculateAssetId()
+		@Callable(i)
+		func testActions() = {
+		  let asset = Issue("CatCoin", "", 1, 0, true, unit, 0)
+		  let assetId = asset.calculateAssetId()
 
-	  ([
-	    ScriptTransfer(Address(base58'3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak'), 1, unit),
-	    BinaryEntry("bin", base58''),
-	    BooleanEntry("bool", true),
-	    IntegerEntry("int", 1),
-	    StringEntry("str", ""),
-	    DeleteEntry("str"),
-	    asset,
-	    Reissue(assetId, 10, false),
-	    Burn(assetId, 5)
-	  ], 17)
-	}
+		  ([
+		    ScriptTransfer(Address(base58'3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak'), 1, unit),
+	        Lease(Address(base58'3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak'), 10),
+		    BinaryEntry("bin", base58''),
+		    BooleanEntry("bool", true),
+		    IntegerEntry("int", 1),
+		    StringEntry("str", ""),
+		    DeleteEntry("str"),
+		    asset,
+		    Reissue(assetId, 10, false),
+		    Burn(assetId, 5)
+		  ], 17)
+		}
 	*/
 
 	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
@@ -1498,7 +1496,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	}
 
 	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEdGVzdAAAAAAEAAAAA3JlcwkAA/wAAAAECQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXI7OtElyTpMrsOf5PRtbNVk0t+xD7Y5h6AgAAAAt0ZXN0QWN0aW9ucwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACAQAAAAAAAAAAAAAABNIJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIBAAAAAAAAAAAAAAAE0gUAAAADbmlsAwkAAAAAAAACBQAAAANyZXMAAAAAAAAAABEJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2tleQAAAAAAAAAAAQUAAAADbmlsCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQAAAAA3aHKo"
-	secondScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAALdGVzdEFjdGlvbnMAAAAABAAAAAVhc3NldAkABEMAAAAHAgAAAAdDYXRDb2luAgAAAAAAAAAAAAAAAAEAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAABAAAAAdhc3NldElkCQAEOAAAAAEFAAAABWFzc2V0CQAFFAAAAAIJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwkBAAAAB0FkZHJlc3MAAAABAQAAABoBVPgJVAQGqm4a/ypjQ6DlUMBFhVnrCK89zQAAAAAAAAAAAQUAAAAEdW5pdAkABEwAAAACCQEAAAALQmluYXJ5RW50cnkAAAACAgAAAANiaW4BAAAAAAkABEwAAAACCQEAAAAMQm9vbGVhbkVudHJ5AAAAAgIAAAAEYm9vbAYJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2ludAAAAAAAAAAAAQkABEwAAAACCQEAAAALU3RyaW5nRW50cnkAAAACAgAAAANzdHICAAAAAAkABEwAAAACCQEAAAALRGVsZXRlRW50cnkAAAABAgAAAANzdHIJAARMAAAAAgUAAAAFYXNzZXQJAARMAAAAAgkBAAAAB1JlaXNzdWUAAAADBQAAAAdhc3NldElkAAAAAAAAAAAKBwkABEwAAAACCQEAAAAEQnVybgAAAAIFAAAAB2Fzc2V0SWQAAAAAAAAAAAUFAAAAA25pbAAAAAAAAAAAEQAAAAD8KQzH"
+	secondScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAALdGVzdEFjdGlvbnMAAAAABAAAAAVhc3NldAkABEMAAAAHAgAAAAdDYXRDb2luAgAAAAAAAAAAAAAAAAEAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAABAAAAAdhc3NldElkCQAEOAAAAAEFAAAABWFzc2V0CQAFFAAAAAIJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwkBAAAAB0FkZHJlc3MAAAABAQAAABoBVPgJVAQGqm4a/ypjQ6DlUMBFhVnrCK89zQAAAAAAAAAAAQUAAAAEdW5pdAkABEwAAAACCQAERAAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVT4CVQEBqpuGv8qY0Og5VDARYVZ6wivPc0AAAAAAAAAAAoJAARMAAAAAgkBAAAAC0JpbmFyeUVudHJ5AAAAAgIAAAADYmluAQAAAAAJAARMAAAAAgkBAAAADEJvb2xlYW5FbnRyeQAAAAICAAAABGJvb2wGCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANpbnQAAAAAAAAAAAEJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAADc3RyAgAAAAAJAARMAAAAAgkBAAAAC0RlbGV0ZUVudHJ5AAAAAQIAAAADc3RyCQAETAAAAAIFAAAABWFzc2V0CQAETAAAAAIJAQAAAAdSZWlzc3VlAAAAAwUAAAAHYXNzZXRJZAAAAAAAAAAACgcJAARMAAAAAgkBAAAABEJ1cm4AAAACBQAAAAdhc3NldElkAAAAAAAAAAAFBQAAAANuaWwAAAAAAAAAABEAAAAAKvCFfg=="
 
 	id = bytes.Repeat([]byte{0}, 32)
 
@@ -1527,6 +1525,10 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		{Sender: addressCallablePK, Recipient: recipient, Amount: 1, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 	}
 
+	expectedLeaseWrites := []*proto.LeaseScriptAction{
+		{Sender: addressCallablePK, Recipient: recipient, Amount: 10, Nonce: 0},
+	}
+
 	smartState := smartStateDappFromDapp
 
 	invCount = 0
@@ -1543,6 +1545,11 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	expectedIssueWrites[0].ID = proto.GenerateIssueScriptActionID(expectedIssueWrites[0].Name, expectedIssueWrites[0].Description, int64(expectedIssueWrites[0].Decimals), expectedIssueWrites[0].Quantity, expectedIssueWrites[0].Reissuable, expectedIssueWrites[0].Nonce, d)
 	expectedReissueWrites[0].AssetID = expectedIssueWrites[0].ID
 	expectedBurnWrites[0].AssetID = expectedIssueWrites[0].ID
+
+	// start balance
+	bal := wrappedSt.diff.balances[addr.String()+crypto.Digest{}.String()]
+	bal.regular = 2468
+	wrappedSt.diff.balances[addr.String()+crypto.Digest{}.String()] = bal
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
@@ -1561,6 +1568,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
+	expectedLeaseWrites[0].ID = sr.Leases[0].ID
 	assetExp := proto.OptionalAsset{}
 
 	expectedActionsResult := &proto.ScriptResult{
@@ -1570,17 +1578,41 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		Reissues:     expectedReissueWrites,
 		Burns:        expectedBurnWrites,
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
-		Leases:       make([]*proto.LeaseScriptAction, 0),
+		Leases:       expectedLeaseWrites,
 		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 
 	assert.Equal(t, expectedActionsResult, sr)
 
+	fullBalanceExpected := &proto.FullWavesBalance{
+		Regular:    1,
+		Generating: 0,
+		Available:  1,
+		Effective:  11,
+		LeaseIn:    10,
+		LeaseOut:   0,
+	}
+	fullBalance, err := smartState().NewestFullWavesBalance(recipient)
+	require.NoError(t, err)
+	assert.Equal(t, fullBalance, fullBalanceExpected)
+
+	fullBalanceCallableExpected := &proto.FullWavesBalance{
+		Regular:    2467,
+		Generating: 0,
+		Available:  2457,
+		Effective:  2457,
+		LeaseIn:    0,
+		LeaseOut:   10,
+	}
+	fullBalanceCallable, err := smartState().NewestFullWavesBalance(recipientCallable)
+	require.NoError(t, err)
+	assert.Equal(t, fullBalanceCallable, fullBalanceCallableExpected)
+
 	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
-	balance := diffBalance{regular: -2467, assetID: assetExp.ID}
+	balance := diffBalance{regular: 1, leaseIn: 10, assetID: assetExp.ID, effectiveHistory: []int64{11}}
 	expectedDiffResult.balances[addr.String()+assetExp.ID.String()] = balance
 
-	balanceCallable := diffBalance{regular: 2467, assetID: assetExp.ID}
+	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, assetID: assetExp.ID, effectiveHistory: []int64{2457}}
 	expectedDiffResult.balances[addressCallable.String()+assetExp.ID.String()] = balanceCallable
 
 	intEntry1 := proto.IntegerDataEntry{Key: "int", Value: 1}

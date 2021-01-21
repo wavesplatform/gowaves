@@ -80,12 +80,11 @@ func (diffSt *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
 }
 
 func (diffSt *diffState) cancelLease(searchLease lease, senderSearchAddress, recipientSearchAddress string) {
-	waves := crypto.Digest{}
-	oldDiffBalanceRecipient := diffSt.balances[recipientSearchAddress+waves.String()]
+	oldDiffBalanceRecipient := diffSt.balances[recipientSearchAddress]
 	oldDiffBalanceRecipient.leaseIn -= searchLease.leasedAmount
 	diffSt.balances[recipientSearchAddress] = oldDiffBalanceRecipient
 
-	oldDiffBalanceSender := diffSt.balances[senderSearchAddress+waves.String()]
+	oldDiffBalanceSender := diffSt.balances[senderSearchAddress]
 	oldDiffBalanceSender.leaseOut -= searchLease.leasedAmount
 	diffSt.balances[senderSearchAddress] = oldDiffBalanceSender
 }
@@ -101,12 +100,12 @@ func (diffSt *diffState) findMinGenerating(effectiveHistory []int64, generatingF
 }
 
 func (diffSt *diffState) addEffectiveToHistory(searchAddress string, effective int64, assetID crypto.Digest) error {
-	oldDiffBalance, ok := diffSt.balances[searchAddress+assetID.String()]
+	oldDiffBalance, ok := diffSt.balances[searchAddress]
 	if !ok {
 		return errors.Errorf("Cannot find balance to add effective to history")
 	}
 	oldDiffBalance.effectiveHistory = append(oldDiffBalance.effectiveHistory, effective)
-	diffSt.balances[searchAddress+assetID.String()] = oldDiffBalance
+	diffSt.balances[searchAddress] = oldDiffBalance
 	return nil
 }
 
@@ -116,11 +115,10 @@ func (diffSt *diffState) addNewLease(recipient proto.Recipient, sender proto.Rec
 }
 
 func (diffSt *diffState) addLeaseInTo(searchAddress string, leasedAmount int64) {
-	waves := crypto.Digest{}
-	oldDiffBalance := diffSt.balances[searchAddress+waves.String()]
+	oldDiffBalance := diffSt.balances[searchAddress]
 	oldDiffBalance.leaseIn += leasedAmount
 
-	diffSt.balances[searchAddress+waves.String()] = oldDiffBalance
+	diffSt.balances[searchAddress] = oldDiffBalance
 }
 
 func (diffSt *diffState) changeLeaseIn(searchBalance *diffBalance, searchAddress string, leasedAmount int64, account proto.Recipient) error {
@@ -142,10 +140,9 @@ func (diffSt *diffState) changeLeaseIn(searchBalance *diffBalance, searchAddress
 }
 
 func (diffSt *diffState) addLeaseOutTo(searchAddress string, leasedAmount int64) {
-	waves := crypto.Digest{}
-	oldDiffBalance := diffSt.balances[searchAddress+waves.String()]
+	oldDiffBalance := diffSt.balances[searchAddress]
 	oldDiffBalance.leaseOut += leasedAmount
-	diffSt.balances[searchAddress+waves.String()] = oldDiffBalance
+	diffSt.balances[searchAddress] = oldDiffBalance
 }
 
 func (diffSt *diffState) changeLeaseOut(searchBalance *diffBalance, searchAddress string, leasedAmount int64, account proto.Recipient) error {
@@ -248,7 +245,7 @@ func (diffSt *diffState) findBalance(recipient proto.Recipient, asset []byte) (*
 	if asset == nil {
 		waves := crypto.Digest{}
 		if balance, ok := diffSt.balances[address.String()+waves.String()]; ok {
-			return &balance, address.String(), nil
+			return &balance, address.String() + waves.String(), nil
 		}
 		return nil, "", nil
 	}

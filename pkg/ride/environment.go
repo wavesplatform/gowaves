@@ -511,15 +511,20 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			if searchLease == nil {
 				return nil, errors.Errorf("there is no lease to cancel")
 			}
-
-			_, recipientSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Recipient, nil)
+			recipientBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Recipient, nil)
 			if err != nil {
 				return nil, err
 			}
+			if recipientBalance == nil {
+				return nil, errors.Errorf("there is no balance to cancel lease")
+			}
 
-			_, senderSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Sender, nil)
+			senderBalance, senderSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Sender, nil)
 			if err != nil {
 				return nil, err
+			}
+			if senderBalance == nil {
+				return nil, errors.Errorf("there is no balance to cancel lease")
 			}
 
 			wrappedSt.diff.cancelLease(*searchLease, senderSearchAddress, recipientSearchAddress)
