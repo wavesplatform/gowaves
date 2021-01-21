@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -1584,8 +1583,6 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-	wrSt := wrappedSt
-	fmt.Print(wrSt)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
