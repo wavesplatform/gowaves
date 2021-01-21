@@ -516,12 +516,13 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			if searchLease == nil {
 				return nil, errors.Errorf("there is no lease to cancel")
 			}
+
 			recipientBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Recipient, nil)
 			if err != nil {
 				return nil, err
 			}
 			if recipientBalance == nil {
-				recipientBalance, recipientSearchAddress = wrappedSt.diff.createNewWavesBalance(searchLease.Recipient)
+				_, recipientSearchAddress = wrappedSt.diff.createNewWavesBalance(searchLease.Recipient)
 			}
 
 			senderBalance, senderSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Sender, nil)
@@ -529,7 +530,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				return nil, err
 			}
 			if senderBalance == nil {
-				recipientBalance, recipientSearchAddress = wrappedSt.diff.createNewWavesBalance(searchLease.Sender)
+				_, senderSearchAddress = wrappedSt.diff.createNewWavesBalance(searchLease.Sender)
 			}
 
 			wrappedSt.diff.cancelLease(*searchLease, senderSearchAddress, recipientSearchAddress)
