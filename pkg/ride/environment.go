@@ -69,7 +69,7 @@ func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (
 		resLeaseIn := wavesBalanceDiff.leaseIn + int64(balance.LeaseIn)
 		resLeaseOut := wavesBalanceDiff.leaseOut + int64(balance.LeaseOut)
 
-		err := wrappedSt.diff.addEffectiveToHistory(searchAddress, resEffective, wavesBalanceDiff.assetID)
+		err := wrappedSt.diff.addEffectiveToHistory(searchAddress, resEffective)
 		if err != nil {
 			return nil, err
 		}
@@ -84,6 +84,15 @@ func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (
 			LeaseIn:    uint64(resLeaseIn),
 			LeaseOut:   uint64(resLeaseOut)}, nil
 
+	}
+	waves := crypto.Digest{}
+	err = wrappedSt.diff.changeBalance(nil, "", 0, waves, account)
+	if err != nil {
+		return nil, err
+	}
+	err = wrappedSt.diff.addEffectiveToHistory(account.Address.String()+waves.String(), int64(balance.Effective))
+	if err != nil {
+		return nil, err
 	}
 	return balance, nil
 }

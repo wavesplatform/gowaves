@@ -99,7 +99,7 @@ func (diffSt *diffState) findMinGenerating(effectiveHistory []int64, generatingF
 	return min
 }
 
-func (diffSt *diffState) addEffectiveToHistory(searchAddress string, effective int64, assetID crypto.Digest) error {
+func (diffSt *diffState) addEffectiveToHistory(searchAddress string, effective int64) error {
 	oldDiffBalance, ok := diffSt.balances[searchAddress]
 	if !ok {
 		return errors.Errorf("Cannot find balance to add effective to history")
@@ -191,15 +191,18 @@ func (diffSt *diffState) findLeaseByIDForCancel(leaseID crypto.Digest) (*lease, 
 	if err != nil {
 		return nil, err
 	}
-	if !leaseFromStore.IsActive {
-		return nil, nil
+	if leaseFromStore != nil {
+		if !leaseFromStore.IsActive {
+			return nil, nil
+		}
+		lease := lease{
+			Recipient:    proto.NewRecipientFromAddress(leaseFromStore.Recipient),
+			Sender:       proto.NewRecipientFromAddress(leaseFromStore.Sender),
+			leasedAmount: int64(leaseFromStore.LeaseAmount),
+		}
+		return &lease, nil
 	}
-	lease := lease{
-		Recipient:    proto.NewRecipientFromAddress(leaseFromStore.Recipient),
-		Sender:       proto.NewRecipientFromAddress(leaseFromStore.Sender),
-		leasedAmount: int64(leaseFromStore.LeaseAmount),
-	}
-	return &lease, nil
+	return nil, nil
 }
 
 func (diffSt *diffState) findIntFromDataEntryByKey(key string, address string) *proto.IntegerDataEntry {
