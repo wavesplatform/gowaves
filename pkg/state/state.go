@@ -680,6 +680,20 @@ func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
 	return s.Block(blockID)
 }
 
+func (s *stateManager) NewestLeasingInfo(id crypto.Digest, filter bool) (*proto.LeaseInfo, error) {
+	leaseFromStore, err := s.stor.leases.newestLeasingInfo(id, filter)
+	if err != nil {
+		return nil, err
+	}
+	leaseInfo := proto.LeaseInfo{
+		Sender:      leaseFromStore.sender,
+		Recipient:   leaseFromStore.recipient,
+		IsActive:    leaseFromStore.isActive,
+		LeaseAmount: leaseFromStore.leaseAmount,
+	}
+	return &leaseInfo, nil
+}
+
 func (s *stateManager) NewestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
 	return s.stor.scriptsStorage.NewestScriptPKByAddr(addr, filter)
 }

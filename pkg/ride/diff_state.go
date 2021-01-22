@@ -15,9 +15,18 @@ type diffDataEntries struct {
 	diffDDelete map[string]proto.DeleteDataEntry
 }
 
+type lease struct {
+	Recipient    proto.Recipient
+	leasedAmount int64
+	Sender       proto.Recipient
+}
+
 type diffBalance struct {
-	assetID crypto.Digest
-	amount  int64
+	assetID          crypto.Digest
+	regular          int64
+	leaseIn          int64
+	leaseOut         int64
+	effectiveHistory []int64
 }
 
 type diffSponsorship struct {
@@ -42,15 +51,16 @@ type diffOldAssetInfo struct {
 type diffState struct {
 	state         types.SmartState
 	dataEntries   diffDataEntries
-	balances      map[string]diffBalance      // map[address.String() + Digest.String()] or map[address.String()] only
+	balances      map[string]diffBalance      // map[address.String() + Digest.String()] or map[address.String()]
 	sponsorships  map[string]diffSponsorship  // map[Digest.String()]
 	newAssetsInfo map[string]diffNewAssetInfo // map[assetID.String()]
 	oldAssetsInfo map[string]diffOldAssetInfo // map[assetID.String()]
+	leases        map[string]lease            // map[leaseID.String()]
 }
 
 func (diffSt *diffState) addBalanceTo(searchAddress string, amount int64) {
 	oldDiffBalance := diffSt.balances[searchAddress]
-	oldDiffBalance.amount += amount
+	oldDiffBalance.regular += amount
 	diffSt.balances[searchAddress] = oldDiffBalance
 }
 
@@ -69,6 +79,98 @@ func (diffSt *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
 	diffSt.newAssetsInfo[assetID.String()] = asset
 }
 
+func (diffSt *diffState) createNewWavesBalance(account proto.Recipient) (*diffBalance, string) {
+	waves := crypto.Digest{}
+	balance := diffBalance{assetID: waves}
+	diffSt.balances[account.Address.String()+waves.String()] = balance
+	return &balance, account.Address.String() + waves.String()
+}
+
+func (diffSt *diffState) cancelLease(searchLease lease, senderSearchAddress, recipientSearchAddress string) {
+	oldDiffBalanceRecipient := diffSt.balances[recipientSearchAddress]
+	oldDiffBalanceRecipient.leaseIn -= searchLease.leasedAmount
+	diffSt.balances[recipientSearchAddress] = oldDiffBalanceRecipient
+
+	oldDiffBalanceSender := diffSt.balances[senderSearchAddress]
+	oldDiffBalanceSender.leaseOut -= searchLease.leasedAmount
+	diffSt.balances[senderSearchAddress] = oldDiffBalanceSender
+}
+
+func (diffSt *diffState) findMinGenerating(effectiveHistory []int64, generatingFromState int64) int64 {
+	min := generatingFromState
+	for _, value := range effectiveHistory {
+		if value < min {
+			min = value
+		}
+	}
+	return min
+}
+
+func (diffSt *diffState) addEffectiveToHistory(searchAddress string, effective int64) error {
+	oldDiffBalance, ok := diffSt.balances[searchAddress]
+	if !ok {
+		return errors.Errorf("Cannot find balance to add effective to history")
+	}
+	oldDiffBalance.effectiveHistory = append(oldDiffBalance.effectiveHistory, effective)
+	diffSt.balances[searchAddress] = oldDiffBalance
+	return nil
+}
+
+func (diffSt *diffState) addNewLease(recipient proto.Recipient, sender proto.Recipient, leasedAmount int64, leaseID crypto.Digest) {
+	lease := lease{Recipient: recipient, Sender: sender, leasedAmount: leasedAmount}
+	diffSt.leases[leaseID.String()] = lease
+}
+
+func (diffSt *diffState) addLeaseInTo(searchAddress string, leasedAmount int64) {
+	oldDiffBalance := diffSt.balances[searchAddress]
+	oldDiffBalance.leaseIn += leasedAmount
+
+	diffSt.balances[searchAddress] = oldDiffBalance
+}
+
+func (diffSt *diffState) changeLeaseIn(searchBalance *diffBalance, searchAddress string, leasedAmount int64, account proto.Recipient) error {
+	if searchBalance != nil {
+		diffSt.addLeaseInTo(searchAddress, leasedAmount)
+		return nil
+	}
+	address, err := diffSt.state.NewestRecipientToAddress(account)
+	if err != nil {
+		return err
+	}
+
+	var balance diffBalance
+	balance.assetID = crypto.Digest{}
+	balance.leaseIn = leasedAmount
+
+	diffSt.balances[address.String()+balance.assetID.String()] = balance
+	return nil
+}
+
+func (diffSt *diffState) addLeaseOutTo(searchAddress string, leasedAmount int64) {
+	oldDiffBalance := diffSt.balances[searchAddress]
+	oldDiffBalance.leaseOut += leasedAmount
+	diffSt.balances[searchAddress] = oldDiffBalance
+}
+
+func (diffSt *diffState) changeLeaseOut(searchBalance *diffBalance, searchAddress string, leasedAmount int64, account proto.Recipient) error {
+	if searchBalance != nil {
+		diffSt.addLeaseOutTo(searchAddress, leasedAmount)
+		return nil
+	}
+
+	address, err := diffSt.state.NewestRecipientToAddress(account)
+	if err != nil {
+		return err
+	}
+
+	var balance diffBalance
+	balance.assetID = crypto.Digest{}
+	balance.leaseOut = leasedAmount
+
+	diffSt.balances[address.String()+balance.assetID.String()] = balance
+	return nil
+}
+
 func (diffSt *diffState) changeBalance(searchBalance *diffBalance, searchAddress string, amount int64, assetID crypto.Digest, account proto.Recipient) error {
 	if searchBalance != nil {
 		diffSt.addBalanceTo(searchAddress, amount)
@@ -82,10 +184,32 @@ func (diffSt *diffState) changeBalance(searchBalance *diffBalance, searchAddress
 
 	var balance diffBalance
 	balance.assetID = assetID
-	balance.amount = amount
+	balance.regular = amount
 
 	diffSt.balances[address.String()+assetID.String()] = balance
 	return nil
+}
+
+func (diffSt *diffState) findLeaseByIDForCancel(leaseID crypto.Digest) (*lease, error) {
+	if lease, ok := diffSt.leases[leaseID.String()]; ok {
+		return &lease, nil
+	}
+	leaseFromStore, err := diffSt.state.NewestLeasingInfo(leaseID, false)
+	if err != nil {
+		return nil, err
+	}
+	if leaseFromStore != nil {
+		if !leaseFromStore.IsActive {
+			return nil, nil
+		}
+		lease := lease{
+			Recipient:    proto.NewRecipientFromAddress(leaseFromStore.Recipient),
+			Sender:       proto.NewRecipientFromAddress(leaseFromStore.Sender),
+			leasedAmount: int64(leaseFromStore.LeaseAmount),
+		}
+		return &lease, nil
+	}
+	return nil, nil
 }
 
 func (diffSt *diffState) findIntFromDataEntryByKey(key string, address string) *proto.IntegerDataEntry {
@@ -129,12 +253,9 @@ func (diffSt *diffState) findBalance(recipient proto.Recipient, asset []byte) (*
 		return nil, "", errors.Errorf("cannot get address from recipient")
 	}
 	if asset == nil {
-		if balance, ok := diffSt.balances[address.String()]; ok {
-			return &balance, address.String(), nil
-		}
-		emptyAsset := crypto.Digest{}
-		if balance, ok := diffSt.balances[address.String()+emptyAsset.String()]; ok {
-			return &balance, address.String(), nil
+		waves := crypto.Digest{}
+		if balance, ok := diffSt.balances[address.String()+waves.String()]; ok {
+			return &balance, address.String() + waves.String(), nil
 		}
 		return nil, "", nil
 	}

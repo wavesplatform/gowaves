@@ -11,6 +11,10 @@ func (wrappedSt *wrappedState) AddingBlockHeight() (uint64, error) {
 	return wrappedSt.diff.state.AddingBlockHeight()
 }
 
+func (wrappedSt *wrappedState) NewestLeasingInfo(id crypto.Digest, filter bool) (*proto.LeaseInfo, error) {
+	return wrappedSt.diff.state.NewestLeasingInfo(id, filter)
+}
+
 func (wrappedSt *wrappedState) NewestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
 	return wrappedSt.diff.state.NewestScriptPKByAddr(addr, filter)
 }
@@ -41,7 +45,7 @@ func (wrappedSt *wrappedState) NewestAccountBalance(account proto.Recipient, ass
 		return 0, err
 	}
 	if balanceDiff != nil {
-		resBalance := int64(balance) + balanceDiff.amount
+		resBalance := int64(balance) + balanceDiff.regular
 		return uint64(resBalance), nil
 
 	}
@@ -54,23 +58,37 @@ func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (
 		return nil, err
 	}
 
-	wavesBalanceDiff, _, err := wrappedSt.diff.findBalance(account, nil)
+	wavesBalanceDiff, searchAddress, err := wrappedSt.diff.findBalance(account, nil)
 	if err != nil {
 		return nil, err
 	}
 	if wavesBalanceDiff != nil {
-		resRegular := wavesBalanceDiff.amount + int64(balance.Regular)
-		resGenerating := wavesBalanceDiff.amount + int64(balance.Generating)
-		resAvailable := wavesBalanceDiff.amount + int64(balance.Available)
-		resEffective := wavesBalanceDiff.amount + int64(balance.Effective)
+		resRegular := wavesBalanceDiff.regular + int64(balance.Regular)
+		resAvailable := (wavesBalanceDiff.regular - wavesBalanceDiff.leaseOut) + int64(balance.Available)
+		resEffective := (wavesBalanceDiff.regular - wavesBalanceDiff.leaseOut + wavesBalanceDiff.leaseIn) + int64(balance.Effective)
+		resLeaseIn := wavesBalanceDiff.leaseIn + int64(balance.LeaseIn)
+		resLeaseOut := wavesBalanceDiff.leaseOut + int64(balance.LeaseOut)
 
-		return &proto.FullWavesBalance{Regular: uint64(resRegular),
+		err := wrappedSt.diff.addEffectiveToHistory(searchAddress, resEffective)
+		if err != nil {
+			return nil, err
+		}
+
+		resGenerating := wrappedSt.diff.findMinGenerating(wrappedSt.diff.balances[searchAddress].effectiveHistory, int64(balance.Generating))
+
+		return &proto.FullWavesBalance{
+			Regular:    uint64(resRegular),
 			Generating: uint64(resGenerating),
 			Available:  uint64(resAvailable),
 			Effective:  uint64(resEffective),
-			LeaseIn:    balance.LeaseIn,
-			LeaseOut:   balance.LeaseOut}, nil
+			LeaseIn:    uint64(resLeaseIn),
+			LeaseOut:   uint64(resLeaseOut)}, nil
 
+	}
+	_, searchAddr := wrappedSt.diff.createNewWavesBalance(account)
+	err = wrappedSt.diff.addEffectiveToHistory(searchAddr, int64(balance.Effective))
+	if err != nil {
+		return nil, err
 	}
 	return balance, nil
 }
@@ -458,9 +476,73 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			}
 			res.Sender = senderPK
 
+		case *proto.LeaseScriptAction:
+			senderAddress := proto.Address(wrappedSt.envThis)
+
+			recipientSearchBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(res.Recipient, nil)
+			if err != nil {
+				return nil, err
+			}
+			err = wrappedSt.diff.changeLeaseIn(recipientSearchBalance, recipientSearchAddress, res.Amount, res.Recipient)
+			if err != nil {
+				return nil, err
+			}
+
+			senderAccount := proto.NewRecipientFromAddress(senderAddress)
+			senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderAccount, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			err = wrappedSt.diff.changeLeaseOut(senderSearchBalance, senderSearchAddr, res.Amount, senderAccount)
+			if err != nil {
+				return nil, err
+			}
+
+			pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(senderAddress, false)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get public key by address")
+			}
+
+			wrappedSt.diff.addNewLease(res.Recipient, senderAccount, res.Amount, res.ID)
+
+			res.Sender = pk
+		case *proto.LeaseCancelScriptAction:
+
+			searchLease, err := wrappedSt.diff.findLeaseByIDForCancel(res.LeaseID)
+			if err != nil {
+				return nil, errors.Errorf("failed to find lease by leaseID")
+			}
+			if searchLease == nil {
+				return nil, errors.Errorf("there is no lease to cancel")
+			}
+
+			recipientBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Recipient, nil)
+			if err != nil {
+				return nil, err
+			}
+			if recipientBalance == nil {
+				_, recipientSearchAddress = wrappedSt.diff.createNewWavesBalance(searchLease.Recipient)
+			}
+
+			senderBalance, senderSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Sender, nil)
+			if err != nil {
+				return nil, err
+			}
+			if senderBalance == nil {
+				_, senderSearchAddress = wrappedSt.diff.createNewWavesBalance(searchLease.Sender)
+			}
+
+			wrappedSt.diff.cancelLease(*searchLease, senderSearchAddress, recipientSearchAddress)
+
+			pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get public key by address")
+			}
+
+			res.Sender = pk
 		default:
 		}
-
 	}
 	return actions, nil
 }
@@ -498,8 +580,9 @@ func newWrappedState(state types.SmartState, envThis rideType, envScheme proto.S
 	sponsorships := map[string]diffSponsorship{}
 	newAssetInfo := map[string]diffNewAssetInfo{}
 	oldAssetInfo := map[string]diffOldAssetInfo{}
+	leases := map[string]lease{}
 
-	diffSt := &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo}
+	diffSt := &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo, leases: leases}
 	wrappedSt := wrappedState{diff: *diffSt, envThis: envThis.(rideAddress)}
 	return &wrappedSt
 }

@@ -59,6 +59,9 @@ var _ types.SmartState = &MockSmartState{}
 //             NewestHeaderByHeightFunc: func(height uint64) (*proto.BlockHeader, error) {
 // 	               panic("mock out the NewestHeaderByHeight method")
 //             },
+//             NewestLeasingInfoFunc: func(id crypto.Digest, filter bool) (*proto.LeaseInfo, error) {
+// 	               panic("mock out the NewestLeasingInfo method")
+//             },
 //             NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
 // 	               panic("mock out the NewestRecipientToAddress method")
 //             },
@@ -128,6 +131,9 @@ type MockSmartState struct {
 
 	// NewestHeaderByHeightFunc mocks the NewestHeaderByHeight method.
 	NewestHeaderByHeightFunc func(height uint64) (*proto.BlockHeader, error)
+
+	// NewestLeasingInfoFunc mocks the NewestLeasingInfo method.
+	NewestLeasingInfoFunc func(id crypto.Digest, filter bool) (*proto.LeaseInfo, error)
 
 	// NewestRecipientToAddressFunc mocks the NewestRecipientToAddress method.
 	NewestRecipientToAddressFunc func(recipient proto.Recipient) (*proto.Address, error)
@@ -220,6 +226,13 @@ type MockSmartState struct {
 			// Height is the height argument value.
 			Height uint64
 		}
+		// NewestLeasingInfo holds details about calls to the NewestLeasingInfo method.
+		NewestLeasingInfo []struct {
+			// ID is the id argument value.
+			ID crypto.Digest
+			// Filter is the filter argument value.
+			Filter bool
+		}
 		// NewestRecipientToAddress holds details about calls to the NewestRecipientToAddress method.
 		NewestRecipientToAddress []struct {
 			// Recipient is the recipient argument value.
@@ -284,6 +297,7 @@ type MockSmartState struct {
 	lockNewestFullAssetInfo         sync.RWMutex
 	lockNewestFullWavesBalance      sync.RWMutex
 	lockNewestHeaderByHeight        sync.RWMutex
+	lockNewestLeasingInfo           sync.RWMutex
 	lockNewestRecipientToAddress    sync.RWMutex
 	lockNewestScriptPKByAddr        sync.RWMutex
 	lockNewestTransactionByID       sync.RWMutex
@@ -692,6 +706,41 @@ func (mock *MockSmartState) NewestHeaderByHeightCalls() []struct {
 	mock.lockNewestHeaderByHeight.RLock()
 	calls = mock.calls.NewestHeaderByHeight
 	mock.lockNewestHeaderByHeight.RUnlock()
+	return calls
+}
+
+// NewestLeasingInfo calls NewestLeasingInfoFunc.
+func (mock *MockSmartState) NewestLeasingInfo(id crypto.Digest, filter bool) (*proto.LeaseInfo, error) {
+	if mock.NewestLeasingInfoFunc == nil {
+		panic("MockSmartState.NewestLeasingInfoFunc: method is nil but SmartState.NewestLeasingInfo was just called")
+	}
+	callInfo := struct {
+		ID     crypto.Digest
+		Filter bool
+	}{
+		ID:     id,
+		Filter: filter,
+	}
+	mock.lockNewestLeasingInfo.Lock()
+	mock.calls.NewestLeasingInfo = append(mock.calls.NewestLeasingInfo, callInfo)
+	mock.lockNewestLeasingInfo.Unlock()
+	return mock.NewestLeasingInfoFunc(id, filter)
+}
+
+// NewestLeasingInfoCalls gets all the calls that were made to NewestLeasingInfo.
+// Check the length with:
+//     len(mockedSmartState.NewestLeasingInfoCalls())
+func (mock *MockSmartState) NewestLeasingInfoCalls() []struct {
+	ID     crypto.Digest
+	Filter bool
+} {
+	var calls []struct {
+		ID     crypto.Digest
+		Filter bool
+	}
+	mock.lockNewestLeasingInfo.RLock()
+	calls = mock.calls.NewestLeasingInfo
+	mock.lockNewestLeasingInfo.RUnlock()
 	return calls
 }
 
