@@ -68,13 +68,13 @@ func (a *NGFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 }
 
 func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
-	metrics.BlockReceived(block, peer.Handshake().NodeName)
-	h, err := a.blocksApplier.Apply(a.storage, []*proto.Block{block})
+	metrics.FSMKeyBlockReceived("ng", block, peer.Handshake().NodeName)
+	_, err := a.blocksApplier.Apply(a.storage, []*proto.Block{block})
 	if err != nil {
-		metrics.BlockDeclined(block)
+		metrics.FSMKeyBlockDeclined("ng", block, err)
 		return a, nil, err
 	}
-	metrics.BlockApplied(block, h)
+	metrics.FSMKeyBlockApplied("ng", block)
 	a.Scheduler.Reschedule()
 	a.actions.SendScore(a.storage)
 	a.CleanUtx()
@@ -82,17 +82,18 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 }
 
 func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
-	var h proto.Height
+	metrics.FSMKeyBlockGenerated("ng", block)
 	err := a.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
-		h, err = a.blocksApplier.Apply(state, []*proto.Block{block})
+		_, err = a.blocksApplier.Apply(state, []*proto.Block{block})
 		return err
 	})
 	if err != nil {
 		zap.S().Info("NGFsm MinedBlock  err ", err)
+		metrics.FSMKeyBlockDeclined("ng", block, err)
 		return a, nil, err
 	}
-	metrics.BlockMined(block, h)
+	metrics.FSMKeyBlockApplied("ng", block)
 	a.Reschedule()
 	a.actions.SendBlock(block)
 	a.actions.SendScore(a.storage)
@@ -100,13 +101,13 @@ func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPai
 	return NewNGFsm12(a.BaseInfo), Tasks(NewMineMicroTask(1*time.Second, block, limits, keyPair, vrf)), nil
 }
 
-func (a *NGFsm) BlockIDs(peer peer.Peer, sigs []proto.BlockID) (FSM, Async, error) {
+func (a *NGFsm) BlockIDs(_ peer.Peer, _ []proto.BlockID) (FSM, Async, error) {
 	return noop(a)
 }
 
 // New microblock received from the network
 func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error) {
-	metrics.MicroBlockReceived(micro, p.Handshake().NodeName)
+	metrics.FSMMicroBlockReceived("ng", micro, p.Handshake().NodeName)
 	id, err := a.checkAndAppendMicroblock(micro) // the TopBlock() is used here
 	if err != nil {
 		return a, nil, err
@@ -142,6 +143,7 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 	if err != nil {
 		return a, nil, errors.Wrap(err, "NGFsm.mineMicro")
 	}
+	metrics.FSMMicroBlockGenerated("ng", micro)
 	err = a.storage.Map(func(s state.NonThreadSafeState) error {
 		_, err := a.blocksApplier.Apply(s, []*proto.Block{block})
 		return err
@@ -149,6 +151,7 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 	if err != nil {
 		return a, nil, err
 	}
+	metrics.FSMMicroBlockApplied("ng", micro)
 	inv := proto.NewUnsignedMicroblockInv(
 		micro.SenderPK,
 		block.BlockID(),
@@ -178,7 +181,9 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 func (a *NGFsm) checkAndAppendMicroblock(micro *proto.MicroBlock) (proto.BlockID, error) {
 	top := a.storage.TopBlock()           // Get the last block
 	if top.BlockID() != micro.Reference { // Microblock doesn't refer to last block
-		return proto.BlockID{}, errors.New("micro reference not found")
+		err := errors.Errorf("microblock (TBID '%s') refer to '%s' but last block ID is '%s'", micro.TotalBlockID.String(), micro.Reference.String(), top.BlockID().String())
+		metrics.FSMMicroBlockDeclined("ng", micro, err)
+		return proto.BlockID{}, err
 	}
 	newTrs := top.Transactions.Join(micro.Transactions)
 	newBlock, err := proto.CreateBlock(newTrs, top.Timestamp, top.Parent, top.GenPublicKey, top.NxtConsensus, top.Version, top.Features, top.RewardVote, a.scheme)
@@ -202,9 +207,10 @@ func (a *NGFsm) checkAndAppendMicroblock(micro *proto.MicroBlock) (proto.BlockID
 		return err
 	})
 	if err != nil {
+		metrics.FSMMicroBlockDeclined("ng", micro, err)
 		return proto.BlockID{}, errors.Wrap(err, "failed to apply created from micro block")
 	}
-	metrics.MicroBlockApplied(micro)
+	metrics.FSMMicroBlockApplied("ng", micro)
 	return newBlock.BlockID(), nil
 }
 
