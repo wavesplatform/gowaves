@@ -1,8 +1,9 @@
 package ride
 
 import (
+	"math"
+
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
@@ -69,115 +70,94 @@ func ccc(f Fsm, node Node) (Fsm, error) {
 }
 
 func CompileVerifier(txID string, tree *Tree) (*Executable, error) {
-	//s, err := newEvaluationScope(tree.LibVersion, env)
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "failed to create scope")
-	//}
 	if tree.IsDApp() {
 		if tree.HasVerifier() {
 			_, ok := tree.Verifier.(*FunctionDeclarationNode)
 			if !ok {
 				return nil, errors.New("invalid verifier declaration")
 			}
-			//for _, declaration := range tree.Declarations {
-			//	err = s.declare(declaration)
-			//	if err != nil {
-			//		return nil, errors.Wrap(err, "invalid declaration")
-			//	}
-			//}
-			return compileFunction(txID, tree.LibVersion, append(tree.Declarations, tree.Verifier), tree.IsDApp())
-			//s.constants[verifier.invocationParameter] = esConstant{c: newTx}
-			//return &treeEvaluator{
-			//	dapp: tree.IsDApp(),
-			//	f:    verifier.Body, // In DApp verifier is a function, so we have to pass its body
-			//	s:    s,
-			//	env:  env,
-			//}, nil
+			return compileFunction(txID, tree.LibVersion, append(tree.Declarations, tree.Verifier), tree.IsDApp(), tree.HasVerifier())
 		}
 		return nil, errors.New("no verifier declaration")
 	}
-	return compileFunction(txID, tree.LibVersion, []Node{tree.Verifier}, tree.IsDApp())
-}
-
-type namedArgument struct {
-	name string
-	arg  rideType
+	return compileFunction(txID, tree.LibVersion, []Node{tree.Verifier}, tree.IsDApp(), tree.HasVerifier())
 }
 
 type functionArgumentsCount = int
 
-func CompileFunction(txID string, tree *Tree, name string, args proto.Arguments, isDapp bool) (*Executable, functionArgumentsCount, error) {
-	//s, err := newEvaluationScope(tree.LibVersion, env)
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "failed to create scope")
-	//}
-	//for i, declaration := range tree.Declarations {
-	//	//err = s.declare(declaration)
-	//	//if err != nil {
-	//	//	return nil, errors.Wrap(err, "invalid declaration")
-	//	//}
-	//	zap.S().Errorf("decl #%d ?? %s", i, Decompiler(declaration))
-	//}
-	if !tree.IsDApp() {
-		return nil, 0, errors.Errorf("unable to call function '%s' on simple script", name)
-	}
-	for i := 0; i < len(tree.Functions); i++ {
-		function, ok := tree.Functions[i].(*FunctionDeclarationNode)
-		if !ok {
-			return nil, 0, errors.New("invalid callable declaration")
-		}
-		if function.Name == name {
-			//s.constants[function.invocationParameter] = esConstant{c: newInvocation}
-			//if l := len(args); l != len(function.Arguments) {
-			//	return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
-			//}
-			//applyArgs := make([]rideType, 0, len(args))
-			//for _, arg := range args {
-			//	a, err := convertArgument(arg)
-			//	if err != nil {
-			//		return nil, errors.Wrapf(err, "failed to call function '%s'", name)
-			//	}
-			//	//s.pushValue(function.Arguments[i], a)
-			//	applyArgs = append(applyArgs, a)
-			//	//namedArgument{
-			//	//	name: function.Arguments[i],
-			//	//	arg:  a,
-			//	//})
-			//}
-
-			rs, err := compileFunction(txID, tree.LibVersion, append(tree.Declarations, function), isDapp)
-			if err != nil {
-				return rs, 0, err
-			}
-			return rs, len(function.Arguments), nil
-			//return &treeEvaluator{dapp: true, f: function.Body, s: s, env: env}, nil
-		}
-	}
-	return nil, 0, errors.Errorf("function '%s' not found", name)
-
-	//return compileFunction(t.LibVersion, t)
-}
+//func CompileFunction(txID string, tree *Tree, name string, args proto.Arguments, isDapp bool) (*Executable, functionArgumentsCount, error) {
+//	//s, err := newEvaluationScope(tree.LibVersion, env)
+//	//if err != nil {
+//	//	return nil, errors.Wrap(err, "failed to create scope")
+//	//}
+//	//for i, declaration := range tree.Declarations {
+//	//	//err = s.declare(declaration)
+//	//	//if err != nil {
+//	//	//	return nil, errors.Wrap(err, "invalid declaration")
+//	//	//}
+//	//	zap.S().Errorf("decl #%d ?? %s", i, Decompiler(declaration))
+//	//}
+//	if !tree.IsDApp() {
+//		return nil, 0, errors.Errorf("unable to call function '%s' on simple script", name)
+//	}
+//	for i := 0; i < len(tree.Functions); i++ {
+//		function, ok := tree.Functions[i].(*FunctionDeclarationNode)
+//		if !ok {
+//			return nil, 0, errors.New("invalid callable declaration")
+//		}
+//		if function.Name == name {
+//			//s.constants[function.invocationParameter] = esConstant{c: newInvocation}
+//			//if l := len(args); l != len(function.Arguments) {
+//			//	return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
+//			//}
+//			//applyArgs := make([]rideType, 0, len(args))
+//			//for _, arg := range args {
+//			//	a, err := convertArgument(arg)
+//			//	if err != nil {
+//			//		return nil, errors.Wrapf(err, "failed to call function '%s'", name)
+//			//	}
+//			//	//s.pushValue(function.Arguments[i], a)
+//			//	applyArgs = append(applyArgs, a)
+//			//	//namedArgument{
+//			//	//	name: function.Arguments[i],
+//			//	//	arg:  a,
+//			//	//})
+//			//}
+//
+//			rs, err := compileFunction(txID, tree.LibVersion, append(tree.Declarations, function), isDapp, tree.HasVerifier())
+//			if err != nil {
+//				return rs, 0, err
+//			}
+//			return rs, len(function.Arguments), nil
+//			//return &treeEvaluator{dapp: true, f: function.Body, s: s, env: env}, nil
+//		}
+//	}
+//	return nil, 0, errors.Errorf("function '%s' not found", name)
+//
+//	//return compileFunction(t.LibVersion, t)
+//}
 
 func CompileDapp(txID string, tree *Tree) (*Executable, error) {
 	if !tree.IsDApp() {
 		return nil, errors.Errorf("unable to compile dappp")
 	}
-	//for i := 0; i < len(tree.Functions); i++ {
-	//	function, ok := tree.Functions[i].(*FunctionDeclarationNode)
-	//	if !ok {
-	//		return nil, 0, errors.New("invalid callable declaration")
-	//	}
-	//	if function.Name == name {
-	//		rs, err := compileFunction(txID, tree.LibVersion, append(tree.Declarations, function), isDapp)
-	//		if err != nil {
-	//			return rs, 0, err
-	//		}
-	//		return rs, len(function.Arguments), nil
-	//	}
-	//}
-	return compileFunction(txID, tree.LibVersion, append(tree.Declarations, tree.Functions...), true)
-	//return nil, 0, errors.Errorf("function '%s' not found", name)
+	fns := tree.Functions
+	if tree.HasVerifier() {
+		fns = append(fns, tree.Verifier)
+	}
+	return compileFunction(txID, tree.LibVersion, append(tree.Declarations, fns...), true, tree.HasVerifier())
 }
+
+//func CompileFlatDapp(txID string, tree *Tree) (*Executable, error) {
+//	if !tree.IsDApp() {
+//		return nil, errors.Errorf("unable to compile dappp")
+//	}
+//	fns := tree.Functions
+//	if tree.HasVerifier() {
+//		fns = append(fns, tree.Verifier)
+//	}
+//	return compileFunction(txID, tree.LibVersion, append(tree.Declarations, fns...), true, tree.HasVerifier())
+//}
 
 /*
 func compileVerifier(libVersion int, node Node) (*Executable, error) {
@@ -214,7 +194,7 @@ func compileVerifier(libVersion int, node Node) (*Executable, error) {
 }
 */
 
-func compileFunction(txID string, libVersion int, nodes []Node, isDapp bool) (*Executable, error) {
+func compileFunction(txID string, libVersion int, nodes []Node, isDapp bool, hasVerifier bool) (*Executable, error) {
 	fCheck, err := selectFunctionChecker(libVersion)
 	if err != nil {
 		return nil, err
@@ -234,7 +214,7 @@ func compileFunction(txID string, libVersion int, nodes []Node, isDapp bool) (*E
 		txID: txID,
 	}
 	for k, v := range predefinedFunctions {
-		params.addPredefined(k, v.id, v.id)
+		params.addPredefined(v.name, uint16(math.MaxUint16-k), uint16(math.MaxUint16-k))
 	}
 
 	f := NewMain(params)
@@ -248,5 +228,16 @@ func compileFunction(txID string, libVersion int, nodes []Node, isDapp bool) (*E
 	// Just to write `OpReturn` to bytecode.
 	f = f.Return()
 
-	return f.(BuildExecutable).BuildExecutable(libVersion, isDapp), nil
+	return f.(BuildExecutable).BuildExecutable(libVersion, isDapp, hasVerifier), nil
 }
+
+func CompileTree(tx string, tree *Tree) (*Executable, error) {
+	if tree.IsDApp() {
+		return CompileDapp(tx, tree)
+	}
+	return CompileVerifier(tx, tree)
+}
+
+//func CompileTree(tx string, tree *Tree) (*Executable, error) {
+//	return CompileFlatTree(tree)
+//}

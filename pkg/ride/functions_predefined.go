@@ -9,15 +9,6 @@ func tx(env RideEnvironment, _ ...rideType) (rideType, error) {
 	return env.transaction(), nil
 }
 
-//func mergeWithPredefined(f func(id int) rideFunction, p *predef) func(id int) rideFunction {
-//	return func(id int) rideFunction {
-//		if c := p.getn(id); c != nil {
-//			return c
-//		}
-//		return f(id)
-//	}
-//}
-
 func this(env RideEnvironment, _ ...rideType) (rideType, error) {
 	return env.this(), nil
 }
@@ -31,25 +22,35 @@ func nilFunc(env RideEnvironment, _ ...rideType) (rideType, error) {
 	return out, nil
 }
 
-func retRideType() rideList {
-	return nil
-}
-
 func lastBlock(env RideEnvironment, _ ...rideType) (rideType, error) {
 	return env.block(), nil
 }
 
-var predefinedFunctions = map[string]predefFunc{
-	"tx":        {id: math.MaxUint16 - 0, f: tx},
-	"unit":      {id: math.MaxUint16 - 1, f: unit},
-	"NOALG":     {id: math.MaxUint16 - 2, f: createNoAlg},
-	"this":      {id: math.MaxUint16 - 3, f: this},
-	"height":    {id: math.MaxUint16 - 4, f: height},
-	"nil":       {id: math.MaxUint16 - 5, f: nilFunc},
-	"lastBlock": {id: math.MaxUint16 - 6, f: lastBlock},
-	"UP":        {id: math.MaxUint16 - 7, f: createUp},
-	"DOWN":      {id: math.MaxUint16 - 8, f: createDown},
-	"HALFDOWN":  {id: math.MaxUint16 - 9, f: createHalfDown},
+// Order is important! Only add, avoid changes.
+var predefinedFunctions = []predefFunc{
+	{"tx", tx},
+	{"unit", unit},
+	{"NOALG", createNoAlg},
+	{"this", this},
+	{"height", height},
+	{"nil", nilFunc},
+	{"lastBlock", lastBlock},
+	{"UP", createUp},
+	{"DOWN", createDown},
+	{"HALFDOWN", createHalfDown},
+	{"HALFUP", createHalfUp},
+	{"MD5", createMd5},
+	{"SHA1", createSha1},
+	{"SHA224", createSha224},
+	{"SHA256", createSha256},
+	{"SHA384", createSha384},
+	{"SHA512", createSha512},
+	{"SHA3224", createSha3224},
+	{"SHA3256", createSha3256},
+	{"SHA3384", createSha3384},
+	{"SHA3512", createSha3512},
+	{"Buy", createBuy},
+	{"Sell", createSell},
 }
 
 var predefined *predef
@@ -57,6 +58,6 @@ var predefined *predef
 func init() {
 	predefined = newPredef(nil)
 	for k, v := range predefinedFunctions {
-		predefined.set(k, v.id, v.f)
+		predefined.set(v.name, uint16(math.MaxUint16-k), v.f)
 	}
 }

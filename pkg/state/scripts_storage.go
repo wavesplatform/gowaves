@@ -2,12 +2,14 @@ package state
 
 import (
 	"bytes"
-	"errors"
+	"encoding/binary"
 	"io"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/libs/deserializer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"go.uber.org/zap"
 )
 
 const (
@@ -18,11 +20,35 @@ const (
 )
 
 func scriptBytesToTree(script proto.Script) (*ride.Tree, error) {
-	tree, err := ride.Parse(script)
+
+	if len(script) == 0 {
+		panic("scriptBytesToTree")
+	}
+	zap.S().Debug("scriptBytesToTree scrip %v, len %d", script, len(script))
+
+	return ride.Parse(script)
+}
+
+func scriptBytesToVmBytes(script proto.Script) ([]byte, error) {
+	panic("unreachable")
+	p, err := scriptBytesToTree(script)
 	if err != nil {
 		return nil, err
 	}
-	return tree, nil
+	exe, err := ride.CompileTree("performSetScriptWithProofs", p)
+	if err != nil {
+		return nil, err
+	}
+	s := ride.NewSerializer()
+	err = exe.Serialize(s)
+	if err != nil {
+		return nil, err
+	}
+	return s.Source(), nil
+}
+
+func scriptBytesToExecutable(script proto.Script) (*ride.Executable, error) {
+	return ride.DeserializeExecutable(script)
 }
 
 type accountScripRecordForHashes struct {
@@ -75,8 +101,9 @@ func scriptExists(recordBytes []byte) bool {
 }
 
 type scriptRecord struct {
-	pk     crypto.PublicKey
-	script proto.Script
+	pk       crypto.PublicKey
+	script   proto.Script
+	bytecode []byte
 }
 
 func (r *scriptRecord) scriptIsEmpty() bool {
@@ -84,25 +111,43 @@ func (r *scriptRecord) scriptIsEmpty() bool {
 }
 
 func (r *scriptRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, crypto.KeySize+len(r.script))
-	copy(res, r.pk[:])
-	copy(res[crypto.KeySize:], r.script)
-	return res, nil
+	if len(r.script) > 0 {
+		res := make([]byte, crypto.KeySize+len(r.script)+len(r.bytecode)+4)
+		copy(res, r.pk[:])
+		binary.BigEndian.PutUint32(res[crypto.KeySize:], uint32(len(r.script)))
+		copy(res[crypto.KeySize+4:], append(r.script, r.bytecode...))
+		return res, nil
+	} else {
+		return r.pk.Bytes(), nil
+	}
 }
 
 func (r *scriptRecord) unmarshalBinary(data []byte) error {
-	if len(data) < crypto.KeySize {
-		return errors.New("insufficient data for scriptRecord")
-	}
-	pk, err := crypto.NewPublicKeyFromBytes(data[:crypto.KeySize])
+	var err error
+	d := deserializer.NewDeserializer(data)
+	r.pk, err = d.PublicKey()
 	if err != nil {
 		return err
 	}
-	r.pk = pk
-	scriptBytes := make([]byte, len(data)-crypto.KeySize)
-	copy(scriptBytes, data[crypto.KeySize:])
-	r.script = proto.Script(scriptBytes)
-	return nil
+	if d.Len() == 0 {
+		return nil
+	}
+	size, err := d.Uint32()
+	if err != nil {
+		return err
+	}
+	r.script, err = d.Bytes(uint(size))
+	if err != nil {
+		return err
+	}
+	r.bytecode, err = d.Bytes(uint(d.Len()))
+	return err
+	//scriptBytes := make([]byte, size)
+	//copy(scriptBytes, data[crypto.KeySize:])
+	//r.script = scriptBytes
+	//data = data[size:]
+	//r.bytecode = common.Dup(data)
+	//return nil
 }
 
 // TODO: LRU cache for script ASTs here only makes sense at the import stage.
@@ -135,7 +180,26 @@ func newScriptsStorage(hs *historyStorage, calcHashes bool) (*scriptsStorage, er
 	}, nil
 }
 
-func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key []byte, record scriptRecord, blockID proto.BlockID) error {
+func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key []byte, record scriptRecord, blockID proto.BlockID, txID string) error {
+	var exe *ride.Executable
+	if len(record.script) > 0 {
+		if len(record.bytecode) == 0 {
+			p, err := scriptBytesToTree(record.script)
+			if err != nil {
+				return err
+			}
+			exe, err = ride.CompileTree("scriptsStorage setScript "+txID, p)
+			if err != nil {
+				return err
+			}
+			s := ride.NewSerializer()
+			err = exe.Serialize(s)
+			if err != nil {
+				return err
+			}
+			record.bytecode = s.Source()
+		}
+	}
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
@@ -148,11 +212,15 @@ func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key []byte, rec
 		ss.cache.deleteIfExists(key)
 		return nil
 	}
-	tree, err := scriptBytesToTree(record.script)
-	if err != nil {
-		return err
+	if exe == nil {
+		exe, err := scriptBytesToExecutable(record.script)
+		if err != nil {
+			return err
+		}
+		ss.cache.set(key, exe, scriptSize)
+	} else {
+		ss.cache.set(key, exe, scriptSize)
 	}
-	ss.cache.set(key, *tree, scriptSize)
 	return nil
 }
 
@@ -193,12 +261,34 @@ func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (*ride.Tr
 	return tree, record.pk, err
 }
 
+func (ss *scriptsStorage) scriptExecutableFromRecordBytes(recordBytes []byte) (*ride.Executable, crypto.PublicKey, error) {
+	var record scriptRecord
+	if err := record.unmarshalBinary(recordBytes); err != nil {
+		return nil, crypto.PublicKey{}, err
+	}
+	if record.scriptIsEmpty() {
+		// Empty script = no script.
+		return nil, crypto.PublicKey{}, proto.ErrNotFound
+	}
+	tree, err := scriptBytesToExecutable(record.bytecode)
+	return tree, record.pk, err
+}
+
 func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (*ride.Tree, error) {
 	recordBytes, err := ss.hs.newestTopEntryData(key, filter)
 	if err != nil {
 		return nil, err
 	}
 	tree, _, err := ss.scriptAstFromRecordBytes(recordBytes)
+	return tree, err
+}
+
+func (ss *scriptsStorage) newestBytecodeByKey(key []byte, filter bool) (*ride.Executable, error) {
+	recordBytes, err := ss.hs.newestTopEntryData(key, filter)
+	if err != nil {
+		return nil, err
+	}
+	tree, _, err := ss.scriptExecutableFromRecordBytes(recordBytes)
 	return tree, err
 }
 
@@ -213,7 +303,7 @@ func (ss *scriptsStorage) scriptTreeByKey(key []byte, filter bool) (*ride.Tree, 
 
 func (ss *scriptsStorage) commitUncertain(blockID proto.BlockID) error {
 	for assetID, r := range ss.uncertainAssetScripts {
-		if err := ss.setAssetScript(assetID, r.script, r.pk, blockID); err != nil {
+		if err := ss.setAssetScript(assetID, r.script, r.pk, blockID, "commitUncertain"); err != nil {
 			return err
 		}
 	}
@@ -228,7 +318,7 @@ func (ss *scriptsStorage) setAssetScriptUncertain(assetID crypto.Digest, script 
 	ss.uncertainAssetScripts[assetID] = scriptRecord{pk: pk, script: script}
 }
 
-func (ss *scriptsStorage) setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
+func (ss *scriptsStorage) setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID, txID string) error {
 	key := assetScriptKey{assetID}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
@@ -242,7 +332,7 @@ func (ss *scriptsStorage) setAssetScript(assetID crypto.Digest, script proto.Scr
 			return err
 		}
 	}
-	return ss.setScript(assetScript, keyBytes, record, blockID)
+	return ss.setScript(assetScript, keyBytes, record, blockID, txID)
 }
 
 func (ss *scriptsStorage) newestIsSmartAsset(assetID crypto.Digest, filter bool) bool {
@@ -279,15 +369,35 @@ func (ss *scriptsStorage) newestScriptByAsset(assetID crypto.Digest, filter bool
 	}
 	key := assetScriptKey{assetID}
 	keyBytes := key.bytes()
-	if script, has := ss.cache.get(keyBytes); has {
-		return &script, nil
-	}
+	//if script, has := ss.cache.get(keyBytes); has {
+	//	return &script, nil
+	//}
 	tree, err := ss.newestScriptAstByKey(keyBytes, filter)
 	if err != nil {
 		return nil, err
 	}
-	ss.cache.set(keyBytes, *tree, scriptSize)
+	//ss.cache.set(keyBytes, *tree, scriptSize)
 	return tree, nil
+}
+
+func (ss *scriptsStorage) newestBytecodeByAsset(assetID crypto.Digest, filter bool) (*ride.Executable, error) {
+	if r, ok := ss.uncertainAssetScripts[assetID]; ok {
+		if r.scriptIsEmpty() {
+			return nil, proto.ErrNotFound
+		}
+		return scriptBytesToExecutable(r.script)
+	}
+	key := assetScriptKey{assetID}
+	keyBytes := key.bytes()
+	if script, has := ss.cache.get(keyBytes); has {
+		return script, nil
+	}
+	exe, err := ss.newestBytecodeByKey(keyBytes, filter)
+	if err != nil {
+		return nil, err
+	}
+	ss.cache.set(keyBytes, exe, scriptSize)
+	return exe, nil
 }
 
 func (ss *scriptsStorage) scriptByAsset(assetID crypto.Digest, filter bool) (*ride.Tree, error) {
@@ -305,7 +415,7 @@ func (ss *scriptsStorage) newestScriptBytesByAsset(assetID crypto.Digest, filter
 	return ss.newestScriptBytesByKey(key.bytes(), filter)
 }
 
-func (ss *scriptsStorage) setAccountScript(addr proto.Address, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
+func (ss *scriptsStorage) setAccountScript(addr proto.Address, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID, txID string) error {
 	key := accountScriptKey{addr}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
@@ -319,7 +429,7 @@ func (ss *scriptsStorage) setAccountScript(addr proto.Address, script proto.Scri
 			return err
 		}
 	}
-	return ss.setScript(accountScript, keyBytes, record, blockID)
+	return ss.setScript(accountScript, keyBytes, record, blockID, txID)
 }
 
 func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.Address, filter bool) (bool, error) {
@@ -370,14 +480,20 @@ func (ss *scriptsStorage) accountHasScript(addr proto.Address, filter bool) (boo
 func (ss *scriptsStorage) newestScriptByAddr(addr proto.Address, filter bool) (*ride.Tree, error) {
 	key := accountScriptKey{addr}
 	keyBytes := key.bytes()
-	if tree, has := ss.cache.get(keyBytes); has {
-		return &tree, nil
-	}
 	tree, err := ss.newestScriptAstByKey(keyBytes, filter)
 	if err != nil {
 		return nil, err
 	}
-	ss.cache.set(keyBytes, *tree, scriptSize)
+	return tree, nil
+}
+
+func (ss *scriptsStorage) newestBytecodeByAddr(addr proto.Address, filter bool) (*ride.Executable, error) {
+	key := accountScriptKey{addr}
+	keyBytes := key.bytes()
+	tree, err := ss.newestBytecodeByKey(keyBytes, filter)
+	if err != nil {
+		return nil, err
+	}
 	return tree, nil
 }
 

@@ -131,6 +131,10 @@ type FunctionCallNode struct {
 	Arguments []Node
 }
 
+func (a *FunctionCallNode) ArgumentsCount() uint16 {
+	return uint16(len(a.Arguments))
+}
+
 func (*FunctionCallNode) node() {}
 
 func (*FunctionCallNode) SetBlock(Node) {}

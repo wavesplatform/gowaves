@@ -13,28 +13,24 @@ func CallTreeVerifier(env RideEnvironment, tree *Tree) (RideResult, error) {
 	return e.evaluate()
 }
 
-func CallVmVerifier(txID string, env RideEnvironment, tree *Tree) (RideResult, error) {
-	compiled, err := CompileVerifier(txID, tree)
-	if err != nil {
-		return nil, errors.Wrap(err, "call compile script")
-	}
+func CallVmVerifier(txID string, env RideEnvironment, compiled *Executable) (RideResult, error) {
 	if env == nil {
 		return nil, errors.Errorf("env is nil")
 	}
-	return compiled.Run(env, []rideType{env.transaction()})
+	return compiled.Verify(env)
 }
 
 func CallVerifier(txID string, env RideEnvironment, tree *Tree) (RideResult, error) {
-	r, err := CallVmVerifier(txID, env, tree)
+	//r, err := CallVmVerifier(txID, env, tree)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	r2, err := CallTreeVerifier(env, tree)
 	if err != nil {
 		return nil, err
 	}
-
 	/*
-		r2, err := CallTreeVerifier(env, tree)
-		if err != nil {
-			return nil, err
-		}
 		if !r.Eq(r2) {
 			c1 := r.Calls()
 			c2 := r2.Calls()
@@ -59,7 +55,7 @@ func CallVerifier(txID string, env RideEnvironment, tree *Tree) (RideResult, err
 			return nil, errors.New("R1 != R2: failed to call account script on transaction ")
 		}
 	*/
-	return r, nil
+	return r2, nil
 }
 
 func CallTreeFunction(env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
@@ -74,32 +70,37 @@ func CallTreeFunction(env RideEnvironment, tree *Tree, name string, args proto.A
 }
 
 func CallFunction(txID string, env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
-	//rs1, err := CallTreeFunction(env, tree, name, args)
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "call function by tree")
-	//}
-	rs2, err := CallFunction2(txID, env, tree, name, args)
-	if err != nil {
-		return rs2, errors.Wrap(err, "call function by vm")
-	}
-	//if !rs1.Eq(rs2) {
-	//	zap.S().Errorf("%s, result mismatch", txID)
-	//	zap.S().Errorf("tree: %+q", rs1)
-	//	zap.S().Errorf("vm  : %+q", rs2)
-	//	return nil, errors.New(txID + ": result mismatch")
-	//}
-	return rs2, nil
+	return CallTreeFunction(env, tree, name, args)
 }
 
-func CallFunction2(txID string, env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
+//func CallFunction(txID string, env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
+//
+//	//rs1, err := CallTreeFunction(env, tree, name, args)
+//	//if err != nil {
+//	//	return nil, errors.Wrap(err, "call function by tree")
+//	//}
+//	rs2, err := CallVmFunction(txID, env, tree, name, args)
+//	if err != nil {
+//		return rs2, errors.Wrap(err, "call function by vm")
+//	}
+//	//if !rs1.Eq(rs2) {
+//	//	zap.S().Errorf("%s, result mismatch", txID)
+//	//	zap.S().Errorf("tree: %+q", rs1)
+//	//	zap.S().Errorf("vm  : %+q", rs2)
+//	//	return nil, errors.New(txID + ": result mismatch")
+//	//}
+//	return rs2, nil
+//}
+
+func CallVmFunction(txID string, env RideEnvironment, e *Executable, name string, args proto.Arguments) (RideResult, error) {
 	if name == "" {
 		name = "default"
 	}
-	f, numArgs, err := CompileFunction(txID, tree, name, args, tree.IsDApp())
+	entry, err := e.Entrypoint(name)
 	if err != nil {
 		return nil, err
 	}
-	if l := len(args); l != numArgs {
+	if l := len(args); l != int(entry.argn) {
 		return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
 	}
 	applyArgs := make([]rideType, 0, len(args)+1)
@@ -109,12 +110,7 @@ func CallFunction2(txID string, env RideEnvironment, tree *Tree, name string, ar
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to call function '%s'", name)
 		}
-		//s.pushValue(function.Arguments[i], a)
 		applyArgs = append(applyArgs, a)
-		//namedArgument{
-		//	name: function.Arguments[i],
-		//	arg:  a,
-		//})
 	}
-	return f.Run(env, applyArgs)
+	return e.Invoke(env, name, applyArgs)
 }

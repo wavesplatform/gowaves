@@ -6,28 +6,21 @@ import (
 	"github.com/pkg/errors"
 )
 
-const limitOperations = 50000
-
-var throwErr = errors.New("throw")
+const limitOperations = 200000
 
 type vm struct {
 	env           RideEnvironment
 	code          []byte
 	ip            int
-	functions     func(int) rideFunction
 	stack         []rideType
-	functionName  func(int) string
 	jmps          []int
 	ref           map[uint16]point
 	calls         []callLog
 	numOperations int
+	libVersion    int
 }
 
 func (m *vm) run() (rideType, error) {
-	//if m.stack != nil {
-	//	m.stack = m.stack[0:0]
-	//}
-
 	for m.ip < len(m.code) {
 		if m.numOperations >= limitOperations {
 			return nil, errors.New("limit operations exceed")
@@ -67,8 +60,6 @@ func (m *vm) run() (rideType, error) {
 				m.ip = posFalse
 			}
 		case OpProperty:
-
-			//n := m.uint16()
 			prop, err := m.pop()
 			if err != nil {
 				return nil, err //errors.Wrap(err, "no ref %d", n)
@@ -99,17 +90,25 @@ func (m *vm) run() (rideType, error) {
 			for i := cnt - 1; i >= 0; i-- {
 				v, err := m.pop()
 				if err != nil {
-					return nil, errors.Wrapf(err, "failed to call external function '%s'", m.functionName(id))
+					return nil, errors.Wrap(err, "failed to call external function")
 				}
 				in[i] = v
 			}
-			fn := m.functions(id)
+			functions, err := selectFunctions(m.libVersion)
+			if err != nil {
+				return nil, err
+			}
+			provider, err := selectFunctionNameProvider(m.libVersion)
+			if err != nil {
+				return nil, err
+			}
+			fn := functions(id)
 			if fn == nil {
-				return nil, errors.Errorf("external function '%s' not implemented", m.functionName(id))
+				return nil, errors.Errorf("external function '%s' not implemented", provider(id))
 			}
 			res, err := fn(m.env, in...)
 			m.calls = append(m.calls, callLog{
-				name:   m.functionName(id),
+				name:   provider(id),
 				args:   in,
 				result: res,
 			})
@@ -118,7 +117,6 @@ func (m *vm) run() (rideType, error) {
 			}
 			if isThrow(res) {
 				return res, nil
-				//return nil, errors.Wrapf(throwErr, "terminated execution by throw with message %q on iteration %d", res, m.numOperations)
 			}
 			m.push(res)
 		case OpReturn:
@@ -159,7 +157,7 @@ func (m *vm) run() (rideType, error) {
 				return nil, errors.Errorf("OpClearCache: no ref with id %d", refID)
 			}
 			// Clear cache only if its not constant.
-			if !point.constant {
+			if !point.constant() {
 				point.value = nil
 				m.ref[refID] = point
 			}

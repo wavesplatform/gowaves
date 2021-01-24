@@ -44,7 +44,7 @@ func (a MainState) String(s string) Fsm {
 }
 
 type BuildExecutable interface {
-	BuildExecutable(version int, isDapp bool) *Executable
+	BuildExecutable(version int, isDapp bool, hasVerifier bool) *Executable
 }
 
 func NewMain(params params) Fsm {
@@ -69,18 +69,24 @@ func (a MainState) Return() Fsm {
 	}
 	a.b.ret()
 
-	//reversed := reverse(a.body)
 	body := a.body
+	// empty script, example https://testnet.wavesexplorer.com/tx/DprupHKCwJwRhyhbHyqJqp35CvhiJdpkhjf53z1vmwHr
+	if len(body) == 0 {
+		return a
+	}
 	for {
 		if f, ok := body[0].(FuncState); ok && f.invokeParam != "" {
 			a.b.setStart(f.name, f.argn)
+			a.b.setStart("", 0)
 			for i := len(f.ParamIds()) - 1; i >= 0; i-- {
 				a.b.writeByte(OpCache)
 				a.b.write(encode(f.ParamIds()[i]))
 				a.b.writeByte(OpPop)
 			}
+		} else {
+			a.b.setStart("", 0)
 		}
-		a.b.setStart("", 0)
+
 		body[0].Write(a.params, nil)
 		body = body[1:]
 		if len(body) == 0 {
@@ -121,7 +127,7 @@ func (a MainState) Boolean(v bool) Fsm {
 	return a
 }
 
-func (a MainState) BuildExecutable(version int, isDapp bool) *Executable {
+func (a MainState) BuildExecutable(version int, isDapp bool, hasVerifier bool) *Executable {
 	entrypoints, code := a.b.build()
 	return &Executable{
 		LibVersion:  version,
@@ -129,6 +135,7 @@ func (a MainState) BuildExecutable(version int, isDapp bool) *Executable {
 		References:  a.c.values,
 		EntryPoints: entrypoints,
 		IsDapp:      isDapp,
+		hasVerifier: hasVerifier,
 	}
 }
 

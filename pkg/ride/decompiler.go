@@ -43,11 +43,26 @@ var defuncs = map[string]func(s *strings.Builder, name string, nodes []Node, f d
 	"101": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		infix(s, "-", nodes, f)
 	},
+	"103": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		infix(s, ">=", nodes, f)
+	},
 	"104": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		infix(s, "*", nodes, f)
 	},
 	"105": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		infix(s, "/", nodes, f)
+	},
+	"200": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "size", nodes, f)
+	},
+	"201": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "take", nodes, f)
+	},
+	"202": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "drop", nodes, f)
+	},
+	"203": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		infix(s, "+", nodes, f)
 	},
 	"300": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		infix(s, "+", nodes, f)
@@ -58,17 +73,32 @@ var defuncs = map[string]func(s *strings.Builder, name string, nodes []Node, f d
 	"401": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "getList", nodes, f)
 	},
+	"410": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "toBytes", nodes, f)
+	},
+	"411": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "toBytes", nodes, f)
+	},
 	"420": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "toString", nodes, f)
 	},
+	"504": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "rsaVerify", nodes, f)
+	},
 	"600": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "toBase58String", nodes, f)
+	},
+	"604": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "fromBase64String", nodes, f)
 	},
 	"2": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "throw", nodes, f)
 	},
 	"1052": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "getBinary", nodes, f)
+	},
+	"1201": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "toInt", nodes, f)
 	},
 }
 

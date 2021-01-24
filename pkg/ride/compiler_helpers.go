@@ -6,21 +6,49 @@ type constid = uint16
 
 type Refs map[uint16]point
 
-type entrypoint struct {
+type Entrypoint struct {
 	name string
 	at   uint16
 	argn uint16
 }
 
+func (a Entrypoint) Serialize(s Serializer) error {
+	err := s.String(rideString(a.name))
+	if err != nil {
+		return err
+	}
+	s.Uint16(a.at)
+	s.Uint16(a.argn)
+	return nil
+}
+
+func deserializeEntrypoint(d *Deserializer) (Entrypoint, error) {
+	var err error
+	a := Entrypoint{}
+	a.name, err = d.String()
+	if err != nil {
+		return a, err
+	}
+	a.at, err = d.Uint16()
+	if err != nil {
+		return a, err
+	}
+	a.argn, err = d.Uint16()
+	if err != nil {
+		return a, err
+	}
+	return a, nil
+}
+
 type builder struct {
 	w           *bytes.Buffer
-	entrypoints map[string]entrypoint
+	entrypoints map[string]Entrypoint
 }
 
 func newBuilder() *builder {
 	return &builder{
 		w:           new(bytes.Buffer),
-		entrypoints: make(map[string]entrypoint),
+		entrypoints: make(map[string]Entrypoint),
 	}
 }
 
@@ -38,7 +66,7 @@ func (b *builder) push(uint162 uint16) {
 }
 
 func (b *builder) setStart(name string, argn int) {
-	b.entrypoints[name] = entrypoint{
+	b.entrypoints[name] = Entrypoint{
 		name: name,
 		at:   b.len(),
 		argn: uint16(argn),
@@ -73,6 +101,13 @@ func (b *builder) patch(at uint16, val []byte) {
 	}
 }
 
+func patchBuffer(b *bytes.Buffer, at uint16, val []byte) {
+	bts := b.Bytes()[at:]
+	for i := range val {
+		bts[i] = val[i]
+	}
+}
+
 func (b *builder) len() uint16 {
 	return uint16(b.w.Len())
 }
@@ -93,7 +128,7 @@ func (b *builder) call(id uint16, argc uint16) {
 //	b.startAt = uint16(b.w.Len())
 //}
 
-func (b *builder) build() (map[string]entrypoint, []byte) {
+func (b *builder) build() (map[string]Entrypoint, []byte) {
 	return b.entrypoints, b.w.Bytes()
 }
 
@@ -110,11 +145,51 @@ func (b *builder) write(i []byte) {
 }
 
 type point struct {
-	position  uint16   `cbor:"0,keyasint"`
-	value     rideType `cbor:"1,keyasint"`
-	fn        uint16   `cbor:"2,keyasint"`
-	constant  bool     `cbor:"3,keyasint"`
-	debugInfo string   `cbor:"4,keyasint"`
+	position  uint16
+	value     rideType
+	fn        uint16
+	debugInfo string
+}
+
+func (a point) Serialize(s Serializer) error {
+	s.Uint16(a.position)
+	if a.value != nil {
+		err := a.value.Serialize(s)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := s.RideNoValue()
+		if err != nil {
+			return err
+		}
+	}
+
+	s.Uint16(a.fn)
+	return nil
+}
+
+func (a point) constant() bool {
+	return a.position == 0 && a.fn == 0
+}
+
+func deserializePoint(d *Deserializer) (point, error) {
+	var a point
+	var err error
+	a.position, err = d.Uint16()
+	if err != nil {
+		return a, err
+	}
+
+	a.value, err = d.RideValue()
+	if err != nil {
+		return a, err
+	}
+	a.fn, err = d.Uint16()
+	if err != nil {
+		return a, err
+	}
+	return a, nil
 }
 
 type cell struct {
@@ -132,7 +207,6 @@ func (a *cell) set(u uniqueid, result rideType, fn uint16, position uint16, cons
 		position:  position,
 		value:     result,
 		fn:        fn,
-		constant:  constant,
 		debugInfo: debug,
 	}
 }
@@ -170,39 +244,47 @@ func (a *references) set(name string, uniq uniqueid) {
 	a.refs[name] = uniq
 }
 
+func (a *references) pop() *references {
+	if a.prev != nil {
+		return a.prev
+	}
+	panic("no previous refs")
+}
+
 type predefFunc struct {
-	id uint16
-	f  rideFunction
+	name string
+	f    rideFunction
+}
+
+type pfunc struct {
+	name string
+	f    rideFunction
+	id   uint16
 }
 
 type predef struct {
 	prev *predef
-	m    map[string]predefFunc
+	m    map[string]pfunc
 }
 
 func newPredef(prev *predef) *predef {
 	return &predef{
 		prev: prev,
-		m:    make(map[string]predefFunc),
+		m:    make(map[string]pfunc),
 	}
-}
-
-func newPredefWithValue(prev *predef, name string, id uint16, f rideFunction) *predef {
-	p := newPredef(prev)
-	p.set(name, id, f)
-	return p
 }
 
 func (a *predef) set(name string, id uint16, f rideFunction) {
-	a.m[name] = predefFunc{
-		id: id,
-		f:  f,
+	a.m[name] = pfunc{
+		name: name,
+		id:   id,
+		f:    f,
 	}
 }
 
-func (a *predef) get(name string) (predefFunc, bool) {
+func (a *predef) get(name string) (pfunc, bool) {
 	if a == nil {
-		return predefFunc{}, false
+		return pfunc{}, false
 	}
 	rs, ok := a.m[name]
 	if ok {

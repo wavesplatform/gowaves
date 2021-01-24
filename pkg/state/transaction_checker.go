@@ -99,7 +99,7 @@ func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation 
 }
 
 func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int) (map[int]ride.TreeEstimation, error) {
-	tree, err := ride.Parse(script)
+	tree, err := scriptBytesToTree(script)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to build AST")
 	}

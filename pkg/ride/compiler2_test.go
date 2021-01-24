@@ -91,8 +91,8 @@ func Test22(t *testing.T) {
 		{`match tx {case t : TransferTransaction | MassTransferTransaction | ExchangeTransaction => true; case _ => false}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNFeGNoYW5nZVRyYW5zYWN0aW9uBgMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24GCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGB6Ilvok=`, env, true},
 		{`V2: match transactionById(tx.id) {case  t: Unit => false case _ => true}`, `AgQAAAAHJG1hdGNoMAkAA+gAAAABCAUAAAACdHgAAAACaWQDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABFVuaXQEAAAAAXQFAAAAByRtYXRjaDAHBp9TFcQ=`, env, true},
 		{`Up() == UP`, `AwkAAAAAAAACCQEAAAACVXAAAAAABQAAAAJVUPGUxeg=`, env, true},
-		//{`HalfUp() == HALFUP`, `AwkAAAAAAAACCQEAAAAGSGFsZlVwAAAAAAUAAAAGSEFMRlVQbUfpTQ==`, nil, true},
-		//{`let a0 = NoAlg() == NOALG; let a1 = Md5() == MD5; let a2 = Sha1() == SHA1; let a3 = Sha224() == SHA224; let a4 = Sha256() == SHA256; let a5 = Sha384() == SHA384; let a6 = Sha512() == SHA512; let a7 = Sha3224() == SHA3224; let a8 = Sha3256() == SHA3256; let a9 = Sha3384() == SHA3384; let a10 = Sha3512() == SHA3512; a0 && a1 && a2 && a3 && a4 && a5 && a6 && a7 && a8 && a9 && a10`, `AwQAAAACYTAJAAAAAAAAAgkBAAAABU5vQWxnAAAAAAUAAAAFTk9BTEcEAAAAAmExCQAAAAAAAAIJAQAAAANNZDUAAAAABQAAAANNRDUEAAAAAmEyCQAAAAAAAAIJAQAAAARTaGExAAAAAAUAAAAEU0hBMQQAAAACYTMJAAAAAAAAAgkBAAAABlNoYTIyNAAAAAAFAAAABlNIQTIyNAQAAAACYTQJAAAAAAAAAgkBAAAABlNoYTI1NgAAAAAFAAAABlNIQTI1NgQAAAACYTUJAAAAAAAAAgkBAAAABlNoYTM4NAAAAAAFAAAABlNIQTM4NAQAAAACYTYJAAAAAAAAAgkBAAAABlNoYTUxMgAAAAAFAAAABlNIQTUxMgQAAAACYTcJAAAAAAAAAgkBAAAAB1NoYTMyMjQAAAAABQAAAAdTSEEzMjI0BAAAAAJhOAkAAAAAAAACCQEAAAAHU2hhMzI1NgAAAAAFAAAAB1NIQTMyNTYEAAAAAmE5CQAAAAAAAAIJAQAAAAdTaGEzMzg0AAAAAAUAAAAHU0hBMzM4NAQAAAADYTEwCQAAAAAAAAIJAQAAAAdTaGEzNTEyAAAAAAUAAAAHU0hBMzUxMgMDAwMDAwMDAwMFAAAAAmEwBQAAAAJhMQcFAAAAAmEyBwUAAAACYTMHBQAAAAJhNAcFAAAAAmE1BwUAAAACYTYHBQAAAAJhNwcFAAAAAmE4BwUAAAACYTkHBQAAAANhMTAHRc/wAA==`, env, true},
+		{`HalfUp() == HALFUP`, `AwkAAAAAAAACCQEAAAAGSGFsZlVwAAAAAAUAAAAGSEFMRlVQbUfpTQ==`, nil, true},
+		{`let a0 = NoAlg() == NOALG; let a1 = Md5() == MD5; let a2 = Sha1() == SHA1; let a3 = Sha224() == SHA224; let a4 = Sha256() == SHA256; let a5 = Sha384() == SHA384; let a6 = Sha512() == SHA512; let a7 = Sha3224() == SHA3224; let a8 = Sha3256() == SHA3256; let a9 = Sha3384() == SHA3384; let a10 = Sha3512() == SHA3512; a0 && a1 && a2 && a3 && a4 && a5 && a6 && a7 && a8 && a9 && a10`, `AwQAAAACYTAJAAAAAAAAAgkBAAAABU5vQWxnAAAAAAUAAAAFTk9BTEcEAAAAAmExCQAAAAAAAAIJAQAAAANNZDUAAAAABQAAAANNRDUEAAAAAmEyCQAAAAAAAAIJAQAAAARTaGExAAAAAAUAAAAEU0hBMQQAAAACYTMJAAAAAAAAAgkBAAAABlNoYTIyNAAAAAAFAAAABlNIQTIyNAQAAAACYTQJAAAAAAAAAgkBAAAABlNoYTI1NgAAAAAFAAAABlNIQTI1NgQAAAACYTUJAAAAAAAAAgkBAAAABlNoYTM4NAAAAAAFAAAABlNIQTM4NAQAAAACYTYJAAAAAAAAAgkBAAAABlNoYTUxMgAAAAAFAAAABlNIQTUxMgQAAAACYTcJAAAAAAAAAgkBAAAAB1NoYTMyMjQAAAAABQAAAAdTSEEzMjI0BAAAAAJhOAkAAAAAAAACCQEAAAAHU2hhMzI1NgAAAAAFAAAAB1NIQTMyNTYEAAAAAmE5CQAAAAAAAAIJAQAAAAdTaGEzMzg0AAAAAAUAAAAHU0hBMzM4NAQAAAADYTEwCQAAAAAAAAIJAQAAAAdTaGEzNTEyAAAAAAUAAAAHU0hBMzUxMgMDAwMDAwMDAwMFAAAAAmEwBQAAAAJhMQcFAAAAAmEyBwUAAAACYTMHBQAAAAJhNAcFAAAAAmE1BwUAAAACYTYHBQAAAAJhNwcFAAAAAmE4BwUAAAACYTkHBQAAAANhMTAHRc/wAA==`, env, true},
 		{`Unit() == unit`, `AwkAAAAAAAACCQEAAAAEVW5pdAAAAAAFAAAABHVuaXTstg1G`, env, true},
 	} {
 		src, err := base64.StdEncoding.DecodeString(test.source)
@@ -102,11 +102,11 @@ func Test22(t *testing.T) {
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 
-		script, err := CompileVerifier("", tree)
+		script, err := CompileTree("", tree)
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, script, test.comment)
 
-		res, err := script.Run(test.env, nil)
+		res, err := script.Verify(test.env)
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, res, test.comment)
 		r, ok := res.(ScriptResult)
@@ -129,7 +129,7 @@ func TestCallExternal(t *testing.T) {
 		},
 	}
 
-	f, err := compileFunction("", 3, []Node{n}, false)
+	f, err := compileFunction("", 3, []Node{n}, false, true)
 	require.NoError(t, err)
 
 	require.Equal(t,
@@ -158,7 +158,7 @@ func TestIfConditionRightByteCode(t *testing.T) {
 		},
 	}
 
-	f, err := compileFunction("", 3, []Node{n}, false)
+	f, err := compileFunction("", 3, []Node{n}, false, true)
 	require.NoError(t, err)
 
 	/**
@@ -180,7 +180,7 @@ func TestIfConditionRightByteCode(t *testing.T) {
 
 	/**/
 
-	rs, err := f.Run(nil, nil)
+	rs, err := f.Verify(nil)
 	require.NoError(t, err)
 	require.Equal(t, true, rs.Result())
 }
@@ -199,32 +199,7 @@ func TestCall(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	//f, err := compileFunction("", 3, []Node{n})
-	//require.NoError(t, err)
-
-	//require.Equal(t,
-	//	[]byte{
-	//		OpReturn,
-	//		OpRef, 0, 3,
-	//		OpRef, 0, 4,
-	//		OpExternalCall, 0, 3, 0, 2,
-	//		OpReturn,
-	//
-	//		OpRef, 0, 5,
-	//		OpExternalCall, 0, 0x8c, 0, 1,
-	//		OpReturn,
-	//
-	//		//OpRef, 0, 3,
-	//		//OpReturn,
-	//		//OpRef, 0, 4,
-	//		//OpReturn,
-	//		//OpReturn,
-	//	},
-	//	script.ByteCode)
-
-	rs, err := script.Run(nil, nil)
-	require.NoError(t, err)
-	//rs, err := f.Run(nil, nil)
+	rs, err := script.Verify(nil)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(rs.Calls()))
 	require.Equal(t, false, rs.Result())
@@ -252,71 +227,12 @@ func TestDoubleCall(t *testing.T) {
 		},
 	}
 
-	f, err := compileFunction("", 3, []Node{n}, false)
+	f, err := compileFunction("", 3, []Node{n}, false, true)
 	require.NoError(t, err)
 
-	/**
-	require.Equal(t,
-		[]byte{
-			OpReturn,
-			OpRef, 0, 1,
-			OpRef, 0, 2,
-			OpExternalCall, 0, 3, 0, 2,
-			OpReturn,
-
-			OpRef, 0, 3,
-			OpReturn,
-		},
-		f.ByteCode)
-	/**/
-
-	require.EqualValues(t, 1, f.EntryPoints[""])
-
-	rs, err := f.Run(nil, nil)
+	rs, err := f.Verify(nil)
 	require.NoError(t, err)
 	require.Equal(t, true, rs.Result())
-}
-
-/*
-func abc() {
-	let x = 5
-	let y = 6
-	x
-}
-*/
-func TestClearInternalVariables(t *testing.T) {
-	n := &FunctionDeclarationNode{
-		Name:      "abc",
-		Arguments: nil,
-		Body: &AssignmentNode{
-			Name:       "x",
-			Expression: &LongNode{Value: 5},
-			Block: &AssignmentNode{
-				Name:       "y",
-				Expression: &LongNode{Value: 6},
-				Block: &ReferenceNode{
-					Name: "x",
-				},
-			},
-		},
-	}
-
-	f, err := compileFunction("", 3, []Node{n}, false)
-	require.NoError(t, err)
-
-	require.Equal(t,
-		[]byte{
-			OpReturn,
-			OpRef, 0, 2,
-			OpClearCache, 0, 2,
-			OpClearCache, 0, 4,
-			OpReturn,
-			OpRef, 0, 3, OpCache, 0, 2, OpReturn, OpReturn,
-			OpRef, 0, 5, OpCache, 0, 4, OpReturn, OpReturn,
-
-			OpReturn,
-		},
-		f.ByteCode)
 }
 
 // func id(v: Boolean) = v; id(true)
@@ -336,31 +252,10 @@ func TestCallWithConstArg(t *testing.T) {
 		invocationParameter: "",
 	}
 
-	f, err := compileFunction("", 3, []Node{n}, false)
+	f, err := compileFunction("", 3, []Node{n}, false, true)
 	require.NoError(t, err)
 
-	bt := []byte{
-		OpReturn,
-		OpRef, 0, 3,
-		OpCache, 0, 2, // Function execution code. One line: reference to `v` argument.
-		OpPop,
-		OpRef, 0, 1,
-		OpReturn,
-		OpReturn,
-
-		// call function
-		OpRef, 0, 2,
-		OpReturn,
-		OpReturn,
-	}
-
-	//require.Equal(t, 1, 1, bt)
-	require.Equal(t, bt, f.ByteCode)
-
-	//f.ByteCode = bt
-	//f.EntryPoints[""] = 4
-
-	rs, err := f.Run(nil, nil)
+	rs, err := f.Verify(nil)
 	require.NoError(t, err)
 	require.Equal(t, true, rs.Result())
 }
@@ -396,7 +291,7 @@ func TestMultipleCallConstantFuncArgument(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	res, err := script.Run(env, nil)
+	res, err := script.Verify(env)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	r, ok := res.(ScriptResult)
@@ -451,13 +346,13 @@ func TestIfStmt(t *testing.T) {
 
 	script, err := CompileVerifier("", tree)
 	require.NoError(t, err)
-	assert.NotNil(t, script)
+	require.NotNil(t, script)
 
-	res, err := script.Run(env, nil)
+	res, err := script.Verify(env)
 	require.NoError(t, err)
-	assert.NotNil(t, res)
+	require.NotNil(t, res)
 	r, ok := res.(ScriptResult)
-	assert.True(t, ok)
+	require.True(t, ok)
 
 	for _, l := range r.calls {
 		t.Log(l)
@@ -486,9 +381,7 @@ func cba(question: String) = {
         DataEntry("a", 6)
         ])
 }
-
 */
-
 func TestDappMultipleFunctions(t *testing.T) {
 	source := "AAIDAAAAAAAAAAwIARIDCgEIEgMKAQgAAAAAAAAAAgAAAAFpAQAAAANhYmMAAAABAAAACHF1ZXN0aW9uCQEAAAAIV3JpdGVTZXQAAAABCQAETAAAAAIJAQAAAAlEYXRhRW50cnkAAAACAgAAAAFhAAAAAAAAAAAFBQAAAANuaWwAAAABaQEAAAADY2JhAAAAAQAAAAhxdWVzdGlvbgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAABYQAAAAAAAAAABgUAAAADbmlsAAAAAFEpRso="
 
@@ -503,7 +396,7 @@ func TestDappMultipleFunctions(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	rs, err := script.Run2(nil, "abc", []rideType{rideString(""), rideString("")})
+	rs, err := script.Invoke(nil, "abc", []rideType{rideString(""), rideString("")})
 	require.NoError(t, err)
 
 	require.Equal(t, true, rs.Result())
@@ -514,7 +407,7 @@ func TestDappMultipleFunctions(t *testing.T) {
 			},
 		}, []proto.ScriptAction(rs.ScriptActions()))
 
-	rs, err = script.Run2(nil, "cba", []rideType{rideString(""), rideString("")})
+	rs, err = script.Invoke(nil, "cba", []rideType{rideString(""), rideString("")})
 	require.NoError(t, err)
 
 	require.Equal(t, true, rs.Result())
@@ -605,7 +498,7 @@ func Test777(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	res, err := script.Run(env, nil)
+	res, err := script.Verify(env)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	r, ok := res.(ScriptResult)
@@ -684,7 +577,7 @@ func Test888(t *testing.T) {
 		script.ByteCode)
 	/**/
 
-	rs, err := script.Run(env, nil)
+	rs, err := script.Verify(env)
 	require.Equal(t, rs.Result(), false)
 	//require.Equal(t, err.Error(), "terminated execution by throw with message \"1\"")
 }
@@ -781,7 +674,7 @@ func TestNoDuplicateCallToState(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	rs, err := script.Run(env, []rideType{env.transaction()})
+	rs, err := script.Verify(env)
 	require.NoError(t, err)
 	for _, c := range rs.Calls() {
 		t.Log(c)
@@ -848,7 +741,7 @@ func TestDappVerifyVm(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, script)
 
-	rs, err := script.Run(nil, []rideType{testTransferObject()})
+	rs, err := script.Verify(nil)
 	require.NoError(t, err)
 	require.Equal(t, rs.Result(), true)
 }
@@ -880,7 +773,7 @@ func TestMultipleProperty(t *testing.T) {
 		transactionFunc: testExchangeWithProofsToObject,
 	}
 
-	rs, err := script.Run(env, nil)
+	rs, err := script.Verify(env)
 	require.NoError(t, err)
 	require.Equal(t, rs.Result(), true)
 }
@@ -907,6 +800,7 @@ func TestProperty(t *testing.T) {
 
 		require.Equal(t,
 			[]byte{
+				OpReturn,
 				OpReturn,
 				OpRef, 255, 255,
 				OpRef, 0, 2,
@@ -941,6 +835,7 @@ func TestProperty(t *testing.T) {
 
 		require.Equal(t,
 			[]byte{
+				OpReturn,
 				OpReturn,
 				OpRef, 0, 3,
 				OpRef, 0, 4,
@@ -985,14 +880,10 @@ func TestCacheInMain(t *testing.T) {
 		transactionFunc: testExchangeWithProofsToObject,
 	}
 
-	rs, err := script.Run(env, nil)
+	rs, err := script.Verify(env)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(rs.Calls()))
-
 	require.Equal(t, rs.Result(), true)
-
-	// check that value `x` is cleared before exit
-	//script.
 }
 
 /*
@@ -1023,116 +914,10 @@ func TestCacheInFunc(t *testing.T) {
 		transactionFunc: testExchangeWithProofsToObject,
 	}
 
-	require.Equal(t,
-		[]byte{
-			OpReturn,
-			OpRef, 0, 1,
-			OpReturn,
-			OpReturn,
-
-			OpRef, 0, 2,
-			OpRef, 0, 2,
-			OpExternalCall, 0, 3, 0, 2,
-			OpClearCache, 0, 2,
-			OpReturn,
-			OpRef, 0, 5,
-			OpRef, 0, 6,
-			OpExternalCall, 0, 5, 0, 2,
-			OpCache, 0, 2,
-			OpReturn,
-
-			OpReturn,
-			OpReturn,
-		},
-		script.ByteCode)
-
-	rs, err := script.Run(env, nil)
+	rs, err := script.Verify(env)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(rs.Calls()))
 	require.Equal(t, rs.Result(), true)
-}
-
-/*
-func getInt(key: String) = {
-    match getInteger(this, key) {
-        case x : Int => x
-        case _ => 0
-    }
-}
-*/
-func TestCacheWithIf(t *testing.T) {
-	t.Skip()
-	n := &FunctionDeclarationNode{
-		Name:      "abc",
-		Arguments: []string{"key"},
-		Body: &AssignmentNode{
-			Name: "$match0",
-			Expression: &FunctionCallNode{
-				Name: "1050",
-				Arguments: []Node{
-					&ReferenceNode{Name: "this"},
-					&ReferenceNode{Name: "key"},
-				},
-			},
-			Block: &ConditionalNode{
-				Condition: &FunctionCallNode{
-					Name: "1",
-					Arguments: []Node{
-						&ReferenceNode{Name: "$match0"},
-						&StringNode{Value: "Int"},
-					},
-				},
-				TrueExpression: &AssignmentNode{
-					Name:       "a",
-					Expression: &ReferenceNode{Name: "$match0"},
-					Block:      &ReferenceNode{Name: "a"},
-				},
-				FalseExpression: &LongNode{Value: 0},
-			},
-		},
-	}
-
-	tree := &Tree{
-		LibVersion: 3,
-		AppVersion: scriptApplicationVersion,
-		Verifier:   n,
-	}
-
-	script, err := CompileVerifier("", tree)
-	require.NoError(t, err)
-	assert.NotNil(t, script)
-
-	env := &MockRideEnvironment{
-		transactionFunc: testExchangeWithProofsToObject,
-		thisFunc: func() rideType {
-			return rideAddress{}
-		},
-	}
-
-	/*
-		require.Equal(t,
-			[]byte{
-				OpReturn,
-				OpRef, 0, 11,
-				OpJumpIfFalse, 0x0, 11, 0x0, 15, 0x0, 19,
-				OpRef, 0x0, 0x9, 0x1, // true 11
-				OpRef, 0x0, 0xa, 0x1, // false 15
-
-				// next 19
-
-				OpClearCache, 0, 11,
-				OpClearCache, 0, 11,
-				OpReturn,
-				//OpRef, 0, 5,
-				//OpProperty,
-				//OpReturn,
-				//OpReturn,
-			},
-			script.ByteCode)
-	*/
-
-	_, err = script.run(env, nil)
-	require.NoError(t, err)
 }
 
 /*
@@ -1171,7 +956,7 @@ func TestCacheFuncArgs(t *testing.T) {
 		},
 	}
 
-	rs, err := script.Run(env, nil)
+	rs, err := script.Verify(env)
 	require.NoError(t, err)
 	require.Equal(t, true, rs.Result())
 	require.Equal(t, 2, len(rs.Calls()))
@@ -1220,7 +1005,345 @@ func TestLetInLet(t *testing.T) {
 		script.ByteCode[:11])
 	/**/
 
-	rs, err := script.Run(env, nil)
+	rs, err := script.Verify(env)
 	require.NoError(t, err)
 	require.Equal(t, true, rs.Result())
+}
+
+/*
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE DAPP #-}
+
+
+@Callable(i)
+func deposit () = {
+    let pmt = extract(i.payment)
+    if (isDefined(pmt.assetId))
+        then throw("can hold waves only at the moment")
+        else {
+            let currentKey = toBase58String(i.caller.bytes)
+            let currentAmount =             match getInteger(this, currentKey) {
+                case a: Int =>
+                    a
+                case _ =>
+                    0
+            }
+            let newAmount = (currentAmount + pmt.amount)
+            WriteSet([DataEntry(currentKey, newAmount)])
+            }
+    }
+
+
+
+@Callable(i)
+func withdraw (amount) = {
+    let currentKey = toBase58String(i.caller.bytes)
+    let currentAmount =     match getInteger(this, currentKey) {
+        case a: Int =>
+            a
+        case _ =>
+            0
+    }
+    let newAmount = (currentAmount - amount)
+    if ((0 > amount))
+        then throw("Can't withdraw negative amount")
+        else if ((0 > newAmount))
+            then throw("Not enough balance")
+            else ScriptResult(WriteSet([DataEntry(currentKey, newAmount)]), TransferSet([ScriptTransfer(i.caller, amount, unit)]))
+    }
+
+
+@Verifier(tx)
+func verify () = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+*/
+func TestDDaa(t *testing.T) {
+	source := `AAIDAAAAAAAAAAkIARIAEgMKAQEAAAAAAAAAAgAAAAFpAQAAAAdkZXBvc2l0AAAAAAQAAAADcG10CQEAAAAHZXh0cmFjdAAAAAEIBQAAAAFpAAAAB3BheW1lbnQDCQEAAAAJaXNEZWZpbmVkAAAAAQgFAAAAA3BtdAAAAAdhc3NldElkCQAAAgAAAAECAAAAIWNhbiBob2xkIHdhdmVzIG9ubHkgYXQgdGhlIG1vbWVudAQAAAAKY3VycmVudEtleQkAAlgAAAABCAgFAAAAAWkAAAAGY2FsbGVyAAAABWJ5dGVzBAAAAA1jdXJyZW50QW1vdW50BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAACmN1cnJlbnRLZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAA0ludAQAAAABYQUAAAAHJG1hdGNoMAUAAAABYQAAAAAAAAAAAAQAAAAJbmV3QW1vdW50CQAAZAAAAAIFAAAADWN1cnJlbnRBbW91bnQIBQAAAANwbXQAAAAGYW1vdW50CQEAAAAIV3JpdGVTZXQAAAABCQAETAAAAAIJAQAAAAlEYXRhRW50cnkAAAACBQAAAApjdXJyZW50S2V5BQAAAAluZXdBbW91bnQFAAAAA25pbAAAAAFpAQAAAAh3aXRoZHJhdwAAAAEAAAAGYW1vdW50BAAAAApjdXJyZW50S2V5CQACWAAAAAEICAUAAAABaQAAAAZjYWxsZXIAAAAFYnl0ZXMEAAAADWN1cnJlbnRBbW91bnQEAAAAByRtYXRjaDAJAAQaAAAAAgUAAAAEdGhpcwUAAAAKY3VycmVudEtleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAFhBQAAAAckbWF0Y2gwBQAAAAFhAAAAAAAAAAAABAAAAAluZXdBbW91bnQJAABlAAAAAgUAAAANY3VycmVudEFtb3VudAUAAAAGYW1vdW50AwkAAGYAAAACAAAAAAAAAAAABQAAAAZhbW91bnQJAAACAAAAAQIAAAAeQ2FuJ3Qgd2l0aGRyYXcgbmVnYXRpdmUgYW1vdW50AwkAAGYAAAACAAAAAAAAAAAABQAAAAluZXdBbW91bnQJAAACAAAAAQIAAAASTm90IGVub3VnaCBiYWxhbmNlCQEAAAAMU2NyaXB0UmVzdWx0AAAAAgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgUAAAAKY3VycmVudEtleQUAAAAJbmV3QW1vdW50BQAAAANuaWwJAQAAAAtUcmFuc2ZlclNldAAAAAEJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyBQAAAAZhbW91bnQFAAAABHVuaXQFAAAAA25pbAAAAAEAAAACdHgBAAAABnZlcmlmeQAAAAAJAAH0AAAAAwgFAAAAAnR4AAAACWJvZHlCeXRlcwkAAZEAAAACCAUAAAACdHgAAAAGcHJvb2ZzAAAAAAAAAAAACAUAAAACdHgAAAAPc2VuZGVyUHVibGljS2V54232jg==`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileTree("", tree)
+	require.NoError(t, err)
+	require.NotNil(t, script)
+	require.Equal(t, 4, len(script.EntryPoints))
+}
+
+/*
+
+
+ */
+
+func TestRandomScript(t *testing.T) {
+	source := `AAIDAAAAAAAAAAgIARIECgIIAgAAAAYAAAAACVJTQVBVQkxJQwkAAlsAAAABAgAAAY9iYXNlNjQ6TUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFxbEFpQU5TbUJwREhZS1A5c0tnZU4vbDFiQWIyOGcvdEdsZ0Rrd1Q1RmlNTjRYM3B3ZHZkeEU3bXZTUjgvNDFkVTlyeDRqRys2dFpwYjFVTFZEUHM0MzF0UjJJUmFUWHc1Q2orQWMydmhMKzVKYW1DZXJHRDFVVytiaC9FR1F0eG84VzNZTERyb2ZYQjVRSEp4NFBrejJLZ2Yrb1MvQzhoSHVCL1U0a3JPNzZVMDUwN0dUalpQUDlrUlEwdUxTTWVxUVh0OHdYUytuTXA1d2FqcXhQcERMTWFTUkVnc0t3di9BRWtQNGR6cFRZYmlrTEJZbDRxdGRKc0Q4NEhMRlNraXdkM0JoY09yUGpvSVltTHhRdUJENVRJTUtUS0Qzc2RaZ2FZOXJzeXF4M0EwMGlubnl4RDZ6cDNiNGdGcFVPWDhKeEtaZEVDMm15RXFsZU5nZzdHendJREFRQUIAAAAABlNFUlZFUgkBAAAAHEBleHRyVXNlcihhZGRyZXNzRnJvbVN0cmluZykAAAABAgAAACMzTkNpRzI4TG1XeVRpZ1dHMTNFNVFudmRIQnNaRllYU1MyagEAAAAJUmFuZFRvU3RyAAAAAQAAAAFyAwMJAABnAAAAAgUAAAABcgAAAAAAAAAAAQkAAGcAAAACAAAAAAAAAABkBQAAAAFyBwkAAaQAAAABBQAAAAFyCQAAAgAAAAEJAAEsAAAAAgIAAAA8VW5zdXBwb3J0ZWQgciBwYXJhbWV0ZXIgcGFzc2VkOiBleHBlY3RlZD1bMSwuLi4sMTAwXSBhY3R1YWw9CQABpAAAAAEFAAAAAXIBAAAAA2FicwAAAAEAAAADdmFsAwkAAGYAAAACAAAAAAAAAAAABQAAAAN2YWwJAQAAAAEtAAAAAQUAAAADdmFsBQAAAAN2YWwBAAAACE5leHRSYW5kAAAAAgAAAA1jdXJyUmFuZHNWZWN0AAAADXJlbWFpbmluZ0hhc2gEAAAAC25leHRSYW5kSW50CQEAAAADYWJzAAAAAQkABLEAAAABBQAAAA1yZW1haW5pbmdIYXNoBAAAAAxuZXh0UmFuZFZlY3QJAAGaAAAAAQUAAAALbmV4dFJhbmRJbnQEAAAAAXMJAABpAAAAAgkAAMgAAAABBQAAAA1jdXJyUmFuZHNWZWN0AAAAAAAAAAAICQAETAAAAAIFAAAADG5leHRSYW5kVmVjdAkABEwAAAACCQAAygAAAAIFAAAADXJlbWFpbmluZ0hhc2gAAAAAAAAAAAEFAAAAA25pbAEAAAASR2VuZXJhdGVSYW5kVmVjdG9yAAAAAwAAAAlzZXNzaW9uSWQAAAABcwAAAAdyc2FTaWduBAAAAAhlbXB0eVZlYwkAAZsAAAABAgAAAAAEAAAAC3JzYVNpZ1ZhbGlkCQAB+AAAAAQFAAAABlNIQTI1NgkAAZsAAAABBQAAAAlzZXNzaW9uSWQFAAAAB3JzYVNpZ24FAAAACVJTQVBVQkxJQwMFAAAAC3JzYVNpZ1ZhbGlkBAAAAAhyYW5kSGFzaAkAAfcAAAABBQAAAAdyc2FTaWduBAAAAAluZXh0SW5mbzEJAQAAAAhOZXh0UmFuZAAAAAIFAAAACGVtcHR5VmVjBQAAAAhyYW5kSGFzaAkAAZEAAAACCQEAAAAITmV4dFJhbmQAAAACCQABkQAAAAIFAAAACW5leHRJbmZvMQAAAAAAAAAAAAkAAZEAAAACBQAAAAluZXh0SW5mbzEAAAAAAAAAAAEAAAAAAAAAAAAJAAACAAAAAQIAAAAVSW52YWxpZCBSU0Egc2lnbmF0dXJlAAAAAQAAAAFpAQAAAAZyYW5kb20AAAACAAAACXNlc3Npb25JZAAAAAdyc2FTaWduBAAAAAhjdXJyVmVjdAkBAAAAEkdlbmVyYXRlUmFuZFZlY3RvcgAAAAMFAAAACXNlc3Npb25JZAAAAAAAAAAACgUAAAAHcnNhU2lnbgQAAAABcwkAAMgAAAABBQAAAAhjdXJyVmVjdAQAAAAFcmFuZDEDCQAAZwAAAAIFAAAAAXMAAAAAAAAAAAEJAAGkAAAAAQkABLEAAAABCQAAyQAAAAIJAADKAAAAAgUAAAAIY3VyclZlY3QAAAAAAAAAAAAAAAAAAAAAAAgCAAAAAAQAAAAFcmFuZDIDCQAAZwAAAAIFAAAAAXMAAAAAAAAAAAIJAAEsAAAAAgkAASwAAAACBQAAAAVyYW5kMQIAAAABXwkAAaQAAAABCQAEsQAAAAEJAADJAAAAAgkAAMoAAAACBQAAAAhjdXJyVmVjdAkAAGgAAAACAAAAAAAAAAABAAAAAAAAAAAIAAAAAAAAAAAIBQAAAAVyYW5kMQkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAARR2VuZXJhdGVkX051bWJlcnMFAAAABXJhbmQyBQAAAANuaWwAAAAAKwqyHg==`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileTree("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	//ser := NewSerializer()
+	//err = script.Serialize(ser)
+	//require.NoError(t, err)
+
+	//deser := NewDeserializer()
+	//script, err = DeserializeExecutable(ser.Source())
+	//require.NoError(t, err)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+	}
+
+	//random("123123123", "base64:RBuQVdRoLd+fCs0ZZLeHH1WG+oV2a8bLIl4TJow4Qkyqsp/5+4V0LlC+kiPRQuurcackzAgQFZPzV1wNvcVDO+wlFg+gzguL4D382XFClWZ6w+fE/WUrb5Bt893k0Bz7UeEsCu9pDfy41eC1gWDGt0qvKFu+la5MPx/dq10bjVu+2JlBWF2ZBMPD0rrpe+2ZE/JVcaNv+Hf6PS16eHhhiA5Ydsoynsv7vIdZw6atux7J/0VhxxOAUj+LKt92ayBakS5sUnfeOVG1P5Dc9DI1A6MxEK/Xs1ii6NaSaQgU+hWD+472tq47iG4E493wBKHSVV6GP45VLxn23CBBjogeOQ==")
+
+	bts, err := base64.StdEncoding.DecodeString("RBuQVdRoLd+fCs0ZZLeHH1WG+oV2a8bLIl4TJow4Qkyqsp/5+4V0LlC+kiPRQuurcackzAgQFZPzV1wNvcVDO+wlFg+gzguL4D382XFClWZ6w+fE/WUrb5Bt893k0Bz7UeEsCu9pDfy41eC1gWDGt0qvKFu+la5MPx/dq10bjVu+2JlBWF2ZBMPD0rrpe+2ZE/JVcaNv+Hf6PS16eHhhiA5Ydsoynsv7vIdZw6atux7J/0VhxxOAUj+LKt92ayBakS5sUnfeOVG1P5Dc9DI1A6MxEK/Xs1ii6NaSaQgU+hWD+472tq47iG4E493wBKHSVV6GP45VLxn23CBBjogeOQ==")
+	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "123123123"})
+	arguments.Append(&proto.BinaryArgument{Value: bts})
+
+	rs, err := CallTreeFunction(env, tree, "random", arguments)
+	//rs, err := script.Invoke(env, "random", []rideType{rideUnit{}, rideString("123123123"), rideBytes(bts)})
+	//for i, c := range rs.Calls() {
+	//	t.Log(i, c)
+	//}
+	require.NoError(t, err)
+	require.Equal(t, rs.Result(), true)
+}
+
+func BenchmarkVm(b *testing.B) {
+	source := "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA="
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(b, err)
+
+	tree, err := Parse(src)
+	require.NoError(b, err)
+
+	script, err := CompileTree("", tree)
+	require.NoError(b, err)
+
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
+		},
+	}
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+	}
+
+	b.ReportAllocs()
+	b.StopTimer()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		rs, err := script.Verify(env)
+		require.Equal(b, 5, len(rs.Calls()))
+		b.StopTimer()
+		require.NoError(b, err)
+	}
+}
+
+func BenchmarkTree(b *testing.B) {
+	source := "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA="
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(b, err)
+
+	tree, err := Parse(src)
+	require.NoError(b, err)
+
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
+		},
+	}
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+	}
+
+	b.ReportAllocs()
+	b.StopTimer()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		rs, err := CallTreeVerifier(env, tree)
+		b.StopTimer()
+		require.NoError(b, err)
+		require.Equal(b, 5, len(rs.Calls()))
+
+	}
+}
+
+func BenchmarkVmWithDeserialize(b *testing.B) {
+	source := "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA="
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(b, err)
+
+	tree, err := Parse(src)
+	require.NoError(b, err)
+
+	script, err := CompileTree("", tree)
+	require.NoError(b, err)
+
+	ser := NewSerializer()
+	err = script.Serialize(ser)
+	require.NoError(b, err)
+
+	bts := ser.Source()
+
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
+		},
+	}
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+	}
+
+	b.ReportAllocs()
+	b.StopTimer()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		exe, err := DeserializeExecutable(bts)
+		require.NoError(b, err)
+		rs, err := exe.Verify(env)
+		require.Equal(b, 5, len(rs.Calls()))
+		b.StopTimer()
+		require.NoError(b, err)
+	}
+}
+
+func BenchmarkTreeWithDeserialize(b *testing.B) {
+	source := "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA="
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(b, err)
+	//
+	//tree, err := Parse(src)
+	//require.NoError(b, err)
+
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
+		},
+	}
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+	}
+
+	b.ReportAllocs()
+	b.StopTimer()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		tree, err := Parse(src)
+		require.NoError(b, err)
+		rs, err := CallTreeVerifier(env, tree)
+		b.StopTimer()
+		require.NoError(b, err)
+		require.Equal(b, 5, len(rs.Calls()))
+	}
 }

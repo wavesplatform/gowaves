@@ -78,9 +78,6 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 		paramIds = append(paramIds, e)
 		params.r.set(args[i], e)
 	}
-	//if invokeParam != "" {
-	//	assigments = assigments[1:]
-	//}
 
 	return &FuncState{
 		prev:        prev,
@@ -135,7 +132,6 @@ func (a FuncState) String(value string) Fsm {
 }
 
 func (a FuncState) Condition() Fsm {
-	//a.lastStmtOffset = a.b.len()
 	return conditionalTransition(a, a.params, a.defers)
 }
 
@@ -154,7 +150,6 @@ func (a FuncState) Bytes(value []byte) Fsm {
 
 func (a FuncState) Func(name string, args []string, invoke string) Fsm {
 	return funcTransition(a, a.params, name, args, invoke)
-	//panic(fmt.Sprintf("Illegal call `Func` is `FuncState` tx: %s", a.params.txID))
 }
 
 func (a FuncState) Clean() {

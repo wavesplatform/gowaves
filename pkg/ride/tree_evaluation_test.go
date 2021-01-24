@@ -443,7 +443,7 @@ func TestDataFunctions(t *testing.T) {
 		require.NoError(t, err, test.name)
 		assert.NotNil(t, tree, test.name)
 
-		res, err := CallVerifier("", env, tree)
+		res, err := CallTreeVerifier(env, tree)
 		require.NoError(t, err, test.name)
 		r, ok := res.(ScriptResult)
 		require.True(t, ok, test.name)
@@ -515,7 +515,7 @@ func TestDappCallable(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallFunction("", env, tree, "tellme", proto.Arguments{proto.NewStringArgument("abc")})
+	res, err := CallTreeFunction(env, tree, "tellme", proto.Arguments{proto.NewStringArgument("abc")})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -853,7 +853,7 @@ func TestMatchOverwrite(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallVerifier("", env, tree)
+	res, err := CallTreeVerifier(env, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
@@ -912,7 +912,7 @@ func TestFailSript1(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallVerifier("", env, tree)
+	res, err := CallTreeVerifier(env, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
@@ -1024,7 +1024,7 @@ func TestFailSript2(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallVerifier("", env, tree)
+	res, err := CallTreeVerifier(env, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
@@ -1139,7 +1139,7 @@ func TestWhaleDApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallFunction("", env, tree, "inviteuser", arguments)
+	res, err := CallTreeFunction(env, tree, "inviteuser", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1432,7 +1432,7 @@ func TestBankDApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallFunction("", env, tree, "buyBack", proto.Arguments{})
+	res, err := CallTreeFunction(env, tree, "buyBack", proto.Arguments{})
 	require.NoError(t, err)
 	_, ok := res.(DAppResult)
 	require.True(t, ok)

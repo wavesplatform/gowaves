@@ -522,6 +522,11 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if err != nil {
 		return nil, errors.Wrap(err, "recipientToAddress() failed")
 	}
+	//tree, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
+	exe, err := ia.stor.scriptsStorage.newestBytecodeByAddr(*scriptAddr, !info.initialisation)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
+	}
 	tree, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
@@ -532,11 +537,11 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we done it before.
-	if len(tx.Payments) == 2 && tree.LibVersion < 4 {
-		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
+	if len(tx.Payments) == 2 && exe.LibVersion < 4 {
+		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", exe.LibVersion)
 	}
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
-	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
+	disableSelfTransfers := info.acceptFailed && exe.LibVersion >= 4
 	if disableSelfTransfers && len(tx.Payments) > 0 {
 		sender, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, tx.SenderPK)
 		if err != nil {
@@ -554,7 +559,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		return nil, err
 	}
 	// Call script function.
-	ok, scriptActions, err := ia.sc.invokeFunction(tree, tx, info.blockInfo, *scriptAddr, info.initialisation)
+	ok, scriptActions, err := ia.sc.invokeFunction(exe, tx, info.blockInfo, *scriptAddr, info.initialisation, tree)
 	if !ok {
 		// When ok is false, it means that we could not even start invocation.
 		// We just return error in such case.
@@ -583,7 +588,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		actions:                  scriptActions,
 		paymentSmartAssets:       paymentSmartAssets,
 		disableSelfTransfers:     disableSelfTransfers,
-		libVersion:               byte(tree.LibVersion),
+		libVersion:               byte(exe.LibVersion),
 	})
 	if err != nil {
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
