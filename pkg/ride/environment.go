@@ -567,7 +567,7 @@ type Environment struct {
 	invokeCount uint64
 }
 
-func newWrappedState(state types.SmartState, envThis rideType, envScheme proto.Scheme) types.SmartState {
+func newWrappedState(state types.SmartState, envThis rideType, scheme proto.Scheme) types.SmartState {
 	var dataEntries diffDataEntries
 
 	dataEntries.diffInteger = map[string]proto.IntegerDataEntry{}
@@ -583,7 +583,7 @@ func newWrappedState(state types.SmartState, envThis rideType, envScheme proto.S
 	leases := map[string]lease{}
 
 	diffSt := &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo, leases: leases}
-	wrappedSt := wrappedState{diff: *diffSt, envThis: envThis.(rideAddress)}
+	wrappedSt := wrappedState{diff: *diffSt, envThis: envThis.(rideAddress), envScheme: scheme}
 	return &wrappedSt
 }
 
