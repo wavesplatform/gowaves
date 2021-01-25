@@ -344,6 +344,7 @@ type RideEnvironment interface {
 	applyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error)
 	appendActions(actions []proto.ScriptAction)
 	smartAppendActions(actions []proto.ScriptAction) error
+	//validateInvokeResult(actions []proto.ScriptAction) (bool, error)
 	actions() []proto.ScriptAction
 	invCount() uint64
 	incrementInvCount()

@@ -933,7 +933,7 @@ func smartStateDappFromDapp() types.SmartState {
 						senderAddress = proto.Address(wrappedSt.envThis)
 					}
 
-					searchBalance, searchAddr, err := wrappedSt.diff.findBalance(res.Recipient, res.Asset.ID.Bytes())
+					searchBalance, searchAddr, err := wrappedSt.diff.findBalance(res.Recipient, res.Asset)
 					if err != nil {
 						return nil, err
 					}
@@ -942,7 +942,7 @@ func smartStateDappFromDapp() types.SmartState {
 						return nil, err
 					}
 					senderRecipient := proto.NewRecipientFromAddress(senderAddress)
-					senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderRecipient, res.Asset.ID.Bytes())
+					senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderRecipient, res.Asset)
 					if err != nil {
 						return nil, err
 					}
@@ -1026,7 +1026,7 @@ func smartStateDappFromDapp() types.SmartState {
 				case *proto.LeaseScriptAction:
 					senderAddress := proto.Address(wrappedSt.envThis)
 
-					recipientSearchBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(res.Recipient, nil)
+					recipientSearchBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(res.Recipient, proto.NewOptionalAssetWaves())
 					if err != nil {
 						return nil, err
 					}
@@ -1036,7 +1036,7 @@ func smartStateDappFromDapp() types.SmartState {
 					}
 
 					senderAccount := proto.NewRecipientFromAddress(senderAddress)
-					senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderAccount, nil)
+					senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderAccount, proto.NewOptionalAssetWaves())
 					if err != nil {
 						return nil, err
 					}
@@ -1063,7 +1063,7 @@ func smartStateDappFromDapp() types.SmartState {
 					if searchLease == nil {
 						return nil, errors.Errorf("there is no lease to cancel")
 					}
-					recipientBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Recipient, nil)
+					recipientBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Recipient, proto.NewOptionalAssetWaves())
 					if err != nil {
 						return nil, err
 					}
@@ -1071,7 +1071,7 @@ func smartStateDappFromDapp() types.SmartState {
 						return nil, errors.Errorf("there is no balance to cancel lease")
 					}
 
-					senderBalance, senderSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Sender, nil)
+					senderBalance, senderSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Sender, proto.NewOptionalAssetWaves())
 					if err != nil {
 						return nil, err
 					}
@@ -1128,12 +1128,15 @@ func smartStateDappFromDapp() types.SmartState {
 		NewestTransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
 			return nil, nil
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
+		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
 			balance := 0
-			balanceDiff, _, err := wrappedSt.diff.findBalance(account, asset)
+
+			asset, err := proto.NewOptionalAssetFromBytes(assetID)
 			if err != nil {
 				return 0, err
 			}
+			balanceDiff, _, err := wrappedSt.diff.findBalance(account, *asset)
+
 			if balanceDiff != nil {
 				resBalance := int64(balance) + balanceDiff.regular
 				return uint64(resBalance), nil
@@ -1144,7 +1147,7 @@ func smartStateDappFromDapp() types.SmartState {
 		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
 			balance := 0
 
-			wavesBalanceDiff, searchAddress, err := wrappedSt.diff.findBalance(account, nil)
+			wavesBalanceDiff, searchAddress, err := wrappedSt.diff.findBalance(account, proto.NewOptionalAssetWaves())
 			if err != nil {
 				return nil, err
 			}
@@ -1633,10 +1636,10 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	assert.Equal(t, fullBalanceCallable, fullBalanceCallableExpected)
 
 	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
-	balance := diffBalance{regular: 1, leaseIn: 10, assetID: assetExp.ID, effectiveHistory: []int64{11}}
+	balance := diffBalance{regular: 1, leaseIn: 10, asset: assetExp, effectiveHistory: []int64{11}}
 	expectedDiffResult.balances[addr.String()+assetExp.ID.String()] = balance
 
-	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, assetID: assetExp.ID, effectiveHistory: []int64{2457}}
+	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, asset: assetExp, effectiveHistory: []int64{2457}}
 	expectedDiffResult.balances[addressCallable.String()+assetExp.ID.String()] = balanceCallable
 
 	intEntry1 := proto.IntegerDataEntry{Key: "int", Value: 1}
@@ -1947,8 +1950,8 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
 
-	balanceMain := diffBalance{assetID: crypto.Digest{}, regular: -14, effectiveHistory: []int64{0, -14}}
-	balanceCallable := diffBalance{assetID: crypto.Digest{}, regular: 14, effectiveHistory: []int64{0, 14}}
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -14, effectiveHistory: []int64{0, -14}}
+	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 14, effectiveHistory: []int64{0, 14}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
 	expectedDiffResult.balances[addressCallable.String()+crypto.Digest{}.String()] = balanceCallable
@@ -2124,8 +2127,8 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
 
-	balanceMain := diffBalance{assetID: crypto.Digest{}, regular: -29, effectiveHistory: []int64{0, -14, -29}}
-	balanceCallable := diffBalance{assetID: crypto.Digest{}, regular: 29, effectiveHistory: []int64{0, 14, 29}}
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -29, effectiveHistory: []int64{0, -14, -29}}
+	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 29, effectiveHistory: []int64{0, 14, 29}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
 	expectedDiffResult.balances[addr.String()+crypto.Digest{}.String()] = balanceMain
@@ -2299,8 +2302,8 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
 
-	balanceMain := diffBalance{assetID: crypto.Digest{}, regular: -16, effectiveHistory: []int64{0, -16}}
-	balanceCallable := diffBalance{assetID: crypto.Digest{}, regular: 16, effectiveHistory: []int64{0, 16}}
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -16, effectiveHistory: []int64{0, -16}}
+	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 16, effectiveHistory: []int64{0, 16}}
 	intEntry1 := proto.IntegerDataEntry{Key: "key", Value: 0}
 	intEntry2 := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["key"+addr.String()] = intEntry1
@@ -2474,8 +2477,8 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
 
-	balanceMain := diffBalance{assetID: crypto.Digest{}, regular: -13, effectiveHistory: []int64{0, -13}}
-	balanceCallable := diffBalance{assetID: crypto.Digest{}, regular: 13, effectiveHistory: []int64{0, 13}}
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -13, effectiveHistory: []int64{0, -13}}
+	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 13, effectiveHistory: []int64{0, 13}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
 	expectedDiffResult.balances[addr.String()+crypto.Digest{}.String()] = balanceMain

@@ -151,7 +151,15 @@ func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
 }
 
 func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {
+	waves := crypto.Digest{}
+	if d == waves {
+		return &OptionalAsset{Present: false}
+	}
 	return &OptionalAsset{Present: true, ID: d}
+}
+
+func NewOptionalAssetWaves() OptionalAsset {
+	return OptionalAsset{Present: false}
 }
 
 // String method converts OptionalAsset to its text representation

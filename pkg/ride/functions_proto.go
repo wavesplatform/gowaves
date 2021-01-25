@@ -117,13 +117,30 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 			return nil, err
 		}
 
+		// validation
+
+		/*
+		actions:
+		1) Sender has rights
+		2) Transfer and Lease don't try to send negative amount
+		3) reissue/issue
+		4) the limit length of coin name (issue)
+		5) script of asset ???
+
+		diff:
+		1) negative balance
+
+		*/
+
+		//env.validateInvokeResult(res.ScriptActions())
+
 		if res.UserResult() == nil {
 			return rideUnit{}, nil
 		}
 		return res.UserResult(), nil
 	}
 
-	return nil, errors.Errorf("Result of Invoke is false")
+	return nil, errors.Errorf("The result of Invoke is false")
 }
 
 func addressFromString(env RideEnvironment, args ...rideType) (rideType, error) {
