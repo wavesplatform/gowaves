@@ -1136,7 +1136,9 @@ func smartStateDappFromDapp() types.SmartState {
 				return 0, err
 			}
 			balanceDiff, _, err := wrappedSt.diff.findBalance(account, *asset)
-
+			if err != nil {
+				return 0, err
+			}
 			if balanceDiff != nil {
 				resBalance := int64(balance) + balanceDiff.regular
 				return uint64(resBalance), nil
@@ -1174,12 +1176,8 @@ func smartStateDappFromDapp() types.SmartState {
 					LeaseOut:   uint64(resLeaseOut)}, nil
 
 			}
-			waves := crypto.Digest{}
-			err = wrappedSt.diff.changeBalance(nil, "", 0, waves, account)
-			if err != nil {
-				return nil, err
-			}
-			err = wrappedSt.diff.addEffectiveToHistory(account.Address.String()+waves.String(), int64(balance))
+			_, searchAddr := wrappedSt.diff.createNewWavesBalance(account)
+			err = wrappedSt.diff.addEffectiveToHistory(searchAddr, int64(balance))
 			if err != nil {
 				return nil, err
 			}
@@ -1574,9 +1572,9 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	expectedBurnWrites[0].AssetID = expectedIssueWrites[0].ID
 
 	// start balance
-	bal := wrappedSt.diff.balances[addr.String()+crypto.Digest{}.String()]
+	bal := wrappedSt.diff.balances[addr.String()+proto.OptionalAsset{}.String()]
 	bal.regular = 2468
-	wrappedSt.diff.balances[addr.String()+crypto.Digest{}.String()] = bal
+	wrappedSt.diff.balances[addr.String()+proto.OptionalAsset{}.String()] = bal
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
@@ -1620,6 +1618,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		LeaseOut:   0,
 	}
 	fullBalance, err := smartState().NewestFullWavesBalance(recipient)
+
 	require.NoError(t, err)
 	assert.Equal(t, fullBalance, fullBalanceExpected)
 
@@ -1637,10 +1636,10 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
 	balance := diffBalance{regular: 1, leaseIn: 10, asset: assetExp, effectiveHistory: []int64{11}}
-	expectedDiffResult.balances[addr.String()+assetExp.ID.String()] = balance
+	expectedDiffResult.balances[addr.String()+assetExp.String()] = balance
 
 	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, asset: assetExp, effectiveHistory: []int64{2457}}
-	expectedDiffResult.balances[addressCallable.String()+assetExp.ID.String()] = balanceCallable
+	expectedDiffResult.balances[addressCallable.String()+assetExp.String()] = balanceCallable
 
 	intEntry1 := proto.IntegerDataEntry{Key: "int", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry1
@@ -1954,8 +1953,8 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 14, effectiveHistory: []int64{0, 14}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
-	expectedDiffResult.balances[addressCallable.String()+crypto.Digest{}.String()] = balanceCallable
-	expectedDiffResult.balances[addr.String()+crypto.Digest{}.String()] = balanceMain
+	expectedDiffResult.balances[addressCallable.String()+proto.NewOptionalAssetWaves().String()] = balanceCallable
+	expectedDiffResult.balances[addr.String()+proto.NewOptionalAssetWaves().String()] = balanceMain
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -2131,8 +2130,8 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 29, effectiveHistory: []int64{0, 14, 29}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
-	expectedDiffResult.balances[addr.String()+crypto.Digest{}.String()] = balanceMain
-	expectedDiffResult.balances[addressCallable.String()+crypto.Digest{}.String()] = balanceCallable
+	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
+	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -2308,8 +2307,8 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 	intEntry2 := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["key"+addr.String()] = intEntry1
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry2
-	expectedDiffResult.balances[addr.String()+crypto.Digest{}.String()] = balanceMain
-	expectedDiffResult.balances[addressCallable.String()+crypto.Digest{}.String()] = balanceCallable
+	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
+	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -2481,8 +2480,8 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 13, effectiveHistory: []int64{0, 13}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
-	expectedDiffResult.balances[addr.String()+crypto.Digest{}.String()] = balanceMain
-	expectedDiffResult.balances[addressCallable.String()+crypto.Digest{}.String()] = balanceCallable
+	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
+	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)

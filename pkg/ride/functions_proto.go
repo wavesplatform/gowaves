@@ -120,15 +120,15 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		// validation
 
 		/*
-		actions:
-		1) Sender has rights
-		2) Transfer and Lease don't try to send negative amount
-		3) reissue/issue
-		4) the limit length of coin name (issue)
-		5) script of asset ???
+			actions:
+			1) Sender has rights
+			2) Transfer and Lease don't try to send negative amount
+			3) reissue/issue
+			4) the limit length of coin name (issue)
+			5) script of asset ???
 
-		diff:
-		1) negative balance
+			diff:
+			1) negative balance
 
 		*/
 

@@ -22,7 +22,7 @@ type lease struct {
 }
 
 type diffBalance struct {
-	asset          proto.OptionalAsset
+	asset            proto.OptionalAsset
 	regular          int64
 	leaseIn          int64
 	leaseOut         int64
