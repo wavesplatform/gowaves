@@ -124,6 +124,7 @@ func (a *SyncFsm) NewPeer(p Peer) (FSM, Async, error) {
 
 func (a *SyncFsm) Score(p Peer, score *proto.Score) (FSM, Async, error) {
 	// TODO handle new max score
+	metrics.FSMScore("sync", score, p.Handshake().NodeName)
 	err := a.baseInfo.peers.UpdateScore(p, score)
 	if err != nil {
 		return a, nil, err
@@ -135,7 +136,7 @@ func (a *SyncFsm) Block(p Peer, block *proto.Block) (FSM, Async, error) {
 	if p != a.conf.peerSyncWith {
 		return a, nil, nil
 	}
-	metrics.BlockReceivedFromExtension(block, p.Handshake().NodeName)
+	metrics.FSMKeyBlockReceived("sync", block, p.Handshake().NodeName)
 	zap.S().Debugf("[%s] Received block %s", p.ID(), block.ID.String())
 	internal, err := a.internal.Block(block)
 	if err != nil {
@@ -145,12 +146,13 @@ func (a *SyncFsm) Block(p Peer, block *proto.Block) (FSM, Async, error) {
 }
 
 func (a *SyncFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
+	metrics.FSMKeyBlockGenerated("sync", block)
 	zap.S().Infof("New key block '%s' mined", block.ID.String())
-	h, err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
+	_, err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
 	if err != nil {
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
-	metrics.BlockMined(block, h)
+	metrics.FSMKeyBlockApplied("sync", block)
 	a.baseInfo.Reschedule()
 
 	// first we should send block
@@ -169,10 +171,9 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	if len(blocks) == 0 {
 		return newSyncFsm(baseInfo, conf, internal), nil, nil
 	}
-	var last proto.Height
 	err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		var err error
-		last, err = a.baseInfo.blocksApplier.Apply(s, blocks)
+		_, err = a.baseInfo.blocksApplier.Apply(s, blocks)
 		return err
 	})
 	if err != nil {
@@ -180,12 +181,12 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 			a.baseInfo.peers.Suspend(conf.peerSyncWith, err.Error())
 		}
 		for _, b := range blocks {
-			metrics.BlockDeclinedFromExtension(b)
+			metrics.FSMKeyBlockDeclined("sync", b, err)
 		}
 		return NewIdleFsm(a.baseInfo), nil, err
 	}
-	for i, b := range blocks {
-		metrics.BlockAppliedFromExtension(b, last-uint64(len(blocks)-1-i))
+	for _, b := range blocks {
+		metrics.FSMKeyBlockApplied("sync", b)
 	}
 	a.baseInfo.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)

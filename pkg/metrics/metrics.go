@@ -11,6 +11,7 @@ import (
 
 	influx "github.com/influxdata/influxdb1-client/v2"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -176,7 +177,7 @@ func FSMKeyBlockReceived(fsm string, block *proto.Block, source string) {
 		return
 	}
 	t := emptyTags().node().fsm(fsm).block().received()
-	f := newFields().blockID(block.BlockID()).referenceID(block.Parent).source(source)
+	f := emptyFields().blockID(block.BlockID()).referenceID(block.Parent).source(source).blockTS(block.Timestamp).genPK(block.GenPublicKey)
 	reportFSM(t, f)
 }
 
@@ -212,7 +213,7 @@ func FSMMicroBlockReceived(fsm string, microblock *proto.MicroBlock, source stri
 		return
 	}
 	t := emptyTags().node().fsm(fsm).microblock().received()
-	f := newFields().blockID(microblock.TotalBlockID).referenceID(microblock.Reference).source(source)
+	f := emptyFields().blockID(microblock.TotalBlockID).referenceID(microblock.Reference).source(source)
 	reportFSM(t, f)
 }
 
@@ -221,7 +222,7 @@ func FSMMicroBlockGenerated(fsm string, microblock *proto.MicroBlock) {
 		return
 	}
 	t := emptyTags().node().fsm(fsm).microblock().generated()
-	f := emptyFields().blockID(microblock.TotalBlockID).referenceID(microblock.Reference)
+	f := emptyFields().blockID(microblock.TotalBlockID).referenceID(microblock.Reference).signature(microblock.TotalResBlockSigField)
 	reportFSM(t, f)
 }
 
@@ -230,7 +231,7 @@ func FSMMicroBlockDeclined(fsm string, microblock *proto.MicroBlock, err error) 
 		return
 	}
 	t := emptyTags().node().fsm(fsm).microblock().declined()
-	f := emptyFields().blockID(microblock.TotalBlockID).referenceID(microblock.Reference).error(err)
+	f := emptyFields().blockID(microblock.TotalBlockID).referenceID(microblock.Reference).signature(microblock.TotalResBlockSigField).error(err)
 	reportFSM(t, f)
 }
 
@@ -239,7 +240,16 @@ func FSMMicroBlockApplied(fsm string, microblock *proto.MicroBlock) {
 		return
 	}
 	t := emptyTags().node().fsm(fsm).microblock().applied()
-	f := emptyFields().blockID(microblock.TotalBlockID).referenceID(microblock.Reference)
+	f := emptyFields().blockID(microblock.TotalBlockID).referenceID(microblock.Reference).signature(microblock.TotalResBlockSigField)
+	reportFSM(t, f)
+}
+
+func FSMScore(fsm string, score *proto.Score, source string) {
+	if rep == nil {
+		return
+	}
+	t := emptyTags().node().fsm(fsm).score().received()
+	f := emptyFields().score(score).source(source)
 	reportFSM(t, f)
 }
 
@@ -298,6 +308,11 @@ func (t tags) declined() tags {
 
 func (t tags) applied() tags {
 	t["event"] = "applied"
+	return t
+}
+
+func (t tags) score() tags {
+	t["object"] = "score"
 	return t
 }
 
@@ -366,6 +381,26 @@ func (f fields) referenceID(id proto.BlockID) fields {
 
 func (f fields) error(err error) fields {
 	f["error"] = err.Error()
+	return f
+}
+
+func (f fields) score(score *proto.Score) fields {
+	f["score"] = score.String()
+	return f
+}
+
+func (f fields) blockTS(ts uint64) fields {
+	f["block_ts"] = ts
+	return f
+}
+
+func (f fields) genPK(pk crypto.PublicKey) fields {
+	f["gen_pk"] = pk.String()
+	return f
+}
+
+func (f fields) signature(sig crypto.Signature) fields {
+	f["sig"] = sig.String()
 	return f
 }
 

@@ -21,6 +21,7 @@ type Async []Task
 
 type BlocksApplier interface {
 	Apply(state storage.State, block []*proto.Block) (proto.Height, error)
+	ApplyMicro(state storage.State, block *proto.Block) (proto.Height, error)
 }
 
 type BaseInfo struct {

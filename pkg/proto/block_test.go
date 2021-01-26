@@ -362,14 +362,13 @@ func TestBlock_Clone(t *testing.T) {
 
 // TODO, empty block should not marshal, or unmarshal successfully
 func TestEmptyBlockMarshall(t *testing.T) {
-	t.Skip()
 	b1 := Block{}
 	bts, err := b1.MarshalBinary()
 	require.NoError(t, err)
 
 	b2 := Block{}
 	err = b2.UnmarshalBinary(bts, MainNetScheme)
-	require.NoError(t, err)
+	require.Error(t, err)
 }
 
 func TestBlockVerifyRootHash(t *testing.T) {

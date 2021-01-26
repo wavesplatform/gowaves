@@ -64,6 +64,7 @@ func (a *NGFsm) PeerError(p peer.Peer, e error) (FSM, Async, error) {
 }
 
 func (a *NGFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
+	metrics.FSMScore("ng", score, p.Handshake().NodeName)
 	return handleScore(a, a.BaseInfo, p, score)
 }
 
@@ -113,6 +114,7 @@ func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, er
 		return a, nil, err
 	}
 	a.MicroBlockCache.Add(id, micro)
+	a.BaseInfo.Reschedule()
 
 	// Notify all connected peers about new microblock, send them microblock inv network message
 	inv, ok := a.MicroBlockInvCache.Get(id)
@@ -145,12 +147,13 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 	}
 	metrics.FSMMicroBlockGenerated("ng", micro)
 	err = a.storage.Map(func(s state.NonThreadSafeState) error {
-		_, err := a.blocksApplier.Apply(s, []*proto.Block{block})
+		_, err := a.blocksApplier.ApplyMicro(s, block)
 		return err
 	})
 	if err != nil {
 		return a, nil, err
 	}
+	a.Reschedule()
 	metrics.FSMMicroBlockApplied("ng", micro)
 	inv := proto.NewUnsignedMicroblockInv(
 		micro.SenderPK,
@@ -185,13 +188,20 @@ func (a *NGFsm) checkAndAppendMicroblock(micro *proto.MicroBlock) (proto.BlockID
 		metrics.FSMMicroBlockDeclined("ng", micro, err)
 		return proto.BlockID{}, err
 	}
+	ok, err := micro.VerifySignature(a.scheme)
+	if err != nil {
+		return proto.BlockID{}, err
+	}
+	if !ok {
+		return proto.BlockID{}, errors.Errorf("microblock '%s' has invalid signature", micro.TotalBlockID.String())
+	}
 	newTrs := top.Transactions.Join(micro.Transactions)
 	newBlock, err := proto.CreateBlock(newTrs, top.Timestamp, top.Parent, top.GenPublicKey, top.NxtConsensus, top.Version, top.Features, top.RewardVote, a.scheme)
 	if err != nil {
 		return proto.BlockID{}, err
 	}
 	newBlock.BlockSignature = micro.TotalResBlockSigField
-	ok, err := newBlock.VerifySignature(a.scheme)
+	ok, err = newBlock.VerifySignature(a.scheme)
 	if err != nil {
 		return proto.BlockID{}, err
 	}
@@ -203,7 +213,7 @@ func (a *NGFsm) checkAndAppendMicroblock(micro *proto.MicroBlock) (proto.BlockID
 		return proto.BlockID{}, errors.Wrap(err, "NGFsm microBlockByID: failed generate block id")
 	}
 	err = a.storage.Map(func(state state.State) error {
-		_, err := a.blocksApplier.Apply(state, []*proto.Block{newBlock})
+		_, err := a.blocksApplier.ApplyMicro(state, newBlock)
 		return err
 	})
 	if err != nil {

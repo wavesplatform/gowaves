@@ -2,6 +2,7 @@ package state_fsm
 
 import (
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -78,6 +79,7 @@ func (a *IdleFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 }
 
 func (a *IdleFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
+	metrics.FSMScore("idle", score, p.Handshake().NodeName)
 	return handleScore(a, a.baseInfo, p, score)
 }
 
