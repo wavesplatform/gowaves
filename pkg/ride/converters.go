@@ -933,7 +933,7 @@ func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (r
 	r["caller"] = rideAddress(sender)
 	r["callerPublicKey"] = rideBytes(common.Dup(tx.SenderPK.Bytes()))
 	switch v {
-	case 4:
+	case 4, 5:
 		payments := make(rideList, len(tx.Payments))
 		for i, p := range tx.Payments {
 			payments[i] = attachedPaymentToObject(p)
