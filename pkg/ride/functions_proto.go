@@ -48,10 +48,15 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 	}
 
 	var attachedPayments proto.ScriptPayments
-
 	payments := args[3].(rideList)
 
-	invocationParam := env.invocation()
+	oldInvocationParam := env.invocation()
+
+	invocationParam := make(rideObject)
+	for key, value := range oldInvocationParam {
+		invocationParam[key] = value
+	}
+
 	invocationParam["caller"] = callerAddress
 	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(callerAddress), false)
 	if err != nil {
@@ -112,10 +117,12 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		}
 
 		err = env.smartAppendActions(res.ScriptActions())
-		env.setNewDAppAddress(proto.Address(callerAddress))
 		if err != nil {
 			return nil, err
 		}
+		env.setNewDAppAddress(proto.Address(callerAddress))
+
+		env.SetInvocation(oldInvocationParam)
 
 		if res.UserResult() == nil {
 			return rideUnit{}, nil
