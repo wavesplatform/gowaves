@@ -474,24 +474,26 @@ func (s *stateManager) ApplyToState(actions []proto.ScriptAction) ([]proto.Scrip
 
 func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
 	if recipient.Address != nil {
-		script, err := s.stor.scriptsStorage.scriptBytesByAddr(*recipient.Address, false)
+		key := accountScriptKey{*recipient.Address}
+		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), false)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get script by address")
+			return nil, errors.Wrapf(err, "failed to get script by address")
 		}
 		return script, nil
 	}
 	if recipient.Alias != nil {
 		address, err := s.NewestAddrByAlias(*recipient.Alias)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get address by alias")
+			return nil, errors.Wrapf(err, "failed to get address by alias")
 		}
-		script, err := s.stor.scriptsStorage.scriptBytesByAddr(address, false)
+		key := accountScriptKey{address}
+		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), false)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to get script by address")
+			return nil, errors.Wrapf(err, "failed to get script by address")
 		}
 		return script, nil
 	}
-	return nil, errors.Errorf("Address and alias from recipient are nil")
+	return nil, errors.Errorf("address and alias from recipient are nil")
 }
 
 func (s *stateManager) Mutex() *lock.RwMutex {

@@ -109,7 +109,7 @@ func (diffSt *diffState) findMinGenerating(effectiveHistory []int64, generatingF
 func (diffSt *diffState) addEffectiveToHistory(searchAddress string, effective int64) error {
 	oldDiffBalance, ok := diffSt.balances[searchAddress]
 	if !ok {
-		return errors.Errorf("Cannot find balance to add effective to history")
+		return errors.Errorf("cannot find balance to add effective to history")
 	}
 	oldDiffBalance.effectiveHistory = append(oldDiffBalance.effectiveHistory, effective)
 	diffSt.balances[searchAddress] = oldDiffBalance
