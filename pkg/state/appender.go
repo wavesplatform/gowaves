@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -413,7 +415,11 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		fallibleInfo := &fallibleValidationParams{*params, accountHasVerifierScript}
 		applicationRes, err = a.handleFallible(tx, fallibleInfo)
 		if err != nil {
-			return errs.Extend(err, "fallible validation failed")
+			msg := "fallible validation failed"
+			if txID, err2 := tx.GetID(a.settings.AddressSchemeCharacter); err2 == nil {
+				msg = fmt.Sprintf("fallible validation failed for transaction '%s'", base58.Encode(txID))
+			}
+			return errs.Extend(err, msg)
 		}
 		// Exchange and Invoke balances are validated in UTX when acceptFailed is false.
 		// When acceptFailed is true, balances are validated inside handleFallible().

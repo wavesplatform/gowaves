@@ -188,12 +188,18 @@ func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, e
 	s.Byte(a.VersionField)
 	s.Bytes(a.Reference.Bytes())
 	s.Bytes(a.TotalResBlockSigField.Bytes())
-	s.Uint32(uint32(a.Transactions.BinarySize() + 4))
-	s.Uint32(a.TransactionCount)
+	// Serialize transactions in separate buffer to get the size
+	txsBuf := new(bytes.Buffer)
+	txsSerializer := serializer.NewNonFallable(txsBuf)
 	proto := a.VersionField >= byte(ProtobufBlockVersion)
-	if _, err := a.Transactions.WriteTo(proto, scheme, s); err != nil {
+	if _, err := a.Transactions.WriteTo(proto, scheme, txsSerializer); err != nil {
 		return 0, err
 	}
+	// Write transactions bytes size and its count
+	s.Uint32(uint32(txsBuf.Len() + 4))
+	s.Uint32(a.TransactionCount)
+	// Write transactions bytes
+	s.Bytes(txsBuf.Bytes())
 	s.Bytes(a.SenderPK.Bytes())
 	return s.N(), nil
 }

@@ -111,6 +111,7 @@ func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, er
 	metrics.FSMMicroBlockReceived("ng", micro, p.Handshake().NodeName)
 	id, err := a.checkAndAppendMicroblock(micro) // the TopBlock() is used here
 	if err != nil {
+		metrics.FSMMicroBlockDeclined("ng", micro, err)
 		return a, nil, err
 	}
 	a.MicroBlockCache.Add(id, micro)
