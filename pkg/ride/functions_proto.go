@@ -108,7 +108,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 
 	err = env.smartAppendActions(paymentActions)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to apply attachedPayments")
+		return nil, errors.Wrapf(err, "failed to apply attachedPayments")
 	}
 
 	if res.Result() {
@@ -130,7 +130,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		return res.UserResult(), nil
 	}
 
-	return nil, errors.Errorf("Result of Invoke is false")
+	return nil, errors.Errorf("result of Invoke is false")
 }
 
 func addressFromString(env RideEnvironment, args ...rideType) (rideType, error) {
