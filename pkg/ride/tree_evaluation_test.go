@@ -1117,13 +1117,22 @@ func smartStateDappFromDapp() types.SmartState {
 			return 10, nil
 		},
 		NewestScriptPKByAddrFunc: func(address proto.Address, filter bool) (crypto.PublicKey, error) {
+			// payments test
+			if address.String() == "3P8eZVKS7a4troGckytxaefLAi9w7P5aMna" {
+				return crypto.NewPublicKeyFromBase58("FztxsodUc9V7iVzodkGumnZFtHnNTxYSETZfxBFAw9R3")
+			}
+			if address.String() == "3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv" {
+				return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
+			}
+			//
 			if address == addr {
-				return crypto.MustPublicKeyFromBase58("JBjPD1xkTTcYUVhbLp1bLJLcjDKLT3c32RVk9Rue87ZD"), nil
+				return crypto.NewPublicKeyFromBase58("JBjPD1xkTTcYUVhbLp1bLJLcjDKLT3c32RVk9Rue87ZD")
 			}
 			if address == addressCallable {
-				return crypto.MustPublicKeyFromBase58("8TLsCqkkroVot9dVR1WcWUN9Qx96HDfzG3hnx7NpSJA9"), nil
+				return crypto.NewPublicKeyFromBase58("8TLsCqkkroVot9dVR1WcWUN9Qx96HDfzG3hnx7NpSJA9")
 			}
-			return crypto.PublicKey{}, nil
+
+			return crypto.PublicKey{}, errors.Errorf("No pk from address")
 		},
 		NewestTransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
 			return nil, nil
@@ -2618,7 +2627,7 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	func test() = if ((i.payments[0].assetId != unit))
 	    then throw("unexpected asset")
 	    else {
-			let res = Invoke(Address(base58'3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP'), "testActions",[(i.payments[0].amount * exchangeRate)], nil)
+			let res = Invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "testActions",[(i.payments[0].amount * exchangeRate)], nil)
 			if res == 17
 	 	    then
 		  	[
@@ -2647,14 +2656,13 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	proofs := proto.NewProofs()
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	require.NoError(t, err)
-	addr, err = proto.NewAddressFromString("3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak")
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-
-	addressCallable, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
 	require.NoError(t, err)
 
-	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
 	require.NoError(t, err)
 	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
 	require.NoError(t, err)
@@ -2687,7 +2695,7 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
-	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAMZXhjaGFuZ2VSYXRlAAAAAAAAAAAFAAAAAQAAAAFpAQAAAAR0ZXN0AAAAAAMJAQAAAAIhPQAAAAIICQABkQAAAAIIBQAAAAFpAAAACHBheW1lbnRzAAAAAAAAAAAAAAAAB2Fzc2V0SWQFAAAABHVuaXQJAAACAAAAAQIAAAAQdW5leHBlY3RlZCBhc3NldAQAAAADcmVzCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVcjs60SXJOkyuw5/k9G1s1WTS37EPtjmHoCAAAAC3Rlc3RBY3Rpb25zCQAETAAAAAIJAABoAAAAAggJAAGRAAAAAggFAAAAAWkAAAAIcGF5bWVudHMAAAAAAAAAAAAAAAAGYW1vdW50BQAAAAxleGNoYW5nZVJhdGUFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAANyZXMAAAAAAAAAABEJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyCQAAaAAAAAIICQABkQAAAAIIBQAAAAFpAAAACHBheW1lbnRzAAAAAAAAAAAAAAAABmFtb3VudAUAAAAMZXhjaGFuZ2VSYXRlBQAAAAR1bml0BQAAAANuaWwJAAACAAAAAQIAAAASQmFkIHJldHVybmVkIHZhbHVlAAAAAJWUUMQ="
+	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAMZXhjaGFuZ2VSYXRlAAAAAAAAAAAFAAAAAQAAAAFpAQAAAAR0ZXN0AAAAAAMJAQAAAAIhPQAAAAIICQABkQAAAAIIBQAAAAFpAAAACHBheW1lbnRzAAAAAAAAAAAAAAAAB2Fzc2V0SWQFAAAABHVuaXQJAAACAAAAAQIAAAAQdW5leHBlY3RlZCBhc3NldAQAAAADcmVzCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAC3Rlc3RBY3Rpb25zCQAETAAAAAIJAABoAAAAAggJAAGRAAAAAggFAAAAAWkAAAAIcGF5bWVudHMAAAAAAAAAAAAAAAAGYW1vdW50BQAAAAxleGNoYW5nZVJhdGUFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAANyZXMAAAAAAAAAABEJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyCQAAaAAAAAIICQABkQAAAAIIBQAAAAFpAAAACHBheW1lbnRzAAAAAAAAAAAAAAAABmFtb3VudAUAAAAMZXhjaGFuZ2VSYXRlBQAAAAR1bml0BQAAAANuaWwJAAACAAAAAQIAAAASQmFkIHJldHVybmVkIHZhbHVlAAAAANOWG8w="
 	secondScript = "AAIFAAAAAAAAAAcIAhIDCgEBAAAAAAAAAAEAAAABaQEAAAALdGVzdEFjdGlvbnMAAAABAAAAAWEJAAUUAAAAAgkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADaW50AAAAAAAAAAABBQAAAANuaWwAAAAAAAAAABEAAAAAPWJMug=="
 
 	id = bytes.Repeat([]byte{0}, 32)
@@ -2697,7 +2705,7 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	}
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
-		{Sender: crypto.PublicKey{}, Amount: 2500, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: crypto.PublicKey{}, Recipient: recipient, Amount: 2500, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 	}
 
 	smartState := smartStateDappFromDapp
@@ -2726,8 +2734,6 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 
-	addrSender := proto.Address(inv["caller"].(rideAddress))
-	expectedTransferWrites[0].Recipient = proto.NewRecipientFromAddress(addrSender)
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  expectedDataEntryWrites,
 		Transfers:    expectedTransferWrites,
