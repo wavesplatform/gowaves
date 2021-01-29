@@ -23,12 +23,12 @@ func invokeFunctionFromDApp(env RideEnvironment, recipient proto.Recipient, fnNa
 
 	newScript, err := env.state().GetByteTree(recipient)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get script by recipient")
+		return nil, errors.Wrap(err, "failed to get script by recipient")
 	}
 
 	tree, err := Parse(newScript)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get tree by script")
+		return nil, errors.Wrap(err, "failed to get tree by script")
 	}
 
 	e, err := treeFunctionEvaluatorForInvokeDAppFromDApp(env, tree, string(fnName), listArgs)

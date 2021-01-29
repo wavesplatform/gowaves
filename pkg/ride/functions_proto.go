@@ -48,10 +48,15 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 	}
 
 	var attachedPayments proto.ScriptPayments
-
 	payments := args[3].(rideList)
 
-	invocationParam := env.invocation()
+	oldInvocationParam := env.invocation()
+
+	invocationParam := make(rideObject)
+	for key, value := range oldInvocationParam {
+		invocationParam[key] = value
+	}
+
 	invocationParam["caller"] = callerAddress
 	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(callerAddress), false)
 	if err != nil {
@@ -103,7 +108,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 
 	err = env.smartAppendActions(paymentActions)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to apply attachedPayments")
+		return nil, errors.Wrapf(err, "failed to apply attachedPayments")
 	}
 
 	if res.Result() {
@@ -112,10 +117,12 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		}
 
 		err = env.smartAppendActions(res.ScriptActions())
-		env.setNewDAppAddress(proto.Address(callerAddress))
 		if err != nil {
 			return nil, err
 		}
+		env.setNewDAppAddress(proto.Address(callerAddress))
+
+		env.SetInvocation(oldInvocationParam)
 
 		// validation
 
@@ -140,7 +147,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		return res.UserResult(), nil
 	}
 
-	return nil, errors.Errorf("The result of Invoke is false")
+	return nil, errors.Errorf("result of Invoke is false")
 }
 
 func addressFromString(env RideEnvironment, args ...rideType) (rideType, error) {
