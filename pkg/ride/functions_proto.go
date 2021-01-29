@@ -96,7 +96,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 
 	var paymentActions []proto.ScriptAction
 	for _, payment := range attachedPayments {
-		action := &proto.TransferScriptAction{Sender: callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
+		action := &proto.TransferScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
 		paymentActions = append(paymentActions, action)
 	}
 
