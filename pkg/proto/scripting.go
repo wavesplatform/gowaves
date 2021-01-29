@@ -468,10 +468,12 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			}
 			if restrictions.DisableSelfTransfers {
 				senderAddress := restrictions.ScriptAddress
-				if ta.Sender != nil {
+				if ta.SenderPK() != nil {
 					var err error
 					senderAddress, err = NewAddressFromPublicKey(restrictions.Scheme, *ta.SenderPK())
-					return errors.Wrap(err, "failed to validate TransferScriptAction")
+					if err != nil {
+						return errors.Wrap(err, "failed to validate TransferScriptAction")
+					}
 				}
 				if ta.Recipient.Address.Eq(senderAddress) {
 					return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
@@ -532,10 +534,12 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 				return errors.New("negative leasing amount")
 			}
 			senderAddress := restrictions.ScriptAddress
-			if ta.Sender != nil {
+			if ta.SenderPK() != nil {
 				var err error
 				senderAddress, err = NewAddressFromPublicKey(restrictions.Scheme, *ta.SenderPK())
-				return errors.Wrap(err, "failed to validate TransferScriptAction")
+				if err != nil {
+					return errors.Wrap(err, "failed to validate TransferScriptAction")
+				}
 			}
 			if ta.Recipient.Address.Eq(senderAddress) {
 				return errors.New("leasing to DApp itself is forbidden")
