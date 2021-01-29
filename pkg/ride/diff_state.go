@@ -81,8 +81,8 @@ func (diffSt *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
 }
 
 func (diffSt *diffState) createNewWavesBalance(account proto.Recipient) (*diffBalance, string) {
-	wavesAsset := proto.NewOptionalAssetFromDigest(crypto.Digest{})
-	balance := diffBalance{asset: *wavesAsset}
+	wavesAsset := proto.NewOptionalAssetWaves()
+	balance := diffBalance{asset: wavesAsset}
 	diffSt.balances[account.Address.String()+wavesAsset.String()] = balance
 	return &balance, account.Address.String() + wavesAsset.String()
 }
@@ -140,7 +140,7 @@ func (diffSt *diffState) changeLeaseIn(searchBalance *diffBalance, searchAddress
 	}
 
 	var balance diffBalance
-	balance.asset = *proto.NewOptionalAssetFromDigest(crypto.Digest{})
+	balance.asset = proto.NewOptionalAssetWaves()
 	balance.leaseIn = leasedAmount
 
 	diffSt.balances[address.String()+balance.asset.String()] = balance
@@ -165,7 +165,7 @@ func (diffSt *diffState) changeLeaseOut(searchBalance *diffBalance, searchAddres
 	}
 
 	var balance diffBalance
-	balance.asset = *proto.NewOptionalAssetFromDigest(crypto.Digest{})
+	balance.asset = proto.NewOptionalAssetWaves()
 	balance.leaseOut = leasedAmount
 
 	diffSt.balances[address.String()+balance.asset.String()] = balance
