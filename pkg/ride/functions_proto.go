@@ -124,6 +124,23 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 
 		env.SetInvocation(oldInvocationParam)
 
+		// validation
+
+		/*
+			actions:
+			1) Sender has rights
+			2) Transfer and Lease don't try to send negative amount
+			3) reissue/issue
+			4) the limit length of coin name (issue)
+			5) script of asset ???
+
+			diff:
+			1) negative balance
+
+		*/
+
+		//env.validateInvokeResult(res.ScriptActions())
+
 		if res.UserResult() == nil {
 			return rideUnit{}, nil
 		}

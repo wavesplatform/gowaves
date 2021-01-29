@@ -35,12 +35,17 @@ func (wrappedSt *wrappedState) NewestAddrByAlias(alias proto.Alias) (proto.Addre
 	return wrappedSt.diff.state.NewestAddrByAlias(alias)
 }
 
-func (wrappedSt *wrappedState) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
-	balance, err := wrappedSt.diff.state.NewestAccountBalance(account, asset)
+func (wrappedSt *wrappedState) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
+	balance, err := wrappedSt.diff.state.NewestAccountBalance(account, assetID)
 	if err != nil {
 		return 0, err
 	}
-	balanceDiff, _, err := wrappedSt.diff.findBalance(account, asset)
+
+	asset, err := proto.NewOptionalAssetFromBytes(assetID)
+	if err != nil {
+		return 0, err
+	}
+	balanceDiff, _, err := wrappedSt.diff.findBalance(account, *asset)
 	if err != nil {
 		return 0, err
 	}
@@ -57,8 +62,7 @@ func (wrappedSt *wrappedState) NewestFullWavesBalance(account proto.Recipient) (
 	if err != nil {
 		return nil, err
 	}
-
-	wavesBalanceDiff, searchAddress, err := wrappedSt.diff.findBalance(account, nil)
+	wavesBalanceDiff, searchAddress, err := wrappedSt.diff.findBalance(account, proto.NewOptionalAssetWaves())
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +168,7 @@ func (wrappedSt *wrappedState) NewestAssetIsSponsored(assetID crypto.Digest) (bo
 	return wrappedSt.diff.state.NewestAssetIsSponsored(assetID)
 }
 func (wrappedSt *wrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+	// TODO
 	searchNewAsset := wrappedSt.diff.findNewAsset(assetID)
 
 	if searchNewAsset == nil {
@@ -385,8 +390,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 
 				senderAddress = proto.Address(wrappedSt.envThis)
 			}
-
-			searchBalance, searchAddr, err := wrappedSt.diff.findBalance(res.Recipient, res.Asset.ID.Bytes())
+			searchBalance, searchAddr, err := wrappedSt.diff.findBalance(res.Recipient, res.Asset)
 			if err != nil {
 				return nil, err
 			}
@@ -396,7 +400,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			}
 
 			senderRecipient := proto.NewRecipientFromAddress(senderAddress)
-			senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderRecipient, res.Asset.ID.Bytes())
+			senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderRecipient, res.Asset)
 			if err != nil {
 				return nil, err
 			}
@@ -479,7 +483,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 		case *proto.LeaseScriptAction:
 			senderAddress := proto.Address(wrappedSt.envThis)
 
-			recipientSearchBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(res.Recipient, nil)
+			recipientSearchBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(res.Recipient, proto.NewOptionalAssetWaves())
 			if err != nil {
 				return nil, err
 			}
@@ -489,7 +493,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			}
 
 			senderAccount := proto.NewRecipientFromAddress(senderAddress)
-			senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderAccount, nil)
+			senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderAccount, proto.NewOptionalAssetWaves())
 			if err != nil {
 				return nil, err
 			}
@@ -517,7 +521,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				return nil, errors.Errorf("there is no lease to cancel")
 			}
 
-			recipientBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Recipient, nil)
+			recipientBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Recipient, proto.NewOptionalAssetWaves())
 			if err != nil {
 				return nil, err
 			}
@@ -525,7 +529,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				_, recipientSearchAddress = wrappedSt.diff.createNewWavesBalance(searchLease.Recipient)
 			}
 
-			senderBalance, senderSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Sender, nil)
+			senderBalance, senderSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Sender, proto.NewOptionalAssetWaves())
 			if err != nil {
 				return nil, err
 			}
@@ -732,6 +736,29 @@ func (e *Environment) appendActions(actions []proto.ScriptAction) {
 	e.act = append(e.act, actions...)
 }
 
+//func (e *Environment) validateInvokeResult(actions []proto.ScriptAction) (bool, error) {
+//	// validate diff
+//	wrappedSt, ok := e.st.(*wrappedState)
+//	if !ok {
+//		return false, errors.Errorf("validation: wrong state")
+//	}
+//	for _, value := range wrappedSt.diff.balances {
+//		if value.regular < 0 || value.leaseIn < 0 || value.leaseOut < 0 {
+//			return false, nil
+//		}
+//		for _, effective := range value.effectiveHistory {
+//			if effective < 0 {
+//				return false, nil
+//			}
+//		}
+//	}
+//
+//	// validate actions
+//	// leaseCancel
+//
+//
+//}
+
 func (e *Environment) smartAppendActions(actions []proto.ScriptAction) error {
 	_, ok := e.st.(*wrappedState)
 	if !ok {
@@ -746,6 +773,7 @@ func (e *Environment) smartAppendActions(actions []proto.ScriptAction) error {
 	e.appendActions(modifiedActions)
 	return nil
 }
+
 func (e *Environment) checkMessageLength(l int) bool {
 	return e.check(l)
 }

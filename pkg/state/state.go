@@ -859,19 +859,19 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	}, nil
 }
 
-func (s *stateManager) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	if asset == nil {
+	if assetID == nil {
 		profile, err := s.newestWavesBalanceProfile(*addr)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
 		}
 		return profile.balance, nil
 	}
-	balance, err := s.newestAssetBalance(*addr, asset)
+	balance, err := s.newestAssetBalance(*addr, assetID)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
