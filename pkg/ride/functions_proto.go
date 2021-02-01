@@ -72,26 +72,35 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 			return nil, errors.Errorf("invoke: unexpected argument type '%s'", payment.instanceOf())
 		}
 
-		assetID := payment["assetId"]
-		amount := payment["amount"]
+		assetID, err := payment.get("assetId")
+		if err != nil {
+			return nil, errors.Wrap(err, "invoke")
+		}
+		amount, err := payment.get("amount")
+		if err != nil {
+			return nil, errors.Wrap(err, "invoke")
+		}
 
 		intAmount, ok := amount.(rideInt)
 		if !ok {
 			return nil, errors.Errorf("invoke: unexpected argument type '%s'", amount.instanceOf())
 		}
-		var asset crypto.Digest
+		var asset *proto.OptionalAsset
 
 		switch asID := assetID.(type) {
 		case rideBytes:
-			asset, _ = crypto.NewDigestFromBytes(asID)
+			asset, err = proto.NewOptionalAssetFromBytes(asID)
+			if err != nil {
+				return nil, errors.Errorf("invoke: failed to get optional asset from ride bytes")
+			}
 		case rideUnit:
-			asset = crypto.Digest{}
+			waves := proto.NewOptionalAssetWaves()
+			asset = &waves
 		default:
 			return nil, errors.Errorf("attachedPayment: unexpected argument type '%s'", args[0].instanceOf())
 		}
-		optAsset := proto.OptionalAsset{ID: asset}
 
-		attachedPayments = append(attachedPayments, proto.ScriptPayment{Asset: optAsset, Amount: uint64(intAmount)})
+		attachedPayments = append(attachedPayments, proto.ScriptPayment{Asset: *asset, Amount: uint64(intAmount)})
 	}
 
 	var paymentActions []proto.ScriptAction
