@@ -145,7 +145,7 @@ func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
 
 	a, err := crypto.NewDigestFromBytes(b)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create OptionalAsset from Base58 string")
+		return nil, errors.Wrap(err, "failed to create OptionalAsset from bytes")
 	}
 	return &OptionalAsset{Present: true, ID: a}, nil
 }
