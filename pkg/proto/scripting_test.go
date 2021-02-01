@@ -35,15 +35,15 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 	for i, test := range []ScriptResult{
 		{
 			DataEntries: []*DataEntryScriptAction{
-				{Sender: crypto.PublicKey{}, Entry: &IntegerDataEntry{"some key", 12345}},
-				{Sender: crypto.PublicKey{}, Entry: &BooleanDataEntry{"negative value", false}},
-				{Sender: crypto.PublicKey{}, Entry: &StringDataEntry{"some key", "some value string"}},
-				{Sender: crypto.PublicKey{}, Entry: &BinaryDataEntry{Key: "k3", Value: []byte{0x24, 0x7f, 0x71, 0x14, 0x1d}}},
-				{Sender: crypto.PublicKey{}, Entry: &IntegerDataEntry{"some key2", -12345}},
-				{Sender: crypto.PublicKey{}, Entry: &BooleanDataEntry{"negative value2", true}},
-				{Sender: crypto.PublicKey{}, Entry: &StringDataEntry{"some key143", "some value2 string"}},
-				{Sender: crypto.PublicKey{}, Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
-				{Sender: crypto.PublicKey{}, Entry: &DeleteDataEntry{Key: "xxx"}},
+				{Entry: &IntegerDataEntry{"some key", 12345}},
+				{Entry: &BooleanDataEntry{"negative value", false}},
+				{Entry: &StringDataEntry{"some key", "some value string"}},
+				{Entry: &BinaryDataEntry{Key: "k3", Value: []byte{0x24, 0x7f, 0x71, 0x14, 0x1d}}},
+				{Entry: &IntegerDataEntry{"some key2", -12345}},
+				{Entry: &BooleanDataEntry{"negative value2", true}},
+				{Entry: &StringDataEntry{"some key143", "some value2 string"}},
+				{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
+				{Entry: &DeleteDataEntry{Key: "xxx"}},
 			},
 			Transfers: []*TransferScriptAction{
 				{Amount: math.MaxInt64, Asset: *waves, Recipient: rcp},
@@ -60,7 +60,7 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 		},
 		{
 			DataEntries: []*DataEntryScriptAction{
-				{Sender: crypto.PublicKey{}, Entry: &IntegerDataEntry{"some key", 12345}},
+				{Entry: &IntegerDataEntry{"some key", 12345}},
 			},
 			Transfers:    emptyTransfers,
 			Issues:       emptyIssues,

@@ -13,15 +13,20 @@ import (
 // ScriptAction common interface of script invocation actions.
 type ScriptAction interface {
 	scriptAction()
+	SenderPK() *crypto.PublicKey
 }
 
 // DataEntryScriptAction is an action to manipulate account data state.
 type DataEntryScriptAction struct {
-	Sender crypto.PublicKey
+	Sender *crypto.PublicKey
 	Entry  DataEntry
 }
 
 func (a DataEntryScriptAction) scriptAction() {}
+
+func (a DataEntryScriptAction) SenderPK() *crypto.PublicKey {
+	return a.Sender
+}
 
 func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
 	return a.Entry.ToProtobuf()
@@ -29,7 +34,7 @@ func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
 
 // TransferScriptAction is an action to emit transfer of asset.
 type TransferScriptAction struct {
-	Sender       crypto.PublicKey
+	Sender       *crypto.PublicKey
 	Recipient    Recipient
 	Amount       int64
 	Asset        OptionalAsset
@@ -37,6 +42,10 @@ type TransferScriptAction struct {
 }
 
 func (a TransferScriptAction) scriptAction() {}
+
+func (a TransferScriptAction) SenderPK() *crypto.PublicKey {
+	return a.Sender
+}
 
 func (a *TransferScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, error) {
 	amount := &g.Amount{
@@ -52,7 +61,7 @@ func (a *TransferScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, erro
 
 // IssueScriptAction is an action to issue a new asset as a result of script invocation.
 type IssueScriptAction struct {
-	Sender      crypto.PublicKey
+	Sender      *crypto.PublicKey
 	ID          crypto.Digest // calculated field
 	Name        string        // name
 	Description string        // description
@@ -64,6 +73,10 @@ type IssueScriptAction struct {
 }
 
 func (a IssueScriptAction) scriptAction() {}
+
+func (a IssueScriptAction) SenderPK() *crypto.PublicKey {
+	return a.Sender
+}
 
 func (a *IssueScriptAction) ToProtobuf() *g.InvokeScriptResult_Issue {
 	return &g.InvokeScriptResult_Issue{
@@ -106,13 +119,17 @@ func GenerateIssueScriptActionID(name, description string, decimals, quantity in
 
 // ReissueScriptAction is an action to emit Reissue transaction as a result of script invocation.
 type ReissueScriptAction struct {
-	Sender     crypto.PublicKey
+	Sender     *crypto.PublicKey
 	AssetID    crypto.Digest // assetId
 	Quantity   int64         // quantity
 	Reissuable bool          // isReissuable
 }
 
 func (a ReissueScriptAction) scriptAction() {}
+
+func (a ReissueScriptAction) SenderPK() *crypto.PublicKey {
+	return a.Sender
+}
 
 func (a *ReissueScriptAction) ToProtobuf() *g.InvokeScriptResult_Reissue {
 	return &g.InvokeScriptResult_Reissue{
@@ -124,12 +141,16 @@ func (a *ReissueScriptAction) ToProtobuf() *g.InvokeScriptResult_Reissue {
 
 // BurnScriptAction is an action to burn some assets in response to script invocation.
 type BurnScriptAction struct {
-	Sender   crypto.PublicKey
+	Sender   *crypto.PublicKey
 	AssetID  crypto.Digest // assetId
 	Quantity int64         // quantity
 }
 
 func (a BurnScriptAction) scriptAction() {}
+
+func (a BurnScriptAction) SenderPK() *crypto.PublicKey {
+	return a.Sender
+}
 
 func (a *BurnScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
 	return &g.InvokeScriptResult_Burn{
@@ -140,12 +161,16 @@ func (a *BurnScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
 
 // SponsorshipScriptAction is an action to set sponsorship for given asset in response to script invocation.
 type SponsorshipScriptAction struct {
-	Sender  crypto.PublicKey
+	Sender  *crypto.PublicKey
 	AssetID crypto.Digest // assetId
 	MinFee  int64         // minSponsoredAssetFee
 }
 
 func (a SponsorshipScriptAction) scriptAction() {}
+
+func (a SponsorshipScriptAction) SenderPK() *crypto.PublicKey {
+	return a.Sender
+}
 
 func (a *SponsorshipScriptAction) ToProtobuf() *g.InvokeScriptResult_SponsorFee {
 	return &g.InvokeScriptResult_SponsorFee{
@@ -158,7 +183,7 @@ func (a *SponsorshipScriptAction) ToProtobuf() *g.InvokeScriptResult_SponsorFee 
 
 // LeaseScriptAction is an action to lease Waves to given account.
 type LeaseScriptAction struct {
-	Sender    crypto.PublicKey
+	Sender    *crypto.PublicKey
 	ID        crypto.Digest
 	Recipient Recipient
 	Amount    int64
@@ -166,6 +191,10 @@ type LeaseScriptAction struct {
 }
 
 func (a LeaseScriptAction) scriptAction() {}
+
+func (a LeaseScriptAction) SenderPK() *crypto.PublicKey {
+	return a.Sender
+}
 
 func (a *LeaseScriptAction) ToProtobuf() (*g.InvokeScriptResult_Lease, error) {
 	rcp, err := a.Recipient.ToProtobuf()
@@ -204,11 +233,15 @@ func GenerateLeaseScriptActionID(recipient Recipient, amount int64, nonce int64,
 
 // LeaseCancelScriptAction is an action that cancels previously created lease.
 type LeaseCancelScriptAction struct {
-	Sender  crypto.PublicKey
+	Sender  *crypto.PublicKey
 	LeaseID crypto.Digest
 }
 
 func (a *LeaseCancelScriptAction) scriptAction() {}
+
+func (a LeaseCancelScriptAction) SenderPK() *crypto.PublicKey {
+	return a.Sender
+}
 
 func (a *LeaseCancelScriptAction) ToProtobuf() *g.InvokeScriptResult_LeaseCancel {
 	return &g.InvokeScriptResult_LeaseCancel{
@@ -393,6 +426,7 @@ type ActionsValidationRestrictions struct {
 	DisableSelfTransfers     bool
 	ScriptAddress            Address
 	KeySizeValidationVersion byte
+	Scheme                   byte
 }
 
 func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions) error {
@@ -433,7 +467,15 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 				return errors.New("invalid asset")
 			}
 			if restrictions.DisableSelfTransfers {
-				if ta.Recipient.Address.Eq(restrictions.ScriptAddress) {
+				senderAddress := restrictions.ScriptAddress
+				if ta.SenderPK() != nil {
+					var err error
+					senderAddress, err = NewAddressFromPublicKey(restrictions.Scheme, *ta.SenderPK())
+					if err != nil {
+						return errors.Wrap(err, "failed to validate TransferScriptAction")
+					}
+				}
+				if ta.Recipient.Address.Eq(senderAddress) {
 					return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
 				}
 			}
@@ -491,8 +533,16 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			if ta.Amount < 0 {
 				return errors.New("negative leasing amount")
 			}
-			if ta.Recipient.Address.Eq(restrictions.ScriptAddress) {
-				return errors.New("leasing to DApp itself are forbidden")
+			senderAddress := restrictions.ScriptAddress
+			if ta.SenderPK() != nil {
+				var err error
+				senderAddress, err = NewAddressFromPublicKey(restrictions.Scheme, *ta.SenderPK())
+				if err != nil {
+					return errors.Wrap(err, "failed to validate TransferScriptAction")
+				}
+			}
+			if ta.Recipient.Address.Eq(senderAddress) {
+				return errors.New("leasing to DApp itself is forbidden")
 			}
 
 		case *LeaseCancelScriptAction:

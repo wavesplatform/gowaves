@@ -314,7 +314,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
-				res.Sender = senderPK
+				res.Sender = &senderPK
 
 			case *proto.StringDataEntry:
 				stringEntry := *dataEntry
@@ -326,7 +326,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
-				res.Sender = senderPK
+				res.Sender = &senderPK
 
 			case *proto.BooleanDataEntry:
 				boolEntry := *dataEntry
@@ -338,7 +338,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
-				res.Sender = senderPK
+				res.Sender = &senderPK
 
 			case *proto.BinaryDataEntry:
 				binaryEntry := *dataEntry
@@ -350,7 +350,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
-				res.Sender = senderPK
+				res.Sender = &senderPK
 
 			case *proto.DeleteDataEntry:
 				deleteEntry := *dataEntry
@@ -362,20 +362,16 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
-				res.Sender = senderPK
+				res.Sender = &senderPK
 			default:
 
 			}
 
 		case *proto.TransferScriptAction:
 			var senderAddress proto.Address
-
-			emptyPK := crypto.PublicKey{}
-
 			var senderPK crypto.PublicKey
-
-			if res.Sender != emptyPK {
-				senderPK = res.Sender
+			if res.Sender != nil {
+				senderPK = *res.Sender
 				var err error
 				senderAddress, err = proto.NewAddressFromPublicKey(wrappedSt.envScheme, senderPK)
 				if err != nil {
@@ -410,7 +406,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				return nil, err
 			}
 
-			res.Sender = senderPK
+			res.Sender = &senderPK
 
 		case *proto.SponsorshipScriptAction:
 			var sponsorship diffSponsorship
@@ -422,7 +418,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
-			res.Sender = senderPK
+			res.Sender = &senderPK
 
 		case *proto.IssueScriptAction:
 			var assetInfo diffNewAssetInfo
@@ -441,7 +437,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
-			res.Sender = senderPK
+			res.Sender = &senderPK
 
 		case *proto.ReissueScriptAction:
 			searchNewAsset := wrappedSt.diff.findNewAsset(res.AssetID)
@@ -459,7 +455,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
-			res.Sender = senderPK
+			res.Sender = &senderPK
 
 		case *proto.BurnScriptAction:
 			searchAsset := wrappedSt.diff.findNewAsset(res.AssetID)
@@ -478,7 +474,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
-			res.Sender = senderPK
+			res.Sender = &senderPK
 
 		case *proto.LeaseScriptAction:
 			senderAddress := proto.Address(wrappedSt.envThis)
@@ -510,7 +506,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 
 			wrappedSt.diff.addNewLease(res.Recipient, senderAccount, res.Amount, res.ID)
 
-			res.Sender = pk
+			res.Sender = &pk
 		case *proto.LeaseCancelScriptAction:
 
 			searchLease, err := wrappedSt.diff.findLeaseByIDForCancel(res.LeaseID)
@@ -544,7 +540,7 @@ func (wrappedSt *wrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
 
-			res.Sender = pk
+			res.Sender = &pk
 		default:
 		}
 	}
