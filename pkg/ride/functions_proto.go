@@ -72,13 +72,13 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 			return nil, errors.Errorf("invoke: unexpected argument type '%s'", payment.instanceOf())
 		}
 
-		assetID, ok := payment["assetId"]
-		if !ok {
-			return nil, errors.Errorf("invoke: unexpected argument type assetId")
+		assetID, err := payment.get("assetId")
+		if err != nil {
+			return nil, errors.Wrap(err, "invoke")
 		}
-		amount, ok := payment["amount"]
-		if !ok {
-			return nil, errors.Errorf("invoke: unexpected argument type amount")
+		amount, err := payment.get("amount")
+		if err != nil {
+			return nil, errors.Wrap(err, "invoke")
 		}
 
 		intAmount, ok := amount.(rideInt)
