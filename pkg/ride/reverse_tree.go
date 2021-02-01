@@ -1,11 +1,7 @@
 package ride
 
 import (
-	"bytes"
 	"fmt"
-	"math"
-
-	"github.com/pkg/errors"
 )
 
 func ReverseTree(n []Node) {
@@ -266,179 +262,179 @@ func (a *startpoint) evalAndPop() {
 //	return &e, nil
 //}
 
-func compileReversedTree(nodes []RNode, libVersion int, isDapp bool, hasVerifier bool) (*Executable, error) {
-	var condPos []uint16
-	refs := newReferences(nil)
-	out := bytes.Buffer{}
-	out.WriteByte(OpReturn)
-	out.WriteByte(OpReturn)
-	c := newCell()
-	u := uniqid{}
-	u.next()
-	entrypoints := make(map[string]Entrypoint)
-
-	st := startpoint{
-		default_: func() {
-			entrypoints[""] = Entrypoint{
-				name: "",
-				at:   uint16(out.Len()),
-				argn: 0,
-			}
-		},
-	}
-	st.evalAndPop()
-
-	for k, v := range predefinedFunctions {
-		id := uint16(math.MaxUint16 - k)
-		refs.set(v.name, id)
-		c.set(id, nil, id, 0, false, v.name)
-	}
-
-	//
-	for _, v := range nodes {
-		switch v := v.(type) {
-		case *RDef:
-			n := u.next()
-			refs.set(v.Name, n)
-			c.set(n, nil, 0, 0, false, fmt.Sprintf("rdef %d, named %s", n, v.Name))
-			for range v.Arguments {
-				u.next()
-			}
-		//case *RBody:
-		//	n, ok := refs.get(v.Name, n)
-		//	if !ok {
-		//		return errors.Errorf()
-		//	}
-		case *RConst:
-			n := u.next()
-			c.set(n, v.Value, 0, 0, true, fmt.Sprintf("constant %q", v.Value))
-			out.WriteByte(OpRef)
-			out.Write(encode(n))
-		case *RCall:
-			if n, ok := refs.get(v.Name); ok {
-				out.WriteByte(OpRef)
-				out.Write(encode(n))
-				continue
-			}
-			fCheck, err := selectFunctionChecker(libVersion)
-			if err != nil {
-				return nil, err
-			}
-			out.WriteByte(OpExternalCall)
-			id, ok := fCheck(v.Name)
-			if !ok {
-				return nil, errors.Errorf("invalid func name `%s`", v.Name)
-			}
-			out.Write(encode(id))
-			out.Write(encode(v.Argn))
-		case *RReferenceNode:
-			n, ok := refs.get(v.Name)
-			if !ok {
-				return nil, errors.Errorf("reference `%s` not found", v.Name)
-			}
-			out.WriteByte(OpRef)
-			out.Write(encode(n))
-		case *RLet:
-			n := u.next()
-			refs.set(v.Name, n)
-			c.set(n, nil, 0, 0, false, fmt.Sprintf("rdef %d, named %s", n, v.Name))
-			n, ok := refs.get(v.Name)
-			if !ok {
-				return nil, errors.Errorf("reference `%s` not found", v.Name)
-			}
-			e, ok := c.values[n]
-			if !ok {
-				return nil, errors.Errorf("cell `%d` not found", n)
-			}
-			e.position = uint16(out.Len())
-			c.values[n] = e
-		case *RFunc:
-			n := u.next()
-			refs.set(v.Name, n)
-			refs = newReferences(refs)
-			c.set(n, nil, 0, 0, false, fmt.Sprintf("ref %d, func named %s", n, v.Name))
-			for i := range v.ArgumentsWithInvocation {
-				z := u.next()
-				c.set(z, nil, 0, 0, false, fmt.Sprintf("ref %d, func arg #%d %s", z, i, v.Name))
-				refs.set(v.ArgumentsWithInvocation[i], z)
-			}
-			if v.Invocation != "" {
-				st.push(func() {
-					entrypoints[v.Name] = Entrypoint{
-						name: v.Name,
-						at:   uint16(out.Len()),
-						argn: uint16(len(v.Arguments)),
-					}
-					for i := len(v.Arguments) + 1; i > 0; i-- {
-						out.WriteByte(OpCache)
-						out.Write(encode(n + uint16(i)))
-						out.WriteByte(OpPop)
-					}
-				})
-			} else {
-				st.push(func() {
-					c.set(n, nil, 0, uint16(out.Len()), false, fmt.Sprintf("ref %d, func named %s", n, v.Name))
-					for i := len(v.ArgumentsWithInvocation); i > 0; i-- {
-						out.WriteByte(OpCache)
-						out.Write(encode(n + uint16(i)))
-						out.WriteByte(OpPop)
-					}
-				})
-			}
-		case *RFuncEnd:
-			refs = refs.pop()
-
-		case *RRet:
-			out.WriteByte(OpReturn)
-		case *RCond:
-			condPos = append(condPos, uint16(out.Len()))
-			out.WriteByte(OpJumpIfFalse)
-			out.Write(make([]byte, 6))
-		case *RCondTrue:
-			pos := condPos[len(condPos)-1]
-			st.push(func() {
-				patchBuffer(&out, pos+1, encode(uint16(out.Len())))
-			})
-		case *RCondFalse:
-			pos := condPos[len(condPos)-1]
-			st.push(func() {
-				patchBuffer(&out, pos+3, encode(uint16(out.Len())))
-			})
-
-		case *RCondEnd:
-			pos := condPos[len(condPos)-1]
-			patchBuffer(&out, pos+5, encode(uint16(out.Len())))
-			condPos = condPos[:len(condPos)-1]
-		case *RStart:
-			st.evalAndPop()
-
-		case *RProperty:
-			out.WriteByte(OpProperty)
-
-		default:
-			panic(fmt.Sprintf("unknown type %T", v))
-		}
-
-	}
-
-	// Most recent code line.
-	out.WriteByte(OpReturn)
-
-	if isDapp && hasVerifier {
-		entrypoints[""] = entrypoints["verify"]
-	}
-
-	e := Executable{
-		LibVersion:  libVersion,
-		IsDapp:      isDapp,
-		hasVerifier: hasVerifier,
-		ByteCode:    out.Bytes(),
-		EntryPoints: entrypoints,
-		References:  c.values,
-	}
-
-	return &e, nil
-}
+//func compileReversedTree(nodes []RNode, libVersion int, isDapp bool, hasVerifier bool) (*Executable, error) {
+//	var condPos []uint16
+//	refs := newReferences(nil)
+//	out := bytes.Buffer{}
+//	out.WriteByte(OpReturn)
+//	out.WriteByte(OpReturn)
+//	c := newCell()
+//	u := uniqid{}
+//	u.next()
+//	entrypoints := make(map[string]Entrypoint)
+//
+//	st := startpoint{
+//		default_: func() {
+//			entrypoints[""] = Entrypoint{
+//				name: "",
+//				at:   uint16(out.Len()),
+//				argn: 0,
+//			}
+//		},
+//	}
+//	st.evalAndPop()
+//
+//	for k, v := range predefinedFunctions {
+//		id := uint16(math.MaxUint16 - k)
+//		refs.setAssigment(v.name, id)
+//		c.set(id, nil, id, 0, false, v.name)
+//	}
+//
+//	//
+//	for _, v := range nodes {
+//		switch v := v.(type) {
+//		case *RDef:
+//			n := u.next()
+//			refs.set(v.Name, n)
+//			c.set(n, nil, 0, 0, false, fmt.Sprintf("rdef %d, named %s", n, v.Name))
+//			for range v.Arguments {
+//				u.next()
+//			}
+//		//case *RBody:
+//		//	n, ok := refs.get(v.Name, n)
+//		//	if !ok {
+//		//		return errors.Errorf()
+//		//	}
+//		case *RConst:
+//			n := u.next()
+//			c.set(n, v.Value, 0, 0, true, fmt.Sprintf("constant %q", v.Value))
+//			out.WriteByte(OpRef)
+//			out.Write(encode(n))
+//		case *RCall:
+//			if n, ok := refs.get(v.Name); ok {
+//				out.WriteByte(OpRef)
+//				out.Write(encode(n))
+//				continue
+//			}
+//			fCheck, err := selectFunctionChecker(libVersion)
+//			if err != nil {
+//				return nil, err
+//			}
+//			out.WriteByte(OpExternalCall)
+//			id, ok := fCheck(v.Name)
+//			if !ok {
+//				return nil, errors.Errorf("invalid func name `%s`", v.Name)
+//			}
+//			out.Write(encode(id))
+//			out.Write(encode(v.Argn))
+//		case *RReferenceNode:
+//			n, ok := refs.get(v.Name)
+//			if !ok {
+//				return nil, errors.Errorf("reference `%s` not found", v.Name)
+//			}
+//			out.WriteByte(OpRef)
+//			out.Write(encode(n))
+//		case *RLet:
+//			n := u.next()
+//			refs.set(v.Name, n)
+//			c.set(n, nil, 0, 0, false, fmt.Sprintf("rdef %d, named %s", n, v.Name))
+//			n, ok := refs.get(v.Name)
+//			if !ok {
+//				return nil, errors.Errorf("reference `%s` not found", v.Name)
+//			}
+//			e, ok := c.values[n]
+//			if !ok {
+//				return nil, errors.Errorf("cell `%d` not found", n)
+//			}
+//			e.position = uint16(out.Len())
+//			c.values[n] = e
+//		case *RFunc:
+//			n := u.next()
+//			refs.set(v.Name, n)
+//			refs = newReferences(refs)
+//			c.set(n, nil, 0, 0, false, fmt.Sprintf("ref %d, func named %s", n, v.Name))
+//			for i := range v.ArgumentsWithInvocation {
+//				z := u.next()
+//				c.set(z, nil, 0, 0, false, fmt.Sprintf("ref %d, func arg #%d %s", z, i, v.Name))
+//				refs.set(v.ArgumentsWithInvocation[i], z)
+//			}
+//			if v.Invocation != "" {
+//				st.push(func() {
+//					entrypoints[v.Name] = Entrypoint{
+//						name: v.Name,
+//						at:   uint16(out.Len()),
+//						argn: uint16(len(v.Arguments)),
+//					}
+//					for i := len(v.Arguments) + 1; i > 0; i-- {
+//						out.WriteByte(OpCache)
+//						out.Write(encode(n + uint16(i)))
+//						out.WriteByte(OpPop)
+//					}
+//				})
+//			} else {
+//				st.push(func() {
+//					c.set(n, nil, 0, uint16(out.Len()), false, fmt.Sprintf("ref %d, func named %s", n, v.Name))
+//					for i := len(v.ArgumentsWithInvocation); i > 0; i-- {
+//						out.WriteByte(OpCache)
+//						out.Write(encode(n + uint16(i)))
+//						out.WriteByte(OpPop)
+//					}
+//				})
+//			}
+//		case *RFuncEnd:
+//			refs = refs.pop()
+//
+//		case *RRet:
+//			out.WriteByte(OpReturn)
+//		case *RCond:
+//			condPos = append(condPos, uint16(out.Len()))
+//			out.WriteByte(OpJumpIfFalse)
+//			out.Write(make([]byte, 6))
+//		case *RCondTrue:
+//			pos := condPos[len(condPos)-1]
+//			st.push(func() {
+//				patchBuffer(&out, pos+1, encode(uint16(out.Len())))
+//			})
+//		case *RCondFalse:
+//			pos := condPos[len(condPos)-1]
+//			st.push(func() {
+//				patchBuffer(&out, pos+3, encode(uint16(out.Len())))
+//			})
+//
+//		case *RCondEnd:
+//			pos := condPos[len(condPos)-1]
+//			patchBuffer(&out, pos+5, encode(uint16(out.Len())))
+//			condPos = condPos[:len(condPos)-1]
+//		case *RStart:
+//			st.evalAndPop()
+//
+//		case *RProperty:
+//			out.WriteByte(OpProperty)
+//
+//		default:
+//			panic(fmt.Sprintf("unknown type %T", v))
+//		}
+//
+//	}
+//
+//	// Most recent code line.
+//	out.WriteByte(OpReturn)
+//
+//	if isDapp && hasVerifier {
+//		entrypoints[""] = entrypoints["verify"]
+//	}
+//
+//	e := Executable{
+//		LibVersion:  libVersion,
+//		IsDapp:      isDapp,
+//		hasVerifier: hasVerifier,
+//		ByteCode:    out.Bytes(),
+//		EntryPoints: entrypoints,
+//		References:  c.values,
+//	}
+//
+//	return &e, nil
+//}
 
 type ddfrs struct {
 }
@@ -586,22 +582,22 @@ func reverseTree3(n Node, out []RNode) []RNode {
 	}
 }
 
-func CompileFlatTree(tree *Tree) (*Executable, error) {
-	if tree.IsDApp() {
-		var rev []RNode
-		for _, v := range tree.Declarations {
-			rev = append(rev, reverseTree3(v, nil)...)
-		}
-		for _, v := range tree.Functions {
-			rev = append(rev, reverseTree3(v, nil)...)
-		}
-		if tree.HasVerifier() {
-			rev = append(rev, reverseTree3(tree.Verifier, nil)...)
-		}
-		return compileReversedTree(rev, tree.LibVersion, tree.IsDApp(), tree.HasVerifier())
-	}
-	return compileReversedTree(reverseTree3(tree.Verifier, nil), tree.LibVersion, tree.IsDApp(), tree.HasVerifier())
-}
+//func CompileFlatTree(tree *Tree) (*Executable, error) {
+//	if tree.IsDApp() {
+//		var rev []RNode
+//		for _, v := range tree.Declarations {
+//			rev = append(rev, reverseTree3(v, nil)...)
+//		}
+//		for _, v := range tree.Functions {
+//			rev = append(rev, reverseTree3(v, nil)...)
+//		}
+//		if tree.HasVerifier() {
+//			rev = append(rev, reverseTree3(tree.Verifier, nil)...)
+//		}
+//		return compileReversedTree(rev, tree.LibVersion, tree.IsDApp(), tree.HasVerifier())
+//	}
+//	return compileReversedTree(reverseTree3(tree.Verifier, nil), tree.LibVersion, tree.IsDApp(), tree.HasVerifier())
+//}
 
 func flatCondNode(t *ConditionalNode) []RNode {
 	var out []RNode

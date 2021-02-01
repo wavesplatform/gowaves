@@ -4,7 +4,6 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 )
 
 func ccc(f Fsm, node Node) (Fsm, error) {
@@ -83,60 +82,6 @@ func CompileVerifier(txID string, tree *Tree) (*Executable, error) {
 	return compileFunction(txID, tree.LibVersion, []Node{tree.Verifier}, tree.IsDApp(), tree.HasVerifier())
 }
 
-type functionArgumentsCount = int
-
-//func CompileFunction(txID string, tree *Tree, name string, args proto.Arguments, isDapp bool) (*Executable, functionArgumentsCount, error) {
-//	//s, err := newEvaluationScope(tree.LibVersion, env)
-//	//if err != nil {
-//	//	return nil, errors.Wrap(err, "failed to create scope")
-//	//}
-//	//for i, declaration := range tree.Declarations {
-//	//	//err = s.declare(declaration)
-//	//	//if err != nil {
-//	//	//	return nil, errors.Wrap(err, "invalid declaration")
-//	//	//}
-//	//	zap.S().Errorf("decl #%d ?? %s", i, Decompiler(declaration))
-//	//}
-//	if !tree.IsDApp() {
-//		return nil, 0, errors.Errorf("unable to call function '%s' on simple script", name)
-//	}
-//	for i := 0; i < len(tree.Functions); i++ {
-//		function, ok := tree.Functions[i].(*FunctionDeclarationNode)
-//		if !ok {
-//			return nil, 0, errors.New("invalid callable declaration")
-//		}
-//		if function.Name == name {
-//			//s.constants[function.invocationParameter] = esConstant{c: newInvocation}
-//			//if l := len(args); l != len(function.Arguments) {
-//			//	return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
-//			//}
-//			//applyArgs := make([]rideType, 0, len(args))
-//			//for _, arg := range args {
-//			//	a, err := convertArgument(arg)
-//			//	if err != nil {
-//			//		return nil, errors.Wrapf(err, "failed to call function '%s'", name)
-//			//	}
-//			//	//s.pushValue(function.Arguments[i], a)
-//			//	applyArgs = append(applyArgs, a)
-//			//	//namedArgument{
-//			//	//	name: function.Arguments[i],
-//			//	//	arg:  a,
-//			//	//})
-//			//}
-//
-//			rs, err := compileFunction(txID, tree.LibVersion, append(tree.Declarations, function), isDapp, tree.HasVerifier())
-//			if err != nil {
-//				return rs, 0, err
-//			}
-//			return rs, len(function.Arguments), nil
-//			//return &treeEvaluator{dapp: true, f: function.Body, s: s, env: env}, nil
-//		}
-//	}
-//	return nil, 0, errors.Errorf("function '%s' not found", name)
-//
-//	//return compileFunction(t.LibVersion, t)
-//}
-
 func CompileDapp(txID string, tree *Tree) (*Executable, error) {
 	if !tree.IsDApp() {
 		return nil, errors.Errorf("unable to compile dappp")
@@ -147,52 +92,6 @@ func CompileDapp(txID string, tree *Tree) (*Executable, error) {
 	}
 	return compileFunction(txID, tree.LibVersion, append(tree.Declarations, fns...), true, tree.HasVerifier())
 }
-
-//func CompileFlatDapp(txID string, tree *Tree) (*Executable, error) {
-//	if !tree.IsDApp() {
-//		return nil, errors.Errorf("unable to compile dappp")
-//	}
-//	fns := tree.Functions
-//	if tree.HasVerifier() {
-//		fns = append(fns, tree.Verifier)
-//	}
-//	return compileFunction(txID, tree.LibVersion, append(tree.Declarations, fns...), true, tree.HasVerifier())
-//}
-
-/*
-func compileVerifier(libVersion int, node Node) (*Executable, error) {
-	fCheck, err := selectFunctionChecker(libVersion)
-	if err != nil {
-		return nil, err
-	}
-	u := &uniqid{}
-	b := newBuilder()
-	r := newReferences(nil)
-	c := newCell()
-	b.writeByte(OpReturn)
-
-	params := params{
-		b: b,
-		r: r,
-		f: fCheck,
-		u: u,
-		c: c,
-	}
-	for k, v := range predefinedFunctions {
-		params.addPredefined(k, v.id, v.f)
-	}
-
-	f := NewMain(params)
-	f, err = ccc(f, node)
-	if err != nil {
-		return nil, err
-	}
-	// Just to write `OpReturn` to bytecode.
-	f = f.Return()
-
-	return f.(BuildExecutable).BuildExecutable(libVersion), nil
-}
-*/
 
 func compileFunction(txID string, libVersion int, nodes []Node, isDapp bool, hasVerifier bool) (*Executable, error) {
 	fCheck, err := selectFunctionChecker(libVersion)
@@ -219,7 +118,6 @@ func compileFunction(txID string, libVersion int, nodes []Node, isDapp bool, has
 
 	f := NewMain(params)
 	for _, node := range nodes {
-		zap.S().Error(Decompiler(node))
 		f, err = ccc(f, node)
 		if err != nil {
 			return nil, err
@@ -237,7 +135,3 @@ func CompileTree(tx string, tree *Tree) (*Executable, error) {
 	}
 	return CompileVerifier(tx, tree)
 }
-
-//func CompileTree(tx string, tree *Tree) (*Executable, error) {
-//	return CompileFlatTree(tree)
-//}

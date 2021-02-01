@@ -515,7 +515,7 @@ func TestDappCallable(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallTreeFunction(env, tree, "tellme", proto.Arguments{proto.NewStringArgument("abc")})
+	res, err := CallTreeFunction("", env, tree, "tellme", proto.Arguments{proto.NewStringArgument("abc")})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -582,7 +582,7 @@ func TestDappDefaultFunc(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallFunction("", env, tree, "", proto.Arguments{})
+	res, err := CallTreeFunction("", env, tree, "", proto.Arguments{})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -646,7 +646,7 @@ func TestDappVerify(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallVerifier("", env, tree)
+	res, err := CallTreeVerifier(env, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
@@ -678,7 +678,7 @@ func TestDappVerifySuccessful(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallVerifier("", env, tree)
+	res, err := CallTreeVerifier(env, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
@@ -707,7 +707,7 @@ func TestTransferSet(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallFunction("", env, tree, "tellme", proto.Arguments{proto.NewIntegerArgument(100500)})
+	res, err := CallTreeFunction("", env, tree, "tellme", proto.Arguments{proto.NewIntegerArgument(100500)})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -759,7 +759,7 @@ func TestScriptResult(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallFunction("", env, tree, "tellme", proto.Arguments{proto.NewIntegerArgument(100)})
+	res, err := CallTreeFunction("", env, tree, "tellme", proto.Arguments{proto.NewIntegerArgument(100)})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1139,7 +1139,7 @@ func TestWhaleDApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallTreeFunction(env, tree, "inviteuser", arguments)
+	res, err := CallTreeFunction("", env, tree, "inviteuser", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1265,7 +1265,7 @@ func TestExchangeDApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallFunction("", env, tree, "cancel", arguments)
+	res, err := CallTreeFunction("", env, tree, "cancel", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1432,7 +1432,7 @@ func TestBankDApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallTreeFunction(env, tree, "buyBack", proto.Arguments{})
+	res, err := CallTreeFunction("", env, tree, "buyBack", proto.Arguments{})
 	require.NoError(t, err)
 	_, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1576,7 +1576,7 @@ func TestLigaDApp1(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallTreeFunction(env, tree, "stage2", proto.Arguments{})
+	res, err := CallTreeFunction("", env, tree, "stage2", proto.Arguments{})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -1760,7 +1760,7 @@ func TestLigaDApp1(t *testing.T) {
 		},
 	}
 
-	res, err = CallTreeFunction(env, tree, "stage31", args2)
+	res, err = CallTreeFunction("", env, tree, "stage31", args2)
 	require.NoError(t, err)
 	r, ok = res.(DAppResult)
 	require.True(t, ok)
@@ -1889,7 +1889,7 @@ func TestTestingDApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallFunction("", env, tree, "main", arguments)
+	res, err := CallTreeFunction("", env, tree, "main", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2002,7 +2002,7 @@ func TestDropElementDApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallTreeFunction(env, tree, "dropElementInArray", arguments)
+	res, err := CallTreeFunction("", env, tree, "dropElementInArray", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2116,7 +2116,7 @@ func TestMathDApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallTreeFunction(env, tree, "coxRossRubinsteinCall", arguments)
+	res, err := CallTreeFunction("", env, tree, "coxRossRubinsteinCall", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2242,7 +2242,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	res, err := CallFunction("", env, tree, "deposit", arguments)
+	res, err := CallTreeFunction("", env, tree, "deposit", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2371,7 +2371,7 @@ func Test8Ball(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	res, err := CallFunction("", env, tree, "tellme", arguments)
+	res, err := CallTreeFunction("", env, tree, "tellme", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2479,7 +2479,7 @@ func TestIntegerEntry(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	_, err = CallFunction("", env, tree, "tellme", arguments)
+	_, err = CallTreeFunction("", env, tree, "tellme", arguments)
 	assert.Error(t, err)
 }
 
@@ -2593,7 +2593,7 @@ func TestDAppWithFullIssue(t *testing.T) {
 			return rideBytes(id)
 		},
 	}
-	res, err := CallTreeFunction(env, tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
+	res, err := CallTreeFunction("", env, tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2619,7 +2619,7 @@ func TestDAppWithSimpleIssue(t *testing.T) {
 			return rideBytes(id)
 		},
 	}
-	res, err := CallTreeFunction(env, tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
+	res, err := CallTreeFunction("", env, tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2721,7 +2721,7 @@ func TestBadType(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	res, err := CallFunction("", env, tree, "initDraw", arguments)
+	res, err := CallTreeFunction("", env, tree, "initDraw", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2883,7 +2883,7 @@ func TestNoDeclaration(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	res, err := CallTreeFunction(env, tree, "settle", arguments)
+	res, err := CallTreeFunction("", env, tree, "settle", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3070,7 +3070,7 @@ func TestZeroReissue(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	res, err := CallFunction("", env, tree, "replenishment", arguments)
+	res, err := CallTreeFunction("", env, tree, "replenishment", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3290,7 +3290,7 @@ func TestStageNet2(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	res, err := CallFunction("", env, tree, "purchaseToken", arguments)
+	res, err := CallTreeFunction("", env, tree, "purchaseToken", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -3374,7 +3374,7 @@ func TestRecipientAddressToString(t *testing.T) {
 		checkMessageLengthFunc: v3check,
 	}
 
-	res, err := CallVerifier("", env, tree)
+	res, err := CallTreeVerifier(env, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)

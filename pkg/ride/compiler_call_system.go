@@ -15,7 +15,8 @@ type CallSystemState struct {
 	//retAssig  uint16
 	deferred  []Deferred
 	deferreds Deferreds
-	ns        []uniqueid
+	// Sequential function arguments.
+	ns []uniqueid
 }
 
 func (a CallSystemState) backward(state Fsm) Fsm {
@@ -59,7 +60,7 @@ func (a CallSystemState) Boolean(value bool) Fsm {
 }
 
 func callTransition(prev Fsm, params params, name string, argc uint16, d Deferreds) Fsm {
-	if _, ok := params.r.get(name); ok {
+	if _, ok := params.r.getFunc(name); ok {
 		return newCallUserFsm(prev, params, name, argc, d)
 	}
 	return newCallSystemFsm(prev, params, name, argc, d)
@@ -85,7 +86,6 @@ func newCallSystemFsm(prev Fsm, params params, name string, argc uint16, d Defer
 func (a CallSystemState) Assigment(name string) Fsm {
 	n := a.params.u.next()
 	return assigmentFsmTransition(a, a.params, name, n, a.deferreds)
-	//panic(fmt.Sprintf("CallSystemState Assigment %s", a.params.txID))
 }
 
 func (a CallSystemState) Long(value int64) Fsm {
@@ -135,10 +135,14 @@ func (a CallSystemState) Write(_ params, b []byte) {
 		if n, ok := isConstant(a.deferred[i]); ok {
 			a.b.writeByte(OpRef)
 			a.b.write(encode(n))
+			a.b.writeByte(OpCache)
+			a.b.write(encode(n))
 		} else {
 			n := a.ns[i]
 			a.b.writeByte(OpRef)
 			a.b.write(encode(n))
+			//a.b.writeByte(OpCache)
+			//a.b.write(encode(n))
 		}
 	}
 

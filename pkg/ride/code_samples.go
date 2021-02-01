@@ -22,3 +22,14 @@ func abc() = {
 }
 abc()
 `
+
+const intersectNames = `
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+func inc(v: Int) = v + 1
+func call(inc: Int) = {
+    inc(inc)
+}
+call(2) == 3
+`

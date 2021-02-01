@@ -1,5 +1,9 @@
 package ride
 
+import "fmt"
+
+//import "fmt"
+
 // If-else statement.
 type ConditionalState struct {
 	params
@@ -16,7 +20,6 @@ type ConditionalState struct {
 		}
 
 		`X` and `y` should not be executed.
-
 	*/
 	patchTruePosition uint16
 	// Same as true position.
@@ -36,8 +39,13 @@ type ConditionalState struct {
 	condN uniqueid
 }
 
-func (a ConditionalState) backward(v Fsm) Fsm {
-	a.deferred = append(a.deferred, v.(Deferred))
+func (a ConditionalState) backward(as Fsm) Fsm {
+	// Func in func.
+	if f, ok := as.(FuncState); ok {
+		a.deferreds.Add(as.(Deferred), f.n, fmt.Sprintf("func `%s`in conditional", f.name))
+	} else {
+		a.deferred = append(a.deferred, as.(Deferred))
+	}
 	return a
 }
 
@@ -46,7 +54,8 @@ func (a ConditionalState) Property(name string) Fsm {
 }
 
 func (a ConditionalState) Func(name string, args []string, invoke string) Fsm {
-	panic("Illegal call Func on ConditionalState")
+	//panic(fmt.Sprintf("Illegal call Func on ConditionalState %s", a.txID))
+	return funcTransition(a, a.params, name, args, invoke)
 }
 
 func (a ConditionalState) Bytes(value []byte) Fsm {
@@ -80,7 +89,7 @@ func (a ConditionalState) FalseBranch() Fsm {
 func (a ConditionalState) Assigment(name string) Fsm {
 	n := a.params.u.next()
 	//a.assigments = append(a.assigments, n)
-	a.r.set(name, n)
+	a.r.setAssigment(name, n)
 	return assigmentFsmTransition(a, a.params, name, n, a.deferreds)
 }
 
@@ -90,15 +99,10 @@ func (a ConditionalState) Long(value int64) Fsm {
 }
 
 func (a ConditionalState) Call(name string, argc uint16) Fsm {
-	//a.rets = append(a.rets, a.params.b.len())
 	return callTransition(a, a.params, name, argc, a.deferreds)
-	//panic("")
 }
 
 func (a ConditionalState) Reference(name string) Fsm {
-	//a.rets = append(a.rets, a.params.b.len())
-	//return reference(a, a.params, name)
-	//panic("")
 	a.deferred = append(a.deferred, reference(a, a.params, name))
 	return a
 }
@@ -114,12 +118,12 @@ func (a ConditionalState) String(value string) Fsm {
 }
 
 func (a ConditionalState) Return() Fsm {
-	if len(a.deferred) != 3 {
-		panic("len(a.deferred) != 3")
+	if len(a.deferred) < 3 {
+		panic("len(a.deferred) < 3")
 	}
 	a.condN = a.u.next()
 	a.deferreds.Add(a.deferred[0], a.condN, "condition cond")
-	return a.prev.backward(a) //.backward(a.startedAt, a.b.len())
+	return a.prev.backward(a)
 }
 
 func (a ConditionalState) Write(_ params, b []byte) {

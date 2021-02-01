@@ -140,7 +140,7 @@ func (a CallUserState) Clean() {
 
 func (a CallUserState) Write(_ params, b []byte) {
 	// check user functions
-	fn, ok := a.r.get(a.name)
+	fn, ok := a.r.getFunc(a.name)
 	if !ok {
 		panic(fmt.Sprintf("user function `%s` not found", a.name))
 	}
@@ -155,16 +155,17 @@ func (a CallUserState) Write(_ params, b []byte) {
 			a.b.writeByte(OpRef)
 			a.b.write(encode(n))
 			a.b.writeByte(OpCache)
-			a.b.write(encode(fn + 1 + i))
-			a.b.writeByte(OpPop)
+			a.b.write(encode(n))
+			//a.b.write(encode(fn + 1 + i))
+			//a.b.writeByte(OpPop)
 			ns = append(ns, n)
 		} else {
 			n := a.u.next()
 			a.b.writeByte(OpRef)
 			a.b.write(encode(n))
-			a.b.writeByte(OpCache)
-			a.b.write(encode(fn + 1 + i))
-			a.b.writeByte(OpPop)
+			//a.b.writeByte(OpCache)
+			//a.b.write(encode(fn + 1 + i))
+			//a.b.writeByte(OpPop)
 			ns = append(ns, n)
 		}
 	}

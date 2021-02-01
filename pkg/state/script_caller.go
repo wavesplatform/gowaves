@@ -9,7 +9,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 type scriptCaller struct {
@@ -43,8 +42,11 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	if err != nil {
 		return err
 	}
-	//tree, err := a.stor.scriptsStorage.newestScriptByAddr(sender, !initialisation)
-	tree, err := a.stor.scriptsStorage.newestBytecodeByAddr(sender, !initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(sender, !initialisation)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve account script")
+	}
+	exe, err := a.stor.scriptsStorage.newestBytecodeByAddr(sender, !initialisation)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve account script")
 	}
@@ -54,12 +56,12 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	}
 	env.SetThisFromAddress(sender)
 	env.SetLastBlock(lastBlockInfo)
-	env.ChooseSizeCheck(tree.LibVersion)
+	env.ChooseSizeCheck(exe.LibVersion)
 	err = env.SetTransactionFromOrder(order)
 	if err != nil {
 		return errors.Wrap(err, "failed to convert order")
 	}
-	r, err := ride.CallVmVerifier("scriptCaller callAccountScriptWithOrder", env, tree)
+	r, err := ride.CallVerifier("scriptCaller callAccountScriptWithOrder", env, tree, exe)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
 	}
@@ -92,8 +94,11 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	if err != nil {
 		return err
 	}
-	tree, err := a.stor.scriptsStorage.newestBytecodeByAddr(senderAddr, !initialisation)
-	//tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !initialisation)
+	if err != nil {
+		return err
+	}
+	exe, err := a.stor.scriptsStorage.newestBytecodeByAddr(senderAddr, !initialisation)
 	if err != nil {
 		return err
 	}
@@ -109,7 +114,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
 	//zap.S().Debug(tx.GetID(a.settings.AddressSchemeCharacter))
-	r, err := ride.CallVmVerifier(txID, env, tree)
+	r, err := ride.CallVerifier(txID, env, tree, exe)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
@@ -142,12 +147,16 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 }
 
 func (a *scriptCaller) callAssetScriptCommon(env *ride.Environment, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool, acceptFailed bool) (ride.RideResult, error) {
-	tree, err := a.stor.scriptsStorage.newestBytecodeByAsset(assetID, !initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
 	if err != nil {
 		return nil, err
 	}
-	env.ChooseSizeCheck(tree.LibVersion)
-	switch tree.LibVersion {
+	exe, err := a.stor.scriptsStorage.newestBytecodeByAsset(assetID, !initialisation)
+	if err != nil {
+		return nil, err
+	}
+	env.ChooseSizeCheck(exe.LibVersion)
+	switch exe.LibVersion {
 	case 4:
 		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
 		if err != nil {
@@ -162,7 +171,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.Environment, assetID cryp
 		env.SetThisFromAssetInfo(assetInfo)
 	}
 	env.SetLastBlock(lastBlockInfo)
-	r, err := ride.CallVmVerifier("scriptCaller callAssetScriptCommon", env, tree)
+	r, err := ride.CallVerifier("scriptCaller callAssetScriptCommon", env, tree, exe)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 	}
@@ -222,23 +231,24 @@ func (a *scriptCaller) invokeFunction(exe *ride.Executable, tx *proto.InvokeScri
 	}
 	env.ChooseSizeCheck(exe.LibVersion)
 
-	for i, f := range tree.Declarations {
-		rs := ride.Decompiler(f)
-		zap.S().Error(i, " == ", rs)
+	//for i, f := range tree.Declarations {
+	//	rs := ride.Decompiler(f)
+	//	zap.S().Error(i, " == ", rs)
+	//
+	//}
+	//for i, f := range tree.Functions {
+	//	rs := ride.Decompiler(f)
+	//	zap.S().Error(i, " == ", rs)
+	//}
+	//
+	//zap.S().Error("verifier: == ", tree.Verifier)
+	//for i, v := range tx.FunctionCall.Arguments {
+	//	zap.S().Errorf("%d argument %+v, %T", i, v, v)
+	//}
 
-	}
-	for i, f := range tree.Functions {
-		rs := ride.Decompiler(f)
-		zap.S().Error(i, " == ", rs)
-	}
-
-	zap.S().Error("verifier: == ", tree.Verifier)
-	for i, v := range tx.FunctionCall.Arguments {
-		zap.S().Errorf("%d argument %+v, %T", i, v, v)
-	}
-
-	r, err := ride.CallVmFunction(txID, env, exe, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
-	//r, err := ride.CallFunction(txID, env, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
+	r, err := ride.CallFunction(txID, env, exe, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
+	//r, err := ride.CallVmFunction(txID, env, exe, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
+	//r, err := ride.CallTreeFunction(txID, env, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}

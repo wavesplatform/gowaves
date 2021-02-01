@@ -63,8 +63,8 @@ func (a FuncState) Property(name string) Fsm {
 func funcTransition(prev Fsm, params params, name string, args []string, invokeParam string) Fsm {
 	argn := len(args)
 	n := params.u.next()
-	params.r.set(name, n)
-	// all variable we add only visible to current scope,
+	params.r.setFunc(name, n)
+	// All variable we add only visible to current scope,
 	// avoid corrupting global scope.
 	params.r = newReferences(params.r)
 
@@ -76,7 +76,7 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 	for i := range args {
 		e := params.u.next()
 		paramIds = append(paramIds, e)
-		params.r.set(args[i], e)
+		params.r.setAssigment(args[i], e)
 	}
 
 	return &FuncState{
@@ -161,6 +161,12 @@ func (a FuncState) Write(_ params, b []byte) {
 	a.params.c.set(a.n, nil, 0, pos, false, fmt.Sprintf("function %s", a.name))
 	if len(a.deferred) != 1 {
 		panic("len(a.deferred) != 1")
+	}
+	// Assign function arguments from stack.
+	for i := len(a.paramIds) - 1; i >= 0; i-- {
+		a.b.writeByte(OpCache)
+		a.b.write(encode(a.paramIds[i]))
+		a.b.writeByte(OpPop)
 	}
 	a.deferred[0].Write(a.params, nil)
 

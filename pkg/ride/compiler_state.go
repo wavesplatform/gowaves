@@ -61,7 +61,7 @@ type params struct {
 }
 
 func (a *params) addPredefined(name string, id uniqueid, fn uint16) {
-	a.r.set(name, id)
+	a.r.setAssigment(name, id)
 	a.c.set(id, nil, fn, 0, false, name)
 }
 
@@ -72,7 +72,7 @@ func (a *params) constant(value rideType) constantDeferred {
 }
 
 func reference(_ Fsm, params params, name string) Deferred {
-	pos, ok := params.r.get(name)
+	pos, ok := params.r.getAssigment(name)
 	if !ok {
 		panic(fmt.Sprintf("reference %s not found, tx %s", name, params.txID))
 	}

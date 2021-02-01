@@ -51,6 +51,8 @@ var predefinedFunctions = []predefFunc{
 	{"SHA3512", createSha3512},
 	{"Buy", createBuy},
 	{"Sell", createSell},
+	{"CEILING", createCeiling},
+	{"HALFEVEN", createHalfEven},
 }
 
 var predefined *predef

@@ -27,7 +27,6 @@ func (a MainState) Bytes(b []byte) Fsm {
 }
 
 func (a MainState) Condition() Fsm {
-	//a.b.startPos()
 	return conditionalTransition(a, a.params, a.deferreds)
 }
 
@@ -58,8 +57,6 @@ func NewMain(params params) Fsm {
 
 func (a MainState) Assigment(name string) Fsm {
 	n := a.params.u.next()
-	//a.assigments = append(a.assigments, n)
-	//a.r.set(name, n)
 	return assigmentFsmTransition(a, a.params, name, n, a.deferreds)
 }
 
@@ -78,11 +75,6 @@ func (a MainState) Return() Fsm {
 		if f, ok := body[0].(FuncState); ok && f.invokeParam != "" {
 			a.b.setStart(f.name, f.argn)
 			a.b.setStart("", 0)
-			for i := len(f.ParamIds()) - 1; i >= 0; i-- {
-				a.b.writeByte(OpCache)
-				a.b.write(encode(f.ParamIds()[i]))
-				a.b.writeByte(OpPop)
-			}
 		} else {
 			a.b.setStart("", 0)
 		}
@@ -94,11 +86,6 @@ func (a MainState) Return() Fsm {
 		}
 	}
 	a.b.ret()
-
-	//for _, v := range reversed[1:] {
-	//	v.Write(a.params, nil)
-	//	a.b.ret()
-	//}
 
 	for _, v := range a.deferreds.Get() {
 		pos := a.b.len()

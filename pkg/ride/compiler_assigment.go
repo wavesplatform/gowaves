@@ -8,9 +8,6 @@ type AssigmentState struct {
 	bodyParams params
 	prev       Fsm
 	name       string
-	//startedAt uint16
-	//ret       uint16
-	//constant rideType
 	// ref id
 	n uniqueid
 
@@ -60,7 +57,7 @@ func (a AssigmentState) Boolean(v bool) Fsm {
 }
 
 func assigmentFsmTransition(prev Fsm, params params, name string, n uniqueid, d Deferreds) Fsm {
-	params.r.set(name, n)
+	params.r.setAssigment(name, n)
 	return newAssigmentFsm(prev, params, name, n, d)
 }
 
@@ -90,7 +87,7 @@ func (a AssigmentState) Assigment(name string) Fsm {
 }
 
 func (a AssigmentState) Return() Fsm {
-	a.r.set(a.name, a.n)
+	a.r.setAssigment(a.name, a.n)
 	a.d.Add(a, a.n, fmt.Sprintf("ref %s", a.name))
 	return a.prev
 }
@@ -121,8 +118,6 @@ func (a AssigmentState) Write(_ params, b []byte) {
 }
 
 func (a AssigmentState) Clean() {
-	//for i := len(a.assigments) - 1; i >= 0; i-- {
 	a.b.writeByte(OpClearCache)
 	a.b.write(encode(a.n))
-	//}
 }

@@ -218,30 +218,62 @@ func (a *cell) get(u uniqueid) (point, bool) {
 
 type uniqueid = uint16
 
+type refKind struct {
+	assigment bool
+	n         uniqueid
+}
+
 type references struct {
 	prev *references
-	refs map[string]uint16
+	refs map[string][]refKind
 }
 
 func newReferences(prev *references) *references {
 	return &references{
 		prev: prev,
-		refs: make(map[string]uint16),
+		refs: make(map[string][]refKind),
 	}
 }
 
-func (a *references) get(name string) (uniqueid, bool) {
+//func (a *references) get(name string) (uniqueid, bool) {
+//	if a == nil {
+//		return 0, false
+//	}
+//	if offset, ok := a.refs[name]; ok {
+//		return offset, ok
+//	}
+//	return a.prev.get(name)
+//}
+
+func (a *references) setAssigment(name string, uniq uniqueid) {
+	a.refs[name] = append([]refKind{refKind{assigment: true, n: uniq}}, a.refs[name]...)
+}
+
+func (a *references) setFunc(name string, uniq uniqueid) {
+	a.refs[name] = append([]refKind{refKind{assigment: false, n: uniq}}, a.refs[name]...)
+}
+
+func (a *references) getFunc(name string) (uniqueid, bool) {
+	return a.get(name, false)
+}
+
+func (a *references) getAssigment(name string) (uniqueid, bool) {
+	return a.get(name, true)
+}
+
+func (a *references) get(name string, assigment bool) (uniqueid, bool) {
 	if a == nil {
 		return 0, false
 	}
 	if offset, ok := a.refs[name]; ok {
-		return offset, ok
+		for _, v := range offset {
+			if v.assigment == assigment {
+				return v.n, true
+			}
+		}
+		return a.prev.get(name, assigment)
 	}
-	return a.prev.get(name)
-}
-
-func (a *references) set(name string, uniq uniqueid) {
-	a.refs[name] = uniq
+	return a.prev.get(name, assigment)
 }
 
 func (a *references) pop() *references {

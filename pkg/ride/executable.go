@@ -23,6 +23,9 @@ func (a *Executable) Verify(environment RideEnvironment) (RideResult, error) {
 		if !a.HasVerifier() {
 			return nil, errors.Errorf("no verifier attached to script")
 		}
+		if environment == nil {
+			return nil, errors.Errorf("expect to get env.transaction(), but env is nil")
+		}
 		return a.runWithoutChecks(environment, "", []rideType{environment.transaction()})
 	}
 	return a.runWithoutChecks(environment, "", nil)
@@ -78,7 +81,7 @@ func (a *Executable) runWithoutChecks(environment RideEnvironment, name string, 
 	}
 }
 
-func (a *Executable) Invoke(environment RideEnvironment, name string, arguments []rideType) (RideResult, error) {
+func (a *Executable) Invoke(env RideEnvironment, name string, arguments []rideType) (RideResult, error) {
 	if name == "" {
 		return nil, errors.Errorf("expected func name, found \"\"")
 	}
@@ -86,10 +89,11 @@ func (a *Executable) Invoke(environment RideEnvironment, name string, arguments 
 	if !ok {
 		return nil, errors.Errorf("function %s not found", name)
 	}
+	arguments = append([]rideType{env.invocation()}, arguments...)
 	if len(arguments) != int(fcall.argn)+1 {
 		return nil, errors.Errorf("func `%s` requires %d arguments(1 invoke + %d args), but provided %d", name, fcall.argn+1, fcall.argn, len(arguments))
 	}
-	return a.runWithoutChecks(environment, name, arguments)
+	return a.runWithoutChecks(env, name, arguments)
 }
 
 func (a *Executable) run(environment RideEnvironment, arguments []rideType) (rideType, error) {
