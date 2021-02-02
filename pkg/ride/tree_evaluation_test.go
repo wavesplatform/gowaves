@@ -2698,9 +2698,11 @@ func BenchmarkInvokeDAppFromDAppScript6(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	_, err = CallFunction(env, tree, "foo", proto.Arguments{})
-	if err != nil {
-		b.Fatal("Expected no errors, got error ", err)
+	for i := 0; i < b.N; i++ {
+		_, err := CallFunction(env, tree, "foo", proto.Arguments{})
+		if err != nil {
+			b.Fatal("Expected no errors, got error ", err)
+		}
 	}
 	tearDownDappFromDapp()
 }
