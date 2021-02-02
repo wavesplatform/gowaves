@@ -15,7 +15,7 @@ import (
 
 func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 	env.incrementInvCount()
-	if env.invCount() > 9 {
+	if env.invCount() > 100 {
 		return rideUnit{}, nil
 	}
 	callerAddress, ok := env.this().(rideAddress)

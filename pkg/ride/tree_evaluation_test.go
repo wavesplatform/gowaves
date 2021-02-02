@@ -2610,6 +2610,103 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	tearDownDappFromDapp()
 }
 
+func BenchmarkInvokeDAppFromDAppScript6(b *testing.B) {
+
+	/* script 1
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-#SCRIPT_TYPE ACCOUNT#-}
+
+	 @Callable(i)
+	 func foo() = {
+	  let r = Invoke(this, "foo", [], [])
+	  if r == r
+	  then
+	    [
+	    ]
+	  else
+	   throw("Imposible")
+	 }
+
+	*/
+	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
+	if err != nil {
+		b.Fatal("Expected no errors, got error ", err)
+	}
+	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
+	if err != nil {
+		b.Fatal("Expected no errors, got error ", err)
+	}
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	if err != nil {
+		b.Fatal("Expected no errors, got error ", err)
+	}
+	addr, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
+	if err != nil {
+		b.Fatal("Expected no errors, got error ", err)
+	}
+	recipient := proto.NewRecipientFromAddress(addr)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "cancel",
+		Arguments: arguments,
+	}
+	tx = &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        nil,
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             900000,
+		Timestamp:       1564703444249,
+	}
+	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+
+	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAABcgkAA/wAAAAEBQAAAAR0aGlzAgAAAANmb28FAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAAFyBQAAAAFyBQAAAANuaWwJAAACAAAAAQIAAAAJSW1wb3NpYmxlAAAAAAWzLtA="
+
+	id = bytes.Repeat([]byte{0}, 32)
+
+	smartState := smartStateDappFromDapp
+
+	envActions = nil
+	thisAddress = addr
+	invCount = 0
+
+	env := envDappFromDapp
+
+	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
+	wrappedSt = *NewWrappedSt
+
+	src, err := base64.StdEncoding.DecodeString(firstScript)
+	if err != nil {
+		b.Fatal("Expected no errors, got error ", err)
+	}
+
+	tree, err := Parse(src)
+	if err != nil {
+		b.Fatal("Expected no errors, got error ", err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := CallFunction(env, tree, "foo", proto.Arguments{})
+		if err != nil {
+			b.Fatal("Expected no errors, got error ", err)
+		}
+	}
+	tearDownDappFromDapp()
+}
+
 func TestInvokeDAppFromDAppPayments(t *testing.T) {
 
 	/* script 1
