@@ -52,7 +52,7 @@ func CallFunction(env RideEnvironment, tree *Tree, name string, args proto.Argum
 	if !ok {
 		return rideResult, err
 	}
-	if DAppResult.actions == nil {
+	if env.actions() == nil {
 		return rideResult, err
 	}
 
