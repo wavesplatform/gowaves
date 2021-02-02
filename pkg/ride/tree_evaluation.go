@@ -46,5 +46,18 @@ func CallFunction(env RideEnvironment, tree *Tree, name string, args proto.Argum
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to call function '%s'", name)
 	}
-	return e.evaluate()
+	rideResult, err := e.evaluate()
+
+	DAppResult, ok := rideResult.(DAppResult)
+	if !ok {
+		return rideResult, err
+	}
+	if env.actions() == nil {
+		return rideResult, err
+	}
+
+	fullActions := env.actions()
+	fullActions = append(fullActions, DAppResult.actions...)
+	DAppResult.actions = fullActions
+	return DAppResult, err
 }
