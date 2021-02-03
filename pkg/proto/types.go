@@ -42,13 +42,13 @@ const (
 	PriceConstant        = 100000000
 	MaxOrderAmount       = 100 * PriceConstant * PriceConstant
 	MaxOrderTTL          = uint64((30 * 24 * time.Hour) / time.Millisecond)
-	maxKeySize           = 100
-	maxPBKeySize         = 400
+	MaxKeySize           = 100
+	MaxPBKeySize         = 400
 	maxValueSize         = 32767
 
-	maxScriptActions                     = 10
-	maxDataEntryScriptActions            = 100
-	maxDataEntryScriptActionsSizeInBytes = 5 * 1024
+	MaxScriptActions                     = 10
+	MaxDataEntryScriptActions            = 100
+	MaxDataEntryScriptActionsSizeInBytes = 5 * 1024
 )
 
 type Timestamp = uint64
@@ -1789,11 +1789,11 @@ func (e IntegerDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
@@ -1917,11 +1917,11 @@ func (e BooleanDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large11")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large22")
 		}
 	}
@@ -2049,11 +2049,11 @@ func (e BinaryDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
@@ -2184,11 +2184,11 @@ func (e StringDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
@@ -2318,11 +2318,11 @@ func (e DeleteDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}

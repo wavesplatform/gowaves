@@ -14,6 +14,7 @@ import (
 )
 
 func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
+	// TODO payment external
 	env.incrementInvCount()
 	if env.invCount() > 100 {
 		return rideUnit{}, nil
@@ -129,26 +130,14 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		err = env.validateInvokeResult(res.ScriptActions(), recipient)
+		if err != nil {
+			return nil, errors.Wrap(err, "validation of called dapp")
+		}
+
 		env.setNewDAppAddress(proto.Address(callerAddress))
-
 		env.SetInvocation(oldInvocationParam)
-
-		// validation
-
-		/*
-			actions:
-			1) Sender has rights
-			2) Transfer and Lease don't try to send negative amount
-			3) reissue/issue
-			4) the limit length of coin name (issue)
-			5) script of asset ???
-
-			diff:
-			1) negative balance
-
-		*/
-
-		//env.validateInvokeResult(res.ScriptActions())
 
 		if res.UserResult() == nil {
 			return rideUnit{}, nil

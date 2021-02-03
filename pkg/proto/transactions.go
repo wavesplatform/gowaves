@@ -52,10 +52,10 @@ const (
 
 const (
 	maxAttachmentLengthBytes = 140
-	maxDescriptionLen        = 1000
-	maxAssetNameLen          = 16
-	minAssetNameLen          = 4
-	maxDecimals              = 8
+	MaxDescriptionLen        = 1000
+	MaxAssetNameLen          = 16
+	MinAssetNameLen          = 4
+	MaxDecimals              = 8
 	maxLongValue             = ^uint64(0) >> 1
 
 	genesisBodyLen = 1 + 8 + AddressSize + 8
@@ -1010,14 +1010,14 @@ func (i Issue) Valid() (bool, error) {
 	if !validJVMLong(i.Fee) {
 		return false, errors.New("fee is too big")
 	}
-	if l := len(i.Name); l < minAssetNameLen || l > maxAssetNameLen {
+	if l := len(i.Name); l < MinAssetNameLen || l > MaxAssetNameLen {
 		return false, errs.NewInvalidName("incorrect number of bytes in the asset's name")
 	}
-	if l := len(i.Description); l > maxDescriptionLen {
+	if l := len(i.Description); l > MaxDescriptionLen {
 		return false, errs.NewTooBigArray("incorrect number of bytes in the asset's description")
 	}
-	if i.Decimals > maxDecimals {
-		return false, errs.NewTooBigArray(fmt.Sprintf("incorrect decimals, should be no more then %d", maxDecimals))
+	if i.Decimals > MaxDecimals {
+		return false, errs.NewTooBigArray(fmt.Sprintf("incorrect decimals, should be no more then %d", MaxDecimals))
 	}
 	return true, nil
 }

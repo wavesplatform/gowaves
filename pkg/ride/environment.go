@@ -3,8 +3,10 @@ package ride
 import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"unicode/utf16"
 )
 
 func (wrappedSt *wrappedState) AddingBlockHeight() (uint64, error) {
@@ -732,28 +734,212 @@ func (e *Environment) appendActions(actions []proto.ScriptAction) {
 	e.act = append(e.act, actions...)
 }
 
-//func (e *Environment) validateInvokeResult(actions []proto.ScriptAction) (bool, error) {
-//	// validate diff
-//	wrappedSt, ok := e.st.(*wrappedState)
-//	if !ok {
-//		return false, errors.Errorf("validation: wrong state")
-//	}
-//	for _, value := range wrappedSt.diff.balances {
-//		if value.regular < 0 || value.leaseIn < 0 || value.leaseOut < 0 {
-//			return false, nil
-//		}
-//		for _, effective := range value.effectiveHistory {
-//			if effective < 0 {
-//				return false, nil
-//			}
-//		}
-//	}
-//
-//	// validate actions
-//	// leaseCancel
-//
-//
-//}
+func (e *Environment) validateInvokeResult(actions []proto.ScriptAction, dappRecipient proto.Recipient) error {
+	wrappedSt, ok := e.st.(*wrappedState)
+	if !ok {
+		return errors.Errorf("wrong state in validation")
+	}
+	address, err := e.st.NewestRecipientToAddress(dappRecipient)
+	if err != nil {
+		return errors.Errorf("failed to get address from recipient")
+	}
+
+	for searchAddress, value := range wrappedSt.diff.balances {
+		if searchAddress == address.String() + value.asset.String() {
+			// waves
+			if value.asset.Present {
+				regularBalanceFromState, err := wrappedSt.diff.state.NewestAccountBalance(dappRecipient, value.asset.ID.Bytes())
+				if err != nil {
+					return err
+				}
+				if int64(regularBalanceFromState) + value.regular < 0 {
+					return errors.Errorf("regular balance of called dapp is negative")
+				}
+				continue
+			}
+			// other assets
+			fullBalanceFromState, err := wrappedSt.diff.state.NewestFullWavesBalance(dappRecipient)
+			if err != nil {
+				return err
+			}
+			if int64(fullBalanceFromState.Regular) + value.regular < 0 || int64(fullBalanceFromState.LeaseIn) + value.leaseIn < 0 || int64(fullBalanceFromState.LeaseOut) + value.leaseOut < 0 {
+				return errors.Errorf("at least one of regular, leaseIn, leaseOut balances of called dapp is negative")
+			}
+			for _, effective := range value.effectiveHistory {
+				if effective < 0 {
+					return errors.Errorf("effective balance is negative")
+				}
+			}
+		}
+	}
+
+	dataEntriesCount := 0
+	dataEntriesSize := 0
+	otherActionsCount := 0
+
+	dappScript, err := e.state().GetByteTree(dappRecipient)
+	if err != nil {
+		return errors.Wrap(err, "failed to get script by recipient")
+	}
+	tree, err := Parse(dappScript)
+	if err != nil {
+		return errors.Wrap(err, "failed to get tree by script")
+	}
+	libVersion := tree.LibVersion
+	acceptFailed := true // TODO how can we find it out from here?
+
+	disableSelfTransfers := acceptFailed && libVersion >= 4
+	var keySizeValidationVersion byte = 1
+	if libVersion >= 4 {
+		keySizeValidationVersion = 2
+	}
+	restrictions := proto.ActionsValidationRestrictions{
+		DisableSelfTransfers:     disableSelfTransfers,
+		KeySizeValidationVersion: keySizeValidationVersion,
+	}
+
+
+	for _, a := range actions {
+		switch ta := a.(type) {
+		case *proto.DataEntryScriptAction:
+			dataEntriesCount++
+			if dataEntriesCount > proto.MaxDataEntryScriptActions {
+				return errors.Errorf("number of data entries produced by script is more than allowed %d", proto.MaxDataEntryScriptActions)
+			}
+			switch restrictions.KeySizeValidationVersion {
+			case 1:
+				if len(utf16.Encode([]rune(ta.Entry.GetKey()))) > proto.MaxKeySize {
+					return errs.NewTooBigArray("key is too large")
+				}
+			default:
+				if len([]byte(ta.Entry.GetKey())) > proto.MaxPBKeySize {
+					return errs.NewTooBigArray("key is too large")
+				}
+			}
+
+			dataEntriesSize += ta.Entry.BinarySize()
+			if dataEntriesSize > proto.MaxDataEntryScriptActionsSizeInBytes {
+				return errors.Errorf("total size of data entries produced by script is more than %d bytes", proto.MaxDataEntryScriptActionsSizeInBytes)
+			}
+
+		case *proto.TransferScriptAction:
+			otherActionsCount++
+			if otherActionsCount > proto.MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+			}
+			if ta.Amount < 0 {
+				return errors.New("negative transfer amount")
+			}
+			if ta.InvalidAsset {
+				return errors.New("invalid asset")
+			}
+			if restrictions.DisableSelfTransfers {
+				senderAddress := restrictions.ScriptAddress
+				if ta.SenderPK() != nil {
+					var err error
+					senderAddress, err = proto.NewAddressFromPublicKey(restrictions.Scheme, *ta.SenderPK())
+					if err != nil {
+						return errors.Wrap(err, "failed to validate TransferScriptAction")
+					}
+				}
+				if ta.Recipient.Address.Eq(senderAddress) {
+					return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
+				}
+			}
+
+		case *proto.IssueScriptAction:
+			otherActionsCount++
+			if otherActionsCount > proto.MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+			}
+			if ta.Quantity < 0 {
+				return errors.New("negative quantity")
+			}
+			if ta.Decimals < 0 || ta.Decimals > proto.MaxDecimals {
+				return errors.New("invalid decimals")
+			}
+			if l := len(ta.Name); l < proto.MinAssetNameLen || l > proto.MaxAssetNameLen {
+				return errors.New("invalid asset's name")
+			}
+			if l := len(ta.Description); l > proto.MaxDescriptionLen {
+				return errors.New("invalid asset's description")
+			}
+
+		case *proto.ReissueScriptAction:
+			otherActionsCount++
+			if otherActionsCount > proto.MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+			}
+			if ta.Quantity < 0 {
+				return errors.New("negative quantity")
+			}
+
+			assetInfo, err := e.st.NewestAssetInfo(ta.AssetID)
+			if err != nil {
+				return errors.Errorf("failed to get asset info by asset ID")
+			}
+			if !assetInfo.Reissuable {
+				return errors.Errorf("reissue action is forbidden as asset is not reissuable")
+			}
+
+		case *proto.BurnScriptAction:
+			otherActionsCount++
+			if otherActionsCount > proto.MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+			}
+			if ta.Quantity < 0 {
+				return errors.New("negative quantity")
+			}
+			assetInfo, err := e.st.NewestAssetInfo(ta.AssetID)
+			if err != nil {
+				return errors.Errorf("failed to get asset info by asset ID")
+			}
+			if !assetInfo.Reissuable {
+				return errors.Errorf("burn action is forbidden as asset is not reissuable")
+			}
+
+		case *proto.SponsorshipScriptAction:
+			otherActionsCount++
+			if otherActionsCount > proto.MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+			}
+			if ta.MinFee < 0 {
+				return errors.New("negative minimal fee")
+			}
+
+		case *proto.LeaseScriptAction:
+			otherActionsCount++
+			if otherActionsCount > proto.MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+			}
+			if ta.Amount < 0 {
+				return errors.New("negative leasing amount")
+			}
+			senderAddress := restrictions.ScriptAddress
+			if ta.SenderPK() != nil {
+				var err error
+				senderAddress, err = proto.NewAddressFromPublicKey(restrictions.Scheme, *ta.SenderPK())
+				if err != nil {
+					return errors.Wrap(err, "failed to validate TransferScriptAction")
+				}
+			}
+			if ta.Recipient.Address.Eq(senderAddress) {
+				return errors.New("leasing to DApp itself is forbidden")
+			}
+
+		case *proto.LeaseCancelScriptAction:
+			otherActionsCount++
+			if otherActionsCount > proto.MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+			}
+
+		default:
+			return errors.Errorf("unsupported script action type '%T'", a)
+		}
+	}
+
+	return nil
+}
 
 func (e *Environment) smartAppendActions(actions []proto.ScriptAction) error {
 	_, ok := e.st.(*wrappedState)

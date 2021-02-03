@@ -432,7 +432,7 @@ func TestIssueWithSigValidations(t *testing.T) {
 		{"TOKEN", strings.Repeat("x", 1010), 1000000, 2, 100000, "incorrect number of bytes in the asset's description"},
 		{"TOKEN", "This is a valid description for the token", 0, 2, 100000, "quantity should be positive"},
 		{"TOKEN", "This is a valid description for the token", math.MaxInt64 + 100, 2, 100000, "quantity is too big"},
-		{"TOKEN", "This is a valid description for the token", 100000, 12, 100000, fmt.Sprintf("incorrect decimals, should be no more then %d", maxDecimals)},
+		{"TOKEN", "This is a valid description for the token", 100000, 12, 100000, fmt.Sprintf("incorrect decimals, should be no more then %d", MaxDecimals)},
 		{"TOKEN", "This is a valid description for the token", 100000, 2, 0, "fee should be positive"},
 		{"TOKEN", "This is a valid description for the token", 100000, 2, math.MaxInt64 + 100, "fee is too big"},
 	}
@@ -610,7 +610,7 @@ func TestIssueWithProofsValidations(t *testing.T) {
 		{"TOKEN", strings.Repeat("x", 1010), 1000000, 2, 100000, "incorrect number of bytes in the asset's description"},
 		{"TOKEN", "This is a valid description for the token", 0, 2, 100000, "quantity should be positive"},
 		{"TOKEN", "This is a valid description for the token", math.MaxInt64 + 1, 2, 100000, "quantity is too big"},
-		{"TOKEN", "This is a valid description for the token", 100000, 12, 100000, fmt.Sprintf("incorrect decimals, should be no more then %d", maxDecimals)},
+		{"TOKEN", "This is a valid description for the token", 100000, 12, 100000, fmt.Sprintf("incorrect decimals, should be no more then %d", MaxDecimals)},
 		{"TOKEN", "This is a valid description for the token", 100000, 2, 0, "fee should be positive"},
 		{"TOKEN", "This is a valid description for the token", 100000, 2, math.MaxInt64 + 1, "fee is too big"},
 		//TODO: add tests on script validation
