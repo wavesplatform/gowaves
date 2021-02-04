@@ -3424,7 +3424,7 @@ func TestScriptPaymentPublicKey(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallVerifier(env, tree)
+	res, err := CallTreeVerifier(env, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)
@@ -3488,7 +3488,7 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	res, err := CallFunction(env, tree, "swapRKMTToWAVES", arguments)
+	res, err := CallTreeFunction("", env, tree, "swapRKMTToWAVES", arguments)
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)

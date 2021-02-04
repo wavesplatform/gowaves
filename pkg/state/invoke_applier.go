@@ -527,10 +527,10 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 	}
-	tree, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
-	}
+	//tree, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
+	//if err != nil {
+	//	return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
+	//}
 	scriptPK, err := ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
@@ -559,7 +559,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		return nil, err
 	}
 	// Call script function.
-	ok, scriptActions, err := ia.sc.invokeFunction(exe, tx, info.blockInfo, *scriptAddr, info.initialisation, tree)
+	ok, scriptActions, err := ia.sc.invokeFunction(exe, tx, info.blockInfo, *scriptAddr, info.initialisation, nil)
 	if !ok {
 		// When ok is false, it means that we could not even start invocation.
 		// We just return error in such case.

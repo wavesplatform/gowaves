@@ -478,6 +478,7 @@ func (ss *scriptsStorage) accountHasScript(addr proto.Address, filter bool) (boo
 }
 
 func (ss *scriptsStorage) newestScriptByAddr(addr proto.Address, filter bool) (*ride.Tree, error) {
+	panic("unreacheable!")
 	key := accountScriptKey{addr}
 	keyBytes := key.bytes()
 	tree, err := ss.newestScriptAstByKey(keyBytes, filter)
