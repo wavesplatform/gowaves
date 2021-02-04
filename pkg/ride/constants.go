@@ -94,24 +94,28 @@ func newSha256(RideEnvironment) rideType {
 	return rideNamedType{name: "Sha256"}
 }
 
-func createSha256(env RideEnvironment, args ...rideType) (rideType, error) {
-	return rideNamedType{name: "Sha256"}, nil
+func newHalfDown(RideEnvironment) rideType {
+	return rideNamedType{name: "HalfDown"}
 }
 
-func newSha512(RideEnvironment) rideType {
-	return rideNamedType{name: "Sha512"}
+func createHalfDown(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "HalfDown"}, nil
 }
 
-func createSha512(env RideEnvironment, args ...rideType) (rideType, error) {
-	return rideNamedType{name: "Sha512"}, nil
+func newMd5(RideEnvironment) rideType {
+	return rideNamedType{name: "Md5"}
 }
 
-func newSha3256(RideEnvironment) rideType {
-	return rideNamedType{name: "Sha3256"}
+func createMd5(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "Md5"}, nil
 }
 
-func createSha3256(env RideEnvironment, args ...rideType) (rideType, error) {
-	return rideNamedType{name: "Sha3256"}, nil
+func newSha1(RideEnvironment) rideType {
+	return rideNamedType{name: "Sha1"}
+}
+
+func createSha1(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "Sha1"}, nil
 }
 
 func newSha3384(RideEnvironment) rideType {
@@ -154,12 +158,20 @@ func createFloor(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideNamedType{name: "Floor"}, nil
 }
 
-func newHalfEven(RideEnvironment) rideType {
-	return rideNamedType{name: "HalfEven"}
+func newSell(RideEnvironment) rideType {
+	return rideNamedType{name: "Sell"}
 }
 
-func createHalfEven(env RideEnvironment, args ...rideType) (rideType, error) {
-	return rideNamedType{name: "HalfEven"}, nil
+func createSell(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "Sell"}, nil
+}
+
+func newFloor(RideEnvironment) rideType {
+	return rideNamedType{name: "Floor"}
+}
+
+func createFloor(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "Floor"}, nil
 }
 
 func newDown(RideEnvironment) rideType {
@@ -189,9 +201,23 @@ func createHalfUp(env RideEnvironment, args ...rideType) (rideType, error) {
 func newMd5(RideEnvironment) rideType {
 	return rideNamedType{name: "Md5"}
 }
+func newNoAlg(RideEnvironment) rideType {
+	return rideNamedType{name: "NoAlg"}
+}
+
+func createNoAlg(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "NoAlg"}, nil
+}
+
+func newSha512(RideEnvironment) rideType {
+	return rideNamedType{name: "Sha512"}
+}
 
 func createMd5(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideNamedType{name: "Md5"}, nil
+}
+func createSha512(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "Sha512"}, nil
 }
 
 func newSha224(RideEnvironment) rideType {
@@ -222,18 +248,65 @@ func newBuy(RideEnvironment) rideType {
 	return rideNamedType{name: "Buy"}
 }
 
+func newCeiling(RideEnvironment) rideType {
+	return rideNamedType{name: "Ceiling"}
+}
+
+func createCeiling(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "Ceiling"}, nil
+}
+
+func newBuy(RideEnvironment) rideType {
+	return rideNamedType{name: "Buy"}
+}
+
 func createBuy(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideNamedType{name: "Buy"}, nil
 }
 
-func newNoAlg(RideEnvironment) rideType {
-	return rideNamedType{name: "NoAlg"}
+func newSha3256(RideEnvironment) rideType {
+	return rideNamedType{name: "Sha3256"}
 }
 
-func createNoAlg(env RideEnvironment, args ...rideType) (rideType, error) {
-	return rideNamedType{name: "NoAlg"}, nil
+func createSha3256(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "Sha3256"}, nil
 }
 
+func newHalfUp(RideEnvironment) rideType {
+	return rideNamedType{name: "HalfUp"}
+}
+
+func createHalfUp(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "HalfUp"}, nil
+}
+
+func newSha224(RideEnvironment) rideType {
+	return rideNamedType{name: "Sha224"}
+}
+
+func createSha224(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "Sha224"}, nil
+}
+
+func newSha256(RideEnvironment) rideType {
+	return rideNamedType{name: "Sha256"}
+}
+
+func createSha256(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "Sha256"}, nil
+}
+
+func newSha384(RideEnvironment) rideType {
+	return rideNamedType{name: "Sha384"}
+}
+
+func createSha384(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "Sha384"}, nil
+}
+
+func newHalfEven(RideEnvironment) rideType {
+	return rideNamedType{name: "HalfEven"}
+}
 func newSha384(RideEnvironment) rideType {
 	return rideNamedType{name: "Sha384"}
 }
@@ -247,5 +320,8 @@ func newSha3224(RideEnvironment) rideType {
 }
 
 func createSha3224(env RideEnvironment, args ...rideType) (rideType, error) {
-	return rideNamedType{name: "Sha3224"}, nil
+		return rideNamedType{name: "Sha3224"}, nil
+	}
+func createHalfEven(env RideEnvironment, args ...rideType) (rideType, error) {
+	return rideNamedType{name: "HalfEven"}, nil
 }
