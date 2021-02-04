@@ -33,6 +33,9 @@ type uniqid struct {
 }
 
 func (a *uniqid) next() uint16 {
+	if a.id < 200 {
+		a.id = 200
+	}
 	a.id++
 	return a.id
 }
@@ -66,6 +69,18 @@ func (a *params) addPredefined(name string, id uniqueid, fn uint16) {
 }
 
 func (a *params) constant(value rideType) constantDeferred {
+	switch v := value.(type) {
+	case rideInt:
+		if v >= 0 && v <= 100 {
+			return NewConstantDeferred(uniqueid(v))
+		}
+	case rideBoolean:
+		if v {
+			return NewConstantDeferred(101)
+		} else {
+			return NewConstantDeferred(102)
+		}
+	}
 	n := a.u.next()
 	a.c.set(n, value, 0, 0, true, fmt.Sprintf("constant %q", value))
 	return NewConstantDeferred(n)

@@ -142,6 +142,9 @@ func (m *vm) run() (rideType, error) {
 			m.ref[to] = m.ref[from]
 		case OpCache:
 			refID := m.uint16()
+			if refID < 200 {
+				continue
+			}
 			value, err := m.pop()
 			if err != nil {
 				return nil, errors.Wrap(err, "no value to cache")
@@ -164,6 +167,17 @@ func (m *vm) run() (rideType, error) {
 
 		case OpRef:
 			refID := m.uint16()
+			switch {
+			case refID <= 100:
+				m.push(rideInt(refID))
+				continue
+			case refID == 101:
+				m.push(rideBoolean(true))
+				continue
+			case refID == 102:
+				m.push(rideBoolean(false))
+				continue
+			}
 			point, ok := m.ref[refID]
 			if !ok {
 				return nil, errors.Errorf("reference %d not found", refID)

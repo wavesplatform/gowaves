@@ -86,14 +86,12 @@ func (l *lru) get(key []byte) (value *ride.Executable, has bool) {
 	if !has {
 		return
 	}
-	panic("unreachable!!")
 	l.cut(e)
 	l.setNewest(e)
 	return e.value, true
 }
 
 func (l *lru) set(key []byte, value *ride.Executable, bytes uint64) (existed bool) {
-	return false
 	keyStr := string(key)
 	e, has := l.m[keyStr]
 	if has {
