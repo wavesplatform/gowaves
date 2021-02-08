@@ -25,6 +25,9 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             actionsFunc: func() []proto.ScriptAction {
 // 	               panic("mock out the actions method")
 //             },
+//             addExternalPaymentsFunc: func(externalPayments proto.ScriptPayments, callerAddress proto.Address) error {
+// 	               panic("mock out the addExternalPayments method")
+//             },
 //             appendActionsFunc: func(actions []proto.ScriptAction)  {
 // 	               panic("mock out the appendActions method")
 //             },
@@ -33,6 +36,9 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             },
 //             blockFunc: func() rideObject {
 // 	               panic("mock out the block method")
+//             },
+//             changePaymentsToInternalFunc: func()  {
+// 	               panic("mock out the changePaymentsToInternal method")
 //             },
 //             checkMessageLengthFunc: func(in1 int) bool {
 // 	               panic("mock out the checkMessageLength method")
@@ -48,6 +54,9 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             },
 //             invocationFunc: func() rideObject {
 // 	               panic("mock out the invocation method")
+//             },
+//             isInternalPaymentsFunc: func() bool {
+// 	               panic("mock out the isInternalPayments method")
 //             },
 //             schemeFunc: func() byte {
 // 	               panic("mock out the scheme method")
@@ -83,6 +92,9 @@ type MockRideEnvironment struct {
 	// actionsFunc mocks the actions method.
 	actionsFunc func() []proto.ScriptAction
 
+	// addExternalPaymentsFunc mocks the addExternalPayments method.
+	addExternalPaymentsFunc func(externalPayments proto.ScriptPayments, callerAddress proto.Address) error
+
 	// appendActionsFunc mocks the appendActions method.
 	appendActionsFunc func(actions []proto.ScriptAction)
 
@@ -91,6 +103,9 @@ type MockRideEnvironment struct {
 
 	// blockFunc mocks the block method.
 	blockFunc func() rideObject
+
+	// changePaymentsToInternalFunc mocks the changePaymentsToInternal method.
+	changePaymentsToInternalFunc func()
 
 	// checkMessageLengthFunc mocks the checkMessageLength method.
 	checkMessageLengthFunc func(in1 int) bool
@@ -106,6 +121,9 @@ type MockRideEnvironment struct {
 
 	// invocationFunc mocks the invocation method.
 	invocationFunc func() rideObject
+
+	// isInternalPaymentsFunc mocks the isInternalPayments method.
+	isInternalPaymentsFunc func() bool
 
 	// schemeFunc mocks the scheme method.
 	schemeFunc func() byte
@@ -138,6 +156,13 @@ type MockRideEnvironment struct {
 		// actions holds details about calls to the actions method.
 		actions []struct {
 		}
+		// addExternalPayments holds details about calls to the addExternalPayments method.
+		addExternalPayments []struct {
+			// ExternalPayments is the externalPayments argument value.
+			ExternalPayments proto.ScriptPayments
+			// CallerAddress is the callerAddress argument value.
+			CallerAddress proto.Address
+		}
 		// appendActions holds details about calls to the appendActions method.
 		appendActions []struct {
 			// Actions is the actions argument value.
@@ -150,6 +175,9 @@ type MockRideEnvironment struct {
 		}
 		// block holds details about calls to the block method.
 		block []struct {
+		}
+		// changePaymentsToInternal holds details about calls to the changePaymentsToInternal method.
+		changePaymentsToInternal []struct {
 		}
 		// checkMessageLength holds details about calls to the checkMessageLength method.
 		checkMessageLength []struct {
@@ -167,6 +195,9 @@ type MockRideEnvironment struct {
 		}
 		// invocation holds details about calls to the invocation method.
 		invocation []struct {
+		}
+		// isInternalPayments holds details about calls to the isInternalPayments method.
+		isInternalPayments []struct {
 		}
 		// scheme holds details about calls to the scheme method.
 		scheme []struct {
@@ -194,23 +225,26 @@ type MockRideEnvironment struct {
 		txID []struct {
 		}
 	}
-	lockSetInvocation      sync.RWMutex
-	lockactions            sync.RWMutex
-	lockappendActions      sync.RWMutex
-	lockapplyToState       sync.RWMutex
-	lockblock              sync.RWMutex
-	lockcheckMessageLength sync.RWMutex
-	lockheight             sync.RWMutex
-	lockincrementInvCount  sync.RWMutex
-	lockinvCount           sync.RWMutex
-	lockinvocation         sync.RWMutex
-	lockscheme             sync.RWMutex
-	locksetNewDAppAddress  sync.RWMutex
-	locksmartAppendActions sync.RWMutex
-	lockstate              sync.RWMutex
-	lockthis               sync.RWMutex
-	locktransaction        sync.RWMutex
-	locktxID               sync.RWMutex
+	lockSetInvocation            sync.RWMutex
+	lockactions                  sync.RWMutex
+	lockaddExternalPayments      sync.RWMutex
+	lockappendActions            sync.RWMutex
+	lockapplyToState             sync.RWMutex
+	lockblock                    sync.RWMutex
+	lockchangePaymentsToInternal sync.RWMutex
+	lockcheckMessageLength       sync.RWMutex
+	lockheight                   sync.RWMutex
+	lockincrementInvCount        sync.RWMutex
+	lockinvCount                 sync.RWMutex
+	lockinvocation               sync.RWMutex
+	lockisInternalPayments       sync.RWMutex
+	lockscheme                   sync.RWMutex
+	locksetNewDAppAddress        sync.RWMutex
+	locksmartAppendActions       sync.RWMutex
+	lockstate                    sync.RWMutex
+	lockthis                     sync.RWMutex
+	locktransaction              sync.RWMutex
+	locktxID                     sync.RWMutex
 }
 
 // SetInvocation calls SetInvocationFunc.
@@ -267,6 +301,41 @@ func (mock *MockRideEnvironment) actionsCalls() []struct {
 	mock.lockactions.RLock()
 	calls = mock.calls.actions
 	mock.lockactions.RUnlock()
+	return calls
+}
+
+// addExternalPayments calls addExternalPaymentsFunc.
+func (mock *MockRideEnvironment) addExternalPayments(externalPayments proto.ScriptPayments, callerAddress proto.Address) error {
+	if mock.addExternalPaymentsFunc == nil {
+		panic("MockRideEnvironment.addExternalPaymentsFunc: method is nil but RideEnvironment.addExternalPayments was just called")
+	}
+	callInfo := struct {
+		ExternalPayments proto.ScriptPayments
+		CallerAddress    proto.Address
+	}{
+		ExternalPayments: externalPayments,
+		CallerAddress:    callerAddress,
+	}
+	mock.lockaddExternalPayments.Lock()
+	mock.calls.addExternalPayments = append(mock.calls.addExternalPayments, callInfo)
+	mock.lockaddExternalPayments.Unlock()
+	return mock.addExternalPaymentsFunc(externalPayments, callerAddress)
+}
+
+// addExternalPaymentsCalls gets all the calls that were made to addExternalPayments.
+// Check the length with:
+//     len(mockedRideEnvironment.addExternalPaymentsCalls())
+func (mock *MockRideEnvironment) addExternalPaymentsCalls() []struct {
+	ExternalPayments proto.ScriptPayments
+	CallerAddress    proto.Address
+} {
+	var calls []struct {
+		ExternalPayments proto.ScriptPayments
+		CallerAddress    proto.Address
+	}
+	mock.lockaddExternalPayments.RLock()
+	calls = mock.calls.addExternalPayments
+	mock.lockaddExternalPayments.RUnlock()
 	return calls
 }
 
@@ -355,6 +424,32 @@ func (mock *MockRideEnvironment) blockCalls() []struct {
 	mock.lockblock.RLock()
 	calls = mock.calls.block
 	mock.lockblock.RUnlock()
+	return calls
+}
+
+// changePaymentsToInternal calls changePaymentsToInternalFunc.
+func (mock *MockRideEnvironment) changePaymentsToInternal() {
+	if mock.changePaymentsToInternalFunc == nil {
+		panic("MockRideEnvironment.changePaymentsToInternalFunc: method is nil but RideEnvironment.changePaymentsToInternal was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockchangePaymentsToInternal.Lock()
+	mock.calls.changePaymentsToInternal = append(mock.calls.changePaymentsToInternal, callInfo)
+	mock.lockchangePaymentsToInternal.Unlock()
+	mock.changePaymentsToInternalFunc()
+}
+
+// changePaymentsToInternalCalls gets all the calls that were made to changePaymentsToInternal.
+// Check the length with:
+//     len(mockedRideEnvironment.changePaymentsToInternalCalls())
+func (mock *MockRideEnvironment) changePaymentsToInternalCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockchangePaymentsToInternal.RLock()
+	calls = mock.calls.changePaymentsToInternal
+	mock.lockchangePaymentsToInternal.RUnlock()
 	return calls
 }
 
@@ -490,6 +585,32 @@ func (mock *MockRideEnvironment) invocationCalls() []struct {
 	mock.lockinvocation.RLock()
 	calls = mock.calls.invocation
 	mock.lockinvocation.RUnlock()
+	return calls
+}
+
+// isInternalPayments calls isInternalPaymentsFunc.
+func (mock *MockRideEnvironment) isInternalPayments() bool {
+	if mock.isInternalPaymentsFunc == nil {
+		panic("MockRideEnvironment.isInternalPaymentsFunc: method is nil but RideEnvironment.isInternalPayments was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockisInternalPayments.Lock()
+	mock.calls.isInternalPayments = append(mock.calls.isInternalPayments, callInfo)
+	mock.lockisInternalPayments.Unlock()
+	return mock.isInternalPaymentsFunc()
+}
+
+// isInternalPaymentsCalls gets all the calls that were made to isInternalPayments.
+// Check the length with:
+//     len(mockedRideEnvironment.isInternalPaymentsCalls())
+func (mock *MockRideEnvironment) isInternalPaymentsCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockisInternalPayments.RLock()
+	calls = mock.calls.isInternalPayments
+	mock.lockisInternalPayments.RUnlock()
 	return calls
 }
 

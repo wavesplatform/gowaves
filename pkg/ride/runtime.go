@@ -344,9 +344,11 @@ type RideEnvironment interface {
 	applyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error)
 	appendActions(actions []proto.ScriptAction)
 	smartAppendActions(actions []proto.ScriptAction) error
-	validateInvokeResult(actions []proto.ScriptAction, dappRecipient proto.Recipient) error
 	actions() []proto.ScriptAction
 	invCount() uint64
+	isInternalPayments() bool
+	changePaymentsToInternal()
+	addExternalPayments(externalPayments proto.ScriptPayments, callerAddress proto.Address) error
 	incrementInvCount()
 	setNewDAppAddress(address proto.Address)
 	checkMessageLength(int) bool

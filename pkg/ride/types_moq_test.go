@@ -20,6 +20,9 @@ var _ types.SmartState = &MockSmartState{}
 //
 //         // make and configure a mocked types.SmartState
 //         mockedSmartState := &MockSmartState{
+//             AddExternalPaymentsFunc: func(externalPayments proto.ScriptPayments, caller proto.Address) error {
+// 	               panic("mock out the AddExternalPayments method")
+//             },
 //             AddingBlockHeightFunc: func() (uint64, error) {
 // 	               panic("mock out the AddingBlockHeight method")
 //             },
@@ -38,7 +41,7 @@ var _ types.SmartState = &MockSmartState{}
 //             IsNotFoundFunc: func(err error) bool {
 // 	               panic("mock out the IsNotFound method")
 //             },
-//             NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
+//             NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
 // 	               panic("mock out the NewestAccountBalance method")
 //             },
 //             NewestAddrByAliasFunc: func(alias proto.Alias) (proto.Address, error) {
@@ -86,6 +89,9 @@ var _ types.SmartState = &MockSmartState{}
 //             RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
 // 	               panic("mock out the RetrieveNewestStringEntry method")
 //             },
+//             ValidateInvokeResultFunc: func(actions []proto.ScriptAction, dappRecipient proto.Recipient) error {
+// 	               panic("mock out the ValidateInvokeResult method")
+//             },
 //         }
 //
 //         // use mockedSmartState in code that requires types.SmartState
@@ -93,6 +99,9 @@ var _ types.SmartState = &MockSmartState{}
 //
 //     }
 type MockSmartState struct {
+	// AddExternalPaymentsFunc mocks the AddExternalPayments method.
+	AddExternalPaymentsFunc func(externalPayments proto.ScriptPayments, caller proto.Address) error
+
 	// AddingBlockHeightFunc mocks the AddingBlockHeight method.
 	AddingBlockHeightFunc func() (uint64, error)
 
@@ -112,7 +121,7 @@ type MockSmartState struct {
 	IsNotFoundFunc func(err error) bool
 
 	// NewestAccountBalanceFunc mocks the NewestAccountBalance method.
-	NewestAccountBalanceFunc func(account proto.Recipient, asset []byte) (uint64, error)
+	NewestAccountBalanceFunc func(account proto.Recipient, assetID []byte) (uint64, error)
 
 	// NewestAddrByAliasFunc mocks the NewestAddrByAlias method.
 	NewestAddrByAliasFunc func(alias proto.Alias) (proto.Address, error)
@@ -159,8 +168,18 @@ type MockSmartState struct {
 	// RetrieveNewestStringEntryFunc mocks the RetrieveNewestStringEntry method.
 	RetrieveNewestStringEntryFunc func(account proto.Recipient, key string) (*proto.StringDataEntry, error)
 
+	// ValidateInvokeResultFunc mocks the ValidateInvokeResult method.
+	ValidateInvokeResultFunc func(actions []proto.ScriptAction, dappRecipient proto.Recipient) error
+
 	// calls tracks calls to the methods.
 	calls struct {
+		// AddExternalPayments holds details about calls to the AddExternalPayments method.
+		AddExternalPayments []struct {
+			// ExternalPayments is the externalPayments argument value.
+			ExternalPayments proto.ScriptPayments
+			// Caller is the caller argument value.
+			Caller proto.Address
+		}
 		// AddingBlockHeight holds details about calls to the AddingBlockHeight method.
 		AddingBlockHeight []struct {
 		}
@@ -193,8 +212,8 @@ type MockSmartState struct {
 		NewestAccountBalance []struct {
 			// Account is the account argument value.
 			Account proto.Recipient
-			// Asset is the asset argument value.
-			Asset []byte
+			// AssetID is the assetID argument value.
+			AssetID []byte
 		}
 		// NewestAddrByAlias holds details about calls to the NewestAddrByAlias method.
 		NewestAddrByAlias []struct {
@@ -283,7 +302,15 @@ type MockSmartState struct {
 			// Key is the key argument value.
 			Key string
 		}
+		// ValidateInvokeResult holds details about calls to the ValidateInvokeResult method.
+		ValidateInvokeResult []struct {
+			// Actions is the actions argument value.
+			Actions []proto.ScriptAction
+			// DappRecipient is the dappRecipient argument value.
+			DappRecipient proto.Recipient
+		}
 	}
+	lockAddExternalPayments         sync.RWMutex
 	lockAddingBlockHeight           sync.RWMutex
 	lockApplyToState                sync.RWMutex
 	lockBlockVRF                    sync.RWMutex
@@ -306,6 +333,42 @@ type MockSmartState struct {
 	lockRetrieveNewestBooleanEntry  sync.RWMutex
 	lockRetrieveNewestIntegerEntry  sync.RWMutex
 	lockRetrieveNewestStringEntry   sync.RWMutex
+	lockValidateInvokeResult        sync.RWMutex
+}
+
+// AddExternalPayments calls AddExternalPaymentsFunc.
+func (mock *MockSmartState) AddExternalPayments(externalPayments proto.ScriptPayments, caller proto.Address) error {
+	if mock.AddExternalPaymentsFunc == nil {
+		panic("MockSmartState.AddExternalPaymentsFunc: method is nil but SmartState.AddExternalPayments was just called")
+	}
+	callInfo := struct {
+		ExternalPayments proto.ScriptPayments
+		Caller           proto.Address
+	}{
+		ExternalPayments: externalPayments,
+		Caller:           caller,
+	}
+	mock.lockAddExternalPayments.Lock()
+	mock.calls.AddExternalPayments = append(mock.calls.AddExternalPayments, callInfo)
+	mock.lockAddExternalPayments.Unlock()
+	return mock.AddExternalPaymentsFunc(externalPayments, caller)
+}
+
+// AddExternalPaymentsCalls gets all the calls that were made to AddExternalPayments.
+// Check the length with:
+//     len(mockedSmartState.AddExternalPaymentsCalls())
+func (mock *MockSmartState) AddExternalPaymentsCalls() []struct {
+	ExternalPayments proto.ScriptPayments
+	Caller           proto.Address
+} {
+	var calls []struct {
+		ExternalPayments proto.ScriptPayments
+		Caller           proto.Address
+	}
+	mock.lockAddExternalPayments.RLock()
+	calls = mock.calls.AddExternalPayments
+	mock.lockAddExternalPayments.RUnlock()
+	return calls
 }
 
 // AddingBlockHeight calls AddingBlockHeightFunc.
@@ -489,21 +552,21 @@ func (mock *MockSmartState) IsNotFoundCalls() []struct {
 }
 
 // NewestAccountBalance calls NewestAccountBalanceFunc.
-func (mock *MockSmartState) NewestAccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (mock *MockSmartState) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
 	if mock.NewestAccountBalanceFunc == nil {
 		panic("MockSmartState.NewestAccountBalanceFunc: method is nil but SmartState.NewestAccountBalance was just called")
 	}
 	callInfo := struct {
 		Account proto.Recipient
-		Asset   []byte
+		AssetID []byte
 	}{
 		Account: account,
-		Asset:   asset,
+		AssetID: assetID,
 	}
 	mock.lockNewestAccountBalance.Lock()
 	mock.calls.NewestAccountBalance = append(mock.calls.NewestAccountBalance, callInfo)
 	mock.lockNewestAccountBalance.Unlock()
-	return mock.NewestAccountBalanceFunc(account, asset)
+	return mock.NewestAccountBalanceFunc(account, assetID)
 }
 
 // NewestAccountBalanceCalls gets all the calls that were made to NewestAccountBalance.
@@ -511,11 +574,11 @@ func (mock *MockSmartState) NewestAccountBalance(account proto.Recipient, asset 
 //     len(mockedSmartState.NewestAccountBalanceCalls())
 func (mock *MockSmartState) NewestAccountBalanceCalls() []struct {
 	Account proto.Recipient
-	Asset   []byte
+	AssetID []byte
 } {
 	var calls []struct {
 		Account proto.Recipient
-		Asset   []byte
+		AssetID []byte
 	}
 	mock.lockNewestAccountBalance.RLock()
 	calls = mock.calls.NewestAccountBalance
@@ -1009,5 +1072,40 @@ func (mock *MockSmartState) RetrieveNewestStringEntryCalls() []struct {
 	mock.lockRetrieveNewestStringEntry.RLock()
 	calls = mock.calls.RetrieveNewestStringEntry
 	mock.lockRetrieveNewestStringEntry.RUnlock()
+	return calls
+}
+
+// ValidateInvokeResult calls ValidateInvokeResultFunc.
+func (mock *MockSmartState) ValidateInvokeResult(actions []proto.ScriptAction, dappRecipient proto.Recipient) error {
+	if mock.ValidateInvokeResultFunc == nil {
+		panic("MockSmartState.ValidateInvokeResultFunc: method is nil but SmartState.ValidateInvokeResult was just called")
+	}
+	callInfo := struct {
+		Actions       []proto.ScriptAction
+		DappRecipient proto.Recipient
+	}{
+		Actions:       actions,
+		DappRecipient: dappRecipient,
+	}
+	mock.lockValidateInvokeResult.Lock()
+	mock.calls.ValidateInvokeResult = append(mock.calls.ValidateInvokeResult, callInfo)
+	mock.lockValidateInvokeResult.Unlock()
+	return mock.ValidateInvokeResultFunc(actions, dappRecipient)
+}
+
+// ValidateInvokeResultCalls gets all the calls that were made to ValidateInvokeResult.
+// Check the length with:
+//     len(mockedSmartState.ValidateInvokeResultCalls())
+func (mock *MockSmartState) ValidateInvokeResultCalls() []struct {
+	Actions       []proto.ScriptAction
+	DappRecipient proto.Recipient
+} {
+	var calls []struct {
+		Actions       []proto.ScriptAction
+		DappRecipient proto.Recipient
+	}
+	mock.lockValidateInvokeResult.RLock()
+	calls = mock.calls.ValidateInvokeResult
+	mock.lockValidateInvokeResult.RUnlock()
 	return calls
 }
