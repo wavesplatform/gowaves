@@ -67,7 +67,7 @@ func (s *estimationScopeV3) setFunction(id string, cost int, usages []string) {
 	s.functions.set(id, cost, usages)
 }
 
-func (s *estimationScopeV3) function(id string) (int, []string, error) {
+func (s *estimationScopeV3) function(id string) (cost int, usages []string, err error) {
 	if c, ok := s.builtin[id]; ok {
 		return c, nil, nil
 	}
