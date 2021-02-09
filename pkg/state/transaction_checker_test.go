@@ -458,7 +458,7 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	// Set script.
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.recipientInfo.addr
-	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.recipientInfo.pk, blockID0)
+	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.recipientInfo.pk, blockID0, "")
 	assert.NoError(t, err)
 
 	_, err = to.tc.checkExchangeWithSig(tx, info)
@@ -1052,7 +1052,7 @@ func TestCheckSetAssetScriptWithProofs(t *testing.T) {
 	assert.Error(t, err, "checkSetAssetScriptWithProofs did not fail with non-smart asset")
 
 	// Make it smart.
-	err = to.stor.entities.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, blockID0)
+	err = to.stor.entities.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, blockID0, "")
 	assert.NoError(t, err, "setAssetScript failed")
 
 	// Now should pass.

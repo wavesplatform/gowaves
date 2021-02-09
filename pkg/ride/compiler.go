@@ -11,28 +11,27 @@ import (
 )
 
 func Compile(tree *Tree) (RideScript, error) {
-	panic("Compile")
-	//fCheck, err := selectFunctionChecker(tree.LibVersion)
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "compile")
-	//}
-	//cCheck, err := selectConstantsChecker(tree.LibVersion)
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "compile")
-	//}
-	//c := &compiler{
-	//	constants:     newRideConstants(),
-	//	checkFunction: fCheck,
-	//	checkConstant: cCheck,
-	//	values:        make([]rideValue, 0),
-	//	functions:     make([]*localFunction, 0),
-	//	declarations:  make([]rideDeclaration, 0),
-	//	patcher:       newPatcher(),
-	//}
-	//if tree.IsDApp() {
-	//	return c.compileDAppScript(tree)
-	//}
-	//return c.compileSimpleScript(tree)
+	fCheck, err := selectFunctionChecker(tree.LibVersion)
+	if err != nil {
+		return nil, errors.Wrap(err, "compile")
+	}
+	cCheck, err := selectConstantsChecker(tree.LibVersion)
+	if err != nil {
+		return nil, errors.Wrap(err, "compile")
+	}
+	c := &compiler{
+		constants:     newRideConstants(),
+		checkFunction: fCheck,
+		checkConstant: cCheck,
+		values:        make([]rideValue, 0),
+		functions:     make([]*localFunction, 0),
+		declarations:  make([]rideDeclaration, 0),
+		patcher:       newPatcher(),
+	}
+	if tree.IsDApp() {
+		return c.compileDAppScript(tree)
+	}
+	return c.compileSimpleScript(tree)
 }
 
 type compiler struct {

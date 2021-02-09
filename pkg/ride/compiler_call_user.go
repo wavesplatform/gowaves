@@ -6,17 +6,12 @@ import "fmt"
 type CallUserState struct {
 	prev Fsm
 	params
-	name string
-	argc uint16
-	// positions of arguments
-	//argn      []uniqueid
-	//ret       func(s CallUserState, at uint16, to uint16)
+	name      string
+	argc      uint16
 	startedAt uint16
 
 	deferred  []Deferred
 	deferreds Deferreds
-
-	rnode []RNode
 }
 
 func (a CallUserState) backward(state Fsm) Fsm {

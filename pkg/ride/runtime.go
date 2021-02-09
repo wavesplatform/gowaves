@@ -129,8 +129,21 @@ func (b rideBytes) get(prop string) (rideType, error) {
 
 type rideObject map[string]rideType
 
-func (o rideObject) Serialize(Serializer) error {
-	panic("implement me")
+func (o rideObject) Serialize(s Serializer) error {
+	if err := s.Type(sObject); err != nil {
+		return err
+	}
+	return s.Map(len(o), func(m Map) error {
+		for k, v := range o {
+			if err := m.String(k); err != nil {
+				return err
+			}
+			if err := v.Serialize(s); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (o rideObject) instanceOf() string {
@@ -166,8 +179,11 @@ func (o rideObject) get(prop string) (rideType, error) {
 
 type rideAddress proto.Address
 
-func (a rideAddress) Serialize(Serializer) error {
-	panic("implement me")
+func (a rideAddress) Serialize(s Serializer) error {
+	if err := s.Type(sAddress); err != nil {
+		return err
+	}
+	return s.Bytes(a[:])
 }
 
 func (a rideAddress) instanceOf() string {
@@ -314,8 +330,8 @@ func (a rideAlias) get(prop string) (rideType, error) {
 
 type rideUnit struct{}
 
-func (a rideUnit) Serialize(Serializer) error {
-	panic("rideUnit Serialize: implement me")
+func (a rideUnit) Serialize(s Serializer) error {
+	return s.RideUnit()
 }
 
 func (a rideUnit) instanceOf() string {
@@ -334,8 +350,11 @@ type rideNamedType struct {
 	name string
 }
 
-func (a rideNamedType) Serialize(serializer Serializer) error {
-	panic("rideNamedType Serialize: implement me")
+func (a rideNamedType) Serialize(s Serializer) error {
+	if err := s.Type(sNamedType); err != nil {
+		return err
+	}
+	return s.String(a.name)
 }
 
 func (a rideNamedType) instanceOf() string {
@@ -352,8 +371,16 @@ func (a rideNamedType) get(prop string) (rideType, error) {
 
 type rideList []rideType
 
-func (a rideList) Serialize(Serializer) error {
-	panic("implement me")
+func (a rideList) Serialize(s Serializer) error {
+	if err := s.RideList(uint16(len(a))); err != nil {
+		return err
+	}
+	for _, v := range a {
+		if err := v.Serialize(s); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (a rideList) instanceOf() string {

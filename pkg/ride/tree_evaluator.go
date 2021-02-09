@@ -383,10 +383,11 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			}
 			args[i] = esValue{id: an, value: av}
 		}
-		e.s.cs = append(e.s.cs, make([]esValue, len(args)))
-		for i, arg := range args {
-			e.s.cs[len(e.s.cs)-1][i] = arg
-		}
+		//e.s.cs = append(e.s.cs, make([]esValue, len(args)))
+		e.s.cs = append(e.s.cs, args)
+		//for i, arg := range args {
+		//	e.s.cs[len(e.s.cs)-1][i] = arg
+		//}
 		var tmp int
 		tmp, e.s.cl = e.s.cl, cl
 		r, err := e.walk(uf.Body)

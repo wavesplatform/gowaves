@@ -13,7 +13,7 @@ type Entrypoint struct {
 }
 
 func (a Entrypoint) Serialize(s Serializer) error {
-	err := s.String(rideString(a.name))
+	err := s.String(a.name)
 	if err != nil {
 		return err
 	}
@@ -96,16 +96,7 @@ func (b *builder) ref(uint162 uint16) {
 
 func (b *builder) patch(at uint16, val []byte) {
 	bts := b.w.Bytes()[at:]
-	for i := range val {
-		bts[i] = val[i]
-	}
-}
-
-func patchBuffer(b *bytes.Buffer, at uint16, val []byte) {
-	bts := b.Bytes()[at:]
-	for i := range val {
-		bts[i] = val[i]
-	}
+	copy(bts, val)
 }
 
 func (b *builder) len() uint16 {
@@ -337,35 +328,10 @@ func (a *predef) getn(id int) rideFunction {
 	return a.prev.getn(id)
 }
 
-func reverse(f []Deferred) []Deferred {
-	out := make([]Deferred, 0, len(f))
-	for i := len(f) - 1; i >= 0; i-- {
-		out = append(out, f[i])
-	}
-	return out
-}
-
 type Deferred interface {
 	Write
 	Clean
 }
-
-//type deferred struct {
-//	write func()
-//	clean func()
-//}
-
-//func (a deferred) Write(_ params, _ []byte) {
-//	if a.write != nil {
-//		a.write()
-//	}
-//}
-//
-//func (a deferred) Clean() {
-//	if a.clean != nil {
-//		a.clean()
-//	}
-//}
 
 type constantDeferred struct {
 	n uniqueid
@@ -379,35 +345,9 @@ func (a constantDeferred) Write(p params, _ []byte) {
 func (a constantDeferred) Clean() {
 }
 
-//func NewDeferred(writeFunc func(), cleanFunc func()) Deferred {
-//	return deferred{
-//		write: writeFunc,
-//		clean: cleanFunc,
-//	}
-//}
-
 func NewConstantDeferred(n uniqueid) constantDeferred {
 	return constantDeferred{n: n}
 }
-
-//func writeDeferred(params params, d []Deferred) {
-//	panic("writeDeferred 1")
-//	if len(d) != 1 {
-//		panic("writeDeferred len != 1")
-//	}
-//	d2 := reverse(d)
-//
-//	d2[0].Write(params)
-//
-//	for _, v := range d2 {
-//		v.Clean()
-//	}
-//
-//	params.b.ret()
-//	for _, v := range d2[1:] {
-//		v.Write(params)
-//	}
-//}
 
 func isConstant(deferred Deferred) (uniqueid, bool) {
 	v, ok := deferred.(constantDeferred)

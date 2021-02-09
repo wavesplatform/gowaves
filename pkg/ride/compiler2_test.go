@@ -581,7 +581,7 @@ func Test888(t *testing.T) {
 		script.ByteCode)
 	/**/
 
-	rs, err := script.Verify(env)
+	rs, _ := script.Verify(env)
 	require.Equal(t, rs.Result(), false)
 	//require.Equal(t, err.Error(), "terminated execution by throw with message \"1\"")
 }
@@ -1398,7 +1398,7 @@ func TestFuncInCondState(t *testing.T) {
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
-	rs1, err := CallTreeVerifier(env, tree)
+	rs1, _ := CallTreeVerifier(env, tree)
 	for i, c := range rs1.Calls() {
 		t.Log(i, " ", c)
 	}

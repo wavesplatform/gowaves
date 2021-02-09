@@ -26,10 +26,7 @@ type ConditionalState struct {
 	patchFalsePosition uint16
 	// Offset where `if` code block ends.
 	patchNextPosition uint16
-	retAssig          uint16
 	startedAt         uint16
-	trueStartedAt     uint16
-	falseStartedAt    uint16
 	rets              []uint16
 
 	// Clean assigments after exit.

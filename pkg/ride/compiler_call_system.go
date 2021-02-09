@@ -9,7 +9,7 @@ type CallSystemState struct {
 	name string
 	argc uint16
 	// positions of arguments
-	argn []uint16
+	//argn []uint16
 	// Position where we started write code for current state.
 	startedAt uint16
 	//retAssig  uint16

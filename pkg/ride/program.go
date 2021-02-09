@@ -17,6 +17,10 @@ type SimpleScript struct {
 	Constants  []rideType
 }
 
+func (s *SimpleScript) Run(env RideEnvironment) (RideResult, error) {
+	panic("implement me")
+}
+
 /*
 func (s *SimpleScript) Run(env RideEnvironment) (RideResult, error) {
 	fs, err := selectFunctions(s.LibVersion)

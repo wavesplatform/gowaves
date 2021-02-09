@@ -40,10 +40,6 @@ func (a *uniqid) next() uint16 {
 	return a.id
 }
 
-func (a uniqid) cur() uint16 {
-	return a.id
-}
-
 type FunctionChecker func(string) (uint16, bool)
 
 type params struct {
@@ -59,8 +55,6 @@ type params struct {
 	c *cell
 	// Transaction ID, for debug purpose.
 	txID string
-	//
-	rnode []RNode
 }
 
 func (a *params) addPredefined(name string, id uniqueid, fn uint16) {

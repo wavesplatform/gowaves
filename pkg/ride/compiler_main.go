@@ -3,7 +3,6 @@ package ride
 // Initial state, contains only assigments and last expression.
 type MainState struct {
 	params
-	retAssig uint16
 
 	body      []Deferred
 	deferreds *deferreds

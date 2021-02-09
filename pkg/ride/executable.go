@@ -9,6 +9,8 @@ type Executable struct {
 	LibVersion  int
 	IsDapp      bool
 	hasVerifier bool
+	position    int // Non-default value assumes interrupted evaluation.
+	stack       []rideType
 	ByteCode    []byte
 	EntryPoints map[string]Entrypoint
 	References  map[uniqueid]point
@@ -18,7 +20,18 @@ func (a *Executable) HasVerifier() bool {
 	return a.hasVerifier
 }
 
+func (a *Executable) Interrupted() bool {
+	return a.position != 0
+}
+
+func (a *Executable) Continue() (RideResult, error) {
+	panic("unimplemented!")
+}
+
 func (a *Executable) Verify(environment RideEnvironment) (RideResult, error) {
+	if a.Interrupted() {
+		return nil, errors.New("illegal `Verify` call on interrupted state")
+	}
 	if a.IsDapp {
 		if !a.HasVerifier() {
 			return nil, errors.Errorf("no verifier attached to script")
@@ -32,6 +45,9 @@ func (a *Executable) Verify(environment RideEnvironment) (RideResult, error) {
 }
 
 func (a *Executable) Entrypoint(name string) (Entrypoint, error) {
+	if a.Interrupted() {
+		return Entrypoint{}, errors.New("illegal `Entrypoint` call on interrupted state")
+	}
 	v, ok := a.EntryPoints[name]
 	if !ok {
 		return Entrypoint{}, errors.Errorf("entrypoint %s not found", name)
@@ -82,6 +98,9 @@ func (a *Executable) runWithoutChecks(environment RideEnvironment, name string, 
 }
 
 func (a *Executable) Invoke(env RideEnvironment, name string, arguments []rideType) (RideResult, error) {
+	if a.Interrupted() {
+		return nil, errors.New("illegal `Invoke` call on interrupted state")
+	}
 	if name == "" {
 		return nil, errors.Errorf("expected func name, found \"\"")
 	}

@@ -25,7 +25,7 @@ func TestAssetScriptExtraFee(t *testing.T) {
 	// Set script.
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0, "")
 	assert.NoError(t, err)
 
 	// Burn.
@@ -63,7 +63,7 @@ func TestAccountScriptExtraFee(t *testing.T) {
 	// Set script.
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	err = to.stor.entities.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0, "")
 	assert.NoError(t, err)
 
 	// Burn.

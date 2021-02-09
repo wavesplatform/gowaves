@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type Deserializer struct {
@@ -58,6 +59,10 @@ func (a *Deserializer) Bytes() ([]byte, error) {
 	ln, err := a.Uint16()
 	if err != nil {
 		return nil, err
+	}
+	// This hack is required for correct type assertion.
+	if ln == 0 {
+		return []byte(nil), nil
 	}
 	return a.readn(int(ln))
 }
@@ -123,6 +128,53 @@ func (a *Deserializer) RideValue() (rideType, error) {
 	case sbytes:
 		v, err := a.Bytes()
 		return rideBytes(v), err
+	case sAddress:
+		v, err := a.Bytes()
+		if err != nil {
+			return nil, err
+		}
+		addr, err := proto.NewAddressFromBytes(v)
+		if err != nil {
+			return nil, err
+		}
+		return rideAddress(addr), err
+	case sNamedType:
+		v, err := a.String()
+		return rideNamedType{name: v}, err
+	case sUnit:
+		return newUnit(nil), nil
+	case sList:
+		size, err := a.Uint16()
+		if err != nil {
+			return nil, err
+		}
+		lst := make(rideList, size)
+		for i := uint16(0); i < size; i++ {
+			v, err := a.RideValue()
+			if err != nil {
+				return nil, err
+			}
+			lst[i] = v
+		}
+		return lst, nil
+	case sObject:
+		size, err := a.Map()
+		if err != nil {
+			return nil, err
+		}
+		obj := make(rideObject, size)
+		for i := uint16(0); i < size; i++ {
+			key, err := a.String()
+			if err != nil {
+				return nil, err
+			}
+			value, err := a.RideValue()
+			if err != nil {
+				return nil, err
+			}
+			obj[key] = value
+		}
+		return obj, nil
 	default:
 		if b <= 100 {
 			return rideInt(b), nil

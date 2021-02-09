@@ -9,15 +9,20 @@ import (
 )
 
 const (
-	strue    byte = 101
-	sfalse        = 102
-	sint          = 103
-	suint16       = 104
-	sbytes        = 105
-	sString       = 106
-	spoint        = 107
-	sMap          = 108
-	sNoValue      = 109
+	strue      byte = 101
+	sfalse     byte = 102
+	sint       byte = 103
+	suint16    byte = 104
+	sbytes     byte = 105
+	sString    byte = 106
+	sPoint     byte = 107
+	sMap       byte = 108
+	sNoValue   byte = 109
+	sAddress   byte = 110
+	sNamedType byte = 111
+	sUnit      byte = 112
+	sList      byte = 113
+	sObject    byte = 114
 )
 
 type Serializer struct {
@@ -63,7 +68,7 @@ func (a *Serializer) Bool(v bool) {
 }
 
 func (a *Serializer) Point(p point) {
-	a.b.WriteByte(spoint)
+	a.b.WriteByte(sPoint)
 	a.Uint16(p.position)
 }
 
@@ -74,6 +79,10 @@ func (a *Serializer) Byte(b byte) {
 func (a *Serializer) RideBytes(v rideBytes) error {
 	a.b.WriteByte(sbytes)
 	return a.Bytes(v)
+}
+
+func (a *Serializer) Type(t byte) error {
+	return a.b.WriteByte(t)
 }
 
 func (a *Serializer) Bytes(v []byte) error {
@@ -100,10 +109,14 @@ func (a *Serializer) RideMap(size int) error {
 
 func (a *Serializer) RideString(v rideString) error {
 	a.b.WriteByte(sString)
-	return a.String(v)
+	return a.String(string(v))
 }
 
-func (a *Serializer) String(v rideString) error {
+func (a *Serializer) RideUnit() error {
+	return a.Type(sUnit)
+}
+
+func (a *Serializer) String(v string) error {
 	if len(v) > math.MaxUint16 {
 		return errors.New("bytes length overflow")
 	}
@@ -125,7 +138,16 @@ func (a *Serializer) Map(size int, f func(Map) error) error {
 	return f(a)
 }
 
+func (a *Serializer) RideList(length uint16) error {
+	if err := a.Type(sList); err != nil {
+		return err
+	}
+	a.Uint16(length)
+	return nil
+}
+
 type Map interface {
+	String(string) error
 	Uint16(v uint16)
 	RideInt(v rideInt) error
 	RideBytes(v rideBytes) error

@@ -9,7 +9,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/deserializer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
-	"go.uber.org/zap"
 )
 
 const (
@@ -20,31 +19,10 @@ const (
 )
 
 func scriptBytesToTree(script proto.Script) (*ride.Tree, error) {
-
 	if len(script) == 0 {
 		panic("scriptBytesToTree")
 	}
-	zap.S().Debug("scriptBytesToTree scrip %v, len %d", script, len(script))
-
 	return ride.Parse(script)
-}
-
-func scriptBytesToVmBytes(script proto.Script) ([]byte, error) {
-	panic("unreachable")
-	p, err := scriptBytesToTree(script)
-	if err != nil {
-		return nil, err
-	}
-	exe, err := ride.CompileTree("performSetScriptWithProofs", p)
-	if err != nil {
-		return nil, err
-	}
-	s := ride.NewSerializer()
-	err = exe.Serialize(s)
-	if err != nil {
-		return nil, err
-	}
-	return s.Source(), nil
 }
 
 func scriptBytesToExecutable(script proto.Script) (*ride.Executable, error) {
@@ -478,7 +456,9 @@ func (ss *scriptsStorage) accountHasScript(addr proto.Address, filter bool) (boo
 }
 
 func (ss *scriptsStorage) newestScriptByAddr(addr proto.Address, filter bool) (*ride.Tree, error) {
-	panic("unreacheable!")
+	if true {
+		panic("unreacheable!")
+	}
 	key := accountScriptKey{addr}
 	keyBytes := key.bytes()
 	tree, err := ss.newestScriptAstByKey(keyBytes, filter)

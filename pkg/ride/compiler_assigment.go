@@ -114,7 +114,6 @@ func (a AssigmentState) Write(_ params, b []byte) {
 	a.b.writeByte(OpCache)
 	a.b.write(encode(a.n))
 	a.b.ret()
-	return
 }
 
 func (a AssigmentState) Clean() {

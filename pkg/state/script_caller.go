@@ -42,10 +42,10 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	if err != nil {
 		return err
 	}
-	//tree, err := a.stor.scriptsStorage.newestScriptByAddr(sender, !initialisation)
-	//if err != nil {
-	//	return errors.Wrap(err, "failed to retrieve account script")
-	//}
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(sender, !initialisation)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve account script")
+	}
 	exe, err := a.stor.scriptsStorage.newestBytecodeByAddr(sender, !initialisation)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve account script")
@@ -61,7 +61,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	if err != nil {
 		return errors.Wrap(err, "failed to convert order")
 	}
-	r, err := ride.CallVerifier("scriptCaller callAccountScriptWithOrder", env, nil, exe)
+	r, err := ride.CallVerifier("scriptCaller callAccountScriptWithOrder", env, tree, exe)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
 	}
@@ -94,10 +94,10 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	if err != nil {
 		return err
 	}
-	//tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !initialisation)
-	//if err != nil {
-	//	return err
-	//}
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !initialisation)
+	if err != nil {
+		return err
+	}
 	exe, err := a.stor.scriptsStorage.newestBytecodeByAddr(senderAddr, !initialisation)
 	if err != nil {
 		return err
@@ -114,7 +114,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
 	//zap.S().Debug(tx.GetID(a.settings.AddressSchemeCharacter))
-	r, err := ride.CallVerifier(txID, env, nil, exe)
+	r, err := ride.CallVerifier(txID, env, tree, exe)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
@@ -147,10 +147,10 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 }
 
 func (a *scriptCaller) callAssetScriptCommon(env *ride.Environment, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool, acceptFailed bool) (ride.RideResult, error) {
-	//tree, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
-	//if err != nil {
-	//	return nil, err
-	//}
+	tree, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
+	if err != nil {
+		return nil, err
+	}
 	exe, err := a.stor.scriptsStorage.newestBytecodeByAsset(assetID, !initialisation)
 	if err != nil {
 		return nil, err
@@ -171,7 +171,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.Environment, assetID cryp
 		env.SetThisFromAssetInfo(assetInfo)
 	}
 	env.SetLastBlock(lastBlockInfo)
-	r, err := ride.CallVerifier("scriptCaller callAssetScriptCommon", env, nil, exe)
+	r, err := ride.CallVerifier("scriptCaller callAssetScriptCommon", env, tree, exe)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 	}
@@ -246,9 +246,7 @@ func (a *scriptCaller) invokeFunction(exe *ride.Executable, tx *proto.InvokeScri
 	//	zap.S().Errorf("%d argument %+v, %T", i, v, v)
 	//}
 
-	r, err := ride.CallFunction(txID, env, exe, nil, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
-	//r, err := ride.CallVmFunction(txID, env, exe, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
-	//r, err := ride.CallTreeFunction(txID, env, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
+	r, err := ride.CallFunction(txID, env, exe, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
