@@ -172,7 +172,7 @@ func (diffSt *diffState) changeLeaseOut(searchBalance *diffBalance, searchAddres
 	return nil
 }
 
-func (diffSt *diffState) changeBalance(searchBalance *diffBalance, searchAddress string, amount int64, assetID crypto.Digest, account proto.Recipient) error {
+func (diffSt *diffState) ChangeBalance(searchBalance *diffBalance, searchAddress string, amount int64, assetID crypto.Digest, account proto.Recipient) error {
 	if searchBalance != nil {
 		diffSt.addBalanceTo(searchAddress, amount)
 		return nil
@@ -249,7 +249,7 @@ func (diffSt *diffState) findDeleteFromDataEntryByKey(key string, address string
 	return nil
 }
 
-func (diffSt *diffState) findBalance(recipient proto.Recipient, asset proto.OptionalAsset) (*diffBalance, string, error) {
+func (diffSt *diffState) FindBalance(recipient proto.Recipient, asset proto.OptionalAsset) (*diffBalance, string, error) {
 	address, err := diffSt.state.NewestRecipientToAddress(recipient)
 	if err != nil {
 		return nil, "", errors.Errorf("cannot get address from recipient")

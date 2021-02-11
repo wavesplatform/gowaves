@@ -808,7 +808,7 @@ func TestScriptResult(t *testing.T) {
 	)
 }
 
-func initWrappedState(state types.SmartState, envThis rideAddress) *wrappedState {
+func initWrappedState(state types.SmartState, envThis rideAddress) *WrappedState {
 	var dataEntries diffDataEntries
 
 	dataEntries.diffInteger = map[string]proto.IntegerDataEntry{}
@@ -824,11 +824,11 @@ func initWrappedState(state types.SmartState, envThis rideAddress) *wrappedState
 	leases := map[string]lease{}
 
 	diffSt := &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo, leases: leases}
-	wrappedSt := wrappedState{diff: *diffSt, envThis: envThis}
+	wrappedSt := WrappedState{Diff: *diffSt, EnvThis: envThis}
 	return &wrappedSt
 }
 
-var wrappedSt wrappedState
+var wrappedSt WrappedState
 var firstScript string
 var secondScript string
 var assetIDIssue crypto.Digest
@@ -850,22 +850,22 @@ func smartStateDappFromDapp() types.SmartState {
 
 					case *proto.IntegerDataEntry:
 						intEntry := *dataEntry
-						address := proto.Address(wrappedSt.envThis)
+						address := proto.Address(wrappedSt.EnvThis)
 
-						wrappedSt.diff.dataEntries.diffInteger[dataEntry.Key+address.String()] = intEntry
+						wrappedSt.Diff.dataEntries.diffInteger[dataEntry.Key+address.String()] = intEntry
 
-						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
+						senderPK, err := wrappedSt.Diff.state.NewestScriptPKByAddr(address, false)
 						if err != nil {
 							return nil, errors.Wrap(err, "failed to get public key by address")
 						}
 						res.Sender = &senderPK
 					case *proto.StringDataEntry:
 						stringEntry := *dataEntry
-						address := proto.Address(wrappedSt.envThis)
+						address := proto.Address(wrappedSt.EnvThis)
 
-						wrappedSt.diff.dataEntries.diffString[dataEntry.Key+address.String()] = stringEntry
+						wrappedSt.Diff.dataEntries.diffString[dataEntry.Key+address.String()] = stringEntry
 
-						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
+						senderPK, err := wrappedSt.Diff.state.NewestScriptPKByAddr(address, false)
 						if err != nil {
 							return nil, errors.Wrap(err, "failed to get public key by address")
 						}
@@ -873,11 +873,11 @@ func smartStateDappFromDapp() types.SmartState {
 
 					case *proto.BooleanDataEntry:
 						boolEntry := *dataEntry
-						address := proto.Address(wrappedSt.envThis)
+						address := proto.Address(wrappedSt.EnvThis)
 
-						wrappedSt.diff.dataEntries.diffBool[dataEntry.Key+address.String()] = boolEntry
+						wrappedSt.Diff.dataEntries.diffBool[dataEntry.Key+address.String()] = boolEntry
 
-						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
+						senderPK, err := wrappedSt.Diff.state.NewestScriptPKByAddr(address, false)
 						if err != nil {
 							return nil, errors.Wrap(err, "failed to get public key by address")
 						}
@@ -885,11 +885,11 @@ func smartStateDappFromDapp() types.SmartState {
 
 					case *proto.BinaryDataEntry:
 						binaryEntry := *dataEntry
-						address := proto.Address(wrappedSt.envThis)
+						address := proto.Address(wrappedSt.EnvThis)
 
-						wrappedSt.diff.dataEntries.diffBinary[dataEntry.Key+address.String()] = binaryEntry
+						wrappedSt.Diff.dataEntries.diffBinary[dataEntry.Key+address.String()] = binaryEntry
 
-						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
+						senderPK, err := wrappedSt.Diff.state.NewestScriptPKByAddr(address, false)
 						if err != nil {
 							return nil, errors.Wrap(err, "failed to get public key by address")
 						}
@@ -897,11 +897,11 @@ func smartStateDappFromDapp() types.SmartState {
 
 					case *proto.DeleteDataEntry:
 						deleteEntry := *dataEntry
-						address := proto.Address(wrappedSt.envThis)
+						address := proto.Address(wrappedSt.EnvThis)
 
-						wrappedSt.diff.dataEntries.diffDDelete[dataEntry.Key+address.String()] = deleteEntry
+						wrappedSt.Diff.dataEntries.diffDDelete[dataEntry.Key+address.String()] = deleteEntry
 
-						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
+						senderPK, err := wrappedSt.Diff.state.NewestScriptPKByAddr(address, false)
 						if err != nil {
 							return nil, errors.Wrap(err, "failed to get public key by address")
 						}
@@ -922,30 +922,30 @@ func smartStateDappFromDapp() types.SmartState {
 						}
 
 					} else {
-						pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+						pk, err := wrappedSt.Diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.EnvThis), false)
 						if err != nil {
 							return nil, errors.Wrap(err, "failed to get public key by address")
 						}
 						senderPK = pk
 
-						senderAddress = proto.Address(wrappedSt.envThis)
+						senderAddress = proto.Address(wrappedSt.EnvThis)
 					}
 
-					searchBalance, searchAddr, err := wrappedSt.diff.findBalance(res.Recipient, res.Asset)
+					searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(res.Recipient, res.Asset)
 					if err != nil {
 						return nil, err
 					}
-					err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
+					err = wrappedSt.Diff.ChangeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
 					if err != nil {
 						return nil, err
 					}
 					senderRecipient := proto.NewRecipientFromAddress(senderAddress)
-					senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderRecipient, res.Asset)
+					senderSearchBalance, senderSearchAddr, err := wrappedSt.Diff.FindBalance(senderRecipient, res.Asset)
 					if err != nil {
 						return nil, err
 					}
 
-					err = wrappedSt.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecipient)
+					err = wrappedSt.Diff.ChangeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecipient)
 					if err != nil {
 						return nil, err
 					}
@@ -956,9 +956,9 @@ func smartStateDappFromDapp() types.SmartState {
 					var sponsorship diffSponsorship
 					sponsorship.MinFee = res.MinFee
 
-					wrappedSt.diff.sponsorships[res.AssetID.String()] = sponsorship
+					wrappedSt.Diff.sponsorships[res.AssetID.String()] = sponsorship
 
-					senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+					senderPK, err := wrappedSt.Diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.EnvThis), false)
 					if err != nil {
 						return nil, errors.Wrap(err, "failed to get public key by address")
 					}
@@ -966,7 +966,7 @@ func smartStateDappFromDapp() types.SmartState {
 
 				case *proto.IssueScriptAction:
 					var assetInfo diffNewAssetInfo
-					assetInfo.dAppIssuer = proto.Address(wrappedSt.envThis)
+					assetInfo.dAppIssuer = proto.Address(wrappedSt.EnvThis)
 					assetInfo.name = res.Name
 					assetInfo.description = res.Description
 					assetInfo.quantity = res.Quantity
@@ -977,91 +977,91 @@ func smartStateDappFromDapp() types.SmartState {
 
 					assetIDIssue = res.ID
 
-					wrappedSt.diff.newAssetsInfo[res.ID.String()] = assetInfo
+					wrappedSt.Diff.newAssetsInfo[res.ID.String()] = assetInfo
 
-					senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+					senderPK, err := wrappedSt.Diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.EnvThis), false)
 					if err != nil {
 						return nil, errors.Wrap(err, "failed to get public key by address")
 					}
 					res.Sender = &senderPK
 
 				case *proto.ReissueScriptAction:
-					searchNewAsset := wrappedSt.diff.findNewAsset(res.AssetID)
+					searchNewAsset := wrappedSt.Diff.findNewAsset(res.AssetID)
 					if searchNewAsset == nil {
 						var assetInfo diffOldAssetInfo
 
 						assetInfo.diffQuantity += res.Quantity
 
-						wrappedSt.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
+						wrappedSt.Diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
 						break
 					}
-					wrappedSt.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
+					wrappedSt.Diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
 
-					senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+					senderPK, err := wrappedSt.Diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.EnvThis), false)
 					if err != nil {
 						return nil, errors.Wrap(err, "failed to get public key by address")
 					}
 					res.Sender = &senderPK
 
 				case *proto.BurnScriptAction:
-					searchAsset := wrappedSt.diff.findNewAsset(res.AssetID)
+					searchAsset := wrappedSt.Diff.findNewAsset(res.AssetID)
 					if searchAsset == nil {
 						var assetInfo diffOldAssetInfo
 
 						assetInfo.diffQuantity += -res.Quantity
 
-						wrappedSt.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
+						wrappedSt.Diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
 
 						break
 					}
-					wrappedSt.diff.burnNewAsset(res.AssetID, res.Quantity)
+					wrappedSt.Diff.burnNewAsset(res.AssetID, res.Quantity)
 
-					senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+					senderPK, err := wrappedSt.Diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.EnvThis), false)
 					if err != nil {
 						return nil, errors.Wrap(err, "failed to get public key by address")
 					}
 					res.Sender = &senderPK
 				case *proto.LeaseScriptAction:
-					senderAddress := proto.Address(wrappedSt.envThis)
+					senderAddress := proto.Address(wrappedSt.EnvThis)
 
-					recipientSearchBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(res.Recipient, proto.NewOptionalAssetWaves())
+					recipientSearchBalance, recipientSearchAddress, err := wrappedSt.Diff.FindBalance(res.Recipient, proto.NewOptionalAssetWaves())
 					if err != nil {
 						return nil, err
 					}
-					err = wrappedSt.diff.changeLeaseIn(recipientSearchBalance, recipientSearchAddress, res.Amount, res.Recipient)
+					err = wrappedSt.Diff.changeLeaseIn(recipientSearchBalance, recipientSearchAddress, res.Amount, res.Recipient)
 					if err != nil {
 						return nil, err
 					}
 
 					senderAccount := proto.NewRecipientFromAddress(senderAddress)
-					senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderAccount, proto.NewOptionalAssetWaves())
+					senderSearchBalance, senderSearchAddr, err := wrappedSt.Diff.FindBalance(senderAccount, proto.NewOptionalAssetWaves())
 					if err != nil {
 						return nil, err
 					}
 
-					err = wrappedSt.diff.changeLeaseOut(senderSearchBalance, senderSearchAddr, res.Amount, senderAccount)
+					err = wrappedSt.Diff.changeLeaseOut(senderSearchBalance, senderSearchAddr, res.Amount, senderAccount)
 					if err != nil {
 						return nil, err
 					}
 
-					pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(senderAddress, false)
+					pk, err := wrappedSt.Diff.state.NewestScriptPKByAddr(senderAddress, false)
 					if err != nil {
 						return nil, errors.Wrap(err, "failed to get public key by address")
 					}
 
-					wrappedSt.diff.addNewLease(res.Recipient, senderAccount, res.Amount, res.ID)
+					wrappedSt.Diff.addNewLease(res.Recipient, senderAccount, res.Amount, res.ID)
 
 					res.Sender = &pk
 				case *proto.LeaseCancelScriptAction:
 
-					searchLease, err := wrappedSt.diff.findLeaseByIDForCancel(res.LeaseID)
+					searchLease, err := wrappedSt.Diff.findLeaseByIDForCancel(res.LeaseID)
 					if err != nil {
 						return nil, errors.Errorf("failed to find lease by leaseID")
 					}
 					if searchLease == nil {
 						return nil, errors.Errorf("there is no lease to cancel")
 					}
-					recipientBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Recipient, proto.NewOptionalAssetWaves())
+					recipientBalance, recipientSearchAddress, err := wrappedSt.Diff.FindBalance(searchLease.Recipient, proto.NewOptionalAssetWaves())
 					if err != nil {
 						return nil, err
 					}
@@ -1069,7 +1069,7 @@ func smartStateDappFromDapp() types.SmartState {
 						return nil, errors.Errorf("there is no balance to cancel lease")
 					}
 
-					senderBalance, senderSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Sender, proto.NewOptionalAssetWaves())
+					senderBalance, senderSearchAddress, err := wrappedSt.Diff.FindBalance(searchLease.Sender, proto.NewOptionalAssetWaves())
 					if err != nil {
 						return nil, err
 					}
@@ -1077,9 +1077,9 @@ func smartStateDappFromDapp() types.SmartState {
 						return nil, errors.Errorf("there is no balance to cancel lease")
 					}
 
-					wrappedSt.diff.cancelLease(*searchLease, senderSearchAddress, recipientSearchAddress)
+					wrappedSt.Diff.cancelLease(*searchLease, senderSearchAddress, recipientSearchAddress)
 
-					pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
+					pk, err := wrappedSt.Diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.EnvThis), false)
 					if err != nil {
 						return nil, errors.Wrap(err, "failed to get public key by address")
 					}
@@ -1093,29 +1093,25 @@ func smartStateDappFromDapp() types.SmartState {
 		},
 
 		ValidateInvokeResultFunc: func(actions []proto.ScriptAction, dappRecipient proto.Recipient) error {
+
 			address, err := wrappedSt.NewestRecipientToAddress(dappRecipient)
 			if err != nil {
 				return errors.Errorf("failed to get address from recipient")
 			}
 
-			for searchAddress, value := range wrappedSt.diff.balances {
+			for searchAddress, value := range wrappedSt.Diff.balances {
 				if searchAddress == address.String()+value.asset.String() {
 					// waves
 					if value.asset.Present {
-						regularBalanceFromState, err := wrappedSt.diff.state.NewestAccountBalance(dappRecipient, value.asset.ID.Bytes())
-						if err != nil {
-							return err
-						}
+						regularBalanceFromState := 0
 						if int64(regularBalanceFromState)+value.regular < 0 {
 							return errors.Errorf("regular balance of called dapp is negative")
 						}
 						continue
 					}
 					// other assets
-					fullBalanceFromState, err := wrappedSt.diff.state.NewestFullWavesBalance(dappRecipient)
-					if err != nil {
-						return err
-					}
+					fullBalanceFromState := proto.FullWavesBalance{}
+
 					if int64(fullBalanceFromState.Regular)+value.regular < 0 || int64(fullBalanceFromState.LeaseIn)+value.leaseIn < 0 || int64(fullBalanceFromState.LeaseOut)+value.leaseOut < 0 {
 						return errors.Errorf("at least one of regular, leaseIn, leaseOut balances of called dapp is negative")
 					}
@@ -1226,14 +1222,6 @@ func smartStateDappFromDapp() types.SmartState {
 						return errors.New("negative quantity")
 					}
 
-					assetInfo, err := wrappedSt.NewestAssetInfo(ta.AssetID)
-					if err != nil {
-						return errors.Errorf("failed to get asset info by asset ID")
-					}
-					if !assetInfo.Reissuable {
-						return errors.Errorf("reissue action is forbidden as asset is not reissuable")
-					}
-
 				case *proto.BurnScriptAction:
 					otherActionsCount++
 					if otherActionsCount > proto.MaxScriptActions {
@@ -1241,13 +1229,6 @@ func smartStateDappFromDapp() types.SmartState {
 					}
 					if ta.Quantity < 0 {
 						return errors.New("negative quantity")
-					}
-					assetInfo, err := wrappedSt.NewestAssetInfo(ta.AssetID)
-					if err != nil {
-						return errors.Errorf("failed to get asset info by asset ID")
-					}
-					if !assetInfo.Reissuable {
-						return errors.Errorf("burn action is forbidden as asset is not reissuable")
 					}
 
 				case *proto.SponsorshipScriptAction:
@@ -1343,7 +1324,7 @@ func smartStateDappFromDapp() types.SmartState {
 			if err != nil {
 				return 0, err
 			}
-			balanceDiff, _, err := wrappedSt.diff.findBalance(account, *asset)
+			balanceDiff, _, err := wrappedSt.Diff.FindBalance(account, *asset)
 			if err != nil {
 				return 0, err
 			}
@@ -1357,7 +1338,7 @@ func smartStateDappFromDapp() types.SmartState {
 		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
 			balance := 0
 
-			wavesBalanceDiff, searchAddress, err := wrappedSt.diff.findBalance(account, proto.NewOptionalAssetWaves())
+			wavesBalanceDiff, searchAddress, err := wrappedSt.Diff.FindBalance(account, proto.NewOptionalAssetWaves())
 			if err != nil {
 				return nil, err
 			}
@@ -1368,12 +1349,12 @@ func smartStateDappFromDapp() types.SmartState {
 				resLeaseIn := wavesBalanceDiff.leaseIn + int64(balance)
 				resLeaseOut := wavesBalanceDiff.leaseOut + int64(balance)
 
-				err := wrappedSt.diff.addEffectiveToHistory(searchAddress, resEffective)
+				err := wrappedSt.Diff.addEffectiveToHistory(searchAddress, resEffective)
 				if err != nil {
 					return nil, err
 				}
 
-				resGenerating := wrappedSt.diff.findMinGenerating(wrappedSt.diff.balances[searchAddress].effectiveHistory, int64(balance))
+				resGenerating := wrappedSt.Diff.findMinGenerating(wrappedSt.Diff.balances[searchAddress].effectiveHistory, int64(balance))
 
 				return &proto.FullWavesBalance{
 					Regular:    uint64(resRegular),
@@ -1384,8 +1365,8 @@ func smartStateDappFromDapp() types.SmartState {
 					LeaseOut:   uint64(resLeaseOut)}, nil
 
 			}
-			_, searchAddr := wrappedSt.diff.createNewWavesBalance(account)
-			err = wrappedSt.diff.addEffectiveToHistory(searchAddr, int64(balance))
+			_, searchAddr := wrappedSt.Diff.createNewWavesBalance(account)
+			err = wrappedSt.Diff.addEffectiveToHistory(searchAddr, int64(balance))
 			if err != nil {
 				return nil, err
 			}
@@ -1398,68 +1379,68 @@ func smartStateDappFromDapp() types.SmartState {
 				LeaseOut:   0}, nil
 		},
 		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-			address, err := wrappedSt.diff.state.NewestRecipientToAddress(account)
+			address, err := wrappedSt.Diff.state.NewestRecipientToAddress(account)
 			if err != nil {
 				return nil, err
 			}
 
-			if deletedDataEntry := wrappedSt.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+			if deletedDataEntry := wrappedSt.Diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
 				return nil, nil
 			}
 
-			if intDataEntry := wrappedSt.diff.findIntFromDataEntryByKey(key, address.String()); intDataEntry != nil {
+			if intDataEntry := wrappedSt.Diff.findIntFromDataEntryByKey(key, address.String()); intDataEntry != nil {
 				return intDataEntry, nil
 			}
 
 			return nil, nil
 		},
 		RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-			address, err := wrappedSt.diff.state.NewestRecipientToAddress(account)
+			address, err := wrappedSt.Diff.state.NewestRecipientToAddress(account)
 			if err != nil {
 				return nil, err
 			}
 
-			if deletedDataEntry := wrappedSt.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+			if deletedDataEntry := wrappedSt.Diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
 				return nil, nil
 			}
 
-			if boolDataEntry := wrappedSt.diff.findBoolFromDataEntryByKey(key, address.String()); boolDataEntry != nil {
+			if boolDataEntry := wrappedSt.Diff.findBoolFromDataEntryByKey(key, address.String()); boolDataEntry != nil {
 				return boolDataEntry, nil
 			}
 			return nil, nil
 		},
 		RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-			address, err := wrappedSt.diff.state.NewestRecipientToAddress(account)
+			address, err := wrappedSt.Diff.state.NewestRecipientToAddress(account)
 			if err != nil {
 				return nil, err
 			}
 
-			if deletedDataEntry := wrappedSt.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+			if deletedDataEntry := wrappedSt.Diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
 				return nil, nil
 			}
 
-			if stringDataEntry := wrappedSt.diff.findStringFromDataEntryByKey(key, address.String()); stringDataEntry != nil {
+			if stringDataEntry := wrappedSt.Diff.findStringFromDataEntryByKey(key, address.String()); stringDataEntry != nil {
 				return stringDataEntry, nil
 			}
 			return nil, nil
 		},
 		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-			address, err := wrappedSt.diff.state.NewestRecipientToAddress(account)
+			address, err := wrappedSt.Diff.state.NewestRecipientToAddress(account)
 			if err != nil {
 				return nil, err
 			}
 
-			if deletedDataEntry := wrappedSt.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+			if deletedDataEntry := wrappedSt.Diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
 				return nil, nil
 			}
 
-			if binaryDataEntry := wrappedSt.diff.findBinaryFromDataEntryByKey(key, address.String()); binaryDataEntry != nil {
+			if binaryDataEntry := wrappedSt.Diff.findBinaryFromDataEntryByKey(key, address.String()); binaryDataEntry != nil {
 				return binaryDataEntry, nil
 			}
 			return nil, nil
 		},
 		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
-			if cost := wrappedSt.diff.findSponsorship(assetID); cost != nil {
+			if cost := wrappedSt.Diff.findSponsorship(assetID); cost != nil {
 				if *cost == 0 {
 					return false, nil
 				}
@@ -1468,12 +1449,12 @@ func smartStateDappFromDapp() types.SmartState {
 			return false, nil
 		},
 		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-			searchNewAsset := wrappedSt.diff.findNewAsset(assetID)
+			searchNewAsset := wrappedSt.Diff.findNewAsset(assetID)
 
 			if searchNewAsset == nil {
 				assetFromStore := proto.AssetInfo{}
 
-				if oldAssetFromDiff := wrappedSt.diff.findOldAsset(assetID); oldAssetFromDiff != nil {
+				if oldAssetFromDiff := wrappedSt.Diff.findOldAsset(assetID); oldAssetFromDiff != nil {
 					quantity := int64(assetFromStore.Quantity) + oldAssetFromDiff.diffQuantity
 
 					assetFromStore.Quantity = uint64(quantity)
@@ -1503,13 +1484,13 @@ func smartStateDappFromDapp() types.SmartState {
 
 		},
 		NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
-			searchNewAsset := wrappedSt.diff.findNewAsset(assetID)
+			searchNewAsset := wrappedSt.Diff.findNewAsset(assetID)
 
 			if searchNewAsset == nil {
 
 				assetFromStore := proto.FullAssetInfo{}
 
-				if oldAssetFromDiff := wrappedSt.diff.findOldAsset(assetID); oldAssetFromDiff != nil {
+				if oldAssetFromDiff := wrappedSt.Diff.findOldAsset(assetID); oldAssetFromDiff != nil {
 					quantity := int64(assetFromStore.Quantity) + oldAssetFromDiff.diffQuantity
 
 					if quantity >= 0 {
@@ -1545,7 +1526,7 @@ func smartStateDappFromDapp() types.SmartState {
 			}
 
 			sponsorshipCost := int64(0)
-			if sponsorship := wrappedSt.diff.findSponsorship(assetID); sponsorship != nil {
+			if sponsorship := wrappedSt.Diff.findSponsorship(assetID); sponsorship != nil {
 				sponsorshipCost = *sponsorship
 			}
 
@@ -1557,6 +1538,35 @@ func smartStateDappFromDapp() types.SmartState {
 				SponsorshipCost: uint64(sponsorshipCost),
 			}, nil
 		},
+		AddExternalPaymentsFunc: func(externalPayments proto.ScriptPayments, caller proto.Address) error {
+			rideAddr := wrappedSt.EnvThis
+			recipient := proto.NewRecipientFromAddress(proto.Address(rideAddr))
+
+			for _, payment := range externalPayments {
+
+				searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(recipient, payment.Asset)
+				if err != nil {
+					return err
+				}
+				err = wrappedSt.Diff.ChangeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
+				if err != nil {
+					return err
+				}
+
+				senderRecipient := proto.NewRecipientFromAddress(caller)
+				senderSearchBalance, senderSearchAddr, err := wrappedSt.Diff.FindBalance(senderRecipient, payment.Asset)
+				if err != nil {
+					return err
+				}
+
+				err = wrappedSt.Diff.ChangeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, senderRecipient)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		},
 	}
 }
 
@@ -1567,7 +1577,6 @@ var tx *proto.InvokeScriptWithProofs
 var inv rideObject
 var id []byte
 var isInternalPmnt bool
-
 
 var envDappFromDapp = &MockRideEnvironment{
 	actionsFunc: func() []proto.ScriptAction {
@@ -1599,7 +1608,7 @@ var envDappFromDapp = &MockRideEnvironment{
 		return rideAddress(thisAddress)
 	},
 	setNewDAppAddressFunc: func(address proto.Address) {
-		wrappedSt.envThis = rideAddress(address)
+		wrappedSt.EnvThis = rideAddress(address)
 		thisAddress = address
 	},
 	applyToStateFunc: func(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
@@ -1636,7 +1645,7 @@ var envDappFromDapp = &MockRideEnvironment{
 
 func tearDownDappFromDapp() {
 
-	wrappedSt = wrappedState{}
+	wrappedSt = WrappedState{}
 	firstScript = ""
 	secondScript = ""
 	assetIDIssue = crypto.Digest{}
@@ -1651,6 +1660,38 @@ func tearDownDappFromDapp() {
 	tx = nil
 	id = nil
 	isInternalPmnt = false
+}
+func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.PublicKey) error {
+	caller, err := proto.NewAddressFromPublicKey(envDappFromDapp.scheme(), callerPK)
+	if err != nil {
+		return err
+	}
+	rideAddress := wrappedSt.EnvThis
+	recipient := proto.NewRecipientFromAddress(proto.Address(rideAddress))
+
+	for _, payment := range externalPayments {
+
+		searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(recipient, payment.Asset)
+		if err != nil {
+			return err
+		}
+		err = wrappedSt.Diff.ChangeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
+		if err != nil {
+			return err
+		}
+
+		callerRcp := proto.NewRecipientFromAddress(caller)
+		senderSearchBalance, senderSearchAddr, err := wrappedSt.Diff.FindBalance(callerRcp, payment.Asset)
+		if err != nil {
+			return err
+		}
+
+		err = wrappedSt.Diff.ChangeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func TestInvokeDAppFromDAppAllActions(t *testing.T) {
@@ -1706,6 +1747,8 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
 	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
 	addr, err = proto.NewAddressFromString("3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
@@ -1744,7 +1787,6 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		Fee:       900000,
 		Timestamp: 1564703444249,
 	}
-
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
 	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEdGVzdAAAAAAEAAAAA3JlcwkAA/wAAAAECQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXI7OtElyTpMrsOf5PRtbNVk0t+xD7Y5h6AgAAAAt0ZXN0QWN0aW9ucwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACAQAAAAAAAAAAAAAABNIJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIBAAAAAAAAAAAAAAAE0gUAAAADbmlsAwkAAAAAAAACBQAAAANyZXMAAAAAAAAAABEJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2tleQAAAAAAAAAAAQUAAAADbmlsCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQAAAAA3aHKo"
@@ -1789,6 +1831,8 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
 	wrappedSt = *NewWrappedSt
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	pid, ok := env.txID().(rideBytes)
 	require.True(t, ok)
@@ -1797,11 +1841,6 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	expectedIssueWrites[0].ID = proto.GenerateIssueScriptActionID(expectedIssueWrites[0].Name, expectedIssueWrites[0].Description, int64(expectedIssueWrites[0].Decimals), expectedIssueWrites[0].Quantity, expectedIssueWrites[0].Reissuable, expectedIssueWrites[0].Nonce, d)
 	expectedReissueWrites[0].AssetID = expectedIssueWrites[0].ID
 	expectedBurnWrites[0].AssetID = expectedIssueWrites[0].ID
-
-	// start balance
-	bal := wrappedSt.diff.balances[addr.String()+proto.OptionalAsset{}.String()]
-	bal.regular = 2468
-	wrappedSt.diff.balances[addr.String()+proto.OptionalAsset{}.String()] = bal
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
@@ -1837,10 +1876,10 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	fullBalanceExpected := &proto.FullWavesBalance{
-		Regular:    1,
+		Regular:    7533,
 		Generating: 0,
-		Available:  1,
-		Effective:  11,
+		Available:  7533,
+		Effective:  7543,
 		LeaseIn:    10,
 		LeaseOut:   0,
 	}
@@ -1861,9 +1900,12 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, fullBalanceCallable, fullBalanceCallableExpected)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
-	balance := diffBalance{regular: 1, leaseIn: 10, asset: assetExp, effectiveHistory: []int64{11}}
+	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).Diff
+	balance := diffBalance{regular: 7533, leaseIn: 10, asset: assetExp, effectiveHistory: []int64{7543}}
 	expectedDiffResult.balances[addr.String()+assetExp.String()] = balance
+
+	balanceSender := diffBalance{regular: -10000, leaseOut: 0, asset: assetExp}
+	expectedDiffResult.balances[senderAddress.String()+assetExp.String()] = balanceSender
 
 	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, asset: assetExp, effectiveHistory: []int64{2457}}
 	expectedDiffResult.balances[addressCallable.String()+assetExp.String()] = balanceCallable
@@ -1889,12 +1931,12 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	lease := lease{Recipient: recipient, Sender: recipientCallable, leasedAmount: 10}
 	expectedDiffResult.leases[expectedLeaseWrites[0].ID.String()] = lease
 
-	assert.Equal(t, expectedDiffResult.newAssetsInfo, wrappedSt.diff.newAssetsInfo)
-	assert.Equal(t, expectedDiffResult.oldAssetsInfo, wrappedSt.diff.oldAssetsInfo)
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
-	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
-	assert.Equal(t, expectedDiffResult.sponsorships, wrappedSt.diff.sponsorships)
-	assert.Equal(t, expectedDiffResult.leases, wrappedSt.diff.leases)
+	assert.Equal(t, expectedDiffResult.newAssetsInfo, wrappedSt.Diff.newAssetsInfo)
+	assert.Equal(t, expectedDiffResult.oldAssetsInfo, wrappedSt.Diff.oldAssetsInfo)
+	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.Diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.balances, wrappedSt.Diff.balances)
+	assert.Equal(t, expectedDiffResult.sponsorships, wrappedSt.Diff.sponsorships)
+	assert.Equal(t, expectedDiffResult.leases, wrappedSt.Diff.leases)
 
 	tearDownDappFromDapp()
 }
@@ -2016,12 +2058,12 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).Diff
 
 	intEntry1 := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+addr.String()] = intEntry1
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.Diff.dataEntries)
 
 	tearDownDappFromDapp()
 }
@@ -2178,7 +2220,7 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).Diff
 
 	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -14, effectiveHistory: []int64{0, -14}}
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 14, effectiveHistory: []int64{0, 14}}
@@ -2187,8 +2229,8 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	expectedDiffResult.balances[addressCallable.String()+proto.NewOptionalAssetWaves().String()] = balanceCallable
 	expectedDiffResult.balances[addr.String()+proto.NewOptionalAssetWaves().String()] = balanceMain
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
-	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
+	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.Diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.balances, wrappedSt.Diff.balances)
 
 	tearDownDappFromDapp()
 }
@@ -2357,7 +2399,7 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).Diff
 
 	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -29, effectiveHistory: []int64{0, -14, -29}}
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 29, effectiveHistory: []int64{0, 14, 29}}
@@ -2366,8 +2408,8 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
 	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
-	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
+	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.Diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.balances, wrappedSt.Diff.balances)
 
 	tearDownDappFromDapp()
 }
@@ -2440,6 +2482,8 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
 	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
 	addr, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
@@ -2469,10 +2513,13 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
-		Payments:        nil,
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             900000,
-		Timestamp:       1564703444249,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 500,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       900000,
+		Timestamp: 1564703444249,
 	}
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
@@ -2504,6 +2551,9 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
 	wrappedSt = *NewWrappedSt
 
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
+
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
@@ -2533,19 +2583,21 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).Diff
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -16, effectiveHistory: []int64{0, -16}}
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 484, effectiveHistory: []int64{500, 484}}
+	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: -500}
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 16, effectiveHistory: []int64{0, 16}}
 	intEntry1 := proto.IntegerDataEntry{Key: "key", Value: 0}
 	intEntry2 := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["key"+addr.String()] = intEntry1
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry2
 	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
+	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
 	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
-	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
+	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.Diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.balances, wrappedSt.Diff.balances)
 
 	tearDownDappFromDapp()
 }
@@ -2616,6 +2668,8 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
 	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
 	addr, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
@@ -2645,10 +2699,13 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
-		Payments:        nil,
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             900000,
-		Timestamp:       1564703444249,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 500,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       900000,
+		Timestamp: 1564703444249,
 	}
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
@@ -2680,6 +2737,9 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
 	wrappedSt = *NewWrappedSt
 
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
+
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
@@ -2709,19 +2769,22 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).Diff
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -13, effectiveHistory: []int64{0, -13}}
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 487, effectiveHistory: []int64{500, 487}}
+	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: -500}
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 13, effectiveHistory: []int64{0, 13}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
 	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
+	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
 	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
-	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
+	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.Diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.balances, wrappedSt.Diff.balances)
 
 	tearDownDappFromDapp()
+
 }
 
 func TestInvokeDAppFromDAppScript6(t *testing.T) {
@@ -2822,9 +2885,9 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).Diff
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.Diff.dataEntries)
 
 	tearDownDappFromDapp()
 }
@@ -2968,6 +3031,11 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	proofs := proto.NewProofs()
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	require.NoError(t, err)
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+	senderRecipient := proto.NewRecipientFromAddress(senderAddress)
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
@@ -2993,7 +3061,7 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 		ID:              &txID,
 		Proofs:          proofs,
 		ChainID:         proto.MainNetScheme,
-		SenderPK:        addrPK,
+		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
 		Payments: proto.ScriptPayments{proto.ScriptPayment{
@@ -3004,7 +3072,6 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 		Fee:       900000,
 		Timestamp: 1564703444249,
 	}
-
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
 	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAMZXhjaGFuZ2VSYXRlAAAAAAAAAAAFAAAAAQAAAAFpAQAAAAR0ZXN0AAAAAAMJAQAAAAIhPQAAAAIICQABkQAAAAIIBQAAAAFpAAAACHBheW1lbnRzAAAAAAAAAAAAAAAAB2Fzc2V0SWQFAAAABHVuaXQJAAACAAAAAQIAAAAQdW5leHBlY3RlZCBhc3NldAQAAAADcmVzCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAC3Rlc3RBY3Rpb25zCQAETAAAAAIJAABoAAAAAggJAAGRAAAAAggFAAAAAWkAAAAIcGF5bWVudHMAAAAAAAAAAAAAAAAGYW1vdW50BQAAAAxleGNoYW5nZVJhdGUFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAANyZXMAAAAAAAAAABEJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyCQAAaAAAAAIICQABkQAAAAIIBQAAAAFpAAAACHBheW1lbnRzAAAAAAAAAAAAAAAABmFtb3VudAUAAAAMZXhjaGFuZ2VSYXRlBQAAAAR1bml0BQAAAANuaWwJAAACAAAAAQIAAAASQmFkIHJldHVybmVkIHZhbHVlAAAAANOWG8w="
@@ -3017,7 +3084,7 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	}
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
-		{Recipient: recipient, Amount: 2500, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Recipient: senderRecipient, Amount: 2500, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 	}
 
 	smartState := smartStateDappFromDapp
@@ -3028,6 +3095,9 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 
 	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
 	wrappedSt = *NewWrappedSt
+
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
@@ -3059,12 +3129,18 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).Diff
 
 	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 500}
+	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: -500}
+	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
+	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
+
+	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.Diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.balances, wrappedSt.Diff.balances)
 
 	tearDownDappFromDapp()
 }
@@ -3110,6 +3186,10 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	proofs := proto.NewProofs()
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	require.NoError(t, err)
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
@@ -3136,7 +3216,7 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 		ID:              &txID,
 		Proofs:          proofs,
 		ChainID:         proto.MainNetScheme,
-		SenderPK:        addrPK,
+		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
 		Payments: proto.ScriptPayments{proto.ScriptPayment{
@@ -3172,6 +3252,9 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
 	wrappedSt = *NewWrappedSt
 
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
+
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
 
@@ -3202,17 +3285,19 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).Diff
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -1}
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 499}
+	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: -500}
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 1}
 	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
+	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
 	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
 	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry
 
-	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
-	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
+	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.Diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.balances, wrappedSt.Diff.balances)
 
 	tearDownDappFromDapp()
 

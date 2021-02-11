@@ -346,9 +346,9 @@ type RideEnvironment interface {
 	smartAppendActions(actions []proto.ScriptAction) error
 	actions() []proto.ScriptAction
 	invCount() uint64
-	isInternalPayments() bool
-	changePaymentsToInternal()
-	addExternalPayments(externalPayments proto.ScriptPayments, callerAddress proto.Address) error
+	//isInternalPayments() bool
+	//changePaymentsToInternal()
+	//addExternalPayments(externalPayments proto.ScriptPayments, callerAddress proto.Address) error
 	incrementInvCount()
 	setNewDAppAddress(address proto.Address)
 	checkMessageLength(int) bool
