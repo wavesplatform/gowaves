@@ -79,6 +79,7 @@ func (a MainState) Return() Fsm {
 		}
 
 		body[0].Write(a.params, nil)
+		a.b.ret()
 		body = body[1:]
 		if len(body) == 0 {
 			break

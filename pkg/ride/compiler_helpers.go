@@ -345,6 +345,11 @@ func (a constantDeferred) Write(p params, _ []byte) {
 func (a constantDeferred) Clean() {
 }
 
+//
+//func (a constantDeferred) N() uniqueid {
+//	return a.n
+//}
+
 func NewConstantDeferred(n uniqueid) constantDeferred {
 	return constantDeferred{n: n}
 }

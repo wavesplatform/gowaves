@@ -10,12 +10,15 @@ type CallUserState struct {
 	argc      uint16
 	startedAt uint16
 
-	deferred  []Deferred
 	deferreds Deferreds
+	ns        []uniqueid
 }
 
 func (a CallUserState) backward(state Fsm) Fsm {
-	a.deferred = append(a.deferred, state.(Deferred))
+	num := len(a.ns)
+	n := a.params.u.next()
+	a.ns = append(a.ns, n)
+	a.deferreds.Add(state.(Deferred), n, fmt.Sprintf("call user %s backward #%d", a.name, num))
 	return a
 }
 
@@ -39,7 +42,8 @@ func (a CallUserState) Func(name string, args []string, invoke string) Fsm {
 }
 
 func (a CallUserState) Bytes(b []byte) Fsm {
-	a.deferred = append(a.deferred, a.constant(rideBytes(b)))
+	cons := a.constant(rideBytes(b))
+	a.ns = append(a.ns, cons.n)
 	return a
 }
 
@@ -56,12 +60,14 @@ func (a CallUserState) FalseBranch() Fsm {
 }
 
 func (a CallUserState) String(s string) Fsm {
-	a.deferred = append(a.deferred, a.constant(rideString(s)))
+	cons := a.constant(rideString(s))
+	a.ns = append(a.ns, cons.n)
 	return a
 }
 
 func (a CallUserState) Boolean(v bool) Fsm {
-	a.deferred = append(a.deferred, a.constant(rideBoolean(v)))
+	cons := a.constant(rideBoolean(v))
+	a.ns = append(a.ns, cons.n)
 	return a
 }
 
@@ -71,61 +77,22 @@ func (a CallUserState) Assigment(name string) Fsm {
 }
 
 func (a CallUserState) Long(value int64) Fsm {
-	a.deferred = append(a.deferred, a.constant(rideInt(value)))
+	cons := a.constant(rideInt(value))
+	a.ns = append(a.ns, cons.n)
 	return a
 }
 
 func (a CallUserState) Return() Fsm {
-	/*
-		// check user functions
-		n, ok := a.r.get(a.name)
-		if !ok {
-			panic(fmt.Sprintf("user function `%s` not found", a.name))
-		}
-		for i, pos := range a.argn {
-			a.b.writeByte(OpSetArg)
-			funcParamID, ok := a.r.get(fmt.Sprintf("%s$%d", a.name, i))
-			if !ok {
-				panic(fmt.Sprintf("no function param id `%s` stored in references", fmt.Sprintf("%s$%d", a.name, i)))
-			}
-			a.b.write(encode(pos))
-			a.b.write(encode(funcParamID))
-		}
-
-		_, ok = a.params.c.get(n)
-		if !ok {
-			panic(fmt.Sprintf("no point %d found in cell", n))
-		}
-
-		//a.b.call(point.position, a.argc)
-		a.b.writeByte(OpRef)
-		a.b.write(encode(n))
-	*/
-	return a.prev.backward(a) //.backward(a.startedAt, a.b.len())
+	return a.prev.backward(a)
 }
 
 func (a CallUserState) Call(name string, argc uint16) Fsm {
-	//n := a.u.next()
-	//a.c.set(n, nil, nil, 0, false, fmt.Sprintf("function as paramentr: %s$%d", name, n))
-	//a.argn = append(a.argn, n)
-	//if a.ret != nil {
-	//	panic("already assigned")
-	//}
-	//a.ret = func(state CallUserState, startedAt uint16, endedAt uint16) {
-	//	a.b.writeByte(OpCache)
-	//	a.b.write(encode(n))
-	//	a.b.writeByte(OpPop)
-	//}
 	return callTransition(a, a.params, name, argc, a.deferreds)
 }
 
 func (a CallUserState) Reference(name string) Fsm {
-	a.deferred = append(a.deferred, reference(a, a.params, name))
-	//rs, ok := a.r.get(name)
-	//if !ok {
-	//	panic("CallUserState Reference " + name + " not found")
-	//}
-	//a.argn = append(a.argn, rs)
+	cons := reference(a, a.params, name)
+	a.ns = append(a.ns, cons.n)
 	return a
 }
 
@@ -139,48 +106,14 @@ func (a CallUserState) Write(_ params, b []byte) {
 	if !ok {
 		panic(fmt.Sprintf("user function `%s` not found", a.name))
 	}
-
-	if int(a.argc) != len(a.deferred) {
-		panic(fmt.Sprintf("argc %d != a.deferred %d", a.argc, len(a.deferred)))
+	if int(a.argc) != len(a.ns) {
+		panic(fmt.Sprintf("argc %d != a.ns %d", a.argc, len(a.ns)))
 	}
-
-	var ns []uniqueid
-	for i := uint16(0); i < a.argc; i++ {
-		if n, ok := isConstant(a.deferred[i]); ok {
-			a.b.writeByte(OpRef)
-			a.b.write(encode(n))
-			a.b.writeByte(OpCache)
-			a.b.write(encode(n))
-			//a.b.write(encode(fn + 1 + i))
-			//a.b.writeByte(OpPop)
-			ns = append(ns, n)
-		} else {
-			n := a.u.next()
-			a.b.writeByte(OpRef)
-			a.b.write(encode(n))
-			//a.b.writeByte(OpCache)
-			//a.b.write(encode(fn + 1 + i))
-			//a.b.writeByte(OpPop)
-			ns = append(ns, n)
-		}
+	for _, n := range a.ns {
+		a.b.writeByte(OpRef)
+		a.b.write(encode(n))
 	}
-
 	a.b.writeByte(OpRef)
 	a.b.write(encode(fn))
 	a.b.write(b)
-	a.b.ret()
-
-	if len(ns) != len(a.deferred) {
-		panic(fmt.Sprintf("ns %d != a.deferred %d", a.argc, len(a.deferred)))
-	}
-
-	for i, b := range a.deferred {
-		if _, ok := isConstant(b); ok {
-			// skip right now
-		} else {
-			a.c.set(ns[i], nil, 0, a.b.len(), false, fmt.Sprintf("sys %s param #%d", a.name, i))
-			b.Write(a.params, nil)
-			a.b.ret()
-		}
-	}
 }

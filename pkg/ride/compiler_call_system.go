@@ -104,9 +104,6 @@ func (a CallSystemState) Return() Fsm {
 			// skip right now
 		} else {
 			a.deferreds.Add(b, a.ns[i], fmt.Sprintf("sys %s param #%d", a.name, i))
-			//a.c.set(ns[i], nil, nil, a.b.len(), false, fmt.Sprintf("sys %s param #%d", a.name, i))
-			//b.Write(a.params)
-			//a.b.ret()
 		}
 	}
 
@@ -135,8 +132,8 @@ func (a CallSystemState) Write(_ params, b []byte) {
 		if n, ok := isConstant(a.deferred[i]); ok {
 			a.b.writeByte(OpRef)
 			a.b.write(encode(n))
-			a.b.writeByte(OpCache)
-			a.b.write(encode(n))
+			//a.b.writeByte(OpCache)
+			//a.b.write(encode(n))
 		} else {
 			n := a.ns[i]
 			a.b.writeByte(OpRef)

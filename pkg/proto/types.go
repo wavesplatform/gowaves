@@ -1713,6 +1713,8 @@ type DataEntry interface {
 	BinarySize() int
 
 	ToProtobuf() *g.DataTransactionData_DataEntry
+
+	Eq(DataEntry) bool
 }
 
 var bytesToDataEntry = map[DataValueType]reflect.Type{
@@ -1766,6 +1768,13 @@ func NewDataEntryFromValueBytes(valueBytes []byte) (DataEntry, error) {
 type IntegerDataEntry struct {
 	Key   string
 	Value int64
+}
+
+func (e IntegerDataEntry) Eq(other DataEntry) bool {
+	if b, ok := other.(*IntegerDataEntry); ok {
+		return e.Key == b.Key && e.Value == b.Value
+	}
+	return false
 }
 
 func (e IntegerDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
@@ -1894,6 +1903,13 @@ func (e *IntegerDataEntry) UnmarshalJSON(value []byte) error {
 type BooleanDataEntry struct {
 	Key   string
 	Value bool
+}
+
+func (e BooleanDataEntry) Eq(other DataEntry) bool {
+	if b, ok := other.(*BooleanDataEntry); ok {
+		return e.Key == b.Key && e.Value == b.Value
+	}
+	return false
 }
 
 func (e BooleanDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
@@ -2026,6 +2042,13 @@ func (e *BooleanDataEntry) UnmarshalJSON(value []byte) error {
 type BinaryDataEntry struct {
 	Key   string
 	Value []byte
+}
+
+func (e BinaryDataEntry) Eq(other DataEntry) bool {
+	if b, ok := other.(*BinaryDataEntry); ok {
+		return e.Key == b.Key && bytes.Equal(e.Value, b.Value)
+	}
+	return false
 }
 
 func (e BinaryDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
@@ -2163,6 +2186,13 @@ type StringDataEntry struct {
 	Value string
 }
 
+func (e StringDataEntry) Eq(other DataEntry) bool {
+	if b, ok := other.(*StringDataEntry); ok {
+		return e.Key == b.Key && e.Value == b.Value
+	}
+	return false
+}
+
 func (e StringDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	return &g.DataTransactionData_DataEntry{
 		Key:   e.Key,
@@ -2295,6 +2325,13 @@ func (e *StringDataEntry) UnmarshalJSON(value []byte) error {
 //DeleteDataEntry structure stores the key that should be removed from state storage.
 type DeleteDataEntry struct {
 	Key string
+}
+
+func (e DeleteDataEntry) Eq(other DataEntry) bool {
+	if b, ok := other.(*DeleteDataEntry); ok {
+		return e.Key == b.Key
+	}
+	return false
 }
 
 func (e DeleteDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {

@@ -2,6 +2,7 @@ package ride
 
 import (
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -97,6 +98,17 @@ func CallFunction(txID string, env RideEnvironment, exe *Executable, tree *Tree,
 				zap.S().Error(i, txID, " ", "<empty>")
 			}
 		}
+
+		ac1 := rs1.ScriptActions()
+		ac2 := rs2.ScriptActions()
+		for i := range ac1 {
+			zap.S().Errorf("%d %s Action %+v", i, txID, ac1[i].(*proto.DataEntryScriptAction).Entry.(*proto.BinaryDataEntry).Value)
+			zap.S().Errorf("%d %s Action %+v", i, txID, ac2[i].(*proto.DataEntryScriptAction).Entry.(*proto.BinaryDataEntry).Value)
+			zap.S().Errorf("Eq %+v", assert.ObjectsAreEqual(ac1[i].(*proto.DataEntryScriptAction).Entry.(*proto.BinaryDataEntry).Value, ac2[i].(*proto.DataEntryScriptAction).Entry.(*proto.BinaryDataEntry).Value))
+			break
+			//zap.S().Errorf(i, txID, " Action ", ac2[i])
+		}
+
 		return nil, errors.New("R1 != R2: failed to call account script on transaction ")
 	}
 	return rs2, nil

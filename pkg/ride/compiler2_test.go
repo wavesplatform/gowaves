@@ -142,10 +142,9 @@ func TestCallExternal(t *testing.T) {
 			OpReturn,
 			OpReturn,
 			OpRef, 0, 1,
-			OpCache, 0, 1,
 			OpRef, 0, 1,
-			OpCache, 0, 1,
 			OpExternalCall, 0, 3, 0, 2,
+			OpReturn,
 			OpReturn,
 		},
 		f.ByteCode)
@@ -820,6 +819,7 @@ func TestProperty(t *testing.T) {
 				OpProperty,
 				OpReturn,
 				OpReturn,
+				OpReturn,
 			},
 			script.ByteCode)
 		_, err = script.run(env, nil)
@@ -853,6 +853,7 @@ func TestProperty(t *testing.T) {
 				OpRef, 0, 203,
 				OpRef, 0, 204,
 				OpProperty,
+				OpReturn,
 				OpReturn,
 				OpReturn,
 
@@ -893,9 +894,22 @@ func TestCacheInMain(t *testing.T) {
 		transactionFunc: testExchangeWithProofsToObject,
 	}
 
+	/**
+	require.Equal(t, []byte{
+		OpReturn,
+		0xe, 0x0, 0xc9,
+		OpReturn,
+		OpRef, 0x0, 0xc9,
+		OpCache, 0x0, 0xc9,
+		OpRef, 0x0, 0xc9,
+		OpCache, 0x0, 0xc9,
+		OpExternalCall, 0x0, 0x3, 0x0, 0x2, OpReturn,
+	}, script.ByteCode)
+	/**/
+
 	rs, err := script.Verify(env)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(rs.Calls()))
+	require.Equal(t, 2, len(rs.Calls())) // plus & eq
 	require.Equal(t, rs.Result(), true)
 }
 
