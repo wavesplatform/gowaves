@@ -792,36 +792,6 @@ func (wrappedSt *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 	return actions, nil
 }
 
-func (wrappedSt *WrappedState) AddExternalPayments(externalPayments proto.ScriptPayments, caller proto.Address) error {
-	rideAddr := wrappedSt.EnvThis
-	recipient := proto.NewRecipientFromAddress(proto.Address(rideAddr))
-
-	for _, payment := range externalPayments {
-
-		searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(recipient, payment.Asset)
-		if err != nil {
-			return err
-		}
-		err = wrappedSt.Diff.ChangeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
-		if err != nil {
-			return err
-		}
-
-		senderRecipient := proto.NewRecipientFromAddress(caller)
-		senderSearchBalance, senderSearchAddr, err := wrappedSt.Diff.FindBalance(senderRecipient, payment.Asset)
-		if err != nil {
-			return err
-		}
-
-		err = wrappedSt.Diff.ChangeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, senderRecipient)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 type WrappedState struct {
 	Diff      diffState
 	EnvThis   rideAddress

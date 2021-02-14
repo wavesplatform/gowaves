@@ -468,10 +468,6 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
-func (s *stateManager) AddExternalPayments(externalPayments proto.ScriptPayments, caller proto.Address) error {
-	return nil
-}
-
 func (s *stateManager) ValidateInvokeResult(actions []proto.ScriptAction, dappRecipient proto.Recipient) error {
 	return nil
 }

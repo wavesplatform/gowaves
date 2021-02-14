@@ -1363,35 +1363,6 @@ func smartStateDappFromDapp() types.SmartState {
 				SponsorshipCost: uint64(sponsorshipCost),
 			}, nil
 		},
-		AddExternalPaymentsFunc: func(externalPayments proto.ScriptPayments, caller proto.Address) error {
-			rideAddr := wrappedSt.EnvThis
-			recipient := proto.NewRecipientFromAddress(proto.Address(rideAddr))
-
-			for _, payment := range externalPayments {
-
-				searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(recipient, payment.Asset)
-				if err != nil {
-					return err
-				}
-				err = wrappedSt.Diff.ChangeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
-				if err != nil {
-					return err
-				}
-
-				senderRecipient := proto.NewRecipientFromAddress(caller)
-				senderSearchBalance, senderSearchAddr, err := wrappedSt.Diff.FindBalance(senderRecipient, payment.Asset)
-				if err != nil {
-					return err
-				}
-
-				err = wrappedSt.Diff.ChangeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, senderRecipient)
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
-		},
 	}
 }
 
@@ -1459,10 +1430,6 @@ var envDappFromDapp = &MockRideEnvironment{
 	},
 	incrementInvCountFunc: func() {
 		invCount++
-	},
-	addExternalPaymentsFunc: func(externalPayments proto.ScriptPayments, callerAddress proto.Address) error {
-
-		return smartStateDappFromDapp().AddExternalPayments(externalPayments, callerAddress)
 	},
 	isInternalPaymentsFunc: func() bool {
 		return isInternalPmnt

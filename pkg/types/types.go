@@ -40,7 +40,6 @@ type SmartState interface {
 	NewestTransactionByID([]byte) (proto.Transaction, error)
 	NewestTransactionHeightByID([]byte) (uint64, error)
 	GetByteTree(recipient proto.Recipient) (proto.Script, error)
-	AddExternalPayments(externalPayments proto.ScriptPayments, caller proto.Address) error
 	NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error)
 	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
 	NewestLeasingInfo(id crypto.Digest, filter bool) (*proto.LeaseInfo, error)

@@ -191,7 +191,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 func AddExternalPayments(env *ride.Environment, externalPayments proto.ScriptPayments, callerPK crypto.PublicKey) error {
 	wrappedSt, ok := env.St.(*ride.WrappedState)
 	if !ok {
-		return errors.Errorf("temporary state haven't created")
+		return errors.Errorf("temporary state haven't been created")
 	}
 	caller, err := proto.NewAddressFromPublicKey(env.Sch, callerPK)
 	if err != nil {
