@@ -201,6 +201,13 @@ func AddExternalPayments(env *ride.Environment, externalPayments proto.ScriptPay
 	recipient := proto.NewRecipientFromAddress(proto.Address(rideAddress))
 
 	for _, payment := range externalPayments {
+		senderBalance, err := wrappedSt.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
+		if err != nil {
+			return err
+		}
+		if senderBalance < payment.Amount {
+			return errors.New("not enough money for tx attached payments")
+		}
 
 		searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(recipient, payment.Asset)
 		if err != nil {

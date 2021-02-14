@@ -52,14 +52,6 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 
 	oldInvocationParam := env.invocation()
 
-	//if !env.isInternalPayments() {
-	//	err := addExternalPayments(oldInvocationParam["payments"].(rideList), env, oldInvocationParam["caller"].(rideAddress))
-	//	if err != nil {
-	//		return nil, errors.Wrapf(err, "failed to add external payments")
-	//	}
-	//	env.changePaymentsToInternal()
-	//}
-
 	invocationParam := make(rideObject)
 	for key, value := range oldInvocationParam {
 		invocationParam[key] = value
@@ -117,15 +109,20 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		paymentActions = append(paymentActions, action)
 	}
 
-	res, err := invokeFunctionFromDApp(env, recipient, fnName, listArg)
-
+	address, err := env.state().NewestRecipientToAddress(recipient)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
+		return nil, errors.Errorf("cannot get address from dApp, invokeFunctionFromDApp")
 	}
+	env.setNewDAppAddress(*address)
 
 	err = env.smartAppendActions(paymentActions)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to apply attachedPayments")
+	}
+
+	res, err := invokeFunctionFromDApp(env, recipient, fnName, listArg)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
 	}
 
 	if res.Result() {
@@ -136,11 +133,6 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		err = env.smartAppendActions(res.ScriptActions())
 		if err != nil {
 			return nil, err
-		}
-
-		err = env.state().ValidateInvokeResult(res.ScriptActions(), recipient)
-		if err != nil {
-			return nil, errors.Wrap(err, "validation of called dapp")
 		}
 
 		env.setNewDAppAddress(proto.Address(callerAddress))
@@ -1235,51 +1227,6 @@ func attachedPayment(_ RideEnvironment, args ...rideType) (rideType, error) {
 	r["amount"] = amount
 	return r, nil
 }
-
-//func addExternalPayments(payments rideList, env RideEnvironment, caller rideAddress) error {
-//	var attachedPayments proto.ScriptPayments
-//
-//	for _, value := range payments {
-//		payment, ok := value.(rideObject)
-//		if !ok {
-//			return errors.Errorf("invoke: unexpected argument type '%s'", payment.instanceOf())
-//		}
-//
-//		assetID, err := payment.get("assetId")
-//		if err != nil {
-//			return errors.Wrap(err, "invoke")
-//		}
-//		amount, err := payment.get("amount")
-//		if err != nil {
-//			return errors.Wrap(err, "invoke")
-//		}
-//
-//		intAmount, ok := amount.(rideInt)
-//		if !ok {
-//			return errors.Errorf("invoke: unexpected argument type '%s'", amount.instanceOf())
-//		}
-//		var asset *proto.OptionalAsset
-//
-//		switch asID := assetID.(type) {
-//		case rideBytes:
-//			asset, err = proto.NewOptionalAssetFromBytes(asID)
-//			if err != nil {
-//				return errors.Errorf("invoke: failed to get optional asset from ride bytes")
-//			}
-//		case rideUnit:
-//			waves := proto.NewOptionalAssetWaves()
-//			asset = &waves
-//		default:
-//			return errors.Errorf("attachedPayment: unexpected argument type '%s'", assetID.instanceOf())
-//		}
-//
-//		attachedPayments = append(attachedPayments, proto.ScriptPayment{Asset: *asset, Amount: uint64(intAmount)})
-//	}
-//
-//	callerAddress := proto.Address(caller)
-//
-//	return env.addExternalPayments(attachedPayments, callerAddress)
-//}
 
 func extractRecipient(v rideType) (proto.Recipient, error) {
 	var r proto.Recipient

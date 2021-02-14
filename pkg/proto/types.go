@@ -143,6 +143,17 @@ func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
 		return &OptionalAsset{}, nil
 	}
 
+	wavesAsset := crypto.Digest{}
+	equal := true
+	for i := range wavesAsset {
+		if b[i] != wavesAsset[i] {
+			equal = false
+		}
+	}
+	if equal {
+		return &OptionalAsset{}, nil
+	}
+
 	a, err := crypto.NewDigestFromBytes(b)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create OptionalAsset from bytes")

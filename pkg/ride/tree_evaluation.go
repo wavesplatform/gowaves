@@ -15,11 +15,11 @@ func CallVerifier(env RideEnvironment, tree *Tree) (RideResult, error) {
 
 func invokeFunctionFromDApp(env RideEnvironment, recipient proto.Recipient, fnName rideString, listArgs rideList) (RideResult, error) {
 
-	address, err := env.state().NewestRecipientToAddress(recipient)
-	if err != nil {
-		return nil, errors.Errorf("cannot get address from dApp, invokeFunctionFromDApp")
-	}
-	env.setNewDAppAddress(*address)
+	//address, err := env.state().NewestRecipientToAddress(recipient)
+	//if err != nil {
+	//	return nil, errors.Errorf("cannot get address from dApp, invokeFunctionFromDApp")
+	//}
+	//env.setNewDAppAddress(*address)
 
 	newScript, err := env.state().GetByteTree(recipient)
 	if err != nil {
