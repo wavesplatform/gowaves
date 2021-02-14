@@ -37,16 +37,36 @@ func (wrappedSt *WrappedState) NewestAddrByAlias(alias proto.Alias) (proto.Addre
 	return wrappedSt.Diff.state.NewestAddrByAlias(alias)
 }
 
+func isAssetWaves(assetID []byte) bool {
+	wavesAsset := crypto.Digest{}
+	if len(wavesAsset) != len(assetID) {
+		return false
+	}
+	for i := range assetID {
+		if assetID[i] != wavesAsset[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (wrappedSt *WrappedState) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
 	balance, err := wrappedSt.Diff.state.NewestAccountBalance(account, assetID)
 	if err != nil {
 		return 0, err
 	}
+	var asset *proto.OptionalAsset
 
-	asset, err := proto.NewOptionalAssetFromBytes(assetID)
-	if err != nil {
-		return 0, err
+	if isAssetWaves(assetID) {
+		waves := proto.NewOptionalAssetWaves()
+		asset = &waves
+	} else {
+		asset, err = proto.NewOptionalAssetFromBytes(assetID)
+		if err != nil {
+			return 0, err
+		}
 	}
+
 	balanceDiff, _, err := wrappedSt.Diff.FindBalance(account, *asset)
 	if err != nil {
 		return 0, err
