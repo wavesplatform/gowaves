@@ -242,11 +242,11 @@ func roundingMode(v rideType) (decimal.RoundingMode, error) {
 		return decimal.ToNearestEven, nil
 	case "Down":
 		return decimal.ToZero, nil
-	case "Up":
+	case "Up": // round-up v2-v4
 		return decimal.AwayFromZero, nil
 	case "HalfUp":
 		return decimal.ToNearestAway, nil
-	case "HalfDown":
+	case "HalfDown": // round-half-down v2-v4
 		return decimal.ToNearestTowardZero, nil
 	default:
 		return 0, errors.Errorf("unable to get rounding mode from '%s'", v.instanceOf())
