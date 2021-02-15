@@ -855,7 +855,7 @@ func NewWrappedState(state types.SmartState, envThis rideType, scheme proto.Sche
 	return &wrappedSt
 }
 
-func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, error) {
+func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*RideEnvironment, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return nil, err
