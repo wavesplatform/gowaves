@@ -113,7 +113,10 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Errorf("cannot get address from dApp, invokeFunctionFromDApp")
 	}
-	env.setNewDAppAddress(*address)
+	err = env.setNewDAppAddress(*address)
+	if err != nil {
+		return nil, err
+	}
 
 	err = env.smartAppendActions(paymentActions)
 	if err != nil {
@@ -135,7 +138,10 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 			return nil, err
 		}
 
-		env.setNewDAppAddress(proto.Address(callerAddress))
+		err := env.setNewDAppAddress(proto.Address(callerAddress))
+		if err != nil {
+			return nil, err
+		}
 		env.SetInvocation(oldInvocationParam)
 
 		if res.UserResult() == nil {

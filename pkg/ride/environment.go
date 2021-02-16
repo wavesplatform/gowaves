@@ -1,6 +1,7 @@
 package ride
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -55,6 +56,7 @@ func (wrappedSt *WrappedState) NewestAccountBalance(account proto.Recipient, ass
 	if err != nil {
 		return 0, err
 	}
+
 	var asset *proto.OptionalAsset
 
 	if isAssetWaves(assetID) {
@@ -316,7 +318,7 @@ func (wrappedSt *WrappedState) IsNotFound(err error) bool {
 	return wrappedSt.Diff.state.IsNotFound(err)
 }
 
-func (wrappedSt *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, senderAddress proto.Address) error {
+func (wrappedSt *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.Address) error {
 	*otherActionsCount++
 	if *otherActionsCount > proto.MaxScriptActions {
 		return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
@@ -340,14 +342,14 @@ func (wrappedSt *WrappedState) validateTransferAction(otherActionsCount *int, re
 			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
 		}
 	}
-	sender := proto.NewRecipientFromAddress(senderAddress)
-	balance, err := wrappedSt.NewestAccountBalance(sender, res.Asset.ID.Bytes())
+	senderRcp := proto.NewRecipientFromAddress(sender)
+	balance, err := wrappedSt.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
 	if err != nil {
 		return err
 	}
 
 	if balance < uint64(res.Amount) {
-		return errors.New("Not enough money in the DApp")
+		return errors.New("not enough money in the DApp. balance of DApp with address " + sender.String() + "is " + fmt.Sprint(balance) + " and it tried to transfer asset " + res.Asset.ID.String() + " to " + res.Recipient.Address.String() + ", amount of " + fmt.Sprint(res.Amount))
 	}
 
 	return nil
@@ -607,17 +609,17 @@ func (wrappedSt *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get address  by public key")
 				}
+
 			} else {
 				pk, err := wrappedSt.Diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.EnvThis), false)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
 				senderPK = pk
-
 				senderAddress = proto.Address(wrappedSt.EnvThis)
 			}
 
-			err := wrappedSt.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress)
+			err = wrappedSt.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of transfer action or attached payments")
 			}
@@ -684,6 +686,20 @@ func (wrappedSt *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]pro
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
 			res.Sender = &senderPK
+
+			// Issue should create a diff
+			//senderAddress := proto.Address(wrappedSt.EnvThis)
+			//senderRecipient := proto.NewRecipientFromAddress(senderAddress)
+			//asset := proto.NewOptionalAssetFromDigest(res.ID)
+			//
+			//searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(senderRecipient, *asset)
+			//if err != nil {
+			//	return nil, err
+			//}
+			//err = wrappedSt.Diff.ChangeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRecipient)
+			//if err != nil {
+			//	return nil, err
+			//}
 
 		case *proto.ReissueScriptAction:
 			err := wrappedSt.validateReissueAction(&otherActionsCount, res)
@@ -989,8 +1005,14 @@ func (e *Environment) actions() []proto.ScriptAction {
 	return e.act
 }
 
-func (e *Environment) setNewDAppAddress(address proto.Address) {
+func (e *Environment) setNewDAppAddress(address proto.Address) error {
 	e.SetThisFromAddress(address)
+	wrappedSt, ok := e.St.(*WrappedState)
+	if !ok {
+		return errors.New("failed to change address of environment for invoke as there is no wrapped state")
+	}
+	wrappedSt.EnvThis = rideAddress(address)
+	return nil
 }
 
 func (e *Environment) applyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {

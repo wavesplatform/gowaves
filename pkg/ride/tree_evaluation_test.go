@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -1019,6 +1018,20 @@ func smartStateDappFromDapp() types.SmartState {
 					}
 					res.Sender = &senderPK
 
+					// send
+					//senderAddress := proto.Address(wrappedSt.EnvThis)
+					//senderRecipient := proto.NewRecipientFromAddress(senderAddress)
+					//asset := proto.NewOptionalAssetFromDigest(res.ID)
+					//
+					//searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(senderRecipient, *asset)
+					//if err != nil {
+					//	return nil, err
+					//}
+					//err = wrappedSt.Diff.ChangeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRecipient)
+					//if err != nil {
+					//	return nil, err
+					//}
+
 				case *proto.ReissueScriptAction:
 					err := wrappedSt.validateReissueAction(&otherActionsCount, res)
 					if err != nil {
@@ -1372,7 +1385,6 @@ var thisAddress proto.Address
 var tx *proto.InvokeScriptWithProofs
 var inv rideObject
 var id []byte
-var isInternalPmnt bool
 
 func WrappedStateFunc() types.SmartState {
 	return &wrappedSt
@@ -1407,9 +1419,10 @@ var envDappFromDapp = &MockRideEnvironment{
 	thisFunc: func() rideType {
 		return rideAddress(thisAddress)
 	},
-	setNewDAppAddressFunc: func(address proto.Address) {
+	setNewDAppAddressFunc: func(address proto.Address) error {
 		wrappedSt.EnvThis = rideAddress(address)
 		thisAddress = address
+		return nil
 	},
 	applyToStateFunc: func(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
 		modifiedActions, err := smartStateDappFromDapp().ApplyToState(envActions)
@@ -1431,12 +1444,6 @@ var envDappFromDapp = &MockRideEnvironment{
 	incrementInvCountFunc: func() {
 		invCount++
 	},
-	isInternalPaymentsFunc: func() bool {
-		return isInternalPmnt
-	},
-	changePaymentsToInternalFunc: func() {
-		isInternalPmnt = true
-	},
 }
 
 func tearDownDappFromDapp() {
@@ -1455,7 +1462,6 @@ func tearDownDappFromDapp() {
 	thisAddress = proto.Address{}
 	tx = nil
 	id = nil
-	isInternalPmnt = false
 }
 func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.PublicKey) error {
 	caller, err := proto.NewAddressFromPublicKey(envDappFromDapp.scheme(), callerPK)
@@ -1573,8 +1579,6 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	recipient := proto.NewRecipientFromAddress(addr)
 
 	addressCallable, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
-	addressCallableKek := addressCallable
-	fmt.Println(addressCallableKek)
 	require.NoError(t, err)
 	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
 
@@ -1674,9 +1678,6 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -2036,8 +2037,6 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -2230,9 +2229,6 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
 
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
-
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2420,8 +2416,6 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -2610,8 +2604,6 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -2973,8 +2965,6 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -3133,8 +3123,6 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)

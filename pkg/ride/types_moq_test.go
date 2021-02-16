@@ -20,9 +20,6 @@ var _ types.SmartState = &MockSmartState{}
 //
 //         // make and configure a mocked types.SmartState
 //         mockedSmartState := &MockSmartState{
-//             AddExternalPaymentsFunc: func(externalPayments proto.ScriptPayments, caller proto.Address) error {
-// 	               panic("mock out the AddExternalPayments method")
-//             },
 //             AddingBlockHeightFunc: func() (uint64, error) {
 // 	               panic("mock out the AddingBlockHeight method")
 //             },
@@ -89,9 +86,6 @@ var _ types.SmartState = &MockSmartState{}
 //             RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
 // 	               panic("mock out the RetrieveNewestStringEntry method")
 //             },
-//             ValidateInvokeResultFunc: func(actions []proto.ScriptAction, dappRecipient proto.Recipient) error {
-// 	               panic("mock out the ValidateInvokeResult method")
-//             },
 //         }
 //
 //         // use mockedSmartState in code that requires types.SmartState
@@ -99,9 +93,6 @@ var _ types.SmartState = &MockSmartState{}
 //
 //     }
 type MockSmartState struct {
-	// AddExternalPaymentsFunc mocks the AddExternalPayments method.
-	AddExternalPaymentsFunc func(externalPayments proto.ScriptPayments, caller proto.Address) error
-
 	// AddingBlockHeightFunc mocks the AddingBlockHeight method.
 	AddingBlockHeightFunc func() (uint64, error)
 
@@ -168,18 +159,8 @@ type MockSmartState struct {
 	// RetrieveNewestStringEntryFunc mocks the RetrieveNewestStringEntry method.
 	RetrieveNewestStringEntryFunc func(account proto.Recipient, key string) (*proto.StringDataEntry, error)
 
-	// ValidateInvokeResultFunc mocks the ValidateInvokeResult method.
-	ValidateInvokeResultFunc func(actions []proto.ScriptAction, dappRecipient proto.Recipient) error
-
 	// calls tracks calls to the methods.
 	calls struct {
-		// AddExternalPayments holds details about calls to the AddExternalPayments method.
-		AddExternalPayments []struct {
-			// ExternalPayments is the externalPayments argument value.
-			ExternalPayments proto.ScriptPayments
-			// Caller is the caller argument value.
-			Caller proto.Address
-		}
 		// AddingBlockHeight holds details about calls to the AddingBlockHeight method.
 		AddingBlockHeight []struct {
 		}
@@ -302,15 +283,7 @@ type MockSmartState struct {
 			// Key is the key argument value.
 			Key string
 		}
-		// ValidateInvokeResult holds details about calls to the ValidateInvokeResult method.
-		ValidateInvokeResult []struct {
-			// Actions is the actions argument value.
-			Actions []proto.ScriptAction
-			// DappRecipient is the dappRecipient argument value.
-			DappRecipient proto.Recipient
-		}
 	}
-	lockAddExternalPayments         sync.RWMutex
 	lockAddingBlockHeight           sync.RWMutex
 	lockApplyToState                sync.RWMutex
 	lockBlockVRF                    sync.RWMutex
@@ -333,42 +306,6 @@ type MockSmartState struct {
 	lockRetrieveNewestBooleanEntry  sync.RWMutex
 	lockRetrieveNewestIntegerEntry  sync.RWMutex
 	lockRetrieveNewestStringEntry   sync.RWMutex
-	lockValidateInvokeResult        sync.RWMutex
-}
-
-// AddExternalPayments calls AddExternalPaymentsFunc.
-func (mock *MockSmartState) AddExternalPayments(externalPayments proto.ScriptPayments, caller proto.Address) error {
-	if mock.AddExternalPaymentsFunc == nil {
-		panic("MockSmartState.AddExternalPaymentsFunc: method is nil but SmartState.AddExternalPayments was just called")
-	}
-	callInfo := struct {
-		ExternalPayments proto.ScriptPayments
-		Caller           proto.Address
-	}{
-		ExternalPayments: externalPayments,
-		Caller:           caller,
-	}
-	mock.lockAddExternalPayments.Lock()
-	mock.calls.AddExternalPayments = append(mock.calls.AddExternalPayments, callInfo)
-	mock.lockAddExternalPayments.Unlock()
-	return mock.AddExternalPaymentsFunc(externalPayments, caller)
-}
-
-// AddExternalPaymentsCalls gets all the calls that were made to AddExternalPayments.
-// Check the length with:
-//     len(mockedSmartState.AddExternalPaymentsCalls())
-func (mock *MockSmartState) AddExternalPaymentsCalls() []struct {
-	ExternalPayments proto.ScriptPayments
-	Caller           proto.Address
-} {
-	var calls []struct {
-		ExternalPayments proto.ScriptPayments
-		Caller           proto.Address
-	}
-	mock.lockAddExternalPayments.RLock()
-	calls = mock.calls.AddExternalPayments
-	mock.lockAddExternalPayments.RUnlock()
-	return calls
 }
 
 // AddingBlockHeight calls AddingBlockHeightFunc.
@@ -1072,40 +1009,5 @@ func (mock *MockSmartState) RetrieveNewestStringEntryCalls() []struct {
 	mock.lockRetrieveNewestStringEntry.RLock()
 	calls = mock.calls.RetrieveNewestStringEntry
 	mock.lockRetrieveNewestStringEntry.RUnlock()
-	return calls
-}
-
-// ValidateInvokeResult calls ValidateInvokeResultFunc.
-func (mock *MockSmartState) ValidateInvokeResult(actions []proto.ScriptAction, dappRecipient proto.Recipient) error {
-	if mock.ValidateInvokeResultFunc == nil {
-		panic("MockSmartState.ValidateInvokeResultFunc: method is nil but SmartState.ValidateInvokeResult was just called")
-	}
-	callInfo := struct {
-		Actions       []proto.ScriptAction
-		DappRecipient proto.Recipient
-	}{
-		Actions:       actions,
-		DappRecipient: dappRecipient,
-	}
-	mock.lockValidateInvokeResult.Lock()
-	mock.calls.ValidateInvokeResult = append(mock.calls.ValidateInvokeResult, callInfo)
-	mock.lockValidateInvokeResult.Unlock()
-	return mock.ValidateInvokeResultFunc(actions, dappRecipient)
-}
-
-// ValidateInvokeResultCalls gets all the calls that were made to ValidateInvokeResult.
-// Check the length with:
-//     len(mockedSmartState.ValidateInvokeResultCalls())
-func (mock *MockSmartState) ValidateInvokeResultCalls() []struct {
-	Actions       []proto.ScriptAction
-	DappRecipient proto.Recipient
-} {
-	var calls []struct {
-		Actions       []proto.ScriptAction
-		DappRecipient proto.Recipient
-	}
-	mock.lockValidateInvokeResult.RLock()
-	calls = mock.calls.ValidateInvokeResult
-	mock.lockValidateInvokeResult.RUnlock()
 	return calls
 }
