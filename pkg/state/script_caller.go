@@ -188,51 +188,6 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	return a.callAssetScriptCommon(env, assetID, lastBlockInfo, initialisation, acceptFailed)
 }
 
-func AddExternalPayments(env *ride.Environment, externalPayments proto.ScriptPayments, callerPK crypto.PublicKey) error {
-	wrappedSt, ok := env.St.(*ride.WrappedState)
-	if !ok {
-		return errors.Errorf("temporary state haven't been created")
-	}
-	caller, err := proto.NewAddressFromPublicKey(env.Sch, callerPK)
-	if err != nil {
-		return err
-	}
-	rideAddress := wrappedSt.EnvThis
-	recipient := proto.NewRecipientFromAddress(proto.Address(rideAddress))
-
-	for _, payment := range externalPayments {
-		//senderBalance, err := wrappedSt.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
-		//if err != nil {
-		//	return err
-		//}
-		//if senderBalance < payment.Amount {
-		//	return errors.New("not enough money for tx attached payments")
-		//}
-
-		searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(recipient, payment.Asset)
-		if err != nil {
-			return err
-		}
-		err = wrappedSt.Diff.ChangeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
-		if err != nil {
-			return err
-		}
-
-		callerRcp := proto.NewRecipientFromAddress(caller)
-		senderSearchBalance, senderSearchAddr, err := wrappedSt.Diff.FindBalance(callerRcp, payment.Asset)
-		if err != nil {
-			return err
-		}
-
-		err = wrappedSt.Diff.ChangeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) (bool, []proto.ScriptAction, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
@@ -250,13 +205,11 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
 
-	// Since V5
+	// Since V5 we have to create environment with wrapped state to which we put attached payments
 	if tree.LibVersion >= 5 {
-		wrappedSt := ride.NewWrappedState(env.St, env.Th, env.Sch)
-		env.St = wrappedSt
-		err = AddExternalPayments(env, tx.Payments, tx.SenderPK)
+		env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)
 		if err != nil {
-			return false, nil, errors.Wrapf(err, "Failed to add paymnets attached to tx")
+			return false, nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 		}
 	}
 
