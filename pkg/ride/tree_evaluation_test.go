@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -1020,6 +1019,20 @@ func smartStateDappFromDapp() types.SmartState {
 					}
 					res.Sender = &senderPK
 
+					// send
+					//senderAddress := proto.Address(wrappedSt.EnvThis)
+					//senderRecipient := proto.NewRecipientFromAddress(senderAddress)
+					//asset := proto.NewOptionalAssetFromDigest(res.ID)
+					//
+					//searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(senderRecipient, *asset)
+					//if err != nil {
+					//	return nil, err
+					//}
+					//err = wrappedSt.Diff.ChangeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRecipient)
+					//if err != nil {
+					//	return nil, err
+					//}
+
 				case *proto.ReissueScriptAction:
 					err := wrappedSt.validateReissueAction(&otherActionsCount, res)
 					if err != nil {
@@ -1569,8 +1582,6 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	recipient := proto.NewRecipientFromAddress(addr)
 
 	addressCallable, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
-	addressCallableKek := addressCallable
-	fmt.Println(addressCallableKek)
 	require.NoError(t, err)
 	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
 
@@ -1671,9 +1682,6 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -2035,8 +2043,6 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -2230,9 +2236,6 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
 
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
-
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
@@ -2421,8 +2424,6 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -2612,8 +2613,6 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -2978,8 +2977,6 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -3139,8 +3136,6 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-	wrappedStKek := wrappedSt
-	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)

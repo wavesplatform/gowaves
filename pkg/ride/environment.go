@@ -329,7 +329,7 @@ func (ws *WrappedState) IsNotFound(err error) bool {
 	return ws.diff.state.IsNotFound(err)
 }
 
-func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, senderAddress proto.Address) error {
+func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.Address) error {
 	*otherActionsCount++
 	if *otherActionsCount > proto.MaxScriptActions {
 		return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
@@ -353,14 +353,15 @@ func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *prot
 			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
 		}
 	}
-	sender := proto.NewRecipientFromAddress(senderAddress)
-	balance, err := ws.NewestAccountBalance(sender, res.Asset.ID.Bytes())
+	senderRcp := proto.NewRecipientFromAddress(sender)
+	balance, err := ws.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
 	if err != nil {
 		return err
 	}
 
 	if balance < uint64(res.Amount) {
-		return errors.New("Not enough money in the DApp")
+		return errors.Errorf("not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+			sender.String(), balance, res.Asset.ID.String(), res.Recipient.Address.String(), res.Amount)
 	}
 
 	return nil
@@ -621,11 +622,10 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
 				senderPK = pk
-
 				senderAddress = ws.env.callee()
 			}
 
-			err := ws.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress)
+			err = ws.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of transfer action or attached payments")
 			}
@@ -692,6 +692,20 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
 			res.Sender = &senderPK
+
+			//TODO: Issue should create a diff
+			//senderAddress := proto.Address(wrappedSt.EnvThis)
+			//senderRecipient := proto.NewRecipientFromAddress(senderAddress)
+			//asset := proto.NewOptionalAssetFromDigest(res.ID)
+			//
+			//searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(senderRecipient, *asset)
+			//if err != nil {
+			//	return nil, err
+			//}
+			//err = wrappedSt.Diff.ChangeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRecipient)
+			//if err != nil {
+			//	return nil, err
+			//}
 
 		case *proto.ReissueScriptAction:
 			err := ws.validateReissueAction(&otherActionsCount, res)
@@ -935,7 +949,6 @@ func (e *Environment) SetTransactionFromScriptTransfer(transfer *proto.FullScrip
 }
 
 func (e *Environment) SetTransactionWithoutProofs(tx proto.Transaction) error {
-
 	err := e.SetTransaction(tx)
 	if err != nil {
 		return err

@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -114,7 +115,6 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("cannot get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
-
 	err = env.smartAppendActions(paymentActions)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to apply attachedPayments")
