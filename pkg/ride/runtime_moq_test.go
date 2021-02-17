@@ -34,6 +34,9 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             blockFunc: func() rideObject {
 // 	               panic("mock out the block method")
 //             },
+//             calleeFunc: func() proto.Address {
+// 	               panic("mock out the callee method")
+//             },
 //             checkMessageLengthFunc: func(in1 int) bool {
 // 	               panic("mock out the checkMessageLength method")
 //             },
@@ -52,7 +55,7 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             schemeFunc: func() byte {
 // 	               panic("mock out the scheme method")
 //             },
-//             setNewDAppAddressFunc: func(address proto.Address) error {
+//             setNewDAppAddressFunc: func(address proto.Address)  {
 // 	               panic("mock out the setNewDAppAddress method")
 //             },
 //             smartAppendActionsFunc: func(actions []proto.ScriptAction) error {
@@ -92,6 +95,9 @@ type MockRideEnvironment struct {
 	// blockFunc mocks the block method.
 	blockFunc func() rideObject
 
+	// calleeFunc mocks the callee method.
+	calleeFunc func() proto.Address
+
 	// checkMessageLengthFunc mocks the checkMessageLength method.
 	checkMessageLengthFunc func(in1 int) bool
 
@@ -111,7 +117,7 @@ type MockRideEnvironment struct {
 	schemeFunc func() byte
 
 	// setNewDAppAddressFunc mocks the setNewDAppAddress method.
-	setNewDAppAddressFunc func(address proto.Address) error
+	setNewDAppAddressFunc func(address proto.Address)
 
 	// smartAppendActionsFunc mocks the smartAppendActions method.
 	smartAppendActionsFunc func(actions []proto.ScriptAction) error
@@ -150,6 +156,9 @@ type MockRideEnvironment struct {
 		}
 		// block holds details about calls to the block method.
 		block []struct {
+		}
+		// callee holds details about calls to the callee method.
+		callee []struct {
 		}
 		// checkMessageLength holds details about calls to the checkMessageLength method.
 		checkMessageLength []struct {
@@ -199,6 +208,7 @@ type MockRideEnvironment struct {
 	lockappendActions      sync.RWMutex
 	lockapplyToState       sync.RWMutex
 	lockblock              sync.RWMutex
+	lockcallee             sync.RWMutex
 	lockcheckMessageLength sync.RWMutex
 	lockheight             sync.RWMutex
 	lockincrementInvCount  sync.RWMutex
@@ -355,6 +365,32 @@ func (mock *MockRideEnvironment) blockCalls() []struct {
 	mock.lockblock.RLock()
 	calls = mock.calls.block
 	mock.lockblock.RUnlock()
+	return calls
+}
+
+// callee calls calleeFunc.
+func (mock *MockRideEnvironment) callee() proto.Address {
+	if mock.calleeFunc == nil {
+		panic("MockRideEnvironment.calleeFunc: method is nil but RideEnvironment.callee was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockcallee.Lock()
+	mock.calls.callee = append(mock.calls.callee, callInfo)
+	mock.lockcallee.Unlock()
+	return mock.calleeFunc()
+}
+
+// calleeCalls gets all the calls that were made to callee.
+// Check the length with:
+//     len(mockedRideEnvironment.calleeCalls())
+func (mock *MockRideEnvironment) calleeCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockcallee.RLock()
+	calls = mock.calls.callee
+	mock.lockcallee.RUnlock()
 	return calls
 }
 
@@ -520,7 +556,7 @@ func (mock *MockRideEnvironment) schemeCalls() []struct {
 }
 
 // setNewDAppAddress calls setNewDAppAddressFunc.
-func (mock *MockRideEnvironment) setNewDAppAddress(address proto.Address) error {
+func (mock *MockRideEnvironment) setNewDAppAddress(address proto.Address) {
 	if mock.setNewDAppAddressFunc == nil {
 		panic("MockRideEnvironment.setNewDAppAddressFunc: method is nil but RideEnvironment.setNewDAppAddress was just called")
 	}
@@ -532,7 +568,7 @@ func (mock *MockRideEnvironment) setNewDAppAddress(address proto.Address) error 
 	mock.locksetNewDAppAddress.Lock()
 	mock.calls.setNewDAppAddress = append(mock.calls.setNewDAppAddress, callInfo)
 	mock.locksetNewDAppAddress.Unlock()
-	return mock.setNewDAppAddressFunc(address)
+	mock.setNewDAppAddressFunc(address)
 }
 
 // setNewDAppAddressCalls gets all the calls that were made to setNewDAppAddress.

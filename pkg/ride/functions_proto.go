@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -113,11 +114,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Errorf("cannot get address from dApp, invokeFunctionFromDApp")
 	}
-	err = env.setNewDAppAddress(*address)
-	if err != nil {
-		return nil, err
-	}
-
+	env.setNewDAppAddress(*address)
 	err = env.smartAppendActions(paymentActions)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to apply attachedPayments")
@@ -138,10 +135,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 			return nil, err
 		}
 
-		err := env.setNewDAppAddress(proto.Address(callerAddress))
-		if err != nil {
-			return nil, err
-		}
+		env.setNewDAppAddress(proto.Address(callerAddress))
 		env.SetInvocation(oldInvocationParam)
 
 		if res.UserResult() == nil {
