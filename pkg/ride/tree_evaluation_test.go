@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -1019,19 +1020,17 @@ func smartStateDappFromDapp() types.SmartState {
 					}
 					res.Sender = &senderPK
 
-					// send
-					//senderAddress := proto.Address(wrappedSt.EnvThis)
-					//senderRecipient := proto.NewRecipientFromAddress(senderAddress)
-					//asset := proto.NewOptionalAssetFromDigest(res.ID)
-					//
-					//searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(senderRecipient, *asset)
-					//if err != nil {
-					//	return nil, err
-					//}
-					//err = wrappedSt.Diff.ChangeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRecipient)
-					//if err != nil {
-					//	return nil, err
-					//}
+					senderRecipient := proto.NewRecipientFromAddress(wrappedSt.env.callee())
+					asset := proto.NewOptionalAssetFromDigest(res.ID)
+
+					searchBalance, searchAddr, err := wrappedSt.diff.FindBalance(senderRecipient, *asset)
+					if err != nil {
+						return nil, err
+					}
+					err = wrappedSt.diff.ChangeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRecipient)
+					if err != nil {
+						return nil, err
+					}
 
 				case *proto.ReissueScriptAction:
 					err := wrappedSt.validateReissueAction(&otherActionsCount, res)
@@ -1682,6 +1681,8 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
+	wrappedStKek := wrappedSt
+	fmt.Println(wrappedStKek)
 
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
@@ -1741,6 +1742,10 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, asset: assetExp, effectiveHistory: []int64{2467, 2457}}
 	expectedDiffResult.balances[addressCallable.String()+assetExp.String()] = balanceCallable
+
+	assetFromIssue := *proto.NewOptionalAssetFromDigest(sr.Issues[0].ID)
+	balanceCallableAsset := diffBalance{regular: 1, leaseOut: 0, asset: assetFromIssue}
+	expectedDiffResult.balances[addressCallable.String()+assetFromIssue.String()] = balanceCallableAsset
 
 	intEntry1 := proto.IntegerDataEntry{Key: "int", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry1

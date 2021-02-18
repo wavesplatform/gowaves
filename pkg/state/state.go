@@ -500,6 +500,11 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 	return nil, errors.Errorf("address and alias from recipient are nil")
 }
 
+func (s *stateManager) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
+	return s.stor.scriptsStorage.newestScriptBytesByAsset(asset.ID, false)
+
+}
+
 func (s *stateManager) Mutex() *lock.RwMutex {
 	return lock.NewRwMutex(s.mu)
 }

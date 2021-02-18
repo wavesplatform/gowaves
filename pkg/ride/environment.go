@@ -329,8 +329,73 @@ func (ws *WrappedState) IsNotFound(err error) bool {
 	return ws.diff.state.IsNotFound(err)
 }
 
+func (ws *WrappedState) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
+	return ws.env.state().NewestScriptByAsset(asset)
+}
+
+func (ws *WrappedState) validateAsset(asset proto.OptionalAsset) (bool, error) {
+	if !asset.Present {
+		return true, nil
+	}
+
+	assetInfo, err := ws.env.state().NewestAssetInfo(asset.ID)
+	if err != nil {
+		return false, err
+	}
+	if !assetInfo.Scripted {
+		return true, nil
+	}
+
+	script, err := ws.NewestScriptByAsset(asset)
+	if err != nil {
+		return false, err
+	}
+
+	tree, err := Parse(script)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get tree by script")
+	}
+
+	oldAddress := ws.env.callee()
+
+	ws.env.ChooseSizeCheck(tree.LibVersion)
+	switch tree.LibVersion {
+	case 4, 5:
+		assetInfo, err := ws.env.state().NewestFullAssetInfo(asset.ID)
+		if err != nil {
+			return false, err
+		}
+		ws.env.SetThisFromFullAssetInfo(assetInfo)
+	default:
+		assetInfo, err := ws.env.state().NewestAssetInfo(asset.ID)
+		if err != nil {
+			return false, err
+		}
+		ws.env.SetThisFromAssetInfo(assetInfo)
+	}
+	r, err := CallVerifier(ws.env, tree)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to call script on asset '%s'", asset.String())
+	}
+	if !r.Result() {
+		return false, errs.NewTransactionNotAllowedByScript(r.UserError(), asset.ID.Bytes())
+	}
+
+	ws.env.setNewDAppAddress(oldAddress)
+	return r.Result(), nil
+}
+
 func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.Address) error {
 	*otherActionsCount++
+
+	assetResult, err := ws.validateAsset(res.Asset)
+	if err != nil {
+		return errors.Wrapf(err, "failed to validate asset")
+	}
+	if !assetResult {
+		return errors.New("action is forbidden by smart asset script")
+	}
+
 	if *otherActionsCount > proto.MaxScriptActions {
 		return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
 	}
@@ -412,6 +477,16 @@ func (ws *WrappedState) validateIssueAction(otherActionsCount *int, res *proto.I
 
 func (ws *WrappedState) validateReissueAction(otherActionsCount *int, res *proto.ReissueScriptAction) error {
 	*otherActionsCount++
+
+	asset := proto.NewOptionalAssetFromDigest(res.AssetID)
+	assetResult, err := ws.validateAsset(*asset)
+	if err != nil {
+		return errors.Wrapf(err, "failed to validate asset")
+	}
+	if !assetResult {
+		return errors.New("action is forbidden by smart asset script")
+	}
+
 	if *otherActionsCount > proto.MaxScriptActions {
 		return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
 	}
@@ -433,6 +508,16 @@ func (ws *WrappedState) validateReissueAction(otherActionsCount *int, res *proto
 
 func (ws *WrappedState) validateBurnAction(otherActionsCount *int, res *proto.BurnScriptAction) error {
 	*otherActionsCount++
+
+	asset := proto.NewOptionalAssetFromDigest(res.AssetID)
+	assetResult, err := ws.validateAsset(*asset)
+	if err != nil {
+		return errors.Wrapf(err, "failed to validate asset")
+	}
+	if !assetResult {
+		return errors.New("action is forbidden by smart asset script")
+	}
+
 	if *otherActionsCount > proto.MaxScriptActions {
 		return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
 	}
@@ -693,19 +778,16 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 			}
 			res.Sender = &senderPK
 
-			//TODO: Issue should create a diff
-			//senderAddress := proto.Address(wrappedSt.EnvThis)
-			//senderRecipient := proto.NewRecipientFromAddress(senderAddress)
-			//asset := proto.NewOptionalAssetFromDigest(res.ID)
-			//
-			//searchBalance, searchAddr, err := wrappedSt.Diff.FindBalance(senderRecipient, *asset)
-			//if err != nil {
-			//	return nil, err
-			//}
-			//err = wrappedSt.Diff.ChangeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRecipient)
-			//if err != nil {
-			//	return nil, err
-			//}
+			senderRcp := proto.NewRecipientFromAddress(ws.env.callee())
+			asset := proto.NewOptionalAssetFromDigest(res.ID)
+			searchBalance, searchAddr, err := ws.diff.FindBalance(senderRcp, *asset)
+			if err != nil {
+				return nil, err
+			}
+			err = ws.diff.ChangeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+			if err != nil {
+				return nil, err
+			}
 
 		case *proto.ReissueScriptAction:
 			err := ws.validateReissueAction(&otherActionsCount, res)

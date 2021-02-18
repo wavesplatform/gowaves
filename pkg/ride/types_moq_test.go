@@ -65,6 +65,9 @@ var _ types.SmartState = &MockSmartState{}
 //             NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
 // 	               panic("mock out the NewestRecipientToAddress method")
 //             },
+//             NewestScriptByAssetFunc: func(asset proto.OptionalAsset) (proto.Script, error) {
+// 	               panic("mock out the NewestScriptByAsset method")
+//             },
 //             NewestScriptPKByAddrFunc: func(addr proto.Address, filter bool) (crypto.PublicKey, error) {
 // 	               panic("mock out the NewestScriptPKByAddr method")
 //             },
@@ -137,6 +140,9 @@ type MockSmartState struct {
 
 	// NewestRecipientToAddressFunc mocks the NewestRecipientToAddress method.
 	NewestRecipientToAddressFunc func(recipient proto.Recipient) (*proto.Address, error)
+
+	// NewestScriptByAssetFunc mocks the NewestScriptByAsset method.
+	NewestScriptByAssetFunc func(asset proto.OptionalAsset) (proto.Script, error)
 
 	// NewestScriptPKByAddrFunc mocks the NewestScriptPKByAddr method.
 	NewestScriptPKByAddrFunc func(addr proto.Address, filter bool) (crypto.PublicKey, error)
@@ -238,6 +244,11 @@ type MockSmartState struct {
 			// Recipient is the recipient argument value.
 			Recipient proto.Recipient
 		}
+		// NewestScriptByAsset holds details about calls to the NewestScriptByAsset method.
+		NewestScriptByAsset []struct {
+			// Asset is the asset argument value.
+			Asset proto.OptionalAsset
+		}
 		// NewestScriptPKByAddr holds details about calls to the NewestScriptPKByAddr method.
 		NewestScriptPKByAddr []struct {
 			// Addr is the addr argument value.
@@ -299,6 +310,7 @@ type MockSmartState struct {
 	lockNewestHeaderByHeight        sync.RWMutex
 	lockNewestLeasingInfo           sync.RWMutex
 	lockNewestRecipientToAddress    sync.RWMutex
+	lockNewestScriptByAsset         sync.RWMutex
 	lockNewestScriptPKByAddr        sync.RWMutex
 	lockNewestTransactionByID       sync.RWMutex
 	lockNewestTransactionHeightByID sync.RWMutex
@@ -772,6 +784,37 @@ func (mock *MockSmartState) NewestRecipientToAddressCalls() []struct {
 	mock.lockNewestRecipientToAddress.RLock()
 	calls = mock.calls.NewestRecipientToAddress
 	mock.lockNewestRecipientToAddress.RUnlock()
+	return calls
+}
+
+// NewestScriptByAsset calls NewestScriptByAssetFunc.
+func (mock *MockSmartState) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
+	if mock.NewestScriptByAssetFunc == nil {
+		panic("MockSmartState.NewestScriptByAssetFunc: method is nil but SmartState.NewestScriptByAsset was just called")
+	}
+	callInfo := struct {
+		Asset proto.OptionalAsset
+	}{
+		Asset: asset,
+	}
+	mock.lockNewestScriptByAsset.Lock()
+	mock.calls.NewestScriptByAsset = append(mock.calls.NewestScriptByAsset, callInfo)
+	mock.lockNewestScriptByAsset.Unlock()
+	return mock.NewestScriptByAssetFunc(asset)
+}
+
+// NewestScriptByAssetCalls gets all the calls that were made to NewestScriptByAsset.
+// Check the length with:
+//     len(mockedSmartState.NewestScriptByAssetCalls())
+func (mock *MockSmartState) NewestScriptByAssetCalls() []struct {
+	Asset proto.OptionalAsset
+} {
+	var calls []struct {
+		Asset proto.OptionalAsset
+	}
+	mock.lockNewestScriptByAsset.RLock()
+	calls = mock.calls.NewestScriptByAsset
+	mock.lockNewestScriptByAsset.RUnlock()
 	return calls
 }
 

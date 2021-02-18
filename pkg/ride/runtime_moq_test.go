@@ -19,8 +19,17 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //
 //         // make and configure a mocked RideEnvironment
 //         mockedRideEnvironment := &MockRideEnvironment{
+//             ChooseSizeCheckFunc: func(v int)  {
+// 	               panic("mock out the ChooseSizeCheck method")
+//             },
 //             SetInvocationFunc: func(inv rideObject)  {
 // 	               panic("mock out the SetInvocation method")
+//             },
+//             SetThisFromAssetInfoFunc: func(info *proto.AssetInfo)  {
+// 	               panic("mock out the SetThisFromAssetInfo method")
+//             },
+//             SetThisFromFullAssetInfoFunc: func(info *proto.FullAssetInfo)  {
+// 	               panic("mock out the SetThisFromFullAssetInfo method")
 //             },
 //             actionsFunc: func() []proto.ScriptAction {
 // 	               panic("mock out the actions method")
@@ -80,8 +89,17 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //
 //     }
 type MockRideEnvironment struct {
+	// ChooseSizeCheckFunc mocks the ChooseSizeCheck method.
+	ChooseSizeCheckFunc func(v int)
+
 	// SetInvocationFunc mocks the SetInvocation method.
 	SetInvocationFunc func(inv rideObject)
+
+	// SetThisFromAssetInfoFunc mocks the SetThisFromAssetInfo method.
+	SetThisFromAssetInfoFunc func(info *proto.AssetInfo)
+
+	// SetThisFromFullAssetInfoFunc mocks the SetThisFromFullAssetInfo method.
+	SetThisFromFullAssetInfoFunc func(info *proto.FullAssetInfo)
 
 	// actionsFunc mocks the actions method.
 	actionsFunc func() []proto.ScriptAction
@@ -136,10 +154,25 @@ type MockRideEnvironment struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// ChooseSizeCheck holds details about calls to the ChooseSizeCheck method.
+		ChooseSizeCheck []struct {
+			// V is the v argument value.
+			V int
+		}
 		// SetInvocation holds details about calls to the SetInvocation method.
 		SetInvocation []struct {
 			// Inv is the inv argument value.
 			Inv rideObject
+		}
+		// SetThisFromAssetInfo holds details about calls to the SetThisFromAssetInfo method.
+		SetThisFromAssetInfo []struct {
+			// Info is the info argument value.
+			Info *proto.AssetInfo
+		}
+		// SetThisFromFullAssetInfo holds details about calls to the SetThisFromFullAssetInfo method.
+		SetThisFromFullAssetInfo []struct {
+			// Info is the info argument value.
+			Info *proto.FullAssetInfo
 		}
 		// actions holds details about calls to the actions method.
 		actions []struct {
@@ -203,24 +236,58 @@ type MockRideEnvironment struct {
 		txID []struct {
 		}
 	}
-	lockSetInvocation      sync.RWMutex
-	lockactions            sync.RWMutex
-	lockappendActions      sync.RWMutex
-	lockapplyToState       sync.RWMutex
-	lockblock              sync.RWMutex
-	lockcallee             sync.RWMutex
-	lockcheckMessageLength sync.RWMutex
-	lockheight             sync.RWMutex
-	lockincrementInvCount  sync.RWMutex
-	lockinvCount           sync.RWMutex
-	lockinvocation         sync.RWMutex
-	lockscheme             sync.RWMutex
-	locksetNewDAppAddress  sync.RWMutex
-	locksmartAppendActions sync.RWMutex
-	lockstate              sync.RWMutex
-	lockthis               sync.RWMutex
-	locktransaction        sync.RWMutex
-	locktxID               sync.RWMutex
+	lockChooseSizeCheck          sync.RWMutex
+	lockSetInvocation            sync.RWMutex
+	lockSetThisFromAssetInfo     sync.RWMutex
+	lockSetThisFromFullAssetInfo sync.RWMutex
+	lockactions                  sync.RWMutex
+	lockappendActions            sync.RWMutex
+	lockapplyToState             sync.RWMutex
+	lockblock                    sync.RWMutex
+	lockcallee                   sync.RWMutex
+	lockcheckMessageLength       sync.RWMutex
+	lockheight                   sync.RWMutex
+	lockincrementInvCount        sync.RWMutex
+	lockinvCount                 sync.RWMutex
+	lockinvocation               sync.RWMutex
+	lockscheme                   sync.RWMutex
+	locksetNewDAppAddress        sync.RWMutex
+	locksmartAppendActions       sync.RWMutex
+	lockstate                    sync.RWMutex
+	lockthis                     sync.RWMutex
+	locktransaction              sync.RWMutex
+	locktxID                     sync.RWMutex
+}
+
+// ChooseSizeCheck calls ChooseSizeCheckFunc.
+func (mock *MockRideEnvironment) ChooseSizeCheck(v int) {
+	if mock.ChooseSizeCheckFunc == nil {
+		panic("MockRideEnvironment.ChooseSizeCheckFunc: method is nil but RideEnvironment.ChooseSizeCheck was just called")
+	}
+	callInfo := struct {
+		V int
+	}{
+		V: v,
+	}
+	mock.lockChooseSizeCheck.Lock()
+	mock.calls.ChooseSizeCheck = append(mock.calls.ChooseSizeCheck, callInfo)
+	mock.lockChooseSizeCheck.Unlock()
+	mock.ChooseSizeCheckFunc(v)
+}
+
+// ChooseSizeCheckCalls gets all the calls that were made to ChooseSizeCheck.
+// Check the length with:
+//     len(mockedRideEnvironment.ChooseSizeCheckCalls())
+func (mock *MockRideEnvironment) ChooseSizeCheckCalls() []struct {
+	V int
+} {
+	var calls []struct {
+		V int
+	}
+	mock.lockChooseSizeCheck.RLock()
+	calls = mock.calls.ChooseSizeCheck
+	mock.lockChooseSizeCheck.RUnlock()
+	return calls
 }
 
 // SetInvocation calls SetInvocationFunc.
@@ -251,6 +318,68 @@ func (mock *MockRideEnvironment) SetInvocationCalls() []struct {
 	mock.lockSetInvocation.RLock()
 	calls = mock.calls.SetInvocation
 	mock.lockSetInvocation.RUnlock()
+	return calls
+}
+
+// SetThisFromAssetInfo calls SetThisFromAssetInfoFunc.
+func (mock *MockRideEnvironment) SetThisFromAssetInfo(info *proto.AssetInfo) {
+	if mock.SetThisFromAssetInfoFunc == nil {
+		panic("MockRideEnvironment.SetThisFromAssetInfoFunc: method is nil but RideEnvironment.SetThisFromAssetInfo was just called")
+	}
+	callInfo := struct {
+		Info *proto.AssetInfo
+	}{
+		Info: info,
+	}
+	mock.lockSetThisFromAssetInfo.Lock()
+	mock.calls.SetThisFromAssetInfo = append(mock.calls.SetThisFromAssetInfo, callInfo)
+	mock.lockSetThisFromAssetInfo.Unlock()
+	mock.SetThisFromAssetInfoFunc(info)
+}
+
+// SetThisFromAssetInfoCalls gets all the calls that were made to SetThisFromAssetInfo.
+// Check the length with:
+//     len(mockedRideEnvironment.SetThisFromAssetInfoCalls())
+func (mock *MockRideEnvironment) SetThisFromAssetInfoCalls() []struct {
+	Info *proto.AssetInfo
+} {
+	var calls []struct {
+		Info *proto.AssetInfo
+	}
+	mock.lockSetThisFromAssetInfo.RLock()
+	calls = mock.calls.SetThisFromAssetInfo
+	mock.lockSetThisFromAssetInfo.RUnlock()
+	return calls
+}
+
+// SetThisFromFullAssetInfo calls SetThisFromFullAssetInfoFunc.
+func (mock *MockRideEnvironment) SetThisFromFullAssetInfo(info *proto.FullAssetInfo) {
+	if mock.SetThisFromFullAssetInfoFunc == nil {
+		panic("MockRideEnvironment.SetThisFromFullAssetInfoFunc: method is nil but RideEnvironment.SetThisFromFullAssetInfo was just called")
+	}
+	callInfo := struct {
+		Info *proto.FullAssetInfo
+	}{
+		Info: info,
+	}
+	mock.lockSetThisFromFullAssetInfo.Lock()
+	mock.calls.SetThisFromFullAssetInfo = append(mock.calls.SetThisFromFullAssetInfo, callInfo)
+	mock.lockSetThisFromFullAssetInfo.Unlock()
+	mock.SetThisFromFullAssetInfoFunc(info)
+}
+
+// SetThisFromFullAssetInfoCalls gets all the calls that were made to SetThisFromFullAssetInfo.
+// Check the length with:
+//     len(mockedRideEnvironment.SetThisFromFullAssetInfoCalls())
+func (mock *MockRideEnvironment) SetThisFromFullAssetInfoCalls() []struct {
+	Info *proto.FullAssetInfo
+} {
+	var calls []struct {
+		Info *proto.FullAssetInfo
+	}
+	mock.lockSetThisFromFullAssetInfo.RLock()
+	calls = mock.calls.SetThisFromFullAssetInfo
+	mock.lockSetThisFromFullAssetInfo.RUnlock()
 	return calls
 }
 

@@ -352,6 +352,9 @@ type RideEnvironment interface {
 	checkMessageLength(int) bool
 	invocation() rideObject // Invocation object made of invoke transaction
 	SetInvocation(inv rideObject)
+	SetThisFromFullAssetInfo(info *proto.FullAssetInfo)
+	SetThisFromAssetInfo(info *proto.AssetInfo)
+	ChooseSizeCheck(v int)
 }
 
 type rideConstructor func(RideEnvironment) rideType
