@@ -15,10 +15,15 @@ import (
 )
 
 func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
-	env.incrementInvCount()
-	if env.invCount() > 100 {
+	ws, ok := env.state().(*WrappedState)
+	if !ok {
+		return nil, errors.Wrapf(errors.New("wrong state"), "invoke")
+	}
+	ws.incrementInvCount()
+	if ws.invCount() > 100 {
 		return rideUnit{}, nil
 	}
+
 	callerAddress, ok := env.this().(rideAddress)
 	if !ok {
 		return rideUnit{}, errors.Errorf("invoke: this has an unexpected type '%s'", env.this().instanceOf())
@@ -115,7 +120,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("cannot get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
-	err = env.smartAppendActions(paymentActions)
+	err = ws.smartAppendActions(paymentActions, env)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to apply attachedPayments")
 	}
@@ -130,7 +135,7 @@ func invoke(env RideEnvironment, args ...rideType) (rideType, error) {
 			return nil, errors.Errorf(res.UserError())
 		}
 
-		err = env.smartAppendActions(res.ScriptActions())
+		err = ws.smartAppendActions(res.ScriptActions(), env)
 		if err != nil {
 			return nil, err
 		}

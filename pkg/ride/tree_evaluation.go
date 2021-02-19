@@ -45,11 +45,20 @@ func CallFunction(env RideEnvironment, tree *Tree, name string, args proto.Argum
 	if !ok {
 		return rideResult, err
 	}
-	if env.actions() == nil {
+	if tree.LibVersion < 5 {
 		return rideResult, err
 	}
 
-	fullActions := env.actions()
+	ws, ok := env.state().(*WrappedState)
+	if !ok {
+		return nil, errors.New("wrong state")
+	}
+
+	if ws.act == nil {
+		return rideResult, err
+	}
+
+	fullActions := ws.act
 	fullActions = append(fullActions, DAppResult.actions...)
 	DAppResult.actions = fullActions
 	return DAppResult, err

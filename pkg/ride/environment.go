@@ -1,6 +1,7 @@
 package ride
 
 import (
+	"fmt"
 	"unicode/utf16"
 
 	"github.com/pkg/errors"
@@ -11,8 +12,11 @@ import (
 )
 
 type WrappedState struct {
-	diff diffState
-	env  RideEnvironment
+	diff        diffState
+	cle         rideAddress
+	scheme      proto.Scheme
+	invokeCount uint64
+	act         []proto.ScriptAction
 }
 
 func newWrappedState(env *Environment) *WrappedState {
@@ -32,7 +36,24 @@ func newWrappedState(env *Environment) *WrappedState {
 		oldAssetsInfo: map[string]diffOldAssetInfo{},
 		leases:        map[string]lease{}}
 
-	return &WrappedState{diff: diffSt, env: env}
+	return &WrappedState{diff: diffSt, cle: env.th.(rideAddress), scheme: env.sch}
+}
+
+func (ws *WrappedState) appendActions(actions []proto.ScriptAction) {
+	ws.act = append(ws.act, actions...)
+}
+
+func (ws *WrappedState) callee() proto.Address {
+	return proto.Address(ws.cle)
+}
+
+func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env RideEnvironment) error {
+	modifiedActions, err := ws.ApplyToState(actions, env)
+	if err != nil {
+		return err
+	}
+	ws.appendActions(modifiedActions)
+	return nil
 }
 
 func (ws *WrappedState) AddingBlockHeight() (uint64, error) {
@@ -330,15 +351,15 @@ func (ws *WrappedState) IsNotFound(err error) bool {
 }
 
 func (ws *WrappedState) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
-	return ws.env.state().NewestScriptByAsset(asset)
+	return ws.diff.state.NewestScriptByAsset(asset)
 }
 
-func (ws *WrappedState) validateAsset(asset proto.OptionalAsset) (bool, error) {
+func (ws *WrappedState) validateAsset(asset proto.OptionalAsset, env RideEnvironment) (bool, error) {
 	if !asset.Present {
 		return true, nil
 	}
 
-	assetInfo, err := ws.env.state().NewestAssetInfo(asset.ID)
+	assetInfo, err := ws.NewestAssetInfo(asset.ID)
 	if err != nil {
 		return false, err
 	}
@@ -356,24 +377,24 @@ func (ws *WrappedState) validateAsset(asset proto.OptionalAsset) (bool, error) {
 		return false, errors.Wrap(err, "failed to get tree by script")
 	}
 
-	oldAddress := ws.env.callee()
+	oldAddress := ws.callee()
 
-	ws.env.ChooseSizeCheck(tree.LibVersion)
+	env.ChooseSizeCheck(tree.LibVersion)
 	switch tree.LibVersion {
 	case 4, 5:
-		assetInfo, err := ws.env.state().NewestFullAssetInfo(asset.ID)
+		assetInfo, err := ws.NewestFullAssetInfo(asset.ID)
 		if err != nil {
 			return false, err
 		}
-		ws.env.SetThisFromFullAssetInfo(assetInfo)
+		env.SetThisFromFullAssetInfo(assetInfo)
 	default:
-		assetInfo, err := ws.env.state().NewestAssetInfo(asset.ID)
+		assetInfo, err := ws.NewestAssetInfo(asset.ID)
 		if err != nil {
 			return false, err
 		}
-		ws.env.SetThisFromAssetInfo(assetInfo)
+		env.SetThisFromAssetInfo(assetInfo)
 	}
-	r, err := CallVerifier(ws.env, tree)
+	r, err := CallVerifier(env, tree)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to call script on asset '%s'", asset.String())
 	}
@@ -381,14 +402,14 @@ func (ws *WrappedState) validateAsset(asset proto.OptionalAsset) (bool, error) {
 		return false, errs.NewTransactionNotAllowedByScript(r.UserError(), asset.ID.Bytes())
 	}
 
-	ws.env.setNewDAppAddress(oldAddress)
+	env.setNewDAppAddress(oldAddress)
 	return r.Result(), nil
 }
 
-func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.Address) error {
+func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.Address, env RideEnvironment) error {
 	*otherActionsCount++
 
-	assetResult, err := ws.validateAsset(res.Asset)
+	assetResult, err := ws.validateAsset(res.Asset, env)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate asset")
 	}
@@ -426,7 +447,7 @@ func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *prot
 
 	if balance < uint64(res.Amount) {
 		return errors.Errorf("not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
-			sender.String(), balance, res.Asset.ID.String(), res.Recipient.Address.String(), res.Amount)
+			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 	}
 
 	return nil
@@ -475,11 +496,11 @@ func (ws *WrappedState) validateIssueAction(otherActionsCount *int, res *proto.I
 	return nil
 }
 
-func (ws *WrappedState) validateReissueAction(otherActionsCount *int, res *proto.ReissueScriptAction) error {
+func (ws *WrappedState) validateReissueAction(otherActionsCount *int, res *proto.ReissueScriptAction, env RideEnvironment) error {
 	*otherActionsCount++
 
 	asset := proto.NewOptionalAssetFromDigest(res.AssetID)
-	assetResult, err := ws.validateAsset(*asset)
+	assetResult, err := ws.validateAsset(*asset, env)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate asset")
 	}
@@ -506,11 +527,11 @@ func (ws *WrappedState) validateReissueAction(otherActionsCount *int, res *proto
 	return nil
 }
 
-func (ws *WrappedState) validateBurnAction(otherActionsCount *int, res *proto.BurnScriptAction) error {
+func (ws *WrappedState) validateBurnAction(otherActionsCount *int, res *proto.BurnScriptAction, env RideEnvironment) error {
 	*otherActionsCount++
 
 	asset := proto.NewOptionalAssetFromDigest(res.AssetID)
-	assetResult, err := ws.validateAsset(*asset)
+	assetResult, err := ws.validateAsset(*asset, env)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate asset")
 	}
@@ -568,7 +589,7 @@ func (ws *WrappedState) validateLeaseAction(otherActionsCount *int, res *proto.L
 		return errors.New("leasing to DApp itself is forbidden")
 	}
 
-	balance, err := ws.NewestFullWavesBalance(proto.NewRecipientFromAddress(ws.env.callee()))
+	balance, err := ws.NewestFullWavesBalance(proto.NewRecipientFromAddress(ws.callee()))
 	if err != nil {
 		return err
 	}
@@ -587,7 +608,7 @@ func (ws *WrappedState) validateLeaseCancelAction(otherActionsCount *int) error 
 }
 
 func (ws *WrappedState) getLibVersion() (int, error) {
-	script, err := ws.GetByteTree(proto.NewRecipientFromAddress(ws.env.callee()))
+	script, err := ws.GetByteTree(proto.NewRecipientFromAddress(ws.callee()))
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get script by recipient")
 	}
@@ -598,7 +619,15 @@ func (ws *WrappedState) getLibVersion() (int, error) {
 	return tree.LibVersion, nil
 }
 
-func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
+func (ws *WrappedState) invCount() uint64 {
+	return ws.invokeCount
+}
+
+func (ws *WrappedState) incrementInvCount() {
+	ws.invokeCount++
+}
+
+func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env RideEnvironment) ([]proto.ScriptAction, error) {
 	dataEntriesCount := 0
 	dataEntriesSize := 0
 	otherActionsCount := 0
@@ -630,7 +659,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 
 			case *proto.IntegerDataEntry:
 				intEntry := *dataEntry
-				addr := ws.env.callee()
+				addr := ws.callee()
 
 				ws.diff.dataEntries.diffInteger[dataEntry.Key+addr.String()] = intEntry
 
@@ -642,7 +671,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 
 			case *proto.StringDataEntry:
 				stringEntry := *dataEntry
-				addr := ws.env.callee()
+				addr := ws.callee()
 
 				ws.diff.dataEntries.diffString[dataEntry.Key+addr.String()] = stringEntry
 
@@ -654,7 +683,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 
 			case *proto.BooleanDataEntry:
 				boolEntry := *dataEntry
-				addr := ws.env.callee()
+				addr := ws.callee()
 
 				ws.diff.dataEntries.diffBool[dataEntry.Key+addr.String()] = boolEntry
 
@@ -666,7 +695,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 
 			case *proto.BinaryDataEntry:
 				binaryEntry := *dataEntry
-				addr := ws.env.callee()
+				addr := ws.callee()
 
 				ws.diff.dataEntries.diffBinary[dataEntry.Key+addr.String()] = binaryEntry
 
@@ -678,7 +707,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 
 			case *proto.DeleteDataEntry:
 				deleteEntry := *dataEntry
-				addr := ws.env.callee()
+				addr := ws.callee()
 
 				ws.diff.dataEntries.diffDDelete[dataEntry.Key+addr.String()] = deleteEntry
 
@@ -697,20 +726,20 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 			if res.Sender != nil {
 				senderPK = *res.Sender
 				var err error
-				senderAddress, err = proto.NewAddressFromPublicKey(ws.env.scheme(), senderPK)
+				senderAddress, err = proto.NewAddressFromPublicKey(ws.scheme, senderPK)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get address  by public key")
 				}
 			} else {
-				pk, err := ws.diff.state.NewestScriptPKByAddr(ws.env.callee(), false)
+				pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee(), false)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
 				senderPK = pk
-				senderAddress = ws.env.callee()
+				senderAddress = ws.callee()
 			}
 
-			err = ws.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress)
+			err = ws.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress, env)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of transfer action or attached payments")
 			}
@@ -748,7 +777,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 
 			ws.diff.sponsorships[res.AssetID.String()] = sponsorship
 
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.env.callee(), false)
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee(), false)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
@@ -761,7 +790,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 			}
 
 			var assetInfo diffNewAssetInfo
-			assetInfo.dAppIssuer = ws.env.callee()
+			assetInfo.dAppIssuer = ws.callee()
 			assetInfo.name = res.Name
 			assetInfo.description = res.Description
 			assetInfo.quantity = res.Quantity
@@ -772,13 +801,13 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 
 			ws.diff.newAssetsInfo[res.ID.String()] = assetInfo
 
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.env.callee(), false)
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee(), false)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
 			res.Sender = &senderPK
 
-			senderRcp := proto.NewRecipientFromAddress(ws.env.callee())
+			senderRcp := proto.NewRecipientFromAddress(ws.callee())
 			asset := proto.NewOptionalAssetFromDigest(res.ID)
 			searchBalance, searchAddr, err := ws.diff.FindBalance(senderRcp, *asset)
 			if err != nil {
@@ -790,7 +819,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 			}
 
 		case *proto.ReissueScriptAction:
-			err := ws.validateReissueAction(&otherActionsCount, res)
+			err := ws.validateReissueAction(&otherActionsCount, res, env)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
@@ -806,14 +835,14 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 			}
 			ws.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
 
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.env.callee(), false)
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee(), false)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
 			res.Sender = &senderPK
 
 		case *proto.BurnScriptAction:
-			err := ws.validateBurnAction(&otherActionsCount, res)
+			err := ws.validateBurnAction(&otherActionsCount, res, env)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
@@ -830,7 +859,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 			}
 			ws.diff.burnNewAsset(res.AssetID, res.Quantity)
 
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.env.callee(), false)
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee(), false)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
@@ -842,7 +871,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
 
-			senderAddress := ws.env.callee()
+			senderAddress := ws.callee()
 
 			recipientSearchBalance, recipientSearchAddress, err := ws.diff.FindBalance(res.Recipient, proto.NewOptionalAssetWaves())
 			if err != nil {
@@ -904,7 +933,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 
 			ws.diff.cancelLease(*searchLease, senderSearchAddress, recipientSearchAddress)
 
-			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.env.callee(), false)
+			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee(), false)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
@@ -917,18 +946,15 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction) ([]proto.Scri
 }
 
 type Environment struct {
-	sch         proto.Scheme
-	st          types.SmartState
-	act         []proto.ScriptAction
-	h           rideInt
-	tx          rideObject
-	id          rideType
-	th          rideType
-	cle         proto.Address
-	b           rideObject
-	check       func(int) bool
-	inv         rideObject
-	invokeCount uint64
+	sch   proto.Scheme
+	st    types.SmartState
+	h     rideInt
+	tx    rideObject
+	id    rideType
+	th    rideType
+	b     rideObject
+	check func(int) bool
+	inv   rideObject
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, error) {
@@ -950,7 +976,7 @@ func NewEnvironmentWithWrappedState(env *Environment, payments proto.ScriptPayme
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 	}
-	recipient := proto.NewRecipientFromAddress(env.callee())
+	recipient := proto.NewRecipientFromAddress(proto.Address(env.th.(rideAddress)))
 
 	st := newWrappedState(env)
 
@@ -985,18 +1011,15 @@ func NewEnvironmentWithWrappedState(env *Environment, payments proto.ScriptPayme
 	}
 
 	return &Environment{
-		sch:         env.sch,
-		st:          st,
-		act:         env.act,
-		h:           env.h,
-		tx:          env.tx,
-		id:          env.id,
-		th:          env.th,
-		cle:         env.callee(),
-		b:           env.b,
-		check:       env.check,
-		inv:         env.inv,
-		invokeCount: env.invokeCount,
+		sch:   env.sch,
+		st:    st,
+		h:     env.h,
+		tx:    env.tx,
+		id:    env.id,
+		th:    env.th,
+		b:     env.b,
+		check: env.check,
+		inv:   env.inv,
 	}, nil
 }
 
@@ -1017,7 +1040,6 @@ func (e *Environment) SetThisFromAssetInfo(info *proto.AssetInfo) {
 }
 
 func (e *Environment) SetThisFromAddress(addr proto.Address) {
-	e.cle = addr
 	e.th = rideAddress(addr)
 }
 
@@ -1108,38 +1130,14 @@ func (e *Environment) state() types.SmartState {
 	return e.st
 }
 
-func (e *Environment) callee() proto.Address {
-	return e.cle
-}
-
-func (e *Environment) actions() []proto.ScriptAction {
-	return e.act
-}
-
 func (e *Environment) setNewDAppAddress(address proto.Address) {
-	e.SetThisFromAddress(address)
-}
-
-func (e *Environment) applyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
-	return e.st.ApplyToState(actions)
-}
-
-func (e *Environment) appendActions(actions []proto.ScriptAction) {
-	e.act = append(e.act, actions...)
-}
-
-func (e *Environment) smartAppendActions(actions []proto.ScriptAction) error {
-	_, ok := e.st.(*WrappedState)
+	ws, ok := e.st.(*WrappedState)
 	if !ok {
-		e.st = newWrappedState(e)
+		fmt.Println("ERROR WRONG STATE")
 	}
+	ws.cle = rideAddress(address)
 
-	modifiedActions, err := e.applyToState(actions)
-	if err != nil {
-		return err
-	}
-	e.appendActions(modifiedActions)
-	return nil
+	e.SetThisFromAddress(address)
 }
 
 func (e *Environment) checkMessageLength(l int) bool {
@@ -1152,14 +1150,6 @@ func (e *Environment) invocation() rideObject {
 
 func (e *Environment) SetInvocation(inv rideObject) {
 	e.inv = inv
-}
-
-func (e *Environment) invCount() uint64 {
-	return e.invokeCount
-}
-
-func (e *Environment) incrementInvCount() {
-	e.invokeCount++
 }
 
 func isAssetWaves(assetID []byte) bool {
