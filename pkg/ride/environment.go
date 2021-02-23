@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"fmt"
 	"unicode/utf16"
 
 	"github.com/pkg/errors"
@@ -1025,13 +1024,13 @@ func NewEnvironmentWithWrappedState(env *Environment, payments proto.ScriptPayme
 	st := newWrappedState(env)
 
 	for _, payment := range payments {
-		//senderBalance, err := wrappedSt.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
-		//if err != nil {
-		//	return err
-		//}
-		//if senderBalance < payment.Amount {
-		//	return errors.New("not enough money for tx attached payments")
-		//}
+		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
+		if err != nil {
+			return nil, err
+		}
+		if senderBalance < payment.Amount {
+			return nil, errors.New("not enough money for tx attached payments")
+		}
 
 		searchBalance, searchAddr, err := st.diff.FindBalance(recipient, payment.Asset)
 		if err != nil {
@@ -1183,10 +1182,7 @@ func (e *Environment) state() types.SmartState {
 }
 
 func (e *Environment) setNewDAppAddress(address proto.Address) {
-	ws, ok := e.st.(*WrappedState)
-	if !ok {
-		fmt.Println("ERROR WRONG STATE")
-	}
+	ws, _ := e.st.(*WrappedState)
 	ws.cle = rideAddress(address)
 
 	e.SetThisFromAddress(address)
