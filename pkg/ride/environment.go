@@ -867,10 +867,14 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env RideEnvir
 
 			searchNewAsset := ws.diff.findNewAsset(res.AssetID)
 			if searchNewAsset == nil {
+				if oldAssetFromDiff := ws.diff.findOldAsset(res.AssetID); oldAssetFromDiff != nil {
+					oldAssetFromDiff.diffQuantity += res.Quantity
+
+					ws.diff.oldAssetsInfo[res.AssetID.String()] = *oldAssetFromDiff
+					break
+				}
 				var assetInfo diffOldAssetInfo
-
 				assetInfo.diffQuantity += res.Quantity
-
 				ws.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
 				break
 			}
@@ -890,12 +894,15 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env RideEnvir
 
 			searchAsset := ws.diff.findNewAsset(res.AssetID)
 			if searchAsset == nil {
+				if oldAssetFromDiff := ws.diff.findOldAsset(res.AssetID); oldAssetFromDiff != nil {
+					oldAssetFromDiff.diffQuantity -= res.Quantity
+
+					ws.diff.oldAssetsInfo[res.AssetID.String()] = *oldAssetFromDiff
+					break
+				}
 				var assetInfo diffOldAssetInfo
-
-				assetInfo.diffQuantity += -res.Quantity
-
+				assetInfo.diffQuantity -= res.Quantity
 				ws.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
-
 				break
 			}
 			ws.diff.burnNewAsset(res.AssetID, res.Quantity)
