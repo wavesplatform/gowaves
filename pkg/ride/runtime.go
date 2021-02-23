@@ -2,7 +2,6 @@ package ride
 
 import (
 	"bytes"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -341,12 +340,11 @@ type RideEnvironment interface {
 	block() rideObject
 	txID() rideType // Invoke transaction ID
 	state() types.SmartState
+	timestamp() uint64
 	setNewDAppAddress(address proto.Address)
 	checkMessageLength(int) bool
 	invocation() rideObject // Invocation object made of invoke transaction
 	SetInvocation(inv rideObject)
-	SetThisFromFullAssetInfo(info *proto.FullAssetInfo)
-	SetThisFromAssetInfo(info *proto.AssetInfo)
 	ChooseSizeCheck(v int)
 }
 

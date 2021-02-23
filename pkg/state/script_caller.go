@@ -195,6 +195,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	}
 	env.SetThisFromAddress(scriptAddress)
 	env.SetLastBlock(lastBlockInfo)
+	env.SetTimestamp(tx.Timestamp)
 	err = env.SetTransaction(tx)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
