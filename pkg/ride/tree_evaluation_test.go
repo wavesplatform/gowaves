@@ -139,11 +139,11 @@ func TestFunctionsEvaluation(t *testing.T) {
 					}
 					return nil, errors.New("not found")
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					if len(asset) == 0 {
+				NewestAccountBalanceFunc: func(account proto.Recipient, asset proto.OptionalAsset) (uint64, error) {
+					if len(asset.ToID()) == 0 {
 						return 5, nil
 					} else {
-						if bytes.Equal(asset, d.Bytes()) {
+						if bytes.Equal(asset.ToID(), d.Bytes()) {
 							return 5, nil
 						}
 						return 0, nil
@@ -881,7 +881,7 @@ func smartStateDappFromDapp() types.SmartState {
 		NewestTransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
 			return nil, nil
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
+		NewestAccountBalanceFunc: func(account proto.Recipient, asset proto.OptionalAsset) (uint64, error) {
 			balance := 0
 			return uint64(balance), nil
 		},
@@ -909,14 +909,14 @@ func smartStateDappFromDapp() types.SmartState {
 
 			return nil, nil
 		},
-		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+		NewestAssetIsSponsoredFunc: func(assetID proto.OptionalAsset) (bool, error) {
 			return false, nil
 		},
-		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-			if assetID.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
+		NewestAssetInfoFunc: func(asset proto.OptionalAsset) (*proto.AssetInfo, error) {
+			if asset.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
 
 				return &proto.AssetInfo{
-					ID:              assetID,
+					ID:              asset.ID,
 					Quantity:        1000,
 					Decimals:        '8',
 					Issuer:          addressCallable,
@@ -929,10 +929,10 @@ func smartStateDappFromDapp() types.SmartState {
 
 			return nil, nil
 		},
-		NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
-			if assetID.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
+		NewestFullAssetInfoFunc: func(asset proto.OptionalAsset) (*proto.FullAssetInfo, error) {
+			if asset.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
 				assetInfo := proto.AssetInfo{
-					ID:              assetID,
+					ID:              asset.ID,
 					Quantity:        1000,
 					Decimals:        '8',
 					Issuer:          addressCallable,
@@ -1031,7 +1031,7 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 	recipient := proto.NewRecipientFromAddress(wrappedSt.callee())
 
 	for _, payment := range externalPayments {
-		senderBalance, err := wrappedSt.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
+		senderBalance, err := wrappedSt.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset)
 		if err != nil {
 			return err
 		}
@@ -1043,7 +1043,7 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 		if err != nil {
 			return err
 		}
-		err = wrappedSt.diff.ChangeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
+		err = wrappedSt.diff.ChangeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset, recipient)
 		if err != nil {
 			return err
 		}
@@ -1054,7 +1054,7 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 			return err
 		}
 
-		err = wrappedSt.diff.ChangeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
+		err = wrappedSt.diff.ChangeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset, callerRcp)
 		if err != nil {
 			return err
 		}
@@ -1069,7 +1069,7 @@ func AddWavesToSender(senderAddress proto.Address, amount int64, asset proto.Opt
 	if err != nil {
 		return err
 	}
-	err = wrappedSt.diff.ChangeBalance(searchBalance, searchAddr, amount, asset.ID, senderRecipient)
+	err = wrappedSt.diff.ChangeBalance(searchBalance, searchAddr, amount, asset, senderRecipient)
 	if err != nil {
 		return err
 	}
@@ -3194,7 +3194,7 @@ func TestWhaleDApp(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 1642207, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -3328,7 +3328,7 @@ func TestExchangeDApp(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 1642207, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -3493,7 +3493,7 @@ func TestBankDApp(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 1642207, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -3620,8 +3620,8 @@ func TestLigaDApp1(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 607280, nil
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					a := base58.Encode(asset)
+				NewestAccountBalanceFunc: func(account proto.Recipient, asset proto.OptionalAsset) (uint64, error) {
+					a := base58.Encode(asset.ToID())
 					switch a {
 					case "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye":
 						return 1000 - 5, nil
@@ -3631,7 +3631,7 @@ func TestLigaDApp1(t *testing.T) {
 						return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
 					}
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -3776,8 +3776,8 @@ func TestLigaDApp1(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 607281, nil
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					a := base58.Encode(asset)
+				NewestAccountBalanceFunc: func(account proto.Recipient, asset proto.OptionalAsset) (uint64, error) {
+					a := base58.Encode(asset.ToID())
 					switch a {
 					case "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye":
 						return 1000 - 5, nil
@@ -3787,8 +3787,8 @@ func TestLigaDApp1(t *testing.T) {
 						return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
 					}
 				},
-				NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-					switch assetID.String() {
+				NewestAssetInfoFunc: func(asset proto.OptionalAsset) (*proto.AssetInfo, error) {
+					switch asset.String() {
 					case "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye":
 						return &proto.AssetInfo{
 							ID:              team1,
@@ -3815,7 +3815,7 @@ func TestLigaDApp1(t *testing.T) {
 						return nil, errors.New("fail")
 					}
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -3958,7 +3958,7 @@ func TestTestingDApp(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 666972, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -4085,7 +4085,7 @@ func TestDropElementDApp(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 666972, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -4204,7 +4204,7 @@ func TestMathDApp(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 844761, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -4321,7 +4321,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 844761, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -4449,7 +4449,7 @@ func Test8Ball(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 844761, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -4575,7 +4575,7 @@ func TestIntegerEntry(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 386529, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -4626,16 +4626,16 @@ func TestAssetInfoV3V4(t *testing.T) {
 		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
+				NewestAccountBalanceFunc: func(account proto.Recipient, asset proto.OptionalAsset) (uint64, error) {
 					return 1000, nil
 				},
-				NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+				NewestAssetInfoFunc: func(asset proto.OptionalAsset) (*proto.AssetInfo, error) {
 					return &info, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
-				NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+				NewestFullAssetInfoFunc: func(asset proto.OptionalAsset) (*proto.FullAssetInfo, error) {
 					return &proto.FullAssetInfo{
 						AssetInfo:   info,
 						Name:        "ASSET1",
@@ -4811,7 +4811,7 @@ func TestBadType(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 617907, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -4961,7 +4961,7 @@ func TestNoDeclaration(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 2342971, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -5136,7 +5136,7 @@ func TestZeroReissue(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 451323, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -5374,7 +5374,7 @@ func TestStageNet2(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 451323, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset proto.OptionalAsset) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {

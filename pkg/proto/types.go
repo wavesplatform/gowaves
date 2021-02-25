@@ -147,19 +147,23 @@ func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create OptionalAsset from bytes")
 	}
+
+	if bytes.Equal(a.Bytes(), crypto.Digest{}.Bytes()) {
+		return &OptionalAsset{}, nil
+	}
+
 	return &OptionalAsset{Present: true, ID: a}, nil
 }
 
 func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {
-	waves := crypto.Digest{}
-	if d == waves {
-		return &OptionalAsset{Present: false}
+	if bytes.Equal(d.Bytes(), crypto.Digest{}.Bytes()) {
+		return &OptionalAsset{}
 	}
 	return &OptionalAsset{Present: true, ID: d}
 }
 
 func NewOptionalAssetWaves() OptionalAsset {
-	return OptionalAsset{Present: false}
+	return OptionalAsset{}
 }
 
 // String method converts OptionalAsset to its text representation

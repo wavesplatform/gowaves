@@ -28,7 +28,7 @@ type State interface {
 	AddNewBlocks(blocks [][]byte) error
 	AddOldBlocks(blocks [][]byte) error
 	WavesAddressesNumber() (uint64, error)
-	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)
+	AccountBalance(account proto.Recipient, asset proto.OptionalAsset) (uint64, error)
 	ShouldPersistAddressTransactions() (bool, error)
 	PersistAddressTransactions() error
 }
@@ -166,7 +166,7 @@ func CheckBalances(st State, balancesPath string) error {
 		if err != nil {
 			return errors.Errorf("faied to convert string to address: %v", err)
 		}
-		balance, err := st.AccountBalance(proto.NewRecipientFromAddress(addr), nil)
+		balance, err := st.AccountBalance(proto.NewRecipientFromAddress(addr), proto.NewOptionalAssetWaves())
 		if err != nil {
 			return errors.Errorf("failed to get balance: %v", err)
 		}

@@ -468,14 +468,6 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
-func (s *stateManager) ValidateInvokeResult(actions []proto.ScriptAction, dappRecipient proto.Recipient) error {
-	return nil
-}
-
-func (s *stateManager) ApplyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
-	return nil, nil
-}
-
 func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
 	if recipient.Address != nil {
 		key := accountScriptKey{*recipient.Address}
@@ -868,52 +860,39 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	}, nil
 }
 
-func isWaves(assetID []byte) bool {
-	wavesAsset := crypto.Digest{}
-	if len(wavesAsset) != len(assetID) {
-		return false
-	}
-	for i := range assetID {
-		if assetID[i] != wavesAsset[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
+func (s *stateManager) NewestAccountBalance(account proto.Recipient, asset proto.OptionalAsset) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
 
-	if assetID == nil || isWaves(assetID) {
+	if !asset.Present {
 		profile, err := s.newestWavesBalanceProfile(*addr)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
 		}
 		return profile.balance, nil
 	}
-	balance, err := s.newestAssetBalance(*addr, assetID)
+	balance, err := s.newestAssetBalance(*addr, asset.ToID())
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
 	return balance, nil
 }
 
-func (s *stateManager) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (s *stateManager) AccountBalance(account proto.Recipient, asset proto.OptionalAsset) (uint64, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	if asset == nil {
+	if !asset.Present {
 		profile, err := s.stor.balances.wavesBalance(*addr, true)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
 		}
 		return profile.balance, nil
 	}
-	balance, err := s.stor.balances.assetBalance(*addr, asset, true)
+	balance, err := s.stor.balances.assetBalance(*addr, asset.ToID(), true)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -1867,8 +1846,8 @@ func (s *stateManager) NewAddrTransactionsIterator(addr proto.Address) (Transact
 	return iter, nil
 }
 
-func (s *stateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
-	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
+func (s *stateManager) NewestAssetIsSponsored(asset proto.OptionalAsset) (bool, error) {
+	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(asset.ID, true)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
@@ -1883,8 +1862,8 @@ func (s *stateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
 	return sponsored, nil
 }
 
-func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
-	info, err := s.stor.assets.newestAssetInfo(assetID, true)
+func (s *stateManager) NewestAssetInfo(asset proto.OptionalAsset) (*proto.AssetInfo, error) {
+	info, err := s.stor.assets.newestAssetInfo(asset.ID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1895,13 +1874,13 @@ func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo,
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
+	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(asset.ID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scripted := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
+	scripted := s.stor.scriptsStorage.newestIsSmartAsset(asset.ID, true)
 	return &proto.AssetInfo{
-		ID:              assetID,
+		ID:              asset.ID,
 		Quantity:        info.quantity.Uint64(),
 		Decimals:        byte(info.decimals),
 		Issuer:          issuer,
@@ -1914,12 +1893,12 @@ func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo,
 
 // NewestFullAssetInfo is used to request full asset info from RIDE,
 // because of that we don't try to get issue transaction info.
-func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
-	ai, err := s.NewestAssetInfo(assetID)
+func (s *stateManager) NewestFullAssetInfo(asset proto.OptionalAsset) (*proto.FullAssetInfo, error) {
+	ai, err := s.NewestAssetInfo(asset)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	info, err := s.stor.assets.newestAssetInfo(assetID, true)
+	info, err := s.stor.assets.newestAssetInfo(asset.ID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1929,25 +1908,25 @@ func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAs
 		Description:      info.description,
 		IssueTransaction: nil, // Always return nil in this function because this field is not used later on
 	}
-	isSponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
+	isSponsored, err := s.stor.sponsoredAssets.newestIsSponsored(asset.ID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	if isSponsored {
-		assetCost, err := s.stor.sponsoredAssets.newestAssetCost(assetID, true)
+		assetCost, err := s.stor.sponsoredAssets.newestAssetCost(asset.ID, true)
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
-		sponsorBalance, err := s.NewestAccountBalance(proto.NewRecipientFromAddress(ai.Issuer), nil)
+		sponsorBalance, err := s.NewestAccountBalance(proto.NewRecipientFromAddress(ai.Issuer), proto.NewOptionalAssetWaves())
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
 	}
-	isScripted := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
+	isScripted := s.stor.scriptsStorage.newestIsSmartAsset(asset.ID, true)
 	if isScripted {
-		scriptInfo, err := s.NewestScriptInfoByAsset(assetID)
+		scriptInfo, err := s.NewestScriptInfoByAsset(asset.ID)
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
@@ -2013,7 +1992,7 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
-		sponsorBalance, err := s.AccountBalance(proto.NewRecipientFromAddress(ai.Issuer), nil)
+		sponsorBalance, err := s.AccountBalance(proto.NewRecipientFromAddress(ai.Issuer), proto.NewOptionalAssetWaves())
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
