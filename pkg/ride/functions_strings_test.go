@@ -101,6 +101,34 @@ func TestSizeString(t *testing.T) {
 		{[]rideType{rideString("Hello")}, false, rideInt(5)},
 		{[]rideType{rideString("Привет")}, false, rideInt(6)},
 		{[]rideType{rideString("世界")}, false, rideInt(2)},
+		{[]rideType{rideString("x冬x")}, false, rideInt(4)},
+		{[]rideType{rideString("")}, false, rideInt(0)},
+		{[]rideType{rideString(""), rideInt(3)}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
+	} {
+		r, err := sizeString(nil, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestSizeStringV5(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("Hello")}, false, rideInt(5)},
+		{[]rideType{rideString("Привет")}, false, rideInt(6)},
+		{[]rideType{rideString("世界")}, false, rideInt(2)},
+		{[]rideType{rideString("x冬x")}, false, rideInt(3)},
 		{[]rideType{rideString("")}, false, rideInt(0)},
 		{[]rideType{rideString(""), rideInt(3)}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},

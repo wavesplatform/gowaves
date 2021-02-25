@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const maxMessageLength = 32 * 1024
@@ -131,6 +132,14 @@ func sizeString(_ RideEnvironment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sizeString")
+	}
+	return rideInt(proto.UTF16Size(string(s))), nil
+}
+
+func sizeStringV5(_ RideEnvironment, args ...rideType) (rideType, error) {
+	s, err := stringArg(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "sizeStringV5")
 	}
 	return rideInt(utf8.RuneCountInString(string(s))), nil
 }
@@ -336,3 +345,4 @@ func dropRideString(s string, n int) rideString {
 	}
 	return rideString(runesDrop(s, d))
 }
+

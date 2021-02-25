@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf16"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -1789,7 +1788,7 @@ func (e IntegerDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if UTF16Size(e.Key) > maxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
@@ -1917,7 +1916,7 @@ func (e BooleanDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if UTF16Size(e.Key) > maxKeySize {
 			return errs.NewTooBigArray("key is too large11")
 		}
 	default:
@@ -2049,7 +2048,7 @@ func (e BinaryDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if UTF16Size(e.Key) > maxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
@@ -2184,7 +2183,7 @@ func (e StringDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if UTF16Size(e.Key) > maxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
@@ -2318,7 +2317,7 @@ func (e DeleteDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if UTF16Size(e.Key) > maxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
