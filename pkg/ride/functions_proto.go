@@ -220,11 +220,15 @@ func assetBalanceV3(env RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
-	asset, err := extractAsset(args[1])
+	assetID, err := extractAsset(args[1])
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, asset)
+	asset, err := proto.NewOptionalAssetFromBytes(assetID)
+	if err != nil {
+		return nil, errors.Wrap(err, "assetBalanceV3")
+	}
+	balance, err := env.state().NewestAccountBalance(recipient, *asset)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
@@ -239,14 +243,18 @@ func assetBalanceV4(env RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	asset, err := extractAsset(args[1])
+	assetID, err := extractAsset(args[1])
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	if len(asset) == 0 { // Additional check, empty asset's ID is not allowed any more
+	if len(assetID) == 0 { // Additional check, empty asset's ID is not allowed any more
 		return nil, errors.New("assetBalanceV4: empty asset ID")
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, asset)
+	asset, err := proto.NewOptionalAssetFromBytes(assetID)
+	if err != nil {
+		return nil, errors.Wrap(err, "assetBalanceV4")
+	}
+	balance, err := env.state().NewestAccountBalance(recipient, *asset)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
@@ -422,7 +430,7 @@ func wavesBalanceV3(env RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, nil)
+	balance, err := env.state().NewestAccountBalance(recipient, proto.NewOptionalAssetWaves())
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
 	}
@@ -449,11 +457,12 @@ func assetInfoV3(env RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetInfoV3")
 	}
-	asset, err := crypto.NewDigestFromBytes(b)
+	assetID, err := crypto.NewDigestFromBytes(b)
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	info, err := env.state().NewestAssetInfo(asset)
+	asset := proto.NewOptionalAssetFromDigest(assetID)
+	info, err := env.state().NewestAssetInfo(*asset)
 	if err != nil {
 		return rideUnit{}, nil
 	}
@@ -465,11 +474,12 @@ func assetInfoV4(env RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetInfoV4")
 	}
-	asset, err := crypto.NewDigestFromBytes(b)
+	assetID, err := crypto.NewDigestFromBytes(b)
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	info, err := env.state().NewestFullAssetInfo(asset)
+	asset := proto.NewOptionalAssetFromDigest(assetID)
+	info, err := env.state().NewestFullAssetInfo(*asset)
 	if err != nil {
 		return rideUnit{}, nil
 	}

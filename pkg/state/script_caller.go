@@ -134,13 +134,15 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.Environment, assetID cryp
 	env.ChooseSizeCheck(tree.LibVersion)
 	switch tree.LibVersion {
 	case 4, 5:
-		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
+		optAsset := proto.NewOptionalAssetFromDigest(assetID)
+		assetInfo, err := a.state.NewestFullAssetInfo(*optAsset)
 		if err != nil {
 			return nil, err
 		}
 		env.SetThisFromFullAssetInfo(assetInfo)
 	default:
-		assetInfo, err := a.state.NewestAssetInfo(assetID)
+		optAsset := proto.NewOptionalAssetFromDigest(assetID)
+		assetInfo, err := a.state.NewestAssetInfo(*optAsset)
 		if err != nil {
 			return nil, err
 		}

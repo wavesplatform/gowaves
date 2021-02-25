@@ -46,7 +46,7 @@ type StateInfo interface {
 	EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
 	// AccountBalance retrieves balance of account in specific currency, asset is asset's ID.
 	// nil asset = Waves.
-	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)
+	AccountBalance(account proto.Recipient, asset proto.OptionalAsset) (uint64, error)
 	// WavesAddressesNumber returns total number of Waves addresses in state.
 	// It is extremely slow, so it is recommended to only use for testing purposes.
 	WavesAddressesNumber() (uint64, error)

@@ -126,10 +126,10 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	assert.NoError(t, err, "ValidateNextTx failed with valid tx")
 
 	// Check NewestBalance() results after applying `validTx` from above.
-	recipientBalance, err := manager.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), nil)
+	recipientBalance, err := manager.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), proto.NewOptionalAssetWaves())
 	assert.NoError(t, err, "manager.NewestAccountBalance() failed")
 	assert.Equal(t, validTx.Amount, recipientBalance)
-	senderBalance, err := manager.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	senderBalance, err := manager.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), proto.NewOptionalAssetWaves())
 	assert.NoError(t, err, "manager.NewestAccountBalance() failed")
 	assert.Equal(t, uint64(0), senderBalance)
 }

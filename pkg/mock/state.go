@@ -1339,7 +1339,7 @@ func (mr *MockStateMockRecorder) EffectiveBalance(account, startHeight, endHeigh
 }
 
 // AccountBalance mocks base method
-func (m *MockState) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (m *MockState) AccountBalance(account proto.Recipient, asset proto.OptionalAsset) (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AccountBalance", account, asset)
 	ret0, _ := ret[0].(uint64)

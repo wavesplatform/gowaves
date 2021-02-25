@@ -31,7 +31,11 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 			}
 		} else {
 			// Asset.
-			balance, err := s.state.AccountBalance(rcp, asset)
+			optAsset, err := proto.NewOptionalAssetFromBytes(asset)
+			if err != nil {
+				return err
+			}
+			balance, err := s.state.AccountBalance(rcp, *optAsset)
 			if err != nil {
 				return status.Errorf(codes.NotFound, err.Error())
 			}

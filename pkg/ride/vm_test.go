@@ -174,11 +174,11 @@ func TestFunctions(t *testing.T) {
 					}
 					return nil, errors.New("not found")
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					if len(asset) == 0 {
+				NewestAccountBalanceFunc: func(account proto.Recipient, asset proto.OptionalAsset) (uint64, error) {
+					if len(asset.ToID()) == 0 {
 						return 5, nil
 					} else {
-						if bytes.Equal(asset, d.Bytes()) {
+						if bytes.Equal(asset.ToID(), d.Bytes()) {
 							return 5, nil
 						}
 						return 0, nil

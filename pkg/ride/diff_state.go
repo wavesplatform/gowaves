@@ -64,17 +64,14 @@ func (diffSt *diffState) addBalanceTo(searchAddress string, amount int64) {
 	diffSt.balances[searchAddress] = oldDiffBalance
 }
 
-func (diffSt *diffState) reissueNewAsset(assetID crypto.Digest, quantity int64, reissuable bool) {
-	asset := proto.NewOptionalAssetFromDigest(assetID)
+func (diffSt *diffState) reissueNewAsset(asset proto.OptionalAsset, quantity int64, reissuable bool) {
 	assetInfo := diffSt.newAssetsInfo[asset.String()]
 	assetInfo.reissuable = reissuable
 	assetInfo.quantity += quantity
 	diffSt.newAssetsInfo[asset.String()] = assetInfo
 }
 
-func (diffSt *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
-	asset := proto.NewOptionalAssetFromDigest(assetID)
-
+func (diffSt *diffState) burnNewAsset(asset proto.OptionalAsset, quantity int64) {
 	assetInfo := diffSt.newAssetsInfo[asset.String()]
 	assetInfo.quantity -= quantity
 	diffSt.newAssetsInfo[asset.String()] = assetInfo
@@ -172,7 +169,7 @@ func (diffSt *diffState) changeLeaseOut(searchBalance *diffBalance, searchAddres
 	return nil
 }
 
-func (diffSt *diffState) ChangeBalance(searchBalance *diffBalance, searchAddress string, amount int64, assetID crypto.Digest, account proto.Recipient) error {
+func (diffSt *diffState) ChangeBalance(searchBalance *diffBalance, searchAddress string, amount int64, asset proto.OptionalAsset, account proto.Recipient) error {
 	if searchBalance != nil {
 		diffSt.addBalanceTo(searchAddress, amount)
 		return nil
@@ -184,7 +181,6 @@ func (diffSt *diffState) ChangeBalance(searchBalance *diffBalance, searchAddress
 	}
 
 	var balance diffBalance
-	asset := *proto.NewOptionalAssetFromDigest(assetID)
 	balance.asset = asset
 	balance.regular = amount
 
@@ -262,24 +258,21 @@ func (diffSt *diffState) FindBalance(recipient proto.Recipient, asset proto.Opti
 	return nil, "", nil
 }
 
-func (diffSt *diffState) findSponsorship(assetID crypto.Digest) *int64 {
-	asset := proto.NewOptionalAssetFromDigest(assetID)
+func (diffSt *diffState) findSponsorship(asset proto.OptionalAsset) *int64 {
 	if sponsorship, ok := diffSt.sponsorships[asset.String()]; ok {
 		return &sponsorship.MinFee
 	}
 	return nil
 }
 
-func (diffSt *diffState) findNewAsset(assetID crypto.Digest) *diffNewAssetInfo {
-	asset := proto.NewOptionalAssetFromDigest(assetID)
+func (diffSt *diffState) findNewAsset(asset proto.OptionalAsset) *diffNewAssetInfo {
 	if newAsset, ok := diffSt.newAssetsInfo[asset.String()]; ok {
 		return &newAsset
 	}
 	return nil
 }
 
-func (diffSt *diffState) findOldAsset(assetID crypto.Digest) *diffOldAssetInfo {
-	asset := proto.NewOptionalAssetFromDigest(assetID)
+func (diffSt *diffState) findOldAsset(asset proto.OptionalAsset) *diffOldAssetInfo {
 	if oldAsset, ok := diffSt.oldAssetsInfo[asset.String()]; ok {
 		return &oldAsset
 	}
