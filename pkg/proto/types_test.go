@@ -2,6 +2,7 @@ package proto
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -1105,6 +1106,31 @@ func TestProofsV1UnmarshalJSON(t *testing.T) {
 			assert.ElementsMatch(t, tc.expected, p.Proofs)
 		}
 	}
+}
+
+func TestProofsV1_Valid(t *testing.T) {
+	smallProof := make([]byte, 32)
+	normProof := make([]byte, 64)
+	bigProof := make([]byte, 65)
+	_, err := rand.Read(smallProof)
+	require.NoError(t, err)
+	_, err = rand.Read(normProof)
+	require.NoError(t, err)
+	_, err = rand.Read(bigProof)
+	require.NoError(t, err)
+	p1 := NewProofs()
+	p1.Proofs = append(p1.Proofs, smallProof)
+	p1.Proofs = append(p1.Proofs, normProof)
+	p1.Proofs = append(p1.Proofs, bigProof)
+	err = p1.Valid()
+	assert.Error(t, err)
+
+	p2 := NewProofs()
+	for i := 0; i < 9; i++ {
+		p2.Proofs = append(p2.Proofs, smallProof)
+	}
+	err = p2.Valid()
+	assert.Error(t, err)
 }
 
 func TestIntegerArgumentBinarySize(t *testing.T) {
