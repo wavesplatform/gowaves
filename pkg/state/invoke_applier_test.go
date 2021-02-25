@@ -188,7 +188,7 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 	// Check newest result state here.
 	for aa, correct := range id.correctBalances {
 		asset, err := proto.NewOptionalAssetFromBytes(aa.asset())
-		assert.Error(t, err)
+		assert.NoError(t, err)
 		balance, err := to.state.NewestAccountBalance(aa.rcp, *asset)
 		assert.NoError(t, err)
 		assert.Equal(t, int(correct), int(balance))
@@ -217,7 +217,7 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 	// Check state after flushing.
 	for aa, correct := range id.correctBalances {
 		asset, err := proto.NewOptionalAssetFromBytes(aa.asset())
-		assert.Error(t, err)
+		assert.NoError(t, err)
 		balance, err := to.state.AccountBalance(aa.rcp, *asset)
 		assert.NoError(t, err)
 		assert.Equal(t, int(correct), int(balance))
