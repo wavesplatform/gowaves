@@ -1544,6 +1544,9 @@ func (p *ProofsV1) UnmarshalJSON(value []byte) error {
 	}
 	p.Version = proofsVersion
 	p.Proofs = tmp
+	if err := p.Valid(); err != nil {
+		return errors.Wrap(err, "failed to unmarshal ProofsV1 from JSON")
+	}
 	return nil
 }
 
@@ -1665,6 +1668,21 @@ func (p *ProofsV1) BinarySize() int {
 		}
 	}
 	return proofsMinLen + pl
+}
+
+func (p *ProofsV1) Valid() error {
+	if p.Version != proofsVersion {
+		return errors.Errorf("invalid proofs version %d", p.Version)
+	}
+	if c := len(p.Proofs); c > proofsMaxCount {
+		return errors.Errorf("invalid proofs count %d", c)
+	}
+	for i, proof := range p.Proofs {
+		if s := len(proof); s > proofMaxSize {
+			return errors.Errorf("proof #%d has invalid size %d", i, s)
+		}
+	}
+	return nil
 }
 
 // ValueType is an alias for byte that encodes the value type.
