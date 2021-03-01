@@ -469,6 +469,11 @@ func functionsV5() map[string]string {
 	m["1092"] = "simplifiedLease"
 	m["1093"] = "fullLease"
 	m["LeaseCancel"] = "leaseCancel"
+	m["303"] = "takeStringV5"
+	m["304"] = "dropStringV5"
+	m["305"] = "sizeStringV5"
+	m["takeRight"] = "takeRightStringV5"
+	m["dropRight"] = "dropRightStringV5"
 	return m
 }
 

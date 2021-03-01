@@ -3,6 +3,7 @@ package ride
 import (
 	"strconv"
 	"strings"
+	"unicode/utf16"
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
@@ -120,12 +121,28 @@ func takeString(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return takeRideString(s, n), nil
 }
 
+func takeStringV5(_ RideEnvironment, args ...rideType) (rideType, error) {
+	s, n, err := stringAndIntArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "takeString")
+	}
+	return takeRideStringV5(s, n), nil
+}
+
 func dropString(_ RideEnvironment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropString")
 	}
 	return dropRideString(s, n), nil
+}
+
+func dropStringV5(_ RideEnvironment, args ...rideType) (rideType, error) {
+	s, n, err := stringAndIntArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "dropString")
+	}
+	return dropRideStringV5(s, n), nil
 }
 
 func sizeString(_ RideEnvironment, args ...rideType) (rideType, error) {
@@ -184,7 +201,15 @@ func dropRightString(_ RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "dropRightString")
 	}
-	return takeRideString(s, utf8.RuneCountInString(s)-n), nil
+	return takeRideString(s, proto.UTF16Size(s)-n), nil
+}
+
+func dropRightStringV5(_ RideEnvironment, args ...rideType) (rideType, error) {
+	s, n, err := stringAndIntArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "dropRightString")
+	}
+	return takeRideStringV5(s, utf8.RuneCountInString(s)-n), nil
 }
 
 func takeRightString(_ RideEnvironment, args ...rideType) (rideType, error) {
@@ -192,7 +217,15 @@ func takeRightString(_ RideEnvironment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "takeRightString")
 	}
-	return dropRideString(s, utf8.RuneCountInString(s)-n), nil
+	return dropRideString(s, proto.UTF16Size(s)-n), nil
+}
+
+func takeRightStringV5(_ RideEnvironment, args ...rideType) (rideType, error) {
+	s, n, err := stringAndIntArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "takeRightString")
+	}
+	return dropRideStringV5(s, utf8.RuneCountInString(s)-n), nil
 }
 
 func splitString(_ RideEnvironment, args ...rideType) (rideType, error) {
@@ -309,6 +342,12 @@ func runesIndex(s, sub string) int {
 }
 
 func runesDrop(s string, n int) string {
+	cps := utf16.Encode([]rune(s))
+	out := utf16.Decode(cps[n:])
+	return string(out)
+}
+
+func runesDropV5(s string, n int) string {
 	runes := []rune(s)
 	out := make([]rune, len(runes)-n)
 	copy(out, runes[n:])
@@ -317,13 +356,19 @@ func runesDrop(s string, n int) string {
 }
 
 func runesTake(s string, n int) string {
+	cps := utf16.Encode([]rune(s))
+	out := utf16.Decode(cps[:n])
+	return string(out)
+}
+
+func runesTakeV5(s string, n int) string {
 	out := make([]rune, n)
 	copy(out, []rune(s)[:n])
 	return string(out)
 }
 
 func takeRideString(s string, n int) rideString {
-	l := utf8.RuneCountInString(s)
+	l := proto.UTF16Size(s)
 	t := n
 	if t > l {
 		t = l
@@ -334,8 +379,20 @@ func takeRideString(s string, n int) rideString {
 	return rideString(runesTake(s, t))
 }
 
-func dropRideString(s string, n int) rideString {
+func takeRideStringV5(s string, n int) rideString {
 	l := utf8.RuneCountInString(s)
+	t := n
+	if t > l {
+		t = l
+	}
+	if t < 0 {
+		t = 0
+	}
+	return rideString(runesTakeV5(s, t))
+}
+
+func dropRideString(s string, n int) rideString {
+	l := proto.UTF16Size(s)
 	d := n
 	if d > l {
 		d = l
@@ -346,3 +403,14 @@ func dropRideString(s string, n int) rideString {
 	return rideString(runesDrop(s, d))
 }
 
+func dropRideStringV5(s string, n int) rideString {
+	l := utf8.RuneCountInString(s)
+	d := n
+	if d > l {
+		d = l
+	}
+	if d < 0 {
+		d = 0
+	}
+	return rideString(runesDropV5(s, d))
+}

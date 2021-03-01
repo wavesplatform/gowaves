@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"testing"
+	"unicode/utf16"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,6 +49,7 @@ func TestTakeString(t *testing.T) {
 		{[]rideType{rideString("abc"), rideInt(-4)}, false, rideString("")},
 		{[]rideType{rideString(""), rideInt(0)}, false, rideString("")},
 		{[]rideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString(utf16.Decode([]uint16{0x0078, 0xd87e}))},
 		{[]rideType{rideString("abc")}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
@@ -55,6 +57,35 @@ func TestTakeString(t *testing.T) {
 		{[]rideType{}, true, nil},
 	} {
 		r, err := takeString(nil, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestTakeStringV5(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("abc"), rideInt(2)}, false, rideString("ab")},
+		{[]rideType{rideString("abc"), rideInt(4)}, false, rideString("abc")},
+		{[]rideType{rideString("abc"), rideInt(0)}, false, rideString("")},
+		{[]rideType{rideString("abc"), rideInt(-4)}, false, rideString("")},
+		{[]rideType{rideString(""), rideInt(0)}, false, rideString("")},
+		{[]rideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x冬")},
+		{[]rideType{rideString("abc")}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
+	} {
+		r, err := takeStringV5(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -76,6 +107,7 @@ func TestDropString(t *testing.T) {
 		{[]rideType{rideString("abc"), rideInt(-4)}, false, rideString("abc")},
 		{[]rideType{rideString(""), rideInt(0)}, false, rideString("")},
 		{[]rideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString(utf16.Decode([]uint16{0xdc1a, 0x0078}))},
 		{[]rideType{rideString("abc")}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
@@ -83,6 +115,35 @@ func TestDropString(t *testing.T) {
 		{[]rideType{}, true, nil},
 	} {
 		r, err := dropString(nil, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestDropStringV5(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("abcde"), rideInt(2)}, false, rideString("cde")},
+		{[]rideType{rideString("abcde"), rideInt(4)}, false, rideString("e")},
+		{[]rideType{rideString("abc"), rideInt(0)}, false, rideString("abc")},
+		{[]rideType{rideString("abc"), rideInt(-4)}, false, rideString("abc")},
+		{[]rideType{rideString(""), rideInt(0)}, false, rideString("")},
+		{[]rideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x")},
+		{[]rideType{rideString("abc")}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
+	} {
+		r, err := dropStringV5(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -136,7 +197,7 @@ func TestSizeStringV5(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := sizeString(nil, test.args...)
+		r, err := sizeStringV5(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -238,6 +299,7 @@ func TestDropRightString(t *testing.T) {
 		{[]rideType{rideString("abc"), rideInt(-4)}, false, rideString("abc")},
 		{[]rideType{rideString(""), rideInt(0)}, false, rideString("")},
 		{[]rideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString(utf16.Decode([]uint16{0x0078, 0xd87e}))},
 		{[]rideType{rideString("abc")}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
@@ -245,6 +307,36 @@ func TestDropRightString(t *testing.T) {
 		{[]rideType{}, true, nil},
 	} {
 		r, err := dropRightString(nil, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestDropRightStringV5(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("abcde"), rideInt(2)}, false, rideString("abc")},
+		{[]rideType{rideString("abcde"), rideInt(4)}, false, rideString("a")},
+		{[]rideType{rideString("abcde"), rideInt(6)}, false, rideString("")},
+		{[]rideType{rideString("abc"), rideInt(0)}, false, rideString("abc")},
+		{[]rideType{rideString("abc"), rideInt(-4)}, false, rideString("abc")},
+		{[]rideType{rideString(""), rideInt(0)}, false, rideString("")},
+		{[]rideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x")},
+		{[]rideType{rideString("abc")}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
+	} {
+		r, err := dropRightStringV5(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -267,6 +359,7 @@ func TestTakeRightString(t *testing.T) {
 		{[]rideType{rideString("abc"), rideInt(-4)}, false, rideString("")},
 		{[]rideType{rideString(""), rideInt(0)}, false, rideString("")},
 		{[]rideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString(utf16.Decode([]uint16{0xdc1a, 0x0078}))},
 		{[]rideType{rideString("abc")}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
@@ -274,6 +367,36 @@ func TestTakeRightString(t *testing.T) {
 		{[]rideType{}, true, nil},
 	} {
 		r, err := takeRightString(nil, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestTakeRightStringV5(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("abcde"), rideInt(2)}, false, rideString("de")},
+		{[]rideType{rideString("abcde"), rideInt(4)}, false, rideString("bcde")},
+		{[]rideType{rideString("abcde"), rideInt(6)}, false, rideString("abcde")},
+		{[]rideType{rideString("abc"), rideInt(0)}, false, rideString("")},
+		{[]rideType{rideString("abc"), rideInt(-4)}, false, rideString("")},
+		{[]rideType{rideString(""), rideInt(0)}, false, rideString("")},
+		{[]rideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("冬x")},
+		{[]rideType{rideString("abc")}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
+	} {
+		r, err := takeRightStringV5(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
