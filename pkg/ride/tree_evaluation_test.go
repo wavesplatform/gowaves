@@ -33,7 +33,7 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 	for _, test := range []struct {
 		comment string
 		source  string
-		env     RideEnvironment
+		env     Environment
 		res     bool
 	}{
 		{`V1: true`, "AQa3b8tH", nil, true},
@@ -183,7 +183,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		name   string
 		text   string
 		script string
-		env    RideEnvironment
+		env    Environment
 		result bool
 		error  bool
 	}{
@@ -452,7 +452,7 @@ func TestDataFunctions(t *testing.T) {
 	}
 }
 
-func testInvokeEnv(verifier bool) (RideEnvironment, *proto.InvokeScriptWithProofs) {
+func testInvokeEnv(verifier bool) (Environment, *proto.InvokeScriptWithProofs) {
 	tx := byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
 	txo, err := transactionToObject(proto.MainNetScheme, tx)
 	if err != nil {

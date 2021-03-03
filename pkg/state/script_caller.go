@@ -126,7 +126,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	return nil
 }
 
-func (a *scriptCaller) callAssetScriptCommon(env *ride.Environment, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool, acceptFailed bool) (ride.RideResult, error) {
+func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool, acceptFailed bool) (ride.RideResult, error) {
 	tree, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
 	if err != nil {
 		return nil, err

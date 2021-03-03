@@ -2,6 +2,7 @@ package ride
 
 import (
 	"bytes"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -329,10 +330,10 @@ func (a rideList) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
-type rideFunction func(env RideEnvironment, args ...rideType) (rideType, error)
+type rideFunction func(env Environment, args ...rideType) (rideType, error)
 
-//go:generate moq -out runtime_moq_test.go . RideEnvironment:MockRideEnvironment
-type RideEnvironment interface {
+//go:generate moq -out runtime_moq_test.go . Environment:MockRideEnvironment
+type Environment interface {
 	scheme() byte
 	height() rideInt
 	transaction() rideObject
@@ -345,7 +346,6 @@ type RideEnvironment interface {
 	checkMessageLength(int) bool
 	invocation() rideObject // Invocation object made of invoke transaction
 	SetInvocation(inv rideObject)
-	ChooseSizeCheck(v int)
 }
 
-type rideConstructor func(RideEnvironment) rideType
+type rideConstructor func(Environment) rideType

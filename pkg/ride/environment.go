@@ -18,7 +18,7 @@ type WrappedState struct {
 	act         []proto.ScriptAction
 }
 
-func newWrappedState(env *Environment) *WrappedState {
+func newWrappedState(env *EvaluationEnvironment) *WrappedState {
 	dataEntries := diffDataEntries{
 		diffInteger: map[string]proto.IntegerDataEntry{},
 		diffBool:    map[string]proto.BooleanDataEntry{},
@@ -46,7 +46,7 @@ func (ws *WrappedState) callee() proto.Address {
 	return proto.Address(ws.cle)
 }
 
-func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env RideEnvironment) error {
+func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env Environment) error {
 	modifiedActions, err := ws.ApplyToState(actions, env)
 	if err != nil {
 		return err
@@ -353,7 +353,7 @@ func (ws *WrappedState) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Sc
 	return ws.diff.state.NewestScriptByAsset(asset)
 }
 
-func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env RideEnvironment) (bool, error) {
+func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env Environment) (bool, error) {
 	if !asset.Present {
 		return true, nil
 	}
@@ -440,7 +440,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 	return r.Result(), nil
 }
 
-func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.Address, env RideEnvironment) error {
+func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.Address, env Environment) error {
 	*otherActionsCount++
 
 	assetResult, err := ws.validateAsset(res, res.Asset, env)
@@ -530,7 +530,7 @@ func (ws *WrappedState) validateIssueAction(otherActionsCount *int, res *proto.I
 	return nil
 }
 
-func (ws *WrappedState) validateReissueAction(otherActionsCount *int, res *proto.ReissueScriptAction, env RideEnvironment) error {
+func (ws *WrappedState) validateReissueAction(otherActionsCount *int, res *proto.ReissueScriptAction, env Environment) error {
 	*otherActionsCount++
 
 	asset := proto.NewOptionalAssetFromDigest(res.AssetID)
@@ -561,7 +561,7 @@ func (ws *WrappedState) validateReissueAction(otherActionsCount *int, res *proto
 	return nil
 }
 
-func (ws *WrappedState) validateBurnAction(otherActionsCount *int, res *proto.BurnScriptAction, env RideEnvironment) error {
+func (ws *WrappedState) validateBurnAction(otherActionsCount *int, res *proto.BurnScriptAction, env Environment) error {
 	*otherActionsCount++
 
 	asset := proto.NewOptionalAssetFromDigest(res.AssetID)
@@ -661,7 +661,7 @@ func (ws *WrappedState) incrementInvCount() {
 	ws.invokeCount++
 }
 
-func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env RideEnvironment) ([]proto.ScriptAction, error) {
+func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environment) ([]proto.ScriptAction, error) {
 	dataEntriesCount := 0
 	dataEntriesSize := 0
 	otherActionsCount := 0
@@ -987,7 +987,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env RideEnvir
 	return actions, nil
 }
 
-type Environment struct {
+type EvaluationEnvironment struct {
 	sch   proto.Scheme
 	st    types.SmartState
 	h     rideInt
@@ -1000,13 +1000,13 @@ type Environment struct {
 	inv   rideObject
 }
 
-func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, error) {
+func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*EvaluationEnvironment, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return nil, err
 	}
 
-	return &Environment{
+	return &EvaluationEnvironment{
 		sch:   scheme,
 		st:    state,
 		h:     rideInt(height),
@@ -1014,7 +1014,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*Environment, 
 	}, nil
 }
 
-func NewEnvironmentWithWrappedState(env *Environment, payments proto.ScriptPayments, callerPK crypto.PublicKey) (*Environment, error) {
+func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, callerPK crypto.PublicKey) (*EvaluationEnvironment, error) {
 	caller, err := proto.NewAddressFromPublicKey(env.sch, callerPK)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
@@ -1053,7 +1053,7 @@ func NewEnvironmentWithWrappedState(env *Environment, payments proto.ScriptPayme
 		}
 	}
 
-	return &Environment{
+	return &EvaluationEnvironment{
 		sch:   env.sch,
 		st:    st,
 		h:     env.h,
@@ -1066,7 +1066,7 @@ func NewEnvironmentWithWrappedState(env *Environment, payments proto.ScriptPayme
 	}, nil
 }
 
-func (e *Environment) ChooseSizeCheck(v int) {
+func (e *EvaluationEnvironment) ChooseSizeCheck(v int) {
 	if v > 2 {
 		e.check = func(l int) bool {
 			return l <= maxMessageLength
@@ -1074,32 +1074,32 @@ func (e *Environment) ChooseSizeCheck(v int) {
 	}
 }
 
-func (e *Environment) SetThisFromFullAssetInfo(info *proto.FullAssetInfo) {
+func (e *EvaluationEnvironment) SetThisFromFullAssetInfo(info *proto.FullAssetInfo) {
 	e.th = fullAssetInfoToObject(info)
 }
 
-func (e *Environment) SetTimestamp(timestamp uint64) {
+func (e *EvaluationEnvironment) SetTimestamp(timestamp uint64) {
 	e.time = timestamp
 }
 
-func (e *Environment) SetThisFromAssetInfo(info *proto.AssetInfo) {
+func (e *EvaluationEnvironment) SetThisFromAssetInfo(info *proto.AssetInfo) {
 	e.th = assetInfoToObject(info)
 }
 
-func (e *Environment) SetThisFromAddress(addr proto.Address) {
+func (e *EvaluationEnvironment) SetThisFromAddress(addr proto.Address) {
 	e.th = rideAddress(addr)
 }
 
-func (e *Environment) SetLastBlock(info *proto.BlockInfo) {
+func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) {
 	e.b = blockInfoToObject(info)
 }
 
-func (e *Environment) SetTransactionFromScriptTransfer(transfer *proto.FullScriptTransfer) {
+func (e *EvaluationEnvironment) SetTransactionFromScriptTransfer(transfer *proto.FullScriptTransfer) {
 	e.id = rideBytes(transfer.ID.Bytes())
 	e.tx = scriptTransferToObject(transfer)
 }
 
-func (e *Environment) SetTransactionWithoutProofs(tx proto.Transaction) error {
+func (e *EvaluationEnvironment) SetTransactionWithoutProofs(tx proto.Transaction) error {
 	err := e.SetTransaction(tx)
 	if err != nil {
 		return err
@@ -1108,7 +1108,7 @@ func (e *Environment) SetTransactionWithoutProofs(tx proto.Transaction) error {
 	return nil
 }
 
-func (e *Environment) SetTransactionFromScriptAction(action proto.ScriptAction, pk crypto.PublicKey, id crypto.Digest, ts uint64) error {
+func (e *EvaluationEnvironment) SetTransactionFromScriptAction(action proto.ScriptAction, pk crypto.PublicKey, id crypto.Digest, ts uint64) error {
 	obj, err := scriptActionToObject(e.sch, action, pk, id, ts)
 	if err != nil {
 		return err
@@ -1117,7 +1117,7 @@ func (e *Environment) SetTransactionFromScriptAction(action proto.ScriptAction, 
 	return nil
 }
 
-func (e *Environment) SetTransaction(tx proto.Transaction) error {
+func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 	id, err := tx.GetID(e.sch)
 	if err != nil {
 		return err
@@ -1131,7 +1131,7 @@ func (e *Environment) SetTransaction(tx proto.Transaction) error {
 	return nil
 }
 
-func (e *Environment) SetTransactionFromOrder(order proto.Order) error {
+func (e *EvaluationEnvironment) SetTransactionFromOrder(order proto.Order) error {
 	obj, err := orderToObject(e.sch, order)
 	if err != nil {
 		return err
@@ -1140,7 +1140,7 @@ func (e *Environment) SetTransactionFromOrder(order proto.Order) error {
 	return nil
 }
 
-func (e *Environment) SetInvoke(tx *proto.InvokeScriptWithProofs, v int) error {
+func (e *EvaluationEnvironment) SetInvoke(tx *proto.InvokeScriptWithProofs, v int) error {
 	obj, err := invocationToObject(v, e.sch, tx)
 	if err != nil {
 		return err
@@ -1149,54 +1149,54 @@ func (e *Environment) SetInvoke(tx *proto.InvokeScriptWithProofs, v int) error {
 	return nil
 }
 
-func (e *Environment) timestamp() uint64 {
+func (e *EvaluationEnvironment) timestamp() uint64 {
 	return e.time
 }
 
-func (e *Environment) scheme() byte {
+func (e *EvaluationEnvironment) scheme() byte {
 	return e.sch
 }
 
-func (e *Environment) height() rideInt {
+func (e *EvaluationEnvironment) height() rideInt {
 	return e.h
 }
 
-func (e *Environment) transaction() rideObject {
+func (e *EvaluationEnvironment) transaction() rideObject {
 	return e.tx
 }
 
-func (e *Environment) this() rideType {
+func (e *EvaluationEnvironment) this() rideType {
 	return e.th
 }
 
-func (e *Environment) block() rideObject {
+func (e *EvaluationEnvironment) block() rideObject {
 	return e.b
 }
 
-func (e *Environment) txID() rideType {
+func (e *EvaluationEnvironment) txID() rideType {
 	return e.id
 }
 
-func (e *Environment) state() types.SmartState {
+func (e *EvaluationEnvironment) state() types.SmartState {
 	return e.st
 }
 
-func (e *Environment) setNewDAppAddress(address proto.Address) {
+func (e *EvaluationEnvironment) setNewDAppAddress(address proto.Address) {
 	ws, _ := e.st.(*WrappedState)
 	ws.cle = rideAddress(address)
 
 	e.SetThisFromAddress(address)
 }
 
-func (e *Environment) checkMessageLength(l int) bool {
+func (e *EvaluationEnvironment) checkMessageLength(l int) bool {
 	return e.check(l)
 }
 
-func (e *Environment) invocation() rideObject {
+func (e *EvaluationEnvironment) invocation() rideObject {
 	return e.inv
 }
 
-func (e *Environment) SetInvocation(inv rideObject) {
+func (e *EvaluationEnvironment) SetInvocation(inv rideObject) {
 	e.inv = inv
 }
 

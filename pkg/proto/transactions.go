@@ -189,7 +189,7 @@ type Transaction interface {
 	Validate() (Transaction, error)
 
 	// Set transaction ID.
-	// For most transacions ID is hash of transaction body.
+	// For most transactions ID is hash of transaction body.
 	// For Payment transactions ID is Signature.
 	GenerateID(scheme Scheme) error
 	// Sign transaction with given secret key.
@@ -449,7 +449,7 @@ func (tx *Genesis) GenerateID(scheme Scheme) error {
 	return tx.generateID(scheme)
 }
 
-func (tx *Genesis) Sign(scheme Scheme, sk crypto.SecretKey) error {
+func (tx *Genesis) Sign(scheme Scheme, _ crypto.SecretKey) error {
 	if err := tx.generateID(scheme); err != nil {
 		return err
 	}
@@ -701,7 +701,7 @@ func (tx Payment) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx *Payment) GenerateID(scheme Scheme) error {
+func (tx *Payment) GenerateID(_ Scheme) error {
 	if tx.ID == nil {
 		tx.ID = tx.Signature
 	}

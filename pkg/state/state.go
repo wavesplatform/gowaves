@@ -468,14 +468,6 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
-func (s *stateManager) ValidateInvokeResult(actions []proto.ScriptAction, dappRecipient proto.Recipient) error {
-	return nil
-}
-
-func (s *stateManager) ApplyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
-	return nil, nil
-}
-
 func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
 	if recipient.Address != nil {
 		key := accountScriptKey{*recipient.Address}
