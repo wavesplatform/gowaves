@@ -173,7 +173,34 @@ func indexOfSubstring(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideInt(i), nil
 }
 
+func indexOfSubstringV5(_ RideEnvironment, args ...rideType) (rideType, error) {
+	s1, s2, err := twoStringsArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "indexOfSubstringV5")
+	}
+	i := runesIndexV5(s1, s2)
+	if i == -1 {
+		return rideUnit{}, nil
+	}
+	return rideInt(i), nil
+}
+
 func indexOfSubstringWithOffset(_ RideEnvironment, args ...rideType) (rideType, error) {
+	s1, s2, n, err := twoStringsAndIntArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "lastIndexOfSubstringWithOffset")
+	}
+	if n < 0 || n > proto.UTF16Size(s1) {
+		return rideUnit{}, nil
+	}
+	i := runesIndex(runesDrop(s1, n), s2)
+	if i == -1 {
+		return rideUnit{}, nil
+	}
+	return rideInt(i + n), nil
+}
+
+func indexOfSubstringWithOffsetV5(_ RideEnvironment, args ...rideType) (rideType, error) {
 	s1, s2, n, err := twoStringsAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "lastIndexOfSubstringWithOffset")
@@ -181,7 +208,7 @@ func indexOfSubstringWithOffset(_ RideEnvironment, args ...rideType) (rideType, 
 	if n < 0 || n > utf8.RuneCountInString(s1) {
 		return rideUnit{}, nil
 	}
-	i := runesIndex(runesDrop(s1, n), s2)
+	i := runesIndexV5(runesDropV5(s1, n), s2)
 	if i == -1 {
 		return rideUnit{}, nil
 	}
@@ -269,7 +296,19 @@ func lastIndexOfSubstring(_ RideEnvironment, args ...rideType) (rideType, error)
 	if i == -1 {
 		return rideUnit{}, nil
 	}
-	return rideInt(i), nil
+	return rideInt(proto.UTF16Size(s1[:i])), nil
+}
+
+func lastIndexOfSubstringV5(_ RideEnvironment, args ...rideType) (rideType, error) {
+	s1, s2, err := twoStringsArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "lastIndexOfSubstring")
+	}
+	i := strings.LastIndex(s1, s2)
+	if i == -1 {
+		return rideUnit{}, nil
+	}
+	return rideInt(utf8.RuneCountInString(s1[:i])), nil
 }
 
 func lastIndexOfSubstringWithOffset(_ RideEnvironment, args ...rideType) (rideType, error) {
@@ -287,7 +326,25 @@ func lastIndexOfSubstringWithOffset(_ RideEnvironment, args ...rideType) (rideTy
 	if i == -1 {
 		return rideUnit{}, nil
 	}
-	return rideInt(i), nil
+	return rideInt(proto.UTF16Size(s1[:i])), nil
+}
+
+func lastIndexOfSubstringWithOffsetV5(_ RideEnvironment, args ...rideType) (rideType, error) {
+	s1, s2, n, err := twoStringsAndIntArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "lastIndexOfSubstringWithOffset")
+	}
+	if n < 0 {
+		return rideUnit{}, nil
+	}
+	i := strings.LastIndex(s1, s2)
+	for i > n {
+		i = strings.LastIndex(s1[:i], s2)
+	}
+	if i == -1 {
+		return rideUnit{}, nil
+	}
+	return rideInt(utf8.RuneCountInString(s1[:i])), nil
 }
 
 func makeString(_ RideEnvironment, args ...rideType) (rideType, error) {
@@ -335,6 +392,13 @@ func contains(_ RideEnvironment, args ...rideType) (rideType, error) {
 }
 
 func runesIndex(s, sub string) int {
+	if i := strings.Index(s, sub); i >= 0 {
+		return proto.UTF16Size(s[:i])
+	}
+	return -1
+}
+
+func runesIndexV5(s, sub string) int {
 	if i := strings.Index(s, sub); i >= 0 {
 		return utf8.RuneCountInString(s[:i])
 	}

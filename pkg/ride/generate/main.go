@@ -472,6 +472,8 @@ func functionsV5() map[string]string {
 	m["303"] = "takeStringV5"
 	m["304"] = "dropStringV5"
 	m["305"] = "sizeStringV5"
+	m["1203"] = "indexOfSubstringV5"
+	m["1204"] = "indexOfSubstringWithOffsetV5"
 	m["takeRight"] = "takeRightStringV5"
 	m["dropRight"] = "dropRightStringV5"
 	return m

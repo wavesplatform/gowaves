@@ -215,6 +215,10 @@ func TestIndexOfSubstring(t *testing.T) {
 	}{
 		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown")}, false, rideInt(6)},
 		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("cafe")}, false, rideUnit{}},
+		{[]rideType{rideString("世界x冬x"), rideString("冬x")}, false, rideInt(3)},
+		{[]rideType{takeRideString("世界x冬x", 4), takeRideString("冬", 1)}, false, rideInt(3)},
+		{[]rideType{rideString("x冬xqweqwe"), rideString("we")}, false, rideInt(5)},
+		{[]rideType{rideString("x冬xqweqwe"), rideString("x冬xqw")}, false, rideInt(0)},
 		{[]rideType{rideString("")}, true, nil},
 		{[]rideType{rideString(""), rideInt(3)}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
@@ -223,6 +227,35 @@ func TestIndexOfSubstring(t *testing.T) {
 		{[]rideType{}, true, nil},
 	} {
 		r, err := indexOfSubstring(nil, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestIndexOfSubstringV5(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown")}, false, rideInt(6)},
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("cafe")}, false, rideUnit{}},
+		{[]rideType{rideString("世界x冬x"), rideString("冬x")}, false, rideInt(3)},
+		{[]rideType{takeRideStringV5("世界x冬x", 4), takeRideStringV5("冬", 1)}, false, rideInt(3)},
+		{[]rideType{rideString("x冬xqweqwe"), rideString("we")}, false, rideInt(4)},
+		{[]rideType{rideString("x冬xqweqwe"), rideString("x冬xqw")}, false, rideInt(0)},
+		{[]rideType{rideString("")}, true, nil},
+		{[]rideType{rideString(""), rideInt(3)}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
+	} {
+		r, err := indexOfSubstringV5(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -242,6 +275,8 @@ func TestIndexOfSubstringWithOffset(t *testing.T) {
 		{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(10)}, false, rideInt(25)},
 		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown"), rideInt(10)}, false, rideUnit{}},
 		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("fox"), rideInt(1000)}, false, rideUnit{}},
+		{[]rideType{rideString("世界x冬x世界x冬x"), rideString("冬x"), rideInt(4)}, false, rideInt(9)},
+		{[]rideType{takeRideString("x冬x冬x", 5), takeRideString("冬", 1), rideInt(2)}, false, rideInt(2)},
 		{[]rideType{rideString("")}, true, nil},
 		{[]rideType{rideString(""), rideInt(3)}, true, nil},
 		{[]rideType{rideString(""), rideString(""), rideInt(3), rideInt(0)}, true, nil},
@@ -251,6 +286,36 @@ func TestIndexOfSubstringWithOffset(t *testing.T) {
 		{[]rideType{}, true, nil},
 	} {
 		r, err := indexOfSubstringWithOffset(nil, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestIndexOfSubstringWithOffsetV5(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown"), rideInt(0)}, false, rideInt(6)},
+		{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(10)}, false, rideInt(25)},
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown"), rideInt(10)}, false, rideUnit{}},
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("fox"), rideInt(1000)}, false, rideUnit{}},
+		{[]rideType{rideString("世界x冬x世界x冬x"), rideString("冬x"), rideInt(4)}, false, rideInt(8)},
+		{[]rideType{takeRideStringV5("x冬x冬x", 4), takeRideStringV5("冬", 1), rideInt(2)}, false, rideInt(3)},
+		{[]rideType{rideString("")}, true, nil},
+		{[]rideType{rideString(""), rideInt(3)}, true, nil},
+		{[]rideType{rideString(""), rideString(""), rideInt(3), rideInt(0)}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
+	} {
+		r, err := indexOfSubstringWithOffsetV5(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -501,6 +566,8 @@ func TestLastIndexOfSubstring(t *testing.T) {
 	}{
 		{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe")}, false, rideInt(25)},
 		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("cafe")}, false, rideUnit{}},
+		{[]rideType{rideString("世界x冬x世界x冬x"), rideString("冬x")}, false, rideInt(9)},
+		{[]rideType{takeRideString("x冬x冬x", 5), takeRideString("冬", 1)}, false, rideInt(4)},
 		{[]rideType{rideString("")}, true, nil},
 		{[]rideType{rideString(""), rideInt(3)}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
@@ -518,7 +585,75 @@ func TestLastIndexOfSubstring(t *testing.T) {
 	}
 }
 
+func TestLastIndexOfSubstringV5(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe")}, false, rideInt(25)},
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("cafe")}, false, rideUnit{}},
+		{[]rideType{rideString("世界x冬x世界x冬x"), rideString("冬x")}, false, rideInt(8)},
+		{[]rideType{takeRideStringV5("x冬x冬x", 4), takeRideStringV5("冬", 1)}, false, rideInt(3)},
+		{[]rideType{rideString("")}, true, nil},
+		{[]rideType{rideString(""), rideInt(3)}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
+	} {
+		r, err := lastIndexOfSubstringV5(nil, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
 func TestLastIndexOfSubstringWithOffset(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		//{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(30)}, false, rideInt(25)},
+		//{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(25)}, false, rideInt(25)},
+		//{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(10)}, false, rideInt(5)},
+		//{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(5)}, false, rideInt(5)},
+		//{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(4)}, false, rideUnit{}},
+		//{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(0)}, false, rideUnit{}},
+		//{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(-2)}, false, rideUnit{}},
+		//{[]rideType{rideString("aaa"), rideString("a"), rideInt(0)}, false, rideInt(0)},
+		//{[]rideType{rideString("aaa"), rideString("b"), rideInt(0)}, false, rideUnit{}},
+		//{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("dead"), rideInt(11)}, false, rideInt(10)},
+		//{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("dead"), rideInt(10)}, false, rideInt(10)},
+		//{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("dead"), rideInt(9)}, false, rideUnit{}},
+		//{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown"), rideInt(12)}, false, rideInt(6)},
+		//{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("fox"), rideInt(14)}, false, rideInt(12)},
+		//{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("fox"), rideInt(13)}, false, rideInt(12)},
+		{[]rideType{rideString("世界x冬x世界x冬x"), rideString("冬x"), rideInt(0)}, false, rideInt(8)},
+		{[]rideType{takeRideString("x冬x冬x", 4), takeRideString("冬", 1), rideInt(0)}, false, rideInt(3)},
+		//{[]rideType{rideString("")}, true, nil},
+		//{[]rideType{rideString(""), rideInt(3)}, true, nil},
+		//{[]rideType{rideString(""), rideString(""), rideInt(3), rideInt(0)}, true, nil},
+		//{[]rideType{rideUnit{}}, true, nil},
+		//{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		//{[]rideType{rideInt(1)}, true, nil},
+		//{[]rideType{}, true, nil},
+	} {
+		r, err := lastIndexOfSubstringWithOffset(nil, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestLastIndexOfSubstringWithOffsetV5(t *testing.T) {
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -539,6 +674,8 @@ func TestLastIndexOfSubstringWithOffset(t *testing.T) {
 		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown"), rideInt(12)}, false, rideInt(6)},
 		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("fox"), rideInt(14)}, false, rideInt(12)},
 		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("fox"), rideInt(13)}, false, rideInt(12)},
+		{[]rideType{rideString("世界x冬x世界x冬x"), rideString("冬x"), rideInt(0)}, false, rideInt(8)},
+		{[]rideType{takeRideStringV5("x冬x冬x", 4), takeRideStringV5("冬", 1), rideInt(0)}, false, rideInt(3)},
 		{[]rideType{rideString("")}, true, nil},
 		{[]rideType{rideString(""), rideInt(3)}, true, nil},
 		{[]rideType{rideString(""), rideString(""), rideInt(3), rideInt(0)}, true, nil},
@@ -547,7 +684,7 @@ func TestLastIndexOfSubstringWithOffset(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := lastIndexOfSubstringWithOffset(nil, test.args...)
+		r, err := lastIndexOfSubstringWithOffsetV5(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
