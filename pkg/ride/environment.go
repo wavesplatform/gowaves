@@ -100,7 +100,7 @@ func (ws *WrappedState) NewestAccountBalance(account proto.Recipient, assetID []
 		}
 	}
 
-	balanceDiff, _, err := ws.diff.FindBalance(account, *asset)
+	balanceDiff, _, err := ws.diff.findBalance(account, *asset)
 	if err != nil {
 		return 0, err
 	}
@@ -117,7 +117,7 @@ func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.
 	if err != nil {
 		return nil, err
 	}
-	wavesBalanceDiff, searchAddress, err := ws.diff.FindBalance(account, proto.NewOptionalAssetWaves())
+	wavesBalanceDiff, searchAddress, err := ws.diff.findBalance(account, proto.NewOptionalAssetWaves())
 	if err != nil {
 		return nil, err
 	}
@@ -780,22 +780,22 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env RideEnvir
 				return nil, errors.Wrapf(err, "failed to pass validation of transfer action or attached payments")
 			}
 
-			searchBalance, searchAddr, err := ws.diff.FindBalance(res.Recipient, res.Asset)
+			searchBalance, searchAddr, err := ws.diff.findBalance(res.Recipient, res.Asset)
 			if err != nil {
 				return nil, err
 			}
-			err = ws.diff.ChangeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
 			if err != nil {
 				return nil, err
 			}
 
 			senderRecipient := proto.NewRecipientFromAddress(senderAddress)
-			senderSearchBalance, senderSearchAddr, err := ws.diff.FindBalance(senderRecipient, res.Asset)
+			senderSearchBalance, senderSearchAddr, err := ws.diff.findBalance(senderRecipient, res.Asset)
 			if err != nil {
 				return nil, err
 			}
 
-			err = ws.diff.ChangeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecipient)
+			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecipient)
 			if err != nil {
 				return nil, err
 			}
@@ -843,11 +843,11 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env RideEnvir
 
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
 			asset := proto.NewOptionalAssetFromDigest(res.ID)
-			searchBalance, searchAddr, err := ws.diff.FindBalance(senderRcp, *asset)
+			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, *asset)
 			if err != nil {
 				return nil, err
 			}
-			err = ws.diff.ChangeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
 			if err != nil {
 				return nil, err
 			}
@@ -920,7 +920,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env RideEnvir
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
 
-			recipientSearchBalance, recipientSearchAddress, err := ws.diff.FindBalance(res.Recipient, proto.NewOptionalAssetWaves())
+			recipientSearchBalance, recipientSearchAddress, err := ws.diff.findBalance(res.Recipient, proto.NewOptionalAssetWaves())
 			if err != nil {
 				return nil, err
 			}
@@ -930,7 +930,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env RideEnvir
 			}
 
 			senderAccount := proto.NewRecipientFromAddress(senderAddress)
-			senderSearchBalance, senderSearchAddr, err := ws.diff.FindBalance(senderAccount, proto.NewOptionalAssetWaves())
+			senderSearchBalance, senderSearchAddr, err := ws.diff.findBalance(senderAccount, proto.NewOptionalAssetWaves())
 			if err != nil {
 				return nil, err
 			}
@@ -963,7 +963,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env RideEnvir
 				return nil, errors.Errorf("there is no lease to cancel")
 			}
 
-			recipientBalance, recipientSearchAddress, err := ws.diff.FindBalance(searchLease.Recipient, proto.NewOptionalAssetWaves())
+			recipientBalance, recipientSearchAddress, err := ws.diff.findBalance(searchLease.Recipient, proto.NewOptionalAssetWaves())
 			if err != nil {
 				return nil, err
 			}
@@ -971,7 +971,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env RideEnvir
 				_, recipientSearchAddress = ws.diff.createNewWavesBalance(searchLease.Recipient)
 			}
 
-			senderBalance, senderSearchAddress, err := ws.diff.FindBalance(searchLease.Sender, proto.NewOptionalAssetWaves())
+			senderBalance, senderSearchAddress, err := ws.diff.findBalance(searchLease.Sender, proto.NewOptionalAssetWaves())
 			if err != nil {
 				return nil, err
 			}
@@ -1032,22 +1032,22 @@ func NewEnvironmentWithWrappedState(env *Environment, payments proto.ScriptPayme
 			return nil, errors.New("not enough money for tx attached payments")
 		}
 
-		searchBalance, searchAddr, err := st.diff.FindBalance(recipient, payment.Asset)
+		searchBalance, searchAddr, err := st.diff.findBalance(recipient, payment.Asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
-		err = st.diff.ChangeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
+		err = st.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
 
 		callerRcp := proto.NewRecipientFromAddress(caller)
-		senderSearchBalance, senderSearchAddr, err := st.diff.FindBalance(callerRcp, payment.Asset)
+		senderSearchBalance, senderSearchAddr, err := st.diff.findBalance(callerRcp, payment.Asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
 
-		err = st.diff.ChangeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
+		err = st.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}

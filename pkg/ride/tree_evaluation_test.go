@@ -1039,22 +1039,22 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 			return errors.New("not enough money for tx attached payments")
 		}
 
-		searchBalance, searchAddr, err := wrappedSt.diff.FindBalance(recipient, payment.Asset)
+		searchBalance, searchAddr, err := wrappedSt.diff.findBalance(recipient, payment.Asset)
 		if err != nil {
 			return err
 		}
-		err = wrappedSt.diff.ChangeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
+		err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
 		if err != nil {
 			return err
 		}
 
 		callerRcp := proto.NewRecipientFromAddress(caller)
-		senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.FindBalance(callerRcp, payment.Asset)
+		senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(callerRcp, payment.Asset)
 		if err != nil {
 			return err
 		}
 
-		err = wrappedSt.diff.ChangeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
+		err = wrappedSt.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
 		if err != nil {
 			return err
 		}
@@ -1065,11 +1065,11 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 func AddWavesToSender(senderAddress proto.Address, amount int64, asset proto.OptionalAsset) error {
 	senderRecipient := proto.NewRecipientFromAddress(senderAddress)
 
-	searchBalance, searchAddr, err := wrappedSt.diff.FindBalance(senderRecipient, asset)
+	searchBalance, searchAddr, err := wrappedSt.diff.findBalance(senderRecipient, asset)
 	if err != nil {
 		return err
 	}
-	err = wrappedSt.diff.ChangeBalance(searchBalance, searchAddr, amount, asset.ID, senderRecipient)
+	err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, amount, asset.ID, senderRecipient)
 	if err != nil {
 		return err
 	}
