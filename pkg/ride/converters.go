@@ -979,7 +979,7 @@ func balanceDetailsToObject(fwb *proto.FullWavesBalance) rideObject {
 	return r
 }
 
-func objectToActions(env RideEnvironment, obj rideType) ([]proto.ScriptAction, error) {
+func objectToActions(env Environment, obj rideType) ([]proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "WriteSet":
 		data, err := obj.get("data")
@@ -1057,7 +1057,7 @@ func getKeyProperty(v rideType) (string, error) {
 	return string(key), nil
 }
 
-func convertToAction(env RideEnvironment, obj rideType) (proto.ScriptAction, error) {
+func convertToAction(env Environment, obj rideType) (proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "Burn":
 		id, err := digestProperty(obj, "assetId")
