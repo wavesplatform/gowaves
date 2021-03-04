@@ -956,7 +956,7 @@ func scriptTransferToObject(tr *proto.FullScriptTransfer) rideObject {
 	r["version"] = rideUnit{}
 	r["id"] = rideBytes(tr.ID.Bytes())
 	r["sender"] = rideAddress(tr.Sender)
-	r["senderPublicKey"] = rideUnit{}
+	r["senderPublicKey"] = rideBytes(common.Dup(tr.SenderPK.Bytes()))
 	r["recipient"] = rideRecipient(tr.Recipient)
 	r["assetId"] = optionalAsset(tr.Asset)
 	r["amount"] = rideInt(tr.Amount)
@@ -1211,15 +1211,20 @@ func convertToAction(env Environment, obj rideType) (proto.ScriptAction, error) 
 			return nil, errors.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
 		}
 		asset, err := optionalAssetProperty(obj, "asset")
-		invalidAsset := false
+		// On asset ID conversion error we return empty action as in Scala
+		// See example on MainNet: transaction (https://wavesexplorer.com/tx/AUpiEr49Jo43Q9zXKkNN23rstiq87hguvhfQqV8ov9uQ)
+		// and script (https://wavesexplorer.com/tx/Bp1oieWHWpLz8vBFZui9tY1oDTAKUPTrBAGcwfRe9q5K)
 		if err != nil {
-			invalidAsset = true
+			return &proto.TransferScriptAction{
+				Recipient: recipient,
+				Amount:    0,
+				Asset:     proto.OptionalAsset{Present: false},
+			}, nil
 		}
 		return &proto.TransferScriptAction{
-			Recipient:    recipient,
-			Amount:       int64(amount),
-			Asset:        asset,
-			InvalidAsset: invalidAsset,
+			Recipient: recipient,
+			Amount:    int64(amount),
+			Asset:     asset,
 		}, nil
 	case "SponsorFee":
 		id, err := digestProperty(obj, "assetId")

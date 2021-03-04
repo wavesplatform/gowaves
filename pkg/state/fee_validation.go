@@ -103,12 +103,18 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		}
 		scheme := params.settings.AddressSchemeCharacter
 		var dtxBytes []byte
-		if smartAccountsActive {
+		switch {
+		case proto.IsProtobufTx(tx):
+			dtxBytes, err = dtx.ProtoPayload(scheme)
+			if err != nil {
+				return 0, err
+			}
+		case smartAccountsActive:
 			dtxBytes, err = proto.MarshalTxBody(scheme, dtx)
 			if err != nil {
 				return 0, err
 			}
-		} else {
+		default:
 			dtxBytes, err = proto.MarshalTx(scheme, dtx)
 			if err != nil {
 				return 0, err
