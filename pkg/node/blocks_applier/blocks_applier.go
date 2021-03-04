@@ -29,7 +29,7 @@ func (a *innerBlocksApplier) apply(storage innerState, blocks []*proto.Block) (*
 	// check first block if exists
 	_, err := storage.Block(firstBlock.BlockID())
 	if err == nil {
-		return nil, 0, errors.Errorf("first block %s exists", firstBlock.BlockID().String())
+		return nil, 0, proto.NewInfoMsg(errors.Errorf("first block %s exists", firstBlock.BlockID().String()))
 	}
 	if !state.IsNotFound(err) {
 		return nil, 0, errors.Wrap(err, "unknown error")
@@ -47,8 +47,8 @@ func (a *innerBlocksApplier) apply(storage innerState, blocks []*proto.Block) (*
 	// try to find parent. If not - we can't add blocks, skip it
 	parentHeight, err := storage.BlockIDToHeight(firstBlock.Parent)
 	if err != nil {
-		return nil, 0, errors.Wrapf(err, "BlocksApplier: failed get parent height, firstBlock id %s, for firstBlock %s",
-			firstBlock.Parent.String(), firstBlock.BlockID().String())
+		return nil, 0, proto.NewInfoMsg(errors.Wrapf(err, "BlocksApplier: failed get parent height, firstBlock id %s, for firstBlock %s",
+			firstBlock.Parent.String(), firstBlock.BlockID().String()))
 	}
 	// calculate score of all passed blocks
 	forkScore, err := calcMultipleScore(blocks)
