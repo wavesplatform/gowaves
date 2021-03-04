@@ -457,9 +457,6 @@ func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *prot
 	if res.Amount < 0 {
 		return errors.New("negative transfer amount")
 	}
-	if res.InvalidAsset {
-		return errors.New("invalid asset")
-	}
 	if restrictions.DisableSelfTransfers {
 		senderAddress := restrictions.ScriptAddress
 		if res.SenderPK() != nil {

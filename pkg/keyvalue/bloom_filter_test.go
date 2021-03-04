@@ -18,7 +18,7 @@ const (
 )
 
 func TestBloomFilter(t *testing.T) {
-	filter, err := newBloomFilter(BloomFilterParams{n, falsePositiveProbability, nil})
+	filter, err := newBloomFilter(BloomFilterParams{n, falsePositiveProbability, nil, false})
 	assert.NoError(t, err, "newBloomFilter() failed")
 	for i := 0; i < n; i++ {
 		data := make([]byte, 100)

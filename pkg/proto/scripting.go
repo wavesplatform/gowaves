@@ -34,11 +34,10 @@ func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
 
 // TransferScriptAction is an action to emit transfer of asset.
 type TransferScriptAction struct {
-	Sender       *crypto.PublicKey
-	Recipient    Recipient
-	Amount       int64
-	Asset        OptionalAsset
-	InvalidAsset bool
+	Sender    *crypto.PublicKey
+	Recipient Recipient
+	Amount    int64
+	Asset     OptionalAsset
 }
 
 func (a TransferScriptAction) scriptAction() {}
@@ -462,9 +461,6 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			}
 			if ta.Amount < 0 {
 				return errors.New("negative transfer amount")
-			}
-			if ta.InvalidAsset {
-				return errors.New("invalid asset")
 			}
 			if restrictions.DisableSelfTransfers {
 				senderAddress := restrictions.ScriptAddress
