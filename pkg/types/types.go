@@ -54,11 +54,11 @@ type SmartState interface {
 	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
 	NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
 	NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
+	NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error)
 	//
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 
-	ApplyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error)
 	EstimatorVersion() (int, error)
 	IsNotFound(err error) bool
 }

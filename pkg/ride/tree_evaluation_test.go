@@ -26,9 +26,6 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 		stateFunc: func() types.SmartState {
 			return state
 		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 		schemeFunc: func() byte {
 			return 'T'
 		},
@@ -36,7 +33,7 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 	for _, test := range []struct {
 		comment string
 		source  string
-		env     RideEnvironment
+		env     Environment
 		res     bool
 	}{
 		{`V1: true`, "AQa3b8tH", nil, true},
@@ -102,9 +99,6 @@ func TestFunctionsEvaluation(t *testing.T) {
 	data := newDataTransaction()
 	require.NoError(t, err)
 	env := &MockRideEnvironment{
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 		checkMessageLengthFunc: v3check,
 		schemeFunc: func() byte {
 			return 'W'
@@ -189,7 +183,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		name   string
 		text   string
 		script string
-		env    RideEnvironment
+		env    Environment
 		result bool
 		error  bool
 	}{
@@ -423,9 +417,6 @@ func TestDataFunctions(t *testing.T) {
 		transactionFunc: func() rideObject {
 			return txObj
 		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 		heightFunc: func() rideInt {
 			return rideInt(100500)
 		},
@@ -461,7 +452,7 @@ func TestDataFunctions(t *testing.T) {
 	}
 }
 
-func testInvokeEnv(verifier bool) (RideEnvironment, *proto.InvokeScriptWithProofs) {
+func testInvokeEnv(verifier bool) (Environment, *proto.InvokeScriptWithProofs) {
 	tx := byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
 	txo, err := transactionToObject(proto.MainNetScheme, tx)
 	if err != nil {
@@ -478,9 +469,6 @@ func testInvokeEnv(verifier bool) (RideEnvironment, *proto.InvokeScriptWithProof
 				return obj
 			}
 			return txo
-		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
 		},
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
@@ -806,7 +794,7 @@ func TestScriptResult(t *testing.T) {
 	)
 }
 
-func initWrappedState(state types.SmartState, envThis rideAddress) *wrappedState {
+func initWrappedState(state types.SmartState, env *MockRideEnvironment) *WrappedState {
 	var dataEntries diffDataEntries
 
 	dataEntries.diffInteger = map[string]proto.IntegerDataEntry{}
@@ -822,11 +810,11 @@ func initWrappedState(state types.SmartState, envThis rideAddress) *wrappedState
 	leases := map[string]lease{}
 
 	diffSt := &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo, leases: leases}
-	wrappedSt := wrappedState{diff: *diffSt, envThis: envThis}
-	return &wrappedSt
+
+	return &WrappedState{diff: *diffSt, cle: env.this().(rideAddress), scheme: env.scheme()}
 }
 
-var wrappedSt wrappedState
+var wrappedSt WrappedState
 var firstScript string
 var secondScript string
 var assetIDIssue crypto.Digest
@@ -837,258 +825,6 @@ var addressCallablePK crypto.PublicKey
 
 func smartStateDappFromDapp() types.SmartState {
 	return &MockSmartState{
-		ApplyToStateFunc: func(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
-
-			for _, action := range actions {
-				switch res := action.(type) {
-
-				case *proto.DataEntryScriptAction:
-
-					switch dataEntry := res.Entry.(type) {
-
-					case *proto.IntegerDataEntry:
-						intEntry := *dataEntry
-						address := proto.Address(wrappedSt.envThis)
-
-						wrappedSt.diff.dataEntries.diffInteger[dataEntry.Key+address.String()] = intEntry
-
-						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
-						if err != nil {
-							return nil, errors.Wrap(err, "failed to get public key by address")
-						}
-						res.Sender = &senderPK
-					case *proto.StringDataEntry:
-						stringEntry := *dataEntry
-						address := proto.Address(wrappedSt.envThis)
-
-						wrappedSt.diff.dataEntries.diffString[dataEntry.Key+address.String()] = stringEntry
-
-						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
-						if err != nil {
-							return nil, errors.Wrap(err, "failed to get public key by address")
-						}
-						res.Sender = &senderPK
-
-					case *proto.BooleanDataEntry:
-						boolEntry := *dataEntry
-						address := proto.Address(wrappedSt.envThis)
-
-						wrappedSt.diff.dataEntries.diffBool[dataEntry.Key+address.String()] = boolEntry
-
-						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
-						if err != nil {
-							return nil, errors.Wrap(err, "failed to get public key by address")
-						}
-						res.Sender = &senderPK
-
-					case *proto.BinaryDataEntry:
-						binaryEntry := *dataEntry
-						address := proto.Address(wrappedSt.envThis)
-
-						wrappedSt.diff.dataEntries.diffBinary[dataEntry.Key+address.String()] = binaryEntry
-
-						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
-						if err != nil {
-							return nil, errors.Wrap(err, "failed to get public key by address")
-						}
-						res.Sender = &senderPK
-
-					case *proto.DeleteDataEntry:
-						deleteEntry := *dataEntry
-						address := proto.Address(wrappedSt.envThis)
-
-						wrappedSt.diff.dataEntries.diffDDelete[dataEntry.Key+address.String()] = deleteEntry
-
-						senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(address, false)
-						if err != nil {
-							return nil, errors.Wrap(err, "failed to get public key by address")
-						}
-						res.Sender = &senderPK
-					default:
-
-					}
-
-				case *proto.TransferScriptAction:
-					var senderAddress proto.Address
-					var senderPK crypto.PublicKey
-					if res.Sender != nil {
-						senderPK = *res.Sender
-						if senderPK.String() == addrPK.String() {
-							senderAddress = addr
-						} else {
-							senderAddress = addressCallable
-						}
-
-					} else {
-						pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
-						if err != nil {
-							return nil, errors.Wrap(err, "failed to get public key by address")
-						}
-						senderPK = pk
-
-						senderAddress = proto.Address(wrappedSt.envThis)
-					}
-
-					searchBalance, searchAddr, err := wrappedSt.diff.findBalance(res.Recipient, res.Asset)
-					if err != nil {
-						return nil, err
-					}
-					err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
-					if err != nil {
-						return nil, err
-					}
-					senderRecipient := proto.NewRecipientFromAddress(senderAddress)
-					senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderRecipient, res.Asset)
-					if err != nil {
-						return nil, err
-					}
-
-					err = wrappedSt.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecipient)
-					if err != nil {
-						return nil, err
-					}
-
-					res.Sender = &senderPK
-
-				case *proto.SponsorshipScriptAction:
-					var sponsorship diffSponsorship
-					sponsorship.MinFee = res.MinFee
-
-					wrappedSt.diff.sponsorships[res.AssetID.String()] = sponsorship
-
-					senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
-					if err != nil {
-						return nil, errors.Wrap(err, "failed to get public key by address")
-					}
-					res.Sender = &senderPK
-
-				case *proto.IssueScriptAction:
-					var assetInfo diffNewAssetInfo
-					assetInfo.dAppIssuer = proto.Address(wrappedSt.envThis)
-					assetInfo.name = res.Name
-					assetInfo.description = res.Description
-					assetInfo.quantity = res.Quantity
-					assetInfo.decimals = res.Decimals
-					assetInfo.reissuable = res.Reissuable
-					assetInfo.script = res.Script
-					assetInfo.nonce = res.Nonce
-
-					assetIDIssue = res.ID
-
-					wrappedSt.diff.newAssetsInfo[res.ID.String()] = assetInfo
-
-					senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
-					if err != nil {
-						return nil, errors.Wrap(err, "failed to get public key by address")
-					}
-					res.Sender = &senderPK
-
-				case *proto.ReissueScriptAction:
-					searchNewAsset := wrappedSt.diff.findNewAsset(res.AssetID)
-					if searchNewAsset == nil {
-						var assetInfo diffOldAssetInfo
-
-						assetInfo.diffQuantity += res.Quantity
-
-						wrappedSt.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
-						break
-					}
-					wrappedSt.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
-
-					senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
-					if err != nil {
-						return nil, errors.Wrap(err, "failed to get public key by address")
-					}
-					res.Sender = &senderPK
-
-				case *proto.BurnScriptAction:
-					searchAsset := wrappedSt.diff.findNewAsset(res.AssetID)
-					if searchAsset == nil {
-						var assetInfo diffOldAssetInfo
-
-						assetInfo.diffQuantity += -res.Quantity
-
-						wrappedSt.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
-
-						break
-					}
-					wrappedSt.diff.burnNewAsset(res.AssetID, res.Quantity)
-
-					senderPK, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
-					if err != nil {
-						return nil, errors.Wrap(err, "failed to get public key by address")
-					}
-					res.Sender = &senderPK
-				case *proto.LeaseScriptAction:
-					senderAddress := proto.Address(wrappedSt.envThis)
-
-					recipientSearchBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(res.Recipient, proto.NewOptionalAssetWaves())
-					if err != nil {
-						return nil, err
-					}
-					err = wrappedSt.diff.changeLeaseIn(recipientSearchBalance, recipientSearchAddress, res.Amount, res.Recipient)
-					if err != nil {
-						return nil, err
-					}
-
-					senderAccount := proto.NewRecipientFromAddress(senderAddress)
-					senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(senderAccount, proto.NewOptionalAssetWaves())
-					if err != nil {
-						return nil, err
-					}
-
-					err = wrappedSt.diff.changeLeaseOut(senderSearchBalance, senderSearchAddr, res.Amount, senderAccount)
-					if err != nil {
-						return nil, err
-					}
-
-					pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(senderAddress, false)
-					if err != nil {
-						return nil, errors.Wrap(err, "failed to get public key by address")
-					}
-
-					wrappedSt.diff.addNewLease(res.Recipient, senderAccount, res.Amount, res.ID)
-
-					res.Sender = &pk
-				case *proto.LeaseCancelScriptAction:
-
-					searchLease, err := wrappedSt.diff.findLeaseByIDForCancel(res.LeaseID)
-					if err != nil {
-						return nil, errors.Errorf("failed to find lease by leaseID")
-					}
-					if searchLease == nil {
-						return nil, errors.Errorf("there is no lease to cancel")
-					}
-					recipientBalance, recipientSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Recipient, proto.NewOptionalAssetWaves())
-					if err != nil {
-						return nil, err
-					}
-					if recipientBalance == nil {
-						return nil, errors.Errorf("there is no balance to cancel lease")
-					}
-
-					senderBalance, senderSearchAddress, err := wrappedSt.diff.findBalance(searchLease.Sender, proto.NewOptionalAssetWaves())
-					if err != nil {
-						return nil, err
-					}
-					if senderBalance == nil {
-						return nil, errors.Errorf("there is no balance to cancel lease")
-					}
-
-					wrappedSt.diff.cancelLease(*searchLease, senderSearchAddress, recipientSearchAddress)
-
-					pk, err := wrappedSt.diff.state.NewestScriptPKByAddr(proto.Address(wrappedSt.envThis), false)
-					if err != nil {
-						return nil, errors.Wrap(err, "failed to get public key by address")
-					}
-
-					res.Sender = &pk
-				default:
-				}
-
-			}
-			return actions, nil
-		},
 		NewestLeasingInfoFunc: func(id crypto.Digest, filter bool) (*proto.LeaseInfo, error) {
 			return nil, nil
 		},
@@ -1105,6 +841,18 @@ func smartStateDappFromDapp() types.SmartState {
 				return proto.Script{}, err
 			}
 			return script, nil
+		},
+		NewestScriptByAssetFunc: func(asset proto.OptionalAsset) (proto.Script, error) {
+			if asset.ID.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
+				script := "BQQAAAALZEFwcEFkZHJlc3MJAAQmAAAAAQIAAAAjM1A4ZVpWS1M3YTR0cm9HY2t5dHhhZWZMQWk5dzdQNWFNbmEEAAAAByRtYXRjaDAFAAAAAnR4AwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAA9CdXJuVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABJSZWlzc3VlVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABlTZXRBc3NldFNjcmlwdFRyYW5zYWN0aW9uBAAAAAJ0eAUAAAAHJG1hdGNoMAkAAAAAAAACCAUAAAACdHgAAAAGc2VuZGVyBQAAAAtkQXBwQWRkcmVzcwMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNUcmFuc2ZlclRyYW5zYWN0aW9uBAAAAAJ0eAUAAAAHJG1hdGNoMAkAAAAAAAACCAUAAAACdHgAAAAGc2VuZGVyBQAAAAtkQXBwQWRkcmVzcwf56Ssf"
+
+				src, err := base64.StdEncoding.DecodeString(script)
+				if err != nil {
+					return nil, err
+				}
+				return src, nil
+			}
+			return nil, nil
 		},
 		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
 			return recipient.Address, nil
@@ -1135,57 +883,10 @@ func smartStateDappFromDapp() types.SmartState {
 		},
 		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
 			balance := 0
-
-			asset, err := proto.NewOptionalAssetFromBytes(assetID)
-			if err != nil {
-				return 0, err
-			}
-			balanceDiff, _, err := wrappedSt.diff.findBalance(account, *asset)
-			if err != nil {
-				return 0, err
-			}
-			if balanceDiff != nil {
-				resBalance := int64(balance) + balanceDiff.regular
-				return uint64(resBalance), nil
-
-			}
 			return uint64(balance), nil
 		},
 		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
-			balance := 0
 
-			wavesBalanceDiff, searchAddress, err := wrappedSt.diff.findBalance(account, proto.NewOptionalAssetWaves())
-			if err != nil {
-				return nil, err
-			}
-			if wavesBalanceDiff != nil {
-				resRegular := wavesBalanceDiff.regular + int64(balance)
-				resAvailable := (wavesBalanceDiff.regular - wavesBalanceDiff.leaseOut) + int64(balance)
-				resEffective := (wavesBalanceDiff.regular - wavesBalanceDiff.leaseOut + wavesBalanceDiff.leaseIn) + int64(balance)
-				resLeaseIn := wavesBalanceDiff.leaseIn + int64(balance)
-				resLeaseOut := wavesBalanceDiff.leaseOut + int64(balance)
-
-				err := wrappedSt.diff.addEffectiveToHistory(searchAddress, resEffective)
-				if err != nil {
-					return nil, err
-				}
-
-				resGenerating := wrappedSt.diff.findMinGenerating(wrappedSt.diff.balances[searchAddress].effectiveHistory, int64(balance))
-
-				return &proto.FullWavesBalance{
-					Regular:    uint64(resRegular),
-					Generating: uint64(resGenerating),
-					Available:  uint64(resAvailable),
-					Effective:  uint64(resEffective),
-					LeaseIn:    uint64(resLeaseIn),
-					LeaseOut:   uint64(resLeaseOut)}, nil
-
-			}
-			_, searchAddr := wrappedSt.diff.createNewWavesBalance(account)
-			err = wrappedSt.diff.addEffectiveToHistory(searchAddr, int64(balance))
-			if err != nil {
-				return nil, err
-			}
 			return &proto.FullWavesBalance{
 				Regular:    0,
 				Generating: 0,
@@ -1195,198 +896,96 @@ func smartStateDappFromDapp() types.SmartState {
 				LeaseOut:   0}, nil
 		},
 		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-			address, err := wrappedSt.diff.state.NewestRecipientToAddress(account)
-			if err != nil {
-				return nil, err
-			}
-
-			if deletedDataEntry := wrappedSt.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
-				return nil, nil
-			}
-
-			if intDataEntry := wrappedSt.diff.findIntFromDataEntryByKey(key, address.String()); intDataEntry != nil {
-				return intDataEntry, nil
-			}
-
 			return nil, nil
 		},
 		RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-			address, err := wrappedSt.diff.state.NewestRecipientToAddress(account)
-			if err != nil {
-				return nil, err
-			}
-
-			if deletedDataEntry := wrappedSt.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
-				return nil, nil
-			}
-
-			if boolDataEntry := wrappedSt.diff.findBoolFromDataEntryByKey(key, address.String()); boolDataEntry != nil {
-				return boolDataEntry, nil
-			}
 			return nil, nil
 		},
 		RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-			address, err := wrappedSt.diff.state.NewestRecipientToAddress(account)
-			if err != nil {
-				return nil, err
-			}
 
-			if deletedDataEntry := wrappedSt.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
-				return nil, nil
-			}
-
-			if stringDataEntry := wrappedSt.diff.findStringFromDataEntryByKey(key, address.String()); stringDataEntry != nil {
-				return stringDataEntry, nil
-			}
 			return nil, nil
 		},
 		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-			address, err := wrappedSt.diff.state.NewestRecipientToAddress(account)
-			if err != nil {
-				return nil, err
-			}
 
-			if deletedDataEntry := wrappedSt.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
-				return nil, nil
-			}
-
-			if binaryDataEntry := wrappedSt.diff.findBinaryFromDataEntryByKey(key, address.String()); binaryDataEntry != nil {
-				return binaryDataEntry, nil
-			}
 			return nil, nil
 		},
 		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
-			if cost := wrappedSt.diff.findSponsorship(assetID); cost != nil {
-				if *cost == 0 {
-					return false, nil
-				}
-				return true, nil
-			}
 			return false, nil
 		},
 		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-			searchNewAsset := wrappedSt.diff.findNewAsset(assetID)
+			if assetID.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
 
-			if searchNewAsset == nil {
-				assetFromStore := proto.AssetInfo{}
-
-				if oldAssetFromDiff := wrappedSt.diff.findOldAsset(assetID); oldAssetFromDiff != nil {
-					quantity := int64(assetFromStore.Quantity) + oldAssetFromDiff.diffQuantity
-
-					assetFromStore.Quantity = uint64(quantity)
-					return &assetFromStore, nil
-				}
-
-				return &assetFromStore, nil
+				return &proto.AssetInfo{
+					ID:              assetID,
+					Quantity:        1000,
+					Decimals:        '8',
+					Issuer:          addressCallable,
+					IssuerPublicKey: addressCallablePK,
+					Reissuable:      true,
+					Scripted:        true,
+					Sponsored:       false,
+				}, nil
 			}
 
-			issuerPK := crypto.PublicKey{}
-
-			scripted := false
-			if searchNewAsset.script != nil {
-				scripted = true
-			}
-
-			return &proto.AssetInfo{
-				ID:              assetID,
-				Quantity:        uint64(searchNewAsset.quantity),
-				Decimals:        uint8(searchNewAsset.decimals),
-				Issuer:          searchNewAsset.dAppIssuer,
-				IssuerPublicKey: issuerPK,
-				Reissuable:      searchNewAsset.reissuable,
-				Scripted:        scripted,
-				Sponsored:       false,
-			}, nil
-
+			return nil, nil
 		},
 		NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
-			searchNewAsset := wrappedSt.diff.findNewAsset(assetID)
-
-			if searchNewAsset == nil {
-
-				assetFromStore := proto.FullAssetInfo{}
-
-				if oldAssetFromDiff := wrappedSt.diff.findOldAsset(assetID); oldAssetFromDiff != nil {
-					quantity := int64(assetFromStore.Quantity) + oldAssetFromDiff.diffQuantity
-
-					if quantity >= 0 {
-						assetFromStore.Quantity = uint64(quantity)
-						return &assetFromStore, nil
-					}
-
-					return nil, errors.Errorf("quantity of the asset is negative")
+			if assetID.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
+				assetInfo := proto.AssetInfo{
+					ID:              assetID,
+					Quantity:        1000,
+					Decimals:        '8',
+					Issuer:          addressCallable,
+					IssuerPublicKey: addressCallablePK,
+					Reissuable:      true,
+					Scripted:        true,
+					Sponsored:       false,
 				}
 
-				return &assetFromStore, nil
-			}
+				scriptB := "BQQAAAALZEFwcEFkZHJlc3MJAAQmAAAAAQIAAAAjM1A4ZVpWS1M3YTR0cm9HY2t5dHhhZWZMQWk5dzdQNWFNbmEEAAAAByRtYXRjaDAFAAAAAnR4AwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAA9CdXJuVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABJSZWlzc3VlVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABlTZXRBc3NldFNjcmlwdFRyYW5zYWN0aW9uBAAAAAJ0eAUAAAAHJG1hdGNoMAkAAAAAAAACCAUAAAACdHgAAAAGc2VuZGVyBQAAAAtkQXBwQWRkcmVzcwMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNUcmFuc2ZlclRyYW5zYWN0aW9uBAAAAAJ0eAUAAAAHJG1hdGNoMAkAAAAAAAACCAUAAAACdHgAAAAGc2VuZGVyBQAAAAtkQXBwQWRkcmVzcwf56Ssf"
 
-			issuerPK := crypto.PublicKey{}
+				src, err := base64.StdEncoding.DecodeString(scriptB)
+				if err != nil {
+					return nil, err
+				}
 
-			scripted := false
-			if searchNewAsset.script != nil {
-				scripted = true
-			}
+				scriptInfo := proto.ScriptInfo{
+					Version:    5,
+					Bytes:      src,
+					Base64:     "",
+					Complexity: 0,
+				}
 
-			assetInfo := proto.AssetInfo{
-				ID:              assetID,
-				Quantity:        uint64(searchNewAsset.quantity),
-				Decimals:        uint8(searchNewAsset.decimals),
-				Issuer:          searchNewAsset.dAppIssuer,
-				IssuerPublicKey: issuerPK,
-				Reissuable:      searchNewAsset.reissuable,
-				Scripted:        scripted,
-				Sponsored:       false,
+				return &proto.FullAssetInfo{
+					AssetInfo:       assetInfo,
+					Name:            "CatCoin",
+					Description:     "",
+					ScriptInfo:      scriptInfo,
+					SponsorshipCost: uint64(0),
+				}, nil
 			}
-			scriptInfo := proto.ScriptInfo{
-				Bytes: searchNewAsset.script,
-			}
-
-			sponsorshipCost := int64(0)
-			if sponsorship := wrappedSt.diff.findSponsorship(assetID); sponsorship != nil {
-				sponsorshipCost = *sponsorship
-			}
-
-			return &proto.FullAssetInfo{
-				AssetInfo:       assetInfo,
-				Name:            searchNewAsset.name,
-				Description:     searchNewAsset.description,
-				ScriptInfo:      scriptInfo,
-				SponsorshipCost: uint64(sponsorshipCost),
-			}, nil
+			return nil, nil
 		},
 	}
 }
 
-var envActions []proto.ScriptAction
-var invCount uint64
 var thisAddress proto.Address
 var tx *proto.InvokeScriptWithProofs
 var inv rideObject
 var id []byte
 
+func WrappedStateFunc() types.SmartState {
+	return &wrappedSt
+}
+
 var envDappFromDapp = &MockRideEnvironment{
-	actionsFunc: func() []proto.ScriptAction {
-		return envActions
-	},
-	appendActionsFunc: func(actions []proto.ScriptAction) {
-		envActions = append(envActions, actions...)
-	},
 	SetInvocationFunc: func(invocation rideObject) {
 		inv = invocation
-	},
-	smartAppendActionsFunc: func(actions []proto.ScriptAction) error {
-		modifiedActions, err := smartStateDappFromDapp().ApplyToState(actions)
-		if err != nil {
-			return nil
-		}
-		envActions = append(envActions, modifiedActions...)
-		return nil
 	},
 	schemeFunc: func() byte {
 		return proto.MainNetScheme
 	},
-	stateFunc: smartStateDappFromDapp,
-
+	stateFunc: WrappedStateFunc,
 	txIDFunc: func() rideType {
 		return rideBytes(id)
 	},
@@ -1394,15 +993,8 @@ var envDappFromDapp = &MockRideEnvironment{
 		return rideAddress(thisAddress)
 	},
 	setNewDAppAddressFunc: func(address proto.Address) {
-		wrappedSt.envThis = rideAddress(address)
 		thisAddress = address
-	},
-	applyToStateFunc: func(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
-		modifiedActions, err := smartStateDappFromDapp().ApplyToState(envActions)
-		if err != nil {
-			return nil, err
-		}
-		return modifiedActions, nil
+		wrappedSt.cle = rideAddress(address)
 	},
 	transactionFunc: func() rideObject {
 		obj, _ := transactionToObject(proto.MainNetScheme, tx)
@@ -1411,17 +1003,13 @@ var envDappFromDapp = &MockRideEnvironment{
 	invocationFunc: func() rideObject {
 		return inv
 	},
-	invCountFunc: func() uint64 {
-		return invCount
-	},
-	incrementInvCountFunc: func() {
-		invCount++
+	timestampFunc: func() uint64 {
+		return 1564703444249
 	},
 }
 
 func tearDownDappFromDapp() {
-
-	wrappedSt = wrappedState{}
+	wrappedSt = WrappedState{}
 	firstScript = ""
 	secondScript = ""
 	assetIDIssue = crypto.Digest{}
@@ -1430,11 +1018,63 @@ func tearDownDappFromDapp() {
 	addrPK = crypto.PublicKey{}
 	addressCallablePK = crypto.PublicKey{}
 
-	envActions = nil
-	invCount = 0
 	thisAddress = proto.Address{}
 	tx = nil
 	id = nil
+}
+
+func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.PublicKey) error {
+	caller, err := proto.NewAddressFromPublicKey(envDappFromDapp.scheme(), callerPK)
+	if err != nil {
+		return err
+	}
+	recipient := proto.NewRecipientFromAddress(wrappedSt.callee())
+
+	for _, payment := range externalPayments {
+		senderBalance, err := wrappedSt.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
+		if err != nil {
+			return err
+		}
+		if senderBalance < payment.Amount {
+			return errors.New("not enough money for tx attached payments")
+		}
+
+		searchBalance, searchAddr, err := wrappedSt.diff.findBalance(recipient, payment.Asset)
+		if err != nil {
+			return err
+		}
+		err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
+		if err != nil {
+			return err
+		}
+
+		callerRcp := proto.NewRecipientFromAddress(caller)
+		senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(callerRcp, payment.Asset)
+		if err != nil {
+			return err
+		}
+
+		err = wrappedSt.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func AddWavesToSender(senderAddress proto.Address, amount int64, asset proto.OptionalAsset) error {
+	senderRecipient := proto.NewRecipientFromAddress(senderAddress)
+
+	searchBalance, searchAddr, err := wrappedSt.diff.findBalance(senderRecipient, asset)
+	if err != nil {
+		return err
+	}
+	err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, amount, asset.ID, senderRecipient)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func TestInvokeDAppFromDAppAllActions(t *testing.T) {
@@ -1446,7 +1086,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	@Callable(i)
 	func test() = {
-		let res = Invoke(Address(base58'3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP'), "testActions",[], [AttachedPayment(base58'', 1234), AttachedPayment(base58'', 1234)])
+		let res = Invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "testActions",[], [AttachedPayment(base58'', 1234), AttachedPayment(base58'', 1234)])
 		if res == 17
 	        then
 	        [
@@ -1468,8 +1108,8 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		  let assetId = asset.calculateAssetId()
 
 		  ([
-		    ScriptTransfer(Address(base58'3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak'), 1, unit),
-	        Lease(Address(base58'3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak'), 10),
+		    ScriptTransfer(Address(base58'3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv'), 1, unit),
+	        Lease(Address(base58'3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv'), 10),
 		    BinaryEntry("bin", base58''),
 		    BooleanEntry("bool", true),
 		    IntegerEntry("int", 1),
@@ -1490,16 +1130,18 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
 	require.NoError(t, err)
-	addr, err = proto.NewAddressFromString("3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak")
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-
-	addressCallable, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
-	require.NoError(t, err)
-	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
-
 	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
 	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
 	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
 	require.NoError(t, err)
 
@@ -1520,16 +1162,18 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
-		Payments:        nil,
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             900000,
-		Timestamp:       1564703444249,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 10000,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       900000,
+		Timestamp: 1564703444249,
 	}
-
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
-	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEdGVzdAAAAAAEAAAAA3JlcwkAA/wAAAAECQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXI7OtElyTpMrsOf5PRtbNVk0t+xD7Y5h6AgAAAAt0ZXN0QWN0aW9ucwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACAQAAAAAAAAAAAAAABNIJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIBAAAAAAAAAAAAAAAE0gUAAAADbmlsAwkAAAAAAAACBQAAAANyZXMAAAAAAAAAABEJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2tleQAAAAAAAAAAAQUAAAADbmlsCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQAAAAA3aHKo"
-	secondScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAALdGVzdEFjdGlvbnMAAAAABAAAAAVhc3NldAkABEMAAAAHAgAAAAdDYXRDb2luAgAAAAAAAAAAAAAAAAEAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAABAAAAAdhc3NldElkCQAEOAAAAAEFAAAABWFzc2V0CQAFFAAAAAIJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwkBAAAAB0FkZHJlc3MAAAABAQAAABoBVPgJVAQGqm4a/ypjQ6DlUMBFhVnrCK89zQAAAAAAAAAAAQUAAAAEdW5pdAkABEwAAAACCQEAAAALQmluYXJ5RW50cnkAAAACAgAAAANiaW4BAAAAAAkABEwAAAACCQEAAAAMQm9vbGVhbkVudHJ5AAAAAgIAAAAEYm9vbAYJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2ludAAAAAAAAAAAAQkABEwAAAACCQAERAAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVT4CVQEBqpuGv8qY0Og5VDARYVZ6wivPc0AAAAAAAAAAAoJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAADc3RyAgAAAAAJAARMAAAAAgkBAAAAC0RlbGV0ZUVudHJ5AAAAAQIAAAADc3RyCQAETAAAAAIFAAAABWFzc2V0CQAETAAAAAIJAQAAAAdSZWlzc3VlAAAAAwUAAAAHYXNzZXRJZAAAAAAAAAAACgcJAARMAAAAAgkBAAAABEJ1cm4AAAACBQAAAAdhc3NldElkAAAAAAAAAAAFBQAAAANuaWwAAAAAAAAAABEAAAAAAOn+Sg=="
+	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEdGVzdAAAAAAEAAAAA3JlcwkAA/wAAAAECQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXSbIqC+dSm+dDCCL8KamODy9oLyPQygrLAgAAAAt0ZXN0QWN0aW9ucwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACAQAAAAAAAAAAAAAABNIJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIBAAAAAAAAAAAAAAAE0gUAAAADbmlsAwkAAAAAAAACBQAAAANyZXMAAAAAAAAAABEJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2tleQAAAAAAAAAAAQUAAAADbmlsCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQAAAABtSYQY"
+	secondScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAALdGVzdEFjdGlvbnMAAAAABAAAAAVhc3NldAkABEMAAAAHAgAAAAdDYXRDb2luAgAAAAAAAAAAAAAAAAEAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAABAAAAAdhc3NldElkCQAEOAAAAAEFAAAABWFzc2V0CQAFFAAAAAIJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwkBAAAAB0FkZHJlc3MAAAABAQAAABoBV5hs3CAFUz6eTef/H4C7v1yCbCqvykvRuQAAAAAAAAAAAQUAAAAEdW5pdAkABEwAAAACCQAERAAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVeYbNwgBVM+nk3n/x+Au79cgmwqr8pL0bkAAAAAAAAAAAoJAARMAAAAAgkBAAAAC0JpbmFyeUVudHJ5AAAAAgIAAAADYmluAQAAAAAJAARMAAAAAgkBAAAADEJvb2xlYW5FbnRyeQAAAAICAAAABGJvb2wGCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANpbnQAAAAAAAAAAAEJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAADc3RyAgAAAAAJAARMAAAAAgkBAAAAC0RlbGV0ZUVudHJ5AAAAAQIAAAADc3RyCQAETAAAAAIFAAAABWFzc2V0CQAETAAAAAIJAQAAAAdSZWlzc3VlAAAAAwUAAAAHYXNzZXRJZAAAAAAAAAAACgcJAARMAAAAAgkBAAAABEJ1cm4AAAACBQAAAAdhc3NldElkAAAAAAAAAAAFBQAAAANuaWwAAAAAAAAAABEAAAAAeF27eQ=="
 
 	id = bytes.Repeat([]byte{0}, 32)
 
@@ -1564,12 +1208,16 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	smartState := smartStateDappFromDapp
 
-	invCount = 0
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
+	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
+
+	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	pid, ok := env.txID().(rideBytes)
 	require.True(t, ok)
@@ -1578,11 +1226,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	expectedIssueWrites[0].ID = proto.GenerateIssueScriptActionID(expectedIssueWrites[0].Name, expectedIssueWrites[0].Description, int64(expectedIssueWrites[0].Decimals), expectedIssueWrites[0].Quantity, expectedIssueWrites[0].Reissuable, expectedIssueWrites[0].Nonce, d)
 	expectedReissueWrites[0].AssetID = expectedIssueWrites[0].ID
 	expectedBurnWrites[0].AssetID = expectedIssueWrites[0].ID
-
-	// start balance
-	bal := wrappedSt.diff.balances[addr.String()+proto.OptionalAsset{}.String()]
-	bal.regular = 2468
-	wrappedSt.diff.balances[addr.String()+proto.OptionalAsset{}.String()] = bal
+	assetIDIssue = expectedIssueWrites[0].ID
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
@@ -1618,14 +1262,14 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	fullBalanceExpected := &proto.FullWavesBalance{
-		Regular:    1,
+		Regular:    7533,
 		Generating: 0,
-		Available:  1,
-		Effective:  11,
+		Available:  7533,
+		Effective:  7543,
 		LeaseIn:    10,
 		LeaseOut:   0,
 	}
-	fullBalance, err := smartState().NewestFullWavesBalance(recipient)
+	fullBalance, err := wrappedSt.NewestFullWavesBalance(recipient)
 
 	require.NoError(t, err)
 	assert.Equal(t, fullBalance, fullBalanceExpected)
@@ -1638,16 +1282,23 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 		LeaseIn:    0,
 		LeaseOut:   10,
 	}
-	fullBalanceCallable, err := smartState().NewestFullWavesBalance(recipientCallable)
+	fullBalanceCallable, err := wrappedSt.NewestFullWavesBalance(recipientCallable)
 	require.NoError(t, err)
 	assert.Equal(t, fullBalanceCallable, fullBalanceCallableExpected)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
-	balance := diffBalance{regular: 1, leaseIn: 10, asset: assetExp, effectiveHistory: []int64{11}}
+	expectedDiffResult := initWrappedState(smartState(), env).diff
+	balance := diffBalance{regular: 7533, leaseIn: 10, asset: assetExp, effectiveHistory: []int64{7543}}
 	expectedDiffResult.balances[addr.String()+assetExp.String()] = balance
 
-	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, asset: assetExp, effectiveHistory: []int64{2457}}
+	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
+	expectedDiffResult.balances[senderAddress.String()+assetExp.String()] = balanceSender
+
+	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, asset: assetExp, effectiveHistory: []int64{2467, 2457}}
 	expectedDiffResult.balances[addressCallable.String()+assetExp.String()] = balanceCallable
+
+	assetFromIssue := *proto.NewOptionalAssetFromDigest(sr.Issues[0].ID)
+	balanceCallableAsset := diffBalance{regular: 1, leaseOut: 0, asset: assetFromIssue}
+	expectedDiffResult.balances[addressCallable.String()+assetFromIssue.String()] = balanceCallableAsset
 
 	intEntry1 := proto.IntegerDataEntry{Key: "int", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry1
@@ -1717,10 +1368,9 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
 	require.NoError(t, err)
-	addr, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-
 	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
 	require.NoError(t, err)
 
@@ -1759,13 +1409,10 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 
 	smartState := smartStateDappFromDapp
 
-	envActions = nil
-
-	invCount = 0
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
+	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
@@ -1797,7 +1444,7 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), env).diff
 
 	intEntry1 := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+addr.String()] = intEntry1
@@ -1817,15 +1464,15 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	 @Callable(i)
 	 func foo() = {
 	  let b1 = wavesBalance(this)
-	  let ob1 = wavesBalance(Address(base58'3Mt4Xf9aoGcdcMZNb8eJn41QK2qthTJQbCW'))
+	  let ob1 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
 	  if b1 == b1 && ob1 == ob1
 	  then
-	    let r = Invoke(Address(base58'3Mt4Xf9aoGcdcMZNb8eJn41QK2qthTJQbCW'), "bar", [this.bytes], [AttachedPayment(unit, 17)])
+	    let r = Invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar", [this.bytes], [AttachedPayment(unit, 17)])
 	    if r == 17
 	    then
-	     let data = getIntegerValue(Address(base58'3Mt4Xf9aoGcdcMZNb8eJn41QK2qthTJQbCW'), "bar")
+	     let data = getIntegerValue(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar")
 	     let b2 = wavesBalance(this)
-	     let ob2 = wavesBalance(Address(base58'3Mt4Xf9aoGcdcMZNb8eJn41QK2qthTJQbCW'))
+	     let ob2 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
 	     if data == 1
 	     then
 	      if ob1.regular+14 == ob2.regular && b1.regular == b2.regular+14
@@ -1864,22 +1511,23 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
 	require.NoError(t, err)
-	addr, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-
 	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
 	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
 	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
 	require.NoError(t, err)
 
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
-
-	addressCallable, err = proto.NewAddressFromString("3Mt4Xf9aoGcdcMZNb8eJn41QK2qthTJQbCW")
-	require.NoError(t, err)
-
-	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
 
 	call := proto.FunctionCall{
 		Default:   false,
@@ -1895,15 +1543,18 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
-		Payments:        nil,
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             900000,
-		Timestamp:       1564703444249,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 10000,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       900000,
+		Timestamp: 1564703444249,
 	}
 
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
-	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAACYjEJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IxCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVQteW/kI73AqAt068nsEPWCEr5LDuT5hssDAwkAAAAAAAACBQAAAAJiMQUAAAACYjEJAAAAAAAAAgUAAAADb2IxBQAAAANvYjEHBAAAAAFyCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVQteW/kI73AqAt068nsEPWCEr5LDuT5hssCAAAAA2JhcgkABEwAAAACCAUAAAAEdGhpcwAAAAVieXRlcwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAARBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIAAAAAAAAAABEEAAAABGRhdGEJAQAAABFAZXh0ck5hdGl2ZSgxMDUwKQAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVQteW/kI73AqAt068nsEPWCEr5LDuT5hssCAAAAA2JhcgQAAAACYjIJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IyCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVQteW/kI73AqAt068nsEPWCEr5LDuT5hssDCQAAAAAAAAIFAAAABGRhdGEAAAAAAAAAAAEDAwkAAAAAAAACCQAAZAAAAAIIBQAAAANvYjEAAAAHcmVndWxhcgAAAAAAAAAADggFAAAAA29iMgAAAAdyZWd1bGFyCQAAAAAAAAIIBQAAAAJiMQAAAAdyZWd1bGFyCQAAZAAAAAIIBQAAAAJiMgAAAAdyZWd1bGFyAAAAAAAAAAAOBwkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAAABBQAAAANuaWwJAAACAAAAAQIAAAAUQmFsYW5jZSBjaGVjayBmYWlsZWQJAAACAAAAAQIAAAAJQmFkIHN0YXRlCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQkAAAIAAAABAgAAAAlJbXBvc2libGUAAAAALVWK3g=="
+	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAACYjEJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IxCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssDAwkAAAAAAAACBQAAAAJiMQUAAAACYjEJAAAAAAAAAgUAAAADb2IxBQAAAANvYjEHBAAAAAFyCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2JhcgkABEwAAAACCAUAAAAEdGhpcwAAAAVieXRlcwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAARBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIAAAAAAAAAABEEAAAABGRhdGEJAQAAABFAZXh0ck5hdGl2ZSgxMDUwKQAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2JhcgQAAAACYjIJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IyCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssDCQAAAAAAAAIFAAAABGRhdGEAAAAAAAAAAAEDAwkAAAAAAAACCQAAZAAAAAIIBQAAAANvYjEAAAAHcmVndWxhcgAAAAAAAAAADggFAAAAA29iMgAAAAdyZWd1bGFyCQAAAAAAAAIIBQAAAAJiMQAAAAdyZWd1bGFyCQAAZAAAAAIIBQAAAAJiMgAAAAdyZWd1bGFyAAAAAAAAAAAOBwkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAAABBQAAAANuaWwJAAACAAAAAQIAAAAUQmFsYW5jZSBjaGVjayBmYWlsZWQJAAACAAAAAQIAAAAJQmFkIHN0YXRlCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQkAAAIAAAABAgAAAAlJbXBvc2libGUAAAAAjMpPSg=="
 	secondScript = "AAIFAAAAAAAAAAcIAhIDCgECAAAAAAAAAAEAAAABaQEAAAADYmFyAAAAAQAAAAFhCQAFFAAAAAIJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2JhcgAAAAAAAAAAAQkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCQEAAAAHQWRkcmVzcwAAAAEFAAAAAWEAAAAAAAAAAAMFAAAABHVuaXQFAAAAA25pbAAAAAAAAAAAEQAAAAAyrXjp"
 
 	id = bytes.Repeat([]byte{0}, 32)
@@ -1921,14 +1572,17 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 
 	smartState := smartStateDappFromDapp
 
-	envActions = nil
-	invCount = 0
 	thisAddress = addr
 
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
+	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
+
+	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
@@ -1959,13 +1613,15 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -14, effectiveHistory: []int64{0, -14}}
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9986, effectiveHistory: []int64{10000, 9986}}
+	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: proto.OptionalAsset{}}
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 14, effectiveHistory: []int64{0, 14}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
 	expectedDiffResult.balances[addressCallable.String()+proto.NewOptionalAssetWaves().String()] = balanceCallable
+	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
 	expectedDiffResult.balances[addr.String()+proto.NewOptionalAssetWaves().String()] = balanceMain
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
@@ -1984,24 +1640,24 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	 @Callable(i)
 	 func foo() = {
 	  let b1 = wavesBalance(this)
-	  let ob1 = wavesBalance(Address(base58'3MsbuBXcYd8NbvP1bi4LVwKAzscz85GeYe6'))
+	  let ob1 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
 	  if b1 == b1 && ob1 == ob1
 	  then
-	    let r = Invoke(Address(base58'3MsbuBXcYd8NbvP1bi4LVwKAzscz85GeYe6'), "bar", [this.bytes], [AttachedPayment(unit, 17)])
+	    let r = Invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar", [this.bytes], [AttachedPayment(unit, 17)])
 	    if r == 17
 	    then
-	     let data = getIntegerValue(Address(base58'3MsbuBXcYd8NbvP1bi4LVwKAzscz85GeYe6'), "bar")
+	     let data = getIntegerValue(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar")
 	     let b2 = wavesBalance(this)
-	     let ob2 = wavesBalance(Address(base58'3MsbuBXcYd8NbvP1bi4LVwKAzscz85GeYe6'))
+	     let ob2 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
 	     if data == 1
 	     then
 	      if ob1.regular+14 == ob2.regular && b1.regular == b2.regular+14
 	      then
-	       let r1 = Invoke(Address(base58'3MsbuBXcYd8NbvP1bi4LVwKAzscz85GeYe6'), "bar", [this.bytes], [AttachedPayment(unit, 18)])
+	       let r1 = Invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar", [this.bytes], [AttachedPayment(unit, 18)])
 	       if r1 == r1
 	       then
 	        let b3 = wavesBalance(this)
-	        let ob3 = wavesBalance(Address(base58'3MsbuBXcYd8NbvP1bi4LVwKAzscz85GeYe6'))
+	        let ob3 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
 	        if ob2.regular+15 == ob3.regular && b2.regular == b3.regular+15
 	        then
 	         [
@@ -2020,7 +1676,6 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	   else
 	    throw("Imposible")
 	 }
-
 	*/
 
 	/*
@@ -2043,20 +1698,23 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
 	require.NoError(t, err)
-	addr, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	arguments := proto.Arguments{}
-	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
-
-	addressCallable, err = proto.NewAddressFromString("3MsbuBXcYd8NbvP1bi4LVwKAzscz85GeYe6")
-	require.NoError(t, err)
-	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
-
 	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
 	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
 	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
 	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
 
 	call := proto.FunctionCall{
 		Default:   false,
@@ -2072,15 +1730,18 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
-		Payments:        nil,
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             900000,
-		Timestamp:       1564703444249,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 10000,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       900000,
+		Timestamp: 1564703444249,
 	}
 
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
-	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAACYjEJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IxCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVQocCxa4m9Bw8yStUOQlGgM9H8M0U0Z5zsDAwkAAAAAAAACBQAAAAJiMQUAAAACYjEJAAAAAAAAAgUAAAADb2IxBQAAAANvYjEHBAAAAAFyCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVQocCxa4m9Bw8yStUOQlGgM9H8M0U0Z5zsCAAAAA2JhcgkABEwAAAACCAUAAAAEdGhpcwAAAAVieXRlcwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAARBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIAAAAAAAAAABEEAAAABGRhdGEJAQAAABFAZXh0ck5hdGl2ZSgxMDUwKQAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVQocCxa4m9Bw8yStUOQlGgM9H8M0U0Z5zsCAAAAA2JhcgQAAAACYjIJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IyCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVQocCxa4m9Bw8yStUOQlGgM9H8M0U0Z5zsDCQAAAAAAAAIFAAAABGRhdGEAAAAAAAAAAAEDAwkAAAAAAAACCQAAZAAAAAIIBQAAAANvYjEAAAAHcmVndWxhcgAAAAAAAAAADggFAAAAA29iMgAAAAdyZWd1bGFyCQAAAAAAAAIIBQAAAAJiMQAAAAdyZWd1bGFyCQAAZAAAAAIIBQAAAAJiMgAAAAdyZWd1bGFyAAAAAAAAAAAOBwQAAAACcjEJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVChwLFrib0HDzJK1Q5CUaAz0fwzRTRnnOwIAAAADYmFyCQAETAAAAAIIBQAAAAR0aGlzAAAABWJ5dGVzBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAABIFAAAAA25pbAMJAAAAAAAAAgUAAAACcjEFAAAAAnIxBAAAAAJiMwkAA+8AAAABBQAAAAR0aGlzBAAAAANvYjMJAAPvAAAAAQkBAAAAB0FkZHJlc3MAAAABAQAAABoBVChwLFrib0HDzJK1Q5CUaAz0fwzRTRnnOwMDCQAAAAAAAAIJAABkAAAAAggFAAAAA29iMgAAAAdyZWd1bGFyAAAAAAAAAAAPCAUAAAADb2IzAAAAB3JlZ3VsYXIJAAAAAAAAAggFAAAAAmIyAAAAB3JlZ3VsYXIJAABkAAAAAggFAAAAAmIzAAAAB3JlZ3VsYXIAAAAAAAAAAA8HCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANrZXkAAAAAAAAAAAEFAAAAA25pbAkAAAIAAAABAgAAAB9CYWQgYmFsYW5jZSBhZnRlciBzZWNvbmQgaW52b2tlCQAAAgAAAAECAAAACUltcG9zaWJsZQkAAAIAAAABAgAAABRCYWxhbmNlIGNoZWNrIGZhaWxlZAkAAAIAAAABAgAAAAlCYWQgc3RhdGUJAAACAAAAAQIAAAASQmFkIHJldHVybmVkIHZhbHVlCQAAAgAAAAECAAAACUltcG9zaWJsZQAAAAB/eYz1"
+	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAACYjEJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IxCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssDAwkAAAAAAAACBQAAAAJiMQUAAAACYjEJAAAAAAAAAgUAAAADb2IxBQAAAANvYjEHBAAAAAFyCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2JhcgkABEwAAAACCAUAAAAEdGhpcwAAAAVieXRlcwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAARBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIAAAAAAAAAABEEAAAABGRhdGEJAQAAABFAZXh0ck5hdGl2ZSgxMDUwKQAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2JhcgQAAAACYjIJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IyCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssDCQAAAAAAAAIFAAAABGRhdGEAAAAAAAAAAAEDAwkAAAAAAAACCQAAZAAAAAIIBQAAAANvYjEAAAAHcmVndWxhcgAAAAAAAAAADggFAAAAA29iMgAAAAdyZWd1bGFyCQAAAAAAAAIIBQAAAAJiMQAAAAdyZWd1bGFyCQAAZAAAAAIIBQAAAAJiMgAAAAdyZWd1bGFyAAAAAAAAAAAOBwQAAAACcjEJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywIAAAADYmFyCQAETAAAAAIIBQAAAAR0aGlzAAAABWJ5dGVzBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAABIFAAAAA25pbAMJAAAAAAAAAgUAAAACcjEFAAAAAnIxBAAAAAJiMwkAA+8AAAABBQAAAAR0aGlzBAAAAANvYjMJAAPvAAAAAQkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywMDCQAAAAAAAAIJAABkAAAAAggFAAAAA29iMgAAAAdyZWd1bGFyAAAAAAAAAAAPCAUAAAADb2IzAAAAB3JlZ3VsYXIJAAAAAAAAAggFAAAAAmIyAAAAB3JlZ3VsYXIJAABkAAAAAggFAAAAAmIzAAAAB3JlZ3VsYXIAAAAAAAAAAA8HCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANrZXkAAAAAAAAAAAEFAAAAA25pbAkAAAIAAAABAgAAAB9CYWQgYmFsYW5jZSBhZnRlciBzZWNvbmQgaW52b2tlCQAAAgAAAAECAAAACUltcG9zaWJsZQkAAAIAAAABAgAAABRCYWxhbmNlIGNoZWNrIGZhaWxlZAkAAAIAAAABAgAAAAlCYWQgc3RhdGUJAAACAAAAAQIAAAASQmFkIHJldHVybmVkIHZhbHVlCQAAAgAAAAECAAAACUltcG9zaWJsZQAAAABDUPNk"
 	secondScript = "AAIFAAAAAAAAAAcIAhIDCgECAAAAAAAAAAEAAAABaQEAAAADYmFyAAAAAQAAAAFhCQAFFAAAAAIJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2JhcgAAAAAAAAAAAQkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCQEAAAAHQWRkcmVzcwAAAAEFAAAAAWEAAAAAAAAAAAMFAAAABHVuaXQFAAAAA25pbAAAAAAAAAAAEQAAAAAyrXjp"
 
 	id = bytes.Repeat([]byte{0}, 32)
@@ -2100,14 +1761,17 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 
 	smartState := smartStateDappFromDapp
 
-	envActions = nil
 	thisAddress = addr
-	invCount = 0
 
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
+	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
+
+	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
@@ -2138,13 +1802,15 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -29, effectiveHistory: []int64{0, -14, -29}}
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9971, effectiveHistory: []int64{10000, 9986, 9971}}
+	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: proto.OptionalAsset{}}
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 29, effectiveHistory: []int64{0, 14, 29}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
 	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
+	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
 	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
@@ -2162,22 +1828,22 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 
 	 @Callable(i)
 	 func back() = {
-	   [IntegerEntry("key", 0), ScriptTransfer(Address(base58'3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak'), 2, unit)]
+	   [IntegerEntry("key", 0), ScriptTransfer(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), 2, unit)]
 	 }
 
 	 @Callable(i)
 	 func foo() = {
 	  let b1 = wavesBalance(this)
-	  let ob1 = wavesBalance(Address(base58'3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak'))
+	  let ob1 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
 	  if b1 == b1 && ob1 == ob1
 	  then
-	    let r = Invoke(Address(base58'3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak'), "bar", [this.bytes], [AttachedPayment(unit, 17)])
+	    let r = Invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar", [this.bytes], [AttachedPayment(unit, 17)])
 	    if r == 17
 	    then
-	     let data = getIntegerValue(Address(base58'3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak'), "bar")
+	     let data = getIntegerValue(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar")
 	     let tdata = getIntegerValue(this, "key")
 	     let b2 = wavesBalance(this)
-	     let ob2 = wavesBalance(Address(base58'3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak'))
+	     let ob2 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
 	     if data == 1 && tdata == 0
 	     then
 	      if ob1.regular+16 == ob2.regular && b1.regular == b2.regular+16
@@ -2221,20 +1887,23 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
 	require.NoError(t, err)
-	addr, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	arguments := proto.Arguments{}
-	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
-
-	addressCallable, err = proto.NewAddressFromString("3NCXaXdPf9wQSR5HRV9t6mcYk1N4fJ5Luak")
-	require.NoError(t, err)
-	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
-
 	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
 	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
 	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
 	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
 
 	call := proto.FunctionCall{
 		Default:   false,
@@ -2250,14 +1919,17 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
-		Payments:        nil,
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             900000,
-		Timestamp:       1564703444249,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 10000,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       900000,
+		Timestamp: 1564703444249,
 	}
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
-	firstScript = "AAIFAAAAAAAAAAYIAhIAEgAAAAAAAAAAAgAAAAFpAQAAAARiYWNrAAAAAAkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAAAACQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVT4CVQEBqpuGv8qY0Og5VDARYVZ6wivPc0AAAAAAAAAAAIFAAAABHVuaXQFAAAAA25pbAAAAAFpAQAAAANmb28AAAAABAAAAAJiMQkAA+8AAAABBQAAAAR0aGlzBAAAAANvYjEJAAPvAAAAAQkBAAAAB0FkZHJlc3MAAAABAQAAABoBVPgJVAQGqm4a/ypjQ6DlUMBFhVnrCK89zQMDCQAAAAAAAAIFAAAAAmIxBQAAAAJiMQkAAAAAAAACBQAAAANvYjEFAAAAA29iMQcEAAAAAXIJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVPgJVAQGqm4a/ypjQ6DlUMBFhVnrCK89zQIAAAADYmFyCQAETAAAAAIIBQAAAAR0aGlzAAAABWJ5dGVzBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAABEFAAAAA25pbAMJAAAAAAAAAgUAAAABcgAAAAAAAAAAEQQAAAAEZGF0YQkBAAAAEUBleHRyTmF0aXZlKDEwNTApAAAAAgkBAAAAB0FkZHJlc3MAAAABAQAAABoBVPgJVAQGqm4a/ypjQ6DlUMBFhVnrCK89zQIAAAADYmFyBAAAAAV0ZGF0YQkBAAAAEUBleHRyTmF0aXZlKDEwNTApAAAAAgUAAAAEdGhpcwIAAAADa2V5BAAAAAJiMgkAA+8AAAABBQAAAAR0aGlzBAAAAANvYjIJAAPvAAAAAQkBAAAAB0FkZHJlc3MAAAABAQAAABoBVPgJVAQGqm4a/ypjQ6DlUMBFhVnrCK89zQMDCQAAAAAAAAIFAAAABGRhdGEAAAAAAAAAAAEJAAAAAAAAAgUAAAAFdGRhdGEAAAAAAAAAAAAHAwMJAAAAAAAAAgkAAGQAAAACCAUAAAADb2IxAAAAB3JlZ3VsYXIAAAAAAAAAABAIBQAAAANvYjIAAAAHcmVndWxhcgkAAAAAAAACCAUAAAACYjEAAAAHcmVndWxhcgkAAGQAAAACCAUAAAACYjIAAAAHcmVndWxhcgAAAAAAAAAAEAcJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2tleQAAAAAAAAAAAQUAAAADbmlsCQAAAgAAAAECAAAAFEJhbGFuY2UgY2hlY2sgZmFpbGVkCQAAAgAAAAECAAAACUJhZCBzdGF0ZQkAAAIAAAABAgAAABJCYWQgcmV0dXJuZWQgdmFsdWUJAAACAAAAAQIAAAAJSW1wb3NpYmxlAAAAACP+w2w="
+	firstScript = "AAIFAAAAAAAAAAYIAhIAEgAAAAAAAAAAAgAAAAFpAQAAAARiYWNrAAAAAAkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAAAACQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssAAAAAAAAAAAIFAAAABHVuaXQFAAAAA25pbAAAAAFpAQAAAANmb28AAAAABAAAAAJiMQkAA+8AAAABBQAAAAR0aGlzBAAAAANvYjEJAAPvAAAAAQkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywMDCQAAAAAAAAIFAAAAAmIxBQAAAAJiMQkAAAAAAAACBQAAAANvYjEFAAAAA29iMQcEAAAAAXIJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywIAAAADYmFyCQAETAAAAAIIBQAAAAR0aGlzAAAABWJ5dGVzBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAABEFAAAAA25pbAMJAAAAAAAAAgUAAAABcgAAAAAAAAAAEQQAAAAEZGF0YQkBAAAAEUBleHRyTmF0aXZlKDEwNTApAAAAAgkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywIAAAADYmFyBAAAAAV0ZGF0YQkBAAAAEUBleHRyTmF0aXZlKDEwNTApAAAAAgUAAAAEdGhpcwIAAAADa2V5BAAAAAJiMgkAA+8AAAABBQAAAAR0aGlzBAAAAANvYjIJAAPvAAAAAQkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywMDCQAAAAAAAAIFAAAABGRhdGEAAAAAAAAAAAEJAAAAAAAAAgUAAAAFdGRhdGEAAAAAAAAAAAAHAwMJAAAAAAAAAgkAAGQAAAACCAUAAAADb2IxAAAAB3JlZ3VsYXIAAAAAAAAAABAIBQAAAANvYjIAAAAHcmVndWxhcgkAAAAAAAACCAUAAAACYjEAAAAHcmVndWxhcgkAAGQAAAACCAUAAAACYjIAAAAHcmVndWxhcgAAAAAAAAAAEAcJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2tleQAAAAAAAAAAAQUAAAADbmlsCQAAAgAAAAECAAAAFEJhbGFuY2UgY2hlY2sgZmFpbGVkCQAAAgAAAAECAAAACUJhZCBzdGF0ZQkAAAIAAAABAgAAABJCYWQgcmV0dXJuZWQgdmFsdWUJAAACAAAAAQIAAAAJSW1wb3NpYmxlAAAAAOgXYAY="
 	secondScript = "AAIFAAAAAAAAAAcIAhIDCgECAAAAAAAAAAEAAAABaQEAAAADYmFyAAAAAQAAAAFhBAAAAAFyCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQUAAAABYQIAAAAEYmFjawUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIFAAAAAXIJAAUUAAAAAgkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADYmFyAAAAAAAAAAABCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMJAQAAAAdBZGRyZXNzAAAAAQUAAAABYQAAAAAAAAAAAwUAAAAEdW5pdAUAAAADbmlsAAAAAAAAAAARCQAAAgAAAAECAAAACUltcG9zaWJsZQAAAACf+Ofn"
 
 	id = bytes.Repeat([]byte{0}, 32)
@@ -2269,21 +1941,24 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 	}
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
-		{Sender: &addrPK, Recipient: recipientCallable, Amount: 2, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 		{Sender: &addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Sender: &addrPK, Recipient: recipientCallable, Amount: 2, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 	}
 
 	smartState := smartStateDappFromDapp
 
-	envActions = nil
 	thisAddress = addr
-	invCount = 0
 
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
+	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
+
+	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
@@ -2314,15 +1989,17 @@ func TestInvokeDAppFromDAppScript4(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -16, effectiveHistory: []int64{0, -16}}
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9984, effectiveHistory: []int64{10000, 9984}}
+	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 16, effectiveHistory: []int64{0, 16}}
 	intEntry1 := proto.IntegerDataEntry{Key: "key", Value: 0}
 	intEntry2 := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["key"+addr.String()] = intEntry1
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry2
 	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
+	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
 	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
@@ -2340,21 +2017,21 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 
 	 @Callable(i)
 	 func back() = {
-	   [ScriptTransfer(Address(base58'3NCkU1WZUjP5a8EwVRQRrmSBZKTucBNEPxc'), 2, unit)]
+	   [ScriptTransfer(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), 2, unit)]
 	 }
 
 	 @Callable(i)
 	 func foo() = {
 	  let b1 = wavesBalance(this)
-	  let ob1 = wavesBalance(Address(base58'3NCkU1WZUjP5a8EwVRQRrmSBZKTucBNEPxc'))
+	  let ob1 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
 	  if b1 == b1 && ob1 == ob1
 	  then
-	    let r = Invoke(Address(base58'3NCkU1WZUjP5a8EwVRQRrmSBZKTucBNEPxc'), "bar", [this.bytes], [AttachedPayment(unit, 17)])
+	    let r = Invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar", [this.bytes], [AttachedPayment(unit, 17)])
 	    if r == 17
 	    then
-	     let data = getIntegerValue(Address(base58'3NCkU1WZUjP5a8EwVRQRrmSBZKTucBNEPxc'), "bar")
+	     let data = getIntegerValue(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar")
 	     let b2 = wavesBalance(this)
-	     let ob2 = wavesBalance(Address(base58'3NCkU1WZUjP5a8EwVRQRrmSBZKTucBNEPxc'))
+	     let ob2 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
 	     if data == 1
 	     then
 	      if ob1.regular+13 == ob2.regular && b1.regular == b2.regular+13
@@ -2397,20 +2074,23 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
 	require.NoError(t, err)
-	addr, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	arguments := proto.Arguments{}
-	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
-
-	addressCallable, err = proto.NewAddressFromString("3NCkU1WZUjP5a8EwVRQRrmSBZKTucBNEPxc")
-	require.NoError(t, err)
-	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
-
 	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
 	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
 	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
 	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
 
 	call := proto.FunctionCall{
 		Default:   false,
@@ -2426,14 +2106,17 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
-		Payments:        nil,
-		FeeAsset:        proto.OptionalAsset{},
-		Fee:             900000,
-		Timestamp:       1564703444249,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 10000,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       900000,
+		Timestamp: 1564703444249,
 	}
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
-	firstScript = "AAIFAAAAAAAAAAYIAhIAEgAAAAAAAAAAAgAAAAFpAQAAAARiYWNrAAAAAAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFU+nlLLlJlc8+xTjSzsqlWzv76DyZcRlcJAAAAAAAAAAACBQAAAAR1bml0BQAAAANuaWwAAAABaQEAAAADZm9vAAAAAAQAAAACYjEJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IxCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVT6eUsuUmVzz7FONLOyqVbO/voPJlxGVwkDAwkAAAAAAAACBQAAAAJiMQUAAAACYjEJAAAAAAAAAgUAAAADb2IxBQAAAANvYjEHBAAAAAFyCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVT6eUsuUmVzz7FONLOyqVbO/voPJlxGVwkCAAAAA2JhcgkABEwAAAACCAUAAAAEdGhpcwAAAAVieXRlcwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAARBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIAAAAAAAAAABEEAAAABGRhdGEJAQAAABFAZXh0ck5hdGl2ZSgxMDUwKQAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVT6eUsuUmVzz7FONLOyqVbO/voPJlxGVwkCAAAAA2JhcgQAAAACYjIJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IyCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVT6eUsuUmVzz7FONLOyqVbO/voPJlxGVwkDCQAAAAAAAAIFAAAABGRhdGEAAAAAAAAAAAEDAwkAAAAAAAACCQAAZAAAAAIIBQAAAANvYjEAAAAHcmVndWxhcgAAAAAAAAAADQgFAAAAA29iMgAAAAdyZWd1bGFyCQAAAAAAAAIIBQAAAAJiMQAAAAdyZWd1bGFyCQAAZAAAAAIIBQAAAAJiMgAAAAdyZWd1bGFyAAAAAAAAAAANBwkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAAABBQAAAANuaWwJAAACAAAAAQIAAAAUQmFsYW5jZSBjaGVjayBmYWlsZWQJAAACAAAAAQIAAAAJQmFkIHN0YXRlCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQkAAAIAAAABAgAAAAlJbXBvc2libGUAAAAADKkWnw=="
+	firstScript = "AAIFAAAAAAAAAAYIAhIAEgAAAAAAAAAAAgAAAAFpAQAAAARiYWNrAAAAAAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXSbIqC+dSm+dDCCL8KamODy9oLyPQygrLAAAAAAAAAAACBQAAAAR1bml0BQAAAANuaWwAAAABaQEAAAADZm9vAAAAAAQAAAACYjEJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IxCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssDAwkAAAAAAAACBQAAAAJiMQUAAAACYjEJAAAAAAAAAgUAAAADb2IxBQAAAANvYjEHBAAAAAFyCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2JhcgkABEwAAAACCAUAAAAEdGhpcwAAAAVieXRlcwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAARBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIAAAAAAAAAABEEAAAABGRhdGEJAQAAABFAZXh0ck5hdGl2ZSgxMDUwKQAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2JhcgQAAAACYjIJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IyCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssDCQAAAAAAAAIFAAAABGRhdGEAAAAAAAAAAAEDAwkAAAAAAAACCQAAZAAAAAIIBQAAAANvYjEAAAAHcmVndWxhcgAAAAAAAAAADQgFAAAAA29iMgAAAAdyZWd1bGFyCQAAAAAAAAIIBQAAAAJiMQAAAAdyZWd1bGFyCQAAZAAAAAIIBQAAAAJiMgAAAAdyZWd1bGFyAAAAAAAAAAANBwkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAAABBQAAAANuaWwJAAACAAAAAQIAAAAUQmFsYW5jZSBjaGVjayBmYWlsZWQJAAACAAAAAQIAAAAJQmFkIHN0YXRlCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQkAAAIAAAABAgAAAAlJbXBvc2libGUAAAAA0WFyhQ=="
 	secondScript = "AAIFAAAAAAAAAAcIAhIDCgECAAAAAAAAAAEAAAABaQEAAAADYmFyAAAAAQAAAAFhBAAAAAFyCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQUAAAABYQIAAAAEYmFjawUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAADBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIFAAAAAXIJAAUUAAAAAgkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADYmFyAAAAAAAAAAABCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMJAQAAAAdBZGRyZXNzAAAAAQUAAAABYQAAAAAAAAAAAwUAAAAEdW5pdAUAAAADbmlsAAAAAAAAAAARCQAAAgAAAAECAAAACUltcG9zaWJsZQAAAACzZnMp"
 
 	id = bytes.Repeat([]byte{0}, 32)
@@ -2444,22 +2127,24 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 	}
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
+		{Sender: &addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 		{Sender: &addrPK, Recipient: recipientCallable, Amount: 2, Asset: proto.OptionalAsset{}, InvalidAsset: false},
-		{Sender: &addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 	}
 
 	smartState := smartStateDappFromDapp
 
-	envActions = nil
 	thisAddress = addr
-
-	invCount = 0
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
+	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
+
+	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
@@ -2490,19 +2175,22 @@ func TestInvokeDAppFromDAppScript5(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -13, effectiveHistory: []int64{0, -13}}
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9987, effectiveHistory: []int64{10000, 9987}}
+	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 13, effectiveHistory: []int64{0, 13}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
 	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
+	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
 	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 
 	tearDownDappFromDapp()
+
 }
 
 func TestInvokeDAppFromDAppScript6(t *testing.T) {
@@ -2532,7 +2220,7 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
 	require.NoError(t, err)
-	addr, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
 
@@ -2565,13 +2253,11 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 
 	smartState := smartStateDappFromDapp
 
-	envActions = nil
 	thisAddress = addr
-	invCount = 0
 
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
+	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
@@ -2603,7 +2289,7 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), env).diff
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
@@ -2643,7 +2329,7 @@ func BenchmarkInvokeDAppFromDAppScript6(b *testing.B) {
 	if err != nil {
 		b.Fatal("Expected no errors, got error ", err)
 	}
-	addr, err = proto.NewAddressFromString("3P5Bfd58PPfNvBM2Hy8QfbcDqMeNtzg7KfP")
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	if err != nil {
 		b.Fatal("Expected no errors, got error ", err)
 	}
@@ -2678,13 +2364,11 @@ func BenchmarkInvokeDAppFromDAppScript6(b *testing.B) {
 
 	smartState := smartStateDappFromDapp
 
-	envActions = nil
 	thisAddress = addr
-	invCount = 0
 
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
+	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
@@ -2749,6 +2433,11 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	proofs := proto.NewProofs()
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
 	require.NoError(t, err)
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+	senderRecipient := proto.NewRecipientFromAddress(senderAddress)
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
@@ -2774,18 +2463,17 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 		ID:              &txID,
 		Proofs:          proofs,
 		ChainID:         proto.MainNetScheme,
-		SenderPK:        addrPK,
+		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
 		Payments: proto.ScriptPayments{proto.ScriptPayment{
-			Amount: 500,
+			Amount: 10000,
 			Asset:  proto.OptionalAsset{},
 		}},
 		FeeAsset:  proto.OptionalAsset{},
 		Fee:       900000,
 		Timestamp: 1564703444249,
 	}
-
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
 	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAMZXhjaGFuZ2VSYXRlAAAAAAAAAAAFAAAAAQAAAAFpAQAAAAR0ZXN0AAAAAAMJAQAAAAIhPQAAAAIICQABkQAAAAIIBQAAAAFpAAAACHBheW1lbnRzAAAAAAAAAAAAAAAAB2Fzc2V0SWQFAAAABHVuaXQJAAACAAAAAQIAAAAQdW5leHBlY3RlZCBhc3NldAQAAAADcmVzCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAC3Rlc3RBY3Rpb25zCQAETAAAAAIJAABoAAAAAggJAAGRAAAAAggFAAAAAWkAAAAIcGF5bWVudHMAAAAAAAAAAAAAAAAGYW1vdW50BQAAAAxleGNoYW5nZVJhdGUFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAANyZXMAAAAAAAAAABEJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyCQAAaAAAAAIICQABkQAAAAIIBQAAAAFpAAAACHBheW1lbnRzAAAAAAAAAAAAAAAABmFtb3VudAUAAAAMZXhjaGFuZ2VSYXRlBQAAAAR1bml0BQAAAANuaWwJAAACAAAAAQIAAAASQmFkIHJldHVybmVkIHZhbHVlAAAAANOWG8w="
@@ -2798,17 +2486,21 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	}
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
-		{Recipient: recipient, Amount: 2500, Asset: proto.OptionalAsset{}, InvalidAsset: false},
+		{Recipient: senderRecipient, Amount: 50000, Asset: proto.OptionalAsset{}, InvalidAsset: false},
 	}
 
 	smartState := smartStateDappFromDapp
 
-	invCount = 0
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
+	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
+
+	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
@@ -2840,12 +2532,18 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), env).diff
 
 	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry
 
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 10000}
+	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
+	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
+	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
+
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 
 	tearDownDappFromDapp()
 }
@@ -2882,7 +2580,8 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	  ([
 	    IntegerEntry("int", 1)
 	  ], 17)
-	}	*/
+	}
+	*/
 
 	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
 	require.NoError(t, err)
@@ -2890,6 +2589,10 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	require.NoError(t, err)
 	proofs := proto.NewProofs()
 	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	require.NoError(t, err)
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
 	require.NoError(t, err)
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
@@ -2917,11 +2620,11 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 		ID:              &txID,
 		Proofs:          proofs,
 		ChainID:         proto.MainNetScheme,
-		SenderPK:        addrPK,
+		SenderPK:        sender,
 		ScriptRecipient: recipient,
 		FunctionCall:    call,
 		Payments: proto.ScriptPayments{proto.ScriptPayment{
-			Amount: 500,
+			Amount: 10000,
 			Asset:  proto.OptionalAsset{},
 		}},
 		FeeAsset:  proto.OptionalAsset{},
@@ -2946,12 +2649,16 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 
 	smartState := smartStateDappFromDapp
 
-	invCount = 0
 	thisAddress = addr
 	env := envDappFromDapp
 
-	NewWrappedSt := initWrappedState(smartState(), rideAddress(addr))
+	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
+
+	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
 	require.NoError(t, err)
@@ -2983,11 +2690,13 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 
 	assert.Equal(t, expectedActionsResult, sr)
 
-	expectedDiffResult := initWrappedState(smartState(), rideAddress(addr)).diff
+	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: -1}
+	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9999}
+	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 1}
 	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
+	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
 	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
 	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry
@@ -2997,6 +2706,185 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 
 	tearDownDappFromDapp()
 
+}
+
+func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
+
+	/* script 1
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+	let assetId = base58'13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ'
+
+	@Callable(i)
+	func test() = {
+		let res = Invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "call",nil, nil)
+		if res == 17
+		 	then
+	    		nil
+		else
+		    throw("Bad returned value")
+	}
+	*/
+
+	/* script 2
+
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let assetId = base58'13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ'
+
+	@Callable(i)
+	func call() = {
+	  ([
+	    Reissue(assetId, 100, false),
+	    Burn(assetId, 50),
+	    ScriptTransfer(i.caller, 1, assetId)
+	  ], 17)
+	}
+	*/
+	/* smart asset script
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE EXPRESSION #-}
+	{-# SCRIPT_TYPE ASSET #-}
+
+	let dAppAddress = addressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	match tx {
+	    case tx: BurnTransaction =>
+	        (tx.sender == dAppAddress)
+	    case tx: ReissueTransaction =>
+	        (tx.sender == dAppAddress)
+	    case tx: SetAssetScriptTransaction =>
+	        (tx.sender == dAppAddress)
+	    case tx: MassTransferTransaction =>
+	        (tx.sender == dAppAddress)
+	    case tx: TransferTransaction =>
+	        (tx.sender == dAppAddress)
+	    case _ =>
+	        false
+	}
+	*/
+
+	assetCat, err := proto.NewOptionalAssetFromString("13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ")
+	require.NoError(t, err)
+
+	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(addr)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
+
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "cancel",
+		Arguments: arguments,
+	}
+	tx = &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        nil,
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             900000,
+		Timestamp:       1564703444249,
+	}
+	inv, _ = invocationToObject(5, proto.MainNetScheme, tx)
+
+	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAHYXNzZXRJZAEAAAAgAKdAj/iZUd+zAOo6DTO6IvheatMyaLi7as+C+lV4EDMAAAABAAAAAWkBAAAABHRlc3QAAAAABAAAAANyZXMJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywIAAAAEY2FsbAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAA3JlcwAAAAAAAAAAEQUAAAADbmlsCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQAAAAAnQdRv"
+	secondScript = "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAHYXNzZXRJZAEAAAAgAKdAj/iZUd+zAOo6DTO6IvheatMyaLi7as+C+lV4EDMAAAABAAAAAWkBAAAABGNhbGwAAAAACQAFFAAAAAIJAARMAAAAAgkBAAAAB1JlaXNzdWUAAAADBQAAAAdhc3NldElkAAAAAAAAAABkBwkABEwAAAACCQEAAAAEQnVybgAAAAIFAAAAB2Fzc2V0SWQAAAAAAAAAADIJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAABBQAAAAdhc3NldElkBQAAAANuaWwAAAAAAAAAABEAAAAA4X8UHg=="
+
+	id = bytes.Repeat([]byte{0}, 32)
+
+	expectedReissueWrites := []*proto.ReissueScriptAction{
+		{Sender: &addressCallablePK, Quantity: 100, Reissuable: false, AssetID: assetCat.ID},
+	}
+	expectedBurnWrites := []*proto.BurnScriptAction{
+		{Sender: &addressCallablePK, Quantity: 50, AssetID: assetCat.ID},
+	}
+
+	expectedTransferWrites := []*proto.TransferScriptAction{
+		{Sender: &addressCallablePK, Recipient: recipient, Amount: 1, Asset: *assetCat, InvalidAsset: false},
+	}
+
+	smartState := smartStateDappFromDapp
+
+	thisAddress = addr
+	env := envDappFromDapp
+
+	NewWrappedSt := initWrappedState(smartState(), env)
+	wrappedSt = *NewWrappedSt
+
+	err = AddWavesToSender(addressCallable, 10000, *assetCat)
+	require.NoError(t, err)
+
+	src, err := base64.StdEncoding.DecodeString(firstScript)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	res, err := CallFunction(env, tree, "test", proto.Arguments{})
+
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	require.True(t, r.res)
+
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+
+	expectedActionsResult := &proto.ScriptResult{
+		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+		Transfers:    expectedTransferWrites,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     expectedReissueWrites,
+		Burns:        expectedBurnWrites,
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+	}
+
+	assert.Equal(t, expectedActionsResult, sr)
+
+	expectedDiffResult := initWrappedState(smartState(), env).diff
+	balance := diffBalance{regular: 1, leaseIn: 0, asset: *assetCat}
+	expectedDiffResult.balances[addr.String()+assetCat.String()] = balance
+
+	balanceCallable := diffBalance{regular: 9999, leaseOut: 0, asset: *assetCat}
+	expectedDiffResult.balances[addressCallable.String()+assetCat.String()] = balanceCallable
+
+	oldAsset := diffOldAssetInfo{diffQuantity: 50}
+	expectedDiffResult.oldAssetsInfo[assetIDIssue.String()] = oldAsset
+
+	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
+	assert.Equal(t, expectedDiffResult.sponsorships, wrappedSt.diff.sponsorships)
+	assert.Equal(t, expectedDiffResult.leases, wrappedSt.diff.leases)
+
+	tearDownDappFromDapp()
 }
 
 func TestMatchOverwrite(t *testing.T) {
@@ -3037,9 +2925,6 @@ func TestMatchOverwrite(t *testing.T) {
 	env := &MockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
-		},
-		applyToStateFunc: func(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
-			return nil, nil
 		},
 		heightFunc: func() rideInt {
 			return 368430
@@ -3298,9 +3183,6 @@ func TestWhaleDApp(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 368430
 		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -3434,9 +3316,6 @@ func TestExchangeDApp(t *testing.T) {
 	env := &MockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
-		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
 		},
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
@@ -3606,9 +3485,6 @@ func TestBankDApp(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
 		},
@@ -3732,9 +3608,6 @@ func TestLigaDApp1(t *testing.T) {
 	env := &MockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
-		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
 		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
@@ -3894,9 +3767,6 @@ func TestLigaDApp1(t *testing.T) {
 		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
-		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
 		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
@@ -4077,9 +3947,6 @@ func TestTestingDApp(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 1642207
 		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -4207,9 +4074,6 @@ func TestDropElementDApp(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 1642207
 		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -4328,9 +4192,6 @@ func TestMathDApp(t *testing.T) {
 	env := &MockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
-		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
 		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
@@ -4451,9 +4312,6 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
-		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
 		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
@@ -4583,9 +4441,6 @@ func Test8Ball(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
 		},
@@ -4709,9 +4564,6 @@ func TestIntegerEntry(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 844761
 		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 		schemeFunc: func() byte {
 			return proto.StageNetScheme
 		},
@@ -4771,9 +4623,6 @@ func TestAssetInfoV3V4(t *testing.T) {
 	env := &MockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
-		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
 		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
@@ -4863,9 +4712,6 @@ func TestDAppWithFullIssue(t *testing.T) {
 		txIDFunc: func() rideType {
 			return rideBytes(id)
 		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 	}
 	res, err := CallFunction(env, tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
 	require.NoError(t, err)
@@ -4891,9 +4737,6 @@ func TestDAppWithSimpleIssue(t *testing.T) {
 	env := &MockRideEnvironment{
 		txIDFunc: func() rideType {
 			return rideBytes(id)
-		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
 		},
 	}
 	res, err := CallFunction(env, tree, "issue", proto.Arguments{&proto.StringArgument{Value: "xxx"}})
@@ -4959,9 +4802,6 @@ func TestBadType(t *testing.T) {
 		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
-		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
 		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
@@ -5115,9 +4955,6 @@ func TestNoDeclaration(t *testing.T) {
 		},
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
-		},
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
 		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
@@ -5285,9 +5122,6 @@ func TestZeroReissue(t *testing.T) {
 		"share_token_id": mustBytesFromBase64("Q3Uk9ZN5g5+xynU7VGPXUg1eVga04VYXnnZ0q+M1dxQ="),
 	}
 	env := &MockRideEnvironment{
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 		heightFunc: func() rideInt {
 			return 451323
 		},
@@ -5526,9 +5360,6 @@ func TestStageNet2(t *testing.T) {
 	}
 	dp := newJsonDataProvider(`[{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"aa","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"dappAddress","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"total_amount","intValue":"600900000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"masterAddress","stringValue":"3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"assetId_2020-10-3","stringValue":"Eo7N1sjexrfu6mx5LrG3suovSaXaBNnmYfvqJsMzSYE8"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"assetId_2020-10-5","stringValue":"J2j4PRKXuUKUZCP345EXAHYF2gRg15JsYQYtFT4GNPda"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_total_amount_2020-10-3","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_total_amount_2020-10-5","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","stringValue":"2020-11-23"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","stringValue":"2020-11-11"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","stringValue":"2020-09-30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_limit","stringValue":"2020-10-3"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_limit","stringValue":"2020-10-5"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_limit","stringValue":"2020-10-3"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_limit","stringValue":"2020-10-5"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_amount","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_amount","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_assetId","stringValue":"GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_assetId","stringValue":"9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_assetId","stringValue":"3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_assetId","stringValue":"fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_assetId","stringValue":"Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_assetId","stringValue":"AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_assetId","stringValue":"DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_assetId","stringValue":"5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_assetId","stringValue":"6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_assetId","stringValue":"BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_unitPrice","intValue":"300"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_unitPrice","intValue":"300"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_description","stringValue":"みんな電力公式"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"dappAddress","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"masterAddress","stringValue":"3MSvD3m1R8Z3v8SAztrt1afp28vRdsMwxAu"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"asset_total_amount","intValue":"100000"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT","stringValue":"{\"name\":\"ママママママママっまm\",\"description\":\"retail user\"}"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MktJgV2eTmcCqtyQaeqiiHkQ1eY3EH5Tdb","stringValue":"{\"name\":\"ママママママママっまm\",\"description\":\"retail user\"}"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MRiqDCpFntSEud3Co8bdQygjSwB515zyS5_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MSvD3m1R8Z3v8SAztrt1afp28vRdsMwxAu_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MUJS7P4W3XyP2pnAJUGqkstSAiU4Ac2YdA_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MZyZAgAJmXmJs5gDihnMvZ7HCLxe6zVVpU_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MfF8z9y9nUUuHTeKiGFGoWXnUrRPbEcNiD_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3Mh5b5UttYteWjd5Mku43kajZFKX9z5WNxZ_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MjBN2kiRB6JmoEVEC42ZNMX9ibx5iZ9Mih_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MktJgV2eTmcCqtyQaeqiiHkQ1eY3EH5Tdb_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3Mm9VfS5424Vn4oNKv1DSh7Htk6FhQReEuP_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MmNtj9n49UgGapeh1Sg8Nd8jfQGDbqRTkx_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3P35F9e1QdcHkBMbYtovuMUmsxxCqo9DF1d_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PLXmyBua1pAH4y3aHjMqJrcJEcyrWMP1EB_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PMoTnMU6U4hx8km23iZJ6Akis6JKhcxhUn_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PNVubsGCrnMHLXvg1gYidcP3G7HUC5fAuZ_active","boolValue":true}}]`)
 	env := &MockRideEnvironment{
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 		heightFunc: func() rideInt {
 			return 451323
 		},
@@ -5661,9 +5492,6 @@ func TestRecipientAddressToString(t *testing.T) {
 	}
 
 	env := &MockRideEnvironment{
-		actionsFunc: func() []proto.ScriptAction {
-			return nil
-		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
