@@ -100,7 +100,7 @@ func (a *Node) Serve(ctx context.Context) error {
 	}
 }
 
-func (a *Node) HandleErrors(err error) {
+func (a *Node) LogErrors(err error) {
 	switch e := err.(type) {
 	case *proto.InfoMsg:
 		zap.S().Info(e.Error())
@@ -188,7 +188,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 			fsm, async, err = action(a.services, mess, fsm)
 		}
 		if err != nil {
-			a.HandleErrors(err)
+			a.LogErrors(err)
 		}
 		spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
 		zap.S().Debugf("FSM %T", fsm)
