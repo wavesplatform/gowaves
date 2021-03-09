@@ -103,9 +103,7 @@ func (a *Node) Serve(ctx context.Context) error {
 func (a *Node) LogErrors(err error) {
 	switch e := err.(type) {
 	case *proto.InfoMsg:
-		zap.S().Info(e.Error())
-	case *proto.ErrorMsg:
-		zap.S().Error(e.Error())
+		zap.S().Debug(e.Error())
 	default:
 		zap.S().Error(e.Error())
 	}
