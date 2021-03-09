@@ -181,7 +181,7 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 func (a *NGFsm) microBlockByID(micro *proto.MicroBlock) (FSM, Async, error) {
 	top := a.storage.TopBlock()
 	if top.BlockID() != micro.Reference {
-		return a, nil, errors.New("micro reference not found")
+		return a, nil, proto.NewInfoMsg(errors.New("micro reference not found"))
 	}
 	b, err := a.storage.Block(micro.Reference)
 	if err != nil {

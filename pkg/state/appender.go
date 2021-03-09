@@ -104,11 +104,11 @@ func newTxAppender(
 func (a *txAppender) checkDuplicateTxIdsImpl(id []byte, recentIds map[string]struct{}) error {
 	// Check recent.
 	if _, ok := recentIds[string(id)]; ok {
-		return errors.Errorf("transaction with ID %v already in state", id)
+		return proto.NewInfoMsg(errors.Errorf("transaction with ID %v already in state", id))
 	}
 	// Check DB.
 	if _, _, err := a.rw.readTransaction(id); err == nil {
-		return errors.Errorf("transaction with ID %v already in state", id)
+		return proto.NewInfoMsg(errors.Errorf("transaction with ID %v already in state", id))
 	}
 	return nil
 }

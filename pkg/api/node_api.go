@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -195,7 +196,7 @@ func Run(ctx context.Context, address string, n *NodeApi) error {
 		<-ctx.Done()
 		zap.S().Info("Shutting down API...")
 		err := apiServer.Shutdown(ctx)
-		if err != nil {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			zap.S().Errorf("Failed to shutdown API server: %v", err)
 		}
 	}()
