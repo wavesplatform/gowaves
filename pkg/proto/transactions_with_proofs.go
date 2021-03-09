@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -3076,6 +3077,8 @@ func (tx *DataWithProofs) Validate() (Transaction, error) {
 	if !validJVMLong(tx.Fee) {
 		return tx, errors.New("fee is too big")
 	}
+	//TODO: validate size of transaction by version:
+	// 1 -> binary size should be less than 150 * 1024; 2 -> proto payload size should be less than 165890 bytes
 	return tx, nil
 }
 
@@ -3329,6 +3332,15 @@ func (tx *DataWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
+}
+
+func (tx *DataWithProofs) ProtoPayload(scheme Scheme) ([]byte, error) {
+	proto, err := tx.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
+	}
+	data := proto.GetDataTransaction()
+	return protobuf.MarshalOptions{Deterministic: true}.Marshal(data)
 }
 
 func (tx *DataWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {

@@ -14,6 +14,13 @@ import (
 	"go.uber.org/zap"
 )
 
+type BloomFilter interface {
+	notInTheSet(data []byte) (bool, error)
+	add(data []byte) error
+	Params() BloomFilterParams
+	io.WriterTo
+}
+
 type BloomFilterParams struct {
 	// N is how many items will be added to the filter.
 	N int
@@ -21,6 +28,8 @@ type BloomFilterParams struct {
 	FalsePositiveProbability float64
 	// Bloom store.
 	Store store
+	// Disable bloom filter.
+	Disable bool
 }
 
 func NewBloomFilterParams(N int, FalsePositiveProbability float64, store store) BloomFilterParams {
@@ -40,11 +49,18 @@ func (bf *bloomFilter) WriteTo(w io.Writer) (n int64, err error) {
 	return bf.filter.WriteTo(w)
 }
 
+func (bf bloomFilter) Params() BloomFilterParams {
+	return bf.params
+}
+
 func (bf *bloomFilter) ReadFrom(r io.Reader) (n int64, err error) {
 	return bf.filter.ReadFrom(r)
 }
 
-func newBloomFilter(params BloomFilterParams) (*bloomFilter, error) {
+func newBloomFilter(params BloomFilterParams) (BloomFilter, error) {
+	if params.Disable {
+		return NewBloomFilterStub(params), nil
+	}
 	bf, err := bloomfilter.NewOptimal(uint64(params.N), params.FalsePositiveProbability)
 	if err != nil {
 		return nil, err
@@ -52,7 +68,10 @@ func newBloomFilter(params BloomFilterParams) (*bloomFilter, error) {
 	return &bloomFilter{filter: bf, params: params}, nil
 }
 
-func newBloomFilterFromStore(params BloomFilterParams) (*bloomFilter, error) {
+func newBloomFilterFromStore(params BloomFilterParams) (BloomFilter, error) {
+	if params.Disable {
+		return NewBloomFilterStub(params), nil
+	}
 	f, err := bloomfilter.NewOptimal(uint64(params.N), params.FalsePositiveProbability)
 	if err != nil {
 		return nil, err
@@ -71,9 +90,12 @@ func newBloomFilterFromStore(params BloomFilterParams) (*bloomFilter, error) {
 	return bf, nil
 }
 
-func storeBloomFilter(a *bloomFilter) error {
+func storeBloomFilter(a BloomFilter) error {
 	debug.FreeOSMemory()
-	return a.params.Store.save(a.filter)
+	if a.Params().Store != nil {
+		return a.Params().Store.save(a)
+	}
+	return nil
 }
 
 func (bf *bloomFilter) add(data []byte) error {
@@ -94,7 +116,7 @@ func (bf *bloomFilter) notInTheSet(data []byte) (bool, error) {
 }
 
 type store interface {
-	save(*bloomfilter.Filter) error
+	save(to io.WriterTo) error
 	load() ([]byte, error)
 	WithPath(string)
 }
@@ -104,7 +126,7 @@ type NoOpStore struct {
 
 func (NoOpStore) WithPath(string) {}
 
-func (a NoOpStore) save(*bloomfilter.Filter) error {
+func (a NoOpStore) save(to io.WriterTo) error {
 	return nil
 }
 
@@ -124,7 +146,7 @@ func (a *storeImpl) tmpFileName() string {
 	return a.path + "tmp"
 }
 
-func (a *storeImpl) saveData(f *bloomfilter.Filter) error {
+func (a *storeImpl) saveData(f io.WriterTo) error {
 	file, err := os.OpenFile(a.tmpFileName(), os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err
@@ -160,7 +182,7 @@ func (a *storeImpl) saveData(f *bloomfilter.Filter) error {
 	return nil
 }
 
-func (a *storeImpl) save(f *bloomfilter.Filter) error {
+func (a *storeImpl) save(f io.WriterTo) error {
 	if err := a.saveData(f); err != nil {
 		return err
 	}

@@ -40,7 +40,7 @@ func (b *batch) Put(key, val []byte) {
 	b.mu.Unlock()
 }
 
-func (b *batch) addToFilter(filter *bloomFilter) error {
+func (b *batch) addToFilter(filter BloomFilter) error {
 	b.mu.Lock()
 	for _, pair := range b.pairs {
 		if !pair.deletion {
@@ -90,7 +90,7 @@ func (b *batch) Reset() {
 
 type KeyVal struct {
 	db     *leveldb.DB
-	filter *bloomFilter
+	filter BloomFilter
 	cache  *freecache.Cache
 	mu     *sync.RWMutex
 }
