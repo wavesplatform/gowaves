@@ -267,6 +267,10 @@ func (c *ProtobufConverter) proofs(proofs [][]byte) *ProofsV1 {
 	for _, proof := range proofs {
 		r.Proofs = append(r.Proofs, proof)
 	}
+	if err := r.Valid(); err != nil {
+		c.err = err
+		return nil
+	}
 	return r
 }
 
