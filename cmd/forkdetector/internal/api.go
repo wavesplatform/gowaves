@@ -107,7 +107,7 @@ func (a *api) Start() <-chan struct{} {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		err := a.srv.Shutdown(ctx)
 		if err != nil {
-			zap.S().Errorf("Failed to shutdown API server: %v", err)
+			zap.S().Infof("Failed to shutdown API server: %v", err)
 		}
 		cancel()
 		close(done)

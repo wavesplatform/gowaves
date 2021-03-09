@@ -196,7 +196,7 @@ func Run(ctx context.Context, address string, n *NodeApi) error {
 		zap.S().Info("Shutting down API...")
 		err := apiServer.Shutdown(ctx)
 		if err != nil {
-			zap.S().Errorf("Failed to shutdown API server: %v", err)
+			zap.S().Infof("Failed to shutdown API server: %v", err)
 		}
 	}()
 	err := apiServer.ListenAndServe()

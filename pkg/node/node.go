@@ -199,7 +199,7 @@ func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner
 			r.Named(fmt.Sprintf("Async Task %T", t), func() {
 				err := t.Run(ctx, ch)
 				if err != nil {
-					zap.S().Errorf("Async Task %T, error %q", t, err)
+					zap.S().Infof("Async Task %T, %q", t, err)
 				}
 			})
 		}(t)
