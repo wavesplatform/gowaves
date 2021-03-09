@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"net/http"
 	"sort"
 	"strconv"
@@ -98,8 +99,8 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 		zap.S().Info("Shutting down API...")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		err := apiServer.Shutdown(ctx)
-		if err != nil {
-			zap.S().Infof("Failed to shutdown API server: %v", err)
+		if err != nil && !errors.Is(err, context.Canceled) {
+			zap.S().Errorf("Failed to shutdown API server: %v", err)
 		}
 		cancel()
 		close(a.done)
