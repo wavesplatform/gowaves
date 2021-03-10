@@ -330,10 +330,10 @@ func (a rideList) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
-type rideFunction func(env RideEnvironment, args ...rideType) (rideType, error)
+type rideFunction func(env Environment, args ...rideType) (rideType, error)
 
-//go:generate moq -out runtime_moq_test.go . RideEnvironment:MockRideEnvironment
-type RideEnvironment interface {
+//go:generate moq -out runtime_moq_test.go . Environment:MockRideEnvironment
+type Environment interface {
 	scheme() byte
 	height() rideInt
 	transaction() rideObject
@@ -341,17 +341,11 @@ type RideEnvironment interface {
 	block() rideObject
 	txID() rideType // Invoke transaction ID
 	state() types.SmartState
-	applyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error)
-	appendActions(actions []proto.ScriptAction)
-	smartAppendActions(actions []proto.ScriptAction) error
-	//validateInvokeResult(actions []proto.ScriptAction) (bool, error)
-	actions() []proto.ScriptAction
-	invCount() uint64
-	incrementInvCount()
+	timestamp() uint64
 	setNewDAppAddress(address proto.Address)
 	checkMessageLength(int) bool
 	invocation() rideObject // Invocation object made of invoke transaction
 	SetInvocation(inv rideObject)
 }
 
-type rideConstructor func(RideEnvironment) rideType
+type rideConstructor func(Environment) rideType

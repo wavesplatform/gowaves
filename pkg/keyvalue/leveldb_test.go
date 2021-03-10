@@ -17,9 +17,10 @@ const (
 
 func TestKeyVal(t *testing.T) {
 	dbDir, err := ioutil.TempDir(os.TempDir(), "dbDir0")
+	assert.NoError(t, err)
 	params := KeyValParams{
 		CacheParams:         CacheParams{cacheSize},
-		BloomFilterParams:   BloomFilterParams{n, falsePositiveProbability, NoOpStore{}},
+		BloomFilterParams:   BloomFilterParams{n, falsePositiveProbability, NoOpStore{}, false},
 		WriteBuffer:         writeBuffer,
 		CompactionTableSize: sstableSize,
 		CompactionTotalSize: compactionTotalSize,

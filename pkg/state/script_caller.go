@@ -126,7 +126,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockIn
 	return nil
 }
 
-func (a *scriptCaller) callAssetScriptCommon(env *ride.Environment, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool, acceptFailed bool) (ride.RideResult, error) {
+func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool, acceptFailed bool) (ride.RideResult, error) {
 	tree, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
 	if err != nil {
 		return nil, err
@@ -195,6 +195,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	}
 	env.SetThisFromAddress(scriptAddress)
 	env.SetLastBlock(lastBlockInfo)
+	env.SetTimestamp(tx.Timestamp)
 	err = env.SetTransaction(tx)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
@@ -204,6 +205,15 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
+
+	// Since V5 we have to create environment with wrapped state to which we put attached payments
+	if tree.LibVersion >= 5 {
+		env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)
+		if err != nil {
+			return false, nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+		}
+	}
+
 	r, err := ride.CallFunction(env, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())

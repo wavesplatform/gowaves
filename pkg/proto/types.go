@@ -41,13 +41,13 @@ const (
 	PriceConstant        = 100000000
 	MaxOrderAmount       = 100 * PriceConstant * PriceConstant
 	MaxOrderTTL          = uint64((30 * 24 * time.Hour) / time.Millisecond)
-	maxKeySize           = 100
-	maxPBKeySize         = 400
+	MaxKeySize           = 100
+	MaxPBKeySize         = 400
 	maxValueSize         = 32767
 
-	maxScriptActions                     = 10
-	maxDataEntryScriptActions            = 100
-	maxDataEntryScriptActionsSizeInBytes = 5 * 1024
+	MaxScriptActions                     = 10
+	MaxDataEntryScriptActions            = 100
+	MaxDataEntryScriptActionsSizeInBytes = 5 * 1024
 )
 
 type Timestamp = uint64
@@ -1551,6 +1551,9 @@ func (p *ProofsV1) UnmarshalJSON(value []byte) error {
 	}
 	p.Version = proofsVersion
 	p.Proofs = tmp
+	if err := p.Valid(); err != nil {
+		return errors.Wrap(err, "failed to unmarshal ProofsV1 from JSON")
+	}
 	return nil
 }
 
@@ -1674,6 +1677,21 @@ func (p *ProofsV1) BinarySize() int {
 	return proofsMinLen + pl
 }
 
+func (p *ProofsV1) Valid() error {
+	if p.Version != proofsVersion {
+		return errors.Errorf("invalid proofs version %d", p.Version)
+	}
+	if c := len(p.Proofs); c > proofsMaxCount {
+		return errors.Errorf("invalid proofs count %d", c)
+	}
+	for i, proof := range p.Proofs {
+		if s := len(proof); s > proofMaxSize {
+			return errors.Errorf("proof #%d has invalid size %d", i, s)
+		}
+	}
+	return nil
+}
+
 // ValueType is an alias for byte that encodes the value type.
 type DataValueType byte
 
@@ -1788,11 +1806,11 @@ func (e IntegerDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if UTF16Size(e.Key) > maxKeySize {
+		if UTF16Size(e.Key) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
@@ -1916,11 +1934,11 @@ func (e BooleanDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if UTF16Size(e.Key) > maxKeySize {
+		if UTF16Size(e.Key) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large11")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large22")
 		}
 	}
@@ -2048,11 +2066,11 @@ func (e BinaryDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if UTF16Size(e.Key) > maxKeySize {
+		if UTF16Size(e.Key) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
@@ -2183,11 +2201,11 @@ func (e StringDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if UTF16Size(e.Key) > maxKeySize {
+		if UTF16Size(e.Key) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
@@ -2317,11 +2335,11 @@ func (e DeleteDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if UTF16Size(e.Key) > maxKeySize {
+		if UTF16Size(e.Key) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
@@ -3239,16 +3257,18 @@ type FullScriptTransfer struct {
 	Asset     OptionalAsset
 	Recipient Recipient
 	Sender    Address
+	SenderPK  crypto.PublicKey
 	Timestamp uint64
 	ID        *crypto.Digest
 }
 
-func NewFullScriptTransfer(action *TransferScriptAction, sender Address, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+func NewFullScriptTransfer(action *TransferScriptAction, sender Address, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,
 		Recipient: action.Recipient,
 		Sender:    sender,
+		SenderPK:  senderPK,
 		Timestamp: tx.Timestamp,
 		ID:        tx.ID,
 	}, nil
