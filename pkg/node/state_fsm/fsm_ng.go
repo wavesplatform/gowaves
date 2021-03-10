@@ -185,9 +185,9 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 func (a *NGFsm) checkAndAppendMicroblock(micro *proto.MicroBlock) (proto.BlockID, error) {
 	top := a.storage.TopBlock()           // Get the last block
 	if top.BlockID() != micro.Reference { // Microblock doesn't refer to last block
-		err := errors.Errorf("microblock (TBID '%s') refer to '%s' but last block ID is '%s'", micro.TotalBlockID.String(), micro.Reference.String(), top.BlockID().String())
+		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'", micro.TotalBlockID.String(), micro.Reference.String(), top.BlockID().String())
 		metrics.FSMMicroBlockDeclined("ng", micro, err)
-		return proto.BlockID{}, err
+		return proto.BlockID{}, proto.NewInfoMsg(err)
 	}
 	ok, err := micro.VerifySignature(a.scheme)
 	if err != nil {

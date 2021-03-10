@@ -113,7 +113,7 @@ func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 		return err
 	}
 	if a.exists(t) {
-		return errors.Errorf("transaction with id %s exists", base58.Encode(tID))
+		return proto.NewInfoMsg(errors.Errorf("transaction with id %s exists", base58.Encode(tID)))
 	}
 	err = a.validator.Validate(t)
 	if err != nil {
