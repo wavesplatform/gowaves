@@ -44,6 +44,9 @@ var defaultEnv = &MockRideEnvironment{
 	invocationFunc: func() rideObject {
 		return rideObject{}
 	},
+	heightFunc: func() rideInt {
+		return rideInt(100500)
+	},
 }
 
 func Test22(t *testing.T) {
@@ -1487,4 +1490,27 @@ func Test111111(t *testing.T) {
 	for i, c := range rs.Calls() {
 		t.Log(i, " ", c)
 	}
+}
+
+/**
+let height = height
+height != 0
+*/
+func TestShadowedVariable(t *testing.T) {
+	source := `AwoBAAAAD2dldFByaWNlSGlzdG9yeQAAAAEAAAAGaGVpZ2h0BQAAAAZoZWlnaHQJAQAAAAIhPQAAAAIJAQAAAA9nZXRQcmljZUhpc3RvcnkAAAABBQAAAAZoZWlnaHQAAAAAAAAAAADe0Skk`
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	tree = MustExpand(tree)
+	require.Equal(t, "(let height = { height }; height != 0)", DecompileTree(tree))
+
+	script, err := CompileTree("", tree)
+	require.NoError(t, err)
+
+	rs, err := script.Verify(defaultEnv)
+	require.NoError(t, err)
+	require.Equal(t, true, rs.Result())
 }

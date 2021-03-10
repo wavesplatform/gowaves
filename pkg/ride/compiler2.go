@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 func ccc(f Fsm, node Node) (Fsm, error) {
@@ -82,7 +83,13 @@ func CompileVerifier(txID string, tree *Tree) (*Executable, error) {
 	return compileFunction(txID, tree.LibVersion, []Node{tree.Verifier}, tree.IsDApp(), tree.HasVerifier())
 }
 
-func CompileDapp(txID string, tree *Tree) (*Executable, error) {
+func CompileDapp(txID string, tree *Tree) (out *Executable, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			zap.S().Error(DecompileTree(tree), " ", r)
+			err = errors.New("failed to compile")
+		}
+	}()
 	if !tree.IsDApp() {
 		return nil, errors.Errorf("unable to compile dappp")
 	}

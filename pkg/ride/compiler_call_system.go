@@ -132,20 +132,16 @@ func (a CallSystemState) Write(_ params, b []byte) {
 		if n, ok := isConstant(a.deferred[i]); ok {
 			a.b.writeByte(OpRef)
 			a.b.write(encode(n))
-			//a.b.writeByte(OpCache)
-			//a.b.write(encode(n))
 		} else {
 			n := a.ns[i]
 			a.b.writeByte(OpRef)
 			a.b.write(encode(n))
-			//a.b.writeByte(OpCache)
-			//a.b.write(encode(n))
 		}
 	}
 
 	n, ok := a.f(a.name)
 	if !ok {
-		panic(fmt.Sprintf("system function named `%s` not found", a.name))
+		panic(fmt.Sprintf("%s system function named `%s` not found", a.params.txID, a.name))
 	}
 	a.b.externalCall(n, a.argc)
 }

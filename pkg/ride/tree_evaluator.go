@@ -5,6 +5,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+type evaluationCtx struct {
+}
+
 type esConstant struct {
 	value rideType
 	c     rideConstructor
@@ -14,6 +17,7 @@ type esValue struct {
 	id         string
 	value      rideType
 	expression Node
+	size       int
 }
 
 type esFunction struct {
@@ -44,8 +48,12 @@ func (s *evaluationScope) declare(n Node) error {
 }
 
 func (s *evaluationScope) pushExpression(id string, n Node) {
-	s.cs[len(s.cs)-1] = append(s.cs[len(s.cs)-1], esValue{id: id, expression: n})
+	s.cs[len(s.cs)-1] = append(s.cs[len(s.cs)-1], esValue{id: id, expression: n, size: len(s.cs[len(s.cs)-1])})
 }
+
+//func (s *evaluationScope) pushExpression2(id string, n Node, ctx evaluationCtx) evaluationCtx {
+//
+//}
 
 func (s *evaluationScope) pushValue(id string, v rideType) {
 	s.cs[len(s.cs)-1] = append(s.cs[len(s.cs)-1], esValue{id: id, value: v})

@@ -25,11 +25,11 @@ func CallVmVerifier(txID string, env RideEnvironment, compiled *Executable) (Rid
 func CallVerifier(txID string, env RideEnvironment, tree *Tree, exe *Executable) (RideResult, error) {
 	r, err := CallVmVerifier(txID, env, exe)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "vm verifier")
 	}
 	r2, err := CallTreeVerifier(env, tree)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "tree verifier")
 	}
 
 	if !r.Eq(r2) {

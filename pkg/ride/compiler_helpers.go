@@ -157,6 +157,7 @@ func (a point) Serialize(s Serializer) error {
 	}
 
 	s.Uint16(a.fn)
+	s.String(a.debugInfo)
 	return nil
 }
 
@@ -171,12 +172,15 @@ func deserializePoint(d *Deserializer) (point, error) {
 	if err != nil {
 		return a, err
 	}
-
 	a.value, err = d.RideValue()
 	if err != nil {
 		return a, err
 	}
 	a.fn, err = d.Uint16()
+	if err != nil {
+		return a, err
+	}
+	a.debugInfo, err = d.String()
 	if err != nil {
 		return a, err
 	}

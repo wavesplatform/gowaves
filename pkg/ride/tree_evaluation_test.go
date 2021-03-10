@@ -3514,3 +3514,23 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 	}
 	assert.Equal(t, expectedResult, sr)
 }
+
+/**
+let height = height
+height != 0
+*/
+func TestTreeShadowedVariable(t *testing.T) {
+	source := `AwoBAAAAD2dldFByaWNlSGlzdG9yeQAAAAEAAAAGaGVpZ2h0BQAAAAZoZWlnaHQJAQAAAAIhPQAAAAIJAQAAAA9nZXRQcmljZUhpc3RvcnkAAAABBQAAAAZoZWlnaHQAAAAAAAAAAADe0Skk`
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	tree = MustExpand(tree)
+	require.Equal(t, "(let height = { height }; height != 0)", DecompileTree(tree))
+
+	result, err := CallTreeVerifier(defaultEnv, tree)
+	require.NoError(t, err)
+	require.Equal(t, true, result.Result())
+}

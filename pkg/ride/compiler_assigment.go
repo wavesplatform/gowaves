@@ -57,7 +57,6 @@ func (a AssigmentState) Boolean(v bool) Fsm {
 }
 
 func assigmentFsmTransition(prev Fsm, params params, name string, n uniqueid, d Deferreds) Fsm {
-	params.r.setAssigment(name, n)
 	return newAssigmentFsm(prev, params, name, n, d)
 }
 

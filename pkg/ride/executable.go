@@ -66,7 +66,7 @@ func (a *Executable) runWithoutChecks(environment RideEnvironment, name string, 
 	}
 	v, err := vm.run()
 	if err != nil {
-		return ScriptResult{res: false, msg: "", calls: vm.calls, refs: vm.ref}, err
+		return ScriptResult{res: false, msg: "", calls: vm.calls, refs: vm.ref, operations: vm.numOperations}, err
 	}
 	switch tv := v.(type) {
 	case rideThrow:

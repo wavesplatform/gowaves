@@ -11,7 +11,7 @@ require (
 	github.com/coocood/freecache v1.1.0
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
 	github.com/ericlagergren/decimal v0.0.0-20190912144844-2c3e3e1ef942
-	github.com/frozen/immutable_map v0.0.0-20200831220546-14f58278114b // indirect
+	github.com/frozen/immutable_map v0.0.0-20210226113144-8441e20b6fa4
 	github.com/fxamacker/cbor/v2 v2.2.0
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/golang/mock v1.4.3

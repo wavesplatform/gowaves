@@ -192,6 +192,9 @@ func (m *vm) run() (rideType, error) {
 				}
 				m.push(rs)
 			} else {
+				if m.ip == int(point.position)+3 {
+					return nil, errors.Errorf("infinity loop detected on iteration %d", m.numOperations)
+				}
 				m.jmps = append(m.jmps, m.ip)
 				m.ip = int(point.position)
 			}

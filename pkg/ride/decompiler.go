@@ -37,6 +37,13 @@ var defuncs = map[string]func(s *strings.Builder, name string, nodes []Node, f d
 		f(s, nodes[1])
 		s.WriteString(")")
 	},
+	"!=": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		s.WriteString("(")
+		f(s, nodes[0])
+		s.WriteString(" != ")
+		f(s, nodes[1])
+		s.WriteString(")")
+	},
 	"100": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		infix(s, "+", nodes, f)
 	},
@@ -82,6 +89,9 @@ var defuncs = map[string]func(s *strings.Builder, name string, nodes []Node, f d
 	"420": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "toString", nodes, f)
 	},
+	"500": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "sigVerify", nodes, f)
+	},
 	"504": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "rsaVerify", nodes, f)
 	},
@@ -93,6 +103,9 @@ var defuncs = map[string]func(s *strings.Builder, name string, nodes []Node, f d
 	},
 	"2": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "throw", nodes, f)
+	},
+	"1050": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "getInteger", nodes, f)
 	},
 	"1052": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "getBinary", nodes, f)
@@ -118,6 +131,18 @@ func defunc(s *strings.Builder, name string, nodes []Node, f detreeType) {
 	}
 }
 
+func DecompileTree(t *Tree) string {
+	var s strings.Builder
+	for _, v := range t.Declarations {
+		s.WriteString(Decompiler(v))
+	}
+	for _, v := range t.Functions {
+		s.WriteString(Decompiler(v))
+	}
+	s.WriteString(Decompiler(t.Verifier))
+	return strings.TrimSpace(s.String())
+}
+
 func Decompiler(tree Node) string {
 	s := &strings.Builder{}
 	detree(s, tree)
@@ -128,7 +153,7 @@ func detree(s *strings.Builder, tree Node) {
 	switch n := tree.(type) {
 	case *FunctionDeclarationNode:
 		if n.invocationParameter != "" {
-			s.WriteString("@" + n.invocationParameter + "@")
+			s.WriteString("@" + n.invocationParameter + "\\n")
 		}
 		s.WriteString(fmt.Sprintf("func %s(", n.Name))
 		for i, a := range n.Arguments {
@@ -142,9 +167,9 @@ func detree(s *strings.Builder, tree Node) {
 		s.WriteString(" } ")
 		detree(s, n.Block)
 	case *AssignmentNode:
-		s.WriteString(fmt.Sprintf("let %s = ", n.Name))
+		s.WriteString(fmt.Sprintf("let %s = { ", n.Name))
 		detree(s, n.Expression)
-		s.WriteString("; ")
+		s.WriteString(" }; ")
 		detree(s, n.Block)
 	case *ConditionalNode:
 		s.WriteString(fmt.Sprintf("if ("))
