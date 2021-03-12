@@ -20,6 +20,7 @@ import (
 type Async []Task
 
 type BlocksApplier interface {
+	BlockExists(state storage.State, block *proto.Block) (bool, error)
 	Apply(state storage.State, block []*proto.Block) (proto.Height, error)
 	ApplyMicro(state storage.State, block *proto.Block) (proto.Height, error)
 }
