@@ -21,6 +21,17 @@ type innerState interface {
 	RollbackToHeight(height proto.Height) error
 }
 
+func (a *innerBlocksApplier) exists(storage innerState, block *proto.Block) (bool, error) {
+	_, err := storage.Block(block.BlockID())
+	if err == nil {
+		return true, nil
+	}
+	if state.IsNotFound(err) {
+		return false, nil
+	}
+	return false, err
+}
+
 func (a *innerBlocksApplier) apply(storage innerState, blocks []*proto.Block) (proto.Height, error) {
 	if len(blocks) == 0 {
 		return 0, errors.New("empty blocks")
@@ -161,6 +172,10 @@ func NewBlocksApplier() *BlocksApplier {
 	return &BlocksApplier{
 		inner: innerBlocksApplier{},
 	}
+}
+
+func (a *BlocksApplier) BlockExists(state state.State, block *proto.Block) (bool, error) {
+	return a.inner.exists(state, block)
 }
 
 func (a *BlocksApplier) Apply(state state.State, blocks []*proto.Block) (proto.Height, error) {
