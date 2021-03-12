@@ -191,7 +191,6 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 		return a, nil, errors.Wrap(err, "NGFsm.mineMicro")
 	}
 	a.blocksCache.AddBlockState(block)
-
 	metrics.FSMMicroBlockGenerated("ng", micro)
 	err = a.storage.Map(func(s state.NonThreadSafeState) error {
 		_, err := a.blocksApplier.ApplyMicro(s, block)
@@ -217,7 +216,6 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 
 	a.MicroBlockCache.Add(block.BlockID(), micro)
 	a.MicroBlockInvCache.Add(block.BlockID(), inv)
-
 	// TODO wrap
 	a.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
 		p.SendMessage(
@@ -234,7 +232,6 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 func (a *NGFsm) checkAndAppendMicroblock(micro *proto.MicroBlock) (*proto.Block, error) {
 	top := a.storage.TopBlock()           // Get the last block
 	if top.BlockID() != micro.Reference { // Microblock doesn't refer to last block
-
 		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'", micro.TotalBlockID.String(), micro.Reference.String(), top.BlockID().String())
 		metrics.FSMMicroBlockDeclined("ng", micro, err)
 		return &proto.Block{}, proto.NewInfoMsg(err)

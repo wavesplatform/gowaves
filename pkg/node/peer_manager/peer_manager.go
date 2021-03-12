@@ -170,11 +170,11 @@ func (a *PeerManagerImpl) connectedCount() int {
 func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 	_, connected := a.Connected(p)
 	if connected {
-		p.Close()
+		_ = p.Close()
 		return errors.New("already connected")
 	}
 	if a.IsSuspended(p) {
-		p.Close()
+		_ = p.Close()
 		return errors.New("peer is suspended")
 	}
 	if p.Handshake().Version.CmpMinor(a.version) >= 2 {
@@ -184,7 +184,7 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 			p.Handshake().Version.String(),
 		)
 		a.Suspend(p, err.Error())
-		p.Close()
+		_ = p.Close()
 		return err
 	}
 
@@ -239,7 +239,7 @@ func (a *PeerManagerImpl) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
 		return nil, nil, false
 	}
 
-	var peers []peerInfo
+	peers := make([]peerInfo, 0)
 	for _, p := range a.active {
 		peers = append(peers, p)
 	}
@@ -323,7 +323,7 @@ func (a *PeerManagerImpl) KnownPeers() ([]proto.TCPAddr, error) {
 func (a *PeerManagerImpl) Close() {
 	a.mu.Lock()
 	for _, v := range a.active {
-		v.peer.Close()
+		_ = v.peer.Close()
 	}
 	a.mu.Unlock()
 }
