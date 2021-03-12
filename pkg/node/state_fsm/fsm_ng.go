@@ -78,7 +78,6 @@ func (a *NGFsm) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 	}
 	_, err = a.blocksApplier.Apply(a.storage, []*proto.Block{blockFromCache})
 	if err != nil {
-		metrics.FSMKeyBlockDeclined("ng", blockFromCache, err)
 		return err
 	}
 	a.blocksCache.Clear()
@@ -87,9 +86,11 @@ func (a *NGFsm) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 }
 
 func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
+	metrics.FSMKeyBlockReceived("ng", block, peer.Handshake().NodeName)
+
 	top := a.storage.TopBlock()
 	if top.BlockID() != block.Parent { // does block refer to last block
-		if blockFromCache, exists := a.blocksCache.Get(top.BlockID()); exists {
+		if blockFromCache, ok := a.blocksCache.Get(top.BlockID()); ok {
 			err := a.rollbackToStateFromCache(blockFromCache)
 			if err != nil {
 				return a, nil, err
@@ -98,7 +99,6 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 	}
 	a.blocksCache.AddBlockState(block)
 
-	metrics.FSMKeyBlockReceived("ng", block, peer.Handshake().NodeName)
 	_, err := a.blocksApplier.Apply(a.storage, []*proto.Block{block})
 	if err != nil {
 		metrics.FSMKeyBlockDeclined("ng", block, err)
@@ -113,6 +113,8 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 }
 
 func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
+	metrics.FSMKeyBlockGenerated("ng", block)
+
 	top := a.storage.TopBlock()
 	if top.BlockID() != block.Parent { // does block refer to last block
 		if blockFromCache, exists := a.blocksCache.Get(top.BlockID()); exists {
@@ -124,7 +126,6 @@ func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPai
 	}
 	a.blocksCache.AddBlockState(block)
 
-	metrics.FSMKeyBlockGenerated("ng", block)
 	err := a.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
 		_, err = a.blocksApplier.Apply(state, []*proto.Block{block})
@@ -157,6 +158,7 @@ func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, er
 		return a, nil, err
 	}
 	a.MicroBlockCache.Add(block.BlockID(), micro)
+	a.blocksCache.AddBlockState(block)
 	a.BaseInfo.Reschedule()
 
 	// Notify all connected peers about new microblock, send them microblock inv network message
@@ -176,9 +178,6 @@ func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, er
 			zap.S().Errorf("NGFsm.MicroBlock inv.MarshalBinary %q", err)
 		}
 	}
-
-	//a.blocksCache.AddBlockState(block)
-
 	return a, nil, nil
 }
 
@@ -191,6 +190,8 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 	if err != nil {
 		return a, nil, errors.Wrap(err, "NGFsm.mineMicro")
 	}
+	a.blocksCache.AddBlockState(block)
+
 	metrics.FSMMicroBlockGenerated("ng", micro)
 	err = a.storage.Map(func(s state.NonThreadSafeState) error {
 		_, err := a.blocksApplier.ApplyMicro(s, block)
@@ -225,13 +226,7 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 			},
 		)
 	})
-	//block, err = a.checkAndAppendMicroblock(micro) // the TopBlock() is used here
-	//if err != nil {
-	//	metrics.FSMMicroBlockDeclined("ng", micro, err)
-	//	return a, nil, err
-	//}
-	//	a.BaseInfo.Reschedule()
-	//a.blocksCache.AddBlockState(block)
+
 	return a, Tasks(NewMineMicroTask(5*time.Second, block, rest, keyPair, vrf)), nil
 }
 
