@@ -390,7 +390,7 @@ func main() {
 	signal.Notify(gracefulStop, syscall.SIGINT)
 
 	sig := <-gracefulStop
-	zap.S().Infow("Caught signal, stopping", "signal", sig)
+	zap.S().Infof("Caught signal '%s', stopping...", sig)
 	cancel()
 	n.Close()
 	<-time.After(1 * time.Second)
