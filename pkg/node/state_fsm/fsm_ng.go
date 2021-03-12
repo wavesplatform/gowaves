@@ -87,6 +87,17 @@ func (a *NGFsm) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 }
 
 func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
+	top := a.storage.TopBlock()
+	if top.BlockID() != block.Parent { // does block refer to last block
+		if blockFromCache, exists := a.blocksCache.Get(top.BlockID()); exists {
+			err := a.rollbackToStateFromCache(blockFromCache)
+			if err != nil {
+				return a, nil, err
+			}
+		}
+	}
+	a.blocksCache.AddBlockState(block)
+
 	metrics.FSMKeyBlockReceived("ng", block, peer.Handshake().NodeName)
 	_, err := a.blocksApplier.Apply(a.storage, []*proto.Block{block})
 	if err != nil {
@@ -98,6 +109,10 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 	a.actions.SendScore(a.storage)
 	a.CleanUtx()
 
+	return NewNGFsm12(a.BaseInfo), nil, nil
+}
+
+func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
 	top := a.storage.TopBlock()
 	if top.BlockID() != block.Parent { // does block refer to last block
 		if blockFromCache, exists := a.blocksCache.Get(top.BlockID()); exists {
@@ -107,13 +122,8 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 			}
 		}
 	}
-
 	a.blocksCache.AddBlockState(block)
 
-	return NewNGFsm12(a.BaseInfo), nil, nil
-}
-
-func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
 	metrics.FSMKeyBlockGenerated("ng", block)
 	err := a.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
@@ -130,18 +140,6 @@ func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPai
 	a.actions.SendBlock(block)
 	a.actions.SendScore(a.storage)
 	a.CleanUtx()
-
-	top := a.storage.TopBlock()
-	if top.BlockID() != block.Parent { // does block refer to last block
-		if blockFromCache, exists := a.blocksCache.Get(top.BlockID()); exists {
-			err := a.rollbackToStateFromCache(blockFromCache)
-			if err != nil {
-				return a, nil, err
-			}
-		}
-	}
-
-	a.blocksCache.AddBlockState(block)
 
 	return NewNGFsm12(a.BaseInfo), Tasks(NewMineMicroTask(1*time.Second, block, limits, keyPair, vrf)), nil
 }
