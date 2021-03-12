@@ -27,12 +27,12 @@ func (a *NGFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error
 
 func (a *NGFsm) Task(task AsyncTask) (FSM, Async, error) {
 	switch task.TaskType {
-	case PING:
+	case Ping:
 		return noop(a)
-	case ASK_PEERS:
+	case AskPeers:
 		a.peers.AskPeers()
 		return a, nil, nil
-	case MINE_MICRO:
+	case MineMicro:
 		t := task.Data.(MineMicroTaskData)
 		return a.mineMicro(t.Block, t.Limits, t.KeyPair, t.Vrf)
 	default:

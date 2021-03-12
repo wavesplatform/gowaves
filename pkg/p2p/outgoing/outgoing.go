@@ -98,7 +98,10 @@ func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (c
 
 	select {
 	case <-ctx.Done():
-		c.Close()
+		_ = c.Close()
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return nil, nil, nil
+		}
 		return nil, nil, errors.Wrap(ctx.Err(), "connector.connect")
 	default:
 	}
@@ -108,6 +111,9 @@ func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (c
 		zap.S().Debugf("failed to read handshake: %s %s", err, a.params.Address)
 		select {
 		case <-ctx.Done():
+			if errors.Is(ctx.Err(), context.Canceled) {
+				return nil, nil, nil
+			}
 			return nil, nil, errors.Wrap(ctx.Err(), "connector.connect")
 		case <-time.After(5 * time.Minute):
 			return nil, nil, err

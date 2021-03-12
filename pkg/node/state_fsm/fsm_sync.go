@@ -59,10 +59,10 @@ func (a *SyncFsm) MicroBlockInv(_ Peer, _ *proto.MicroBlockInv) (FSM, Async, err
 func (a *SyncFsm) Task(task AsyncTask) (FSM, Async, error) {
 	zap.S().Debugf("SyncFsm Task: got task type %d, data %+v", task.TaskType, task.Data)
 	switch task.TaskType {
-	case ASK_PEERS:
+	case AskPeers:
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
-	case PING:
+	case Ping:
 		timeout := a.conf.lastReceiveTime.Add(a.conf.timeout).Before(a.baseInfo.tm.Now())
 		if timeout {
 			return NewIdleFsm(a.baseInfo), nil, TimeoutErr
@@ -82,7 +82,7 @@ func (noopWrapper) AskBlocksIDs([]proto.BlockID) {
 func (noopWrapper) AskBlock(proto.BlockID) {
 }
 
-func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
+func (a *SyncFsm) PeerError(p Peer, _ error) (FSM, Async, error) {
 	a.baseInfo.peers.Disconnect(p)
 	if a.conf.peerSyncWith == p {
 		_, blocks, _ := a.internal.Blocks(noopWrapper{})
@@ -97,11 +97,11 @@ func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
 	return a, nil, nil
 }
 
-func (a *SyncFsm) BlockIDs(peer Peer, sigs []proto.BlockID) (FSM, Async, error) {
+func (a *SyncFsm) BlockIDs(peer Peer, signatures []proto.BlockID) (FSM, Async, error) {
 	if a.conf.peerSyncWith != peer {
 		return a, nil, nil
 	}
-	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme), sigs)
+	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme), signatures)
 	if err != nil {
 		return newSyncFsm(a.baseInfo, a.conf, internal), nil, err
 	}
@@ -220,11 +220,11 @@ func newSyncFsm(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) F
 }
 
 func NewIdleToSyncTransition(baseInfo BaseInfo, p Peer) (FSM, Async, error) {
-	lastSigs, err := signatures.LastSignaturesImpl{}.LastBlockIDs(baseInfo.storage)
+	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(baseInfo.storage)
 	if err != nil {
 		return NewIdleFsm(baseInfo), nil, err
 	}
-	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, baseInfo.scheme), lastSigs)
+	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, baseInfo.scheme), lastSignatures)
 	c := conf{
 		peerSyncWith: p,
 		timeout:      30 * time.Second,
