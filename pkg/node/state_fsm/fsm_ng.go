@@ -80,8 +80,6 @@ func (a *NGFsm) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 	if err != nil {
 		return err
 	}
-	a.blocksCache.Clear()
-
 	return nil
 }
 
@@ -90,13 +88,17 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 
 	top := a.storage.TopBlock()
 	if top.BlockID() != block.Parent { // does block refer to last block
+		zap.S().Debugf("Key-block '%s' has parent '%s' which is not the top block '%s'",
+			block.ID.String(), block.Parent.String(), top.ID.String())
 		if blockFromCache, ok := a.blocksCache.Get(top.BlockID()); ok {
+			zap.S().Debugf("Re-applying block '%s' from cache", blockFromCache.ID.String())
 			err := a.rollbackToStateFromCache(blockFromCache)
 			if err != nil {
 				return a, nil, err
 			}
 		}
 	}
+	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 
 	_, err := a.blocksApplier.Apply(a.storage, []*proto.Block{block})
@@ -114,29 +116,21 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 
 func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
 	metrics.FSMKeyBlockGenerated("ng", block)
-
-	top := a.storage.TopBlock()
-	if top.BlockID() != block.Parent { // does block refer to last block
-		if blockFromCache, exists := a.blocksCache.Get(top.BlockID()); exists {
-			err := a.rollbackToStateFromCache(blockFromCache)
-			if err != nil {
-				return a, nil, err
-			}
-		}
-	}
-	a.blocksCache.AddBlockState(block)
-
 	err := a.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
 		_, err = a.blocksApplier.Apply(state, []*proto.Block{block})
 		return err
 	})
 	if err != nil {
-		zap.S().Info("NGFsm MinedBlock  err ", err)
+		zap.S().Warnf("Failed to apply mined block '%s': %v", block.ID.String(), err)
 		metrics.FSMKeyBlockDeclined("ng", block, err)
 		return a, nil, err
 	}
 	metrics.FSMKeyBlockApplied("ng", block)
+
+	a.blocksCache.Clear()
+	a.blocksCache.AddBlockState(block)
+
 	a.Reschedule()
 	a.actions.SendBlock(block)
 	a.actions.SendScore(a.storage)
