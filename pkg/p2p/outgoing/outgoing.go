@@ -98,7 +98,7 @@ func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (c
 
 	select {
 	case <-ctx.Done():
-		c.Close()
+		_ = c.Close()
 		return nil, nil, errors.Wrap(ctx.Err(), "connector.connect")
 	default:
 	}
