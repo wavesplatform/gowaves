@@ -1,5 +1,9 @@
 package state_fsm
 
-import "errors"
+import (
+	"errors"
 
-var TimeoutErr = errors.New("timeout")
+	"github.com/wavesplatform/gowaves/pkg/proto"
+)
+
+var TimeoutErr = proto.NewInfoMsg(errors.New("timeout"))

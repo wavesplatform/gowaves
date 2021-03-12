@@ -2,6 +2,7 @@ package state_fsm
 
 import (
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -33,20 +34,20 @@ func (a *IdleFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyP
 	return MinedBlockNgTransition(a.baseInfo, block, limits, keyPair, vrf)
 }
 
-func (a *IdleFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error) {
+func (a *IdleFsm) MicroBlock(_ peer.Peer, _ *proto.MicroBlock) (FSM, Async, error) {
 	return a.baseInfo.d.Noop(a)
 }
 
-func (a *IdleFsm) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Async, error) {
+func (a *IdleFsm) MicroBlockInv(_ peer.Peer, _ *proto.MicroBlockInv) (FSM, Async, error) {
 	return a.baseInfo.d.Noop(a)
 }
 
 func (a *IdleFsm) Task(task AsyncTask) (FSM, Async, error) {
 	zap.S().Debugf("IdleFsm Task: got task type %d, data %+v", task.TaskType, task.Data)
 	switch task.TaskType {
-	case PING:
+	case Ping:
 		return noop(a)
-	case ASK_PEERS:
+	case AskPeers:
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	default:
@@ -78,9 +79,10 @@ func (a *IdleFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 }
 
 func (a *IdleFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
+	metrics.FSMScore("idle", score, p.Handshake().NodeName)
 	return handleScore(a, a.baseInfo, p, score)
 }
 
-func (a *IdleFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
+func (a *IdleFsm) Block(_ peer.Peer, _ *proto.Block) (FSM, Async, error) {
 	return noop(a)
 }

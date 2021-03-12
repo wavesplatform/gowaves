@@ -26,7 +26,7 @@ func TestNewFsm(t *testing.T) {
 	fsm, async, err := NewFsm(services.Services{Scheduler: noopReschedule{}}, 1000)
 
 	require.NoError(t, err)
-	require.Equal(t, []int{tasks.ASK_PEERS, tasks.PING}, mapAsync(async))
+	require.Equal(t, []int{tasks.AskPeers, tasks.Ping}, mapAsync(async))
 
 	require.NotNil(t, fsm)
 }
