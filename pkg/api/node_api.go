@@ -58,7 +58,9 @@ func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
 
 func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
+	defer func() {
+		_ = r.Body.Close()
+	}()
 	if err != nil {
 		handleError(w, &BadRequestError{err})
 		return

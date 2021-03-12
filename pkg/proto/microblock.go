@@ -126,7 +126,7 @@ func (a *MicroBlock) UnmarshalBinary(b []byte, scheme Scheme) error {
 		return errors.Wrap(err, "failed to unmarshal microblock transaction bytes")
 	}
 	if proto {
-		var txs Transactions
+		txs := Transactions{}
 		if err := txs.UnmarshalFromProtobuf(bts); err != nil {
 			return errors.Wrap(err, "failed to unmarshal transactions from protobuf")
 		}
@@ -209,7 +209,7 @@ type MicroBlockMessage struct {
 	Body []byte
 }
 
-func (*MicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
+func (*MicroBlockMessage) ReadFrom(_ io.Reader) (int64, error) {
 	panic("implement me")
 }
 
@@ -276,7 +276,7 @@ type MicroBlockInvMessage struct {
 	Body []byte
 }
 
-func (a *MicroBlockInvMessage) ReadFrom(r io.Reader) (n int64, err error) {
+func (a *MicroBlockInvMessage) ReadFrom(_ io.Reader) (n int64, err error) {
 	panic("implement me")
 }
 
@@ -319,7 +319,7 @@ type MicroBlockRequestMessage struct {
 	TotalBlockSig []byte
 }
 
-func (a *MicroBlockRequestMessage) ReadFrom(r io.Reader) (n int64, err error) {
+func (a *MicroBlockRequestMessage) ReadFrom(_ io.Reader) (n int64, err error) {
 	panic("implement me")
 }
 
@@ -512,7 +512,7 @@ type PBMicroBlockMessage struct {
 	MicroBlockBytes Bytes
 }
 
-func (*PBMicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
+func (*PBMicroBlockMessage) ReadFrom(_ io.Reader) (int64, error) {
 	panic("implement me")
 }
 

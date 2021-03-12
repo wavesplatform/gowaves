@@ -2,7 +2,6 @@ package node
 
 import (
 	"math/big"
-	"net"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -33,7 +32,7 @@ func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm stat
 	var out []proto.PeerInfo
 	for _, r := range rs {
 		out = append(out, proto.PeerInfo{
-			Addr: net.IP(r.IP[:]),
+			Addr: r.IP[:],
 			Port: uint16(r.Port),
 		})
 	}
@@ -86,7 +85,7 @@ func GetBlockAction(services services.Services, mess peer.ProtoMessage, fsm stat
 }
 
 // received asked earlier signatures
-func SignaturesAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+func SignaturesAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	sigs := mess.Message.(*proto.SignaturesMessage).Signatures
 	blockIDs := make([]proto.BlockID, len(sigs))
 	for i, sig := range sigs {
@@ -161,7 +160,7 @@ func sendBlockIds(services services.Services, block *proto.BlockHeader, p peer.P
 }
 
 // remote node mined microblock and sent us info about it.
-func MicroBlockInvAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+func MicroBlockInvAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	inv := &proto.MicroBlockInv{}
 	err := inv.UnmarshalBinary(mess.Message.(*proto.MicroBlockInvMessage).Body)
 	if err != nil {
@@ -204,7 +203,7 @@ func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FS
 	return fsm.Block(mess.ID, b)
 }
 
-func PBMicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+func PBMicroBlockAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	micro := &proto.MicroBlock{}
 	err := micro.UnmarshalFromProtobuf(mess.Message.(*proto.PBMicroBlockMessage).MicroBlockBytes)
 	if err != nil {

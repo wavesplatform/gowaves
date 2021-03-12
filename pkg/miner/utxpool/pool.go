@@ -136,7 +136,7 @@ func (a *UtxImpl) Count() int {
 	return len(a.transactions)
 }
 
-func makeDigest(b []byte, e error) crypto.Digest {
+func makeDigest(b []byte, _ error) crypto.Digest {
 	d := crypto.Digest{}
 	copy(d[:], b)
 	return d

@@ -100,7 +100,7 @@ func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPai
 	return NewNGFsm12(a.BaseInfo), Tasks(NewMineMicroTask(1*time.Second, block, limits, keyPair, vrf)), nil
 }
 
-func (a *NGFsm) BlockIDs(peer peer.Peer, sigs []proto.BlockID) (FSM, Async, error) {
+func (a *NGFsm) BlockIDs(_ peer.Peer, _ []proto.BlockID) (FSM, Async, error) {
 	return noop(a)
 }
 
