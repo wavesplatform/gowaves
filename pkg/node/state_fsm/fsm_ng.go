@@ -98,7 +98,7 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 	if top.BlockID() != block.Parent { // does block refer to last block
 		zap.S().Debugf("Key-block '%s' has parent '%s' which is not the top block '%s'",
 			block.ID.String(), block.Parent.String(), top.ID.String())
-		if blockFromCache, ok := a.blocksCache.Get(top.BlockID()); ok {
+		if blockFromCache, ok := a.blocksCache.Get(block.Parent); ok {
 			zap.S().Debugf("Re-applying block '%s' from cache", blockFromCache.ID.String())
 			err := a.rollbackToStateFromCache(blockFromCache)
 			if err != nil {
@@ -289,16 +289,18 @@ type blockStatesCache struct {
 	blockStates map[proto.BlockID]proto.Block
 }
 
-func (blocks *blockStatesCache) AddBlockState(block *proto.Block) {
-	blocks.blockStates[block.ID] = *block
+func (c *blockStatesCache) AddBlockState(block *proto.Block) {
+	c.blockStates[block.ID] = *block
+	zap.S().Debugf("Block '%s' added to cache, total blocks in cache: %d", block.ID.String(), len(c.blockStates))
 }
 
-func (blocks *blockStatesCache) Clear() {
-	blocks.blockStates = map[proto.BlockID]proto.Block{}
+func (c *blockStatesCache) Clear() {
+	c.blockStates = map[proto.BlockID]proto.Block{}
+	zap.S().Debug("Block cache is empty")
 }
 
-func (blocks *blockStatesCache) Get(blockID proto.BlockID) (*proto.Block, bool) {
-	block, ok := blocks.blockStates[blockID]
+func (c *blockStatesCache) Get(blockID proto.BlockID) (*proto.Block, bool) {
+	block, ok := c.blockStates[blockID]
 	if !ok {
 		return nil, false
 	}
