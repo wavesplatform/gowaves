@@ -41,7 +41,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Inco
 	readHandshake := proto.Handshake{}
 	_, err := readHandshake.ReadFrom(c)
 	if err != nil {
-		zap.S().Error("failed to read handshake: ", err)
+		zap.S().Debug("Failed to read handshake: ", err)
 		_ = c.Close()
 		return err
 	}
@@ -64,7 +64,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Inco
 
 	_, err = writeHandshake.WriteTo(c)
 	if err != nil {
-		zap.S().Error("failed to write handshake: ", err)
+		zap.S().Debug("failed to write handshake: ", err)
 		_ = c.Close()
 		return err
 	}
