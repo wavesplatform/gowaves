@@ -72,8 +72,8 @@ func (a *innerBlocksApplier) apply(storage innerState, blocks []*proto.Block) (p
 	}
 	cumulativeScore := forkScore.Add(forkScore, parentScore)
 	if currentScore.Cmp(cumulativeScore) >= 0 { // current score is higher or the same as fork score - do not apply blocks
-		return 0, errors.Errorf("low fork score: current blockchain score (%s) is higher than or equal to fork's score (%s)",
-			currentScore.String(), cumulativeScore.String())
+		return 0, proto.NewInfoMsg(errors.Errorf("low fork score: current blockchain score (%s) is higher than or equal to fork's score (%s)",
+			currentScore.String(), cumulativeScore.String()))
 	}
 
 	// so, new blocks has higher score, try apply it.
