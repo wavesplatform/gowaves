@@ -2,9 +2,7 @@ package ride
 
 import (
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 func CallTreeVerifier(env RideEnvironment, tree *Tree) (RideResult, error) {
@@ -23,40 +21,40 @@ func CallVmVerifier(txID string, env RideEnvironment, compiled *Executable) (Rid
 }
 
 func CallVerifier(txID string, env RideEnvironment, tree *Tree, exe *Executable) (RideResult, error) {
-	r, err := CallVmVerifier(txID, env, exe)
-	if err != nil {
-		return nil, errors.Wrap(err, "vm verifier")
-	}
-	r2, err := CallTreeVerifier(env, tree)
+	//r, err := CallVmVerifier(txID, env, exe)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, "vm verifier")
+	//}
+	r2, err := CallTreeVerifier(env, MustExpand(tree))
 	if err != nil {
 		return nil, errors.Wrap(err, "tree verifier")
 	}
+	//
+	//if !r.Eq(r2) {
+	//	c1 := r.Calls()
+	//	c2 := r2.Calls()
+	//	max := len(c1)
+	//	if len(c2) > len(c1) {
+	//		max = len(c2)
+	//	}
+	//	for i := 0; i < max; i++ {
+	//		//zap.S().Error("R1 != R2: failed to call account script on transaction ")
+	//		if i <= len(c1)-1 {
+	//			zap.S().Error(i, txID, " ", c1[i])
+	//		} else {
+	//			zap.S().Error(i, txID, " ", "<empty>")
+	//		}
+	//		if i <= len(c2)-1 {
+	//			zap.S().Error(i, txID, " ", c2[i])
+	//		} else {
+	//			zap.S().Error(i, txID, " ", "<empty>")
+	//		}
+	//	}
+	//
+	//	return nil, errors.New("R1 != R2: failed to call account script on transaction ")
+	//}
 
-	if !r.Eq(r2) {
-		c1 := r.Calls()
-		c2 := r2.Calls()
-		max := len(c1)
-		if len(c2) > len(c1) {
-			max = len(c2)
-		}
-		for i := 0; i < max; i++ {
-			//zap.S().Error("R1 != R2: failed to call account script on transaction ")
-			if i <= len(c1)-1 {
-				zap.S().Error(i, txID, " ", c1[i])
-			} else {
-				zap.S().Error(i, txID, " ", "<empty>")
-			}
-			if i <= len(c2)-1 {
-				zap.S().Error(i, txID, " ", c2[i])
-			} else {
-				zap.S().Error(i, txID, " ", "<empty>")
-			}
-		}
-
-		return nil, errors.New("R1 != R2: failed to call account script on transaction ")
-	}
-
-	return r, nil
+	return r2, nil
 }
 
 func CallTreeFunction(txID string, env RideEnvironment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
@@ -71,10 +69,12 @@ func CallTreeFunction(txID string, env RideEnvironment, tree *Tree, name string,
 }
 
 func CallFunction(txID string, env RideEnvironment, exe *Executable, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
-	rs1, err := CallTreeFunction(txID, env, tree, name, args)
+	rs1, err := CallTreeFunction(txID, env, MustExpand(tree), name, args)
 	if err != nil {
 		return nil, errors.Wrap(err, "call function by tree")
 	}
+	return rs1, nil
+	/* *
 	rs2, err := CallVmFunction(txID, env, exe, name, args)
 	if err != nil {
 		return rs2, errors.Wrap(err, "call function by vm")
@@ -112,6 +112,7 @@ func CallFunction(txID string, env RideEnvironment, exe *Executable, tree *Tree,
 		return nil, errors.New("R1 != R2: failed to call account script on transaction ")
 	}
 	return rs2, nil
+	/* */
 }
 
 func CallVmFunction(txID string, env RideEnvironment, e *Executable, name string, args proto.Arguments) (RideResult, error) {

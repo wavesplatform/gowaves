@@ -166,11 +166,11 @@ func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key []byte, rec
 			if err != nil {
 				return err
 			}
-			expandedTree, err := ride.Expand(p)
-			if err != nil {
-				return err
-			}
-			exe, err = ride.CompileTree("scriptsStorage setScript "+txID, expandedTree)
+			//expandedTree, err := ride.Expand(p)
+			//if err != nil {
+			//	return err
+			//}
+			exe, err = ride.CompileTree("scriptsStorage setScript "+txID, p)
 			if err != nil {
 				return err
 			}
