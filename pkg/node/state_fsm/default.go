@@ -2,6 +2,7 @@ package state_fsm
 
 import (
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type Default interface {
@@ -27,6 +28,9 @@ func (a DefaultImpl) PeerError(fsm FSM, p Peer, baseInfo BaseInfo, _ error) (FSM
 
 func (a DefaultImpl) NewPeer(fsm FSM, p Peer, info BaseInfo) (FSM, Async, error) {
 	err := info.peers.NewConnection(p)
+	if err != nil {
+		return fsm, nil, proto.NewInfoMsg(err)
+	}
 	info.Reschedule()
-	return fsm, nil, err
+	return fsm, nil, nil
 }

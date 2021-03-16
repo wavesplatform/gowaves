@@ -300,11 +300,7 @@ func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr string) {
 	_ = a.state.Add([]proto.TCPAddr{proto.NewTCPAddrFromString(addr)})
 	go func() {
 		if err := a.spawner.SpawnOutgoing(ctx, proto.NewTCPAddrFromString(addr)); err != nil {
-			if !errors.Is(err, context.Canceled) {
-				zap.S().Warn(err)
-			} else {
-				zap.S().Debug(err)
-			}
+			zap.S().Debug(err)
 		}
 	}()
 }

@@ -296,7 +296,7 @@ func (a *MicroBlockInvMessage) WriteTo(w io.Writer) (n int64, err error) {
 	if err != nil {
 		return 0, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 	n1, err := h.WriteTo(w)
 	if err != nil {
 		return 0, err
@@ -339,7 +339,7 @@ func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 	n2, err := h.WriteTo(w)
 	if err != nil {
 		return 0, err
