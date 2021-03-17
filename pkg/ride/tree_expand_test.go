@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 
-	//"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -329,31 +328,5 @@ func TestExpandSmthWrote(t *testing.T) {
 	rs, err := script.Invoke(env, "finalizeCurrentPrice", nil)
 	require.NoError(t, err)
 	//require.Equal(t, 2, len(rs.Calls()))
-	require.Equal(t, true, rs.Result())
-}
-
-func TestExpandSmthWrote3(t *testing.T) {
-	source := `AwoBAAAAC0lzUGxheWVyV2luAAAAAgAAAAxwbGF5ZXJDaG9pY2UAAAAHcmFuZFN0cgQAAAABcwkAATEAAAABBQAAAAxwbGF5ZXJDaG9pY2UDAwMDAwkAAGcAAAACBQAAAAFzAAAAAAAAAAABCQAAAAAAAAIJAAEvAAAAAgkAATAAAAACBQAAAAxwbGF5ZXJDaG9pY2UAAAAAAAAAAAAAAAAAAAAAAAEFAAAAB3JhbmRTdHIHBgMJAABnAAAAAgUAAAABcwAAAAAAAAAAAgkAAAAAAAACCQABLwAAAAIJAAEwAAAAAgUAAAAMcGxheWVyQ2hvaWNlAAAAAAAAAAABAAAAAAAAAAABBQAAAAdyYW5kU3RyBwYDCQAAZwAAAAIFAAAAAXMAAAAAAAAAAAMJAAAAAAAAAgkAAS8AAAACCQABMAAAAAIFAAAADHBsYXllckNob2ljZQAAAAAAAAAAAgAAAAAAAAAAAQUAAAAHcmFuZFN0cgcGAwkAAGcAAAACBQAAAAFzAAAAAAAAAAAECQAAAAAAAAIJAAEvAAAAAgkAATAAAAACBQAAAAxwbGF5ZXJDaG9pY2UAAAAAAAAAAAMAAAAAAAAAAAEFAAAAB3JhbmRTdHIHBgMJAAAAAAAAAgUAAAABcwAAAAAAAAAABQkAAAAAAAACCQABLwAAAAIJAAEwAAAAAgUAAAAMcGxheWVyQ2hvaWNlAAAAAAAAAAAEAAAAAAAAAAABBQAAAAdyYW5kU3RyBwkBAAAAC0lzUGxheWVyV2luAAAAAgIAAAACYWECAAAAAmJinpP4rw==`
-
-	src, err := base64.StdEncoding.DecodeString(source)
-	require.NoError(t, err)
-
-	tree, err := Parse(src)
-	tree = MustExpand(tree)
-	t.Log(DecompileTree(tree))
-	//require.NoError(t, err)
-	//require.NotNil(t, tree)
-	//
-	script, err := CompileTree("", tree)
-	require.NoError(t, err)
-
-	//rsT, err := CallTreeVerifier(nil, tree)
-	//require.NoError(t, err)
-	//_ = rsT
-	//
-	//rs, err := script.Invoke(defaultEnv, "addBuyBondOrder", []rideType{rideInt(1398601), rideString("")})
-	rs, err := script.Verify(defaultEnv)
-	require.NoError(t, err)
-	////require.Equal(t, 2, len(rs.Calls()))
 	require.Equal(t, true, rs.Result())
 }
