@@ -40,7 +40,7 @@ func memProfile(filename string) {
 	if err := pprof.WriteHeapProfile(f); err != nil {
 		zap.S().Fatal(err)
 	}
-	f.Close()
+	_ = f.Close()
 }
 
 func skipUselessMessages(header proto.Header) bool {
@@ -190,7 +190,7 @@ func main() {
 	if memprofile != "" {
 		memProfile(memprofile)
 	}
-	zap.S().Infow("Caught signal, stopping", "signal", sig)
+	zap.S().Infof("Caught signal '%s', stopping...", sig)
 	_ = srv.Shutdown(ctx)
 	cancel()
 }

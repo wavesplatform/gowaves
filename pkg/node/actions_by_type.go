@@ -239,6 +239,16 @@ func TransactionAction(s services.Services, mess peer.ProtoMessage, fsm state_fs
 	return fsm.Transaction(mess.ID, t)
 }
 
+// TODO broadcast transaction
+func PBTransactionAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+	b := mess.Message.(*proto.PBTransactionMessage).Transaction
+	t, err := proto.SignedTxFromProtobuf(b)
+	if err != nil {
+		return fsm, nil, err
+	}
+	return fsm.Transaction(mess.ID, t)
+}
+
 func CreateActions() map[reflect.Type]Action {
 	return map[reflect.Type]Action{
 		reflect.TypeOf(&proto.ScoreMessage{}):             ScoreAction,
@@ -255,7 +265,7 @@ func CreateActions() map[reflect.Type]Action {
 		reflect.TypeOf(&proto.PBMicroBlockMessage{}):      PBMicroBlockAction,
 		reflect.TypeOf(&proto.GetBlockIdsMessage{}):       GetBlockIdsAction,
 		reflect.TypeOf(&proto.BlockIdsMessage{}):          BlockIdsAction,
-
-		reflect.TypeOf(&proto.TransactionMessage{}): TransactionAction,
+		reflect.TypeOf(&proto.TransactionMessage{}):       TransactionAction,
+		reflect.TypeOf(&proto.PBTransactionMessage{}):     PBTransactionAction,
 	}
 }

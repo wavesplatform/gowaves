@@ -83,9 +83,9 @@ func blockFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
 	var b Block
 	err = b.UnmarshalBinary(decoded, MainNetScheme)
 	assert.NoError(t, err, "UnmarshalBinary() for block failed")
-	bytes, err := BlockEncodeJson(&b)
+	bts, err := BlockEncodeJson(&b)
 	assert.NoError(t, err, "json.Marshal() for block failed")
-	str := string(bytes)
+	str := string(bts)
 	assert.Equalf(t, jsonStr, str, "block marshaled to wrong json:\nhave: %s\nwant: %s", str, jsonStr)
 	bin, err := b.MarshalBinary()
 	assert.NoError(t, err, "MarshalBinary() for block failed")
@@ -96,9 +96,9 @@ func blockFromJSONToJSON(t *testing.T, jsonStr string) {
 	var b Block
 	err := json.Unmarshal([]byte(jsonStr), &b)
 	assert.NoError(t, err, "json.Unmarshal() for block failed")
-	bytes, err := BlockEncodeJson(&b)
+	bts, err := BlockEncodeJson(&b)
 	assert.NoError(t, err, "json.Marshal() for block failed")
-	str := string(bytes)
+	str := string(bts)
 	assert.JSONEqf(t, jsonStr, str, "block marshaled to wrong json:\nhave: %s\nwant: %s", str, jsonStr)
 }
 
@@ -130,9 +130,9 @@ func headerFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
 	var header BlockHeader
 	err = header.UnmarshalHeaderFromBinary(decoded, MainNetScheme)
 	assert.NoError(t, err, "UnmarshalHeaderFromBinary() failed")
-	bytes, err := json.Marshal(header)
+	bts, err := json.Marshal(header)
 	assert.NoError(t, err, "json.Marshal() for header failed")
-	str := string(bytes)
+	str := string(bts)
 	assert.Equalf(t, jsonStr, str, "header marshaled to wrong json:\nhave: %s\nwant: %s", str, jsonStr)
 	bin, err := header.MarshalHeaderToBinary()
 	assert.NoError(t, err, "MarshalHeaderToBinary() failed")
@@ -143,9 +143,9 @@ func headerFromJSONToJSON(t *testing.T, jsonStr string) {
 	var header BlockHeader
 	err := json.Unmarshal([]byte(jsonStr), &header)
 	assert.NoError(t, err, "json.Unmarshal() for header failed")
-	bytes, err := json.Marshal(header)
+	bts, err := json.Marshal(header)
 	assert.NoError(t, err, "json.Marshal() for header failed")
-	str := string(bytes)
+	str := string(bts)
 	assert.JSONEqf(t, jsonStr, str, "header marshaled to wrong json:\nhave: %s\nwant: %s", str, jsonStr)
 }
 
@@ -362,14 +362,13 @@ func TestBlock_Clone(t *testing.T) {
 
 // TODO, empty block should not marshal, or unmarshal successfully
 func TestEmptyBlockMarshall(t *testing.T) {
-	t.Skip()
 	b1 := Block{}
 	bts, err := b1.MarshalBinary()
 	require.NoError(t, err)
 
 	b2 := Block{}
 	err = b2.UnmarshalBinary(bts, MainNetScheme)
-	require.NoError(t, err)
+	require.Error(t, err)
 }
 
 func TestBlockVerifyRootHash(t *testing.T) {

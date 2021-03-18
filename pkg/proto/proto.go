@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	MaxHeaderLength = 17
-	headerMagic     = 0x12345678
-	headerCsumLen   = 4
+	MaxHeaderLength   = 17
+	headerMagic       = 0x12345678
+	headerChecksumLen = 4
 
 	HeaderSizeWithPayload    = 17
 	HeaderSizeWithoutPayload = 13
@@ -56,11 +56,11 @@ type Message interface {
 }
 
 type Header struct {
-	Length        uint32
-	Magic         uint32
-	ContentID     uint8
-	PayloadLength uint32
-	PayloadCsum   [headerCsumLen]byte
+	Length          uint32
+	Magic           uint32
+	ContentID       uint8
+	PayloadLength   uint32
+	PayloadChecksum [headerChecksumLen]byte
 }
 
 func (h *Header) MarshalBinary() ([]byte, error) {
@@ -126,7 +126,7 @@ func (h *Header) UnmarshalBinary(data []byte) error {
 		if uint32(len(data)) < HeaderSizeWithPayload {
 			return errors.New("Header UnmarshalBinary: invalid data size")
 		}
-		copy(h.PayloadCsum[:], data[13:17])
+		copy(h.PayloadChecksum[:], data[13:17])
 	}
 
 	return nil
@@ -144,7 +144,7 @@ func (h *Header) Copy(data []byte) (int, error) {
 		if len(data) < 17 {
 			return 0, errors.New("Header Copy: invalid data size")
 		}
-		copy(data[13:17], h.PayloadCsum[:])
+		copy(data[13:17], h.PayloadChecksum[:])
 		return HeaderSizeWithPayload, nil
 	}
 	return HeaderSizeWithoutPayload, nil
@@ -590,12 +590,10 @@ func (a *Handshake) WriteTo(w io.Writer) (int64, error) {
 
 // ReadFrom reads Handshake from io.Reader
 func (a *Handshake) ReadFrom(r io.Reader) (int64, error) {
-	// max Header size based on fields
-	//buf := [556]byte{}
 	appName := U8String{}
 	n1, err := appName.ReadFrom(r)
 	if err != nil {
-		return 0, errors.Wrap(err, "appname")
+		return 0, errors.Wrap(err, "appName")
 	}
 	a.AppName = appName.S
 
@@ -607,7 +605,7 @@ func (a *Handshake) ReadFrom(r io.Reader) (int64, error) {
 	nodeName := U8String{}
 	n3, err := nodeName.ReadFrom(r)
 	if err != nil {
-		return 0, errors.Wrap(err, "nodename")
+		return 0, errors.Wrap(err, "nodeName")
 	}
 	a.NodeName = nodeName.S
 
@@ -632,7 +630,7 @@ func (a *Handshake) ReadFrom(r io.Reader) (int64, error) {
 	}
 
 	a.Timestamp = uint64(tm)
-	return int64(n1 + n2 + n3 + n4 + n5 + n6), nil
+	return n1 + n2 + n3 + n4 + n5 + n6, nil
 }
 
 // GetPeersMessage implements the GetPeers message from the waves protocol
@@ -673,7 +671,7 @@ func (m *GetPeersMessage) ReadFrom(r io.Reader) (int64, error) {
 	if err != nil {
 		return nn, err
 	}
-	return int64(nn), m.UnmarshalBinary(packet)
+	return nn, m.UnmarshalBinary(packet)
 }
 
 // WriteTo writes GetPeersMessage to io.Writer
@@ -700,7 +698,7 @@ func NewIpPortFromTcpAddr(a TCPAddr) IpPort {
 }
 
 func (a IpPort) Addr() net.IP {
-	return net.IP(a[:net.IPv6len])
+	return a[:net.IPv6len]
 }
 
 func (a IpPort) Port() int {
@@ -732,39 +730,16 @@ type PeerInfo struct {
 	Port uint16
 }
 
-func (a PeerInfo) WriteTo(w io.Writer) (int64, error) {
-	b := [8]byte{}
-	copy(b[:4], a.Addr.To4())
-	binary.BigEndian.PutUint32(b[4:8], uint32(a.Port))
-	n, err := w.Write(b[:])
-	if err != nil {
-		return int64(n), err
-	}
-	return int64(n), nil
-}
-
-func (a *PeerInfo) ReadFrom(r io.Reader) (int64, error) {
-	b := [8]byte{}
-	n, err := r.Read(b[:])
-	if err != nil {
-		return int64(n), err
-	}
-	a.Addr = net.IPv4(b[0], b[1], b[2], b[3])
-	a.Port = uint16(binary.BigEndian.Uint32(b[:4]))
-
-	return int64(n), nil
-}
-
 func NewPeerInfoFromString(addr string) (PeerInfo, error) {
-	strs := strings.Split(addr, ":")
-	if len(strs) != 2 {
+	parts := strings.Split(addr, ":")
+	if len(parts) != 2 {
 		return PeerInfo{}, errors.Errorf("invalid addr %s", addr)
 	}
 
-	ip := net.ParseIP(string(strs[0]))
-	port, err := strconv.ParseUint(strs[1], 10, 64)
+	ip := net.ParseIP(parts[0])
+	port, err := strconv.ParseUint(parts[1], 10, 64)
 	if err != nil {
-		return PeerInfo{}, errors.Errorf("invalid port %s", strs[1])
+		return PeerInfo{}, errors.Errorf("invalid port %s", parts[1])
 	}
 	return PeerInfo{
 		Addr: ip,
@@ -772,57 +747,80 @@ func NewPeerInfoFromString(addr string) (PeerInfo, error) {
 	}, nil
 }
 
+func (p PeerInfo) WriteTo(w io.Writer) (int64, error) {
+	b := [8]byte{}
+	copy(b[:4], p.Addr.To4())
+	binary.BigEndian.PutUint32(b[4:8], uint32(p.Port))
+	n, err := w.Write(b[:])
+	if err != nil {
+		return int64(n), err
+	}
+	return int64(n), nil
+}
+
+func (p *PeerInfo) ReadFrom(r io.Reader) (int64, error) {
+	b := [8]byte{}
+	n, err := r.Read(b[:])
+	if err != nil {
+		return int64(n), err
+	}
+	p.Addr = net.IPv4(b[0], b[1], b[2], b[3])
+	p.Port = uint16(binary.BigEndian.Uint32(b[:4]))
+
+	return int64(n), nil
+}
+
 // MarshalBinary encodes PeerInfo message to binary form
-func (m *PeerInfo) MarshalBinary() ([]byte, error) {
+func (p *PeerInfo) MarshalBinary() ([]byte, error) {
 	buffer := make([]byte, 8)
 
-	copy(buffer[0:4], m.Addr.To4())
-	binary.BigEndian.PutUint32(buffer[4:8], uint32(m.Port))
+	copy(buffer[0:4], p.Addr.To4())
+	binary.BigEndian.PutUint32(buffer[4:8], uint32(p.Port))
 
 	return buffer, nil
 }
 
 // UnmarshalBinary decodes PeerInfo message from binary form
-func (m *PeerInfo) UnmarshalBinary(data []byte) error {
+func (p *PeerInfo) UnmarshalBinary(data []byte) error {
 	if len(data) < 8 {
 		return errors.New("too short")
 	}
 
-	m.Addr = net.IPv4(data[0], data[1], data[2], data[3])
-	m.Port = uint16(binary.BigEndian.Uint32(data[4:8]))
+	p.Addr = net.IPv4(data[0], data[1], data[2], data[3])
+	p.Port = uint16(binary.BigEndian.Uint32(data[4:8]))
 
 	return nil
 }
 
 // String() implements Stringer interface for PeerInfo
-func (m PeerInfo) String() string {
+func (p PeerInfo) String() string {
 	var sb strings.Builder
-	sb.WriteString(m.Addr.String())
+	sb.WriteString(p.Addr.String())
 	sb.WriteRune(':')
-	sb.WriteString(strconv.Itoa(int(m.Port)))
+	sb.WriteString(strconv.Itoa(int(p.Port)))
 
 	return sb.String()
 }
 
 // MarshalJSON writes PeerInfo Value as JSON string
-func (m PeerInfo) MarshalJSON() ([]byte, error) {
+func (p PeerInfo) MarshalJSON() ([]byte, error) {
 	var sb strings.Builder
-	if m.Addr == nil {
+	if p.Addr == nil {
 		return nil, errors.New("invalid addr")
 	}
-	if m.Port == 0 {
+	if p.Port == 0 {
 		return nil, errors.New("invalid port")
 	}
 	sb.WriteRune('"')
-	sb.WriteString(m.Addr.String())
+	sb.WriteString(p.Addr.String())
 	sb.WriteRune(':')
-	sb.WriteString(strconv.Itoa(int(m.Port)))
+	sb.WriteString(strconv.Itoa(int(p.Port)))
 	sb.WriteRune('"')
 	return []byte(sb.String()), nil
 }
 
 // UnmarshalJSON reads PeerInfo from JSON string
-func (m *PeerInfo) UnmarshalJSON(value []byte) error {
+func (p *PeerInfo) UnmarshalJSON(value []byte) error {
 	s := string(value)
 	if s == jsonNull {
 		return nil
@@ -833,38 +831,38 @@ func (m *PeerInfo) UnmarshalJSON(value []byte) error {
 		return errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
 	}
 
-	splitted := strings.SplitN(s, "/", 2)
-	if len(splitted) == 1 {
-		s = splitted[0]
+	parts := strings.SplitN(s, "/", 2)
+	if len(parts) == 1 {
+		s = parts[0]
 	} else {
-		s = splitted[1]
+		s = parts[1]
 	}
 
-	splitted = strings.SplitN(s, ":", 2)
+	parts = strings.SplitN(s, ":", 2)
 	var addr, port string
-	if len(splitted) == 1 {
-		addr = splitted[0]
+	if len(parts) == 1 {
+		addr = parts[0]
 		port = "0"
 	} else {
-		addr = splitted[0]
-		port = splitted[1]
+		addr = parts[0]
+		port = parts[1]
 	}
 
-	m.Addr = net.ParseIP(addr)
+	p.Addr = net.ParseIP(addr)
 	port64, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal PeerInfo from JSON")
 	}
-	m.Port = uint16(port64)
+	p.Port = uint16(port64)
 	return nil
 }
 
-func (m *PeerInfo) Empty() bool {
-	if m.Addr == nil || m.Addr.String() == "0.0.0.0" {
+func (p *PeerInfo) Empty() bool {
+	if p.Addr == nil || p.Addr.String() == "0.0.0.0" {
 		return true
 	}
 
-	if m.Port == 0 {
+	if p.Port == 0 {
 		return true
 	}
 
@@ -909,7 +907,7 @@ func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -990,23 +988,6 @@ func readPacket(r io.Reader) ([]byte, int64, error) {
 	return packet, int64(nn), nil
 }
 
-func ReadPacket(buf []byte, r io.Reader) (int64, error) {
-	packetLen := buf[:4]
-	nn, err := io.ReadFull(r, packetLen)
-	if err != nil {
-		return int64(nn), err
-	}
-	l := binary.BigEndian.Uint32(packetLen)
-	buf = buf[4:]
-	packet := buf[:l]
-	n, err := io.ReadFull(r, packet)
-	if err != nil {
-		return int64(nn + n), err
-	}
-	nn += n
-	return int64(nn), nil
-}
-
 func ReadPayload(buf []byte, r io.Reader) (int64, error) {
 	nn, err := io.ReadFull(r, buf)
 	if err != nil {
@@ -1072,7 +1053,7 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1163,7 +1144,7 @@ func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1250,7 +1231,7 @@ func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1345,7 +1326,7 @@ func (m *BlockMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1365,7 +1346,7 @@ func MakeHeader(contentID uint8, payload []byte) (Header, error) {
 	if err != nil {
 		return Header{}, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 	return h, nil
 }
 
@@ -1428,7 +1409,7 @@ func (m *ScoreMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1495,7 +1476,7 @@ func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1525,8 +1506,8 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	if !bytes.Equal(dig[:4], h.PayloadCsum[:]) {
-		return fmt.Errorf("invalid checksum: expected %x, found %x", dig[:4], h.PayloadCsum[:])
+	if !bytes.Equal(dig[:4], h.PayloadChecksum[:]) {
+		return fmt.Errorf("invalid checksum: expected %x, found %x", dig[:4], h.PayloadChecksum[:])
 	}
 	return nil
 }
@@ -1583,7 +1564,7 @@ func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1667,7 +1648,7 @@ func (m *PBBlockMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1736,7 +1717,7 @@ func (m *PBTransactionMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1766,8 +1747,8 @@ func (m *PBTransactionMessage) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	if !bytes.Equal(dig[:4], h.PayloadCsum[:]) {
-		return fmt.Errorf("invalid checksum: expected %x, found %x", dig[:4], h.PayloadCsum[:])
+	if !bytes.Equal(dig[:4], h.PayloadChecksum[:]) {
+		return fmt.Errorf("invalid checksum: expected %x, found %x", dig[:4], h.PayloadChecksum[:])
 	}
 	return nil
 }
@@ -1868,7 +1849,7 @@ func (m *GetBlockIdsMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1964,7 +1945,7 @@ func (m *BlockIdsMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -2040,15 +2021,15 @@ func (m *BlockIdsMessage) WriteTo(w io.Writer) (int64, error) {
 
 type BulkMessage []Message
 
-func (BulkMessage) ReadFrom(r io.Reader) (n int64, err error) {
+func (BulkMessage) ReadFrom(_ io.Reader) (n int64, err error) {
 	panic("implement me")
 }
 
-func (BulkMessage) WriteTo(w io.Writer) (n int64, err error) {
+func (BulkMessage) WriteTo(_ io.Writer) (n int64, err error) {
 	panic("implement me")
 }
 
-func (BulkMessage) UnmarshalBinary(data []byte) error {
+func (BulkMessage) UnmarshalBinary(_ []byte) error {
 	panic("implement me")
 }
 

@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"reflect"
@@ -93,10 +94,19 @@ func (a *Node) Serve(ctx context.Context) error {
 
 		go func() {
 			if err := a.peers.SpawnIncomingConnection(ctx, conn); err != nil {
-				zap.S().Error(err)
+				zap.S().Debugf("Incoming connection error: %v", err)
 				return
 			}
 		}()
+	}
+}
+
+func (a *Node) logErrors(err error) {
+	switch e := err.(type) {
+	case *proto.InfoMsg:
+		zap.S().Debug(e.Error())
+	default:
+		zap.S().Error(e.Error())
 	}
 }
 
@@ -177,7 +187,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 			fsm, async, err = action(a.services, mess, fsm)
 		}
 		if err != nil {
-			zap.S().Error(err)
+			a.logErrors(err)
 		}
 		spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
 		zap.S().Debugf("FSM %T", fsm)
@@ -189,8 +199,8 @@ func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner
 		func(t tasks.Task) {
 			r.Named(fmt.Sprintf("Async Task %T", t), func() {
 				err := t.Run(ctx, ch)
-				if err != nil {
-					zap.S().Errorf("Async Task %T, error %q", t, err)
+				if err != nil && !errors.Is(err, context.Canceled) {
+					zap.S().Warnf("Async task '%T' finished with error: %q", t, err)
 				}
 			})
 		}(t)

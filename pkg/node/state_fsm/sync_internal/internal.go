@@ -13,8 +13,8 @@ type Blocks []*proto.Block
 type Eof = bool
 type BlockApplied bool
 
-var NoSignaturesExpectedErr = errors.New("no signatures expected")
-var UnexpectedBlockErr = errors.New("unexpected block")
+var NoSignaturesExpectedErr = proto.NewInfoMsg(errors.New("no signatures expected"))
+var UnexpectedBlockErr = proto.NewInfoMsg(errors.New("unexpected block"))
 
 type PeerExtension interface {
 	AskBlocksIDs(id []proto.BlockID)
@@ -27,9 +27,9 @@ type Internal struct {
 	waitingForSignatures bool
 }
 
-func InternalFromLastSignatures(p extension.PeerExtension, sigs *signatures.ReverseOrdering) Internal {
-	p.AskBlocksIDs(sigs.BlockIDS())
-	return NewInternal(ordered_blocks.NewOrderedBlocks(), sigs, true)
+func InternalFromLastSignatures(p extension.PeerExtension, signatures *signatures.ReverseOrdering) Internal {
+	p.AskBlocksIDs(signatures.BlockIDS())
+	return NewInternal(ordered_blocks.NewOrderedBlocks(), signatures, true)
 }
 
 func NewInternal(orderedBlocks *ordered_blocks.OrderedBlocks, respondedSignatures *signatures.ReverseOrdering, waitingForSignatures bool) Internal {
