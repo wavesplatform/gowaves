@@ -70,7 +70,9 @@ func (*BooleanNode) node() {}
 func (*BooleanNode) SetBlock(Node) {}
 
 func (a *BooleanNode) Clone() Node {
-	return &*a
+	return &BooleanNode{
+		Value: a.Value,
+	}
 }
 
 func NewBooleanNode(v bool) *BooleanNode {

@@ -10,7 +10,6 @@ type Executable struct {
 	IsDapp      bool
 	hasVerifier bool
 	position    int // Non-default value assumes interrupted evaluation.
-	stack       []rideType
 	ByteCode    []byte
 	EntryPoints map[string]Entrypoint
 	References  map[uniqueid]point
