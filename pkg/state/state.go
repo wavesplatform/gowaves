@@ -468,10 +468,6 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
-func (s *stateManager) ApplyToState(actions []proto.ScriptAction) ([]proto.ScriptAction, error) {
-	return nil, nil
-}
-
 func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
 	if recipient.Address != nil {
 		key := accountScriptKey{*recipient.Address}
@@ -494,6 +490,11 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 		return script, nil
 	}
 	return nil, errors.Errorf("address and alias from recipient are nil")
+}
+
+func (s *stateManager) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
+	return s.stor.scriptsStorage.newestScriptBytesByAsset(asset.ID, false)
+
 }
 
 func (s *stateManager) Mutex() *lock.RwMutex {
@@ -859,12 +860,26 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	}, nil
 }
 
+func isWaves(assetID []byte) bool {
+	wavesAsset := crypto.Digest{}
+	if len(wavesAsset) != len(assetID) {
+		return false
+	}
+	for i := range assetID {
+		if assetID[i] != wavesAsset[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	if assetID == nil {
+
+	if assetID == nil || isWaves(assetID) {
 		profile, err := s.newestWavesBalanceProfile(*addr)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)

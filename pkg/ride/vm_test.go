@@ -34,7 +34,7 @@ func TestExecution(t *testing.T) {
 	for _, test := range []struct {
 		comment string
 		source  string
-		env     RideEnvironment
+		env     Environment
 		res     bool
 	}{
 		{`V1: true`, "AQa3b8tH", nil, true},
@@ -218,7 +218,7 @@ func TestFunctions(t *testing.T) {
 		name   string
 		text   string
 		script string
-		env    RideEnvironment
+		env    Environment
 		result bool
 		error  bool
 	}{

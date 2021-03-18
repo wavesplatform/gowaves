@@ -34,11 +34,10 @@ func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
 
 // TransferScriptAction is an action to emit transfer of asset.
 type TransferScriptAction struct {
-	Sender       *crypto.PublicKey
-	Recipient    Recipient
-	Amount       int64
-	Asset        OptionalAsset
-	InvalidAsset bool
+	Sender    *crypto.PublicKey
+	Recipient Recipient
+	Amount    int64
+	Asset     OptionalAsset
 }
 
 func (a TransferScriptAction) scriptAction() {}
@@ -437,34 +436,31 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 		switch ta := a.(type) {
 		case *DataEntryScriptAction:
 			dataEntriesCount++
-			if dataEntriesCount > maxDataEntryScriptActions {
-				return errors.Errorf("number of data entries produced by script is more than allowed %d", maxDataEntryScriptActions)
+			if dataEntriesCount > MaxDataEntryScriptActions {
+				return errors.Errorf("number of data entries produced by script is more than allowed %d", MaxDataEntryScriptActions)
 			}
 			switch restrictions.KeySizeValidationVersion {
 			case 1:
-				if len(utf16.Encode([]rune(ta.Entry.GetKey()))) > maxKeySize {
+				if len(utf16.Encode([]rune(ta.Entry.GetKey()))) > MaxKeySize {
 					return errs.NewTooBigArray("key is too large")
 				}
 			default:
-				if len([]byte(ta.Entry.GetKey())) > maxPBKeySize {
+				if len([]byte(ta.Entry.GetKey())) > MaxPBKeySize {
 					return errs.NewTooBigArray("key is too large")
 				}
 			}
 			dataEntriesSize += ta.Entry.BinarySize()
-			if dataEntriesSize > maxDataEntryScriptActionsSizeInBytes {
-				return errors.Errorf("total size of data entries produced by script is more than %d bytes", maxDataEntryScriptActionsSizeInBytes)
+			if dataEntriesSize > MaxDataEntryScriptActionsSizeInBytes {
+				return errors.Errorf("total size of data entries produced by script is more than %d bytes", MaxDataEntryScriptActionsSizeInBytes)
 			}
 
 		case *TransferScriptAction:
 			otherActionsCount++
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			if otherActionsCount > MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
 			}
 			if ta.Amount < 0 {
 				return errors.New("negative transfer amount")
-			}
-			if ta.InvalidAsset {
-				return errors.New("invalid asset")
 			}
 			if restrictions.DisableSelfTransfers {
 				senderAddress := restrictions.ScriptAddress
@@ -482,26 +478,26 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *IssueScriptAction:
 			otherActionsCount++
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			if otherActionsCount > MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
 			}
 			if ta.Quantity < 0 {
 				return errors.New("negative quantity")
 			}
-			if ta.Decimals < 0 || ta.Decimals > maxDecimals {
+			if ta.Decimals < 0 || ta.Decimals > MaxDecimals {
 				return errors.New("invalid decimals")
 			}
-			if l := len(ta.Name); l < minAssetNameLen || l > maxAssetNameLen {
+			if l := len(ta.Name); l < MinAssetNameLen || l > MaxAssetNameLen {
 				return errors.New("invalid asset's name")
 			}
-			if l := len(ta.Description); l > maxDescriptionLen {
+			if l := len(ta.Description); l > MaxDescriptionLen {
 				return errors.New("invalid asset's description")
 			}
 
 		case *ReissueScriptAction:
 			otherActionsCount++
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			if otherActionsCount > MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
 			}
 			if ta.Quantity < 0 {
 				return errors.New("negative quantity")
@@ -509,8 +505,8 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *BurnScriptAction:
 			otherActionsCount++
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			if otherActionsCount > MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
 			}
 			if ta.Quantity < 0 {
 				return errors.New("negative quantity")
@@ -518,8 +514,8 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *SponsorshipScriptAction:
 			otherActionsCount++
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			if otherActionsCount > MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
 			}
 			if ta.MinFee < 0 {
 				return errors.New("negative minimal fee")
@@ -527,8 +523,8 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *LeaseScriptAction:
 			otherActionsCount++
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			if otherActionsCount > MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
 			}
 			if ta.Amount < 0 {
 				return errors.New("negative leasing amount")
@@ -547,8 +543,8 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *LeaseCancelScriptAction:
 			otherActionsCount++
-			if otherActionsCount > maxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+			if otherActionsCount > MaxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
 			}
 
 		default:

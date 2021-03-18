@@ -14,7 +14,7 @@ type tuple2 struct {
 	el2 rideType
 }
 
-func newTuple2(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple2(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 2 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -63,7 +63,7 @@ type tuple3 struct {
 	el3 rideType
 }
 
-func newTuple3(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple3(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 3 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -116,7 +116,7 @@ type tuple4 struct {
 	el4 rideType
 }
 
-func newTuple4(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple4(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 4 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -173,7 +173,7 @@ type tuple5 struct {
 	el5 rideType
 }
 
-func newTuple5(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple5(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 5 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -234,7 +234,7 @@ type tuple6 struct {
 	el6 rideType
 }
 
-func newTuple6(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple6(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 6 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -299,7 +299,7 @@ type tuple7 struct {
 	el7 rideType
 }
 
-func newTuple7(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple7(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 7 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -368,7 +368,7 @@ type tuple8 struct {
 	el8 rideType
 }
 
-func newTuple8(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple8(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 8 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -441,7 +441,7 @@ type tuple9 struct {
 	el9 rideType
 }
 
-func newTuple9(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple9(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 9 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -518,7 +518,7 @@ type tuple10 struct {
 	el10 rideType
 }
 
-func newTuple10(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple10(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 10 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -599,7 +599,7 @@ type tuple11 struct {
 	el11 rideType
 }
 
-func newTuple11(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple11(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 11 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -684,7 +684,7 @@ type tuple12 struct {
 	el12 rideType
 }
 
-func newTuple12(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple12(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 12 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -773,7 +773,7 @@ type tuple13 struct {
 	el13 rideType
 }
 
-func newTuple13(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple13(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 13 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -866,7 +866,7 @@ type tuple14 struct {
 	el14 rideType
 }
 
-func newTuple14(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple14(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 14 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -963,7 +963,7 @@ type tuple15 struct {
 	el15 rideType
 }
 
-func newTuple15(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple15(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 15 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1064,7 +1064,7 @@ type tuple16 struct {
 	el16 rideType
 }
 
-func newTuple16(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple16(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 16 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1169,7 +1169,7 @@ type tuple17 struct {
 	el17 rideType
 }
 
-func newTuple17(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple17(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 17 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1278,7 +1278,7 @@ type tuple18 struct {
 	el18 rideType
 }
 
-func newTuple18(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple18(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 18 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1391,7 +1391,7 @@ type tuple19 struct {
 	el19 rideType
 }
 
-func newTuple19(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple19(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 19 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1508,7 +1508,7 @@ type tuple20 struct {
 	el20 rideType
 }
 
-func newTuple20(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple20(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 20 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1629,7 +1629,7 @@ type tuple21 struct {
 	el21 rideType
 }
 
-func newTuple21(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple21(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 21 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1754,7 +1754,7 @@ type tuple22 struct {
 	el22 rideType
 }
 
-func newTuple22(_ RideEnvironment, args ...rideType) (rideType, error) {
+func newTuple22(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 22 {
 		return nil, errors.New("invalid number of arguments")
 	}

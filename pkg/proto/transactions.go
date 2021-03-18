@@ -52,10 +52,10 @@ const (
 
 const (
 	maxAttachmentLengthBytes = 140
-	maxDescriptionLen        = 1000
-	maxAssetNameLen          = 16
-	minAssetNameLen          = 4
-	maxDecimals              = 8
+	MaxDescriptionLen        = 1000
+	MaxAssetNameLen          = 16
+	MinAssetNameLen          = 4
+	MaxDecimals              = 8
 	maxLongValue             = ^uint64(0) >> 1
 
 	genesisBodyLen = 1 + 8 + AddressSize + 8
@@ -189,7 +189,7 @@ type Transaction interface {
 	Validate() (Transaction, error)
 
 	// Set transaction ID.
-	// For most transacions ID is hash of transaction body.
+	// For most transactions ID is hash of transaction body.
 	// For Payment transactions ID is Signature.
 	GenerateID(scheme Scheme) error
 	// Sign transaction with given secret key.
@@ -449,7 +449,7 @@ func (tx *Genesis) GenerateID(scheme Scheme) error {
 	return tx.generateID(scheme)
 }
 
-func (tx *Genesis) Sign(scheme Scheme, sk crypto.SecretKey) error {
+func (tx *Genesis) Sign(scheme Scheme, _ crypto.SecretKey) error {
 	if err := tx.generateID(scheme); err != nil {
 		return err
 	}
@@ -701,7 +701,7 @@ func (tx Payment) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx *Payment) GenerateID(scheme Scheme) error {
+func (tx *Payment) GenerateID(_ Scheme) error {
 	if tx.ID == nil {
 		tx.ID = tx.Signature
 	}
@@ -1010,14 +1010,14 @@ func (i Issue) Valid() (bool, error) {
 	if !validJVMLong(i.Fee) {
 		return false, errors.New("fee is too big")
 	}
-	if l := len(i.Name); l < minAssetNameLen || l > maxAssetNameLen {
+	if l := len(i.Name); l < MinAssetNameLen || l > MaxAssetNameLen {
 		return false, errs.NewInvalidName("incorrect number of bytes in the asset's name")
 	}
-	if l := len(i.Description); l > maxDescriptionLen {
+	if l := len(i.Description); l > MaxDescriptionLen {
 		return false, errs.NewTooBigArray("incorrect number of bytes in the asset's description")
 	}
-	if i.Decimals > maxDecimals {
-		return false, errs.NewTooBigArray(fmt.Sprintf("incorrect decimals, should be no more then %d", maxDecimals))
+	if i.Decimals > MaxDecimals {
+		return false, errs.NewTooBigArray(fmt.Sprintf("incorrect decimals, should be no more then %d", MaxDecimals))
 	}
 	return true, nil
 }

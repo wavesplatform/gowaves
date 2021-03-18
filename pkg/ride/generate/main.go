@@ -387,7 +387,9 @@ func catalogueV4() map[string]int {
 	m["800"] = 2700 // BLS12
 	m["801"] = 1650 // BN256
 	m["900"] = 70
+	m["1001"] = 20
 	m["1004"] = 15
+	m["1005"] = 5
 	m["1006"] = 60
 	m["1007"] = 10
 	m["1008"] = 10
@@ -612,10 +614,10 @@ func createConstructors(sb *strings.Builder, c map[string]constantDescription) {
 	for _, k := range keys {
 		if c[k].constructor == "" {
 			tn := c[k].typeName
-			sb.WriteString(fmt.Sprintf("func new%s(RideEnvironment) rideType {\n", tn))
+			sb.WriteString(fmt.Sprintf("func new%s(Environment) rideType {\n", tn))
 			sb.WriteString(fmt.Sprintf("return rideNamedType{name: \"%s\"}\n", tn))
 			sb.WriteString("}\n\n")
-			sb.WriteString(fmt.Sprintf("func create%s(env RideEnvironment, args ...rideType) (rideType, error) {\n", tn))
+			sb.WriteString(fmt.Sprintf("func create%s(env Environment, args ...rideType) (rideType, error) {\n", tn))
 			sb.WriteString(fmt.Sprintf("return rideNamedType{name: \"%s\"}, nil\n", tn))
 			sb.WriteString("}\n\n")
 		}
@@ -717,7 +719,7 @@ func createTuples(sb *strings.Builder) {
 			sb.WriteString(fmt.Sprintf("%s rideType\n", el))
 		}
 		sb.WriteString("}\n\n")
-		sb.WriteString(fmt.Sprintf("func newTuple%d(_ RideEnvironment, args ...rideType) (rideType, error) {\n", n))
+		sb.WriteString(fmt.Sprintf("func newTuple%d(_ Environment, args ...rideType) (rideType, error) {\n", n))
 		sb.WriteString(fmt.Sprintf("if len(args) != %d {\n", n))
 		sb.WriteString("return nil, errors.New(\"invalid number of arguments\")\n")
 		sb.WriteString("}\n")
@@ -813,7 +815,7 @@ func main() {
 	sb.WriteString(")\n")
 	for _, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		fn := fmt.Sprintf("bls12Groth16Verify_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(env RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(env Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if err := checkArgs(args, 3); err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
@@ -841,7 +843,7 @@ func main() {
 	}
 	for _, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		fn := fmt.Sprintf("bn256Groth16Verify_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(env RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(env Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if err := checkArgs(args, 3); err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
@@ -869,7 +871,7 @@ func main() {
 	}
 	for _, l := range []int{8, 16, 32, 64, 128} {
 		fn := fmt.Sprintf("sigVerify_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(env RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(env Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if err := checkArgs(args, 3); err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
@@ -902,7 +904,7 @@ func main() {
 	}
 	for _, l := range []int{16, 32, 64, 128} {
 		fn := fmt.Sprintf("rsaVerify_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if err := checkArgs(args, 4); err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
@@ -948,7 +950,7 @@ func main() {
 	}
 	for _, l := range []int{16, 32, 64, 128} {
 		fn := fmt.Sprintf("keccak256_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(env RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(env Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("data, err := bytesOrStringArg(args)\n")
 		sb.WriteString("if err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
@@ -965,7 +967,7 @@ func main() {
 	}
 	for _, l := range []int{16, 32, 64, 128} {
 		fn := fmt.Sprintf("blake2b256_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("data, err := bytesOrStringArg(args)\n")
 		sb.WriteString("if err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
@@ -982,7 +984,7 @@ func main() {
 	}
 	for _, l := range []int{16, 32, 64, 128} {
 		fn := fmt.Sprintf("sha256_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("data, err := bytesOrStringArg(args)\n")
 		sb.WriteString("if err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))

@@ -65,6 +65,7 @@ var (
 	bindAddress                           = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
 	disableOutgoingConnections            = flag.Bool("no-connections", false, "Disable outgoing network connections to peers. Default value is false.")
 	minerVoteFeatures                     = flag.String("vote", "", "Miner vote features")
+	bloomFilter                           = flag.Bool("bloom", true, "Enable/Disable bloom filter. Less memory usage, but decrease performance. Usage: -bloom=false")
 	reward                                = flag.String("reward", "", "Miner reward: for example 600000000")
 	outdatePeriod                         = flag.String("outdate", "4h", "Interval after last block then generation is allowed. Example 1d4h30m")
 	walletPath                            = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default.")
@@ -118,6 +119,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("wallet-password: %s", *walletPassword)
 	zap.S().Debugf("limit-connections: %s", *limitConnectionsS)
 	zap.S().Debugf("profiler: %v", *profiler)
+	zap.S().Debugf("bloom: %v", *bloomFilter)
 }
 
 func main() {
@@ -246,6 +248,9 @@ func main() {
 	params.ProvideExtendedApi = *serveExtendedApi
 	params.BuildStateHashes = *buildStateHashes
 	params.Time = ntptm
+	if !*bloomFilter {
+		params.DbParams.BloomFilterParams.Disable = true
+	}
 	st, err := state.NewState(path, params, cfg)
 	if err != nil {
 		zap.S().Error(err)
