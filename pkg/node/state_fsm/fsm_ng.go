@@ -74,7 +74,8 @@ func (a *NGFsm) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 	previousBlockID := blockFromCache.Parent
 	err := a.storage.RollbackTo(previousBlockID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to rollback to height %d", blockFromCache.Height)
+		return errors.Wrapf(err, "failed to rollback to parent block '%s' of cached block '%s'",
+			previousBlockID.String(), blockFromCache.ID.String())
 	}
 	_, err = a.blocksApplier.Apply(a.storage, []*proto.Block{blockFromCache})
 	if err != nil {
@@ -106,8 +107,6 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 			}
 		}
 	}
-	a.blocksCache.Clear()
-	a.blocksCache.AddBlockState(block)
 
 	_, err = a.blocksApplier.Apply(a.storage, []*proto.Block{block})
 	if err != nil {
@@ -115,6 +114,10 @@ func (a *NGFsm) Block(peer peer.Peer, block *proto.Block) (FSM, Async, error) {
 		return a, nil, err
 	}
 	metrics.FSMKeyBlockApplied("ng", block)
+
+	a.blocksCache.Clear()
+	a.blocksCache.AddBlockState(block)
+
 	a.Scheduler.Reschedule()
 	a.actions.SendScore(a.storage)
 	a.CleanUtx()
@@ -189,10 +192,12 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 	if err == miner.NoTransactionsErr {
 		return a, Tasks(NewMineMicroTask(5*time.Second, minedBlock, rest, keyPair, vrf)), nil
 	}
+	if err == miner.StateChangedErr {
+		return a, nil, proto.NewInfoMsg(err)
+	}
 	if err != nil {
 		return a, nil, errors.Wrap(err, "NGFsm.mineMicro")
 	}
-	a.blocksCache.AddBlockState(block)
 	metrics.FSMMicroBlockGenerated("ng", micro)
 	err = a.storage.Map(func(s state.NonThreadSafeState) error {
 		_, err := a.blocksApplier.ApplyMicro(s, block)
@@ -201,6 +206,7 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 	if err != nil {
 		return a, nil, err
 	}
+	a.blocksCache.AddBlockState(block)
 	a.Reschedule()
 	metrics.FSMMicroBlockApplied("ng", micro)
 	inv := proto.NewUnsignedMicroblockInv(

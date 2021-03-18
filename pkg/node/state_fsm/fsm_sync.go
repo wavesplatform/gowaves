@@ -68,6 +68,8 @@ func (a *SyncFsm) Task(task AsyncTask) (FSM, Async, error) {
 			return NewIdleFsm(a.baseInfo), nil, TimeoutErr
 		}
 		return a, nil, nil
+	case MineMicro: // Do nothing
+		return a, nil, nil
 	default:
 		return a, nil, errors.Errorf("SyncFsm Task: unknown task type %d, data %+v", task.TaskType, task.Data)
 	}
@@ -119,7 +121,10 @@ func (a *SyncFsm) BlockIDs(peer Peer, signatures []proto.BlockID) (FSM, Async, e
 
 func (a *SyncFsm) NewPeer(p Peer) (FSM, Async, error) {
 	err := a.baseInfo.peers.NewConnection(p)
-	return a, nil, err
+	if err != nil {
+		return a, nil, proto.NewInfoMsg(err)
+	}
+	return a, nil, nil
 }
 
 func (a *SyncFsm) Score(p Peer, score *proto.Score) (FSM, Async, error) {

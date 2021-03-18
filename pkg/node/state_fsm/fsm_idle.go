@@ -50,6 +50,8 @@ func (a *IdleFsm) Task(task AsyncTask) (FSM, Async, error) {
 	case AskPeers:
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
+	case MineMicro: // Do nothing
+		return a, nil, nil
 	default:
 		return a, nil, errors.Errorf("IdleFsm Task: unknown task type %d, data %+v", task.TaskType, task.Data)
 	}

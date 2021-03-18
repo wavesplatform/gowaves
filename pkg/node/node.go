@@ -94,7 +94,7 @@ func (a *Node) Serve(ctx context.Context) error {
 
 		go func() {
 			if err := a.peers.SpawnIncomingConnection(ctx, conn); err != nil {
-				zap.S().Error(err)
+				zap.S().Debugf("Incoming connection error: %v", err)
 				return
 			}
 		}()
