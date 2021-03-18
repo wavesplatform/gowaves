@@ -60,11 +60,6 @@ func (b *builder) writeStub(len int) (position uint16) {
 	return position
 }
 
-func (b *builder) push(uint162 uint16) {
-	b.w.WriteByte(OpRef)
-	b.w.Write(encode(uint162))
-}
-
 func (b *builder) setStart(name string, argn int) {
 	b.entrypoints[name] = Entrypoint{
 		name: name,
@@ -102,12 +97,6 @@ func (b *builder) externalCall(id uint16, argc uint16) {
 	b.w.WriteByte(OpExternalCall)
 	b.w.Write(encode(id))
 	b.w.Write(encode(argc))
-}
-
-// Call user defined function.
-func (b *builder) call(id uint16, argc uint16) {
-	b.w.WriteByte(OpCall)
-	b.w.Write(encode(id))
 }
 
 func (b *builder) build() (map[string]Entrypoint, []byte) {
@@ -276,17 +265,6 @@ func (a *predef) set(name string, id uint16, f rideFunction) {
 		id:   id,
 		f:    f,
 	}
-}
-
-func (a *predef) get(name string) (pfunc, bool) {
-	if a == nil {
-		return pfunc{}, false
-	}
-	rs, ok := a.m[name]
-	if ok {
-		return rs, ok
-	}
-	return a.prev.get(name)
 }
 
 func (a *predef) getn(id int) rideFunction {

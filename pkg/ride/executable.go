@@ -137,7 +137,8 @@ func (a *Executable) makeVm(environment RideEnvironment, entrypoint int, argumen
 }
 
 func (a *Executable) Serialize(s Serializer) error {
-	s.Byte(202)
+	var magicNumber byte = 202
+	s.Byte(magicNumber)
 	s.Uint16(uint16(a.LibVersion))
 	s.Bool(a.IsDapp)
 	s.Bool(a.hasVerifier)

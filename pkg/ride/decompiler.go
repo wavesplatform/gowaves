@@ -172,7 +172,7 @@ func detree(s *strings.Builder, tree Node) {
 		s.WriteString(" }; ")
 		detree(s, n.Block)
 	case *ConditionalNode:
-		s.WriteString(fmt.Sprintf("if ("))
+		s.WriteString("if (")
 		detree(s, n.Condition)
 		s.WriteString(") { ")
 		detree(s, n.TrueExpression)

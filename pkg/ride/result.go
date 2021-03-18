@@ -51,12 +51,11 @@ func (r ScriptResult) Eq(other RideResult) bool {
 }
 
 type DAppResult struct {
-	res        bool // true - success, false - call failed, read msg
-	actions    proto.ScriptActions
-	msg        string
-	operations int
-	calls      []callLog
-	refs       Refs
+	res     bool // true - success, false - call failed, read msg
+	actions proto.ScriptActions
+	msg     string
+	calls   []callLog
+	refs    Refs
 }
 
 func (r DAppResult) Result() bool {

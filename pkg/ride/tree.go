@@ -15,7 +15,9 @@ func (*LongNode) node() {}
 func (*LongNode) SetBlock(Node) {}
 
 func (a *LongNode) Clone() Node {
-	return &*a
+	return &LongNode{
+		Value: a.Value,
+	}
 }
 
 func NewLongNode(v int64) *LongNode {
@@ -31,8 +33,10 @@ func (*BytesNode) node() {}
 func (*BytesNode) SetBlock(Node) {}
 
 func (a *BytesNode) Clone() Node {
-	// Bytes references to the same location, but it makes no sense to modify them.
-	return &*a
+	return &BytesNode{
+		// Bytes references to the same location.
+		Value: a.Value,
+	}
 }
 
 func NewBytesNode(v []byte) *BytesNode {
@@ -48,7 +52,9 @@ func (*StringNode) node() {}
 func (*StringNode) SetBlock(Node) {}
 
 func (a *StringNode) Clone() Node {
-	return &*a
+	return &StringNode{
+		Value: a.Value,
+	}
 }
 
 func NewStringNode(v string) *StringNode {
