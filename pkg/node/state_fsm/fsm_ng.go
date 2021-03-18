@@ -192,6 +192,9 @@ func (a *NGFsm) mineMicro(minedBlock *proto.Block, rest proto.MiningLimits, keyP
 	if err == miner.NoTransactionsErr {
 		return a, Tasks(NewMineMicroTask(5*time.Second, minedBlock, rest, keyPair, vrf)), nil
 	}
+	if err == miner.StateChangedErr {
+		return a, nil, proto.NewInfoMsg(err)
+	}
 	if err != nil {
 		return a, nil, errors.Wrap(err, "NGFsm.mineMicro")
 	}
