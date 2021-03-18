@@ -12,7 +12,6 @@ const (
 	sTrue      byte = 101
 	sFalse     byte = 102
 	sInt       byte = 103
-	sUint16    byte = 104
 	sBytes     byte = 105
 	sString    byte = 106
 	sPoint     byte = 107

@@ -65,7 +65,7 @@ func Expand(t *Tree) (*Tree, error) {
 		scope = scope.add(v.Name, v2)
 		functions = append(functions, v2)
 	}
-	verifier := t.Verifier
+	var verifier Node
 	if t.IsDApp() && t.HasVerifier() {
 		verifier = cloneFuncDecl(t.Verifier.(*FunctionDeclarationNode), expand(scope, t.Verifier.(*FunctionDeclarationNode).Body), nil)
 	} else {

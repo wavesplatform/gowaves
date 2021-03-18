@@ -68,16 +68,3 @@ type Functions interface {
 	function(int) rideFunction
 	name(int) string
 }
-
-type functionsImpl struct {
-	f func(id int) rideFunction
-	p func(int) string
-}
-
-func (a functionsImpl) function(v int) rideFunction {
-	return a.f(v)
-}
-
-func (a functionsImpl) name(v int) string {
-	return a.p(v)
-}

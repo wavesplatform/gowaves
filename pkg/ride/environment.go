@@ -150,15 +150,3 @@ func (e *Environment) checkMessageLength(l int) bool {
 func (e *Environment) invocation() rideObject {
 	return e.inv
 }
-
-func (e *Environment) functions(libVersion int) (Functions, error) {
-	functions, err := selectFunctions(libVersion)
-	if err != nil {
-		return nil, err
-	}
-	provider, err := selectFunctionNameProvider(libVersion)
-	if err != nil {
-		return nil, err
-	}
-	return functionsImpl{f: functions, p: provider}, nil
-}

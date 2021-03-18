@@ -89,11 +89,6 @@ func (b *builder) ret() {
 	b.w.WriteByte(OpReturn)
 }
 
-func (b *builder) ref(uint162 uint16) {
-	b.w.WriteByte(OpRef)
-	b.w.Write(encode(uint162))
-}
-
 func (b *builder) patch(at uint16, val []byte) {
 	bts := b.w.Bytes()[at:]
 	copy(bts, val)
@@ -114,10 +109,6 @@ func (b *builder) call(id uint16, argc uint16) {
 	b.w.WriteByte(OpCall)
 	b.w.Write(encode(id))
 }
-
-//func (b *builder) startPos() {
-//	b.startAt = uint16(b.w.Len())
-//}
 
 func (b *builder) build() (map[string]Entrypoint, []byte) {
 	return b.entrypoints, b.w.Bytes()
@@ -157,7 +148,7 @@ func (a point) Serialize(s Serializer) error {
 	}
 
 	s.Uint16(a.fn)
-	s.String(a.debugInfo)
+	_ = s.String(a.debugInfo)
 	return nil
 }
 
@@ -206,11 +197,6 @@ func (a *cell) set(u uniqueid, result rideType, fn uint16, position uint16, cons
 	}
 }
 
-func (a *cell) get(u uniqueid) (point, bool) {
-	rs, ok := a.values[u]
-	return rs, ok
-}
-
 type uniqueid = uint16
 
 type refKind struct {
@@ -229,16 +215,6 @@ func newReferences(prev *references) *references {
 		refs: make(map[string][]refKind),
 	}
 }
-
-//func (a *references) get(name string) (uniqueid, bool) {
-//	if a == nil {
-//		return 0, false
-//	}
-//	if offset, ok := a.refs[name]; ok {
-//		return offset, ok
-//	}
-//	return a.prev.get(name)
-//}
 
 func (a *references) setAssigment(name string, uniq uniqueid) {
 	a.refs[name] = append([]refKind{refKind{assigment: true, n: uniq}}, a.refs[name]...)
@@ -269,13 +245,6 @@ func (a *references) get(name string, assigment bool) (uniqueid, bool) {
 		return a.prev.get(name, assigment)
 	}
 	return a.prev.get(name, assigment)
-}
-
-func (a *references) pop() *references {
-	if a.prev != nil {
-		return a.prev
-	}
-	panic("no previous refs")
 }
 
 type predefFunc struct {
