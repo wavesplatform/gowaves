@@ -1018,6 +1018,10 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 	}
 	recipient := proto.NewRecipientFromAddress(proto.Address(env.th.(rideAddress)))
 
+	env.inv["originalCaller"] = rideAddress(caller)
+	env.inv["originalCallerPublicKey"] = rideBytes(callerPK.Bytes())
+	//TODO add test for these fields
+
 	st := newWrappedState(env)
 
 	for _, payment := range payments {
