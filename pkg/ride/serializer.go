@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	strue      byte = 101
-	sfalse     byte = 102
-	sint       byte = 103
-	suint16    byte = 104
-	sbytes     byte = 105
+	sTrue      byte = 101
+	sFalse     byte = 102
+	sInt       byte = 103
+	sUint16    byte = 104
+	sBytes     byte = 105
 	sString    byte = 106
 	sPoint     byte = 107
 	sMap       byte = 108
@@ -38,7 +38,7 @@ func (a *Serializer) RideInt(v rideInt) error {
 		a.b.WriteByte(byte(v))
 		return nil
 	}
-	a.b.WriteByte(sint)
+	a.b.WriteByte(sInt)
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(v))
 	a.b.Write(b)
@@ -49,7 +49,7 @@ func (a *Serializer) RideNoValue() error {
 	return a.b.WriteByte(sNoValue)
 }
 
-func (a *Serializer) Tuple(values ...rideType) error {
+func (a *Serializer) Tuple(...rideType) error {
 	panic("not implemented")
 }
 
@@ -61,9 +61,9 @@ func (a *Serializer) Uint16(v uint16) {
 
 func (a *Serializer) Bool(v bool) {
 	if v {
-		a.b.WriteByte(strue)
+		a.b.WriteByte(sTrue)
 	} else {
-		a.b.WriteByte(sfalse)
+		a.b.WriteByte(sFalse)
 	}
 }
 
@@ -77,7 +77,7 @@ func (a *Serializer) Byte(b byte) {
 }
 
 func (a *Serializer) RideBytes(v rideBytes) error {
-	a.b.WriteByte(sbytes)
+	a.b.WriteByte(sBytes)
 	return a.Bytes(v)
 }
 

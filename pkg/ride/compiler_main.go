@@ -8,36 +8,36 @@ type MainState struct {
 	deferreds *deferreds
 }
 
-func (a MainState) backward(state Fsm) Fsm {
+func (a MainState) backward(state State) State {
 	a.body = append(a.body, state.(Deferred))
 	return a
 }
 
-func (a MainState) Property(name string) Fsm {
+func (a MainState) Property(name string) State {
 	return propertyTransition(a, a.params, name, a.deferreds)
 }
 
-func (a MainState) Func(name string, args []string, invoke string) Fsm {
+func (a MainState) Func(name string, args []string, invoke string) State {
 	return funcTransition(a, a.params, name, args, invoke)
 }
 
-func (a MainState) Bytes(b []byte) Fsm {
+func (a MainState) Bytes([]byte) State {
 	panic("Illegal call `Bytes` on `MainState`")
 }
 
-func (a MainState) Condition() Fsm {
+func (a MainState) Condition() State {
 	return conditionalTransition(a, a.params, a.deferreds)
 }
 
-func (a MainState) TrueBranch() Fsm {
+func (a MainState) TrueBranch() State {
 	panic("Illegal call `TrueBranch` on MainState")
 }
 
-func (a MainState) FalseBranch() Fsm {
+func (a MainState) FalseBranch() State {
 	panic("Illegal call `FalseBranch` on MainState")
 }
 
-func (a MainState) String(s string) Fsm {
+func (a MainState) String(string) State {
 	panic("Illegal call `String` on MainState")
 }
 
@@ -45,7 +45,7 @@ type BuildExecutable interface {
 	BuildExecutable(version int, isDapp bool, hasVerifier bool) *Executable
 }
 
-func NewMain(params params) Fsm {
+func NewMain(params params) State {
 	return &MainState{
 		params: params,
 		deferreds: &deferreds{
@@ -54,12 +54,12 @@ func NewMain(params params) Fsm {
 	}
 }
 
-func (a MainState) Assigment(name string) Fsm {
+func (a MainState) Assigment(name string) State {
 	n := a.params.u.next()
 	return assigmentFsmTransition(a, a.params, name, n, a.deferreds)
 }
 
-func (a MainState) Return() Fsm {
+func (a MainState) Return() State {
 	for _, v := range a.deferreds.Get() {
 		v.deferred.Clean()
 	}
@@ -96,20 +96,20 @@ func (a MainState) Return() Fsm {
 	return a
 }
 
-func (a MainState) Long(int64) Fsm {
+func (a MainState) Long(int64) State {
 	panic("Illegal call Long on MainState")
 }
 
-func (a MainState) Call(name string, argc uint16) Fsm {
+func (a MainState) Call(name string, argc uint16) State {
 	return callTransition(a, a.params, name, argc, a.deferreds)
 }
 
-func (a MainState) Reference(name string) Fsm {
+func (a MainState) Reference(name string) State {
 	a.body = append(a.body, reference(a, a.params, name))
 	return a
 }
 
-func (a MainState) Boolean(v bool) Fsm {
+func (a MainState) Boolean(v bool) State {
 	a.body = append(a.body, a.constant(rideBoolean(v)))
 	return a
 }

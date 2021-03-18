@@ -8,6 +8,7 @@ type fd struct {
 	cost   int
 	usages []string
 }
+
 type fsV3 struct {
 	parent    *fsV3
 	functions map[string]fd

@@ -2,21 +2,21 @@ package ride
 
 import "fmt"
 
-type Fsm interface {
-	Assigment(name string) Fsm
-	Return() Fsm
-	Long(value int64) Fsm
-	Call(name string, argc uint16) Fsm
-	Reference(name string) Fsm
-	Boolean(v bool) Fsm
-	String(s string) Fsm
-	Condition() Fsm
-	TrueBranch() Fsm
-	FalseBranch() Fsm
-	Bytes(b []byte) Fsm
-	Func(name string, args []string, invokeParam string) Fsm
-	Property(name string) Fsm
-	backward(state Fsm) Fsm
+type State interface {
+	Assigment(name string) State
+	Return() State
+	Long(value int64) State
+	Call(name string, argc uint16) State
+	Reference(name string) State
+	Boolean(v bool) State
+	String(s string) State
+	Condition() State
+	TrueBranch() State
+	FalseBranch() State
+	Bytes(b []byte) State
+	Func(name string, args []string, invokeParam string) State
+	Property(name string) State
+	backward(state State) State
 	Deferred
 }
 
@@ -80,7 +80,7 @@ func (a *params) constant(value rideType) constantDeferred {
 	return NewConstantDeferred(n)
 }
 
-func reference(_ Fsm, params params, name string) constantDeferred {
+func reference(_ State, params params, name string) constantDeferred {
 	pos, ok := params.r.getAssigment(name)
 	if !ok {
 		panic(fmt.Sprintf("reference %s not found, tx %s", name, params.txID))

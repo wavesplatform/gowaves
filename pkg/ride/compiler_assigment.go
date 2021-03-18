@@ -6,7 +6,7 @@ import "fmt"
 type AssigmentState struct {
 	params
 	bodyParams params
-	prev       Fsm
+	prev       State
 	name       string
 	// ref id
 	n uniqueid
@@ -16,47 +16,47 @@ type AssigmentState struct {
 	d    Deferreds
 }
 
-func (a AssigmentState) backward(state Fsm) Fsm {
+func (a AssigmentState) backward(state State) State {
 	a.body = state.(Deferred)
 	return a
 }
 
-func (a AssigmentState) Property(name string) Fsm {
+func (a AssigmentState) Property(name string) State {
 	return propertyTransition(a, a.bodyParams, name, a.d)
 }
 
-func (a AssigmentState) Func(name string, args []string, invoke string) Fsm {
+func (a AssigmentState) Func(name string, args []string, invoke string) State {
 	return funcTransition(a, a.bodyParams, name, args, invoke)
 }
 
-func (a AssigmentState) Bytes(b []byte) Fsm {
+func (a AssigmentState) Bytes(b []byte) State {
 	a.body = a.constant(rideBytes(b))
 	return a
 }
 
-func (a AssigmentState) Condition() Fsm {
+func (a AssigmentState) Condition() State {
 	return conditionalTransition(a, a.bodyParams, a.d)
 }
 
-func (a AssigmentState) TrueBranch() Fsm {
+func (a AssigmentState) TrueBranch() State {
 	panic("Illegal call `TrueBranch` on AssigmentState")
 }
 
-func (a AssigmentState) FalseBranch() Fsm {
+func (a AssigmentState) FalseBranch() State {
 	panic("Illegal call `FalseBranch` on AssigmentState")
 }
 
-func (a AssigmentState) String(s string) Fsm {
+func (a AssigmentState) String(s string) State {
 	a.body = a.constant(rideString(s))
 	return a
 }
 
-func (a AssigmentState) Boolean(v bool) Fsm {
+func (a AssigmentState) Boolean(v bool) State {
 	a.body = a.constant(rideBoolean(v))
 	return a
 }
 
-func assigmentFsmTransition(prev Fsm, params params, name string, n uniqueid, d Deferreds) Fsm {
+func assigmentFsmTransition(prev State, params params, name string, n uniqueid, d Deferreds) State {
 	return newAssigmentFsm(prev, params, name, n, d)
 }
 
@@ -65,7 +65,7 @@ func extendParams(p params) params {
 	return p
 }
 
-func newAssigmentFsm(prev Fsm, p params, name string, n uniqueid, d Deferreds) Fsm {
+func newAssigmentFsm(prev State, p params, name string, n uniqueid, d Deferreds) State {
 	return AssigmentState{
 		prev:       prev,
 		params:     p,
@@ -77,7 +77,7 @@ func newAssigmentFsm(prev Fsm, p params, name string, n uniqueid, d Deferreds) F
 }
 
 // Create new scope, so assigment in assigment can't affect global state.
-func (a AssigmentState) Assigment(name string) Fsm {
+func (a AssigmentState) Assigment(name string) State {
 	//params := a.params
 	//params.r = newReferences(params.r)
 	// TODO clear var in var
@@ -85,27 +85,27 @@ func (a AssigmentState) Assigment(name string) Fsm {
 	return assigmentFsmTransition(a, a.bodyParams, name, n, a.d)
 }
 
-func (a AssigmentState) Return() Fsm {
+func (a AssigmentState) Return() State {
 	a.r.setAssigment(a.name, a.n)
 	a.d.Add(a, a.n, fmt.Sprintf("ref %s", a.name))
 	return a.prev
 }
 
-func (a AssigmentState) Long(value int64) Fsm {
+func (a AssigmentState) Long(value int64) State {
 	a.body = a.constant(rideInt(value))
 	return a
 }
 
-func (a AssigmentState) Call(name string, argc uint16) Fsm {
+func (a AssigmentState) Call(name string, argc uint16) State {
 	return callTransition(a, a.bodyParams, name, argc, a.d)
 }
 
-func (a AssigmentState) Reference(name string) Fsm {
+func (a AssigmentState) Reference(name string) State {
 	a.body = reference(a, a.bodyParams, name)
 	return a
 }
 
-func (a AssigmentState) Write(_ params, b []byte) {
+func (a AssigmentState) Write(_ params, _ []byte) {
 	if a.body == nil {
 		panic("no body for assigment")
 	}

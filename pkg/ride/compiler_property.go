@@ -3,7 +3,7 @@ package ride
 import "fmt"
 
 type PropertyState struct {
-	prev Fsm
+	prev State
 	name string
 	params
 	body      Deferred
@@ -11,12 +11,12 @@ type PropertyState struct {
 	n         uniqueid
 }
 
-func (a PropertyState) backward(as Fsm) Fsm {
+func (a PropertyState) backward(as State) State {
 	a.body = as
 	return a
 }
 
-func propertyTransition(prev Fsm, params params, name string, d Deferreds) Fsm {
+func propertyTransition(prev State, params params, name string, d Deferreds) State {
 	return &PropertyState{
 		params:    params,
 		prev:      prev,
@@ -25,11 +25,11 @@ func propertyTransition(prev Fsm, params params, name string, d Deferreds) Fsm {
 	}
 }
 
-func (a PropertyState) Assigment(name string) Fsm {
+func (a PropertyState) Assigment(string) State {
 	panic("Illegal call `Assigment` on PropertyState")
 }
 
-func (a PropertyState) Return() Fsm {
+func (a PropertyState) Return() State {
 	// 2 possible variations:
 	// 1) tx.id => body is reference
 	// 2) tx.sellOrder.assetPair => body is another property
@@ -43,48 +43,48 @@ func (a PropertyState) Return() Fsm {
 	return a.prev.backward(a)
 }
 
-func (a PropertyState) Long(value int64) Fsm {
+func (a PropertyState) Long(int64) State {
 	panic("Illegal call `Long` on PropertyState")
 }
 
-func (a PropertyState) Call(name string, argc uint16) Fsm {
+func (a PropertyState) Call(name string, argc uint16) State {
 	return callTransition(a, a.params, name, argc, a.deferreds)
 }
 
-func (a PropertyState) Reference(name string) Fsm {
+func (a PropertyState) Reference(name string) State {
 	a.body = reference(a, a.params, name)
 	return a
 }
 
-func (a PropertyState) Boolean(v bool) Fsm {
+func (a PropertyState) Boolean(bool) State {
 	panic("Illegal call `Boolean` on PropertyState")
 }
 
-func (a PropertyState) String(s string) Fsm {
+func (a PropertyState) String(string) State {
 	panic("Illegal call `String` on PropertyState")
 }
 
-func (a PropertyState) Condition() Fsm {
+func (a PropertyState) Condition() State {
 	panic("Illegal call `Condition` on PropertyState")
 }
 
-func (a PropertyState) TrueBranch() Fsm {
+func (a PropertyState) TrueBranch() State {
 	panic("Illegal call `TrueBranch` on PropertyState")
 }
 
-func (a PropertyState) FalseBranch() Fsm {
+func (a PropertyState) FalseBranch() State {
 	panic("Illegal call `FalseBranch` on PropertyState")
 }
 
-func (a PropertyState) Bytes(b []byte) Fsm {
+func (a PropertyState) Bytes(b []byte) State {
 	panic("PropertyState Bytes")
 }
 
-func (a PropertyState) Func(name string, args []string, invoke string) Fsm {
+func (a PropertyState) Func(_ string, _ []string, _ string) State {
 	panic("Illegal call `Func` on PropertyState")
 }
 
-func (a PropertyState) Property(name string) Fsm {
+func (a PropertyState) Property(name string) State {
 	return propertyTransition(a, a.params, name, a.deferreds)
 }
 

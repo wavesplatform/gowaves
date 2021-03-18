@@ -7,7 +7,7 @@ import "fmt"
 // If-else statement.
 type ConditionalState struct {
 	params
-	prev Fsm
+	prev State
 	/*
 		Offset where true branch starts execution.
 		We need this because code can look like:
@@ -36,7 +36,7 @@ type ConditionalState struct {
 	condN uniqueid
 }
 
-func (a ConditionalState) backward(as Fsm) Fsm {
+func (a ConditionalState) backward(as State) State {
 	// Func in func.
 	if f, ok := as.(FuncState); ok {
 		a.deferreds.Add(as.(Deferred), f.n, fmt.Sprintf("func `%s`in conditional", f.name))
@@ -46,21 +46,21 @@ func (a ConditionalState) backward(as Fsm) Fsm {
 	return a
 }
 
-func (a ConditionalState) Property(name string) Fsm {
+func (a ConditionalState) Property(name string) State {
 	return propertyTransition(a, a.params, name, a.deferreds)
 }
 
-func (a ConditionalState) Func(name string, args []string, invoke string) Fsm {
+func (a ConditionalState) Func(name string, args []string, invoke string) State {
 	//panic(fmt.Sprintf("Illegal call Func on ConditionalState %s", a.txID))
 	return funcTransition(a, a.params, name, args, invoke)
 }
 
-func (a ConditionalState) Bytes(value []byte) Fsm {
+func (a ConditionalState) Bytes(value []byte) State {
 	a.deferred = append(a.deferred, a.constant(rideBytes(value)))
 	return a
 }
 
-func conditionalTransition(prev Fsm, params params, deferreds Deferreds) Fsm {
+func conditionalTransition(prev State, params params, deferreds Deferreds) State {
 	return ConditionalState{
 		prev:      prev,
 		params:    params,
@@ -70,51 +70,51 @@ func conditionalTransition(prev Fsm, params params, deferreds Deferreds) Fsm {
 	}
 }
 
-func (a ConditionalState) Condition() Fsm {
+func (a ConditionalState) Condition() State {
 	a.rets = append(a.rets, a.params.b.len())
 	return conditionalTransition(a, a.params, a.deferreds)
 }
 
-func (a ConditionalState) TrueBranch() Fsm {
+func (a ConditionalState) TrueBranch() State {
 	return a
 }
 
-func (a ConditionalState) FalseBranch() Fsm {
+func (a ConditionalState) FalseBranch() State {
 	return a
 }
 
-func (a ConditionalState) Assigment(name string) Fsm {
+func (a ConditionalState) Assigment(name string) State {
 	n := a.params.u.next()
 	//a.assigments = append(a.assigments, n)
 	a.r.setAssigment(name, n)
 	return assigmentFsmTransition(a, a.params, name, n, a.deferreds)
 }
 
-func (a ConditionalState) Long(value int64) Fsm {
+func (a ConditionalState) Long(value int64) State {
 	a.deferred = append(a.deferred, a.constant(rideInt(value)))
 	return a
 }
 
-func (a ConditionalState) Call(name string, argc uint16) Fsm {
+func (a ConditionalState) Call(name string, argc uint16) State {
 	return callTransition(a, a.params, name, argc, a.deferreds)
 }
 
-func (a ConditionalState) Reference(name string) Fsm {
+func (a ConditionalState) Reference(name string) State {
 	a.deferred = append(a.deferred, reference(a, a.params, name))
 	return a
 }
 
-func (a ConditionalState) Boolean(value bool) Fsm {
+func (a ConditionalState) Boolean(value bool) State {
 	a.deferred = append(a.deferred, a.constant(rideBoolean(value)))
 	return a
 }
 
-func (a ConditionalState) String(value string) Fsm {
+func (a ConditionalState) String(value string) State {
 	a.deferred = append(a.deferred, a.constant(rideString(value)))
 	return a
 }
 
-func (a ConditionalState) Return() Fsm {
+func (a ConditionalState) Return() State {
 	if len(a.deferred) < 3 {
 		panic("len(a.deferred) < 3")
 	}
@@ -123,7 +123,7 @@ func (a ConditionalState) Return() Fsm {
 	return a.prev.backward(a)
 }
 
-func (a ConditionalState) Write(_ params, b []byte) {
+func (a ConditionalState) Write(_ params, _ []byte) {
 	if len(a.deferred) != 3 {
 		panic("len(a.deferred) != 3")
 	}

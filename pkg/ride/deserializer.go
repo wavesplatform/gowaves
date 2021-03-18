@@ -46,9 +46,9 @@ func (a *Deserializer) Bool() (bool, error) {
 		return false, err
 	}
 	switch b {
-	case strue:
+	case sTrue:
 		return true, nil
-	case sfalse:
+	case sFalse:
 		return false, nil
 	default:
 		return false, errors.New("unknown byte")
@@ -115,17 +115,17 @@ func (a *Deserializer) RideValue() (rideType, error) {
 	switch b {
 	case sNoValue:
 		return nil, nil
-	case strue:
+	case sTrue:
 		return rideBoolean(true), nil
-	case sfalse:
+	case sFalse:
 		return rideBoolean(false), nil
-	case sint:
+	case sInt:
 		v, err := a.Int64()
 		return rideInt(v), err
 	case sString:
 		v, err := a.String()
 		return rideString(v), err
-	case sbytes:
+	case sBytes:
 		v, err := a.Bytes()
 		return rideBytes(v), err
 	case sAddress:

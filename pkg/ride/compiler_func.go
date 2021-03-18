@@ -33,7 +33,7 @@ func (a *deferreds) Get() []dd {
 
 type FuncState struct {
 	params
-	prev        Fsm
+	prev        State
 	name        string
 	args        arguments
 	n           uniqueid
@@ -46,7 +46,7 @@ type FuncState struct {
 	argn     int
 }
 
-func (a FuncState) backward(as Fsm) Fsm {
+func (a FuncState) backward(as State) State {
 	// Func in func.
 	if f, ok := as.(FuncState); ok {
 		a.defers.Add(as.(Deferred), f.n, fmt.Sprintf("func `%s`in func %s", f.name, a.name))
@@ -56,11 +56,11 @@ func (a FuncState) backward(as Fsm) Fsm {
 	return a
 }
 
-func (a FuncState) Property(name string) Fsm {
+func (a FuncState) Property(name string) State {
 	return propertyTransition(a, a.params, name, a.defers)
 }
 
-func funcTransition(prev Fsm, params params, name string, args []string, invokeParam string) Fsm {
+func funcTransition(prev State, params params, name string, args []string, invokeParam string) State {
 	argn := len(args)
 	n := params.u.next()
 	params.r.setFunc(name, n)
@@ -94,7 +94,7 @@ func funcTransition(prev Fsm, params params, name string, args []string, invokeP
 	}
 }
 
-func (a FuncState) Assigment(name string) Fsm {
+func (a FuncState) Assigment(name string) State {
 	n := a.params.u.next()
 	return assigmentFsmTransition(a, a.params, name, n, a.defers)
 }
@@ -103,52 +103,52 @@ func (a FuncState) ParamIds() []uniqueid {
 	return a.paramIds
 }
 
-func (a FuncState) Return() Fsm {
+func (a FuncState) Return() State {
 	return a.prev.backward(a)
 }
 
-func (a FuncState) Long(value int64) Fsm {
+func (a FuncState) Long(value int64) State {
 	a.deferred = append(a.deferred, a.constant(rideInt(value)))
 	return a
 }
 
-func (a FuncState) Call(name string, argc uint16) Fsm {
+func (a FuncState) Call(name string, argc uint16) State {
 	return callTransition(a, a.params, name, argc, a.defers)
 }
 
-func (a FuncState) Reference(name string) Fsm {
+func (a FuncState) Reference(name string) State {
 	a.deferred = append(a.deferred, reference(a, a.params, name))
 	return a
 }
 
-func (a FuncState) Boolean(value bool) Fsm {
+func (a FuncState) Boolean(value bool) State {
 	a.deferred = append(a.deferred, a.constant(rideBoolean(value)))
 	return a
 }
 
-func (a FuncState) String(value string) Fsm {
+func (a FuncState) String(value string) State {
 	a.deferred = append(a.deferred, a.constant(rideString(value)))
 	return a
 }
 
-func (a FuncState) Condition() Fsm {
+func (a FuncState) Condition() State {
 	return conditionalTransition(a, a.params, a.defers)
 }
 
-func (a FuncState) TrueBranch() Fsm {
+func (a FuncState) TrueBranch() State {
 	panic("Illegal call `TrueBranch` on `FuncState`")
 }
 
-func (a FuncState) FalseBranch() Fsm {
+func (a FuncState) FalseBranch() State {
 	panic("Illegal call `FalseBranch` on `FuncState`")
 }
 
-func (a FuncState) Bytes(value []byte) Fsm {
+func (a FuncState) Bytes(value []byte) State {
 	a.deferred = append(a.deferred, a.constant(rideBytes(value)))
 	return a
 }
 
-func (a FuncState) Func(name string, args []string, invoke string) Fsm {
+func (a FuncState) Func(name string, args []string, invoke string) State {
 	return funcTransition(a, a.params, name, args, invoke)
 }
 
@@ -156,7 +156,7 @@ func (a FuncState) Clean() {
 
 }
 
-func (a FuncState) Write(_ params, b []byte) {
+func (a FuncState) Write(_ params, _ []byte) {
 	pos := a.b.len()
 	a.params.c.set(a.n, nil, 0, pos, false, fmt.Sprintf("function %s", a.name))
 	if len(a.deferred) != 1 {

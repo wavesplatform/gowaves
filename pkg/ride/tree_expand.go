@@ -141,6 +141,5 @@ func expand(scope expandScope, node Node) Node {
 		return v
 	default:
 		panic(fmt.Sprintf("unknown %T", node))
-		return v.Clone()
 	}
 }
