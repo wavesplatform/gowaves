@@ -92,18 +92,15 @@ type evaluationScope struct {
 	cs        varsCtx
 	fs        funcCtx
 	system    map[string]rideFunction
-	//user      []esFunction
-	cl int
+	cl        int
 }
 
 func (s *evaluationScope) declare(n Node) error {
 	switch d := n.(type) {
 	case *FunctionDeclarationNode:
-		//s.pushUserFunction(d)
 		s.fs = s.fs.add(d.Name, d, s.cs)
 		return nil
 	case *AssignmentNode:
-		//s.pushExpression(d.Name, d.Expression)
 		s.cs = s.cs.add(d.Name, d.Expression, s.fs)
 		return nil
 	default:
@@ -111,22 +108,9 @@ func (s *evaluationScope) declare(n Node) error {
 	}
 }
 
-//func (s *evaluationScope) pushExpression(id string, n Node) {
-//	s.cs[len(s.cs)-1] = append(s.cs[len(s.cs)-1], esValue{id: id, expression: n, size: len(s.cs[len(s.cs)-1])})
-//}
-
-//func (s *evaluationScope) pushExpression2(id string, n Node, ctx evaluationCtx) evaluationCtx {
-//
-//}
-
 func (s *evaluationScope) pushValue(id string, v rideType) {
-	//s.cs[len(s.cs)-1] = append(s.cs[len(s.cs)-1], esValue{id: id, value: v})
 	s.cs = s.cs.addValue(id, v, s.fs)
 }
-
-//func (s *evaluationScope) popValue() {
-//	s.cs[len(s.cs)-1] = s.cs[len(s.cs)-1][:len(s.cs[len(s.cs)-1])-1]
-//}
 
 func (s *evaluationScope) constant(id string) (rideType, bool) {
 	if c, ok := s.constants[id]; ok {
@@ -139,54 +123,6 @@ func (s *evaluationScope) constant(id string) (rideType, bool) {
 	}
 	return nil, false
 }
-
-//func lookup(s []esValue, id string) (esValue, bool) {
-//	for i := len(s) - 1; i >= 0; i-- {
-//		if v := s[i]; v.id == id {
-//			return v, true
-//		}
-//	}
-//	return esValue{}, false
-//}
-
-//func (s *evaluationScope) value(id string) (esValue, bool) {
-//if p := len(s.cs) - 1; p >= 0 {
-//	v, ok := lookup(s.cs[p], id)
-//	if ok {
-//		return v, true
-//	}
-//}
-//for i := s.cl - 1; i >= 0; i-- {
-//	v, ok := lookup(s.cs[i], id)
-//	if ok {
-//		return v, true
-//	}
-//}
-//return esValue{}, false
-//}
-
-//func (s *evaluationScope) pushUserFunction(uf *FunctionDeclarationNode) {
-//	s.user = append(s.user, esFunction{fn: uf, sp: len(s.cs)})
-//}
-
-//func (s *evaluationScope) popUserFunction() error {
-//	l := len(s.user)
-//	if l == 0 {
-//		return errors.New("empty user functions scope")
-//	}
-//	s.user = s.user[:l-1]
-//	return nil
-//}
-
-//func (s *evaluationScope) userFunction(id string) (*FunctionDeclarationNode, int, error) {
-//	for i := len(s.user) - 1; i >= 0; i-- {
-//		uf := s.user[i]
-//		if uf.fn.Name == id {
-//			return uf.fn, uf.sp, nil
-//		}
-//	}
-//	return nil, 0, errors.Errorf("user function '%s' is not found", id)
-//}
 
 func newEvaluationScope(v int, env RideEnvironment) (evaluationScope, error) {
 	constants, err := selectConstantNames(v)
@@ -232,10 +168,9 @@ func newEvaluationScope(v int, env RideEnvironment) (evaluationScope, error) {
 	return evaluationScope{
 		constants: cs,
 		system:    fs,
-		//cs:        //[][]esValue{make([]esValue, 0)},
-		cs:  newVarsCtx(),
-		fs:  newFuncCtx(),
-		env: env,
+		cs:        newVarsCtx(),
+		fs:        newFuncCtx(),
+		env:       env,
 	}, nil
 }
 
@@ -374,9 +309,7 @@ func (e *treeEvaluator) walk(node Node, varsCtx varsCtx, funcCtx funcCtx) (rideT
 
 	case *ReferenceNode:
 		id := n.Name
-		//v, ok := e.s.value(varsCtx, id)
 		v := varsCtx.get(id)
-		//ok := v != nil
 		if v == nil {
 			if v, ok := e.s.constant(id); ok {
 				return v, nil
@@ -394,7 +327,6 @@ func (e *treeEvaluator) walk(node Node, varsCtx varsCtx, funcCtx funcCtx) (rideT
 			if isThrow(r) {
 				return r, nil
 			}
-			//e.s.pushValue(id, r)
 			v.value = r
 			return r, nil
 		}
@@ -402,7 +334,6 @@ func (e *treeEvaluator) walk(node Node, varsCtx varsCtx, funcCtx funcCtx) (rideT
 
 	case *FunctionDeclarationNode:
 		id := n.Name
-		//e.s.pushUserFunction(n)
 		r, err := e.walk(n.Block, varsCtx, funcCtx.add(id, n, varsCtx))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate block after declaration of function '%s'", id)
@@ -410,10 +341,6 @@ func (e *treeEvaluator) walk(node Node, varsCtx varsCtx, funcCtx funcCtx) (rideT
 		if isThrow(r) {
 			return r, nil
 		}
-		//err = e.s.popUserFunction()
-		//if err != nil {
-		//	return nil, errors.Wrapf(err, "failed to evaluate declaration of function '%s'", id)
-		//}
 		return r, nil
 
 	case *FunctionCallNode:
@@ -442,7 +369,6 @@ func (e *treeEvaluator) walk(node Node, varsCtx varsCtx, funcCtx funcCtx) (rideT
 			}
 			return r, nil
 		}
-		//uf, _, err := e.s.userFunction(id)
 		uf := funcCtx.get(id)
 		if uf == nil {
 			return nil, errors.Errorf("failed to call function '%s'", id)
@@ -464,18 +390,11 @@ func (e *treeEvaluator) walk(node Node, varsCtx varsCtx, funcCtx funcCtx) (rideT
 			args[i] = esValue{id: an, value: av}
 			localVars = localVars.addValue(an, av, funcCtx)
 		}
-		//e.s.cs = append(e.s.cs, make([]esValue, len(args)))
-		//e.s.cs = append(e.s.cs, args)
-		//for i, arg := range args {
-		//	e.s.cs[len(e.s.cs)-1][i] = arg
-		//}
 		var tmp int
-		//tmp, e.s.cl = e.s.cl, cl
 		r, err := e.walk(uf.fn.Body, localVars, funcCtx)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", id)
 		}
-		//e.s.cs = e.s.cs[:len(e.s.cs)-1]
 		e.s.cl = tmp
 		return r, nil
 
