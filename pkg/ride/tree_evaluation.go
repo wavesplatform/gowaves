@@ -25,7 +25,7 @@ func CallVerifier(txID string, env RideEnvironment, tree *Tree, exe *Executable)
 	//if err != nil {
 	//	return nil, errors.Wrap(err, "vm verifier")
 	//}
-	r2, err := CallTreeVerifier(env, MustExpand(tree))
+	r2, err := CallTreeVerifier(env, tree)
 	if err != nil {
 		return nil, errors.Wrap(err, "tree verifier")
 	}
@@ -69,7 +69,7 @@ func CallTreeFunction(txID string, env RideEnvironment, tree *Tree, name string,
 }
 
 func CallFunction(txID string, env RideEnvironment, exe *Executable, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
-	rs1, err := CallTreeFunction(txID, env, MustExpand(tree), name, args)
+	rs1, err := CallTreeFunction(txID, env, tree, name, args)
 	if err != nil {
 		return nil, errors.Wrap(err, "call function by tree")
 	}

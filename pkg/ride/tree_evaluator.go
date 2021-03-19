@@ -296,7 +296,6 @@ func (e *treeEvaluator) walk(node Node, varsCtx varsCtx, funcCtx funcCtx) (rideT
 
 	case *AssignmentNode:
 		id := n.Name
-		//e.s.pushExpression(id, n.Expression)
 		r, err := e.walk(n.Block, varsCtx.add(id, n.Expression, funcCtx), funcCtx)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate block after declaration of variable '%s'", id)
@@ -304,7 +303,6 @@ func (e *treeEvaluator) walk(node Node, varsCtx varsCtx, funcCtx funcCtx) (rideT
 		if isThrow(r) {
 			return r, nil
 		}
-		//e.s.popValue()
 		return r, nil
 
 	case *ReferenceNode:

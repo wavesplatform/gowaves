@@ -154,7 +154,7 @@ func TestTreeExpand11(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, true, rs.Result())
 	})
-	t.Run("expand 2 funcs", func(t *testing.T) {
+	t.Run("expand 2 functions", func(t *testing.T) {
 		/**
 		{-# STDLIB_VERSION 3 #-}
 		{-# SCRIPT_TYPE ACCOUNT #-}
@@ -183,9 +183,6 @@ func TestTreeExpand11(t *testing.T) {
 		require.Equal(t, true, rs.Result())
 	})
 
-	t.Run("", func(t *testing.T) {
-
-	})
 }
 
 /**
@@ -221,7 +218,7 @@ func TestExpandScope(t *testing.T) {
 	require.NotNil(t, m.get1("call"))
 }
 
-func TestExpandSmthWrote(t *testing.T) {
+func TestExpand(t *testing.T) {
 	source := `AAIDAAAAAAAAAAQIARIAAAAAAwEAAAAOZ2V0TnVtYmVyQnlLZXkAAAABAAAAA2tleQMJAAAAAAAAAgUAAAADa2V5AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAEBAAAAEmdldFByaWNlSGlzdG9yeUtleQAAAAEAAAAFYmxvY2sJAAEsAAAAAgIAAAAGcHJpY2VfCQABpAAAAAEFAAAABWJsb2NrAQAAAA9nZXRQcmljZUhpc3RvcnkAAAABAAAABmhlaWdodAkBAAAADmdldE51bWJlckJ5S2V5AAAAAQkBAAAAEmdldFByaWNlSGlzdG9yeUtleQAAAAEFAAAABmhlaWdodAAAAAEAAAABaQEAAAAUZmluYWxpemVDdXJyZW50UHJpY2UAAAAAAwkBAAAAAiE9AAAAAgkBAAAAD2dldFByaWNlSGlzdG9yeQAAAAEFAAAABmhlaWdodAAAAAAAAAAAAAkAAAIAAAABAgAAAA93YWl0IG5leHQgYmxvY2sJAQAAAAhXcml0ZVNldAAAAAEFAAAAA25pbAAAAACFlzmA`
 
 	src, err := base64.StdEncoding.DecodeString(source)
