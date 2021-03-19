@@ -50,6 +50,9 @@ var defuncs = map[string]func(s *strings.Builder, name string, nodes []Node, f d
 	"101": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		infix(s, "-", nodes, f)
 	},
+	"102": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		infix(s, ">", nodes, f)
+	},
 	"103": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		infix(s, ">=", nodes, f)
 	},

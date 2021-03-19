@@ -83,7 +83,7 @@ func (a *params) constant(value rideType) constantDeferred {
 func reference(_ Fsm, params params, name string) constantDeferred {
 	pos, ok := params.r.getAssigment(name)
 	if !ok {
-		panic(fmt.Sprintf("reference %s not found, tx %s", name, params.txID))
+		panic(fmt.Sprintf("reference `%s` not found, tx %s", name, params.txID))
 	}
 	return NewConstantDeferred(pos)
 }

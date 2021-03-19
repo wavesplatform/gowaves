@@ -2,7 +2,6 @@ package ride
 
 import (
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -23,6 +22,7 @@ func CallVmVerifier(txID string, env RideEnvironment, compiled *Executable) (Rid
 }
 
 func CallVerifier(txID string, env RideEnvironment, tree *Tree, exe *Executable) (RideResult, error) {
+	tree = MustExpand(tree)
 	r, err := CallVmVerifier(txID, env, exe)
 	if err != nil {
 		return nil, errors.Wrap(err, "vm verifier")
@@ -33,6 +33,7 @@ func CallVerifier(txID string, env RideEnvironment, tree *Tree, exe *Executable)
 	}
 
 	if !r.Eq(r2) {
+		zap.S().Error(DecompileTree(tree))
 		c1 := r.Calls()
 		c2 := r2.Calls()
 		max := len(c1)
@@ -71,7 +72,7 @@ func CallTreeFunction(txID string, env RideEnvironment, tree *Tree, name string,
 }
 
 func CallFunction(txID string, env RideEnvironment, exe *Executable, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
-	rs1, err := CallTreeFunction(txID, env, tree, name, args)
+	rs1, err := CallTreeFunction(txID, env, MustExpand(tree), name, args)
 	if err != nil {
 		return nil, errors.Wrap(err, "call function by tree")
 	}
@@ -80,6 +81,7 @@ func CallFunction(txID string, env RideEnvironment, exe *Executable, tree *Tree,
 		return rs2, errors.Wrap(err, "call function by vm")
 	}
 	if !rs1.Eq(rs2) {
+		zap.S().Error(DecompileTree(tree))
 		c1 := rs1.Calls()
 		c2 := rs2.Calls()
 		max := len(c1)
@@ -99,15 +101,15 @@ func CallFunction(txID string, env RideEnvironment, exe *Executable, tree *Tree,
 			}
 		}
 
-		ac1 := rs1.ScriptActions()
-		ac2 := rs2.ScriptActions()
-		for i := range ac1 {
-			zap.S().Errorf("%d %s Action %+v", i, txID, ac1[i].(*proto.DataEntryScriptAction).Entry.(*proto.BinaryDataEntry).Value)
-			zap.S().Errorf("%d %s Action %+v", i, txID, ac2[i].(*proto.DataEntryScriptAction).Entry.(*proto.BinaryDataEntry).Value)
-			zap.S().Errorf("Eq %+v", assert.ObjectsAreEqual(ac1[i].(*proto.DataEntryScriptAction).Entry.(*proto.BinaryDataEntry).Value, ac2[i].(*proto.DataEntryScriptAction).Entry.(*proto.BinaryDataEntry).Value))
-			break
-			//zap.S().Errorf(i, txID, " Action ", ac2[i])
-		}
+		//ac1 := rs1.ScriptActions()
+		//ac2 := rs2.ScriptActions()
+		//for i := range ac1 {
+		//	//zap.S().Errorf("%d %s Action %+v", i, txID, ac1[i].(*proto.DataEntryScriptAction).Entry.(*proto.BinaryDataEntry).Value)
+		//	//zap.S().Errorf("%d %s Action %+v", i, txID, ac2[i].(*proto.DataEntryScriptAction).Entry.(*proto.BinaryDataEntry).Value)
+		//	//zap.S().Errorf("Eq %+v", assert.ObjectsAreEqual(ac1[i].(*proto.DataEntryScriptAction).Entry.(*proto.BinaryDataEntry).Value, ac2[i].(*proto.DataEntryScriptAction).Entry.(*proto.BinaryDataEntry).Value))
+		//	break
+		//	//zap.S().Errorf(i, txID, " Action ", ac2[i])
+		//}
 
 		return nil, errors.New("R1 != R2: failed to call account script on transaction ")
 	}

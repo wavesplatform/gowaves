@@ -5,11 +5,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 
 	//"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -183,10 +185,6 @@ func TestTreeExpand11(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, true, rs.Result())
 	})
-
-	t.Run("", func(t *testing.T) {
-
-	})
 }
 
 /**
@@ -355,5 +353,118 @@ func TestExpandSmthWrote3(t *testing.T) {
 	rs, err := script.Verify(defaultEnv)
 	require.NoError(t, err)
 	////require.Equal(t, 2, len(rs.Calls()))
+	require.Equal(t, true, rs.Result())
+}
+
+/*
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+func xx(height: Int) = {
+    height
+}
+
+xx(height) == 1
+*/
+func TestWithHeight(t *testing.T) {
+	source := `AwoBAAAAAnh4AAAAAQAAAAZoZWlnaHQFAAAABmhlaWdodAkAAAAAAAACCQEAAAACeHgAAAABBQAAAAZoZWlnaHQAAAAAAAAAAAHS0qks`
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	tree = MustExpand(tree)
+	t.Log(DecompileTree(tree))
+	//require.NoError(t, err)
+	//require.NotNil(t, tree)
+	//
+	script, err := CompileTree("", tree)
+	require.NoError(t, err)
+
+	//rsT, err := CallTreeVerifier(nil, tree)
+	//require.NoError(t, err)
+	//_ = rsT
+	//
+	//rs, err := script.Invoke(defaultEnv, "addBuyBondOrder", []rideType{rideInt(1398601), rideString("")})
+	rs, err := script.Verify(defaultEnv)
+	require.NoError(t, err)
+	////require.Equal(t, 2, len(rs.Calls()))
+	require.Equal(t, true, rs.Result())
+}
+
+/*
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+
+
+*/
+func TestWithHeight2(t *testing.T) {
+	source := `AAIEAAAAAAAAAAgIAhIECgIIAQAAAB8AAAAABWFkbWluAQAAACCnVErqp8ibQ55WtRdh6dN0wQFoQ9ny+0uTALD786XdOAAAAAAHYXNzZXRJZAkAAlkAAAABAgAAACwzVGFmM1RBSldEeUJzQXN5ZGRiVTFwbjVkV2VjQ3doajRra0UxakZKb0RDawAAAAAETk9ORQIAAAALbm8gZXhpc3RpbmcAAAAABExJU1QJAQAAABFAZXh0ck5hdGl2ZSgxMDYyKQAAAAECAAAAIzNNa3RKZ1YyZVRtY0NxdHlRYWVxaWlIa1ExZVkzRUg1VGRiAQAAAAtmZXRjaFN0cmluZwAAAAIAAAAFYWxpYXMAAAADa2V5BAAAAAckbWF0Y2gwCQAEHQAAAAIFAAAABWFsaWFzBQAAAANrZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABlN0cmluZwQAAAABYQUAAAAHJG1hdGNoMAUAAAABYQUAAAAETk9ORQEAAAAMZmV0Y2hJbnRlZ2VyAAAAAgAAAAVhbGlhcwAAAANrZXkEAAAAByRtYXRjaDAJAAQaAAAAAgUAAAAFYWxpYXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAFhBQAAAAckbWF0Y2gwBQAAAAFhAAAAAAAAAAAAAQAAAAdnZXREYXBwAAAAAAkBAAAAC2ZldGNoU3RyaW5nAAAAAgUAAAAEdGhpcwIAAAALZGFwcEFkZHJlc3MBAAAACWdldE1hc3RlcgAAAAAJAQAAAAtmZXRjaFN0cmluZwAAAAIFAAAABHRoaXMCAAAADW1hc3RlckFkZHJlc3MBAAAAEGdldEFjY291bnRTdGF0dXMAAAABAAAAB2FkZHJlc3MJAQAAABFAZXh0ck5hdGl2ZSgxMDUxKQAAAAIFAAAABExJU1QJAAEsAAAAAgUAAAAHYWRkcmVzcwIAAAAHX2FjdGl2ZQEAAAAWZ2V0TGltaXRUb3RhbEFtb3VudEtleQAAAAEAAAAFbGltaXQJAAEsAAAAAgIAAAATbGltaXRfdG90YWxfYW1vdW50XwUAAAAFbGltaXQBAAAAGGdldExpbWl0VG90YWxBbW91bnRWYWx1ZQAAAAEAAAAFbGltaXQJAQAAAAxmZXRjaEludGVnZXIAAAACBQAAAAR0aGlzCQEAAAAWZ2V0TGltaXRUb3RhbEFtb3VudEtleQAAAAEFAAAABWxpbWl0AQAAAA5nZXRUb3RhbEFtb3VudAAAAAAJAQAAAAxmZXRjaEludGVnZXIAAAACBQAAAAR0aGlzAgAAAAx0b3RhbF9hbW91bnQBAAAACmdldExpc3RLZXkAAAACAAAAB2FkZHJlc3MAAAAJbGltaXREYXRlBAAAAApzZWVkUGhyYXNlCQABLAAAAAIFAAAAB2FkZHJlc3MFAAAACWxpbWl0RGF0ZQkAASwAAAACAgAAAAdsaXN0ZWRfCQACWAAAAAEJAAH3AAAAAQkAAZsAAAABBQAAAApzZWVkUGhyYXNlAQAAABBnZXRMaXN0QW1vdW50S2V5AAAAAQAAAAdsaXN0S2V5CQABLAAAAAIFAAAAB2xpc3RLZXkCAAAAB19hbW91bnQBAAAAD2dldExpc3RMaW1pdEtleQAAAAEAAAAHbGlzdEtleQkAASwAAAACBQAAAAdsaXN0S2V5AgAAAAZfbGltaXQBAAAAD2dldExpc3RPd25lcktleQAAAAEAAAAHbGlzdEtleQkAASwAAAACBQAAAAdsaXN0S2V5AgAAAAZfb3duZXIBAAAAE2dldExpc3RVbml0UHJpY2VLZXkAAAABAAAAB2xpc3RLZXkJAAEsAAAAAgUAAAAHbGlzdEtleQIAAAAKX3VuaXRQcmljZQEAAAAVZ2V0TGlzdERlc2NyaXB0aW9uS2V5AAAAAQAAAAdsaXN0S2V5CQABLAAAAAIFAAAAB2xpc3RLZXkCAAAADF9kZXNjcmlwdGlvbgEAAAASZ2V0TGlzdEFtb3VudFZhbHVlAAAAAQAAAAdsaXN0S2V5CQEAAAAMZmV0Y2hJbnRlZ2VyAAAAAgUAAAAEdGhpcwkBAAAAEGdldExpc3RBbW91bnRLZXkAAAABBQAAAAdsaXN0S2V5AQAAABFnZXRMaXN0TGltaXRWYWx1ZQAAAAEAAAAHbGlzdEtleQkBAAAAC2ZldGNoU3RyaW5nAAAAAgUAAAAEdGhpcwkBAAAAD2dldExpc3RMaW1pdEtleQAAAAEFAAAAB2xpc3RLZXkBAAAAEWdldExpc3RPd25lclZhbHVlAAAAAQAAAAdsaXN0S2V5CQEAAAALZmV0Y2hTdHJpbmcAAAACBQAAAAR0aGlzCQEAAAAPZ2V0TGlzdE93bmVyS2V5AAAAAQUAAAAHbGlzdEtleQEAAAAVZ2V0TGlzdFVuaXRQcmljZVZhbHVlAAAAAQAAAAdsaXN0S2V5CQEAAAAMZmV0Y2hJbnRlZ2VyAAAAAgUAAAAEdGhpcwkBAAAAE2dldExpc3RVbml0UHJpY2VLZXkAAAABBQAAAAdsaXN0S2V5AQAAABdnZXRMaXN0RGVzY3JpcHRpb25WYWx1ZQAAAAEAAAAHbGlzdEtleQkBAAAAC2ZldGNoU3RyaW5nAAAAAgUAAAAEdGhpcwkBAAAAFWdldExpc3REZXNjcmlwdGlvbktleQAAAAEFAAAAB2xpc3RLZXkBAAAAC2dldE93bmVkS2V5AAAAAgAAAAVvd25lcgAAAAVsaW1pdAQAAAAKc2VlZFBocmFzZQkAASwAAAACBQAAAAVvd25lcgUAAAAFbGltaXQJAAEsAAAAAgIAAAAGb3duZWRfCQACWAAAAAEJAAH3AAAAAQkAAZsAAAABBQAAAApzZWVkUGhyYXNlAQAAABFnZXRPd25lZEFtb3VudEtleQAAAAEAAAAIb3duZWRLZXkJAAEsAAAAAgUAAAAIb3duZWRLZXkCAAAAB19hbW91bnQBAAAAEGdldE93bmVkTGltaXRLZXkAAAABAAAACG93bmVkS2V5CQABLAAAAAIFAAAACG93bmVkS2V5AgAAAAZfbGltaXQBAAAAEGdldE93bmVkT3duZXJLZXkAAAABAAAACG93bmVkS2V5CQABLAAAAAIFAAAACG93bmVkS2V5AgAAAAZfb3duZXIBAAAAE2dldE93bmVkQW1vdW50VmFsdWUAAAABAAAACG93bmVkS2V5CQEAAAAMZmV0Y2hJbnRlZ2VyAAAAAgUAAAAEdGhpcwkBAAAAEWdldE93bmVkQW1vdW50S2V5AAAAAQUAAAAIb3duZWRLZXkBAAAAEmdldE93bmVkTGltaXRWYWx1ZQAAAAEAAAAIb3duZWRLZXkJAQAAAAtmZXRjaFN0cmluZwAAAAIFAAAABHRoaXMJAQAAABBnZXRPd25lZExpbWl0S2V5AAAAAQUAAAAIb3duZWRLZXkBAAAAC3VwZGF0ZU93bmVkAAAAAwAAAAVvd25lcgAAAAZhbW91bnQAAAAFbGltaXQEAAAACG93bmVkS2V5CQEAAAALZ2V0T3duZWRLZXkAAAACBQAAAAVvd25lcgUAAAAFbGltaXQJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAIJAQAAABFnZXRPd25lZEFtb3VudEtleQAAAAEFAAAACG93bmVkS2V5CQAAZAAAAAIJAQAAABNnZXRPd25lZEFtb3VudFZhbHVlAAAAAQUAAAAIb3duZWRLZXkFAAAABmFtb3VudAkABEwAAAACCQEAAAALU3RyaW5nRW50cnkAAAACCQEAAAAQZ2V0T3duZWRMaW1pdEtleQAAAAEFAAAACG93bmVkS2V5BQAAAAVsaW1pdAkABEwAAAACCQEAAAALU3RyaW5nRW50cnkAAAACCQEAAAAQZ2V0T3duZWRPd25lcktleQAAAAEFAAAACG93bmVkS2V5BQAAAAVvd25lcgUAAAADbmlsAQAAAA10cmFuc2ZlclRva2VuAAAABAAAAAZzZW5kZXIAAAAJcmVjaXBpZW50AAAABmFtb3VudAAAAAVsaW1pdAkABE4AAAACCQEAAAALdXBkYXRlT3duZWQAAAADBQAAAAZzZW5kZXIJAQAAAAEtAAAAAQUAAAAGYW1vdW50BQAAAAVsaW1pdAkBAAAAC3VwZGF0ZU93bmVkAAAAAwUAAAAJcmVjaXBpZW50BQAAAAZhbW91bnQFAAAABWxpbWl0AAAAAQAAAAFpAQAAAAhwdXJjaGFzZQAAAAIAAAADa2V5AAAABmFtb3VudAQAAAAHaW52b2tlcgIAAAAjM01qQk4ya2lSQjZKbW9FVkVDNDJaTk1YOWlieDVpWjlNaWgEAAAACHN1cHBsaWVyCQEAAAAPZ2V0TGlzdE93bmVyS2V5AAAAAQUAAAADa2V5BAAAAAVsaW1pdAkBAAAAEWdldExpc3RMaW1pdFZhbHVlAAAAAQUAAAADa2V5CQAETgAAAAIJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwkBAAAAEUBleHRyTmF0aXZlKDEwNjIpAAAAAQUAAAAHaW52b2tlcgUAAAAGYW1vdW50BQAAAAdhc3NldElkCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACCQEAAAAQZ2V0TGlzdEFtb3VudEtleQAAAAEFAAAAA2tleQkAAGUAAAACCQEAAAASZ2V0TGlzdEFtb3VudFZhbHVlAAAAAQUAAAADa2V5BQAAAAZhbW91bnQFAAAAA25pbAkBAAAADXRyYW5zZmVyVG9rZW4AAAAECQEAAAAHZ2V0RGFwcAAAAAAFAAAAB2ludm9rZXIFAAAABmFtb3VudAUAAAAFbGltaXQAAAAAWzckVA==`
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	tree = MustExpand(tree)
+	t.Log(DecompileTree(tree))
+	//require.NoError(t, err)
+	//require.NotNil(t, tree)
+	//
+	var defaultState = &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
+		},
+		RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+
+			panic("key " + key)
+		},
+	}
+
+	var defaultEnv = &MockRideEnvironment{
+		transactionFunc: testTransferObject,
+		stateFunc: func() types.SmartState {
+			return defaultState
+		},
+		schemeFunc: func() byte {
+			return 'S'
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+		invocationFunc: func() rideObject {
+			return rideObject{}
+		},
+		heightFunc: func() rideInt {
+			return rideInt(100500)
+		},
+	}
+
+	script, err := CompileTree("", tree)
+	require.NoError(t, err)
+
+	//rsT, err := CallTreeVerifier(nil, tree)
+	//require.NoError(t, err)
+	//_ = rsT
+	//
+	//rs, err := script.Invoke(defaultEnv, "addBuyBondOrder", []rideType{rideInt(1398601), rideString("")})
+	rs, err := script.Invoke(defaultEnv, "purchase", []rideType{rideString("listed_J5ALPF3Z2fbtNs3mP1nFRNvG4AJ9LgDdwdnK6bKzF22s"), rideInt(5000)})
+
+	for _, r := range rs.Calls() {
+		t.Log(r)
+	}
+	require.NoError(t, err)
 	require.Equal(t, true, rs.Result())
 }
