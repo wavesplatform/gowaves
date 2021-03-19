@@ -11,7 +11,7 @@ export GO111MODULE=on
 
 .PHONY: vendor vetcheck fmtcheck clean build gotest
 
-all: vendor vetcheck fmtcheck build gotest mod-clean
+all: vendor vetcheck build gotest mod-clean
 
 ver:
 	@echo Building version: $(VERSION)
