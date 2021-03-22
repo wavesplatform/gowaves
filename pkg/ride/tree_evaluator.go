@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -364,7 +363,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			args := make([]rideType, len(n.Arguments))
 			for i, arg := range n.Arguments {
 				a, err := e.walk(arg) // materialize argument
-				fmt.Println(arg)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, id)
 				}
