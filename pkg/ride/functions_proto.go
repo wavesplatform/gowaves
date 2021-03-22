@@ -34,6 +34,17 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[0].instanceOf())
 	}
 
+	if recipient.Address == nil {
+		if recipient.Alias == nil {
+			return nil, errors.New("invoke: address and alias are nil")
+		}
+		addressFromAlias, err := env.state().NewestAddrByAlias(*recipient.Alias)
+		if err != nil {
+			return nil, errors.Errorf("invoke: failed to get address by alias, %v", err)
+		}
+		recipient = proto.NewRecipientFromAddress(addressFromAlias)
+	}
+
 	var fnName rideString
 	switch fnN := args[1].(type) {
 	case rideUnit:
