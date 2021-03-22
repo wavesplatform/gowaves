@@ -56,7 +56,7 @@ func NewMain(params params) State {
 
 func (a MainState) Assigment(name string) State {
 	n := a.params.u.next()
-	return assigmentFsmTransition(a, a.params, name, n, a.deferreds)
+	return assigmentTransition(a, a.params, name, n, a.deferreds)
 }
 
 func (a MainState) Return() State {

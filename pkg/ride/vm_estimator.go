@@ -1,7 +1,6 @@
 package ride
 
 type VmEstimator struct {
-	//cost    int
 	builtin map[string]int
 }
 

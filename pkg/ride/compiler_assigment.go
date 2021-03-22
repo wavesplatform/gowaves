@@ -8,12 +8,9 @@ type AssigmentState struct {
 	bodyParams params
 	prev       State
 	name       string
-	// ref id
-	n uniqueid
-
-	// Clean internal assigments.
-	body Deferred
-	d    Deferreds
+	n          uniqueid
+	body       Deferred
+	d          Deferreds
 }
 
 func (a AssigmentState) backward(state State) State {
@@ -56,8 +53,8 @@ func (a AssigmentState) Boolean(v bool) State {
 	return a
 }
 
-func assigmentFsmTransition(prev State, params params, name string, n uniqueid, d Deferreds) State {
-	return newAssigmentFsm(prev, params, name, n, d)
+func assigmentTransition(prev State, params params, name string, n uniqueid, d Deferreds) State {
+	return newAssigment(prev, params, name, n, d)
 }
 
 func extendParams(p params) params {
@@ -65,7 +62,7 @@ func extendParams(p params) params {
 	return p
 }
 
-func newAssigmentFsm(prev State, p params, name string, n uniqueid, d Deferreds) State {
+func newAssigment(prev State, p params, name string, n uniqueid, d Deferreds) State {
 	return AssigmentState{
 		prev:       prev,
 		params:     p,
@@ -78,11 +75,8 @@ func newAssigmentFsm(prev State, p params, name string, n uniqueid, d Deferreds)
 
 // Create new scope, so assigment in assigment can't affect global state.
 func (a AssigmentState) Assigment(name string) State {
-	//params := a.params
-	//params.r = newReferences(params.r)
-	// TODO clear var in var
 	n := a.params.u.next()
-	return assigmentFsmTransition(a, a.bodyParams, name, n, a.d)
+	return assigmentTransition(a, a.bodyParams, name, n, a.d)
 }
 
 func (a AssigmentState) Return() State {

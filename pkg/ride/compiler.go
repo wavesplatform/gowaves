@@ -20,11 +20,11 @@ func encode(v uint16) []byte {
 func compile(f State, node Node) (State, error) {
 	switch n := node.(type) {
 	case *AssignmentNode:
-		fsm, err := compile(f.Assigment(n.Name), n.Expression)
+		state, err := compile(f.Assigment(n.Name), n.Expression)
 		if err != nil {
-			return fsm, err
+			return state, err
 		}
-		return compile(fsm.Return(), n.Block)
+		return compile(state.Return(), n.Block)
 	case *LongNode:
 		return f.Long(n.Value), nil
 	case *FunctionCallNode:
@@ -60,11 +60,11 @@ func compile(f State, node Node) (State, error) {
 		}
 		return f.Return(), nil
 	case *FunctionDeclarationNode:
-		fsm, err := compile(f.Func(n.Name, n.Arguments, n.invocationParameter), n.Body)
+		state, err := compile(f.Func(n.Name, n.Arguments, n.invocationParameter), n.Body)
 		if err != nil {
-			return fsm, err
+			return state, err
 		}
-		return compile(fsm.Return(), n.Block)
+		return compile(state.Return(), n.Block)
 	case *PropertyNode:
 		f, err := compile(f.Property(n.Name), n.Object)
 		if err != nil {

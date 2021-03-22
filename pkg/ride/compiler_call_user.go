@@ -8,8 +8,6 @@ type CallUserState struct {
 	params
 	name      string
 	argc      uint16
-	startedAt uint16
-
 	deferreds Deferreds
 	ns        []uniqueid
 }
@@ -22,13 +20,12 @@ func (a CallUserState) backward(state State) State {
 	return a
 }
 
-func newCallUserFsm(prev State, params params, name string, argc uint16, d Deferreds) State {
+func newCallUserState(prev State, params params, name string, argc uint16, d Deferreds) State {
 	return &CallUserState{
 		prev:      prev,
 		params:    params,
 		name:      name,
 		argc:      argc,
-		startedAt: params.b.len(),
 		deferreds: d,
 	}
 }

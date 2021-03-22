@@ -96,7 +96,7 @@ func funcTransition(prev State, params params, name string, args []string, invok
 
 func (a FuncState) Assigment(name string) State {
 	n := a.params.u.next()
-	return assigmentFsmTransition(a, a.params, name, n, a.defers)
+	return assigmentTransition(a, a.params, name, n, a.defers)
 }
 
 func (a FuncState) ParamIds() []uniqueid {

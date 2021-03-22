@@ -6,13 +6,8 @@ import "fmt"
 type CallSystemState struct {
 	prev State
 	params
-	name string
-	argc uint16
-	// positions of arguments
-	//argn []uint16
-	// Position where we started write code for current state.
-	startedAt uint16
-	//retAssig  uint16
+	name      string
+	argc      uint16
 	deferred  []Deferred
 	deferreds Deferreds
 	// Sequential function arguments.
@@ -42,11 +37,11 @@ func (a CallSystemState) Condition() State {
 }
 
 func (a CallSystemState) TrueBranch() State {
-	panic("Illegal call `TrueBranch` on CallFsm")
+	panic("Illegal call `TrueBranch` on CallSystemState")
 }
 
 func (a CallSystemState) FalseBranch() State {
-	panic("Illegal call `FalseBranch` on CallFsm")
+	panic("Illegal call `FalseBranch` on CallSystemState")
 }
 
 func (a CallSystemState) String(value string) State {
@@ -61,12 +56,12 @@ func (a CallSystemState) Boolean(value bool) State {
 
 func callTransition(prev State, params params, name string, argc uint16, d Deferreds) State {
 	if _, ok := params.r.getFunc(name); ok {
-		return newCallUserFsm(prev, params, name, argc, d)
+		return newCallUserState(prev, params, name, argc, d)
 	}
-	return newCallSystemFsm(prev, params, name, argc, d)
+	return newCallSystemState(prev, params, name, argc, d)
 }
 
-func newCallSystemFsm(prev State, params params, name string, argc uint16, d Deferreds) State {
+func newCallSystemState(prev State, params params, name string, argc uint16, d Deferreds) State {
 	var ns []uniqueid
 	for i := uint16(0); i < argc; i++ {
 		ns = append(ns, params.u.next())
@@ -77,7 +72,6 @@ func newCallSystemFsm(prev State, params params, name string, argc uint16, d Def
 		params:    params,
 		name:      name,
 		argc:      argc,
-		startedAt: params.b.len(),
 		deferreds: d,
 		ns:        ns,
 	}
@@ -85,7 +79,7 @@ func newCallSystemFsm(prev State, params params, name string, argc uint16, d Def
 
 func (a CallSystemState) Assigment(name string) State {
 	n := a.params.u.next()
-	return assigmentFsmTransition(a, a.params, name, n, a.deferreds)
+	return assigmentTransition(a, a.params, name, n, a.deferreds)
 }
 
 func (a CallSystemState) Long(value int64) State {

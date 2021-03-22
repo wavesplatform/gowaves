@@ -685,45 +685,9 @@ func TestNoDuplicateCallToState(t *testing.T) {
 	for _, c := range rs.Calls() {
 		t.Log(c)
 	}
-	//t.Log(rs.Calls())
 	require.NoError(t, err)
-
-	//t.Log(rs.Calls())
 	require.False(t, rs.Result())
 }
-
-//type points struct {
-//	value []point `cbor:"0,keyasint"`
-//}
-
-//func TestSerialize(t *testing.T) {
-//
-//	//m := points{
-//	//	value: []point{
-//	//		{value: rideBoolean(true)},
-//	//		{value: rideInt(5), constant: true},
-//	//	},
-//	//}
-//	m := point{
-//		position:  43,
-//		value:     rideUnit{},
-//		fn:        nil,
-//		constant:  true,
-//		debugInfo: "bla",
-//	}
-//
-//	rs, err := cbor.Marshal(m)
-//	require.NoError(t, err)
-//
-//	t.Log(rs)
-//
-//	var m2 point
-//
-//	err = cbor.Unmarshal(rs, &m2)
-//	require.NoError(t, err)
-//	t.Log(m2)
-//
-//}
 
 /*
 {-# STDLIB_VERSION 3 #-}
@@ -1478,10 +1442,6 @@ func Test111111(t *testing.T) {
 
 	tree, err := Parse(src)
 	require.NoError(t, err)
-	//rs, err := CallTreeVerifier(env, tree)
-	//for i, c := range rs.Calls() {
-	//	t.Log(i, " ", c)
-	//}
 
 	exe, err := CompileTree("", tree)
 	require.NoError(t, err)

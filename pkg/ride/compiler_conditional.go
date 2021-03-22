@@ -2,15 +2,11 @@ package ride
 
 import "fmt"
 
-//import "fmt"
-
 // If-else statement.
 type ConditionalState struct {
-	params
-	prev State
 	/*
-		Offset where true branch starts execution.
-		We need this because code can look like:
+		Be aware that `x` and `y` should not be executed.
+
 		if (true) then {
 			let x = throw()
 			5
@@ -18,16 +14,12 @@ type ConditionalState struct {
 			let y = throw()
 			6
 		}
-
-		`X` and `y` should not be executed.
 	*/
-	patchTruePosition uint16
-	// Same as true position.
-	patchFalsePosition uint16
-	// Offset where `if` code block ends.
-	patchNextPosition uint16
-	startedAt         uint16
-	rets              []uint16
+
+	params
+	prev State
+
+	rets []uint16
 
 	// Clean assigments after exit.
 	deferred  []Deferred
@@ -51,7 +43,6 @@ func (a ConditionalState) Property(name string) State {
 }
 
 func (a ConditionalState) Func(name string, args []string, invoke string) State {
-	//panic(fmt.Sprintf("Illegal call Func on ConditionalState %s", a.txID))
 	return funcTransition(a, a.params, name, args, invoke)
 }
 
@@ -64,8 +55,6 @@ func conditionalTransition(prev State, params params, deferreds Deferreds) State
 	return ConditionalState{
 		prev:      prev,
 		params:    params,
-		startedAt: params.b.len(),
-		//deferred:  make([[]Deferred, 3),
 		deferreds: deferreds,
 	}
 }
@@ -85,9 +74,8 @@ func (a ConditionalState) FalseBranch() State {
 
 func (a ConditionalState) Assigment(name string) State {
 	n := a.params.u.next()
-	//a.assigments = append(a.assigments, n)
 	a.r.setAssigment(name, n)
-	return assigmentFsmTransition(a, a.params, name, n, a.deferreds)
+	return assigmentTransition(a, a.params, name, n, a.deferreds)
 }
 
 func (a ConditionalState) Long(value int64) State {
@@ -128,7 +116,6 @@ func (a ConditionalState) Write(_ params, _ []byte) {
 		panic("len(a.deferred) != 3")
 	}
 
-	//condB := a.deferred[0]
 	trueB := a.deferred[1]
 	falsB := a.deferred[2]
 
@@ -136,34 +123,19 @@ func (a ConditionalState) Write(_ params, _ []byte) {
 	a.b.write(encode(a.condN))
 
 	a.b.jpmIfFalse()
-	a.patchTruePosition = a.b.writeStub(2)
-	//a.b.write(encode(a.b.len()))
-	a.patchFalsePosition = a.b.writeStub(2)
-	a.patchNextPosition = a.b.writeStub(2)
+	patchTruePosition := a.b.writeStub(2)
+	patchFalsePosition := a.b.writeStub(2)
+	patchNextPosition := a.b.writeStub(2)
 
-	a.b.patch(a.patchTruePosition, encode(a.b.len()))
-	//writeDeferred(a.params, trueB)
-	//a.b.ret()
+	a.b.patch(patchTruePosition, encode(a.b.len()))
 	trueB.Write(a.params, nil)
 	a.b.ret()
 
-	a.b.patch(a.patchFalsePosition, encode(a.b.len()))
+	a.b.patch(patchFalsePosition, encode(a.b.len()))
 	falsB.Write(a.params, nil)
 	a.b.ret()
 
-	//for _, v := range condB[1:] {
-	//	v.Write(a.params)
-	//}
-
-	a.b.patch(a.patchNextPosition, encode(a.b.len()))
-	//for _, v := range condB[1:] {
-	//	v.Clean()
-	//}
-	//a.b.write(b)
-	//a.b.ret()
-
-	//writeDeferred(a.params, a.deferred)
+	a.b.patch(patchNextPosition, encode(a.b.len()))
 }
 func (a ConditionalState) Clean() {
-	//panic("ConditionalState Clean")
 }
