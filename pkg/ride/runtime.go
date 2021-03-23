@@ -73,14 +73,14 @@ func (l rideInt) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
 }
 
-type rideInt256 []byte
+type rideBigInt []byte
 
-func (l rideInt256) instanceOf() string {
+func (l rideBigInt) instanceOf() string {
 	return "Int256"
 }
 
-func (l rideInt256) eq(other rideType) bool {
-	if o, ok := other.(rideInt256); ok {
+func (l rideBigInt) eq(other rideType) bool {
+	if o, ok := other.(rideBigInt); ok {
 		i1 := big.NewInt(0).SetBytes(l)
 		i2 := big.NewInt(0).SetBytes(o)
 		return i1.Cmp(i2) == 0
@@ -88,7 +88,7 @@ func (l rideInt256) eq(other rideType) bool {
 	return false
 }
 
-func (l rideInt256) get(prop string) (rideType, error) {
+func (l rideBigInt) get(prop string) (rideType, error) {
 	//TODO: there is possibility of few properties like 'bytes', 'int' and so on
 	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
 }

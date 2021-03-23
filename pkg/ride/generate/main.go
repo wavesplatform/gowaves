@@ -471,6 +471,29 @@ func functionsV5() map[string]string {
 	m["1092"] = "simplifiedLease"
 	m["1093"] = "fullLease"
 	m["LeaseCancel"] = "leaseCancel"
+	m["118"] = "powBigInt"
+	m["119"] = "logBigInt"
+	m["310"] = "toBigInt"
+	m["311"] = "sumBigInt"
+	m["312"] = "subtractBigInt"
+	m["313"] = "multiplyBigInt"
+	m["314"] = "divideBigInt"
+	m["315"] = "moduloBigInt"
+	m["316"] = "fractionBigInt"
+	m["317"] = "fractionBigIntRounds"
+	m["318"] = "unaryMinusBigInt"
+	m["319"] = "gtBigInt"
+	m["320"] = "geBigInt"
+	m["408"] = "maxListBigInt"
+	m["409"] = "minListBigInt"
+	m["413"] = "bigIntToBytes"
+	m["414"] = "bytesToBigInt"
+	m["415"] = "bytesToBigIntLim"
+	m["416"] = "bigIntToInt"
+	m["422"] = "bigIntToString"
+	m["423"] = "stringToBigInt"
+	m["424"] = "stringToBigIntOpt"
+	m["425"] = "medianListBigInt"
 	return m
 }
 
@@ -480,6 +503,29 @@ func catalogueV5() map[string]int {
 	m["1092"] = 1
 	m["1093"] = 1
 	m["LeaseCancel"] = 1
+	m["118"] = 200
+	m["119"] = 200
+	m["310"] = 1
+	m["311"] = 8
+	m["312"] = 8
+	m["313"] = 64
+	m["314"] = 64
+	m["315"] = 64
+	m["316"] = 128
+	m["317"] = 128
+	m["318"] = 8
+	m["319"] = 8
+	m["320"] = 8
+	m["408"] = 192
+	m["409"] = 192
+	m["413"] = 65
+	m["414"] = 65
+	m["415"] = 65
+	m["416"] = 1
+	m["422"] = 65
+	m["423"] = 65
+	m["424"] = 65
+	m["425"] = 160
 	return m
 }
 
