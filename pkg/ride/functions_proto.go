@@ -163,6 +163,55 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	return nil, errors.Errorf("result of Invoke is false")
 }
 
+func hashScriptAtAddress(env Environment, args ...rideType) (rideType, error) {
+	recipient, err := extractRecipient(args[0])
+	if err != nil {
+		return nil, errors.Errorf("unexpected argument type '%s'", args[0].instanceOf())
+	}
+	address, err := env.state().NewestRecipientToAddress(recipient)
+	if err != nil {
+		return nil, errors.Errorf("failed to get address from recipient %v", err)
+	}
+	hasVerifier, err := env.state().NewestAccountHasVerifier(*address) // account script
+	if err != nil {
+		return nil, errors.Errorf("failed to check if account has verifier, %v", err)
+	}
+	hasScript, err := env.state().NewestAccountHasScript(*address) // DApp script
+	if err != nil {
+		return nil, errors.Errorf("failed to check if account has script, %v", err)
+	}
+
+	if hasScript || hasVerifier {
+		script, err := env.state().GetByteTree(recipient)
+		if err != nil {
+			return nil, errors.Errorf("failed to get script by recipient, %v", err)
+		}
+		hash, err := crypto.FastHash(script)
+		if err != nil {
+			return nil, errors.Errorf("failed to get hash of script, %v", err)
+		}
+		return rideBytes(hash.Bytes()), nil
+	}
+
+	return rideUnit{}, nil
+}
+
+func isDataStorageUntouched(env Environment, args ...rideType) (rideType, error) {
+	recipient, err := extractRecipient(args[0])
+	if err != nil {
+		return nil, errors.Errorf("unexpected argument type '%s'", args[0].instanceOf())
+	}
+
+	dataEntries, err := env.state().RetrieveEntries(recipient)
+	if err != nil {
+		return nil, err
+	}
+	if len(dataEntries) == 0 {
+		return rideBoolean(true), nil
+	}
+	return rideBoolean(false), nil
+}
+
 func addressFromString(env Environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
