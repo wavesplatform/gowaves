@@ -10,7 +10,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
