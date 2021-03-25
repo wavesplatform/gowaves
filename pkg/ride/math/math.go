@@ -158,7 +158,7 @@ func FloorDiv(x, y int64) int64 {
 }
 
 func FloorDivBigInt(x, y *big.Int) *big.Int {
-	r := big.NewInt(0)
+	var r *big.Int
 	if x.Sign() == y.Sign() {
 		if x.Cmp(y) < 0 {
 			// abs(y-x)/2 + x
