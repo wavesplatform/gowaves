@@ -17,6 +17,10 @@ type rideType interface {
 	Serialize(Serializer) error
 }
 
+func RideTypes(types ...rideType) []rideType {
+	return types
+}
+
 type rideThrow string
 
 func (a rideThrow) Serialize(serializer Serializer) error {
@@ -45,6 +49,10 @@ func (a rideThrow) get(prop string) (rideType, error) {
 
 type rideBoolean bool
 
+func RideBoolean(b bool) rideBoolean {
+	return rideBoolean(b)
+}
+
 func (b rideBoolean) Serialize(serializer Serializer) error {
 	return serializer.RideBool(b)
 }
@@ -66,6 +74,10 @@ func (b rideBoolean) get(prop string) (rideType, error) {
 
 type rideInt int64
 
+func RideInt(i int64) rideInt {
+	return rideInt(i)
+}
+
 func (l rideInt) Serialize(serializer Serializer) error {
 	return serializer.RideInt(l)
 }
@@ -86,6 +98,10 @@ func (l rideInt) get(prop string) (rideType, error) {
 }
 
 type rideString string
+
+func RideString(s string) rideString {
+	return rideString(s)
+}
 
 func (s rideString) Serialize(serializer Serializer) error {
 	return serializer.RideString(s)

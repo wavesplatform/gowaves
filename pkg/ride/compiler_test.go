@@ -49,7 +49,7 @@ var defaultEnv = &MockRideEnvironment{
 	},
 }
 
-func Test22(t *testing.T) {
+func TestCompiler(t *testing.T) {
 	env := defaultEnv
 	for _, test := range []struct {
 		comment string
@@ -1467,6 +1467,39 @@ func TestShadowedVariable(t *testing.T) {
 	tree = MustExpand(tree)
 	require.Equal(t, "(let height = { height }; height != 0)", DecompileTree(tree))
 
+	script, err := CompileTree("", tree)
+	require.NoError(t, err)
+
+	rs, err := script.Verify(defaultEnv)
+	require.NoError(t, err)
+	require.Equal(t, true, rs.Result())
+}
+
+/**
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+
+let prevOrder = false
+func internal(prevOrder: Boolean) = {
+    if (prevOrder)
+        then false
+        else true
+}
+if (false)
+  then false
+  else internal(prevOrder)
+*/
+func TestShadowedVariableInConditionStmt(t *testing.T) {
+	source := `AwQAAAAJcHJldk9yZGVyBwoBAAAACGludGVybmFsAAAAAQAAAAlwcmV2T3JkZXIDBQAAAAlwcmV2T3JkZXIHBgMHBwkBAAAACGludGVybmFsAAAAAQUAAAAJcHJldk9yZGVyxqI+QQ==`
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	tree = MustExpand(tree)
+	require.True(t, tree.Expanded)
 	script, err := CompileTree("", tree)
 	require.NoError(t, err)
 

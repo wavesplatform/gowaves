@@ -74,7 +74,6 @@ func (a ConditionalState) FalseBranch() State {
 
 func (a ConditionalState) Assigment(name string) State {
 	n := a.params.u.next()
-	a.r.setAssigment(name, n)
 	return assigmentTransition(a, a.params, name, n, a.deferreds)
 }
 

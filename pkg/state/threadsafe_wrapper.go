@@ -1,6 +1,7 @@
 package state
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -19,6 +20,10 @@ func (a *ThreadSafeReadWrapper) HitSourceAtHeight(height proto.Height) ([]byte, 
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.HitSourceAtHeight(height)
+}
+
+func (a *ThreadSafeReadWrapper) SmartState() types.SmartState {
+	return a.s.SmartState()
 }
 
 func (a *ThreadSafeReadWrapper) MapR(f func(StateInfo) (interface{}, error)) (interface{}, error) {
