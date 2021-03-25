@@ -112,7 +112,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 
 		select {
 		case <-ctx.Done():
-			c.Close()
+			_ = c.Close()
 			return nil, nil, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
 		default:
 		}

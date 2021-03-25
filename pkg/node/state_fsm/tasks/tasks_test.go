@@ -7,15 +7,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func mkch() chan AsyncTask {
+func mkCh() chan AsyncTask {
 	return make(chan AsyncTask, 1)
 }
 
 func TestMineMicroTask_Run(t *testing.T) {
 	task := MineMicroTask{}
-	require.Equal(t, MINE_MICRO, task.Type())
+	require.Equal(t, MineMicro, task.Type())
 
-	ch := mkch()
+	ch := mkCh()
 	_ = task.Run(context.Background(), ch)
 
 	require.IsType(t, MineMicroTaskData{}, (<-ch).Data.(MineMicroTaskData))

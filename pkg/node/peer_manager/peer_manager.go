@@ -170,11 +170,11 @@ func (a *PeerManagerImpl) connectedCount() int {
 func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 	_, connected := a.Connected(p)
 	if connected {
-		p.Close()
+		_ = p.Close()
 		return errors.New("already connected")
 	}
 	if a.IsSuspended(p) {
-		p.Close()
+		_ = p.Close()
 		return errors.New("peer is suspended")
 	}
 	if p.Handshake().Version.CmpMinor(a.version) >= 2 {
@@ -184,8 +184,8 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 			p.Handshake().Version.String(),
 		)
 		a.Suspend(p, err.Error())
-		p.Close()
-		return err
+		_ = p.Close()
+		return proto.NewInfoMsg(err)
 	}
 
 	in, out := a.InOutCount()
@@ -193,7 +193,7 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 	case peer.Incoming:
 		if in >= a.limitConnections {
 			_ = p.Close()
-			return errors.New("exceed incoming connections limit")
+			return proto.NewInfoMsg(errors.New("exceed incoming connections limit"))
 		}
 	case peer.Outgoing:
 		if !p.Handshake().DeclaredAddr.Empty() {
@@ -201,7 +201,7 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 		}
 		if out >= a.limitConnections {
 			_ = p.Close()
-			return errors.New("exceed outgoing connections limit")
+			return proto.NewInfoMsg(errors.New("exceed outgoing connections limit"))
 		}
 	default:
 		_ = p.Close()
@@ -239,7 +239,7 @@ func (a *PeerManagerImpl) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
 		return nil, nil, false
 	}
 
-	var peers []peerInfo
+	peers := make([]peerInfo, 0)
 	for _, p := range a.active {
 		peers = append(peers, p)
 	}
@@ -300,7 +300,7 @@ func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr string) {
 	_ = a.state.Add([]proto.TCPAddr{proto.NewTCPAddrFromString(addr)})
 	go func() {
 		if err := a.spawner.SpawnOutgoing(ctx, proto.NewTCPAddrFromString(addr)); err != nil {
-			zap.S().Info(err)
+			zap.S().Debug(err)
 		}
 	}()
 }
@@ -319,7 +319,7 @@ func (a *PeerManagerImpl) KnownPeers() ([]proto.TCPAddr, error) {
 func (a *PeerManagerImpl) Close() {
 	a.mu.Lock()
 	for _, v := range a.active {
-		v.peer.Close()
+		_ = v.peer.Close()
 	}
 	a.mu.Unlock()
 }

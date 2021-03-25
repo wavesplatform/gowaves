@@ -9,11 +9,9 @@ import (
 )
 
 const (
-	PING = iota + 1
-	ASK_PEERS
-
-	MINE_MICRO
-
+	Ping = iota + 1
+	AskPeers
+	MineMicro
 	PersistComplete
 )
 
@@ -22,7 +20,7 @@ func SendAsyncTask(output chan AsyncTask, task AsyncTask) {
 	select {
 	case output <- task:
 	default:
-		zap.S().Errorf("AsyncTask channel is full %T", task)
+		zap.S().Debugf("AsyncTask channel is full on task '%T'", task)
 	}
 }
 
@@ -49,7 +47,7 @@ type AskPeersTask struct {
 
 func NewAskPeersTask(d time.Duration) AskPeersTask {
 	return AskPeersTask{
-		type_: ASK_PEERS,
+		type_: AskPeers,
 		d:     d,
 	}
 }
@@ -87,7 +85,7 @@ func NewPingTask() Task {
 }
 
 func (PingTask) Type() int {
-	return PING
+	return Ping
 }
 
 func (PingTask) Run(ctx context.Context, output chan AsyncTask) error {
@@ -99,7 +97,7 @@ func (PingTask) Run(ctx context.Context, output chan AsyncTask) error {
 			return ctx.Err()
 		case <-t.C:
 			SendAsyncTask(output, AsyncTask{
-				TaskType: PING,
+				TaskType: Ping,
 				Data:     nil,
 			})
 		}
@@ -134,7 +132,7 @@ func NewMineMicroTask(timeout time.Duration, block *proto.Block, limits proto.Mi
 }
 
 func (MineMicroTask) Type() int {
-	return MINE_MICRO
+	return MineMicro
 }
 
 func (a MineMicroTask) Run(ctx context.Context, output chan AsyncTask) error {

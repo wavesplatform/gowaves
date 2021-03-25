@@ -41,14 +41,14 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Inco
 	readHandshake := proto.Handshake{}
 	_, err := readHandshake.ReadFrom(c)
 	if err != nil {
-		zap.S().Error("failed to read handshake: ", err)
-		c.Close()
+		zap.S().Debug("Failed to read handshake: ", err)
+		_ = c.Close()
 		return err
 	}
 
 	select {
 	case <-ctx.Done():
-		c.Close()
+		_ = c.Close()
 		return errors.Wrap(ctx.Err(), "RunIncomingPeer")
 	default:
 	}
@@ -64,14 +64,14 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Inco
 
 	_, err = writeHandshake.WriteTo(c)
 	if err != nil {
-		zap.S().Error("failed to write handshake: ", err)
-		c.Close()
+		zap.S().Debug("failed to write handshake: ", err)
+		_ = c.Close()
 		return err
 	}
 
 	select {
 	case <-ctx.Done():
-		c.Close()
+		_ = c.Close()
 		return errors.Wrap(ctx.Err(), "RunIncomingPeer")
 	default:
 	}

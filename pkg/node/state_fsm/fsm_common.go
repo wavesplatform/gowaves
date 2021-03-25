@@ -5,13 +5,15 @@ import (
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 )
 
 func newPeer(fsm FSM, p Peer, peers peer_manager.PeerManager) (FSM, Async, error) {
 	err := peers.NewConnection(p)
-	return fsm, nil, err
+	if err != nil {
+		return fsm, nil, proto.NewInfoMsg(err)
+	}
+	return fsm, nil, nil
 }
 
 // TODO handle no peers
@@ -22,11 +24,6 @@ func peerError(fsm FSM, p Peer, peers peer_manager.PeerManager, _ error) (FSM, A
 
 func noop(fsm FSM) (FSM, Async, error) {
 	return fsm, nil, nil
-}
-
-func IsOutdate(period proto.Timestamp, lastBlock *proto.Block, tm types.Time) bool {
-	curTime := proto.NewTimestampFromTime(tm.Now())
-	return curTime-lastBlock.Timestamp > period
 }
 
 func handleScore(fsm FSM, info BaseInfo, p Peer, score *proto.Score) (FSM, Async, error) {

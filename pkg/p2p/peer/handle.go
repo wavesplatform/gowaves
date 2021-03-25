@@ -39,7 +39,7 @@ func bytesToMessage(b []byte, d DuplicateChecker, resendTo chan ProtoMessage, po
 	select {
 	case resendTo <- mess:
 	default:
-		zap.S().Debugf("failed to resend to Parent, channel is full: %s, %T", m)
+		zap.S().Debugf("Failed to resend to Parent, channel is full: %s, %T", m, m)
 	}
 	return nil
 }
@@ -61,6 +61,12 @@ func Handle(params HandlerParams) error {
 		select {
 		case <-params.Ctx.Done():
 			_ = params.Connection.Close()
+			//TODO: On Done() Err() contains only Canceled or DeadlineExceeded.
+			// Actually, those errors are only logged in different places and not used to alter behavior.
+			// Consider removing wrapping. For now, if context was canceled no error is passed by.
+			if errors.Is(params.Ctx.Err(), context.Canceled) {
+				return nil
+			}
 			return errors.Wrap(params.Ctx.Err(), "Handle")
 
 		case bts := <-params.Remote.FromCh:
