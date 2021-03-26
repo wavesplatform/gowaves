@@ -18,6 +18,10 @@ func checkScales(bs, es, rs int) bool {
 	return bs >= 0 && bs <= 8 && es >= 0 && es <= 8 && rs >= 0 && rs <= 8
 }
 
+func checkScalesBigInt(bs, es, rs int) bool {
+	return bs >= 0 && bs <= 18 && es >= 0 && es <= 18 && rs >= 0 && rs <= 18
+}
+
 func convertToIntResult(v *decimal.Big, scale int, mode decimal.RoundingMode) (int64, error) {
 	context := decimal.Context128
 	context.RoundingMode = mode
@@ -33,7 +37,10 @@ func convertToIntResult(v *decimal.Big, scale int, mode decimal.RoundingMode) (i
 	return res, nil
 }
 
-func convertToBigIntResult(v *decimal.Big, scale int, mode decimal.RoundingMode) *big.Int {
+func convertToBigIntResult(v *decimal.Big, scale int, mode decimal.RoundingMode) (*big.Int, error) {
+	if v.IsNaN(0) || v.IsInf(0) {
+		return nil, errors.New("result is NaN or Infinity")
+	}
 	context := decimal.Context128
 	context.RoundingMode = mode
 	r := decimal.WithContext(context).Set(v)
@@ -41,7 +48,7 @@ func convertToBigIntResult(v *decimal.Big, scale int, mode decimal.RoundingMode)
 	m := decimal.WithContext(decimal.Context128)
 	math.Pow(m, ten, s)
 	r.Mul(r, m)
-	return r.RoundToInt().Int(nil)
+	return r.RoundToInt().Int(nil), nil
 }
 
 func pow(base, exponent *decimal.Big) (*decimal.Big, error) {
@@ -70,7 +77,7 @@ func Pow(base, exponent int64, baseScale, exponentScale, resultScale int, mode d
 }
 
 func PowBigInt(base, exponent *big.Int, baseScale, exponentScale, resultScale int, mode decimal.RoundingMode) (*big.Int, error) {
-	if !checkScales(baseScale, exponentScale, resultScale) {
+	if !checkScalesBigInt(baseScale, exponentScale, resultScale) {
 		return nil, errors.New("invalid scale")
 	}
 	b := decimal.WithContext(decimal.Context128).SetBigMantScale(base, baseScale)
@@ -79,7 +86,7 @@ func PowBigInt(base, exponent *big.Int, baseScale, exponentScale, resultScale in
 	if err != nil {
 		return nil, err
 	}
-	return convertToBigIntResult(r, resultScale, mode), nil
+	return convertToBigIntResult(r, resultScale, mode)
 }
 
 func Fraction(value, numerator, denominator int64) (int64, error) {
@@ -132,7 +139,7 @@ func Log(base, exponent int64, baseScale, exponentScale, resultScale int, mode d
 }
 
 func LogBigInt(base, exponent *big.Int, baseScale, exponentScale, resultScale int, mode decimal.RoundingMode) (*big.Int, error) {
-	if !checkScales(baseScale, exponentScale, resultScale) {
+	if !checkScalesBigInt(baseScale, exponentScale, resultScale) {
 		return nil, errors.New("invalid scale")
 	}
 	b := decimal.WithContext(decimal.Context128).SetBigMantScale(base, baseScale)
@@ -141,7 +148,7 @@ func LogBigInt(base, exponent *big.Int, baseScale, exponentScale, resultScale in
 	if err != nil {
 		return nil, err
 	}
-	return convertToBigIntResult(r, resultScale, mode), nil
+	return convertToBigIntResult(r, resultScale, mode)
 }
 
 func ModDivision(x int64, y int64) int64 {
