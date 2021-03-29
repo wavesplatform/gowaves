@@ -492,14 +492,6 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 	return nil, errors.Errorf("address and alias from recipient are nil")
 }
 
-func (s *stateManager) NewestAccountHasScript(address proto.Address) (bool, error) {
-	return s.stor.scriptsStorage.newestAccountHasScript(address, false)
-}
-
-func (s *stateManager) NewestAccountHasVerifier(address proto.Address) (bool, error) {
-	return s.stor.scriptsStorage.newestAccountHasVerifier(address, false)
-}
-
 func (s *stateManager) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
 	return s.stor.scriptsStorage.newestScriptBytesByAsset(asset.ID, false)
 
