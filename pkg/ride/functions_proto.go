@@ -168,24 +168,13 @@ func hashScriptAtAddress(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Errorf("unexpected argument type '%s'", args[0].instanceOf())
 	}
-	address, err := env.state().NewestRecipientToAddress(recipient)
+
+	script, err := env.state().GetByteTree(recipient)
 	if err != nil {
-		return nil, errors.Errorf("failed to get address from recipient %v", err)
-	}
-	hasVerifier, err := env.state().NewestAccountHasVerifier(*address) // account script
-	if err != nil {
-		return nil, errors.Errorf("failed to check if account has verifier, %v", err)
-	}
-	hasScript, err := env.state().NewestAccountHasScript(*address) // DApp script
-	if err != nil {
-		return nil, errors.Errorf("failed to check if account has script, %v", err)
+		return nil, errors.Errorf("failed to get script by recipient, %v", err)
 	}
 
-	if hasScript || hasVerifier {
-		script, err := env.state().GetByteTree(recipient)
-		if err != nil {
-			return nil, errors.Errorf("failed to get script by recipient, %v", err)
-		}
+	if len(script) != 0 {
 		hash, err := crypto.FastHash(script)
 		if err != nil {
 			return nil, errors.Errorf("failed to get hash of script, %v", err)
@@ -201,12 +190,11 @@ func isDataStorageUntouched(env Environment, args ...rideType) (rideType, error)
 	if err != nil {
 		return nil, errors.Errorf("unexpected argument type '%s'", args[0].instanceOf())
 	}
-
-	dataEntries, err := env.state().RetrieveEntries(recipient)
+	isUntouched, err := env.state().IsStateUntouched(recipient)
 	if err != nil {
 		return nil, err
 	}
-	if len(dataEntries) == 0 {
+	if isUntouched {
 		return rideBoolean(true), nil
 	}
 	return rideBoolean(false), nil

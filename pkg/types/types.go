@@ -39,17 +39,15 @@ type SmartState interface {
 	AddingBlockHeight() (uint64, error)
 	NewestTransactionByID([]byte) (proto.Transaction, error)
 	NewestTransactionHeightByID([]byte) (uint64, error)
-	NewestAccountHasScript(address proto.Address) (bool, error)
-	NewestAccountHasVerifier(address proto.Address) (bool, error)
 	GetByteTree(recipient proto.Recipient) (proto.Script, error)
 	NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error)
 	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
 	NewestLeasingInfo(id crypto.Digest, filter bool) (*proto.LeaseInfo, error)
+	IsStateUntouched(account proto.Recipient) (bool, error)
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error)
 	NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
-	RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error)
 	RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
 	RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
 	RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)

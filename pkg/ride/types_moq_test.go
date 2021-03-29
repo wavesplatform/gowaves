@@ -35,14 +35,11 @@ var _ types.SmartState = &MockSmartState{}
 //             IsNotFoundFunc: func(err error) bool {
 // 	               panic("mock out the IsNotFound method")
 //             },
+//             IsStateUntouchedFunc: func(account proto.Recipient) (bool, error) {
+// 	               panic("mock out the IsStateUntouched method")
+//             },
 //             NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
 // 	               panic("mock out the NewestAccountBalance method")
-//             },
-//             NewestAccountHasScriptFunc: func(address proto.Address) (bool, error) {
-// 	               panic("mock out the NewestAccountHasScript method")
-//             },
-//             NewestAccountHasVerifierFunc: func(address proto.Address) (bool, error) {
-// 	               panic("mock out the NewestAccountHasVerifier method")
 //             },
 //             NewestAddrByAliasFunc: func(alias proto.Alias) (proto.Address, error) {
 // 	               panic("mock out the NewestAddrByAlias method")
@@ -80,9 +77,6 @@ var _ types.SmartState = &MockSmartState{}
 //             NewestTransactionHeightByIDFunc: func(in1 []byte) (uint64, error) {
 // 	               panic("mock out the NewestTransactionHeightByID method")
 //             },
-//             RetrieveEntriesFunc: func(account proto.Recipient) ([]proto.DataEntry, error) {
-// 	               panic("mock out the RetrieveEntries method")
-//             },
 //             RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 // 	               panic("mock out the RetrieveNewestBinaryEntry method")
 //             },
@@ -117,14 +111,11 @@ type MockSmartState struct {
 	// IsNotFoundFunc mocks the IsNotFound method.
 	IsNotFoundFunc func(err error) bool
 
+	// IsStateUntouchedFunc mocks the IsStateUntouched method.
+	IsStateUntouchedFunc func(account proto.Recipient) (bool, error)
+
 	// NewestAccountBalanceFunc mocks the NewestAccountBalance method.
 	NewestAccountBalanceFunc func(account proto.Recipient, assetID []byte) (uint64, error)
-
-	// NewestAccountHasScriptFunc mocks the NewestAccountHasScript method.
-	NewestAccountHasScriptFunc func(address proto.Address) (bool, error)
-
-	// NewestAccountHasVerifierFunc mocks the NewestAccountHasVerifier method.
-	NewestAccountHasVerifierFunc func(address proto.Address) (bool, error)
 
 	// NewestAddrByAliasFunc mocks the NewestAddrByAlias method.
 	NewestAddrByAliasFunc func(alias proto.Alias) (proto.Address, error)
@@ -161,9 +152,6 @@ type MockSmartState struct {
 
 	// NewestTransactionHeightByIDFunc mocks the NewestTransactionHeightByID method.
 	NewestTransactionHeightByIDFunc func(in1 []byte) (uint64, error)
-
-	// RetrieveEntriesFunc mocks the RetrieveEntries method.
-	RetrieveEntriesFunc func(account proto.Recipient) ([]proto.DataEntry, error)
 
 	// RetrieveNewestBinaryEntryFunc mocks the RetrieveNewestBinaryEntry method.
 	RetrieveNewestBinaryEntryFunc func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
@@ -202,22 +190,17 @@ type MockSmartState struct {
 			// Err is the err argument value.
 			Err error
 		}
+		// IsStateUntouched holds details about calls to the IsStateUntouched method.
+		IsStateUntouched []struct {
+			// Account is the account argument value.
+			Account proto.Recipient
+		}
 		// NewestAccountBalance holds details about calls to the NewestAccountBalance method.
 		NewestAccountBalance []struct {
 			// Account is the account argument value.
 			Account proto.Recipient
 			// AssetID is the assetID argument value.
 			AssetID []byte
-		}
-		// NewestAccountHasScript holds details about calls to the NewestAccountHasScript method.
-		NewestAccountHasScript []struct {
-			// Address is the address argument value.
-			Address proto.Address
-		}
-		// NewestAccountHasVerifier holds details about calls to the NewestAccountHasVerifier method.
-		NewestAccountHasVerifier []struct {
-			// Address is the address argument value.
-			Address proto.Address
 		}
 		// NewestAddrByAlias holds details about calls to the NewestAddrByAlias method.
 		NewestAddrByAlias []struct {
@@ -283,11 +266,6 @@ type MockSmartState struct {
 			// In1 is the in1 argument value.
 			In1 []byte
 		}
-		// RetrieveEntries holds details about calls to the RetrieveEntries method.
-		RetrieveEntries []struct {
-			// Account is the account argument value.
-			Account proto.Recipient
-		}
 		// RetrieveNewestBinaryEntry holds details about calls to the RetrieveNewestBinaryEntry method.
 		RetrieveNewestBinaryEntry []struct {
 			// Account is the account argument value.
@@ -322,9 +300,8 @@ type MockSmartState struct {
 	lockEstimatorVersion            sync.RWMutex
 	lockGetByteTree                 sync.RWMutex
 	lockIsNotFound                  sync.RWMutex
+	lockIsStateUntouched            sync.RWMutex
 	lockNewestAccountBalance        sync.RWMutex
-	lockNewestAccountHasScript      sync.RWMutex
-	lockNewestAccountHasVerifier    sync.RWMutex
 	lockNewestAddrByAlias           sync.RWMutex
 	lockNewestAssetInfo             sync.RWMutex
 	lockNewestAssetIsSponsored      sync.RWMutex
@@ -337,7 +314,6 @@ type MockSmartState struct {
 	lockNewestScriptPKByAddr        sync.RWMutex
 	lockNewestTransactionByID       sync.RWMutex
 	lockNewestTransactionHeightByID sync.RWMutex
-	lockRetrieveEntries             sync.RWMutex
 	lockRetrieveNewestBinaryEntry   sync.RWMutex
 	lockRetrieveNewestBooleanEntry  sync.RWMutex
 	lockRetrieveNewestIntegerEntry  sync.RWMutex
@@ -493,6 +469,37 @@ func (mock *MockSmartState) IsNotFoundCalls() []struct {
 	return calls
 }
 
+// IsStateUntouched calls IsStateUntouchedFunc.
+func (mock *MockSmartState) IsStateUntouched(account proto.Recipient) (bool, error) {
+	if mock.IsStateUntouchedFunc == nil {
+		panic("MockSmartState.IsStateUntouchedFunc: method is nil but SmartState.IsStateUntouched was just called")
+	}
+	callInfo := struct {
+		Account proto.Recipient
+	}{
+		Account: account,
+	}
+	mock.lockIsStateUntouched.Lock()
+	mock.calls.IsStateUntouched = append(mock.calls.IsStateUntouched, callInfo)
+	mock.lockIsStateUntouched.Unlock()
+	return mock.IsStateUntouchedFunc(account)
+}
+
+// IsStateUntouchedCalls gets all the calls that were made to IsStateUntouched.
+// Check the length with:
+//     len(mockedSmartState.IsStateUntouchedCalls())
+func (mock *MockSmartState) IsStateUntouchedCalls() []struct {
+	Account proto.Recipient
+} {
+	var calls []struct {
+		Account proto.Recipient
+	}
+	mock.lockIsStateUntouched.RLock()
+	calls = mock.calls.IsStateUntouched
+	mock.lockIsStateUntouched.RUnlock()
+	return calls
+}
+
 // NewestAccountBalance calls NewestAccountBalanceFunc.
 func (mock *MockSmartState) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
 	if mock.NewestAccountBalanceFunc == nil {
@@ -525,68 +532,6 @@ func (mock *MockSmartState) NewestAccountBalanceCalls() []struct {
 	mock.lockNewestAccountBalance.RLock()
 	calls = mock.calls.NewestAccountBalance
 	mock.lockNewestAccountBalance.RUnlock()
-	return calls
-}
-
-// NewestAccountHasScript calls NewestAccountHasScriptFunc.
-func (mock *MockSmartState) NewestAccountHasScript(address proto.Address) (bool, error) {
-	if mock.NewestAccountHasScriptFunc == nil {
-		panic("MockSmartState.NewestAccountHasScriptFunc: method is nil but SmartState.NewestAccountHasScript was just called")
-	}
-	callInfo := struct {
-		Address proto.Address
-	}{
-		Address: address,
-	}
-	mock.lockNewestAccountHasScript.Lock()
-	mock.calls.NewestAccountHasScript = append(mock.calls.NewestAccountHasScript, callInfo)
-	mock.lockNewestAccountHasScript.Unlock()
-	return mock.NewestAccountHasScriptFunc(address)
-}
-
-// NewestAccountHasScriptCalls gets all the calls that were made to NewestAccountHasScript.
-// Check the length with:
-//     len(mockedSmartState.NewestAccountHasScriptCalls())
-func (mock *MockSmartState) NewestAccountHasScriptCalls() []struct {
-	Address proto.Address
-} {
-	var calls []struct {
-		Address proto.Address
-	}
-	mock.lockNewestAccountHasScript.RLock()
-	calls = mock.calls.NewestAccountHasScript
-	mock.lockNewestAccountHasScript.RUnlock()
-	return calls
-}
-
-// NewestAccountHasVerifier calls NewestAccountHasVerifierFunc.
-func (mock *MockSmartState) NewestAccountHasVerifier(address proto.Address) (bool, error) {
-	if mock.NewestAccountHasVerifierFunc == nil {
-		panic("MockSmartState.NewestAccountHasVerifierFunc: method is nil but SmartState.NewestAccountHasVerifier was just called")
-	}
-	callInfo := struct {
-		Address proto.Address
-	}{
-		Address: address,
-	}
-	mock.lockNewestAccountHasVerifier.Lock()
-	mock.calls.NewestAccountHasVerifier = append(mock.calls.NewestAccountHasVerifier, callInfo)
-	mock.lockNewestAccountHasVerifier.Unlock()
-	return mock.NewestAccountHasVerifierFunc(address)
-}
-
-// NewestAccountHasVerifierCalls gets all the calls that were made to NewestAccountHasVerifier.
-// Check the length with:
-//     len(mockedSmartState.NewestAccountHasVerifierCalls())
-func (mock *MockSmartState) NewestAccountHasVerifierCalls() []struct {
-	Address proto.Address
-} {
-	var calls []struct {
-		Address proto.Address
-	}
-	mock.lockNewestAccountHasVerifier.RLock()
-	calls = mock.calls.NewestAccountHasVerifier
-	mock.lockNewestAccountHasVerifier.RUnlock()
 	return calls
 }
 
@@ -967,37 +912,6 @@ func (mock *MockSmartState) NewestTransactionHeightByIDCalls() []struct {
 	mock.lockNewestTransactionHeightByID.RLock()
 	calls = mock.calls.NewestTransactionHeightByID
 	mock.lockNewestTransactionHeightByID.RUnlock()
-	return calls
-}
-
-// RetrieveEntries calls RetrieveEntriesFunc.
-func (mock *MockSmartState) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
-	if mock.RetrieveEntriesFunc == nil {
-		panic("MockSmartState.RetrieveEntriesFunc: method is nil but SmartState.RetrieveEntries was just called")
-	}
-	callInfo := struct {
-		Account proto.Recipient
-	}{
-		Account: account,
-	}
-	mock.lockRetrieveEntries.Lock()
-	mock.calls.RetrieveEntries = append(mock.calls.RetrieveEntries, callInfo)
-	mock.lockRetrieveEntries.Unlock()
-	return mock.RetrieveEntriesFunc(account)
-}
-
-// RetrieveEntriesCalls gets all the calls that were made to RetrieveEntries.
-// Check the length with:
-//     len(mockedSmartState.RetrieveEntriesCalls())
-func (mock *MockSmartState) RetrieveEntriesCalls() []struct {
-	Account proto.Recipient
-} {
-	var calls []struct {
-		Account proto.Recipient
-	}
-	mock.lockRetrieveEntries.RLock()
-	calls = mock.calls.RetrieveEntries
-	mock.lockRetrieveEntries.RUnlock()
 	return calls
 }
 

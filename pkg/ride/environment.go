@@ -72,12 +72,6 @@ func (ws *WrappedState) NewestTransactionByID(id []byte) (proto.Transaction, err
 func (ws *WrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
 	return ws.diff.state.NewestTransactionHeightByID(id)
 }
-func (ws *WrappedState) NewestAccountHasScript(address proto.Address) (bool, error) {
-	return ws.diff.state.NewestAccountHasScript(address)
-}
-func (ws *WrappedState) NewestAccountHasVerifier(address proto.Address) (bool, error) {
-	return ws.diff.state.NewestAccountHasVerifier(address)
-}
 
 func (ws *WrappedState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
 	return ws.diff.state.GetByteTree(recipient)
@@ -159,8 +153,8 @@ func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.
 	return balance, nil
 }
 
-func (ws *WrappedState) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
-	return ws.diff.state.RetrieveEntries(account)
+func (ws *WrappedState) IsStateUntouched(account proto.Recipient) (bool, error) {
+	return ws.diff.state.IsStateUntouched(account)
 }
 
 func (ws *WrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
