@@ -73,7 +73,9 @@ func (l rideInt) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
 }
 
-type rideBigInt big.Int
+type rideBigInt struct {
+	v *big.Int
+}
 
 func (l rideBigInt) instanceOf() string {
 	return "BigInt"
@@ -81,9 +83,7 @@ func (l rideBigInt) instanceOf() string {
 
 func (l rideBigInt) eq(other rideType) bool {
 	if o, ok := other.(rideBigInt); ok {
-		i1 := big.Int(l)
-		i2 := big.Int(o)
-		return i1.Cmp(&i2) == 0
+		return l.v.Cmp(o.v) == 0
 	}
 	return false
 }
@@ -91,6 +91,10 @@ func (l rideBigInt) eq(other rideType) bool {
 func (l rideBigInt) get(prop string) (rideType, error) {
 	//TODO: there is possibility of few properties like 'bytes', 'int' and so on
 	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
+}
+
+func (l rideBigInt) String() string {
+	return l.v.String()
 }
 
 type rideString string

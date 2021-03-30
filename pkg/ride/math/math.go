@@ -151,7 +151,7 @@ func LogBigInt(base, exponent *big.Int, baseScale, exponentScale, resultScale in
 	return convertToBigIntResult(r, resultScale, mode)
 }
 
-func ModDivision(x int64, y int64) int64 {
+func ModDivision(x, y int64) int64 {
 	return x - FloorDiv(x, y)*y
 }
 
@@ -184,7 +184,8 @@ func FloorDivBigInt(x, y *big.Int) *big.Int {
 		d := x.Add(x, y)
 		two := big.NewInt(2)
 		zero := big.NewInt(0)
-		if d.Cmp(zero) >= 0 || d.Mod(d, two).Cmp(zero) == 0 {
+		d2 := big.NewInt(0).Mod(d, two)
+		if d.Cmp(zero) >= 0 || d2.Cmp(zero) == 0 {
 			r = d.Div(d, two)
 		} else {
 			r = d.Sub(d, big.NewInt(1))
