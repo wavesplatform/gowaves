@@ -166,18 +166,18 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 func hashScriptAtAddress(env Environment, args ...rideType) (rideType, error) {
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
-		return nil, errors.Errorf("unexpected argument type '%s'", args[0].instanceOf())
+		return nil, errors.Errorf("hashScriptAtAddress func: unexpected argument type '%s'", args[0].instanceOf())
 	}
 
 	script, err := env.state().GetByteTree(recipient)
 	if err != nil {
-		return nil, errors.Errorf("failed to get script by recipient, %v", err)
+		return nil, errors.Errorf("hashScriptAtAddress func: failed to get script by recipient, %v", err)
 	}
 
 	if len(script) != 0 {
 		hash, err := crypto.FastHash(script)
 		if err != nil {
-			return nil, errors.Errorf("failed to get hash of script, %v", err)
+			return nil, errors.Errorf("hashScriptAtAddress func: failed to get hash of script, %v", err)
 		}
 		return rideBytes(hash.Bytes()), nil
 	}
@@ -188,16 +188,13 @@ func hashScriptAtAddress(env Environment, args ...rideType) (rideType, error) {
 func isDataStorageUntouched(env Environment, args ...rideType) (rideType, error) {
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
-		return nil, errors.Errorf("unexpected argument type '%s'", args[0].instanceOf())
+		return nil, errors.Errorf("isDataStorageUntouched func: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	isUntouched, err := env.state().IsStateUntouched(recipient)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "isDataStorageUntouched func")
 	}
-	if isUntouched {
-		return rideBoolean(true), nil
-	}
-	return rideBoolean(false), nil
+	return rideBoolean(isUntouched), nil
 }
 
 func addressFromString(env Environment, args ...rideType) (rideType, error) {
