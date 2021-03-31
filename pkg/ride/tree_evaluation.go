@@ -51,7 +51,7 @@ func CallFunction(env Environment, tree *Tree, name string, args proto.Arguments
 
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
-		return nil, errors.New("wrong state")
+		return rideResult, err
 	}
 
 	if ws.act == nil {
