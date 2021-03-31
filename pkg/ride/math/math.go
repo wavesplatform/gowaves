@@ -14,12 +14,12 @@ var (
 	ten  = decimal.New(10, 0)
 )
 
-func checkScales(bs, es, rs int) bool {
-	return bs >= 0 && bs <= 8 && es >= 0 && es <= 8 && rs >= 0 && rs <= 8
+func checkScales(baseScale, exponentScale, resultScale int) bool {
+	return baseScale >= 0 && baseScale <= 8 && exponentScale >= 0 && exponentScale <= 8 && resultScale >= 0 && resultScale <= 8
 }
 
-func checkScalesBigInt(bs, es, rs int) bool {
-	return bs >= 0 && bs <= 18 && es >= 0 && es <= 18 && rs >= 0 && rs <= 18
+func checkScalesBigInt(baseScale, exponentScale, resultScale int) bool {
+	return baseScale >= 0 && baseScale <= 18 && exponentScale >= 0 && exponentScale <= 18 && resultScale >= 0 && resultScale <= 18
 }
 
 func convertToIntResult(v *decimal.Big, scale int, mode decimal.RoundingMode) (int64, error) {
@@ -43,6 +43,7 @@ func convertToBigIntResult(v *decimal.Big, scale int, mode decimal.RoundingMode)
 	}
 	context := decimal.Context128
 	context.RoundingMode = mode
+	// r = v * 10^s
 	r := decimal.WithContext(context).Set(v)
 	s := decimal.WithContext(decimal.Context128).SetMantScale(int64(scale), 0)
 	m := decimal.WithContext(decimal.Context128)
@@ -173,24 +174,24 @@ func FloorDivBigInt(x, y *big.Int) *big.Int {
 			r = r.Abs(r)
 			r = r.Div(r, big.NewInt(2))
 			r = r.Add(r, x)
-		} else {
-			// abs(x-y)/2 + y
-			r = x.Sub(x, y)
-			r = r.Abs(r)
-			r = r.Div(r, big.NewInt(2))
-			r = r.Add(r, y)
+			return r
 		}
-	} else {
-		d := x.Add(x, y)
-		two := big.NewInt(2)
-		zero := big.NewInt(0)
-		d2 := big.NewInt(0).Mod(d, two)
-		if d.Cmp(zero) >= 0 || d2.Cmp(zero) == 0 {
-			r = d.Div(d, two)
-		} else {
-			r = d.Sub(d, big.NewInt(1))
-			r = r.Div(r, two)
-		}
+		// abs(x-y)/2 + y
+		r = x.Sub(x, y)
+		r = r.Abs(r)
+		r = r.Div(r, big.NewInt(2))
+		r = r.Add(r, y)
+		return r
 	}
+	d := x.Add(x, y)
+	two := big.NewInt(2)
+	zero := big.NewInt(0)
+	d2 := big.NewInt(0).Mod(d, two)
+	if d.Cmp(zero) >= 0 || d2.Cmp(zero) == 0 {
+		r = d.Div(d, two)
+		return r
+	}
+	r = d.Sub(d, big.NewInt(1))
+	r = r.Div(r, two)
 	return r
 }

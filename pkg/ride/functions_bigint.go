@@ -16,15 +16,13 @@ var (
 )
 
 func initBoundaries() (*big.Int, *big.Int) {
-	one := big.NewInt(1)
-
 	max := big.NewInt(0)
 	max = max.Exp(big.NewInt(2), big.NewInt(511), nil)
-	max = max.Sub(max, one)
+	max = max.Sub(max, oneBigInt)
 
 	min := big.NewInt(0)
 	min = min.Neg(max)
-	min = min.Sub(min, one)
+	min = min.Sub(min, oneBigInt)
 	return min, max
 }
 
@@ -575,8 +573,7 @@ func minMaxBigInt(items []*big.Int) (*big.Int, *big.Int) {
 	if len(items) == 0 {
 		panic("empty slice")
 	}
-	max := items[0]
-	min := items[0]
+	max, min := items[0], items[0]
 	for _, i := range items {
 		if i.Cmp(max) > 0 {
 			max = i
