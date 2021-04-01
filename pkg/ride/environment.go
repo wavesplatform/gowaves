@@ -72,6 +72,7 @@ func (ws *WrappedState) NewestTransactionByID(id []byte) (proto.Transaction, err
 func (ws *WrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
 	return ws.diff.state.NewestTransactionHeightByID(id)
 }
+
 func (ws *WrappedState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
 	return ws.diff.state.GetByteTree(recipient)
 }
@@ -150,6 +151,10 @@ func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.
 		return nil, err
 	}
 	return balance, nil
+}
+
+func (ws *WrappedState) IsStateUntouched(account proto.Recipient) (bool, error) {
+	return ws.diff.state.IsStateUntouched(account)
 }
 
 func (ws *WrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {

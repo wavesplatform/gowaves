@@ -35,6 +35,9 @@ var _ types.SmartState = &MockSmartState{}
 //             IsNotFoundFunc: func(err error) bool {
 // 	               panic("mock out the IsNotFound method")
 //             },
+//             IsStateUntouchedFunc: func(account proto.Recipient) (bool, error) {
+// 	               panic("mock out the IsStateUntouched method")
+//             },
 //             NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
 // 	               panic("mock out the NewestAccountBalance method")
 //             },
@@ -107,6 +110,9 @@ type MockSmartState struct {
 
 	// IsNotFoundFunc mocks the IsNotFound method.
 	IsNotFoundFunc func(err error) bool
+
+	// IsStateUntouchedFunc mocks the IsStateUntouched method.
+	IsStateUntouchedFunc func(account proto.Recipient) (bool, error)
 
 	// NewestAccountBalanceFunc mocks the NewestAccountBalance method.
 	NewestAccountBalanceFunc func(account proto.Recipient, assetID []byte) (uint64, error)
@@ -183,6 +189,11 @@ type MockSmartState struct {
 		IsNotFound []struct {
 			// Err is the err argument value.
 			Err error
+		}
+		// IsStateUntouched holds details about calls to the IsStateUntouched method.
+		IsStateUntouched []struct {
+			// Account is the account argument value.
+			Account proto.Recipient
 		}
 		// NewestAccountBalance holds details about calls to the NewestAccountBalance method.
 		NewestAccountBalance []struct {
@@ -289,6 +300,7 @@ type MockSmartState struct {
 	lockEstimatorVersion            sync.RWMutex
 	lockGetByteTree                 sync.RWMutex
 	lockIsNotFound                  sync.RWMutex
+	lockIsStateUntouched            sync.RWMutex
 	lockNewestAccountBalance        sync.RWMutex
 	lockNewestAddrByAlias           sync.RWMutex
 	lockNewestAssetInfo             sync.RWMutex
@@ -454,6 +466,37 @@ func (mock *MockSmartState) IsNotFoundCalls() []struct {
 	mock.lockIsNotFound.RLock()
 	calls = mock.calls.IsNotFound
 	mock.lockIsNotFound.RUnlock()
+	return calls
+}
+
+// IsStateUntouched calls IsStateUntouchedFunc.
+func (mock *MockSmartState) IsStateUntouched(account proto.Recipient) (bool, error) {
+	if mock.IsStateUntouchedFunc == nil {
+		panic("MockSmartState.IsStateUntouchedFunc: method is nil but SmartState.IsStateUntouched was just called")
+	}
+	callInfo := struct {
+		Account proto.Recipient
+	}{
+		Account: account,
+	}
+	mock.lockIsStateUntouched.Lock()
+	mock.calls.IsStateUntouched = append(mock.calls.IsStateUntouched, callInfo)
+	mock.lockIsStateUntouched.Unlock()
+	return mock.IsStateUntouchedFunc(account)
+}
+
+// IsStateUntouchedCalls gets all the calls that were made to IsStateUntouched.
+// Check the length with:
+//     len(mockedSmartState.IsStateUntouchedCalls())
+func (mock *MockSmartState) IsStateUntouchedCalls() []struct {
+	Account proto.Recipient
+} {
+	var calls []struct {
+		Account proto.Recipient
+	}
+	mock.lockIsStateUntouched.RLock()
+	calls = mock.calls.IsStateUntouched
+	mock.lockIsStateUntouched.RUnlock()
 	return calls
 }
 

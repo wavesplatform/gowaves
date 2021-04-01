@@ -471,6 +471,8 @@ func functionsV5() map[string]string {
 	m["1092"] = "simplifiedLease"
 	m["1093"] = "fullLease"
 	m["LeaseCancel"] = "leaseCancel"
+	m["1054"] = "isDataStorageUntouched"
+	m["1009"] = "hashScriptAtAddress"
 	return m
 }
 
@@ -480,6 +482,8 @@ func catalogueV5() map[string]int {
 	m["1092"] = 1
 	m["1093"] = 1
 	m["LeaseCancel"] = 1
+	m["1054"] = 10
+	m["1009"] = 200
 	return m
 }
 

@@ -3120,6 +3120,272 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 	tearDownDappFromDapp()
 }
 
+func TestHashScriptFunc(t *testing.T) {
+	/*
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-#SCRIPT_TYPE ACCOUNT#-}
+
+		@Callable(i)
+		func foo() = {
+			let h = hashScriptAtAddress(this)
+			if hashScriptAtAddress(i.caller) == unit
+			then
+				[ BinaryEntry("hash", h.value()) ]
+			else
+				throw("Unexpected script was found.")
+		}
+	*/
+	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	senderPK, err := crypto.NewPublicKeyFromBase58("2v89gsAztdyVq8aEVdNrxUZKtf1HfTAn5umC41idvykp")
+	require.NoError(t, err)
+	senderAddr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, senderPK)
+	require.NoError(t, err)
+	addrPK, err := crypto.NewPublicKeyFromBase58("2zb2orX2g58YZgXAvdn5ojTuPP8vAU2rsqYQ5L6KCXqz")
+	require.NoError(t, err)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, addrPK)
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(addr)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "cancel",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        nil,
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             900000,
+		Timestamp:       1564703444249,
+	}
+	inv, _ := invocationToObject(5, proto.MainNetScheme, tx)
+
+	var script string
+	var wrappedSt WrappedState
+
+	smartState := func() types.SmartState {
+		return &MockSmartState{
+			GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+				var resScript proto.Script
+				var err error
+				if recipient.Address.String() == addr.String() {
+					resScript, err = base64.StdEncoding.DecodeString(script)
+				}
+				if recipient.Address.String() == senderAddr.String() {
+					return proto.Script{}, nil
+				}
+				if err != nil {
+					return proto.Script{}, err
+				}
+
+				return resScript, nil
+			},
+		}
+	}
+	env := &MockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.MainNetScheme
+		},
+		heightFunc: func() rideInt {
+			return 368430
+		},
+		thisFunc: func() rideType {
+			return rideAddress(addr)
+		},
+		invocationFunc: func() rideObject {
+			return inv
+		},
+		timestampFunc: func() uint64 {
+			return 1564703444249
+		},
+		transactionFunc: func() rideObject {
+			obj, _ := transactionToObject(proto.MainNetScheme, tx)
+			return obj
+		},
+		stateFunc: func() types.SmartState {
+			return &wrappedSt
+		},
+	}
+	NewWrappedSt := initWrappedState(smartState(), env)
+	wrappedSt = *NewWrappedSt
+
+	script = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAABaAkAA/EAAAABBQAAAAR0aGlzAwkAAAAAAAACCQAD8QAAAAEIBQAAAAFpAAAABmNhbGxlcgUAAAAEdW5pdAkABEwAAAACCQEAAAALQmluYXJ5RW50cnkAAAACAgAAAARoYXNoCQEAAAAFdmFsdWUAAAABBQAAAAFoBQAAAANuaWwJAAACAAAAAQIAAAAcVW5leHBlY3RlZCBzY3JpcHQgd2FzIGZvdW5kLgAAAABGhMi8"
+	src, err := base64.StdEncoding.DecodeString(script)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	require.True(t, r.res)
+
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+
+	decodedScript, err := base64.StdEncoding.DecodeString(script)
+	require.NoError(t, err)
+	hash, err := crypto.FastHash(decodedScript)
+	require.NoError(t, err)
+
+	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.BinaryDataEntry{Key: "hash", Value: hash.Bytes()}},
+	}
+
+	expectedActionsResult := &proto.ScriptResult{
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+	}
+
+	assert.Equal(t, expectedActionsResult, sr)
+}
+
+func TestDataStorageUntouchedFunc(t *testing.T) {
+	/*
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-#SCRIPT_TYPE ACCOUNT#-}
+		@Callable(i)
+		func foo() = {
+			let check = isDataStorageUntouched(this)
+				[ BooleanEntry("virgin", check) ]
+		}
+	*/
+	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	senderPK, err := crypto.NewPublicKeyFromBase58("2v89gsAztdyVq8aEVdNrxUZKtf1HfTAn5umC41idvykp")
+	require.NoError(t, err)
+
+	addrPK, err := crypto.NewPublicKeyFromBase58("2zb2orX2g58YZgXAvdn5ojTuPP8vAU2rsqYQ5L6KCXqz")
+	require.NoError(t, err)
+	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, addrPK)
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(addr)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "cancel",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        nil,
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             900000,
+		Timestamp:       1564703444249,
+	}
+	//inv, _ := invocationToObject(5, proto.MainNetScheme, tx)
+
+	var script string
+	var wrappedSt WrappedState
+
+	smartState := func() types.SmartState {
+		return &MockSmartState{
+			IsStateUntouchedFunc: func(recipient proto.Recipient) (bool, error) {
+				if recipient.Address.String() == addr.String() {
+					return false, nil
+				} else {
+					return false, errors.New("unexpected address")
+				}
+			},
+		}
+	}
+	env := &MockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.MainNetScheme
+		},
+		heightFunc: func() rideInt {
+			return 368430
+		},
+		thisFunc: func() rideType {
+			return rideAddress(addr)
+		},
+		timestampFunc: func() uint64 {
+			return 1564703444249
+		},
+		transactionFunc: func() rideObject {
+			obj, _ := transactionToObject(proto.MainNetScheme, tx)
+			return obj
+		},
+		stateFunc: func() types.SmartState {
+			return &wrappedSt
+		},
+	}
+	NewWrappedSt := initWrappedState(smartState(), env)
+	wrappedSt = *NewWrappedSt
+
+	script = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAQAAAAFY2hlY2sJAAQeAAAAAQUAAAAEdGhpcwkABEwAAAACCQEAAAAMQm9vbGVhbkVudHJ5AAAAAgIAAAAGdmlyZ2luBQAAAAVjaGVjawUAAAADbmlsAAAAAA8AdTc="
+	src, err := base64.StdEncoding.DecodeString(script)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	require.True(t, r.res)
+
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+
+	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.BooleanDataEntry{Key: "virgin", Value: false}},
+	}
+
+	expectedActionsResult := &proto.ScriptResult{
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+	}
+
+	assert.Equal(t, expectedActionsResult, sr)
+}
+
 func TestMatchOverwrite(t *testing.T) {
 	/*
 		{-# STDLIB_VERSION 1 #-}
@@ -3157,7 +3423,7 @@ func TestMatchOverwrite(t *testing.T) {
 
 	env := &MockRideEnvironment{
 		schemeFunc: func() byte {
-			return proto.TestNetScheme
+			return proto.MainNetScheme
 		},
 		heightFunc: func() rideInt {
 			return 368430
@@ -3180,6 +3446,7 @@ func TestMatchOverwrite(t *testing.T) {
 			}
 		},
 	}
+
 	code := "AQQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAD0RhdGFUcmFuc2FjdGlvbgQAAAACZHQFAAAAByRtYXRjaDAEAAAAAWEJAQAAAAdleHRyYWN0AAAAAQkABBoAAAACCAUAAAACZHQAAAAGc2VuZGVyAgAAAAFhBAAAAAF4AwkAAAAAAAACBQAAAAFhAAAAAAAAAAAABAAAAAckbWF0Y2gxCQAEGgAAAAIIBQAAAAJkdAAAAAZzZW5kZXICAAAAAXgDCQAAAQAAAAIFAAAAByRtYXRjaDECAAAAA0ludAQAAAABaQUAAAAHJG1hdGNoMQUAAAABaQAAAAAAAAAAAAAAAAAAAAAAAAQAAAACeHgEAAAAByRtYXRjaDEJAAQQAAAAAggFAAAAAmR0AAAABGRhdGECAAAAAXgDCQAAAQAAAAIFAAAAByRtYXRjaDECAAAAA0ludAQAAAABaQUAAAAHJG1hdGNoMQUAAAABaQAAAAAAAAAAAAkAAAAAAAACCQAAZAAAAAIFAAAAAXgFAAAAAnh4AAAAAAAAAAADB2NbtyA="
 	src, err := base64.StdEncoding.DecodeString(code)
 	require.NoError(t, err)
