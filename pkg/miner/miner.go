@@ -2,6 +2,7 @@ package miner
 
 import (
 	"context"
+	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
@@ -71,9 +72,26 @@ func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k
 		return nil, proto.MiningLimits{}, err
 	}
 	b := bi.(*proto.Block)
-	rest := proto.MiningLimits{
+
+	activated, err := a.state.IsActivated(int16(settings.ContinuationTransaction))
+	if err != nil {
+		return nil, proto.MiningLimits{}, errors.Wrapf(err, "failed to check if feature %d is activated", settings.ContinuationTransaction)
+	}
+	rest := proto.MiningLimits{}
+	if activated {
+		rest = proto.MiningLimits{
+			MaxScriptRunsInBlock:        a.constraints.MaxScriptRunsInBlock,
+			MaxScriptsComplexityInBlock: a.constraints.MaxScriptsComplexityInBlock.AfterRideV5,
+			ClassicAmountOfTxsInBlock:   a.constraints.ClassicAmountOfTxsInBlock,
+			MaxTxsSizeInBytes:           a.constraints.MaxTxsSizeInBytes - 4,
+		}
+
+		return b, rest, nil
+	}
+
+	rest = proto.MiningLimits{
 		MaxScriptRunsInBlock:        a.constraints.MaxScriptRunsInBlock,
-		MaxScriptsComplexityInBlock: a.constraints.MaxScriptsComplexityInBlock,
+		MaxScriptsComplexityInBlock: a.constraints.MaxScriptsComplexityInBlock.BeforeRideV5,
 		ClassicAmountOfTxsInBlock:   a.constraints.ClassicAmountOfTxsInBlock,
 		MaxTxsSizeInBytes:           a.constraints.MaxTxsSizeInBytes - 4,
 	}
