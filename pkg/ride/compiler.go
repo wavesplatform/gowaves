@@ -147,6 +147,7 @@ func compileFunction(txID string, libVersion int, nodes []Node, isDapp bool, has
 }
 
 func CompileTree(tx string, tree *Tree) (*Executable, error) {
+	tree = MustExpand(tree)
 	if tree.IsDApp() {
 		return CompileDapp(tx, tree)
 	}

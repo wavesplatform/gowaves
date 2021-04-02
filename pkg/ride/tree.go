@@ -1,5 +1,7 @@
 package ride
 
+import "github.com/pkg/errors"
+
 type Node interface {
 	node()
 	SetBlock(node Node)
@@ -293,4 +295,12 @@ func (t *Tree) HasVerifier() bool {
 
 func (t *Tree) IsDApp() bool {
 	return t.AppVersion != scriptApplicationVersion
+}
+
+func (t *Tree) Invoke(env RideEnvironment, name string, arguments []rideType) (RideResult, error) {
+	e, err := treeFunctionEvaluator(env, t, name, arguments)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to call function '%s'", name)
+	}
+	return e.evaluate()
 }

@@ -16,6 +16,7 @@ type ConditionalState struct {
 		}
 	*/
 
+	originalParams params
 	params
 	prev State
 
@@ -53,9 +54,10 @@ func (a ConditionalState) Bytes(value []byte) State {
 
 func conditionalTransition(prev State, params params, deferreds Deferreds) State {
 	return ConditionalState{
-		prev:      prev,
-		params:    params,
-		deferreds: deferreds,
+		prev:           prev,
+		params:         extendParams(params),
+		deferreds:      deferreds,
+		originalParams: params,
 	}
 }
 
@@ -65,10 +67,12 @@ func (a ConditionalState) Condition() State {
 }
 
 func (a ConditionalState) TrueBranch() State {
+	a.params = extendParams(a.originalParams)
 	return a
 }
 
 func (a ConditionalState) FalseBranch() State {
+	a.params = extendParams(a.originalParams)
 	return a
 }
 

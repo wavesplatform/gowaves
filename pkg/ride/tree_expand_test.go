@@ -22,22 +22,6 @@ func lines(ss ...string) string {
 	return strings.TrimSpace(s.String())
 }
 
-func TestTreeExpand(t *testing.T) {
-	source := `AAIDAAAAAAAAAAgIARIECgIIAgAAAAEBAAAAAmYyAAAAAAkBAAAABXZhbHVlAAAAAQkABBoAAAACBQAAAAR0aGlzAgAAAAF4AAAAAQAAAAFpAQAAAAJmMQAAAAIAAAAJc2Vzc2lvbklkAAAAB3JzYVNpZ24EAAAAAXgJAQAAAAJmMgAAAAAJAQAAAAhXcml0ZVNldAAAAAEFAAAAA25pbAAAAADvU/gM`
-	src, err := base64.StdEncoding.DecodeString(source)
-	require.NoError(t, err)
-
-	tree, err := Parse(src)
-	require.NoError(t, err)
-
-	tree2, _ := Expand(tree)
-
-	require.Equal(t,
-		`@i\nfunc f1(sessionId,rsaSign) { let x = { value(getInteger(this,"x")) }; WriteSet(nil) }`,
-		DecompileTree(tree2),
-	)
-}
-
 func TestTreeExpandWithArguments(t *testing.T) {
 	source := `AAIDAAAAAAAAAAgIARIECgIIAgAAAAIAAAAAAXoAAAAAAAAAAAUBAAAAAmYyAAAAAQAAAAF2CQEAAAAFdmFsdWUAAAABCQAEGgAAAAIFAAAABHRoaXMFAAAAAXYAAAABAAAAAWkBAAAAAmYxAAAAAgAAAAlzZXNzaW9uSWQAAAAHcnNhU2lnbgQAAAABeAkBAAAAAmYyAAAAAQIAAAABZQkBAAAACFdyaXRlU2V0AAAAAQUAAAADbmlsAAAAAN+I8mI=`
 	src, err := base64.StdEncoding.DecodeString(source)
@@ -51,7 +35,7 @@ func TestTreeExpandWithArguments(t *testing.T) {
 	require.Equal(t,
 		lines(
 			`let z = { 5 };`,
-			`@i\nfunc f1(sessionId,rsaSign) { let x = { let v = { "e" }; value(getInteger(this,v)) }; WriteSet(nil) }`,
+			`@i\nfunc f1(sessionId,rsaSign) { let x = { let v$f2 = { "e" }; value(getInteger(this,v$f2)) }; WriteSet(nil) }`,
 		),
 		DecompileTree(tree2),
 	)
@@ -119,12 +103,12 @@ func TestTreeExpandWithNamesIntersection(t *testing.T) {
 	tree2, _ := Expand(tree)
 
 	require.Equal(t,
-		`@i\nfunc callback() { let x = { let v = { 0 }; 10 }; WriteSet(1100(DataEntry("key",5),nil)) }`,
+		`@i\nfunc callback() { let x = { let v$call = { 0 }; 10 }; WriteSet(1100(DataEntry("key",5),nil)) }`,
 		DecompileTree(tree2),
 	)
 }
 
-func TestTreeExpand11(t *testing.T) {
+func TestTreeExpand(t *testing.T) {
 	t.Run("expand with variable and func name collision", func(t *testing.T) {
 		/**
 		  {-# STDLIB_VERSION 3 #-}
@@ -146,7 +130,7 @@ func TestTreeExpand11(t *testing.T) {
 		tree2, _ := Expand(tree)
 
 		require.Equal(t,
-			`(let inc = { 2 }; let v = { inc }; (v + 1) == 3)`,
+			`(let inc$call = { 2 }; let v$inc = { inc$call }; (v$inc + 1) == 3)`,
 			DecompileTree(tree2),
 		)
 		rs, err := CallTreeVerifier(nil, tree2)

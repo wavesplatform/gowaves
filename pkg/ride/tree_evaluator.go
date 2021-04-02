@@ -452,7 +452,10 @@ func treeVerifierEvaluator(env RideEnvironment, tree *Tree) (*treeEvaluator, err
 	}, nil
 }
 
-func treeFunctionEvaluator(env RideEnvironment, tree *Tree, name string, args proto.Arguments) (*treeEvaluator, error) {
+func treeFunctionEvaluator(env RideEnvironment, tree *Tree, name string, args []rideType) (*treeEvaluator, error) {
+	if name == "" {
+		name = "default"
+	}
 	s, err := newEvaluationScope(tree.LibVersion, env)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create scope")
@@ -477,11 +480,7 @@ func treeFunctionEvaluator(env RideEnvironment, tree *Tree, name string, args pr
 				return nil, errors.Errorf("invalid arguments count %d for function '%s'", l, name)
 			}
 			for i, arg := range args {
-				a, err := convertArgument(arg)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to call function '%s'", name)
-				}
-				s.pushValue(function.Arguments[i], a)
+				s.pushValue(function.Arguments[i], arg)
 			}
 			return &treeEvaluator{
 				dapp: true,

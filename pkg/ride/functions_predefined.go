@@ -2,15 +2,14 @@ package ride
 
 import (
 	"math"
-	//"github.com/pkg/errors"
 )
 
 func tx(env RideEnvironment, _ ...rideType) (rideType, error) {
-	return env.transaction(), nil
+	return newTx(env), nil
 }
 
 func this(env RideEnvironment, _ ...rideType) (rideType, error) {
-	return env.this(), nil
+	return newThis(env), nil
 }
 
 func height(env RideEnvironment, _ ...rideType) (rideType, error) {

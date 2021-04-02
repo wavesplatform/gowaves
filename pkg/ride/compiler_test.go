@@ -110,7 +110,12 @@ func TestCompiler(t *testing.T) {
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 
+		tree = MustExpand(tree)
+
 		script, err := CompileTree("", tree)
+
+		require.True(t, tree.Expanded)
+
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, script, test.comment)
 
@@ -1465,7 +1470,7 @@ func TestShadowedVariable(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	tree = MustExpand(tree)
-	require.Equal(t, "(let height = { height }; height != 0)", DecompileTree(tree))
+	require.Equal(t, "(let height$getPriceHistory = { height }; height$getPriceHistory != 0)", DecompileTree(tree))
 
 	script, err := CompileTree("", tree)
 	require.NoError(t, err)
