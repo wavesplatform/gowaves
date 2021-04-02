@@ -77,7 +77,7 @@ func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k
 	if err != nil {
 		return nil, proto.MiningLimits{}, errors.Wrapf(err, "failed to check if feature %d is activated", settings.ContinuationTransaction)
 	}
-	rest := proto.MiningLimits{}
+	var rest proto.MiningLimits
 	if activated {
 		rest = proto.MiningLimits{
 			MaxScriptRunsInBlock:        a.constraints.MaxScriptRunsInBlock,

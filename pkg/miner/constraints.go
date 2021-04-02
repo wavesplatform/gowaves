@@ -2,7 +2,7 @@ package miner
 
 type MaxScriptsComplexityInBlockT struct {
 	BeforeRideV5 int
-	AfterRideV5 int
+	AfterRideV5  int
 }
 
 type Constraints struct {
