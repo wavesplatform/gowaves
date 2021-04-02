@@ -2,6 +2,7 @@ package ride
 
 import (
 	"bytes"
+	"math/big"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -70,6 +71,30 @@ func (l rideInt) eq(other rideType) bool {
 
 func (l rideInt) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
+}
+
+type rideBigInt struct {
+	v *big.Int
+}
+
+func (l rideBigInt) instanceOf() string {
+	return "BigInt"
+}
+
+func (l rideBigInt) eq(other rideType) bool {
+	if o, ok := other.(rideBigInt); ok {
+		return l.v.Cmp(o.v) == 0
+	}
+	return false
+}
+
+func (l rideBigInt) get(prop string) (rideType, error) {
+	//TODO: there is possibility of few properties like 'bytes', 'int' and so on
+	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
+}
+
+func (l rideBigInt) String() string {
+	return l.v.String()
 }
 
 type rideString string
