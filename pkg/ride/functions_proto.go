@@ -7,6 +7,7 @@ import (
 	sh256 "crypto/sha256"
 	"crypto/x509"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -389,6 +390,8 @@ func addressToString(_ RideEnvironment, args ...rideType) (rideType, error) {
 			return nil, errors.Errorf("addressToString: recipient is not an Address '%s'", args[0].instanceOf())
 		}
 		return rideString(a.Address.String()), nil
+	case rideAddressLike:
+		return rideString(base58.Encode(a)), nil
 	default:
 		return nil, errors.Errorf("addressToString: invalid argument type '%s'", args[0].instanceOf())
 	}
