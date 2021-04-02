@@ -299,6 +299,7 @@ func fractionBigIntRounds(_ Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "fractionBigIntRounds")
 	}
+	// This algo is fully taken from Scala implementation
 	p := v.Mul(v, n)
 	s := big.NewInt(int64(p.Sign() * d.Sign()))
 	pa := p.Abs(p)
@@ -453,7 +454,7 @@ func bytesToBigInt(_ Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToBigInt")
 	}
-	if l := len(bts); l > 64 {
+	if l := len(bts); l > 64 { // No more then 64 bytes can be converted to BigInt, max size of BigInt value is 512 bit.
 		return nil, errors.Errorf("bytesToBigInt: bytes array is too long (%d) for a BigInt", l)
 	}
 	r := decode2CBigInt(bts)
@@ -483,7 +484,7 @@ func bytesToBigIntLim(_ Environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("bytesToBigIntLim: argument 3 is not of type 'Int' but '%s'", args[2].instanceOf())
 	}
-	if size <= 0 || size > 64 {
+	if size <= 0 || size > 64 { // No more then 64 bytes can be converted to BigInt, max size of BigInt value is 512 bit.
 		return nil, errors.Errorf("bytesToBigIntLim: size %d is out of ranger [1; 64]", size)
 	}
 	end := int(offset + size)
@@ -523,7 +524,7 @@ func stringToBigInt(_ Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "stringToBigInt")
 	}
-	if l := len(s); l > 155 {
+	if l := len(s); l > 155 { // 155 symbols is the length of minBigInt value is string representation
 		return nil, errors.Errorf("stringToBigInt: string is too long (%d symbols) for a BigInt", l)
 	}
 	r, ok := big.NewInt(0).SetString(string(s), 10)
@@ -561,12 +562,11 @@ func medianListBigInt(_ Environment, args ...rideType) (rideType, error) {
 	half := size / 2
 	if size%2 == 1 {
 		return rideBigInt{v: items[half]}, nil
-	} else {
-		x := items[half-1]
-		y := items[half]
-		r := math.FloorDivBigInt(x.Add(x, y), big.NewInt(2))
-		return rideBigInt{v: r}, nil
 	}
+	x := items[half-1]
+	y := items[half]
+	r := math.FloorDivBigInt(x.Add(x, y), big.NewInt(2))
+	return rideBigInt{v: r}, nil
 }
 
 func minMaxBigInt(items []*big.Int) (*big.Int, *big.Int) {

@@ -15,10 +15,12 @@ var (
 )
 
 func checkScales(baseScale, exponentScale, resultScale int) bool {
+	// 8 is the maximum scale for RIDE Int values
 	return baseScale >= 0 && baseScale <= 8 && exponentScale >= 0 && exponentScale <= 8 && resultScale >= 0 && resultScale <= 8
 }
 
 func checkScalesBigInt(baseScale, exponentScale, resultScale int) bool {
+	// 18 is the maximum scale for RIDE BigInt values
 	return baseScale >= 0 && baseScale <= 18 && exponentScale >= 0 && exponentScale <= 18 && resultScale >= 0 && resultScale <= 18
 }
 
