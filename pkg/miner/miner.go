@@ -3,7 +3,6 @@ package miner
 import (
 	"context"
 	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
@@ -73,28 +72,18 @@ func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k
 	}
 	b := bi.(*proto.Block)
 
-	activated, err := a.state.IsActivated(int16(settings.ContinuationTransaction))
+	activated, err := a.state.IsActivated(int16(settings.RideV5))
 	if err != nil {
-		return nil, proto.MiningLimits{}, errors.Wrapf(err, "failed to check if feature %d is activated", settings.ContinuationTransaction)
-	}
-	var rest proto.MiningLimits
-	if activated {
-		rest = proto.MiningLimits{
-			MaxScriptRunsInBlock:        a.constraints.MaxScriptRunsInBlock,
-			MaxScriptsComplexityInBlock: a.constraints.MaxScriptsComplexityInBlock.AfterRideV5,
-			ClassicAmountOfTxsInBlock:   a.constraints.ClassicAmountOfTxsInBlock,
-			MaxTxsSizeInBytes:           a.constraints.MaxTxsSizeInBytes - 4,
-		}
-
-		return b, rest, nil
+		return nil, proto.MiningLimits{}, errors.Wrapf(err, "failed to check if feature %d is activated", settings.RideV5)
 	}
 
-	rest = proto.MiningLimits{
+	rest := proto.MiningLimits{
 		MaxScriptRunsInBlock:        a.constraints.MaxScriptRunsInBlock,
-		MaxScriptsComplexityInBlock: a.constraints.MaxScriptsComplexityInBlock.BeforeRideV5,
+		MaxScriptsComplexityInBlock: a.constraints.MaxScriptsComplexityInBlock.GetMaxScriptsComplexityInBlock(activated),
 		ClassicAmountOfTxsInBlock:   a.constraints.ClassicAmountOfTxsInBlock,
 		MaxTxsSizeInBytes:           a.constraints.MaxTxsSizeInBytes - 4,
 	}
+
 	return b, rest, nil
 }
 

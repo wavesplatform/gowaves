@@ -24,12 +24,10 @@ import (
 )
 
 const (
-	rollbackMaxBlocks = 2000
-	blocksStorDir     = "blocks_storage"
-	keyvalueDir       = "key_value"
-
-	maxScriptsRunsInBlock       = 101
-	maxScriptsComplexityInBlock = 1000000
+	rollbackMaxBlocks     = 2000
+	blocksStorDir         = "blocks_storage"
+	keyvalueDir           = "key_value"
+	maxScriptsRunsInBlock = 101
 )
 
 var empty struct{}

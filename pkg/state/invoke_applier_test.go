@@ -779,7 +779,7 @@ func cancel(id: ByteVector) = ([LeaseCancel(id)], unit)
 
 func TestApplyInvokeScriptWithLease(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
-	to.activateFeature(t, int16(settings.ContinuationTransaction))
+	to.activateFeature(t, int16(settings.RideV5))
 
 	defer func() {
 		err := to.state.Close()
@@ -826,7 +826,7 @@ func TestApplyInvokeScriptWithLease(t *testing.T) {
 
 func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
-	to.activateFeature(t, int16(settings.ContinuationTransaction))
+	to.activateFeature(t, int16(settings.RideV5))
 
 	defer func() {
 		err := to.state.Close()

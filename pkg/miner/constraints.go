@@ -1,13 +1,12 @@
 package miner
 
-type MaxScriptsComplexityInBlockT struct {
-	BeforeRideV5 int
-	AfterRideV5  int
-}
+import (
+	"github.com/wavesplatform/gowaves/pkg/state"
+)
 
 type Constraints struct {
 	MaxScriptRunsInBlock        int
-	MaxScriptsComplexityInBlock MaxScriptsComplexityInBlockT
+	MaxScriptsComplexityInBlock state.MaxScriptsComplexityInBlockT
 	ClassicAmountOfTxsInBlock   int
 	MaxTxsSizeInBytes           int
 }
@@ -15,7 +14,7 @@ type Constraints struct {
 func DefaultConstraints() Constraints {
 	return Constraints{
 		MaxScriptRunsInBlock:        100,
-		MaxScriptsComplexityInBlock: MaxScriptsComplexityInBlockT{BeforeRideV5: 1000000, AfterRideV5: 2500000},
+		MaxScriptsComplexityInBlock: state.NewMaxScriptsComplexityInBlockT(),
 		ClassicAmountOfTxsInBlock:   100,
 		MaxTxsSizeInBytes:           1 * 1024 * 1024, // 1mb
 	}
