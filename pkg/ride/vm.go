@@ -2,6 +2,7 @@ package ride
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 
 	"github.com/pkg/errors"
 )
@@ -200,7 +201,7 @@ func (m *vm) run() (rideType, error) {
 			}
 
 		default:
-			return nil, errors.Errorf("unknown code %#x, at iteration %d", op, m.numOperations)
+			return nil, errors.Errorf("unknown code %#x, instruction pointer %d, at iteration %d; %s", op, m.ip, m.numOperations, hex.EncodeToString(m.code))
 		}
 	}
 	return nil, errors.New("broken code")

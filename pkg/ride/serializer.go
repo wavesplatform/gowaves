@@ -58,6 +58,12 @@ func (a *Serializer) Uint16(v uint16) {
 	a.b.Write(b)
 }
 
+func (a *Serializer) Uint32(v uint32) {
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, v)
+	a.b.Write(b)
+}
+
 func (a *Serializer) Bool(v bool) {
 	if v {
 		a.b.WriteByte(sTrue)
@@ -85,10 +91,10 @@ func (a *Serializer) Type(t byte) error {
 }
 
 func (a *Serializer) Bytes(v []byte) error {
-	if len(v) > math.MaxUint16 {
+	if len(v) > math.MaxUint32 {
 		return errors.New("bytes length overflow")
 	}
-	a.Uint16(uint16(len(v)))
+	a.Uint32(uint32(len(v)))
 	a.b.Write(v)
 	return nil
 }
@@ -116,10 +122,10 @@ func (a *Serializer) RideUnit() error {
 }
 
 func (a *Serializer) String(v string) error {
-	if len(v) > math.MaxUint16 {
+	if len(v) > math.MaxUint32 {
 		return errors.New("bytes length overflow")
 	}
-	a.Uint16(uint16(len(v)))
+	a.Uint32(uint32(len(v)))
 	a.b.Write([]byte(v))
 	return nil
 }
