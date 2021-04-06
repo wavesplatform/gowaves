@@ -62,6 +62,9 @@ var defuncs = map[string]func(s *strings.Builder, name string, nodes []Node, f d
 	"105": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		infix(s, "/", nodes, f)
 	},
+	"106": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		infix(s, "%", nodes, f)
+	},
 	"200": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "size", nodes, f)
 	},
@@ -101,17 +104,29 @@ var defuncs = map[string]func(s *strings.Builder, name string, nodes []Node, f d
 	"600": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "toBase58String", nodes, f)
 	},
+	"601": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "fromBase58String", nodes, f)
+	},
 	"604": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "fromBase64String", nodes, f)
 	},
 	"2": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "throw", nodes, f)
 	},
+	"1100": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		infix(s, "::", nodes, f)
+	},
 	"1050": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "getInteger", nodes, f)
 	},
+	"1051": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "getBoolean", nodes, f)
+	},
 	"1052": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "getBinary", nodes, f)
+	},
+	"1053": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
+		prefix(s, "getString", nodes, f)
 	},
 	"1201": func(s *strings.Builder, name string, nodes []Node, f detreeType) {
 		prefix(s, "toInt", nodes, f)
@@ -170,10 +185,14 @@ func detree(s *strings.Builder, tree Node) {
 		s.WriteString(" } ")
 		detree(s, n.Block)
 	case *AssignmentNode:
-		s.WriteString(fmt.Sprintf("let %s = { ", n.Name))
-		detree(s, n.Expression)
-		s.WriteString(" }; ")
-		detree(s, n.Block)
+		if n.Name == "$match0" {
+			decompileMatch(s, n)
+		} else {
+			s.WriteString(fmt.Sprintf("let %s = { ", n.Name))
+			detree(s, n.Expression)
+			s.WriteString(" }; ")
+			detree(s, n.Block)
+		}
 	case *ConditionalNode:
 		s.WriteString("if (")
 		detree(s, n.Condition)
@@ -206,4 +225,26 @@ func detree(s *strings.Builder, tree Node) {
 	default:
 		panic(fmt.Sprintf("unknown type %T", n))
 	}
+}
+
+func decompileMatch(s *strings.Builder, a *AssignmentNode) {
+	s.WriteString("match ")
+	detree(s, a.Expression)
+	s.WriteString(" { ")
+	n := a.Block
+	for {
+		v, ok := n.(*ConditionalNode)
+		if !ok {
+			break
+		}
+		s.WriteString("case a: ")
+		s.WriteString(v.Condition.(*FunctionCallNode).Arguments[1].(*StringNode).Value)
+		s.WriteString(" => { ")
+		detree(s, v.TrueExpression.(*AssignmentNode).Block)
+		s.WriteString(" } ")
+		n = v.FalseExpression
+	}
+	s.WriteString("case _ => { ")
+	detree(s, n)
+	s.WriteString(" }")
 }
