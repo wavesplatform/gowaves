@@ -16,9 +16,9 @@ const (
 	Ride4DApps // RIDE V3
 	OrderV3
 	ReduceNFTFee
-	BlockReward             // 14
-	BlockV5                 // 15
-	ContinuationTransaction // 16
+	BlockReward // 14
+	BlockV5     // 15
+	RideV5      // 16
 	LeaseExpiration
 )
 
@@ -43,6 +43,6 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	ReduceNFTFee:                    {true, "Reduce NFT fee"},
 	BlockReward:                     {true, "Block Reward and Community Driven Monetary Policy"},
 	BlockV5:                         {true, "Ride V4, VRF, Protobuf, Failed transactions"},
-	ContinuationTransaction:         {true, "Continuation Transaction"},
+	RideV5:                          {true, "Ride V5, dApp-to-dApp invocations"},
 	LeaseExpiration:                 {false, "Lease Expiration"},
 }

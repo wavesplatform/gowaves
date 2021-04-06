@@ -68,7 +68,7 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 	if err != nil {
 		return err
 	}
-	continuationActivated, err := tc.stor.features.newestIsActivated(int16(settings.ContinuationTransaction))
+	continuationActivated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
 	if err != nil {
 		return err
 	}
