@@ -45,8 +45,6 @@ const (
 	MaxKeySize           = 100
 	MaxPBKeySize         = 400
 	maxValueSize         = 32767
-
-	//MaxScriptActions                     = 10
 	MaxDataEntryScriptActions            = 100
 	MaxDataEntryScriptActionsSizeInBytes = 5 * 1024
 )
