@@ -43,6 +43,6 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	ReduceNFTFee:                    {true, "Reduce NFT fee"},
 	BlockReward:                     {true, "Block Reward and Community Driven Monetary Policy"},
 	BlockV5:                         {true, "Ride V4, VRF, Protobuf, Failed transactions"},
-	RideV5:                          {true, "Ride V5, dApp-to-dApp"},
+	RideV5:                          {true, "Ride V5, dApp-to-dApp invocations"},
 	LeaseExpiration:                 {false, "Lease Expiration"},
 }

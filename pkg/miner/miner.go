@@ -15,13 +15,12 @@ import (
 )
 
 type MicroblockMiner struct {
-	utx         types.UtxPool
-	state       state.State
-	peer        peer_manager.PeerManager
-	constraints Constraints
-	services    services.Services
-	features    Features
-	// reward vote 600000000
+	utx                             types.UtxPool
+	state                           state.State
+	peer                            peer_manager.PeerManager
+	constraints                     Constraints
+	services                        services.Services
+	features                        Features
 	reward                          int64
 	maxTransactionTimeForwardOffset proto.Timestamp
 }

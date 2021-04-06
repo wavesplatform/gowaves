@@ -255,7 +255,7 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to check if feature %d is activated", settings.RideV5)
 		}
-		maxBlockComplexity := NewMaxScriptsComplexityInBlockT().GetMaxScriptsComplexityInBlock(rideV5Activated)
+		maxBlockComplexity := NewMaxScriptsComplexityInBlock().GetMaxScriptsComplexityInBlock(rideV5Activated)
 		if a.sc.getTotalComplexity() > uint64(maxBlockComplexity) {
 			return errors.New("complexity limit per block is exceeded")
 		}

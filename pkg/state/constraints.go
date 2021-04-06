@@ -1,17 +1,17 @@
 package state
 
-type MaxScriptsComplexityInBlockT struct {
+type MaxScriptsComplexityInBlock struct {
 	BeforeRideV5 int
 	AfterRideV5  int
 }
 
-func NewMaxScriptsComplexityInBlockT() MaxScriptsComplexityInBlockT {
-	return MaxScriptsComplexityInBlockT{BeforeRideV5: 1000000, AfterRideV5: 2500000}
+func NewMaxScriptsComplexityInBlock() MaxScriptsComplexityInBlock {
+	return MaxScriptsComplexityInBlock{BeforeRideV5: 1000000, AfterRideV5: 2500000}
 }
 
-func (compl MaxScriptsComplexityInBlockT) GetMaxScriptsComplexityInBlock(isRiveV5Activated bool) int {
+func (a MaxScriptsComplexityInBlock) GetMaxScriptsComplexityInBlock(isRiveV5Activated bool) int {
 	if isRiveV5Activated {
-		return compl.AfterRideV5
+		return a.AfterRideV5
 	}
-	return compl.BeforeRideV5
+	return a.BeforeRideV5
 }

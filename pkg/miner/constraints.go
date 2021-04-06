@@ -6,7 +6,7 @@ import (
 
 type Constraints struct {
 	MaxScriptRunsInBlock        int
-	MaxScriptsComplexityInBlock state.MaxScriptsComplexityInBlockT
+	MaxScriptsComplexityInBlock state.MaxScriptsComplexityInBlock
 	ClassicAmountOfTxsInBlock   int
 	MaxTxsSizeInBytes           int
 }
@@ -14,7 +14,7 @@ type Constraints struct {
 func DefaultConstraints() Constraints {
 	return Constraints{
 		MaxScriptRunsInBlock:        100,
-		MaxScriptsComplexityInBlock: state.NewMaxScriptsComplexityInBlockT(),
+		MaxScriptsComplexityInBlock: state.NewMaxScriptsComplexityInBlock(),
 		ClassicAmountOfTxsInBlock:   100,
 		MaxTxsSizeInBytes:           1 * 1024 * 1024, // 1mb
 	}
