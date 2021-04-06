@@ -231,7 +231,7 @@ func TestActionsValidation(t *testing.T) {
 			&LeaseScriptAction{Recipient: rcp0, Amount: -100},
 		}, restrictions: ActionsValidationRestrictions{}, valid: false},
 	} {
-		err := ValidateActions(test.actions, test.restrictions)
+		err := ValidateActions(test.actions, test.restrictions, 5)
 		if test.valid {
 			require.NoError(t, err, fmt.Sprintf("#%d", i))
 		} else {

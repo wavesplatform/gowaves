@@ -46,10 +46,26 @@ const (
 	MaxPBKeySize         = 400
 	maxValueSize         = 32767
 
-	MaxScriptActions                     = 10
+	//MaxScriptActions                     = 10
 	MaxDataEntryScriptActions            = 100
 	MaxDataEntryScriptActionsSizeInBytes = 5 * 1024
 )
+
+type MaxScriptActions struct {
+	BeforeRideScriptV5 int
+	AfterRideScriptV5  int
+}
+
+func NewMaxScriptActions() MaxScriptActions {
+	return MaxScriptActions{BeforeRideScriptV5: 10, AfterRideScriptV5: 30}
+}
+
+func (a MaxScriptActions) GetMaxScriptsComplexityInBlock(scriptVersion int) int {
+	if scriptVersion > 5 {
+		return a.AfterRideScriptV5
+	}
+	return a.BeforeRideScriptV5
+}
 
 type Timestamp = uint64
 type Score = big.Int
