@@ -530,6 +530,8 @@ func catalogueV5() map[string]int {
 	m["LeaseCancel"] = 1
 	m["1054"] = 10
 	m["1009"] = 200
+	delete(m, "Up")
+	delete(m, "HalfDown")
 	return m
 }
 
@@ -587,7 +589,10 @@ func constantsV4() map[string]constantDescription {
 }
 
 func constantsV5() map[string]constantDescription {
-	return constantsV4()
+	c := constantsV4()
+	delete(c, "UP")
+	delete(c, "HALFDOWN")
+	return c
 }
 
 func constructorsFromConstants(m map[string]string, c map[string]constantDescription) {
