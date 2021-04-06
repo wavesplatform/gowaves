@@ -484,8 +484,8 @@ func catalogueV5() map[string]int {
 	m["LeaseCancel"] = 1
 	m["1054"] = 10
 	m["1009"] = 200
-	delete(m, "UP")
-	delete(m, "HALFDOWN")
+	delete(m, "Up")
+	delete(m, "HalfDown")
 	return m
 }
 
