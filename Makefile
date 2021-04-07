@@ -11,7 +11,7 @@ export GO111MODULE=on
 
 .PHONY: vendor vetcheck fmtcheck clean build gotest
 
-all: vendor vetcheck build gotest mod-clean
+all: vendor vetcheck fmtcheck build gotest mod-clean
 
 ver:
 	@echo Building version: $(VERSION)
@@ -32,7 +32,7 @@ gotest:
 	go test -cover ./...
 
 fmtcheck:
-	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go" | grep -v ".*bn254/.*\.go"; if [ "$$?" = "0" ]; then exit 1; fi
+	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go" | grep -v "compiler_helpers.go" | grep -v ".*bn254/.*\.go"; if [ "$$?" = "0" ]; then exit 1; fi
 
 mod-clean:
 	go mod tidy
