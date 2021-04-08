@@ -186,7 +186,7 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams, isRideV5Acti
 
 	// check complexity of script for free verifier if complexity <= 200
 	complexity := 0
-	if accountScripted {
+	if accountScripted && isRideV5Activated {
 		tree, err := params.stor.scriptsStorage.newestScriptByAddr(senderAddr, !params.initialisation)
 		if err != nil {
 			return nil, errors.Errorf("scriptsCost: failed to get script by addr, %v", err)
