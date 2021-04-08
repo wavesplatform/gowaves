@@ -159,11 +159,16 @@ func (tc *transactionChecker) checkFee(
 		initialisation: info.initialisation,
 		txAssets:       assets,
 	}
+
+	isRideV5Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return errors.Errorf("failed to check if feature is was activated, %v", err)
+	}
 	if !assets.feeAsset.Present {
 		// Waves.
-		return checkMinFeeWaves(tx, params)
+		return checkMinFeeWaves(tx, params, isRideV5Activated, info.estimatorVersion())
 	}
-	return checkMinFeeAsset(tx, assets.feeAsset.ID, params)
+	return checkMinFeeAsset(tx, assets.feeAsset.ID, params, isRideV5Activated, info.estimatorVersion())
 }
 
 func (tc *transactionChecker) checkFromFuture(timestamp uint64) bool {
@@ -525,6 +530,7 @@ func (tc *transactionChecker) checkBurnWithProofs(transaction proto.Transaction,
 	if err != nil {
 		return nil, err
 	}
+
 	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, err

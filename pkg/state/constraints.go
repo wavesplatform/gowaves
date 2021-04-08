@@ -15,3 +15,5 @@ func (a MaxScriptsComplexityInBlock) GetMaxScriptsComplexityInBlock(isRiveV5Acti
 	}
 	return a.BeforeRideV5
 }
+
+const FreeVerifierComplexity = 200
