@@ -3558,7 +3558,7 @@ func TestTreeShadowedVariable2(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	tree = MustExpand(tree)
-	require.Equal(t, "(let height$yy = { height }; let height$xx = { height$yy }; height$xx == 1)", DecompileTree(tree))
+	require.Equal(t, "(let height@yy = { height }; let height@xx = { height@yy }; height@xx == 1)", DecompileTree(tree))
 
 	result, err := CallTreeVerifier(defaultEnv, tree)
 	require.NoError(t, err)

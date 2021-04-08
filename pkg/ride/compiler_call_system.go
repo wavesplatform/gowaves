@@ -11,7 +11,7 @@ type CallSystemState struct {
 	deferred  []Deferred
 	deferreds Deferreds
 	// Sequential function arguments.
-	ns []uniqueid
+	ns []uniqueID
 }
 
 func (a CallSystemState) backward(state State) State {
@@ -62,7 +62,7 @@ func callTransition(prev State, params params, name string, argc uint16, d Defer
 }
 
 func newCallSystemState(prev State, params params, name string, argc uint16, d Deferreds) State {
-	var ns []uniqueid
+	var ns []uniqueID
 	for i := uint16(0); i < argc; i++ {
 		ns = append(ns, params.u.next())
 	}

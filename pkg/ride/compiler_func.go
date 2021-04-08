@@ -1,16 +1,18 @@
 package ride
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type arguments []string
 
 type Deferreds interface {
-	Add(Deferred, uniqueid, string)
+	Add(Deferred, uniqueID, string)
 }
 
 type dd struct {
 	deferred Deferred
-	uniq     uniqueid
+	uniq     uniqueID
 	debug    string
 }
 
@@ -19,7 +21,7 @@ type deferreds struct {
 	d    []dd
 }
 
-func (a *deferreds) Add(deferred2 Deferred, n uniqueid, debug string) {
+func (a *deferreds) Add(deferred2 Deferred, n uniqueID, debug string) {
 	a.d = append(a.d, dd{
 		deferred: deferred2,
 		uniq:     n,
@@ -36,9 +38,9 @@ type FuncState struct {
 	prev        State
 	name        string
 	args        arguments
-	n           uniqueid
+	n           uniqueID
 	invokeParam string
-	paramIds    []uniqueid
+	paramIds    []uniqueID
 
 	// References that defined inside function.
 	deferred []Deferred
@@ -72,7 +74,7 @@ func funcTransition(prev State, params params, name string, args []string, invok
 	if invokeParam != "" {
 		args = append([]string{invokeParam}, args...)
 	}
-	paramIds := make([]uniqueid, 0, len(args))
+	paramIds := make([]uniqueID, 0, len(args))
 	for i := range args {
 		e := params.u.next()
 		paramIds = append(paramIds, e)
@@ -99,7 +101,7 @@ func (a FuncState) Assigment(name string) State {
 	return assigmentTransition(a, a.params, name, n, a.defers)
 }
 
-func (a FuncState) ParamIds() []uniqueid {
+func (a FuncState) ParamIds() []uniqueID {
 	return a.paramIds
 }
 
@@ -152,13 +154,11 @@ func (a FuncState) Func(name string, args []string, invoke string) State {
 	return funcTransition(a, a.params, name, args, invoke)
 }
 
-func (a FuncState) Clean() {
-
-}
+func (a FuncState) Clean() {}
 
 func (a FuncState) Write(_ params, _ []byte) {
 	pos := a.b.len()
-	a.params.c.set(a.n, nil, 0, pos, false, fmt.Sprintf("function %s", a.name))
+	a.params.c.set(a.n, nil, 0, pos, fmt.Sprintf("function %s", a.name))
 	if len(a.deferred) != 1 {
 		panic("len(a.deferred) != 1")
 	}
@@ -170,17 +170,16 @@ func (a FuncState) Write(_ params, _ []byte) {
 	}
 	a.deferred[0].Write(a.params, nil)
 
-	// End of function body. Clear and write assigments.
+	// End of function body. Clear and write assignments.
 	for _, v := range a.defers.Get() {
 		v.deferred.Clean()
 	}
 	a.b.ret()
 
 	for _, v := range a.defers.Get() {
-		pos := a.b.len()
-		a.c.set(v.uniq, nil, 0, pos, false, v.debug)
+		p := a.b.len()
+		a.c.set(v.uniq, nil, 0, p, v.debug)
 		v.deferred.Write(a.params, nil)
 		a.b.ret()
 	}
-
 }

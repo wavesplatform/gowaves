@@ -12,7 +12,7 @@ type Executable struct {
 	position    int // Non-default value assumes interrupted evaluation.
 	ByteCode    []byte
 	EntryPoints map[string]Entrypoint
-	References  map[uniqueid]point
+	References  map[uniqueID]point
 }
 
 func (a *Executable) HasVerifier() bool {
@@ -225,7 +225,7 @@ func DeserializeExecutable(source []byte) (*Executable, error) {
 	if err != nil {
 		return nil, err
 	}
-	references := make(map[uniqueid]point, size)
+	references := make(map[uniqueID]point, size)
 	for i := uint16(0); i < size; i++ {
 		id, err := d.Uint16()
 		if err != nil {

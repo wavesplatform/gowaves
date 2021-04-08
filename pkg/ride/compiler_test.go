@@ -1470,7 +1470,7 @@ func TestShadowedVariable(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	tree = MustExpand(tree)
-	require.Equal(t, "(let height$getPriceHistory = { height }; height$getPriceHistory != 0)", DecompileTree(tree))
+	require.Equal(t, "(let height@getPriceHistory = { height }; height@getPriceHistory != 0)", DecompileTree(tree))
 
 	script, err := CompileTree("", tree)
 	require.NoError(t, err)

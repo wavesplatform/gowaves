@@ -2,7 +2,6 @@ package ride
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 
 	"github.com/pkg/errors"
 )
@@ -36,15 +35,11 @@ func (m *vm) run() (rideType, error) {
 			if err != nil {
 				return nil, err
 			}
-		case OpJump:
-			pos := m.arg16()
-			m.jmps = append(m.jmps, m.ip)
-			m.ip = pos
 
 		case OpJumpIfFalse:
-			posTrue := m.arg16()
-			posFalse := m.arg16()
-			posNext := m.arg16()
+			posTrue := m.arg32()
+			posFalse := m.arg32()
+			posNext := m.arg32()
 			m.jmps = append(m.jmps, posNext)
 
 			val, err := m.pop()
@@ -60,6 +55,7 @@ func (m *vm) run() (rideType, error) {
 			} else {
 				m.ip = posFalse
 			}
+
 		case OpProperty:
 			prop, err := m.pop()
 			if err != nil {
@@ -78,10 +74,6 @@ func (m *vm) run() (rideType, error) {
 				return nil, errors.Wrap(err, "vm OpProperty")
 			}
 			m.push(v)
-		case OpCall:
-			pos := m.arg16()
-			m.jmps = append(m.jmps, m.ip)
-			m.ip = pos
 
 		case OpExternalCall:
 			// Before calling external function all parameters must be evaluated and placed on stack
@@ -120,6 +112,7 @@ func (m *vm) run() (rideType, error) {
 				return res, nil
 			}
 			m.push(res)
+
 		case OpReturn:
 			l := len(m.jmps)
 			if l == 0 {
@@ -134,13 +127,6 @@ func (m *vm) run() (rideType, error) {
 			}
 			m.ip, m.jmps = m.jmps[l-1], m.jmps[:l-1]
 
-		case OpSetArg:
-			from := m.uint16()
-			to := m.uint16()
-			// for debug purpose
-			x := m.ref[from]
-			_ = x
-			m.ref[to] = m.ref[from]
 		case OpCache:
 			refID := m.uint16()
 			if refID < 200 {
@@ -154,6 +140,7 @@ func (m *vm) run() (rideType, error) {
 			point := m.ref[refID]
 			point.value = value
 			m.ref[refID] = point
+
 		case OpClearCache:
 			refID := m.uint16()
 			point, ok := m.ref[refID]
@@ -193,7 +180,7 @@ func (m *vm) run() (rideType, error) {
 				}
 				m.push(rs)
 			} else {
-				if m.ip == int(point.position)+3 {
+				if m.ip == int(point.position)+5 {
 					return nil, errors.Errorf("infinity loop detected on iteration %d", m.numOperations)
 				}
 				m.jmps = append(m.jmps, m.ip)
@@ -201,13 +188,13 @@ func (m *vm) run() (rideType, error) {
 			}
 
 		default:
-			return nil, errors.Errorf("unknown code %#x, instruction pointer %d, at iteration %d; %s", op, m.ip, m.numOperations, hex.EncodeToString(m.code))
+			return nil, errors.Errorf("unknown code %#x, instruction pointer %d, at iteration %d", op, m.ip, m.numOperations)
 		}
 	}
 	return nil, errors.New("broken code")
 }
 
-func (m *vm) push(v rideType) constid {
+func (m *vm) push(v rideType) constID {
 	m.stack = append(m.stack, v)
 	return uint16(len(m.stack) - 1)
 }
@@ -229,6 +216,13 @@ func (m *vm) arg16() int {
 	//TODO: add check
 	res := binary.BigEndian.Uint16(m.code[m.ip : m.ip+2])
 	m.ip += 2
+	return int(res)
+}
+
+func (m *vm) arg32() int {
+	//TODO: add check
+	res := binary.BigEndian.Uint32(m.code[m.ip : m.ip+4])
+	m.ip += 4
 	return int(res)
 }
 

@@ -57,27 +57,27 @@ type params struct {
 	txID string
 }
 
-func (a *params) addPredefined(name string, id uniqueid, fn uint16) {
+func (a *params) addPredefined(name string, id uniqueID, fn uint16) {
 	a.r.setAssigment(name, id)
-	a.c.set(id, nil, fn, 0, false, name)
+	a.c.set(id, nil, fn, 0, name)
 }
 
 func (a *params) constant(value rideType) constantDeferred {
 	switch v := value.(type) {
 	case rideInt:
 		if v >= 0 && v <= 100 {
-			return NewConstantDeferred(uniqueid(v))
+			return newConstantDeferred(uniqueID(v))
 		}
 	case rideBoolean:
 		if v {
-			return NewConstantDeferred(101)
+			return newConstantDeferred(101)
 		} else {
-			return NewConstantDeferred(102)
+			return newConstantDeferred(102)
 		}
 	}
 	n := a.u.next()
-	a.c.set(n, value, 0, 0, true, fmt.Sprintf("constant %q", value))
-	return NewConstantDeferred(n)
+	a.c.set(n, value, 0, 0, fmt.Sprintf("constant %q", value))
+	return newConstantDeferred(n)
 }
 
 func reference(_ State, params params, name string) constantDeferred {
@@ -85,5 +85,5 @@ func reference(_ State, params params, name string) constantDeferred {
 	if !ok {
 		panic(fmt.Sprintf("reference `%s` not found, tx %s", name, params.txID))
 	}
-	return NewConstantDeferred(pos)
+	return newConstantDeferred(pos)
 }

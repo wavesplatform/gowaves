@@ -7,6 +7,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+const expandPrefix = "@"
+
 type expandScope struct {
 	im *im.Map
 }
@@ -83,7 +85,7 @@ func Expand(t *Tree) (*Tree, error) {
 			declarations = append(declarations, expand(scope, f, newNameReplacements()))
 			continue
 		}
-		v2 := cloneFuncDecl(v, expand(scope, v.Body, newNameReplacements().addAll("$"+v.Name, v.Arguments)), nil)
+		v2 := cloneFuncDecl(v, expand(scope, v.Body, newNameReplacements().addAll(expandPrefix+v.Name, v.Arguments)), nil)
 		scope = scope.add(v.Name, v2)
 	}
 	functions := make([]Node, 0, len(t.Functions))
@@ -132,7 +134,7 @@ func expand(scope expandScope, node Node, replacements nameReplacements) Node {
 			root := f.Body
 			for i := len(v.Arguments) - 1; i >= 0; i-- {
 				root = &AssignmentNode{
-					Name:       fmt.Sprintf("%s$%s", f.Arguments[i], f.Name),
+					Name:       fmt.Sprintf("%s%s%s", f.Arguments[i], expandPrefix, f.Name),
 					Expression: expand(scope, v.Arguments[i], replacements),
 					Block:      root,
 				}
@@ -149,7 +151,7 @@ func expand(scope expandScope, node Node, replacements nameReplacements) Node {
 
 	case *FunctionDeclarationNode:
 
-		body := expand(scope, v.Body, replacements.addAll("$"+v.Name, v.Arguments))
+		body := expand(scope, v.Body, replacements.addAll(expandPrefix+v.Name, v.Arguments))
 		v2 := cloneFuncDecl(v, body, nil)
 		block := expand(scope.add(v.Name, v2), v.Block, replacements)
 		return block

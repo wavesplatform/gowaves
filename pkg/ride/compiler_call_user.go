@@ -9,7 +9,7 @@ type CallUserState struct {
 	name      string
 	argc      uint16
 	deferreds Deferreds
-	ns        []uniqueid
+	ns        []uniqueID
 }
 
 func (a CallUserState) backward(state State) State {

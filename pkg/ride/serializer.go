@@ -14,7 +14,6 @@ const (
 	sInt       byte = 103
 	sBytes     byte = 105
 	sString    byte = 106
-	sPoint     byte = 107
 	sMap       byte = 108
 	sNoValue   byte = 109
 	sAddress   byte = 110
@@ -70,11 +69,6 @@ func (a *Serializer) Bool(v bool) {
 	} else {
 		a.b.WriteByte(sFalse)
 	}
-}
-
-func (a *Serializer) Point(p point) {
-	a.b.WriteByte(sPoint)
-	a.Uint16(p.position)
 }
 
 func (a *Serializer) Byte(b byte) {

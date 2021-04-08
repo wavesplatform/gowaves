@@ -17,6 +17,12 @@ func encode(v uint16) []byte {
 	return b
 }
 
+func encode32(v uint32) []byte {
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, v)
+	return b
+}
+
 func compile(f State, node Node) (State, error) {
 	switch n := node.(type) {
 	case *AssignmentNode:

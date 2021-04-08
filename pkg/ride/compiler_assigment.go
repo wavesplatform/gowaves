@@ -8,7 +8,7 @@ type AssigmentState struct {
 	bodyParams params
 	prev       State
 	name       string
-	n          uniqueid
+	n          uniqueID
 	body       Deferred
 	d          Deferreds
 }
@@ -53,7 +53,7 @@ func (a AssigmentState) Boolean(v bool) State {
 	return a
 }
 
-func assigmentTransition(prev State, params params, name string, n uniqueid, d Deferreds) State {
+func assigmentTransition(prev State, params params, name string, n uniqueID, d Deferreds) State {
 	return newAssigment(prev, params, name, n, d)
 }
 
@@ -62,7 +62,7 @@ func extendParams(p params) params {
 	return p
 }
 
-func newAssigment(prev State, p params, name string, n uniqueid, d Deferreds) State {
+func newAssigment(prev State, p params, name string, n uniqueID, d Deferreds) State {
 	return AssigmentState{
 		prev:       prev,
 		params:     p,
