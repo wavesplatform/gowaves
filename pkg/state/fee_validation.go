@@ -2,8 +2,6 @@ package state
 
 import (
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/ride"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -187,20 +185,13 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams, isRideV5Acti
 	// check complexity of script for free verifier if complexity <= 200
 	complexity := 0
 	if accountScripted && isRideV5Activated {
-		tree, err := params.stor.scriptsStorage.newestScriptByAddr(senderAddr, !params.initialisation)
+
+		treeEstimation, err := params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, estimatorVersion, !params.initialisation)
 		if err != nil {
-			return nil, errors.Errorf("scriptsCost: failed to get script by addr, %v", err)
-		}
-		estimations := make(map[int]ride.TreeEstimation)
-		for ev := estimatorVersion; ev <= maxEstimatorVersion; ev++ {
-			est, err := ride.EstimateTree(tree, ev)
-			if err != nil {
-				return nil, errs.Extend(err, "failed to estimate script complexity")
-			}
-			estimations[ev] = est
+			return nil, errors.Errorf("failed to get complexity by addr from store, %v", err)
 		}
 
-		complexity = estimations[estimatorVersion].Verifier
+		complexity = treeEstimation.Verifier
 	}
 
 	smartAccounts := uint64(0)
