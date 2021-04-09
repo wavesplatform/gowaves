@@ -387,6 +387,11 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
+	assetID := *tx.ID
+	// Save complexities to storage so we won't have to calculate it every time the script is called.
+	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, estimations, info.blockID); err != nil {
+		return nil, err
+	}
 
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, err
@@ -395,11 +400,6 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 		return nil, err
 	}
 
-	assetID := *tx.ID
-	// Save complexities to storage so we won't have to calculate it every time the script is called.
-	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, estimations, info.blockID); err != nil {
-		return nil, err
-	}
 	return nil, nil
 }
 
@@ -1002,15 +1002,15 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
+	// Save complexity to storage so we won't have to calculate it every time the script is called.
+	if err := tc.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, info.blockID); err != nil {
+		return nil, err
+	}
 
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, err
 	}
 
-	// Save complexity to storage so we won't have to calculate it every time the script is called.
-	if err := tc.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, info.blockID); err != nil {
-		return nil, err
-	}
 	return nil, nil
 }
 
