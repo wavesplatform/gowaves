@@ -1064,12 +1064,18 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 	if err != nil {
 		return nil, err
 	}
+	rideV5activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return nil, err
+	}
 	l := len(tx.Payments)
 	switch {
-	case l > 1 && !multiPaymentActivated:
+	case l > 1 && !multiPaymentActivated && !rideV5activated:
 		return nil, errors.New("no more than one payment is allowed")
-	case l > 2 && multiPaymentActivated:
+	case l > 2 && multiPaymentActivated && !rideV5activated:
 		return nil, errors.New("no more than two payments is allowed")
+	case l > 10 && rideV5activated:
+		return nil, errors.New("no more than ten payments is allowed since RideV5 activation")
 	}
 	var paymentAssets []proto.OptionalAsset
 	for _, payment := range tx.Payments {
