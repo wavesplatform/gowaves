@@ -301,7 +301,8 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 		DisableSelfTransfers:     info.disableSelfTransfers,
 		KeySizeValidationVersion: keySizeValidationVersion,
 	}
-	if err := proto.ValidateActions(info.actions, restrictions); err != nil {
+
+	if err := proto.ValidateActions(info.actions, restrictions, int(info.libVersion)); err != nil {
 		return proto.DAppError, info.failedChanges, err
 	}
 	// Check full transaction fee (with actions and payments scripts).

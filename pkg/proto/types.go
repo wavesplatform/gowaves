@@ -25,31 +25,45 @@ import (
 
 const (
 	//WavesAssetName is the default name for basic WAVES asset.
-	WavesAssetName       = "WAVES"
-	quotedWavesAssetName = "\"" + WavesAssetName + "\""
-	orderLen             = crypto.PublicKeySize + crypto.PublicKeySize + 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8
-	orderV2FixedBodyLen  = 1 + orderLen
-	orderV3FixedBodyLen  = 1 + orderLen + 1
-	orderV1MinLen        = crypto.SignatureSize + orderLen
-	orderV2MinLen        = orderV2FixedBodyLen + proofsMinLen
-	orderV3MinLen        = orderV3FixedBodyLen + proofsMinLen
-	jsonNull             = "null"
-	integerArgumentLen   = 1 + 8
-	booleanArgumentLen   = 1
-	binaryArgumentMinLen = 1 + 4
-	stringArgumentMinLen = 1 + 4
-	listArgumentMinLen   = 1 + 4
-	PriceConstant        = 100000000
-	MaxOrderAmount       = 100 * PriceConstant * PriceConstant
-	MaxOrderTTL          = uint64((30 * 24 * time.Hour) / time.Millisecond)
-	MaxKeySize           = 100
-	MaxPBKeySize         = 400
-	maxValueSize         = 32767
-
-	MaxScriptActions                     = 10
+	WavesAssetName                       = "WAVES"
+	quotedWavesAssetName                 = "\"" + WavesAssetName + "\""
+	orderLen                             = crypto.PublicKeySize + crypto.PublicKeySize + 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8
+	orderV2FixedBodyLen                  = 1 + orderLen
+	orderV3FixedBodyLen                  = 1 + orderLen + 1
+	orderV1MinLen                        = crypto.SignatureSize + orderLen
+	orderV2MinLen                        = orderV2FixedBodyLen + proofsMinLen
+	orderV3MinLen                        = orderV3FixedBodyLen + proofsMinLen
+	jsonNull                             = "null"
+	integerArgumentLen                   = 1 + 8
+	booleanArgumentLen                   = 1
+	binaryArgumentMinLen                 = 1 + 4
+	stringArgumentMinLen                 = 1 + 4
+	listArgumentMinLen                   = 1 + 4
+	PriceConstant                        = 100000000
+	MaxOrderAmount                       = 100 * PriceConstant * PriceConstant
+	MaxOrderTTL                          = uint64((30 * 24 * time.Hour) / time.Millisecond)
+	MaxKeySize                           = 100
+	MaxPBKeySize                         = 400
+	maxValueSize                         = 32767
 	MaxDataEntryScriptActions            = 100
 	MaxDataEntryScriptActionsSizeInBytes = 5 * 1024
 )
+
+type MaxScriptActions struct {
+	BeforeRideScriptV5 int
+	AfterRideScriptV5  int
+}
+
+func NewMaxScriptActions() MaxScriptActions {
+	return MaxScriptActions{BeforeRideScriptV5: 10, AfterRideScriptV5: 30}
+}
+
+func (a MaxScriptActions) GetMaxScriptsComplexityInBlock(scriptVersion int) int {
+	if scriptVersion > 5 {
+		return a.AfterRideScriptV5
+	}
+	return a.BeforeRideScriptV5
+}
 
 type Timestamp = uint64
 type Score = big.Int
