@@ -32,6 +32,14 @@ func (a *Deserializer) Uint16() (uint16, error) {
 	return binary.BigEndian.Uint16(b), nil
 }
 
+func (a *Deserializer) Uint32() (uint32, error) {
+	b, err := a.readn(4)
+	if err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint32(b), nil
+}
+
 func (a *Deserializer) Byte() (byte, error) {
 	b, err := a.readn(1)
 	if err != nil {
@@ -56,7 +64,7 @@ func (a *Deserializer) Bool() (bool, error) {
 }
 
 func (a *Deserializer) Bytes() ([]byte, error) {
-	ln, err := a.Uint16()
+	ln, err := a.Uint32()
 	if err != nil {
 		return nil, err
 	}

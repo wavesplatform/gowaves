@@ -20,13 +20,13 @@ type ConditionalState struct {
 	params
 	prev State
 
-	rets []uint16
+	rets []uint32
 
 	// Clean assigments after exit.
 	deferred  []Deferred
 	deferreds Deferreds
 
-	condN uniqueid
+	condN uniqueID
 }
 
 func (a ConditionalState) backward(as State) State {
@@ -126,19 +126,19 @@ func (a ConditionalState) Write(_ params, _ []byte) {
 	a.b.write(encode(a.condN))
 
 	a.b.jpmIfFalse()
-	patchTruePosition := a.b.writeStub(2)
-	patchFalsePosition := a.b.writeStub(2)
-	patchNextPosition := a.b.writeStub(2)
+	patchTruePosition := a.b.writeStub(4)
+	patchFalsePosition := a.b.writeStub(4)
+	patchNextPosition := a.b.writeStub(4)
 
-	a.b.patch(patchTruePosition, encode(a.b.len()))
+	a.b.patch(patchTruePosition, encode32(a.b.len()))
 	trueB.Write(a.params, nil)
 	a.b.ret()
 
-	a.b.patch(patchFalsePosition, encode(a.b.len()))
+	a.b.patch(patchFalsePosition, encode32(a.b.len()))
 	falsB.Write(a.params, nil)
 	a.b.ret()
 
-	a.b.patch(patchNextPosition, encode(a.b.len()))
+	a.b.patch(patchNextPosition, encode32(a.b.len()))
 }
 func (a ConditionalState) Clean() {
 }

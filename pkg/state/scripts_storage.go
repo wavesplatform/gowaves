@@ -162,15 +162,11 @@ func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key []byte, rec
 	var exe *ride.Executable
 	if len(record.script) > 0 {
 		if len(record.bytecode) == 0 {
-			p, err := scriptBytesToTree(record.script)
+			tree, err := scriptBytesToTree(record.script)
 			if err != nil {
 				return err
 			}
-			//expandedTree, err := ride.Expand(p)
-			//if err != nil {
-			//	return err
-			//}
-			exe, err = ride.CompileTree("scriptsStorage setScript "+txID, p)
+			exe, err = ride.CompileTree("scriptsStorage setScript "+txID, tree)
 			if err != nil {
 				return err
 			}
@@ -252,8 +248,8 @@ func (ss *scriptsStorage) scriptExecutableFromRecordBytes(recordBytes []byte) (*
 		// Empty script = no script.
 		return nil, crypto.PublicKey{}, proto.ErrNotFound
 	}
-	tree, err := scriptBytesToExecutable(record.bytecode)
-	return tree, record.pk, err
+	exe, err := scriptBytesToExecutable(record.bytecode)
+	return exe, record.pk, err
 }
 
 func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (*ride.Tree, error) {
@@ -270,8 +266,8 @@ func (ss *scriptsStorage) newestBytecodeByKey(key []byte, filter bool) (*ride.Ex
 	if err != nil {
 		return nil, err
 	}
-	tree, _, err := ss.scriptExecutableFromRecordBytes(recordBytes)
-	return tree, err
+	exe, _, err := ss.scriptExecutableFromRecordBytes(recordBytes)
+	return exe, err
 }
 
 func (ss *scriptsStorage) scriptTreeByKey(key []byte, filter bool) (*ride.Tree, error) {
@@ -472,11 +468,11 @@ func (ss *scriptsStorage) newestScriptByAddr(addr proto.Address, filter bool) (*
 func (ss *scriptsStorage) newestBytecodeByAddr(addr proto.Address, filter bool) (*ride.Executable, error) {
 	key := accountScriptKey{addr}
 	keyBytes := key.bytes()
-	tree, err := ss.newestBytecodeByKey(keyBytes, filter)
+	exe, err := ss.newestBytecodeByKey(keyBytes, filter)
 	if err != nil {
 		return nil, err
 	}
-	return tree, nil
+	return exe, nil
 }
 
 func (ss *scriptsStorage) newestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {

@@ -3,6 +3,7 @@ package ride
 import (
 	"bytes"
 	sh256 "crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"strconv"
 
@@ -44,6 +45,14 @@ func Parse(source []byte) (*Tree, error) {
 		return nil, err
 	}
 	return p.parse()
+}
+
+func ParseB64(source string) (*Tree, error) {
+	src, err := base64.StdEncoding.DecodeString(source)
+	if err != nil {
+		return nil, err
+	}
+	return Parse(src)
 }
 
 type parser struct {

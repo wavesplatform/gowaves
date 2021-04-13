@@ -2,13 +2,13 @@ package ride
 
 import "bytes"
 
-type constid = uint16
+type constID = uint16
 
 type Refs map[uint16]point
 
 type Entrypoint struct {
 	name string
-	at   uint16
+	at   uint32
 	argn uint16
 }
 
@@ -17,7 +17,7 @@ func (a Entrypoint) Serialize(s Serializer) error {
 	if err != nil {
 		return err
 	}
-	s.Uint16(a.at)
+	s.Uint32(a.at)
 	s.Uint16(a.argn)
 	return nil
 }
@@ -29,7 +29,7 @@ func deserializeEntrypoint(d *Deserializer) (Entrypoint, error) {
 	if err != nil {
 		return a, err
 	}
-	a.at, err = d.Uint16()
+	a.at, err = d.Uint32()
 	if err != nil {
 		return a, err
 	}
@@ -52,8 +52,8 @@ func newBuilder() *builder {
 	}
 }
 
-func (b *builder) writeStub(len int) (position uint16) {
-	position = uint16(b.w.Len())
+func (b *builder) writeStub(len int) (position uint32) {
+	position = uint32(b.w.Len())
 	for i := 0; i < len; i++ {
 		b.w.WriteByte(0)
 	}
@@ -84,13 +84,13 @@ func (b *builder) ret() {
 	b.w.WriteByte(OpReturn)
 }
 
-func (b *builder) patch(at uint16, val []byte) {
+func (b *builder) patch(at uint32, val []byte) {
 	bts := b.w.Bytes()[at:]
 	copy(bts, val)
 }
 
-func (b *builder) len() uint16 {
-	return uint16(b.w.Len())
+func (b *builder) len() uint32 {
+	return uint32(b.w.Len())
 }
 
 func (b *builder) externalCall(id uint16, argc uint16) {
@@ -116,14 +116,14 @@ func (b *builder) write(i []byte) {
 }
 
 type point struct {
-	position  uint16
+	position  uint32
 	value     rideType
 	fn        uint16
 	debugInfo string
 }
 
 func (a point) Serialize(s Serializer) error {
-	s.Uint16(a.position)
+	s.Uint32(a.position)
 	if a.value != nil {
 		err := a.value.Serialize(s)
 		if err != nil {
@@ -148,7 +148,7 @@ func (a point) constant() bool {
 func deserializePoint(d *Deserializer) (point, error) {
 	var a point
 	var err error
-	a.position, err = d.Uint16()
+	a.position, err = d.Uint32()
 	if err != nil {
 		return a, err
 	}
@@ -168,16 +168,16 @@ func deserializePoint(d *Deserializer) (point, error) {
 }
 
 type cell struct {
-	values map[uniqueid]point
+	values map[uniqueID]point
 }
 
 func newCell() *cell {
 	return &cell{
-		values: make(map[uniqueid]point),
+		values: make(map[uniqueID]point),
 	}
 }
 
-func (a *cell) set(u uniqueid, result rideType, fn uint16, position uint16, constant bool, debug string) {
+func (a *cell) set(u uniqueID, result rideType, fn uint16, position uint32, debug string) {
 	a.values[u] = point{
 		position:  position,
 		value:     result,
@@ -186,11 +186,11 @@ func (a *cell) set(u uniqueid, result rideType, fn uint16, position uint16, cons
 	}
 }
 
-type uniqueid = uint16
+type uniqueID = uint16
 
 type refKind struct {
 	assigment bool
-	n         uniqueid
+	n         uniqueID
 }
 
 type references struct {
@@ -205,23 +205,23 @@ func newReferences(prev *references) *references {
 	}
 }
 
-func (a *references) setAssigment(name string, uniq uniqueid) {
-	a.refs[name] = append([]refKind{refKind{assigment: true, n: uniq}}, a.refs[name]...)
+func (a *references) setAssigment(name string, uniq uniqueID) {
+	a.refs[name] = append([]refKind{{assigment: true, n: uniq}}, a.refs[name]...)
 }
 
-func (a *references) setFunc(name string, uniq uniqueid) {
-	a.refs[name] = append([]refKind{refKind{assigment: false, n: uniq}}, a.refs[name]...)
+func (a *references) setFunc(name string, uniq uniqueID) {
+	a.refs[name] = append([]refKind{{assigment: false, n: uniq}}, a.refs[name]...)
 }
 
-func (a *references) getFunc(name string) (uniqueid, bool) {
+func (a *references) getFunc(name string) (uniqueID, bool) {
 	return a.get(name, false)
 }
 
-func (a *references) getAssigment(name string) (uniqueid, bool) {
+func (a *references) getAssigment(name string) (uniqueID, bool) {
 	return a.get(name, true)
 }
 
-func (a *references) get(name string, assigment bool) (uniqueid, bool) {
+func (a *references) get(name string, assigment bool) (uniqueID, bool) {
 	if a == nil {
 		return 0, false
 	}
@@ -285,7 +285,7 @@ type Deferred interface {
 }
 
 type constantDeferred struct {
-	n uniqueid
+	n uniqueID
 }
 
 func (a constantDeferred) Write(p params, _ []byte) {
@@ -296,11 +296,11 @@ func (a constantDeferred) Write(p params, _ []byte) {
 func (a constantDeferred) Clean() {
 }
 
-func NewConstantDeferred(n uniqueid) constantDeferred {
+func newConstantDeferred(n uniqueID) constantDeferred {
 	return constantDeferred{n: n}
 }
 
-func isConstant(deferred Deferred) (uniqueid, bool) {
+func isConstant(deferred Deferred) (uniqueID, bool) {
 	v, ok := deferred.(constantDeferred)
 	return v.n, ok
 }

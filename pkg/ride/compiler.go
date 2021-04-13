@@ -17,6 +17,12 @@ func encode(v uint16) []byte {
 	return b
 }
 
+func encode32(v uint32) []byte {
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, v)
+	return b
+}
+
 func compile(f State, node Node) (State, error) {
 	switch n := node.(type) {
 	case *AssignmentNode:
@@ -97,11 +103,11 @@ func CompileDapp(txID string, tree *Tree) (out *Executable, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			zap.S().Error(DecompileTree(tree), " ", r)
-			err = errors.New("failed to compile")
+			err = errors.Errorf("failed to compile: %s", r.(string))
 		}
 	}()
 	if !tree.IsDApp() {
-		return nil, errors.Errorf("unable to compile dappp")
+		return nil, errors.Errorf("unable to compile DApp")
 	}
 	fns := tree.Functions
 	if tree.HasVerifier() {

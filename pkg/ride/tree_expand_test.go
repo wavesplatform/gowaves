@@ -35,7 +35,7 @@ func TestTreeExpandWithArguments(t *testing.T) {
 	require.Equal(t,
 		lines(
 			`let z = { 5 };`,
-			`@i\nfunc f1(sessionId,rsaSign) { let x = { let v$f2 = { "e" }; value(getInteger(this,v$f2)) }; WriteSet(nil) }`,
+			`@i\nfunc f1(sessionId,rsaSign) { let x = { let v@f2 = { "e" }; value(getInteger(this,v@f2)) }; WriteSet(nil) }`,
 		),
 		DecompileTree(tree2),
 	)
@@ -66,7 +66,7 @@ func TestTreeExpandAsArgument(t *testing.T) {
 	tree2, _ := Expand(tree)
 
 	require.Equal(t,
-		`@i\nfunc f1() { WriteSet(1100(DataEntry("key",5),nil)) }`,
+		`@i\nfunc f1() { WriteSet((DataEntry("key",5) :: nil)) }`,
 		DecompileTree(tree2),
 	)
 }
@@ -103,7 +103,7 @@ func TestTreeExpandWithNamesIntersection(t *testing.T) {
 	tree2, _ := Expand(tree)
 
 	require.Equal(t,
-		`@i\nfunc callback() { let x = { let v$call = { 0 }; 10 }; WriteSet(1100(DataEntry("key",5),nil)) }`,
+		`@i\nfunc callback() { let x = { let v@call = { 0 }; 10 }; WriteSet((DataEntry("key",5) :: nil)) }`,
 		DecompileTree(tree2),
 	)
 }
@@ -130,7 +130,7 @@ func TestTreeExpand(t *testing.T) {
 		tree2, _ := Expand(tree)
 
 		require.Equal(t,
-			`(let inc$call = { 2 }; let v$inc = { inc$call }; (v$inc + 1) == 3)`,
+			`(let inc@call = { 2 }; let v@inc = { inc@call }; (v@inc + 1) == 3)`,
 			DecompileTree(tree2),
 		)
 		rs, err := CallTreeVerifier(nil, tree2)

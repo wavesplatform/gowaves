@@ -8,7 +8,7 @@ type PropertyState struct {
 	params
 	body      Deferred
 	deferreds Deferreds
-	n         uniqueid
+	n         uniqueID
 }
 
 func (a PropertyState) backward(as State) State {
@@ -25,8 +25,10 @@ func propertyTransition(prev State, params params, name string, d Deferreds) Sta
 	}
 }
 
-func (a PropertyState) Assigment(string) State {
-	panic("Illegal call `Assigment` on PropertyState")
+func (a PropertyState) Assigment(name string) State {
+	n := a.params.u.next()
+	return assigmentTransition(a, a.params, name, n, a.deferreds)
+	//panic(fmt.Sprintf("Illegal call `Assigment` on PropertyState (n=%d; prop=%s; assignment=%s)", a.n, a.name, s))
 }
 
 func (a PropertyState) Return() State {
@@ -65,7 +67,8 @@ func (a PropertyState) String(string) State {
 }
 
 func (a PropertyState) Condition() State {
-	panic("Illegal call `Condition` on PropertyState")
+	return conditionalTransition(a, a.params, a.deferreds)
+	//panic("Illegal call `Condition` on PropertyState")
 }
 
 func (a PropertyState) TrueBranch() State {
@@ -96,7 +99,7 @@ func (a PropertyState) Write(_ params, b []byte) {
 	a.b.writeByte(OpRef)
 	a.b.write(encode(a.n))
 	next := a.u.next()
-	a.c.set(next, rideString(a.name), 0, 0, true, fmt.Sprintf("property?? %s", a.name))
+	a.c.set(next, rideString(a.name), 0, 0, fmt.Sprintf("property?? %s", a.name))
 	a.b.writeByte(OpRef)
 	a.b.write(encode(next))
 	a.b.writeByte(OpProperty)
