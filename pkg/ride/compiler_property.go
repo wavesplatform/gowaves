@@ -25,8 +25,10 @@ func propertyTransition(prev State, params params, name string, d Deferreds) Sta
 	}
 }
 
-func (a PropertyState) Assigment(string) State {
-	panic("Illegal call `Assigment` on PropertyState")
+func (a PropertyState) Assigment(name string) State {
+	n := a.params.u.next()
+	return assigmentTransition(a, a.params, name, n, a.deferreds)
+	//panic(fmt.Sprintf("Illegal call `Assigment` on PropertyState (n=%d; prop=%s; assignment=%s)", a.n, a.name, s))
 }
 
 func (a PropertyState) Return() State {
@@ -65,7 +67,8 @@ func (a PropertyState) String(string) State {
 }
 
 func (a PropertyState) Condition() State {
-	panic("Illegal call `Condition` on PropertyState")
+	return conditionalTransition(a, a.params, a.deferreds)
+	//panic("Illegal call `Condition` on PropertyState")
 }
 
 func (a PropertyState) TrueBranch() State {
