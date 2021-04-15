@@ -378,16 +378,16 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 		return nil, errors.New("failed to convert interface to IssueWithProofs transaction")
 	}
 	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
-
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, err
+	}
+	if err := tc.checkIssue(&tx.Issue, info); err != nil {
+		return nil, err
+	}
 	if len(tx.Script) == 0 {
 		// No script checks / actions are needed.
 		return nil, nil
 	}
-
-	if err := tc.checkFee(transaction, assets, info); err != nil {
-		return nil, err
-	}
-
 	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion())
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
@@ -395,10 +395,6 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 	assetID := *tx.ID
 	// Save complexities to storage so we won't have to calculate it every time the script is called.
 	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, estimations, info.blockID); err != nil {
-		return nil, err
-	}
-
-	if err := tc.checkIssue(&tx.Issue, info); err != nil {
 		return nil, err
 	}
 
@@ -1032,9 +1028,12 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 
 	smartAssets := []crypto.Digest{tx.AssetID}
 	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
-
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errs.Extend(err, "check fee")
+	}
+
+	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 
 	isSmartAsset := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
@@ -1051,10 +1050,6 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	// Save complexity to storage so we won't have to calculate it every time the script is called.
 	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(tx.AssetID, estimations, info.blockID); err != nil {
 		return nil, errs.Extend(err, "saveComplexityForAsset")
-	}
-
-	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
-		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 
 	return smartAssets, nil
