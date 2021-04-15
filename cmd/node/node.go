@@ -59,7 +59,7 @@ var (
 	apiKey                                = flag.String("api-key", "", "Api key")
 	grpcAddr                              = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
 	enableGrpcApi                         = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
-	buildExtendedApi                      = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
+	buildExtendedApi                      = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
 	serveExtendedApi                      = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	buildStateHashes                      = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
 	bindAddress                           = flag.String("bind-address", "", "Bind address for incoming connections. If empty, will be same as declared address")
@@ -87,8 +87,8 @@ var (
 
 var defaultPeers = map[string]string{
 	"mainnet":  "34.253.153.4:6868,168.119.116.189:6868,135.181.87.72:6868,35.158.218.156:6868,52.48.34.89:6868",
-	"testnet":  "159.69.126.149:6863,94.130.105.239:6863,159.69.126.153:6863,94.130.172.201:6863",
-	"stagenet": "88.99.185.128:6862,49.12.15.166:6862,95.216.205.3:6862,88.198.179.16:6862",
+	"testnet":  "159.69.126.149:6868,94.130.105.239:6868,159.69.126.153:6868,94.130.172.201:6868",
+	"stagenet": "88.99.185.128:6868,49.12.15.166:6868,95.216.205.3:6868,88.198.179.16:6868",
 }
 
 type Scheduler interface {
@@ -367,8 +367,8 @@ func main() {
 		if *prometheus != "" {
 			h := http.NewServeMux()
 			h.Handle("/metrics", promhttp.Handler())
-			server := &http.Server{Addr: *prometheus, Handler: h}
-			_ = server.ListenAndServe()
+			s := &http.Server{Addr: *prometheus, Handler: h}
+			_ = s.ListenAndServe()
 		}
 	}()
 
