@@ -68,7 +68,7 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 	if err != nil {
 		return err
 	}
-	continuationActivated, err := tc.stor.features.newestIsActivated(int16(settings.ContinuationTransaction))
+	continuationActivated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
 	if err != nil {
 		return err
 	}
@@ -92,8 +92,10 @@ func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation 
 	switch tree.LibVersion {
 	case 1, 2:
 		maxComplexity = 2000
-	case 3, 4, 5:
+	case 3, 4:
 		maxComplexity = 4000
+	case 5:
+		maxComplexity = 26000
 	}
 	complexity := estimation.Verifier
 	if tree.IsDApp() {
@@ -1064,12 +1066,18 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 	if err != nil {
 		return nil, err
 	}
+	rideV5activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return nil, err
+	}
 	l := len(tx.Payments)
 	switch {
-	case l > 1 && !multiPaymentActivated:
+	case l > 1 && !multiPaymentActivated && !rideV5activated:
 		return nil, errors.New("no more than one payment is allowed")
-	case l > 2 && multiPaymentActivated:
+	case l > 2 && multiPaymentActivated && !rideV5activated:
 		return nil, errors.New("no more than two payments is allowed")
+	case l > 10 && rideV5activated:
+		return nil, errors.New("no more than ten payments is allowed since RideV5 activation")
 	}
 	var paymentAssets []proto.OptionalAsset
 	for _, payment := range tx.Payments {

@@ -2,7 +2,7 @@ package miner
 
 import (
 	"context"
-
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
@@ -15,13 +15,12 @@ import (
 )
 
 type MicroblockMiner struct {
-	utx         types.UtxPool
-	state       state.State
-	peer        peer_manager.PeerManager
-	constraints Constraints
-	services    services.Services
-	features    Features
-	// reward vote 600000000
+	utx                             types.UtxPool
+	state                           state.State
+	peer                            peer_manager.PeerManager
+	constraints                     Constraints
+	services                        services.Services
+	features                        Features
 	reward                          int64
 	maxTransactionTimeForwardOffset proto.Timestamp
 }
@@ -71,12 +70,19 @@ func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k
 		return nil, proto.MiningLimits{}, err
 	}
 	b := bi.(*proto.Block)
+
+	activated, err := a.state.IsActivated(int16(settings.RideV5))
+	if err != nil {
+		return nil, proto.MiningLimits{}, errors.Wrapf(err, "failed to check if feature %d is activated", settings.RideV5)
+	}
+
 	rest := proto.MiningLimits{
 		MaxScriptRunsInBlock:        a.constraints.MaxScriptRunsInBlock,
-		MaxScriptsComplexityInBlock: a.constraints.MaxScriptsComplexityInBlock,
+		MaxScriptsComplexityInBlock: a.constraints.MaxScriptsComplexityInBlock.GetMaxScriptsComplexityInBlock(activated),
 		ClassicAmountOfTxsInBlock:   a.constraints.ClassicAmountOfTxsInBlock,
 		MaxTxsSizeInBytes:           a.constraints.MaxTxsSizeInBytes - 4,
 	}
+
 	return b, rest, nil
 }
 

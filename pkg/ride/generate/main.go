@@ -325,7 +325,6 @@ func functionsV4() map[string]string {
 	m["1103"] = "indexOfList"
 	m["1104"] = "lastIndexOfList"
 	m["1209"] = "makeString"
-	m["1020"] = "invoke"
 	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		m[strconv.Itoa(2400+i)] = fmt.Sprintf("bls12Groth16Verify_%d", l)
 	}
@@ -418,7 +417,6 @@ func catalogueV4() map[string]int {
 	m["1207"] = 3
 	m["1208"] = 3
 	m["1209"] = 30
-	m["1020"] = 1 // TODO write true value
 	for i, c := range []int{1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600} {
 		m[strconv.Itoa(2400+i)] = c
 	}
@@ -467,15 +465,41 @@ func catalogueV4() map[string]int {
 
 func functionsV5() map[string]string {
 	m := functionsV4()
-	m["1081"] = "calculateLeaseID"
-	m["1092"] = "simplifiedLease"
-	m["1093"] = "fullLease"
-	m["LeaseCancel"] = "leaseCancel"
+	m["118"] = "powBigInt"
+	m["119"] = "logBigInt"
 	m["303"] = "takeStringV5"
 	m["304"] = "dropStringV5"
 	m["305"] = "sizeStringV5"
+	m["310"] = "toBigInt"
+	m["311"] = "sumBigInt"
+	m["312"] = "subtractBigInt"
+	m["313"] = "multiplyBigInt"
+	m["314"] = "divideBigInt"
+	m["315"] = "moduloBigInt"
+	m["316"] = "fractionBigInt"
+	m["317"] = "fractionBigIntRounds"
+	m["318"] = "unaryMinusBigInt"
+	m["319"] = "gtBigInt"
+	m["320"] = "geBigInt"
+	m["408"] = "maxListBigInt"
+	m["409"] = "minListBigInt"
+	m["413"] = "bigIntToBytes"
+	m["414"] = "bytesToBigInt"
+	m["415"] = "bytesToBigIntLim"
+	m["416"] = "bigIntToInt"
+	m["422"] = "bigIntToString"
+	m["423"] = "stringToBigInt"
+	m["424"] = "stringToBigIntOpt"
+	m["425"] = "medianListBigInt"
+	m["1009"] = "hashScriptAtAddress"
+	m["1020"] = "invoke"
+	m["1054"] = "isDataStorageUntouched"
+	m["1081"] = "calculateLeaseID"
+	m["1092"] = "simplifiedLease"
+	m["1093"] = "fullLease"
 	m["1203"] = "indexOfSubstringV5"
 	m["1204"] = "indexOfSubstringWithOffsetV5"
+	m["LeaseCancel"] = "leaseCancel"
 	m["takeRight"] = "takeRightStringV5"
 	m["dropRight"] = "dropRightStringV5"
 	return m
@@ -483,10 +507,38 @@ func functionsV5() map[string]string {
 
 func catalogueV5() map[string]int {
 	m := catalogueV4()
-	m["1081"] = 1 //TODO: put actual value here
+	m["118"] = 200
+	m["119"] = 200
+	m["310"] = 1
+	m["311"] = 8
+	m["312"] = 8
+	m["313"] = 64
+	m["314"] = 64
+	m["315"] = 64
+	m["316"] = 128
+	m["317"] = 128
+	m["318"] = 8
+	m["319"] = 8
+	m["320"] = 8
+	m["408"] = 192
+	m["409"] = 192
+	m["413"] = 65
+	m["414"] = 65
+	m["415"] = 65
+	m["416"] = 1
+	m["422"] = 65
+	m["423"] = 65
+	m["424"] = 65
+	m["425"] = 160
+	m["1009"] = 200
+	m["1020"] = 75
+	m["1054"] = 10
+	m["1081"] = 1
 	m["1092"] = 1
 	m["1093"] = 1
 	m["LeaseCancel"] = 1
+	delete(m, "Up")
+	delete(m, "HalfDown")
 	return m
 }
 
@@ -544,7 +596,10 @@ func constantsV4() map[string]constantDescription {
 }
 
 func constantsV5() map[string]constantDescription {
-	return constantsV4()
+	c := constantsV4()
+	delete(c, "UP")
+	delete(c, "HALFDOWN")
+	return c
 }
 
 func constructorsFromConstants(m map[string]string, c map[string]constantDescription) {

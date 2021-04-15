@@ -251,9 +251,13 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64) error {
 		return err
 	}
 	if ride4DAppsActivated {
-		// TODO: fix estimator and return error here instead of warning.
-		if a.sc.getTotalComplexity() > maxScriptsComplexityInBlock {
-			zap.S().Warn("complexity limit per block is exceeded")
+		rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
+		if err != nil {
+			return errors.Wrapf(err, "failed to check if feature %d is activated", settings.RideV5)
+		}
+		maxBlockComplexity := NewMaxScriptsComplexityInBlock().GetMaxScriptsComplexityInBlock(rideV5Activated)
+		if a.sc.getTotalComplexity() > uint64(maxBlockComplexity) {
+			return errors.New("complexity limit per block is exceeded")
 		}
 		return nil
 	} else if smartAccountsActivated {

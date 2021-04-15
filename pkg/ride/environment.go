@@ -72,6 +72,7 @@ func (ws *WrappedState) NewestTransactionByID(id []byte) (proto.Transaction, err
 func (ws *WrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
 	return ws.diff.state.NewestTransactionHeightByID(id)
 }
+
 func (ws *WrappedState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
 	return ws.diff.state.GetByteTree(recipient)
 }
@@ -150,6 +151,10 @@ func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.
 		return nil, err
 	}
 	return balance, nil
+}
+
+func (ws *WrappedState) IsStateUntouched(account proto.Recipient) (bool, error) {
+	return ws.diff.state.IsStateUntouched(account)
 }
 
 func (ws *WrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
@@ -353,6 +358,11 @@ func (ws *WrappedState) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Sc
 	return ws.diff.state.NewestScriptByAsset(asset)
 }
 
+func (ws *WrappedState) newMaxScriptComplexity(scriptVersion int) int {
+	maxScriptActions := proto.NewMaxScriptActions()
+	return maxScriptActions.GetMaxScriptsComplexityInBlock(scriptVersion)
+}
+
 func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env Environment) (bool, error) {
 	if !asset.Present {
 		return true, nil
@@ -450,9 +460,14 @@ func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *prot
 	if !assetResult {
 		return errors.New("action is forbidden by smart asset script")
 	}
+	scriptVersion, err := ws.getLibVersion()
+	if err != nil {
+		return err
+	}
+	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
 
-	if *otherActionsCount > proto.MaxScriptActions {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+	if *otherActionsCount > maxScriptAction {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
 	}
 	if res.Amount < 0 {
 		return errors.New("negative transfer amount")
@@ -509,8 +524,14 @@ func (ws *WrappedState) validateDataEntryAction(dataEntriesCount *int, dataEntri
 
 func (ws *WrappedState) validateIssueAction(otherActionsCount *int, res *proto.IssueScriptAction) error {
 	*otherActionsCount++
-	if *otherActionsCount > proto.MaxScriptActions {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+	scriptVersion, err := ws.getLibVersion()
+	if err != nil {
+		return err
+	}
+	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
+
+	if *otherActionsCount > maxScriptAction {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
 	}
 	if res.Quantity < 0 {
 		return errors.New("negative quantity")
@@ -539,8 +560,14 @@ func (ws *WrappedState) validateReissueAction(otherActionsCount *int, res *proto
 		return errors.New("action is forbidden by smart asset script")
 	}
 
-	if *otherActionsCount > proto.MaxScriptActions {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+	scriptVersion, err := ws.getLibVersion()
+	if err != nil {
+		return err
+	}
+	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
+
+	if *otherActionsCount > maxScriptAction {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
 	}
 	if res.Quantity < 0 {
 		return errors.New("negative quantity")
@@ -570,8 +597,14 @@ func (ws *WrappedState) validateBurnAction(otherActionsCount *int, res *proto.Bu
 		return errors.New("action is forbidden by smart asset script")
 	}
 
-	if *otherActionsCount > proto.MaxScriptActions {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+	scriptVersion, err := ws.getLibVersion()
+	if err != nil {
+		return err
+	}
+	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
+
+	if *otherActionsCount > maxScriptAction {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
 	}
 	if res.Quantity < 0 {
 		return errors.New("negative quantity")
@@ -590,8 +623,14 @@ func (ws *WrappedState) validateBurnAction(otherActionsCount *int, res *proto.Bu
 
 func (ws *WrappedState) validateSponsorshipAction(otherActionsCount *int, res *proto.SponsorshipScriptAction) error {
 	*otherActionsCount++
-	if *otherActionsCount > proto.MaxScriptActions {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+	scriptVersion, err := ws.getLibVersion()
+	if err != nil {
+		return err
+	}
+	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
+
+	if *otherActionsCount > maxScriptAction {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
 	}
 	if res.MinFee < 0 {
 		return errors.New("negative minimal fee")
@@ -602,8 +641,14 @@ func (ws *WrappedState) validateSponsorshipAction(otherActionsCount *int, res *p
 
 func (ws *WrappedState) validateLeaseAction(otherActionsCount *int, res *proto.LeaseScriptAction, restrictions proto.ActionsValidationRestrictions) error {
 	*otherActionsCount++
-	if *otherActionsCount > proto.MaxScriptActions {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+	scriptVersion, err := ws.getLibVersion()
+	if err != nil {
+		return err
+	}
+	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
+
+	if *otherActionsCount > maxScriptAction {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
 	}
 	if res.Amount < 0 {
 		return errors.New("negative leasing amount")
@@ -632,8 +677,14 @@ func (ws *WrappedState) validateLeaseAction(otherActionsCount *int, res *proto.L
 
 func (ws *WrappedState) validateLeaseCancelAction(otherActionsCount *int) error {
 	*otherActionsCount++
-	if *otherActionsCount > proto.MaxScriptActions {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", proto.MaxScriptActions)
+	scriptVersion, err := ws.getLibVersion()
+	if err != nil {
+		return err
+	}
+	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
+
+	if *otherActionsCount > maxScriptAction {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
 	}
 	return nil
 }
@@ -1017,6 +1068,10 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 		return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 	}
 	recipient := proto.NewRecipientFromAddress(proto.Address(env.th.(rideAddress)))
+
+	env.inv["originalCaller"] = rideAddress(caller)
+	env.inv["originalCallerPublicKey"] = rideBytes(callerPK.Bytes())
+	//TODO add test for these fields
 
 	st := newWrappedState(env)
 

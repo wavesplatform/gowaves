@@ -43,6 +43,7 @@ type SmartState interface {
 	NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error)
 	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
 	NewestLeasingInfo(id crypto.Digest, filter bool) (*proto.LeaseInfo, error)
+	IsStateUntouched(account proto.Recipient) (bool, error)
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error)

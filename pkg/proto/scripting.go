@@ -428,7 +428,12 @@ type ActionsValidationRestrictions struct {
 	Scheme                   byte
 }
 
-func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions) error {
+func getMaxScriptActions(libVersion int) int {
+	maxScriptActionInstance := NewMaxScriptActions()
+	return maxScriptActionInstance.GetMaxScriptsComplexityInBlock(libVersion)
+}
+
+func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions, libVersion int) error {
 	dataEntriesCount := 0
 	dataEntriesSize := 0
 	otherActionsCount := 0
@@ -456,8 +461,10 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *TransferScriptAction:
 			otherActionsCount++
-			if otherActionsCount > MaxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
+
+			maxScriptActions := getMaxScriptActions(libVersion)
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
 			if ta.Amount < 0 {
 				return errors.New("negative transfer amount")
@@ -478,8 +485,9 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *IssueScriptAction:
 			otherActionsCount++
-			if otherActionsCount > MaxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
+			maxScriptActions := getMaxScriptActions(libVersion)
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
 			if ta.Quantity < 0 {
 				return errors.New("negative quantity")
@@ -496,8 +504,9 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *ReissueScriptAction:
 			otherActionsCount++
-			if otherActionsCount > MaxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
+			maxScriptActions := getMaxScriptActions(libVersion)
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
 			if ta.Quantity < 0 {
 				return errors.New("negative quantity")
@@ -505,8 +514,9 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *BurnScriptAction:
 			otherActionsCount++
-			if otherActionsCount > MaxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
+			maxScriptActions := getMaxScriptActions(libVersion)
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
 			if ta.Quantity < 0 {
 				return errors.New("negative quantity")
@@ -514,8 +524,9 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *SponsorshipScriptAction:
 			otherActionsCount++
-			if otherActionsCount > MaxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
+			maxScriptActions := getMaxScriptActions(libVersion)
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
 			if ta.MinFee < 0 {
 				return errors.New("negative minimal fee")
@@ -523,8 +534,9 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *LeaseScriptAction:
 			otherActionsCount++
-			if otherActionsCount > MaxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
+			maxScriptActions := getMaxScriptActions(libVersion)
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
 			if ta.Amount < 0 {
 				return errors.New("negative leasing amount")
@@ -543,8 +555,9 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *LeaseCancelScriptAction:
 			otherActionsCount++
-			if otherActionsCount > MaxScriptActions {
-				return errors.Errorf("number of actions produced by script is more than allowed %d", MaxScriptActions)
+			maxScriptActions := getMaxScriptActions(libVersion)
+			if otherActionsCount > maxScriptActions {
+				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
 
 		default:

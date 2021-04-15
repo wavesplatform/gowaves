@@ -24,12 +24,10 @@ import (
 )
 
 const (
-	rollbackMaxBlocks = 2000
-	blocksStorDir     = "blocks_storage"
-	keyvalueDir       = "key_value"
-
-	maxScriptsRunsInBlock       = 101
-	maxScriptsComplexityInBlock = 1000000
+	rollbackMaxBlocks     = 2000
+	blocksStorDir         = "blocks_storage"
+	keyvalueDir           = "key_value"
+	maxScriptsRunsInBlock = 101
 )
 
 var empty struct{}
@@ -1694,6 +1692,18 @@ func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEnt
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return entries, nil
+}
+
+func (s *stateManager) IsStateUntouched(account proto.Recipient) (bool, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	entryExist, err := s.stor.accountsDataStor.isEntryExist(*addr, true)
+	if err != nil {
+		return false, wrapErr(RetrievalError, err)
+	}
+	return !entryExist, nil
 }
 
 func (s *stateManager) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
