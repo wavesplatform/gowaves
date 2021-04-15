@@ -144,6 +144,10 @@ func newTxCosts(smartAssets, smartAccounts uint64, isRideV5Activated bool, compl
 	smartAssetsFee := smartAssets * scriptExtraFee
 	smartAccountsFee := smartAccounts * scriptExtraFee
 
+	if isRideV5Activated {
+		smartAssetsFee = 0 // since RideV5 we have to erase extra fee for smart asset scripts
+	}
+
 	if isAccountScripted && isRideV5Activated && complexity <= FreeVerifierComplexity {
 		smartAccountsFee = 0
 	}
