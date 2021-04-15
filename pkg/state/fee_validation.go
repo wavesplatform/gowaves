@@ -190,7 +190,9 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams, isRideV5Acti
 		if err != nil {
 			return nil, errors.Errorf("failed to get complexity by addr from store, %v", err)
 		}
-
+		if treeEstimation == nil {
+			return nil, errors.Errorf("failed to get complexity by addr from store: estimation tree is empty")
+		}
 		complexity = treeEstimation.Verifier
 	}
 

@@ -383,6 +383,11 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 		// No script checks / actions are needed.
 		return nil, nil
 	}
+
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, err
+	}
+
 	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion())
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
@@ -393,9 +398,6 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 		return nil, err
 	}
 
-	if err := tc.checkFee(transaction, assets, info); err != nil {
-		return nil, err
-	}
 	if err := tc.checkIssue(&tx.Issue, info); err != nil {
 		return nil, err
 	}
@@ -987,6 +989,11 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 		return nil, errs.Extend(err, "invalid timestamp")
 	}
 	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, err
+	}
+
 	addr, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
 		return nil, err
@@ -1004,10 +1011,6 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 	}
 	// Save complexity to storage so we won't have to calculate it every time the script is called.
 	if err := tc.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, info.blockID); err != nil {
-		return nil, err
-	}
-
-	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, err
 	}
 
@@ -1030,6 +1033,10 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	smartAssets := []crypto.Digest{tx.AssetID}
 	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
 
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, errs.Extend(err, "check fee")
+	}
+
 	isSmartAsset := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
 	if len(tx.Script) == 0 {
 		return nil, errs.NewTxValidationError("Cannot set empty script")
@@ -1046,9 +1053,6 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 		return nil, errs.Extend(err, "saveComplexityForAsset")
 	}
 
-	if err := tc.checkFee(transaction, assets, info); err != nil {
-		return nil, errs.Extend(err, "check fee")
-	}
 	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
 		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
