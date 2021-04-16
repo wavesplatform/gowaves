@@ -161,11 +161,16 @@ func (tc *transactionChecker) checkFee(
 		initialisation: info.initialisation,
 		txAssets:       assets,
 	}
+
+	isRideV5Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return errors.Errorf("failed to check if feature is was activated, %v", err)
+	}
 	if !assets.feeAsset.Present {
 		// Waves.
-		return checkMinFeeWaves(tx, params)
+		return checkMinFeeWaves(tx, params, isRideV5Activated, info.estimatorVersion())
 	}
-	return checkMinFeeAsset(tx, assets.feeAsset.ID, params)
+	return checkMinFeeAsset(tx, assets.feeAsset.ID, params, isRideV5Activated, info.estimatorVersion())
 }
 
 func (tc *transactionChecker) checkFromFuture(timestamp uint64) bool {
@@ -394,6 +399,7 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, estimations, info.blockID); err != nil {
 		return nil, err
 	}
+
 	return nil, nil
 }
 
@@ -527,6 +533,7 @@ func (tc *transactionChecker) checkBurnWithProofs(transaction proto.Transaction,
 	if err != nil {
 		return nil, err
 	}
+
 	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: smartAssets}
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, err
@@ -980,9 +987,11 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 		return nil, errs.Extend(err, "invalid timestamp")
 	}
 	assets := &txAssets{feeAsset: proto.OptionalAsset{Present: false}}
+
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, err
 	}
+
 	addr, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
 		return nil, err
@@ -1002,6 +1011,7 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 	if err := tc.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, info.blockID); err != nil {
 		return nil, err
 	}
+
 	return nil, nil
 }
 
@@ -1023,9 +1033,11 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if err := tc.checkFee(transaction, assets, info); err != nil {
 		return nil, errs.Extend(err, "check fee")
 	}
+
 	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
 		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
+
 	isSmartAsset := tc.stor.scriptsStorage.newestIsSmartAsset(tx.AssetID, !info.initialisation)
 	if len(tx.Script) == 0 {
 		return nil, errs.NewTxValidationError("Cannot set empty script")
@@ -1041,6 +1053,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(tx.AssetID, estimations, info.blockID); err != nil {
 		return nil, errs.Extend(err, "saveComplexityForAsset")
 	}
+
 	return smartAssets, nil
 }
 
