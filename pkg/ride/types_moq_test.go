@@ -4,10 +4,11 @@
 package ride
 
 import (
+	"sync"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"sync"
 )
 
 // Ensure, that MockSmartState does implement types.SmartState.
@@ -59,7 +60,7 @@ var _ types.SmartState = &MockSmartState{}
 //             NewestHeaderByHeightFunc: func(height uint64) (*proto.BlockHeader, error) {
 // 	               panic("mock out the NewestHeaderByHeight method")
 //             },
-//             NewestLeasingInfoFunc: func(id crypto.Digest, filter bool) (*proto.LeaseInfo, error) {
+//             NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
 // 	               panic("mock out the NewestLeasingInfo method")
 //             },
 //             NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
@@ -68,7 +69,7 @@ var _ types.SmartState = &MockSmartState{}
 //             NewestScriptByAssetFunc: func(asset proto.OptionalAsset) (proto.Script, error) {
 // 	               panic("mock out the NewestScriptByAsset method")
 //             },
-//             NewestScriptPKByAddrFunc: func(addr proto.Address, filter bool) (crypto.PublicKey, error) {
+//             NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
 // 	               panic("mock out the NewestScriptPKByAddr method")
 //             },
 //             NewestTransactionByIDFunc: func(in1 []byte) (proto.Transaction, error) {
@@ -136,7 +137,7 @@ type MockSmartState struct {
 	NewestHeaderByHeightFunc func(height uint64) (*proto.BlockHeader, error)
 
 	// NewestLeasingInfoFunc mocks the NewestLeasingInfo method.
-	NewestLeasingInfoFunc func(id crypto.Digest, filter bool) (*proto.LeaseInfo, error)
+	NewestLeasingInfoFunc func(id crypto.Digest) (*proto.LeaseInfo, error)
 
 	// NewestRecipientToAddressFunc mocks the NewestRecipientToAddress method.
 	NewestRecipientToAddressFunc func(recipient proto.Recipient) (*proto.Address, error)
@@ -145,7 +146,7 @@ type MockSmartState struct {
 	NewestScriptByAssetFunc func(asset proto.OptionalAsset) (proto.Script, error)
 
 	// NewestScriptPKByAddrFunc mocks the NewestScriptPKByAddr method.
-	NewestScriptPKByAddrFunc func(addr proto.Address, filter bool) (crypto.PublicKey, error)
+	NewestScriptPKByAddrFunc func(addr proto.Address) (crypto.PublicKey, error)
 
 	// NewestTransactionByIDFunc mocks the NewestTransactionByID method.
 	NewestTransactionByIDFunc func(in1 []byte) (proto.Transaction, error)
@@ -236,8 +237,6 @@ type MockSmartState struct {
 		NewestLeasingInfo []struct {
 			// ID is the id argument value.
 			ID crypto.Digest
-			// Filter is the filter argument value.
-			Filter bool
 		}
 		// NewestRecipientToAddress holds details about calls to the NewestRecipientToAddress method.
 		NewestRecipientToAddress []struct {
@@ -253,8 +252,6 @@ type MockSmartState struct {
 		NewestScriptPKByAddr []struct {
 			// Addr is the addr argument value.
 			Addr proto.Address
-			// Filter is the filter argument value.
-			Filter bool
 		}
 		// NewestTransactionByID holds details about calls to the NewestTransactionByID method.
 		NewestTransactionByID []struct {
@@ -722,33 +719,29 @@ func (mock *MockSmartState) NewestHeaderByHeightCalls() []struct {
 }
 
 // NewestLeasingInfo calls NewestLeasingInfoFunc.
-func (mock *MockSmartState) NewestLeasingInfo(id crypto.Digest, filter bool) (*proto.LeaseInfo, error) {
+func (mock *MockSmartState) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, error) {
 	if mock.NewestLeasingInfoFunc == nil {
 		panic("MockSmartState.NewestLeasingInfoFunc: method is nil but SmartState.NewestLeasingInfo was just called")
 	}
 	callInfo := struct {
-		ID     crypto.Digest
-		Filter bool
+		ID crypto.Digest
 	}{
-		ID:     id,
-		Filter: filter,
+		ID: id,
 	}
 	mock.lockNewestLeasingInfo.Lock()
 	mock.calls.NewestLeasingInfo = append(mock.calls.NewestLeasingInfo, callInfo)
 	mock.lockNewestLeasingInfo.Unlock()
-	return mock.NewestLeasingInfoFunc(id, filter)
+	return mock.NewestLeasingInfoFunc(id)
 }
 
 // NewestLeasingInfoCalls gets all the calls that were made to NewestLeasingInfo.
 // Check the length with:
 //     len(mockedSmartState.NewestLeasingInfoCalls())
 func (mock *MockSmartState) NewestLeasingInfoCalls() []struct {
-	ID     crypto.Digest
-	Filter bool
+	ID crypto.Digest
 } {
 	var calls []struct {
-		ID     crypto.Digest
-		Filter bool
+		ID crypto.Digest
 	}
 	mock.lockNewestLeasingInfo.RLock()
 	calls = mock.calls.NewestLeasingInfo
@@ -819,33 +812,29 @@ func (mock *MockSmartState) NewestScriptByAssetCalls() []struct {
 }
 
 // NewestScriptPKByAddr calls NewestScriptPKByAddrFunc.
-func (mock *MockSmartState) NewestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
+func (mock *MockSmartState) NewestScriptPKByAddr(addr proto.Address) (crypto.PublicKey, error) {
 	if mock.NewestScriptPKByAddrFunc == nil {
 		panic("MockSmartState.NewestScriptPKByAddrFunc: method is nil but SmartState.NewestScriptPKByAddr was just called")
 	}
 	callInfo := struct {
-		Addr   proto.Address
-		Filter bool
+		Addr proto.Address
 	}{
-		Addr:   addr,
-		Filter: filter,
+		Addr: addr,
 	}
 	mock.lockNewestScriptPKByAddr.Lock()
 	mock.calls.NewestScriptPKByAddr = append(mock.calls.NewestScriptPKByAddr, callInfo)
 	mock.lockNewestScriptPKByAddr.Unlock()
-	return mock.NewestScriptPKByAddrFunc(addr, filter)
+	return mock.NewestScriptPKByAddrFunc(addr)
 }
 
 // NewestScriptPKByAddrCalls gets all the calls that were made to NewestScriptPKByAddr.
 // Check the length with:
 //     len(mockedSmartState.NewestScriptPKByAddrCalls())
 func (mock *MockSmartState) NewestScriptPKByAddrCalls() []struct {
-	Addr   proto.Address
-	Filter bool
+	Addr proto.Address
 } {
 	var calls []struct {
-		Addr   proto.Address
-		Filter bool
+		Addr proto.Address
 	}
 	mock.lockNewestScriptPKByAddr.RLock()
 	calls = mock.calls.NewestScriptPKByAddr

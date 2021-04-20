@@ -196,7 +196,7 @@ func (diffSt *diffState) findLeaseByIDForCancel(leaseID crypto.Digest) (*lease, 
 	if lease, ok := diffSt.leases[leaseID.String()]; ok {
 		return &lease, nil
 	}
-	leaseFromStore, err := diffSt.state.NewestLeasingInfo(leaseID, false)
+	leaseFromStore, err := diffSt.state.NewestLeasingInfo(leaseID)
 	if err != nil {
 		return nil, err
 	}
