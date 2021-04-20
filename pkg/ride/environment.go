@@ -10,12 +10,18 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
+type InvokeCall struct {
+	funcName string
+	recipient proto.Recipient
+}
+
 type WrappedState struct {
 	diff        diffState
 	cle         rideAddress
 	scheme      proto.Scheme
 	invokeCount uint64
 	act         []proto.ScriptAction
+	invokeCalls []InvokeCall
 }
 
 func newWrappedState(env *EvaluationEnvironment) *WrappedState {
