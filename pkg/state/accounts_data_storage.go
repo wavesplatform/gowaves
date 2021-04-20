@@ -269,7 +269,7 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address, filter bool) (
 	return entries, nil
 }
 
-func (s *accountsDataStorage) isEntryExist(addr proto.Address, filter bool) (bool, error) {
+func (s *accountsDataStorage) entryExists(addr proto.Address, filter bool) (bool, error) {
 	addrNum, err := s.addrToNum(addr)
 	if err != nil {
 		return false, err
