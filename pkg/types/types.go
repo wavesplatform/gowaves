@@ -35,14 +35,14 @@ type TransactionWithBytes struct {
 
 // state for smart contracts
 type SmartState interface {
-	NewestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error)
+	NewestScriptPKByAddr(addr proto.Address) (crypto.PublicKey, error)
 	AddingBlockHeight() (uint64, error)
 	NewestTransactionByID([]byte) (proto.Transaction, error)
 	NewestTransactionHeightByID([]byte) (uint64, error)
 	GetByteTree(recipient proto.Recipient) (proto.Script, error)
 	NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error)
 	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
-	NewestLeasingInfo(id crypto.Digest, filter bool) (*proto.LeaseInfo, error)
+	NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, error)
 	IsStateUntouched(account proto.Recipient) (bool, error)
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
@@ -56,7 +56,6 @@ type SmartState interface {
 	NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
 	NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
 	NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error)
-	//
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 

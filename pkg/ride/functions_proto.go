@@ -75,7 +75,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	}
 
 	invocationParam["caller"] = callerAddress
-	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(callerAddress), false)
+	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(callerAddress))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get caller public key by address")
 	}

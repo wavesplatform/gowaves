@@ -59,12 +59,12 @@ func (ws *WrappedState) AddingBlockHeight() (uint64, error) {
 	return ws.diff.state.AddingBlockHeight()
 }
 
-func (ws *WrappedState) NewestLeasingInfo(id crypto.Digest, filter bool) (*proto.LeaseInfo, error) {
-	return ws.diff.state.NewestLeasingInfo(id, filter)
+func (ws *WrappedState) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, error) {
+	return ws.diff.state.NewestLeasingInfo(id)
 }
 
-func (ws *WrappedState) NewestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
-	return ws.diff.state.NewestScriptPKByAddr(addr, filter)
+func (ws *WrappedState) NewestScriptPKByAddr(addr proto.Address) (crypto.PublicKey, error) {
+	return ws.diff.state.NewestScriptPKByAddr(addr)
 }
 func (ws *WrappedState) NewestTransactionByID(id []byte) (proto.Transaction, error) {
 	return ws.diff.state.NewestTransactionByID(id)
@@ -247,7 +247,7 @@ func (ws *WrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo
 		return assetFromStore, nil
 	}
 
-	issuerPK, err := ws.NewestScriptPKByAddr(searchNewAsset.dAppIssuer, false)
+	issuerPK, err := ws.NewestScriptPKByAddr(searchNewAsset.dAppIssuer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get issuerPK from address in NewestAssetInfo")
 	}
@@ -297,7 +297,7 @@ func (ws *WrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullA
 		return assetFromStore, nil
 	}
 
-	issuerPK, err := ws.NewestScriptPKByAddr(searchNewAsset.dAppIssuer, false)
+	issuerPK, err := ws.NewestScriptPKByAddr(searchNewAsset.dAppIssuer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get issuerPK from address in NewestAssetInfo")
 	}
@@ -741,7 +741,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 			case *proto.IntegerDataEntry:
 				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr, false)
+				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
@@ -753,7 +753,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 			case *proto.StringDataEntry:
 				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr, false)
+				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
@@ -765,7 +765,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 			case *proto.BooleanDataEntry:
 				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr, false)
+				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
@@ -777,7 +777,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 			case *proto.BinaryDataEntry:
 				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr, false)
+				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
@@ -789,7 +789,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 			case *proto.DeleteDataEntry:
 				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr, false)
+				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
@@ -813,7 +813,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 					return nil, errors.Wrap(err, "failed to get address  by public key")
 				}
 			} else {
-				pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee(), false)
+				pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
 				}
@@ -849,7 +849,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 		case *proto.SponsorshipScriptAction:
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee(), false)
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
@@ -883,7 +883,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 			ws.diff.newAssetsInfo[res.ID.String()] = assetInfo
 
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee(), false)
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
@@ -901,7 +901,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 		case *proto.ReissueScriptAction:
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee(), false)
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
@@ -928,7 +928,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			ws.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
 
 		case *proto.BurnScriptAction:
-			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee(), false)
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
@@ -956,7 +956,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 		case *proto.LeaseScriptAction:
 			senderAddress := ws.callee()
-			pk, err := ws.diff.state.NewestScriptPKByAddr(senderAddress, false)
+			pk, err := ws.diff.state.NewestScriptPKByAddr(senderAddress)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
@@ -991,7 +991,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			ws.diff.addNewLease(res.Recipient, senderAccount, res.Amount, res.ID)
 
 		case *proto.LeaseCancelScriptAction:
-			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee(), false)
+			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
