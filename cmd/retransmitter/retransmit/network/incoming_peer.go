@@ -3,9 +3,10 @@ package network
 import (
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"net"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
@@ -37,13 +38,13 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	_, err := readHandshake.ReadFrom(c)
 	if err != nil {
 		zap.S().Error("failed to read handshake: ", err)
-		c.Close()
+		_ = c.Close()
 		return
 	}
 
 	select {
 	case <-ctx.Done():
-		c.Close()
+		_ = c.Close()
 		return
 	default:
 	}
@@ -64,13 +65,13 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	_, err = writeHandshake.WriteTo(c)
 	if err != nil {
 		zap.S().Error("failed to write handshake: ", err)
-		c.Close()
+		_ = c.Close()
 		return
 	}
 
 	select {
 	case <-ctx.Done():
-		c.Close()
+		_ = c.Close()
 		return
 	default:
 	}

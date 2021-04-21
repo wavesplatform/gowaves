@@ -229,7 +229,7 @@ func main() {
 		return
 	}
 
-	ntptm, err := getNtp(ctx)
+	ntpTime, err := getNtp(ctx)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -247,7 +247,7 @@ func main() {
 	params.StoreExtendedApiData = *buildExtendedApi
 	params.ProvideExtendedApi = *serveExtendedApi
 	params.BuildStateHashes = *buildStateHashes
-	params.Time = ntptm
+	params.Time = ntpTime
 	if !*bloomFilter {
 		params.DbParams.BloomFilterParams.Disable = true
 	}
@@ -273,7 +273,7 @@ func main() {
 	}
 
 	// Check if we need to start serving extended API right now.
-	if err := node.MaybeEnableExtendedApi(st, ntptm); err != nil {
+	if err := node.MaybeEnableExtendedApi(st, ntpTime); err != nil {
 		zap.S().Error(err)
 		cancel()
 		return
@@ -288,7 +288,7 @@ func main() {
 	mb := 1024 * 1014
 	pool := bytespool.NewBytesPool(64, mb+(mb/2))
 
-	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(st, ntptm, outdatePeriodSeconds*1000), cfg)
+	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(st, ntpTime, outdatePeriodSeconds*1000), cfg)
 
 	parent := peer.NewParent()
 
@@ -304,28 +304,28 @@ func main() {
 	)
 	go peerManager.Run(ctx)
 
-	var sched Scheduler = scheduler.NewScheduler(
+	var minerScheduler Scheduler = scheduler.NewScheduler(
 		st,
 		wal,
 		cfg,
-		ntptm,
+		ntpTime,
 		scheduler.NewMinerConsensus(peerManager, *minPeersMining),
 		proto.NewTimestampFromUSeconds(outdatePeriodSeconds),
 	)
 	if *disableMiner {
-		sched = scheduler.DisabledScheduler{}
+		minerScheduler = scheduler.DisabledScheduler{}
 	}
 	blockApplier := blocks_applier.NewBlocksApplier()
 
 	svs := services.Services{
 		State:           st,
 		Peers:           peerManager,
-		Scheduler:       sched,
+		Scheduler:       minerScheduler,
 		BlocksApplier:   blockApplier,
 		UtxPool:         utx,
 		Scheme:          cfg.AddressSchemeCharacter,
 		LoggableRunner:  logRunner,
-		Time:            ntptm,
+		Time:            ntpTime,
 		Wallet:          wal,
 		MicroBlockCache: microblock_cache.NewMicroblockCache(),
 		InternalChannel: messages.NewInternalChannel(),
@@ -334,21 +334,21 @@ func main() {
 
 	mine := miner.NewMicroblockMiner(svs, features, reward, maxTransactionTimeForwardOffset)
 	peerManager.SetConnectPeers(!*disableOutgoingConnections)
-	go miner.Run(ctx, mine, sched, svs.InternalChannel)
+	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
 
 	n := node.NewNode(svs, declAddr, bindAddr, proto.NewTimestampFromUSeconds(outdatePeriodSeconds))
 	go n.Run(ctx, parent, svs.InternalChannel)
 
-	go sched.Reschedule()
+	go minerScheduler.Reschedule()
 
 	if len(conf.Addresses) > 0 {
-		adrs := strings.Split(conf.Addresses, ",")
-		for _, addr := range adrs {
+		addresses := strings.Split(conf.Addresses, ",")
+		for _, addr := range addresses {
 			peerManager.AddAddress(ctx, addr)
 		}
 	}
 
-	app, err := api.NewApp(*apiKey, sched, svs)
+	app, err := api.NewApp(*apiKey, minerScheduler, svs)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -390,7 +390,7 @@ func main() {
 	signal.Notify(gracefulStop, syscall.SIGINT)
 
 	sig := <-gracefulStop
-	zap.S().Infow("Caught signal, stopping", "signal", sig)
+	zap.S().Infof("Caught signal '%s', stopping...", sig)
 	cancel()
 	n.Close()
 	<-time.After(1 * time.Second)

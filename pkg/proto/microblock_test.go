@@ -2,8 +2,10 @@ package proto
 
 import (
 	"bytes"
+	"encoding/base64"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -141,4 +143,15 @@ func TestMicroBlockRequestMessage_Marshaling(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, mess.TotalBlockSig, mess2.TotalBlockSig)
+}
+
+func TestMicroBlockV5VerifySignature(t *testing.T) {
+	b, err := base64.StdEncoding.DecodeString("CqMCCAUSINDAl9MzGkepj6WsZ+1NZv0grSgzJogVswMTP7+ug6LoGkDJBEdWcsDc/bat2ljrW74o9l7Y+Pcp07ra2VRe/HLU/Oq6cT7xJqyqZ7xoXP5tLKcnq4hF/5FtS/NYx5zX3RMPIiDk9FCvGrDyyqy8jzX1qe6cEdv5NRXv+hSH+BMnnFtqBSqYAQpUCFQSIBjkoQIwpcrsWlpsgLJVOBo27loBDODD+h473uYYaxMSGgQQoI0GIOvZ5ffzLigDwgYeChYKFCCTgv+auCSYevJXZ7mkKyv2/dkoEgQQoI0GEkD5K5E+HKr3IXYhnwLZaWVsIF+tJdbvV4LFjksWIeLoopDf46TTE2XXXb64R2ZsbWV0QJpQ3cNqTnKXGcB2DesIEkA+/2wKSB07Tg2uBH9OGuIXLBH7FzKPLllyjn7TlvYTLZrohyNSBAIQ3sM9UwPQkUDSC1NGYBFwRHRdF+gPfQcDGiAzlpLCohmCR1KXVnxw5AVO7Xq60gorXfInMXSiS3Qf9Q==")
+	require.NoError(t, err)
+	micro := new(MicroBlock)
+	err = micro.UnmarshalFromProtobuf(b)
+	require.NoError(t, err)
+	ok, err := micro.VerifySignature('T')
+	require.NoError(t, err)
+	assert.True(t, ok)
 }

@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -104,11 +106,11 @@ func newTxAppender(
 func (a *txAppender) checkDuplicateTxIdsImpl(id []byte, recentIds map[string]struct{}) error {
 	// Check recent.
 	if _, ok := recentIds[string(id)]; ok {
-		return errors.Errorf("transaction with ID %v already in state", id)
+		return proto.NewInfoMsg(errors.Errorf("transaction with ID %s already in state", base58.Encode(id)))
 	}
 	// Check DB.
 	if _, _, err := a.rw.readTransaction(id); err == nil {
-		return errors.Errorf("transaction with ID %v already in state", id)
+		return proto.NewInfoMsg(errors.Errorf("transaction with ID %s already in state", base58.Encode(id)))
 	}
 	return nil
 }
@@ -268,7 +270,7 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64) error {
 	return nil
 }
 
-func (a *txAppender) needToCheckOrdersSigs(transaction proto.Transaction, initialisation bool) (bool, bool, error) {
+func (a *txAppender) needToCheckOrdersSignatures(transaction proto.Transaction, initialisation bool) (bool, bool, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
 		return false, false, nil
@@ -342,7 +344,7 @@ func (a *txAppender) verifyTxSigAndData(tx proto.Transaction, params *appendTxPa
 	// Detect what signatures must be checked for this transaction.
 	// For transaction with SmartAccount we don't check signature.
 	checkTxSig := !accountHasVerifierScript
-	checkOrder1, checkOrder2, err := a.needToCheckOrdersSigs(tx, params.initialisation)
+	checkOrder1, checkOrder2, err := a.needToCheckOrdersSignatures(tx, params.initialisation)
 	if err != nil {
 		return err
 	}
@@ -417,7 +419,11 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		fallibleInfo := &fallibleValidationParams{*params, accountHasVerifierScript}
 		applicationRes, err = a.handleFallible(tx, fallibleInfo)
 		if err != nil {
-			return errs.Extend(err, "fallible validation failed")
+			msg := "fallible validation failed"
+			if txID, err2 := tx.GetID(a.settings.AddressSchemeCharacter); err2 == nil {
+				msg = fmt.Sprintf("fallible validation failed for transaction '%s'", base58.Encode(txID))
+			}
+			return errs.Extend(err, msg)
 		}
 		// Exchange and Invoke balances are validated in UTX when acceptFailed is false.
 		// When acceptFailed is true, balances are validated inside handleFallible().
@@ -717,7 +723,11 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		validatingUtx:    true,
 		initialisation:   false,
 	}
-	return a.appendTx(tx, appendTxArgs)
+	err = a.appendTx(tx, appendTxArgs)
+	if err != nil {
+		return proto.NewInfoMsg(err)
+	}
+	return nil
 }
 
 func (a *txAppender) reset() {
