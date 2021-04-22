@@ -310,11 +310,45 @@ func intFromState(env Environment, args ...rideType) (rideType, error) {
 	return rideInt(entry.Value), nil
 }
 
+func intFromSelfState(env Environment, args ...rideType) (rideType, error) {
+	k, err := extractKey(args)
+	if err != nil {
+		return rideUnit{}, nil
+	}
+	a, ok := env.this().(rideAddress)
+	if !ok {
+		return rideUnit{}, nil
+	}
+	r := proto.NewRecipientFromAddress(proto.Address(a))
+	entry, err := env.state().RetrieveNewestIntegerEntry(r, k)
+	if err != nil {
+		return rideUnit{}, nil
+	}
+	return rideInt(entry.Value), nil
+}
+
 func bytesFromState(env Environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
 	if err != nil {
 		return rideUnit{}, nil
 	}
+	entry, err := env.state().RetrieveNewestBinaryEntry(r, k)
+	if err != nil {
+		return rideUnit{}, nil
+	}
+	return rideBytes(entry.Value), nil
+}
+
+func bytesFromSelfState(env Environment, args ...rideType) (rideType, error) {
+	k, err := extractKey(args)
+	if err != nil {
+		return rideUnit{}, nil
+	}
+	a, ok := env.this().(rideAddress)
+	if !ok {
+		return rideUnit{}, nil
+	}
+	r := proto.NewRecipientFromAddress(proto.Address(a))
 	entry, err := env.state().RetrieveNewestBinaryEntry(r, k)
 	if err != nil {
 		return rideUnit{}, nil
@@ -334,11 +368,45 @@ func stringFromState(env Environment, args ...rideType) (rideType, error) {
 	return rideString(entry.Value), nil
 }
 
+func stringFromSelfState(env Environment, args ...rideType) (rideType, error) {
+	k, err := extractKey(args)
+	if err != nil {
+		return rideUnit{}, nil
+	}
+	a, ok := env.this().(rideAddress)
+	if !ok {
+		return rideUnit{}, nil
+	}
+	r := proto.NewRecipientFromAddress(proto.Address(a))
+	entry, err := env.state().RetrieveNewestStringEntry(r, k)
+	if err != nil {
+		return rideUnit{}, nil
+	}
+	return rideString(entry.Value), nil
+}
+
 func booleanFromState(env Environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
 	if err != nil {
 		return rideUnit{}, nil
 	}
+	entry, err := env.state().RetrieveNewestBooleanEntry(r, k)
+	if err != nil {
+		return rideUnit{}, nil
+	}
+	return rideBoolean(entry.Value), nil
+}
+
+func booleanFromSelfState(env Environment, args ...rideType) (rideType, error) {
+	k, err := extractKey(args)
+	if err != nil {
+		return rideUnit{}, nil
+	}
+	a, ok := env.this().(rideAddress)
+	if !ok {
+		return rideUnit{}, nil
+	}
+	r := proto.NewRecipientFromAddress(proto.Address(a))
 	entry, err := env.state().RetrieveNewestBooleanEntry(r, k)
 	if err != nil {
 		return rideUnit{}, nil
@@ -650,8 +718,24 @@ func intValueFromState(env Environment, args ...rideType) (rideType, error) {
 	return extractValue(v)
 }
 
+func intValueFromSelfState(env Environment, args ...rideType) (rideType, error) {
+	v, err := intFromSelfState(env, args...)
+	if err != nil {
+		return nil, err
+	}
+	return extractValue(v)
+}
+
 func booleanValueFromState(env Environment, args ...rideType) (rideType, error) {
 	v, err := booleanFromState(env, args...)
+	if err != nil {
+		return nil, err
+	}
+	return extractValue(v)
+}
+
+func booleanValueFromSelfState(env Environment, args ...rideType) (rideType, error) {
+	v, err := booleanFromSelfState(env, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -666,8 +750,24 @@ func bytesValueFromState(env Environment, args ...rideType) (rideType, error) {
 	return extractValue(v)
 }
 
+func bytesValueFromSelfState(env Environment, args ...rideType) (rideType, error) {
+	v, err := bytesFromSelfState(env, args...)
+	if err != nil {
+		return nil, err
+	}
+	return extractValue(v)
+}
+
 func stringValueFromState(env Environment, args ...rideType) (rideType, error) {
 	v, err := stringFromState(env, args...)
+	if err != nil {
+		return nil, err
+	}
+	return extractValue(v)
+}
+
+func stringValueFromSelfState(env Environment, args ...rideType) (rideType, error) {
+	v, err := stringFromSelfState(env, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -1317,6 +1417,17 @@ func extractRecipientAndKey(args []rideType) (proto.Recipient, string, error) {
 		return proto.Recipient{}, "", errors.Errorf("unexpected argument '%s'", args[1].instanceOf())
 	}
 	return r, string(key), nil
+}
+
+func extractKey(args []rideType) (string, error) {
+	if err := checkArgs(args, 1); err != nil {
+		return "", err
+	}
+	key, ok := args[0].(rideString)
+	if !ok {
+		return "", errors.Errorf("unexpected argument '%s'", args[0].instanceOf())
+	}
+	return string(key), nil
 }
 
 func bytesOrStringArg(args []rideType) (rideBytes, error) {
