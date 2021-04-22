@@ -16,7 +16,7 @@ import (
 
 func isAddressInBL(dAppAddress proto.Address, blackList []proto.Address) bool {
 	for _, v := range blackList {
-		if v.String() == dAppAddress.String() {
+		if v == dAppAddress {
 			return true
 		}
 	}
