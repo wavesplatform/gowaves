@@ -10,14 +10,19 @@ import (
 
 func (a *NodeApi) routes() chi.Router {
 	r := chi.NewRouter()
-	r.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.Use(
+		chiHttpApiGeneralMetricsMiddleware,
+		panicMiddleware,
+	)
+
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		zap.S().Debugf("NodeApi not found %+v, %s", r, r.URL.Path)
-		if r.Method == "POST" {
+		if r.Method == http.MethodPost {
 			rs, err := ioutil.ReadAll(r.Body)
 			zap.S().Debugf("NodeApi not found post body: %s %+v", string(rs), err)
 		}
 		w.WriteHeader(http.StatusNotFound)
-	}))
+	})
 	r.Get("/blocks/last", a.BlocksLast)
 	r.Get("/blocks/height", a.BlockHeight)
 	r.Get("/blocks/first", a.BlocksFirst)
@@ -45,6 +50,13 @@ func (a *NodeApi) routes() chi.Router {
 	r.Get("/debug/stateHash/{height:\\d+}", a.stateHash)
 	// enable or disable history sync
 	//r.Get("/debug/sync/{enabled:\\d+}", a.DebugSyncEnabled)
+
+	r.Get("/debug/health", func(w http.ResponseWriter, r *http.Request) {
+		if _, err := w.Write([]byte("OK")); err != nil {
+			zap.S().Errorf("Can't write 'OK' to ResponseWriter: %+v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	})
 
 	return r
 }
