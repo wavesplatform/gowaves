@@ -488,13 +488,21 @@ func functionsV5() map[string]string {
 	m["423"] = "stringToBigInt"
 	m["424"] = "stringToBigIntOpt"
 	m["425"] = "medianListBigInt"
+	m["1009"] = "hashScriptAtAddress"
 	m["1020"] = "invoke"
+	m["1054"] = "isDataStorageUntouched"
+	m["1055"] = "intFromSelfState"
+	m["1056"] = "booleanFromSelfState"
+	m["1057"] = "bytesFromSelfState"
+	m["1058"] = "stringFromSelfState"
 	m["1081"] = "calculateLeaseID"
 	m["1092"] = "simplifiedLease"
 	m["1093"] = "fullLease"
 	m["LeaseCancel"] = "leaseCancel"
-	m["1054"] = "isDataStorageUntouched"
-	m["1009"] = "hashScriptAtAddress"
+	m["@extrNative(1055)"] = "intValueFromSelfState"
+	m["@extrNative(1056)"] = "booleanValueFromSelfState"
+	m["@extrNative(1057)"] = "bytesValueFromSelfState"
+	m["@extrNative(1058)"] = "stringValueFromSelfState"
 	return m
 }
 
@@ -523,13 +531,21 @@ func catalogueV5() map[string]int {
 	m["423"] = 65
 	m["424"] = 65
 	m["425"] = 160
+	m["1009"] = 200
 	m["1020"] = 75
+	m["1054"] = 10
+	m["1055"] = 10
+	m["1056"] = 10
+	m["1057"] = 10
+	m["1058"] = 10
 	m["1081"] = 1
 	m["1092"] = 1
 	m["1093"] = 1
 	m["LeaseCancel"] = 1
-	m["1054"] = 10
-	m["1009"] = 200
+	m["@extrNative(1055)"] = 10
+	m["@extrNative(1056)"] = 10
+	m["@extrNative(1057)"] = 10
+	m["@extrNative(1058)"] = 10
 	delete(m, "Up")
 	delete(m, "HalfDown")
 	return m

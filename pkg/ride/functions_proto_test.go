@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 var (
@@ -98,19 +100,355 @@ func TestAssetBalanceV4(t *testing.T) {
 }
 
 func TestIntFromState(t *testing.T) {
-	t.SkipNow()
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	correctAlias := proto.NewAlias('T', "good")
+	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
+	incorrectAlias := proto.NewAlias('T', "bad")
+	correctAddressRecipient := proto.NewRecipientFromAddress(correctAddress)
+	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
+	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
+	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideInt(100500)},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideInt(100500)},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{}, false, rideUnit{}},
+		{[]rideType{rideUnit{}}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAddressRecipient)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAliasRecipient)}, false, rideUnit{}},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
+	} {
+		r, err := intFromState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
 }
 
 func TestBytesFromState(t *testing.T) {
-	t.SkipNow()
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	correctAlias := proto.NewAlias('T', "good")
+	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
+	incorrectAlias := proto.NewAlias('T', "bad")
+	correctAddressRecipient := proto.NewRecipientFromAddress(correctAddress)
+	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
+	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
+	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideBytes("value")},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideBytes("value")},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{}, false, rideUnit{}},
+		{[]rideType{rideUnit{}}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAddressRecipient)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAliasRecipient)}, false, rideUnit{}},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
+	} {
+		r, err := bytesFromState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
 }
 
 func TestStringFromState(t *testing.T) {
-	t.SkipNow()
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	correctAlias := proto.NewAlias('T', "good")
+	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
+	incorrectAlias := proto.NewAlias('T', "bad")
+	correctAddressRecipient := proto.NewRecipientFromAddress(correctAddress)
+	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
+	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
+	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideString("value")},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideString("value")},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{}, false, rideUnit{}},
+		{[]rideType{rideUnit{}}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAddressRecipient)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAliasRecipient)}, false, rideUnit{}},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
+	} {
+		r, err := stringFromState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
 }
 
 func TestBooleanFromState(t *testing.T) {
-	t.SkipNow()
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	correctAlias := proto.NewAlias('T', "good")
+	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
+	incorrectAlias := proto.NewAlias('T', "bad")
+	correctAddressRecipient := proto.NewRecipientFromAddress(correctAddress)
+	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
+	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
+	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideBoolean(true)},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideBoolean(true)},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, false, rideUnit{}},
+		{[]rideType{}, false, rideUnit{}},
+		{[]rideType{rideUnit{}}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAddressRecipient)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAliasRecipient)}, false, rideUnit{}},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideUnit{}},
+	} {
+		r, err := booleanFromState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestIntFromSelfState(t *testing.T) {
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+					if *account.Address == correctAddress && key == "key" {
+						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+		thisFunc: func() rideType {
+			return rideAddress(correctAddress)
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("key")}, false, rideInt(100500)},
+		{[]rideType{rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{}, false, rideUnit{}},
+		{[]rideType{rideUnit{}}, false, rideUnit{}},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
+	} {
+		r, err := intFromSelfState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestBytesFromSelfState(t *testing.T) {
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+					if *account.Address == correctAddress && key == "key" {
+						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+		thisFunc: func() rideType {
+			return rideAddress(correctAddress)
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("key")}, false, rideBytes("value")},
+		{[]rideType{rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{}, false, rideUnit{}},
+		{[]rideType{rideUnit{}}, false, rideUnit{}},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
+	} {
+		r, err := bytesFromSelfState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestStringFromSelfState(t *testing.T) {
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+					if *account.Address == correctAddress && key == "key" {
+						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+		thisFunc: func() rideType {
+			return rideAddress(correctAddress)
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("key")}, false, rideString("value")},
+		{[]rideType{rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{}, false, rideUnit{}},
+		{[]rideType{rideUnit{}}, false, rideUnit{}},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
+	} {
+		r, err := stringFromSelfState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestBooleanFromSelfState(t *testing.T) {
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+					if *account.Address == correctAddress && key == "key" {
+						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+		thisFunc: func() rideType {
+			return rideAddress(correctAddress)
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("key")}, false, rideBoolean(true)},
+		{[]rideType{rideString("xxx")}, false, rideUnit{}},
+		{[]rideType{}, false, rideUnit{}},
+		{[]rideType{rideUnit{}}, false, rideUnit{}},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideUnit{}},
+	} {
+		r, err := booleanFromSelfState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
 }
 
 func TestAddressFromRecipient(t *testing.T) {
@@ -388,20 +726,355 @@ func TestCheckMerkleProof(t *testing.T) {
 	}
 }
 
-func TestInvValueFromState(t *testing.T) {
-	t.SkipNow()
-}
-
-func TestBooleanValueFromState(t *testing.T) {
-	t.SkipNow()
+func TestIntValueFromState(t *testing.T) {
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	correctAlias := proto.NewAlias('T', "good")
+	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
+	incorrectAlias := proto.NewAlias('T', "bad")
+	correctAddressRecipient := proto.NewRecipientFromAddress(correctAddress)
+	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
+	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
+	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideInt(100500)},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideInt(100500)},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideUnit{}}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAddressRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAliasRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+	} {
+		r, err := intValueFromState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
 }
 
 func TestBytesValueFromState(t *testing.T) {
-	t.SkipNow()
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	correctAlias := proto.NewAlias('T', "good")
+	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
+	incorrectAlias := proto.NewAlias('T', "bad")
+	correctAddressRecipient := proto.NewRecipientFromAddress(correctAddress)
+	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
+	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
+	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideBytes("value")},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideBytes("value")},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideUnit{}}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAddressRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAliasRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+	} {
+		r, err := bytesValueFromState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
 }
 
 func TestStringValueFromState(t *testing.T) {
-	t.SkipNow()
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	correctAlias := proto.NewAlias('T', "good")
+	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
+	incorrectAlias := proto.NewAlias('T', "bad")
+	correctAddressRecipient := proto.NewRecipientFromAddress(correctAddress)
+	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
+	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
+	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideString("value")},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideString("value")},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideUnit{}}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAddressRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAliasRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+	} {
+		r, err := stringValueFromState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestBooleanValueFromState(t *testing.T) {
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	correctAlias := proto.NewAlias('T', "good")
+	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
+	incorrectAlias := proto.NewAlias('T', "bad")
+	correctAddressRecipient := proto.NewRecipientFromAddress(correctAddress)
+	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
+	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
+	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+					if (account == correctAddressRecipient || account == correctAliasRecipient) && key == "key" {
+						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("key")}, false, rideBoolean(true)},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("key")}, false, rideBoolean(true)},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(incorrectAddressRecipient), rideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(incorrectAliasRecipient), rideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideUnit{}}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAddressRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAliasRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAddressRecipient), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideRecipient(correctAliasRecipient), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+	} {
+		r, err := booleanValueFromState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+func TestIntValueFromSelfState(t *testing.T) {
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+					if *account.Address == correctAddress && key == "key" {
+						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+		thisFunc: func() rideType {
+			return rideAddress(correctAddress)
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("key")}, false, rideInt(100500)},
+		{[]rideType{rideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideUnit{}}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+	} {
+		r, err := intValueFromSelfState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestBytesValueFromSelfState(t *testing.T) {
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+					if *account.Address == correctAddress && key == "key" {
+						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+		thisFunc: func() rideType {
+			return rideAddress(correctAddress)
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("key")}, false, rideBytes("value")},
+		{[]rideType{rideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideUnit{}}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+	} {
+		r, err := bytesValueFromSelfState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestStringValueFromSelfState(t *testing.T) {
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+					if *account.Address == correctAddress && key == "key" {
+						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+		thisFunc: func() rideType {
+			return rideAddress(correctAddress)
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("key")}, false, rideString("value")},
+		{[]rideType{rideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideUnit{}}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+	} {
+		r, err := stringValueFromSelfState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestBooleanValueFromSelfState(t *testing.T) {
+	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+					if *account.Address == correctAddress && key == "key" {
+						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
+					}
+					return nil, errors.New("not found")
+				},
+			}
+		},
+		thisFunc: func() rideType {
+			return rideAddress(correctAddress)
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("key")}, false, rideBoolean(true)},
+		{[]rideType{rideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideUnit{}}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+	} {
+		r, err := booleanValueFromSelfState(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
 }
 
 func TestTransferFromProtobuf(t *testing.T) {
