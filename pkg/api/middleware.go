@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+type Middleware = func(next http.Handler) http.Handler
+
 type responseWriterWrapper struct {
 	http.ResponseWriter
 	statusCode    int
@@ -92,4 +94,21 @@ func panicMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func createHeadersMiddleware(headers map[string]string) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for k, v := range headers {
+				w.Header().Set(k, v)
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func jsonContentTypeMiddleware(next http.Handler) http.Handler {
+	return createHeadersMiddleware(map[string]string{
+		"Content-Type": "application/json",
+	})(next)
 }
