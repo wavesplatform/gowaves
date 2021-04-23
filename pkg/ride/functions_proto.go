@@ -146,8 +146,8 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	}
 
 	if ws.invCount() > 1 {
-		if isAddressInBL(*recipient.Address, ws.blackList) {
-			return rideUnit{}, errors.Errorf("failed to call ")
+		if isAddressInBL(*recipient.Address, ws.blackList) && proto.Address(callerAddress) != *recipient.Address {
+			return rideUnit{}, errors.Errorf("function call of %s with dApp address %s is forbiden because it had already been called once by 'invoke'", fnName, recipient.Address)
 		}
 	}
 
@@ -305,7 +305,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	ws.blackList = append(ws.blackList, proto.Address(callerAddress)) // push
 
 	if ws.invCount() > 1 {
-		if isAddressInBL(*recipient.Address, ws.blackList) {
+		if isAddressInBL(*recipient.Address, ws.blackList) && proto.Address(callerAddress) != *recipient.Address {
 			return rideUnit{}, errors.Errorf("failed to call ")
 		}
 	}
