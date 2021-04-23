@@ -351,6 +351,15 @@ func (a *NodeApi) MinerInfo(w http.ResponseWriter, _ *http.Request) {
 	sendJson(w, rs)
 }
 
+func (a *NodeApi) Addresses(w http.ResponseWriter, _ *http.Request) {
+	addresses, err := a.app.Addresses()
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	sendJson(w, addresses)
+}
+
 func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) {
 	rs := a.app.NodeProcesses()
 	sendJson(w, rs)
@@ -376,6 +385,7 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// TODO(nickeskov): use ApiError type and send JSON body
 func handleError(w http.ResponseWriter, err error) {
 	switch err.(type) {
 	case *AuthError:

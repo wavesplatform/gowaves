@@ -13,6 +13,7 @@ func (a *NodeApi) routes() chi.Router {
 	r.Use(
 		chiHttpApiGeneralMetricsMiddleware,
 		panicMiddleware,
+		jsonContentTypeMiddleware,
 	)
 
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
@@ -21,8 +22,12 @@ func (a *NodeApi) routes() chi.Router {
 			rs, err := ioutil.ReadAll(r.Body)
 			zap.S().Debugf("NodeApi not found post body: %s %+v", string(rs), err)
 		}
+		// TODO(nickeskov): send json response
 		w.WriteHeader(http.StatusNotFound)
 	})
+
+	r.Get("/addresses", a.Addresses)
+
 	r.Get("/blocks/last", a.BlocksLast)
 	r.Get("/blocks/height", a.BlockHeight)
 	r.Get("/blocks/first", a.BlocksFirst)
