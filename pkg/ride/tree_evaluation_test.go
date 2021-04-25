@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"testing"
 
@@ -3529,8 +3528,6 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	wrappedStateLol := wrappedSt
-	fmt.Println(wrappedStateLol)
 	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9984}
 	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
 	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 16}
