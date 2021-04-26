@@ -4,11 +4,10 @@
 package ride
 
 import (
-	"sync"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"sync"
 )
 
 // Ensure, that MockSmartState does implement types.SmartState.

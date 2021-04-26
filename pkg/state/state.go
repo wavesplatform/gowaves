@@ -1712,7 +1712,7 @@ func (s *stateManager) IsStateUntouched(account proto.Recipient) (bool, error) {
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
-	entryExist, err := s.stor.accountsDataStor.isEntryExist(*addr, true)
+	entryExist, err := s.stor.accountsDataStor.entryExists(*addr, true)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}

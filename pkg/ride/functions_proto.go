@@ -6,13 +6,178 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	c2 "github.com/wavesplatform/gowaves/pkg/ride/crypto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
+
+func isAddressInBL(dAppAddress proto.Address, blackList []proto.Address) bool {
+	for _, v := range blackList {
+		if v == dAppAddress {
+			return true
+		}
+	}
+	return false
+}
+
+func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
+	ws, ok := env.state().(*WrappedState)
+	if !ok {
+		return nil, errors.Wrapf(errors.New("wrong state"), "invoke")
+	}
+	ws.incrementInvCount()
+	if ws.invCount() > 100 {
+		return rideUnit{}, nil
+	}
+
+	callerAddress, ok := env.this().(rideAddress)
+	if !ok {
+		return rideUnit{}, errors.Errorf("invoke: this has an unexpected type '%s'", env.this().instanceOf())
+	}
+
+	recipient, err := extractRecipient(args[0])
+	if err != nil {
+		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[0].instanceOf())
+	}
+
+	if recipient.Address == nil {
+		if recipient.Alias == nil {
+			return nil, errors.New("invoke: address and alias are nil")
+		}
+		addressFromAlias, err := env.state().NewestAddrByAlias(*recipient.Alias)
+		if err != nil {
+			return nil, errors.Errorf("invoke: failed to get address by alias, %v", err)
+		}
+		recipient = proto.NewRecipientFromAddress(addressFromAlias)
+	}
+
+	var fnName rideString
+	switch fnN := args[1].(type) {
+	case rideUnit:
+		fnName = "default"
+	case rideString:
+		if fnN == "" {
+			fnName = "default"
+			break
+		}
+		fnName = fnN
+	default:
+		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[1].instanceOf())
+	}
+
+	listArg, ok := args[2].(rideList)
+	if !ok {
+		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[2].instanceOf())
+	}
+
+	var attachedPayments proto.ScriptPayments
+	payments := args[3].(rideList)
+
+	oldInvocationParam := env.invocation()
+
+	invocationParam := make(rideObject)
+	for key, value := range oldInvocationParam {
+		invocationParam[key] = value
+	}
+
+	invocationParam["caller"] = callerAddress
+	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(callerAddress))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get caller public key by address")
+	}
+	invocationParam["callerPublicKey"] = rideBytes(common.Dup(callerPublicKey.Bytes()))
+	invocationParam["payments"] = payments
+	env.SetInvocation(invocationParam)
+
+	for _, value := range payments {
+		payment, ok := value.(rideObject)
+		if !ok {
+			return nil, errors.Errorf("invoke: unexpected argument type '%s'", payment.instanceOf())
+		}
+
+		assetID, err := payment.get("assetId")
+		if err != nil {
+			return nil, errors.Wrap(err, "invoke")
+		}
+		amount, err := payment.get("amount")
+		if err != nil {
+			return nil, errors.Wrap(err, "invoke")
+		}
+
+		intAmount, ok := amount.(rideInt)
+		if !ok {
+			return nil, errors.Errorf("invoke: unexpected argument type '%s'", amount.instanceOf())
+		}
+		var asset *proto.OptionalAsset
+
+		switch asID := assetID.(type) {
+		case rideBytes:
+			asset, err = proto.NewOptionalAssetFromBytes(asID)
+			if err != nil {
+				return nil, errors.Errorf("invoke: failed to get optional asset from ride bytes")
+			}
+		case rideUnit:
+			waves := proto.NewOptionalAssetWaves()
+			asset = &waves
+		default:
+			return nil, errors.Errorf("attachedPayment: unexpected argument type '%s'", args[0].instanceOf())
+		}
+
+		attachedPayments = append(attachedPayments, proto.ScriptPayment{Asset: *asset, Amount: uint64(intAmount)})
+	}
+
+	var paymentActions []proto.ScriptAction
+	for _, payment := range attachedPayments {
+		action := &proto.TransferScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
+		paymentActions = append(paymentActions, action)
+	}
+
+	address, err := env.state().NewestRecipientToAddress(recipient)
+	if err != nil {
+		return nil, errors.Errorf("cannot get address from dApp, invokeFunctionFromDApp")
+	}
+	env.setNewDAppAddress(*address)
+	err = ws.smartAppendActions(paymentActions, env)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to apply attachedPayments")
+	}
+
+	if ws.invCount() > 1 {
+		if isAddressInBL(*recipient.Address, ws.blackList) && proto.Address(callerAddress) != *recipient.Address {
+			return rideUnit{}, errors.Errorf("function call of %s with dApp address %s is forbiden because it had already been called once by 'invoke'", fnName, recipient.Address)
+		}
+	}
+
+	res, err := invokeFunctionFromDApp(env, recipient, fnName, listArg)
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
+	}
+
+	if res.Result() {
+		if res.UserError() != "" {
+			return nil, errors.Errorf(res.UserError())
+		}
+
+		err = ws.smartAppendActions(res.ScriptActions(), env)
+		if err != nil {
+			return nil, err
+		}
+
+		env.setNewDAppAddress(proto.Address(callerAddress))
+		env.SetInvocation(oldInvocationParam)
+
+		if res.UserResult() == nil {
+			return rideUnit{}, nil
+		}
+		return res.UserResult(), nil
+	}
+
+	return nil, errors.Errorf("result of Invoke is false")
+}
 
 func invoke(env Environment, args ...rideType) (rideType, error) {
 	ws, ok := env.state().(*WrappedState)
@@ -136,7 +301,19 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrapf(err, "failed to apply attachedPayments")
 	}
 
+	// append a call to the stack to protect a user from the reentrancy attack
+	ws.blackList = append(ws.blackList, proto.Address(callerAddress)) // push
+
+	if ws.invCount() > 1 {
+		if isAddressInBL(*recipient.Address, ws.blackList) && proto.Address(callerAddress) != *recipient.Address {
+			return rideUnit{}, errors.Errorf("failed to call ")
+		}
+	}
+
 	res, err := invokeFunctionFromDApp(env, recipient, fnName, listArg)
+
+	ws.blackList = ws.blackList[:len(ws.blackList)-1] // pop
+
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
 	}

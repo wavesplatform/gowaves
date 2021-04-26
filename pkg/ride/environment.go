@@ -16,6 +16,7 @@ type WrappedState struct {
 	scheme      proto.Scheme
 	invokeCount uint64
 	act         []proto.ScriptAction
+	blackList   []proto.Address
 }
 
 func newWrappedState(env *EvaluationEnvironment) *WrappedState {
