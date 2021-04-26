@@ -10,7 +10,9 @@ import (
 )
 
 type BlocksApplier interface {
+	BlockExists(state state.State, block *proto.Block) (bool, error)
 	Apply(state state.State, block []*proto.Block) (proto.Height, error)
+	ApplyMicro(state state.State, block *proto.Block) (proto.Height, error)
 }
 
 type MicroBlockCache interface {

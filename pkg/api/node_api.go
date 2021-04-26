@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -57,13 +60,17 @@ func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
 }
 
 func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) {
+	defer func(body io.ReadCloser) {
+		err := body.Close()
+		if err != nil {
+			zap.S().Warnf("Failed to close body: %v", err)
+		}
+	}(r.Body)
 	b, err := ioutil.ReadAll(r.Body)
-	defer r.Body.Close()
 	if err != nil {
 		handleError(w, &BadRequestError{err})
 		return
 	}
-
 	err = a.app.TransactionsBroadcast(r.Context(), b)
 	if err != nil {
 		handleError(w, err)
@@ -195,7 +202,7 @@ func Run(ctx context.Context, address string, n *NodeApi) error {
 		<-ctx.Done()
 		zap.S().Info("Shutting down API...")
 		err := apiServer.Shutdown(ctx)
-		if err != nil {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			zap.S().Errorf("Failed to shutdown API server: %v", err)
 		}
 	}()

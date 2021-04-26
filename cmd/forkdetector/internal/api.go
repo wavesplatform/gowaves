@@ -106,7 +106,7 @@ func (a *api) Start() <-chan struct{} {
 		zap.S().Debug("Shutting down API...")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		err := a.srv.Shutdown(ctx)
-		if err != nil {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			zap.S().Errorf("Failed to shutdown API server: %v", err)
 		}
 		cancel()
@@ -119,7 +119,7 @@ func (a *api) routes() chi.Router {
 	r := chi.NewRouter()
 	r.Get("/status", a.status)                          // Status information
 	r.Get("/peers/all", a.peers)                        // Returns the list of all known peers
-	r.Get("/peers/friendly", a.friendly)                // Returns the list of peers that have been successfully handshaked at least once
+	r.Get("/peers/friendly", a.friendly)                // Returns the list of peers that have been successfully connected at least once
 	r.Get("/connections", a.connections)                // Returns the list of active connections
 	r.Get("/forks", a.forks)                            // Returns the combined info about forks for all connected peers
 	r.Get("/all-forks", a.allForks)                     // Returns the combined info about all registered forks
@@ -129,7 +129,7 @@ func (a *api) routes() chi.Router {
 	return r
 }
 
-func (a *api) status(w http.ResponseWriter, r *http.Request) {
+func (a *api) status(w http.ResponseWriter, _ *http.Request) {
 	goroutines := runtime.NumGoroutine()
 	stats := a.drawer.stats()
 	peers, err := a.registry.Peers()
@@ -159,7 +159,7 @@ func (a *api) status(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *api) peers(w http.ResponseWriter, r *http.Request) {
+func (a *api) peers(w http.ResponseWriter, _ *http.Request) {
 	peers, err := a.registry.Peers()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
@@ -172,7 +172,7 @@ func (a *api) peers(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *api) friendly(w http.ResponseWriter, r *http.Request) {
+func (a *api) friendly(w http.ResponseWriter, _ *http.Request) {
 	peers, err := a.registry.FriendlyPeers()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)
@@ -185,7 +185,7 @@ func (a *api) friendly(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *api) connections(w http.ResponseWriter, r *http.Request) {
+func (a *api) connections(w http.ResponseWriter, _ *http.Request) {
 	connections := a.registry.Connections()
 	err := json.NewEncoder(w).Encode(connections)
 	if err != nil {
@@ -194,7 +194,7 @@ func (a *api) connections(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *api) forks(w http.ResponseWriter, r *http.Request) {
+func (a *api) forks(w http.ResponseWriter, _ *http.Request) {
 	nodes := a.registry.Connections()
 	ips := make([]net.IP, len(nodes))
 	for i, n := range nodes {
@@ -214,7 +214,7 @@ func (a *api) forks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (a *api) allForks(w http.ResponseWriter, r *http.Request) {
+func (a *api) allForks(w http.ResponseWriter, _ *http.Request) {
 	nodes, err := a.registry.Peers()
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to complete request: %v", err), http.StatusInternalServerError)

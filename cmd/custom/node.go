@@ -47,7 +47,7 @@ var (
 	grpcAddr          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
 	cfgPath           = flag.String("cfg-path", "", "Path to configuration JSON file. No default value.")
 	enableGrpcApi     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
-	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be reimported in case it wasn't imported with similar flag set")
+	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
 	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	buildStateHashes  = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
 	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
@@ -130,7 +130,7 @@ func main() {
 		}
 	}
 
-	ntptm, err := ntptime.TryNew("pool.ntp.org", 10)
+	ntpTime, err := ntptime.TryNew("pool.ntp.org", 10)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -144,14 +144,14 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go ntptm.Run(ctx, 2*time.Minute)
+	go ntpTime.Run(ctx, 2*time.Minute)
 
 	params := state.DefaultStateParams()
 	params.StoreExtendedApiData = *buildExtendedApi
 	params.ProvideExtendedApi = *serveExtendedApi
 	params.BuildStateHashes = *buildStateHashes
-	params.Time = ntptm
-	state, err := state.NewState(path, params, custom)
+	params.Time = ntpTime
+	nodeState, err := state.NewState(path, params, custom)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
@@ -159,7 +159,7 @@ func main() {
 	}
 
 	// Check if we need to start serving extended API right now.
-	if err := node.MaybeEnableExtendedApi(state, ntptm); err != nil {
+	if err := node.MaybeEnableExtendedApi(nodeState, ntpTime); err != nil {
 		zap.S().Error(err)
 		cancel()
 		return
@@ -172,7 +172,7 @@ func main() {
 		return
 	}
 
-	features, err = miner.ValidateFeatures(state, features)
+	features, err = miner.ValidateFeatures(nodeState, features)
 	if err != nil {
 		cancel()
 		zap.S().Error(err)
@@ -186,7 +186,7 @@ func main() {
 
 	parent := peer.NewParent()
 
-	utx := utxpool.New(10000, utxpool.NewValidator(state, ntptm, outdateSeconds*1000), custom)
+	utx := utxpool.New(10000, utxpool.NewValidator(nodeState, ntpTime, outdateSeconds*1000), custom)
 
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
 
@@ -196,10 +196,10 @@ func main() {
 	go peerManager.Run(ctx)
 
 	scheduler := scheduler2.NewScheduler(
-		state,
+		nodeState,
 		wal,
 		custom,
-		ntptm,
+		ntpTime,
 		scheduler2.NewMinerConsensus(peerManager, *minPeersMining),
 		proto.NewTimestampFromUSeconds(outdateSeconds),
 	)
@@ -211,8 +211,8 @@ func main() {
 
 	InternalCh := messages.NewInternalChannel()
 
-	var services = services.Services{
-		State:           state,
+	var nodeServices = services.Services{
+		State:           nodeState,
 		Peers:           peerManager,
 		Scheduler:       scheduler,
 		BlocksApplier:   blockApplier,
@@ -222,31 +222,31 @@ func main() {
 		LoggableRunner:  logRunner,
 		MicroBlockCache: microblock_cache.NewMicroblockCache(),
 		InternalChannel: InternalCh,
-		Time:            ntptm,
+		Time:            ntpTime,
 	}
-	Miner := miner.NewMicroblockMiner(services, features, reward, proto.NewTimestampFromUSeconds(outdateSeconds))
+	Miner := miner.NewMicroblockMiner(nodeServices, features, reward, proto.NewTimestampFromUSeconds(outdateSeconds))
 	go miner.Run(ctx, Miner, scheduler, InternalCh)
 
-	n := node.NewNode(services, declAddr, declAddr, proto.NewTimestampFromUSeconds(outdateSeconds))
+	n := node.NewNode(nodeServices, declAddr, declAddr, proto.NewTimestampFromUSeconds(outdateSeconds))
 
 	go n.Run(ctx, parent, InternalCh)
 
 	if len(conf.Addresses) > 0 {
-		adrs := strings.Split(conf.Addresses, ",")
-		for _, addr := range adrs {
+		addresses := strings.Split(conf.Addresses, ",")
+		for _, addr := range addresses {
 			peerManager.AddAddress(ctx, addr)
 		}
 	}
 
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", scheduler, services)
+	app, err := api.NewApp("integration-test-rest-api", scheduler, nodeServices)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
 		return
 	}
 
-	webApi := api.NewNodeApi(app, state, n)
+	webApi := api.NewNodeApi(app, nodeState, n)
 	go func() {
 		zap.S().Info("===== ", conf.HttpAddr)
 		err := api.Run(ctx, conf.HttpAddr, webApi)
@@ -256,7 +256,7 @@ func main() {
 	}()
 
 	if *enableGrpcApi {
-		grpcServer, err := server.NewServer(services)
+		grpcServer, err := server.NewServer(nodeServices)
 		if err != nil {
 			zap.S().Errorf("Failed to create gRPC server: %v", err)
 		}
@@ -273,7 +273,7 @@ func main() {
 	signal.Notify(gracefulStop, syscall.SIGINT)
 
 	sig := <-gracefulStop
-	zap.S().Infow("Caught signal, stopping", "signal", sig)
+	zap.S().Infof("Caught signal '%s', stopping...", sig)
 	cancel()
 	n.Close()
 	<-time.After(1 * time.Second)

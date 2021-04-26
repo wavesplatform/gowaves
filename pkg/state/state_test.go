@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/importer"
@@ -29,9 +30,9 @@ type testCase struct {
 }
 
 func bigFromStr(s string) *big.Int {
-	var big big.Int
-	big.SetString(s, 10)
-	return &big
+	var i big.Int
+	i.SetString(s, 10)
+	return &i
 }
 
 func TestGenesisConfig(t *testing.T) {
@@ -292,13 +293,19 @@ func TestStateManager_SavePeers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	defer os.RemoveAll(dataDir)
+	defer func() {
+		err = os.RemoveAll(dataDir)
+		require.NoError(t, err)
+	}()
 
 	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
-	defer manager.Close()
+	defer func() {
+		err := manager.Close()
+		require.NoError(t, err)
+	}()
 
 	peers, err := manager.Peers()
 	require.NoError(t, err)
@@ -378,9 +385,9 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 	tx := existingGenesisTx(t)
 	txID, err := tx.GetID(settings.MainNetSettings.AddressSchemeCharacter)
 	assert.NoError(t, err, "tx.GetID() failed")
-	expectedErrStr := fmt.Sprintf("check duplicate tx ids: transaction with ID %v already in state", txID)
+	expectedErrStr := fmt.Sprintf("check duplicate tx ids: transaction with ID %s already in state", base58.Encode(txID))
 	err = manager.ValidateNextTx(tx, 1460678400000, 1460678400000, 3, true)
-	assert.Error(t, err, "duplicate transacton ID was accepted by state")
+	assert.Error(t, err, "duplicate transaction ID was accepted by state")
 	assert.EqualError(t, err, expectedErrStr)
 }
 
@@ -418,13 +425,19 @@ func TestStateManager_Mutex(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir for data: %v\n", err)
 	}
-	defer os.RemoveAll(dataDir)
+	defer func() {
+		err := os.RemoveAll(dataDir)
+		require.NoError(t, err)
+	}()
 
 	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
 	if err != nil {
 		t.Fatalf("Failed to create state manager: %v.\n", err)
 	}
-	defer manager.Close()
+	defer func() {
+		err := manager.Close()
+		require.NoError(t, err)
+	}()
 
 	mu := manager.Mutex()
 	mu.Lock().Unlock()

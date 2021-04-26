@@ -46,12 +46,12 @@ func (a *SyncFsm) Transaction(p Peer, t proto.Transaction) (FSM, Async, error) {
 	return a, nil, err
 }
 
-// ignore microblocks
+// MicroBlock ignores new microblock message.
 func (a *SyncFsm) MicroBlock(_ Peer, _ *proto.MicroBlock) (FSM, Async, error) {
 	return a.baseInfo.d.Noop(a)
 }
 
-// ignore microblocks
+// MicroBlockInv ignores new microblock message.
 func (a *SyncFsm) MicroBlockInv(_ Peer, _ *proto.MicroBlockInv) (FSM, Async, error) {
 	return a.baseInfo.d.Noop(a)
 }
@@ -59,14 +59,16 @@ func (a *SyncFsm) MicroBlockInv(_ Peer, _ *proto.MicroBlockInv) (FSM, Async, err
 func (a *SyncFsm) Task(task AsyncTask) (FSM, Async, error) {
 	zap.S().Debugf("SyncFsm Task: got task type %d, data %+v", task.TaskType, task.Data)
 	switch task.TaskType {
-	case ASK_PEERS:
+	case AskPeers:
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
-	case PING:
+	case Ping:
 		timeout := a.conf.lastReceiveTime.Add(a.conf.timeout).Before(a.baseInfo.tm.Now())
 		if timeout {
 			return NewIdleFsm(a.baseInfo), nil, TimeoutErr
 		}
+		return a, nil, nil
+	case MineMicro: // Do nothing
 		return a, nil, nil
 	default:
 		return a, nil, errors.Errorf("SyncFsm Task: unknown task type %d, data %+v", task.TaskType, task.Data)
@@ -82,7 +84,7 @@ func (noopWrapper) AskBlocksIDs([]proto.BlockID) {
 func (noopWrapper) AskBlock(proto.BlockID) {
 }
 
-func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
+func (a *SyncFsm) PeerError(p Peer, _ error) (FSM, Async, error) {
 	a.baseInfo.peers.Disconnect(p)
 	if a.conf.peerSyncWith == p {
 		_, blocks, _ := a.internal.Blocks(noopWrapper{})
@@ -97,11 +99,11 @@ func (a *SyncFsm) PeerError(p Peer, e error) (FSM, Async, error) {
 	return a, nil, nil
 }
 
-func (a *SyncFsm) BlockIDs(peer Peer, sigs []proto.BlockID) (FSM, Async, error) {
+func (a *SyncFsm) BlockIDs(peer Peer, signatures []proto.BlockID) (FSM, Async, error) {
 	if a.conf.peerSyncWith != peer {
 		return a, nil, nil
 	}
-	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme), sigs)
+	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme), signatures)
 	if err != nil {
 		return newSyncFsm(a.baseInfo, a.conf, internal), nil, err
 	}
@@ -119,11 +121,15 @@ func (a *SyncFsm) BlockIDs(peer Peer, sigs []proto.BlockID) (FSM, Async, error) 
 
 func (a *SyncFsm) NewPeer(p Peer) (FSM, Async, error) {
 	err := a.baseInfo.peers.NewConnection(p)
-	return a, nil, err
+	if err != nil {
+		return a, nil, proto.NewInfoMsg(err)
+	}
+	return a, nil, nil
 }
 
 func (a *SyncFsm) Score(p Peer, score *proto.Score) (FSM, Async, error) {
 	// TODO handle new max score
+	metrics.FSMScore("sync", score, p.Handshake().NodeName)
 	err := a.baseInfo.peers.UpdateScore(p, score)
 	if err != nil {
 		return a, nil, err
@@ -135,7 +141,7 @@ func (a *SyncFsm) Block(p Peer, block *proto.Block) (FSM, Async, error) {
 	if p != a.conf.peerSyncWith {
 		return a, nil, nil
 	}
-	metrics.BlockReceivedFromExtension(block, p.Handshake().NodeName)
+	metrics.FSMKeyBlockReceived("sync", block, p.Handshake().NodeName)
 	zap.S().Debugf("[%s] Received block %s", p.ID(), block.ID.String())
 	internal, err := a.internal.Block(block)
 	if err != nil {
@@ -145,12 +151,13 @@ func (a *SyncFsm) Block(p Peer, block *proto.Block) (FSM, Async, error) {
 }
 
 func (a *SyncFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
+	metrics.FSMKeyBlockGenerated("sync", block)
 	zap.S().Infof("New key block '%s' mined", block.ID.String())
-	h, err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
+	_, err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
 	if err != nil {
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
-	metrics.BlockMined(block, h)
+	metrics.FSMKeyBlockApplied("sync", block)
 	a.baseInfo.Reschedule()
 
 	// first we should send block
@@ -169,10 +176,9 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 	if len(blocks) == 0 {
 		return newSyncFsm(baseInfo, conf, internal), nil, nil
 	}
-	var last proto.Height
 	err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		var err error
-		last, err = a.baseInfo.blocksApplier.Apply(s, blocks)
+		_, err = a.baseInfo.blocksApplier.Apply(s, blocks)
 		return err
 	})
 	if err != nil {
@@ -180,12 +186,12 @@ func (a *SyncFsm) applyBlocks(baseInfo BaseInfo, conf conf, internal sync_intern
 			a.baseInfo.peers.Suspend(conf.peerSyncWith, err.Error())
 		}
 		for _, b := range blocks {
-			metrics.BlockDeclinedFromExtension(b)
+			metrics.FSMKeyBlockDeclined("sync", b, err)
 		}
 		return NewIdleFsm(a.baseInfo), nil, err
 	}
-	for i, b := range blocks {
-		metrics.BlockAppliedFromExtension(b, last-uint64(len(blocks)-1-i))
+	for _, b := range blocks {
+		metrics.FSMKeyBlockApplied("sync", b)
 	}
 	a.baseInfo.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
@@ -219,11 +225,11 @@ func newSyncFsm(baseInfo BaseInfo, conf conf, internal sync_internal.Internal) F
 }
 
 func NewIdleToSyncTransition(baseInfo BaseInfo, p Peer) (FSM, Async, error) {
-	lastSigs, err := signatures.LastSignaturesImpl{}.LastBlockIDs(baseInfo.storage)
+	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(baseInfo.storage)
 	if err != nil {
 		return NewIdleFsm(baseInfo), nil, err
 	}
-	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, baseInfo.scheme), lastSigs)
+	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, baseInfo.scheme), lastSignatures)
 	c := conf{
 		peerSyncWith: p,
 		timeout:      30 * time.Second,

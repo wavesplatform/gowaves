@@ -45,7 +45,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 
 	connection, handshake, err := p.connect(ctx, c, v)
 	if err != nil {
-		zap.S().Debug(err, params.Address)
+		zap.S().Debugf("Outgoing connection to address %s failed with error: %v", params.Address.String(), err)
 		return errors.Wrapf(err, "%q", params.Address)
 	}
 	p.connection = connection
@@ -92,20 +92,20 @@ func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (c
 
 	_, err := handshake.WriteTo(c)
 	if err != nil {
-		zap.S().Error("failed to send handshake: ", err, a.params.Address)
+		zap.S().Error("Failed to send handshake: ", err, a.params.Address)
 		return nil, nil, err
 	}
 
 	select {
 	case <-ctx.Done():
-		c.Close()
+		_ = c.Close()
 		return nil, nil, errors.Wrap(ctx.Err(), "connector.connect")
 	default:
 	}
 
 	_, err = handshake.ReadFrom(c)
 	if err != nil {
-		zap.S().Debugf("failed to read handshake: %s %s", err, a.params.Address)
+		zap.S().Debugf("Failed to read handshake: %s %s", err, a.params.Address)
 		select {
 		case <-ctx.Done():
 			return nil, nil, errors.Wrap(ctx.Err(), "connector.connect")

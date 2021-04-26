@@ -126,11 +126,11 @@ func (a *MicroBlock) UnmarshalBinary(b []byte, scheme Scheme) error {
 		return errors.Wrap(err, "failed to unmarshal microblock transaction bytes")
 	}
 	if proto {
-		var txs Transactions
+		txs := new(Transactions)
 		if err := txs.UnmarshalFromProtobuf(bts); err != nil {
 			return errors.Wrap(err, "failed to unmarshal transactions from protobuf")
 		}
-		a.Transactions = txs
+		a.Transactions = *txs
 	} else {
 		a.Transactions, err = NewTransactionsFromBytes(bts, int(a.TransactionCount), scheme)
 		if err != nil {
@@ -179,7 +179,7 @@ func (a *MicroBlock) Sign(scheme Scheme, secret crypto.SecretKey) error {
 
 func (a *MicroBlock) WriteTo(scheme Scheme, w io.Writer) (int64, error) {
 	n, _ := a.WriteWithoutSignature(scheme, w)
-	n2, _ := w.Write(a.Signature[:])
+	n2, _ := w.Write(a.Signature.Bytes())
 	return n + int64(n2), nil
 }
 
@@ -187,14 +187,20 @@ func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, e
 	s := serializer.NewNonFallable(w)
 	s.Byte(a.VersionField)
 	s.Bytes(a.Reference.Bytes())
-	s.Bytes(a.TotalResBlockSigField[:])
-	s.Uint32(uint32(a.Transactions.BinarySize() + 4))
-	s.Uint32(a.TransactionCount)
+	s.Bytes(a.TotalResBlockSigField.Bytes())
+	// Serialize transactions in separate buffer to get the size
+	txsBuf := new(bytes.Buffer)
+	txsSerializer := serializer.NewNonFallable(txsBuf)
 	proto := a.VersionField >= byte(ProtobufBlockVersion)
-	if _, err := a.Transactions.WriteTo(proto, scheme, s); err != nil {
+	if _, err := a.Transactions.WriteTo(proto, scheme, txsSerializer); err != nil {
 		return 0, err
 	}
-	s.Bytes(a.SenderPK[:])
+	// Write transactions bytes size and its count
+	s.Uint32(uint32(txsBuf.Len() + 4))
+	s.Uint32(a.TransactionCount)
+	// Write transactions bytes
+	s.Bytes(txsBuf.Bytes())
+	s.Bytes(a.SenderPK.Bytes())
 	return s.N(), nil
 }
 
@@ -209,7 +215,7 @@ type MicroBlockMessage struct {
 	Body []byte
 }
 
-func (*MicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
+func (*MicroBlockMessage) ReadFrom(_ io.Reader) (int64, error) {
 	panic("implement me")
 }
 
@@ -276,7 +282,7 @@ type MicroBlockInvMessage struct {
 	Body []byte
 }
 
-func (a *MicroBlockInvMessage) ReadFrom(r io.Reader) (n int64, err error) {
+func (a *MicroBlockInvMessage) ReadFrom(_ io.Reader) (n int64, err error) {
 	panic("implement me")
 }
 
@@ -290,7 +296,7 @@ func (a *MicroBlockInvMessage) WriteTo(w io.Writer) (n int64, err error) {
 	if err != nil {
 		return 0, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 	n1, err := h.WriteTo(w)
 	if err != nil {
 		return 0, err
@@ -314,12 +320,12 @@ func (a *MicroBlockInvMessage) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-// ?? total block sig or id
+// MicroBlockRequestMessage total block signature or ID.
 type MicroBlockRequestMessage struct {
 	TotalBlockSig []byte
 }
 
-func (a *MicroBlockRequestMessage) ReadFrom(r io.Reader) (n int64, err error) {
+func (a *MicroBlockRequestMessage) ReadFrom(_ io.Reader) (n int64, err error) {
 	panic("implement me")
 }
 
@@ -333,7 +339,7 @@ func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	copy(h.PayloadCsum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:4])
 	n2, err := h.WriteTo(w)
 	if err != nil {
 		return 0, err
@@ -447,7 +453,7 @@ func (a *MicroBlockInv) WriteTo(w io.Writer) (int64, error) {
 func (a *MicroBlockInv) Sign(key crypto.SecretKey, schema Scheme) error {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
-	err := a.signableBytes(buf, schema)
+	err := a.bodyBytes(buf, schema)
 	if err != nil {
 		return err
 	}
@@ -458,7 +464,7 @@ func (a *MicroBlockInv) Sign(key crypto.SecretKey, schema Scheme) error {
 	return nil
 }
 
-func (a *MicroBlockInv) signableBytes(w io.Writer, schema Scheme) error {
+func (a *MicroBlockInv) bodyBytes(w io.Writer, schema Scheme) error {
 	addr, err := NewAddressFromPublicKey(schema, a.PublicKey)
 	if err != nil {
 		return err
@@ -473,18 +479,14 @@ func (a *MicroBlockInv) signableBytes(w io.Writer, schema Scheme) error {
 func (a *MicroBlockInv) Verify(schema Scheme) (bool, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
-	err := a.signableBytes(buf, schema)
+	err := a.bodyBytes(buf, schema)
 	if err != nil {
 		return false, err
 	}
 	return crypto.Verify(a.PublicKey, a.Signature, buf.Bytes()), nil
 }
 
-func NewUnsignedMicroblockInv(
-	PublicKey crypto.PublicKey,
-	TotalBlockID BlockID,
-	Reference BlockID) *MicroBlockInv {
-
+func NewUnsignedMicroblockInv(PublicKey crypto.PublicKey, TotalBlockID BlockID, Reference BlockID) *MicroBlockInv {
 	return &MicroBlockInv{
 		PublicKey:    PublicKey,
 		TotalBlockID: TotalBlockID,
@@ -512,7 +514,7 @@ type PBMicroBlockMessage struct {
 	MicroBlockBytes Bytes
 }
 
-func (*PBMicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
+func (*PBMicroBlockMessage) ReadFrom(_ io.Reader) (int64, error) {
 	panic("implement me")
 }
 
