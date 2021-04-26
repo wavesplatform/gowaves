@@ -490,6 +490,7 @@ func functionsV5() map[string]string {
 	m["425"] = "medianListBigInt"
 	m["1009"] = "hashScriptAtAddress"
 	m["1020"] = "invoke"
+	m["1021"] = "reentrantInvoke"
 	m["1054"] = "isDataStorageUntouched"
 	m["1055"] = "intFromSelfState"
 	m["1056"] = "booleanFromSelfState"
@@ -533,6 +534,7 @@ func catalogueV5() map[string]int {
 	m["425"] = 160
 	m["1009"] = 200
 	m["1020"] = 75
+	m["1021"] = 75
 	m["1054"] = 10
 	m["1055"] = 10
 	m["1056"] = 10
