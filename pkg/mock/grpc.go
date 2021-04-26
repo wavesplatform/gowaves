@@ -7,10 +7,10 @@ package mock
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
-	empty "github.com/golang/protobuf/ptypes/empty"
-	wrappers "github.com/golang/protobuf/ptypes/wrappers"
 	waves "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	grpc "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 	reflect "reflect"
 )
 
@@ -95,10 +95,10 @@ func (mr *MockGrpcHandlersMockRecorder) GetDataEntries(arg0, arg1 interface{}) *
 }
 
 // ResolveAlias mocks base method
-func (m *MockGrpcHandlers) ResolveAlias(arg0 context.Context, arg1 *wrappers.StringValue) (*wrappers.BytesValue, error) {
+func (m *MockGrpcHandlers) ResolveAlias(arg0 context.Context, arg1 *wrapperspb.StringValue) (*wrapperspb.BytesValue, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveAlias", arg0, arg1)
-	ret0, _ := ret[0].(*wrappers.BytesValue)
+	ret0, _ := ret[0].(*wrapperspb.BytesValue)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -154,7 +154,7 @@ func (mr *MockGrpcHandlersMockRecorder) GetActivationStatus(arg0, arg1 interface
 }
 
 // GetBaseTarget mocks base method
-func (m *MockGrpcHandlers) GetBaseTarget(arg0 context.Context, arg1 *empty.Empty) (*grpc.BaseTargetResponse, error) {
+func (m *MockGrpcHandlers) GetBaseTarget(arg0 context.Context, arg1 *emptypb.Empty) (*grpc.BaseTargetResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBaseTarget", arg0, arg1)
 	ret0, _ := ret[0].(*grpc.BaseTargetResponse)
@@ -169,7 +169,7 @@ func (mr *MockGrpcHandlersMockRecorder) GetBaseTarget(arg0, arg1 interface{}) *g
 }
 
 // GetCumulativeScore mocks base method
-func (m *MockGrpcHandlers) GetCumulativeScore(arg0 context.Context, arg1 *empty.Empty) (*grpc.ScoreResponse, error) {
+func (m *MockGrpcHandlers) GetCumulativeScore(arg0 context.Context, arg1 *emptypb.Empty) (*grpc.ScoreResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCumulativeScore", arg0, arg1)
 	ret0, _ := ret[0].(*grpc.ScoreResponse)
@@ -213,10 +213,10 @@ func (mr *MockGrpcHandlersMockRecorder) GetBlockRange(arg0, arg1 interface{}) *g
 }
 
 // GetCurrentHeight mocks base method
-func (m *MockGrpcHandlers) GetCurrentHeight(arg0 context.Context, arg1 *empty.Empty) (*wrappers.UInt32Value, error) {
+func (m *MockGrpcHandlers) GetCurrentHeight(arg0 context.Context, arg1 *emptypb.Empty) (*wrapperspb.UInt32Value, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetCurrentHeight", arg0, arg1)
-	ret0, _ := ret[0].(*wrappers.UInt32Value)
+	ret0, _ := ret[0].(*wrapperspb.UInt32Value)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

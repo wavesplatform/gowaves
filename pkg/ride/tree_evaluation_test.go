@@ -826,7 +826,7 @@ var addressCallablePK crypto.PublicKey
 
 func smartStateDappFromDapp() types.SmartState {
 	return &MockSmartState{
-		NewestLeasingInfoFunc: func(id crypto.Digest, filter bool) (*proto.LeaseInfo, error) {
+		NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
 			return nil, nil
 		},
 		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
@@ -867,7 +867,7 @@ func smartStateDappFromDapp() types.SmartState {
 		AddingBlockHeightFunc: func() (uint64, error) {
 			return 10, nil
 		},
-		NewestScriptPKByAddrFunc: func(address proto.Address, filter bool) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(address proto.Address) (crypto.PublicKey, error) {
 			// payments test
 			if address.String() == "3P8eZVKS7a4troGckytxaefLAi9w7P5aMna" {
 				return crypto.NewPublicKeyFromBase58("FztxsodUc9V7iVzodkGumnZFtHnNTxYSETZfxBFAw9R3")
@@ -1153,13 +1153,13 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
 	require.NoError(t, err)
 
 	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
 	require.NoError(t, err)
 	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
-	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
 	require.NoError(t, err)
 
 	arguments := proto.Arguments{}
@@ -1388,7 +1388,7 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
 	require.NoError(t, err)
 
 	arguments := proto.Arguments{}
@@ -1534,13 +1534,13 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
 	require.NoError(t, err)
 
 	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
 	require.NoError(t, err)
 	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
-	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
 	require.NoError(t, err)
 
 	arguments := proto.Arguments{}
@@ -1721,13 +1721,13 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
 	require.NoError(t, err)
 
 	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
 	require.NoError(t, err)
 	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
-	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
 	require.NoError(t, err)
 
 	arguments := proto.Arguments{}
@@ -2101,12 +2101,12 @@ func TestNegativeCycleNewInvokeDAppFromDAppScript4(t *testing.T) {
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
 	require.NoError(t, err)
 
 	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
 	require.NoError(t, err)
-	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
 	require.NoError(t, err)
 
 	arguments := proto.Arguments{}
@@ -2389,6 +2389,13 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
+	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
+	require.NoError(t, err)
 
 	arguments := proto.Arguments{}
 	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
@@ -2710,12 +2717,12 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
 	require.NoError(t, err)
 
 	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
 	require.NoError(t, err)
-	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
 	require.NoError(t, err)
 
 	arguments := proto.Arguments{}
@@ -2887,12 +2894,12 @@ func TestInvokeDAppFromDAppOriginalCallerAndAlias(t *testing.T) {
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
 	require.NoError(t, err)
 
 	addressCallable, err = proto.NewAddressFromString("3MsCoDnBbgzjQ7BgGk9xcruM6JVZ5jF8YCV") // new
 	require.NoError(t, err)
-	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
 	require.NoError(t, err)
 	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
 
@@ -3083,13 +3090,13 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
 	require.NoError(t, err)
 
 	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
 	require.NoError(t, err)
 	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
-	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
 	require.NoError(t, err)
 
 	arguments := proto.Arguments{}
@@ -3267,12 +3274,12 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
 	require.NoError(t, err)
 
 	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
 	require.NoError(t, err)
-	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
 	require.NoError(t, err)
 
 	arguments := proto.Arguments{}
@@ -3430,13 +3437,13 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
 	require.NoError(t, err)
 	recipient := proto.NewRecipientFromAddress(addr)
-	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
 	require.NoError(t, err)
 
 	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
 	require.NoError(t, err)
 	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
-	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
 	require.NoError(t, err)
 
 	arguments := proto.Arguments{}

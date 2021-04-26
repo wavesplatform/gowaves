@@ -467,9 +467,11 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 }
 
 func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
 	if recipient.Address != nil {
 		key := accountScriptKey{*recipient.Address}
-		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), false)
+		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script by address")
 		}
@@ -481,7 +483,7 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 			return nil, errors.Wrapf(err, "failed to get address by alias")
 		}
 		key := accountScriptKey{address}
-		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), false)
+		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script by address")
 		}
@@ -491,8 +493,9 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 }
 
 func (s *stateManager) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
-	return s.stor.scriptsStorage.newestScriptBytesByAsset(asset.ID, false)
-
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
+	return s.stor.scriptsStorage.newestScriptBytesByAsset(asset.ID, true)
 }
 
 func (s *stateManager) Mutex() *lock.RwMutex {
@@ -681,8 +684,10 @@ func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
 	return s.Block(blockID)
 }
 
-func (s *stateManager) NewestLeasingInfo(id crypto.Digest, filter bool) (*proto.LeaseInfo, error) {
-	leaseFromStore, err := s.stor.leases.newestLeasingInfo(id, filter)
+func (s *stateManager) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, error) {
+	// This function is used only from RIDE for now do not pass filter as an optimization
+	// TODO: Pass real filter value then supported in environment
+	leaseFromStore, err := s.stor.leases.newestLeasingInfo(id, true)
 	if err != nil {
 		return nil, err
 	}
@@ -695,8 +700,10 @@ func (s *stateManager) NewestLeasingInfo(id crypto.Digest, filter bool) (*proto.
 	return &leaseInfo, nil
 }
 
-func (s *stateManager) NewestScriptPKByAddr(addr proto.Address, filter bool) (crypto.PublicKey, error) {
-	return s.stor.scriptsStorage.NewestScriptPKByAddr(addr, filter)
+func (s *stateManager) NewestScriptPKByAddr(addr proto.Address) (crypto.PublicKey, error) {
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
+	return s.stor.scriptsStorage.NewestScriptPKByAddr(addr, true)
 }
 
 func (s *stateManager) AddingBlockHeight() (uint64, error) {
@@ -1497,6 +1504,8 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 }
 
 func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error) {
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
 	if recipient.Address == nil {
 		return s.stor.aliases.newestAddrByAlias(recipient.Alias.Alias, true)
 	}
@@ -1560,6 +1569,8 @@ func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, pa
 }
 
 func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
 	addr, err := s.stor.aliases.newestAddrByAlias(alias.Alias, true)
 	if err != nil {
 		return proto.Address{}, wrapErr(RetrievalError, err)
@@ -1695,6 +1706,8 @@ func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEnt
 }
 
 func (s *stateManager) IsStateUntouched(account proto.Recipient) (bool, error) {
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
@@ -1723,6 +1736,8 @@ func (s *stateManager) RetrieveNewestIntegerEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
 	entry, err := s.stor.accountsDataStor.retrieveNewestIntegerEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1747,6 +1762,8 @@ func (s *stateManager) RetrieveNewestBooleanEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
 	entry, err := s.stor.accountsDataStor.retrieveNewestBooleanEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1771,6 +1788,8 @@ func (s *stateManager) RetrieveNewestStringEntry(account proto.Recipient, key st
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
 	entry, err := s.stor.accountsDataStor.retrieveNewestStringEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1795,6 +1814,8 @@ func (s *stateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key st
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
 	entry, err := s.stor.accountsDataStor.retrieveNewestBinaryEntry(*addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1870,6 +1891,8 @@ func (s *stateManager) NewAddrTransactionsIterator(addr proto.Address) (Transact
 }
 
 func (s *stateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
 	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
@@ -1886,6 +1909,8 @@ func (s *stateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
 }
 
 func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
 	info, err := s.stor.assets.newestAssetInfo(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1921,6 +1946,8 @@ func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAs
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
+	// This function is used only from SmartState interface, so for now we set filter to true.
+	// TODO: Pass actual filter value after support in RIDE environment
 	info, err := s.stor.assets.newestAssetInfo(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
