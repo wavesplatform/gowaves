@@ -248,8 +248,14 @@ func TestFraction(t *testing.T) {
 	}{
 		{[]rideType{rideInt(math.MaxInt64), rideInt(4), rideInt(6)}, false, rideInt(6148914691236517204)},
 		{[]rideType{rideInt(8), rideInt(4), rideInt(2)}, false, rideInt(16)},
+		{[]rideType{rideInt(math.MaxInt64), rideInt(math.MinInt64), rideInt(math.MinInt64)}, false, rideInt(math.MaxInt64)},
+		{[]rideType{rideInt(1), rideInt(math.MinInt64), rideInt(1)}, false, rideInt(math.MinInt64)},
+
 		{[]rideType{rideInt(math.MaxInt64), rideInt(4), rideInt(1)}, true, nil},
 		{[]rideType{rideInt(math.MaxInt64), rideInt(4), rideInt(0)}, true, nil},
+		{[]rideType{rideInt(1), rideInt(-1), rideInt(0)}, true, nil},
+		{[]rideType{rideInt(math.MaxInt64), rideInt(math.MinInt64), rideInt(1)}, true, nil},
+
 		{[]rideType{rideInt(2), rideInt(2)}, true, nil},
 		{[]rideType{rideInt(1), rideInt(2), rideUnit{}}, true, nil},
 		{[]rideType{rideInt(1), rideInt(2), rideString("x")}, true, nil},
@@ -257,6 +263,57 @@ func TestFraction(t *testing.T) {
 		{[]rideType{}, true, nil},
 	} {
 		r, err := fraction(nil, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestFractionIntRounds(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideInt(math.MaxInt64), rideInt(4), rideInt(6), newDown(nil)}, false, rideInt(6148914691236517204)},
+		{[]rideType{rideInt(8), rideInt(4), rideInt(2), newDown(nil)}, false, rideInt(16)},
+		{[]rideType{rideInt(math.MaxInt64), rideInt(math.MinInt64), rideInt(math.MinInt64), newHalfEven(nil)}, false, rideInt(math.MaxInt64)},
+		{[]rideType{rideInt(1), rideInt(math.MinInt64), rideInt(1), newHalfEven(nil)}, false, rideInt(math.MinInt64)},
+		{[]rideType{rideInt(5), rideInt(1), rideInt(2), newDown(nil)}, false, rideInt(2)},
+		{[]rideType{rideInt(5), rideInt(1), rideInt(2), newHalfUp(nil)}, false, rideInt(3)},
+		{[]rideType{rideInt(5), rideInt(1), rideInt(2), newHalfEven(nil)}, false, rideInt(2)},
+		{[]rideType{rideInt(5), rideInt(1), rideInt(2), newCeiling(nil)}, false, rideInt(3)},
+		{[]rideType{rideInt(5), rideInt(1), rideInt(2), newFloor(nil)}, false, rideInt(2)},
+		{[]rideType{rideInt(2), rideInt(4), rideInt(5), newDown(nil)}, false, rideInt(1)},
+		{[]rideType{rideInt(2), rideInt(4), rideInt(5), newHalfUp(nil)}, false, rideInt(2)},
+		{[]rideType{rideInt(2), rideInt(4), rideInt(5), newHalfEven(nil)}, false, rideInt(2)},
+		{[]rideType{rideInt(2), rideInt(4), rideInt(5), newCeiling(nil)}, false, rideInt(2)},
+		{[]rideType{rideInt(2), rideInt(4), rideInt(5), newFloor(nil)}, false, rideInt(1)},
+		{[]rideType{rideInt(-2), rideInt(4), rideInt(5), newDown(nil)}, false, rideInt(-1)},
+		{[]rideType{rideInt(-2), rideInt(4), rideInt(5), newHalfUp(nil)}, false, rideInt(-2)},
+		{[]rideType{rideInt(-2), rideInt(4), rideInt(5), newHalfEven(nil)}, false, rideInt(-2)},
+		{[]rideType{rideInt(-2), rideInt(4), rideInt(5), newCeiling(nil)}, false, rideInt(-1)},
+		{[]rideType{rideInt(-2), rideInt(4), rideInt(5), newFloor(nil)}, false, rideInt(-2)},
+		{[]rideType{rideInt(-5), rideInt(11), rideInt(10), newDown(nil)}, false, rideInt(-5)},
+		{[]rideType{rideInt(-5), rideInt(11), rideInt(10), newHalfUp(nil)}, false, rideInt(-6)},
+		{[]rideType{rideInt(-5), rideInt(11), rideInt(10), newHalfEven(nil)}, false, rideInt(-6)},
+		{[]rideType{rideInt(-5), rideInt(11), rideInt(10), newCeiling(nil)}, false, rideInt(-5)},
+		{[]rideType{rideInt(-5), rideInt(11), rideInt(10), newFloor(nil)}, false, rideInt(-6)},
+		{[]rideType{rideInt(math.MaxInt64), rideInt(4), rideInt(1), newDown(nil)}, true, nil},
+		{[]rideType{rideInt(math.MaxInt64), rideInt(4), rideInt(0), newDown(nil)}, true, nil},
+		{[]rideType{rideInt(math.MaxInt64), rideInt(math.MinInt64), rideInt(1), newHalfEven(nil)}, true, nil},
+		{[]rideType{rideInt(1), rideInt(-1), rideInt(0), newHalfEven(nil)}, true, nil},
+		{[]rideType{rideInt(2), rideInt(2), newDown(nil)}, true, nil},
+		{[]rideType{rideInt(1), rideInt(2), rideUnit{}, newDown(nil)}, true, nil},
+		{[]rideType{rideInt(1), rideInt(2), rideInt(4)}, true, nil},
+		{[]rideType{rideInt(1), rideInt(2), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
+	} {
+		r, err := fractionIntRounds(nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
