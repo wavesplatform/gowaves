@@ -11,12 +11,13 @@ import (
 )
 
 type WrappedState struct {
-	diff        diffState
-	cle         rideAddress
-	scheme      proto.Scheme
-	invokeCount uint64
-	act         []proto.ScriptAction
-	blackList   []proto.Address
+	diff            diffState
+	cle             rideAddress
+	scheme          proto.Scheme
+	invokeCount     uint64
+	act             []proto.ScriptAction
+	blackList       []proto.Address
+	totalComplexity int
 }
 
 func newWrappedState(env *EvaluationEnvironment) *WrappedState {
@@ -41,6 +42,13 @@ func newWrappedState(env *EvaluationEnvironment) *WrappedState {
 
 func (ws *WrappedState) appendActions(actions []proto.ScriptAction) {
 	ws.act = append(ws.act, actions...)
+}
+
+func (ws *WrappedState) checkTotalComplexity() (int, bool) {
+	if ws.totalComplexity > MaxChainInvokeComplexity {
+		return ws.totalComplexity, false
+	}
+	return ws.totalComplexity, true
 }
 
 func (ws *WrappedState) callee() proto.Address {
@@ -72,6 +80,10 @@ func (ws *WrappedState) NewestTransactionByID(id []byte) (proto.Transaction, err
 }
 func (ws *WrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
 	return ws.diff.state.NewestTransactionHeightByID(id)
+}
+
+func (ws *WrappedState) NewestScriptCallableComplexityByAddr(addr proto.Address, ev int) (int, error) {
+	return ws.diff.state.NewestScriptCallableComplexityByAddr(addr, ev)
 }
 
 func (ws *WrappedState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
@@ -1033,6 +1045,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 		default:
 		}
 	}
+
 	return actions, nil
 }
 

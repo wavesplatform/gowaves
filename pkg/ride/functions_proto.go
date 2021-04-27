@@ -171,6 +171,17 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		env.setNewDAppAddress(proto.Address(callerAddress))
 		env.SetInvocation(oldInvocationParam)
 
+		// collect complexity of every call
+		ev, err := ws.EstimatorVersion()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get estimator version")
+		}
+		complexity, err := ws.NewestScriptCallableComplexityByAddr(*recipient.Address, ev)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get complexity from store")
+		}
+		ws.totalComplexity += complexity
+
 		if res.UserResult() == nil {
 			return rideUnit{}, nil
 		}
@@ -331,6 +342,17 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 
 		env.setNewDAppAddress(proto.Address(callerAddress))
 		env.SetInvocation(oldInvocationParam)
+
+		// collect complexity of every call
+		ev, err := ws.EstimatorVersion()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get estimator version")
+		}
+		complexity, err := ws.NewestScriptCallableComplexityByAddr(*recipient.Address, ev)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get complexity from store")
+		}
+		ws.totalComplexity += complexity
 
 		if res.UserResult() == nil {
 			return rideUnit{}, nil

@@ -54,6 +54,11 @@ func CallFunction(env Environment, tree *Tree, name string, args proto.Arguments
 		return nil, errors.New("wrong state")
 	}
 
+	complexity, ok := ws.checkTotalComplexity()
+	if !ok {
+		return nil, errors.Errorf("complexity of invocation chain %d exceeds maximum allowed complexity of %d", complexity, MaxChainInvokeComplexity)
+	}
+
 	if ws.act == nil {
 		return rideResult, err
 	}

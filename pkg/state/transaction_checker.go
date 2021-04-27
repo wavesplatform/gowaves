@@ -92,14 +92,14 @@ func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation 
 	if tree.IsDApp() {
 		switch tree.LibVersion {
 		case 1, 2:
-			maxComplexity = 2000
+			maxComplexity = MaxCallableScriptComplexityV12
 		case 3, 4:
-			maxComplexity = 4000
+			maxComplexity = MaxCallableScriptComplexityV34
 		case 5:
-			maxComplexity = 10000
+			maxComplexity = MaxCallableScriptComplexityV5
 		}
 	} else { // verifier
-		maxComplexity = 2000
+		maxComplexity = MaxVerifierScriptComplexity
 	}
 
 	complexity := estimation.Verifier
