@@ -4,45 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"strconv"
-	"time"
-
-	"github.com/pkg/errors"
-
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
+	"io/ioutil"
+	"net/http"
+	"strconv"
 )
-
-// Logger is a middleware that logs the start and end of each request, along
-// with some useful data about what was requested, what the response status was,
-// and how long it took to return.
-func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-
-			t1 := time.Now()
-			defer func() {
-				l.Info("Served",
-					zap.String("proto", r.Proto),
-					zap.String("path", r.URL.Path),
-					zap.Duration("lat", time.Since(t1)),
-					zap.Int("status", ww.Status()),
-					zap.Int("size", ww.BytesWritten()),
-					zap.String("reqId", middleware.GetReqID(r.Context())))
-			}()
-
-			next.ServeHTTP(ww, r)
-		}
-		return http.HandlerFunc(fn)
-	}
-}
 
 type NodeApi struct {
 	state state.State
@@ -191,8 +162,17 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) {
 	sendJson(w, rs)
 }
 
-func Run(ctx context.Context, address string, n *NodeApi) error {
-	apiServer := &http.Server{Addr: address, Handler: n.routes()}
+func RunWithOpts(ctx context.Context, address string, n *NodeApi, opts *RunOptions) error {
+	if opts == nil {
+		opts = DefaultRunOptions()
+	}
+
+	routes, err := n.routes(opts)
+	if err != nil {
+		return errors.Wrap(err, "RunWithOpts")
+	}
+
+	apiServer := &http.Server{Addr: address, Handler: routes}
 	go func() {
 		<-ctx.Done()
 		zap.S().Info("Shutting down API...")
@@ -201,11 +181,17 @@ func Run(ctx context.Context, address string, n *NodeApi) error {
 			zap.S().Errorf("Failed to shutdown API server: %v", err)
 		}
 	}()
-	err := apiServer.ListenAndServe()
+
+	err = apiServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		return err
 	}
 	return nil
+}
+
+func Run(ctx context.Context, address string, n *NodeApi) error {
+	// TODO(nickeskov): add run flags in CLI flags
+	return RunWithOpts(ctx, address, n, nil)
 }
 
 func (a *NodeApi) PeersAll(w http.ResponseWriter, _ *http.Request) {

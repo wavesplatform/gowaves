@@ -357,6 +357,7 @@ func main() {
 
 	webApi := api.NewNodeApi(app, st, n)
 	go func() {
+		zap.S().Infof("Starting node HTTP API on '%v'", conf.HttpAddr)
 		err := api.Run(ctx, conf.HttpAddr, webApi)
 		if err != nil {
 			zap.S().Errorf("Failed to start API: %v", err)
@@ -368,6 +369,7 @@ func main() {
 			h := http.NewServeMux()
 			h.Handle("/metrics", promhttp.Handler())
 			s := &http.Server{Addr: *prometheus, Handler: h}
+			zap.S().Infof("Starting node metrics endpoint on '%v'", *prometheus)
 			_ = s.ListenAndServe()
 		}
 	}()
