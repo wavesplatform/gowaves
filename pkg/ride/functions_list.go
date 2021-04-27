@@ -466,6 +466,27 @@ func containsElement(_ Environment, args ...rideType) (rideType, error) {
 	return rideBoolean(false), nil
 }
 
+func listRemoveByIndex(_ Environment, args ...rideType) (rideType, error) {
+	list, i, err := listAndIntArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "listRemoveByIndex")
+	}
+	l := len(list)
+	if l == 0 {
+		return nil, errors.New("listRemoveByIndex: can't remove an element from empty list")
+	}
+	if i < 0 {
+		return nil, errors.Errorf("listRemoveByIndex: negative index value %d", i)
+	}
+	if i >= l {
+		return nil, errors.Errorf("listRemoveByIndex: index out of bounds")
+	}
+	r := make(rideList, l-1)
+	copy(r, list[:i])
+	copy(r[i:], list[i+1:])
+	return r, nil
+}
+
 func findItem(list rideList, key rideString, entryType, valueType string) (rideType, error) {
 	for _, item := range list {
 		o, ok := item.(rideObject)

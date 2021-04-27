@@ -324,6 +324,7 @@ func functionsV4() map[string]string {
 	m["1102"] = "concatList"
 	m["1103"] = "indexOfList"
 	m["1104"] = "lastIndexOfList"
+	m["1105"] = "listRemoveByIndex"
 	m["1209"] = "makeString"
 	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		m[strconv.Itoa(2400+i)] = fmt.Sprintf("bls12Groth16Verify_%d", l)
@@ -407,6 +408,7 @@ func catalogueV4() map[string]int {
 	m["1102"] = 4
 	m["1103"] = 5
 	m["1104"] = 5
+	m["1105"] = 7
 	m["1200"] = 7
 	m["1201"] = 1
 	m["1202"] = 1

@@ -47,7 +47,7 @@ func TestSyncFsm_SignaturesTimeout(t *testing.T) {
 	require.NotNil(t, fsm)
 
 	fsm, _, _ = fsm.Task(AsyncTask{
-		TaskType: PING,
+		TaskType: Ping,
 	})
 
 	require.IsType(t, &IdleFsm{}, fsm)

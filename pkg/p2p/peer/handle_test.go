@@ -36,7 +36,7 @@ func (a *mockConnection) Conn() net.Conn {
 	return nil
 }
 
-func TestHHandleStopContext(t *testing.T) {
+func TestHandleStopContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		<-time.After(1 * time.Millisecond)
@@ -47,7 +47,7 @@ func TestHHandleStopContext(t *testing.T) {
 		Ctx:        ctx,
 		Connection: conn,
 	})
-	assert.Error(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, 1, conn.closeCalledTimes)
 }
