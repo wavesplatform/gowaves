@@ -2,54 +2,39 @@ package api
 
 import (
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 	"time"
 )
 
-type Middleware = func(next http.Handler) http.Handler
+// LoggerMiddleware is a middleware that logs the start and end of each request, along
+// with some useful data about what was requested, what the response status was,
+// and how long it took to return.
+func LoggerMiddleware(l *zap.Logger) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			ww, ok := w.(middleware.WrapResponseWriter)
+			if !ok {
+				ww = middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+			}
 
-type responseWriterWrapper struct {
-	http.ResponseWriter
-	statusCode    int
-	length        int
-	headerWritten bool
-}
+			t1 := time.Now()
+			defer func() {
+				l.Info("ServedHttpRequest",
+					zap.String("proto", r.Proto),
+					zap.String("path", r.URL.Path),
+					zap.Duration("lat", time.Since(t1)),
+					zap.Int("status", ww.Status()),
+					zap.Int("size", ww.BytesWritten()),
+					zap.String("reqId", middleware.GetReqID(r.Context())))
+			}()
 
-func newResponseWriterWrapper(inner http.ResponseWriter, defaultStatusCode int) *responseWriterWrapper {
-	return &responseWriterWrapper{
-		ResponseWriter: inner,
-		statusCode:     defaultStatusCode,
-		length:         0,
-		headerWritten:  false,
+			next.ServeHTTP(ww, r)
+		}
+		return http.HandlerFunc(fn)
 	}
-}
-
-func (w *responseWriterWrapper) WriteHeader(status int) {
-	if w.headerWritten {
-		zap.S().Warn("WriteHeader called more than once")
-		return
-	}
-	w.statusCode = status
-	w.ResponseWriter.WriteHeader(status)
-	w.headerWritten = true
-}
-
-func (w *responseWriterWrapper) Write(data []byte) (int, error) {
-	n, err := w.ResponseWriter.Write(data)
-	if err == nil {
-		w.length += n
-	}
-	return n, err
-}
-
-func (w *responseWriterWrapper) GetStatusCode() int {
-	return w.statusCode
-}
-
-func (w *responseWriterWrapper) GetResponseLength() int {
-	return w.length
 }
 
 func chiHttpApiGeneralMetricsMiddleware(next http.Handler) http.Handler {
@@ -58,7 +43,10 @@ func chiHttpApiGeneralMetricsMiddleware(next http.Handler) http.Handler {
 
 		metricApiTotalRequests.Inc()
 
-		newWriter := newResponseWriterWrapper(w, http.StatusOK)
+		ww, ok := w.(middleware.WrapResponseWriter)
+		if !ok {
+			ww = middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+		}
 
 		defer func() {
 			routePath := r.URL.Path
@@ -68,35 +56,18 @@ func chiHttpApiGeneralMetricsMiddleware(next http.Handler) http.Handler {
 				}
 			}
 
-			statusCode := newWriter.GetStatusCode()
+			statusCode := ww.Status()
 			metricApiHits.WithLabelValues(strconv.Itoa(statusCode), routePath).Inc()
 
 			observer := metricApiRequestDuration.WithLabelValues(r.Method, routePath)
 			observer.Observe(time.Since(begin).Seconds())
 		}()
 
-		next.ServeHTTP(newWriter, r)
+		next.ServeHTTP(ww, r)
 	})
 }
 
-func panicMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if e := recover(); e != nil {
-				http.Error(
-					w,
-					http.StatusText(http.StatusInternalServerError),
-					http.StatusInternalServerError,
-				)
-				zap.S().Errorf("panic: %+v", e)
-			}
-		}()
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-func createHeadersMiddleware(headers map[string]string) Middleware {
+func createHeadersMiddleware(headers map[string]string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			for k, v := range headers {
