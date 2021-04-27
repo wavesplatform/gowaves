@@ -89,14 +89,19 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 
 func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation ride.TreeEstimation) error {
 	var maxComplexity int
-	switch tree.LibVersion {
-	case 1, 2:
+	if tree.IsDApp() {
+		switch tree.LibVersion {
+		case 1, 2:
+			maxComplexity = 2000
+		case 3, 4:
+			maxComplexity = 4000
+		case 5:
+			maxComplexity = 10000
+		}
+	} else { // verifier
 		maxComplexity = 2000
-	case 3, 4:
-		maxComplexity = 4000
-	case 5:
-		maxComplexity = 26000
 	}
+
 	complexity := estimation.Verifier
 	if tree.IsDApp() {
 		complexity = estimation.Estimation
