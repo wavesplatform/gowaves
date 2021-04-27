@@ -292,21 +292,32 @@ func fractionBigIntRounds(_ Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("fractionBigIntRounds: unexpected argument type '%s'", args[2].instanceOf())
 	}
 	d := big.NewInt(0).Set(v3.v)
-	if d.Cmp(zeroBigInt) == 0 {
-		return nil, errors.New("fractionBigIntRounds: division by zero")
-	}
 	round, err := roundingMode(args[3])
 	if err != nil {
 		return nil, errors.Wrap(err, "fractionBigIntRounds")
 	}
-	// This algo is fully taken from Scala implementation
+	r, err := fractionBigIntLikeInScala(v, n, d, round)
+	if err != nil {
+		return nil, errors.Wrap(err, "fractionBigIntRounds")
+	}
+	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
+		return nil, errors.Errorf("fractionBigIntRounds: %s result is out of range", r.String())
+	}
+	return rideBigInt{v: r}, nil
+}
+
+// fractionBigIntLikeInScala the algo is fully taken from Scala implementation.
+func fractionBigIntLikeInScala(v, n, d *big.Int, roundingMode decimal.RoundingMode) (*big.Int, error) {
+	if d.Cmp(zeroBigInt) == 0 {
+		return nil, errors.New("division by zero")
+	}
 	p := v.Mul(v, n)
 	s := big.NewInt(int64(p.Sign() * d.Sign()))
 	pa := p.Abs(p)
 	da := d.Abs(d)
 	r, m := pa.QuoRem(pa, da, big.NewInt(0))
 	ms := big.NewInt(int64(m.Sign()))
-	switch round {
+	switch roundingMode {
 	case decimal.ToZero: // Down
 		r = r.Mul(r, s)
 	case decimal.AwayFromZero: // Up
@@ -363,12 +374,9 @@ func fractionBigIntRounds(_ Environment, args ...rideType) (rideType, error) {
 			r = r.Mul(r, s)
 		}
 	default:
-		return nil, errors.New("fractionBigIntRounds: unsupported rounding mode")
+		return nil, errors.New("unsupported rounding mode")
 	}
-	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
-		return nil, errors.Errorf("fractionBigIntRounds: %s result is out of range", r.String())
-	}
-	return rideBigInt{v: r}, nil
+	return r, nil
 }
 
 func unaryMinusBigInt(_ Environment, args ...rideType) (rideType, error) {

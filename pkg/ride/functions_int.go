@@ -2,6 +2,7 @@ package ride
 
 import (
 	"encoding/binary"
+	"math/big"
 	"strconv"
 
 	"github.com/ericlagergren/decimal"
@@ -152,11 +153,45 @@ func fraction(_ Environment, args ...rideType) (rideType, error) {
 	return rideInt(res), nil
 }
 
+func fractionIntRounds(_ Environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 4); err != nil {
+		return nil, errors.Wrap(err, "fraction")
+	}
+	value, ok := args[0].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("fraction: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	v := big.NewInt(int64(value))
+	numerator, ok := args[1].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("fraction: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	n := big.NewInt(int64(numerator))
+	denominator, ok := args[2].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("fraction: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	d := big.NewInt(int64(denominator))
+	round, err := roundingMode(args[3])
+	if err != nil {
+		return nil, errors.Wrap(err, "fraction")
+	}
+	r, err := fractionBigIntLikeInScala(v, n, d, round)
+	if err != nil {
+		return nil, errors.Wrap(err, "fraction")
+	}
+	if !r.IsInt64() {
+		return nil, errors.New("fraction: result is out of int64 range")
+	}
+	return rideInt(r.Int64()), nil
+}
+
 func intToBytes(_ Environment, args ...rideType) (rideType, error) {
 	i, err := intArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "intToBytes")
 	}
+
 	out := make([]byte, 8)
 	binary.BigEndian.PutUint64(out, uint64(i))
 	return rideBytes(out), nil

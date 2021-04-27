@@ -499,6 +499,7 @@ func functionsV5() map[string]string {
 	m["1081"] = "calculateLeaseID"
 	m["1092"] = "simplifiedLease"
 	m["1093"] = "fullLease"
+	m["fraction"] = "fractionIntRounds"
 	m["LeaseCancel"] = "leaseCancel"
 	m["@extrNative(1055)"] = "intValueFromSelfState"
 	m["@extrNative(1056)"] = "booleanValueFromSelfState"
@@ -509,6 +510,7 @@ func functionsV5() map[string]string {
 
 func catalogueV5() map[string]int {
 	m := catalogueV4()
+	m["107"] = 14
 	m["118"] = 200
 	m["119"] = 200
 	m["310"] = 1
@@ -543,6 +545,7 @@ func catalogueV5() map[string]int {
 	m["1081"] = 1
 	m["1092"] = 1
 	m["1093"] = 1
+	m["fraction"] = 17
 	m["LeaseCancel"] = 1
 	m["@extrNative(1055)"] = 10
 	m["@extrNative(1056)"] = 10
