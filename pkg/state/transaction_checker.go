@@ -88,26 +88,33 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 }
 
 func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation ride.TreeEstimation) error {
-	var maxComplexity int
+	var maxCallableComplexity int
 	if tree.IsDApp() {
 		switch tree.LibVersion {
 		case 1, 2:
-			maxComplexity = MaxCallableScriptComplexityV12
+			maxCallableComplexity = MaxCallableScriptComplexityV12
 		case 3, 4:
-			maxComplexity = MaxCallableScriptComplexityV34
+			maxCallableComplexity = MaxCallableScriptComplexityV34
 		case 5:
-			maxComplexity = MaxCallableScriptComplexityV5
+			maxCallableComplexity = MaxCallableScriptComplexityV5
 		}
-	} else { // verifier
-		maxComplexity = MaxVerifierScriptComplexity
+
+		complexityVerifier := estimation.Verifier
+		if complexityVerifier > MaxVerifierScriptComplexity {
+			return errors.Errorf("verifier script complexity %d exceeds maximum allowed complexity of %d", complexityVerifier, MaxVerifierScriptComplexity)
+		}
+
+		complexityCallable := estimation.Estimation
+		if complexityCallable > maxCallableComplexity {
+			return errors.Errorf("callable script complexity %d exceeds maximum allowed complexity of %d", complexityCallable, maxCallableComplexity)
+		}
+
+		return nil
 	}
 
-	complexity := estimation.Verifier
-	if tree.IsDApp() {
-		complexity = estimation.Estimation
-	}
-	if complexity > maxComplexity {
-		return errors.Errorf("script complexity %d exceeds maximum allowed complexity of %d", complexity, maxComplexity)
+	complexityVerifier := estimation.Verifier
+	if complexityVerifier > MaxVerifierScriptComplexity {
+		return errors.Errorf("script complexity %d exceeds maximum allowed complexity of %d", complexityVerifier, MaxVerifierScriptComplexity)
 	}
 	return nil
 }
