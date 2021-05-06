@@ -606,15 +606,15 @@ func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 	return vrf, nil
 }
 
-func (s *stateManager) ProtoBlockHitSource(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+func (s *stateManager) ProtoBlockHitSource(blockHeader *proto.BlockHeader, height proto.Height) []byte {
 	if blockHeader.Version < proto.ProtobufBlockVersion {
-		return nil, nil
+		return nil
 	}
 	vrf, err := s.HitSourceAtHeight(height)
 	if err != nil {
-		return nil, err
+		return nil
 	}
-	return vrf, nil
+	return vrf
 }
 
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {

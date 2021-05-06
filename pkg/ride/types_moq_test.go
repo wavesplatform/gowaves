@@ -59,7 +59,7 @@ var _ types.SmartState = &MockSmartState{}
 //             NewestTransactionHeightByIDFunc: func(in1 []byte) (uint64, error) {
 // 	               panic("mock out the NewestTransactionHeightByID method")
 //             },
-//             ProtoBlockHitSourceFunc: func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
+//             ProtoBlockHitSourceFunc: func(blockHeader *proto.BlockHeader, height uint64) []byte {
 // 	               panic("mock out the ProtoBlockHitSource method")
 //             },
 //             RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
@@ -121,7 +121,7 @@ type MockSmartState struct {
 	NewestTransactionHeightByIDFunc func(in1 []byte) (uint64, error)
 
 	// ProtoBlockHitSourceFunc mocks the ProtoBlockHitSource method.
-	ProtoBlockHitSourceFunc func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error)
+	ProtoBlockHitSourceFunc func(blockHeader *proto.BlockHeader, height uint64) []byte
 
 	// RetrieveNewestBinaryEntryFunc mocks the RetrieveNewestBinaryEntry method.
 	RetrieveNewestBinaryEntryFunc func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
@@ -660,7 +660,7 @@ func (mock *MockSmartState) NewestTransactionHeightByIDCalls() []struct {
 }
 
 // ProtoBlockHitSource calls ProtoBlockHitSourceFunc.
-func (mock *MockSmartState) ProtoBlockHitSource(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
+func (mock *MockSmartState) ProtoBlockHitSource(blockHeader *proto.BlockHeader, height uint64) []byte {
 	if mock.ProtoBlockHitSourceFunc == nil {
 		panic("MockSmartState.ProtoBlockHitSourceFunc: method is nil but SmartState.ProtoBlockHitSource was just called")
 	}
