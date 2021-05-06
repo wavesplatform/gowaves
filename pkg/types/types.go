@@ -53,6 +53,7 @@ type SmartState interface {
 	NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
+	ProtoBlockHitSource(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 
 	EstimatorVersion() (int, error)
 	IsNotFound(err error) bool

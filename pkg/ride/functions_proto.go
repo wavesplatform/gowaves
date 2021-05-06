@@ -348,7 +348,7 @@ func blockInfoByHeight(env RideEnvironment, args ...rideType) (rideType, error) 
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
-	vrf, err := env.state().BlockVRF(header, height)
+	vrf, err := env.state().ProtoBlockHitSource(header, height)
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}

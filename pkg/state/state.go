@@ -606,6 +606,17 @@ func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 	return vrf, nil
 }
 
+func (s *stateManager) ProtoBlockHitSource(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+	if blockHeader.Version < proto.ProtobufBlockVersion {
+		return nil, nil
+	}
+	vrf, err := s.HitSourceAtHeight(height)
+	if err != nil {
+		return nil, err
+	}
+	return vrf, nil
+}
+
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	header, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
@@ -1488,7 +1499,7 @@ func (s *stateManager) ResetValidationList() {
 	}
 }
 
-// For UTX validation.
+// ValidateNextTx function must be used for UTX validation only.
 func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, acceptFailed bool) error {
 	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, acceptFailed); err != nil {
 		return err
