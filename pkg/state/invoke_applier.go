@@ -238,7 +238,7 @@ func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, ini
 	return scriptRuns
 }
 
-func errorForSmartAsset(res ride.RideResult, asset crypto.Digest) error {
+func errorForSmartAsset(res ride.Result, asset crypto.Digest) error {
 	var text string
 	if res.UserError() != "" {
 		text = fmt.Sprintf("Transaction is not allowed by token-script id %s: throw from asset script.", asset.String())
@@ -781,7 +781,7 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 }
 
 func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
-	blockInfo *proto.BlockInfo, txID crypto.Digest, txTimestamp uint64, initialisation, acceptFailed bool) (bool, ride.RideResult, error) {
+	blockInfo *proto.BlockInfo, txID crypto.Digest, txTimestamp uint64, initialisation, acceptFailed bool) (bool, ride.Result, error) {
 	isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(asset, !initialisation)
 	if !isSmartAsset {
 		return true, nil, nil

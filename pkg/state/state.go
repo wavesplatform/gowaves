@@ -466,18 +466,6 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	return state, nil
 }
 
-func (s *stateManager) NewestScriptCallableComplexityByAddr(addr proto.Address, ev int) (int, error) {
-	treeEstimation, err := s.stor.scriptsComplexity.newestScriptComplexityByAddr(addr, ev, true)
-	if err != nil {
-		return 0, errors.Errorf("failed to get complexity by addr from store, %v", err)
-	}
-	if treeEstimation == nil {
-		return 0, errors.Errorf("failed to get complexity by addr from store: estimation tree is empty")
-	}
-
-	return treeEstimation.Estimation, nil
-}
-
 func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment

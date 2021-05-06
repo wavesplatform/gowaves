@@ -82,10 +82,6 @@ func (ws *WrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
 	return ws.diff.state.NewestTransactionHeightByID(id)
 }
 
-func (ws *WrappedState) NewestScriptCallableComplexityByAddr(addr proto.Address, ev int) (int, error) {
-	return ws.diff.state.NewestScriptCallableComplexityByAddr(addr, ev)
-}
-
 func (ws *WrappedState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
 	return ws.diff.state.GetByteTree(recipient)
 }

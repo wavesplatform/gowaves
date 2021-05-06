@@ -5,7 +5,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func CallVerifier(env Environment, tree *Tree) (RideResult, error) {
+func CallVerifier(env Environment, tree *Tree) (Result, error) {
 	e, err := treeVerifierEvaluator(env, tree)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call verifier")
@@ -13,7 +13,7 @@ func CallVerifier(env Environment, tree *Tree) (RideResult, error) {
 	return e.evaluate()
 }
 
-func invokeFunctionFromDApp(env Environment, recipient proto.Recipient, fnName rideString, listArgs rideList) (RideResult, error) {
+func invokeFunctionFromDApp(env Environment, recipient proto.Recipient, fnName rideString, listArgs rideList) (Result, error) {
 	newScript, err := env.state().GetByteTree(recipient)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get script by recipient")
@@ -31,7 +31,7 @@ func invokeFunctionFromDApp(env Environment, recipient proto.Recipient, fnName r
 	return e.evaluate()
 }
 
-func CallFunction(env Environment, tree *Tree, name string, args proto.Arguments) (RideResult, error) {
+func CallFunction(env Environment, tree *Tree, name string, args proto.Arguments) (Result, error) {
 	if name == "" {
 		name = "default"
 	}
