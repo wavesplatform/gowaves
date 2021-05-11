@@ -16,14 +16,14 @@ type (
 )
 
 var (
-	ApiKeyNotValid = ApiKeyNotValidError{
+	ApiKeyNotValid = &ApiKeyNotValidError{
 		genericError: genericError{
 			ID:       ApiKeyNotValidErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  "Provided API key is not correct",
 		},
 	}
-	TooBigArrayAllocation = TooBigArrayAllocationError{
+	TooBigArrayAllocation = &TooBigArrayAllocationError{
 		genericError: genericError{
 			ID:       TooBigArrayAllocationErrorID,
 			HttpCode: http.StatusBadRequest,
@@ -32,8 +32,12 @@ var (
 	}
 )
 
-func NewTooBigArrayAllocationError(limit int) TooBigArrayAllocationError {
-	err := TooBigArrayAllocation
-	err.Message = fmt.Sprintf("Too big sequence requested: max limit is %d entries", limit)
-	return err
+func NewTooBigArrayAllocationError(limit int) *TooBigArrayAllocationError {
+	return &TooBigArrayAllocationError{
+		genericError: genericError{
+			ID:       TooBigArrayAllocationErrorID,
+			HttpCode: http.StatusBadRequest,
+			Message:  fmt.Sprintf("Too big sequence requested: max limit is %d entries", limit),
+		},
+	}
 }

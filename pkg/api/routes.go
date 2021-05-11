@@ -56,19 +56,27 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 
 	// nickeskov: json api
 	r.Group(func(r chi.Router) {
-		//errHandler := NewErrorHandler(zap.L())
-		//checkAuthMiddleware := createCheckAuthMiddleware(a.app, errHandler.Handle)
+		errHandler := NewErrorHandler(zap.L())
+		checkAuthMiddleware := createCheckAuthMiddleware(a.app, errHandler.Handle)
 
-		r.Use(jsonContentTypeMiddleware)
+		r.Use(jsonContentTypeMiddleware, checkAuthMiddleware)
+
+		wrapper := func(handlerFunc HandlerFunc) http.HandlerFunc {
+			return ToHTTPHandlerFunc(handlerFunc, errHandler.Handle)
+		}
 
 		r.Get("/addresses", a.Addresses)
 
-		r.Get("/blocks/last", a.BlocksLast)
-		r.Get("/blocks/height", a.BlockHeight)
-		r.Get("/blocks/first", a.BlocksFirst)
-		r.Get("/blocks/at/{height:\\d+}", a.BlockAt)
+		r.Get("/blocks/last", wrapper(a.BlocksLast))
+		r.Get("/blocks/height", wrapper(a.BlockHeight))
+		r.Get("/blocks/first", wrapper(a.BlocksFirst))
+		r.Get("/blocks/at/{height:\\d+}", wrapper(a.BlockAt))
+
+		// nickeskov: in scala node this route does not exist
 		r.Get("/blocks/score/at/{id:\\d+}", a.BlockScoreAt)
-		r.Get("/blocks/id/{id}", a.BlockIDAt)
+
+		// TODO(nickeskov): in scala node pattern looks like "/blocks/{id}"
+		r.Get("/blocks/id/{id}", wrapper(a.BlockIDAt))
 		r.Get("/blocks/generators", a.BlocksGenerators)
 		r.Post("/blocks/rollback", RollbackToHeight(a.app))
 		r.Get("/pool/transactions", a.poolTransactions)
@@ -81,7 +89,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			r.Get("/spawned", a.PeersSpawned)
 		})
 		r.Get("/miner/info", a.MinerInfo)
-		r.Post("/transactions/broadcast", a.TransactionsBroadcast)
+		r.Post("/transactions/broadcast", wrapper(a.TransactionsBroadcast))
 
 		r.Post("/wallet/load", WalletLoadKeys(a.app))
 		r.Get("/wallet/accounts", a.WalletAccounts)

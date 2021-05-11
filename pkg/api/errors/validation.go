@@ -81,70 +81,70 @@ func (e *StateCheckFailedError) MarshalJSON() ([]byte, error) {
 }
 
 var (
-	InvalidSignature = InvalidSignatureError{
+	InvalidSignature = &InvalidSignatureError{
 		genericError: genericError{
 			ID:       InvalidSignatureErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  "invalid signature",
 		},
 	}
-	InvalidAddress = InvalidAddressError{
+	InvalidAddress = &InvalidAddressError{
 		genericError: genericError{
 			ID:       InvalidAddressErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  "invalid address",
 		},
 	}
-	InvalidPublicKey = InvalidPublicKeyError{
+	InvalidPublicKey = &InvalidPublicKeyError{
 		genericError: genericError{
 			ID:       InvalidPublicKeyErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  "invalid public key",
 		},
 	}
-	InvalidMessage = InvalidMessageError{
+	InvalidMessage = &InvalidMessageError{
 		genericError: genericError{
 			ID:       InvalidMessageErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  "invalid message",
 		},
 	}
-	InvalidName = InvalidNameError{
+	InvalidName = &InvalidNameError{
 		genericError: genericError{
 			ID:       InvalidNameErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  "invalid name",
 		},
 	}
-	Overflow = OverflowError{
+	Overflow = &OverflowError{
 		genericError: genericError{
 			ID:       OverflowErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  "overflow error",
 		},
 	}
-	ToSelf = ToSelfError{
+	ToSelf = &ToSelfError{
 		genericError: genericError{
 			ID:       ToSelfErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  "Transaction to yourself",
 		},
 	}
-	MissingSenderPrivateKey = MissingSenderPrivateKeyError{
+	MissingSenderPrivateKey = &MissingSenderPrivateKeyError{
 		genericError: genericError{
 			ID:       MissingSenderPrivateKeyErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  "no private key for sender address in wallet",
 		},
 	}
-	BlockDoesNotExist = BlockDoesNotExistError{
+	BlockDoesNotExist = &BlockDoesNotExistError{
 		genericError: genericError{
 			ID:       BlockDoesNotExistErrorID,
 			HttpCode: http.StatusNotFound,
 			Message:  "block does not exist",
 		},
 	}
-	DataKeyDoesNotExist = DataKeyDoesNotExistError{
+	DataKeyDoesNotExist = &DataKeyDoesNotExistError{
 		genericError: genericError{
 			ID:       DataKeyDoesNotExistErrorID,
 			HttpCode: http.StatusNotFound,
