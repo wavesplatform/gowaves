@@ -6,15 +6,15 @@ import (
 	"net/http"
 )
 
-const (
-	rateLimiterMemoryCacheSize      = 65_536
-	rateLimiterMaxRequestsPerSecond = 50
-	rateLimiterMaxBurst             = 5
-)
+//const (
+//	rateLimiterMemoryCacheSize      = 65_536
+//	rateLimiterMaxRequestsPerSecond = 100
+//	rateLimiterMaxBurst             = 5
+//)
 
 type RunOptions struct {
 	RateLimiterOpts      *RateLimiterOptions
-	LogHttpRequestOpts   *LogHttpRequestOptions
+	LogHttpRequestOpts   bool
 	CollectMetrics       bool
 	UseRealIPMiddleware  bool
 	EnableHeartbeatRoute bool
@@ -27,20 +27,10 @@ type RateLimiterOptions struct {
 	MaxBurst             int
 }
 
-type LogHttpRequestOptions struct {
-	UseSugared bool
-}
-
 func DefaultRunOptions() *RunOptions {
 	return &RunOptions{
-		RateLimiterOpts: &RateLimiterOptions{
-			MemoryCacheSize:      rateLimiterMemoryCacheSize,
-			MaxRequestsPerSecond: rateLimiterMaxRequestsPerSecond,
-			MaxBurst:             rateLimiterMaxBurst,
-		},
-		LogHttpRequestOpts: &LogHttpRequestOptions{
-			UseSugared: true,
-		},
+		RateLimiterOpts:      nil,
+		LogHttpRequestOpts:   false,
 		EnableHeartbeatRoute: true,
 		UseRealIPMiddleware:  true,
 		CollectMetrics:       true,
