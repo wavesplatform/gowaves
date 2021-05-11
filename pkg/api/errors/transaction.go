@@ -37,21 +37,21 @@ type (
 )
 
 var (
-	TransactionDoesNotExist = TransactionDoesNotExistError{
+	TransactionDoesNotExist = &TransactionDoesNotExistError{
 		genericError: genericError{
 			ID:       TransactionDoesNotExistErrorID,
 			HttpCode: http.StatusNotFound,
 			Message:  "transactions does not exist",
 		},
 	}
-	UnsupportedTransactionType = UnsupportedTransactionTypeError{
+	UnsupportedTransactionType = &UnsupportedTransactionTypeError{
 		genericError: genericError{
 			ID:       UnsupportedTransactionTypeErrorID,
 			HttpCode: http.StatusNotImplemented,
 			Message:  "transaction type not supported",
 		},
 	}
-	InvalidAssetId = InvalidAssetIdError{
+	InvalidAssetId = &InvalidAssetIdError{
 		genericError: genericError{
 			ID:       InvalidAssetIdErrorID,
 			HttpCode: http.StatusBadRequest,
@@ -59,3 +59,13 @@ var (
 		},
 	}
 )
+
+func NewInvalidBlockIDError(message string) *InvalidBlockIdError {
+	return &InvalidBlockIdError{
+		genericError: genericError{
+			ID:       InvalidBlockIdErrorID,
+			HttpCode: http.StatusBadRequest,
+			Message:  message,
+		},
+	}
+}

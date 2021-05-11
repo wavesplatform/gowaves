@@ -71,13 +71,17 @@ type UnknownError struct {
 	inner error
 }
 
-func (u *UnknownError) Inner() error {
+func (u *UnknownError) Unwrap() error {
 	return u.inner
 }
 
 func (u *UnknownError) Error() string {
-	if u.Inner() != nil {
-		return fmt.Sprintf("%s; inner error: %v", u.genericError.Error(), u.Inner())
+	if u.Unwrap() != nil {
+		return fmt.Sprintf(
+			"%s; inner error (%T): %s",
+			u.genericError.Error(),
+			u.Unwrap(), u.Unwrap().Error(),
+		)
 	}
 	return u.genericError.Error()
 }
@@ -105,8 +109,8 @@ type WrongJsonError struct {
 	ValidationErrors []error `json:"validationErrors,omitempty"`
 }
 
-func NewWrongJsonError(cause string, validationErrors []error) WrongJsonError {
-	return WrongJsonError{
+func NewWrongJsonError(cause string, validationErrors []error) *WrongJsonError {
+	return &WrongJsonError{
 		genericError: genericError{
 			ID:       WrongJsonErrorID,
 			HttpCode: http.StatusBadRequest,
