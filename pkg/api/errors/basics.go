@@ -10,6 +10,7 @@ type Identifier interface {
 }
 
 type ApiError interface {
+	error
 	GetID() Identifier
 	GetName() string
 	GetHttpCode() int
@@ -67,32 +68,32 @@ func (g *genericError) Error() string {
 // UnknownError is a wrapper for any unknown internal error
 type UnknownError struct {
 	genericError
-	Inner error `json:"-"`
+	inner error
 }
 
-func (u *UnknownError) Cause() error {
-	return u.Inner
+func (u *UnknownError) Inner() error {
+	return u.inner
 }
 
 func (u *UnknownError) Error() string {
-	if u.Inner != nil {
-		return fmt.Sprintf("%s; inner error: %v", u.genericError.Error(), u.Inner)
+	if u.Inner() != nil {
+		return fmt.Sprintf("%s; inner error: %v", u.genericError.Error(), u.Inner())
 	}
 	return u.genericError.Error()
 }
 
-func NewUnknownError(inner error) UnknownError {
+func NewUnknownError(inner error) *UnknownError {
 	return NewUnknownErrorWithMsg("Error is unknown", inner)
 }
 
-func NewUnknownErrorWithMsg(message string, inner error) UnknownError {
-	return UnknownError{
+func NewUnknownErrorWithMsg(message string, inner error) *UnknownError {
+	return &UnknownError{
 		genericError: genericError{
 			ID:       UnknownErrorID,
 			HttpCode: http.StatusInternalServerError,
 			Message:  message,
 		},
-		Inner: inner,
+		inner: inner,
 	}
 }
 

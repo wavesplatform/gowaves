@@ -4,42 +4,20 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
-	"github.com/throttled/throttled/v2"
-	"github.com/throttled/throttled/v2/store/memstore"
 	"go.uber.org/zap"
 	"net/http"
 )
 
-func createRateLimiter(opts *RateLimiterOptions) (throttled.HTTPRateLimiter, error) {
-	store, err := memstore.New(opts.MemoryCacheSize)
-	if err != nil {
-		return throttled.HTTPRateLimiter{},
-			errors.Wrapf(
-				err,
-				"createRateLimiter: failed to create memstore with capacity %d",
-				opts.MemoryCacheSize,
-			)
-	}
+type HandleErrorFunc func(w http.ResponseWriter, r *http.Request, err error)
+type HandlerFunc func(w http.ResponseWriter, r *http.Request) error
 
-	quota := throttled.RateQuota{
-		MaxRate:  throttled.PerSec(opts.MaxRequestsPerSecond),
-		MaxBurst: opts.MaxBurst,
+func ToHTTPHandlerFunc(handler HandlerFunc, errorHandler HandleErrorFunc) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		err := handler(writer, request)
+		if err != nil {
+			errorHandler(writer, request, err)
+		}
 	}
-
-	rateLimiter, err := throttled.NewGCRARateLimiter(store, quota)
-	if err != nil {
-		return throttled.HTTPRateLimiter{},
-			errors.Wrap(err, "createRateLimiter: can't create rate limiter")
-	}
-
-	httpRateLimiter := throttled.HTTPRateLimiter{
-		RateLimiter: rateLimiter,
-		VaryBy: &throttled.VaryBy{
-			RemoteAddr: true,
-		},
-	}
-
-	return httpRateLimiter, nil
 }
 
 func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
@@ -60,8 +38,8 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		}
 		r.Use(rateLimiter.RateLimit)
 	}
-	if opts.LogHttpRequestOpts != nil {
-		r.Use(middleware.RequestID, LoggerMiddleware(zap.L()))
+	if opts.LogHttpRequestOpts {
+		r.Use(middleware.RequestID, CreateLoggerMiddleware(zap.L()))
 	}
 	if opts.RouteNotFoundHandler != nil {
 		r.NotFound(opts.RouteNotFoundHandler)
@@ -78,6 +56,9 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 
 	// nickeskov: json api
 	r.Group(func(r chi.Router) {
+		//errHandler := NewErrorHandler(zap.L())
+		//checkAuthMiddleware := createCheckAuthMiddleware(a.app, errHandler.Handle)
+
 		r.Use(jsonContentTypeMiddleware)
 
 		r.Get("/addresses", a.Addresses)

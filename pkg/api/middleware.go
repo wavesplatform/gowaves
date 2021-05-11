@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-// LoggerMiddleware is a middleware that logs the start and end of each request, along
+// CreateLoggerMiddleware creates a middleware that logs the start and end of each request, along
 // with some useful data about what was requested, what the response status was,
 // and how long it took to return.
-func LoggerMiddleware(l *zap.Logger) func(next http.Handler) http.Handler {
+func CreateLoggerMiddleware(l *zap.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			ww, ok := w.(middleware.WrapResponseWriter)
@@ -28,7 +28,7 @@ func LoggerMiddleware(l *zap.Logger) func(next http.Handler) http.Handler {
 					zap.Duration("lat", time.Since(t1)),
 					zap.Int("status", ww.Status()),
 					zap.Int("size", ww.BytesWritten()),
-					zap.String("reqId", middleware.GetReqID(r.Context())))
+					zap.String("request_id", middleware.GetReqID(r.Context())))
 			}()
 
 			next.ServeHTTP(ww, r)
@@ -82,4 +82,18 @@ func jsonContentTypeMiddleware(next http.Handler) http.Handler {
 	return createHeadersMiddleware(map[string]string{
 		"Content-Type": "application/json",
 	})(next)
+}
+
+func createCheckAuthMiddleware(app *App, errorHandler HandleErrorFunc) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			apiKey := r.Header.Get("X-API-Key")
+			err := app.checkAuth(apiKey)
+			if err != nil {
+				errorHandler(w, r, err)
+			} else {
+				next.ServeHTTP(w, r)
+			}
+		})
+	}
 }
