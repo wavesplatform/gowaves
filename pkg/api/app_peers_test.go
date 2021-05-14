@@ -10,7 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 )
 
-func TestApp_PeersAll(t *testing.T) {
+func TestApp_PeersKnown(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -20,7 +20,7 @@ func TestApp_PeersAll(t *testing.T) {
 	app, err := NewApp("key", nil, services.Services{State: s})
 	require.NoError(t, err)
 
-	rs2, err := app.PeersAll()
+	rs2, err := app.PeersKnown()
 	require.NoError(t, err)
 	require.Len(t, rs2.Peers, 1)
 }

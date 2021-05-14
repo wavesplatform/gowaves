@@ -13,6 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -147,7 +148,7 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 		if invalidRune := findFirstInvalidRuneInBase58String(s); invalidRune != nil {
 			return blockIDAtInvalidCharErr(*invalidRune, s)
 		}
-		return errors.Wrapf(err, "failed to decode id %q as base58 and failed to find firs", s)
+		return blockIDAtInvalidLenErr(s)
 	}
 	block, err := a.state.Block(id)
 	if err != nil {
@@ -185,10 +186,9 @@ func (a *NodeApi) BlockHeight(w http.ResponseWriter, _ *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "BlockHeight: failed to bet blocks height")
 	}
-	err = json.NewEncoder(w).Encode(&blockHeightResponse{Height: height})
-	if err != nil {
-		return errors.Wrap(err,
-			"BlockHeight: failed to marshal block to JSON and write to ResponseWriter")
+
+	if err := trySendJson(w, blockHeightResponse{Height: height}); err != nil {
+		return errors.Wrap(err, "BlockHeight")
 	}
 	return nil
 }
@@ -199,11 +199,13 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) {
 	s := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
+		// TODO(nickeskov): which error it should send?
 		handleError(w, &BadRequestError{err})
 		return
 	}
 	rs, err := a.app.BlocksScoreAt(id)
 	if err != nil {
+		// TODO(nickeskov): which error it should send?
 		handleError(w, err)
 		return
 	}
@@ -242,18 +244,23 @@ func Run(ctx context.Context, address string, n *NodeApi) error {
 	return RunWithOpts(ctx, address, n, nil)
 }
 
-func (a *NodeApi) PeersAll(w http.ResponseWriter, _ *http.Request) {
-	rs, err := a.app.PeersAll()
+func (a *NodeApi) PeersKnown(w http.ResponseWriter, _ *http.Request) error {
+	rs, err := a.app.PeersKnown()
 	if err != nil {
-		handleError(w, err)
-		return
+		return errors.Wrap(err, "failed to fetch known peers")
 	}
-	sendJson(w, rs)
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "PeersKnown")
+	}
+	return nil
 }
 
-func (a *NodeApi) PeersSpawned(w http.ResponseWriter, _ *http.Request) {
+func (a *NodeApi) PeersSpawned(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.PeersSpawned()
-	sendJson(w, rs)
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "PeersSpawned")
+	}
+	return nil
 }
 
 type PeersConnectRequest struct {
@@ -261,13 +268,14 @@ type PeersConnectRequest struct {
 	Port uint16 `json:"port"`
 }
 
+// TODO(nickeskov): use unified error handler
 func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) {
-	req := new(PeersConnectRequest)
-	err := json.NewDecoder(r.Body).Decode(req)
-	if err != nil {
+	req := &PeersConnectRequest{}
+	if err := tryParseJson(r.Body, req); err != nil {
 		handleError(w, err)
 		return
 	}
+	// TODO(nickeskov): remove this and use auth middleware
 	apiKey := r.Header.Get("X-API-Key")
 	rs, err := a.app.PeersConnect(r.Context(), apiKey, fmt.Sprintf("%s:%d", req.Host, req.Port))
 	if err != nil {
@@ -277,42 +285,67 @@ func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) {
 	sendJson(w, rs)
 }
 
-func (a *NodeApi) PeersConnected(w http.ResponseWriter, _ *http.Request) {
+func (a *NodeApi) PeersConnected(w http.ResponseWriter, _ *http.Request) error {
 	rs, err := a.app.PeersConnected()
 	if err != nil {
-		handleError(w, err)
-		return
+		return errors.Wrap(err, "failed to get PeersConnected")
 	}
-	sendJson(w, rs)
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "PeersConnected")
+	}
+	return nil
 }
 
-func (a *NodeApi) PeersSuspended(w http.ResponseWriter, _ *http.Request) {
+func (a *NodeApi) PeersSuspended(w http.ResponseWriter, _ *http.Request) error {
 	rs, err := a.app.PeersSuspended()
 	if err != nil {
-		handleError(w, err)
-		return
+		return errors.Wrap(err, "failed to get PeersSuspended")
 	}
-	sendJson(w, rs)
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "PeersSuspended")
+	}
+	return nil
 }
 
-func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, _ *http.Request) {
+func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, _ *http.Request) error {
 	rs, err := a.app.BlocksGenerators()
 	if err != nil {
-		handleError(w, err)
-		return
+		return errors.Wrap(err, "failed to get BlocksGenerators")
 	}
-	sendJson(w, rs)
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "BlocksGenerators")
+	}
+	return nil
 }
 
-func (a *NodeApi) poolTransactions(w http.ResponseWriter, _ *http.Request) {
+func (a *NodeApi) poolTransactions(w http.ResponseWriter, _ *http.Request) error {
+	// TODO(nickeskov): maybe send result as json, not int?
+	//type poolTransactions struct {
+	//	Count int `json:"count"`
+	//}
+	//rs := poolTransactions{
+	//	Count: a.app.PoolTransactions(),
+	//}
+
 	rs := a.app.PoolTransactions()
-	sendJson(w, rs)
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "poolTransactions")
+	}
+	return nil
 }
 
-func (a *NodeApi) unconfirmedSize(w http.ResponseWriter, _ *http.Request) {
-	sendJson(w, map[string]int{
-		"size": a.app.PoolTransactions(),
-	})
+func (a *NodeApi) unconfirmedSize(w http.ResponseWriter, _ *http.Request) error {
+	type unconfirmedSize struct {
+		Size int `json:"size"`
+	}
+
+	rs := unconfirmedSize{
+		Size: a.app.PoolTransactions(),
+	}
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "unconfirmedSize")
+	}
+	return nil
 }
 
 type rollbackRequest struct {
@@ -323,21 +356,25 @@ type rollbackToHeight interface {
 	RollbackToHeight(string, proto.Height) error
 }
 
+// TODO(nickeskov): use unified error handler
 func RollbackToHeight(app rollbackToHeight) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		js := &rollbackRequest{}
-		err := json.NewDecoder(r.Body).Decode(js)
-		if err != nil {
+		if err := tryParseJson(r.Body, js); err != nil {
 			handleError(w, err)
 			return
 		}
+		// TODO(nickeskov): remove this and use auth middleware
 		apiKey := r.Header.Get("X-API-Key")
-		err = app.RollbackToHeight(apiKey, js.Height)
-		if err != nil {
+		if err := app.RollbackToHeight(apiKey, js.Height); err != nil {
 			handleError(w, err)
 			return
 		}
-		sendJson(w, nil)
+		// TODO(nickeskov): looks like bug...
+		if err := trySendJson(w, nil); err != nil {
+			handleError(w, err)
+			return
+		}
 	}
 }
 
@@ -349,60 +386,74 @@ type walletLoadKeys interface {
 	LoadKeys(apiKey string, password []byte) error
 }
 
+// TODO(nickeskov): use unified error handler
 func WalletLoadKeys(app walletLoadKeys) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		js := &walletLoadKeysRequest{}
-		err := json.NewDecoder(r.Body).Decode(js)
-		if err != nil {
+		if err := tryParseJson(r.Body, js); err != nil {
 			handleError(w, err)
 			return
 		}
+		// TODO(nickeskov): remove this and use auth middleware
 		apiKey := r.Header.Get("X-API-Key")
-		err = app.LoadKeys(apiKey, []byte(js.Password))
-		if err != nil {
+		if err := app.LoadKeys(apiKey, []byte(js.Password)); err != nil {
 			handleError(w, err)
 			return
 		}
-		sendJson(w, nil)
+		// TODO(nickeskov): looks like bug...
+		if err := trySendJson(w, nil); err != nil {
+			handleError(w, err)
+			return
+		}
 	}
 }
 
-func (a *NodeApi) WalletAccounts(w http.ResponseWriter, _ *http.Request) {
+func (a *NodeApi) WalletAccounts(w http.ResponseWriter, _ *http.Request) error {
 	rs, err := a.app.Accounts()
 	if err != nil {
-		handleError(w, err)
-		return
+		return errors.Wrap(err, "failed to get Accounts")
 	}
-	sendJson(w, rs)
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "WalletAccounts")
+	}
+	return nil
 }
 
-func (a *NodeApi) MinerInfo(w http.ResponseWriter, _ *http.Request) {
+func (a *NodeApi) GoMinerInfo(w http.ResponseWriter, _ *http.Request) error {
 	rs, err := a.app.Miner()
 	if err != nil {
-		handleError(w, err)
-		return
+		return errors.Wrap(err, "failed to get GoMinerInfo")
 	}
-	sendJson(w, rs)
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "GoMinerInfo")
+	}
+	return nil
 }
 
-func (a *NodeApi) Addresses(w http.ResponseWriter, _ *http.Request) {
+func (a *NodeApi) Addresses(w http.ResponseWriter, _ *http.Request) error {
 	addresses, err := a.app.Addresses()
 	if err != nil {
-		handleError(w, err)
-		return
+		return errors.Wrap(err, "failed to get Addresses")
 	}
-	sendJson(w, addresses)
+	if err := trySendJson(w, addresses); err != nil {
+		return errors.Wrap(err, "Addresses")
+	}
+	return nil
 }
 
-func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) {
+func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.NodeProcesses()
-	sendJson(w, rs)
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "nodeProcesses")
+	}
+	return nil
 }
 
 func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) {
 	s := chi.URLParam(r, "height")
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
+		// TODO(nickeskov): which error it should send?
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -412,8 +463,7 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) {
 		handleError(w, err)
 		return
 	}
-	err = json.NewEncoder(w).Encode(stateHash)
-	if err != nil {
+	if err := trySendJson(w, stateHash); err != nil {
 		handleError(w, err)
 		return
 	}
@@ -439,4 +489,21 @@ func sendJson(w http.ResponseWriter, v interface{}) {
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
 	}
+}
+
+// tryParseJson receives reader and out params. out MUST be a pointer
+func tryParseJson(r io.Reader, out interface{}) error {
+	err := json.NewDecoder(r).Decode(out)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to unmarshal %T as JSON into %T", r, out)
+	}
+	return nil
+}
+
+func trySendJson(w io.Writer, v interface{}) error {
+	err := json.NewEncoder(w).Encode(v)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to marshal %T to JSON and write it to %T", v, w)
+	}
+	return nil
 }

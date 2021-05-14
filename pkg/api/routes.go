@@ -45,8 +45,16 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		r.NotFound(opts.RouteNotFoundHandler)
 	}
 
+	// nickeskov: middlewares and custom handlers
+	errHandler := NewErrorHandler(zap.L())
+	checkAuthMiddleware := createCheckAuthMiddleware(a.app, errHandler.Handle)
+
+	wrapper := func(handlerFunc HandlerFunc) http.HandlerFunc {
+		return ToHTTPHandlerFunc(handlerFunc, errHandler.Handle)
+	}
+
 	if opts.EnableHeartbeatRoute {
-		r.Get("/debug/health", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/go/node/health", func(w http.ResponseWriter, r *http.Request) {
 			if _, err := w.Write([]byte("OK")); err != nil {
 				zap.S().Errorf("Can't write 'OK' to ResponseWriter: %+v", err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -54,48 +62,70 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		})
 	}
 
+	// nickeskov: go node routes
+	r.Route("/go", func(r chi.Router) {
+		r.Route("/blocks", func(r chi.Router) {
+			r.Get("/score/at/{id:\\d+}", a.BlockScoreAt)
+			r.Get("/id/{id}", wrapper(a.BlockIDAt))
+			r.Get("/generators", wrapper(a.BlocksGenerators))
+
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Post("/rollback", RollbackToHeight(a.app))
+		})
+
+		r.Route("/peers", func(r chi.Router) {
+			r.Get("/known", wrapper(a.PeersKnown))
+			r.Get("/spawned", wrapper(a.PeersSpawned))
+		})
+
+		r.Route("/wallet", func(r chi.Router) {
+			r.Get("/accounts", wrapper(a.WalletAccounts))
+
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Post("/load", WalletLoadKeys(a.app))
+		})
+
+		r.Get("/miner/info", wrapper(a.GoMinerInfo))
+		r.Get("/node/processes", wrapper(a.nodeProcesses))
+		r.Get("/pool/transactions", wrapper(a.poolTransactions))
+	})
+
 	// nickeskov: json api
 	r.Group(func(r chi.Router) {
-		errHandler := NewErrorHandler(zap.L())
-		checkAuthMiddleware := createCheckAuthMiddleware(a.app, errHandler.Handle)
-
-		r.Use(jsonContentTypeMiddleware, checkAuthMiddleware)
-
-		wrapper := func(handlerFunc HandlerFunc) http.HandlerFunc {
-			return ToHTTPHandlerFunc(handlerFunc, errHandler.Handle)
-		}
-
-		r.Get("/addresses", a.Addresses)
-
-		r.Get("/blocks/last", wrapper(a.BlocksLast))
-		r.Get("/blocks/height", wrapper(a.BlockHeight))
-		r.Get("/blocks/first", wrapper(a.BlocksFirst))
-		r.Get("/blocks/at/{height:\\d+}", wrapper(a.BlockAt))
-
-		// nickeskov: in scala node this route does not exist
-		r.Get("/blocks/score/at/{id:\\d+}", a.BlockScoreAt)
-
-		// TODO(nickeskov): in scala node pattern looks like "/blocks/{id}"
-		r.Get("/blocks/id/{id}", wrapper(a.BlockIDAt))
-		r.Get("/blocks/generators", a.BlocksGenerators)
-		r.Post("/blocks/rollback", RollbackToHeight(a.app))
-		r.Get("/pool/transactions", a.poolTransactions)
-		r.Get("/transactions/unconfirmed/size", a.unconfirmedSize)
-		r.Route("/peers", func(r chi.Router) {
-			r.Get("/known", a.PeersAll)
-			r.Get("/connected", a.PeersConnected)
-			r.Post("/connect", a.PeersConnect)
-			r.Get("/suspended", a.PeersSuspended)
-			r.Get("/spawned", a.PeersSpawned)
+		r.Route("/blocks", func(r chi.Router) {
+			r.Get("/last", wrapper(a.BlocksLast))
+			r.Get("/height", wrapper(a.BlockHeight))
+			r.Get("/first", wrapper(a.BlocksFirst))
+			r.Get("/at/{height}", wrapper(a.BlockAt))
+			r.Get("/{id}", wrapper(a.BlockIDAt))
 		})
-		r.Get("/miner/info", a.MinerInfo)
-		r.Post("/transactions/broadcast", wrapper(a.TransactionsBroadcast))
 
-		r.Post("/wallet/load", WalletLoadKeys(a.app))
-		r.Get("/wallet/accounts", a.WalletAccounts)
+		r.Route("/addresses", func(r chi.Router) {
+			r.Get("/", wrapper(a.Addresses))
+		})
 
-		r.Get("/node/processes", a.nodeProcesses)
-		r.Get("/debug/stateHash/{height:\\d+}", a.stateHash)
+		r.Route("/transactions", func(r chi.Router) {
+			r.Get("/unconfirmed/size", wrapper(a.unconfirmedSize))
+
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Post("/broadcast", wrapper(a.TransactionsBroadcast))
+		})
+
+		r.Route("/peers", func(r chi.Router) {
+			r.Get("/connected", wrapper(a.PeersConnected))
+			r.Get("/suspended", wrapper(a.PeersSuspended))
+
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Post("/connect", a.PeersConnect)
+		})
+
+		r.Route("/debug", func(r chi.Router) {
+			r.Get("/stateHash/{height:\\d+}", a.stateHash)
+		})
 
 		// enable or disable history sync
 		//r.Get("/debug/sync/{enabled:\\d+}", a.DebugSyncEnabled)

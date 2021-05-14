@@ -103,11 +103,11 @@ func (a *App) Accounts() ([]account, error) {
 	for _, seed := range seeds {
 		_, pk, err := crypto.GenerateKeyPair(seed)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to generate key pair for seed")
 		}
 		addr, err := proto.NewAddressFromPublicKey(a.services.Scheme, pk)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to generate new address from public key")
 		}
 		accounts = append(accounts, account{Address: addr, PublicKey: pk})
 	}
@@ -115,6 +115,7 @@ func (a *App) Accounts() ([]account, error) {
 }
 
 func (a *App) checkAuth(key string) error {
+	// TODO(nickeskov): use new types of errors
 	if !a.apiKeyEnabled {
 		return &AuthError{errors.New("api key disabled")}
 	}

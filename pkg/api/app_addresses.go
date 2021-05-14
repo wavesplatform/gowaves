@@ -1,9 +1,11 @@
 package api
 
+import "github.com/pkg/errors"
+
 func (a *App) Addresses() ([]string, error) {
 	accounts, err := a.Accounts()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get wallet accounts")
 	}
 
 	addresses := make([]string, 0, len(accounts))
