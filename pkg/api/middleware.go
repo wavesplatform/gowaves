@@ -67,7 +67,7 @@ func chiHttpApiGeneralMetricsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func createHeadersMiddleware(headers map[string]string) func(next http.Handler) http.Handler {
+func CreateHeadersMiddleware(headers map[string]string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			for k, v := range headers {
@@ -78,8 +78,8 @@ func createHeadersMiddleware(headers map[string]string) func(next http.Handler) 
 	}
 }
 
-func jsonContentTypeMiddleware(next http.Handler) http.Handler {
-	return createHeadersMiddleware(map[string]string{
+func JsonContentTypeMiddleware(next http.Handler) http.Handler {
+	return CreateHeadersMiddleware(map[string]string{
 		"Content-Type": "application/json",
 	})(next)
 }
