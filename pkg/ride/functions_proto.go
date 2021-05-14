@@ -177,7 +177,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		return res.UserResult(), nil
 	}
 
-	return nil, errors.Errorf("result of Invoke is false")
+	return rideThrow("result of Invoke function is false"), nil
 }
 
 func invoke(env Environment, args ...rideType) (rideType, error) {
