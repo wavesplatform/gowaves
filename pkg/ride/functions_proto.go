@@ -177,7 +177,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		return res.UserResult(), nil
 	}
 
-	return nil, errors.Errorf("result of Invoke is false")
+	return rideThrow("result of reentrantInvoke function is false"), nil
 }
 
 func invoke(env Environment, args ...rideType) (rideType, error) {
@@ -338,7 +338,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		return res.UserResult(), nil
 	}
 
-	return nil, errors.Errorf("result of Invoke is false")
+	return rideThrow("result of invoke function is false"), nil
 }
 
 func hashScriptAtAddress(env Environment, args ...rideType) (rideType, error) {
