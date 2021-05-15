@@ -25,6 +25,24 @@ func isAddressInBL(dAppAddress proto.Address, blackList []proto.Address) bool {
 }
 
 func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
+	callerAddress, ok := env.this().(rideAddress)
+	if !ok {
+		return rideUnit{}, errors.Errorf("invoke: this has an unexpected type '%s'", env.this().instanceOf())
+	}
+	// check if a caller is dApp
+	caller := proto.NewRecipientFromAddress(proto.Address(callerAddress))
+	newScript, err := env.state().GetByteTree(caller)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get script by recipient")
+	}
+	tree, err := Parse(newScript)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get tree by script")
+	}
+	if !tree.IsDApp() {
+		return rideThrow("'invoke' is allowed only for dApp scripts"), nil
+	}
+
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
 		return nil, errors.Wrapf(errors.New("wrong state"), "invoke")
@@ -32,11 +50,6 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	ws.incrementInvCount()
 	if ws.invCount() > 100 {
 		return rideUnit{}, nil
-	}
-
-	callerAddress, ok := env.this().(rideAddress)
-	if !ok {
-		return rideUnit{}, errors.Errorf("invoke: this has an unexpected type '%s'", env.this().instanceOf())
 	}
 
 	recipient, err := extractRecipient(args[0])
@@ -181,6 +194,24 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 }
 
 func invoke(env Environment, args ...rideType) (rideType, error) {
+	callerAddress, ok := env.this().(rideAddress)
+	if !ok {
+		return rideUnit{}, errors.Errorf("invoke: this has an unexpected type '%s'", env.this().instanceOf())
+	}
+	// check if a caller is dApp
+	caller := proto.NewRecipientFromAddress(proto.Address(callerAddress))
+	newScript, err := env.state().GetByteTree(caller)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get script by recipient")
+	}
+	tree, err := Parse(newScript)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get tree by script")
+	}
+	if !tree.IsDApp() {
+		return rideThrow("'invoke' is allowed only for dApp scripts"), nil
+	}
+
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
 		return nil, errors.Wrapf(errors.New("wrong state"), "invoke")
@@ -188,11 +219,6 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	ws.incrementInvCount()
 	if ws.invCount() > 100 {
 		return rideUnit{}, nil
-	}
-
-	callerAddress, ok := env.this().(rideAddress)
-	if !ok {
-		return rideUnit{}, errors.Errorf("invoke: this has an unexpected type '%s'", env.this().instanceOf())
 	}
 
 	recipient, err := extractRecipient(args[0])
