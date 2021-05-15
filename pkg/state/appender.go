@@ -259,7 +259,7 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64) error {
 		}
 		maxBlockComplexity := NewMaxScriptsComplexityInBlock().GetMaxScriptsComplexityInBlock(rideV5Activated)
 		if a.sc.getTotalComplexity() > uint64(maxBlockComplexity) {
-			// TODO this is definitely an error
+			// TODO this is definitely an error, should return it
 			zap.S().Warnf("complexity limit per block is exceeded. total complexity of script is %d, max allowed complexity is %d", int(a.sc.getTotalComplexity()), maxBlockComplexity)
 		}
 		return nil
