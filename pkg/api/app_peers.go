@@ -93,10 +93,10 @@ func (a *App) PeersConnect(ctx context.Context, apiKey string, addr string) (*Pe
 }
 
 type PeersConnectedResponse struct {
-	Peers []PeersConnectedRow `json:"peers"`
+	Peers []PeerInfo `json:"peers"`
 }
 
-type PeersConnectedRow struct {
+type PeerInfo struct {
 	Address            string `json:"address"`
 	DeclaredAddress    string `json:"declaredAddress"`
 	PeerName           string `json:"peerName"`
@@ -105,26 +105,28 @@ type PeersConnectedRow struct {
 	ApplicationVersion string `json:"applicationVersion"`
 }
 
+func peerInfoFromPeer(peer peer.Peer) PeerInfo {
+	handshake := peer.Handshake()
+
+	declaredAddrStr := "N/A"
+	if !handshake.DeclaredAddr.Empty() {
+		declaredAddrStr = handshake.DeclaredAddr.String()
+	}
+
+	return PeerInfo{
+		Address:            "/" + peer.RemoteAddr().String(),
+		DeclaredAddress:    "/" + declaredAddrStr,
+		PeerName:           handshake.NodeName,
+		PeerNonce:          handshake.NodeNonce,
+		ApplicationName:    handshake.AppName,
+		ApplicationVersion: handshake.Version.String(),
+	}
+}
+
 func (a *App) PeersConnected() (PeersConnectedResponse, error) {
-	var out []PeersConnectedRow
-	a.peers.EachConnected(func(peer peer.Peer, i *proto.Score) {
-		declaredAddr := peer.Handshake().DeclaredAddr
-
-		declaredAddrStr := "N/A"
-		if !declaredAddr.Empty() {
-			declaredAddrStr = declaredAddr.String()
-		}
-
-		v := PeersConnectedRow{
-			Address:            "/" + peer.RemoteAddr().String(),
-			DeclaredAddress:    "/" + declaredAddrStr,
-			PeerName:           peer.Handshake().NodeName,
-			PeerNonce:          peer.Handshake().NodeNonce,
-			ApplicationName:    peer.Handshake().AppName,
-			ApplicationVersion: peer.Handshake().Version.String(),
-		}
-
-		out = append(out, v)
+	var out []PeerInfo
+	a.peers.EachConnected(func(peer peer.Peer, _ *proto.Score) {
+		out = append(out, peerInfoFromPeer(peer))
 	})
 
 	return PeersConnectedResponse{
