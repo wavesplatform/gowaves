@@ -996,7 +996,7 @@ func WrappedStateFunc() types.SmartState {
 }
 
 var envDappFromDapp = &MockRideEnvironment{
-	SetInvocationFunc: func(invocation rideObject) {
+	setInvocationFunc: func(invocation rideObject) {
 		inv = invocation
 	},
 	schemeFunc: func() byte {
@@ -3571,7 +3571,6 @@ func TestExpressionScriptFailInvoke(t *testing.T) {
 	    }
 	    case _ => throw("Wrong tx type")
 	}
-
 	*/
 
 	/* script 2
@@ -3661,14 +3660,9 @@ func TestExpressionScriptFailInvoke(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallVerifier(env, tree)
-
-	require.NoError(t, err)
-	r, ok := res.(ScriptResult)
-	require.True(t, ok)
-	require.False(t, r.res)
+	_, err = CallVerifier(env, tree)
+	require.Error(t, err)
 	tearDownDappFromDapp()
-
 }
 
 func TestHashScriptFunc(t *testing.T) {
