@@ -2,30 +2,62 @@ package api
 
 import (
 	"context"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
+	"time"
 )
 
 type Peer struct {
 	Address  string `json:"address"`
-	LastSeen uint64 `json:"lastSeen"`
+	LastSeen uint64 `json:"lastSeen,omitempty"`
 }
 
 type PeersKnown struct {
 	Peers []Peer `json:"peers"`
 }
 
+// PeersAll a list of all known not banned peers with a publicly available declared address
+func (a *App) PeersAll() (PeersKnown, error) {
+	suspendedIPs := a.peers.Suspended()
+	suspendedMap := make(map[string]struct{}, len(suspendedIPs))
+	for _, ip := range suspendedIPs {
+		suspendedMap[ip] = struct{}{}
+	}
+
+	peers, err := a.peers.KnownPeers()
+	if err != nil {
+		return PeersKnown{}, errors.Wrap(err, "PeersKnown")
+	}
+
+	nowMillis := time.Now().UnixNano() / 1_000_000
+
+	out := make([]Peer, 0, len(peers))
+	for _, row := range peers {
+		ip := row.String()
+		if _, in := suspendedMap[ip]; in {
+			continue
+		}
+		// FIXME(nickeksov): add normal last seen (this is crunch...)!!!!
+		out = append(out, Peer{
+			Address:  "/" + ip,
+			LastSeen: uint64(nowMillis),
+		})
+	}
+
+	return PeersKnown{Peers: out}, nil
+}
+
 func (a *App) PeersKnown() (PeersKnown, error) {
-	peers, err := a.state.Peers()
+	peers, err := a.peers.KnownPeers()
 	if err != nil {
 		return PeersKnown{}, errors.Wrap(err, "PeersKnown")
 	}
 
 	out := make([]Peer, 0, len(peers))
 	for _, row := range peers {
+		// nickeksov: peers without lastSeen field
 		out = append(out, Peer{Address: row.String()})
 	}
 

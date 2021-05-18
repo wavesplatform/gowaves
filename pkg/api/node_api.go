@@ -244,6 +244,17 @@ func Run(ctx context.Context, address string, n *NodeApi) error {
 	return RunWithOpts(ctx, address, n, nil)
 }
 
+func (a *NodeApi) PeersAll(w http.ResponseWriter, _ *http.Request) error {
+	rs, err := a.app.PeersAll()
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch all peers")
+	}
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "PeersAll")
+	}
+	return nil
+}
+
 func (a *NodeApi) PeersKnown(w http.ResponseWriter, _ *http.Request) error {
 	rs, err := a.app.PeersKnown()
 	if err != nil {
