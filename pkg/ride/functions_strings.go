@@ -3,7 +3,6 @@ package ride
 import (
 	"strconv"
 	"strings"
-	"unicode/utf16"
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
@@ -308,28 +307,14 @@ func runesDrop(s string, n int) string {
 	return res
 }
 
-// TODO: This is the correct implementation of takeString function that handles runes in UTF-8 string correct
-//func runesTake(s string, n int) string {
-//	out := make([]rune, n)
-//	copy(out, []rune(s)[:n])
-//	return string(out)
-//}
-//
-//func takeRideString(s string, n int) rideString {
-//	l := utf8.RuneCountInString(s)
-//	t := n
-//	if t > l {
-//		t = l
-//	}
-//	if t < 0 {
-//		t = 0
-//	}
-//	return rideString(runesTake(s, t))
-//}
+func runesTake(s string, n int) string {
+	out := make([]rune, n)
+	copy(out, []rune(s)[:n])
+	return string(out)
+}
 
 func takeRideString(s string, n int) rideString {
-	b := utf16.Encode([]rune(s))
-	l := len(b)
+	l := utf8.RuneCountInString(s)
 	t := n
 	if t > l {
 		t = l
@@ -337,7 +322,7 @@ func takeRideString(s string, n int) rideString {
 	if t < 0 {
 		t = 0
 	}
-	return rideString(strings.ReplaceAll(string(utf16.Decode(b[:t])), "�", "?"))
+	return rideString(runesTake(s, t))
 }
 
 func dropRideString(s string, n int) rideString {
