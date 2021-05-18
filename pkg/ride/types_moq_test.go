@@ -59,9 +59,6 @@ var _ types.SmartState = &MockSmartState{}
 //             NewestTransactionHeightByIDFunc: func(in1 []byte) (uint64, error) {
 // 	               panic("mock out the NewestTransactionHeightByID method")
 //             },
-//             ProtoBlockHitSourceFunc: func(blockHeader *proto.BlockHeader, height uint64) []byte {
-// 	               panic("mock out the ProtoBlockHitSource method")
-//             },
 //             RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 // 	               panic("mock out the RetrieveNewestBinaryEntry method")
 //             },
@@ -119,9 +116,6 @@ type MockSmartState struct {
 
 	// NewestTransactionHeightByIDFunc mocks the NewestTransactionHeightByID method.
 	NewestTransactionHeightByIDFunc func(in1 []byte) (uint64, error)
-
-	// ProtoBlockHitSourceFunc mocks the ProtoBlockHitSource method.
-	ProtoBlockHitSourceFunc func(blockHeader *proto.BlockHeader, height uint64) []byte
 
 	// RetrieveNewestBinaryEntryFunc mocks the RetrieveNewestBinaryEntry method.
 	RetrieveNewestBinaryEntryFunc func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
@@ -202,13 +196,6 @@ type MockSmartState struct {
 			// In1 is the in1 argument value.
 			In1 []byte
 		}
-		// ProtoBlockHitSource holds details about calls to the ProtoBlockHitSource method.
-		ProtoBlockHitSource []struct {
-			// BlockHeader is the blockHeader argument value.
-			BlockHeader *proto.BlockHeader
-			// Height is the height argument value.
-			Height uint64
-		}
 		// RetrieveNewestBinaryEntry holds details about calls to the RetrieveNewestBinaryEntry method.
 		RetrieveNewestBinaryEntry []struct {
 			// Account is the account argument value.
@@ -251,7 +238,6 @@ type MockSmartState struct {
 	lockNewestHeaderByHeight        sync.RWMutex
 	lockNewestTransactionByID       sync.RWMutex
 	lockNewestTransactionHeightByID sync.RWMutex
-	lockProtoBlockHitSource         sync.RWMutex
 	lockRetrieveNewestBinaryEntry   sync.RWMutex
 	lockRetrieveNewestBooleanEntry  sync.RWMutex
 	lockRetrieveNewestIntegerEntry  sync.RWMutex
@@ -656,41 +642,6 @@ func (mock *MockSmartState) NewestTransactionHeightByIDCalls() []struct {
 	mock.lockNewestTransactionHeightByID.RLock()
 	calls = mock.calls.NewestTransactionHeightByID
 	mock.lockNewestTransactionHeightByID.RUnlock()
-	return calls
-}
-
-// ProtoBlockHitSource calls ProtoBlockHitSourceFunc.
-func (mock *MockSmartState) ProtoBlockHitSource(blockHeader *proto.BlockHeader, height uint64) []byte {
-	if mock.ProtoBlockHitSourceFunc == nil {
-		panic("MockSmartState.ProtoBlockHitSourceFunc: method is nil but SmartState.ProtoBlockHitSource was just called")
-	}
-	callInfo := struct {
-		BlockHeader *proto.BlockHeader
-		Height      uint64
-	}{
-		BlockHeader: blockHeader,
-		Height:      height,
-	}
-	mock.lockProtoBlockHitSource.Lock()
-	mock.calls.ProtoBlockHitSource = append(mock.calls.ProtoBlockHitSource, callInfo)
-	mock.lockProtoBlockHitSource.Unlock()
-	return mock.ProtoBlockHitSourceFunc(blockHeader, height)
-}
-
-// ProtoBlockHitSourceCalls gets all the calls that were made to ProtoBlockHitSource.
-// Check the length with:
-//     len(mockedSmartState.ProtoBlockHitSourceCalls())
-func (mock *MockSmartState) ProtoBlockHitSourceCalls() []struct {
-	BlockHeader *proto.BlockHeader
-	Height      uint64
-} {
-	var calls []struct {
-		BlockHeader *proto.BlockHeader
-		Height      uint64
-	}
-	mock.lockProtoBlockHitSource.RLock()
-	calls = mock.calls.ProtoBlockHitSource
-	mock.lockProtoBlockHitSource.RUnlock()
 	return calls
 }
 

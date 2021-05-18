@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"go.uber.org/zap"
 )
 
 const (
@@ -315,14 +316,20 @@ func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uin
 		if err != nil {
 			return errors.Wrapf(err, "failed to verify generator signature")
 		}
+		zap.S().Warnf("Validation: height=%d", height)
+		zap.S().Warnf("Validation: p=%d", p)
+		zap.S().Warnf("Validation: refGenSig=%s", base58.Encode(refGenSig))
+		zap.S().Warnf("Validation: header.GenPublicKey=%s", header.GenPublicKey.String())
+		zap.S().Warnf("Validation: header.GenSignature=%s", header.GenSignature.String())
+		zap.S().Warnf("Validation: ok=%t", ok)
+		zap.S().Warnf("Validation: hitSource=%s", base58.Encode(hitSource))
+
 		if !ok {
 			return errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s'), with vrf",
 				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
 		}
 		cv.hitSources = append(cv.hitSources, hitSource)
-
 	} else {
-
 		refHeader, err := cv.headerByHeight(height)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate generation signature")
@@ -347,7 +354,6 @@ func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uin
 		if err != nil {
 			return errors.Wrap(err, "failed to validate generation signature")
 		}
-
 	}
 
 	if cv.settings.Type == settings.MainNet && isInvalidMainNetBlock(header.BlockID(), height) {

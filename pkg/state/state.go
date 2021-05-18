@@ -590,31 +590,33 @@ func (s *stateManager) TopBlock() *proto.Block {
 }
 
 func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
-	var vrf []byte = nil
-	if blockHeader.Version >= proto.ProtobufBlockVersion {
-		pos := &consensus.FairPosCalculatorV2{} // BlockV5 and FairPoSV2 are activated at the same time
-		gsp := &consensus.VRFGenerationSignatureProvider{}
-		hitSourceHeader, err := s.NewestHeaderByHeight(pos.HeightForHit(height))
-		if err != nil {
-			return nil, err
-		}
-		_, vrf, err = gsp.VerifyGenerationSignature(blockHeader.GenPublicKey, hitSourceHeader.GenSignature.Bytes(), blockHeader.GenSignature)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return vrf, nil
-}
-
-func (s *stateManager) ProtoBlockHitSource(blockHeader *proto.BlockHeader, height proto.Height) []byte {
 	if blockHeader.Version < proto.ProtobufBlockVersion {
-		return nil
+		return nil, nil
 	}
-	vrf, err := s.HitSourceAtHeight(height)
+	pos := &consensus.FairPosCalculatorV2{}
+	p := pos.HeightForHit(height)
+	refHitSource, err := s.HitSourceAtHeight(p)
 	if err != nil {
-		return nil
+		zap.S().Warnf("BlockVRF: err1 = %v", err)
+		return nil, err
 	}
-	return vrf
+	zap.S().Warnf("BlockVRF: height=%d", height)
+	zap.S().Warnf("BlockVRF: p=%d", p)
+	zap.S().Warnf("BlockVRF: refHitSource=%s", base58.Encode(refHitSource))
+	gsp := &consensus.VRFGenerationSignatureProvider{}
+	zap.S().Warnf("BlockVRF: blockHeader.GenPublicKey = %s", blockHeader.GenPublicKey.String())
+	zap.S().Warnf("BlockVRF: blockHeader.GenSignature = %s", blockHeader.GenSignature.String())
+	ok, vrf, err := gsp.VerifyGenerationSignature(blockHeader.GenPublicKey, refHitSource, blockHeader.GenSignature)
+	if err != nil {
+		zap.S().Warnf("BlockVRF: err2 = %v", err)
+		return nil, err
+	}
+	if !ok {
+		zap.S().Warn("BlockVRF: VRF is not OK")
+		return nil, errors.New("invalid VRF")
+	}
+	zap.S().Warnf("BlockVRF: vrf = %s", base58.Encode(vrf))
+	return vrf, nil
 }
 
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
