@@ -54,6 +54,8 @@ func TestTakeString(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\nCeli, child of the first light. One of the main characters of the story, she is the first to see the vision of Cloudscape and its inhabitants from the Earth's dimension after the great destruction.\n\nDragorion - avatars sung into being by Eneria to bring sleep to the people of Cloudscape. They speak in dreams as lullabies, symphonies, hymns, arias and melodies. ~Legendarium\n\n©️Art of Monztre\n"), rideInt(50)}, false, rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶?")},
+		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
+		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x冬")}, // the result is `x?` but it should be `x冬`
 	} {
 		r, err := takeString(nil, test.args...)
 		if test.fail {
@@ -82,6 +84,8 @@ func TestDropString(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
+		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
+		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x")},
 	} {
 		r, err := dropString(nil, test.args...)
 		if test.fail {
@@ -108,6 +112,8 @@ func TestSizeString(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
+		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
+		{[]rideType{rideString("x冬x")}, false, rideInt(3)},
 	} {
 		r, err := sizeString(nil, test.args...)
 		if test.fail {
@@ -133,6 +139,11 @@ func TestIndexOfSubstring(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
+		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
+		{[]rideType{rideString("x冬xqweqwe"), rideString("we")}, false, rideInt(4)},         // unicode indexOf
+		{[]rideType{takeRideString("世界x冬x", 4), takeRideString("冬", 1)}, false, rideInt(3)}, // unicode indexOf
+		{[]rideType{rideString("x冬xqweqwe"), rideString("ww")}, false, rideUnit{}},         // unicode indexOf (not present)
+		{[]rideType{rideString(""), rideString("x冬x")}, false, rideUnit{}},                 // unicode indexOf from empty string
 	} {
 		r, err := indexOfSubstring(nil, test.args...)
 		if test.fail {
@@ -142,6 +153,7 @@ func TestIndexOfSubstring(t *testing.T) {
 			assert.Equal(t, test.r, r)
 		}
 	}
+
 }
 
 func TestIndexOfSubstringWithOffset(t *testing.T) {
@@ -161,6 +173,10 @@ func TestIndexOfSubstringWithOffset(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
+		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
+		{[]rideType{rideString("x冬xqweqwe"), rideString("x冬xqw"), rideInt(0)}, false, rideInt(0)}, // unicode indexOf with zero offset
+		{[]rideType{rideString("冬weqwe"), rideString("we"), rideInt(2)}, false, rideInt(4)},        // unicode indexOf with start offset
+		{[]rideType{rideString(""), rideString("x冬x"), rideInt(1)}, false, rideUnit{}},             // unicode indexOf from empty string with offset
 	} {
 		r, err := indexOfSubstringWithOffset(nil, test.args...)
 		if test.fail {
@@ -216,6 +232,8 @@ func TestDropRightString(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
+		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
+		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x")},
 	} {
 		r, err := dropRightString(nil, test.args...)
 		if test.fail {
@@ -245,6 +263,8 @@ func TestTakeRightString(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
+		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
+		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("冬x")},
 	} {
 		r, err := takeRightString(nil, test.args...)
 		if test.fail {
