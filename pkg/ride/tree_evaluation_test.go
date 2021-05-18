@@ -324,6 +324,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		{`LASTINDEXOFN`, `lastIndexOf("cafe bebe dead beef cafe bebe", "dead", 13) == 10`, `AwkAAAAAAAACCQAEuAAAAAMCAAAAHWNhZmUgYmViZSBkZWFkIGJlZWYgY2FmZSBiZWJlAgAAAARkZWFkAAAAAAAAAAANAAAAAAAAAAAKepNV2A==`, env, true, false},
 		{`LASTINDEXOFN`, `lastIndexOf("cafe bebe dead beef cafe bebe", "dead", 11) == 10`, `AwkAAAAAAAACCQAEuAAAAAMCAAAAHWNhZmUgYmViZSBkZWFkIGJlZWYgY2FmZSBiZWJlAgAAAARkZWFkAAAAAAAAAAALAAAAAAAAAAAKcxKwfA==`, env, true, false},
 		{`CONTAINS on incorrect UTF-8 character`, `"x冬x".contains("\ud87e")`, `BAkBAAAACGNvbnRhaW5zAAAAAgIAAAAGePCvoJp4AgAAAAE/5/PEZA==`, env, false, false},
+		{`SPLIT on incorrect UTF-8 character`, `"冬x🤦冬".split("\ud87e") == ["冬x🤦冬"]`, `BAkAAAAAAAACCQAEtQAAAAICAAAADfCvoJp48J+kpvCvoJoCAAAAAT8JAARMAAAAAgIAAAAN8K+gmnjwn6Sm8K+gmgUAAAADbmlsLyxljg==`, env, true, false},
 	} {
 		src, err := base64.StdEncoding.DecodeString(test.script)
 		require.NoError(t, err, test.name)
