@@ -307,6 +307,7 @@ func runesDrop(s string, n int) string {
 	return res
 }
 
+// TODO: This is the CORRECT implementation of takeString function that handles runes in UTF-8 string correct
 func runesTake(s string, n int) string {
 	out := make([]rune, n)
 	copy(out, []rune(s)[:n])
@@ -324,6 +325,20 @@ func takeRideString(s string, n int) rideString {
 	}
 	return rideString(runesTake(s, t))
 }
+
+// TODO: This is the WRONG implementation of takeString function that handles runes in UTF-8 string INCORRECT
+//func takeRideString(s string, n int) rideString {
+//	b := utf16.Encode([]rune(s))
+//	l := len(b)
+//	t := n
+//	if t > l {
+//		t = l
+//	}
+//	if t < 0 {
+//		t = 0
+//	}
+//	return rideString(strings.ReplaceAll(string(utf16.Decode(b[:t])), "�", "?"))
+//}
 
 func dropRideString(s string, n int) rideString {
 	l := utf8.RuneCountInString(s)
