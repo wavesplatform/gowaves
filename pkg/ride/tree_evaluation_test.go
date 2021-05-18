@@ -996,7 +996,7 @@ func WrappedStateFunc() types.SmartState {
 }
 
 var envDappFromDapp = &MockRideEnvironment{
-	SetInvocationFunc: func(invocation rideObject) {
+	setInvocationFunc: func(invocation rideObject) {
 		inv = invocation
 	},
 	schemeFunc: func() byte {
@@ -3549,6 +3549,119 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 
+	tearDownDappFromDapp()
+}
+
+func TestExpressionScriptFailInvoke(t *testing.T) {
+
+	/* script 1
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE EXPRESSION #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let dapp = Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna')
+
+	match tx {
+	    case t: InvokeScriptTransaction => {
+	        let result = match invoke(dapp, "foo", [5], [AttachedPayment(unit, 10)]) {
+	            case i: Int => i
+	            case _ => throw("Wrong result type")
+	        }
+	        if result == 5 then true else throw("Wrong result '" + result.toString() + "'")
+	    }
+	    case _ => throw("Wrong tx type")
+	}
+	*/
+
+	/* script 2
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(inv)
+	func foo(amount: Int) = ([
+	    IntegerEntry("result", amount),
+	    ScriptTransfer(inv.caller, amount, unit)
+	], amount)
+	*/
+
+	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	require.NoError(t, err)
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(addr)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
+	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
+	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
+
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "cancel",
+		Arguments: arguments,
+	}
+	tx = &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 10000,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       900000,
+		Timestamp: 1564703444249,
+	}
+
+	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+
+	firstScript = "BQQAAAAEZGFwcAkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAF0ludm9rZVNjcmlwdFRyYW5zYWN0aW9uBAAAAAF0BQAAAAckbWF0Y2gwBAAAAAZyZXN1bHQEAAAAByRtYXRjaDEJAAP8AAAABAUAAAAEZGFwcAIAAAADZm9vCQAETAAAAAIAAAAAAAAAAAUFAAAAA25pbAkABEwAAAACCQEAAAAPQXR0YWNoZWRQYXltZW50AAAAAgUAAAAEdW5pdAAAAAAAAAAACgUAAAADbmlsAwkAAAEAAAACBQAAAAckbWF0Y2gxAgAAAANJbnQEAAAAAWkFAAAAByRtYXRjaDEFAAAAAWkJAAACAAAAAQIAAAARV3JvbmcgcmVzdWx0IHR5cGUDCQAAAAAAAAIFAAAABnJlc3VsdAAAAAAAAAAABQYJAAACAAAAAQkAASwAAAACCQABLAAAAAICAAAADldyb25nIHJlc3VsdCAnCQABpAAAAAEFAAAABnJlc3VsdAIAAAABJwkAAAIAAAABAgAAAA1Xcm9uZyB0eCB0eXBlUP0hpw=="
+	secondScript = "AAIFAAAAAAAAAAcIAhIDCgEBAAAAAAAAAAEAAAADaW52AQAAAANmb28AAAABAAAABmFtb3VudAkABRQAAAACCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAAZyZXN1bHQFAAAABmFtb3VudAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAADaW52AAAABmNhbGxlcgUAAAAGYW1vdW50BQAAAAR1bml0BQAAAANuaWwFAAAABmFtb3VudAAAAAD070Yd"
+
+	id = bytes.Repeat([]byte{0}, 32)
+
+	smartState := smartStateDappFromDapp
+
+	thisAddress = addr
+	env := envDappFromDapp
+
+	NewWrappedSt := initWrappedState(smartState(), env)
+	wrappedSt = *NewWrappedSt
+
+	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
+
+	src, err := base64.StdEncoding.DecodeString(firstScript)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	_, err = CallVerifier(env, tree)
+	require.Error(t, err)
 	tearDownDappFromDapp()
 }
 

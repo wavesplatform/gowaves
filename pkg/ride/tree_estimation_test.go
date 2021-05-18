@@ -232,3 +232,34 @@ func TestStackOverflowOnV2(t *testing.T) {
 		fmt.Println(test.comment, ":", time.Since(start))
 	}
 }
+
+func TestFailOnInvocationInExpression(t *testing.T) {
+	/*
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE EXPRESSION #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		let dapp = Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna')
+
+		match tx {
+		    case t: InvokeScriptTransaction => {
+		        let result = match invoke(dapp, "foo", [5], [AttachedPayment(unit, 10)]) {
+		            case i: Int => i
+		            case _ => throw("Wrong result type")
+		        }
+		        if result == 5 then true else throw("Wrong result '" + result.toString() + "'")
+		    }
+		    case _ => throw("Wrong tx type")
+		}
+	*/
+	source := "BQQAAAAEZGFwcAkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAF0ludm9rZVNjcmlwdFRyYW5zYWN0aW9uBAAAAAF0BQAAAAckbWF0Y2gwBAAAAAZyZXN1bHQEAAAAByRtYXRjaDEJAAP8AAAABAUAAAAEZGFwcAIAAAADZm9vCQAETAAAAAIAAAAAAAAAAAUFAAAAA25pbAkABEwAAAACCQEAAAAPQXR0YWNoZWRQYXltZW50AAAAAgUAAAAEdW5pdAAAAAAAAAAACgUAAAADbmlsAwkAAAEAAAACBQAAAAckbWF0Y2gxAgAAAANJbnQEAAAAAWkFAAAAByRtYXRjaDEFAAAAAWkJAAACAAAAAQIAAAARV3JvbmcgcmVzdWx0IHR5cGUDCQAAAAAAAAIFAAAABnJlc3VsdAAAAAAAAAAABQYJAAACAAAAAQkAASwAAAACCQABLAAAAAICAAAADldyb25nIHJlc3VsdCAnCQABpAAAAAEFAAAABnJlc3VsdAIAAAABJwkAAAIAAAABAgAAAA1Xcm9uZyB0eCB0eXBlUP0hpw=="
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	_, err = EstimateTree(tree, 3)
+	require.Error(t, err)
+}

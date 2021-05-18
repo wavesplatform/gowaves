@@ -370,7 +370,7 @@ type Environment interface {
 	setNewDAppAddress(address proto.Address)
 	checkMessageLength(int) bool
 	invocation() rideObject // Invocation object made of invoke transaction
-	SetInvocation(inv rideObject)
+	setInvocation(inv rideObject)
 }
 
 type rideConstructor func(Environment) rideType

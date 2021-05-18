@@ -115,7 +115,7 @@ func (s *evaluationScope) userFunction(id string) (*FunctionDeclarationNode, int
 	return nil, 0, errors.Errorf("user function '%s' is not found", id)
 }
 
-func newEvaluationScope(v int, env Environment) (evaluationScope, error) {
+func newEvaluationScope(v int, env Environment, enableInvocation bool) (evaluationScope, error) {
 	constants, err := selectConstantNames(v)
 	if err != nil {
 		return evaluationScope{}, err
@@ -136,7 +136,7 @@ func newEvaluationScope(v int, env Environment) (evaluationScope, error) {
 		}
 		cs[n] = esConstant{c: constantProvider(int(id))}
 	}
-	functions, err := selectFunctionNames(v)
+	functions, err := selectFunctionNames(v, enableInvocation)
 	if err != nil {
 		return evaluationScope{}, err
 	}
@@ -181,24 +181,31 @@ func selectConstantNames(v int) ([]string, error) {
 	}
 }
 
-func keys(m map[string]int) []string {
+func keys(m map[string]int, enableInvocation bool) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
-		keys = append(keys, k)
+		switch k {
+		case "1020", "1021": // invoke and reentrantInvoke function are disabled for expression calls
+			if enableInvocation {
+				keys = append(keys, k)
+			}
+		default:
+			keys = append(keys, k)
+		}
 	}
 	return keys
 }
 
-func selectFunctionNames(v int) ([]string, error) {
+func selectFunctionNames(v int, enableInvocation bool) ([]string, error) {
 	switch v {
 	case 1, 2:
-		return keys(CatalogueV2), nil
+		return keys(CatalogueV2, enableInvocation), nil
 	case 3:
-		return keys(CatalogueV3), nil
+		return keys(CatalogueV3, enableInvocation), nil
 	case 4:
-		return keys(CatalogueV4), nil
+		return keys(CatalogueV4, enableInvocation), nil
 	case 5:
-		return keys(CatalogueV5), nil
+		return keys(CatalogueV5, enableInvocation), nil
 	default:
 		return nil, errors.Errorf("unsupported library version %d", v)
 	}
@@ -435,7 +442,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 }
 
 func treeVerifierEvaluator(env Environment, tree *Tree) (*treeEvaluator, error) {
-	s, err := newEvaluationScope(tree.LibVersion, env)
+	s, err := newEvaluationScope(tree.LibVersion, env, false) // Invocation is disabled for expression calls
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create scope")
 	}
@@ -470,7 +477,7 @@ func treeVerifierEvaluator(env Environment, tree *Tree) (*treeEvaluator, error) 
 }
 
 func treeFunctionEvaluatorForInvokeDAppFromDApp(env Environment, tree *Tree, name string, args []rideType) (*treeEvaluator, error) {
-	s, err := newEvaluationScope(tree.LibVersion, env)
+	s, err := newEvaluationScope(tree.LibVersion, env, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create scope")
 	}
@@ -504,7 +511,7 @@ func treeFunctionEvaluatorForInvokeDAppFromDApp(env Environment, tree *Tree, nam
 }
 
 func treeFunctionEvaluator(env Environment, tree *Tree, name string, args proto.Arguments) (*treeEvaluator, error) {
-	s, err := newEvaluationScope(tree.LibVersion, env)
+	s, err := newEvaluationScope(tree.LibVersion, env, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create scope")
 	}

@@ -1249,7 +1249,7 @@ func (e *EvaluationEnvironment) invocation() rideObject {
 	return e.inv
 }
 
-func (e *EvaluationEnvironment) SetInvocation(inv rideObject) {
+func (e *EvaluationEnvironment) setInvocation(inv rideObject) {
 	e.inv = inv
 }
 

@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 
 	"github.com/mr-tron/base58"
@@ -91,7 +92,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	}
 	invocationParam["callerPublicKey"] = rideBytes(common.Dup(callerPublicKey.Bytes()))
 	invocationParam["payments"] = payments
-	env.SetInvocation(invocationParam)
+	env.setInvocation(invocationParam)
 
 	for _, value := range payments {
 		payment, ok := value.(rideObject)
@@ -169,7 +170,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		}
 
 		env.setNewDAppAddress(proto.Address(callerAddress))
-		env.SetInvocation(oldInvocationParam)
+		env.setInvocation(oldInvocationParam)
 
 		if res.UserResult() == nil {
 			return rideUnit{}, nil
@@ -247,7 +248,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	}
 	invocationParam["callerPublicKey"] = rideBytes(common.Dup(callerPublicKey.Bytes()))
 	invocationParam["payments"] = payments
-	env.SetInvocation(invocationParam)
+	env.setInvocation(invocationParam)
 
 	for _, value := range payments {
 		payment, ok := value.(rideObject)
@@ -330,7 +331,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		}
 
 		env.setNewDAppAddress(proto.Address(callerAddress))
-		env.SetInvocation(oldInvocationParam)
+		env.setInvocation(oldInvocationParam)
 
 		if res.UserResult() == nil {
 			return rideUnit{}, nil
