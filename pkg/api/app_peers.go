@@ -20,7 +20,7 @@ type PeersKnown struct {
 
 // PeersAll a list of all known not banned peers with a publicly available declared address
 func (a *App) PeersAll() (PeersKnown, error) {
-	suspendedIPs := a.peers.Suspended()
+	suspendedIPs := a.peers.SuspendedIPs()
 	suspendedMap := make(map[string]struct{}, len(suspendedIPs))
 	for _, ip := range suspendedIPs {
 		suspendedMap[ip] = struct{}{}
@@ -31,7 +31,7 @@ func (a *App) PeersAll() (PeersKnown, error) {
 		return PeersKnown{}, errors.Wrap(err, "PeersKnown")
 	}
 
-	nowMillis := time.Now().UnixNano() / 1_000_000
+	nowMillis := unixMillis(time.Now())
 
 	out := make([]Peer, 0, len(peers))
 	for _, row := range peers {
@@ -134,17 +134,29 @@ func (a *App) PeersConnected() (PeersConnectedResponse, error) {
 	}, nil
 }
 
-type PeersSuspendedResponse struct {
-	Peers []string `json:"peers"`
+type SuspendedPeerInfo struct {
+	Hostname  string `json:"hostname"`
+	Timestamp int64  `json:"timestamp"` // nickeskov: timestamp in millis
+	Reason    string `json:"reason,omitempty"`
 }
 
-func (a *App) PeersSuspended() (PeersSuspendedResponse, error) {
-	peers := a.peers.Suspended()
-	return PeersSuspendedResponse{peers}, nil
+func (a *App) PeersSuspended() ([]SuspendedPeerInfo, error) {
+	suspended := a.peers.Suspended()
+
+	out := make([]SuspendedPeerInfo, 0, len(suspended))
+	for _, p := range suspended {
+		out = append(out, SuspendedPeerInfo{
+			Hostname:  "/" + p.IP.String(),
+			Timestamp: unixMillis(p.SuspendTime),
+			Reason:    p.Reason,
+		})
+	}
+
+	return out, nil
 }
 
 type PeersSpawnedResponse struct {
-	Peers []proto.IpPort
+	Peers []proto.IpPort `json:"peers"`
 }
 
 func (a *App) PeersSpawned() PeersSpawnedResponse {

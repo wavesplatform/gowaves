@@ -16,7 +16,7 @@ func TestSuspended_Block(t *testing.T) {
 		b := suspended{}
 		require.False(t, b.Blocked(addr, time.Now()))
 
-		b.Block(addr, 5*time.Minute)
+		b.Block(addr, 5*time.Minute, "")
 
 		require.True(t, b.Blocked(addr, time.Now()))
 		require.False(t, b.Blocked(addr, time.Now().Add(10*time.Minute)))
@@ -31,7 +31,7 @@ func TestSuspended_Block(t *testing.T) {
 		b := suspended{}
 		addr2 := proto.NewTCPAddr(net.IPv4(8, 8, 8, 8), 180).ToIpPort()
 
-		b.Block(addr, 5*time.Minute)
+		b.Block(addr, 5*time.Minute, "")
 
 		require.True(t, b.Blocked(addr2, time.Now()), "should be suspended, ignore port")
 	})
