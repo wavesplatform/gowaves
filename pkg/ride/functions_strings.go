@@ -1,8 +1,10 @@
 package ride
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
@@ -111,11 +113,20 @@ func concatStrings(_ Environment, args ...rideType) (rideType, error) {
 	return rideString(out), nil
 }
 
-func takeString(_ Environment, args ...rideType) (rideType, error) {
+func takeString(env Environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeString")
 	}
+	rideV5Activated, err := env.state().NewestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to check if feature is activated")
+	}
+	// before RideV5 the implementation should be wrong
+	if !rideV5Activated {
+		return takeRideStringWrong(s, n), nil
+	}
+	// since RideV5 right implementation
 	return takeRideString(s, n), nil
 }
 
@@ -307,7 +318,7 @@ func runesDrop(s string, n int) string {
 	return res
 }
 
-// TODO: This is the CORRECT implementation of takeString function that handles runes in UTF-8 string correct
+// This is the CORRECT implementation of takeString function that handles runes in UTF-8 string correct
 func runesTake(s string, n int) string {
 	out := make([]rune, n)
 	copy(out, []rune(s)[:n])
@@ -326,19 +337,19 @@ func takeRideString(s string, n int) rideString {
 	return rideString(runesTake(s, t))
 }
 
-// TODO: This is the WRONG implementation of takeString function that handles runes in UTF-8 string INCORRECT
-//func takeRideString(s string, n int) rideString {
-//	b := utf16.Encode([]rune(s))
-//	l := len(b)
-//	t := n
-//	if t > l {
-//		t = l
-//	}
-//	if t < 0 {
-//		t = 0
-//	}
-//	return rideString(strings.ReplaceAll(string(utf16.Decode(b[:t])), "�", "?"))
-//}
+// This is the WRONG implementation of takeString function that handles runes in UTF-8 string INCORRECT
+func takeRideStringWrong(s string, n int) rideString {
+	b := utf16.Encode([]rune(s))
+	l := len(b)
+	t := n
+	if t > l {
+		t = l
+	}
+	if t < 0 {
+		t = 0
+	}
+	return rideString(strings.ReplaceAll(string(utf16.Decode(b[:t])), "�", "?"))
+}
 
 func dropRideString(s string, n int) rideString {
 	l := utf8.RuneCountInString(s)

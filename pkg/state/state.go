@@ -1681,6 +1681,14 @@ func (s *stateManager) EstimatorVersion() (int, error) {
 
 // Accounts data storage.
 
+func (s *stateManager) NewestIsActivated(feature int16) (bool, error) {
+	rideV5activated, err := s.stor.features.newestIsActivated(feature)
+	if err != nil {
+		return false, err
+	}
+	return rideV5activated, nil
+}
+
 func (s *stateManager) RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {

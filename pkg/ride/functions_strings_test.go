@@ -2,6 +2,7 @@ package ride
 
 import (
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"math"
 	"testing"
 
@@ -37,6 +38,16 @@ func TestConcatStrings(t *testing.T) {
 }
 
 func TestTakeString(t *testing.T) {
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				NewestIsActivatedFunc: func(feature int16) (bool, error) {
+					return true, nil
+				},
+			}
+		},
+	}
+
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -57,7 +68,7 @@ func TestTakeString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x冬")}, // the result is `x?` but it should be `x冬`
 	} {
-		r, err := takeString(nil, test.args...)
+		r, err := takeString(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -282,18 +293,18 @@ func TestSplitString(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		//{[]rideType{rideString("abcdefg"), rideString("")}, false, rideList{rideString("a"), rideString("b"), rideString("c"), rideString("d"), rideString("e"), rideString("f"), rideString("g")}},
-		//{[]rideType{rideString("one two three four"), rideString(" ")}, false, rideList{rideString("one"), rideString("two"), rideString("three"), rideString("four")}},
-		//{[]rideType{rideString(""), rideString(" ")}, false, rideList{rideString("")}},
-		//{[]rideType{rideString(" "), rideString(" ")}, false, rideList{rideString(""), rideString("")}},
-		//{[]rideType{rideString(""), rideString("")}, false, rideList{}},
-		//{[]rideType{rideString(" "), rideString("")}, false, rideList{rideString(" ")}},
-		//{[]rideType{rideString("abc"), rideInt(0)}, true, nil},
-		//{[]rideType{rideString("abc")}, true, nil},
-		//{[]rideType{rideUnit{}}, true, nil},
-		//{[]rideType{rideInt(1), rideString("x")}, true, nil},
-		//{[]rideType{rideInt(1)}, true, nil},
-		//{[]rideType{}, true, nil},
+		{[]rideType{rideString("abcdefg"), rideString("")}, false, rideList{rideString("a"), rideString("b"), rideString("c"), rideString("d"), rideString("e"), rideString("f"), rideString("g")}},
+		{[]rideType{rideString("one two three four"), rideString(" ")}, false, rideList{rideString("one"), rideString("two"), rideString("three"), rideString("four")}},
+		{[]rideType{rideString(""), rideString(" ")}, false, rideList{rideString("")}},
+		{[]rideType{rideString(" "), rideString(" ")}, false, rideList{rideString(""), rideString("")}},
+		{[]rideType{rideString(""), rideString("")}, false, rideList{}},
+		{[]rideType{rideString(" "), rideString("")}, false, rideList{rideString(" ")}},
+		{[]rideType{rideString("abc"), rideInt(0)}, true, nil},
+		{[]rideType{rideString("abc")}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("strx冬x1;🤦;🤦strx冬x2;🤦strx冬x3"), rideString(";🤦")}, false, rideList{rideString("strx冬x1"), rideString(""), rideString("strx冬x2"), rideString("strx冬x3")}},
 	} {

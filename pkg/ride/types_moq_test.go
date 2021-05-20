@@ -59,6 +59,9 @@ var _ types.SmartState = &MockSmartState{}
 //             NewestHeaderByHeightFunc: func(height uint64) (*proto.BlockHeader, error) {
 // 	               panic("mock out the NewestHeaderByHeight method")
 //             },
+//             NewestIsActivatedFunc: func(feature int16) (bool, error) {
+// 	               panic("mock out the NewestIsActivated method")
+//             },
 //             NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
 // 	               panic("mock out the NewestLeasingInfo method")
 //             },
@@ -134,6 +137,9 @@ type MockSmartState struct {
 
 	// NewestHeaderByHeightFunc mocks the NewestHeaderByHeight method.
 	NewestHeaderByHeightFunc func(height uint64) (*proto.BlockHeader, error)
+
+	// NewestIsActivatedFunc mocks the NewestIsActivated method.
+	NewestIsActivatedFunc func(feature int16) (bool, error)
 
 	// NewestLeasingInfoFunc mocks the NewestLeasingInfo method.
 	NewestLeasingInfoFunc func(id crypto.Digest) (*proto.LeaseInfo, error)
@@ -232,6 +238,11 @@ type MockSmartState struct {
 			// Height is the height argument value.
 			Height uint64
 		}
+		// NewestIsActivated holds details about calls to the NewestIsActivated method.
+		NewestIsActivated []struct {
+			// Feature is the feature argument value.
+			Feature int16
+		}
 		// NewestLeasingInfo holds details about calls to the NewestLeasingInfo method.
 		NewestLeasingInfo []struct {
 			// ID is the id argument value.
@@ -304,6 +315,7 @@ type MockSmartState struct {
 	lockNewestFullAssetInfo         sync.RWMutex
 	lockNewestFullWavesBalance      sync.RWMutex
 	lockNewestHeaderByHeight        sync.RWMutex
+	lockNewestIsActivated           sync.RWMutex
 	lockNewestLeasingInfo           sync.RWMutex
 	lockNewestRecipientToAddress    sync.RWMutex
 	lockNewestScriptByAsset         sync.RWMutex
@@ -714,6 +726,37 @@ func (mock *MockSmartState) NewestHeaderByHeightCalls() []struct {
 	mock.lockNewestHeaderByHeight.RLock()
 	calls = mock.calls.NewestHeaderByHeight
 	mock.lockNewestHeaderByHeight.RUnlock()
+	return calls
+}
+
+// NewestIsActivated calls NewestIsActivatedFunc.
+func (mock *MockSmartState) NewestIsActivated(feature int16) (bool, error) {
+	if mock.NewestIsActivatedFunc == nil {
+		panic("MockSmartState.NewestIsActivatedFunc: method is nil but SmartState.NewestIsActivated was just called")
+	}
+	callInfo := struct {
+		Feature int16
+	}{
+		Feature: feature,
+	}
+	mock.lockNewestIsActivated.Lock()
+	mock.calls.NewestIsActivated = append(mock.calls.NewestIsActivated, callInfo)
+	mock.lockNewestIsActivated.Unlock()
+	return mock.NewestIsActivatedFunc(feature)
+}
+
+// NewestIsActivatedCalls gets all the calls that were made to NewestIsActivated.
+// Check the length with:
+//     len(mockedSmartState.NewestIsActivatedCalls())
+func (mock *MockSmartState) NewestIsActivatedCalls() []struct {
+	Feature int16
+} {
+	var calls []struct {
+		Feature int16
+	}
+	mock.lockNewestIsActivated.RLock()
+	calls = mock.calls.NewestIsActivated
+	mock.lockNewestIsActivated.RUnlock()
 	return calls
 }
 
