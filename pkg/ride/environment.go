@@ -1134,6 +1134,7 @@ func (e *EvaluationEnvironment) ChooseTakeString() error {
 
 	if !rideV5Activated {
 		e.takeStr = takeRideStringWrong
+		return nil
 	}
 	e.takeStr = takeRideString
 	return nil
