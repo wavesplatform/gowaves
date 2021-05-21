@@ -126,48 +126,11 @@ func (cv *Validator) RangeForGeneratingBalanceByHeight(height uint64) (uint64, u
 }
 
 func (cv *Validator) GenerateHitSource(height uint64, header proto.BlockHeader) ([]byte, error) {
-	pos, err := cv.posAlgo(height)
+	hs, _, _, _, err := cv.generateAndCheckNextHitSource(height, &header)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to validate generation signature")
+		return nil, err
 	}
-	gsp, err := cv.generationSignatureProvider(height + 1)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get generation signature provider")
-	}
-	vrf, err := cv.state.NewestIsActiveAtHeight(int16(settings.BlockV5), height+1)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to validate generation signature")
-	}
-	if vrf {
-		p := pos.HeightForHit(height)
-		refGenSig, err := cv.state.NewestHitSourceAtHeight(p)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to validate generation signature")
-		}
-		ok, hs, err := gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to verify generator signature")
-		}
-		if !ok {
-			return nil, errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s'), with vrf",
-				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
-		}
-		return hs, nil
-	} else {
-		refGenSig, err := cv.state.NewestHitSourceAtHeight(height)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to validate generation signature")
-		}
-		ok, gs, err := gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to verify generator signature")
-		}
-		if !ok {
-			return nil, errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s'), without vrf",
-				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
-		}
-		return gs, nil
-	}
+	return hs, nil
 }
 
 func (cv *Validator) ValidateHeaders(headers []proto.BlockHeader, startHeight uint64) error {
@@ -318,50 +281,56 @@ func (cv *Validator) validateBaseTarget(height uint64, header, parent, greatGran
 	return nil
 }
 
-func (cv *Validator) validateGeneratorSignatureAndBlockDelay(height uint64, header *proto.BlockHeader) error {
+func (cv *Validator) generateAndCheckNextHitSource(height uint64, header *proto.BlockHeader) ([]byte, PosCalculator, GenerationSignatureProvider, bool, error) {
 	pos, err := cv.posAlgo(height)
 	if err != nil {
-		return errors.Wrapf(err, "failed to validate generation signature")
+		return nil, nil, nil, false, errors.Wrapf(err, "failed to generate hit source")
 	}
 	gsp, err := cv.generationSignatureProvider(height + 1)
 	if err != nil {
-		return errors.Wrap(err, "failed to get generation signature provider")
+		return nil, nil, nil, false, errors.Wrap(err, "failed to generate hit source")
 	}
 	vrf, err := cv.state.NewestIsActiveAtHeight(int16(settings.BlockV5), height+1)
 	if err != nil {
-		return errors.Wrapf(err, "failed to validate generation signature")
+		return nil, nil, nil, false, errors.Wrap(err, "failed to generate hit source")
 	}
-
-	var hitSource []byte
 	if vrf {
-		p := pos.HeightForHit(height)
-		refGenSig, err := cv.state.NewestHitSourceAtHeight(p)
+		refGenSig, err := cv.state.NewestHitSourceAtHeight(pos.HeightForHit(height))
 		if err != nil {
-			return errors.Wrap(err, "failed to validate generation signature")
+			return nil, nil, nil, false, errors.Wrap(err, "failed to generate hit source")
 		}
-		var ok bool
-		ok, hitSource, err = gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
+		ok, hs, err := gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
 		if err != nil {
-			return errors.Wrapf(err, "failed to verify generator signature")
+			return nil, nil, nil, false, errors.Wrap(err, "failed to validate hit source")
 		}
 		if !ok {
-			return errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s'), with vrf",
+			return nil, nil, nil, false, errors.Errorf("invalid hit source '%s' of block '%s' at height %d (ref gen-sig '%s'), with vrf",
 				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
 		}
+		return hs, pos, gsp, vrf, nil
 	} else {
-		refHeader, err := cv.headerByHeight(height)
+		refGenSig, err := cv.state.NewestHitSourceAtHeight(height)
 		if err != nil {
-			return errors.Wrap(err, "failed to validate generation signature")
+			return nil, nil, nil, false, errors.Wrap(err, "failed to generate hit source")
 		}
-		refGenSig := refHeader.GenSignature
-		ok, _, err := gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
+		ok, hs, err := gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
 		if err != nil {
-			return errors.Wrapf(err, "failed to verify generator signature")
+			return nil, nil, nil, false, errors.Wrap(err, "failed to validate hit source")
 		}
 		if !ok {
-			return errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s'), without vrf",
+			return nil, nil, nil, false, errors.Errorf("invalid hit source '%s' of block '%s' at height %d (ref gen-sig '%s'), without vrf",
 				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
 		}
+		return hs, pos, gsp, vrf, nil
+	}
+}
+
+func (cv *Validator) validateGeneratorSignatureAndBlockDelay(height uint64, header *proto.BlockHeader) error {
+	hitSource, pos, gsp, isVRF, err := cv.generateAndCheckNextHitSource(height, header)
+	if err != nil {
+		return errors.Wrap(err, "failed to validate generation signature")
+	}
+	if !isVRF {
 		prevHitSource, err := cv.state.NewestHitSourceAtHeight(pos.HeightForHit(height))
 		if err != nil {
 			return errors.Wrap(err, "failed to validate generation signature")
