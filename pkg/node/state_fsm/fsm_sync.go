@@ -40,10 +40,11 @@ type SyncFsm struct {
 
 func (a *SyncFsm) Transaction(p Peer, t proto.Transaction) (FSM, Async, error) {
 	err := a.baseInfo.utx.Add(t)
-	if err == nil {
-		a.baseInfo.BroadcastTransaction(t, p)
+	if err != nil {
+		return a, nil, proto.NewInfoMsg(err)
 	}
-	return a, nil, proto.NewInfoMsg(err)
+	a.baseInfo.BroadcastTransaction(t, p)
+	return a, nil, nil
 }
 
 // MicroBlock ignores new microblocks while syncing.
