@@ -91,7 +91,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newScriptsComplexity(hs),
 		newInvokeResults(hs),
 		newStateHashes(hs),
-		newHitSources(hs, rw),
+		newHitSources(hs),
 		calcHashes,
 	}, nil
 }
@@ -342,8 +342,8 @@ type stateManager struct {
 
 	// BlockchainSettings: general info about the blockchain type, constants etc.
 	settings *settings.BlockchainSettings
-	// ConsensusValidator: validator for block headers.
-	cv *consensus.ConsensusValidator
+	// Validator: validator for block headers.
+	cv *consensus.Validator
 	// Appender implements validation/diff management functionality.
 	appender *txAppender
 	atx      *addressTransactions
@@ -444,7 +444,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		return nil, wrapErr(Other, err)
 	}
 	state.appender = appender
-	cv, err := consensus.NewConsensusValidator(state, params.Time)
+	cv, err := consensus.NewValidator(state, params.Time)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -497,7 +497,7 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.addNewBlock(&s.genesis, nil, true, chans, 0); err != nil {
 		return err
 	}
-	if err := s.stor.hitSources.saveHitSource(s.genesis.GenSignature, 1); err != nil {
+	if err := s.stor.hitSources.appendBlockHitSource(&s.genesis, 1, s.genesis.GenSignature); err != nil {
 		return err
 	}
 	close(chans.tasksChan)
@@ -595,27 +595,18 @@ func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 	}
 	pos := &consensus.FairPosCalculatorV2{}
 	p := pos.HeightForHit(height)
-	refHitSource, err := s.HitSourceAtHeight(p)
+	refHitSource, err := s.NewestHitSourceAtHeight(p)
 	if err != nil {
-		zap.S().Warnf("BlockVRF: err1 = %v", err)
 		return nil, err
 	}
-	zap.S().Warnf("BlockVRF: height=%d", height)
-	zap.S().Warnf("BlockVRF: p=%d", p)
-	zap.S().Warnf("BlockVRF: refHitSource=%s", base58.Encode(refHitSource))
 	gsp := &consensus.VRFGenerationSignatureProvider{}
-	zap.S().Warnf("BlockVRF: blockHeader.GenPublicKey = %s", blockHeader.GenPublicKey.String())
-	zap.S().Warnf("BlockVRF: blockHeader.GenSignature = %s", blockHeader.GenSignature.String())
 	ok, vrf, err := gsp.VerifyGenerationSignature(blockHeader.GenPublicKey, refHitSource, blockHeader.GenSignature)
 	if err != nil {
-		zap.S().Warnf("BlockVRF: err2 = %v", err)
 		return nil, err
 	}
 	if !ok {
-		zap.S().Warn("BlockVRF: VRF is not OK")
 		return nil, errors.New("invalid VRF")
 	}
-	zap.S().Warnf("BlockVRF: vrf = %s", base58.Encode(vrf))
 	return vrf, nil
 }
 
@@ -1287,6 +1278,13 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 			return nil, verifyError
 		case chans.tasksChan <- task:
 		}
+		hs, err := s.cv.GenerateHitSource(curHeight, block.BlockHeader)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.stor.hitSources.appendBlockHitSource(block, curHeight+1, hs); err != nil {
+			return nil, err
+		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
 		if err := s.addNewBlock(block, lastAppliedBlock, initialisation, chans, curHeight); err != nil {
 			return nil, err
@@ -1418,24 +1416,20 @@ func (s *stateManager) HitSourceAtHeight(height uint64) ([]byte, error) {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	if height < 1 || height > maxHeight {
-		return nil, wrapErr(InvalidInputError,
-			errors.Errorf("HitSourceAtHeight: height %d out of valid range [%d, %d]", height, 1, maxHeight))
+		return nil, wrapErr(InvalidInputError, errors.Errorf("HitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight))
 	}
-	hs, err := s.stor.hitSources.hitSource(height, true)
+	return s.stor.hitSources.hitSource(height, true)
+}
+
+func (s *stateManager) NewestHitSourceAtHeight(height uint64) ([]byte, error) {
+	maxHeight, err := s.NewestHeight()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	return hs, nil
-}
-
-func (s *stateManager) SaveHitSources(startHeight uint64, hitSources [][]byte) error {
-	for i, hs := range hitSources {
-		err := s.stor.hitSources.saveHitSource(hs, uint64(i+1)+startHeight)
-		if err != nil {
-			return err
-		}
+	if height < 1 || height > maxHeight {
+		return nil, wrapErr(InvalidInputError, errors.Errorf("NewestHitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight))
 	}
-	return nil
+	return s.stor.hitSources.newestHitSource(height, true)
 }
 
 func (s *stateManager) CurrentScore() (*big.Int, error) {

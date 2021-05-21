@@ -23,7 +23,7 @@ func (a *IdleFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, err
 	if err == nil {
 		a.baseInfo.BroadcastTransaction(t, p)
 	}
-	return a, nil, err
+	return a, nil, proto.NewInfoMsg(err)
 }
 
 func (a *IdleFsm) Halt() (FSM, Async, error) {

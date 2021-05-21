@@ -74,11 +74,7 @@ func (p *NXTGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize
 }
 
 func (p *NXTGenerationSignatureProvider) HitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
-	hs, err := p.signature(key, msg)
-	if err != nil {
-		return nil, err
-	}
-	return hs, nil
+	return p.signature(key, msg)
 }
 
 func (p *NXTGenerationSignatureProvider) signature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {

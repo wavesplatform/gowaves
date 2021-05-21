@@ -9,7 +9,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 const (
@@ -40,48 +39,45 @@ func isInvalidMainNetBlock(blockID proto.BlockID, height uint64) bool {
 type stateInfoProvider interface {
 	BlockchainSettings() (*settings.BlockchainSettings, error)
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
-	HitSourceAtHeight(height uint64) ([]byte, error)
-	SaveHitSources(startHeight uint64, hs [][]byte) error
+	NewestHitSourceAtHeight(height uint64) ([]byte, error)
 	NewestEffectiveBalance(addr proto.Recipient, startHeight, endHeight uint64) (uint64, error)
 	NewestIsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 }
 
-type ConsensusValidator struct {
+type Validator struct {
 	state       stateInfoProvider
 	settings    *settings.BlockchainSettings
 	startHeight uint64
 	// Headers to validate.
-	headers    []proto.BlockHeader
-	hitSources [][]byte
-	ntpTime    types.Time
+	headers []proto.BlockHeader
+	ntpTime types.Time
 }
 
-func NewConsensusValidator(state stateInfoProvider, tm types.Time) (*ConsensusValidator, error) {
+func NewValidator(state stateInfoProvider, tm types.Time) (*Validator, error) {
 	s, err := state.BlockchainSettings()
 	if err != nil {
 		return nil, errors.Errorf("failed to get blockchain settings: %v\n", err)
 	}
-	return &ConsensusValidator{
+	return &Validator{
 		state:    state,
 		settings: s,
 		ntpTime:  tm,
 	}, nil
-
 }
 
-func (cv *ConsensusValidator) smallerMinimalGeneratingBalanceActivated(height uint64) (bool, error) {
+func (cv *Validator) smallerMinimalGeneratingBalanceActivated(height uint64) (bool, error) {
 	return cv.state.NewestIsActiveAtHeight(int16(settings.SmallerMinimalGeneratingBalance), height)
 }
 
-func (cv *ConsensusValidator) fairPosActivated(height uint64) (bool, error) {
+func (cv *Validator) fairPosActivated(height uint64) (bool, error) {
 	return cv.state.NewestIsActiveAtHeight(int16(settings.FairPoS), height)
 }
 
-func (cv *ConsensusValidator) blockV5Activated(height uint64) (bool, error) {
+func (cv *Validator) blockV5Activated(height uint64) (bool, error) {
 	return cv.state.NewestIsActiveAtHeight(int16(settings.BlockV5), height)
 }
 
-func (cv *ConsensusValidator) posAlgo(height uint64) (PosCalculator, error) {
+func (cv *Validator) posAlgo(height uint64) (PosCalculator, error) {
 	fair, err := cv.fairPosActivated(height)
 	if err != nil {
 		return nil, err
@@ -99,7 +95,7 @@ func (cv *ConsensusValidator) posAlgo(height uint64) (PosCalculator, error) {
 	return &NxtPosCalculator{}, nil
 }
 
-func (cv *ConsensusValidator) generationSignatureProvider(height uint64) (GenerationSignatureProvider, error) {
+func (cv *Validator) generationSignatureProvider(height uint64) (GenerationSignatureProvider, error) {
 	vrf, err := cv.state.NewestIsActiveAtHeight(int16(settings.BlockV5), height)
 	if err != nil {
 		return nil, err
@@ -110,24 +106,73 @@ func (cv *ConsensusValidator) generationSignatureProvider(height uint64) (Genera
 	return &NXTGenerationSignatureProvider{}, nil
 }
 
-func (cv *ConsensusValidator) headerByHeight(height uint64) (*proto.BlockHeader, error) {
+func (cv *Validator) headerByHeight(height uint64) (*proto.BlockHeader, error) {
 	if height <= cv.startHeight {
 		return cv.state.HeaderByHeight(height)
 	}
 	return &cv.headers[height-cv.startHeight-1], nil
 }
 
-func (cv *ConsensusValidator) hitSourceByHeight(height uint64) ([]byte, error) {
-	if height <= cv.startHeight {
-		return cv.state.HitSourceAtHeight(height)
+func (cv *Validator) RangeForGeneratingBalanceByHeight(height uint64) (uint64, uint64) {
+	depth := uint64(firstDepth)
+	if height >= cv.settings.GenerationBalanceDepthFrom50To1000AfterHeight {
+		depth = secondDepth
 	}
-	return cv.hitSources[height-cv.startHeight-1], nil
+	bottomLimit := height - depth + 1
+	if height < depth {
+		bottomLimit = 1
+	}
+	return bottomLimit, height
 }
 
-func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, startHeight uint64) error {
+func (cv *Validator) GenerateHitSource(height uint64, header proto.BlockHeader) ([]byte, error) {
+	pos, err := cv.posAlgo(height)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to validate generation signature")
+	}
+	gsp, err := cv.generationSignatureProvider(height + 1)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get generation signature provider")
+	}
+	vrf, err := cv.state.NewestIsActiveAtHeight(int16(settings.BlockV5), height+1)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to validate generation signature")
+	}
+	if vrf {
+		p := pos.HeightForHit(height)
+		refGenSig, err := cv.state.NewestHitSourceAtHeight(p)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to validate generation signature")
+		}
+		ok, hs, err := gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to verify generator signature")
+		}
+		if !ok {
+			return nil, errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s'), with vrf",
+				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
+		}
+		return hs, nil
+	} else {
+		refGenSig, err := cv.state.NewestHitSourceAtHeight(height)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to validate generation signature")
+		}
+		ok, gs, err := gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to verify generator signature")
+		}
+		if !ok {
+			return nil, errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s'), without vrf",
+				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
+		}
+		return gs, nil
+	}
+}
+
+func (cv *Validator) ValidateHeaders(headers []proto.BlockHeader, startHeight uint64) error {
 	cv.startHeight = startHeight
 	cv.headers = headers
-	cv.hitSources = make([][]byte, 0, len(headers))
 	for i, header := range headers {
 		height := startHeight + uint64(i)
 		parent, err := cv.headerByHeight(height)
@@ -154,13 +199,10 @@ func (cv *ConsensusValidator) ValidateHeaders(headers []proto.BlockHeader, start
 			return errors.Wrap(err, "block version validation failed")
 		}
 	}
-	if err := cv.state.SaveHitSources(cv.startHeight, cv.hitSources); err != nil {
-		return errors.Wrap(err, "failed to update hit source")
-	}
 	return nil
 }
 
-func (cv *ConsensusValidator) validateEffectiveBalance(header *proto.BlockHeader, balance, height uint64) error {
+func (cv *Validator) validateEffectiveBalance(header *proto.BlockHeader, balance, height uint64) error {
 	if header.Timestamp < cv.settings.MinimalGeneratingBalanceCheckAfterTime {
 		return nil
 	}
@@ -180,19 +222,7 @@ func (cv *ConsensusValidator) validateEffectiveBalance(header *proto.BlockHeader
 	return nil
 }
 
-func (cv *ConsensusValidator) RangeForGeneratingBalanceByHeight(height uint64) (uint64, uint64) {
-	depth := uint64(firstDepth)
-	if height >= cv.settings.GenerationBalanceDepthFrom50To1000AfterHeight {
-		depth = secondDepth
-	}
-	bottomLimit := height - depth + 1
-	if height < depth {
-		bottomLimit = 1
-	}
-	return bottomLimit, height
-}
-
-func (cv *ConsensusValidator) generatingBalance(height uint64, addr proto.Address) (uint64, error) {
+func (cv *Validator) generatingBalance(height uint64, addr proto.Address) (uint64, error) {
 	start, end := cv.RangeForGeneratingBalanceByHeight(height)
 	balance, err := cv.state.NewestEffectiveBalance(proto.NewRecipientFromAddress(addr), start, end)
 	if err != nil {
@@ -201,7 +231,7 @@ func (cv *ConsensusValidator) generatingBalance(height uint64, addr proto.Addres
 	return balance, nil
 }
 
-func (cv *ConsensusValidator) minerGeneratingBalance(height uint64, header *proto.BlockHeader) (uint64, error) {
+func (cv *Validator) minerGeneratingBalance(height uint64, header *proto.BlockHeader) (uint64, error) {
 	minerAddr, err := proto.NewAddressFromPublicKey(cv.settings.AddressSchemeCharacter, header.GenPublicKey)
 	if err != nil {
 		return 0, err
@@ -209,7 +239,7 @@ func (cv *ConsensusValidator) minerGeneratingBalance(height uint64, header *prot
 	return cv.generatingBalance(height, minerAddr)
 }
 
-func (cv *ConsensusValidator) validBlockVersionAtHeight(blockchainHeight uint64) (proto.BlockVersion, error) {
+func (cv *Validator) validBlockVersionAtHeight(blockchainHeight uint64) (proto.BlockVersion, error) {
 	blockRewardActivated, err := cv.state.NewestIsActiveAtHeight(int16(settings.BlockReward), blockchainHeight)
 	if err != nil {
 		return proto.GenesisBlockVersion, errors.Wrap(err, "IsActiveAtHeight failed")
@@ -231,7 +261,7 @@ func (cv *ConsensusValidator) validBlockVersionAtHeight(blockchainHeight uint64)
 	return proto.GenesisBlockVersion, nil
 }
 
-func (cv *ConsensusValidator) validateBlockVersion(block *proto.BlockHeader, blockchainHeight uint64) error {
+func (cv *Validator) validateBlockVersion(block *proto.BlockHeader, blockchainHeight uint64) error {
 	validVersion, err := cv.validBlockVersionAtHeight(blockchainHeight)
 	if err != nil {
 		return err
@@ -245,7 +275,7 @@ func (cv *ConsensusValidator) validateBlockVersion(block *proto.BlockHeader, blo
 	return nil
 }
 
-func (cv *ConsensusValidator) checkTargetLimit(height, target uint64) error {
+func (cv *Validator) checkTargetLimit(height, target uint64) error {
 	fair, err := cv.fairPosActivated(height)
 	if err != nil {
 		return err
@@ -259,7 +289,7 @@ func (cv *ConsensusValidator) checkTargetLimit(height, target uint64) error {
 	return nil
 }
 
-func (cv *ConsensusValidator) validateBaseTarget(height uint64, header, parent, greatGrandParent *proto.BlockHeader) error {
+func (cv *Validator) validateBaseTarget(height uint64, header, parent, greatGrandParent *proto.BlockHeader) error {
 	if err := cv.checkTargetLimit(height, header.BaseTarget); err != nil {
 		return err
 	}
@@ -288,17 +318,15 @@ func (cv *ConsensusValidator) validateBaseTarget(height uint64, header, parent, 
 	return nil
 }
 
-func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uint64, header *proto.BlockHeader) error {
+func (cv *Validator) validateGeneratorSignatureAndBlockDelay(height uint64, header *proto.BlockHeader) error {
 	pos, err := cv.posAlgo(height)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate generation signature")
 	}
-
 	gsp, err := cv.generationSignatureProvider(height + 1)
 	if err != nil {
 		return errors.Wrap(err, "failed to get generation signature provider")
 	}
-
 	vrf, err := cv.state.NewestIsActiveAtHeight(int16(settings.BlockV5), height+1)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate generation signature")
@@ -307,7 +335,7 @@ func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uin
 	var hitSource []byte
 	if vrf {
 		p := pos.HeightForHit(height)
-		refGenSig, err := cv.hitSourceByHeight(p)
+		refGenSig, err := cv.state.NewestHitSourceAtHeight(p)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate generation signature")
 		}
@@ -316,26 +344,17 @@ func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uin
 		if err != nil {
 			return errors.Wrapf(err, "failed to verify generator signature")
 		}
-		zap.S().Warnf("Validation: height=%d", height)
-		zap.S().Warnf("Validation: p=%d", p)
-		zap.S().Warnf("Validation: refGenSig=%s", base58.Encode(refGenSig))
-		zap.S().Warnf("Validation: header.GenPublicKey=%s", header.GenPublicKey.String())
-		zap.S().Warnf("Validation: header.GenSignature=%s", header.GenSignature.String())
-		zap.S().Warnf("Validation: ok=%t", ok)
-		zap.S().Warnf("Validation: hitSource=%s", base58.Encode(hitSource))
-
 		if !ok {
 			return errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s'), with vrf",
 				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
 		}
-		cv.hitSources = append(cv.hitSources, hitSource)
 	} else {
 		refHeader, err := cv.headerByHeight(height)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate generation signature")
 		}
 		refGenSig := refHeader.GenSignature
-		ok, gs, err := gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
+		ok, _, err := gsp.VerifyGenerationSignature(header.GenPublicKey, refGenSig, header.GenSignature)
 		if err != nil {
 			return errors.Wrapf(err, "failed to verify generator signature")
 		}
@@ -343,10 +362,7 @@ func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uin
 			return errors.Errorf("invalid generation signature '%s' of block '%s' at %d (ref gen-sig '%s'), without vrf",
 				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
 		}
-
-		cv.hitSources = append(cv.hitSources, gs)
-
-		prevHitSource, err := cv.hitSourceByHeight(pos.HeightForHit(height))
+		prevHitSource, err := cv.state.NewestHitSourceAtHeight(pos.HeightForHit(height))
 		if err != nil {
 			return errors.Wrap(err, "failed to validate generation signature")
 		}
@@ -355,11 +371,9 @@ func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uin
 			return errors.Wrap(err, "failed to validate generation signature")
 		}
 	}
-
 	if cv.settings.Type == settings.MainNet && isInvalidMainNetBlock(header.BlockID(), height) {
 		return nil
 	}
-
 	parent, err := cv.headerByHeight(height)
 	if err != nil {
 		return errors.Errorf("failed to get parent by height: %v\n", err)
@@ -384,11 +398,10 @@ func (cv *ConsensusValidator) validateGeneratorSignatureAndBlockDelay(height uin
 		return errors.Errorf("block '%s' at %d: invalid block timestamp %d: less than min valid timestamp %d (hit source %s)",
 			header.ID, height, header.Timestamp, minTimestamp, base58.Encode(hitSource))
 	}
-
 	return nil
 }
 
-func (cv *ConsensusValidator) validateBlockTimestamp(header *proto.BlockHeader) error {
+func (cv *Validator) validateBlockTimestamp(header *proto.BlockHeader) error {
 	currentTimestamp := proto.NewTimestampFromTime(cv.ntpTime.Now())
 	if int64(header.Timestamp)-int64(currentTimestamp) > maxTimeDrift {
 		return errors.Errorf(

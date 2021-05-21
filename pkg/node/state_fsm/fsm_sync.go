@@ -43,15 +43,15 @@ func (a *SyncFsm) Transaction(p Peer, t proto.Transaction) (FSM, Async, error) {
 	if err == nil {
 		a.baseInfo.BroadcastTransaction(t, p)
 	}
-	return a, nil, err
+	return a, nil, proto.NewInfoMsg(err)
 }
 
-// ignore microblocks
+// MicroBlock ignores new microblocks while syncing.
 func (a *SyncFsm) MicroBlock(_ Peer, _ *proto.MicroBlock) (FSM, Async, error) {
 	return a.baseInfo.d.Noop(a)
 }
 
-// ignore microblocks
+// MicroBlockInv ignores microblock requests while syncing.
 func (a *SyncFsm) MicroBlockInv(_ Peer, _ *proto.MicroBlockInv) (FSM, Async, error) {
 	return a.baseInfo.d.Noop(a)
 }
