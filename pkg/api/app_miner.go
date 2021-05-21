@@ -19,7 +19,7 @@ type MinerInfo struct {
 	Scheduler Scheduler
 }
 
-func (a *App) Miner() (MinerInfo, error) {
+func (a *App) Miner() MinerInfo {
 	e := a.scheduler.Emits()
 
 	next := make([]Next, 0, len(e))
@@ -35,5 +35,5 @@ func (a *App) Miner() (MinerInfo, error) {
 			TimeNow: time.Now(),
 			Next:    next,
 		},
-	}, nil
+	}
 }

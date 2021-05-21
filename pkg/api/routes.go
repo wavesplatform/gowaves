@@ -11,7 +11,7 @@ import (
 type HandleErrorFunc func(w http.ResponseWriter, r *http.Request, err error)
 type HandlerFunc func(w http.ResponseWriter, r *http.Request) error
 
-func ToHTTPHandlerFunc(handler HandlerFunc, errorHandler HandleErrorFunc) http.HandlerFunc {
+func toHTTPHandlerFunc(handler HandlerFunc, errorHandler HandleErrorFunc) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		err := handler(writer, request)
 		if err != nil {
@@ -23,7 +23,6 @@ func ToHTTPHandlerFunc(handler HandlerFunc, errorHandler HandleErrorFunc) http.H
 func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 	r := chi.NewRouter()
 
-	// TODO(nickskov): it's correct middleware apply order?
 	if opts.UseRealIPMiddleware {
 		// nickeskov: for nginx/haproxy specific headers
 		r.Use(middleware.RealIP)
@@ -50,7 +49,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 	checkAuthMiddleware := createCheckAuthMiddleware(a.app, errHandler.Handle)
 
 	wrapper := func(handlerFunc HandlerFunc) http.HandlerFunc {
-		return ToHTTPHandlerFunc(handlerFunc, errHandler.Handle)
+		return toHTTPHandlerFunc(handlerFunc, errHandler.Handle)
 	}
 
 	if opts.EnableHeartbeatRoute {

@@ -38,10 +38,10 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 	}
 	switch innerErr := errors.Cause(err).(type) {
 	case BadRequestError, *BadRequestError:
-		// TODO(nickeskov): remove this
+		// nickeskov: this error type will be removed in future
 		http.Error(w, fmt.Sprintf("Failed to complete request: %s", innerErr.Error()), http.StatusForbidden)
 	case AuthError, *AuthError:
-		// TODO(nickeskov): remove this
+		// nickeskov: this error type will be removed in future
 		http.Error(w, fmt.Sprintf("Failed to complete request: %s", innerErr.Error()), http.StatusBadRequest)
 	case InternalError, *InternalError:
 		// TODO(nickeskov): remove this
@@ -84,6 +84,7 @@ func (eh *ErrorHandler) sendApiErrJSON(w http.ResponseWriter, r *http.Request, a
 			zap.Error(encodeErr),
 			zap.String("api_error", apiErr.Error()),
 		)
+		// nickeskov: Type which implements ApiError interface MUST be serializable to JSON.
 		panic(errors.Errorf("BUG, CREATE REPORT: %s", encodeErr.Error()))
 	}
 }

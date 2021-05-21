@@ -60,8 +60,7 @@ func TestApp_PeersSuspended(t *testing.T) {
 	app, err := NewApp("key", nil, services.Services{Peers: peerManager})
 	require.NoError(t, err)
 
-	suspended, err := app.PeersSuspended()
-	require.NoError(t, err)
+	suspended := app.PeersSuspended()
 
 	for i, actual := range suspended {
 		p := testData[i]

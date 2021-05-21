@@ -297,10 +297,7 @@ func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *NodeApi) PeersConnected(w http.ResponseWriter, _ *http.Request) error {
-	rs, err := a.app.PeersConnected()
-	if err != nil {
-		return errors.Wrap(err, "failed to get PeersConnected")
-	}
+	rs := a.app.PeersConnected()
 	if err := trySendJson(w, rs); err != nil {
 		return errors.Wrap(err, "PeersConnected")
 	}
@@ -308,10 +305,7 @@ func (a *NodeApi) PeersConnected(w http.ResponseWriter, _ *http.Request) error {
 }
 
 func (a *NodeApi) PeersSuspended(w http.ResponseWriter, _ *http.Request) error {
-	rs, err := a.app.PeersSuspended()
-	if err != nil {
-		return errors.Wrap(err, "failed to get PeersSuspended")
-	}
+	rs := a.app.PeersSuspended()
 	if err := trySendJson(w, rs); err != nil {
 		return errors.Wrap(err, "PeersSuspended")
 	}
@@ -330,15 +324,13 @@ func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, _ *http.Request) error
 }
 
 func (a *NodeApi) poolTransactions(w http.ResponseWriter, _ *http.Request) error {
-	// TODO(nickeskov): maybe send result as json, not int?
-	//type poolTransactions struct {
-	//	Count int `json:"count"`
-	//}
-	//rs := poolTransactions{
-	//	Count: a.app.PoolTransactions(),
-	//}
+	type poolTransactions struct {
+		Count int `json:"count"`
+	}
 
-	rs := a.app.PoolTransactions()
+	rs := poolTransactions{
+		Count: a.app.PoolTransactions(),
+	}
 	if err := trySendJson(w, rs); err != nil {
 		return errors.Wrap(err, "poolTransactions")
 	}
@@ -397,8 +389,8 @@ type walletLoadKeys interface {
 	LoadKeys(apiKey string, password []byte) error
 }
 
-// TODO(nickeskov): use unified error handler
 func WalletLoadKeys(app walletLoadKeys) http.HandlerFunc {
+	// TODO(nickeskov): use unified error handler
 	return func(w http.ResponseWriter, r *http.Request) {
 		js := &walletLoadKeysRequest{}
 		if err := tryParseJson(r.Body, js); err != nil {
@@ -408,11 +400,6 @@ func WalletLoadKeys(app walletLoadKeys) http.HandlerFunc {
 		// TODO(nickeskov): remove this and use auth middleware
 		apiKey := r.Header.Get("X-API-Key")
 		if err := app.LoadKeys(apiKey, []byte(js.Password)); err != nil {
-			handleError(w, err)
-			return
-		}
-		// TODO(nickeskov): looks like bug...
-		if err := trySendJson(w, nil); err != nil {
 			handleError(w, err)
 			return
 		}
@@ -431,10 +418,7 @@ func (a *NodeApi) WalletAccounts(w http.ResponseWriter, _ *http.Request) error {
 }
 
 func (a *NodeApi) GoMinerInfo(w http.ResponseWriter, _ *http.Request) error {
-	rs, err := a.app.Miner()
-	if err != nil {
-		return errors.Wrap(err, "failed to get GoMinerInfo")
-	}
+	rs := a.app.Miner()
 	if err := trySendJson(w, rs); err != nil {
 		return errors.Wrap(err, "GoMinerInfo")
 	}
@@ -480,8 +464,6 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TODO(nickeskov): use ApiError type and send JSON body
-// 	remove this
 func handleError(w http.ResponseWriter, err error) {
 	switch err.(type) {
 	case *AuthError:
@@ -493,8 +475,6 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 }
 
-// TODO(nickeskov): use ApiError type and send JSON body
-// 	remove this
 func sendJson(w http.ResponseWriter, v interface{}) {
 	err := json.NewEncoder(w).Encode(v)
 	if err != nil {
