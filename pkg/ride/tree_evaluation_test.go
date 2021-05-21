@@ -114,6 +114,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			}
 			return obj
 		},
+		takeStringFunc: v5takeString,
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
@@ -159,9 +160,6 @@ func TestFunctionsEvaluation(t *testing.T) {
 				IsNotFoundFunc: func(err error) bool {
 					return true
 				},
-				NewestIsActivatedFunc: func(feature int16) (bool, error) {
-					return true, nil
-				},
 			}
 		},
 	}
@@ -173,13 +171,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			}
 			return obj
 		},
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				NewestIsActivatedFunc: func(feature int16) (bool, error) {
-					return true, nil
-				},
-			}
-		},
+		takeStringFunc: v5takeString,
 	}
 	envWithExchangeTX := &MockRideEnvironment{
 		transactionFunc: func() rideObject {
@@ -189,13 +181,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			}
 			return obj
 		},
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				NewestIsActivatedFunc: func(feature int16) (bool, error) {
-					return true, nil
-				},
-			}
-		},
+		takeStringFunc: v5takeString,
 	}
 	for _, test := range []struct {
 		name   string
@@ -5351,6 +5337,7 @@ func TestDropElementDApp(t *testing.T) {
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
 		},
+		takeStringFunc: v5takeString,
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				AddingBlockHeightFunc: func() (uint64, error) {
@@ -5364,9 +5351,6 @@ func TestDropElementDApp(t *testing.T) {
 				},
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 					return nil, errors.New("fail")
-				},
-				NewestIsActivatedFunc: func(feature int16) (bool, error) {
-					return true, nil
 				},
 			}
 		},
@@ -5958,13 +5942,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 
 func TestJSONParsing(t *testing.T) {
 	env := &MockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				NewestIsActivatedFunc: func(feature int16) (bool, error) {
-					return true, nil
-				},
-			}
-		},
+		takeStringFunc: v5takeString,
 	}
 
 	code := "AwoBAAAADmdldFZhbHVlU3RyaW5nAAAAAQAAAARqc29uCQABLwAAAAIJAAEwAAAAAgUAAAAEanNvbgAAAAAAAAAAAQkBAAAABXZhbHVlAAAAAQkABLMAAAACCQABMAAAAAIFAAAABGpzb24AAAAAAAAAAAECAAAAASIKAQAAAAhnZXRWYWx1ZQAAAAIAAAAEanNvbgAAAANrZXkEAAAACGtleUluZGV4CQEAAAAFdmFsdWUAAAABCQAEswAAAAIFAAAABGpzb24JAAEsAAAAAgkAASwAAAACAgAAAAEiBQAAAANrZXkCAAAAAiI6BAAAAARkYXRhCQABMAAAAAIFAAAABGpzb24JAABkAAAAAgkAAGQAAAACBQAAAAhrZXlJbmRleAkAATEAAAABBQAAAANrZXkAAAAAAAAAAAMJAQAAAA5nZXRWYWx1ZVN0cmluZwAAAAEFAAAABGRhdGEEAAAACWFkZHJlc3NlcwIAAAFgeyJ0aXRsZSI6Ikjhu6NwIMSR4buTbmcgbXVhIGLDoW4gxJHhuqV0IChyZWFsLWVzdGF0ZSBjb250cmFjdCkiLCJ0aW1lc3RhbXAiOjE1OTE2MDg5NDQzNTQsImhhc2giOiJkOGYwOWFjYmRlYTIwMTc5MTUyY2Q5N2RiNDNmNmJjZjhjYjYxMTE1YmE3YzNmZWU3NDk4MWU0ZjRiNTBlNGEwIiwiY3JlYXRvciI6IiIsImFkZHJlc3MxIjoiM015Yjg1REd2N3hqNFhaRlpBTDRHSHVHRG1aU0czQ0NVdlciLCJhZGRyZXNzMiI6IiIsImFkZHJlc3MzIjoiIiwiYWRkcmVzczQiOiIiLCJhZGRyZXNzNSI6IiIsImFkZHJlc3M2IjoiIiwiaXBmcyI6IlFtVEtCbUg5aW4yRU50NkFRcnZwUHpvYWFtMnozcWRFZUhRU1k5M3JkOEpqSFkifQkAAAAAAAACCQEAAAAIZ2V0VmFsdWUAAAACBQAAAAlhZGRyZXNzZXMCAAAACGFkZHJlc3MxAgAAACMzTXliODVER3Y3eGo0WFpGWkFMNEdIdUdEbVpTRzNDQ1V2V6k+k0o="

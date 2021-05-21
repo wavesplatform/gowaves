@@ -205,7 +205,10 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
-
+	err = env.ChooseTakeString()
+	if err != nil {
+		return false, nil, errors.Wrap(err, "failed to choose takeString")
+	}
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
 	if tree.LibVersion >= 5 {
 		env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)

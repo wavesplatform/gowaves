@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/settings"
 	"strconv"
 	"strings"
 	"unicode/utf16"
@@ -118,16 +117,7 @@ func takeString(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "takeString")
 	}
-	rideV5Activated, err := env.state().NewestIsActivated(int16(settings.RideV5))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to check if feature is activated")
-	}
-	// before RideV5 the implementation should be wrong
-	if !rideV5Activated {
-		return takeRideStringWrong(s, n), nil
-	}
-	// since RideV5 right implementation
-	return takeRideString(s, n), nil
+	return env.takeString(s, n), nil
 }
 
 func dropString(_ Environment, args ...rideType) (rideType, error) {

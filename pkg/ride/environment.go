@@ -1,13 +1,13 @@
 package ride
 
 import (
-	"unicode/utf16"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"unicode/utf16"
 )
 
 type WrappedState struct {
@@ -1041,16 +1041,17 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 }
 
 type EvaluationEnvironment struct {
-	sch   proto.Scheme
-	st    types.SmartState
-	h     rideInt
-	tx    rideObject
-	id    rideType
-	th    rideType
-	time  uint64
-	b     rideObject
-	check func(int) bool
-	inv   rideObject
+	sch     proto.Scheme
+	st      types.SmartState
+	h       rideInt
+	tx      rideObject
+	id      rideType
+	th      rideType
+	time    uint64
+	b       rideObject
+	check   func(int) bool
+	takeStr func(s string, n int) rideString
+	inv     rideObject
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*EvaluationEnvironment, error) {
@@ -1060,10 +1061,11 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*EvaluationEnv
 	}
 
 	return &EvaluationEnvironment{
-		sch:   scheme,
-		st:    state,
-		h:     rideInt(height),
-		check: func(int) bool { return true },
+		sch:     scheme,
+		st:      state,
+		h:       rideInt(height),
+		check:   func(int) bool { return true },
+		takeStr: func(s string, n int) rideString { return "" },
 	}, nil
 }
 
@@ -1111,16 +1113,30 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 	}
 
 	return &EvaluationEnvironment{
-		sch:   env.sch,
-		st:    st,
-		h:     env.h,
-		tx:    env.tx,
-		id:    env.id,
-		th:    env.th,
-		b:     env.b,
-		check: env.check,
-		inv:   env.inv,
+		sch:     env.sch,
+		st:      st,
+		h:       env.h,
+		tx:      env.tx,
+		id:      env.id,
+		th:      env.th,
+		b:       env.b,
+		check:   env.check,
+		takeStr: env.takeStr,
+		inv:     env.inv,
 	}, nil
+}
+
+func (e *EvaluationEnvironment) ChooseTakeString() error {
+	rideV5Activated, err := e.state().NewestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return errors.Wrap(err, "failed to check if feature is activated")
+	}
+
+	if !rideV5Activated {
+		e.takeStr = takeRideStringWrong
+	}
+	e.takeStr = takeRideString
+	return nil
 }
 
 func (e *EvaluationEnvironment) ChooseSizeCheck(v int) {
@@ -1247,6 +1263,10 @@ func (e *EvaluationEnvironment) setNewDAppAddress(address proto.Address) {
 
 func (e *EvaluationEnvironment) checkMessageLength(l int) bool {
 	return e.check(l)
+}
+
+func (e *EvaluationEnvironment) takeString(s string, n int) rideString {
+	return e.takeStr(s, n)
 }
 
 func (e *EvaluationEnvironment) invocation() rideObject {

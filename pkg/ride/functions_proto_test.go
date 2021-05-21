@@ -7,6 +7,7 @@ import (
 	"errors"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
@@ -22,6 +23,17 @@ var (
 	}
 	v3check = func(size int) bool {
 		return size <= maxMessageLength
+	}
+	v5takeString = func(s string, n int) rideString {
+		l := utf8.RuneCountInString(s)
+		t := n
+		if t > l {
+			t = l
+		}
+		if t < 0 {
+			t = 0
+		}
+		return rideString(runesTake(s, t))
 	}
 )
 

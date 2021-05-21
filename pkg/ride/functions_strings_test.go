@@ -2,7 +2,6 @@ package ride
 
 import (
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/types"
 	"math"
 	"testing"
 
@@ -39,13 +38,7 @@ func TestConcatStrings(t *testing.T) {
 
 func TestTakeString(t *testing.T) {
 	env := &MockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				NewestIsActivatedFunc: func(feature int16) (bool, error) {
-					return true, nil
-				},
-			}
-		},
+		takeStringFunc: v5takeString,
 	}
 
 	for _, test := range []struct {
