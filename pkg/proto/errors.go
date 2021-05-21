@@ -11,7 +11,10 @@ func NewInfoMsg(err error) error {
 }
 
 func (im *InfoMsg) Error() string {
-	return im.err.Error()
+	if !im.IsNil() {
+		return im.err.Error()
+	}
+	return ""
 }
 
 func (im *InfoMsg) IsNil() bool {
