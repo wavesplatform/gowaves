@@ -18,7 +18,7 @@ type PeersKnown struct {
 	Peers []Peer `json:"peers"`
 }
 
-// PeersAll a list of all known not banned peers with a publicly available declared address
+// PeersAll is a list of all known not banned and not suspended peers with a publicly available declared address
 func (a *App) PeersAll() (PeersKnown, error) {
 	suspendedIPs := a.peers.SuspendedIPs()
 	suspendedMap := make(map[string]struct{}, len(suspendedIPs))
@@ -28,7 +28,7 @@ func (a *App) PeersAll() (PeersKnown, error) {
 
 	peers, err := a.peers.KnownPeers()
 	if err != nil {
-		return PeersKnown{}, errors.Wrap(err, "PeersKnown")
+		return PeersKnown{}, errors.Wrap(err, "failed to get all (not banned and not suspended) peers")
 	}
 
 	nowMillis := unixMillis(time.Now())
@@ -52,7 +52,7 @@ func (a *App) PeersAll() (PeersKnown, error) {
 func (a *App) PeersKnown() (PeersKnown, error) {
 	peers, err := a.peers.KnownPeers()
 	if err != nil {
-		return PeersKnown{}, errors.Wrap(err, "PeersKnown")
+		return PeersKnown{}, errors.Wrap(err, "failed to get known peers")
 	}
 
 	out := make([]Peer, 0, len(peers))
@@ -123,7 +123,7 @@ func peerInfoFromPeer(peer peer.Peer) PeerInfo {
 	}
 }
 
-func (a *App) PeersConnected() (PeersConnectedResponse, error) {
+func (a *App) PeersConnected() PeersConnectedResponse {
 	var out []PeerInfo
 	a.peers.EachConnected(func(peer peer.Peer, _ *proto.Score) {
 		out = append(out, peerInfoFromPeer(peer))
@@ -131,7 +131,7 @@ func (a *App) PeersConnected() (PeersConnectedResponse, error) {
 
 	return PeersConnectedResponse{
 		Peers: out,
-	}, nil
+	}
 }
 
 type SuspendedPeerInfo struct {
@@ -140,7 +140,7 @@ type SuspendedPeerInfo struct {
 	Reason    string `json:"reason,omitempty"`
 }
 
-func (a *App) PeersSuspended() ([]SuspendedPeerInfo, error) {
+func (a *App) PeersSuspended() []SuspendedPeerInfo {
 	suspended := a.peers.Suspended()
 
 	out := make([]SuspendedPeerInfo, 0, len(suspended))
@@ -152,7 +152,7 @@ func (a *App) PeersSuspended() ([]SuspendedPeerInfo, error) {
 		})
 	}
 
-	return out, nil
+	return out
 }
 
 type PeersSpawnedResponse struct {

@@ -9,6 +9,8 @@ type Identifier interface {
 	IntCode() int
 }
 
+// ApiError is a basic interface for node HTTP API.
+// Type which implements this interface MUST be serializable to JSON.
 type ApiError interface {
 	error
 	GetID() Identifier
