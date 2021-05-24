@@ -20,10 +20,11 @@ type NGFsm struct {
 
 func (a *NGFsm) Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error) {
 	err := a.utx.Add(t)
-	if err == nil {
-		a.BroadcastTransaction(t, p)
+	if err != nil {
+		return a, nil, proto.NewInfoMsg(err)
 	}
-	return a, nil, err
+	a.BroadcastTransaction(t, p)
+	return a, nil, nil
 }
 
 func (a *NGFsm) Task(task AsyncTask) (FSM, Async, error) {
@@ -154,7 +155,7 @@ func (a *NGFsm) BlockIDs(_ peer.Peer, _ []proto.BlockID) (FSM, Async, error) {
 	return noop(a)
 }
 
-// New microblock received from the network
+// MicroBlock handles new microblock received from the network.
 func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error) {
 	metrics.FSMMicroBlockReceived("ng", micro, p.Handshake().NodeName)
 	block, err := a.checkAndAppendMicroblock(micro) // the TopBlock() is used here

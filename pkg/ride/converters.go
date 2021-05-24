@@ -95,7 +95,7 @@ func blockInfoToObject(info *proto.BlockInfo) rideObject {
 	r["generationSignature"] = rideBytes(common.Dup(info.GenerationSignature.Bytes()))
 	r["generator"] = rideBytes(common.Dup(info.Generator.Bytes()))
 	r["generatorPublicKey"] = rideBytes(common.Dup(info.GeneratorPublicKey.Bytes()))
-	r["vfr"] = rideUnit{}
+	r["vrf"] = rideUnit{}
 	if len(info.VRF) > 0 {
 		r["vrf"] = rideBytes(common.Dup(info.VRF.Bytes()))
 	}
@@ -115,7 +115,7 @@ func blockHeaderToObject(scheme byte, header *proto.BlockHeader, vrf []byte) (ri
 	r["generationSignature"] = rideBytes(common.Dup(header.GenSignature.Bytes()))
 	r["generator"] = rideAddress(address)
 	r["generatorPublicKey"] = rideBytes(common.Dup(header.GenPublicKey.Bytes()))
-	r["vfr"] = rideUnit{}
+	r["vrf"] = rideUnit{}
 	if len(vrf) > 0 {
 		r["vrf"] = rideBytes(common.Dup(vrf))
 	}
