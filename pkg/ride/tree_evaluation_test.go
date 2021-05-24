@@ -114,6 +114,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			}
 			return obj
 		},
+		takeStringFunc: v5takeString,
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
@@ -170,6 +171,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			}
 			return obj
 		},
+		takeStringFunc: v5takeString,
 	}
 	envWithExchangeTX := &MockRideEnvironment{
 		transactionFunc: func() rideObject {
@@ -179,6 +181,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			}
 			return obj
 		},
+		takeStringFunc: v5takeString,
 	}
 	for _, test := range []struct {
 		name   string
@@ -323,6 +326,8 @@ func TestFunctionsEvaluation(t *testing.T) {
 		{`LASTINDEXOFN`, `lastIndexOf("cafe bebe dead beef cafe bebe", "bebe", 10) == 5`, `AwkAAAAAAAACCQAEuAAAAAMCAAAAHWNhZmUgYmViZSBkZWFkIGJlZWYgY2FmZSBiZWJlAgAAAARiZWJlAAAAAAAAAAAKAAAAAAAAAAAFrGUCxA==`, env, true, false},
 		{`LASTINDEXOFN`, `lastIndexOf("cafe bebe dead beef cafe bebe", "dead", 13) == 10`, `AwkAAAAAAAACCQAEuAAAAAMCAAAAHWNhZmUgYmViZSBkZWFkIGJlZWYgY2FmZSBiZWJlAgAAAARkZWFkAAAAAAAAAAANAAAAAAAAAAAKepNV2A==`, env, true, false},
 		{`LASTINDEXOFN`, `lastIndexOf("cafe bebe dead beef cafe bebe", "dead", 11) == 10`, `AwkAAAAAAAACCQAEuAAAAAMCAAAAHWNhZmUgYmViZSBkZWFkIGJlZWYgY2FmZSBiZWJlAgAAAARkZWFkAAAAAAAAAAALAAAAAAAAAAAKcxKwfA==`, env, true, false},
+		{`CONTAINS on incorrect UTF-8 character`, `"x冬x".contains("\ud87e")`, `BAkBAAAACGNvbnRhaW5zAAAAAgIAAAAGePCvoJp4AgAAAAE/5/PEZA==`, env, false, false},
+		{`SPLIT on incorrect UTF-8 character`, `"冬x🤦冬".split("\ud87e") == ["冬x🤦冬"]`, `BAkAAAAAAAACCQAEtQAAAAICAAAADfCvoJp48J+kpvCvoJoCAAAAAT8JAARMAAAAAgIAAAAN8K+gmnjwn6Sm8K+gmgUAAAADbmlsLyxljg==`, env, true, false},
 	} {
 		src, err := base64.StdEncoding.DecodeString(test.script)
 		require.NoError(t, err, test.name)
@@ -5445,6 +5450,7 @@ func TestDropElementDApp(t *testing.T) {
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
 		},
+		takeStringFunc: v5takeString,
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				AddingBlockHeightFunc: func() (uint64, error) {
@@ -6048,15 +6054,18 @@ func TestAssetInfoV3V4(t *testing.T) {
 }
 
 func TestJSONParsing(t *testing.T) {
+	env := &MockRideEnvironment{
+		takeStringFunc: v5takeString,
+	}
+
 	code := "AwoBAAAADmdldFZhbHVlU3RyaW5nAAAAAQAAAARqc29uCQABLwAAAAIJAAEwAAAAAgUAAAAEanNvbgAAAAAAAAAAAQkBAAAABXZhbHVlAAAAAQkABLMAAAACCQABMAAAAAIFAAAABGpzb24AAAAAAAAAAAECAAAAASIKAQAAAAhnZXRWYWx1ZQAAAAIAAAAEanNvbgAAAANrZXkEAAAACGtleUluZGV4CQEAAAAFdmFsdWUAAAABCQAEswAAAAIFAAAABGpzb24JAAEsAAAAAgkAASwAAAACAgAAAAEiBQAAAANrZXkCAAAAAiI6BAAAAARkYXRhCQABMAAAAAIFAAAABGpzb24JAABkAAAAAgkAAGQAAAACBQAAAAhrZXlJbmRleAkAATEAAAABBQAAAANrZXkAAAAAAAAAAAMJAQAAAA5nZXRWYWx1ZVN0cmluZwAAAAEFAAAABGRhdGEEAAAACWFkZHJlc3NlcwIAAAFgeyJ0aXRsZSI6Ikjhu6NwIMSR4buTbmcgbXVhIGLDoW4gxJHhuqV0IChyZWFsLWVzdGF0ZSBjb250cmFjdCkiLCJ0aW1lc3RhbXAiOjE1OTE2MDg5NDQzNTQsImhhc2giOiJkOGYwOWFjYmRlYTIwMTc5MTUyY2Q5N2RiNDNmNmJjZjhjYjYxMTE1YmE3YzNmZWU3NDk4MWU0ZjRiNTBlNGEwIiwiY3JlYXRvciI6IiIsImFkZHJlc3MxIjoiM015Yjg1REd2N3hqNFhaRlpBTDRHSHVHRG1aU0czQ0NVdlciLCJhZGRyZXNzMiI6IiIsImFkZHJlc3MzIjoiIiwiYWRkcmVzczQiOiIiLCJhZGRyZXNzNSI6IiIsImFkZHJlc3M2IjoiIiwiaXBmcyI6IlFtVEtCbUg5aW4yRU50NkFRcnZwUHpvYWFtMnozcWRFZUhRU1k5M3JkOEpqSFkifQkAAAAAAAACCQEAAAAIZ2V0VmFsdWUAAAACBQAAAAlhZGRyZXNzZXMCAAAACGFkZHJlc3MxAgAAACMzTXliODVER3Y3eGo0WFpGWkFMNEdIdUdEbVpTRzNDQ1V2V6k+k0o="
 	src, err := base64.StdEncoding.DecodeString(code)
 	require.NoError(t, err)
-
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallVerifier(nil, tree)
+	res, err := CallVerifier(env, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)

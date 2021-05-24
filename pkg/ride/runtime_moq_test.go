@@ -43,6 +43,9 @@ var _ Environment = &MockRideEnvironment{}
 //             stateFunc: func() types.SmartState {
 // 	               panic("mock out the state method")
 //             },
+//             takeStringFunc: func(s string, n int) rideString {
+// 	               panic("mock out the takeString method")
+//             },
 //             thisFunc: func() rideType {
 // 	               panic("mock out the this method")
 //             },
@@ -85,6 +88,9 @@ type MockRideEnvironment struct {
 
 	// stateFunc mocks the state method.
 	stateFunc func() types.SmartState
+
+	// takeStringFunc mocks the takeString method.
+	takeStringFunc func(s string, n int) rideString
 
 	// thisFunc mocks the this method.
 	thisFunc func() rideType
@@ -130,6 +136,13 @@ type MockRideEnvironment struct {
 		// state holds details about calls to the state method.
 		state []struct {
 		}
+		// takeString holds details about calls to the takeString method.
+		takeString []struct {
+			// S is the s argument value.
+			S string
+			// N is the n argument value.
+			N int
+		}
 		// this holds details about calls to the this method.
 		this []struct {
 		}
@@ -151,6 +164,7 @@ type MockRideEnvironment struct {
 	locksetInvocation      sync.RWMutex
 	locksetNewDAppAddress  sync.RWMutex
 	lockstate              sync.RWMutex
+	locktakeString         sync.RWMutex
 	lockthis               sync.RWMutex
 	locktimestamp          sync.RWMutex
 	locktransaction        sync.RWMutex
@@ -377,6 +391,41 @@ func (mock *MockRideEnvironment) stateCalls() []struct {
 	mock.lockstate.RLock()
 	calls = mock.calls.state
 	mock.lockstate.RUnlock()
+	return calls
+}
+
+// takeString calls takeStringFunc.
+func (mock *MockRideEnvironment) takeString(s string, n int) rideString {
+	if mock.takeStringFunc == nil {
+		panic("MockRideEnvironment.takeStringFunc: method is nil but Environment.takeString was just called")
+	}
+	callInfo := struct {
+		S string
+		N int
+	}{
+		S: s,
+		N: n,
+	}
+	mock.locktakeString.Lock()
+	mock.calls.takeString = append(mock.calls.takeString, callInfo)
+	mock.locktakeString.Unlock()
+	return mock.takeStringFunc(s, n)
+}
+
+// takeStringCalls gets all the calls that were made to takeString.
+// Check the length with:
+//     len(mockedEnvironment.takeStringCalls())
+func (mock *MockRideEnvironment) takeStringCalls() []struct {
+	S string
+	N int
+} {
+	var calls []struct {
+		S string
+		N int
+	}
+	mock.locktakeString.RLock()
+	calls = mock.calls.takeString
+	mock.locktakeString.RUnlock()
 	return calls
 }
 

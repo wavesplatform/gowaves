@@ -112,12 +112,12 @@ func concatStrings(_ Environment, args ...rideType) (rideType, error) {
 	return rideString(out), nil
 }
 
-func takeString(_ Environment, args ...rideType) (rideType, error) {
+func takeString(env Environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeString")
 	}
-	return takeRideString(s, n), nil
+	return env.takeString(s, n), nil
 }
 
 func dropString(_ Environment, args ...rideType) (rideType, error) {
@@ -308,26 +308,27 @@ func runesDrop(s string, n int) string {
 	return res
 }
 
-// TODO: This is the correct implementation of takeString function that handles runes in UTF-8 string correct
-//func runesTake(s string, n int) string {
-//	out := make([]rune, n)
-//	copy(out, []rune(s)[:n])
-//	return string(out)
-//}
-//
-//func takeRideString(s string, n int) rideString {
-//	l := utf8.RuneCountInString(s)
-//	t := n
-//	if t > l {
-//		t = l
-//	}
-//	if t < 0 {
-//		t = 0
-//	}
-//	return rideString(runesTake(s, t))
-//}
+// This is the CORRECT implementation of takeString function that handles runes in UTF-8 string correct
+func runesTake(s string, n int) string {
+	out := make([]rune, n)
+	copy(out, []rune(s)[:n])
+	return string(out)
+}
 
 func takeRideString(s string, n int) rideString {
+	l := utf8.RuneCountInString(s)
+	t := n
+	if t > l {
+		t = l
+	}
+	if t < 0 {
+		t = 0
+	}
+	return rideString(runesTake(s, t))
+}
+
+// This is the WRONG implementation of takeString function that handles runes in UTF-8 string INCORRECT
+func takeRideStringWrong(s string, n int) rideString {
 	b := utf16.Encode([]rune(s))
 	l := len(b)
 	t := n
