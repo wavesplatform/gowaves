@@ -173,7 +173,7 @@ func (a *txAppender) currentBlockInfo() (*proto.BlockInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	hs, err := a.state.BlockVRF(curHeader, height)
+	hs, err := a.state.BlockVRF(curHeader, height-1)
 	if err != nil {
 		return nil, err
 	}

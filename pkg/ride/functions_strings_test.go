@@ -60,6 +60,7 @@ func TestTakeString(t *testing.T) {
 		{[]rideType{rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\nCeli, child of the first light. One of the main characters of the story, she is the first to see the vision of Cloudscape and its inhabitants from the Earth's dimension after the great destruction.\n\nDragorion - avatars sung into being by Eneria to bring sleep to the people of Cloudscape. They speak in dreams as lullabies, symphonies, hymns, arias and melodies. ~Legendarium\n\n©️Art of Monztre\n"), rideInt(50)}, false, rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\n")},
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x冬")}, // the result is `x?` but it should be `x冬`
+		{[]rideType{rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\nCeli, child of the first light. One of the main characters of the story, she is the first to see the vision of Cloudscape and its inhabitants from the Earth's dimension after the great destruction.\n\nDragorion - avatars sung into being by Eneria to bring sleep to the people of Cloudscape. They speak in dreams as lullabies, symphonies, hymns, arias and melodies. ~Legendarium\n\n©️Art of Monztre\n"), rideInt(50)}, false, rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶?")},
 	} {
 		r, err := takeString(env, test.args...)
 		if test.fail {
@@ -157,7 +158,6 @@ func TestIndexOfSubstring(t *testing.T) {
 			assert.Equal(t, test.r, r)
 		}
 	}
-
 }
 
 func TestIndexOfSubstringWithOffset(t *testing.T) {
