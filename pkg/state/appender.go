@@ -379,6 +379,7 @@ type appendTxParams struct {
 	block            *proto.BlockHeader
 	acceptFailed     bool
 	blockV5Activated bool
+	rideV5Activated  bool
 	validatingUtx    bool
 	initialisation   bool
 }
@@ -511,6 +512,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return err
+	}
 	// Check and append transactions.
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
@@ -520,6 +525,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			block:            params.block,
 			acceptFailed:     blockV5Activated,
 			blockV5Activated: blockV5Activated,
+			rideV5Activated:  rideV5Activated,
 			validatingUtx:    false,
 			initialisation:   params.initialisation,
 		}

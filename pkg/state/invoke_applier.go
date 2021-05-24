@@ -662,7 +662,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		return nil, err
 	}
 	// Call script function.
-	ok, scriptActions, err := ia.sc.invokeFunction(tree, tx, info.blockInfo, *scriptAddr, info.initialisation)
+	ok, scriptActions, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr)
 	if !ok {
 		// When ok is false, it means that we could not even start invocation.
 		// We just return error in such case.

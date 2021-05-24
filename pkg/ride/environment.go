@@ -1,13 +1,13 @@
 package ride
 
 import (
+	"unicode/utf16"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"unicode/utf16"
 )
 
 type WrappedState struct {
@@ -156,10 +156,6 @@ func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.
 
 func (ws *WrappedState) IsStateUntouched(account proto.Recipient) (bool, error) {
 	return ws.diff.state.IsStateUntouched(account)
-}
-
-func (ws *WrappedState) NewestIsActivated(feature int16) (bool, error) {
-	return ws.diff.state.NewestIsActivated(feature)
 }
 
 func (ws *WrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
@@ -1126,13 +1122,8 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 	}, nil
 }
 
-func (e *EvaluationEnvironment) ChooseTakeString() error {
-	rideV5Activated, err := e.state().NewestIsActivated(int16(settings.RideV5))
-	if err != nil {
-		return errors.Wrap(err, "failed to check if feature is activated")
-	}
-
-	if !rideV5Activated {
+func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) error {
+	if !isRideV5 {
 		e.takeStr = takeRideStringWrong
 		return nil
 	}
