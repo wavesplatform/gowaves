@@ -32,6 +32,21 @@ func selectFunctionChecker(v int) (func(name string) (uint16, bool), error) {
 	}
 }
 
+func selectEvaluationCostsProvider(v int) (map[string]int, map[string]struct{}, error) {
+	switch v {
+	case 1, 2:
+		return CatalogueV2, FreeFunctionsV2, nil
+	case 3:
+		return CatalogueV3, FreeFunctionsV3, nil
+	case 4:
+		return CatalogueV4, FreeFunctionsV4, nil
+	case 5:
+		return CatalogueV5, FreeFunctionsV5, nil
+	default:
+		return nil, nil, errors.Errorf("unsupported library version '%d'", v)
+	}
+}
+
 func selectFunctionNameProvider(v int) (func(int) string, error) {
 	switch v {
 	case 1, 2:

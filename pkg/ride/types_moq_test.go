@@ -68,9 +68,6 @@ var _ types.SmartState = &MockSmartState{}
 //             NewestScriptByAssetFunc: func(asset proto.OptionalAsset) (proto.Script, error) {
 // 	               panic("mock out the NewestScriptByAsset method")
 //             },
-//             NewestScriptCallableComplexityByAddrFunc: func(addr proto.Address, ev int) (int, error) {
-// 	               panic("mock out the NewestScriptCallableComplexityByAddr method")
-//             },
 //             NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
 // 	               panic("mock out the NewestScriptPKByAddr method")
 //             },
@@ -146,9 +143,6 @@ type MockSmartState struct {
 
 	// NewestScriptByAssetFunc mocks the NewestScriptByAsset method.
 	NewestScriptByAssetFunc func(asset proto.OptionalAsset) (proto.Script, error)
-
-	// NewestScriptCallableComplexityByAddrFunc mocks the NewestScriptCallableComplexityByAddr method.
-	NewestScriptCallableComplexityByAddrFunc func(addr proto.Address, ev int) (int, error)
 
 	// NewestScriptPKByAddrFunc mocks the NewestScriptPKByAddr method.
 	NewestScriptPKByAddrFunc func(addr proto.Address) (crypto.PublicKey, error)
@@ -253,13 +247,6 @@ type MockSmartState struct {
 			// Asset is the asset argument value.
 			Asset proto.OptionalAsset
 		}
-		// NewestScriptCallableComplexityByAddr holds details about calls to the NewestScriptCallableComplexityByAddr method.
-		NewestScriptCallableComplexityByAddr []struct {
-			// Addr is the addr argument value.
-			Addr proto.Address
-			// Ev is the ev argument value.
-			Ev int
-		}
 		// NewestScriptPKByAddr holds details about calls to the NewestScriptPKByAddr method.
 		NewestScriptPKByAddr []struct {
 			// Addr is the addr argument value.
@@ -304,30 +291,29 @@ type MockSmartState struct {
 			Key string
 		}
 	}
-	lockAddingBlockHeight                    sync.RWMutex
-	lockBlockVRF                             sync.RWMutex
-	lockEstimatorVersion                     sync.RWMutex
-	lockGetByteTree                          sync.RWMutex
-	lockIsNotFound                           sync.RWMutex
-	lockIsStateUntouched                     sync.RWMutex
-	lockNewestAccountBalance                 sync.RWMutex
-	lockNewestAddrByAlias                    sync.RWMutex
-	lockNewestAssetInfo                      sync.RWMutex
-	lockNewestAssetIsSponsored               sync.RWMutex
-	lockNewestFullAssetInfo                  sync.RWMutex
-	lockNewestFullWavesBalance               sync.RWMutex
-	lockNewestHeaderByHeight                 sync.RWMutex
-	lockNewestLeasingInfo                    sync.RWMutex
-	lockNewestRecipientToAddress             sync.RWMutex
-	lockNewestScriptByAsset                  sync.RWMutex
-	lockNewestScriptCallableComplexityByAddr sync.RWMutex
-	lockNewestScriptPKByAddr                 sync.RWMutex
-	lockNewestTransactionByID                sync.RWMutex
-	lockNewestTransactionHeightByID          sync.RWMutex
-	lockRetrieveNewestBinaryEntry            sync.RWMutex
-	lockRetrieveNewestBooleanEntry           sync.RWMutex
-	lockRetrieveNewestIntegerEntry           sync.RWMutex
-	lockRetrieveNewestStringEntry            sync.RWMutex
+	lockAddingBlockHeight           sync.RWMutex
+	lockBlockVRF                    sync.RWMutex
+	lockEstimatorVersion            sync.RWMutex
+	lockGetByteTree                 sync.RWMutex
+	lockIsNotFound                  sync.RWMutex
+	lockIsStateUntouched            sync.RWMutex
+	lockNewestAccountBalance        sync.RWMutex
+	lockNewestAddrByAlias           sync.RWMutex
+	lockNewestAssetInfo             sync.RWMutex
+	lockNewestAssetIsSponsored      sync.RWMutex
+	lockNewestFullAssetInfo         sync.RWMutex
+	lockNewestFullWavesBalance      sync.RWMutex
+	lockNewestHeaderByHeight        sync.RWMutex
+	lockNewestLeasingInfo           sync.RWMutex
+	lockNewestRecipientToAddress    sync.RWMutex
+	lockNewestScriptByAsset         sync.RWMutex
+	lockNewestScriptPKByAddr        sync.RWMutex
+	lockNewestTransactionByID       sync.RWMutex
+	lockNewestTransactionHeightByID sync.RWMutex
+	lockRetrieveNewestBinaryEntry   sync.RWMutex
+	lockRetrieveNewestBooleanEntry  sync.RWMutex
+	lockRetrieveNewestIntegerEntry  sync.RWMutex
+	lockRetrieveNewestStringEntry   sync.RWMutex
 }
 
 // AddingBlockHeight calls AddingBlockHeightFunc.
@@ -821,41 +807,6 @@ func (mock *MockSmartState) NewestScriptByAssetCalls() []struct {
 	mock.lockNewestScriptByAsset.RLock()
 	calls = mock.calls.NewestScriptByAsset
 	mock.lockNewestScriptByAsset.RUnlock()
-	return calls
-}
-
-// NewestScriptCallableComplexityByAddr calls NewestScriptCallableComplexityByAddrFunc.
-func (mock *MockSmartState) NewestScriptCallableComplexityByAddr(addr proto.Address, ev int) (int, error) {
-	if mock.NewestScriptCallableComplexityByAddrFunc == nil {
-		panic("MockSmartState.NewestScriptCallableComplexityByAddrFunc: method is nil but SmartState.NewestScriptCallableComplexityByAddr was just called")
-	}
-	callInfo := struct {
-		Addr proto.Address
-		Ev   int
-	}{
-		Addr: addr,
-		Ev:   ev,
-	}
-	mock.lockNewestScriptCallableComplexityByAddr.Lock()
-	mock.calls.NewestScriptCallableComplexityByAddr = append(mock.calls.NewestScriptCallableComplexityByAddr, callInfo)
-	mock.lockNewestScriptCallableComplexityByAddr.Unlock()
-	return mock.NewestScriptCallableComplexityByAddrFunc(addr, ev)
-}
-
-// NewestScriptCallableComplexityByAddrCalls gets all the calls that were made to NewestScriptCallableComplexityByAddr.
-// Check the length with:
-//     len(mockedSmartState.NewestScriptCallableComplexityByAddrCalls())
-func (mock *MockSmartState) NewestScriptCallableComplexityByAddrCalls() []struct {
-	Addr proto.Address
-	Ev   int
-} {
-	var calls []struct {
-		Addr proto.Address
-		Ev   int
-	}
-	mock.lockNewestScriptCallableComplexityByAddr.RLock()
-	calls = mock.calls.NewestScriptCallableComplexityByAddr
-	mock.lockNewestScriptCallableComplexityByAddr.RUnlock()
 	return calls
 }
 

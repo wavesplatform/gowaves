@@ -82,10 +82,6 @@ func (ws *WrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
 	return ws.diff.state.NewestTransactionHeightByID(id)
 }
 
-func (ws *WrappedState) NewestScriptCallableComplexityByAddr(addr proto.Address, ev int) (int, error) {
-	return ws.diff.state.NewestScriptCallableComplexityByAddr(addr, ev)
-}
-
 func (ws *WrappedState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
 	return ws.diff.state.GetByteTree(recipient)
 }
@@ -452,6 +448,11 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		}
 		localEnv.SetThisFromAssetInfo(assetInfo)
 	}
+
+	if err := localEnv.ChooseTakeString(true); err != nil {
+		return false, errors.Wrap(err, "failed to initialize local environment")
+	}
+
 	r, err := CallVerifier(localEnv, tree)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to call script on asset '%s'", asset.String())
@@ -1050,16 +1051,17 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 }
 
 type EvaluationEnvironment struct {
-	sch   proto.Scheme
-	st    types.SmartState
-	h     rideInt
-	tx    rideObject
-	id    rideType
-	th    rideType
-	time  uint64
-	b     rideObject
-	check func(int) bool
-	inv   rideObject
+	sch     proto.Scheme
+	st      types.SmartState
+	h       rideInt
+	tx      rideObject
+	id      rideType
+	th      rideType
+	time    uint64
+	b       rideObject
+	check   func(int) bool
+	takeStr func(s string, n int) rideString
+	inv     rideObject
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*EvaluationEnvironment, error) {
@@ -1069,10 +1071,11 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*EvaluationEnv
 	}
 
 	return &EvaluationEnvironment{
-		sch:   scheme,
-		st:    state,
-		h:     rideInt(height),
-		check: func(int) bool { return true },
+		sch:     scheme,
+		st:      state,
+		h:       rideInt(height),
+		check:   func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
+		takeStr: func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
 	}, nil
 }
 
@@ -1120,16 +1123,26 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 	}
 
 	return &EvaluationEnvironment{
-		sch:   env.sch,
-		st:    st,
-		h:     env.h,
-		tx:    env.tx,
-		id:    env.id,
-		th:    env.th,
-		b:     env.b,
-		check: env.check,
-		inv:   env.inv,
+		sch:     env.sch,
+		st:      st,
+		h:       env.h,
+		tx:      env.tx,
+		id:      env.id,
+		th:      env.th,
+		b:       env.b,
+		check:   env.check,
+		takeStr: env.takeStr,
+		inv:     env.inv,
 	}, nil
+}
+
+func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) error {
+	if !isRideV5 {
+		e.takeStr = takeRideStringWrong
+		return nil
+	}
+	e.takeStr = takeRideString
+	return nil
 }
 
 func (e *EvaluationEnvironment) ChooseSizeCheck(v int) {
@@ -1258,11 +1271,15 @@ func (e *EvaluationEnvironment) checkMessageLength(l int) bool {
 	return e.check(l)
 }
 
+func (e *EvaluationEnvironment) takeString(s string, n int) rideString {
+	return e.takeStr(s, n)
+}
+
 func (e *EvaluationEnvironment) invocation() rideObject {
 	return e.inv
 }
 
-func (e *EvaluationEnvironment) SetInvocation(inv rideObject) {
+func (e *EvaluationEnvironment) setInvocation(inv rideObject) {
 	e.inv = inv
 }
 

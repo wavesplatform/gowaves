@@ -49,7 +49,7 @@ func TestCheckGenesis(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createGenesis(t)
+	tx := createGenesis()
 	info := defaultCheckerInfo(t)
 	_, err := to.tc.checkGenesis(tx, info)
 	info.blockID = proto.NewBlockIDFromSignature(genSig)
