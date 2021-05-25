@@ -23,7 +23,6 @@ var (
 	v3check = func(size int) bool {
 		return size <= maxMessageLength
 	}
-	v5takeString = takeRideString
 )
 
 func TestAddressFromString(t *testing.T) {

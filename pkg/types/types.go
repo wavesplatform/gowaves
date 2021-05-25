@@ -12,7 +12,7 @@ type Scheduler interface {
 	Reschedule()
 }
 
-// Handler is an abstract function that called when an event happens.
+// Abstract handler that called when event happens
 type Handler interface {
 	Handle()
 }
@@ -33,13 +33,14 @@ type TransactionWithBytes struct {
 	B []byte
 }
 
-// SmartState is a part of state used by smart contracts.
+// state for smart contracts
 type SmartState interface {
 	NewestScriptPKByAddr(addr proto.Address) (crypto.PublicKey, error)
 	AddingBlockHeight() (uint64, error)
 	NewestTransactionByID([]byte) (proto.Transaction, error)
 	NewestTransactionHeightByID([]byte) (uint64, error)
 	GetByteTree(recipient proto.Recipient) (proto.Script, error)
+	NewestScriptCallableComplexityByAddr(addr proto.Address, ev int) (int, error)
 	NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error)
 	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
 	NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, error)

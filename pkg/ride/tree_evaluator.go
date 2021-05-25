@@ -28,8 +28,6 @@ type evaluationScope struct {
 	system    map[string]rideFunction
 	user      []esFunction
 	cl        int
-	costs     map[string]int
-	free      map[string]struct{}
 }
 
 func (s *evaluationScope) declare(n Node) error {
@@ -53,12 +51,6 @@ func (s *evaluationScope) pushValue(id string, v rideType) {
 	s.cs[len(s.cs)-1] = append(s.cs[len(s.cs)-1], esValue{id: id, value: v})
 }
 
-func (s *evaluationScope) updateValue(frame, pos int, id string, v rideType) {
-	if ev := s.cs[frame][pos]; ev.id == id && ev.value == nil {
-		s.cs[frame][pos] = esValue{id: id, value: v}
-	}
-}
-
 func (s *evaluationScope) popValue() {
 	s.cs[len(s.cs)-1] = s.cs[len(s.cs)-1][:len(s.cs[len(s.cs)-1])-1]
 }
@@ -75,29 +67,29 @@ func (s *evaluationScope) constant(id string) (rideType, bool) {
 	return nil, false
 }
 
-func lookup(s []esValue, id string) (esValue, bool, int) {
+func lookup(s []esValue, id string) (esValue, bool) {
 	for i := len(s) - 1; i >= 0; i-- {
 		if v := s[i]; v.id == id {
-			return v, true, i
+			return v, true
 		}
 	}
-	return esValue{}, false, 0
+	return esValue{}, false
 }
 
-func (s *evaluationScope) value(id string) (esValue, bool, int, int) {
-	if i := len(s.cs) - 1; i >= 0 {
-		v, ok, p := lookup(s.cs[i], id)
+func (s *evaluationScope) value(id string) (esValue, bool) {
+	if p := len(s.cs) - 1; p >= 0 {
+		v, ok := lookup(s.cs[p], id)
 		if ok {
-			return v, true, i, p
+			return v, true
 		}
 	}
 	for i := s.cl - 1; i >= 0; i-- {
-		v, ok, p := lookup(s.cs[i], id)
+		v, ok := lookup(s.cs[i], id)
 		if ok {
-			return v, true, i, p
+			return v, true
 		}
 	}
-	return esValue{}, false, 0, 0
+	return esValue{}, false
 }
 
 func (s *evaluationScope) pushUserFunction(uf *FunctionDeclarationNode) {
@@ -123,7 +115,7 @@ func (s *evaluationScope) userFunction(id string) (*FunctionDeclarationNode, int
 	return nil, 0, errors.Errorf("user function '%s' is not found", id)
 }
 
-func newEvaluationScope(v int, env Environment, enableInvocation bool) (evaluationScope, error) {
+func newEvaluationScope(v int, env Environment) (evaluationScope, error) {
 	constants, err := selectConstantNames(v)
 	if err != nil {
 		return evaluationScope{}, err
@@ -144,7 +136,7 @@ func newEvaluationScope(v int, env Environment, enableInvocation bool) (evaluati
 		}
 		cs[n] = esConstant{c: constantProvider(int(id))}
 	}
-	functions, err := selectFunctionNames(v, enableInvocation)
+	functions, err := selectFunctionNames(v)
 	if err != nil {
 		return evaluationScope{}, err
 	}
@@ -164,17 +156,11 @@ func newEvaluationScope(v int, env Environment, enableInvocation bool) (evaluati
 		}
 		fs[fn] = functionProvider(int(id))
 	}
-	costs, free, err := selectEvaluationCostsProvider(v)
-	if err != nil {
-		return evaluationScope{}, err
-	}
 	return evaluationScope{
 		constants: cs,
 		system:    fs,
 		cs:        [][]esValue{make([]esValue, 0)},
 		env:       env,
-		costs:     costs,
-		free:      free,
 	}, nil
 }
 
@@ -195,45 +181,39 @@ func selectConstantNames(v int) ([]string, error) {
 	}
 }
 
-func keys(m map[string]int, enableInvocation bool) []string {
+func keys(m map[string]int) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
-		switch k {
-		case "1020", "1021": // invoke and reentrantInvoke function are disabled for expression calls
-			if enableInvocation {
-				keys = append(keys, k)
-			}
-		default:
-			keys = append(keys, k)
-		}
+		keys = append(keys, k)
 	}
 	return keys
 }
 
-func selectFunctionNames(v int, enableInvocation bool) ([]string, error) {
+func selectFunctionNames(v int) ([]string, error) {
 	switch v {
 	case 1, 2:
-		return keys(CatalogueV2, enableInvocation), nil
+		return keys(CatalogueV2), nil
 	case 3:
-		return keys(CatalogueV3, enableInvocation), nil
+		return keys(CatalogueV3), nil
 	case 4:
-		return keys(CatalogueV4, enableInvocation), nil
+		return keys(CatalogueV4), nil
 	case 5:
-		return keys(CatalogueV5, enableInvocation), nil
+		return keys(CatalogueV5), nil
 	default:
 		return nil, errors.Errorf("unsupported library version %d", v)
 	}
 }
 
 type treeEvaluator struct {
-	dapp       bool
-	complexity int
-	f          Node
-	s          evaluationScope
-	env        Environment
+	dapp bool
+	//limit int
+	//cost  int
+	f   Node
+	s   evaluationScope
+	env Environment
 }
 
-func (e *treeEvaluator) evaluate() (Result, error) {
+func (e *treeEvaluator) evaluate() (RideResult, error) {
 	r, err := e.walk(e.f)
 	if err != nil {
 		return nil, err
@@ -242,29 +222,30 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 	switch res := r.(type) {
 	case rideThrow:
 		if e.dapp {
-			return DAppResult{res: false, msg: string(res), complexity: e.complexity}, nil
+			return DAppResult{res: false, msg: string(res)}, nil
 		}
-		return ScriptResult{res: false, msg: string(res), complexity: e.complexity}, nil
+		return ScriptResult{res: false, msg: string(res)}, nil
 	case rideBoolean:
-		return ScriptResult{res: bool(res), complexity: e.complexity}, nil
+		return ScriptResult{res: bool(res)}, nil
 	case rideObject:
 		a, err := objectToActions(e.env, res)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
-		return DAppResult{res: true, actions: a, msg: "", complexity: e.complexity}, nil
+		return DAppResult{res: true, actions: a, msg: ""}, nil
 	case rideList:
-		var actions []proto.ScriptAction
+		var act []proto.ScriptAction
 		for _, item := range res {
 			a, err := convertToAction(e.env, item)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to convert evaluation result")
 			}
-			actions = append(actions, a)
+			act = append(act, a)
 		}
-		return DAppResult{res: true, actions: actions, complexity: e.complexity}, nil
+
+		return DAppResult{res: true, actions: act}, nil
 	case tuple2:
-		var actions []proto.ScriptAction
+		var act []proto.ScriptAction
 		switch resAct := res.el1.(type) {
 		case rideList:
 			for _, item := range resAct {
@@ -272,12 +253,14 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to convert evaluation result")
 				}
-				actions = append(actions, a)
+				act = append(act, a)
 			}
+
 		default:
 			return nil, errors.Errorf("unexpected result type '%T'", r)
 		}
-		return DAppResult{res: true, actions: actions, msg: "", param: res.el2, complexity: e.complexity}, nil
+
+		return DAppResult{res: true, actions: act, msg: "", param: res.el2}, nil
 	default:
 		return nil, errors.Errorf("unexpected result type '%T'", r)
 	}
@@ -313,7 +296,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		if !ok {
 			return nil, errors.Errorf("not a boolean")
 		}
-		e.complexity++
 		if cr {
 			return e.walk(n.TrueExpression)
 		} else {
@@ -335,7 +317,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 
 	case *ReferenceNode:
 		id := n.Name
-		v, ok, f, p := e.s.value(id)
+		v, ok := e.s.value(id)
 		if !ok {
 			if v, ok := e.s.constant(id); ok {
 				return v, nil
@@ -353,11 +335,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			if isThrow(r) {
 				return r, nil
 			}
-			e.s.updateValue(f, p, id, r)
-			e.complexity++
+			e.s.pushValue(id, r)
 			return r, nil
 		}
-		e.complexity++
 		return v.value, nil
 
 	case *FunctionDeclarationNode:
@@ -377,21 +357,14 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		return r, nil
 
 	case *FunctionCallNode:
-		name := n.Name
-		f, ok := e.s.system[name]
+		id := n.Name
+		f, ok := e.s.system[id]
 		if ok { // System function
-			cost, ok := e.s.costs[name]
-			if !ok {
-				return nil, errors.Errorf("failed to get cost of system function '%s'", name)
-			}
-			if _, ok := e.s.free[name]; ok { //
-				cost = 0
-			}
 			args := make([]rideType, len(n.Arguments))
 			for i, arg := range n.Arguments {
 				a, err := e.walk(arg) // materialize argument
 				if err != nil {
-					return nil, errors.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, name)
+					return nil, errors.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, id)
 				}
 				if isThrow(a) {
 					return a, nil
@@ -400,17 +373,17 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			}
 			r, err := f(e.env, args...)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to call system function '%s'", name)
+				return nil, errors.Wrapf(err, "failed to call system function '%s'", id)
 			}
-			e.complexity += cost
+
 			return r, nil
 		}
-		uf, cl, err := e.s.userFunction(name)
+		uf, cl, err := e.s.userFunction(id)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to call function '%s'", name)
+			return nil, errors.Wrapf(err, "failed to call function '%s'", id)
 		}
 		if len(n.Arguments) != len(uf.Arguments) {
-			return nil, errors.Errorf("mismatched arguments number of user function '%s'", name)
+			return nil, errors.Errorf("mismatched arguments number of user function '%s'", id)
 		}
 
 		args := make([]esValue, len(n.Arguments))
@@ -418,7 +391,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			an := uf.Arguments[i]
 			av, err := e.walk(arg) // materialize argument
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to materialize argument '%s' of user function '%s", an, name)
+				return nil, errors.Wrapf(err, "failed to materialize argument '%s' of user function '%s", an, id)
 			}
 			if isThrow(av) {
 				return av, nil
@@ -434,7 +407,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 
 		r, err := e.walk(uf.Body)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", name)
+			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", id)
 		}
 		e.s.cs = e.s.cs[:len(e.s.cs)-1]
 		e.s.cl = tmp
@@ -446,7 +419,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate an object to get property '%s' on it", name)
 		}
-		e.complexity++
 		if isThrow(obj) {
 			return obj, nil
 		}
@@ -463,7 +435,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 }
 
 func treeVerifierEvaluator(env Environment, tree *Tree) (*treeEvaluator, error) {
-	s, err := newEvaluationScope(tree.LibVersion, env, false) // Invocation is disabled for expression calls
+	s, err := newEvaluationScope(tree.LibVersion, env)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create scope")
 	}
@@ -498,7 +470,7 @@ func treeVerifierEvaluator(env Environment, tree *Tree) (*treeEvaluator, error) 
 }
 
 func treeFunctionEvaluatorForInvokeDAppFromDApp(env Environment, tree *Tree, name string, args []rideType) (*treeEvaluator, error) {
-	s, err := newEvaluationScope(tree.LibVersion, env, true)
+	s, err := newEvaluationScope(tree.LibVersion, env)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create scope")
 	}
@@ -532,7 +504,7 @@ func treeFunctionEvaluatorForInvokeDAppFromDApp(env Environment, tree *Tree, nam
 }
 
 func treeFunctionEvaluator(env Environment, tree *Tree, name string, args proto.Arguments) (*treeEvaluator, error) {
-	s, err := newEvaluationScope(tree.LibVersion, env, true)
+	s, err := newEvaluationScope(tree.LibVersion, env)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create scope")
 	}

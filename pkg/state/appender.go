@@ -173,7 +173,7 @@ func (a *txAppender) currentBlockInfo() (*proto.BlockInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	hs, err := a.state.BlockVRF(curHeader, height-1)
+	hs, err := a.state.BlockVRF(curHeader, height)
 	if err != nil {
 		return nil, err
 	}
@@ -210,17 +210,17 @@ func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationP
 }
 
 // This function is used for script validation of transaction that can't fail.
-func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScripted bool, params *appendTxParams) (uint64, error) {
+func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScripted bool, checkerInfo *checkerInfo, blockInfo *proto.BlockInfo) (uint64, error) {
 	scriptsRuns := uint64(0)
 	if accountScripted {
 		// Check script.
-		if err := a.sc.callAccountScriptWithTx(tx, params); err != nil {
+		if err := a.sc.callAccountScriptWithTx(tx, blockInfo, checkerInfo.initialisation); err != nil {
 			return 0, errs.Extend(err, "callAccountScriptWithTx")
 		}
 		scriptsRuns++
 	}
 	// Check against state.
-	txSmartAssets, err := a.txHandler.checkTx(tx, params.checkerInfo)
+	txSmartAssets, err := a.txHandler.checkTx(tx, checkerInfo)
 	if err != nil {
 		return 0, err
 	}
@@ -230,7 +230,7 @@ func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScript
 	}
 	for _, smartAsset := range txSmartAssets {
 		// Check smart asset's script.
-		_, err := a.sc.callAssetScript(tx, smartAsset, params)
+		_, err := a.sc.callAssetScript(tx, smartAsset, blockInfo, checkerInfo.initialisation, false)
 		if err != nil {
 			return 0, errs.Extend(err, "callAssetScript")
 		}
@@ -259,8 +259,7 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64) error {
 		}
 		maxBlockComplexity := NewMaxScriptsComplexityInBlock().GetMaxScriptsComplexityInBlock(rideV5Activated)
 		if a.sc.getTotalComplexity() > uint64(maxBlockComplexity) {
-			// TODO this is definitely an error, should return it
-			zap.S().Warnf("complexity limit per block is exceeded. total complexity of script is %d, max allowed complexity is %d", int(a.sc.getTotalComplexity()), maxBlockComplexity)
+			return errors.New("complexity limit per block is exceeded")
 		}
 		return nil
 	} else if smartAccountsActivated {
@@ -379,7 +378,6 @@ type appendTxParams struct {
 	block            *proto.BlockHeader
 	acceptFailed     bool
 	blockV5Activated bool
-	rideV5Activated  bool
 	validatingUtx    bool
 	initialisation   bool
 }
@@ -418,7 +416,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	case proto.InvokeScriptTransaction, proto.ExchangeTransaction:
 		// Invoke and Exchange transactions should be handled differently.
 		// They may fail, and will be saved to blockchain anyway.
-		fallibleInfo := &fallibleValidationParams{params, accountHasVerifierScript}
+		fallibleInfo := &fallibleValidationParams{*params, accountHasVerifierScript}
 		applicationRes, err = a.handleFallible(tx, fallibleInfo)
 		if err != nil {
 			msg := "fallible validation failed"
@@ -432,7 +430,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		needToValidateBalanceDiff = params.validatingUtx && !params.acceptFailed
 	default:
 		// Execute transaction's scripts, check against state.
-		txScriptsRuns, err := a.checkTransactionScripts(tx, accountHasVerifierScript, params)
+		txScriptsRuns, err := a.checkTransactionScripts(tx, accountHasVerifierScript, params.checkerInfo, params.blockInfo)
 		if err != nil {
 			return err
 		}
@@ -512,10 +510,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
-	if err != nil {
-		return err
-	}
 	// Check and append transactions.
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
@@ -525,7 +519,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			block:            params.block,
 			acceptFailed:     blockV5Activated,
 			blockV5Activated: blockV5Activated,
-			rideV5Activated:  rideV5Activated,
 			validatingUtx:    false,
 			initialisation:   params.initialisation,
 		}
@@ -553,7 +546,7 @@ func (a *txAppender) moveChangesToHistoryStorage(initialisation bool) error {
 }
 
 type fallibleValidationParams struct {
-	*appendTxParams
+	appendTxParams
 	senderScripted bool
 }
 
@@ -600,7 +593,7 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 	// At first, we call accounts and orders scripts which must not fail.
 	if info.senderScripted {
 		// Check script on account.
-		err := a.sc.callAccountScriptWithTx(tx, info.appendTxParams)
+		err := a.sc.callAccountScriptWithTx(tx, info.blockInfo, info.initialisation)
 		if err != nil {
 			return nil, err
 		}
@@ -624,13 +617,13 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 			return nil, err
 		}
 		if o1Scripted {
-			if err := a.sc.callAccountScriptWithOrder(o1, info.blockInfo, info.rideV5Activated, info.initialisation); err != nil {
+			if err := a.sc.callAccountScriptWithOrder(o1, info.blockInfo, info.initialisation); err != nil {
 				return nil, errors.Wrap(err, "script failure on first order")
 			}
 			scriptsRuns++
 		}
 		if o2Scripted {
-			if err := a.sc.callAccountScriptWithOrder(o2, info.blockInfo, info.rideV5Activated, info.initialisation); err != nil {
+			if err := a.sc.callAccountScriptWithOrder(o2, info.blockInfo, info.initialisation); err != nil {
 				return nil, errors.Wrap(err, "script failure on second order")
 			}
 			scriptsRuns++
@@ -659,7 +652,7 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 	}
 	// Check smart assets' scripts.
 	for _, smartAsset := range txSmartAssets {
-		res, err := a.sc.callAssetScript(tx, smartAsset, info.appendTxParams)
+		res, err := a.sc.callAssetScript(tx, smartAsset, info.blockInfo, info.initialisation, info.acceptFailed)
 		if err != nil && !info.acceptFailed {
 			return nil, err
 		}

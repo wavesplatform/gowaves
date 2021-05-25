@@ -98,16 +98,23 @@ func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation 
 		case 5:
 			maxCallableComplexity = MaxCallableScriptComplexityV5
 		}
-		if complexity := estimation.Verifier; complexity > MaxVerifierScriptComplexity {
-			return errors.Errorf("verifier script complexity %d exceeds maximum allowed complexity of %d", complexity, MaxVerifierScriptComplexity)
+
+		complexityVerifier := estimation.Verifier
+		if complexityVerifier > MaxVerifierScriptComplexity {
+			return errors.Errorf("verifier script complexity %d exceeds maximum allowed complexity of %d", complexityVerifier, MaxVerifierScriptComplexity)
 		}
-		if complexity := estimation.Estimation; complexity > maxCallableComplexity {
-			return errors.Errorf("callable script complexity %d exceeds maximum allowed complexity of %d", complexity, maxCallableComplexity)
+
+		complexityCallable := estimation.Estimation
+		if complexityCallable > maxCallableComplexity {
+			return errors.Errorf("callable script complexity %d exceeds maximum allowed complexity of %d", complexityCallable, maxCallableComplexity)
 		}
+
 		return nil
 	}
-	if complexity := estimation.Verifier; complexity > MaxVerifierScriptComplexity {
-		return errors.Errorf("script complexity %d exceeds maximum allowed complexity of %d", complexity, MaxVerifierScriptComplexity)
+
+	complexityVerifier := estimation.Verifier
+	if complexityVerifier > MaxVerifierScriptComplexity {
+		return errors.Errorf("script complexity %d exceeds maximum allowed complexity of %d", complexityVerifier, MaxVerifierScriptComplexity)
 	}
 	return nil
 }

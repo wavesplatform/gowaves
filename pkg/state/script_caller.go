@@ -33,7 +33,7 @@ func newScriptCaller(
 	}, nil
 }
 
-func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockInfo *proto.BlockInfo, isRideV5 bool, initialisation bool) error {
+func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
 	sender, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, order.GetSenderPK())
 	if err != nil {
 		return err
@@ -53,9 +53,6 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	env.SetThisFromAddress(sender)
 	env.SetLastBlock(lastBlockInfo)
 	env.ChooseSizeCheck(tree.LibVersion)
-	if err := env.ChooseTakeString(isRideV5); err != nil {
-		return errors.Wrap(err, "failed to initialize environment")
-	}
 	err = env.SetTransactionFromOrder(order)
 	if err != nil {
 		return errors.Wrap(err, "failed to convert order")
@@ -83,12 +80,12 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	return nil
 }
 
-func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *appendTxParams) error {
+func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, lastBlockInfo *proto.BlockInfo, initialisation bool) error {
 	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
 		return err
 	}
-	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !params.initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !initialisation)
 	if err != nil {
 		return err
 	}
@@ -100,12 +97,8 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
-	env.ChooseSizeCheck(tree.LibVersion)
-	if err := env.ChooseTakeString(params.rideV5Activated); err != nil {
-		return errors.Wrap(err, "failed to initialize environment")
-	}
 	env.SetThisFromAddress(senderAddr)
-	env.SetLastBlock(params.blockInfo)
+	env.SetLastBlock(lastBlockInfo)
 	err = env.SetTransaction(tx)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
@@ -125,7 +118,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
-	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, ev, !params.initialisation)
+	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, ev, !initialisation)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
@@ -133,15 +126,12 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	return nil
 }
 
-func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
-	tree, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !params.initialisation)
+func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool, acceptFailed bool) (ride.RideResult, error) {
+	tree, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !initialisation)
 	if err != nil {
 		return nil, err
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
-	if err := env.ChooseTakeString(params.rideV5Activated); err != nil {
-		return nil, errors.Wrap(err, "failed to initialize environment")
-	}
 	switch tree.LibVersion {
 	case 4, 5:
 		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
@@ -156,12 +146,12 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 		}
 		env.SetThisFromAssetInfo(assetInfo)
 	}
-	env.SetLastBlock(params.blockInfo)
+	env.SetLastBlock(lastBlockInfo)
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 	}
-	if !r.Result() && !params.acceptFailed {
+	if !r.Result() && !acceptFailed {
 		return nil, errs.NewTransactionNotAllowedByScript(r.UserError(), assetID.Bytes())
 	}
 	// Increase complexity.
@@ -169,7 +159,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 	}
-	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, ev, !params.initialisation)
+	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, ev, !initialisation)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 	}
@@ -177,16 +167,16 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 	return r, nil
 }
 
-func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTransfer, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
+func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTransfer, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool, acceptFailed bool) (ride.RideResult, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
 		return nil, err
 	}
 	env.SetTransactionFromScriptTransfer(tr)
-	return a.callAssetScriptCommon(env, assetID, params)
+	return a.callAssetScriptCommon(env, assetID, lastBlockInfo, initialisation, acceptFailed)
 }
 
-func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
+func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, lastBlockInfo *proto.BlockInfo, initialisation bool, acceptFailed bool) (ride.RideResult, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
 		return nil, err
@@ -195,16 +185,16 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	if err != nil {
 		return nil, err
 	}
-	return a.callAssetScriptCommon(env, assetID, params)
+	return a.callAssetScriptCommon(env, assetID, lastBlockInfo, initialisation, acceptFailed)
 }
 
-func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, scriptAddress proto.Address) (bool, []proto.ScriptAction, error) {
+func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWithProofs, lastBlockInfo *proto.BlockInfo, scriptAddress proto.Address, initialisation bool) (bool, []proto.ScriptAction, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "failed to create RIDE environment")
 	}
 	env.SetThisFromAddress(scriptAddress)
-	env.SetLastBlock(info.blockInfo)
+	env.SetLastBlock(lastBlockInfo)
 	env.SetTimestamp(tx.Timestamp)
 	err = env.SetTransaction(tx)
 	if err != nil {
@@ -216,10 +206,6 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
 
-	err = env.ChooseTakeString(info.rideV5Activated)
-	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to choose takeString")
-	}
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
 	if tree.LibVersion >= 5 {
 		env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)
@@ -240,7 +226,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
-	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, ev, !info.initialisation)
+	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, ev, !initialisation)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}

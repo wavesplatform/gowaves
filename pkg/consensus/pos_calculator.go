@@ -68,13 +68,17 @@ type GenerationSignatureProvider interface {
 type NXTGenerationSignatureProvider struct {
 }
 
-// GenerationSignature builds NXT generation signature using only generator's public key.
+// Only generator's public key is used then building NXT generation signature.
 func (p *NXTGenerationSignatureProvider) GenerationSignature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
 	return p.signature(key, msg)
 }
 
 func (p *NXTGenerationSignatureProvider) HitSource(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
-	return p.signature(key, msg)
+	hs, err := p.signature(key, msg)
+	if err != nil {
+		return nil, err
+	}
+	return hs, nil
 }
 
 func (p *NXTGenerationSignatureProvider) signature(key [crypto.KeySize]byte, msg []byte) ([]byte, error) {
@@ -120,7 +124,7 @@ func (p *VRFGenerationSignatureProvider) HitSource(key [crypto.KeySize]byte, msg
 	return vrf, nil
 }
 
-// VerifyGenerationSignature checks that provided signature is valid against given generator's public key and message.
+// Verify checks that provided signature is valid against given generator's public key and message.
 func (p *VRFGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.PublicKey, msg, sig []byte) (bool, []byte, error) {
 	ok, hs, err := crypto.VerifyVRF(pk, msg[:], sig[:])
 	if err != nil {
@@ -217,9 +221,9 @@ func heightForHit(height uint64) uint64 {
 
 func calculateBaseTarget(
 	targetBlockDelaySeconds uint64,
-	_ uint64,
+	confirmedHeight uint64,
 	confirmedTarget uint64,
-	_ uint64,
+	confirmedTimestamp uint64,
 	greatGrandParentTimestamp uint64,
 	applyingBlockTimestamp uint64,
 	delayDelta uint64,

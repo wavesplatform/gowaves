@@ -40,19 +40,18 @@ type SyncFsm struct {
 
 func (a *SyncFsm) Transaction(p Peer, t proto.Transaction) (FSM, Async, error) {
 	err := a.baseInfo.utx.Add(t)
-	if err != nil {
-		return a, nil, proto.NewInfoMsg(err)
+	if err == nil {
+		a.baseInfo.BroadcastTransaction(t, p)
 	}
-	a.baseInfo.BroadcastTransaction(t, p)
-	return a, nil, nil
+	return a, nil, err
 }
 
-// MicroBlock ignores new microblocks while syncing.
+// MicroBlock ignores new microblock message.
 func (a *SyncFsm) MicroBlock(_ Peer, _ *proto.MicroBlock) (FSM, Async, error) {
 	return a.baseInfo.d.Noop(a)
 }
 
-// MicroBlockInv ignores microblock requests while syncing.
+// MicroBlockInv ignores new microblock message.
 func (a *SyncFsm) MicroBlockInv(_ Peer, _ *proto.MicroBlockInv) (FSM, Async, error) {
 	return a.baseInfo.d.Noop(a)
 }

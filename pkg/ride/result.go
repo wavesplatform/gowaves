@@ -2,26 +2,24 @@ package ride
 
 import "github.com/wavesplatform/gowaves/pkg/proto"
 
-type Result interface {
+type RideResult interface {
 	Result() bool
 	UserError() string
-	userResult() rideType
+	UserResult() rideType
 	ScriptActions() []proto.ScriptAction
-	Complexity() int
 }
 
 type ScriptResult struct {
-	res        bool
-	msg        string
-	param      rideType
-	complexity int
+	res   bool
+	msg   string
+	param rideType
 }
 
 func (r ScriptResult) Result() bool {
 	return r.res
 }
 
-func (r ScriptResult) userResult() rideType {
+func (r ScriptResult) UserResult() rideType {
 	return r.param
 }
 
@@ -33,23 +31,18 @@ func (r ScriptResult) ScriptActions() []proto.ScriptAction {
 	return nil
 }
 
-func (r ScriptResult) Complexity() int {
-	return r.complexity
-}
-
 type DAppResult struct {
-	res        bool // true - success, false - call failed, read msg
-	actions    []proto.ScriptAction
-	msg        string
-	param      rideType
-	complexity int
+	res     bool // true - success, false - call failed, read msg
+	actions []proto.ScriptAction
+	msg     string
+	param   rideType
 }
 
 func (r DAppResult) Result() bool {
 	return r.res
 }
 
-func (r DAppResult) userResult() rideType {
+func (r DAppResult) UserResult() rideType {
 	return r.param
 }
 
@@ -59,8 +52,4 @@ func (r DAppResult) UserError() string {
 
 func (r DAppResult) ScriptActions() []proto.ScriptAction {
 	return r.actions
-}
-
-func (r DAppResult) Complexity() int {
-	return r.complexity
 }

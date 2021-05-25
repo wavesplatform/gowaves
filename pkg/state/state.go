@@ -89,7 +89,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newScriptsComplexity(hs),
 		newInvokeResults(hs),
 		newStateHashes(hs),
-		newHitSources(hs),
+		newHitSources(hs, rw),
 		calcHashes,
 	}, nil
 }
@@ -344,8 +344,8 @@ type stateManager struct {
 
 	// BlockchainSettings: general info about the blockchain type, constants etc.
 	settings *settings.BlockchainSettings
-	// Validator: validator for block headers.
-	cv *consensus.Validator
+	// ConsensusValidator: validator for block headers.
+	cv *consensus.ConsensusValidator
 	// Appender implements validation/diff management functionality.
 	appender *txAppender
 	atx      *addressTransactions
@@ -446,7 +446,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		return nil, wrapErr(Other, err)
 	}
 	state.appender = appender
-	cv, err := consensus.NewValidator(state, params.Time)
+	cv, err := consensus.NewConsensusValidator(state, params.Time)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -464,6 +464,18 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	}
 	state.checkProtobufActivation(h + 1)
 	return state, nil
+}
+
+func (s *stateManager) NewestScriptCallableComplexityByAddr(addr proto.Address, ev int) (int, error) {
+	treeEstimation, err := s.stor.scriptsComplexity.newestScriptComplexityByAddr(addr, ev, true)
+	if err != nil {
+		return 0, errors.Errorf("failed to get complexity by addr from store, %v", err)
+	}
+	if treeEstimation == nil {
+		return 0, errors.Errorf("failed to get complexity by addr from store: estimation tree is empty")
+	}
+
+	return treeEstimation.Estimation, nil
 }
 
 func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
@@ -531,7 +543,7 @@ func (s *stateManager) addGenesisBlock() error {
 	if err := s.addNewBlock(&s.genesis, nil, true, chans, 0); err != nil {
 		return err
 	}
-	if err := s.stor.hitSources.appendBlockHitSource(&s.genesis, 1, s.genesis.GenSignature); err != nil {
+	if err := s.stor.hitSources.saveHitSource(s.genesis.GenSignature, 1); err != nil {
 		return err
 	}
 	close(chans.tasksChan)
@@ -624,22 +636,18 @@ func (s *stateManager) TopBlock() *proto.Block {
 }
 
 func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
-	if blockHeader.Version < proto.ProtobufBlockVersion {
-		return nil, nil
-	}
-	pos := &consensus.FairPosCalculatorV2{}
-	p := pos.HeightForHit(height)
-	refHitSource, err := s.NewestHitSourceAtHeight(p)
-	if err != nil {
-		return nil, err
-	}
-	gsp := &consensus.VRFGenerationSignatureProvider{}
-	ok, vrf, err := gsp.VerifyGenerationSignature(blockHeader.GenPublicKey, refHitSource, blockHeader.GenSignature)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, errors.New("invalid VRF")
+	var vrf []byte = nil
+	if blockHeader.Version >= proto.ProtobufBlockVersion {
+		pos := &consensus.FairPosCalculatorV2{} // BlockV5 and FairPoSV2 are activated at the same time
+		gsp := &consensus.VRFGenerationSignatureProvider{}
+		hitSourceHeader, err := s.NewestHeaderByHeight(pos.HeightForHit(height))
+		if err != nil {
+			return nil, err
+		}
+		_, vrf, err = gsp.VerifyGenerationSignature(blockHeader.GenPublicKey, hitSourceHeader.GenSignature.Bytes(), blockHeader.GenSignature)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return vrf, nil
 }
@@ -1348,13 +1356,6 @@ func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {
 			return nil, verifyError
 		case chans.tasksChan <- task:
 		}
-		hs, err := s.cv.GenerateHitSource(curHeight, block.BlockHeader)
-		if err != nil {
-			return nil, err
-		}
-		if err := s.stor.hitSources.appendBlockHitSource(block, curHeight+1, hs); err != nil {
-			return nil, err
-		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
 		if err := s.addNewBlock(block, lastAppliedBlock, initialisation, chans, curHeight); err != nil {
 			return nil, err
@@ -1486,20 +1487,24 @@ func (s *stateManager) HitSourceAtHeight(height uint64) ([]byte, error) {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	if height < 1 || height > maxHeight {
-		return nil, wrapErr(InvalidInputError, errors.Errorf("HitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight))
+		return nil, wrapErr(InvalidInputError,
+			errors.Errorf("HitSourceAtHeight: height %d out of valid range [%d, %d]", height, 1, maxHeight))
 	}
-	return s.stor.hitSources.hitSource(height, true)
-}
-
-func (s *stateManager) NewestHitSourceAtHeight(height uint64) ([]byte, error) {
-	maxHeight, err := s.NewestHeight()
+	hs, err := s.stor.hitSources.hitSource(height, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	if height < 1 || height > maxHeight {
-		return nil, wrapErr(InvalidInputError, errors.Errorf("NewestHitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight))
+	return hs, nil
+}
+
+func (s *stateManager) SaveHitSources(startHeight uint64, hitSources [][]byte) error {
+	for i, hs := range hitSources {
+		err := s.stor.hitSources.saveHitSource(hs, uint64(i+1)+startHeight)
+		if err != nil {
+			return err
+		}
 	}
-	return s.stor.hitSources.newestHitSource(height, true)
+	return nil
 }
 
 func (s *stateManager) CurrentScore() (*big.Int, error) {
@@ -1567,7 +1572,7 @@ func (s *stateManager) ResetValidationList() {
 	}
 }
 
-// ValidateNextTx function must be used for UTX validation only.
+// For UTX validation.
 func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, acceptFailed bool) error {
 	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, acceptFailed); err != nil {
 		return err

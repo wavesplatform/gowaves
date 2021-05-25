@@ -38,7 +38,7 @@ type vm struct {
 	functionName func(int) string
 }
 
-func (m *vm) run() (Result, error) {
+func (m *vm) run() (RideResult, error) {
 	if m.stack != nil {
 		m.stack = m.stack[0:0]
 	}

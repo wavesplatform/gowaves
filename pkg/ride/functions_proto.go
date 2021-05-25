@@ -6,7 +6,6 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
-
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 
 	"github.com/mr-tron/base58"
@@ -92,7 +91,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	}
 	invocationParam["callerPublicKey"] = rideBytes(common.Dup(callerPublicKey.Bytes()))
 	invocationParam["payments"] = payments
-	env.setInvocation(invocationParam)
+	env.SetInvocation(invocationParam)
 
 	for _, value := range payments {
 		payment, ok := value.(rideObject)
@@ -156,7 +155,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	res, err := invokeFunctionFromDApp(env, recipient, fnName, listArg)
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get Result from invokeFunctionFromDApp")
+		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
 	}
 
 	if res.Result() {
@@ -170,17 +169,26 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		}
 
 		env.setNewDAppAddress(proto.Address(callerAddress))
-		env.setInvocation(oldInvocationParam)
+		env.SetInvocation(oldInvocationParam)
 
-		ws.totalComplexity += res.Complexity()
+		// collect complexity of every call
+		ev, err := ws.EstimatorVersion()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get estimator version")
+		}
+		complexity, err := ws.NewestScriptCallableComplexityByAddr(*recipient.Address, ev)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get complexity from store")
+		}
+		ws.totalComplexity += complexity
 
-		if res.userResult() == nil {
+		if res.UserResult() == nil {
 			return rideUnit{}, nil
 		}
-		return res.userResult(), nil
+		return res.UserResult(), nil
 	}
 
-	return rideThrow("result of reentrantInvoke function is false"), nil
+	return nil, errors.Errorf("result of Invoke is false")
 }
 
 func invoke(env Environment, args ...rideType) (rideType, error) {
@@ -250,7 +258,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	}
 	invocationParam["callerPublicKey"] = rideBytes(common.Dup(callerPublicKey.Bytes()))
 	invocationParam["payments"] = payments
-	env.setInvocation(invocationParam)
+	env.SetInvocation(invocationParam)
 
 	for _, value := range payments {
 		payment, ok := value.(rideObject)
@@ -319,7 +327,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	ws.blackList = ws.blackList[:len(ws.blackList)-1] // pop
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get Result from invokeFunctionFromDApp")
+		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
 	}
 
 	if res.Result() {
@@ -333,17 +341,26 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		}
 
 		env.setNewDAppAddress(proto.Address(callerAddress))
-		env.setInvocation(oldInvocationParam)
+		env.SetInvocation(oldInvocationParam)
 
-		ws.totalComplexity += res.Complexity()
+		// collect complexity of every call
+		ev, err := ws.EstimatorVersion()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get estimator version")
+		}
+		complexity, err := ws.NewestScriptCallableComplexityByAddr(*recipient.Address, ev)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get complexity from store")
+		}
+		ws.totalComplexity += complexity
 
-		if res.userResult() == nil {
+		if res.UserResult() == nil {
 			return rideUnit{}, nil
 		}
-		return res.userResult(), nil
+		return res.UserResult(), nil
 	}
 
-	return rideThrow("result of invoke function is false"), nil
+	return nil, errors.Errorf("result of Invoke is false")
 }
 
 func hashScriptAtAddress(env Environment, args ...rideType) (rideType, error) {
@@ -782,7 +799,7 @@ func blockInfoByHeight(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
-	vrf, err := env.state().BlockVRF(header, height-1)
+	vrf, err := env.state().BlockVRF(header, height)
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
