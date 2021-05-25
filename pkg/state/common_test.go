@@ -79,7 +79,7 @@ func defaultBlockInfo() *proto.BlockInfo {
 	}
 }
 
-func defaultDifferInfo(t *testing.T) *differInfo {
+func defaultDifferInfo() *differInfo {
 	return &differInfo{false, defaultBlockInfo()}
 }
 
@@ -97,7 +97,7 @@ func defaultAppendTxParams(t *testing.T) *appendTxParams {
 func defaultFallibleValidationParams(t *testing.T) *fallibleValidationParams {
 	appendTxPrms := defaultAppendTxParams(t)
 	return &fallibleValidationParams{
-		appendTxParams: *appendTxPrms,
+		appendTxParams: appendTxPrms,
 		senderScripted: false,
 	}
 }

@@ -92,7 +92,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	}
 	invocationParam["callerPublicKey"] = rideBytes(common.Dup(callerPublicKey.Bytes()))
 	invocationParam["payments"] = payments
-	env.SetInvocation(invocationParam)
+	env.setInvocation(invocationParam)
 
 	for _, value := range payments {
 		payment, ok := value.(rideObject)
@@ -170,7 +170,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		}
 
 		env.setNewDAppAddress(proto.Address(callerAddress))
-		env.SetInvocation(oldInvocationParam)
+		env.setInvocation(oldInvocationParam)
 
 		ws.totalComplexity += res.Complexity()
 
@@ -180,7 +180,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		return res.userResult(), nil
 	}
 
-	return nil, errors.Errorf("result of Invoke is false")
+	return rideThrow("result of reentrantInvoke function is false"), nil
 }
 
 func invoke(env Environment, args ...rideType) (rideType, error) {
@@ -250,7 +250,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	}
 	invocationParam["callerPublicKey"] = rideBytes(common.Dup(callerPublicKey.Bytes()))
 	invocationParam["payments"] = payments
-	env.SetInvocation(invocationParam)
+	env.setInvocation(invocationParam)
 
 	for _, value := range payments {
 		payment, ok := value.(rideObject)
@@ -333,7 +333,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		}
 
 		env.setNewDAppAddress(proto.Address(callerAddress))
-		env.SetInvocation(oldInvocationParam)
+		env.setInvocation(oldInvocationParam)
 
 		ws.totalComplexity += res.Complexity()
 
@@ -343,7 +343,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		return res.userResult(), nil
 	}
 
-	return nil, errors.Errorf("result of Invoke is false")
+	return rideThrow("result of invoke function is false"), nil
 }
 
 func hashScriptAtAddress(env Environment, args ...rideType) (rideType, error) {
@@ -782,7 +782,7 @@ func blockInfoByHeight(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
-	vrf, err := env.state().BlockVRF(header, height)
+	vrf, err := env.state().BlockVRF(header, height-1)
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
