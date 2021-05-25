@@ -279,7 +279,7 @@ func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction,
 func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, info *addlInvokeInfo) (proto.TxFailureReason, txBalanceChanges, error) {
 	// Check smart asset scripts on payments.
 	for _, smartAsset := range info.paymentSmartAssets {
-		r, err := ia.sc.callAssetScript(tx, smartAsset, info.blockInfo, info.initialisation, info.acceptFailed)
+		r, err := ia.sc.callAssetScript(tx, smartAsset, info.fallibleValidationParams.appendTxParams)
 		if err != nil {
 			return proto.DAppError, info.failedChanges, errors.Errorf("failed to call asset %s script on payment: %v", smartAsset.String(), err)
 		}
@@ -353,7 +353,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to convert transfer to full script transfer")
 				}
 				// Call asset script if transferring smart asset.
-				res, err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, info.blockInfo, info.initialisation, info.acceptFailed)
+				res, err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, info.appendTxParams)
 				if err != nil {
 					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to call asset script on transfer set")
 				}
@@ -427,7 +427,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if math.MaxInt64-a.Quantity < assetInfo.quantity.Int64() && info.block.Timestamp >= ia.settings.ReissueBugWindowTimeEnd {
 				return proto.DAppError, info.failedChanges, errors.New("asset total value overflow")
 			}
-			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, info.blockInfo, *tx.ID, tx.Timestamp, info.initialisation, info.acceptFailed)
+			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, *tx.ID, tx.Timestamp, info.appendTxParams)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -475,7 +475,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if assetInfo.quantity.Cmp(quantityDiff) == -1 {
 				return proto.DAppError, info.failedChanges, errs.NewAccountBalanceError("trying to burn more assets than exist at all")
 			}
-			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, info.blockInfo, *tx.ID, tx.Timestamp, info.initialisation, info.acceptFailed)
+			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, *tx.ID, tx.Timestamp, info.appendTxParams)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -616,7 +616,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	info.acceptFailed = info.blockV5Activated && info.acceptFailed
 	// Check sender script, if any.
 	if info.senderScripted {
-		if err := ia.sc.callAccountScriptWithTx(tx, info.blockInfo, info.initialisation); err != nil {
+		if err := ia.sc.callAccountScriptWithTx(tx, info.appendTxParams); err != nil {
 			// Never accept invokes with failed script on transaction sender.
 			return nil, err
 		}
@@ -781,8 +781,8 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 }
 
 func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
-	blockInfo *proto.BlockInfo, txID crypto.Digest, txTimestamp uint64, initialisation, acceptFailed bool) (bool, ride.RideResult, error) {
-	isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(asset, !initialisation)
+	txID crypto.Digest, txTimestamp uint64, params *appendTxParams) (bool, ride.RideResult, error) {
+	isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(asset, !params.initialisation)
 	if !isSmartAsset {
 		return true, nil, nil
 	}
@@ -794,7 +794,7 @@ func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action pr
 	if err != nil {
 		return false, nil, err
 	}
-	res, err := ia.sc.callAssetScriptCommon(env, asset, blockInfo, initialisation, acceptFailed)
+	res, err := ia.sc.callAssetScriptCommon(env, asset, params)
 	if err != nil {
 		return false, nil, err
 	}
