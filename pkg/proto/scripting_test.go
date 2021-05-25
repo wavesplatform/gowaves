@@ -267,3 +267,24 @@ func mustRecipientFromString(s string) Recipient {
 	}
 	return r
 }
+
+func TestAssetIDGeneration(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		description string
+		decimals    int64
+		quantity    int64
+		reissuable  bool
+		nonce       int64
+		txID        string
+		assetID     string
+	}{
+		{"DUCK-AAAAAAAA-GB", "{\"genotype\": \"DUCK-AAAAAAAA-GB\", \"crossbreeding\": true}", 0, 1, false, 2578353, "BBcyb47NB9cbGKXNPakxKGxmdABLzhxRNsztd9hTad6", "4JzEW8LnTXuZ117iqdFXjuNBx3GG5mUvmZhnZ8V3yty7"},
+		{"DUCK-AAAAAAAA-GB", "{\"genotype\": \"DUCK-AAAAAAAA-GB\", \"crossbreeding\": true}", 0, 1, false, 2578353, "BBcyb47NB9cbGKXNPakxKGxmdABLzhxRNsztd9hTad6", "4JzEW8LnTXuZ117iqdFXjuNBx3GG5mUvmZhnZ8V3yty7"},
+		{"DUCK-BBBBBBBB-GR", "{\"genotype\": \"DUCK-BBBBBBBB-GR\", \"crossbreeding\": true}", 0, 1, false, 2578301, "AA33kjey1MbsQY29NB9Fy9mMcX2oFaxapsnpBk5sVhxU", "7tuYcoFnBLub562Ddsqb3s7iM9edjA9jn6zePvffLV9j"},
+	} {
+		txID := crypto.MustDigestFromBase58(test.txID)
+		assetID := GenerateIssueScriptActionID(test.name, test.description, test.decimals, test.quantity, test.reissuable, test.nonce, txID)
+		assert.Equal(t, test.assetID, assetID.String())
+	}
+}

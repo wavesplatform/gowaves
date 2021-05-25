@@ -40,7 +40,6 @@ func TestTakeString(t *testing.T) {
 	env := &MockRideEnvironment{
 		takeStringFunc: v5takeString,
 	}
-
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -60,6 +59,38 @@ func TestTakeString(t *testing.T) {
 		{[]rideType{rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\nCeli, child of the first light. One of the main characters of the story, she is the first to see the vision of Cloudscape and its inhabitants from the Earth's dimension after the great destruction.\n\nDragorion - avatars sung into being by Eneria to bring sleep to the people of Cloudscape. They speak in dreams as lullabies, symphonies, hymns, arias and melodies. ~Legendarium\n\n©️Art of Monztre\n"), rideInt(50)}, false, rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\n")},
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x冬")}, // the result is `x?` but it should be `x冬`
+	} {
+		r, err := takeString(env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func TestIncorrectTakeString(t *testing.T) {
+	env := &MockRideEnvironment{
+		takeStringFunc: takeRideStringWrong,
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("abc"), rideInt(2)}, false, rideString("ab")},
+		{[]rideType{rideString("abc"), rideInt(4)}, false, rideString("abc")},
+		{[]rideType{rideString("abc"), rideInt(0)}, false, rideString("")},
+		{[]rideType{rideString("abc"), rideInt(-4)}, false, rideString("")},
+		{[]rideType{rideString(""), rideInt(0)}, false, rideString("")},
+		{[]rideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]rideType{rideString("abc")}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
+		{[]rideType{rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\nCeli, child of the first light. One of the main characters of the story, she is the first to see the vision of Cloudscape and its inhabitants from the Earth's dimension after the great destruction.\n\nDragorion - avatars sung into being by Eneria to bring sleep to the people of Cloudscape. They speak in dreams as lullabies, symphonies, hymns, arias and melodies. ~Legendarium\n\n©️Art of Monztre\n"), rideInt(50)}, false, rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶?")},
 	} {
 		r, err := takeString(env, test.args...)
 		if test.fail {
@@ -157,7 +188,6 @@ func TestIndexOfSubstring(t *testing.T) {
 			assert.Equal(t, test.r, r)
 		}
 	}
-
 }
 
 func TestIndexOfSubstringWithOffset(t *testing.T) {
