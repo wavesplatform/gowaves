@@ -22,9 +22,9 @@ func ParseVoteFeatures(s string) (Features, error) {
 	if s == "" {
 		return Features{}, nil
 	}
-	splitted := strings.Split(s, ",")
+	split := strings.Split(s, ",")
 	var out Features
-	for _, val := range splitted {
+	for _, val := range split {
 		f, err := parseFeature(val)
 		if err != nil {
 			return nil, err
