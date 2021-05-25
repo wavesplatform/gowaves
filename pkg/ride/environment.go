@@ -440,6 +440,11 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		}
 		localEnv.SetThisFromAssetInfo(assetInfo)
 	}
+
+	if err := localEnv.ChooseTakeString(true); err != nil {
+		return false, errors.Wrap(err, "failed to initialize local environment")
+	}
+
 	r, err := CallVerifier(localEnv, tree)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to call script on asset '%s'", asset.String())
@@ -1060,8 +1065,8 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*EvaluationEnv
 		sch:     scheme,
 		st:      state,
 		h:       rideInt(height),
-		check:   func(int) bool { return true },
-		takeStr: func(s string, n int) rideString { return "" },
+		check:   func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
+		takeStr: func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
 	}, nil
 }
 
