@@ -53,6 +53,12 @@ func (s *evaluationScope) pushValue(id string, v rideType) {
 	s.cs[len(s.cs)-1] = append(s.cs[len(s.cs)-1], esValue{id: id, value: v})
 }
 
+func (s *evaluationScope) updateValue(frame, pos int, id string, v rideType) {
+	if ev := s.cs[frame][pos]; ev.id == id && ev.value == nil {
+		s.cs[frame][pos] = esValue{id: id, value: v}
+	}
+}
+
 func (s *evaluationScope) popValue() {
 	s.cs[len(s.cs)-1] = s.cs[len(s.cs)-1][:len(s.cs[len(s.cs)-1])-1]
 }
@@ -69,29 +75,29 @@ func (s *evaluationScope) constant(id string) (rideType, bool) {
 	return nil, false
 }
 
-func lookup(s []esValue, id string) (esValue, bool) {
+func lookup(s []esValue, id string) (esValue, bool, int) {
 	for i := len(s) - 1; i >= 0; i-- {
 		if v := s[i]; v.id == id {
-			return v, true
+			return v, true, i
 		}
 	}
-	return esValue{}, false
+	return esValue{}, false, 0
 }
 
-func (s *evaluationScope) value(id string) (esValue, bool) {
-	if p := len(s.cs) - 1; p >= 0 {
-		v, ok := lookup(s.cs[p], id)
+func (s *evaluationScope) value(id string) (esValue, bool, int, int) {
+	if i := len(s.cs) - 1; i >= 0 {
+		v, ok, p := lookup(s.cs[i], id)
 		if ok {
-			return v, true
+			return v, true, i, p
 		}
 	}
 	for i := s.cl - 1; i >= 0; i-- {
-		v, ok := lookup(s.cs[i], id)
+		v, ok, p := lookup(s.cs[i], id)
 		if ok {
-			return v, true
+			return v, true, i, p
 		}
 	}
-	return esValue{}, false
+	return esValue{}, false, 0, 0
 }
 
 func (s *evaluationScope) pushUserFunction(uf *FunctionDeclarationNode) {
@@ -322,7 +328,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 
 	case *ReferenceNode:
 		id := n.Name
-		v, ok := e.s.value(id)
+		v, ok, f, p := e.s.value(id)
 		if !ok {
 			if v, ok := e.s.constant(id); ok {
 				return v, nil
@@ -340,7 +346,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			if isThrow(r) {
 				return r, nil
 			}
-			e.s.pushValue(id, r)
+			e.s.updateValue(f, p, id, r)
 			e.complexity++
 			return r, nil
 		}
