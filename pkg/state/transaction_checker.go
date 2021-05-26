@@ -88,26 +88,29 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 }
 
 func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation ride.TreeEstimation) error {
-	var maxCallableComplexity int
-	if tree.IsDApp() {
-		switch tree.LibVersion {
-		case 1, 2:
-			maxCallableComplexity = MaxCallableScriptComplexityV12
-		case 3, 4:
-			maxCallableComplexity = MaxCallableScriptComplexityV34
-		case 5:
-			maxCallableComplexity = MaxCallableScriptComplexityV5
-		}
-		if complexity := estimation.Verifier; complexity > MaxVerifierScriptComplexity {
-			return errors.Errorf("verifier script complexity %d exceeds maximum allowed complexity of %d", complexity, MaxVerifierScriptComplexity)
-		}
-		if complexity := estimation.Estimation; complexity > maxCallableComplexity {
-			return errors.Errorf("callable script complexity %d exceeds maximum allowed complexity of %d", complexity, maxCallableComplexity)
+	var maxCallableComplexity, maxVerifierComplexity int
+	switch tree.LibVersion {
+	case 1, 2:
+		maxCallableComplexity = MaxCallableScriptComplexityV12
+		maxVerifierComplexity = MaxVerifierScriptComplexityV12
+	case 3, 4:
+		maxCallableComplexity = MaxCallableScriptComplexityV34
+		maxVerifierComplexity = MaxVerifierScriptComplexityV34
+	case 5:
+		maxCallableComplexity = MaxCallableScriptComplexityV5
+		maxVerifierComplexity = MaxVerifierScriptComplexityV5
+	}
+	if !tree.IsDApp() { // Expression (simple) script, has only verifier.
+		if complexity := estimation.Verifier; complexity > maxVerifierComplexity {
+			return errors.Errorf("script complexity %d exceeds maximum allowed complexity of %d", complexity, maxVerifierComplexity)
 		}
 		return nil
 	}
-	if complexity := estimation.Verifier; complexity > MaxVerifierScriptComplexity {
-		return errors.Errorf("script complexity %d exceeds maximum allowed complexity of %d", complexity, MaxVerifierScriptComplexity)
+	if complexity := estimation.Verifier; complexity > maxVerifierComplexity {
+		return errors.Errorf("verifier script complexity %d exceeds maximum allowed complexity of %d", complexity, maxVerifierComplexity)
+	}
+	if complexity := estimation.Estimation; complexity > maxCallableComplexity {
+		return errors.Errorf("callable script complexity %d exceeds maximum allowed complexity of %d", complexity, maxCallableComplexity)
 	}
 	return nil
 }
