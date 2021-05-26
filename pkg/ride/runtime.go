@@ -14,9 +14,18 @@ type rideType interface {
 	instanceOf() string
 	eq(other rideType) bool
 	get(prop string) (rideType, error)
+	Serialize(Serializer) error
+}
+
+func RideTypes(types ...rideType) []rideType {
+	return types
 }
 
 type rideThrow string
+
+func (a rideThrow) Serialize(serializer Serializer) error {
+	panic("implement me")
+}
 
 func (a rideThrow) instanceOf() string {
 	return "Throw"
@@ -40,6 +49,14 @@ func (a rideThrow) get(prop string) (rideType, error) {
 
 type rideBoolean bool
 
+func RideBoolean(b bool) rideBoolean {
+	return rideBoolean(b)
+}
+
+func (b rideBoolean) Serialize(serializer Serializer) error {
+	return serializer.RideBool(b)
+}
+
 func (b rideBoolean) instanceOf() string {
 	return "Boolean"
 }
@@ -56,6 +73,14 @@ func (b rideBoolean) get(prop string) (rideType, error) {
 }
 
 type rideInt int64
+
+func RideInt(i int64) rideInt {
+	return rideInt(i)
+}
+
+func (l rideInt) Serialize(serializer Serializer) error {
+	return serializer.RideInt(l)
+}
 
 func (l rideInt) instanceOf() string {
 	return "Int"
@@ -74,6 +99,14 @@ func (l rideInt) get(prop string) (rideType, error) {
 
 type rideString string
 
+func RideString(s string) rideString {
+	return rideString(s)
+}
+
+func (s rideString) Serialize(serializer Serializer) error {
+	return serializer.RideString(s)
+}
+
 func (s rideString) instanceOf() string {
 	return "String"
 }
@@ -91,6 +124,10 @@ func (s rideString) get(prop string) (rideType, error) {
 
 type rideBytes []byte
 
+func (b rideBytes) Serialize(serializer Serializer) error {
+	return serializer.RideBytes(b)
+}
+
 func (b rideBytes) instanceOf() string {
 	return "ByteVector"
 }
@@ -107,6 +144,23 @@ func (b rideBytes) get(prop string) (rideType, error) {
 }
 
 type rideObject map[string]rideType
+
+func (o rideObject) Serialize(s Serializer) error {
+	if err := s.Type(sObject); err != nil {
+		return err
+	}
+	return s.Map(len(o), func(m Map) error {
+		for k, v := range o {
+			if err := m.String(k); err != nil {
+				return err
+			}
+			if err := v.Serialize(s); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
 
 func (o rideObject) instanceOf() string {
 	if s, ok := o[instanceFieldName].(rideString); ok {
@@ -141,6 +195,13 @@ func (o rideObject) get(prop string) (rideType, error) {
 
 type rideAddress proto.Address
 
+func (a rideAddress) Serialize(s Serializer) error {
+	if err := s.Type(sAddress); err != nil {
+		return err
+	}
+	return s.Bytes(a[:])
+}
+
 func (a rideAddress) instanceOf() string {
 	return "Address"
 }
@@ -168,6 +229,10 @@ func (a rideAddress) get(prop string) (rideType, error) {
 }
 
 type rideAddressLike []byte
+
+func (a rideAddressLike) Serialize(serializer Serializer) error {
+	panic("implement me")
+}
 
 func (a rideAddressLike) instanceOf() string {
 	return "Address"
@@ -197,6 +262,10 @@ func (a rideAddressLike) get(prop string) (rideType, error) {
 
 type rideRecipient proto.Recipient
 
+func (a rideRecipient) Serialize(serializer Serializer) error {
+	panic("rideRecipient Serialize implement me")
+}
+
 func (a rideRecipient) instanceOf() string {
 	switch {
 	case a.Address != nil:
@@ -211,7 +280,7 @@ func (a rideRecipient) instanceOf() string {
 func (a rideRecipient) eq(other rideType) bool {
 	switch o := other.(type) {
 	case rideRecipient:
-		return a.Address == o.Address && a.Alias == o.Alias
+		return proto.Recipient(a).Eq(proto.Recipient(o))
 	case rideAddress:
 		return a.Address != nil && bytes.Equal(a.Address[:], o[:])
 	case rideAlias:
@@ -247,6 +316,10 @@ func (a rideRecipient) String() string {
 
 type rideAlias proto.Alias
 
+func (a rideAlias) Serialize(Serializer) error {
+	panic("implement me")
+}
+
 func (a rideAlias) instanceOf() string {
 	return "Alias"
 }
@@ -273,6 +346,10 @@ func (a rideAlias) get(prop string) (rideType, error) {
 
 type rideUnit struct{}
 
+func (a rideUnit) Serialize(s Serializer) error {
+	return s.RideUnit()
+}
+
 func (a rideUnit) instanceOf() string {
 	return "Unit"
 }
@@ -289,6 +366,13 @@ type rideNamedType struct {
 	name string
 }
 
+func (a rideNamedType) Serialize(s Serializer) error {
+	if err := s.Type(sNamedType); err != nil {
+		return err
+	}
+	return s.String(a.name)
+}
+
 func (a rideNamedType) instanceOf() string {
 	return a.name
 }
@@ -302,6 +386,18 @@ func (a rideNamedType) get(prop string) (rideType, error) {
 }
 
 type rideList []rideType
+
+func (a rideList) Serialize(s Serializer) error {
+	if err := s.RideList(uint16(len(a))); err != nil {
+		return err
+	}
+	for _, v := range a {
+		if err := v.Serialize(s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func (a rideList) instanceOf() string {
 	return "List[Any]"

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -38,7 +39,7 @@ func TestSetAccountScript(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	addr := testGlobal.senderInfo.addr
-	err = to.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	err = to.scriptsStorage.setAccountScript(addr, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0, "")
 	assert.NoError(t, err, "setAccountScript() failed")
 
 	// Test newest before flushing.
@@ -82,12 +83,12 @@ func TestSetAccountScript(t *testing.T) {
 	accountHasVerifier, err = to.scriptsStorage.accountHasVerifier(addr, true)
 	assert.NoError(t, err, "accountHasVerifier() failed")
 	assert.Equal(t, true, accountHasVerifier)
-	scriptAst, err = to.scriptsStorage.scriptByAddr(addr, true)
+	scriptAst2, err := to.scriptsStorage.scriptByAddr(addr, true)
 	assert.NoError(t, err, "scriptByAddr() failed after flushing")
-	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+	assert.Equal(t, testGlobal.scriptAst, scriptAst2)
 
 	// Test discarding script.
-	err = to.scriptsStorage.setAccountScript(addr, proto.Script{}, testGlobal.senderInfo.pk, blockID0)
+	err = to.scriptsStorage.setAccountScript(addr, proto.Script{}, testGlobal.senderInfo.pk, blockID0, "")
 	assert.NoError(t, err, "setAccountScript() failed")
 
 	// Test newest before flushing.
@@ -107,9 +108,9 @@ func TestSetAccountScript(t *testing.T) {
 	accountHasVerifier, err = to.scriptsStorage.accountHasVerifier(addr, true)
 	assert.NoError(t, err, "accountHasVerifier() failed")
 	assert.Equal(t, true, accountHasVerifier)
-	scriptAst, err = to.scriptsStorage.scriptByAddr(addr, true)
+	scriptAst3, err := to.scriptsStorage.scriptByAddr(addr, true)
 	assert.NoError(t, err)
-	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+	assert.Equal(t, testGlobal.scriptAst, scriptAst3)
 
 	to.stor.flush(t)
 
@@ -147,7 +148,7 @@ func TestSetAssetScript(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	assetID := testGlobal.asset0.asset.ID
-	err = to.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	err = to.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0, "")
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
@@ -177,12 +178,12 @@ func TestSetAssetScript(t *testing.T) {
 	isSmartAsset, err = to.scriptsStorage.isSmartAsset(assetID, true)
 	assert.NoError(t, err, "isSmartAsset() failed")
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err = to.scriptsStorage.scriptByAsset(assetID, true)
+	scriptAst2, err := to.scriptsStorage.scriptByAsset(assetID, true)
 	assert.NoError(t, err, "scriptByAsset() failed after flushing")
-	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+	assert.Equal(t, testGlobal.scriptAst, scriptAst2)
 
 	// Test discarding script.
-	err = to.scriptsStorage.setAssetScript(assetID, proto.Script{}, testGlobal.senderInfo.pk, blockID0)
+	err = to.scriptsStorage.setAssetScript(assetID, proto.Script{}, testGlobal.senderInfo.pk, blockID0, "")
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
@@ -195,9 +196,9 @@ func TestSetAssetScript(t *testing.T) {
 	isSmartAsset, err = to.scriptsStorage.isSmartAsset(assetID, true)
 	assert.NoError(t, err, "isSmartAsset() failed")
 	assert.Equal(t, true, isSmartAsset)
-	scriptAst, err = to.scriptsStorage.scriptByAsset(assetID, true)
+	scriptAst2, err = to.scriptsStorage.scriptByAsset(assetID, true)
 	assert.NoError(t, err)
-	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+	assert.Equal(t, testGlobal.scriptAst, scriptAst2)
 
 	to.stor.flush(t)
 
@@ -244,4 +245,19 @@ func TestSetAssetScript(t *testing.T) {
 	scriptAst, err = to.scriptsStorage.scriptByAsset(assetID, true)
 	assert.NoError(t, err)
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
+}
+
+func TestScriptRecord(t *testing.T) {
+	kp, _ := proto.NewKeyPair([]byte("test"))
+	r := scriptRecord{
+		pk:       kp.Public,
+		script:   []byte{1, 2, 3},
+		bytecode: []byte{4, 5, 6},
+	}
+	bytes, _ := r.marshalBinary()
+
+	r2 := scriptRecord{}
+	_ = r2.unmarshalBinary(bytes)
+
+	require.Equal(t, r, r2)
 }

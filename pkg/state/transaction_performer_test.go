@@ -608,7 +608,7 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test discarding script.
-	err = to.stor.entities.scriptsStorage.setAssetScript(assetID, proto.Script{}, crypto.PublicKey{}, blockID0)
+	err = to.stor.entities.scriptsStorage.setAssetScript(assetID, proto.Script{}, crypto.PublicKey{}, blockID0, "")
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.

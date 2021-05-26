@@ -99,7 +99,7 @@ func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation 
 }
 
 func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int) (map[int]ride.TreeEstimation, error) {
-	tree, err := ride.Parse(script)
+	tree, err := scriptBytesToTree(script)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to build AST")
 	}
@@ -979,7 +979,7 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 		return nil, err
 	}
 	if len(tx.Script) == 0 {
-		// No script checks / actions are needed.
+		// No script checks/actions are needed.
 		if err := tc.stor.scriptsComplexity.saveComplexitiesForAddr(addr, nil, info.blockID); err != nil {
 			return nil, err
 		}

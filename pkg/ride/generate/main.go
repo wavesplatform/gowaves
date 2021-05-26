@@ -726,6 +726,14 @@ func createTuples(sb *strings.Builder) {
 		sb.WriteString("}\n")
 		sb.WriteString(fmt.Sprintf("return %s\n", strings.Join(comparisons, " && ")))
 		sb.WriteString("}\n\n")
+		// serialize
+		sb.WriteString(fmt.Sprintf("func (a tuple%d) Serialize(serializer Serializer) error {\n", n))
+		sb.WriteString("    return serializer.Tuple(")
+		for i := 1; i <= n; i++ {
+			sb.WriteString(fmt.Sprintf("a.el%d,", i))
+		}
+		sb.WriteString(")\n}\n")
+
 	}
 }
 

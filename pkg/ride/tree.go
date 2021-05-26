@@ -1,8 +1,11 @@
 package ride
 
+import "github.com/pkg/errors"
+
 type Node interface {
 	node()
 	SetBlock(node Node)
+	Clone() Node
 }
 
 type LongNode struct {
@@ -12,6 +15,12 @@ type LongNode struct {
 func (*LongNode) node() {}
 
 func (*LongNode) SetBlock(Node) {}
+
+func (a *LongNode) Clone() Node {
+	return &LongNode{
+		Value: a.Value,
+	}
+}
 
 func NewLongNode(v int64) *LongNode {
 	return &LongNode{Value: v}
@@ -25,6 +34,13 @@ func (*BytesNode) node() {}
 
 func (*BytesNode) SetBlock(Node) {}
 
+func (a *BytesNode) Clone() Node {
+	return &BytesNode{
+		// Bytes references to the same location.
+		Value: a.Value,
+	}
+}
+
 func NewBytesNode(v []byte) *BytesNode {
 	return &BytesNode{Value: v}
 }
@@ -37,6 +53,12 @@ func (*StringNode) node() {}
 
 func (*StringNode) SetBlock(Node) {}
 
+func (a *StringNode) Clone() Node {
+	return &StringNode{
+		Value: a.Value,
+	}
+}
+
 func NewStringNode(v string) *StringNode {
 	return &StringNode{Value: v}
 }
@@ -48,6 +70,12 @@ type BooleanNode struct {
 func (*BooleanNode) node() {}
 
 func (*BooleanNode) SetBlock(Node) {}
+
+func (a *BooleanNode) Clone() Node {
+	return &BooleanNode{
+		Value: a.Value,
+	}
+}
 
 func NewBooleanNode(v bool) *BooleanNode {
 	return &BooleanNode{Value: v}
@@ -62,6 +90,14 @@ type ConditionalNode struct {
 func (*ConditionalNode) node() {}
 
 func (*ConditionalNode) SetBlock(Node) {}
+
+func (a *ConditionalNode) Clone() Node {
+	return &ConditionalNode{
+		Condition:       a.Condition.Clone(),
+		TrueExpression:  a.TrueExpression.Clone(),
+		FalseExpression: a.FalseExpression.Clone(),
+	}
+}
 
 func NewConditionalNode(condition, trueExpression, falseExpression Node) *ConditionalNode {
 	return &ConditionalNode{
@@ -79,8 +115,16 @@ type AssignmentNode struct {
 
 func (*AssignmentNode) node() {}
 
-func (n *AssignmentNode) SetBlock(node Node) {
-	n.Block = node
+func (a *AssignmentNode) SetBlock(node Node) {
+	a.Block = node
+}
+
+func (a *AssignmentNode) Clone() Node {
+	return &AssignmentNode{
+		Name:       a.Name,
+		Expression: a.Expression.Clone(),
+		Block:      a.Block.Clone(),
+	}
 }
 
 func NewAssignmentNode(name string, expression, block Node) *AssignmentNode {
@@ -98,6 +142,10 @@ type ReferenceNode struct {
 func (*ReferenceNode) node() {}
 
 func (*ReferenceNode) SetBlock(Node) {}
+
+func (a *ReferenceNode) Clone() Node {
+	return &ReferenceNode{Name: a.Name}
+}
 
 func NewReferenceNode(name string) *ReferenceNode {
 	return &ReferenceNode{Name: name}
@@ -117,6 +165,36 @@ func (n *FunctionDeclarationNode) SetBlock(node Node) {
 	n.Block = node
 }
 
+func clone(n Node) Node {
+	if n == nil {
+		return n
+	}
+	return n.Clone()
+}
+
+func cloneFuncDecl(n *FunctionDeclarationNode, body Node, block Node) *FunctionDeclarationNode {
+	return &FunctionDeclarationNode{
+		Name:                n.Name,
+		Arguments:           n.Arguments,
+		Body:                body,
+		Block:               block,
+		invocationParameter: n.invocationParameter,
+	}
+}
+
+func (n *FunctionDeclarationNode) Clone() Node {
+	args := make([]string, len(n.Arguments))
+	copy(args, n.Arguments)
+
+	return &FunctionDeclarationNode{
+		Name:                n.Name,
+		Arguments:           args,
+		Body:                n.Body.Clone(),
+		Block:               clone(n.Block),
+		invocationParameter: n.invocationParameter,
+	}
+}
+
 func NewFunctionDeclarationNode(name string, arguments []string, body, block Node) *FunctionDeclarationNode {
 	return &FunctionDeclarationNode{
 		Name:      name,
@@ -126,14 +204,43 @@ func NewFunctionDeclarationNode(name string, arguments []string, body, block Nod
 	}
 }
 
+type Nodes []Node
+
+func (a Nodes) Clone() Nodes {
+	out := make(Nodes, 0, len(a))
+	for _, v := range a {
+		out = append(out, v.Clone())
+	}
+	return out
+}
+
+func (a Nodes) Map(f func(Node) Node) Nodes {
+	args := make([]Node, 0, len(a))
+	for _, v := range a {
+		args = append(args, f(v))
+	}
+	return args
+}
+
 type FunctionCallNode struct {
 	Name      string
-	Arguments []Node
+	Arguments Nodes
+}
+
+func (a *FunctionCallNode) ArgumentsCount() uint16 {
+	return uint16(len(a.Arguments))
 }
 
 func (*FunctionCallNode) node() {}
 
 func (*FunctionCallNode) SetBlock(Node) {}
+
+func (a *FunctionCallNode) Clone() Node {
+	return &FunctionCallNode{
+		Name:      a.Name,
+		Arguments: a.Arguments.Clone(),
+	}
+}
 
 func NewFunctionCallNode(name string, arguments []Node) *FunctionCallNode {
 	return &FunctionCallNode{
@@ -150,6 +257,13 @@ type PropertyNode struct {
 func (*PropertyNode) node() {}
 
 func (*PropertyNode) SetBlock(Node) {}
+
+func (a *PropertyNode) Clone() Node {
+	return &PropertyNode{
+		Name:   a.Name,
+		Object: a.Object.Clone(),
+	}
+}
 
 func NewPropertyNode(name string, object Node) *PropertyNode {
 	return &PropertyNode{
@@ -172,6 +286,7 @@ type Tree struct {
 	Declarations []Node
 	Functions    []Node
 	Verifier     Node
+	Expanded     bool
 }
 
 func (t *Tree) HasVerifier() bool {
@@ -180,4 +295,12 @@ func (t *Tree) HasVerifier() bool {
 
 func (t *Tree) IsDApp() bool {
 	return t.AppVersion != scriptApplicationVersion
+}
+
+func (t *Tree) Invoke(env RideEnvironment, name string, arguments []rideType) (RideResult, error) {
+	e, err := treeFunctionEvaluator(env, t, name, arguments)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to call function '%s'", name)
+	}
+	return e.evaluate()
 }

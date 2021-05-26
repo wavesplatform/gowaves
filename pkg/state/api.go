@@ -127,6 +127,9 @@ type StateInfo interface {
 	// ShouldPersisAddressTransactions checks if PersisAddressTransactions
 	// should be called.
 	ShouldPersistAddressTransactions() (bool, error)
+
+	// Method should be used only in tests.
+	SmartState() types.SmartState
 }
 
 // StateModifier contains all the methods needed to modify node's state.

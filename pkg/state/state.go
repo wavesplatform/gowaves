@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -352,6 +353,10 @@ type stateManager struct {
 	verificationGoroutinesNum int
 
 	newBlocks *newBlocks
+}
+
+func (s *stateManager) SmartState() types.SmartState {
+	return s
 }
 
 func newStateManager(dataDir string, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {

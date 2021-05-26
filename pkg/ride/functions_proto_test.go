@@ -117,6 +117,19 @@ func TestAddressFromRecipient(t *testing.T) {
 	t.SkipNow()
 }
 
+func TestWriteSet(t *testing.T) {
+	_, err := writeSet(nil, nil)
+	require.Error(t, err)
+
+	_, err = writeSet(nil, rideList{})
+	require.NoError(t, err)
+
+	var lst rideList = nil
+	_, err = writeSet(nil, lst)
+	require.NoError(t, err)
+
+}
+
 func TestSigVerify(t *testing.T) {
 	msg, err := hex.DecodeString("135212a9cf00d0a05220be7323bfa4a5ba7fc5465514007702121a9c92e46bd473062f00841af83cb7bc4b2cd58dc4d5b151244cc8293e795796835ed36822c6e09893ec991b38ada4b21a06e691afa887db4e9d7b1d2afc65ba8d2f5e6926ff53d2d44d55fa095f3fad62545c714f0f3f59e4bfe91af8")
 	require.NoError(t, err)

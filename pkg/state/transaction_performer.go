@@ -3,6 +3,7 @@ package state
 import (
 	"math/big"
 
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -59,7 +60,7 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if err != nil {
 		return err
 	}
-	if err := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, tx.SenderPK, info.blockID); err != nil {
+	if err := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, tx.SenderPK, info.blockID, "performIssueWithSig"); err != nil {
 		return err
 	}
 	return tp.performIssue(&tx.Issue, assetID, info)
@@ -78,7 +79,7 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	if err != nil {
 		return err
 	}
-	if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
+	if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID, "performIssueWithProofs"); err != nil {
 		return err
 	}
 	return tp.performIssue(&tx.Issue, assetID, info)
@@ -305,11 +306,16 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	if !ok {
 		return errors.New("failed to convert interface to SetScriptWithProofs transaction")
 	}
+	txIDbytes, err := tx.GetID(tp.settings.AddressSchemeCharacter)
+	if err != nil {
+		return err
+	}
+	txID := base58.Encode(txIDbytes)
 	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
 		return err
 	}
-	if err := tp.stor.scriptsStorage.setAccountScript(senderAddr, tx.Script, tx.SenderPK, info.blockID); err != nil {
+	if err := tp.stor.scriptsStorage.setAccountScript(senderAddr, tx.Script, tx.SenderPK, info.blockID, txID); err != nil {
 		return errors.Wrap(err, "failed to set account script")
 	}
 	return nil
@@ -320,7 +326,7 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	if !ok {
 		return errors.New("failed to convert interface to SetAssetScriptWithProofs transaction")
 	}
-	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
+	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, info.blockID, "performSetAssetScriptWithProofs"); err != nil {
 		return errors.Wrap(err, "failed to set asset script")
 	}
 	return nil

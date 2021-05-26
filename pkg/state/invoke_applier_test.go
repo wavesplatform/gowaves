@@ -75,7 +75,7 @@ func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.Address, 
 	require.NoError(t, err)
 	err = to.state.stor.scriptsComplexity.saveComplexitiesForAddr(addr, map[int]ride.TreeEstimation{1: estimation}, blockID0)
 	assert.NoError(t, err, "failed to save complexity for address")
-	err = to.state.stor.scriptsStorage.setAccountScript(addr, script, pk, blockID0)
+	err = to.state.stor.scriptsStorage.setAccountScript(addr, script, pk, blockID0, "")
 	assert.NoError(t, err, "failed to set account script")
 }
 

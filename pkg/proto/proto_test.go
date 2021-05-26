@@ -558,6 +558,7 @@ func TestGetBlockMessage_MarshalBinary(t *testing.T) {
 		}
 
 		rs, err := b.MarshalBinary()
+		t.Log(rs)
 		require.NoError(t, err)
 
 		b2 := GetBlockMessage{}
@@ -615,4 +616,14 @@ func TestTCPAddr_ToUint64(t *testing.T) {
 	b := NewTcpAddrFromUint64(rs)
 
 	require.True(t, a.Equal(b))
+}
+
+func TestGetPeersMessage_MarshalBinary(t *testing.T) {
+	m := GetPeersMessage{}
+	bts, err := m.MarshalBinary()
+	require.NoError(t, err)
+	t.Log(bts)
+
+	err = m.UnmarshalBinary(bts)
+	require.NoError(t, err)
 }

@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"bytes"
 	"encoding/binary"
 	"unicode/utf16"
 
@@ -10,9 +11,25 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
+type ScriptActions []ScriptAction
+
+func (a ScriptActions) Eq(b ScriptActions) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if !a[i].Eq(b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 // ScriptAction common interface of script invocation actions.
 type ScriptAction interface {
 	scriptAction()
+	Eq(ScriptAction) bool
 }
 
 // DataEntryScriptAction is an action to manipulate account data state.
@@ -21,6 +38,14 @@ type DataEntryScriptAction struct {
 }
 
 func (a DataEntryScriptAction) scriptAction() {}
+
+func (a DataEntryScriptAction) Eq(another ScriptAction) bool {
+	b, ok := another.(*DataEntryScriptAction)
+	if !ok {
+		return false
+	}
+	return a.Entry.Eq(b.Entry)
+}
 
 func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
 	return a.Entry.ToProtobuf()
@@ -34,6 +59,14 @@ type TransferScriptAction struct {
 }
 
 func (a TransferScriptAction) scriptAction() {}
+
+func (a TransferScriptAction) Eq(other ScriptAction) bool {
+	b, ok := other.(*TransferScriptAction)
+	if !ok {
+		return false
+	}
+	return a.Amount == b.Amount && a.Asset == b.Asset && a.Recipient.Eq(b.Recipient)
+}
 
 func (a *TransferScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, error) {
 	amount := &g.Amount{
@@ -60,6 +93,21 @@ type IssueScriptAction struct {
 }
 
 func (a IssueScriptAction) scriptAction() {}
+
+func (a IssueScriptAction) Eq(other ScriptAction) bool {
+	b, ok := other.(*IssueScriptAction)
+	if !ok {
+		return false
+	}
+	return a.ID == b.ID &&
+		a.Name == b.Name &&
+		a.Description == b.Description &&
+		a.Quantity == b.Quantity &&
+		a.Decimals == b.Decimals &&
+		a.Reissuable == b.Reissuable &&
+		bytes.Equal(a.Script, b.Script) &&
+		a.Nonce == b.Nonce
+}
 
 func (a *IssueScriptAction) ToProtobuf() *g.InvokeScriptResult_Issue {
 	return &g.InvokeScriptResult_Issue{
@@ -109,6 +157,14 @@ type ReissueScriptAction struct {
 
 func (a ReissueScriptAction) scriptAction() {}
 
+func (a ReissueScriptAction) Eq(other ScriptAction) bool {
+	b, ok := other.(*ReissueScriptAction)
+	if !ok {
+		return false
+	}
+	return a.Reissuable == b.Reissuable && a.AssetID == b.AssetID && a.Quantity == b.Quantity
+}
+
 func (a *ReissueScriptAction) ToProtobuf() *g.InvokeScriptResult_Reissue {
 	return &g.InvokeScriptResult_Reissue{
 		AssetId:      a.AssetID.Bytes(),
@@ -125,6 +181,14 @@ type BurnScriptAction struct {
 
 func (a BurnScriptAction) scriptAction() {}
 
+func (a BurnScriptAction) Eq(other ScriptAction) bool {
+	b, ok := other.(*BurnScriptAction)
+	if !ok {
+		return false
+	}
+	return a.AssetID == b.AssetID && a.Quantity == b.Quantity
+}
+
 func (a *BurnScriptAction) ToProtobuf() *g.InvokeScriptResult_Burn {
 	return &g.InvokeScriptResult_Burn{
 		AssetId: a.AssetID.Bytes(),
@@ -139,6 +203,14 @@ type SponsorshipScriptAction struct {
 }
 
 func (a SponsorshipScriptAction) scriptAction() {}
+
+func (a SponsorshipScriptAction) Eq(other ScriptAction) bool {
+	b, ok := other.(*SponsorshipScriptAction)
+	if !ok {
+		return false
+	}
+	return a.AssetID == b.AssetID && a.MinFee == b.MinFee
+}
 
 func (a *SponsorshipScriptAction) ToProtobuf() *g.InvokeScriptResult_SponsorFee {
 	return &g.InvokeScriptResult_SponsorFee{

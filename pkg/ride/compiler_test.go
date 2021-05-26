@@ -2,80 +2,106 @@ package ride
 
 import (
 	"encoding/base64"
-	"encoding/hex"
+	"errors"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
-func c(values ...rideType) []rideType {
-	return values
+var defaultState = &MockSmartState{
+	NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+		return byte_helpers.TransferWithProofs.Transaction, nil
+	},
+	RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+		return nil, errors.New("not found")
+	},
+	RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+		v, err := strconv.ParseInt(key, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		return &proto.IntegerDataEntry{
+			Value: v,
+		}, nil
+	},
+}
+var defaultEnv = &MockRideEnvironment{
+	transactionFunc: testTransferObject,
+	stateFunc: func() types.SmartState {
+		return defaultState
+	},
+	schemeFunc: func() byte {
+		return 'T'
+	},
+	thisFunc: func() rideType {
+		return rideAddress{}
+	},
+	invocationFunc: func() rideObject {
+		return rideObject{}
+	},
+	heightFunc: func() rideInt {
+		return rideInt(100500)
+	},
 }
 
-func TestSimpleScriptsCompilation(t *testing.T) {
+func TestCompiler(t *testing.T) {
+	env := defaultEnv
 	for _, test := range []struct {
-		comment   string
-		source    string
-		code      string
-		constants []rideType
+		comment string
+		source  string
+		env     RideEnvironment
+		res     bool
 	}{
-		{`V1: true`, "AQa3b8tH", "0400", nil},
-		{`V3: let x = 1; true`, "AwQAAAABeAAAAAAAAAAAAQbtAkXn", "040002000001", c(rideInt(1))},
-		{`V3: let x = "abc"; true`, "AwQAAAABeAIAAAADYWJjBrpUkE4=", "040002000001", c(rideString("abc"))},
-		{`V3: func A() = 1; func B() = 2; true`, "AwoBAAAAAUEAAAAAAAAAAAAAAAABCgEAAAABQgAAAAAAAAAAAAAAAAIG+N0aQQ==",
-			"04000200010102000001", c(rideInt(1), rideInt(2))},
-		{`V3: func A() = 1; func B() = 2; A() != B()`, "AwoBAAAAAUEAAAAAAAAAAAAAAAABCgEAAAABQgAAAAAAAAAAAAAAAAIJAQAAAAIhPQAAAAIJAQAAAAFBAAAAAAkBAAAAAUIAAAAAv/Pmkg==",
-			"0a001400000a001000000900010002000200010102000001", c(rideInt(1), rideInt(2))},
-		{`V1: let i = 1; let s = "string"; toString(i) == s`, "AQQAAAABaQAAAAAAAAAAAQQAAAABcwIAAAAGc3RyaW5nCQAAAAAAAAIJAAGkAAAAAQUAAAABaQUAAAABcwIsH74=",
-			"0c001509002700010c00110900030002000200010102000001", c(rideInt(1), rideString("string"))},
-		{`V3: if true then if true then true else false else false`, "AwMGAwYGBwdYjCji",
-			"04070013030407000e03040600100305060015030500", nil},
-		{`V3: if (true) then {let r = true; r} else {let r = false; r}`, "AwMGBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXJ/ok0E",
-			"0407000b030c001006000f030c00120004010501", nil},
-		{`V3: if (let a = 1; a == 0) then {let a = 2; a == 0} else {let a = 0; a == 0}`, "AwMEAAAAAWEAAAAAAAAAAAEJAAAAAAAAAgUAAAABYQAAAAAAAAAAAAQAAAABYQAAAAAAAAAAAgkAAAAAAAACBQAAAAFhAAAAAAAAAAAABAAAAAFhAAAAAAAAAAAACQAAAAAAAAIFAAAAAWEAAAAAAAAAAAB3u9Yb",
-			"0c002a020001090003000207001d030c002e0200030900030002060029030c0032020005090003000200020000010200020102000401", c(rideInt(1), rideInt(0), rideInt(2), rideInt(0), rideInt(0), rideInt(0))},
-		{`let a = 1; let b = a; let c = b; a == c`,
-			"AwQAAAABYQAAAAAAAAAAAQQAAAABYgUAAAABYQQAAAABYwUAAAABYgkAAAAAAAACBQAAAAFhBQAAAAFjUFI1Og==",
-			"0c00140c000c0900030002000c0010010c00140102000001", c(rideInt(1))},
-		{`let x = addressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3"); let a = x; let b = a; let c = b; let d = c; let e = d; let f = e; f == e`,
-			"AQQAAAABeAkBAAAAEWFkZHJlc3NGcm9tU3RyaW5nAAAAAQIAAAAjM1BKYUR5cHJ2ZWt2UFhQdUF0eHJhcGFjdURKb3BnSlJhVTMEAAAAAWEFAAAAAXgEAAAAAWIFAAAAAWEEAAAAAWMFAAAAAWIEAAAAAWQFAAAAAWMEAAAAAWUFAAAAAWQEAAAAAWYFAAAAAWUJAAAAAAAAAgUAAAABZgUAAAABZS5FHzs=",
-			"0c000c0c00100900030002000c0010010c0014010c0018010c001c010c0020010c002401020000090037000101", c(rideString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3"))},
-		{`V3: let x = { let y = 1; y == 0 }; let y = { let z = 2; z == 0 } x == y`,
-			"AwQAAAABeAQAAAABeQAAAAAAAAAAAQkAAAAAAAACBQAAAAF5AAAAAAAAAAAABAAAAAF5BAAAAAF6AAAAAAAAAAACCQAAAAAAAAIFAAAAAXoAAAAAAAAAAAAJAAAAAAAAAgUAAAABeAUAAAABedn8HVg=",
-			"0c00200c001409000300020002000001020002010c00100200030900030002010c000c020001090003000201", c(rideInt(1), rideInt(0), rideInt(2), rideInt(0))},
-		{`V3: let z = 0; let a = {let b = 1; b == z}; let b = {let c = 2; c == z}; a == b`,
-			"AwQAAAABegAAAAAAAAAAAAQAAAABYQQAAAABYgAAAAAAAAAAAQkAAAAAAAACBQAAAAFiBQAAAAF6BAAAAAFiBAAAAAFjAAAAAAAAAAACCQAAAAAAAAIFAAAAAWMFAAAAAXoJAAAAAAAAAgUAAAABYQUAAAABYnau3I8=",
-			"0c00200c001409000300020002000101020002010c00100c002c0900030002010c000c0c002c09000300020102000001", c(rideInt(0), rideInt(1), rideInt(2))},
-		{`V3: func abs(i:Int) = if (i >= 0) then i else -i; abs(-10) == 10`, "AwoBAAAAA2FicwAAAAEAAAABaQMJAABnAAAAAgUAAAABaQAAAAAAAAAAAAUAAAABaQkBAAAAAS0AAAABBQAAAAFpCQAAAAAAAAIJAQAAAANhYnMAAAABAP/////////2AAAAAAAAAAAKmp8BWw==",
-			"0200010a001100010200020900030002000d000002000009000d0002070026030d000006002f030d0000090002000101", c(rideInt(0), rideInt(-10), rideInt(10))},
-		{`V3: if (true) then {if (false) then {func XX() = true; XX()} else {func XX() = false; XX()}} else {if (true) then {let x = false; x} else {let x = true; x}}`,
-			"AwMGAwcKAQAAAAJYWAAAAAAGCQEAAAACWFgAAAAACgEAAAACWFgAAAAABwkBAAAAAlhYAAAAAAMGBAAAAAF4BwUAAAABeAQAAAABeAYFAAAAAXgYYeMi",
-			"0407001b0305070012030a002c0000060018030a002e000006002b0304070027030c003006002b030c0032000401050105010401", nil},
-		{`tx.sender == Address(base58'11111111111111111')`, "AwkAAAAAAAACCAUAAAACdHgAAAAGc2VuZGVyCQEAAAAHQWRkcmVzcwAAAAEBAAAAEQAAAAAAAAAAAAAAAAAAAAAAWc7d/w==",
-			"0b00180800000200010900510001090003000200", c(rideString("sender"), rideBytes{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})},
-		{`func b(x: Int) = {func a(y: Int) = x + y; a(1) + a(2)}; b(2) + b(3) == 0`, "AwoBAAAAAWIAAAABAAAAAXgKAQAAAAFhAAAAAQAAAAF5CQAAZAAAAAIFAAAAAXgFAAAAAXkJAABkAAAAAgkBAAAAAWEAAAABAAAAAAAAAAABCQEAAAABYQAAAAEAAAAAAAAAAAIJAAAAAAAAAgkAAGQAAAACCQEAAAABYgAAAAEAAAAAAAAAAAIJAQAAAAFiAAAAAQAAAAAAAAAAAwAAAAAAAAAAAPsZlhQ=",
-			"0200020a002a00010200030a002a000109000500020200040900030002000d00000d00000900050002010200000a001e00010200010a001e0001090005000201", c(rideInt(1), rideInt(2), rideInt(2), rideInt(3), rideInt(0))},
-		{`func first(a: Int, b: Int) = {let x = a + b; x}; first(1, 2) == 0`, "AwoBAAAABWZpcnN0AAAAAgAAAAFhAAAAAWIEAAAAAXgJAABkAAAAAgUAAAABYQUAAAABYgUAAAABeAkAAAAAAAACCQEAAAAFZmlyc3QAAAACAAAAAAAAAAABAAAAAAAAAAACAAAAAAAAAAAAm+QHtw==",
-			"0200000200010a002000020200020900030002000d00000d00010900050002010c001401", c(rideInt(1), rideInt(2), rideInt(0))},
-		{`func A(x: Int, y: Int) = {let r = x + y; r}; func B(x: Int, y: Int) = {let r = A(x, y); r}; B(1, 2) == 3`, "AwoBAAAAAUEAAAACAAAAAXgAAAABeQQAAAABcgkAAGQAAAACBQAAAAF4BQAAAAF5BQAAAAFyCgEAAAABQgAAAAIAAAABeAAAAAF5BAAAAAFyCQEAAAABQQAAAAIFAAAAAXgFAAAAAXkFAAAAAXIJAAAAAAAAAgkBAAAAAUIAAAACAAAAAAAAAAABAAAAAAAAAAACAAAAAAAAAAADSAdb8g==",
-			"0200000200010a002c00020200020900030002000d00000d00010900050002010d00000d00010a00300002010c0020010c001401", c(rideInt(1), rideInt(2), rideInt(3))},
-		{`func f1(a: Int, b: Int) = a + b; func f2(a: Int, b: Int) = a - b; f2(f1(1, 2), 3) == 0`, "AwoBAAAAAmYxAAAAAgAAAAFhAAAAAWIJAABkAAAAAgUAAAABYQUAAAABYgoBAAAAAmYyAAAAAgAAAAFhAAAAAWIJAABlAAAAAgUAAAABYQUAAAABYgkAAAAAAAACCQEAAAACZjIAAAACCQEAAAACZjEAAAACAAAAAAAAAAABAAAAAAAAAAACAAAAAAAAAAADAAAAAAAAAAAALZ/RdA==",
-			"0200000200010a002800020200020a001c00020200030900030002000d00000d000109000b0002010d00000d0001090005000201", c(rideInt(1), rideInt(2), rideInt(3), rideInt(0))},
-		{`func f1(a: Int, b: Int) = a + b; func f2(a: Int, b: Int) = a - b; let x = f1(1, 2); f2(x, 3) == 0`, "AwoBAAAAAmYxAAAAAgAAAAFhAAAAAWIJAABkAAAAAgUAAAABYQUAAAABYgoBAAAAAmYyAAAAAgAAAAFhAAAAAWIJAABlAAAAAgUAAAABYQUAAAABYgQAAAABeAkBAAAAAmYxAAAAAgAAAAAAAAAAAQAAAAAAAAAAAgkAAAAAAAACCQEAAAACZjIAAAACBQAAAAF4AAAAAAAAAAADAAAAAAAAAAAAr1ooAg==",
-			"0c00140200020a002000020200030900030002000200000200010a002c0002010d00000d000109000b0002010d00000d0001090005000201", c(rideInt(1), rideInt(2), rideInt(3), rideInt(0))},
-		{`func f1(a: Int, b: Int) = a + b; func f2(a: Int, b: Int) = b; f2(f1(1, 2), 3) == 3`, "AwoBAAAAAmYxAAAAAgAAAAFhAAAAAWIJAABkAAAAAgUAAAABYQUAAAABYgoBAAAAAmYyAAAAAgAAAAFhAAAAAWIFAAAAAWIJAAAAAAAAAgkBAAAAAmYyAAAAAgkBAAAAAmYxAAAAAgAAAAAAAAAAAQAAAAAAAAAAAgAAAAAAAAAAAwAAAAAAAAAAA1cKYN4=",
-			"0200000200010a002000020200020a001c00020200030900030002000d0001010d00000d0001090005000201", c(rideInt(1), rideInt(2), rideInt(3), rideInt(3))},
-		{`func f1(a: Int, b: Int) = a + b; func f2(a: Int, b: Int) = b; let x = f1(1, 2); f2(x, 3) == 3`, "AwoBAAAAAmYxAAAAAgAAAAFhAAAAAWIJAABkAAAAAgUAAAABYQUAAAABYgoBAAAAAmYyAAAAAgAAAAFhAAAAAWIFAAAAAWIEAAAAAXgJAQAAAAJmMQAAAAIAAAAAAAAAAAEAAAAAAAAAAAIJAAAAAAAAAgkBAAAAAmYyAAAAAgUAAAABeAAAAAAAAAAAAwAAAAAAAAAAA6avbPE=",
-			"0c00140200020a002000020200030900030002000200000200010a00240002010d0001010d00000d0001090005000201", c(rideInt(1), rideInt(2), rideInt(3), rideInt(3))},
-		{`let x = 1; func add(i: Int) = i + 1; add(x) == 2`, "AwQAAAABeAAAAAAAAAAAAQoBAAAAA2FkZAAAAAEAAAABaQkAAGQAAAACBQAAAAFpAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAF4AAAAAAAAAAACfr6U6w==",
-			"0c001d0a001100010200020900030002000d000002000109000500020102000001", c(rideInt(1), rideInt(1), rideInt(2))},
-		{`let b = base16'0000000000000001'; func add(b: ByteVector) = toInt(b) + 1; add(b) == 2`, "AwQAAAABYgEAAAAIAAAAAAAAAAEKAQAAAANhZGQAAAABAAAAAWIJAABkAAAAAgkABLEAAAABBQAAAAFiAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAFiAAAAAAAAAAACX00biA==",
-			"0c00220a001100010200020900030002000d0000090020000102000109000500020102000001", c(rideBytes{0, 0, 0, 0, 0, 0, 0, 1}, rideInt(1), rideInt(2))},
-		{`let b = base16'0000000000000001'; func add(v: ByteVector) = toInt(v) + 1; add(b) == 2`, "AwQAAAABYgEAAAAIAAAAAAAAAAEKAQAAAANhZGQAAAABAAAAAXYJAABkAAAAAgkABLEAAAABBQAAAAF2AAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAFiAAAAAAAAAAACI7gYxg==",
-			"0c00220a001100010200020900030002000d0000090020000102000109000500020102000001", c(rideBytes{0, 0, 0, 0, 0, 0, 0, 1}, rideInt(1), rideInt(2))},
-		{`let b = base16'0000000000000001'; func add(v: ByteVector) = toInt(b) + 1; add(b) == 2`, "AwQAAAABYgEAAAAIAAAAAAAAAAEKAQAAAANhZGQAAAABAAAAAXYJAABkAAAAAgkABLEAAAABBQAAAAFiAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAFiAAAAAAAAAAAChRvwnQ==",
-			"0c00220a001100010200020900030002000c0022090020000102000109000500020102000001", c(rideBytes{0, 0, 0, 0, 0, 0, 0, 1}, rideInt(1), rideInt(2))},
+		{`V1: true`, "AQa3b8tH", env, true},
+		{`V1: false`, `AQfeYll6`, nil, false},
+		{`V3: let x = 1; true`, "AwQAAAABeAAAAAAAAAAAAQbtAkXn", env, true},
+		{`V3: let x = true; x`, "BAQAAAABeAYFAAAAAXhUb/5M", env, true},
+		{`V3: let x = "abc"; true`, "AwQAAAABeAIAAAADYWJjBrpUkE4=", nil, true},
+		{`V1: let i = 1; let s = "string"; toString(i) == s`, "BAQAAAABaQAAAAAAAAAAAQQAAAABcwIAAAAGc3RyaW5nCQAAAAAAAAIJAAGkAAAAAQUAAAABaQUAAAABc6Y8UOc=", env, false},
+		{`V3: let i = 12345; let s = "12345"; toString(i) == s`, "AwQAAAABaQAAAAAAAAAwOQQAAAABcwIAAAAFMTIzNDUJAAAAAAAAAgkAAaQAAAABBQAAAAFpBQAAAAFz1B1iCw==", nil, true},
+		{`V3: if (true) then {let r = true; r} else {let r = false; r}`, "AwMGBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXJ/ok0E", env, true},
+		{`V3: if (false) then {let r = true; r} else {let r = false; r}`, "AwMHBAAAAAFyBgUAAAABcgQAAAABcgcFAAAAAXI+tfo1", env, false},
+		{`V3: func abs(i:Int) = if (i >= 0) then i else -i; abs(-10) == 10`, "AwoBAAAAA2FicwAAAAEAAAABaQMJAABnAAAAAgUAAAABaQAAAAAAAAAAAAUAAAABaQkBAAAAAS0AAAABBQAAAAFpCQAAAAAAAAIJAQAAAANhYnMAAAABAP/////////2AAAAAAAAAAAKmp8BWw==", env, true},
+		{`V3: func a() = 1; a() == 2`, "BAoBAAAAAWEAAAAAAAAAAAAAAAABCQAAAAAAAAIJAQAAAAFhAAAAAAAAAAAAAAAAAsVdmuc=", env, false},
+		{`V3: func abc() = true; abc()`, "BAoBAAAAA2FiYwAAAAAGCQEAAAADYWJjAAAAANHu1ew=", env, true},
+		{`V3: func id(v: Boolean) = v; id(true)`, "BAoBAAAAAmlkAAAAAQAAAAF2BQAAAAF2CQEAAAACaWQAAAABBglAaUs=", env, true},
+		{`V3: 1 == 1`, "BAkAAAAAAAACAAAAAAAAAAABAAAAAAAAAAABq0EiMw==", env, true},
+		{`V3: (1 == 1) == (1 == 1)`, "BAkAAAAAAAACCQAAAAAAAAIAAAAAAAAAAAEAAAAAAAAAAAEJAAAAAAAAAgAAAAAAAAAAAQAAAAAAAAAAAWXKjzM=", env, true},
+		{`V3: let x = 1; func add(i: Int) = i + 1; add(x) == 2`, "AwQAAAABeAAAAAAAAAAAAQoBAAAAA2FkZAAAAAEAAAABaQkAAGQAAAACBQAAAAFpAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAF4AAAAAAAAAAACfr6U6w==", env, true},
+		{`V3: let x = if (true) then true else false; x`, "BAQAAAABeAMGBgcFAAAAAXgCINPC", env, true},
+		{`V3: let b = base16'0000000000000001'; func add(b: ByteVector) = toInt(b) + 1; add(b) == 2`, "AwQAAAABYgEAAAAIAAAAAAAAAAEKAQAAAANhZGQAAAABAAAAAWIJAABkAAAAAgkABLEAAAABBQAAAAFiAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAFiAAAAAAAAAAACX00biA==", nil, true},
+		{`V3: let b = base16'0000000000000001'; func add(v: ByteVector) = toInt(v) + 1; add(b) == 2`, "AwQAAAABYgEAAAAIAAAAAAAAAAEKAQAAAANhZGQAAAABAAAAAXYJAABkAAAAAgkABLEAAAABBQAAAAF2AAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAFiAAAAAAAAAAACI7gYxg==", nil, true},
+		{`V3: let b = base16'0000000000000001'; func add(v: ByteVector) = toInt(b) + 1; add(b) == 2`, "AwQAAAABYgEAAAAIAAAAAAAAAAEKAQAAAANhZGQAAAABAAAAAXYJAABkAAAAAgkABLEAAAABBQAAAAFiAAAAAAAAAAABCQAAAAAAAAIJAQAAAANhZGQAAAABBQAAAAFiAAAAAAAAAAAChRvwnQ==", nil, true},
+		{`V3: let data = base64'AAAAAAABhqAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLw=='; func getStock(data:ByteVector) = toInt(take(drop(data, 8), 8)); getStock(data) == 1`, `AwQAAAAEZGF0YQEAAABwAAAAAAABhqAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLwoBAAAACGdldFN0b2NrAAAAAQAAAARkYXRhCQAEsQAAAAEJAADJAAAAAgkAAMoAAAACBQAAAARkYXRhAAAAAAAAAAAIAAAAAAAAAAAICQAAAAAAAAIJAQAAAAhnZXRTdG9jawAAAAEFAAAABGRhdGEAAAAAAAAAAAFCtabi`, env, true},
+		{`V3: let ref = 999; func g(a: Int) = ref; func f(ref: Int) = g(ref); f(1) == 999`, "AwQAAAADcmVmAAAAAAAAAAPnCgEAAAABZwAAAAEAAAABYQUAAAADcmVmCgEAAAABZgAAAAEAAAADcmVmCQEAAAABZwAAAAEFAAAAA3JlZgkAAAAAAAACCQEAAAABZgAAAAEAAAAAAAAAAAEAAAAAAAAAA+fjknmW", env, true},
+		{`let x = 5; 6 > 4`, `AQQAAAABeAAAAAAAAAAABQkAAGYAAAACAAAAAAAAAAAGAAAAAAAAAAAEYSW6XA==`, nil, true},
+		{`let x = 5; 6 > x`, `AQQAAAABeAAAAAAAAAAABQkAAGYAAAACAAAAAAAAAAAGBQAAAAF4Gh24hw==`, nil, true},
+		{`let x = 5; 6 >= x`, `AQQAAAABeAAAAAAAAAAABQkAAGcAAAACAAAAAAAAAAAGBQAAAAF4jlxXHA==`, nil, true},
+		{`let x = {let y = true;y}x`, `BAQAAAABeAQAAAABeQYFAAAAAXkFAAAAAXhCPj2C`, nil, true},
+		{`let x =  throw(); true`, `AQQAAAABeAkBAAAABXRocm93AAAAAAa7bgf4`, nil, true},
+		{`let x =  throw(); true || x`, `AQQAAAABeAkBAAAABXRocm93AAAAAAMGBgUAAAABeKRnLds=`, env, true},
+		{`tx == tx`, "BAkAAAAAAAACBQAAAAJ0eAUAAAACdHhnqgP4", env, true},
+		{fcall1, "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA=", env, false},
+		{finf, "BAoBAAAAA2FiYwAAAAAKAQAAAAJpbgAAAAAGCQEAAAACaW4AAAAACQEAAAADYWJjAAAAADpBKyM=", env, true},
+		{intersectNames, "AwoBAAAAA2luYwAAAAEAAAABdgkAAGQAAAACBQAAAAF2AAAAAAAAAAABCgEAAAAEY2FsbAAAAAEAAAADaW5jCQEAAAADaW5jAAAAAQUAAAADaW5jCQAAAAAAAAIJAQAAAARjYWxsAAAAAQAAAAAAAAAAAgAAAAAAAAAAAxgTXMY=", env, true},
+		{`func abc(addr: Address) = addr == tx.sender;abc(tx.sender)`, "BAoBAAAAA2FiYwAAAAEAAAAEYWRkcgkAAAAAAAACBQAAAARhZGRyCAUAAAACdHgAAAAGc2VuZGVyCQEAAAADYWJjAAAAAQgFAAAAAnR4AAAABnNlbmRlckJrXFI=", env, true},
+		{`let y = [{let x = 1;x}];true`, "BAQAAAABeQkABEwAAAACBAAAAAF4AAAAAAAAAAABBQAAAAF4BQAAAANuaWwGua/TXw==", env, true},
+		{`tx.id == base58''`, `AQkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAAJBtD70=`, env, false},
+		{`tx.id == base58'H5C8bRzbUTMePSDVVxjiNKDUwk6CKzfZGTP2Rs7aCjsV'`, `BAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAIO7N5luRDUgN1SJ4kFmy/Ni8U2H6k7bpszok5tlLlRVgHwSHyg==`, env, false},
+		{`tx.id == tx.id`, `BAkAAAAAAAACCAUAAAACdHgAAAACaWQIBQAAAAJ0eAAAAAJpZHErpOM=`, env, true},
+		{`let x = tx.id == base58'a';true`, `AQQAAAABeAkAAAAAAAACCAUAAAACdHgAAAACaWQBAAAAASEGjR0kcA==`, env, true},
+		{`tx.proofs[0] != base58'' && tx.proofs[1] == base58''`, `BAMJAQAAAAIhPQAAAAIJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAAEAAAAACQAAAAAAAAIJAAGRAAAAAggFAAAAAnR4AAAABnByb29mcwAAAAAAAAAAAQEAAAAAB106gzM=`, env, true},
+		{`match tx {case t : TransferTransaction | MassTransferTransaction | ExchangeTransaction => true; case _ => false}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNFeGNoYW5nZVRyYW5zYWN0aW9uBgMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24GCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGB6Ilvok=`, env, true},
+		{`V2: match transactionById(tx.id) {case  t: Unit => false case _ => true}`, `AgQAAAAHJG1hdGNoMAkAA+gAAAABCAUAAAACdHgAAAACaWQDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABFVuaXQEAAAAAXQFAAAAByRtYXRjaDAHBp9TFcQ=`, env, true},
+		{`Up() == UP`, `AwkAAAAAAAACCQEAAAACVXAAAAAABQAAAAJVUPGUxeg=`, env, true},
+		{`HalfUp() == HALFUP`, `AwkAAAAAAAACCQEAAAAGSGFsZlVwAAAAAAUAAAAGSEFMRlVQbUfpTQ==`, nil, true},
+		{`let a0 = NoAlg() == NOALG; let a1 = Md5() == MD5; let a2 = Sha1() == SHA1; let a3 = Sha224() == SHA224; let a4 = Sha256() == SHA256; let a5 = Sha384() == SHA384; let a6 = Sha512() == SHA512; let a7 = Sha3224() == SHA3224; let a8 = Sha3256() == SHA3256; let a9 = Sha3384() == SHA3384; let a10 = Sha3512() == SHA3512; a0 && a1 && a2 && a3 && a4 && a5 && a6 && a7 && a8 && a9 && a10`, `AwQAAAACYTAJAAAAAAAAAgkBAAAABU5vQWxnAAAAAAUAAAAFTk9BTEcEAAAAAmExCQAAAAAAAAIJAQAAAANNZDUAAAAABQAAAANNRDUEAAAAAmEyCQAAAAAAAAIJAQAAAARTaGExAAAAAAUAAAAEU0hBMQQAAAACYTMJAAAAAAAAAgkBAAAABlNoYTIyNAAAAAAFAAAABlNIQTIyNAQAAAACYTQJAAAAAAAAAgkBAAAABlNoYTI1NgAAAAAFAAAABlNIQTI1NgQAAAACYTUJAAAAAAAAAgkBAAAABlNoYTM4NAAAAAAFAAAABlNIQTM4NAQAAAACYTYJAAAAAAAAAgkBAAAABlNoYTUxMgAAAAAFAAAABlNIQTUxMgQAAAACYTcJAAAAAAAAAgkBAAAAB1NoYTMyMjQAAAAABQAAAAdTSEEzMjI0BAAAAAJhOAkAAAAAAAACCQEAAAAHU2hhMzI1NgAAAAAFAAAAB1NIQTMyNTYEAAAAAmE5CQAAAAAAAAIJAQAAAAdTaGEzMzg0AAAAAAUAAAAHU0hBMzM4NAQAAAADYTEwCQAAAAAAAAIJAQAAAAdTaGEzNTEyAAAAAAUAAAAHU0hBMzUxMgMDAwMDAwMDAwMFAAAAAmEwBQAAAAJhMQcFAAAAAmEyBwUAAAACYTMHBQAAAAJhNAcFAAAAAmE1BwUAAAACYTYHBQAAAAJhNwcFAAAAAmE4BwUAAAACYTkHBQAAAANhMTAHRc/wAA==`, env, true},
+		{`Unit() == unit`, `AwkAAAAAAAACCQEAAAAEVW5pdAAAAAAFAAAABHVuaXTstg1G`, env, true},
 	} {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err, test.comment)
@@ -84,76 +110,1405 @@ func TestSimpleScriptsCompilation(t *testing.T) {
 		require.NoError(t, err, test.comment)
 		assert.NotNil(t, tree, test.comment)
 
-		rideScript, err := Compile(tree)
-		require.NoError(t, err, test.comment)
-		assert.NotNil(t, rideScript, test.comment)
-		script, ok := rideScript.(*SimpleScript)
-		require.True(t, ok, test.comment)
+		tree = MustExpand(tree)
 
-		code := hex.EncodeToString(script.Code)
-		assert.Equal(t, test.code, code, test.comment)
-		assert.ElementsMatch(t, test.constants, script.Constants, test.comment)
+		script, err := CompileTree("", tree)
+
+		require.True(t, tree.Expanded)
+
+		require.NoError(t, err, test.comment)
+		assert.NotNil(t, script, test.comment)
+
+		res, err := script.Verify(test.env)
+		require.NoError(t, err, test.comment)
+		assert.NotNil(t, res, test.comment)
+		r, ok := res.(ScriptResult)
+		assert.True(t, ok, test.comment)
+		assert.Equal(t, test.res, r.Result(), test.comment)
 	}
 }
 
-func TestDAppScriptsCompilation(t *testing.T) {
-	for _, test := range []struct {
-		comment   string
-		source    string
-		code      string
-		constants []rideType
-		entries   map[string]callable
-	}{
-		{`@Verifier(tx) func verify() = false`, "AAIDAAAAAAAAAAIIAQAAAAAAAAAAAAAAAQAAAAJ0eAEAAAAGdmVyaWZ5AAAAAAcysh6J",
-			"0500", nil, map[string]callable{"": {0, "tx"}}},
-		{`let a = 1\n@Verifier(tx) func verify() = false`, "AAIDAAAAAAAAAAIIAQAAAAEAAAAAAWEAAAAAAAAAAAEAAAAAAAAAAQAAAAJ0eAEAAAAGdmVyaWZ5AAAAAAdVrdkQ",
-			"020000010500", c(rideInt(1)), map[string]callable{"": {4, "tx"}}},
-		{`let a = 1\nfunc inc(v: Int) = {v + 1}\n@Verifier(tx) func verify() = false`, "AAIDAAAAAAAAAAIIAQAAAAIAAAAAAWEAAAAAAAAAAAEBAAAAA2luYwAAAAEAAAABdgkAAGQAAAACBQAAAAF2AAAAAAAAAAABAAAAAAAAAAEAAAACdHgBAAAABnZlcmlmeQAAAAAHDMc8rg==",
-			"020000010d00000200010900050002010500", c(rideInt(1), rideInt(1)), map[string]callable{"": {16, "tx"}}},
-		{`let a = 1\nfunc inc(v: Int) = {v + 1}\n@Verifier(tx) func verify() = inc(a) == 2`, "AAIDAAAAAAAAAAIIAQAAAAIAAAAAAWEAAAAAAAAAAAEBAAAAA2luYwAAAAEAAAABdgkAAGQAAAACBQAAAAF2AAAAAAAAAAABAAAAAAAAAAEAAAACdHgBAAAABnZlcmlmeQAAAAAJAAAAAAAAAgkBAAAAA2luYwAAAAEFAAAAAWEAAAAAAAAAAAJtD5WX",
-			"020000010d00000200010900050002010c00000a00040001020002090003000200", c(rideInt(1), rideInt(1), rideInt(2)),
-			map[string]callable{"": {16, "tx"}}},
-		{`let a = 1\nlet b = 1\nfunc inc(v: Int) = {v + 1}\nfunc add(x: Int, y: Int) = {x + y}\n@Verifier(tx) func verify() = inc(a) == add(a, b)`, "AAIDAAAAAAAAAAIIAQAAAAQAAAAAAWEAAAAAAAAAAAEAAAAAAWIAAAAAAAAAAAEBAAAAA2luYwAAAAEAAAABdgkAAGQAAAACBQAAAAF2AAAAAAAAAAABAQAAAANhZGQAAAACAAAAAXgAAAABeQkAAGQAAAACBQAAAAF4BQAAAAF5AAAAAAAAAAEAAAACdHgBAAAABnZlcmlmeQAAAAAJAAAAAAAAAgkBAAAAA2luYwAAAAEFAAAAAWEJAQAAAANhZGQAAAACBQAAAAFhBQAAAAFiDbIkmw==",
-			"02000001020001010d00000200020900050002010d00000d00010900050002010c00000a000800010c00000c00040a00140002090003000200",
-			c(rideInt(1), rideInt(1), rideInt(1)),
-			map[string]callable{"": {32, "tx"}}},
-		{`let a = 1\nlet b = 1\nlet messages = ["INFO", "WARN"]\nfunc inc(v: Int) = {v + 1}\nfunc add(x: Int, y: Int) = {x + y}\nfunc msg(i: Int) = {messages[i]}\n@Verifier(tx) func verify() = if inc(a) == add(a, b) then throw(msg(a)) else throw(msg(b))`, "AAIDAAAAAAAAAAIIAQAAAAYAAAAAAWEAAAAAAAAAAAEAAAAAAWIAAAAAAAAAAAEAAAAACG1lc3NhZ2VzCQAETAAAAAICAAAABElORk8JAARMAAAAAgIAAAAEV0FSTgUAAAADbmlsAQAAAANpbmMAAAABAAAAAXYJAABkAAAAAgUAAAABdgAAAAAAAAAAAQEAAAADYWRkAAAAAgAAAAF4AAAAAXkJAABkAAAAAgUAAAABeAUAAAABeQEAAAADbXNnAAAAAQAAAAFpCQABkQAAAAIFAAAACG1lc3NhZ2VzBQAAAAFpAAAAAAAAAAEAAAACdHgBAAAABnZlcmlmeQAAAAADCQAAAAAAAAIJAQAAAANpbmMAAAABBQAAAAFhCQEAAAADYWRkAAAAAgUAAAABYQUAAAABYgkAAAIAAAABCQEAAAADbXNnAAAAAQUAAAABYQkAAAIAAAABCQEAAAADbXNnAAAAAQUAAAABYvi7IpM=",
-			"02000001020001010200020200030b001609001e000209001e0002010d00000200040900050002010d00000d00010900050002010c00080d00000900320002010c00000a001c00010c00000c00040a00280002090003000207006c030c00000a00340001090028000106007a030c00040a00340001090028000100",
-			c(rideInt(1), rideInt(1), rideString("INFO"), rideString("WARN"), rideInt(1)),
-			map[string]callable{"": {64, "tx"}}},
-		{`@Callable(i)func f() = {WriteSet([DataEntry("YYY", "XXX")]}`, "AAIDAAAAAAAAAAQIARIAAAAAAAAAAAEAAAABaQEAAAABZgAAAAAJAQAAAAhXcml0ZVNldAAAAAEJAARMAAAAAgkBAAAACURhdGFFbnRyeQAAAAICAAAAA1lZWQIAAAADWFhYBQAAAANuaWwAAAAAeFguLA==",
-			"02000002000109005600020b001609001e000209006e000100", c(rideString("YYY"), rideString("XXX")),
-			map[string]callable{"f": {0, "i"}}},
-		{`@Callable(i)func f() = {let callerAddress = toBase58String(i.caller.bytes); WriteSet([DataEntry(callerAddress, "XXX")]}`, "AAIDAAAAAAAAAAQIARIAAAAAAAAAAAEAAAABaQEAAAABZgAAAAAEAAAADWNhbGxlckFkZHJlc3MJAAJYAAAAAQgIBQAAAAFpAAAABmNhbGxlcgAAAAVieXRlcwkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgUAAAANY2FsbGVyQWRkcmVzcwIAAAADWFhYBQAAAANuaWwAAAAAe3xtyw==",
-			"0d000008000008000109003d0001010c000002000209005600020b001609001e000209006e000100",
-			c(rideString("caller"), rideString("bytes"), rideString("XXX")),
-			map[string]callable{"f": {15, "i"}}},
-		{`let messages = ["INFO", "WARN"]\nfunc msg(i: Int) = {messages[i]}\n@Callable(i)func tellme(x: Int) = {WriteSet([DataEntry("m", msg(x))]}`, "AAIDAAAAAAAAAAcIARIDCgEBAAAAAgAAAAAIbWVzc2FnZXMJAARMAAAAAgIAAAAESU5GTwkABEwAAAACAgAAAARXQVJOBQAAAANuaWwBAAAAA21zZwAAAAEAAAABaQkAAZEAAAACBQAAAAhtZXNzYWdlcwUAAAABaQAAAAEAAAABaQEAAAAGdGVsbG1lAAAAAQAAAAF4CQEAAAAIV3JpdGVTZXQAAAABCQAETAAAAAIJAQAAAAlEYXRhRW50cnkAAAACAgAAAAFtCQEAAAADbXNnAAAAAQUAAAABeAUAAAADbmlsAAAAAO4TltI=",
-			"0200000200010b001609001e000209001e0002010c00000d00000900320002010200020d00010a0014000109005600020b001609001e000209006e000100", c(rideString("INFO"), rideString("WARN"), rideString("m")),
-			map[string]callable{"tellme": {32, "i"}}},
-		{`let messages = ["INFO", "WARN"]\nfunc msg(i: Int) = {messages[i]}\n@Callable(i)func tellme(x: Int, y: Int) = {WriteSet([DataEntry("m", msg(x))]}`, "AAIDAAAAAAAAAAgIARIECgIBAQAAAAIAAAAACG1lc3NhZ2VzCQAETAAAAAICAAAABElORk8JAARMAAAAAgIAAAAEV0FSTgUAAAADbmlsAQAAAANtc2cAAAABAAAAAWkJAAGRAAAAAgUAAAAIbWVzc2FnZXMFAAAAAWkAAAABAAAAAWkBAAAABnRlbGxtZQAAAAIAAAABeAAAAAF5CQEAAAAIV3JpdGVTZXQAAAABCQAETAAAAAIJAQAAAAlEYXRhRW50cnkAAAACAgAAAAFtCQEAAAADbXNnAAAAAQUAAAABeAUAAAADbmlsAAAAAD8Tlfs=",
-			"0200000200010b001609001e000209001e0002010c00000d00000900320002010200020d00010a0014000109005600020b001609001e000209006e000100", c(rideString("INFO"), rideString("WARN"), rideString("m")),
-			map[string]callable{"tellme": {32, "i"}}},
-		{`let a = 1; let messages = ["INFO", "WARN"]; func msg(i: Int) = {messages[i]}; @Callable(i)func tellme(x: Int) = {let m = msg(x); let callerAddress = toBase58String(i.caller.bytes); WriteSet([DataEntry(callerAddress + "-m", m)]}`, "AAIDAAAAAAAAAAcIARIDCgEBAAAAAwAAAAABYQAAAAAAAAAAAQAAAAAIbWVzc2FnZXMJAARMAAAAAgIAAAAESU5GTwkABEwAAAACAgAAAARXQVJOBQAAAANuaWwBAAAAA21zZwAAAAEAAAABaQkAAZEAAAACBQAAAAhtZXNzYWdlcwUAAAABaQAAAAEAAAABaQEAAAAGdGVsbG1lAAAAAQAAAAF4BAAAAAFtCQEAAAADbXNnAAAAAQUAAAABeAQAAAANY2FsbGVyQWRkcmVzcwkAAlgAAAABCAgFAAAAAWkAAAAGY2FsbGVyAAAABWJ5dGVzCQEAAAAIV3JpdGVTZXQAAAABCQAETAAAAAIJAQAAAAlEYXRhRW50cnkAAAACCQABLAAAAAIFAAAADWNhbGxlckFkZHJlc3MCAAAAAi1tBQAAAAFtBQAAAANuaWwAAAAAgveN3A==",
-			"020000010200010200020b001609001e000209001e0002010c00040d00000900320002010d000008000308000409003d0001010d00010a00180001010c002402000509002d00020c003309005600020b001609001e000209006e000100", c(rideInt(1), rideString("INFO"), rideString("WARN"), rideString("caller"), rideString("bytes"), rideString("-m")),
-			map[string]callable{"tellme": {60, "i"}}},
-	} {
-		src, err := base64.StdEncoding.DecodeString(test.source)
-		require.NoError(t, err, test.comment)
-
-		tree, err := Parse(src)
-		require.NoError(t, err, test.comment)
-		assert.NotNil(t, tree, test.comment)
-
-		rideScript, err := Compile(tree)
-		require.NoError(t, err, test.comment)
-		assert.NotNil(t, rideScript, test.comment)
-		script, ok := rideScript.(*DAppScript)
-		require.True(t, ok, test.comment)
-
-		code := hex.EncodeToString(script.Code)
-		assert.Equal(t, test.code, code, test.comment)
-		assert.ElementsMatch(t, test.constants, script.Constants, test.comment)
-		assert.Equal(t, test.entries, script.EntryPoints, test.comment)
+// 1 == 1
+func TestCallExternal(t *testing.T) {
+	n := &FunctionCallNode{
+		Name: "0",
+		Arguments: []Node{
+			&LongNode{
+				Value: 1,
+			},
+			&LongNode{
+				Value: 1,
+			},
+		},
 	}
+
+	f, err := compileFunction("", 3, []Node{n}, false, true)
+	require.NoError(t, err)
+
+	require.Equal(t,
+		[]byte{
+			OpReturn,
+			OpReturn,
+			OpRef, 0, 1,
+			OpRef, 0, 1,
+			OpExternalCall, 0, 3, 0, 2,
+			OpReturn,
+			OpReturn,
+		},
+		f.ByteCode)
+}
+
+// let x = if (true) then true else false; x
+func TestIfConditionRightByteCode(t *testing.T) {
+	n := &AssignmentNode{
+		Name: "x",
+		Expression: &ConditionalNode{
+			Condition:       &BooleanNode{Value: true},
+			TrueExpression:  &BooleanNode{Value: true},
+			FalseExpression: &BooleanNode{Value: false},
+		},
+		Block: &ReferenceNode{
+			Name: "x",
+		},
+	}
+
+	f, err := compileFunction("", 3, []Node{n}, false, true)
+	require.NoError(t, err)
+
+	/**
+	require.Equal(t,
+		[]byte{
+			OpReturn,
+			OpRef, 0, 1,
+			OpClearCache, 0, 1,
+			OpReturn,
+			OpRef, 0, 2,
+			OpJumpIfFalse, 0, 0x12, 0, 0x16, 0, 0x1a,
+			OpRef, 0, 3,
+			OpReturn,
+			OpRef, 0, 4,
+			OpReturn,
+			OpReturn,
+		},
+		f.ByteCode)
+
+	/**/
+
+	rs, err := f.Verify(nil)
+	require.NoError(t, err)
+	require.Equal(t, true, rs.Result())
+}
+
+// let i = 1; let s = "string"; toString(i) == s
+func TestCall(t *testing.T) {
+	source := `BAQAAAABaQAAAAAAAAAAAQQAAAABcwIAAAAGc3RyaW5nCQAAAAAAAAIJAAGkAAAAAQUAAAABaQUAAAABc6Y8UOc=`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	rs, err := script.Verify(nil)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(rs.Calls()))
+	require.Equal(t, false, rs.Result())
+}
+
+//func a() = 1; a() == 1
+func TestDoubleCall(t *testing.T) {
+	n := &FunctionDeclarationNode{
+		Name:      "a",
+		Arguments: nil,
+		Body: &LongNode{
+			Value: 1,
+		},
+		Block: &FunctionCallNode{
+			Name: "0",
+			Arguments: []Node{
+				&FunctionCallNode{
+					Name:      "a",
+					Arguments: nil,
+				},
+				&LongNode{
+					Value: 1,
+				},
+			},
+		},
+	}
+
+	f, err := compileFunction("", 3, []Node{n}, false, true)
+	require.NoError(t, err)
+
+	rs, err := f.Verify(nil)
+	require.NoError(t, err)
+	require.Equal(t, true, rs.Result())
+}
+
+// func id(v: Boolean) = v; id(true)
+func TestCallWithConstArg(t *testing.T) {
+	n := &FunctionDeclarationNode{
+		Name:      "id",
+		Arguments: []string{"v"},
+		Body:      &ReferenceNode{Name: "v"},
+		Block: &FunctionCallNode{
+			Name: "id",
+			Arguments: []Node{
+				&BooleanNode{
+					Value: true,
+				},
+			},
+		},
+		invocationParameter: "",
+	}
+
+	f, err := compileFunction("", 3, []Node{n}, false, true)
+	require.NoError(t, err)
+
+	rs, err := f.Verify(nil)
+	require.NoError(t, err)
+	require.Equal(t, true, rs.Result())
+}
+
+// func id(v: Boolean) = v && v; id(true)
+func TestMultipleCallConstantFuncArgument(t *testing.T) {
+	source := `BAoBAAAAAmlkAAAAAQAAAAF2AwUAAAABdgUAAAABdgcJAQAAAAJpZAAAAAEG3g2xRQ==`
+
+	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+		return byte_helpers.TransferWithProofs.Transaction, nil
+	}}
+	env := &MockRideEnvironment{
+		transactionFunc: testTransferObject,
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		schemeFunc: func() byte {
+			return 'T'
+		},
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+	}
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	res, err := script.Verify(env)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+	r, ok := res.(ScriptResult)
+	assert.True(t, ok)
+	assert.Equal(t, true, r.Result())
+}
+
+/*
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func id(v: Boolean) = {
+    if (v) then {
+        let x = throw("a")
+        1
+    } else {
+        let x = throw("b")
+        2
+    }
+}
+
+1 == id(true)
+
+*/
+func TestIfStmt(t *testing.T) {
+	source := `BAoBAAAAAmlkAAAAAQAAAAF2AwUAAAABdgQAAAABeAkAAAIAAAABAgAAAAFhAAAAAAAAAAABBAAAAAF4CQAAAgAAAAECAAAAAWIAAAAAAAAAAAIJAAAAAAAAAgAAAAAAAAAAAQkBAAAAAmlkAAAAAQYYAiEb`
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+	}
+	env := &MockRideEnvironment{
+		transactionFunc: testTransferObject,
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		schemeFunc: func() byte {
+			return 'T'
+		},
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+	}
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	require.NotNil(t, script)
+
+	res, err := script.Verify(env)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	r, ok := res.(ScriptResult)
+	require.True(t, ok)
+
+	for _, l := range r.calls {
+		t.Log(l)
+	}
+
+	assert.Equal(t, true, r.Result())
+}
+
+/*
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func abc(question: String) = {
+    WriteSet([
+        DataEntry("a", 5)
+        ])
+}
+
+@Callable(i)
+func cba(question: String) = {
+    WriteSet([
+        DataEntry("a", 6)
+        ])
+}
+*/
+func TestDappMultipleFunctions(t *testing.T) {
+	source := "AAIDAAAAAAAAAAwIARIDCgEIEgMKAQgAAAAAAAAAAgAAAAFpAQAAAANhYmMAAAABAAAACHF1ZXN0aW9uCQEAAAAIV3JpdGVTZXQAAAABCQAETAAAAAIJAQAAAAlEYXRhRW50cnkAAAACAgAAAAFhAAAAAAAAAAAFBQAAAANuaWwAAAABaQEAAAADY2JhAAAAAQAAAAhxdWVzdGlvbgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgIAAAABYQAAAAAAAAAABgUAAAADbmlsAAAAAFEpRso="
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileDapp("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	rs, err := script.Invoke(defaultEnv, "abc", []rideType{rideString("")})
+	require.NoError(t, err)
+
+	require.Equal(t, true, rs.Result())
+	require.Equal(t,
+		[]proto.ScriptAction{
+			&proto.DataEntryScriptAction{
+				Entry: &proto.IntegerDataEntry{Value: 5, Key: "a"},
+			},
+		}, []proto.ScriptAction(rs.ScriptActions()))
+
+	rs, err = script.Invoke(defaultEnv, "cba", []rideType{rideString("")})
+	require.NoError(t, err)
+
+	require.Equal(t, true, rs.Result())
+	require.Equal(t,
+		[]proto.ScriptAction{
+			&proto.DataEntryScriptAction{
+				Entry: &proto.IntegerDataEntry{Value: 6, Key: "a"},
+			},
+		}, []proto.ScriptAction(rs.ScriptActions()))
+}
+
+/*
+
+func finalizeCurrentPrice() {
+	let prices = 1100(
+					getOracleProvideHeight(
+						401(oraclesList,0),
+						height
+					),
+					1100(getOracleProvideHeight(401(oraclesList,1),height),
+					1100(getOracleProvideHeight(401(oraclesList,2,),height,),
+					1100(getOracleProvideHeight(401(oraclesList,3,),height,),
+					1100(getOracleProvideHeight(401(oraclesList,4,),height,),nil,),),),),);
+	let priceProvidingCount = ((((if (!=(401(prices,0,),0,)) { 1 } else { 0 } + if (!=(401(prices,1,),0,)) { 1 } else { 0 }) + if (!=(401(prices,2,),0,)) { 1 } else { 0 }) + if (!=(401(prices,3,),0,)) { 1 } else { 0 }) + if (!=(401(prices,4,),0,)) { 1 } else { 0 });
+	let priceSum = ((((401(prices,0,) + 401(prices,1,)) + 401(prices,2,)) + 401(prices,3,)) + 401(prices,4,));
+	let newPrice = 105(priceSum,priceProvidingCount,);
+	if (isBlocked) {
+		2("contract is blocked")
+	} else {
+		if (102(bftCoefficientOracle,priceProvidingCount)) {
+			2(
+				300(
+					300(
+						420(bftCoefficientOracle),
+						"/5 oracles need to set a price "
+					),
+					420(priceProvidingCount)
+				)
+			)
+		} else {
+			if (if (103(newPrice,(price + 105(104(price,percentPriceOffset,),100,)),)) { true } else { 103((price - 105(104(price,percentPriceOffset,),100,)),newPrice,) }) { WriteSet(1100(DataEntry(IsBlockedKey,true,),1100(DataEntry(getBlackSwarmPriceKey(height,),newPrice,),nil,),),) } else { let newPriceIndex = (priceIndex + 1); WriteSet(1100(DataEntry(PriceKey,newPrice,),1100(DataEntry(getPriceHistoryKey(height,),newPrice,),1100(DataEntry(PriceIndexKey,newPriceIndex,),1100(DataEntry(getHeightPriceByIndexKey(newPriceIndex,),height,),nil,),),),),) } } } }
+
+
+*/
+
+func Test777(t *testing.T) {
+	source := `BAQAAAALb3JhY2xlc0xpc3QJAARMAAAAAgIAAAAjM01TTk1jcXl3ZWlNOWNXcHZmNEZuOEdBV2V1UHN0eGoyaEsFAAAAA25pbAoBAAAAGGdldE51bWJlckJ5QWRkcmVzc0FuZEtleQAAAAIAAAAHYWRkcmVzcwAAAANrZXkAAAAAAAAAAAAKAQAAABZnZXRPcmFjbGVQcm92aWRlSGVpZ2h0AAAAAgAAAAVvd25lcgAAAAZoZWlnaHQJAQAAABhnZXROdW1iZXJCeUFkZHJlc3NBbmRLZXkAAAACCQEAAAARQGV4dHJOYXRpdmUoMTA2MikAAAABBQAAAAVvd25lcgUAAAAGaGVpZ2h0CQAAAAAAAAIJAQAAABZnZXRPcmFjbGVQcm92aWRlSGVpZ2h0AAAAAgkAAZEAAAACBQAAAAtvcmFjbGVzTGlzdAAAAAAAAAAAAAUAAAAGaGVpZ2h0AAAAAAAAAAABHUHhjA==`
+
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			t.Log("key: ", key)
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			t.Logf("acc: %q, key %s", account, key)
+			return &proto.IntegerDataEntry{
+				Value: 0,
+			}, nil
+		},
+	}
+	env := &MockRideEnvironment{
+		transactionFunc: testTransferObject,
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		schemeFunc: func() byte {
+			return 'T'
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+		heightFunc: func() rideInt {
+			return 100500
+		},
+	}
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	res, err := script.Verify(env)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+	r, ok := res.(ScriptResult)
+	assert.True(t, ok)
+	assert.Equal(t, false, r.Result())
+}
+
+/*
+func abc() = 5
+func cba() = 10
+if abc() == cba() then {
+    true
+} else {
+    false
+}
+*/
+func Test888(t *testing.T) {
+	source := `BAoBAAAAA2FiYwAAAAAAAAAAAAAAAAUKAQAAAANjYmEAAAAAAAAAAAAAAAAKAwkAAAAAAAACCQEAAAADYWJjAAAAAAkBAAAAA2NiYQAAAAAGB0hjUOM=`
+
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			t.Log("key: ", key)
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			t.Logf("acc: %q, key %s", account, key)
+			return &proto.IntegerDataEntry{
+				Value: 0,
+			}, nil
+		},
+	}
+	env := &MockRideEnvironment{
+		transactionFunc: testTransferObject,
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		schemeFunc: func() byte {
+			return 'T'
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+		heightFunc: func() rideInt {
+			return 1
+		},
+	}
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	/**
+	require.Equal(t,
+		[]byte{
+			OpReturn,
+			OpRef, 0, 0,
+			OpRef, 0, 0,
+			OpCall, 0, 0, 0, 2,
+			OpJumpIfFalse, 0, 0, 0, 0, 0, 0,
+			OpRef, 0, 0, OpReturn, //true branch
+			OpRef, 0, 0, OpReturn, //false branch
+			OpReturn,
+			OpRef, 0, 0, OpReturn, // function cba
+			OpRef, 0, 0, OpReturn, // function abc
+		},
+		script.ByteCode)
+	/**/
+
+	rs, _ := script.Verify(env)
+	require.Equal(t, rs.Result(), false)
+	//require.Equal(t, err.Error(), "terminated execution by throw with message \"1\"")
+}
+
+/*
+
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE DAPP #-}
+
+func getStringByAddressAndKey(address: Address, key: String) = match getString(address, key) {
+    case a: String =>
+        a
+    case _ =>
+        ""
+}
+
+func getStringByKey(key: String) = match getString(this, key) {
+    case a: String =>
+        a
+    case _ =>
+        ""
+}
+
+let LastConfirmTxKey = "last_confirm_tx"
+let NeutrinoContractKey = "neutrino_contract"
+let ControlContractKey = "control_contract"
+let neutrinoContract = addressFromStringValue(getStringByKey(NeutrinoContractKey))
+let controlContract = addressFromStringValue(getStringByAddressAndKey(neutrinoContract, ControlContractKey))
+let lastConfirmTx = getStringByAddressAndKey(controlContract, LastConfirmTxKey)
+
+@Verifier(tx)
+func verify () = (lastConfirmTx == toBase58String(tx.id))
+
+*/
+func TestNoDuplicateCallToState(t *testing.T) {
+	source := `AAIDAAAAAAAAAAIIAQAAAAgBAAAAGGdldFN0cmluZ0J5QWRkcmVzc0FuZEtleQAAAAIAAAAHYWRkcmVzcwAAAANrZXkEAAAAByRtYXRjaDAJAAQdAAAAAgUAAAAHYWRkcmVzcwUAAAADa2V5AwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAAZTdHJpbmcEAAAAAWEFAAAAByRtYXRjaDAFAAAAAWECAAAAAAEAAAAOZ2V0U3RyaW5nQnlLZXkAAAABAAAAA2tleQQAAAAHJG1hdGNoMAkABB0AAAACBQAAAAR0aGlzBQAAAANrZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAABlN0cmluZwQAAAABYQUAAAAHJG1hdGNoMAUAAAABYQIAAAAAAAAAABBMYXN0Q29uZmlybVR4S2V5AgAAAA9sYXN0X2NvbmZpcm1fdHgAAAAAE05ldXRyaW5vQ29udHJhY3RLZXkCAAAAEW5ldXRyaW5vX2NvbnRyYWN0AAAAABJDb250cm9sQ29udHJhY3RLZXkCAAAAEGNvbnRyb2xfY29udHJhY3QAAAAAEG5ldXRyaW5vQ29udHJhY3QJAQAAABxAZXh0clVzZXIoYWRkcmVzc0Zyb21TdHJpbmcpAAAAAQkBAAAADmdldFN0cmluZ0J5S2V5AAAAAQUAAAATTmV1dHJpbm9Db250cmFjdEtleQAAAAAPY29udHJvbENvbnRyYWN0CQEAAAAcQGV4dHJVc2VyKGFkZHJlc3NGcm9tU3RyaW5nKQAAAAEJAQAAABhnZXRTdHJpbmdCeUFkZHJlc3NBbmRLZXkAAAACBQAAABBuZXV0cmlub0NvbnRyYWN0BQAAABJDb250cm9sQ29udHJhY3RLZXkAAAAADWxhc3RDb25maXJtVHgJAQAAABhnZXRTdHJpbmdCeUFkZHJlc3NBbmRLZXkAAAACBQAAAA9jb250cm9sQ29udHJhY3QFAAAAEExhc3RDb25maXJtVHhLZXkAAAAAAAAAAQAAAAJ0eAEAAAAGdmVyaWZ5AAAAAAkAAAAAAAACBQAAAA1sYXN0Q29uZmlybVR4CQACWAAAAAEIBQAAAAJ0eAAAAAJpZJO+lgc=`
+
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		//RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+		//	t.Log("key: ", key)
+		//	return nil, errors.New("not found")
+		//},
+		RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+			switch key {
+			case "neutrino_contract":
+				return &proto.StringDataEntry{Value: "3MVHscMp4C3JjeaEiZB6fxeomPZdYEHyamY"}, nil
+			case "control_contract":
+				return &proto.StringDataEntry{Value: "3MQdbE6dK59FHxh5rf4biQdyXhdEf3L1R5W"}, nil
+			case "last_confirm_tx":
+				return &proto.StringDataEntry{Value: "3M9uzVzrAAYEKSHXzKaPhw7iQjwDi9BRJysHZHpbqXJm"}, nil
+
+			}
+			panic(key)
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
+		},
+	}
+	env := &MockRideEnvironment{
+		transactionFunc: testTransferObject,
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		schemeFunc: func() byte {
+			return 'S'
+		},
+		thisFunc: func() rideType {
+			b := [26]byte{1, 83, 122, 149, 83, 66, 227, 147, 59, 198, 33, 214, 105, 255, 17, 4, 168, 100, 213, 112, 143, 31, 192, 98, 166, 126}
+			return rideAddress(b)
+		},
+		heightFunc: func() rideInt {
+			return 1
+		},
+	}
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	rs, err := script.Verify(env)
+	require.NoError(t, err)
+	for _, c := range rs.Calls() {
+		t.Log(c)
+	}
+	require.NoError(t, err)
+	require.False(t, rs.Result())
+}
+
+/*
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE DAPP #-}
+
+@Verifier(tx)
+func verify () = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+*/
+func TestDappVerifyVm(t *testing.T) {
+	source := `AAIDAAAAAAAAAAIIAQAAAAAAAAAAAAAAAQAAAAJ0eAEAAAAGdmVyaWZ5AAAAAAkAAfQAAAADCAUAAAACdHgAAAAJYm9keUJ5dGVzCQABkQAAAAIIBQAAAAJ0eAAAAAZwcm9vZnMAAAAAAAAAAAAIBQAAAAJ0eAAAAA9zZW5kZXJQdWJsaWNLZXlQ99ml`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testTransferObject,
+		schemeFunc: func() byte {
+			return 'S'
+		},
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+	}
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	rs, err := script.Verify(env)
+	require.NoError(t, err)
+	require.Equal(t, rs.Result(), true)
+}
+
+/*
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+
+match (tx) {
+    case e:ExchangeTransaction => isDefined(e.sellOrder.assetPair.priceAsset)
+    case _ => throw("err")
+  }
+*/
+func TestMultipleProperty(t *testing.T) {
+	source := `AwQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE0V4Y2hhbmdlVHJhbnNhY3Rpb24EAAAAAWUFAAAAByRtYXRjaDAJAQAAAAlpc0RlZmluZWQAAAABCAgIBQAAAAFlAAAACXNlbGxPcmRlcgAAAAlhc3NldFBhaXIAAAAKcHJpY2VBc3NldAkAAAIAAAABAgAAAANlcnIsqB0K`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+	}
+
+	rs, err := script.Verify(env)
+	require.NoError(t, err)
+	require.Equal(t, rs.Result(), true)
+}
+
+func TestProperty(t *testing.T) {
+	t.Run("test simple property", func(t *testing.T) {
+		n := &PropertyNode{
+			Name:   "id",
+			Object: &ReferenceNode{Name: "tx"},
+		}
+		tree := &Tree{
+			LibVersion: 3,
+			AppVersion: scriptApplicationVersion,
+			Verifier:   n,
+		}
+
+		script, err := CompileVerifier("", tree)
+		require.NoError(t, err)
+		assert.NotNil(t, script)
+
+		env := &MockRideEnvironment{
+			transactionFunc: testExchangeWithProofsToObject,
+		}
+
+		require.Equal(t,
+			[]byte{
+				OpReturn,
+				OpReturn,
+				OpRef, 255, 255,
+				OpRef, 0, 202,
+				OpProperty,
+				OpReturn,
+				OpReturn,
+				OpReturn,
+			},
+			script.ByteCode)
+		_, err = script.run(env, nil)
+		require.NoError(t, err)
+	})
+	t.Run("test multiple property", func(t *testing.T) {
+		n := &PropertyNode{
+			Name: "assetPair",
+			Object: &PropertyNode{
+				Name:   "sellOrder",
+				Object: &ReferenceNode{Name: "tx"},
+			}}
+		tree := &Tree{
+			LibVersion: 3,
+			AppVersion: scriptApplicationVersion,
+			Verifier:   n,
+		}
+
+		script, err := CompileVerifier("", tree)
+		require.NoError(t, err)
+		assert.NotNil(t, script)
+
+		env := &MockRideEnvironment{
+			transactionFunc: testExchangeWithProofsToObject,
+		}
+
+		require.Equal(t,
+			[]byte{
+				OpReturn,
+				OpReturn,
+				OpRef, 0, 203,
+				OpRef, 0, 204,
+				OpProperty,
+				OpReturn,
+				OpReturn,
+				OpReturn,
+
+				OpRef, 255, 255,
+				OpRef, 0, 205,
+				OpProperty,
+				OpReturn,
+				OpReturn,
+			},
+			script.ByteCode)
+		_, err = script.run(env, nil)
+		require.NoError(t, err)
+	})
+}
+
+/*
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let x = 1 + 1
+x == x
+*/
+func TestCacheInMain(t *testing.T) {
+	source := `BAQAAAABeAkAAGQAAAACAAAAAAAAAAABAAAAAAAAAAABCQAAAAAAAAIFAAAAAXgFAAAAAXgu3TzS`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+	}
+
+	/**
+	require.Equal(t, []byte{
+		OpReturn,
+		0xe, 0x0, 0xc9,
+		OpReturn,
+		OpRef, 0x0, 0xc9,
+		OpCache, 0x0, 0xc9,
+		OpRef, 0x0, 0xc9,
+		OpCache, 0x0, 0xc9,
+		OpExternalCall, 0x0, 0x3, 0x0, 0x2, OpReturn,
+	}, script.ByteCode)
+	/**/
+
+	rs, err := script.Verify(env)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(rs.Calls())) // plus & eq
+	require.Equal(t, rs.Result(), true)
+}
+
+/*
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+func abc() = {
+    1 + 1
+}
+let info = abc()
+info == info
+*/
+func TestCacheFunctionArgumentsCalls(t *testing.T) {
+	source := `BAoBAAAAA2FiYwAAAAAJAABkAAAAAgAAAAAAAAAAAQAAAAAAAAAAAQQAAAAEaW5mbwkBAAAAA2FiYwAAAAAJAAAAAAAAAgUAAAAEaW5mbwUAAAAEaW5mby35E+E=`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+	}
+
+	rs, err := script.Verify(env)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(rs.Calls()))
+	require.Equal(t, true, rs.Result())
+}
+
+/*
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+func abc() = {
+    let x = 1 + 1
+    x == x
+}
+abc()
+*/
+func TestCacheInFunc(t *testing.T) {
+	source := `BAoBAAAAA2FiYwAAAAAEAAAAAXgJAABkAAAAAgAAAAAAAAAAAQAAAAAAAAAAAQkAAAAAAAACBQAAAAF4BQAAAAF4CQEAAAADYWJjAAAAAJz8J24=`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+	}
+
+	rs, err := script.Verify(env)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(rs.Calls()))
+	require.Equal(t, rs.Result(), true)
+}
+
+/*
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+func abc(x: Int) = x == x
+let y = getIntegerValue(this, "a")
+abc(y)
+*/
+func TestCacheFuncArgs(t *testing.T) {
+	source := `BAoBAAAAA2FiYwAAAAEAAAABeAkAAAAAAAACBQAAAAF4BQAAAAF4BAAAAAF5CQEAAAARQGV4dHJOYXRpdmUoMTA1MCkAAAACBQAAAAR0aGlzAgAAAAFhCQEAAAADYWJjAAAAAQUAAAABeYsrE7g=`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+	state := &MockSmartState{
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			return &proto.IntegerDataEntry{
+				Value: 1,
+			}, nil
+		},
+	}
+	env := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+	}
+
+	rs, err := script.Verify(env)
+	require.NoError(t, err)
+	require.Equal(t, true, rs.Result())
+	require.Equal(t, 2, len(rs.Calls()))
+	// only 1 native call to state
+	require.Equal(t, "@extrNative(1050)", rs.Calls()[0].name)
+	// native compare
+	require.Equal(t, "0", rs.Calls()[1].name)
+}
+
+/*
+let x = {
+	let y = true;
+	y;
+}
+x
+*/
+func TestLetInLet(t *testing.T) {
+	source := `BAQAAAABeAQAAAABeQYFAAAAAXkFAAAAAXhCPj2C`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileVerifier("", tree)
+	t.Log(Decompiler(tree.Verifier))
+	require.NoError(t, err)
+	assert.NotNil(t, script)
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+	}
+
+	/* *
+	require.Equal(t,
+		[]byte{
+			OpReturn,
+			OpRef, 0, 1,
+			OpClearCache, 0, 2,
+			OpClearCache, 0, 1,
+			OpReturn,
+			OpRef, 0, 2,
+			//OpReturn,
+		},
+		script.ByteCode[:11])
+	/**/
+
+	rs, err := script.Verify(env)
+	require.NoError(t, err)
+	require.Equal(t, true, rs.Result())
+}
+
+/*
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE DAPP #-}
+
+
+@Callable(i)
+func deposit () = {
+    let pmt = extract(i.payment)
+    if (isDefined(pmt.assetId))
+        then throw("can hold waves only at the moment")
+        else {
+            let currentKey = toBase58String(i.caller.bytes)
+            let currentAmount =             match getInteger(this, currentKey) {
+                case a: Int =>
+                    a
+                case _ =>
+                    0
+            }
+            let newAmount = (currentAmount + pmt.amount)
+            WriteSet([DataEntry(currentKey, newAmount)])
+            }
+    }
+
+
+
+@Callable(i)
+func withdraw (amount) = {
+    let currentKey = toBase58String(i.caller.bytes)
+    let currentAmount =     match getInteger(this, currentKey) {
+        case a: Int =>
+            a
+        case _ =>
+            0
+    }
+    let newAmount = (currentAmount - amount)
+    if ((0 > amount))
+        then throw("Can't withdraw negative amount")
+        else if ((0 > newAmount))
+            then throw("Not enough balance")
+            else ScriptResult(WriteSet([DataEntry(currentKey, newAmount)]), TransferSet([ScriptTransfer(i.caller, amount, unit)]))
+    }
+
+
+@Verifier(tx)
+func verify () = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+*/
+func TestDDaa(t *testing.T) {
+	source := `AAIDAAAAAAAAAAkIARIAEgMKAQEAAAAAAAAAAgAAAAFpAQAAAAdkZXBvc2l0AAAAAAQAAAADcG10CQEAAAAHZXh0cmFjdAAAAAEIBQAAAAFpAAAAB3BheW1lbnQDCQEAAAAJaXNEZWZpbmVkAAAAAQgFAAAAA3BtdAAAAAdhc3NldElkCQAAAgAAAAECAAAAIWNhbiBob2xkIHdhdmVzIG9ubHkgYXQgdGhlIG1vbWVudAQAAAAKY3VycmVudEtleQkAAlgAAAABCAgFAAAAAWkAAAAGY2FsbGVyAAAABWJ5dGVzBAAAAA1jdXJyZW50QW1vdW50BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAACmN1cnJlbnRLZXkDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAA0ludAQAAAABYQUAAAAHJG1hdGNoMAUAAAABYQAAAAAAAAAAAAQAAAAJbmV3QW1vdW50CQAAZAAAAAIFAAAADWN1cnJlbnRBbW91bnQIBQAAAANwbXQAAAAGYW1vdW50CQEAAAAIV3JpdGVTZXQAAAABCQAETAAAAAIJAQAAAAlEYXRhRW50cnkAAAACBQAAAApjdXJyZW50S2V5BQAAAAluZXdBbW91bnQFAAAAA25pbAAAAAFpAQAAAAh3aXRoZHJhdwAAAAEAAAAGYW1vdW50BAAAAApjdXJyZW50S2V5CQACWAAAAAEICAUAAAABaQAAAAZjYWxsZXIAAAAFYnl0ZXMEAAAADWN1cnJlbnRBbW91bnQEAAAAByRtYXRjaDAJAAQaAAAAAgUAAAAEdGhpcwUAAAAKY3VycmVudEtleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAFhBQAAAAckbWF0Y2gwBQAAAAFhAAAAAAAAAAAABAAAAAluZXdBbW91bnQJAABlAAAAAgUAAAANY3VycmVudEFtb3VudAUAAAAGYW1vdW50AwkAAGYAAAACAAAAAAAAAAAABQAAAAZhbW91bnQJAAACAAAAAQIAAAAeQ2FuJ3Qgd2l0aGRyYXcgbmVnYXRpdmUgYW1vdW50AwkAAGYAAAACAAAAAAAAAAAABQAAAAluZXdBbW91bnQJAAACAAAAAQIAAAASTm90IGVub3VnaCBiYWxhbmNlCQEAAAAMU2NyaXB0UmVzdWx0AAAAAgkBAAAACFdyaXRlU2V0AAAAAQkABEwAAAACCQEAAAAJRGF0YUVudHJ5AAAAAgUAAAAKY3VycmVudEtleQUAAAAJbmV3QW1vdW50BQAAAANuaWwJAQAAAAtUcmFuc2ZlclNldAAAAAEJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyBQAAAAZhbW91bnQFAAAABHVuaXQFAAAAA25pbAAAAAEAAAACdHgBAAAABnZlcmlmeQAAAAAJAAH0AAAAAwgFAAAAAnR4AAAACWJvZHlCeXRlcwkAAZEAAAACCAUAAAACdHgAAAAGcHJvb2ZzAAAAAAAAAAAACAUAAAACdHgAAAAPc2VuZGVyUHVibGljS2V54232jg==`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	script, err := CompileTree("", tree)
+	require.NoError(t, err)
+	require.NotNil(t, script)
+	require.Equal(t, 4, len(script.EntryPoints))
+}
+
+func BenchmarkVm(b *testing.B) {
+	source := "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA="
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(b, err)
+
+	tree, err := Parse(src)
+	require.NoError(b, err)
+
+	script, err := CompileTree("", tree)
+	require.NoError(b, err)
+
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
+		},
+	}
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+	}
+
+	b.ReportAllocs()
+	b.StopTimer()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		rs, err := script.Verify(env)
+		require.Equal(b, 5, len(rs.Calls()))
+		b.StopTimer()
+		require.NoError(b, err)
+	}
+}
+
+func BenchmarkTree(b *testing.B) {
+	source := "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA="
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(b, err)
+
+	tree, err := Parse(src)
+	require.NoError(b, err)
+
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
+		},
+	}
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+	}
+
+	b.ReportAllocs()
+	b.StopTimer()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		rs, err := CallTreeVerifier(env, tree)
+		b.StopTimer()
+		require.NoError(b, err)
+		require.Equal(b, 5, len(rs.Calls()))
+
+	}
+}
+
+func BenchmarkVmWithDeserialize(b *testing.B) {
+	source := "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA="
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(b, err)
+
+	tree, err := Parse(src)
+	require.NoError(b, err)
+
+	script, err := CompileTree("", tree)
+	require.NoError(b, err)
+
+	ser := NewSerializer()
+	err = script.Serialize(ser)
+	require.NoError(b, err)
+
+	bts := ser.Source()
+
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
+		},
+	}
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+	}
+
+	b.ReportAllocs()
+	b.StopTimer()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		exe, err := DeserializeExecutable(bts)
+		require.NoError(b, err)
+		rs, err := exe.Verify(env)
+		require.Equal(b, 5, len(rs.Calls()))
+		b.StopTimer()
+		require.NoError(b, err)
+	}
+}
+
+func BenchmarkTreeWithDeserialize(b *testing.B) {
+	source := "BAoBAAAABmdldEludAAAAAEAAAADa2V5BAAAAAckbWF0Y2gwCQAEGgAAAAIFAAAABHRoaXMFAAAAA2tleQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAADSW50BAAAAAF4BQAAAAckbWF0Y2gwBQAAAAF4AAAAAAAAAAAABAAAAAFhCQEAAAAGZ2V0SW50AAAAAQIAAAABNQQAAAABYgkBAAAABmdldEludAAAAAECAAAAATYJAAAAAAAAAgUAAAABYQUAAAABYkOIJQA="
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(b, err)
+
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
+		},
+	}
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+	}
+
+	b.ReportAllocs()
+	b.StopTimer()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		tree, err := Parse(src)
+		require.NoError(b, err)
+		rs, err := CallTreeVerifier(env, tree)
+		b.StopTimer()
+		require.NoError(b, err)
+		require.Equal(b, 5, len(rs.Calls()))
+	}
+}
+
+/*
+{-# STDLIB_VERSION 4 #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+if (true) then {
+    func a() = {
+        true
+    }
+    a()
+} else {
+    func b() = {
+        false
+    }
+    b()
+}
+*/
+
+func TestFuncInCondState(t *testing.T) {
+	source := `BAMGCgEAAAABYQAAAAAGCQEAAAABYQAAAAAKAQAAAAFiAAAAAAcJAQAAAAFiAAAAAObLaEQ=`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
+		},
+		NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
+			return 0, nil
+		},
+	}
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+	}
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	rs1, _ := CallTreeVerifier(env, tree)
+	for i, c := range rs1.Calls() {
+		t.Log(i, " ", c)
+	}
+
+	exe, err := CompileTree("", tree)
+	require.NoError(t, err)
+
+	rs2, err := exe.Verify(env)
+	require.NoError(t, err)
+	for i, c := range rs2.Calls() {
+		t.Log(i, " ", c)
+	}
+	require.True(t, rs1.Eq(rs2))
+}
+
+/*
+
+ */
+
+func Test111111(t *testing.T) {
+	source := `AwoBAAAAA2luYwAAAAEAAAABdgkAAGQAAAACBQAAAAF2AAAAAAAAAAABCgEAAAAEY2FsbAAAAAEAAAADaW5jCQEAAAADaW5jAAAAAQUAAAADaW5jCQAAAAAAAAIJAQAAAARjYWxsAAAAAQAAAAAAAAAAAgAAAAAAAAAAAxgTXMY=`
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+	state := &MockSmartState{
+		NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
+			return byte_helpers.TransferWithProofs.Transaction, nil
+		},
+		RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			return nil, errors.New("not found")
+		},
+		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			v, err := strconv.ParseInt(key, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			return &proto.IntegerDataEntry{
+				Value: v,
+			}, nil
+		},
+		NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
+			return 0, nil
+		},
+	}
+
+	env := &MockRideEnvironment{
+		transactionFunc: testExchangeWithProofsToObject,
+		checkMessageLengthFunc: func(in1 int) bool {
+			return true
+		},
+		stateFunc: func() types.SmartState {
+			return state
+		},
+		thisFunc: func() rideType {
+			return rideAddress{}
+		},
+		invocationFunc: func() rideObject {
+			return rideObject{}
+		},
+	}
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+
+	exe, err := CompileTree("", tree)
+	require.NoError(t, err)
+	rs, err := exe.Verify(env)
+	require.NoError(t, err)
+	for i, c := range rs.Calls() {
+		t.Log(i, " ", c)
+	}
+}
+
+/**
+let height = height
+height != 0
+*/
+func TestShadowedVariable(t *testing.T) {
+	source := `AwoBAAAAD2dldFByaWNlSGlzdG9yeQAAAAEAAAAGaGVpZ2h0BQAAAAZoZWlnaHQJAQAAAAIhPQAAAAIJAQAAAA9nZXRQcmljZUhpc3RvcnkAAAABBQAAAAZoZWlnaHQAAAAAAAAAAADe0Skk`
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	tree = MustExpand(tree)
+	require.Equal(t, "(let height$getPriceHistory = { height }; height$getPriceHistory != 0)", DecompileTree(tree))
+
+	script, err := CompileTree("", tree)
+	require.NoError(t, err)
+
+	rs, err := script.Verify(defaultEnv)
+	require.NoError(t, err)
+	require.Equal(t, true, rs.Result())
+}
+
+/**
+{-# STDLIB_VERSION 3 #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+{-# CONTENT_TYPE EXPRESSION #-}
+
+let prevOrder = false
+func internal(prevOrder: Boolean) = {
+    if (prevOrder)
+        then false
+        else true
+}
+if (false)
+  then false
+  else internal(prevOrder)
+*/
+func TestShadowedVariableInConditionStmt(t *testing.T) {
+	source := `AwQAAAAJcHJldk9yZGVyBwoBAAAACGludGVybmFsAAAAAQAAAAlwcmV2T3JkZXIDBQAAAAlwcmV2T3JkZXIHBgMHBwkBAAAACGludGVybmFsAAAAAQUAAAAJcHJldk9yZGVyxqI+QQ==`
+
+	src, err := base64.StdEncoding.DecodeString(source)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	tree = MustExpand(tree)
+	require.True(t, tree.Expanded)
+	script, err := CompileTree("", tree)
+	require.NoError(t, err)
+
+	rs, err := script.Verify(defaultEnv)
+	require.NoError(t, err)
+	require.Equal(t, true, rs.Result())
 }

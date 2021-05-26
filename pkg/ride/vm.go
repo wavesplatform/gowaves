@@ -6,102 +6,82 @@ import (
 	"github.com/pkg/errors"
 )
 
-type frame struct {
-	function bool
-	back     int
-	args     []rideType
-}
-
-func newExpressionFrame(pos int) frame {
-	return frame{
-		back: pos,
-	}
-}
-
-func newFunctionFrame(pos int, args []rideType) frame {
-	return frame{
-		function: true,
-		back:     pos,
-		args:     args,
-	}
-}
+const limitOperations = 200000
 
 type vm struct {
-	env          RideEnvironment
-	code         []byte
-	ip           int
-	constants    []rideType
-	functions    func(int) rideFunction
-	globals      func(int) rideConstructor
-	stack        []rideType
-	calls        []frame
-	functionName func(int) string
+	env           RideEnvironment
+	code          []byte
+	ip            int
+	stack         []rideType
+	jmps          []int
+	ref           map[uint16]point
+	calls         []callLog
+	numOperations int
+	libVersion    int
 }
 
-func (m *vm) run() (RideResult, error) {
-	if m.stack != nil {
-		m.stack = m.stack[0:0]
-	}
-	if m.calls != nil {
-		m.calls = m.calls[0:0]
-	}
-	m.ip = 0
+func (m *vm) run() (rideType, error) {
 	for m.ip < len(m.code) {
+		if m.numOperations >= limitOperations {
+			return nil, errors.New("limit operations exceed")
+		}
+		m.numOperations++
+
 		op := m.code[m.ip]
 		m.ip++
 		switch op {
-		case OpPush:
-			m.push(m.constant())
 		case OpPop:
 			_, err := m.pop()
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to pop value")
+				return nil, err
 			}
-		case OpTrue:
-			m.push(rideBoolean(true))
-		case OpFalse:
-			m.push(rideBoolean(false))
 		case OpJump:
 			pos := m.arg16()
+			m.jmps = append(m.jmps, m.ip)
 			m.ip = pos
+
 		case OpJumpIfFalse:
-			pos := m.arg16()
-			v, ok := m.current().(rideBoolean)
+			posTrue := m.arg16()
+			posFalse := m.arg16()
+			posNext := m.arg16()
+			m.jmps = append(m.jmps, posNext)
+
+			val, err := m.pop()
+			if err != nil {
+				return nil, errors.Wrap(err, "OpJumpIfFalse")
+			}
+			v, ok := val.(rideBoolean)
 			if !ok {
 				return nil, errors.Errorf("not a boolean value '%v' of type '%T'", m.current(), m.current())
 			}
-			if !v {
-				m.ip = pos
+			if v {
+				m.ip = posTrue
+			} else {
+				m.ip = posFalse
 			}
 		case OpProperty:
+			prop, err := m.pop()
+			if err != nil {
+				return nil, err //errors.Wrap(err, "no ref %d", n)
+			}
+			p, ok := prop.(rideString)
+			if !ok {
+				return nil, errors.Errorf("invalid property type '%T'", prop)
+			}
 			obj, err := m.pop()
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get object")
 			}
-			prop := m.constant()
-			p, ok := prop.(rideString)
-			if !ok {
-				return nil, errors.Errorf("invalid property name type '%s'", prop.instanceOf())
-			}
 			v, err := obj.get(string(p))
 			if err != nil {
-				return nil, err
+				return nil, errors.Wrap(err, "vm OpProperty")
 			}
 			m.push(v)
 		case OpCall:
 			pos := m.arg16()
-			cnt := m.arg16()
-			in := make([]rideType, cnt)
-			for i := cnt - 1; i >= 0; i-- {
-				v, err := m.pop()
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to call function at position %d", pos)
-				}
-				in[i] = v
-			}
-			frame := newFunctionFrame(m.ip, in) // Creating new function frame with return position
-			m.calls = append(m.calls, frame)
-			m.ip = pos // Continue to function
+			m.jmps = append(m.jmps, m.ip)
+			m.ip = pos
+
 		case OpExternalCall:
 			// Before calling external function all parameters must be evaluated and placed on stack
 			id := m.arg16()
@@ -110,71 +90,125 @@ func (m *vm) run() (RideResult, error) {
 			for i := cnt - 1; i >= 0; i-- {
 				v, err := m.pop()
 				if err != nil {
-					return nil, errors.Wrapf(err, "failed to call external function '%s'", m.functionName(id))
+					return nil, errors.Wrap(err, "failed to call external function")
 				}
 				in[i] = v
 			}
-			fn := m.functions(id)
-			if fn == nil {
-				return nil, errors.Errorf("external function '%s' not implemented", m.functionName(id))
-			}
-			res, err := fn(m.env, in...)
+			functions, err := selectFunctions(m.libVersion)
 			if err != nil {
 				return nil, err
 			}
+			provider, err := selectFunctionNameProvider(m.libVersion)
+			if err != nil {
+				return nil, err
+			}
+			fn := functions(id)
+			if fn == nil {
+				return nil, errors.Errorf("external function '%s' not implemented", provider(id))
+			}
+			res, err := fn(m.env, in...)
+			m.calls = append(m.calls, callLog{
+				name:   provider(id),
+				args:   in,
+				result: res,
+			})
+			if err != nil {
+				return nil, errors.Wrapf(err, "iteration %d", m.numOperations)
+			}
+			if isThrow(res) {
+				return res, nil
+			}
 			m.push(res)
-		case OpLoad: // Evaluate expression behind a LET declaration
-			pos := m.arg16()
-			frame := newExpressionFrame(m.ip) // Creating new function frame with return position
-			m.calls = append(m.calls, frame)
-			m.ip = pos // Continue to expression
-		case OpLoadLocal:
-			n := m.arg16()
-			for i := len(m.calls) - 1; i >= 0; i-- {
-
-			}
-			l := len(m.calls)
-			if l == 0 {
-				return nil, errors.New("failed to load argument on stack")
-			}
-			frame := m.calls[l-1]
-			if l := len(frame.args); l < n+1 {
-				return nil, errors.New("invalid arguments count")
-			}
-			m.push(frame.args[n])
 		case OpReturn:
-			l := len(m.calls)
-			var f frame
-			f, m.calls = m.calls[l-1], m.calls[:l-1]
-			m.ip = f.back
-		case OpHalt:
-			if len(m.stack) > 0 {
-				v, err := m.pop()
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get result value")
+			l := len(m.jmps)
+			if l == 0 {
+				if len(m.stack) > 0 {
+					v, err := m.pop()
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to get result value")
+					}
+					return v, nil
 				}
-				switch tv := v.(type) {
-				case rideBoolean:
-					return ScriptResult{res: bool(tv)}, nil
-				default:
-					return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
-				}
+				return nil, errors.New("no result after script execution")
 			}
-			return nil, errors.New("no result after script execution")
-		case OpGlobal:
-			id := m.arg16()
-			constructor := m.globals(id)
-			v := constructor(m.env)
-			m.push(v)
+			m.ip, m.jmps = m.jmps[l-1], m.jmps[:l-1]
+
+		case OpSetArg:
+			from := m.uint16()
+			to := m.uint16()
+			// for debug purpose
+			x := m.ref[from]
+			_ = x
+			m.ref[to] = m.ref[from]
+		case OpCache:
+			refID := m.uint16()
+			if refID < 200 {
+				continue
+			}
+			value, err := m.pop()
+			if err != nil {
+				return nil, errors.Wrap(err, "no value to cache")
+			}
+			m.push(value)
+			point := m.ref[refID]
+			point.value = value
+			m.ref[refID] = point
+		case OpClearCache:
+			refID := m.uint16()
+			point, ok := m.ref[refID]
+			if !ok {
+				return nil, errors.Errorf("OpClearCache: no ref with id %d", refID)
+			}
+			// Clear cache only if its not constant.
+			if !point.constant() {
+				point.value = nil
+				m.ref[refID] = point
+			}
+
+		case OpRef:
+			refID := m.uint16()
+			switch {
+			case refID <= 100:
+				m.push(rideInt(refID))
+				continue
+			case refID == 101:
+				m.push(rideBoolean(true))
+				continue
+			case refID == 102:
+				m.push(rideBoolean(false))
+				continue
+			}
+			point, ok := m.ref[refID]
+			if !ok {
+				return nil, errors.Errorf("reference %d not found", refID)
+			}
+			if point.value != nil {
+				m.push(point.value)
+			} else if point.fn != 0 {
+				fn := predefined.getn(int(point.fn))
+				rs, err := fn(m.env)
+				if err != nil {
+					return nil, err
+				}
+				m.push(rs)
+			} else {
+				if m.ip == int(point.position)+3 {
+					return nil, errors.Errorf("infinity loop detected on iteration %d", m.numOperations)
+				}
+				m.jmps = append(m.jmps, m.ip)
+				m.ip = int(point.position)
+			}
+
 		default:
-			return nil, errors.Errorf("unknown code %#x", op)
+			return nil, errors.Errorf("unknown code %#x, at iteration %d", op, m.numOperations)
 		}
 	}
 	return nil, errors.New("broken code")
 }
 
-func (m *vm) push(v rideType) {
+func (m *vm) push(v rideType) constid {
 	m.stack = append(m.stack, v)
+	return uint16(len(m.stack) - 1)
 }
 
 func (m *vm) pop() (rideType, error) {
@@ -197,28 +231,9 @@ func (m *vm) arg16() int {
 	return int(res)
 }
 
-func (m *vm) constant() rideType {
+func (m *vm) uint16() uint16 {
 	//TODO: add check
-	return m.constants[m.arg16()]
+	res := binary.BigEndian.Uint16(m.code[m.ip : m.ip+2])
+	m.ip += 2
+	return res
 }
-
-//func (m *vm) scope() (*frame, int) {
-//	n := len(m.calls) - 1
-//	if n < 0 {
-//		return nil, n
-//	}
-//	return &m.calls[n], n
-//}
-
-//func (m *vm) resolve(name string) (int, error) {
-//	_ = name
-//	//TODO: implement
-//	return 0, errors.New("not implemented")
-//}
-
-//func (m *vm) returnPosition() int {
-//	if l := len(m.calls); l > 0 {
-//		return m.calls[l-1].back
-//	}
-//	return len(m.code)
-//}
