@@ -778,7 +778,9 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 
 	var minWavesFee uint64
 	scriptHasVerifier, err := ia.stor.scriptsStorage.newestAccountHasVerifier(*info.scriptAddr, !info.initialisation)
-
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if the script with address %s has verifier", info.scriptAddr.String())
+	}
 	// since rideV5
 	if scriptHasVerifier && info.rideV5Activated && verifierComplexity <= FreeVerifierComplexity {
 		minWavesFee = feeConstants[proto.InvokeScriptTransaction]*FeeUnit + minIssueFee
