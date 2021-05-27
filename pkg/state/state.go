@@ -1499,7 +1499,7 @@ func (s *stateManager) NewestHitSourceAtHeight(height uint64) ([]byte, error) {
 	if height < 1 || height > maxHeight {
 		return nil, wrapErr(InvalidInputError, errors.Errorf("NewestHitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight))
 	}
-	return s.stor.hitSources.newestHitSource(height, true)
+	return s.stor.hitSources.newestHitSource(height, false)
 }
 
 func (s *stateManager) CurrentScore() (*big.Int, error) {

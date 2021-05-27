@@ -28,6 +28,8 @@ type evaluationScope struct {
 	system    map[string]rideFunction
 	user      []esFunction
 	cl        int
+	costs     map[string]int
+	free      map[string]struct{}
 }
 
 func (s *evaluationScope) declare(n Node) error {
@@ -51,6 +53,12 @@ func (s *evaluationScope) pushValue(id string, v rideType) {
 	s.cs[len(s.cs)-1] = append(s.cs[len(s.cs)-1], esValue{id: id, value: v})
 }
 
+func (s *evaluationScope) updateValue(frame, pos int, id string, v rideType) {
+	if ev := s.cs[frame][pos]; ev.id == id && ev.value == nil {
+		s.cs[frame][pos] = esValue{id: id, value: v}
+	}
+}
+
 func (s *evaluationScope) popValue() {
 	s.cs[len(s.cs)-1] = s.cs[len(s.cs)-1][:len(s.cs[len(s.cs)-1])-1]
 }
@@ -67,29 +75,29 @@ func (s *evaluationScope) constant(id string) (rideType, bool) {
 	return nil, false
 }
 
-func lookup(s []esValue, id string) (esValue, bool) {
+func lookup(s []esValue, id string) (esValue, bool, int) {
 	for i := len(s) - 1; i >= 0; i-- {
 		if v := s[i]; v.id == id {
-			return v, true
+			return v, true, i
 		}
 	}
-	return esValue{}, false
+	return esValue{}, false, 0
 }
 
-func (s *evaluationScope) value(id string) (esValue, bool) {
-	if p := len(s.cs) - 1; p >= 0 {
-		v, ok := lookup(s.cs[p], id)
+func (s *evaluationScope) value(id string) (esValue, bool, int, int) {
+	if i := len(s.cs) - 1; i >= 0 {
+		v, ok, p := lookup(s.cs[i], id)
 		if ok {
-			return v, true
+			return v, true, i, p
 		}
 	}
 	for i := s.cl - 1; i >= 0; i-- {
-		v, ok := lookup(s.cs[i], id)
+		v, ok, p := lookup(s.cs[i], id)
 		if ok {
-			return v, true
+			return v, true, i, p
 		}
 	}
-	return esValue{}, false
+	return esValue{}, false, 0, 0
 }
 
 func (s *evaluationScope) pushUserFunction(uf *FunctionDeclarationNode) {
@@ -156,11 +164,17 @@ func newEvaluationScope(v int, env Environment, enableInvocation bool) (evaluati
 		}
 		fs[fn] = functionProvider(int(id))
 	}
+	costs, free, err := selectEvaluationCostsProvider(v)
+	if err != nil {
+		return evaluationScope{}, err
+	}
 	return evaluationScope{
 		constants: cs,
 		system:    fs,
 		cs:        [][]esValue{make([]esValue, 0)},
 		env:       env,
+		costs:     costs,
+		free:      free,
 	}, nil
 }
 
@@ -212,15 +226,14 @@ func selectFunctionNames(v int, enableInvocation bool) ([]string, error) {
 }
 
 type treeEvaluator struct {
-	dapp bool
-	//limit int
-	//cost  int
-	f   Node
-	s   evaluationScope
-	env Environment
+	dapp       bool
+	complexity int
+	f          Node
+	s          evaluationScope
+	env        Environment
 }
 
-func (e *treeEvaluator) evaluate() (RideResult, error) {
+func (e *treeEvaluator) evaluate() (Result, error) {
 	r, err := e.walk(e.f)
 	if err != nil {
 		return nil, err
@@ -229,30 +242,29 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 	switch res := r.(type) {
 	case rideThrow:
 		if e.dapp {
-			return DAppResult{res: false, msg: string(res)}, nil
+			return DAppResult{res: false, msg: string(res), complexity: e.complexity}, nil
 		}
-		return ScriptResult{res: false, msg: string(res)}, nil
+		return ScriptResult{res: false, msg: string(res), complexity: e.complexity}, nil
 	case rideBoolean:
-		return ScriptResult{res: bool(res)}, nil
+		return ScriptResult{res: bool(res), complexity: e.complexity}, nil
 	case rideObject:
 		a, err := objectToActions(e.env, res)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
-		return DAppResult{res: true, actions: a, msg: ""}, nil
+		return DAppResult{res: true, actions: a, msg: "", complexity: e.complexity}, nil
 	case rideList:
-		var act []proto.ScriptAction
+		var actions []proto.ScriptAction
 		for _, item := range res {
 			a, err := convertToAction(e.env, item)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to convert evaluation result")
 			}
-			act = append(act, a)
+			actions = append(actions, a)
 		}
-
-		return DAppResult{res: true, actions: act}, nil
+		return DAppResult{res: true, actions: actions, complexity: e.complexity}, nil
 	case tuple2:
-		var act []proto.ScriptAction
+		var actions []proto.ScriptAction
 		switch resAct := res.el1.(type) {
 		case rideList:
 			for _, item := range resAct {
@@ -260,14 +272,12 @@ func (e *treeEvaluator) evaluate() (RideResult, error) {
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to convert evaluation result")
 				}
-				act = append(act, a)
+				actions = append(actions, a)
 			}
-
 		default:
 			return nil, errors.Errorf("unexpected result type '%T'", r)
 		}
-
-		return DAppResult{res: true, actions: act, msg: "", param: res.el2}, nil
+		return DAppResult{res: true, actions: actions, msg: "", param: res.el2, complexity: e.complexity}, nil
 	default:
 		return nil, errors.Errorf("unexpected result type '%T'", r)
 	}
@@ -303,6 +313,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		if !ok {
 			return nil, errors.Errorf("not a boolean")
 		}
+		e.complexity++
 		if cr {
 			return e.walk(n.TrueExpression)
 		} else {
@@ -324,7 +335,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 
 	case *ReferenceNode:
 		id := n.Name
-		v, ok := e.s.value(id)
+		v, ok, f, p := e.s.value(id)
 		if !ok {
 			if v, ok := e.s.constant(id); ok {
 				return v, nil
@@ -342,9 +353,11 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			if isThrow(r) {
 				return r, nil
 			}
-			e.s.pushValue(id, r)
+			e.s.updateValue(f, p, id, r)
+			e.complexity++
 			return r, nil
 		}
+		e.complexity++
 		return v.value, nil
 
 	case *FunctionDeclarationNode:
@@ -364,14 +377,21 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		return r, nil
 
 	case *FunctionCallNode:
-		id := n.Name
-		f, ok := e.s.system[id]
+		name := n.Name
+		f, ok := e.s.system[name]
 		if ok { // System function
+			cost, ok := e.s.costs[name]
+			if !ok {
+				return nil, errors.Errorf("failed to get cost of system function '%s'", name)
+			}
+			if _, ok := e.s.free[name]; ok { //
+				cost = 0
+			}
 			args := make([]rideType, len(n.Arguments))
 			for i, arg := range n.Arguments {
 				a, err := e.walk(arg) // materialize argument
 				if err != nil {
-					return nil, errors.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, id)
+					return nil, errors.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, name)
 				}
 				if isThrow(a) {
 					return a, nil
@@ -380,17 +400,17 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			}
 			r, err := f(e.env, args...)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to call system function '%s'", id)
+				return nil, errors.Wrapf(err, "failed to call system function '%s'", name)
 			}
-
+			e.complexity += cost
 			return r, nil
 		}
-		uf, cl, err := e.s.userFunction(id)
+		uf, cl, err := e.s.userFunction(name)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to call function '%s'", id)
+			return nil, errors.Wrapf(err, "failed to call function '%s'", name)
 		}
 		if len(n.Arguments) != len(uf.Arguments) {
-			return nil, errors.Errorf("mismatched arguments number of user function '%s'", id)
+			return nil, errors.Errorf("mismatched arguments number of user function '%s'", name)
 		}
 
 		args := make([]esValue, len(n.Arguments))
@@ -398,7 +418,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			an := uf.Arguments[i]
 			av, err := e.walk(arg) // materialize argument
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to materialize argument '%s' of user function '%s", an, id)
+				return nil, errors.Wrapf(err, "failed to materialize argument '%s' of user function '%s", an, name)
 			}
 			if isThrow(av) {
 				return av, nil
@@ -414,7 +434,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 
 		r, err := e.walk(uf.Body)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", id)
+			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", name)
 		}
 		e.s.cs = e.s.cs[:len(e.s.cs)-1]
 		e.s.cl = tmp
@@ -426,6 +446,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to evaluate an object to get property '%s' on it", name)
 		}
+		e.complexity++
 		if isThrow(obj) {
 			return obj, nil
 		}

@@ -87,27 +87,49 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 	return nil
 }
 
-func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation ride.TreeEstimation) error {
-	var maxComplexity int
+func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation ride.TreeEstimation, reducedVerifierComplexity bool) error {
+	/*
+		| Script Type                        | Max complexity before BlockV5 | Max complexity after BlockV5 |
+		| ---------------------------------- | ----------------------------- | ---------------------------- |
+		| Account / DApp Verifier V1, V2     | 2000                          | 2000                         |
+		| Account / DApp Verifier V3, V4, V5 | 4000                          | 2000                         |
+		| Asset Verifier V1, V2              | 2000                          | 2000                         |
+		| Asset Verifier V3, V4, V5          | 4000                          | 4000                         |
+		| DApp Callable V1, V2               | 2000                          | 2000                         |
+		| DApp Callable V3, V4               | 4000                          | 4000                         |
+		| DApp Callable V5                   | 10000                         | 10000                        |
+	*/
+	var maxCallableComplexity, maxVerifierComplexity int
 	switch tree.LibVersion {
 	case 1, 2:
-		maxComplexity = 2000
+		maxCallableComplexity = MaxCallableScriptComplexityV12
+		maxVerifierComplexity = MaxVerifierScriptComplexityReduced
 	case 3, 4:
-		maxComplexity = 4000
+		maxCallableComplexity = MaxCallableScriptComplexityV34
+		maxVerifierComplexity = MaxVerifierScriptComplexity
 	case 5:
-		maxComplexity = 26000
+		maxCallableComplexity = MaxCallableScriptComplexityV5
+		maxVerifierComplexity = MaxVerifierScriptComplexity
 	}
-	complexity := estimation.Verifier
-	if tree.IsDApp() {
-		complexity = estimation.Estimation
+	if reducedVerifierComplexity {
+		maxVerifierComplexity = MaxVerifierScriptComplexityReduced
 	}
-	if complexity > maxComplexity {
-		return errors.Errorf("script complexity %d exceeds maximum allowed complexity of %d", complexity, maxComplexity)
+	if !tree.IsDApp() { // Expression (simple) script, has only verifier.
+		if complexity := estimation.Verifier; complexity > maxVerifierComplexity {
+			return errors.Errorf("script complexity %d exceeds maximum allowed complexity of %d", complexity, maxVerifierComplexity)
+		}
+		return nil
+	}
+	if complexity := estimation.Verifier; complexity > maxVerifierComplexity {
+		return errors.Errorf("verifier script complexity %d exceeds maximum allowed complexity of %d", complexity, maxVerifierComplexity)
+	}
+	if complexity := estimation.Estimation; complexity > maxCallableComplexity {
+		return errors.Errorf("callable script complexity %d exceeds maximum allowed complexity of %d", complexity, maxCallableComplexity)
 	}
 	return nil
 }
 
-func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int) (map[int]ride.TreeEstimation, error) {
+func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int, reducedVerifierComplexity bool) (map[int]ride.TreeEstimation, error) {
 	tree, err := ride.Parse(script)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to build AST")
@@ -131,7 +153,7 @@ func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion 
 		}
 		estimations[ev] = est
 	}
-	if err := tc.checkScriptComplexity(tree, estimations[estimatorVersion]); err != nil {
+	if err := tc.checkScriptComplexity(tree, estimations[estimatorVersion], reducedVerifierComplexity); err != nil {
 		return nil, errors.Wrap(err, "failed to check script complexity")
 	}
 	return estimations, nil
@@ -390,7 +412,7 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 		// No script checks / actions are needed.
 		return nil, nil
 	}
-	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion())
+	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion(), false) // For asset scripts do not reduce verifier complexity
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
@@ -1003,7 +1025,7 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 		}
 		return nil, nil
 	}
-	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion())
+	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion(), info.blockVersion == proto.ProtobufBlockVersion)
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
@@ -1045,7 +1067,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if !isSmartAsset {
 		return nil, errs.NewTxValidationError("Reason: Cannot set script on an asset issued without a script. Referenced assetId not found")
 	}
-	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion())
+	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion(), false) // Do not reduce verifier complexity for asset scripts
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}

@@ -11,12 +11,13 @@ import (
 )
 
 type WrappedState struct {
-	diff        diffState
-	cle         rideAddress
-	scheme      proto.Scheme
-	invokeCount uint64
-	act         []proto.ScriptAction
-	blackList   []proto.Address
+	diff            diffState
+	cle             rideAddress
+	scheme          proto.Scheme
+	invokeCount     uint64
+	act             []proto.ScriptAction
+	blackList       []proto.Address
+	totalComplexity int
 }
 
 func newWrappedState(env *EvaluationEnvironment) *WrappedState {
@@ -41,6 +42,13 @@ func newWrappedState(env *EvaluationEnvironment) *WrappedState {
 
 func (ws *WrappedState) appendActions(actions []proto.ScriptAction) {
 	ws.act = append(ws.act, actions...)
+}
+
+func (ws *WrappedState) checkTotalComplexity() (int, bool) {
+	if ws.totalComplexity > MaxChainInvokeComplexity {
+		return ws.totalComplexity, false
+	}
+	return ws.totalComplexity, true
 }
 
 func (ws *WrappedState) callee() proto.Address {
@@ -1038,6 +1046,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 		default:
 		}
 	}
+
 	return actions, nil
 }
 

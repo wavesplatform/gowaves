@@ -156,7 +156,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	res, err := invokeFunctionFromDApp(env, recipient, fnName, listArg)
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
+		return nil, errors.Wrapf(err, "failed to get Result from invokeFunctionFromDApp")
 	}
 
 	if res.Result() {
@@ -172,10 +172,12 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		env.setNewDAppAddress(proto.Address(callerAddress))
 		env.setInvocation(oldInvocationParam)
 
-		if res.UserResult() == nil {
+		ws.totalComplexity += res.Complexity()
+
+		if res.userResult() == nil {
 			return rideUnit{}, nil
 		}
-		return res.UserResult(), nil
+		return res.userResult(), nil
 	}
 
 	return rideThrow("result of reentrantInvoke function is false"), nil
@@ -317,7 +319,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	ws.blackList = ws.blackList[:len(ws.blackList)-1] // pop
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get RideResult from invokeFunctionFromDApp")
+		return nil, errors.Wrapf(err, "failed to get Result from invokeFunctionFromDApp")
 	}
 
 	if res.Result() {
@@ -333,10 +335,12 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		env.setNewDAppAddress(proto.Address(callerAddress))
 		env.setInvocation(oldInvocationParam)
 
-		if res.UserResult() == nil {
+		ws.totalComplexity += res.Complexity()
+
+		if res.userResult() == nil {
 			return rideUnit{}, nil
 		}
-		return res.UserResult(), nil
+		return res.userResult(), nil
 	}
 
 	return rideThrow("result of invoke function is false"), nil
