@@ -310,8 +310,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 	if err != nil {
 		return proto.DAppError, info.failedChanges, err
 	}
-
-	if err := ia.checkFullFee(tx, info.scriptRuns, issuedAssetsCount, info); err != nil {
+	if err := ia.checkFullFee(tx, info.scriptRuns, issuedAssetsCount); err != nil {
 		return proto.InsufficientActionsFee, info.failedChanges, err
 	}
 	// Add feeAndPaymentChanges to stor before performing actions.
@@ -677,10 +676,25 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), actions: scriptActions, changes: failedChanges}
 		return ia.handleInvocationResult(tx, info, res)
 	}
-	actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
-	scriptRuns := uint64(len(paymentSmartAssets)) + actionScriptRuns
+	var scriptRuns uint64 = 0
+	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
+	if info.rideV5Activated {
+		actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
+		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
+	}
 	if info.senderScripted {
-		scriptRuns += 1
+		// Since activation of RideV5 (16) feature we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit
+		if info.rideV5Activated {
+			treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(*scriptAddr, info.checkerInfo.estimatorVersion(), !info.initialisation)
+			if err != nil {
+				return nil, errors.Wrap(err, "invoke failed to get verifier complexity")
+			}
+			if treeEstimation.Verifier > FreeVerifierComplexity {
+				scriptRuns++
+			}
+		} else {
+			scriptRuns++
+		}
 	}
 	var res *invocationResult
 	code, changes, err := ia.fallibleValidation(tx, &addlInvokeInfo{
@@ -756,7 +770,7 @@ func (ia *invokeApplier) handleInvocationResult(tx *proto.InvokeScriptWithProofs
 	}, nil
 }
 
-func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRuns, issuedAssetsCount uint64, info *addlInvokeInfo) error {
+func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRuns, issuedAssetsCount uint64) error {
 	sponsorshipActivated, err := ia.stor.features.newestIsActivated(int16(settings.FeeSponsorship))
 	if err != nil {
 		return err
@@ -766,27 +780,7 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 		return nil
 	}
 	minIssueFee := feeConstants[proto.IssueTransaction] * FeeUnit * issuedAssetsCount
-
-	treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(*info.scriptAddr, info.checkerInfo.estimatorVersion(), !info.initialisation)
-	if err != nil {
-		return errors.Errorf("failed to get complexity by addr from store, %v", err)
-	}
-	if treeEstimation == nil {
-		return errors.Errorf("failed to get complexity by addr from store: estimation tree is empty")
-	}
-	verifierComplexity := treeEstimation.Verifier
-
-	var minWavesFee uint64
-	scriptHasVerifier, err := ia.stor.scriptsStorage.newestAccountHasVerifier(*info.scriptAddr, !info.initialisation)
-	if err != nil {
-		return errors.Wrapf(err, "failed to check if the script with address %s has verifier", info.scriptAddr.String())
-	}
-	// since rideV5
-	if scriptHasVerifier && info.rideV5Activated && verifierComplexity <= FreeVerifierComplexity {
-		minWavesFee = feeConstants[proto.InvokeScriptTransaction]*FeeUnit + minIssueFee
-	} else {
-		minWavesFee = scriptExtraFee*scriptRuns + feeConstants[proto.InvokeScriptTransaction]*FeeUnit + minIssueFee
-	}
+	minWavesFee := scriptExtraFee*scriptRuns + feeConstants[proto.InvokeScriptTransaction]*FeeUnit + minIssueFee
 	wavesFee := tx.Fee
 	if tx.FeeAsset.Present {
 		wavesFee, err = ia.stor.sponsoredAssets.sponsoredAssetToWaves(tx.FeeAsset.ID, tx.Fee)
