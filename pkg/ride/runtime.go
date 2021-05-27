@@ -369,8 +369,9 @@ type Environment interface {
 	timestamp() uint64
 	setNewDAppAddress(address proto.Address)
 	checkMessageLength(int) bool
+	takeString(s string, n int) rideString
 	invocation() rideObject // Invocation object made of invoke transaction
-	SetInvocation(inv rideObject)
+	setInvocation(inv rideObject)
 }
 
 type rideConstructor func(Environment) rideType

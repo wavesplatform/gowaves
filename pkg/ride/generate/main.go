@@ -76,8 +76,8 @@ func functionsV2() map[string]string {
 	m["wavesBalance"] = "wavesBalanceV3"
 	m["Address"] = "address"
 	m["Alias"] = "alias"
-	m["DataEntry"] = "dataEntry"
 	m["AssetPair"] = "assetPair"
+	m["DataEntry"] = "dataEntry"
 	m["DataTransaction"] = "dataTransaction"
 	return m
 }
@@ -149,10 +149,14 @@ func catalogueV2() map[string]int {
 	m["wavesBalance"] = 109
 	m["Address"] = 1
 	m["Alias"] = 1
+	m["AssetPair"] = 2
 	m["DataEntry"] = 2
 	m["DataTransaction"] = 9
-	m["AssetPair"] = 2
 	return m
+}
+
+func freeConstructorsV2() []string {
+	return []string{"Address", "Alias", "AssetPair", "DataEntry", "DataTransaction"}
 }
 
 func functionsV3() map[string]string {
@@ -277,6 +281,10 @@ func catalogueV3() map[string]int {
 	m["ScriptTransfer"] = 3
 	m["ScriptResult"] = 2
 	return m
+}
+
+func freeConstructorsV3() []string {
+	return append(freeConstructorsV2(), "WriteSet", "TransferSet", "ScriptTransfer", "ScriptResult")
 }
 
 func functionsV4() map[string]string {
@@ -465,6 +473,11 @@ func catalogueV4() map[string]int {
 	return m
 }
 
+func freeConstructorsV4() []string {
+	return append(freeConstructorsV3(), "IntegerEntry", "BooleanEntry", "BinaryEntry", "StringEntry",
+		"DeleteEntry", "Reissue", "Burn", "SponsorFee", "AttachedPayment")
+}
+
 func functionsV5() map[string]string {
 	m := functionsV4()
 	m["118"] = "powBigInt"
@@ -556,6 +569,10 @@ func catalogueV5() map[string]int {
 	delete(m, "Up")
 	delete(m, "HalfDown")
 	return m
+}
+
+func freeConstructorsV5() []string {
+	return append(freeConstructorsV4(), "LeaseCancel")
 }
 
 type constantDescription struct {
@@ -702,7 +719,7 @@ func createConstructors(sb *strings.Builder, c map[string]constantDescription) {
 	}
 }
 
-func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c map[string]int) {
+func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c map[string]int, n []string) {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -720,7 +737,7 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 		}
 	}
 	sb.WriteString("}\n")
-	sb.WriteString("}\n")
+	sb.WriteString("}\n\n")
 
 	// Create list of costs
 	sb.WriteString(fmt.Sprintf("var _catalogue_%s = [...]int{", ver))
@@ -730,8 +747,9 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 			sb.WriteString(", ")
 		}
 	}
-	sb.WriteString("}\n")
+	sb.WriteString("}\n\n")
 
+	// Create map of function costs
 	sb.WriteString(fmt.Sprintf("var Catalogue%s = map[string]int{", ver))
 	for i, k := range keys {
 		sb.WriteString(fmt.Sprintf("\"%s\":%d", k, c[k]))
@@ -739,7 +757,17 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 			sb.WriteString(", ")
 		}
 	}
-	sb.WriteString("}\n")
+	sb.WriteString("}\n\n")
+
+	// Create map for evaluation zero cost constructors
+	sb.WriteString(fmt.Sprintf("var FreeFunctions%s = map[string]struct{}{", ver))
+	for i, k := range n {
+		sb.WriteString(fmt.Sprintf("\"%s\":{}", k))
+		if i < len(m)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("}\n\n")
 
 	// Create string of concatenated names of functions
 	sb.WriteString(fmt.Sprintf("const _names_%s = \"%s\"\n", ver, strings.Join(keys, "")))
@@ -755,28 +783,31 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 		}
 	}
 	sb.WriteString("}\n\n")
+
 	sb.WriteString(fmt.Sprintf("func functionName%s(i int) string {\n", ver))
 	sb.WriteString(fmt.Sprintf("if i < 0 || i > %d {\n", len(keys)-1))
 	sb.WriteString("return \"\"\n")
 	sb.WriteString("}\n")
-	sb.WriteString(fmt.Sprintf("return _names_%s[_index_%s[i]:_index_%s[i+1]]\n}\n", ver, ver, ver))
+	sb.WriteString(fmt.Sprintf("return _names_%s[_index_%s[i]:_index_%s[i+1]]\n}\n\n", ver, ver, ver))
+
 	sb.WriteString(fmt.Sprintf("func function%s(id int) rideFunction {\n", ver))
 	sb.WriteString(fmt.Sprintf("if id < 0 || id > %d {\n", len(keys)-1))
 	sb.WriteString("return nil\n")
 	sb.WriteString("}\n")
-	sb.WriteString(fmt.Sprintf("return _functions_%s[id]\n}\n", ver))
+	sb.WriteString(fmt.Sprintf("return _functions_%s[id]\n}\n\n", ver))
+
 	sb.WriteString(fmt.Sprintf("func checkFunction%s(name string) (uint16, bool) {\n", ver))
 	sb.WriteString(fmt.Sprintf("for i := 0; i <= %d; i++ {\n", len(keys)-1))
 	sb.WriteString(fmt.Sprintf("if _names_%s[_index_%s[i]:_index_%s[i+1]] == name {\n", ver, ver, ver))
 	sb.WriteString("return uint16(i), true\n")
 	sb.WriteString("}\n}\n")
 	sb.WriteString("return 0, false\n")
-	sb.WriteString("}\n")
+	sb.WriteString("}\n\n")
 	sb.WriteString(fmt.Sprintf("func cost%s(id int) int {\n", ver))
 	sb.WriteString(fmt.Sprintf("if id < 0 || id > %d {\n", len(keys)-1))
 	sb.WriteString("return -1\n")
 	sb.WriteString("}\n")
-	sb.WriteString(fmt.Sprintf("return _catalogue_%s[id]\n}\n", ver))
+	sb.WriteString(fmt.Sprintf("return _catalogue_%s[id]\n}\n\n", ver))
 }
 
 func createTuples(sb *strings.Builder) {
@@ -845,10 +876,10 @@ func main() {
 	sb.WriteString("// Code generated by ride/generate/main.go. DO NOT EDIT.\n")
 	sb.WriteString("\n")
 	sb.WriteString("package ride\n")
-	createFunctionsList(sb, "V2", functionsV2(), catalogueV2())
-	createFunctionsList(sb, "V3", functionsV3(), catalogueV3())
-	createFunctionsList(sb, "V4", functionsV4(), catalogueV4())
-	createFunctionsList(sb, "V5", functionsV5(), catalogueV5())
+	createFunctionsList(sb, "V2", functionsV2(), catalogueV2(), freeConstructorsV2())
+	createFunctionsList(sb, "V3", functionsV3(), catalogueV3(), freeConstructorsV3())
+	createFunctionsList(sb, "V4", functionsV4(), catalogueV4(), freeConstructorsV4())
+	createFunctionsList(sb, "V5", functionsV5(), catalogueV5(), freeConstructorsV5())
 	code := sb.String()
 	b, err := format.Source([]byte(code))
 	if err != nil {

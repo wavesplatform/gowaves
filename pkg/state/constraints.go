@@ -18,7 +18,8 @@ func (a MaxScriptsComplexityInBlock) GetMaxScriptsComplexityInBlock(isRideV5Acti
 
 const FreeVerifierComplexity = 200
 
-const MaxVerifierScriptComplexity = 2000
+const MaxVerifierScriptComplexityReduced = 2000
+const MaxVerifierScriptComplexity = 4000
 
 const MaxCallableScriptComplexityV12 = 2000
 const MaxCallableScriptComplexityV34 = 4000

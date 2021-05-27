@@ -9,7 +9,10 @@ func init() {
 }
 
 var _catalogue_V2 = [...]int{11, 26, 9, 1, 1, 1, 100, 100, 100, 1, 1, 1, 1, 10, 10, 10, 10, 1, 100, 100, 100, 100, 1, 100, 1, 1, 1, 1, 1, 10, 10, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 100, 10, 10, 10, 10, 10, 10, 10, 1, 1, 2, 2, 9, 82, 124, 19, 19, 13, 30, 30, 30, 30, 35, 19, 19, 2, 109}
+
 var CatalogueV2 = map[string]int{"!": 11, "!=": 26, "-": 9, "0": 1, "1": 1, "100": 1, "1000": 100, "1001": 100, "1003": 100, "101": 1, "102": 1, "103": 1, "104": 1, "1040": 10, "1041": 10, "1042": 10, "1043": 10, "105": 1, "1050": 100, "1051": 100, "1052": 100, "1053": 100, "106": 1, "1060": 100, "107": 1, "2": 1, "200": 1, "201": 1, "202": 1, "203": 10, "300": 10, "303": 1, "304": 1, "305": 1, "400": 2, "401": 2, "410": 1, "411": 1, "412": 1, "420": 1, "421": 1, "500": 100, "501": 10, "502": 10, "503": 10, "600": 10, "601": 10, "602": 10, "603": 10, "Address": 1, "Alias": 1, "AssetPair": 2, "DataEntry": 2, "DataTransaction": 9, "addressFromPublicKey": 82, "addressFromString": 124, "dropRight": 19, "dropRightBytes": 19, "extract": 13, "getBinary": 30, "getBoolean": 30, "getInteger": 30, "getString": 30, "isDefined": 35, "takeRight": 19, "takeRightBytes": 19, "throw": 2, "wavesBalance": 109}
+
+var FreeFunctionsV2 = map[string]struct{}{"Address": {}, "Alias": {}, "AssetPair": {}, "DataEntry": {}, "DataTransaction": {}}
 
 const _names_V2 = "!!=-011001000100110031011021031041040104110421043105105010511052105310610601072200201202203300303304305400401410411412420421500501502503600601602603AddressAliasAssetPairDataEntryDataTransactionaddressFromPublicKeyaddressFromStringdropRightdropRightBytesextractgetBinarygetBooleangetIntegergetStringisDefinedtakeRighttakeRightBytesthrowwavesBalance"
 
@@ -21,12 +24,14 @@ func functionNameV2(i int) string {
 	}
 	return _names_V2[_index_V2[i]:_index_V2[i+1]]
 }
+
 func functionV2(id int) rideFunction {
 	if id < 0 || id > 67 {
 		return nil
 	}
 	return _functions_V2[id]
 }
+
 func checkFunctionV2(name string) (uint16, bool) {
 	for i := 0; i <= 67; i++ {
 		if _names_V2[_index_V2[i]:_index_V2[i+1]] == name {
@@ -35,6 +40,7 @@ func checkFunctionV2(name string) (uint16, bool) {
 	}
 	return 0, false
 }
+
 func costV2(id int) int {
 	if id < 0 || id > 67 {
 		return -1
@@ -49,7 +55,10 @@ func init() {
 }
 
 var _catalogue_V3 = [...]int{1, 1, 1, 1, 1, 1, 100, 100, 100, 100, 100, 1, 1, 1, 1, 10, 10, 10, 10, 1, 100, 100, 100, 100, 1, 100, 10, 1, 100, 100, 2, 20, 10, 10, 20, 20, 100, 20, 20, 20, 1, 1, 1, 1, 10, 10, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 100, 10, 10, 10, 300, 10, 10, 10, 10, 10, 10, 30, 10, 10, 10, 10, 100, 100, 100, 100, 124, 10, 10, 10, 10, 1, 1, 2, 0, 0, 2, 9, 0, 0, 0, 0, 0, 0, 0, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 82, 124, 19, 19, 13, 30, 30, 30, 30, 1, 20, 19, 19, 1, 13, 13, 109}
+
 var CatalogueV3 = map[string]int{"!": 1, "!=": 1, "-": 1, "0": 1, "1": 1, "100": 1, "1001": 100, "1003": 100, "1004": 100, "1005": 100, "1006": 100, "101": 1, "102": 1, "103": 1, "104": 1, "1040": 10, "1041": 10, "1042": 10, "1043": 10, "105": 1, "1050": 100, "1051": 100, "1052": 100, "1053": 100, "106": 1, "1060": 100, "1061": 10, "107": 1, "108": 100, "109": 100, "1100": 2, "1200": 20, "1201": 10, "1202": 10, "1203": 20, "1204": 20, "1205": 100, "1206": 20, "1207": 20, "1208": 20, "2": 1, "200": 1, "201": 1, "202": 1, "203": 10, "300": 10, "303": 1, "304": 1, "305": 1, "400": 2, "401": 2, "410": 1, "411": 1, "412": 1, "420": 1, "421": 1, "500": 100, "501": 10, "502": 10, "503": 10, "504": 300, "600": 10, "601": 10, "602": 10, "603": 10, "604": 10, "605": 10, "700": 30, "@extrNative(1040)": 10, "@extrNative(1041)": 10, "@extrNative(1042)": 10, "@extrNative(1043)": 10, "@extrNative(1050)": 100, "@extrNative(1051)": 100, "@extrNative(1052)": 100, "@extrNative(1053)": 100, "@extrUser(addressFromString)": 124, "@extrUser(getBinary)": 10, "@extrUser(getBoolean)": 10, "@extrUser(getInteger)": 10, "@extrUser(getString)": 10, "Address": 1, "Alias": 1, "AssetPair": 2, "Buy": 0, "Ceiling": 0, "DataEntry": 2, "DataTransaction": 9, "Down": 0, "Floor": 0, "HalfDown": 0, "HalfEven": 0, "HalfUp": 0, "Md5": 0, "NoAlg": 0, "ScriptResult": 2, "ScriptTransfer": 3, "Sell": 0, "Sha1": 0, "Sha224": 0, "Sha256": 0, "Sha3224": 0, "Sha3256": 0, "Sha3384": 0, "Sha3512": 0, "Sha384": 0, "Sha512": 0, "TransferSet": 1, "Unit": 0, "Up": 0, "WriteSet": 1, "addressFromPublicKey": 82, "addressFromString": 124, "dropRight": 19, "dropRightBytes": 19, "extract": 13, "getBinary": 30, "getBoolean": 30, "getInteger": 30, "getString": 30, "isDefined": 1, "parseIntValue": 20, "takeRight": 19, "takeRightBytes": 19, "throw": 1, "value": 13, "valueOrErrorMessage": 13, "wavesBalance": 109}
+
+var FreeFunctionsV3 = map[string]struct{}{"Address": {}, "Alias": {}, "AssetPair": {}, "DataEntry": {}, "DataTransaction": {}, "WriteSet": {}, "TransferSet": {}, "ScriptTransfer": {}, "ScriptResult": {}}
 
 const _names_V3 = "!!=-0110010011003100410051006101102103104104010411042104310510501051105210531061060106110710810911001200120112021203120412051206120712082200201202203300303304305400401410411412420421500501502503504600601602603604605700@extrNative(1040)@extrNative(1041)@extrNative(1042)@extrNative(1043)@extrNative(1050)@extrNative(1051)@extrNative(1052)@extrNative(1053)@extrUser(addressFromString)@extrUser(getBinary)@extrUser(getBoolean)@extrUser(getInteger)@extrUser(getString)AddressAliasAssetPairBuyCeilingDataEntryDataTransactionDownFloorHalfDownHalfEvenHalfUpMd5NoAlgScriptResultScriptTransferSellSha1Sha224Sha256Sha3224Sha3256Sha3384Sha3512Sha384Sha512TransferSetUnitUpWriteSetaddressFromPublicKeyaddressFromStringdropRightdropRightBytesextractgetBinarygetBooleangetIntegergetStringisDefinedparseIntValuetakeRighttakeRightBytesthrowvaluevalueOrErrorMessagewavesBalance"
 
@@ -61,12 +70,14 @@ func functionNameV3(i int) string {
 	}
 	return _names_V3[_index_V3[i]:_index_V3[i+1]]
 }
+
 func functionV3(id int) rideFunction {
 	if id < 0 || id > 127 {
 		return nil
 	}
 	return _functions_V3[id]
 }
+
 func checkFunctionV3(name string) (uint16, bool) {
 	for i := 0; i <= 127; i++ {
 		if _names_V3[_index_V3[i]:_index_V3[i+1]] == name {
@@ -75,6 +86,7 @@ func checkFunctionV3(name string) (uint16, bool) {
 	}
 	return 0, false
 }
+
 func costV3(id int) int {
 	if id < 0 || id > 127 {
 		return -1
@@ -89,7 +101,10 @@ func init() {
 }
 
 var _catalogue_V4 = [...]int{1, 1, 1, 1, 1, 1, 20, 15, 5, 60, 10, 10, 1, 1, 1, 1, 10, 10, 10, 10, 1, 10, 10, 10, 10, 1, 5, 10, 1, 1, 5, 100, 10, 100, 1, 1, 1, 1, 4, 5, 5, 7, 7, 1, 1, 3, 3, 75, 2, 3, 3, 30, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 6, 2, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 800, 850, 950, 1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350, 1400, 1450, 1550, 1600, 47, 57, 70, 102, 172, 500, 550, 625, 750, 10, 25, 50, 100, 10, 25, 50, 100, 10, 25, 50, 100, 20, 20, 20, 1, 2, 2, 20, 3, 3, 1, 8, 1, 1, 1, 200, 200, 200, 200, 1000, 3, 1, 35, 40, 10, 10, 30, 2700, 1650, 70, 10, 10, 10, 10, 10, 10, 10, 10, 1, 124, 10, 10, 10, 10, 1, 1, 2, 2, 2, 2, 2, 0, 0, 9, 1, 0, 0, 0, 0, 0, 2, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 63, 124, 3, 5, 20, 6, 13, 30, 30, 30, 30, 1, 2, 20, 6, 1, 2, 2, 2}
+
 var CatalogueV4 = map[string]int{"!": 1, "!=": 1, "-": 1, "0": 1, "1": 1, "100": 1, "1001": 20, "1004": 15, "1005": 5, "1006": 60, "1007": 10, "1008": 10, "101": 1, "102": 1, "103": 1, "104": 1, "1040": 10, "1041": 10, "1042": 10, "1043": 10, "105": 1, "1050": 10, "1051": 10, "1052": 10, "1053": 10, "106": 1, "1060": 5, "1061": 10, "1062": 1, "107": 1, "1070": 5, "108": 100, "1080": 10, "109": 100, "1090": 1, "1091": 1, "1100": 1, "1101": 1, "1102": 4, "1103": 5, "1104": 5, "1105": 7, "1200": 7, "1201": 1, "1202": 1, "1203": 3, "1204": 3, "1205": 75, "1206": 2, "1207": 3, "1208": 3, "1209": 30, "1300": 1, "1301": 1, "1302": 1, "1303": 1, "1304": 1, "1305": 1, "1306": 1, "1307": 1, "1308": 1, "1309": 1, "1310": 1, "1311": 1, "1312": 1, "1313": 1, "1314": 1, "1315": 1, "1316": 1, "1317": 1, "1318": 1, "1319": 1, "1320": 1, "2": 1, "200": 1, "201": 6, "202": 6, "203": 2, "2400": 1200, "2401": 1300, "2402": 1400, "2403": 1500, "2404": 1600, "2405": 1700, "2406": 1800, "2407": 1900, "2408": 2000, "2409": 2100, "2410": 2200, "2411": 2300, "2412": 2400, "2413": 2500, "2414": 2600, "2450": 800, "2451": 850, "2452": 950, "2453": 1000, "2454": 1050, "2455": 1100, "2456": 1150, "2457": 1200, "2458": 1250, "2459": 1300, "2460": 1350, "2461": 1400, "2462": 1450, "2463": 1550, "2464": 1600, "2500": 47, "2501": 57, "2502": 70, "2503": 102, "2504": 172, "2600": 500, "2601": 550, "2602": 625, "2603": 750, "2700": 10, "2701": 25, "2702": 50, "2703": 100, "2800": 10, "2801": 25, "2802": 50, "2803": 100, "2900": 10, "2901": 25, "2902": 50, "2903": 100, "300": 20, "303": 20, "304": 20, "305": 1, "400": 2, "401": 2, "405": 20, "406": 3, "407": 3, "410": 1, "411": 8, "412": 1, "420": 1, "421": 1, "500": 200, "501": 200, "502": 200, "503": 200, "504": 1000, "600": 3, "601": 1, "602": 35, "603": 40, "604": 10, "605": 10, "701": 30, "800": 2700, "801": 1650, "900": 70, "@extrNative(1040)": 10, "@extrNative(1041)": 10, "@extrNative(1042)": 10, "@extrNative(1043)": 10, "@extrNative(1050)": 10, "@extrNative(1051)": 10, "@extrNative(1052)": 10, "@extrNative(1053)": 10, "@extrNative(1062)": 1, "@extrUser(addressFromString)": 124, "@extrUser(getBinary)": 10, "@extrUser(getBoolean)": 10, "@extrUser(getInteger)": 10, "@extrUser(getString)": 10, "Address": 1, "Alias": 1, "AssetPair": 2, "AttachedPayment": 2, "BinaryEntry": 2, "BooleanEntry": 2, "Burn": 2, "Buy": 0, "Ceiling": 0, "DataTransaction": 9, "DeleteEntry": 1, "Down": 0, "Floor": 0, "HalfDown": 0, "HalfEven": 0, "HalfUp": 0, "IntegerEntry": 2, "Md5": 0, "NoAlg": 0, "Reissue": 3, "ScriptTransfer": 3, "Sell": 0, "Sha1": 0, "Sha224": 0, "Sha256": 0, "Sha3224": 0, "Sha3256": 0, "Sha3384": 0, "Sha3512": 0, "Sha384": 0, "Sha512": 0, "SponsorFee": 2, "StringEntry": 2, "Unit": 0, "Up": 0, "addressFromPublicKey": 63, "addressFromString": 124, "contains": 3, "containsElement": 5, "dropRight": 20, "dropRightBytes": 6, "extract": 13, "getBinary": 30, "getBoolean": 30, "getInteger": 30, "getString": 30, "isDefined": 1, "parseIntValue": 2, "takeRight": 20, "takeRightBytes": 6, "throw": 1, "value": 2, "valueOrElse": 2, "valueOrErrorMessage": 2}
+
+var FreeFunctionsV4 = map[string]struct{}{"Address": {}, "Alias": {}, "AssetPair": {}, "DataEntry": {}, "DataTransaction": {}, "WriteSet": {}, "TransferSet": {}, "ScriptTransfer": {}, "ScriptResult": {}, "IntegerEntry": {}, "BooleanEntry": {}, "BinaryEntry": {}, "StringEntry": {}, "DeleteEntry": {}, "Reissue": {}, "Burn": {}, "SponsorFee": {}, "AttachedPayment": {}}
 
 const _names_V4 = "!!=-0110010011004100510061007100810110210310410401041104210431051050105110521053106106010611062107107010810801091090109111001101110211031104110512001201120212031204120512061207120812091300130113021303130413051306130713081309131013111312131313141315131613171318131913202200201202203240024012402240324042405240624072408240924102411241224132414245024512452245324542455245624572458245924602461246224632464250025012502250325042600260126022603270027012702270328002801280228032900290129022903300303304305400401405406407410411412420421500501502503504600601602603604605701800801900@extrNative(1040)@extrNative(1041)@extrNative(1042)@extrNative(1043)@extrNative(1050)@extrNative(1051)@extrNative(1052)@extrNative(1053)@extrNative(1062)@extrUser(addressFromString)@extrUser(getBinary)@extrUser(getBoolean)@extrUser(getInteger)@extrUser(getString)AddressAliasAssetPairAttachedPaymentBinaryEntryBooleanEntryBurnBuyCeilingDataTransactionDeleteEntryDownFloorHalfDownHalfEvenHalfUpIntegerEntryMd5NoAlgReissueScriptTransferSellSha1Sha224Sha256Sha3224Sha3256Sha3384Sha3512Sha384Sha512SponsorFeeStringEntryUnitUpaddressFromPublicKeyaddressFromStringcontainscontainsElementdropRightdropRightBytesextractgetBinarygetBooleangetIntegergetStringisDefinedparseIntValuetakeRighttakeRightBytesthrowvaluevalueOrElsevalueOrErrorMessage"
 
@@ -101,12 +116,14 @@ func functionNameV4(i int) string {
 	}
 	return _names_V4[_index_V4[i]:_index_V4[i+1]]
 }
+
 func functionV4(id int) rideFunction {
 	if id < 0 || id > 225 {
 		return nil
 	}
 	return _functions_V4[id]
 }
+
 func checkFunctionV4(name string) (uint16, bool) {
 	for i := 0; i <= 225; i++ {
 		if _names_V4[_index_V4[i]:_index_V4[i+1]] == name {
@@ -115,6 +132,7 @@ func checkFunctionV4(name string) (uint16, bool) {
 	}
 	return 0, false
 }
+
 func costV4(id int) int {
 	if id < 0 || id > 225 {
 		return -1
@@ -129,7 +147,10 @@ func init() {
 }
 
 var _catalogue_V5 = [...]int{1, 1, 1, 1, 1, 1, 20, 15, 5, 60, 10, 10, 200, 1, 1, 75, 75, 1, 1, 10, 10, 10, 10, 1, 10, 10, 10, 10, 10, 10, 10, 10, 10, 1, 5, 10, 1, 14, 5, 100, 10, 1, 100, 1, 1, 1, 1, 1, 1, 4, 5, 5, 7, 200, 200, 7, 1, 1, 3, 3, 75, 2, 3, 3, 30, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 6, 6, 2, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 2600, 800, 850, 950, 1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350, 1400, 1450, 1550, 1600, 47, 57, 70, 102, 172, 500, 550, 625, 750, 10, 25, 50, 100, 10, 25, 50, 100, 10, 25, 50, 100, 20, 20, 20, 1, 1, 8, 8, 64, 64, 64, 128, 128, 8, 8, 8, 2, 2, 20, 3, 3, 192, 192, 1, 8, 1, 65, 65, 65, 1, 1, 1, 65, 65, 65, 160, 200, 200, 200, 200, 1000, 3, 1, 35, 40, 10, 10, 30, 2700, 1650, 70, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 1, 124, 10, 10, 10, 10, 1, 1, 2, 2, 2, 2, 2, 0, 0, 9, 1, 0, 0, 0, 0, 0, 2, 1, 0, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 63, 124, 3, 5, 20, 6, 13, 17, 30, 30, 30, 30, 1, 2, 20, 6, 1, 2, 2, 2}
+
 var CatalogueV5 = map[string]int{"!": 1, "!=": 1, "-": 1, "0": 1, "1": 1, "100": 1, "1001": 20, "1004": 15, "1005": 5, "1006": 60, "1007": 10, "1008": 10, "1009": 200, "101": 1, "102": 1, "1020": 75, "1021": 75, "103": 1, "104": 1, "1040": 10, "1041": 10, "1042": 10, "1043": 10, "105": 1, "1050": 10, "1051": 10, "1052": 10, "1053": 10, "1054": 10, "1055": 10, "1056": 10, "1057": 10, "1058": 10, "106": 1, "1060": 5, "1061": 10, "1062": 1, "107": 14, "1070": 5, "108": 100, "1080": 10, "1081": 1, "109": 100, "1090": 1, "1091": 1, "1092": 1, "1093": 1, "1100": 1, "1101": 1, "1102": 4, "1103": 5, "1104": 5, "1105": 7, "118": 200, "119": 200, "1200": 7, "1201": 1, "1202": 1, "1203": 3, "1204": 3, "1205": 75, "1206": 2, "1207": 3, "1208": 3, "1209": 30, "1300": 1, "1301": 1, "1302": 1, "1303": 1, "1304": 1, "1305": 1, "1306": 1, "1307": 1, "1308": 1, "1309": 1, "1310": 1, "1311": 1, "1312": 1, "1313": 1, "1314": 1, "1315": 1, "1316": 1, "1317": 1, "1318": 1, "1319": 1, "1320": 1, "2": 1, "200": 1, "201": 6, "202": 6, "203": 2, "2400": 1200, "2401": 1300, "2402": 1400, "2403": 1500, "2404": 1600, "2405": 1700, "2406": 1800, "2407": 1900, "2408": 2000, "2409": 2100, "2410": 2200, "2411": 2300, "2412": 2400, "2413": 2500, "2414": 2600, "2450": 800, "2451": 850, "2452": 950, "2453": 1000, "2454": 1050, "2455": 1100, "2456": 1150, "2457": 1200, "2458": 1250, "2459": 1300, "2460": 1350, "2461": 1400, "2462": 1450, "2463": 1550, "2464": 1600, "2500": 47, "2501": 57, "2502": 70, "2503": 102, "2504": 172, "2600": 500, "2601": 550, "2602": 625, "2603": 750, "2700": 10, "2701": 25, "2702": 50, "2703": 100, "2800": 10, "2801": 25, "2802": 50, "2803": 100, "2900": 10, "2901": 25, "2902": 50, "2903": 100, "300": 20, "303": 20, "304": 20, "305": 1, "310": 1, "311": 8, "312": 8, "313": 64, "314": 64, "315": 64, "316": 128, "317": 128, "318": 8, "319": 8, "320": 8, "400": 2, "401": 2, "405": 20, "406": 3, "407": 3, "408": 192, "409": 192, "410": 1, "411": 8, "412": 1, "413": 65, "414": 65, "415": 65, "416": 1, "420": 1, "421": 1, "422": 65, "423": 65, "424": 65, "425": 160, "500": 200, "501": 200, "502": 200, "503": 200, "504": 1000, "600": 3, "601": 1, "602": 35, "603": 40, "604": 10, "605": 10, "701": 30, "800": 2700, "801": 1650, "900": 70, "@extrNative(1040)": 10, "@extrNative(1041)": 10, "@extrNative(1042)": 10, "@extrNative(1043)": 10, "@extrNative(1050)": 10, "@extrNative(1051)": 10, "@extrNative(1052)": 10, "@extrNative(1053)": 10, "@extrNative(1055)": 10, "@extrNative(1056)": 10, "@extrNative(1057)": 10, "@extrNative(1058)": 10, "@extrNative(1062)": 1, "@extrUser(addressFromString)": 124, "@extrUser(getBinary)": 10, "@extrUser(getBoolean)": 10, "@extrUser(getInteger)": 10, "@extrUser(getString)": 10, "Address": 1, "Alias": 1, "AssetPair": 2, "AttachedPayment": 2, "BinaryEntry": 2, "BooleanEntry": 2, "Burn": 2, "Buy": 0, "Ceiling": 0, "DataTransaction": 9, "DeleteEntry": 1, "Down": 0, "Floor": 0, "HalfDown": 0, "HalfEven": 0, "HalfUp": 0, "IntegerEntry": 2, "LeaseCancel": 1, "Md5": 0, "NoAlg": 0, "Reissue": 3, "ScriptTransfer": 3, "Sell": 0, "Sha1": 0, "Sha224": 0, "Sha256": 0, "Sha3224": 0, "Sha3256": 0, "Sha3384": 0, "Sha3512": 0, "Sha384": 0, "Sha512": 0, "SponsorFee": 2, "StringEntry": 2, "Unit": 0, "Up": 0, "addressFromPublicKey": 63, "addressFromString": 124, "contains": 3, "containsElement": 5, "dropRight": 20, "dropRightBytes": 6, "extract": 13, "fraction": 17, "getBinary": 30, "getBoolean": 30, "getInteger": 30, "getString": 30, "isDefined": 1, "parseIntValue": 2, "takeRight": 20, "takeRightBytes": 6, "throw": 1, "value": 2, "valueOrElse": 2, "valueOrErrorMessage": 2}
+
+var FreeFunctionsV5 = map[string]struct{}{"Address": {}, "Alias": {}, "AssetPair": {}, "DataEntry": {}, "DataTransaction": {}, "WriteSet": {}, "TransferSet": {}, "ScriptTransfer": {}, "ScriptResult": {}, "IntegerEntry": {}, "BooleanEntry": {}, "BinaryEntry": {}, "StringEntry": {}, "DeleteEntry": {}, "Reissue": {}, "Burn": {}, "SponsorFee": {}, "AttachedPayment": {}, "LeaseCancel": {}}
 
 const _names_V5 = "!!=-011001001100410051006100710081009101102102010211031041040104110421043105105010511052105310541055105610571058106106010611062107107010810801081109109010911092109311001101110211031104110511811912001201120212031204120512061207120812091300130113021303130413051306130713081309131013111312131313141315131613171318131913202200201202203240024012402240324042405240624072408240924102411241224132414245024512452245324542455245624572458245924602461246224632464250025012502250325042600260126022603270027012702270328002801280228032900290129022903300303304305310311312313314315316317318319320400401405406407408409410411412413414415416420421422423424425500501502503504600601602603604605701800801900@extrNative(1040)@extrNative(1041)@extrNative(1042)@extrNative(1043)@extrNative(1050)@extrNative(1051)@extrNative(1052)@extrNative(1053)@extrNative(1055)@extrNative(1056)@extrNative(1057)@extrNative(1058)@extrNative(1062)@extrUser(addressFromString)@extrUser(getBinary)@extrUser(getBoolean)@extrUser(getInteger)@extrUser(getString)AddressAliasAssetPairAttachedPaymentBinaryEntryBooleanEntryBurnBuyCeilingDataTransactionDeleteEntryDownFloorHalfDownHalfEvenHalfUpIntegerEntryLeaseCancelMd5NoAlgReissueScriptTransferSellSha1Sha224Sha256Sha3224Sha3256Sha3384Sha3512Sha384Sha512SponsorFeeStringEntryUnitUpaddressFromPublicKeyaddressFromStringcontainscontainsElementdropRightdropRightBytesextractfractiongetBinarygetBooleangetIntegergetStringisDefinedparseIntValuetakeRighttakeRightBytesthrowvaluevalueOrElsevalueOrErrorMessage"
 
@@ -141,12 +162,14 @@ func functionNameV5(i int) string {
 	}
 	return _names_V5[_index_V5[i]:_index_V5[i+1]]
 }
+
 func functionV5(id int) rideFunction {
 	if id < 0 || id > 265 {
 		return nil
 	}
 	return _functions_V5[id]
 }
+
 func checkFunctionV5(name string) (uint16, bool) {
 	for i := 0; i <= 265; i++ {
 		if _names_V5[_index_V5[i]:_index_V5[i+1]] == name {
@@ -155,6 +178,7 @@ func checkFunctionV5(name string) (uint16, bool) {
 	}
 	return 0, false
 }
+
 func costV5(id int) int {
 	if id < 0 || id > 265 {
 		return -1
