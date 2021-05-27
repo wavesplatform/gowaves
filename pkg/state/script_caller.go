@@ -185,7 +185,7 @@ func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTra
 	env.SetTransactionFromScriptTransfer(tr)
 	return a.callAssetScriptCommon(env, assetID, params)
 }
-
+  
 func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {

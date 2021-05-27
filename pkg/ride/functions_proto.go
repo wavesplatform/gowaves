@@ -334,7 +334,6 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 
 		env.setNewDAppAddress(proto.Address(callerAddress))
 		env.setInvocation(oldInvocationParam)
-
 		ws.totalComplexity += res.Complexity()
 
 		if res.userResult() == nil {

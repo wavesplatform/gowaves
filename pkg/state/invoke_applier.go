@@ -676,10 +676,25 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), actions: scriptActions, changes: failedChanges}
 		return ia.handleInvocationResult(tx, info, res)
 	}
-	actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
-	scriptRuns := uint64(len(paymentSmartAssets)) + actionScriptRuns
+	var scriptRuns uint64 = 0
+	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
+	if info.rideV5Activated {
+		actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
+		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
+	}
 	if info.senderScripted {
-		scriptRuns += 1
+		// Since activation of RideV5 (16) feature we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit
+		if info.rideV5Activated {
+			treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(*scriptAddr, info.checkerInfo.estimatorVersion(), !info.initialisation)
+			if err != nil {
+				return nil, errors.Wrap(err, "invoke failed to get verifier complexity")
+			}
+			if treeEstimation.Verifier > FreeVerifierComplexity {
+				scriptRuns++
+			}
+		} else {
+			scriptRuns++
+		}
 	}
 	var res *invocationResult
 	code, changes, err := ia.fallibleValidation(tx, &addlInvokeInfo{

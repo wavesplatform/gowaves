@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -189,13 +190,9 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams, isRideV5Acti
 	// check complexity of script for free verifier if complexity <= 200
 	complexity := 0
 	if accountScripted && isRideV5Activated {
-
 		treeEstimation, err := params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, estimatorVersion, !params.initialisation)
 		if err != nil {
 			return nil, errors.Errorf("failed to get complexity by addr from store, %v", err)
-		}
-		if treeEstimation == nil {
-			return nil, errors.Errorf("failed to get complexity by addr from store: estimation tree is empty")
 		}
 		complexity = treeEstimation.Verifier
 	}
