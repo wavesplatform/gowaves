@@ -14,6 +14,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const suspendDuration = 5 * time.Minute
+
 type peerInfo struct {
 	score *big.Int
 	peer  peer.Peer
@@ -40,7 +42,8 @@ type PeerManager interface {
 	EachConnected(func(peer.Peer, *proto.Score))
 	IsSuspended(peer.Peer) bool
 	Suspend(peer.Peer, string)
-	Suspended() []string
+	SuspendedIPs() []string
+	Suspended() []SuspendedInfo
 	AddConnected(peer.Peer)
 	PeerWithHighestScore() (peer.Peer, *big.Int, bool)
 	UpdateScore(p peer.Peer, score *proto.Score) error
@@ -59,52 +62,80 @@ type PeerManager interface {
 	Disconnect(peer.Peer)
 }
 
-type Ip = [net.IPv6len]byte
+type IP [net.IPv6len]byte
 
-type suspended map[Ip]time.Time
-
-func (a suspended) Blocked(ipPort proto.IpPort, now time.Time) bool {
-	ip := Ip{}
-	copy(ip[:], ipPort[:net.IPv6len])
-	v, ok := a[ip]
-	if !ok {
-		return false
-	}
-	if v.Add(5 * time.Minute).After(now) { //suspended
-		return true
-	} else {
-		return false
-	}
+func (i *IP) String() string {
+	return net.IP(i[:]).String()
 }
 
-func (a suspended) AllBlocked() []string {
-	out := make([]string, 0, len(a))
-	for ip := range a {
-		out = append(out, net.IP(ip[:]).String())
-	}
-	return out
+func IPFromString(s string) IP {
+	parsed := net.ParseIP(s)
+	ip := IP{}
+	copy(ip[:], parsed[:net.IPv6len])
+	return ip
 }
 
-func (a suspended) clear(now time.Time) {
-	for ip, v := range a {
-		if v.Add(5 * time.Minute).Before(now) {
-			delete(a, ip)
-		}
-	}
-}
-
-func (a suspended) Block(ip proto.IpPort, d time.Duration) {
-	a[ipPortToIp(ip)] = time.Now().Add(d)
-}
-
-func ipPortToIp(ipPort proto.IpPort) [net.IPv6len]byte {
-	ip := Ip{}
+func ipPortToIp(ipPort proto.IpPort) IP {
+	ip := IP{}
 	copy(ip[:], ipPort[:net.IPv6len])
 	return ip
 }
 
-func (a suspended) Len() int {
-	return len(a)
+type SuspendedInfo struct {
+	IP              IP
+	SuspendTime     time.Time
+	SuspendDuration time.Duration
+	Reason          string
+}
+
+func (si *SuspendedInfo) AwakeTime() time.Time {
+	return si.SuspendTime.Add(si.SuspendDuration)
+}
+
+// nickeksov: suspended is a map where key is a peerIP and value is an SuspendTime
+type suspended map[IP]SuspendedInfo
+
+func (s suspended) Blocked(ipPort proto.IpPort, now time.Time) bool {
+	ip := ipPortToIp(ipPort)
+
+	v, ok := s[ip]
+	if !ok {
+		return false
+	}
+
+	// nickeskov: true if peer suspended
+	return v.AwakeTime().After(now)
+}
+
+func (s suspended) AllBlockedIPs() []string {
+	out := make([]string, 0, len(s))
+	for ip := range s {
+		out = append(out, ip.String())
+	}
+	return out
+}
+
+func (s suspended) clear(now time.Time) {
+	for ip, v := range s {
+		if v.AwakeTime().Before(now) {
+			delete(s, ip)
+		}
+	}
+}
+
+func (s suspended) Block(ipPort proto.IpPort, d time.Duration, reason string) {
+	ip := ipPortToIp(ipPort)
+
+	s[ip] = SuspendedInfo{
+		IP:              ip,
+		SuspendTime:     time.Now(),
+		SuspendDuration: d,
+		Reason:          reason,
+	}
+}
+
+func (s suspended) Len() int {
+	return len(s)
 }
 
 type PeerManagerImpl struct {
@@ -211,15 +242,19 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 	return nil
 }
 
+func (a *PeerManagerImpl) ClearSuspended(now time.Time) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.suspended.clear(now)
+}
+
 func (a *PeerManagerImpl) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(1 * time.Minute):
-			a.mu.Lock()
-			a.suspended.clear(time.Now())
-			a.mu.Unlock()
+			a.ClearSuspended(time.Now())
 		}
 	}
 }
@@ -285,15 +320,25 @@ func (a *PeerManagerImpl) InOutCount() (in int, out int) {
 func (a *PeerManagerImpl) Suspend(p peer.Peer, reason string) {
 	a.Disconnect(p)
 	a.mu.Lock()
-	a.suspended.Block(p.RemoteAddr().ToIpPort(), 5*time.Minute)
-	a.mu.Unlock()
+	defer a.mu.Unlock()
+	a.suspended.Block(p.RemoteAddr().ToIpPort(), suspendDuration, reason)
 	zap.S().Debugf("[%s] Suspend peer, reason: %s ", p.ID(), reason)
 }
 
-func (a *PeerManagerImpl) Suspended() []string {
+func (a *PeerManagerImpl) SuspendedIPs() []string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.suspended.AllBlocked()
+	return a.suspended.AllBlockedIPs()
+}
+
+func (a *PeerManagerImpl) Suspended() []SuspendedInfo {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	out := make([]SuspendedInfo, 0, len(a.suspended))
+	for _, suspendedInfo := range a.suspended {
+		out = append(out, suspendedInfo)
+	}
+	return out
 }
 
 func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr string) {
@@ -318,10 +363,10 @@ func (a *PeerManagerImpl) KnownPeers() ([]proto.TCPAddr, error) {
 
 func (a *PeerManagerImpl) Close() {
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	for _, v := range a.active {
 		_ = v.peer.Close()
 	}
-	a.mu.Unlock()
 }
 
 func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {

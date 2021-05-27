@@ -57,3 +57,23 @@ func TestWalletLoadKeys(t *testing.T) {
 	assert.Equal(t, "apikey", r.apiKey)
 	assert.EqualValues(t, "password", r.password)
 }
+
+func TestNodeApi_FindFirstInvalidRuneInBase58String(t *testing.T) {
+	invalidData := []struct {
+		str      string
+		expected rune
+	}{
+		{"234234😀$32@", '😀'},
+		{"234234$32@", '$'},
+		{"2@3423432", '@'},
+	}
+
+	for _, testCase := range invalidData {
+		actual := findFirstInvalidRuneInBase58String(testCase.str)
+		assert.NotNil(t, actual)
+		assert.Equal(t, testCase.expected, *actual)
+	}
+
+	actual := findFirstInvalidRuneInBase58String("42354")
+	assert.Nil(t, actual)
+}
