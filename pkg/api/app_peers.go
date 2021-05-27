@@ -20,23 +20,20 @@ type PeersKnown struct {
 
 // PeersAll is a list of all known not banned and not suspended peers with a publicly available declared address
 func (a *App) PeersAll() (PeersKnown, error) {
-	suspendedIPs := a.peers.SuspendedIPs()
-	suspendedMap := make(map[string]struct{}, len(suspendedIPs))
-	for _, ip := range suspendedIPs {
-		suspendedMap[ip] = struct{}{}
+	suspended := a.peers.Suspended()
+	suspendedIPsMap := make(map[string]struct{}, len(suspended))
+	for _, suspendedPeer := range suspended {
+		suspendedIPsMap[suspendedPeer.IP.String()] = struct{}{}
 	}
 
-	peers, err := a.peers.KnownPeers()
-	if err != nil {
-		return PeersKnown{}, errors.Wrap(err, "failed to get all (not banned and not suspended) peers")
-	}
+	knownPeers := a.peers.KnownPeers()
 
 	nowMillis := unixMillis(time.Now())
 
-	out := make([]Peer, 0, len(peers))
-	for _, row := range peers {
-		ip := row.String()
-		if _, in := suspendedMap[ip]; in {
+	out := make([]Peer, 0, len(knownPeers))
+	for _, knownPeer := range knownPeers {
+		ip := knownPeer.String()
+		if _, in := suspendedIPsMap[ip]; in {
 			continue
 		}
 		// FIXME(nickeksov): add normal last seen (this is crunch...)!!!!
@@ -50,15 +47,12 @@ func (a *App) PeersAll() (PeersKnown, error) {
 }
 
 func (a *App) PeersKnown() (PeersKnown, error) {
-	peers, err := a.peers.KnownPeers()
-	if err != nil {
-		return PeersKnown{}, errors.Wrap(err, "failed to get known peers")
-	}
+	knownPeers := a.peers.KnownPeers()
 
-	out := make([]Peer, 0, len(peers))
-	for _, row := range peers {
-		// nickeksov: peers without lastSeen field
-		out = append(out, Peer{Address: row.String()})
+	out := make([]Peer, 0, len(knownPeers))
+	for _, knownPeer := range knownPeers {
+		// nickeksov: knownPeers without lastSeen field
+		out = append(out, Peer{Address: knownPeer.String()})
 	}
 
 	return PeersKnown{Peers: out}, nil
@@ -147,7 +141,7 @@ func (a *App) PeersSuspended() []SuspendedPeerInfo {
 	for _, p := range suspended {
 		out = append(out, SuspendedPeerInfo{
 			Hostname:  "/" + p.IP.String(),
-			Timestamp: unixMillis(p.SuspendTime),
+			Timestamp: p.SuspendTimestampMillis,
 			Reason:    p.Reason,
 		})
 	}

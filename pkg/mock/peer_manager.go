@@ -11,7 +11,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	peer_manager "github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	storage "github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	peer "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	proto "github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -172,12 +172,11 @@ func (mr *MockPeerManagerMockRecorder) IsSuspended(arg0 interface{}) *gomock.Cal
 }
 
 // KnownPeers mocks base method.
-func (m *MockPeerManager) KnownPeers() ([]proto.TCPAddr, error) {
+func (m *MockPeerManager) KnownPeers() []storage.KnownPeer {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "KnownPeers")
-	ret0, _ := ret[0].([]proto.TCPAddr)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].([]storage.KnownPeer)
+	return ret0
 }
 
 // KnownPeers indicates an expected call of KnownPeers.
@@ -284,10 +283,10 @@ func (mr *MockPeerManagerMockRecorder) Suspend(arg0, arg1 interface{}) *gomock.C
 }
 
 // Suspended mocks base method.
-func (m *MockPeerManager) Suspended() []peer_manager.SuspendedInfo {
+func (m *MockPeerManager) Suspended() []storage.SuspendedPeer {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Suspended")
-	ret0, _ := ret[0].([]peer_manager.SuspendedInfo)
+	ret0, _ := ret[0].([]storage.SuspendedPeer)
 	return ret0
 }
 
@@ -297,22 +296,8 @@ func (mr *MockPeerManagerMockRecorder) Suspended() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Suspended", reflect.TypeOf((*MockPeerManager)(nil).Suspended))
 }
 
-// SuspendedIPs mocks base method.
-func (m *MockPeerManager) SuspendedIPs() []string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SuspendedIPs")
-	ret0, _ := ret[0].([]string)
-	return ret0
-}
-
-// SuspendedIPs indicates an expected call of SuspendedIPs.
-func (mr *MockPeerManagerMockRecorder) SuspendedIPs() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SuspendedIPs", reflect.TypeOf((*MockPeerManager)(nil).SuspendedIPs))
-}
-
 // UpdateKnownPeers mocks base method.
-func (m *MockPeerManager) UpdateKnownPeers(arg0 []proto.TCPAddr) error {
+func (m *MockPeerManager) UpdateKnownPeers(arg0 []storage.KnownPeer) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateKnownPeers", arg0)
 	ret0, _ := ret[0].(error)

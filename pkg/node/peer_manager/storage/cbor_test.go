@@ -88,7 +88,7 @@ type binaryStorageCborSuite struct {
 }
 
 func (s *binaryStorageCborSuite) SetupTest() {
-	tmpdir, err := os.MkdirTemp("", "peers_storage_test_suite_*")
+	tmpdir, err := ioutil.TempDir("", "peers_storage_test_suite_*")
 	require.NoError(s.T(), err)
 	defer func() {
 		if err != nil {

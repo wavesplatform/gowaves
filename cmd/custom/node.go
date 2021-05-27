@@ -190,8 +190,12 @@ func main() {
 
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
 
-	peerStorage := storage.NewBinaryStorage(path)
-
+	peerStorage, err := storage.NewCBORStorage(*statePath, time.Now())
+	if err != nil {
+		zap.S().Errorf("Failed to open or create peers storage: %v", err)
+		cancel()
+		return
+	}
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, peerStorage, int(limitConnections), version)
 	go peerManager.Run(ctx)
 
@@ -234,7 +238,19 @@ func main() {
 	if len(conf.Addresses) > 0 {
 		addresses := strings.Split(conf.Addresses, ",")
 		for _, addr := range addresses {
-			peerManager.AddAddress(ctx, addr)
+			tcpAddr := proto.NewTCPAddrFromString(addr)
+			if tcpAddr.Empty() {
+				// nickeskov: that means that configuration parameter is invalid
+				zap.S().Errorf("Failed to parse TCPAddr from string %q", tcpAddr.String())
+				cancel()
+				return
+			}
+			if err := peerManager.AddAddress(ctx, tcpAddr); err != nil {
+				// nickeskov: than means that we have problems with peers storage
+				zap.S().Errorf("Failed to add addres into know peers storage: %v", err)
+				cancel()
+				return
+			}
 		}
 	}
 

@@ -2,8 +2,9 @@ package api
 
 import (
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"net"
 	"testing"
 	"time"
 
@@ -18,10 +19,8 @@ func TestApp_PeersKnown(t *testing.T) {
 	defer ctrl.Finish()
 
 	peerManager := mock.NewMockPeerManager(ctrl)
-	peerManager.EXPECT().KnownPeers().Return([]proto.TCPAddr{proto.NewTCPAddrFromString("127.0.0.1:6868")}, nil)
-
-	//s := mock.NewMockState(ctrl)
-	//s.EXPECT().Peers().Return([]proto.TCPAddr{proto.NewTCPAddrFromString("127.0.0.1:6868")}, nil)
+	addr := proto.NewTCPAddr(net.ParseIP("127.0.0.1"), 6868).ToIpPort()
+	peerManager.EXPECT().KnownPeers().Return([]storage.KnownPeer{storage.KnownPeer(addr)})
 
 	app, err := NewApp("key", nil, services.Services{Peers: peerManager})
 	require.NoError(t, err)
@@ -40,18 +39,18 @@ func TestApp_PeersSuspended(t *testing.T) {
 	now := time.Now()
 
 	ips := []string{"13.3.4.1", "5.3.6.7"}
-	testData := []peer_manager.SuspendedInfo{
+	testData := []storage.SuspendedPeer{
 		{
-			IP:              peer_manager.IPFromString(ips[0]),
-			SuspendTime:     now.Add(time.Minute),
-			SuspendDuration: time.Minute,
-			Reason:          "some reason #1",
+			IP:                     storage.IPFromString(ips[0]),
+			SuspendTimestampMillis: now.Add(time.Minute).UnixNano() / 1_000_000,
+			SuspendDuration:        time.Minute,
+			Reason:                 "some reason #1",
 		},
 		{
-			IP:              peer_manager.IPFromString(ips[1]),
-			SuspendTime:     now.Add(2 * time.Minute),
-			SuspendDuration: time.Minute,
-			Reason:          "some reason #2",
+			IP:                     storage.IPFromString(ips[1]),
+			SuspendTimestampMillis: now.Add(2*time.Minute).UnixNano() / 1_000_000,
+			SuspendDuration:        time.Minute,
+			Reason:                 "some reason #2",
 		},
 	}
 
@@ -66,7 +65,7 @@ func TestApp_PeersSuspended(t *testing.T) {
 		p := testData[i]
 		expected := SuspendedPeerInfo{
 			Hostname:  "/" + ips[i],
-			Timestamp: unixMillis(p.SuspendTime),
+			Timestamp: p.SuspendTimestampMillis,
 			Reason:    p.Reason,
 		}
 		assert.Equal(t, expected, actual)
