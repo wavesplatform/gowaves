@@ -24,8 +24,8 @@ type CBORStorage struct {
 	knownFilePath     string
 }
 
-func NewCBORStorage(statePath string, now time.Time) (*CBORStorage, error) {
-	storageDir := filepath.Join(statePath, peersStorageDir)
+func NewCBORStorage(baseDir string, now time.Time) (*CBORStorage, error) {
+	storageDir := filepath.Join(baseDir, peersStorageDir)
 	return newCBORStorageInDir(storageDir, now)
 }
 

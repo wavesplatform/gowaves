@@ -9,6 +9,7 @@ import (
 	big "math/big"
 	net "net"
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	storage "github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
@@ -271,15 +272,15 @@ func (mr *MockPeerManagerMockRecorder) Spawned() *gomock.Call {
 }
 
 // Suspend mocks base method.
-func (m *MockPeerManager) Suspend(arg0 peer.Peer, arg1 string) {
+func (m *MockPeerManager) Suspend(peer peer.Peer, suspendTime time.Time, reason string) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Suspend", arg0, arg1)
+	m.ctrl.Call(m, "Suspend", peer, suspendTime, reason)
 }
 
 // Suspend indicates an expected call of Suspend.
-func (mr *MockPeerManagerMockRecorder) Suspend(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockPeerManagerMockRecorder) Suspend(peer, suspendTime, reason interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Suspend", reflect.TypeOf((*MockPeerManager)(nil).Suspend), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Suspend", reflect.TypeOf((*MockPeerManager)(nil).Suspend), peer, suspendTime, reason)
 }
 
 // Suspended mocks base method.
