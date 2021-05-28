@@ -133,6 +133,13 @@ func (bs *CBORStorage) DeleteKnown(known []KnownPeer) error {
 	return nil
 }
 
+// DropKnown clear known in memory cache and truncates known peers storage file with strong error guarantee.
+func (bs *CBORStorage) DropKnown() error {
+	bs.rwMutex.Lock()
+	defer bs.rwMutex.Unlock()
+	return bs.unsafeDropKnown()
+}
+
 func (bs *CBORStorage) Suspended(now time.Time) []SuspendedPeer {
 	bs.rwMutex.RLock()
 	defer bs.rwMutex.RUnlock()
@@ -244,13 +251,29 @@ func (bs *CBORStorage) RefreshSuspended(now time.Time) error {
 func (bs *CBORStorage) DropSuspended() error {
 	bs.rwMutex.Lock()
 	defer bs.rwMutex.Unlock()
+	return bs.unsafeDropSuspended()
+}
 
-	// nickeskov: truncate suspendedStorageFile to zero size
-	if err := os.Truncate(bs.suspendedFilePath, 0); err != nil {
-		return errors.Wrapf(err, "failed to drop suspendedStorageFile, filepath=%q", bs.suspendedFilePath)
+// DropStorage clear storage memory cache and truncates storage files.
+// In case of error we can loose suspended peers storage file, but honestly it's almost impossible case.
+func (bs *CBORStorage) DropStorage() error {
+	bs.rwMutex.Lock()
+	defer bs.rwMutex.Unlock()
+
+	suspendedBackup := bs.suspended
+	if err := bs.unsafeDropSuspended(); err != nil {
+		return errors.Wrap(err, "failed to drop suspended peers storage")
 	}
-	// nickeskov: clear map
-	bs.suspended = suspendedPeers{}
+
+	if err := bs.unsafeDropKnown(); err != nil {
+		bs.suspended = suspendedBackup
+		// nickeskov: it's almost impossible case, but if it happens we have inconsistency in suspended peers
+		// but honestly it's not fatal error
+		if syncErr := marshalToCborAndSyncToFile(bs.suspendedFilePath, bs.suspended); syncErr != nil {
+			return errors.Wrapf(err, "failed to sync suspended peers storage from backup: %v", syncErr)
+		}
+		return errors.Wrap(err, "failed to drop known peers storage")
+	}
 	return nil
 }
 
@@ -270,6 +293,16 @@ func (bs *CBORStorage) unsafeSyncKnown(newEntries, backup []KnownPeer) error {
 	return errors.Wrap(err, "failed to marshal known peers and sync storage")
 }
 
+func (bs *CBORStorage) unsafeDropKnown() error {
+	// nickeskov: truncate suspendedStorageFile to zero size
+	if err := os.Truncate(bs.knownFilePath, 0); err != nil {
+		return errors.Wrapf(err, "failed to drop known storage file %q", bs.knownFilePath)
+	}
+	// nickeskov: clear map
+	bs.known = knownPeers{}
+	return nil
+}
+
 func (bs *CBORStorage) unsafeSyncSuspended(newEntries, backup []SuspendedPeer) error {
 	err := marshalToCborAndSyncToFile(bs.suspendedFilePath, bs.suspended)
 	if err == nil {
@@ -284,6 +317,16 @@ func (bs *CBORStorage) unsafeSyncSuspended(newEntries, backup []SuspendedPeer) e
 		bs.suspended[s.IP] = s
 	}
 	return errors.Wrap(err, "failed to marshal suspended peers and sync storage")
+}
+
+func (bs *CBORStorage) unsafeDropSuspended() error {
+	// nickeskov: truncate suspendedStorageFile to zero size
+	if err := os.Truncate(bs.suspendedFilePath, 0); err != nil {
+		return errors.Wrapf(err, "failed to drop suspended storage file %q", bs.suspendedFilePath)
+	}
+	// nickeskov: clear map
+	bs.suspended = suspendedPeers{}
+	return nil
 }
 
 // unsafeKnownIntersection returns values from known map which intersects with input values

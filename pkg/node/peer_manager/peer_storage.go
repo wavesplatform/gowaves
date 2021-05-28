@@ -9,6 +9,7 @@ type PeerStorage interface {
 	Known() []storage.KnownPeer
 	AddKnown(known []storage.KnownPeer) error
 	DeleteKnown(known []storage.KnownPeer) error
+	DropKnown() error
 
 	Suspended(now time.Time) []storage.SuspendedPeer
 	AddSuspended(suspended []storage.SuspendedPeer) error
@@ -17,4 +18,6 @@ type PeerStorage interface {
 	DeleteSuspendedByIP(suspended []storage.SuspendedPeer) error
 	RefreshSuspended(now time.Time) error
 	DropSuspended() error
+
+	DropStorage() error
 }

@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -163,6 +164,25 @@ func (s *binaryStorageCborSuite) TestCBORStorageKnown() {
 		require.NoError(s.T(), err)
 		check(known[1:])
 	})
+
+	s.Run("unsafe sync known peers bad storage file", func() {
+		defer func(knownStorageFile string) {
+			require.NoError(s.T(), os.Remove(s.storage.knownFilePath))
+			s.storage.knownFilePath = knownStorageFile
+		}(s.storage.knownFilePath)
+
+		badFilePath := filepath.Join(s.storage.storageDir, "test_invalid_known_storage_file")
+		f, err := os.OpenFile(badFilePath, os.O_CREATE, 0100)
+		require.NoError(s.T(), err)
+		defer func() {
+			require.NoError(s.T(), f.Chmod(0644))
+			require.NoError(s.T(), f.Close())
+		}()
+
+		s.storage.knownFilePath = badFilePath
+		err = s.storage.unsafeSyncKnown(nil, nil)
+		require.Error(s.T(), err)
+	})
 }
 
 func (s *binaryStorageCborSuite) TestCBORStorageSuspended() {
@@ -292,17 +312,113 @@ func (s *binaryStorageCborSuite) TestCBORStorageSuspended() {
 		}
 	})
 
+	s.Run("unsafe sync suspended peers bad storage file", func() {
+		defer func(suspendedStorageFile string) {
+			require.NoError(s.T(), os.Remove(s.storage.suspendedFilePath))
+			s.storage.suspendedFilePath = suspendedStorageFile
+		}(s.storage.suspendedFilePath)
+
+		badFilePath := filepath.Join(s.storage.storageDir, "test_invalid_suspended_storage_file")
+		f, err := os.OpenFile(badFilePath, os.O_CREATE, 0100)
+		require.NoError(s.T(), err)
+		defer func() {
+			require.NoError(s.T(), f.Chmod(0644))
+			require.NoError(s.T(), f.Close())
+		}()
+
+		s.storage.suspendedFilePath = badFilePath
+		err = s.storage.unsafeSyncSuspended(nil, nil)
+		require.Error(s.T(), err)
+	})
+}
+
+func (s *binaryStorageCborSuite) TestCBORStorageDrops() {
+	suspendDuration := time.Minute * 5
+	now := s.now.Truncate(time.Millisecond)
+	suspended := []SuspendedPeer{
+		{
+			IP:                     IPFromString("13.3.4.1"),
+			SuspendTimestampMillis: now.UnixNano() / 1_000_000,
+			SuspendDuration:        suspendDuration,
+			Reason:                 "some reason #1",
+		},
+		{
+			IP:                     IPFromString("3.54.1.9"),
+			SuspendTimestampMillis: now.UnixNano() / 1_000_000,
+			SuspendDuration:        suspendDuration,
+			Reason:                 "some reason #2",
+		},
+		{
+			IP:                     IPFromString("23.43.7.43"),
+			SuspendTimestampMillis: now.UnixNano() / 1_000_000,
+			SuspendDuration:        suspendDuration + time.Minute*2,
+			Reason:                 "some reason #3",
+		},
+		{
+			IP:                     IPFromString("42.54.1.6"),
+			SuspendTimestampMillis: now.UnixNano() / 1_000_000,
+			SuspendDuration:        suspendDuration + time.Minute*2,
+			Reason:                 "some reason #4",
+		},
+	}
+
+	known := []KnownPeer{
+		// nickeskov: this peers can be found in suspended peers
+		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("13.3.4.1:2345"))),
+		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("3.54.1.9:1454"))),
+		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("23.43.7.43:4234"))),
+		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("42.54.1.6:54356"))),
+
+		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("13.8.4.1:2334"))),
+		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("3.5.13.91:14554"))),
+		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("3.43.7.47:4234"))),
+		KnownPeer(proto.NewIpPortFromTcpAddr(proto.NewTCPAddrFromString("4.54.1.65:5356"))),
+	}
+
+	checkSuspendedStorageFile := func() {
+		var unmarshalled suspendedPeers
+		require.Equal(s.T(), io.EOF, unmarshalCborFromFile(s.storage.suspendedFilePath, &unmarshalled))
+		require.Empty(s.T(), s.storage.Suspended(now))
+	}
+
+	checkKnownStorageFile := func() {
+		var unmarshalled knownPeers
+		require.Equal(s.T(), io.EOF, unmarshalCborFromFile(s.storage.knownFilePath, &unmarshalled))
+		require.Empty(s.T(), s.storage.Known())
+	}
+
 	s.Run("drop suspended peers", func() {
 		defer func() {
-			// nickeskov: set previous values
 			require.NoError(s.T(), s.storage.AddSuspended(suspended))
 		}()
 
 		err := s.storage.DropSuspended()
 		require.NoError(s.T(), err)
 
-		var unmarshalled suspendedPeers
-		require.Equal(s.T(), io.EOF, unmarshalCborFromFile(s.storage.suspendedFilePath, &unmarshalled))
-		require.Equal(s.T(), 0, len(s.storage.Suspended(now)))
+		checkSuspendedStorageFile()
+	})
+
+	s.Run("drop known peers", func() {
+		defer func() {
+			require.NoError(s.T(), s.storage.AddKnown(known))
+		}()
+
+		err := s.storage.DropKnown()
+		require.NoError(s.T(), err)
+
+		checkKnownStorageFile()
+	})
+
+	s.Run("drop peers storage", func() {
+		defer func() {
+			require.NoError(s.T(), s.storage.AddSuspended(suspended))
+			require.NoError(s.T(), s.storage.AddKnown(known))
+		}()
+
+		err := s.storage.DropStorage()
+		require.NoError(s.T(), err)
+
+		checkSuspendedStorageFile()
+		checkKnownStorageFile()
 	})
 }

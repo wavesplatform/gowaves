@@ -24,7 +24,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
+	peersPersistentStorage "github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/ng"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -57,6 +57,7 @@ var (
 	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
 	limitConnectionsS = flag.String("limit-connections", "30", "N incoming and outgoing connections")
 	minPeersMining    = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining")
+	dropPeers         = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
 )
 
 func init() {
@@ -190,12 +191,24 @@ func main() {
 
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(btsPool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
 
-	peerStorage, err := storage.NewCBORStorage(*statePath, time.Now())
+	peerStorage, err := peersPersistentStorage.NewCBORStorage(*statePath, time.Now())
 	if err != nil {
 		zap.S().Errorf("Failed to open or create peers storage: %v", err)
 		cancel()
 		return
 	}
+	if *dropPeers {
+		if err := peerStorage.DropStorage(); err != nil {
+			zap.S().Errorf(
+				"Failed to drop peers storage. Drop peers storage manually. Err: %v",
+				err,
+			)
+			cancel()
+			return
+		}
+		zap.S().Info("Successfully dropped peers storage")
+	}
+
 	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, peerStorage, int(limitConnections), version)
 	go peerManager.Run(ctx)
 

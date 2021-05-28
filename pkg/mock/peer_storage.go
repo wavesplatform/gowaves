@@ -91,6 +91,34 @@ func (mr *MockPeerStorageMockRecorder) DeleteSuspendedByIP(suspended interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteSuspendedByIP", reflect.TypeOf((*MockPeerStorage)(nil).DeleteSuspendedByIP), suspended)
 }
 
+// DropKnown mocks base method.
+func (m *MockPeerStorage) DropKnown() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DropKnown")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DropKnown indicates an expected call of DropKnown.
+func (mr *MockPeerStorageMockRecorder) DropKnown() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DropKnown", reflect.TypeOf((*MockPeerStorage)(nil).DropKnown))
+}
+
+// DropStorage mocks base method.
+func (m *MockPeerStorage) DropStorage() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DropStorage")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DropStorage indicates an expected call of DropStorage.
+func (mr *MockPeerStorageMockRecorder) DropStorage() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DropStorage", reflect.TypeOf((*MockPeerStorage)(nil).DropStorage))
+}
+
 // DropSuspended mocks base method.
 func (m *MockPeerStorage) DropSuspended() error {
 	m.ctrl.T.Helper()
