@@ -485,7 +485,12 @@ func TestSigVerify(t *testing.T) {
 		{[]rideType{rideInt(12345)}, v2check, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, v2check, true, nil},
 	} {
-		te := &MockRideEnvironment{checkMessageLengthFunc: test.check}
+		te := &MockRideEnvironment{
+			checkMessageLengthFunc: test.check,
+			libVersionFunc: func() int {
+				return 3
+			},
+		}
 		r, err := sigVerify(te, test.args...)
 		if test.fail {
 			assert.Error(t, err)

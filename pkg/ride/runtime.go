@@ -372,6 +372,7 @@ type Environment interface {
 	takeString(s string, n int) rideString
 	invocation() rideObject // Invocation object made of invoke transaction
 	setInvocation(inv rideObject)
+	libVersion() int
 }
 
 type rideConstructor func(Environment) rideType
