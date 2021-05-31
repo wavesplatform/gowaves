@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
-	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -286,41 +285,6 @@ func TestStateIntegrated(t *testing.T) {
 			t.Errorf("Height after rollback is not correct: %d; must be %d", height, tc.height)
 		}
 	}
-}
-
-func TestStateManager_SavePeers(t *testing.T) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "dataDir")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir for data: %v\n", err)
-	}
-	defer func() {
-		err = os.RemoveAll(dataDir)
-		require.NoError(t, err)
-	}()
-
-	manager, err := newStateManager(dataDir, DefaultTestingStateParams(), settings.MainNetSettings)
-	if err != nil {
-		t.Fatalf("Failed to create state manager: %v.\n", err)
-	}
-	defer func() {
-		err := manager.Close()
-		require.NoError(t, err)
-	}()
-
-	peers, err := manager.Peers()
-	require.NoError(t, err)
-	assert.Len(t, peers, 0)
-
-	peers = []proto.TCPAddr{
-		proto.NewTCPAddr(net.IPv4(127, 0, 0, 1), 65535),
-		proto.NewTCPAddr(net.IPv4(83, 127, 1, 254).To4(), 80),
-	}
-	require.NoError(t, manager.SavePeers(peers))
-
-	// check that peers saved
-	peers2, err := manager.Peers()
-	require.NoError(t, err)
-	assert.Len(t, peers2, 2)
 }
 
 func TestPreactivatedFeatures(t *testing.T) {
