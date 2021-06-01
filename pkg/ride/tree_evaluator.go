@@ -213,11 +213,11 @@ func keys(m map[string]int, enableInvocation bool) []string {
 func selectFunctionNames(v int, enableInvocation bool) ([]string, error) {
 	switch v {
 	case 1, 2:
-		return keys(CatalogueV2, enableInvocation), nil
+		return keys(CatalogueV2, false), nil
 	case 3:
-		return keys(CatalogueV3, enableInvocation), nil
+		return keys(CatalogueV3, false), nil
 	case 4:
-		return keys(CatalogueV4, enableInvocation), nil
+		return keys(CatalogueV4, false), nil
 	case 5:
 		return keys(CatalogueV5, enableInvocation), nil
 	default:

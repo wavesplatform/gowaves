@@ -23,6 +23,9 @@ func invokeFunctionFromDApp(env Environment, recipient proto.Recipient, fnName r
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get tree by script")
 	}
+	if tree.LibVersion < 5 {
+		return nil, errors.Errorf("failed to call 'invoke' for script with version %d. Scripts with version 5 are only allowed to be used in 'invoke'", tree.LibVersion)
+	}
 
 	e, err := treeFunctionEvaluatorForInvokeDAppFromDApp(env, tree, string(fnName), listArgs)
 	if err != nil {
