@@ -31,6 +31,9 @@ var _ Environment = &MockRideEnvironment{}
 //             invocationFunc: func() rideObject {
 // 	               panic("mock out the invocation method")
 //             },
+//             libVersionFunc: func() int {
+// 	               panic("mock out the libVersion method")
+//             },
 //             schemeFunc: func() byte {
 // 	               panic("mock out the scheme method")
 //             },
@@ -77,6 +80,9 @@ type MockRideEnvironment struct {
 	// invocationFunc mocks the invocation method.
 	invocationFunc func() rideObject
 
+	// libVersionFunc mocks the libVersion method.
+	libVersionFunc func() int
+
 	// schemeFunc mocks the scheme method.
 	schemeFunc func() byte
 
@@ -120,6 +126,9 @@ type MockRideEnvironment struct {
 		// invocation holds details about calls to the invocation method.
 		invocation []struct {
 		}
+		// libVersion holds details about calls to the libVersion method.
+		libVersion []struct {
+		}
 		// scheme holds details about calls to the scheme method.
 		scheme []struct {
 		}
@@ -160,6 +169,7 @@ type MockRideEnvironment struct {
 	lockcheckMessageLength sync.RWMutex
 	lockheight             sync.RWMutex
 	lockinvocation         sync.RWMutex
+	locklibVersion         sync.RWMutex
 	lockscheme             sync.RWMutex
 	locksetInvocation      sync.RWMutex
 	locksetNewDAppAddress  sync.RWMutex
@@ -277,6 +287,32 @@ func (mock *MockRideEnvironment) invocationCalls() []struct {
 	mock.lockinvocation.RLock()
 	calls = mock.calls.invocation
 	mock.lockinvocation.RUnlock()
+	return calls
+}
+
+// libVersion calls libVersionFunc.
+func (mock *MockRideEnvironment) libVersion() int {
+	if mock.libVersionFunc == nil {
+		panic("MockRideEnvironment.libVersionFunc: method is nil but Environment.libVersion was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.locklibVersion.Lock()
+	mock.calls.libVersion = append(mock.calls.libVersion, callInfo)
+	mock.locklibVersion.Unlock()
+	return mock.libVersionFunc()
+}
+
+// libVersionCalls gets all the calls that were made to libVersion.
+// Check the length with:
+//     len(mockedEnvironment.libVersionCalls())
+func (mock *MockRideEnvironment) libVersionCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.locklibVersion.RLock()
+	calls = mock.calls.libVersion
+	mock.locklibVersion.RUnlock()
 	return calls
 }
 

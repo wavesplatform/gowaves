@@ -629,7 +629,7 @@ func sigVerify(env Environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("sigVerify: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	if l := len(message); env != nil && !env.checkMessageLength(l) {
+	if l := len(message); env != nil && env.libVersion() == 3 && !env.checkMessageLength(l) {
 		return nil, errors.Errorf("sigVerify: invalid message size %d", l)
 	}
 	signature, ok := args[1].(rideBytes)
@@ -831,7 +831,7 @@ func addressToString(_ Environment, args ...rideType) (rideType, error) {
 	}
 }
 
-func rsaVerify(_ Environment, args ...rideType) (rideType, error) {
+func rsaVerify(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "rsaVerify")
 	}
@@ -842,6 +842,9 @@ func rsaVerify(_ Environment, args ...rideType) (rideType, error) {
 	message, ok := args[1].(rideBytes)
 	if !ok {
 		return nil, errors.Errorf("rsaVerify: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	if l := len(message); env != nil && env.libVersion() == 3 && !env.checkMessageLength(l) {
+		return nil, errors.Errorf("sigVerify: invalid message size %d", l)
 	}
 	sig, ok := args[2].(rideBytes)
 	if !ok {

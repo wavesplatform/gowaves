@@ -162,6 +162,9 @@ func TestFunctionsEvaluation(t *testing.T) {
 				},
 			}
 		},
+		libVersionFunc: func() int {
+			return 3
+		},
 	}
 	envWithDataTX := &MockRideEnvironment{
 		transactionFunc: func() rideObject {
@@ -172,6 +175,9 @@ func TestFunctionsEvaluation(t *testing.T) {
 			return obj
 		},
 		takeStringFunc: v5takeString,
+		libVersionFunc: func() int {
+			return 3
+		},
 	}
 	envWithExchangeTX := &MockRideEnvironment{
 		transactionFunc: func() rideObject {
@@ -182,6 +188,9 @@ func TestFunctionsEvaluation(t *testing.T) {
 			return obj
 		},
 		takeStringFunc: v5takeString,
+		libVersionFunc: func() int {
+			return 3
+		},
 	}
 	for _, test := range []struct {
 		name   string

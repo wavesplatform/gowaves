@@ -1062,6 +1062,7 @@ type EvaluationEnvironment struct {
 	check   func(int) bool
 	takeStr func(s string, n int) rideString
 	inv     rideObject
+	ver     int
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*EvaluationEnvironment, error) {
@@ -1146,6 +1147,7 @@ func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) error {
 }
 
 func (e *EvaluationEnvironment) ChooseSizeCheck(v int) {
+	e.ver = v
 	if v > 2 {
 		e.check = func(l int) bool {
 			return l <= maxMessageLength
@@ -1281,6 +1283,10 @@ func (e *EvaluationEnvironment) invocation() rideObject {
 
 func (e *EvaluationEnvironment) setInvocation(inv rideObject) {
 	e.inv = inv
+}
+
+func (e *EvaluationEnvironment) libVersion() int {
+	return e.ver
 }
 
 func isAssetWaves(assetID []byte) bool {
