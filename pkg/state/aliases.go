@@ -231,3 +231,31 @@ func (a *aliases) reset() {
 	a.disabled = make(map[string]bool)
 	a.hasher.reset()
 }
+
+func (a *aliases) disabledAliases() (map[proto.Address]struct{}, error) {
+	iter, err := a.hs.newNewestTopEntryIterator(alias, true)
+	if err != nil {
+		return nil, err
+	}
+	addresses := make(map[proto.Address]struct{}, 0)
+	for iter.Next() {
+		keyBytes := iter.Key()
+		recordBytes := iter.Value()
+		var record aliasRecord
+		if err := record.unmarshalBinary(recordBytes); err != nil {
+			return nil, errors.Errorf("failed to unmarshal record: %v", err)
+		}
+		var key aliasKey
+		if err := key.unmarshal(keyBytes); err != nil {
+			return nil, err
+		}
+		if record.info.stolen {
+			addresses[record.info.addr] = struct{}{}
+			zap.S().Debugf("Stolen alias '%s' points to address '%s'", key.alias, record.info.addr.String())
+			a.disabled[key.alias] = true
+		}
+	}
+
+	iter.Release()
+	return addresses, iter.Error()
+}

@@ -319,6 +319,12 @@ func (a *ThreadSafeReadWrapper) ShouldPersistAddressTransactions() (bool, error)
 	return a.s.ShouldPersistAddressTransactions()
 }
 
+func (a *ThreadSafeReadWrapper) LeasesToStolenAliases() ([]string, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.LeasesToStolenAliases()
+}
+
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
 	return &ThreadSafeReadWrapper{
 		mu: mu,

@@ -1163,6 +1163,15 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 		}
 		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(blockchainHeight)
 	}
+	rideV5Activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.RideV5), blockchainHeight)
+	var rideV5Height uint64 = 0
+	if rideV5Activated {
+		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.RideV5))
+		if err != nil {
+			return false, err
+		}
+		rideV5Height = approvalHeight + s.settings.ActivationWindowSize(blockchainHeight)
+	}
 	switch blockchainHeight {
 	case s.settings.ResetEffectiveBalanceAtHeight:
 		return true, nil
@@ -1171,6 +1180,9 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 		return s.settings.Type == settings.MainNet, nil
 	case dataTxHeight:
 		// Only needed for MainNet.
+		return s.settings.Type == settings.MainNet, nil
+	case rideV5Height:
+		// Cancellation of leasings to stolen aliases only required for MainNet
 		return s.settings.Type == settings.MainNet, nil
 	default:
 		return false, nil
@@ -1254,6 +1266,15 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initia
 		}
 		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(height)
 	}
+	rideV5Activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.RideV5), height)
+	var rideV5Height uint64 = 0
+	if rideV5Activated {
+		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.RideV5))
+		if err != nil {
+			return err
+		}
+		rideV5Height = approvalHeight + s.settings.ActivationWindowSize(height)
+	}
 	if height == s.settings.ResetEffectiveBalanceAtHeight {
 		if err := s.stor.leases.cancelLeases(nil, blockID); err != nil {
 			return err
@@ -1277,8 +1298,39 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initia
 		if err := s.stor.balances.cancelInvalidLeaseIns(leaseIns, blockID); err != nil {
 			return err
 		}
+	} else if rideV5Activated && height == rideV5Height {
+		disabledAliasAddresses, err := s.stor.aliases.disabledAliases()
+		if err != nil {
+			return err
+		}
+		_, err = s.stor.leases.leasesToAddresses(disabledAliasAddresses)
+		if err != nil {
+			return err
+		}
+		//if err := s.stor.leases.cancelLeases(addresses, blockID); err != nil {
+		//	return err
+		//}
 	}
 	return nil
+}
+
+func (s *stateManager) LeasesToStolenAliases() ([]string, error) {
+	disabledAliasAddresses, err := s.stor.aliases.disabledAliases()
+	if err != nil {
+		return nil, err
+	}
+	for a := range disabledAliasAddresses {
+		zap.S().Infof("Disabled alias address: %s", a.String())
+	}
+	ls, err := s.stor.leases.leasesToAddresses(disabledAliasAddresses)
+	if err != nil {
+		return nil, err
+	}
+	r := make([]string, len(ls))
+	for i, l := range ls {
+		r[i] = fmt.Sprintf("%d: Leasing from %s to %s, amount %d", i+1, l.sender.String(), l.recipient.String(), l.leaseAmount)
+	}
+	return r, nil
 }
 
 func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {

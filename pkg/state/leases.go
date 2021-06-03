@@ -131,6 +131,41 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID prot
 	return nil
 }
 
+func (l *leases) leasesToAddresses(addresses map[proto.Address]struct{}) ([]leasing, error) {
+	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
+	if err != nil {
+		return nil, errors.Errorf("failed to create key iterator to cancel leases: %v", err)
+	}
+	defer func() {
+		leaseIter.Release()
+		if err := leaseIter.Error(); err != nil {
+			zap.S().Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	leases := make([]leasing, 0)
+	// Iterate all the leases.
+	zap.S().Info("Started collecting leases")
+	for leaseIter.Next() {
+		keyBytes := keyvalue.SafeKey(leaseIter)
+		var key leaseKey
+		if err := key.unmarshal(keyBytes); err != nil {
+			return nil, errors.Wrap(err, "failed ot unmarshal leasing key")
+		}
+		leaseBytes := keyvalue.SafeValue(leaseIter)
+		var lease leasingRecord
+		if err := lease.unmarshalBinary(leaseBytes); err != nil {
+			return nil, errors.Errorf("failed to unmarshal lease: %v", err)
+		}
+		if _, ok := addresses[lease.recipient]; ok {
+			leases = append(leases, lease.leasing)
+			zap.S().Infof("Lease: %s: %s -> %s; %d, %t", key.leaseID.String(), lease.sender.String(), lease.recipient.String(), lease.leaseAmount, lease.isActive)
+		}
+	}
+	zap.S().Info("Finished collecting leases")
+	return leases, nil
+}
+
 func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
 	if err != nil {
