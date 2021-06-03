@@ -1,6 +1,7 @@
 package ride
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -69,5 +70,29 @@ func CallFunction(env Environment, tree *Tree, name string, args proto.Arguments
 	fullActions := ws.act
 	fullActions = append(fullActions, DAppResult.actions...)
 	DAppResult.actions = fullActions
+
+	if rideResult != nil {
+		for _, action := range DAppResult.actions {
+			switch res := action.(type) {
+
+			case *proto.DataEntryScriptAction:
+				switch dataEntry := res.Entry.(type) {
+
+				case *proto.IntegerDataEntry:
+					fmt.Printf("it's integer data entry with value : %d and key: %s\n", dataEntry.Value, dataEntry.Key)
+				}
+
+			case *proto.TransferScriptAction:
+				fmt.Printf("it's transfer action  with value : %d and asset ID: %s, and recipient address is %s\n", res.Amount, res.Asset.ID.String(), res.Recipient.Address.String())
+				if res.Sender != nil {
+					fmt.Printf("sender of transfer is %s\n", res.Sender.String())
+				}
+
+			}
+		}
+	}
+
+	fmt.Printf("RideResult is %t\n", DAppResult.res)
+
 	return DAppResult, err
 }
