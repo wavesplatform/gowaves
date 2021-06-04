@@ -115,16 +115,16 @@ func (a *App) Accounts() ([]account, error) {
 }
 
 func (a *App) checkAuth(key string) error {
-	// TODO(nickeskov): use new types of errors
 	if !a.apiKeyEnabled {
+		// TODO(nickeskov): use new types of errors
 		return &AuthError{errors.New("api key disabled")}
 	}
 	d, err := crypto.SecureHash([]byte(key))
 	if err != nil {
-		// TODO(nickeskov): it's OK?
-		return err
+		return errors.Wrap(err, "failed to calculate secure hash for API key")
 	}
 	if d != a.hashedApiKey {
+		// TODO(nickeskov): use new types of errors
 		return &AuthError{errors.New("invalid api key")}
 	}
 	return nil

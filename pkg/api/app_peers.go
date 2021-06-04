@@ -36,7 +36,7 @@ func (a *App) PeersAll() (PeersKnown, error) {
 		if _, in := suspendedIPsMap[ip]; in {
 			continue
 		}
-		// FIXME(nickeksov): add normal last seen (this is crunch...)!!!!
+		// FIXME(nickeksov): add normal lastSeen field
 		out = append(out, Peer{
 			Address:  "/" + ip,
 			LastSeen: uint64(nowMillis),

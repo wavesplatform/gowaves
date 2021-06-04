@@ -21,12 +21,12 @@ func (a *App) BlocksScoreAt(at proto.Height) (Score, error) {
 func (a *App) BlocksLast() (*proto.Block, error) {
 	h, err := a.state.Height()
 	if err != nil {
-		return nil, &InternalError{err}
+		return nil, errors.Wrap(err, "failed to get state height")
 	}
 
 	block, err := a.state.BlockByHeight(h)
 	if err != nil {
-		return nil, &InternalError{err}
+		return nil, errors.Wrapf(err, "failed to get %d block from state", h)
 	}
 	block.Height = h
 	return block, nil
@@ -35,7 +35,7 @@ func (a *App) BlocksLast() (*proto.Block, error) {
 func (a *App) BlocksFirst() (*proto.Block, error) {
 	block, err := a.state.BlockByHeight(1)
 	if err != nil {
-		return nil, &InternalError{err}
+		return nil, errors.Wrap(err, "failed to get first block from state")
 	}
 	block.Height = 1
 	return block, nil

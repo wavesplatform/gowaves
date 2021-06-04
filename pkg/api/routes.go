@@ -53,7 +53,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 	}
 
 	if opts.EnableHeartbeatRoute {
-		r.Get("/go/node/health", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/go/node/healthz", func(w http.ResponseWriter, r *http.Request) {
 			if _, err := w.Write([]byte("OK")); err != nil {
 				zap.S().Errorf("Can't write 'OK' to ResponseWriter: %+v", err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -64,13 +64,13 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 	// nickeskov: go node routes
 	r.Route("/go", func(r chi.Router) {
 		r.Route("/blocks", func(r chi.Router) {
-			r.Get("/score/at/{id:\\d+}", a.BlockScoreAt)
+			r.Get("/score/at/{id:\\d+}", wrapper(a.BlockScoreAt))
 			r.Get("/id/{id}", wrapper(a.BlockIDAt))
 			r.Get("/generators", wrapper(a.BlocksGenerators))
 
 			rAuth := r.With(checkAuthMiddleware)
 
-			rAuth.Post("/rollback", RollbackToHeight(a.app))
+			rAuth.Post("/rollback", wrapper(RollbackToHeight(a.app)))
 		})
 
 		r.Route("/peers", func(r chi.Router) {
@@ -83,7 +83,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 
 			rAuth := r.With(checkAuthMiddleware)
 
-			rAuth.Post("/load", WalletLoadKeys(a.app))
+			rAuth.Post("/load", wrapper(WalletLoadKeys(a.app)))
 		})
 
 		r.Get("/miner/info", wrapper(a.GoMinerInfo))
@@ -120,11 +120,11 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 
 			rAuth := r.With(checkAuthMiddleware)
 
-			rAuth.Post("/connect", a.PeersConnect)
+			rAuth.Post("/connect", wrapper(a.PeersConnect))
 		})
 
 		r.Route("/debug", func(r chi.Router) {
-			r.Get("/stateHash/{height:\\d+}", a.stateHash)
+			r.Get("/stateHash/{height:\\d+}", wrapper(a.stateHash))
 		})
 
 		// enable or disable history sync

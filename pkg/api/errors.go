@@ -18,10 +18,6 @@ type AuthError struct {
 	error
 }
 
-type InternalError struct {
-	error
-}
-
 type ErrorHandler struct {
 	logger *zap.Logger
 }
@@ -39,19 +35,10 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 	switch innerErr := errors.Cause(err).(type) {
 	case BadRequestError, *BadRequestError:
 		// nickeskov: this error type will be removed in future
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", innerErr.Error()), http.StatusForbidden)
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", innerErr.Error()), http.StatusBadRequest)
 	case AuthError, *AuthError:
 		// nickeskov: this error type will be removed in future
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", innerErr.Error()), http.StatusBadRequest)
-	case InternalError, *InternalError:
-		// TODO(nickeskov): remove this
-		eh.logger.Error("LegacyInternalError",
-			zap.String("proto", r.Proto),
-			zap.String("path", r.URL.Path),
-			zap.String("reqId", middleware.GetReqID(r.Context())),
-			zap.Error(err),
-		)
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", innerErr.Error()), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to complete request: %s", innerErr.Error()), http.StatusForbidden)
 	case *apiErrs.UnknownError:
 		eh.logger.Error("UnknownError",
 			zap.String("proto", r.Proto),

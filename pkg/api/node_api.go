@@ -121,7 +121,6 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	block.Height = id
-	// TODO(nickeskov): it looks like a bug, maybe need call proto.BlockEncodeJson?
 	err = json.NewEncoder(w).Encode(block)
 	if err != nil {
 		return errors.Wrap(err,
@@ -142,7 +141,6 @@ func findFirstInvalidRuneInBase58String(str string) *rune {
 func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 	// nickeskov: in this case id param must be non zero length
 	s := chi.URLParam(r, "id")
-	// TODO(nickeskov): check
 	id, err := proto.NewBlockIDFromBase58(s)
 	if err != nil {
 		if invalidRune := findFirstInvalidRuneInBase58String(s); invalidRune != nil {
@@ -161,7 +159,7 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 			s,
 		)
 	}
-	// nickeskov:
+
 	height, err := a.state.BlockIDToHeight(id)
 	if err != nil {
 		// TODO(nickeskov): should handle state.IsNotFound(...)?
@@ -195,21 +193,22 @@ func (a *NodeApi) BlockHeight(w http.ResponseWriter, _ *http.Request) error {
 
 // nickeskov: in scala node this route does not exist
 
-func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) error {
 	s := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		handleError(w, &BadRequestError{err})
-		return
+		return &BadRequestError{err}
 	}
 	rs, err := a.app.BlocksScoreAt(id)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		handleError(w, err)
-		return
+		return errors.Wrapf(err, "failed get blocks score at for id %d", id)
 	}
-	sendJson(w, rs)
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "BlockScoreAt")
+	}
+	return nil
 }
 
 func RunWithOpts(ctx context.Context, address string, n *NodeApi, opts *RunOptions) error {
@@ -279,21 +278,23 @@ type PeersConnectRequest struct {
 	Port uint16 `json:"port"`
 }
 
-// TODO(nickeskov): use unified error handler
-func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) error {
 	req := &PeersConnectRequest{}
 	if err := tryParseJson(r.Body, req); err != nil {
-		handleError(w, err)
-		return
+		return errors.Wrap(err, "failed to parse PeersConnect request body as JSON")
 	}
 	// TODO(nickeskov): remove this and use auth middleware
 	apiKey := r.Header.Get("X-API-Key")
-	rs, err := a.app.PeersConnect(r.Context(), apiKey, fmt.Sprintf("%s:%d", req.Host, req.Port))
+	addr := fmt.Sprintf("%s:%d", req.Host, req.Port)
+	rs, err := a.app.PeersConnect(r.Context(), apiKey, addr)
 	if err != nil {
-		handleError(w, err)
-		return
+		return errors.Wrapf(err, "failed to connect to new peer, addr %s", addr)
 	}
-	sendJson(w, rs)
+
+	if err := trySendJson(w, rs); err != nil {
+		return errors.Wrap(err, "PeersConnect")
+	}
+	return nil
 }
 
 func (a *NodeApi) PeersConnected(w http.ResponseWriter, _ *http.Request) error {
@@ -359,25 +360,22 @@ type rollbackToHeight interface {
 	RollbackToHeight(string, proto.Height) error
 }
 
-// TODO(nickeskov): use unified error handler
-func RollbackToHeight(app rollbackToHeight) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		js := &rollbackRequest{}
-		if err := tryParseJson(r.Body, js); err != nil {
-			handleError(w, err)
-			return
+func RollbackToHeight(app rollbackToHeight) HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		rollbackReq := &rollbackRequest{}
+		if err := tryParseJson(r.Body, rollbackReq); err != nil {
+			return errors.Wrap(err, "failed to parse RollbackToHeight body as JSON")
 		}
 		// TODO(nickeskov): remove this and use auth middleware
 		apiKey := r.Header.Get("X-API-Key")
-		if err := app.RollbackToHeight(apiKey, js.Height); err != nil {
-			handleError(w, err)
-			return
+		if err := app.RollbackToHeight(apiKey, rollbackReq.Height); err != nil {
+			return errors.Wrapf(err, "failed to rollback to height %d", rollbackReq.Height)
 		}
 		// TODO(nickeskov): looks like bug...
 		if err := trySendJson(w, nil); err != nil {
-			handleError(w, err)
-			return
+			return errors.Wrap(err, "RollbackToHeight")
 		}
+		return nil
 	}
 }
 
@@ -389,20 +387,18 @@ type walletLoadKeys interface {
 	LoadKeys(apiKey string, password []byte) error
 }
 
-func WalletLoadKeys(app walletLoadKeys) http.HandlerFunc {
-	// TODO(nickeskov): use unified error handler
-	return func(w http.ResponseWriter, r *http.Request) {
+func WalletLoadKeys(app walletLoadKeys) HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
 		js := &walletLoadKeysRequest{}
 		if err := tryParseJson(r.Body, js); err != nil {
-			handleError(w, err)
-			return
+			return errors.Wrap(err, "failed to parse WalletLoadKeys body as JSON")
 		}
 		// TODO(nickeskov): remove this and use auth middleware
 		apiKey := r.Header.Get("X-API-Key")
 		if err := app.LoadKeys(apiKey, []byte(js.Password)); err != nil {
-			handleError(w, err)
-			return
+			return errors.Wrap(err, "failed to execute LoadKeys")
 		}
+		return nil
 	}
 }
 
@@ -444,46 +440,27 @@ func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
-func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) {
+func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	s := chi.URLParam(r, "height")
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return &BadRequestError{err}
 	}
 
 	stateHash, err := a.state.StateHashAtHeight(height)
 	if err != nil {
-		handleError(w, err)
-		return
+		return errors.Wrapf(err, "failed to get state hash at height %d", height)
 	}
 	if err := trySendJson(w, stateHash); err != nil {
-		handleError(w, err)
-		return
+		return errors.Wrap(err, "stateHash")
 	}
-}
-
-func handleError(w http.ResponseWriter, err error) {
-	switch err.(type) {
-	case *AuthError:
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusForbidden)
-	case *BadRequestError:
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusBadRequest)
-	default:
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", err.Error()), http.StatusInternalServerError)
-	}
-}
-
-func sendJson(w http.ResponseWriter, v interface{}) {
-	err := json.NewEncoder(w).Encode(v)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to marshal status to JSON: %s", err.Error()), http.StatusInternalServerError)
-	}
+	return nil
 }
 
 // tryParseJson receives reader and out params. out MUST be a pointer
 func tryParseJson(r io.Reader, out interface{}) error {
+	// TODO(nickeskov): check empty reader
 	err := json.NewDecoder(r).Decode(out)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to unmarshal %T as JSON into %T", r, out)
