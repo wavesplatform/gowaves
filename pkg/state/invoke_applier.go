@@ -2,7 +2,7 @@ package state
 
 import (
 	"fmt"
-	"go.uber.org/zap"
+	"log"
 	"math"
 	"math/big"
 
@@ -709,8 +709,9 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		disableSelfTransfers:     disableSelfTransfers,
 		libVersion:               byte(tree.LibVersion),
 	})
+	//fmt.Println(err)
 	if err != nil {
-		zap.S().Debug("fallibleValidation error: ", err)
+		log.Printf("fallibleValidation error in tx %s. Error: %s", tx.ID.String(), err.Error())
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
 		if !info.acceptFailed {
 			return nil, err
