@@ -58,8 +58,8 @@ const (
 	// Leases.
 	leaseKeyPrefix
 
-	// Known peers.
-	knownPeersPrefix
+	// nickeskov: In legacy code this is `knownPeersPrefix` constant. We skip this value for compatibility.
+	_
 
 	// Aliases.
 	aliasKeyPrefix

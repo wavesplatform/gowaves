@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"math/big"
 
@@ -648,7 +649,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we done it before.
-	if len(tx.Payments) == 2 && tree.LibVersion < 4 {
+	if len(tx.Payments) >= 2 && tree.LibVersion < 4 {
 		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
 	}
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
@@ -686,7 +687,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	var scriptRuns uint64 = 0
 	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
-	if info.rideV5Activated {
+	if !info.rideV5Activated {
 		actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
 		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
 	}
@@ -717,6 +718,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		libVersion:               byte(tree.LibVersion),
 	})
 	if err != nil {
+		log.Printf("fallibleValidation error in tx %s. Error: %s", tx.ID.String(), err.Error())
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
 		if !info.acceptFailed {
 			return nil, err

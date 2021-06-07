@@ -2,34 +2,60 @@ package api
 
 import (
 	"context"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
+	"time"
 )
 
 type Peer struct {
 	Address  string `json:"address"`
-	LastSeen uint64 `json:"lastSeen"`
+	LastSeen uint64 `json:"lastSeen,omitempty"`
 }
 
-type PeersAll struct {
+type PeersKnown struct {
 	Peers []Peer `json:"peers"`
 }
 
-func (a *App) PeersAll() (*PeersAll, error) {
-	peers, err := a.state.Peers()
-	if err != nil {
-		return nil, &InternalError{err}
+// PeersAll is a list of all known not banned and not suspended peers with a publicly available declared address
+func (a *App) PeersAll() (PeersKnown, error) {
+	suspended := a.peers.Suspended()
+	suspendedIPsMap := make(map[string]struct{}, len(suspended))
+	for _, suspendedPeer := range suspended {
+		suspendedIPsMap[suspendedPeer.IP.String()] = struct{}{}
 	}
 
-	var out []Peer
-	for _, row := range peers {
-		out = append(out, Peer{Address: row.String()})
+	knownPeers := a.peers.KnownPeers()
+
+	nowMillis := unixMillis(time.Now())
+
+	out := make([]Peer, 0, len(knownPeers))
+	for _, knownPeer := range knownPeers {
+		ip := knownPeer.String()
+		if _, in := suspendedIPsMap[ip]; in {
+			continue
+		}
+		// FIXME(nickeksov): add normal lastSeen field
+		out = append(out, Peer{
+			Address:  "/" + ip,
+			LastSeen: uint64(nowMillis),
+		})
 	}
 
-	return &PeersAll{Peers: out}, nil
+	return PeersKnown{Peers: out}, nil
+}
+
+func (a *App) PeersKnown() (PeersKnown, error) {
+	knownPeers := a.peers.KnownPeers()
+
+	out := make([]Peer, 0, len(knownPeers))
+	for _, knownPeer := range knownPeers {
+		// nickeksov: knownPeers without lastSeen field
+		out = append(out, Peer{Address: knownPeer.String()})
+	}
+
+	return PeersKnown{Peers: out}, nil
 }
 
 type PeersConnectResponse struct {
@@ -61,10 +87,10 @@ func (a *App) PeersConnect(ctx context.Context, apiKey string, addr string) (*Pe
 }
 
 type PeersConnectedResponse struct {
-	Peers []PeersConnectedRow `json:"peers"`
+	Peers []PeerInfo `json:"peers"`
 }
 
-type PeersConnectedRow struct {
+type PeerInfo struct {
 	Address            string `json:"address"`
 	DeclaredAddress    string `json:"declaredAddress"`
 	PeerName           string `json:"peerName"`
@@ -73,42 +99,61 @@ type PeersConnectedRow struct {
 	ApplicationVersion string `json:"applicationVersion"`
 }
 
-func (a *App) PeersConnected() (*PeersConnectedResponse, error) {
-	var out []PeersConnectedRow
-	a.peers.EachConnected(func(peer peer.Peer, i *proto.Score) {
+func peerInfoFromPeer(peer peer.Peer) PeerInfo {
+	handshake := peer.Handshake()
 
-		v := PeersConnectedRow{
-			Address:            "/" + peer.RemoteAddr().String(),
-			DeclaredAddress:    "/" + peer.Handshake().DeclaredAddr.String(),
-			PeerName:           peer.Handshake().NodeName,
-			PeerNonce:          peer.Handshake().NodeNonce,
-			ApplicationName:    peer.Handshake().AppName,
-			ApplicationVersion: peer.Handshake().Version.String(),
-		}
+	declaredAddrStr := "N/A"
+	if !handshake.DeclaredAddr.Empty() {
+		declaredAddrStr = handshake.DeclaredAddr.String()
+	}
 
-		out = append(out, v)
+	return PeerInfo{
+		Address:            "/" + peer.RemoteAddr().String(),
+		DeclaredAddress:    "/" + declaredAddrStr,
+		PeerName:           handshake.NodeName,
+		PeerNonce:          handshake.NodeNonce,
+		ApplicationName:    handshake.AppName,
+		ApplicationVersion: handshake.Version.String(),
+	}
+}
 
+func (a *App) PeersConnected() PeersConnectedResponse {
+	var out []PeerInfo
+	a.peers.EachConnected(func(peer peer.Peer, _ *proto.Score) {
+		out = append(out, peerInfoFromPeer(peer))
 	})
 
-	return &PeersConnectedResponse{
+	return PeersConnectedResponse{
 		Peers: out,
-	}, nil
+	}
 }
 
-type PeersSuspendedResponse struct {
-	Peers []string `json:"peers"`
+type SuspendedPeerInfo struct {
+	Hostname  string `json:"hostname"`
+	Timestamp int64  `json:"timestamp"` // nickeskov: timestamp in millis
+	Reason    string `json:"reason,omitempty"`
 }
 
-func (a *App) PeersSuspended() (*PeersSuspendedResponse, error) {
-	peers := a.peers.Suspended()
-	return &PeersSuspendedResponse{peers}, nil
+func (a *App) PeersSuspended() []SuspendedPeerInfo {
+	suspended := a.peers.Suspended()
+
+	out := make([]SuspendedPeerInfo, 0, len(suspended))
+	for _, p := range suspended {
+		out = append(out, SuspendedPeerInfo{
+			Hostname:  "/" + p.IP.String(),
+			Timestamp: p.SuspendTimestampMillis,
+			Reason:    p.Reason,
+		})
+	}
+
+	return out
 }
 
 type PeersSpawnedResponse struct {
-	Peers []proto.IpPort
+	Peers []proto.IpPort `json:"peers"`
 }
 
-func (a *App) PeersSpawned() *PeersSpawnedResponse {
+func (a *App) PeersSpawned() PeersSpawnedResponse {
 	rs := a.peers.Spawned()
-	return &PeersSpawnedResponse{Peers: rs}
+	return PeersSpawnedResponse{Peers: rs}
 }
