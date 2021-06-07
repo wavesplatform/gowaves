@@ -338,9 +338,8 @@ type stateManager struct {
 	genesis proto.Block
 	stateDB *stateDB
 
-	stor  *blockchainEntitiesStorage
-	rw    *blockReadWriter
-	peers *peerStorage
+	stor *blockchainEntitiesStorage
+	rw   *blockReadWriter
 
 	// BlockchainSettings: general info about the blockchain type, constants etc.
 	settings *settings.BlockchainSettings
@@ -435,7 +434,6 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		rw:                        rw,
 		settings:                  settings,
 		atx:                       atx,
-		peers:                     newPeerStorage(db),
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		newBlocks:                 newNewBlocks(rw, settings),
 	}
@@ -500,10 +498,6 @@ func (s *stateManager) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Scr
 
 func (s *stateManager) Mutex() *lock.RwMutex {
 	return lock.NewRwMutex(s.mu)
-}
-
-func (s *stateManager) Peers() ([]proto.TCPAddr, error) {
-	return s.peers.peers()
 }
 
 func (s *stateManager) setGenesisBlock(genesisBlock proto.Block) error {
@@ -1553,11 +1547,6 @@ func (s *stateManager) NewestEffectiveBalance(account proto.Recipient, startHeig
 func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error) {
 	cp := *s.settings
 	return &cp, nil
-}
-
-func (s *stateManager) SavePeers(peers []proto.TCPAddr) error {
-	return s.peers.savePeers(peers)
-
 }
 
 func (s *stateManager) ResetValidationList() {

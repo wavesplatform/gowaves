@@ -59,8 +59,6 @@ type StateInfo interface {
 	// Retrieve current blockchain settings.
 	BlockchainSettings() (*settings.BlockchainSettings, error)
 
-	Peers() ([]proto.TCPAddr, error)
-
 	// Features.
 	VotesNum(featureID int16) (uint64, error)
 	VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error)
@@ -168,9 +166,6 @@ type StateModifier interface {
 
 	// Way to call multiple operations under same lock.
 	Map(func(state NonThreadSafeState) error) error
-
-	// Create or replace Peers.
-	SavePeers([]proto.TCPAddr) error
 
 	// State will provide extended API data after returning.
 	StartProvidingExtendedApi() error

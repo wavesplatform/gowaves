@@ -1,6 +1,7 @@
 package node
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"math/big"
 	"reflect"
 
@@ -24,16 +25,14 @@ func ScoreAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM)
 
 func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	metricGetPeersMessage.Inc()
-	rs, err := services.Peers.KnownPeers()
-	if err != nil {
-		zap.L().Error("failed got known peers", zap.Error(err))
-		return fsm, nil, err
-	}
+	rs := services.Peers.KnownPeers()
+
 	var out []proto.PeerInfo
 	for _, r := range rs {
+		ipPort := proto.IpPort(r)
 		out = append(out, proto.PeerInfo{
-			Addr: r.IP[:],
-			Port: uint16(r.Port),
+			Addr: ipPort.Addr(),
+			Port: uint16(ipPort.Port()),
 		})
 	}
 	mess.ID.SendMessage(&proto.PeersMessage{Peers: out})
@@ -42,20 +41,15 @@ func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm stat
 
 func PeersAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	metricPeersMessage.Inc()
-	rs, err := services.Peers.KnownPeers()
-	if err != nil {
-		zap.L().Error("failed got known peers", zap.Error(err))
-		return fsm, nil, err
-	}
+	rs := services.Peers.KnownPeers()
+
 	m := mess.Message.(*proto.PeersMessage).Peers
 	if len(m) == 0 {
 		return fsm, nil, nil
 	}
 	for _, p := range m {
-		rs = append(rs, proto.TCPAddr{
-			IP:   p.Addr,
-			Port: int(p.Port),
-		})
+		known := storage.KnownPeer(proto.NewTCPAddr(p.Addr, int(p.Port)).ToIpPort())
+		rs = append(rs, known)
 	}
 	return fsm, nil, services.Peers.UpdateKnownPeers(rs)
 }

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -9,23 +10,23 @@ type Score struct {
 	Score string `json:"score"`
 }
 
-func (a *App) BlocksScoreAt(at proto.Height) (*Score, error) {
+func (a *App) BlocksScoreAt(at proto.Height) (Score, error) {
 	score, err := a.state.ScoreAtHeight(at)
 	if err != nil {
-		return nil, err
+		return Score{}, err
 	}
-	return &Score{Score: score.String()}, nil
+	return Score{Score: score.String()}, nil
 }
 
 func (a *App) BlocksLast() (*proto.Block, error) {
 	h, err := a.state.Height()
 	if err != nil {
-		return nil, &InternalError{err}
+		return nil, errors.Wrap(err, "failed to get state height")
 	}
 
 	block, err := a.state.BlockByHeight(h)
 	if err != nil {
-		return nil, &InternalError{err}
+		return nil, errors.Wrapf(err, "failed to get %d block from state", h)
 	}
 	block.Height = h
 	return block, nil
@@ -34,7 +35,7 @@ func (a *App) BlocksLast() (*proto.Block, error) {
 func (a *App) BlocksFirst() (*proto.Block, error) {
 	block, err := a.state.BlockByHeight(1)
 	if err != nil {
-		return nil, &InternalError{err}
+		return nil, errors.Wrap(err, "failed to get first block from state")
 	}
 	block.Height = 1
 	return block, nil
@@ -49,7 +50,7 @@ type Generator struct {
 func (a *App) BlocksGenerators() (Generators, error) {
 	curHeight, err := a.state.Height()
 	if err != nil {
-		return nil, &InternalError{err}
+		return nil, errors.Wrap(err, "failed to get state height")
 	}
 
 	// show only last 150 rows
@@ -62,7 +63,7 @@ func (a *App) BlocksGenerators() (Generators, error) {
 	for i := initialHeight; i < curHeight; i++ {
 		block, err := a.state.BlockByHeight(i)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "failed to get from state block by height %d", i)
 		}
 
 		out = append(out, Generator{
