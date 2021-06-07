@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"math/big"
 
@@ -678,7 +679,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	var scriptRuns uint64 = 0
 	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
-	if info.rideV5Activated {
+	if !info.rideV5Activated {
 		actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
 		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
 	}
@@ -709,6 +710,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		libVersion:               byte(tree.LibVersion),
 	})
 	if err != nil {
+		log.Printf("fallibleValidation error in tx %s. Error: %s", tx.ID.String(), err.Error())
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
 		if !info.acceptFailed {
 			return nil, err
