@@ -41,15 +41,15 @@ func (lr *leaseRecordForStateHashes) less(other stateComponent) bool {
 }
 
 type leasing struct {
-	OriginTransactionID crypto.Digest  `cbor:"0,keyasint"`
-	Sender              proto.Address  `cbor:"1,keyasint"`
-	Recipient           proto.Address  `cbor:"2,keyasint"`
-	Amount              uint64         `cbor:"3,keyasint"`
-	Height              uint64         `cbor:"4,keyasint"`
-	Status              LeaseStatus    `cbor:"5,keyasint"`
+	Sender              proto.Address  `cbor:"0,keyasint"`
+	Recipient           proto.Address  `cbor:"1,keyasint"`
+	Amount              uint64         `cbor:"2,keyasint"`
+	Height              uint64         `cbor:"3,keyasint"`
+	Status              LeaseStatus    `cbor:"4,keyasint"`
+	OriginTransactionID *crypto.Digest `cbor:"5,keyasint,omitempty"`
 	RecipientAlias      *proto.Alias   `cbor:"6,keyasint,omitempty"`
 	CancelHeight        uint64         `cbor:"7,keyasint,omitempty"`
-	CancelTransactionId *crypto.Digest `cbor:"8,keyasint,omitempty"`
+	CancelTransactionID *crypto.Digest `cbor:"8,keyasint,omitempty"`
 }
 
 func (l leasing) isActive() bool {
@@ -116,10 +116,10 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID prot
 	return nil
 }
 
-func (l *leases) leasesToAliases(aliases []string) ([]leasing, error) {
+func (l *leases) cancelLeasesToAliases(aliases map[string]struct{}, blockID proto.BlockID) error {
 	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
 	if err != nil {
-		return nil, errors.Errorf("failed to create key iterator to cancel leases: %v", err)
+		return errors.Wrap(err, "failed to create key iterator to cancel leases to stolen aliases")
 	}
 	defer func() {
 		leaseIter.Release()
@@ -128,34 +128,31 @@ func (l *leases) leasesToAliases(aliases []string) ([]leasing, error) {
 		}
 	}()
 
-	als := make(map[string]struct{}, len(aliases))
-	for _, a := range aliases {
-		als[a] = struct{}{}
-	}
-
-	leases := make([]leasing, 0)
 	// Iterate all the leases.
 	zap.S().Info("Started collecting leases")
 	for leaseIter.Next() {
 		keyBytes := keyvalue.SafeKey(leaseIter)
 		var key leaseKey
 		if err := key.unmarshal(keyBytes); err != nil {
-			return nil, errors.Wrap(err, "failed ot unmarshal leasing key")
+			return errors.Wrap(err, "failed ot unmarshal leasing key")
 		}
 		leaseBytes := keyvalue.SafeValue(leaseIter)
 		record := new(leasing)
 		if err := cbor.Unmarshal(leaseBytes, record); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal lease")
+			return errors.Wrap(err, "failed to unmarshal lease")
 		}
 		if record.isActive() && record.RecipientAlias != nil {
-			if _, ok := als[record.RecipientAlias.Alias]; ok {
-				leases = append(leases, *record)
-				zap.S().Infof("Lease: %s: %s -> %s; %d, %t", key.leaseID.String(), record.Sender.String(), record.Recipient.String(), record.Amount, record.isActive())
+			if _, ok := aliases[record.RecipientAlias.Alias]; ok {
+				zap.S().Infof("State: canceling lease %s", key.leaseID.String())
+				record.Status = LeaseCanceled
+				if err := l.addLeasing(key.leaseID, record, blockID); err != nil {
+					return errors.Wrap(err, "failed to save lease to storage")
+				}
 			}
 		}
 	}
 	zap.S().Info("Finished collecting leases")
-	return leases, nil
+	return nil
 }
 
 func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
@@ -202,6 +199,9 @@ func (l *leases) newestLeasingInfo(id crypto.Digest, filter bool) (*leasing, err
 	if err := cbor.Unmarshal(recordBytes, record); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal record")
 	}
+	if record.OriginTransactionID == nil {
+		record.OriginTransactionID = &id
+	}
 	return record, nil
 }
 
@@ -215,6 +215,9 @@ func (l *leases) leasingInfo(id crypto.Digest, filter bool) (*leasing, error) {
 	record := new(leasing)
 	if err := cbor.Unmarshal(recordBytes, record); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal record")
+	}
+	if record.OriginTransactionID == nil {
+		record.OriginTransactionID = &id
 	}
 	return record, nil
 }
@@ -261,7 +264,7 @@ func (l *leases) cancelLeasing(id crypto.Digest, blockID proto.BlockID, height u
 	}
 	leasing.Status = LeaseCanceled
 	leasing.CancelHeight = height
-	leasing.CancelTransactionId = txID
+	leasing.CancelTransactionID = txID
 	return l.addLeasing(id, leasing, blockID)
 }
 
@@ -271,7 +274,7 @@ func (l *leases) cancelLeasingUncertain(id crypto.Digest, height uint64, txID *c
 		return errors.Errorf("failed to get leasing info: %v", err)
 	}
 	leasing.Status = LeaseCanceled
-	leasing.CancelTransactionId = txID
+	leasing.CancelTransactionID = txID
 	leasing.CancelHeight = height
 	l.addLeasingUncertain(id, leasing)
 	return nil

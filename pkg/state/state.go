@@ -1299,41 +1299,15 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initia
 			return err
 		}
 	} else if rideV5Activated && height == rideV5Height {
-		disabledAliasAddresses, err := s.stor.aliases.disabledAliases2()
+		disabledAliases, err := s.stor.aliases.disabledAliases()
 		if err != nil {
 			return err
 		}
-		_, err = s.stor.leases.leasesToAliases(disabledAliasAddresses)
-		if err != nil {
+		if err = s.stor.leases.cancelLeasesToAliases(disabledAliases, blockID); err != nil {
 			return err
 		}
-		//if err := s.stor.leases.cancelLeases(addresses, blockID); err != nil {
-		//	return err
-		//}
 	}
 	return nil
-}
-
-func (s *stateManager) LeasesToStolenAliases() ([]string, error) {
-	zap.S().Info("Starting to collect disabled aliases")
-	disabledAliases, err := s.stor.aliases.disabledAliases2()
-	if err != nil {
-		return nil, err
-	}
-	for _, a := range disabledAliases {
-		zap.S().Infof("Disabled alias: '%s'", a)
-	}
-	zap.S().Infof("Total disabled aliases: %d", len(disabledAliases))
-	ls, err := s.stor.leases.leasesToAliases(disabledAliases)
-	if err != nil {
-		return nil, err
-	}
-	r := make([]string, len(ls))
-	for i, l := range ls {
-		r[i] = fmt.Sprintf("%d: Leasing %s from %s to %s (%s), amount %d",
-			i+1, l.OriginTransactionID, l.Sender.String(), l.Recipient.String(), l.RecipientAlias.String(), l.Amount)
-	}
-	return r, nil
 }
 
 func (s *stateManager) addBlocks(initialisation bool) (*proto.Block, error) {

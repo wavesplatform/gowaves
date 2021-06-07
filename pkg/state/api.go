@@ -127,8 +127,6 @@ type StateInfo interface {
 	// ShouldPersisAddressTransactions checks if PersisAddressTransactions
 	// should be called.
 	ShouldPersistAddressTransactions() (bool, error)
-
-	LeasesToStolenAliases() ([]string, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

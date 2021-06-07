@@ -542,7 +542,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 
 			// Add new leasing info
 			l := &leasing{
-				OriginTransactionID: *tx.ID,
+				OriginTransactionID: tx.ID,
 				Sender:              *info.scriptAddr,
 				Recipient:           *recipientAddress,
 				Amount:              uint64(a.Amount),

@@ -232,12 +232,12 @@ func (a *aliases) reset() {
 	a.hasher.reset()
 }
 
-func (a *aliases) disabledAliases2() ([]string, error) {
+func (a *aliases) disabledAliases() (map[string]struct{}, error) {
 	iter, err := a.db.NewKeyIterator([]byte{disabledAliasKeyPrefix})
 	if err != nil {
 		return nil, err
 	}
-	als := make([]string, 0, 100)
+	als := make(map[string]struct{})
 	for iter.Next() {
 		keyBytes := iter.Key()
 		var key disabledAliasKey
@@ -245,7 +245,7 @@ func (a *aliases) disabledAliases2() ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		als = append(als, key.alias)
+		als[key.alias] = struct{}{}
 	}
 	iter.Release()
 	return als, iter.Error()

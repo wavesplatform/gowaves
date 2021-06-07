@@ -319,12 +319,6 @@ func (a *ThreadSafeReadWrapper) ShouldPersistAddressTransactions() (bool, error)
 	return a.s.ShouldPersistAddressTransactions()
 }
 
-func (a *ThreadSafeReadWrapper) LeasesToStolenAliases() ([]string, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.LeasesToStolenAliases()
-}
-
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
 	return &ThreadSafeReadWrapper{
 		mu: mu,
@@ -344,13 +338,7 @@ func (a *ThreadSafeWriteWrapper) Map(f func(state NonThreadSafeState) error) err
 	return f(a.s)
 }
 
-func (a *ThreadSafeWriteWrapper) ValidateNextTx(
-	tx proto.Transaction,
-	currentTimestamp uint64,
-	parentTimestamp uint64,
-	blockVersion proto.BlockVersion,
-	checkScripts bool,
-) error {
+func (a *ThreadSafeWriteWrapper) ValidateNextTx(_ proto.Transaction, _, _ uint64, _ proto.BlockVersion, _ bool) error {
 	panic("Invalid ValidateNextTx usage on thread safe wrapper. Should call TxValidation")
 }
 

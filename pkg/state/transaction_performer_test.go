@@ -264,7 +264,7 @@ func TestPerformLeaseWithSig(t *testing.T) {
 	assert.NoError(t, err, "performLeaseWithSig() failed")
 	to.stor.flush(t)
 	leasingInfo := &leasing{
-		OriginTransactionID: *tx.ID,
+		OriginTransactionID: tx.ID,
 		Status:              LeaseActive,
 		Amount:              tx.Amount,
 		Recipient:           *tx.Recipient.Address,
@@ -292,7 +292,7 @@ func TestPerformLeaseWithProofs(t *testing.T) {
 	assert.NoError(t, err, "performLeaseWithProofs() failed")
 	to.stor.flush(t)
 	leasingInfo := &leasing{
-		OriginTransactionID: *tx.ID,
+		OriginTransactionID: tx.ID,
 		Status:              LeaseActive,
 		Amount:              tx.Amount,
 		Recipient:           *tx.Recipient.Address,
@@ -321,12 +321,12 @@ func TestPerformLeaseCancelWithSig(t *testing.T) {
 	to.stor.flush(t)
 	tx := createLeaseCancelWithSig(t, *leaseTx.ID)
 	leasingInfo := &leasing{
-		OriginTransactionID: *leaseTx.ID,
+		OriginTransactionID: leaseTx.ID,
 		Status:              LeaseCanceled,
 		Amount:              leaseTx.Amount,
 		Recipient:           *leaseTx.Recipient.Address,
 		Sender:              testGlobal.senderInfo.addr,
-		CancelTransactionId: tx.ID,
+		CancelTransactionID: tx.ID,
 	}
 	err = to.tp.performLeaseCancelWithSig(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performLeaseCancelWithSig() failed")
@@ -353,12 +353,12 @@ func TestPerformLeaseCancelWithProofs(t *testing.T) {
 	to.stor.flush(t)
 	tx := createLeaseCancelWithProofs(t, *leaseTx.ID)
 	leasingInfo := &leasing{
-		OriginTransactionID: *leaseTx.ID,
+		OriginTransactionID: leaseTx.ID,
 		Status:              LeaseCanceled,
 		Amount:              leaseTx.Amount,
 		Recipient:           *leaseTx.Recipient.Address,
 		Sender:              testGlobal.senderInfo.addr,
-		CancelTransactionId: tx.ID,
+		CancelTransactionID: tx.ID,
 	}
 	err = to.tp.performLeaseCancelWithProofs(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performLeaseCancelWithProofs() failed")

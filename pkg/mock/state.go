@@ -5,13 +5,14 @@
 package mock
 
 import (
+	big "math/big"
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	crypto "github.com/wavesplatform/gowaves/pkg/crypto"
 	proto "github.com/wavesplatform/gowaves/pkg/proto"
 	settings "github.com/wavesplatform/gowaves/pkg/settings"
 	state "github.com/wavesplatform/gowaves/pkg/state"
-	big "math/big"
-	reflect "reflect"
 )
 
 // MockTransactionIterator is a mock of TransactionIterator interface
@@ -879,21 +880,6 @@ func (m *MockStateInfo) ShouldPersistAddressTransactions() (bool, error) {
 func (mr *MockStateInfoMockRecorder) ShouldPersistAddressTransactions() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockStateInfo)(nil).ShouldPersistAddressTransactions))
-}
-
-// LeasesToStolenAliases mocks base method
-func (m *MockStateInfo) LeasesToStolenAliases() ([]string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LeasesToStolenAliases")
-	ret0, _ := ret[0].([]string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// LeasesToStolenAliases indicates an expected call of LeasesToStolenAliases
-func (mr *MockStateInfoMockRecorder) LeasesToStolenAliases() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LeasesToStolenAliases", reflect.TypeOf((*MockStateInfo)(nil).LeasesToStolenAliases))
 }
 
 // MockStateModifier is a mock of StateModifier interface
@@ -1967,21 +1953,6 @@ func (m *MockState) ShouldPersistAddressTransactions() (bool, error) {
 func (mr *MockStateMockRecorder) ShouldPersistAddressTransactions() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockState)(nil).ShouldPersistAddressTransactions))
-}
-
-// LeasesToStolenAliases mocks base method
-func (m *MockState) LeasesToStolenAliases() ([]string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LeasesToStolenAliases")
-	ret0, _ := ret[0].([]string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// LeasesToStolenAliases indicates an expected call of LeasesToStolenAliases
-func (mr *MockStateMockRecorder) LeasesToStolenAliases() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LeasesToStolenAliases", reflect.TypeOf((*MockState)(nil).LeasesToStolenAliases))
 }
 
 // AddBlock mocks base method

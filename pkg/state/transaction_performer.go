@@ -195,13 +195,12 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 	}
 	// Add leasing to lease state.
 	l := &leasing{
-		OriginTransactionID: *id,
-		Sender:              senderAddr,
-		Recipient:           *recipientAddr,
-		Amount:              tx.Amount,
-		Height:              info.height,
-		Status:              LeaseActive,
-		RecipientAlias:      tx.Recipient.Alias,
+		Sender:         senderAddr,
+		Recipient:      *recipientAddr,
+		Amount:         tx.Amount,
+		Height:         info.height,
+		Status:         LeaseActive,
+		RecipientAlias: tx.Recipient.Alias,
 	}
 	if err := tp.stor.leases.addLeasing(*id, l, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to add leasing")

@@ -24,16 +24,17 @@ func createLeases() (*leasesTestObjects, []string, error) {
 	return &leasesTestObjects{stor, leases}, path, nil
 }
 
-func createLease(t *testing.T, sender string) *leasing {
+func createLease(t *testing.T, sender string, id crypto.Digest) *leasing {
 	senderAddr, err := proto.NewAddressFromString(sender)
 	assert.NoError(t, err, "failed to create address from string")
 	recipientAddr, err := proto.NewAddressFromString("3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo")
 	assert.NoError(t, err, "failed to create address from string")
 	return &leasing{
-		Recipient: recipientAddr,
-		Sender:    senderAddr,
-		Amount:    10,
-		Status:    LeaseActive,
+		OriginTransactionID: &id,
+		Recipient:           recipientAddr,
+		Sender:              senderAddr,
+		Amount:              10,
+		Status:              LeaseActive,
 	}
 }
 
@@ -59,7 +60,7 @@ func TestCancelLeases(t *testing.T) {
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
-		r := createLease(t, l.sender)
+		r := createLease(t, l.sender, leaseID)
 		err = to.leases.addLeasing(leaseID, r, blockID0)
 		assert.NoError(t, err, "failed to add leasing")
 	}
@@ -127,7 +128,7 @@ func TestValidLeaseIns(t *testing.T) {
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
-		r := createLease(t, l.sender)
+		r := createLease(t, l.sender, leaseID)
 		err = to.leases.addLeasing(leaseID, r, blockID0)
 		assert.NoError(t, err, "failed to add leasing")
 		properLeaseIns[r.Recipient] += int64(r.Amount)
@@ -156,7 +157,7 @@ func TestAddLeasing(t *testing.T) {
 	leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
 	senderStr := "3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp"
-	r := createLease(t, senderStr)
+	r := createLease(t, senderStr, leaseID)
 	err = to.leases.addLeasing(leaseID, r, blockID0)
 	assert.NoError(t, err, "failed to add leasing")
 	l, err := to.leases.newestLeasingInfo(leaseID, true)
@@ -185,14 +186,14 @@ func TestCancelLeasing(t *testing.T) {
 	txID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xfe}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
 	senderStr := "3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp"
-	r := createLease(t, senderStr)
+	r := createLease(t, senderStr, leaseID)
 	err = to.leases.addLeasing(leaseID, r, blockID0)
 	assert.NoError(t, err, "failed to add leasing")
 	err = to.leases.cancelLeasing(leaseID, blockID0, to.stor.rw.height, &txID, true)
 	assert.NoError(t, err, "failed to cancel leasing")
 	r.Status = LeaseCanceled
 	r.CancelHeight = 1
-	r.CancelTransactionId = &txID
+	r.CancelTransactionID = &txID
 	to.stor.flush(t)
 	resLeasing, err := to.leases.leasingInfo(leaseID, true)
 	assert.NoError(t, err, "failed to get leasing info")
