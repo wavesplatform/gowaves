@@ -237,7 +237,7 @@ func (a *aliases) disabledAliases() (map[proto.Address]struct{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	addresses := make(map[proto.Address]struct{}, 0)
+	addresses := make(map[proto.Address]struct{})
 	for iter.Next() {
 		keyBytes := iter.Key()
 		recordBytes := iter.Value()
@@ -258,4 +258,28 @@ func (a *aliases) disabledAliases() (map[proto.Address]struct{}, error) {
 
 	iter.Release()
 	return addresses, iter.Error()
+}
+
+func (a *aliases) disabledAliases2() (map[string]aliasInfo, error) {
+	iter, err := a.db.NewKeyIterator([]byte{disabledAliasKeyPrefix})
+	if err != nil {
+		return nil, err
+	}
+	als := make(map[string]aliasInfo)
+	for iter.Next() {
+		keyBytes := iter.Key()
+		var key disabledAliasKey
+		err := key.unmarshal(keyBytes)
+		if err != nil {
+			return nil, err
+		}
+		aliasKey := aliasKey(key)
+		r, err := a.recordByAlias(aliasKey.bytes(), false)
+		if err != nil {
+			return nil, err
+		}
+		als[key.alias] = r.info
+	}
+	iter.Release()
+	return als, iter.Error()
 }

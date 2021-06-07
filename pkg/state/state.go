@@ -696,10 +696,10 @@ func (s *stateManager) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, er
 		return nil, err
 	}
 	leaseInfo := proto.LeaseInfo{
-		Sender:      leaseFromStore.sender,
-		Recipient:   leaseFromStore.recipient,
-		IsActive:    leaseFromStore.isActive,
-		LeaseAmount: leaseFromStore.leaseAmount,
+		Sender:      leaseFromStore.Sender,
+		Recipient:   leaseFromStore.Recipient,
+		IsActive:    leaseFromStore.isActive(),
+		LeaseAmount: leaseFromStore.Amount,
 	}
 	return &leaseInfo, nil
 }
@@ -1315,6 +1315,14 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initia
 }
 
 func (s *stateManager) LeasesToStolenAliases() ([]string, error) {
+	disabledAliases, err := s.stor.aliases.disabledAliases2()
+	if err != nil {
+		return nil, err
+	}
+	for a, r := range disabledAliases {
+		zap.S().Infof("Disabled alias: '%s' -> '%s'; Stolen: %t", a, r.addr, r.stolen)
+	}
+	zap.S().Infof("Total disabled aliases: %d", len(disabledAliases))
 	disabledAliasAddresses, err := s.stor.aliases.disabledAliases()
 	if err != nil {
 		return nil, err
@@ -1322,13 +1330,14 @@ func (s *stateManager) LeasesToStolenAliases() ([]string, error) {
 	for a := range disabledAliasAddresses {
 		zap.S().Infof("Disabled alias address: %s", a.String())
 	}
+	zap.S().Infof("Stolen aliases count: %d", len(disabledAliasAddresses))
 	ls, err := s.stor.leases.leasesToAddresses(disabledAliasAddresses)
 	if err != nil {
 		return nil, err
 	}
 	r := make([]string, len(ls))
 	for i, l := range ls {
-		r[i] = fmt.Sprintf("%d: Leasing from %s to %s, amount %d", i+1, l.sender.String(), l.recipient.String(), l.leaseAmount)
+		r[i] = fmt.Sprintf("%d: Leasing from %s to %s, amount %d", i+1, l.Sender.String(), l.Recipient.String(), l.Amount)
 	}
 	return r, nil
 }
