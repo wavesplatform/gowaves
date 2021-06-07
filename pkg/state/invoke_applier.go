@@ -641,7 +641,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we done it before.
-	if len(tx.Payments) == 2 && tree.LibVersion < 4 {
+	if len(tx.Payments) >= 2 && tree.LibVersion < 4 {
 		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
 	}
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.

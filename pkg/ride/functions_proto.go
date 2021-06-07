@@ -130,6 +130,10 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 
 		attachedPayments = append(attachedPayments, proto.ScriptPayment{Asset: *asset, Amount: uint64(intAmount)})
 	}
+	// since RideV5 the limit of attached payments is 10
+	if len(attachedPayments) > 10 {
+		return nil, errors.New("invoke: no more than ten payments is allowed since RideV5 activation")
+	}
 
 	var paymentActions []proto.ScriptAction
 	for _, payment := range attachedPayments {
@@ -139,7 +143,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
 	if err != nil {
-		return nil, errors.Errorf("cannot get address from dApp, invokeFunctionFromDApp")
+		return nil, errors.Errorf("failed to get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
 	err = ws.smartAppendActions(paymentActions, env)
@@ -289,6 +293,11 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		attachedPayments = append(attachedPayments, proto.ScriptPayment{Asset: *asset, Amount: uint64(intAmount)})
 	}
 
+	// since RideV5 the limit of attached payments is 10
+	if len(attachedPayments) > 10 {
+		return nil, errors.New("invoke: no more than ten payments is allowed since RideV5 activation")
+	}
+
 	var paymentActions []proto.ScriptAction
 	for _, payment := range attachedPayments {
 		action := &proto.TransferScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
@@ -297,7 +306,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
 	if err != nil {
-		return nil, errors.Errorf("cannot get address from dApp, invokeFunctionFromDApp")
+		return nil, errors.Errorf("failed get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
 	err = ws.smartAppendActions(paymentActions, env)
@@ -310,7 +319,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 
 	if ws.invCount() > 1 {
 		if isAddressInBL(*recipient.Address, ws.blackList) && proto.Address(callerAddress) != *recipient.Address {
-			return rideUnit{}, errors.Errorf("failed to call ")
+			return rideUnit{}, errors.Errorf("function call of %s with dApp address %s is forbiden because it had already been called once by 'invoke'", fnName, recipient.Address)
 		}
 	}
 
