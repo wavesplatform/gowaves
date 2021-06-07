@@ -116,7 +116,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID prot
 	return nil
 }
 
-func (l *leases) leasesToAddresses(addresses map[proto.Address]struct{}) ([]leasing, error) {
+func (l *leases) leasesToAliases(aliases []string) ([]leasing, error) {
 	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
 	if err != nil {
 		return nil, errors.Errorf("failed to create key iterator to cancel leases: %v", err)
@@ -127,6 +127,11 @@ func (l *leases) leasesToAddresses(addresses map[proto.Address]struct{}) ([]leas
 			zap.S().Fatalf("Iterator error: %v", err)
 		}
 	}()
+
+	als := make(map[string]struct{}, len(aliases))
+	for _, a := range aliases {
+		als[a] = struct{}{}
+	}
 
 	leases := make([]leasing, 0)
 	// Iterate all the leases.
@@ -142,9 +147,11 @@ func (l *leases) leasesToAddresses(addresses map[proto.Address]struct{}) ([]leas
 		if err := cbor.Unmarshal(leaseBytes, record); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal lease")
 		}
-		if _, ok := addresses[record.Recipient]; ok {
-			leases = append(leases, *record)
-			zap.S().Infof("Lease: %s: %s -> %s; %d, %t", key.leaseID.String(), record.Sender.String(), record.Recipient.String(), record.Amount, record.isActive())
+		if record.isActive() && record.RecipientAlias != nil {
+			if _, ok := als[record.RecipientAlias.Alias]; ok {
+				leases = append(leases, *record)
+				zap.S().Infof("Lease: %s: %s -> %s; %d, %t", key.leaseID.String(), record.Sender.String(), record.Recipient.String(), record.Amount, record.isActive())
+			}
 		}
 	}
 	zap.S().Info("Finished collecting leases")

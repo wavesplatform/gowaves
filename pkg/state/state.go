@@ -1299,11 +1299,11 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initia
 			return err
 		}
 	} else if rideV5Activated && height == rideV5Height {
-		disabledAliasAddresses, err := s.stor.aliases.disabledAliases()
+		disabledAliasAddresses, err := s.stor.aliases.disabledAliases2()
 		if err != nil {
 			return err
 		}
-		_, err = s.stor.leases.leasesToAddresses(disabledAliasAddresses)
+		_, err = s.stor.leases.leasesToAliases(disabledAliasAddresses)
 		if err != nil {
 			return err
 		}
@@ -1315,29 +1315,23 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initia
 }
 
 func (s *stateManager) LeasesToStolenAliases() ([]string, error) {
+	zap.S().Info("Starting to collect disabled aliases")
 	disabledAliases, err := s.stor.aliases.disabledAliases2()
 	if err != nil {
 		return nil, err
 	}
-	for a, r := range disabledAliases {
-		zap.S().Infof("Disabled alias: '%s' -> '%s'; Stolen: %t", a, r.addr, r.stolen)
+	for _, a := range disabledAliases {
+		zap.S().Infof("Disabled alias: '%s'", a)
 	}
 	zap.S().Infof("Total disabled aliases: %d", len(disabledAliases))
-	disabledAliasAddresses, err := s.stor.aliases.disabledAliases()
-	if err != nil {
-		return nil, err
-	}
-	for a := range disabledAliasAddresses {
-		zap.S().Infof("Disabled alias address: %s", a.String())
-	}
-	zap.S().Infof("Stolen aliases count: %d", len(disabledAliasAddresses))
-	ls, err := s.stor.leases.leasesToAddresses(disabledAliasAddresses)
+	ls, err := s.stor.leases.leasesToAliases(disabledAliases)
 	if err != nil {
 		return nil, err
 	}
 	r := make([]string, len(ls))
 	for i, l := range ls {
-		r[i] = fmt.Sprintf("%d: Leasing from %s to %s, amount %d", i+1, l.Sender.String(), l.Recipient.String(), l.Amount)
+		r[i] = fmt.Sprintf("%d: Leasing %s from %s to %s (%s), amount %d",
+			i+1, l.OriginTransactionID, l.Sender.String(), l.Recipient.String(), l.RecipientAlias.String(), l.Amount)
 	}
 	return r, nil
 }

@@ -232,40 +232,12 @@ func (a *aliases) reset() {
 	a.hasher.reset()
 }
 
-func (a *aliases) disabledAliases() (map[proto.Address]struct{}, error) {
-	iter, err := a.hs.newNewestTopEntryIterator(alias, true)
-	if err != nil {
-		return nil, err
-	}
-	addresses := make(map[proto.Address]struct{})
-	for iter.Next() {
-		keyBytes := iter.Key()
-		recordBytes := iter.Value()
-		var record aliasRecord
-		if err := record.unmarshalBinary(recordBytes); err != nil {
-			return nil, errors.Errorf("failed to unmarshal record: %v", err)
-		}
-		var key aliasKey
-		if err := key.unmarshal(keyBytes); err != nil {
-			return nil, err
-		}
-		if record.info.stolen {
-			addresses[record.info.addr] = struct{}{}
-			zap.S().Debugf("Stolen alias '%s' points to address '%s'", key.alias, record.info.addr.String())
-			a.disabled[key.alias] = true
-		}
-	}
-
-	iter.Release()
-	return addresses, iter.Error()
-}
-
-func (a *aliases) disabledAliases2() (map[string]aliasInfo, error) {
+func (a *aliases) disabledAliases2() ([]string, error) {
 	iter, err := a.db.NewKeyIterator([]byte{disabledAliasKeyPrefix})
 	if err != nil {
 		return nil, err
 	}
-	als := make(map[string]aliasInfo)
+	als := make([]string, 0, 100)
 	for iter.Next() {
 		keyBytes := iter.Key()
 		var key disabledAliasKey
@@ -273,12 +245,7 @@ func (a *aliases) disabledAliases2() (map[string]aliasInfo, error) {
 		if err != nil {
 			return nil, err
 		}
-		aliasKey := aliasKey(key)
-		r, err := a.recordByAlias(aliasKey.bytes(), false)
-		if err != nil {
-			return nil, err
-		}
-		als[key.alias] = r.info
+		als = append(als, key.alias)
 	}
 	iter.Release()
 	return als, iter.Error()

@@ -196,5 +196,5 @@ func TestCancelLeasing(t *testing.T) {
 	to.stor.flush(t)
 	resLeasing, err := to.leases.leasingInfo(leaseID, true)
 	assert.NoError(t, err, "failed to get leasing info")
-	assert.Equal(t, resLeasing, r, "invalid leasing record after cancelation")
+	assert.Equal(t, resLeasing, r, "invalid leasing record after cancellation")
 }
