@@ -529,23 +529,23 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			ia.stor.sponsoredAssets.sponsorAssetUncertain(a.AssetID, uint64(a.MinFee))
 
 		case *proto.LeaseScriptAction:
-			recipientAddress := a.Recipient.Address
-			if recipientAddress == nil {
+			if a.Recipient.Address == nil {
 				return proto.DAppError, info.failedChanges, errors.New("transfer has unresolved aliases")
 			}
-			if info.scriptAddr == recipientAddress {
+			recipientAddress := *a.Recipient.Address
+			if senderAddress == recipientAddress {
 				return proto.DAppError, info.failedChanges, errors.New("leasing to itself is not allowed")
 			}
 			if a.Amount <= 0 {
 				return proto.DAppError, info.failedChanges, errors.New("non-positive leasing amount")
 			}
-			totalChanges.appendAddr(*recipientAddress)
+			totalChanges.appendAddr(recipientAddress)
 
 			// Add new leasing info
 			l := &leasing{
 				OriginTransactionID: tx.ID,
-				Sender:              *info.scriptAddr,
-				Recipient:           *recipientAddress,
+				Sender:              senderAddress,
+				Recipient:           recipientAddress,
 				Amount:              uint64(a.Amount),
 				Height:              info.blockInfo.Height,
 				Status:              LeaseActive,
@@ -553,7 +553,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 			ia.stor.leases.addLeasingUncertain(a.ID, l)
 
-			txDiff, err := ia.newTxDiffFromScriptLease(senderAddress, *recipientAddress, a)
+			txDiff, err := ia.newTxDiffFromScriptLease(senderAddress, recipientAddress, a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -572,7 +572,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				return proto.DAppError, info.failedChanges, err
 			}
 			if senderAddress != li.Sender {
-				return proto.DAppError, info.failedChanges, errors.Errorf("attempt to cancel leasing that was created by other account") //TODO: Create a scala compatible error in errs package and use it here
+				return proto.DAppError, info.failedChanges, errors.Errorf("attempt to cancel leasing that was created by other account; leaser '%s'; canceller '%s'; leasing: %s", li.Sender.String(), senderAddress.String(), a.LeaseID.String()) //TODO: Create a scala compatible error in errs package and use it here
 			}
 			// Update leasing info
 			if err := ia.stor.leases.cancelLeasingUncertain(a.LeaseID, info.blockInfo.Height, tx.ID, !info.initialisation); err != nil {
