@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -456,6 +457,28 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	if err := trySendJson(w, stateHash); err != nil {
 		return errors.Wrap(err, "stateHash")
 	}
+	return nil
+}
+
+func (a *NodeApi) sendSelfInterrupt(w http.ResponseWriter, _ *http.Request) error {
+	type resp struct {
+		Stopped bool `json:"stopped"`
+	}
+
+	selfPid := os.Getpid()
+	p, err := os.FindProcess(selfPid)
+	if err != nil {
+		return errors.Wrapf(err, "failed to find process (self) with pid %d", selfPid)
+	}
+	interrupt := os.Interrupt
+	if err := p.Signal(interrupt); err != nil {
+		return errors.Wrapf(err,
+			"failed to send signal %q to self process with pid %d", interrupt, selfPid)
+	}
+	if err := trySendJson(w, resp{Stopped: true}); err != nil {
+		return errors.Wrap(err, "sendSelfInterrupt")
+	}
+	zap.S().Infof("Sent by node HTTP API to self process %q signal", interrupt)
 	return nil
 }
 
