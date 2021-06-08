@@ -135,6 +135,12 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			rAuth.Post("/stop", wrapper(a.sendSelfInterrupt))
 		})
 
+		r.Route("/wallet", func(r chi.Router) {
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Get("/seed", wrapper(a.walletSeed))
+		})
+
 		// enable or disable history sync
 		//r.Get("/debug/sync/{enabled:\\d+}", a.DebugSyncEnabled)
 	})

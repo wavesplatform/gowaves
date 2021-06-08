@@ -515,6 +515,26 @@ func (a *NodeApi) sendSelfInterrupt(w http.ResponseWriter, _ *http.Request) erro
 	return nil
 }
 
+func (a *NodeApi) walletSeed(w http.ResponseWriter, _ *http.Request) error {
+	type seed struct {
+		Seed string `json:"seed"`
+	}
+
+	// TODO(nickeskov): This works not like in scala node.
+	// 	Scala node don't have multiple wallets, it have only one wallet.
+
+	seeds58 := a.app.WalletSeeds()
+	seeds := make([]seed, 0, len(seeds58))
+	for _, seed58 := range seeds58 {
+		seeds = append(seeds, seed{Seed: seed58})
+	}
+
+	if err := trySendJson(w, seeds); err != nil {
+		return errors.Wrap(err, "walletSeed")
+	}
+	return nil
+}
+
 // tryParseJson receives reader and out params. out MUST be a pointer
 func tryParseJson(r io.Reader, out interface{}) error {
 	// TODO(nickeskov): check empty reader
