@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -430,6 +431,38 @@ func (a *NodeApi) Addresses(w http.ResponseWriter, _ *http.Request) error {
 	}
 	if err := trySendJson(w, addresses); err != nil {
 		return errors.Wrap(err, "Addresses")
+	}
+	return nil
+}
+
+func (a *NodeApi) NodeStatus(w http.ResponseWriter, r *http.Request) error {
+	type resp struct {
+		BlockchainHeight uint64 `json:"blockchainHeight"`
+		StateHeight      uint64 `json:"stateHeight"`
+		UpdatedTimestamp int64  `json:"updatedTimestamp"`
+		UpdatedDate      string `json:"updatedDate"`
+	}
+
+	stateHeight, err := a.app.state.Height()
+	if err != nil {
+		return errors.Wrap(err, "failed to get state height in NodeStatus HTTP endpoint")
+	}
+
+	// TODO(nickeskov): create new method in state (like TopBlock, but for TopBlockHeader)
+	blockHeader, err := a.state.HeaderByHeight(stateHeight)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get block header from state by height %d", stateHeight)
+	}
+	updatedTimestampMillis := int64(blockHeader.Timestamp)
+
+	out := resp{
+		BlockchainHeight: stateHeight,
+		StateHeight:      stateHeight,
+		UpdatedTimestamp: updatedTimestampMillis,
+		UpdatedDate:      fromUnixMillis(updatedTimestampMillis).Format(time.RFC3339Nano),
+	}
+	if err := trySendJson(w, out); err != nil {
+		return errors.Wrap(err, "NodeStatus")
 	}
 	return nil
 }
