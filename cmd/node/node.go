@@ -31,7 +31,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peer_manager"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
+	peersPersistentStorage "github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -83,6 +83,7 @@ var (
 	integrationMinAssetInfoUpdateInterval = flag.Int("integration.min-asset-info-update-interval", 100000, "Minimum asset info update interval for integration tests.")
 	metricsID                             = flag.Int("metrics-id", -1, "ID of the node on the metrics collection system")
 	metricsURL                            = flag.String("metrics-url", "", "URL of InfluxDB or Telegraf in form of 'http://username:password@host:port/db'")
+	dropPeers                             = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
 )
 
 var defaultPeers = map[string]string{
@@ -120,6 +121,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("limit-connections: %s", *limitConnectionsS)
 	zap.S().Debugf("profiler: %v", *profiler)
 	zap.S().Debugf("bloom: %v", *bloomFilter)
+	zap.S().Debugf("drop-peers: %v", *dropPeers)
 }
 
 func main() {
@@ -294,7 +296,23 @@ func main() {
 
 	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version)
 
-	peerStorage := storage.NewBinaryStorage(path)
+	peerStorage, err := peersPersistentStorage.NewCBORStorage(*statePath, time.Now())
+	if err != nil {
+		zap.S().Errorf("Failed to open or create peers storage: %v", err)
+		cancel()
+		return
+	}
+	if *dropPeers {
+		if err := peerStorage.DropStorage(); err != nil {
+			zap.S().Errorf(
+				"Failed to drop peers storage. Drop peers storage manually. Err: %v",
+				err,
+			)
+			cancel()
+			return
+		}
+		zap.S().Info("Successfully dropped peers storage")
+	}
 
 	peerManager := peer_manager.NewPeerManager(
 		peerSpawnerImpl,
@@ -344,7 +362,19 @@ func main() {
 	if len(conf.Addresses) > 0 {
 		addresses := strings.Split(conf.Addresses, ",")
 		for _, addr := range addresses {
-			peerManager.AddAddress(ctx, addr)
+			tcpAddr := proto.NewTCPAddrFromString(addr)
+			if tcpAddr.Empty() {
+				// nickeskov: that means that configuration parameter is invalid
+				zap.S().Errorf("Failed to parse TCPAddr from string %q", tcpAddr.String())
+				cancel()
+				return
+			}
+			if err := peerManager.AddAddress(ctx, tcpAddr); err != nil {
+				// nickeskov: than means that we have problems with peers storage
+				zap.S().Errorf("Failed to add addres into know peers storage: %v", err)
+				cancel()
+				return
+			}
 		}
 	}
 
@@ -357,6 +387,7 @@ func main() {
 
 	webApi := api.NewNodeApi(app, st, n)
 	go func() {
+		zap.S().Infof("Starting node HTTP API on '%v'", conf.HttpAddr)
 		err := api.Run(ctx, conf.HttpAddr, webApi)
 		if err != nil {
 			zap.S().Errorf("Failed to start API: %v", err)
@@ -368,6 +399,7 @@ func main() {
 			h := http.NewServeMux()
 			h.Handle("/metrics", promhttp.Handler())
 			s := &http.Server{Addr: *prometheus, Handler: h}
+			zap.S().Infof("Starting node metrics endpoint on '%v'", *prometheus)
 			_ = s.ListenAndServe()
 		}
 	}()

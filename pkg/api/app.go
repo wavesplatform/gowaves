@@ -97,30 +97,34 @@ func (a *App) LoadKeys(apiKey string, password []byte) error {
 }
 
 func (a *App) Accounts() ([]account, error) {
-	r := make([]account, 0)
-	for _, s := range a.services.Wallet.Seeds() {
-		_, pk, err := crypto.GenerateKeyPair(s)
+	seeds := a.services.Wallet.Seeds()
+
+	accounts := make([]account, 0, len(seeds))
+	for _, seed := range seeds {
+		_, pk, err := crypto.GenerateKeyPair(seed)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to generate key pair for seed")
 		}
-		a, err := proto.NewAddressFromPublicKey(a.services.Scheme, pk)
+		addr, err := proto.NewAddressFromPublicKey(a.services.Scheme, pk)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to generate new address from public key")
 		}
-		r = append(r, account{Address: a, PublicKey: pk})
+		accounts = append(accounts, account{Address: addr, PublicKey: pk})
 	}
-	return r, nil
+	return accounts, nil
 }
 
 func (a *App) checkAuth(key string) error {
 	if !a.apiKeyEnabled {
+		// TODO(nickeskov): use new types of errors
 		return &AuthError{errors.New("api key disabled")}
 	}
 	d, err := crypto.SecureHash([]byte(key))
 	if err != nil {
-		return &AuthError{err}
+		return errors.Wrap(err, "failed to calculate secure hash for API key")
 	}
 	if d != a.hashedApiKey {
+		// TODO(nickeskov): use new types of errors
 		return &AuthError{errors.New("invalid api key")}
 	}
 	return nil

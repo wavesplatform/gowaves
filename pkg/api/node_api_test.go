@@ -28,7 +28,8 @@ func TestRollbackToHeight(t *testing.T) {
 	req := httptest.NewRequest("POST", "/blocks/rollback", strings.NewReader(`{"height": 100500}`))
 	req.Header.Add(apiKey, "apikey")
 	resp := httptest.NewRecorder()
-	f(resp, req)
+	err := f(resp, req)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "apikey", r.apiKey)
 	assert.EqualValues(t, 100500, r.height)
@@ -52,8 +53,29 @@ func TestWalletLoadKeys(t *testing.T) {
 	req := httptest.NewRequest("POST", "/wallet/load", strings.NewReader(`{"password": "password"}`))
 	req.Header.Add(apiKey, "apikey")
 	resp := httptest.NewRecorder()
-	f(resp, req)
+	err := f(resp, req)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "apikey", r.apiKey)
 	assert.EqualValues(t, "password", r.password)
+}
+
+func TestNodeApi_FindFirstInvalidRuneInBase58String(t *testing.T) {
+	invalidData := []struct {
+		str      string
+		expected rune
+	}{
+		{"234234😀$32@", '😀'},
+		{"234234$32@", '$'},
+		{"2@3423432", '@'},
+	}
+
+	for _, testCase := range invalidData {
+		actual := findFirstInvalidRuneInBase58String(testCase.str)
+		assert.NotNil(t, actual)
+		assert.Equal(t, testCase.expected, *actual)
+	}
+
+	actual := findFirstInvalidRuneInBase58String("42354")
+	assert.Nil(t, actual)
 }

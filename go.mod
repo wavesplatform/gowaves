@@ -23,8 +23,6 @@ require (
 	github.com/kilic/bn254 v0.0.0-20200902152204-ab63fe16fead
 	github.com/magiconair/properties v1.8.1
 	github.com/mr-tron/base58 v1.1.2
-	github.com/onsi/ginkgo v1.10.1 // indirect
-	github.com/onsi/gomega v1.7.0 // indirect
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.7.1
@@ -37,6 +35,7 @@ require (
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d
+	github.com/throttled/throttled/v2 v2.7.1
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/xenolf/lego v2.7.2+incompatible
 	go.uber.org/atomic v1.4.0
