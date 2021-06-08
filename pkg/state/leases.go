@@ -239,9 +239,13 @@ func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID proto.Bl
 		return errors.Wrap(err, "failed to marshal record")
 	}
 	if l.calculateHashes {
+		active := byte(0)
+		if leasing.isActive() {
+			active = byte(1)
+		}
 		lr := &leaseRecordForStateHashes{
 			id:     &id,
-			active: byte(leasing.Status),
+			active: active,
 		}
 		if err := l.hasher.push(keyStr, lr, blockID); err != nil {
 			return err
