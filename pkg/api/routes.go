@@ -127,6 +127,12 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			r.Get("/stateHash/{height:\\d+}", wrapper(a.stateHash))
 		})
 
+		r.Route("/node", func(r chi.Router) {
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Post("/stop", wrapper(a.sendSelfInterrupt))
+		})
+
 		// enable or disable history sync
 		//r.Get("/debug/sync/{enabled:\\d+}", a.DebugSyncEnabled)
 	})
