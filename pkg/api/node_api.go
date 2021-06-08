@@ -467,6 +467,20 @@ func (a *NodeApi) NodeStatus(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+func (a *NodeApi) BuildVersion(w http.ResponseWriter, _ *http.Request) error {
+	type ver struct {
+		Version string `json:"version"`
+	}
+
+	buildVersion := a.app.BuildVersion()
+
+	out := ver{Version: fmt.Sprintf("GoWaves %s", buildVersion)}
+	if err := trySendJson(w, out); err != nil {
+		return errors.Wrap(err, "BuildVersion")
+	}
+	return nil
+}
+
 func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.NodeProcesses()
 	if err := trySendJson(w, rs); err != nil {

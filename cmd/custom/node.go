@@ -60,6 +60,11 @@ var (
 	dropPeers         = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
 )
 
+// nickeskov: compile time constants with defaults
+var (
+	buildVersion = "(not specified)"
+)
+
 func init() {
 	common.SetupLogger(*logLevel)
 }
@@ -268,7 +273,7 @@ func main() {
 	}
 
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", scheduler, nodeServices)
+	app, err := api.NewApp("integration-test-rest-api", scheduler, nodeServices, buildVersion)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
