@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"github.com/mr-tron/base58"
 	"time"
 
 	"github.com/pkg/errors"
@@ -94,6 +95,18 @@ func (a *App) LoadKeys(apiKey string, password []byte) error {
 		return err
 	}
 	return a.services.Wallet.Load(password)
+}
+
+// WalletSeeds returns wallet seeds in base58 encoding.
+func (a *App) WalletSeeds() []string {
+	seeds := a.services.Wallet.Seeds()
+
+	seeds58 := make([]string, 0, len(seeds))
+	for _, seed := range seeds {
+		seed58 := base58.Encode(seed)
+		seeds58 = append(seeds58, seed58)
+	}
+	return seeds58
 }
 
 func (a *App) Accounts() ([]account, error) {
