@@ -35,9 +35,10 @@ type App struct {
 	peers         peer_manager.PeerManager
 	sync          types.StateSync
 	services      services.Services
+	buildVersion  string
 }
 
-func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services) (*App, error) {
+func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services, buildVersion string) (*App, error) {
 	digest, err := crypto.SecureHash([]byte(apiKey))
 	if err != nil {
 		return nil, err
@@ -51,7 +52,12 @@ func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services)
 		utx:           services.UtxPool,
 		peers:         services.Peers,
 		services:      services,
+		buildVersion:  buildVersion,
 	}, nil
+}
+
+func (a *App) BuildVersion() string {
+	return a.buildVersion
 }
 
 func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) error {

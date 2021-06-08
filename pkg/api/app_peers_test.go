@@ -22,7 +22,7 @@ func TestApp_PeersKnown(t *testing.T) {
 	addr := proto.NewTCPAddr(net.ParseIP("127.0.0.1"), 6868).ToIpPort()
 	peerManager.EXPECT().KnownPeers().Return([]storage.KnownPeer{storage.KnownPeer(addr)})
 
-	app, err := NewApp("key", nil, services.Services{Peers: peerManager})
+	app, err := NewApp("key", nil, services.Services{Peers: peerManager}, "")
 	require.NoError(t, err)
 
 	rs2, err := app.PeersKnown()
@@ -56,7 +56,7 @@ func TestApp_PeersSuspended(t *testing.T) {
 
 	peerManager.EXPECT().Suspended().Return(testData)
 
-	app, err := NewApp("key", nil, services.Services{Peers: peerManager})
+	app, err := NewApp("key", nil, services.Services{Peers: peerManager}, "")
 	require.NoError(t, err)
 
 	suspended := app.PeersSuspended()

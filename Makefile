@@ -88,11 +88,11 @@ build-retransmitter-windows:
 release-retransmitter: ver build-retransmitter-linux build-retransmitter-darwin build-retransmitter-windows
 
 build-node-linux:
-	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/node ./cmd/node
+	@GOOS=linux GOARCH=amd64 go build -ldflags "-X main.buildVersion=$(VERSION)" -o build/bin/linux-amd64/node ./cmd/node
 build-node-darwin:
-	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/node ./cmd/node
+	@GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.buildVersion=$(VERSION)" -o build/bin/darwin-amd64/node ./cmd/node
 build-node-windows:
-	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/node.exe ./cmd/node
+	@GOOS=windows GOARCH=amd64 go build -ldflags "-X main.buildVersion=$(VERSION)" -o build/bin/windows-amd64/node.exe ./cmd/node
 
 release-node: ver build-node-linux build-node-darwin build-node-windows
 
@@ -103,11 +103,11 @@ dist-node: release-node build-node-mainnet-deb-package build-node-testnet-deb-pa
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/node_$(VERSION)_macOS-64bit.tar.gz ./node*
 
 build-custom-linux:
-	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/custom ./cmd/custom
+	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -ldflags "-X main.buildVersion=$(VERSION)" -o build/bin/linux-amd64/custom ./cmd/custom
 build-custom-darwin:
-	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/custom ./cmd/custom
+	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.buildVersion=$(VERSION)" -o build/bin/darwin-amd64/custom ./cmd/custom
 build-custom-windows:
-	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/custom.exe ./cmd/custom
+	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -ldflags "-X main.buildVersion=$(VERSION)" -o build/bin/windows-amd64/custom.exe ./cmd/custom
 
 build-custom: ver build-custom-linux build-custom-darwin build-custom-windows
 

@@ -92,6 +92,11 @@ var defaultPeers = map[string]string{
 	"stagenet": "88.99.185.128:6868,49.12.15.166:6868,95.216.205.3:6868,88.198.179.16:6868",
 }
 
+// nickeskov: compile time constants with defaults
+var (
+	buildVersion = "(not specified)"
+)
+
 type Scheduler interface {
 	Mine() chan scheduler.Emit
 	types.Scheduler
@@ -378,7 +383,7 @@ func main() {
 		}
 	}
 
-	app, err := api.NewApp(*apiKey, minerScheduler, svs)
+	app, err := api.NewApp(*apiKey, minerScheduler, svs, buildVersion)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
