@@ -690,10 +690,10 @@ func (s *stateManager) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, er
 		return nil, err
 	}
 	leaseInfo := proto.LeaseInfo{
-		Sender:      leaseFromStore.sender,
-		Recipient:   leaseFromStore.recipient,
-		IsActive:    leaseFromStore.isActive,
-		LeaseAmount: leaseFromStore.leaseAmount,
+		Sender:      leaseFromStore.Sender,
+		Recipient:   leaseFromStore.Recipient,
+		IsActive:    leaseFromStore.isActive(),
+		LeaseAmount: leaseFromStore.Amount,
 	}
 	return &leaseInfo, nil
 }
@@ -1157,6 +1157,15 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 		}
 		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(blockchainHeight)
 	}
+	rideV5Activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.RideV5), blockchainHeight)
+	var rideV5Height uint64 = 0
+	if rideV5Activated {
+		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.RideV5))
+		if err != nil {
+			return false, err
+		}
+		rideV5Height = approvalHeight + s.settings.ActivationWindowSize(blockchainHeight)
+	}
 	switch blockchainHeight {
 	case s.settings.ResetEffectiveBalanceAtHeight:
 		return true, nil
@@ -1165,6 +1174,9 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 		return s.settings.Type == settings.MainNet, nil
 	case dataTxHeight:
 		// Only needed for MainNet.
+		return s.settings.Type == settings.MainNet, nil
+	case rideV5Height:
+		// Cancellation of leasings to stolen aliases only required for MainNet
 		return s.settings.Type == settings.MainNet, nil
 	default:
 		return false, nil
@@ -1248,6 +1260,15 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initia
 		}
 		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(height)
 	}
+	rideV5Activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.RideV5), height)
+	var rideV5Height uint64 = 0
+	if rideV5Activated {
+		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.RideV5))
+		if err != nil {
+			return err
+		}
+		rideV5Height = approvalHeight + s.settings.ActivationWindowSize(height)
+	}
 	if height == s.settings.ResetEffectiveBalanceAtHeight {
 		if err := s.stor.leases.cancelLeases(nil, blockID); err != nil {
 			return err
@@ -1269,6 +1290,14 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initia
 			return err
 		}
 		if err := s.stor.balances.cancelInvalidLeaseIns(leaseIns, blockID); err != nil {
+			return err
+		}
+	} else if rideV5Activated && height == rideV5Height {
+		disabledAliases, err := s.stor.aliases.disabledAliases()
+		if err != nil {
+			return err
+		}
+		if err = s.stor.leases.cancelLeasesToAliases(disabledAliases, blockID); err != nil {
 			return err
 		}
 	}

@@ -231,3 +231,27 @@ func (a *aliases) reset() {
 	a.disabled = make(map[string]bool)
 	a.hasher.reset()
 }
+
+func (a *aliases) disabledAliases() (map[string]struct{}, error) {
+	iter, err := a.db.NewKeyIterator([]byte{disabledAliasKeyPrefix})
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			zap.S().Fatalf("Iterator error: %v", err)
+		}
+	}()
+	als := make(map[string]struct{})
+	for iter.Next() {
+		keyBytes := iter.Key()
+		var key disabledAliasKey
+		err := key.unmarshal(keyBytes)
+		if err != nil {
+			return nil, err
+		}
+		als[key.alias] = struct{}{}
+	}
+	return als, nil
+}

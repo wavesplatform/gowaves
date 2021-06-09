@@ -63,8 +63,7 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 	lease: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   leasingRecordSize + 4,
+		fixedSize:    false,
 	},
 	wavesBalance: {
 		needToFilter: true,
