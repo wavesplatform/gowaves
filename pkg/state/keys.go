@@ -118,6 +118,9 @@ const (
 
 	// Hit source data.
 	hitSourceKeyPrefix
+
+	// Original estimator version data.
+	accountOriginalEstimatorVersionKeyPrefix
 )
 
 var (
@@ -171,6 +174,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{hitSourceKeyPrefix}, nil
 	case feeDistr:
 		return []byte{blocksInfoKeyPrefix}, nil
+	case accountOriginalEstimatorVersion:
+		return []byte{accountOriginalEstimatorVersionKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -602,6 +607,17 @@ func (k *assetScriptComplexityKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = assetScriptComplexityKeyPrefix
 	copy(buf[1:], k.asset[:])
+	return buf
+}
+
+type accountOriginalEstimatorVersionKey struct {
+	addr proto.Address
+}
+
+func (k *accountOriginalEstimatorVersionKey) bytes() []byte {
+	buf := make([]byte, 1+proto.AddressSize)
+	buf[0] = accountOriginalEstimatorVersionKeyPrefix
+	copy(buf[1:], k.addr[:])
 	return buf
 }
 

@@ -63,6 +63,9 @@ func TestSaveComplexityForAddr(t *testing.T) {
 	res3, err := to.scriptsComplexity.newestScriptComplexityByAddr(addr, 3, true)
 	require.NoError(t, err)
 	assert.Equal(t, est3, *res3)
+	res, err := to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr, true)
+	require.NoError(t, err)
+	assert.Equal(t, est1, *res)
 
 	to.stor.flush(t)
 
@@ -75,6 +78,9 @@ func TestSaveComplexityForAddr(t *testing.T) {
 	res3, err = to.scriptsComplexity.newestScriptComplexityByAddr(addr, 3, true)
 	require.NoError(t, err)
 	assert.Equal(t, est3, *res3)
+	res, err = to.scriptsComplexity.newestOriginalScriptComplexityByAddr(addr, true)
+	require.NoError(t, err)
+	assert.Equal(t, est1, *res)
 }
 
 func TestSaveComplexityForAsset(t *testing.T) {

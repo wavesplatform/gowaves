@@ -70,15 +70,12 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		}
 		return errors.Errorf("account script on order '%s' returned false result", base58.Encode(id))
 	}
+	// Increase complexity.
 	if isRideV5 { // After activation of RideV5
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
-		// Increase complexity.
-		ev, err := a.state.EstimatorVersion()
-		if err != nil {
-			return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
-		}
-		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(sender, ev, !initialisation)
+		// For account script we use original estimation
+		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(sender, !initialisation)
 		if err != nil {
 			return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
 		}
@@ -128,11 +125,8 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	if params.rideV5Activated { // After activation of RideV5 add actual complexity
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
-		ev, err := a.state.EstimatorVersion()
-		if err != nil {
-			return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
-		}
-		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, ev, !params.initialisation)
+		// For account script we use original estimation
+		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderAddr, !params.initialisation)
 		if err != nil {
 			return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 		}
@@ -248,7 +242,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	if info.rideV5Activated { // After activation of RideV5 add actual execution complexity
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
-		// TODO: For callable (function) we have to use latest possible estimation
+		// For callable (function) we have to use latest possible estimation
 		ev, err := a.state.EstimatorVersion()
 		if err != nil {
 			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
