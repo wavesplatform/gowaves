@@ -56,7 +56,7 @@ func TestDisableStolenAliases(t *testing.T) {
 	to.flush(t)
 
 	err = to.entities.aliases.disableStolenAliases()
-	assert.NoError(t, err, "disableStolenAlises() failed")
+	assert.NoError(t, err, "disableStolenAliases() failed")
 	to.flush(t)
 	disabled, err := to.entities.aliases.isDisabled(aliasStr)
 	assert.NoError(t, err, "isDisabled() failed")

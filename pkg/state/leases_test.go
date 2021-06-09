@@ -24,16 +24,17 @@ func createLeases() (*leasesTestObjects, []string, error) {
 	return &leasesTestObjects{stor, leases}, path, nil
 }
 
-func createLease(t *testing.T, sender string) *leasing {
+func createLease(t *testing.T, sender string, id crypto.Digest) *leasing {
 	senderAddr, err := proto.NewAddressFromString(sender)
 	assert.NoError(t, err, "failed to create address from string")
 	recipientAddr, err := proto.NewAddressFromString("3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo")
 	assert.NoError(t, err, "failed to create address from string")
 	return &leasing{
-		isActive:    true,
-		leaseAmount: 10,
-		recipient:   recipientAddr,
-		sender:      senderAddr,
+		OriginTransactionID: &id,
+		Recipient:           recipientAddr,
+		Sender:              senderAddr,
+		Amount:              10,
+		Status:              LeaseActive,
 	}
 }
 
@@ -59,7 +60,7 @@ func TestCancelLeases(t *testing.T) {
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
-		r := createLease(t, l.sender)
+		r := createLease(t, l.sender, leaseID)
 		err = to.leases.addLeasing(leaseID, r, blockID0)
 		assert.NoError(t, err, "failed to add leasing")
 	}
@@ -82,10 +83,10 @@ func TestCancelLeases(t *testing.T) {
 		assert.NoError(t, err)
 		if l.sender == badSenderStr {
 			assert.Equal(t, false, active)
-			assert.Equal(t, leasing.isActive, false, "did not cancel leasing by sender")
+			assert.Equal(t, leasing.isActive(), false, "did not cancel leasing by sender")
 		} else {
 			assert.Equal(t, true, active)
-			assert.Equal(t, leasing.isActive, true, "cancelled leasing with different sender")
+			assert.Equal(t, leasing.isActive(), true, "cancelled leasing with different sender")
 		}
 	}
 	// Cancel all the leases and check.
@@ -97,7 +98,7 @@ func TestCancelLeases(t *testing.T) {
 		assert.NoError(t, err, "failed to create digest from bytes")
 		leasing, err := to.leases.leasingInfo(leaseID, true)
 		assert.NoError(t, err, "failed to get leasing")
-		assert.Equal(t, leasing.isActive, false, "did not cancel all the leasings")
+		assert.Equal(t, leasing.isActive(), false, "did not cancel all the leasings")
 		active, err := to.leases.isActive(leaseID, true)
 		assert.NoError(t, err)
 		assert.Equal(t, false, active)
@@ -127,10 +128,10 @@ func TestValidLeaseIns(t *testing.T) {
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
-		r := createLease(t, l.sender)
+		r := createLease(t, l.sender, leaseID)
 		err = to.leases.addLeasing(leaseID, r, blockID0)
 		assert.NoError(t, err, "failed to add leasing")
-		properLeaseIns[r.recipient] += int64(r.leaseAmount)
+		properLeaseIns[r.Recipient] += int64(r.Amount)
 	}
 	leaseIns, err := to.leases.validLeaseIns()
 	assert.NoError(t, err, "validLeaseIns() failed")
@@ -156,7 +157,7 @@ func TestAddLeasing(t *testing.T) {
 	leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
 	senderStr := "3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp"
-	r := createLease(t, senderStr)
+	r := createLease(t, senderStr, leaseID)
 	err = to.leases.addLeasing(leaseID, r, blockID0)
 	assert.NoError(t, err, "failed to add leasing")
 	l, err := to.leases.newestLeasingInfo(leaseID, true)
@@ -182,15 +183,19 @@ func TestCancelLeasing(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
+	txID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xfe}, crypto.DigestSize))
+	assert.NoError(t, err, "failed to create digest from bytes")
 	senderStr := "3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp"
-	r := createLease(t, senderStr)
+	r := createLease(t, senderStr, leaseID)
 	err = to.leases.addLeasing(leaseID, r, blockID0)
 	assert.NoError(t, err, "failed to add leasing")
-	err = to.leases.cancelLeasing(leaseID, blockID0, true)
+	err = to.leases.cancelLeasing(leaseID, blockID0, to.stor.rw.height, &txID, true)
 	assert.NoError(t, err, "failed to cancel leasing")
-	r.isActive = false
+	r.Status = LeaseCanceled
+	r.CancelHeight = 1
+	r.CancelTransactionID = &txID
 	to.stor.flush(t)
 	resLeasing, err := to.leases.leasingInfo(leaseID, true)
 	assert.NoError(t, err, "failed to get leasing info")
-	assert.Equal(t, resLeasing, r, "invalid leasing record after cancelation")
+	assert.Equal(t, resLeasing, r, "invalid leasing record after cancellation")
 }

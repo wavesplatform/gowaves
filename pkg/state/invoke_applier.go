@@ -148,12 +148,12 @@ func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddres
 func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(senderAddress proto.Address, leaseInfo *leasing) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := wavesBalanceKey{address: senderAddress}
-	senderLeaseOutDiff := -int64(leaseInfo.leaseAmount)
+	senderLeaseOutDiff := -int64(leaseInfo.Amount)
 	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(0, 0, senderLeaseOutDiff, false)); err != nil {
 		return nil, err
 	}
-	receiverKey := wavesBalanceKey{address: leaseInfo.recipient}
-	receiverLeaseInDiff := -int64(leaseInfo.leaseAmount)
+	receiverKey := wavesBalanceKey{address: leaseInfo.Recipient}
+	receiverLeaseInDiff := -int64(leaseInfo.Amount)
 	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, receiverLeaseInDiff, 0, false)); err != nil {
 		return nil, err
 	}
@@ -542,7 +542,15 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			totalChanges.appendAddr(recipientAddress)
 
 			// Add new leasing info
-			l := &leasing{true, uint64(a.Amount), recipientAddress, senderAddress}
+			l := &leasing{
+				OriginTransactionID: tx.ID,
+				Sender:              senderAddress,
+				Recipient:           recipientAddress,
+				Amount:              uint64(a.Amount),
+				Height:              info.blockInfo.Height,
+				Status:              LeaseActive,
+				RecipientAlias:      a.Recipient.Alias,
+			}
 			ia.stor.leases.addLeasingUncertain(a.ID, l)
 
 			txDiff, err := ia.newTxDiffFromScriptLease(senderAddress, recipientAddress, a)
@@ -563,16 +571,16 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
-			if senderAddress != li.sender {
-				return proto.DAppError, info.failedChanges, errors.Errorf("attempt to cancel leasing that was created by other account; leaser '%s'; canceller '%s'; leasing: %s", li.sender.String(), senderAddress.String(), a.LeaseID.String()) //TODO: Create a scala compatible error in errs package and use it here
+			if senderAddress != li.Sender {
+				return proto.DAppError, info.failedChanges, errors.Errorf("attempt to cancel leasing that was created by other account; leaser '%s'; canceller '%s'; leasing: %s", li.Sender.String(), senderAddress.String(), a.LeaseID.String()) //TODO: Create a scala compatible error in errs package and use it here
 			}
 			// Update leasing info
-			if err := ia.stor.leases.cancelLeasingUncertain(a.LeaseID, !info.initialisation); err != nil {
+			if err := ia.stor.leases.cancelLeasingUncertain(a.LeaseID, info.blockInfo.Height, tx.ID, !info.initialisation); err != nil {
 				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to cancel leasing")
 			}
 
-			totalChanges.appendAddr(li.sender)
-			totalChanges.appendAddr(li.recipient)
+			totalChanges.appendAddr(li.Sender)
+			totalChanges.appendAddr(li.Recipient)
 			txDiff, err := ia.newTxDiffFromScriptLeaseCancel(senderAddress, li)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
