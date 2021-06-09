@@ -384,7 +384,12 @@ func main() {
 		}
 	}
 
-	app, err := api.NewApp(*apiKey, minerScheduler, svs, buildVersion)
+	apiConfig := api.AppConfig{
+		BlockchainType: *blockchainType,
+		BuildVersion:   buildVersion,
+	}
+
+	app, err := api.NewApp(*apiKey, minerScheduler, svs, apiConfig)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()
