@@ -595,15 +595,13 @@ func (k *accountScriptComplexityKey) bytes() []byte {
 }
 
 type assetScriptComplexityKey struct {
-	ver   int
 	asset crypto.Digest
 }
 
 func (k *assetScriptComplexityKey) bytes() []byte {
-	buf := make([]byte, 2+crypto.DigestSize)
+	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = assetScriptComplexityKeyPrefix
-	buf[1] = byte(k.ver)
-	copy(buf[2:], k.asset[:])
+	copy(buf[1:], k.asset[:])
 	return buf
 }
 

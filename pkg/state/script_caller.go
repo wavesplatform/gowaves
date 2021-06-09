@@ -176,11 +176,8 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 	if params.rideV5Activated { // After activation of RideV5 add actual execution complexity
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
-		ev, err := a.state.EstimatorVersion()
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
-		}
-		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, ev, !params.initialisation)
+		// For asset script we use original estimation
+		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, !params.initialisation)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 		}
@@ -251,6 +248,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	if info.rideV5Activated { // After activation of RideV5 add actual execution complexity
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
+		// TODO: For callable (function) we have to use latest possible estimation
 		ev, err := a.state.EstimatorVersion()
 		if err != nil {
 			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())

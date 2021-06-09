@@ -2171,11 +2171,7 @@ func (s *stateManager) NewestScriptInfoByAsset(assetID crypto.Digest) (*proto.Sc
 		return nil, wrapErr(RetrievalError, err)
 	}
 	text := base64.StdEncoding.EncodeToString(scriptBytes)
-	ev, err := s.EstimatorVersion()
-	if err != nil {
-		return nil, wrapErr(Other, err)
-	}
-	est, err := s.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, ev, true)
+	est, err := s.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

@@ -129,7 +129,7 @@ func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation 
 	return nil
 }
 
-func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int, reducedVerifierComplexity bool) (map[int]ride.TreeEstimation, error) {
+func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int, reducedVerifierComplexity, expandEstimations bool) (map[int]ride.TreeEstimation, error) {
 	tree, err := ride.Parse(script)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to build AST")
@@ -146,7 +146,11 @@ func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion 
 	}
 
 	estimations := make(map[int]ride.TreeEstimation)
-	for ev := estimatorVersion; ev <= maxEstimatorVersion; ev++ {
+	maxVersion := maxEstimatorVersion
+	if !expandEstimations {
+		maxVersion = estimatorVersion
+	}
+	for ev := estimatorVersion; ev <= maxVersion; ev++ {
 		est, err := ride.EstimateTree(tree, ev)
 		if err != nil {
 			return nil, errs.Extend(err, "failed to estimate script complexity")
@@ -412,16 +416,21 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 		// No script checks / actions are needed.
 		return nil, nil
 	}
-	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion(), false) // For asset scripts do not reduce verifier complexity
+	// For asset scripts do not reduce verifier complexity and only one estimation is required
+	currentEstimatorVersion := info.estimatorVersion()
+	estimations, err := tc.checkScript(tx.Script, currentEstimatorVersion, false, false)
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
 	assetID := *tx.ID
 	// Save complexities to storage so we won't have to calculate it every time the script is called.
-	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, estimations, info.blockID); err != nil {
+	complexity, ok := estimations[currentEstimatorVersion]
+	if !ok {
+		return nil, errors.Errorf("failed to calculate asset script complexity by estimator version %d", currentEstimatorVersion)
+	}
+	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, complexity, info.blockID); err != nil {
 		return nil, err
 	}
-
 	return nil, nil
 }
 
@@ -1025,7 +1034,7 @@ func (tc *transactionChecker) checkSetScriptWithProofs(transaction proto.Transac
 		}
 		return nil, nil
 	}
-	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion(), info.blockVersion == proto.ProtobufBlockVersion)
+	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion(), info.blockVersion == proto.ProtobufBlockVersion, true)
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
@@ -1067,15 +1076,20 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if !isSmartAsset {
 		return nil, errs.NewTxValidationError("Reason: Cannot set script on an asset issued without a script. Referenced assetId not found")
 	}
-	estimations, err := tc.checkScript(tx.Script, info.estimatorVersion(), false) // Do not reduce verifier complexity for asset scripts
+	currentEstimatorVersion := info.estimatorVersion()
+	// Do not reduce verifier complexity for asset scripts and only one estimation is required
+	estimations, err := tc.checkScript(tx.Script, currentEstimatorVersion, false, false)
 	if err != nil {
 		return nil, errors.Errorf("checkScript() tx %s: %v", tx.ID.String(), err)
 	}
 	// Save complexity to storage so we won't have to calculate it every time the script is called.
-	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(tx.AssetID, estimations, info.blockID); err != nil {
+	estimation, ok := estimations[currentEstimatorVersion]
+	if !ok {
+		return nil, errors.Errorf("failed to calculate asset script complexity by estimator version %d", currentEstimatorVersion)
+	}
+	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(tx.AssetID, estimation, info.blockID); err != nil {
 		return nil, errs.Extend(err, "saveComplexityForAsset")
 	}
-
 	return smartAssets, nil
 }
 

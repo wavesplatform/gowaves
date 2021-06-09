@@ -90,31 +90,16 @@ func TestSaveComplexityForAsset(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	asset := testGlobal.asset0.asset.ID
-	est1 := ride.TreeEstimation{Estimation: 500, Verifier: 500}
-	est2 := ride.TreeEstimation{Estimation: 600, Verifier: 600}
-	est3 := ride.TreeEstimation{Estimation: 700, Verifier: 700}
-	estimations := map[int]ride.TreeEstimation{1: est1, 2: est2, 3: est3}
-	err = to.scriptsComplexity.saveComplexitiesForAsset(asset, estimations, blockID0)
+	est := ride.TreeEstimation{Estimation: 500, Verifier: 500}
+	err = to.scriptsComplexity.saveComplexitiesForAsset(asset, est, blockID0)
 	assert.NoError(t, err)
-	res1, err := to.scriptsComplexity.newestScriptComplexityByAsset(asset, 1, true)
+	res1, err := to.scriptsComplexity.newestScriptComplexityByAsset(asset, true)
 	require.NoError(t, err)
-	assert.Equal(t, est1, *res1)
-	res2, err := to.scriptsComplexity.newestScriptComplexityByAsset(asset, 2, true)
-	require.NoError(t, err)
-	assert.Equal(t, est2, *res2)
-	res3, err := to.scriptsComplexity.newestScriptComplexityByAsset(asset, 3, true)
-	require.NoError(t, err)
-	assert.Equal(t, est3, *res3)
+	assert.Equal(t, est, *res1)
 
 	to.stor.flush(t)
 
-	res1, err = to.scriptsComplexity.newestScriptComplexityByAsset(asset, 1, true)
+	res1, err = to.scriptsComplexity.newestScriptComplexityByAsset(asset, true)
 	require.NoError(t, err)
-	assert.Equal(t, est1, *res1)
-	res2, err = to.scriptsComplexity.newestScriptComplexityByAsset(asset, 2, true)
-	require.NoError(t, err)
-	assert.Equal(t, est2, *res2)
-	res3, err = to.scriptsComplexity.newestScriptComplexityByAsset(asset, 3, true)
-	require.NoError(t, err)
-	assert.Equal(t, est3, *res3)
+	assert.Equal(t, est, *res1)
 }
