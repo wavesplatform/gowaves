@@ -35,10 +35,24 @@ type App struct {
 	peers         peer_manager.PeerManager
 	sync          types.StateSync
 	services      services.Services
-	buildVersion  string
+	config        AppConfig
 }
 
-func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services, buildVersion string) (*App, error) {
+type AppConfig struct {
+	BlockchainType string
+	BuildVersion   string
+}
+
+func (ac *AppConfig) Validate() error {
+	// TODO(nickeskov): implement me
+	return nil
+}
+
+func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services, config AppConfig) (*App, error) {
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
 	digest, err := crypto.SecureHash([]byte(apiKey))
 	if err != nil {
 		return nil, err
@@ -52,12 +66,12 @@ func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services,
 		utx:           services.UtxPool,
 		peers:         services.Peers,
 		services:      services,
-		buildVersion:  buildVersion,
+		config:        config,
 	}, nil
 }
 
-func (a *App) BuildVersion() string {
-	return a.buildVersion
+func (a *App) Config() *AppConfig {
+	return &a.config
 }
 
 func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) error {

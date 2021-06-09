@@ -272,8 +272,12 @@ func main() {
 		}
 	}
 
+	apiConfig := api.AppConfig{
+		BlockchainType: "",
+		BuildVersion:   buildVersion,
+	}
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", scheduler, nodeServices, buildVersion)
+	app, err := api.NewApp("integration-test-rest-api", scheduler, nodeServices, apiConfig)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

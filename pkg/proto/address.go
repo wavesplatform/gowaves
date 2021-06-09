@@ -31,10 +31,10 @@ const (
 	AliasAlphabet  = "-.0123456789@_abcdefghijklmnopqrstuvwxyz"
 	AliasPrefix    = "alias"
 
-	MainNetScheme   byte = 'W'
-	TestNetScheme   byte = 'T'
-	StageNetScheme  byte = 'S'
-	CustomNetScheme byte = 'E'
+	MainNetScheme   Scheme = 'W'
+	TestNetScheme   Scheme = 'T'
+	StageNetScheme  Scheme = 'S'
+	CustomNetScheme Scheme = 'E'
 )
 
 // Address is the transformed Public Key with additional bytes of the version, a blockchain scheme and a checksum.
@@ -530,4 +530,30 @@ func (r *Recipient) String() string {
 		return r.Alias.String()
 	}
 	return r.Address.String()
+}
+
+// SchemeFromString returns Scheme from string representation (short or full).
+func SchemeFromString(scheme string) Scheme {
+	switch len(scheme) {
+	case 0:
+		return CustomNetScheme
+	case 1:
+		switch b := scheme[0]; b {
+		case MainNetScheme, StageNetScheme, TestNetScheme:
+			return b
+		default:
+			return CustomNetScheme
+		}
+	default:
+		switch scheme {
+		case "mainnet":
+			return MainNetScheme
+		case "stagenet":
+			return StageNetScheme
+		case "testnet":
+			return TestNetScheme
+		default:
+			return CustomNetScheme
+		}
+	}
 }
