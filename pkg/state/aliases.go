@@ -237,6 +237,12 @@ func (a *aliases) disabledAliases() (map[string]struct{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			zap.S().Fatalf("Iterator error: %v", err)
+		}
+	}()
 	als := make(map[string]struct{})
 	for iter.Next() {
 		keyBytes := iter.Key()
@@ -247,6 +253,5 @@ func (a *aliases) disabledAliases() (map[string]struct{}, error) {
 		}
 		als[key.alias] = struct{}{}
 	}
-	iter.Release()
-	return als, iter.Error()
+	return als, nil
 }
