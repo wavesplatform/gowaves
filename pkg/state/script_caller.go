@@ -71,15 +71,16 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		return errors.Errorf("account script on order '%s' returned false result", base58.Encode(id))
 	}
 	// Increase complexity.
-	ev, err := a.state.EstimatorVersion()
-	if err != nil {
-		return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
+	if isRideV5 { // After activation of RideV5
+		a.recentTxComplexity += uint64(r.Complexity())
+	} else {
+		// For account script we use original estimation
+		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(sender, !initialisation)
+		if err != nil {
+			return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
+		}
+		a.recentTxComplexity += uint64(est.Verifier)
 	}
-	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(sender, ev, !initialisation)
-	if err != nil {
-		return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
-	}
-	a.recentTxComplexity += uint64(est.Verifier)
 	return nil
 }
 
@@ -121,15 +122,16 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 		return errs.NewTransactionNotAllowedByScript("script failed", id)
 	}
 	// Increase complexity.
-	ev, err := a.state.EstimatorVersion()
-	if err != nil {
-		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
+	if params.rideV5Activated { // After activation of RideV5 add actual complexity
+		a.recentTxComplexity += uint64(r.Complexity())
+	} else {
+		// For account script we use original estimation
+		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderAddr, !params.initialisation)
+		if err != nil {
+			return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
+		}
+		a.recentTxComplexity += uint64(est.Verifier)
 	}
-	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, ev, !params.initialisation)
-	if err != nil {
-		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
-	}
-	a.recentTxComplexity += uint64(est.Verifier)
 	return nil
 }
 
@@ -165,15 +167,16 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 		return nil, errs.NewTransactionNotAllowedByScript(r.UserError(), assetID.Bytes())
 	}
 	// Increase complexity.
-	ev, err := a.state.EstimatorVersion()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
+	if params.rideV5Activated { // After activation of RideV5 add actual execution complexity
+		a.recentTxComplexity += uint64(r.Complexity())
+	} else {
+		// For asset script we use original estimation
+		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, !params.initialisation)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
+		}
+		a.recentTxComplexity += uint64(est.Verifier)
 	}
-	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, ev, !params.initialisation)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
-	}
-	a.recentTxComplexity += uint64(est.Verifier)
 	return r, nil
 }
 
@@ -236,23 +239,28 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 		return false, nil, errors.Errorf("unexpected ScriptResult: %v", sr)
 	}
 	// Increase complexity.
-	ev, err := a.state.EstimatorVersion()
-	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+	if info.rideV5Activated { // After activation of RideV5 add actual execution complexity
+		a.recentTxComplexity += uint64(r.Complexity())
+	} else {
+		// For callable (function) we have to use latest possible estimation
+		ev, err := a.state.EstimatorVersion()
+		if err != nil {
+			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+		}
+		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, ev, !info.initialisation)
+		if err != nil {
+			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+		}
+		fn := tx.FunctionCall.Name
+		if fn == "" && tx.FunctionCall.Default {
+			fn = "default"
+		}
+		c, ok := est.Functions[fn]
+		if !ok {
+			return false, nil, errors.Errorf("no estimation for function '%s' on invocation of transaction '%s'", fn, tx.ID.String())
+		}
+		a.recentTxComplexity += uint64(c)
 	}
-	est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, ev, !info.initialisation)
-	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
-	}
-	fn := tx.FunctionCall.Name
-	if fn == "" && tx.FunctionCall.Default {
-		fn = "default"
-	}
-	c, ok := est.Functions[fn]
-	if !ok {
-		return false, nil, errors.Errorf("no estimation for function '%s' on invocation of transaction '%s'", fn, tx.ID.String())
-	}
-	a.recentTxComplexity += uint64(c)
 	err = nil
 	if !r.Result() { // Replace failure status with an error
 		err = errors.Errorf("call failed: %s", r.UserError())

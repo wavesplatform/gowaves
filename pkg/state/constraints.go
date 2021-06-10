@@ -1,5 +1,15 @@
 package state
 
+const (
+	FailFreeInvokeComplexity           = 1000
+	FreeVerifierComplexity             = 200
+	MaxVerifierScriptComplexityReduced = 2000
+	MaxVerifierScriptComplexity        = 4000
+	MaxCallableScriptComplexityV12     = 2000
+	MaxCallableScriptComplexityV34     = 4000
+	MaxCallableScriptComplexityV5      = 10000
+)
+
 type MaxScriptsComplexityInBlock struct {
 	BeforeActivationRideV5Feature int
 	AfterActivationRideV5Feature  int
@@ -15,12 +25,3 @@ func (a MaxScriptsComplexityInBlock) GetMaxScriptsComplexityInBlock(isRideV5Acti
 	}
 	return a.BeforeActivationRideV5Feature
 }
-
-const FreeVerifierComplexity = 200
-
-const MaxVerifierScriptComplexityReduced = 2000
-const MaxVerifierScriptComplexity = 4000
-
-const MaxCallableScriptComplexityV12 = 2000
-const MaxCallableScriptComplexityV34 = 4000
-const MaxCallableScriptComplexityV5 = 10000

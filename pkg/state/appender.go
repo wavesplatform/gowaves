@@ -243,7 +243,7 @@ func (a *txAppender) checkTransactionScripts(tx proto.Transaction, accountScript
 	return scriptsRuns, nil
 }
 
-func (a *txAppender) checkScriptsLimits(scriptsRuns uint64) error {
+func (a *txAppender) checkScriptsLimits(scriptsRuns uint64, blockID proto.BlockID) error {
 	smartAccountsActivated, err := a.stor.features.newestIsActivated(int16(settings.SmartAccounts))
 	if err != nil {
 		return err
@@ -260,7 +260,7 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64) error {
 		maxBlockComplexity := NewMaxScriptsComplexityInBlock().GetMaxScriptsComplexityInBlock(rideV5Activated)
 		if a.sc.getTotalComplexity() > uint64(maxBlockComplexity) {
 			// TODO this is definitely an error, should return it
-			zap.S().Warnf("complexity limit per block is exceeded. total complexity of script is %d, max allowed complexity is %d", int(a.sc.getTotalComplexity()), maxBlockComplexity)
+			zap.S().Warnf("Complexity of scripts (%d) in block '%s' exceeds limit of %d", a.sc.getTotalComplexity(), blockID.String(), maxBlockComplexity)
 		}
 		return nil
 	} else if smartAccountsActivated {
@@ -453,7 +453,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		}
 	}
 	// Check complexity limits and scripts runs limits.
-	if err := a.checkScriptsLimits(a.totalScriptsRuns + applicationRes.totalScriptsRuns); err != nil {
+	if err := a.checkScriptsLimits(a.totalScriptsRuns+applicationRes.totalScriptsRuns, blockID); err != nil {
 		return errs.Extend(errors.Errorf("%s: %v", blockID.String(), err), "check scripts limits")
 	}
 	// Perform state changes, save balance changes, write tx to storage.
