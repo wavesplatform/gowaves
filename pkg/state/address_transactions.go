@@ -26,7 +26,7 @@ const (
 )
 
 var (
-	fileSizeKeyBytes = []byte{txsByAddrsFileSizeKeyPrefix}
+	fileSizeKeyBytes = []byte{txsByAddressesFileSizeKeyPrefix}
 )
 
 type txMeta struct {
@@ -297,7 +297,12 @@ func (at *addressTransactions) persist(filter bool) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create temp file for emsort")
 	}
-	defer os.Remove(tempFile.Name())
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			zap.S().Warnf("Failed to remove temporary file: %v", err)
+		}
+	}(tempFile.Name())
 	sort, err := emsort.NewFixedSize(addrTxRecordSize, maxEmsortMem, tempFile)
 	if err != nil {
 		return errors.Wrap(err, "emsort.NewFixedSize() failed")

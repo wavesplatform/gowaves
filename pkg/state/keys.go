@@ -58,9 +58,6 @@ const (
 	// Leases.
 	leaseKeyPrefix
 
-	// nickeskov: In legacy code this is `knownPeersPrefix` constant. We skip this value for compatibility.
-	_
-
 	// Aliases.
 	aliasKeyPrefix
 	disabledAliasKeyPrefix
@@ -91,6 +88,7 @@ const (
 	assetScriptKeyPrefix
 	accountScriptComplexityKeyPrefix
 	assetScriptComplexityKeyPrefix
+	accountOriginalEstimatorVersionKeyPrefix
 
 	// Block Reward.
 	blockRewardKeyPrefix
@@ -108,7 +106,7 @@ const (
 	stateInfoKeyPrefix
 
 	// Size of TransactionsByAddresses file.
-	txsByAddrsFileSizeKeyPrefix
+	txsByAddressesFileSizeKeyPrefix
 
 	// Stores protobuf-related info for blockReadWriter.
 	rwProtobufInfoKeyPrefix
@@ -118,9 +116,6 @@ const (
 
 	// Hit source data.
 	hitSourceKeyPrefix
-
-	// Original estimator version data.
-	accountOriginalEstimatorVersionKeyPrefix
 )
 
 var (
