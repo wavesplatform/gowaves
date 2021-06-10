@@ -5,6 +5,7 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"go.uber.org/zap"
 )
 
 func (s *Server) transactionToTransactionResponse(tx proto.Transaction, confirmed, failed bool) (*g.TransactionResponse, error) {
@@ -47,7 +48,12 @@ type filterFunc = func(tx proto.Transaction) bool
 type handleFunc = func(tx proto.Transaction, failed bool) error
 
 func (s *Server) iterateAndHandleTransactions(iter state.TransactionIterator, filter filterFunc, handle handleFunc) error {
-	defer iter.Release()
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			zap.S().Fatalf("Iterator error: %v", err)
+		}
+	}()
 	for iter.Next() {
 		// Get and send transactions one-by-one.
 		tx, failed, err := iter.Transaction()
