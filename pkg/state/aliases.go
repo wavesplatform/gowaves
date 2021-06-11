@@ -194,7 +194,12 @@ func (a *aliases) disableStolenAliases() error {
 	if err != nil {
 		return err
 	}
-
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			zap.S().Fatalf("Iterator error: %v", err)
+		}
+	}()
 	for iter.Next() {
 		keyBytes := iter.Key()
 		recordBytes := iter.Value()
@@ -211,9 +216,7 @@ func (a *aliases) disableStolenAliases() error {
 			a.disabled[key.alias] = true
 		}
 	}
-
-	iter.Release()
-	return iter.Error()
+	return nil
 }
 
 func (a *aliases) prepareHashes() error {
