@@ -2,7 +2,6 @@ package state
 
 import (
 	"fmt"
-	"log"
 	"math"
 	"math/big"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"go.uber.org/zap"
 )
 
 type invokeApplier struct {
@@ -718,7 +718,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		libVersion:               byte(tree.LibVersion),
 	})
 	if err != nil {
-		log.Printf("fallibleValidation error in tx %s. Error: %s", tx.ID.String(), err.Error())
+		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", tx.ID.String(), err.Error())
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
 		if !info.acceptFailed {
 			return nil, err
