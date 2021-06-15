@@ -9,9 +9,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/pkg/errors"
+
 	"github.com/go-chi/chi"
 	"github.com/mr-tron/base58"
-	"github.com/pkg/errors"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node"
@@ -34,7 +35,7 @@ func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
 	}
 }
 
-func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) error {
+func (a *NodeApi) TransactionsBroadcast(_ http.ResponseWriter, r *http.Request) error {
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return errors.Wrap(err, "TransactionsBroadcast: failed to read request body")

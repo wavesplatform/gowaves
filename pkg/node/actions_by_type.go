@@ -1,9 +1,10 @@
 package node
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"math/big"
 	"reflect"
+
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
