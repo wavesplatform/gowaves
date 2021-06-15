@@ -155,7 +155,7 @@ func (a *NGFsm) BlockIDs(_ peer.Peer, _ []proto.BlockID) (FSM, Async, error) {
 	return noop(a)
 }
 
-// MicroBlock handles new microblock received from the network.
+// MicroBlock handles new microblock message.
 func (a *NGFsm) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error) {
 	metrics.FSMMicroBlockReceived("ng", micro, p.Handshake().NodeName)
 	block, err := a.checkAndAppendMicroblock(micro) // the TopBlock() is used here

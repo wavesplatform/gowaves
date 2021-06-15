@@ -2,6 +2,7 @@ package peer_manager
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"math/big"
 	"net"
 	"sort"
@@ -13,6 +14,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
+
+const suspendDuration = 5 * time.Minute
 
 type peerInfo struct {
 	score *big.Int
@@ -39,13 +42,13 @@ type PeerManager interface {
 	InOutCount() (in int, out int)
 	EachConnected(func(peer.Peer, *proto.Score))
 	IsSuspended(peer.Peer) bool
-	Suspend(peer.Peer, string)
-	Suspended() []string
+	Suspend(peer peer.Peer, suspendTime time.Time, reason string)
+	Suspended() []storage.SuspendedPeer
 	AddConnected(peer.Peer)
 	PeerWithHighestScore() (peer.Peer, *big.Int, bool)
 	UpdateScore(p peer.Peer, score *proto.Score) error
-	UpdateKnownPeers([]proto.TCPAddr) error
-	KnownPeers() ([]proto.TCPAddr, error)
+	UpdateKnownPeers([]storage.KnownPeer) error
+	KnownPeers() []storage.KnownPeer
 	Close()
 	SpawnOutgoingConnections(context.Context)
 	SpawnIncomingConnection(ctx context.Context, conn net.Conn) error
@@ -53,79 +56,31 @@ type PeerManager interface {
 	Connect(context.Context, proto.TCPAddr) error
 	Score(p peer.Peer) (*proto.Score, error)
 
-	// for all connected node send GetPeersMessage
+	// AskPeers sends GetPeersMessage message to all connected nodes.
 	AskPeers()
 
 	Disconnect(peer.Peer)
-}
-
-type Ip = [net.IPv6len]byte
-
-type suspended map[Ip]time.Time
-
-func (a suspended) Blocked(ipPort proto.IpPort, now time.Time) bool {
-	ip := Ip{}
-	copy(ip[:], ipPort[:net.IPv6len])
-	v, ok := a[ip]
-	if !ok {
-		return false
-	}
-	if v.Add(5 * time.Minute).After(now) { //suspended
-		return true
-	} else {
-		return false
-	}
-}
-
-func (a suspended) AllBlocked() []string {
-	out := make([]string, 0, len(a))
-	for ip := range a {
-		out = append(out, net.IP(ip[:]).String())
-	}
-	return out
-}
-
-func (a suspended) clear(now time.Time) {
-	for ip, v := range a {
-		if v.Add(5 * time.Minute).Before(now) {
-			delete(a, ip)
-		}
-	}
-}
-
-func (a suspended) Block(ip proto.IpPort, d time.Duration) {
-	a[ipPortToIp(ip)] = time.Now().Add(d)
-}
-
-func ipPortToIp(ipPort proto.IpPort) [net.IPv6len]byte {
-	ip := Ip{}
-	copy(ip[:], ipPort[:net.IPv6len])
-	return ip
-}
-
-func (a suspended) Len() int {
-	return len(a)
 }
 
 type PeerManagerImpl struct {
 	spawner          PeerSpawner
 	active           map[peer.Peer]peerInfo
 	mu               sync.RWMutex
-	state            PeerStorage
+	peerStorage      PeerStorage
 	spawned          map[proto.IpPort]struct{}
-	suspended        suspended
 	connectPeers     bool // spawn outgoing
 	limitConnections int
 	version          proto.Version
 }
 
-func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections int, version proto.Version) *PeerManagerImpl {
+func NewPeerManager(spawner PeerSpawner, storage PeerStorage,
+	limitConnections int, version proto.Version) *PeerManagerImpl {
+
 	return &PeerManagerImpl{
 		spawner:          spawner,
 		active:           make(map[peer.Peer]peerInfo),
-		state:            storage,
+		peerStorage:      storage,
 		spawned:          make(map[proto.IpPort]struct{}),
-		suspended:        suspended{},
 		connectPeers:     true,
 		limitConnections: limitConnections,
 		version:          version,
@@ -159,11 +114,11 @@ func (a *PeerManagerImpl) Connected(p peer.Peer) (peer.Peer, bool) {
 func (a *PeerManagerImpl) ConnectedCount() int {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.connectedCount()
+	return a.unsafeConnectedCount()
 }
 
 // non thread safe
-func (a *PeerManagerImpl) connectedCount() int {
+func (a *PeerManagerImpl) unsafeConnectedCount() int {
 	return len(a.active)
 }
 
@@ -183,7 +138,7 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 			a.version.String(),
 			p.Handshake().Version.String(),
 		)
-		a.Suspend(p, err.Error())
+		a.Suspend(p, time.Now(), err.Error())
 		_ = p.Close()
 		return proto.NewInfoMsg(err)
 	}
@@ -197,7 +152,9 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 		}
 	case peer.Outgoing:
 		if !p.Handshake().DeclaredAddr.Empty() {
-			_ = a.state.AddKnown(proto.TCPAddr(p.Handshake().DeclaredAddr))
+			known := storage.KnownPeer(proto.TCPAddr(p.Handshake().DeclaredAddr).ToIpPort())
+			// TODO(nickeskov): maybe log error?
+			_ = a.peerStorage.AddKnown([]storage.KnownPeer{known})
 		}
 		if out >= a.limitConnections {
 			_ = p.Close()
@@ -211,15 +168,21 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 	return nil
 }
 
+func (a *PeerManagerImpl) ClearSuspended(now time.Time) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if err := a.peerStorage.RefreshSuspended(now); err != nil {
+		zap.S().Errorf("failed to clear suspended peers: %v", err)
+	}
+}
+
 func (a *PeerManagerImpl) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(1 * time.Minute):
-			a.mu.Lock()
-			a.suspended.clear(time.Now())
-			a.mu.Unlock()
+			a.ClearSuspended(time.Now())
 		}
 	}
 }
@@ -263,10 +226,11 @@ func (a *PeerManagerImpl) UpdateScore(p peer.Peer, score *big.Int) error {
 func (a *PeerManagerImpl) IsSuspended(p peer.Peer) bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.suspended.Blocked(p.RemoteAddr().ToIpPort(), time.Now())
+	ip := storage.IpFromIpPort(p.RemoteAddr().ToIpPort())
+	return a.peerStorage.IsSuspendedIP(ip, time.Now())
 }
 
-// Count connected peers,
+// InOutCount counts connected peers,
 // in - incoming connections
 // out - outgoing connections
 func (a *PeerManagerImpl) InOutCount() (in int, out int) {
@@ -282,53 +246,74 @@ func (a *PeerManagerImpl) InOutCount() (in int, out int) {
 	return in, out
 }
 
-func (a *PeerManagerImpl) Suspend(p peer.Peer, reason string) {
+func (a *PeerManagerImpl) Suspend(p peer.Peer, suspendTime time.Time, reason string) {
 	a.Disconnect(p)
 	a.mu.Lock()
-	a.suspended.Block(p.RemoteAddr().ToIpPort(), 5*time.Minute)
-	a.mu.Unlock()
-	zap.S().Debugf("[%s] Suspend peer, reason: %s ", p.ID(), reason)
+	defer a.mu.Unlock()
+	suspended := storage.SuspendedPeer{
+		IP:                     storage.IpFromIpPort(p.RemoteAddr().ToIpPort()),
+		SuspendTimestampMillis: unixMillis(suspendTime),
+		SuspendDuration:        suspendDuration,
+		Reason:                 reason,
+	}
+	if err := a.peerStorage.AddSuspended([]storage.SuspendedPeer{suspended}); err != nil {
+		zap.S().Errorf("[%s] Failed to suspend peer, reason %q: %v", p.ID(), reason, err)
+	} else {
+		zap.S().Debugf("[%s] Suspend peer, reason: %s ", p.ID(), reason)
+	}
 }
 
-func (a *PeerManagerImpl) Suspended() []string {
+func (a *PeerManagerImpl) Suspended() []storage.SuspendedPeer {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.suspended.AllBlocked()
+	return a.peerStorage.Suspended(time.Now())
 }
 
-func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr string) {
-	_ = a.state.Add([]proto.TCPAddr{proto.NewTCPAddrFromString(addr)})
+func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr proto.TCPAddr) error {
+	known := storage.KnownPeer(addr.ToIpPort())
+	if err := a.peerStorage.AddKnown([]storage.KnownPeer{known}); err != nil {
+		return errors.Wrapf(err, "failed to add addr %q into known peers storage", addr.String())
+	}
 	go func() {
-		if err := a.spawner.SpawnOutgoing(ctx, proto.NewTCPAddrFromString(addr)); err != nil {
+		if err := a.spawner.SpawnOutgoing(ctx, addr); err != nil {
+			// TODO(nickeskov): maybe don't remove from known peers in this case?
+			if removeErr := a.peerStorage.DeleteKnown([]storage.KnownPeer{known}); removeErr != nil {
+				zap.S().Errorf("Failed to remove peer %q from known peers storage", known.String())
+			}
 			zap.S().Debug(err)
 		}
 	}()
+	return nil
 }
 
-func (a *PeerManagerImpl) UpdateKnownPeers(known []proto.TCPAddr) error {
+func (a *PeerManagerImpl) UpdateKnownPeers(known []storage.KnownPeer) error {
 	if len(known) == 0 {
 		return nil
 	}
-	return a.state.Add(known)
+
+	if err := a.peerStorage.AddKnown(known); err != nil {
+		return errors.Wrap(err, "failed to update known peers")
+	}
+	return nil
 }
 
-func (a *PeerManagerImpl) KnownPeers() ([]proto.TCPAddr, error) {
-	return a.state.Known()
+func (a *PeerManagerImpl) KnownPeers() []storage.KnownPeer {
+	return a.peerStorage.Known()
 }
 
 func (a *PeerManagerImpl) Close() {
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	for _, v := range a.active {
 		_ = v.peer.Close()
 	}
-	a.mu.Unlock()
 }
 
 func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.connectedCount() > a.limitConnections*2 {
+	if a.unsafeConnectedCount() > a.limitConnections*2 {
 		return
 	}
 	var outCnt int
@@ -346,11 +331,7 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 		return
 	}
 
-	known, err := a.KnownPeers()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
+	known := a.KnownPeers()
 
 	active := map[proto.IpPort]struct{}{}
 	for _, p := range a.active {
@@ -363,24 +344,26 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 		}
 	}
 
-	for _, addr := range known {
-		addrIpPort := addr.ToIpPort()
-		if _, ok := active[addrIpPort]; ok {
+	for _, knowPeer := range known {
+		ipPort := knowPeer.IpPort()
+		if _, ok := active[ipPort]; ok {
 			continue
 		}
-		if _, ok := a.spawned[addrIpPort]; ok {
+		if _, ok := a.spawned[ipPort]; ok {
 			continue
 		}
-		if a.suspended.Blocked(addrIpPort, time.Now()) {
+		if a.peerStorage.IsSuspendedIP(knowPeer.IP(), time.Now()) {
 			continue
 		}
 
-		a.spawned[addr.ToIpPort()] = struct{}{}
+		a.spawned[ipPort] = struct{}{}
 
-		go func(addr proto.TCPAddr) {
+		go func(ipPort proto.IpPort) {
+			addr := proto.NewTCPAddr(ipPort.Addr(), ipPort.Port())
 			defer a.RemoveSpawned(addr)
+			// TODO(nickeskov): maybe log error?
 			_ = a.spawner.SpawnOutgoing(ctx, addr)
-		}(addr)
+		}(ipPort)
 	}
 }
 
@@ -464,4 +447,8 @@ func (a *PeerManagerImpl) Connect(ctx context.Context, addr proto.TCPAddr) error
 	}(addr)
 
 	return nil
+}
+
+func unixMillis(now time.Time) int64 {
+	return now.UnixNano() / 1_000_000
 }

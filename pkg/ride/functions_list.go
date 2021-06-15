@@ -86,7 +86,7 @@ func listAndElementArgs(args []rideType) (rideList, rideType, error) {
 	return l, args[1], nil
 }
 
-func intFromArray(_ RideEnvironment, args ...rideType) (rideType, error) {
+func intFromArray(_ Environment, args ...rideType) (rideType, error) {
 	list, key, err := listAndStringArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "intFromArray")
@@ -98,7 +98,7 @@ func intFromArray(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return item, nil
 }
 
-func booleanFromArray(_ RideEnvironment, args ...rideType) (rideType, error) {
+func booleanFromArray(_ Environment, args ...rideType) (rideType, error) {
 	list, key, err := listAndStringArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "booleanFromArray")
@@ -110,7 +110,7 @@ func booleanFromArray(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return item, nil
 }
 
-func bytesFromArray(_ RideEnvironment, args ...rideType) (rideType, error) {
+func bytesFromArray(_ Environment, args ...rideType) (rideType, error) {
 	list, key, err := listAndStringArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesFromArray")
@@ -122,7 +122,7 @@ func bytesFromArray(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return item, nil
 }
 
-func stringFromArray(_ RideEnvironment, args ...rideType) (rideType, error) {
+func stringFromArray(_ Environment, args ...rideType) (rideType, error) {
 	list, key, err := listAndStringArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "stringFromArray")
@@ -134,7 +134,7 @@ func stringFromArray(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return item, nil
 }
 
-func intFromArrayByIndex(_ RideEnvironment, args ...rideType) (rideType, error) {
+func intFromArrayByIndex(_ Environment, args ...rideType) (rideType, error) {
 	list, i, err := listAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "intFromArrayByIndex")
@@ -154,7 +154,7 @@ func intFromArrayByIndex(_ RideEnvironment, args ...rideType) (rideType, error) 
 	}
 }
 
-func booleanFromArrayByIndex(_ RideEnvironment, args ...rideType) (rideType, error) {
+func booleanFromArrayByIndex(_ Environment, args ...rideType) (rideType, error) {
 	list, i, err := listAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "booleanFromArrayByIndex")
@@ -174,7 +174,7 @@ func booleanFromArrayByIndex(_ RideEnvironment, args ...rideType) (rideType, err
 	}
 }
 
-func bytesFromArrayByIndex(_ RideEnvironment, args ...rideType) (rideType, error) {
+func bytesFromArrayByIndex(_ Environment, args ...rideType) (rideType, error) {
 	list, i, err := listAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesFromArrayByIndex")
@@ -194,7 +194,7 @@ func bytesFromArrayByIndex(_ RideEnvironment, args ...rideType) (rideType, error
 	}
 }
 
-func stringFromArrayByIndex(_ RideEnvironment, args ...rideType) (rideType, error) {
+func stringFromArrayByIndex(_ Environment, args ...rideType) (rideType, error) {
 	list, i, err := listAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "stringFromArrayByIndex")
@@ -214,7 +214,7 @@ func stringFromArrayByIndex(_ RideEnvironment, args ...rideType) (rideType, erro
 	}
 }
 
-func sizeList(_ RideEnvironment, args ...rideType) (rideType, error) {
+func sizeList(_ Environment, args ...rideType) (rideType, error) {
 	l, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sizeList")
@@ -222,7 +222,7 @@ func sizeList(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideInt(len(l)), nil
 }
 
-func getList(_ RideEnvironment, args ...rideType) (rideType, error) {
+func getList(_ Environment, args ...rideType) (rideType, error) {
 	l, i, err := listAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "getList")
@@ -230,7 +230,7 @@ func getList(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return l[i], nil
 }
 
-func createList(_ RideEnvironment, args ...rideType) (rideType, error) {
+func createList(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 2 {
 		return nil, errors.Errorf("createList: %d is invalid number of arguments, expected %d", len(args), 2)
 	}
@@ -250,7 +250,7 @@ func createList(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return append(rideList{args[0]}, tail...), nil
 }
 
-func intValueFromArray(env RideEnvironment, args ...rideType) (rideType, error) {
+func intValueFromArray(env Environment, args ...rideType) (rideType, error) {
 	v, err := intFromArray(env, args...)
 	if err != nil {
 		return nil, err
@@ -258,7 +258,7 @@ func intValueFromArray(env RideEnvironment, args ...rideType) (rideType, error) 
 	return extractValue(v)
 }
 
-func booleanValueFromArray(env RideEnvironment, args ...rideType) (rideType, error) {
+func booleanValueFromArray(env Environment, args ...rideType) (rideType, error) {
 	v, err := booleanFromArray(env, args...)
 	if err != nil {
 		return nil, err
@@ -266,7 +266,7 @@ func booleanValueFromArray(env RideEnvironment, args ...rideType) (rideType, err
 	return extractValue(v)
 }
 
-func bytesValueFromArray(env RideEnvironment, args ...rideType) (rideType, error) {
+func bytesValueFromArray(env Environment, args ...rideType) (rideType, error) {
 	v, err := bytesFromArray(env, args...)
 	if err != nil {
 		return nil, err
@@ -274,7 +274,7 @@ func bytesValueFromArray(env RideEnvironment, args ...rideType) (rideType, error
 	return extractValue(v)
 }
 
-func stringValueFromArray(env RideEnvironment, args ...rideType) (rideType, error) {
+func stringValueFromArray(env Environment, args ...rideType) (rideType, error) {
 	v, err := stringFromArray(env, args...)
 	if err != nil {
 		return nil, err
@@ -282,7 +282,7 @@ func stringValueFromArray(env RideEnvironment, args ...rideType) (rideType, erro
 	return extractValue(v)
 }
 
-func intValueFromArrayByIndex(env RideEnvironment, args ...rideType) (rideType, error) {
+func intValueFromArrayByIndex(env Environment, args ...rideType) (rideType, error) {
 	v, err := intFromArrayByIndex(env, args...)
 	if err != nil {
 		return nil, err
@@ -290,7 +290,7 @@ func intValueFromArrayByIndex(env RideEnvironment, args ...rideType) (rideType, 
 	return extractValue(v)
 }
 
-func booleanValueFromArrayByIndex(env RideEnvironment, args ...rideType) (rideType, error) {
+func booleanValueFromArrayByIndex(env Environment, args ...rideType) (rideType, error) {
 	v, err := booleanFromArrayByIndex(env, args...)
 	if err != nil {
 		return nil, err
@@ -298,7 +298,7 @@ func booleanValueFromArrayByIndex(env RideEnvironment, args ...rideType) (rideTy
 	return extractValue(v)
 }
 
-func bytesValueFromArrayByIndex(env RideEnvironment, args ...rideType) (rideType, error) {
+func bytesValueFromArrayByIndex(env Environment, args ...rideType) (rideType, error) {
 	v, err := bytesFromArrayByIndex(env, args...)
 	if err != nil {
 		return nil, err
@@ -306,7 +306,7 @@ func bytesValueFromArrayByIndex(env RideEnvironment, args ...rideType) (rideType
 	return extractValue(v)
 }
 
-func stringValueFromArrayByIndex(env RideEnvironment, args ...rideType) (rideType, error) {
+func stringValueFromArrayByIndex(env Environment, args ...rideType) (rideType, error) {
 	v, err := stringFromArrayByIndex(env, args...)
 	if err != nil {
 		return nil, err
@@ -314,7 +314,7 @@ func stringValueFromArrayByIndex(env RideEnvironment, args ...rideType) (rideTyp
 	return extractValue(v)
 }
 
-func limitedCreateList(_ RideEnvironment, args ...rideType) (rideType, error) {
+func limitedCreateList(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "limitedCreateList")
 	}
@@ -331,7 +331,7 @@ func limitedCreateList(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return append(rideList{args[0]}, tail...), nil
 }
 
-func appendToList(_ RideEnvironment, args ...rideType) (rideType, error) {
+func appendToList(_ Environment, args ...rideType) (rideType, error) {
 	list, e, err := listAndElementArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "appendToList")
@@ -345,7 +345,7 @@ func appendToList(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return append(list, e), nil
 }
 
-func concatList(_ RideEnvironment, args ...rideType) (rideType, error) {
+func concatList(_ Environment, args ...rideType) (rideType, error) {
 	list1, e, err := listAndElementArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "concatList")
@@ -365,7 +365,7 @@ func concatList(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return r, nil
 }
 
-func indexOfList(_ RideEnvironment, args ...rideType) (rideType, error) {
+func indexOfList(_ Environment, args ...rideType) (rideType, error) {
 	list, e, err := listAndElementArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "indexOfList")
@@ -381,7 +381,7 @@ func indexOfList(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideUnit{}, nil // not found returns Unit
 }
 
-func lastIndexOfList(_ RideEnvironment, args ...rideType) (rideType, error) {
+func lastIndexOfList(_ Environment, args ...rideType) (rideType, error) {
 	list, e, err := listAndElementArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "lastIndexOfList")
@@ -397,7 +397,7 @@ func lastIndexOfList(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideUnit{}, nil // not found returns Unit
 }
 
-func median(_ RideEnvironment, args ...rideType) (rideType, error) {
+func median(_ Environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "median")
@@ -419,7 +419,7 @@ func median(_ RideEnvironment, args ...rideType) (rideType, error) {
 	}
 }
 
-func max(_ RideEnvironment, args ...rideType) (rideType, error) {
+func max(_ Environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "max")
@@ -436,7 +436,7 @@ func max(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideInt(max), nil
 }
 
-func min(_ RideEnvironment, args ...rideType) (rideType, error) {
+func min(_ Environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "min")
@@ -453,7 +453,7 @@ func min(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideInt(min), nil
 }
 
-func containsElement(_ RideEnvironment, args ...rideType) (rideType, error) {
+func containsElement(_ Environment, args ...rideType) (rideType, error) {
 	list, e, err := listAndElementArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "containsElement")
@@ -466,7 +466,7 @@ func containsElement(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBoolean(false), nil
 }
 
-func listRemoveByIndex(_ RideEnvironment, args ...rideType) (rideType, error) {
+func listRemoveByIndex(_ Environment, args ...rideType) (rideType, error) {
 	list, i, err := listAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "listRemoveByIndex")

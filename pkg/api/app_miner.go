@@ -19,10 +19,10 @@ type MinerInfo struct {
 	Scheduler Scheduler
 }
 
-func (a *App) Miner() (*MinerInfo, error) {
+func (a *App) Miner() MinerInfo {
 	e := a.scheduler.Emits()
 
-	next := make([]Next, 0)
+	next := make([]Next, 0, len(e))
 	for _, row := range e {
 		next = append(next, Next{
 			PublicKey: row.KeyPair.Public,
@@ -30,10 +30,10 @@ func (a *App) Miner() (*MinerInfo, error) {
 		})
 	}
 
-	return &MinerInfo{
+	return MinerInfo{
 		Scheduler: Scheduler{
 			TimeNow: time.Now(),
 			Next:    next,
 		},
-	}, nil
+	}
 }

@@ -27,7 +27,7 @@ func newFunctionFrame(pos int, args []rideType) frame {
 }
 
 type vm struct {
-	env          RideEnvironment
+	env          Environment
 	code         []byte
 	ip           int
 	constants    []rideType
@@ -38,7 +38,7 @@ type vm struct {
 	functionName func(int) string
 }
 
-func (m *vm) run() (RideResult, error) {
+func (m *vm) run() (Result, error) {
 	if m.stack != nil {
 		m.stack = m.stack[0:0]
 	}

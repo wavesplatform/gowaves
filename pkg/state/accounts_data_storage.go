@@ -269,6 +269,29 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address, filter bool) (
 	return entries, nil
 }
 
+func (s *accountsDataStorage) entryExists(addr proto.Address, filter bool) (bool, error) {
+	addrNum, err := s.addrToNum(addr)
+	if err != nil {
+		return false, err
+	}
+	key := accountsDataStorKey{addrNum: addrNum}
+	iter, err := s.hs.newTopEntryIteratorByPrefix(key.accountPrefix(), filter)
+	if err != nil {
+		return false, err
+	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			zap.S().Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	for iter.Next() {
+		return true, nil
+	}
+	return false, nil
+}
+
 func (s *accountsDataStorage) retrieveNewestEntry(addr proto.Address, key string, filter bool) (proto.DataEntry, error) {
 	id := entryId{addr, key}
 	if entry, ok := s.uncertainEntries[id]; ok {

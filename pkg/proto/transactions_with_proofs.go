@@ -4688,10 +4688,10 @@ func (tx *UpdateAssetInfoWithProofs) Validate() (Transaction, error) {
 	if !validJVMLong(tx.Fee) {
 		return tx, errors.New("fee is too big")
 	}
-	if l := len(tx.Name); l < minAssetNameLen || l > maxAssetNameLen {
+	if l := len(tx.Name); l < MinAssetNameLen || l > MaxAssetNameLen {
 		return tx, errs.NewInvalidName("incorrect number of bytes in the asset's name")
 	}
-	if l := len(tx.Description); l > maxDescriptionLen {
+	if l := len(tx.Description); l > MaxDescriptionLen {
 		return tx, errs.NewTooBigArray("incorrect number of bytes in the asset's description")
 	}
 	return tx, nil

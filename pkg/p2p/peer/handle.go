@@ -55,7 +55,7 @@ type HandlerParams struct {
 	DuplicateChecker DuplicateChecker
 }
 
-// for Handle doesn't matter outgoing or incoming Connection, it just send and receive messages
+// Handle sends and receives messages no matter outgoing or incoming connection.
 func Handle(params HandlerParams) error {
 	for {
 		select {

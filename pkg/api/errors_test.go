@@ -15,8 +15,3 @@ func TestAuthError(t *testing.T) {
 	err := AuthError{errors.New("bad auth")}
 	require.Error(t, err)
 }
-
-func TestInternalError(t *testing.T) {
-	err := InternalError{errors.New("internal error")}
-	require.Error(t, err)
-}

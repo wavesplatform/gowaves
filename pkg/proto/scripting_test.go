@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	pb "google.golang.org/protobuf/proto"
 )
@@ -29,18 +30,20 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 	emptyReissues := make([]*ReissueScriptAction, 0)
 	emptyBurns := make([]*BurnScriptAction, 0)
 	emptySponsorships := make([]*SponsorshipScriptAction, 0)
+	emptyLeases := make([]*LeaseScriptAction, 0)
+	emptyLeaseCancels := make([]*LeaseCancelScriptAction, 0)
 	for i, test := range []ScriptResult{
 		{
 			DataEntries: []*DataEntryScriptAction{
-				{&IntegerDataEntry{"some key", 12345}},
-				{&BooleanDataEntry{"negative value", false}},
-				{&StringDataEntry{"some key", "some value string"}},
-				{&BinaryDataEntry{Key: "k3", Value: []byte{0x24, 0x7f, 0x71, 0x14, 0x1d}}},
-				{&IntegerDataEntry{"some key2", -12345}},
-				{&BooleanDataEntry{"negative value2", true}},
-				{&StringDataEntry{"some key143", "some value2 string"}},
-				{&BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
-				{&DeleteDataEntry{Key: "xxx"}},
+				{Entry: &IntegerDataEntry{"some key", 12345}},
+				{Entry: &BooleanDataEntry{"negative value", false}},
+				{Entry: &StringDataEntry{"some key", "some value string"}},
+				{Entry: &BinaryDataEntry{Key: "k3", Value: []byte{0x24, 0x7f, 0x71, 0x14, 0x1d}}},
+				{Entry: &IntegerDataEntry{"some key2", -12345}},
+				{Entry: &BooleanDataEntry{"negative value2", true}},
+				{Entry: &StringDataEntry{"some key143", "some value2 string"}},
+				{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
+				{Entry: &DeleteDataEntry{Key: "xxx"}},
 			},
 			Transfers: []*TransferScriptAction{
 				{Amount: math.MaxInt64, Asset: *waves, Recipient: rcp},
@@ -52,16 +55,20 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			Reissues:     emptyReissues,
 			Burns:        emptyBurns,
 			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
 		},
 		{
 			DataEntries: []*DataEntryScriptAction{
-				{&IntegerDataEntry{"some key", 12345}},
+				{Entry: &IntegerDataEntry{"some key", 12345}},
 			},
 			Transfers:    emptyTransfers,
 			Issues:       emptyIssues,
 			Reissues:     emptyReissues,
 			Burns:        emptyBurns,
 			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -74,6 +81,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			Reissues:     emptyReissues,
 			Burns:        emptyBurns,
 			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -85,6 +94,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			Reissues:     emptyReissues,
 			Burns:        emptyBurns,
 			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -99,6 +110,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			},
 			Burns:        emptyBurns,
 			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -113,6 +126,8 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 				{AssetID: asset0.ID, Quantity: 0},
 			},
 			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
 		},
 		{
 			DataEntries: emptyDataEntries,
@@ -123,6 +138,44 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 			Sponsorships: []*SponsorshipScriptAction{
 				{AssetID: asset0.ID, MinFee: 12345},
 				{AssetID: asset1.ID, MinFee: 0},
+			},
+			Leases:       emptyLeases,
+			LeaseCancels: emptyLeaseCancels,
+		},
+		{
+			DataEntries:  emptyDataEntries,
+			Transfers:    emptyTransfers,
+			Issues:       emptyIssues,
+			Reissues:     emptyReissues,
+			Burns:        emptyBurns,
+			Sponsorships: emptySponsorships,
+			Leases: []*LeaseScriptAction{
+				{
+					ID:        asset0.ID,
+					Recipient: rcp,
+					Amount:    12345,
+					Nonce:     67890,
+				},
+				{
+					ID:        asset1.ID,
+					Recipient: rcp,
+					Amount:    0,
+					Nonce:     0,
+				},
+			},
+			LeaseCancels: emptyLeaseCancels,
+		},
+		{
+			DataEntries:  emptyDataEntries,
+			Transfers:    emptyTransfers,
+			Issues:       emptyIssues,
+			Reissues:     emptyReissues,
+			Burns:        emptyBurns,
+			Sponsorships: emptySponsorships,
+			Leases:       emptyLeases,
+			LeaseCancels: []*LeaseCancelScriptAction{
+				{LeaseID: asset0.ID},
+				{LeaseID: asset1.ID},
 			},
 		},
 	} {
@@ -170,14 +223,49 @@ func TestActionsValidation(t *testing.T) {
 			&DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
 			&TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
 		}, restrictions: ActionsValidationRestrictions{DisableSelfTransfers: true, ScriptAddress: addr0}, valid: false},
+		{actions: []ScriptAction{
+			&LeaseScriptAction{Recipient: rcp0, Amount: 100},
+		}, restrictions: ActionsValidationRestrictions{ScriptAddress: addr0}, valid: false},
+		{actions: []ScriptAction{
+			&LeaseScriptAction{Recipient: rcp0, Amount: 0},
+			&LeaseScriptAction{Recipient: rcp0, Amount: -100},
+		}, restrictions: ActionsValidationRestrictions{}, valid: false},
 	} {
-		err := ValidateActions(test.actions, test.restrictions)
+		err := ValidateActions(test.actions, test.restrictions, 5)
 		if test.valid {
 			require.NoError(t, err, fmt.Sprintf("#%d", i))
 		} else {
 			require.Error(t, err, fmt.Sprintf("#%d", i))
 		}
 	}
+}
+
+func TestGenerateLeaseScriptActionID(t *testing.T) {
+	for _, test := range []struct {
+		recipient Recipient
+		amount    int64
+		nonce     int64
+		tx        crypto.Digest
+		id        string
+	}{
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 100000000, 0, crypto.MustDigestFromBase58("3JGcEMaASHc7zcJwpkuFTU3WScKtMU6KDQ5KFr53GQhV"), "HrvHDiegqPhcoKamTeTsNUcQiFot8D1KqyBirsEuCMG9"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 100000000, 0, crypto.MustDigestFromBase58("45R9UJrmCmZu1HtofbHyEmaFr2r1u5xXThGmESszVuFV"), "28yGDS82NrYBC1B4XTVYbwWpJyW7JPYTX7UtVQd1Prkw"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 50000000, 0, crypto.MustDigestFromBase58("45R9UJrmCmZu1HtofbHyEmaFr2r1u5xXThGmESszVuFV"), "GmqQBZPPAHb1u7mQJ8vVp89mcaii23jAyrbDfqYiGo6U"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 100000000, 0, crypto.MustDigestFromBase58("FBmMUrQ5GXun9LrGtHPcJYWSkkfToMReux14iSb2zf4c"), "5PmSmWMmCGh7zjf8SgvzmrUZrEKVeNL2wK12p7Y3Rezi"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 50000000, 0, crypto.MustDigestFromBase58("FBmMUrQ5GXun9LrGtHPcJYWSkkfToMReux14iSb2zf4c"), "2EgitLRfQmYckjmi16b2h3YFLBz7yKS877tb1TQRXR6Y"},
+	} {
+		id := GenerateLeaseScriptActionID(test.recipient, test.amount, test.nonce, test.tx)
+		assert.Equal(t, test.id, id.String())
+	}
+}
+
+// This function is for tests only! Could produce invalid recipient.
+func mustRecipientFromString(s string) Recipient {
+	r, err := recipientFromString(s)
+	if err != nil {
+		panic(err)
+	}
+	return r
 }
 
 func TestAssetIDGeneration(t *testing.T) {

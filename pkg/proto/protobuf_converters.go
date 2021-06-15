@@ -591,6 +591,46 @@ func (c *ProtobufConverter) SponsorshipScriptActions(sponsorships []*g.InvokeScr
 	return res, nil
 }
 
+func (c *ProtobufConverter) LeaseScriptActions(scheme byte, leases []*g.InvokeScriptResult_Lease) ([]*LeaseScriptAction, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	res := make([]*LeaseScriptAction, len(leases))
+	for i, x := range leases {
+		rcp, err := c.Recipient(scheme, x.Recipient)
+		if err != nil {
+			c.err = err
+			return nil, err
+		}
+		res[i] = &LeaseScriptAction{
+			ID:        c.digest(x.LeaseId),
+			Recipient: rcp,
+			Amount:    x.Amount,
+			Nonce:     x.Nonce,
+		}
+		if c.err != nil {
+			return nil, c.err
+		}
+	}
+	return res, nil
+}
+
+func (c *ProtobufConverter) LeaseCancelScriptActions(cancels []*g.InvokeScriptResult_LeaseCancel) ([]*LeaseCancelScriptAction, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
+	res := make([]*LeaseCancelScriptAction, len(cancels))
+	for i, x := range cancels {
+		res[i] = &LeaseCancelScriptAction{
+			LeaseID: c.digest(x.LeaseId),
+		}
+		if c.err != nil {
+			return nil, c.err
+		}
+	}
+	return res, nil
+}
+
 func (c *ProtobufConverter) ErrorMessage(msg *g.InvokeScriptResult_ErrorMessage) (*ScriptErrorMessage, error) {
 	if c.err != nil {
 		return nil, c.err

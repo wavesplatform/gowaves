@@ -87,11 +87,11 @@ func (a *UtxImpl) AddBytes(bts []byte) error {
 	return a.addWithBytes(t, bts)
 }
 
-// TODO: add flag here to distinguish adding using API and accepting
-// through the network from other nodes.
-// When API is used, we should check all scripts completely.
-// When adding from the network, only free complexity limit is checked.
 func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
+	// TODO: add flag here to distinguish adding using API and accepting
+	//  through the network from other nodes.
+	//  When API is used, we should check all scripts completely.
+	//  When adding from the network, only free complexity limit is checked.
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.addWithBytes(t, b)
@@ -136,7 +136,7 @@ func (a *UtxImpl) Count() int {
 	return len(a.transactions)
 }
 
-func makeDigest(b []byte, e error) crypto.Digest {
+func makeDigest(b []byte, _ error) crypto.Digest {
 	d := crypto.Digest{}
 	copy(d[:], b)
 	return d

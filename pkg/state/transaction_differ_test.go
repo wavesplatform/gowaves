@@ -41,7 +41,7 @@ func createDifferTestObjects(t *testing.T) (*differTestObjects, []string) {
 	return &differTestObjects{stor, td, tp}, path
 }
 
-func createGenesis(t *testing.T) *proto.Genesis {
+func createGenesis() *proto.Genesis {
 	return proto.NewUnsignedGenesis(testGlobal.recipientInfo.addr, defaultAmount, defaultTimestamp)
 }
 
@@ -55,8 +55,8 @@ func TestCreateDiffGenesis(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createGenesis(t)
-	ch, err := to.td.createDiffGenesis(tx, defaultDifferInfo(t))
+	tx := createGenesis()
+	ch, err := to.td.createDiffGenesis(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffGenesis() failed")
 	correctDiff := txDiff{testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, false)}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -84,7 +84,7 @@ func TestCreateDiffPayment(t *testing.T) {
 	}()
 
 	tx := createPayment(t)
-	ch, err := to.td.createDiffPayment(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffPayment(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffPayment() failed")
 
 	correctDiff := txDiff{
@@ -121,7 +121,7 @@ func TestCreateDiffTransferWithSig(t *testing.T) {
 	assetId := tx.FeeAsset.ID
 	to.stor.createAsset(t, assetId)
 
-	ch, err := to.td.createDiffTransferWithSig(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffTransferWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffTransferWithSig() failed")
 
 	correctDiff := txDiff{
@@ -137,11 +137,11 @@ func TestCreateDiffTransferWithSig(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 
 	to.stor.activateSponsorship(t)
-	_, err = to.td.createDiffTransferWithSig(tx, defaultDifferInfo(t))
+	_, err = to.td.createDiffTransferWithSig(tx, defaultDifferInfo())
 	assert.Error(t, err, "createDiffTransferWithSig() did not fail with unsponsored asset")
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
-	ch, err = to.td.createDiffTransferWithSig(tx, defaultDifferInfo(t))
+	ch, err = to.td.createDiffTransferWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffTransferWithSig() failed with valid sponsored asset")
 
 	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(assetId, tx.Fee)
@@ -183,7 +183,7 @@ func TestCreateDiffTransferWithProofs(t *testing.T) {
 	assetId := tx.FeeAsset.ID
 	to.stor.createAsset(t, assetId)
 
-	ch, err := to.td.createDiffTransferWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffTransferWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffTransferWithProofs() failed")
 
 	correctDiff := txDiff{
@@ -199,11 +199,11 @@ func TestCreateDiffTransferWithProofs(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 
 	to.stor.activateSponsorship(t)
-	_, err = to.td.createDiffTransferWithProofs(tx, defaultDifferInfo(t))
+	_, err = to.td.createDiffTransferWithProofs(tx, defaultDifferInfo())
 	assert.Error(t, err, "createDiffTransferWithProofs() did not fail with unsponsored asset")
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
-	ch, err = to.td.createDiffTransferWithProofs(tx, defaultDifferInfo(t))
+	ch, err = to.td.createDiffTransferWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffTransferWithProofs() failed with valid sponsored asset")
 
 	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(assetId, tx.Fee)
@@ -249,7 +249,7 @@ func TestCreateDiffIssueWithSig(t *testing.T) {
 	}()
 
 	tx := createIssueWithSig(t, 1000)
-	ch, err := to.td.createDiffIssueWithSig(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffIssueWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffIssueWithSig() failed")
 
 	correctDiff := txDiff{
@@ -289,7 +289,7 @@ func TestCreateDiffIssueWithProofs(t *testing.T) {
 	}()
 
 	tx := createIssueWithProofs(t, 1000)
-	ch, err := to.td.createDiffIssueWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffIssueWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffIssueWithProofs() failed")
 
 	correctDiff := txDiff{
@@ -322,7 +322,7 @@ func TestCreateDiffReissueWithSig(t *testing.T) {
 	}()
 
 	tx := createReissueWithSig(t, 1000)
-	ch, err := to.td.createDiffReissueWithSig(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffReissueWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffReissueWithSig() failed")
 
 	correctDiff := txDiff{
@@ -355,7 +355,7 @@ func TestCreateDiffReissueWithProofs(t *testing.T) {
 	}()
 
 	tx := createReissueWithProofs(t, 1000)
-	ch, err := to.td.createDiffReissueWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffReissueWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffReissueWithProofs() failed")
 
 	correctDiff := txDiff{
@@ -388,7 +388,7 @@ func TestCreateDiffBurnWithSig(t *testing.T) {
 	}()
 
 	tx := createBurnWithSig(t)
-	ch, err := to.td.createDiffBurnWithSig(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffBurnWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 
 	correctDiff := txDiff{
@@ -421,7 +421,7 @@ func TestCreateDiffBurnWithProofs(t *testing.T) {
 	}()
 
 	tx := createBurnWithProofs(t)
-	ch, err := to.td.createDiffBurnWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffBurnWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithProofs() failed")
 
 	correctDiff := txDiff{
@@ -474,7 +474,7 @@ func TestCreateDiffExchangeWithSig(t *testing.T) {
 	}()
 
 	tx := createExchangeWithSig(t)
-	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 
 	price := tx.Price * tx.Amount / priceConstant
@@ -534,7 +534,7 @@ func TestCreateDiffExchangeWithProofs(t *testing.T) {
 	}()
 
 	tx := createExchangeWithProofs(t)
-	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 
 	price := tx.Price * tx.Amount / priceConstant
@@ -571,39 +571,39 @@ func createExchangeWithProofsWithOrdersV3(t *testing.T) *proto.ExchangeWithProof
 }
 
 func createExchangeWithProofsWithOrdersV4(t *testing.T, price, amount uint64) *proto.ExchangeWithProofs {
-	bo := proto.NewUnsignedOrderV4(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, uint64(price), uint64(amount), 0, 0, 3, *testGlobal.asset2.asset)
+	bo := proto.NewUnsignedOrderV4(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, price, amount, 0, 0, 3, *testGlobal.asset2.asset)
 	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	require.NoError(t, err, "bo.Sign() failed")
-	so := proto.NewUnsignedOrderV4(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, uint64(price), uint64(amount), 0, 0, 3, *testGlobal.asset2.asset)
+	so := proto.NewUnsignedOrderV4(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, price, amount, 0, 0, 3, *testGlobal.asset2.asset)
 	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
 	require.NoError(t, err, "so.Sign() failed")
-	tx := proto.NewUnsignedExchangeWithProofs(3, bo, so, uint64(price), bo.Amount, 1, 2, defaultFee, defaultTimestamp)
+	tx := proto.NewUnsignedExchangeWithProofs(3, bo, so, price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
 	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
 	require.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
 
 func createExchangeV3WithProofsWithMixedOrders(t *testing.T, price1, price2, amount uint64) *proto.ExchangeWithProofs {
-	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, uint64(price1), uint64(amount), 0, 0, 3, *testGlobal.asset2.asset)
+	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, price1, amount, 0, 0, 3, *testGlobal.asset2.asset)
 	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	require.NoError(t, err, "bo.Sign() failed")
-	so := proto.NewUnsignedOrderV4(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, uint64(price2), uint64(amount), 0, 0, 3, *testGlobal.asset2.asset)
+	so := proto.NewUnsignedOrderV4(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, price2, amount, 0, 0, 3, *testGlobal.asset2.asset)
 	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
 	require.NoError(t, err, "so.Sign() failed")
-	tx := proto.NewUnsignedExchangeWithProofs(3, bo, so, uint64(price2), bo.Amount, 1, 2, defaultFee, defaultTimestamp)
+	tx := proto.NewUnsignedExchangeWithProofs(3, bo, so, price2, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
 	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
 	require.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
 
 func createExchangeV2WithProofsWithOrdersV3(t *testing.T, price, amount uint64) *proto.ExchangeWithProofs {
-	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, uint64(price), uint64(amount), 0, 0, 3, *testGlobal.asset2.asset)
+	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, price, amount, 0, 0, 3, *testGlobal.asset2.asset)
 	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	require.NoError(t, err, "bo.Sign() failed")
-	so := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, uint64(price), uint64(amount), 0, 0, 3, *testGlobal.asset2.asset)
+	so := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, price, amount, 0, 0, 3, *testGlobal.asset2.asset)
 	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
 	require.NoError(t, err, "so.Sign() failed")
-	tx := proto.NewUnsignedExchangeWithProofs(2, bo, so, uint64(price), bo.Amount, 1, 2, defaultFee, defaultTimestamp)
+	tx := proto.NewUnsignedExchangeWithProofs(2, bo, so, price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
 	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
 	require.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -619,7 +619,7 @@ func TestCreateDiffExchangeWithProofsWithOrdersV3(t *testing.T) {
 	}()
 
 	tx := createExchangeWithProofsWithOrdersV3(t)
-	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 
 	price := tx.Price * tx.Amount / priceConstant
@@ -702,15 +702,15 @@ func TestCreateDiffExchangeV3WithProofsWithOrdersV4(t *testing.T) {
 	price := uint64(10 * priceConstant)
 
 	tx3o4 := createExchangeWithProofsWithOrdersV4(t, 10*priceConstant, amount)
-	ch1, err := to.td.createDiffExchange(tx3o4, defaultDifferInfo(t))
+	ch1, err := to.td.createDiffExchange(tx3o4, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 
 	tx2o3 := createExchangeV2WithProofsWithOrdersV3(t, 10*priceConstant*priceConstant, amount)
-	ch2, err := to.td.createDiffExchange(tx2o3, defaultDifferInfo(t))
+	ch2, err := to.td.createDiffExchange(tx2o3, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 
 	tx3mo := createExchangeV3WithProofsWithMixedOrders(t, 10*priceConstant*priceConstant, 10*priceConstant, amount)
-	ch3, err := to.td.createDiffExchange(tx3mo, defaultDifferInfo(t))
+	ch3, err := to.td.createDiffExchange(tx3mo, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 
 	priceAmount := price * amount
@@ -757,7 +757,7 @@ func TestCreateDiffLeaseWithSig(t *testing.T) {
 	}()
 
 	tx := createLeaseWithSig(t)
-	ch, err := to.td.createDiffLeaseWithSig(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffLeaseWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffLeaseWithSig() failed")
 
 	correctDiff := txDiff{
@@ -791,7 +791,7 @@ func TestCreateDiffLeaseWithProofs(t *testing.T) {
 	}()
 
 	tx := createLeaseWithProofs(t)
-	ch, err := to.td.createDiffLeaseWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffLeaseWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffLeaseWithProofs() failed")
 
 	correctDiff := txDiff{
@@ -825,13 +825,13 @@ func TestCreateDiffLeaseCancelWithSig(t *testing.T) {
 	}()
 
 	leaseTx := createLeaseWithSig(t)
-	info := defaultPerformerInfo(t)
+	info := defaultPerformerInfo()
 	to.stor.addBlock(t, blockID0)
 	err := to.tp.performLeaseWithSig(leaseTx, info)
 	assert.NoError(t, err, "performLeaseWithSig failed")
 
 	tx := createLeaseCancelWithSig(t, *leaseTx.ID)
-	ch, err := to.td.createDiffLeaseCancelWithSig(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffLeaseCancelWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffLeaseCancelWithSig() failed")
 
 	correctDiff := txDiff{
@@ -865,13 +865,13 @@ func TestCreateDiffLeaseCancelWithProofs(t *testing.T) {
 	}()
 
 	leaseTx := createLeaseWithProofs(t)
-	info := defaultPerformerInfo(t)
+	info := defaultPerformerInfo()
 	to.stor.addBlock(t, blockID0)
 	err := to.tp.performLeaseWithProofs(leaseTx, info)
 	assert.NoError(t, err, "performLeaseWithProofs failed")
 
 	tx := createLeaseCancelWithProofs(t, *leaseTx.ID)
-	ch, err := to.td.createDiffLeaseCancelWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffLeaseCancelWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffLeaseCancelWithProofs() failed")
 
 	correctDiff := txDiff{
@@ -909,7 +909,7 @@ func TestCreateDiffCreateAliasWithSig(t *testing.T) {
 	}()
 
 	tx := createCreateAliasWithSig(t)
-	ch, err := to.td.createDiffCreateAliasWithSig(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffCreateAliasWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffCreateAliasWithSig failed")
 
 	correctDiff := txDiff{
@@ -945,7 +945,7 @@ func TestCreateDiffCreateAliasWithProofs(t *testing.T) {
 	}()
 
 	tx := createCreateAliasWithProofs(t)
-	ch, err := to.td.createDiffCreateAliasWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffCreateAliasWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffCreateAliasWithProofs failed")
 
 	correctDiff := txDiff{
@@ -990,7 +990,7 @@ func TestCreateDiffMassTransferWithProofs(t *testing.T) {
 	entriesNum := 66
 	entries := generateMassTransferEntries(t, entriesNum)
 	tx := createMassTransferWithProofs(t, entries)
-	ch, err := to.td.createDiffMassTransferWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffMassTransferWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffMassTransferWithProofs failed")
 
 	correctDiff := txDiff{
@@ -1035,7 +1035,7 @@ func TestCreateDiffDataWithProofs(t *testing.T) {
 	}()
 
 	tx := createDataWithProofs(t, 1)
-	ch, err := to.td.createDiffDataWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffDataWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffDataWithProofs failed")
 
 	correctDiff := txDiff{
@@ -1067,7 +1067,7 @@ func TestCreateDiffSponsorshipWithProofs(t *testing.T) {
 	}()
 
 	tx := createSponsorshipWithProofs(t, 1000)
-	ch, err := to.td.createDiffSponsorshipWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffSponsorshipWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffSponsorshipWithProofs failed")
 
 	correctDiff := txDiff{
@@ -1101,7 +1101,7 @@ func TestCreateDiffSetScriptWithProofs(t *testing.T) {
 	}()
 
 	tx := createSetScriptWithProofs(t)
-	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffSetScriptWithProofs failed")
 
 	correctDiff := txDiff{
@@ -1135,7 +1135,7 @@ func TestCreateDiffSetAssetScriptWithProofs(t *testing.T) {
 	}()
 
 	tx := createSetAssetScriptWithProofs(t)
-	ch, err := to.td.createDiffSetAssetScriptWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffSetAssetScriptWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffSetAssetScriptWithProofs failed")
 
 	correctDiff := txDiff{
@@ -1193,11 +1193,11 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 	to.stor.createAsset(t, assetId)
 
 	to.stor.activateSponsorship(t)
-	_, err := to.td.createDiffInvokeScriptWithProofs(tx, defaultDifferInfo(t))
+	_, err := to.td.createDiffInvokeScriptWithProofs(tx, defaultDifferInfo())
 	assert.Error(t, err, "createDiffInvokeScriptWithProofs() did not fail with unsponsored asset")
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
-	ch, err := to.td.createDiffInvokeScriptWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffInvokeScriptWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffInvokeScriptWithProofs() failed with valid sponsored asset")
 
 	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(assetId, tx.Fee)
@@ -1243,7 +1243,7 @@ func TestCreateDiffUpdateAssetInfoWithProofs(t *testing.T) {
 	}()
 
 	tx := createUpdateAssetInfoWithProofs(t)
-	ch, err := to.td.createDiffUpdateAssetInfoWithProofs(tx, defaultDifferInfo(t))
+	ch, err := to.td.createDiffUpdateAssetInfoWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffUpdateAssetInfoWithProofs() failed")
 
 	correctDiff := txDiff{

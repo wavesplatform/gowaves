@@ -115,12 +115,6 @@ func (a *ThreadSafeReadWrapper) BlockchainSettings() (*settings.BlockchainSettin
 	return a.s.BlockchainSettings()
 }
 
-func (a *ThreadSafeReadWrapper) Peers() ([]proto.TCPAddr, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.Peers()
-}
-
 func (a *ThreadSafeReadWrapper) VotesNum(featureID int16) (uint64, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -338,13 +332,7 @@ func (a *ThreadSafeWriteWrapper) Map(f func(state NonThreadSafeState) error) err
 	return f(a.s)
 }
 
-func (a *ThreadSafeWriteWrapper) ValidateNextTx(
-	tx proto.Transaction,
-	currentTimestamp uint64,
-	parentTimestamp uint64,
-	blockVersion proto.BlockVersion,
-	checkScripts bool,
-) error {
+func (a *ThreadSafeWriteWrapper) ValidateNextTx(_ proto.Transaction, _, _ uint64, _ proto.BlockVersion, _ bool) error {
 	panic("Invalid ValidateNextTx usage on thread safe wrapper. Should call TxValidation")
 }
 
@@ -405,12 +393,6 @@ func (a *ThreadSafeWriteWrapper) TxValidation(f func(validation TxValidation) er
 	defer a.unlock()
 	defer a.s.ResetValidationList()
 	return f(a.s)
-}
-
-func (a *ThreadSafeWriteWrapper) SavePeers(peers []proto.TCPAddr) error {
-	a.lock()
-	defer a.unlock()
-	return a.s.SavePeers(peers)
 }
 
 func (a *ThreadSafeWriteWrapper) StartProvidingExtendedApi() error {

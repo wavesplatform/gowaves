@@ -933,7 +933,7 @@ func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (r
 	r["caller"] = rideAddress(sender)
 	r["callerPublicKey"] = rideBytes(common.Dup(tx.SenderPK.Bytes()))
 	switch v {
-	case 4:
+	case 4, 5:
 		payments := make(rideList, len(tx.Payments))
 		for i, p := range tx.Payments {
 			payments[i] = attachedPaymentToObject(p)
@@ -979,7 +979,7 @@ func balanceDetailsToObject(fwb *proto.FullWavesBalance) rideObject {
 	return r
 }
 
-func objectToActions(env RideEnvironment, obj rideType) ([]proto.ScriptAction, error) {
+func objectToActions(env Environment, obj rideType) ([]proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "WriteSet":
 		data, err := obj.get("data")
@@ -1057,7 +1057,7 @@ func getKeyProperty(v rideType) (string, error) {
 	return string(key), nil
 }
 
-func convertToAction(env RideEnvironment, obj rideType) (proto.ScriptAction, error) {
+func convertToAction(env Environment, obj rideType) (proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "Burn":
 		id, err := digestProperty(obj, "assetId")
@@ -1238,6 +1238,43 @@ func convertToAction(env RideEnvironment, obj rideType) (proto.ScriptAction, err
 		return &proto.SponsorshipScriptAction{
 			AssetID: id,
 			MinFee:  int64(fee),
+		}, nil
+
+	case "Lease":
+		recipient, err := recipientProperty(obj, "recipient")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+		}
+		amount, err := intProperty(obj, "amount")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+		}
+		nonce, err := intProperty(obj, "nonce")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+		}
+		id, err := calcLeaseID(env, recipient, amount, nonce)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+		}
+		d, err := crypto.NewDigestFromBytes(id)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+		}
+		return &proto.LeaseScriptAction{
+			ID:        d,
+			Recipient: recipient,
+			Amount:    int64(amount),
+			Nonce:     int64(nonce),
+		}, nil
+
+	case "LeaseCancel":
+		id, err := digestProperty(obj, "leaseId")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert LeaseCancel to LeaseCancelScriptAction")
+		}
+		return &proto.LeaseCancelScriptAction{
+			LeaseID: id,
 		}, nil
 
 	default:

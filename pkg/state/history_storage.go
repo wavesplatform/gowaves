@@ -37,6 +37,7 @@ const (
 	stateHash
 	hitSource
 	feeDistr
+	accountOriginalEstimatorVersion
 )
 
 type blockchainEntityProperties struct {
@@ -63,8 +64,7 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 	lease: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   leasingRecordSize + 4,
+		fixedSize:    false,
 	},
 	wavesBalance: {
 		needToFilter: true,
@@ -167,6 +167,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		recordSize:   hitSourceSize + 4,
 	},
 	feeDistr: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	accountOriginalEstimatorVersion: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

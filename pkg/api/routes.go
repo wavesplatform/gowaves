@@ -1,50 +1,135 @@
 package api
 
 import (
-	"io/ioutil"
-	"net/http"
-
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"net/http"
 )
 
-func (a *NodeApi) routes() chi.Router {
-	r := chi.NewRouter()
-	r.NotFound(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		zap.S().Debugf("NodeApi not found %+v, %s", r, r.URL.Path)
-		if r.Method == "POST" {
-			rs, err := ioutil.ReadAll(r.Body)
-			zap.S().Debugf("NodeApi not found post body: %s %+v", string(rs), err)
+type HandleErrorFunc func(w http.ResponseWriter, r *http.Request, err error)
+type HandlerFunc func(w http.ResponseWriter, r *http.Request) error
+
+func toHTTPHandlerFunc(handler HandlerFunc, errorHandler HandleErrorFunc) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		err := handler(writer, request)
+		if err != nil {
+			errorHandler(writer, request, err)
 		}
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	r.Get("/blocks/last", a.BlocksLast)
-	r.Get("/blocks/height", a.BlockHeight)
-	r.Get("/blocks/first", a.BlocksFirst)
-	r.Get("/blocks/at/{height:\\d+}", a.BlockAt)
-	r.Get("/blocks/score/at/{id:\\d+}", a.BlockScoreAt)
-	r.Get("/blocks/id/{id}", a.BlockIDAt)
-	r.Get("/blocks/generators", a.BlocksGenerators)
-	r.Post("/blocks/rollback", RollbackToHeight(a.app))
-	r.Get("/pool/transactions", a.poolTransactions)
-	r.Get("/transactions/unconfirmed/size", a.unconfirmedSize)
-	r.Route("/peers", func(r chi.Router) {
-		r.Get("/known", a.PeersAll)
-		r.Get("/connected", a.PeersConnected)
-		r.Post("/connect", a.PeersConnect)
-		r.Get("/suspended", a.PeersSuspended)
-		r.Get("/spawned", a.PeersSpawned)
+	}
+}
+
+func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
+	r := chi.NewRouter()
+
+	if opts.UseRealIPMiddleware {
+		// nickeskov: for nginx/haproxy specific headers
+		r.Use(middleware.RealIP)
+	}
+	if opts.CollectMetrics {
+		r.Use(chiHttpApiGeneralMetricsMiddleware)
+	}
+	if opts.RateLimiterOpts != nil {
+		rateLimiter, err := createRateLimiter(opts.RateLimiterOpts)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		r.Use(rateLimiter.RateLimit)
+	}
+	if opts.LogHttpRequestOpts {
+		r.Use(middleware.RequestID, CreateLoggerMiddleware(zap.L()))
+	}
+	if opts.RouteNotFoundHandler != nil {
+		r.NotFound(opts.RouteNotFoundHandler)
+	}
+
+	// nickeskov: middlewares and custom handlers
+	errHandler := NewErrorHandler(zap.L())
+	checkAuthMiddleware := createCheckAuthMiddleware(a.app, errHandler.Handle)
+
+	wrapper := func(handlerFunc HandlerFunc) http.HandlerFunc {
+		return toHTTPHandlerFunc(handlerFunc, errHandler.Handle)
+	}
+
+	if opts.EnableHeartbeatRoute {
+		r.Get("/go/node/healthz", func(w http.ResponseWriter, r *http.Request) {
+			if _, err := w.Write([]byte("OK")); err != nil {
+				zap.S().Errorf("Can't write 'OK' to ResponseWriter: %+v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+	}
+
+	// nickeskov: go node routes
+	r.Route("/go", func(r chi.Router) {
+		r.Route("/blocks", func(r chi.Router) {
+			r.Get("/score/at/{id:\\d+}", wrapper(a.BlockScoreAt))
+			r.Get("/id/{id}", wrapper(a.BlockIDAt))
+			r.Get("/generators", wrapper(a.BlocksGenerators))
+
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Post("/rollback", wrapper(RollbackToHeight(a.app)))
+		})
+
+		r.Route("/peers", func(r chi.Router) {
+			r.Get("/known", wrapper(a.PeersKnown))
+			r.Get("/spawned", wrapper(a.PeersSpawned))
+		})
+
+		r.Route("/wallet", func(r chi.Router) {
+			r.Get("/accounts", wrapper(a.WalletAccounts))
+
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Post("/load", wrapper(WalletLoadKeys(a.app)))
+		})
+
+		r.Get("/miner/info", wrapper(a.GoMinerInfo))
+		r.Get("/node/processes", wrapper(a.nodeProcesses))
+		r.Get("/pool/transactions", wrapper(a.poolTransactions))
 	})
-	r.Get("/miner/info", a.MinerInfo)
-	r.Post("/transactions/broadcast", a.TransactionsBroadcast)
 
-	r.Post("/wallet/load", WalletLoadKeys(a.app))
-	r.Get("/wallet/accounts", a.WalletAccounts)
+	// nickeskov: json api
+	r.Group(func(r chi.Router) {
+		r.Route("/blocks", func(r chi.Router) {
+			r.Get("/last", wrapper(a.BlocksLast))
+			r.Get("/height", wrapper(a.BlockHeight))
+			r.Get("/first", wrapper(a.BlocksFirst))
+			r.Get("/at/{height}", wrapper(a.BlockAt))
+			r.Get("/{id}", wrapper(a.BlockIDAt))
+		})
 
-	r.Get("/node/processes", a.nodeProcesses)
-	r.Get("/debug/stateHash/{height:\\d+}", a.stateHash)
-	// enable or disable history sync
-	//r.Get("/debug/sync/{enabled:\\d+}", a.DebugSyncEnabled)
+		r.Route("/addresses", func(r chi.Router) {
+			r.Get("/", wrapper(a.Addresses))
+		})
 
-	return r
+		r.Route("/transactions", func(r chi.Router) {
+			r.Get("/unconfirmed/size", wrapper(a.unconfirmedSize))
+
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Post("/broadcast", wrapper(a.TransactionsBroadcast))
+		})
+
+		r.Route("/peers", func(r chi.Router) {
+			r.Get("/all", wrapper(a.PeersAll))
+			r.Get("/connected", wrapper(a.PeersConnected))
+			r.Get("/suspended", wrapper(a.PeersSuspended))
+
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Post("/connect", wrapper(a.PeersConnect))
+		})
+
+		r.Route("/debug", func(r chi.Router) {
+			r.Get("/stateHash/{height:\\d+}", wrapper(a.stateHash))
+		})
+
+		// enable or disable history sync
+		//r.Get("/debug/sync/{enabled:\\d+}", a.DebugSyncEnabled)
+	})
+
+	return r, nil
 }

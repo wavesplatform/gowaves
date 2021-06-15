@@ -15,7 +15,7 @@ const (
 	PersistComplete
 )
 
-// Sends task into channel with overflow check.
+// SendAsyncTask sends task into channel with overflow check.
 func SendAsyncTask(output chan AsyncTask, task AsyncTask) {
 	select {
 	case output <- task:

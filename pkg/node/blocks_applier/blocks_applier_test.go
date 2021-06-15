@@ -104,5 +104,6 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 
 	ba := innerBlocksApplier{}
 	_, err := ba.apply(stateMock, []*proto.Block{block2})
+	require.NotNil(t, err)
 	require.Equal(t, "failed add deserialized blocks, first block id sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW: error message", err.Error())
 }

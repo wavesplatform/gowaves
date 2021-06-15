@@ -2,6 +2,7 @@ package ride
 
 import (
 	"bytes"
+	"math/big"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -70,6 +71,30 @@ func (l rideInt) eq(other rideType) bool {
 
 func (l rideInt) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
+}
+
+type rideBigInt struct {
+	v *big.Int
+}
+
+func (l rideBigInt) instanceOf() string {
+	return "BigInt"
+}
+
+func (l rideBigInt) eq(other rideType) bool {
+	if o, ok := other.(rideBigInt); ok {
+		return l.v.Cmp(o.v) == 0
+	}
+	return false
+}
+
+func (l rideBigInt) get(prop string) (rideType, error) {
+	//TODO: there is possibility of few properties like 'bytes', 'int' and so on
+	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
+}
+
+func (l rideBigInt) String() string {
+	return l.v.String()
 }
 
 type rideString string
@@ -330,10 +355,10 @@ func (a rideList) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
-type rideFunction func(env RideEnvironment, args ...rideType) (rideType, error)
+type rideFunction func(env Environment, args ...rideType) (rideType, error)
 
-//go:generate moq -out runtime_moq_test.go . RideEnvironment:MockRideEnvironment
-type RideEnvironment interface {
+//go:generate moq -out runtime_moq_test.go . Environment:MockRideEnvironment
+type Environment interface {
 	scheme() byte
 	height() rideInt
 	transaction() rideObject
@@ -341,8 +366,13 @@ type RideEnvironment interface {
 	block() rideObject
 	txID() rideType // Invoke transaction ID
 	state() types.SmartState
+	timestamp() uint64
+	setNewDAppAddress(address proto.Address)
 	checkMessageLength(int) bool
+	takeString(s string, n int) rideString
 	invocation() rideObject // Invocation object made of invoke transaction
+	setInvocation(inv rideObject)
+	libVersion() int
 }
 
-type rideConstructor func(RideEnvironment) rideType
+type rideConstructor func(Environment) rideType

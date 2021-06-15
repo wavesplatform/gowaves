@@ -58,9 +58,6 @@ const (
 	// Leases.
 	leaseKeyPrefix
 
-	// Known peers.
-	knownPeersPrefix
-
 	// Aliases.
 	aliasKeyPrefix
 	disabledAliasKeyPrefix
@@ -91,6 +88,7 @@ const (
 	assetScriptKeyPrefix
 	accountScriptComplexityKeyPrefix
 	assetScriptComplexityKeyPrefix
+	accountOriginalEstimatorVersionKeyPrefix
 
 	// Block Reward.
 	blockRewardKeyPrefix
@@ -108,7 +106,7 @@ const (
 	stateInfoKeyPrefix
 
 	// Size of TransactionsByAddresses file.
-	txsByAddrsFileSizeKeyPrefix
+	txsByAddressesFileSizeKeyPrefix
 
 	// Stores protobuf-related info for blockReadWriter.
 	rwProtobufInfoKeyPrefix
@@ -171,6 +169,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{hitSourceKeyPrefix}, nil
 	case feeDistr:
 		return []byte{blocksInfoKeyPrefix}, nil
+	case accountOriginalEstimatorVersion:
+		return []byte{accountOriginalEstimatorVersionKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -390,6 +390,21 @@ func (k *disabledAliasKey) bytes() []byte {
 	return buf
 }
 
+func (k *disabledAliasKey) unmarshal(data []byte) error {
+	if len(data) != disabledAliasKeySize {
+		return errInvalidDataSize
+	}
+	if data[0] != disabledAliasKeyPrefix {
+		return errInvalidPrefix
+	}
+	var err error
+	k.alias, err = proto.StringWithUInt16Len(data[1:])
+	if err != nil {
+		return errors.Wrap(err, "StringWithUInt16Len() failed")
+	}
+	return nil
+}
+
 type activatedFeaturesKey struct {
 	featureID int16
 }
@@ -580,15 +595,24 @@ func (k *accountScriptComplexityKey) bytes() []byte {
 }
 
 type assetScriptComplexityKey struct {
-	ver   int
 	asset crypto.Digest
 }
 
 func (k *assetScriptComplexityKey) bytes() []byte {
-	buf := make([]byte, 2+crypto.DigestSize)
+	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = assetScriptComplexityKeyPrefix
-	buf[1] = byte(k.ver)
-	copy(buf[2:], k.asset[:])
+	copy(buf[1:], k.asset[:])
+	return buf
+}
+
+type accountOriginalEstimatorVersionKey struct {
+	addr proto.Address
+}
+
+func (k *accountOriginalEstimatorVersionKey) bytes() []byte {
+	buf := make([]byte, 1+proto.AddressSize)
+	buf[0] = accountOriginalEstimatorVersionKeyPrefix
+	copy(buf[1:], k.addr[:])
 	return buf
 }
 

@@ -85,17 +85,15 @@ type FSM interface {
 	Block(p peer.Peer, block *proto.Block) (FSM, Async, error)
 	MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error)
 
-	// Received signatures after asking by GetSignatures
+	// BlockIDs receives signatures that was requested by GetSignatures
 	BlockIDs(peer.Peer, []proto.BlockID) (FSM, Async, error)
 	Task(task AsyncTask) (FSM, Async, error)
 
-	// micro
 	MicroBlock(p peer.Peer, micro *proto.MicroBlock) (FSM, Async, error)
 	MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Async, error)
 
 	Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error)
 
-	//
 	Halt() (FSM, Async, error)
 }
 

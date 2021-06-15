@@ -166,11 +166,50 @@ type getActiveLeasesHandler struct {
 	s   *Server
 }
 
-func (h *getActiveLeasesHandler) handle(tx proto.Transaction, failed bool) error {
-	res, err := h.s.transactionToTransactionResponse(tx, true, failed)
-	if err != nil {
-		return errors.Wrap(err, "failed to form transaction response")
+func (h *getActiveLeasesHandler) handle(tx proto.Transaction, _ bool) error {
+	var id []byte
+	var sender proto.Address
+	var recipient proto.Recipient
+	var amount int64
+	var err error
+	switch ltx := tx.(type) {
+	case *proto.LeaseWithSig:
+		id = ltx.ID.Bytes()
+		sender, err = proto.NewAddressFromPublicKey(h.s.scheme, ltx.SenderPK)
+		if err != nil {
+			return err
+		}
+		recipient = ltx.Recipient
+		amount = int64(ltx.Amount)
+	case *proto.LeaseWithProofs:
+		id = ltx.ID.Bytes()
+		sender, err = proto.NewAddressFromPublicKey(h.s.scheme, ltx.SenderPK)
+		if err != nil {
+			return err
+		}
+		recipient = ltx.Recipient
+		amount = int64(ltx.Amount)
+	default:
+		return nil
 	}
+
+	height, err := h.s.state.TransactionHeightByID(id)
+	if err != nil {
+		return errors.Wrap(err, "failed to get tx height by ID")
+	}
+	rcp, err := recipient.ToProtobuf()
+	if err != nil {
+		return err
+	}
+	res := &g.LeaseResponse{
+		LeaseId:             id,
+		OriginTransactionId: id,
+		Sender:              sender.Body(),
+		Recipient:           rcp,
+		Amount:              amount,
+		Height:              int64(height),
+	}
+
 	err = h.srv.Send(res)
 	if err != nil {
 		return errors.Wrap(err, "failed to send")

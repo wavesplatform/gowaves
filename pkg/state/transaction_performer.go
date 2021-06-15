@@ -194,7 +194,14 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 		recipientAddr = tx.Recipient.Address
 	}
 	// Add leasing to lease state.
-	l := &leasing{true, tx.Amount, *recipientAddr, senderAddr}
+	l := &leasing{
+		Sender:         senderAddr,
+		Recipient:      *recipientAddr,
+		Amount:         tx.Amount,
+		Height:         info.height,
+		Status:         LeaseActive,
+		RecipientAlias: tx.Recipient.Alias,
+	}
 	if err := tp.stor.leases.addLeasing(*id, l, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to add leasing")
 	}
@@ -217,8 +224,8 @@ func (tp *transactionPerformer) performLeaseWithProofs(transaction proto.Transac
 	return tp.performLease(&tx.Lease, tx.ID, info)
 }
 
-func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, info *performerInfo) error {
-	if err := tp.stor.leases.cancelLeasing(tx.LeaseID, info.blockID, !info.initialisation); err != nil {
+func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *crypto.Digest, info *performerInfo) error {
+	if err := tp.stor.leases.cancelLeasing(tx.LeaseID, info.blockID, info.height, txID, !info.initialisation); err != nil {
 		return errors.Wrap(err, "failed to cancel leasing")
 	}
 	return nil
@@ -229,7 +236,7 @@ func (tp *transactionPerformer) performLeaseCancelWithSig(transaction proto.Tran
 	if !ok {
 		return errors.New("failed to convert interface to LeaseCancelWithSig transaction")
 	}
-	return tp.performLeaseCancel(&tx.LeaseCancel, info)
+	return tp.performLeaseCancel(&tx.LeaseCancel, tx.ID, info)
 }
 
 func (tp *transactionPerformer) performLeaseCancelWithProofs(transaction proto.Transaction, info *performerInfo) error {
@@ -237,7 +244,7 @@ func (tp *transactionPerformer) performLeaseCancelWithProofs(transaction proto.T
 	if !ok {
 		return errors.New("failed to convert interface to LeaseCancelWithProofs transaction")
 	}
-	return tp.performLeaseCancel(&tx.LeaseCancel, info)
+	return tp.performLeaseCancel(&tx.LeaseCancel, tx.ID, info)
 }
 
 func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias, info *performerInfo) error {

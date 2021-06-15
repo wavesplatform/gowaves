@@ -185,7 +185,7 @@ func (a Version) Cmp(other Version) int {
 	return 0
 }
 
-// Compare minor version.
+// CmpMinor compares minor version.
 // If equal return 0.
 // If diff only 1 version (for example 1.14 and 1.13), then 1
 // If more then 1 version, then return 2.
@@ -340,7 +340,7 @@ func (a TCPAddr) WriteTo(w io.Writer) (int64, error) {
 	return int64(n + n2), nil
 }
 
-// ToStaticSize converts TCPAddr to 8-byte array.
+// ToUint64 converts TCPAddr to uint64 number.
 func (a TCPAddr) ToUint64() uint64 {
 	ip := uint64(a.ipToUint32()) << 32
 	ip = ip | uint64(a.Port)
@@ -501,7 +501,7 @@ func (a U8String) MarshalBinary() ([]byte, error) {
 	return data, nil
 }
 
-// MarshalBinary encodes U8String to binary form
+// WriteTo writes U8String into io.Writer w in binary form.
 func (a U8String) WriteTo(w io.Writer) (int64, error) {
 	l := len(a.S)
 	if l > 255 {

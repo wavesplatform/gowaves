@@ -4,20 +4,21 @@
 package ride
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"sync"
 )
 
-// Ensure, that MockRideEnvironment does implement RideEnvironment.
+// Ensure, that MockRideEnvironment does implement Environment.
 // If this is not the case, regenerate this file with moq.
-var _ RideEnvironment = &MockRideEnvironment{}
+var _ Environment = &MockRideEnvironment{}
 
-// MockRideEnvironment is a mock implementation of RideEnvironment.
+// MockRideEnvironment is a mock implementation of Environment.
 //
-//     func TestSomethingThatUsesRideEnvironment(t *testing.T) {
+//     func TestSomethingThatUsesEnvironment(t *testing.T) {
 //
-//         // make and configure a mocked RideEnvironment
-//         mockedRideEnvironment := &MockRideEnvironment{
+//         // make and configure a mocked Environment
+//         mockedEnvironment := &MockRideEnvironment{
 //             blockFunc: func() rideObject {
 // 	               panic("mock out the block method")
 //             },
@@ -30,14 +31,29 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             invocationFunc: func() rideObject {
 // 	               panic("mock out the invocation method")
 //             },
+//             libVersionFunc: func() int {
+// 	               panic("mock out the libVersion method")
+//             },
 //             schemeFunc: func() byte {
 // 	               panic("mock out the scheme method")
+//             },
+//             setInvocationFunc: func(inv rideObject)  {
+// 	               panic("mock out the setInvocation method")
+//             },
+//             setNewDAppAddressFunc: func(address proto.Address)  {
+// 	               panic("mock out the setNewDAppAddress method")
 //             },
 //             stateFunc: func() types.SmartState {
 // 	               panic("mock out the state method")
 //             },
+//             takeStringFunc: func(s string, n int) rideString {
+// 	               panic("mock out the takeString method")
+//             },
 //             thisFunc: func() rideType {
 // 	               panic("mock out the this method")
+//             },
+//             timestampFunc: func() uint64 {
+// 	               panic("mock out the timestamp method")
 //             },
 //             transactionFunc: func() rideObject {
 // 	               panic("mock out the transaction method")
@@ -47,7 +63,7 @@ var _ RideEnvironment = &MockRideEnvironment{}
 //             },
 //         }
 //
-//         // use mockedRideEnvironment in code that requires RideEnvironment
+//         // use mockedEnvironment in code that requires Environment
 //         // and then make assertions.
 //
 //     }
@@ -64,14 +80,29 @@ type MockRideEnvironment struct {
 	// invocationFunc mocks the invocation method.
 	invocationFunc func() rideObject
 
+	// libVersionFunc mocks the libVersion method.
+	libVersionFunc func() int
+
 	// schemeFunc mocks the scheme method.
 	schemeFunc func() byte
+
+	// setInvocationFunc mocks the setInvocation method.
+	setInvocationFunc func(inv rideObject)
+
+	// setNewDAppAddressFunc mocks the setNewDAppAddress method.
+	setNewDAppAddressFunc func(address proto.Address)
 
 	// stateFunc mocks the state method.
 	stateFunc func() types.SmartState
 
+	// takeStringFunc mocks the takeString method.
+	takeStringFunc func(s string, n int) rideString
+
 	// thisFunc mocks the this method.
 	thisFunc func() rideType
+
+	// timestampFunc mocks the timestamp method.
+	timestampFunc func() uint64
 
 	// transactionFunc mocks the transaction method.
 	transactionFunc func() rideObject
@@ -95,14 +126,37 @@ type MockRideEnvironment struct {
 		// invocation holds details about calls to the invocation method.
 		invocation []struct {
 		}
+		// libVersion holds details about calls to the libVersion method.
+		libVersion []struct {
+		}
 		// scheme holds details about calls to the scheme method.
 		scheme []struct {
+		}
+		// setInvocation holds details about calls to the setInvocation method.
+		setInvocation []struct {
+			// Inv is the inv argument value.
+			Inv rideObject
+		}
+		// setNewDAppAddress holds details about calls to the setNewDAppAddress method.
+		setNewDAppAddress []struct {
+			// Address is the address argument value.
+			Address proto.Address
 		}
 		// state holds details about calls to the state method.
 		state []struct {
 		}
+		// takeString holds details about calls to the takeString method.
+		takeString []struct {
+			// S is the s argument value.
+			S string
+			// N is the n argument value.
+			N int
+		}
 		// this holds details about calls to the this method.
 		this []struct {
+		}
+		// timestamp holds details about calls to the timestamp method.
+		timestamp []struct {
 		}
 		// transaction holds details about calls to the transaction method.
 		transaction []struct {
@@ -115,9 +169,14 @@ type MockRideEnvironment struct {
 	lockcheckMessageLength sync.RWMutex
 	lockheight             sync.RWMutex
 	lockinvocation         sync.RWMutex
+	locklibVersion         sync.RWMutex
 	lockscheme             sync.RWMutex
+	locksetInvocation      sync.RWMutex
+	locksetNewDAppAddress  sync.RWMutex
 	lockstate              sync.RWMutex
+	locktakeString         sync.RWMutex
 	lockthis               sync.RWMutex
+	locktimestamp          sync.RWMutex
 	locktransaction        sync.RWMutex
 	locktxID               sync.RWMutex
 }
@@ -125,7 +184,7 @@ type MockRideEnvironment struct {
 // block calls blockFunc.
 func (mock *MockRideEnvironment) block() rideObject {
 	if mock.blockFunc == nil {
-		panic("MockRideEnvironment.blockFunc: method is nil but RideEnvironment.block was just called")
+		panic("MockRideEnvironment.blockFunc: method is nil but Environment.block was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -137,7 +196,7 @@ func (mock *MockRideEnvironment) block() rideObject {
 
 // blockCalls gets all the calls that were made to block.
 // Check the length with:
-//     len(mockedRideEnvironment.blockCalls())
+//     len(mockedEnvironment.blockCalls())
 func (mock *MockRideEnvironment) blockCalls() []struct {
 } {
 	var calls []struct {
@@ -151,7 +210,7 @@ func (mock *MockRideEnvironment) blockCalls() []struct {
 // checkMessageLength calls checkMessageLengthFunc.
 func (mock *MockRideEnvironment) checkMessageLength(in1 int) bool {
 	if mock.checkMessageLengthFunc == nil {
-		panic("MockRideEnvironment.checkMessageLengthFunc: method is nil but RideEnvironment.checkMessageLength was just called")
+		panic("MockRideEnvironment.checkMessageLengthFunc: method is nil but Environment.checkMessageLength was just called")
 	}
 	callInfo := struct {
 		In1 int
@@ -166,7 +225,7 @@ func (mock *MockRideEnvironment) checkMessageLength(in1 int) bool {
 
 // checkMessageLengthCalls gets all the calls that were made to checkMessageLength.
 // Check the length with:
-//     len(mockedRideEnvironment.checkMessageLengthCalls())
+//     len(mockedEnvironment.checkMessageLengthCalls())
 func (mock *MockRideEnvironment) checkMessageLengthCalls() []struct {
 	In1 int
 } {
@@ -182,7 +241,7 @@ func (mock *MockRideEnvironment) checkMessageLengthCalls() []struct {
 // height calls heightFunc.
 func (mock *MockRideEnvironment) height() rideInt {
 	if mock.heightFunc == nil {
-		panic("MockRideEnvironment.heightFunc: method is nil but RideEnvironment.height was just called")
+		panic("MockRideEnvironment.heightFunc: method is nil but Environment.height was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -194,7 +253,7 @@ func (mock *MockRideEnvironment) height() rideInt {
 
 // heightCalls gets all the calls that were made to height.
 // Check the length with:
-//     len(mockedRideEnvironment.heightCalls())
+//     len(mockedEnvironment.heightCalls())
 func (mock *MockRideEnvironment) heightCalls() []struct {
 } {
 	var calls []struct {
@@ -208,7 +267,7 @@ func (mock *MockRideEnvironment) heightCalls() []struct {
 // invocation calls invocationFunc.
 func (mock *MockRideEnvironment) invocation() rideObject {
 	if mock.invocationFunc == nil {
-		panic("MockRideEnvironment.invocationFunc: method is nil but RideEnvironment.invocation was just called")
+		panic("MockRideEnvironment.invocationFunc: method is nil but Environment.invocation was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -220,7 +279,7 @@ func (mock *MockRideEnvironment) invocation() rideObject {
 
 // invocationCalls gets all the calls that were made to invocation.
 // Check the length with:
-//     len(mockedRideEnvironment.invocationCalls())
+//     len(mockedEnvironment.invocationCalls())
 func (mock *MockRideEnvironment) invocationCalls() []struct {
 } {
 	var calls []struct {
@@ -231,10 +290,36 @@ func (mock *MockRideEnvironment) invocationCalls() []struct {
 	return calls
 }
 
+// libVersion calls libVersionFunc.
+func (mock *MockRideEnvironment) libVersion() int {
+	if mock.libVersionFunc == nil {
+		panic("MockRideEnvironment.libVersionFunc: method is nil but Environment.libVersion was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.locklibVersion.Lock()
+	mock.calls.libVersion = append(mock.calls.libVersion, callInfo)
+	mock.locklibVersion.Unlock()
+	return mock.libVersionFunc()
+}
+
+// libVersionCalls gets all the calls that were made to libVersion.
+// Check the length with:
+//     len(mockedEnvironment.libVersionCalls())
+func (mock *MockRideEnvironment) libVersionCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.locklibVersion.RLock()
+	calls = mock.calls.libVersion
+	mock.locklibVersion.RUnlock()
+	return calls
+}
+
 // scheme calls schemeFunc.
 func (mock *MockRideEnvironment) scheme() byte {
 	if mock.schemeFunc == nil {
-		panic("MockRideEnvironment.schemeFunc: method is nil but RideEnvironment.scheme was just called")
+		panic("MockRideEnvironment.schemeFunc: method is nil but Environment.scheme was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -246,7 +331,7 @@ func (mock *MockRideEnvironment) scheme() byte {
 
 // schemeCalls gets all the calls that were made to scheme.
 // Check the length with:
-//     len(mockedRideEnvironment.schemeCalls())
+//     len(mockedEnvironment.schemeCalls())
 func (mock *MockRideEnvironment) schemeCalls() []struct {
 } {
 	var calls []struct {
@@ -257,10 +342,72 @@ func (mock *MockRideEnvironment) schemeCalls() []struct {
 	return calls
 }
 
+// setInvocation calls setInvocationFunc.
+func (mock *MockRideEnvironment) setInvocation(inv rideObject) {
+	if mock.setInvocationFunc == nil {
+		panic("MockRideEnvironment.setInvocationFunc: method is nil but Environment.setInvocation was just called")
+	}
+	callInfo := struct {
+		Inv rideObject
+	}{
+		Inv: inv,
+	}
+	mock.locksetInvocation.Lock()
+	mock.calls.setInvocation = append(mock.calls.setInvocation, callInfo)
+	mock.locksetInvocation.Unlock()
+	mock.setInvocationFunc(inv)
+}
+
+// setInvocationCalls gets all the calls that were made to setInvocation.
+// Check the length with:
+//     len(mockedEnvironment.setInvocationCalls())
+func (mock *MockRideEnvironment) setInvocationCalls() []struct {
+	Inv rideObject
+} {
+	var calls []struct {
+		Inv rideObject
+	}
+	mock.locksetInvocation.RLock()
+	calls = mock.calls.setInvocation
+	mock.locksetInvocation.RUnlock()
+	return calls
+}
+
+// setNewDAppAddress calls setNewDAppAddressFunc.
+func (mock *MockRideEnvironment) setNewDAppAddress(address proto.Address) {
+	if mock.setNewDAppAddressFunc == nil {
+		panic("MockRideEnvironment.setNewDAppAddressFunc: method is nil but Environment.setNewDAppAddress was just called")
+	}
+	callInfo := struct {
+		Address proto.Address
+	}{
+		Address: address,
+	}
+	mock.locksetNewDAppAddress.Lock()
+	mock.calls.setNewDAppAddress = append(mock.calls.setNewDAppAddress, callInfo)
+	mock.locksetNewDAppAddress.Unlock()
+	mock.setNewDAppAddressFunc(address)
+}
+
+// setNewDAppAddressCalls gets all the calls that were made to setNewDAppAddress.
+// Check the length with:
+//     len(mockedEnvironment.setNewDAppAddressCalls())
+func (mock *MockRideEnvironment) setNewDAppAddressCalls() []struct {
+	Address proto.Address
+} {
+	var calls []struct {
+		Address proto.Address
+	}
+	mock.locksetNewDAppAddress.RLock()
+	calls = mock.calls.setNewDAppAddress
+	mock.locksetNewDAppAddress.RUnlock()
+	return calls
+}
+
 // state calls stateFunc.
 func (mock *MockRideEnvironment) state() types.SmartState {
 	if mock.stateFunc == nil {
-		panic("MockRideEnvironment.stateFunc: method is nil but RideEnvironment.state was just called")
+		panic("MockRideEnvironment.stateFunc: method is nil but Environment.state was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -272,7 +419,7 @@ func (mock *MockRideEnvironment) state() types.SmartState {
 
 // stateCalls gets all the calls that were made to state.
 // Check the length with:
-//     len(mockedRideEnvironment.stateCalls())
+//     len(mockedEnvironment.stateCalls())
 func (mock *MockRideEnvironment) stateCalls() []struct {
 } {
 	var calls []struct {
@@ -283,10 +430,45 @@ func (mock *MockRideEnvironment) stateCalls() []struct {
 	return calls
 }
 
+// takeString calls takeStringFunc.
+func (mock *MockRideEnvironment) takeString(s string, n int) rideString {
+	if mock.takeStringFunc == nil {
+		panic("MockRideEnvironment.takeStringFunc: method is nil but Environment.takeString was just called")
+	}
+	callInfo := struct {
+		S string
+		N int
+	}{
+		S: s,
+		N: n,
+	}
+	mock.locktakeString.Lock()
+	mock.calls.takeString = append(mock.calls.takeString, callInfo)
+	mock.locktakeString.Unlock()
+	return mock.takeStringFunc(s, n)
+}
+
+// takeStringCalls gets all the calls that were made to takeString.
+// Check the length with:
+//     len(mockedEnvironment.takeStringCalls())
+func (mock *MockRideEnvironment) takeStringCalls() []struct {
+	S string
+	N int
+} {
+	var calls []struct {
+		S string
+		N int
+	}
+	mock.locktakeString.RLock()
+	calls = mock.calls.takeString
+	mock.locktakeString.RUnlock()
+	return calls
+}
+
 // this calls thisFunc.
 func (mock *MockRideEnvironment) this() rideType {
 	if mock.thisFunc == nil {
-		panic("MockRideEnvironment.thisFunc: method is nil but RideEnvironment.this was just called")
+		panic("MockRideEnvironment.thisFunc: method is nil but Environment.this was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -298,7 +480,7 @@ func (mock *MockRideEnvironment) this() rideType {
 
 // thisCalls gets all the calls that were made to this.
 // Check the length with:
-//     len(mockedRideEnvironment.thisCalls())
+//     len(mockedEnvironment.thisCalls())
 func (mock *MockRideEnvironment) thisCalls() []struct {
 } {
 	var calls []struct {
@@ -309,10 +491,36 @@ func (mock *MockRideEnvironment) thisCalls() []struct {
 	return calls
 }
 
+// timestamp calls timestampFunc.
+func (mock *MockRideEnvironment) timestamp() uint64 {
+	if mock.timestampFunc == nil {
+		panic("MockRideEnvironment.timestampFunc: method is nil but Environment.timestamp was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.locktimestamp.Lock()
+	mock.calls.timestamp = append(mock.calls.timestamp, callInfo)
+	mock.locktimestamp.Unlock()
+	return mock.timestampFunc()
+}
+
+// timestampCalls gets all the calls that were made to timestamp.
+// Check the length with:
+//     len(mockedEnvironment.timestampCalls())
+func (mock *MockRideEnvironment) timestampCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.locktimestamp.RLock()
+	calls = mock.calls.timestamp
+	mock.locktimestamp.RUnlock()
+	return calls
+}
+
 // transaction calls transactionFunc.
 func (mock *MockRideEnvironment) transaction() rideObject {
 	if mock.transactionFunc == nil {
-		panic("MockRideEnvironment.transactionFunc: method is nil but RideEnvironment.transaction was just called")
+		panic("MockRideEnvironment.transactionFunc: method is nil but Environment.transaction was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -324,7 +532,7 @@ func (mock *MockRideEnvironment) transaction() rideObject {
 
 // transactionCalls gets all the calls that were made to transaction.
 // Check the length with:
-//     len(mockedRideEnvironment.transactionCalls())
+//     len(mockedEnvironment.transactionCalls())
 func (mock *MockRideEnvironment) transactionCalls() []struct {
 } {
 	var calls []struct {
@@ -338,7 +546,7 @@ func (mock *MockRideEnvironment) transactionCalls() []struct {
 // txID calls txIDFunc.
 func (mock *MockRideEnvironment) txID() rideType {
 	if mock.txIDFunc == nil {
-		panic("MockRideEnvironment.txIDFunc: method is nil but RideEnvironment.txID was just called")
+		panic("MockRideEnvironment.txIDFunc: method is nil but Environment.txID was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -350,7 +558,7 @@ func (mock *MockRideEnvironment) txID() rideType {
 
 // txIDCalls gets all the calls that were made to txID.
 // Check the length with:
-//     len(mockedRideEnvironment.txIDCalls())
+//     len(mockedEnvironment.txIDCalls())
 func (mock *MockRideEnvironment) txIDCalls() []struct {
 } {
 	var calls []struct {

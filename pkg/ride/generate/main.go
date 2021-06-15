@@ -76,8 +76,8 @@ func functionsV2() map[string]string {
 	m["wavesBalance"] = "wavesBalanceV3"
 	m["Address"] = "address"
 	m["Alias"] = "alias"
-	m["DataEntry"] = "dataEntry"
 	m["AssetPair"] = "assetPair"
+	m["DataEntry"] = "dataEntry"
 	m["DataTransaction"] = "dataTransaction"
 	return m
 }
@@ -149,10 +149,14 @@ func catalogueV2() map[string]int {
 	m["wavesBalance"] = 109
 	m["Address"] = 1
 	m["Alias"] = 1
+	m["AssetPair"] = 2
 	m["DataEntry"] = 2
 	m["DataTransaction"] = 9
-	m["AssetPair"] = 2
 	return m
+}
+
+func freeConstructorsV2() []string {
+	return []string{"Address", "Alias", "AssetPair", "DataEntry", "DataTransaction"}
 }
 
 func functionsV3() map[string]string {
@@ -279,6 +283,10 @@ func catalogueV3() map[string]int {
 	return m
 }
 
+func freeConstructorsV3() []string {
+	return append(freeConstructorsV2(), "WriteSet", "TransferSet", "ScriptTransfer", "ScriptResult")
+}
+
 func functionsV4() map[string]string {
 	m := functionsV3()
 	// Remove obsolete constructors
@@ -295,6 +303,7 @@ func functionsV4() map[string]string {
 	m["Reissue"] = "reissue"
 	m["Burn"] = "burn"
 	m["SponsorFee"] = "sponsorship"
+	m["AttachedPayment"] = "attachedPayment"
 
 	// Functions
 	delete(m, "wavesBalance") // Remove wavesBalanceV3
@@ -361,6 +370,7 @@ func catalogueV4() map[string]int {
 	m["Reissue"] = 3
 	m["Burn"] = 2
 	m["SponsorFee"] = 2
+	m["AttachedPayment"] = 2
 
 	m["201"] = 6
 	m["202"] = 6
@@ -463,6 +473,108 @@ func catalogueV4() map[string]int {
 	return m
 }
 
+func freeConstructorsV4() []string {
+	return append(freeConstructorsV3(), "IntegerEntry", "BooleanEntry", "BinaryEntry", "StringEntry",
+		"DeleteEntry", "Reissue", "Burn", "SponsorFee", "AttachedPayment")
+}
+
+func functionsV5() map[string]string {
+	m := functionsV4()
+	m["118"] = "powBigInt"
+	m["119"] = "logBigInt"
+	m["310"] = "toBigInt"
+	m["311"] = "sumBigInt"
+	m["312"] = "subtractBigInt"
+	m["313"] = "multiplyBigInt"
+	m["314"] = "divideBigInt"
+	m["315"] = "moduloBigInt"
+	m["316"] = "fractionBigInt"
+	m["317"] = "fractionBigIntRounds"
+	m["318"] = "unaryMinusBigInt"
+	m["319"] = "gtBigInt"
+	m["320"] = "geBigInt"
+	m["408"] = "maxListBigInt"
+	m["409"] = "minListBigInt"
+	m["413"] = "bigIntToBytes"
+	m["414"] = "bytesToBigInt"
+	m["415"] = "bytesToBigIntLim"
+	m["416"] = "bigIntToInt"
+	m["422"] = "bigIntToString"
+	m["423"] = "stringToBigInt"
+	m["424"] = "stringToBigIntOpt"
+	m["425"] = "medianListBigInt"
+	m["1009"] = "hashScriptAtAddress"
+	m["1020"] = "invoke"
+	m["1021"] = "reentrantInvoke"
+	m["1054"] = "isDataStorageUntouched"
+	m["1055"] = "intFromSelfState"
+	m["1056"] = "booleanFromSelfState"
+	m["1057"] = "bytesFromSelfState"
+	m["1058"] = "stringFromSelfState"
+	m["1081"] = "calculateLeaseID"
+	m["1092"] = "simplifiedLease"
+	m["1093"] = "fullLease"
+	m["fraction"] = "fractionIntRounds"
+	m["LeaseCancel"] = "leaseCancel"
+	m["@extrNative(1055)"] = "intValueFromSelfState"
+	m["@extrNative(1056)"] = "booleanValueFromSelfState"
+	m["@extrNative(1057)"] = "bytesValueFromSelfState"
+	m["@extrNative(1058)"] = "stringValueFromSelfState"
+	return m
+}
+
+func catalogueV5() map[string]int {
+	m := catalogueV4()
+	m["107"] = 14
+	m["118"] = 200
+	m["119"] = 200
+	m["310"] = 1
+	m["311"] = 8
+	m["312"] = 8
+	m["313"] = 64
+	m["314"] = 64
+	m["315"] = 64
+	m["316"] = 128
+	m["317"] = 128
+	m["318"] = 8
+	m["319"] = 8
+	m["320"] = 8
+	m["408"] = 192
+	m["409"] = 192
+	m["413"] = 65
+	m["414"] = 65
+	m["415"] = 65
+	m["416"] = 1
+	m["422"] = 65
+	m["423"] = 65
+	m["424"] = 65
+	m["425"] = 160
+	m["1009"] = 200
+	m["1020"] = 75
+	m["1021"] = 75
+	m["1054"] = 10
+	m["1055"] = 10
+	m["1056"] = 10
+	m["1057"] = 10
+	m["1058"] = 10
+	m["1081"] = 1
+	m["1092"] = 1
+	m["1093"] = 1
+	m["fraction"] = 17
+	m["LeaseCancel"] = 1
+	m["@extrNative(1055)"] = 10
+	m["@extrNative(1056)"] = 10
+	m["@extrNative(1057)"] = 10
+	m["@extrNative(1058)"] = 10
+	delete(m, "Up")
+	delete(m, "HalfDown")
+	return m
+}
+
+func freeConstructorsV5() []string {
+	return append(freeConstructorsV4(), "LeaseCancel")
+}
+
 type constantDescription struct {
 	typeName    string
 	constructor string
@@ -514,6 +626,13 @@ func constantsV3() map[string]constantDescription {
 
 func constantsV4() map[string]constantDescription {
 	return constantsV3()
+}
+
+func constantsV5() map[string]constantDescription {
+	c := constantsV4()
+	delete(c, "UP")
+	delete(c, "HALFDOWN")
+	return c
 }
 
 func constructorsFromConstants(m map[string]string, c map[string]constantDescription) {
@@ -581,20 +700,26 @@ func createConstants(sb *strings.Builder, ver string, c map[string]constantDescr
 }
 
 func createConstructors(sb *strings.Builder, c map[string]constantDescription) {
-	for _, v := range c {
-		if v.constructor == "" {
-			tn := v.typeName
-			sb.WriteString(fmt.Sprintf("func new%s(RideEnvironment) rideType {\n", tn))
+	keys := make([]string, 0, len(c))
+	for k := range c {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		if c[k].constructor == "" {
+			tn := c[k].typeName
+			sb.WriteString(fmt.Sprintf("func new%s(Environment) rideType {\n", tn))
 			sb.WriteString(fmt.Sprintf("return rideNamedType{name: \"%s\"}\n", tn))
 			sb.WriteString("}\n\n")
-			sb.WriteString(fmt.Sprintf("func create%s(env RideEnvironment, args ...rideType) (rideType, error) {\n", tn))
+			sb.WriteString(fmt.Sprintf("func create%s(env Environment, args ...rideType) (rideType, error) {\n", tn))
 			sb.WriteString(fmt.Sprintf("return rideNamedType{name: \"%s\"}, nil\n", tn))
 			sb.WriteString("}\n\n")
 		}
 	}
 }
 
-func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c map[string]int) {
+func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c map[string]int, n []string) {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -602,7 +727,9 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 	sort.Strings(keys)
 
 	// Create sorted list of functions
-	sb.WriteString(fmt.Sprintf("var _functions_%s = [...]rideFunction{", ver))
+	sb.WriteString(fmt.Sprintf("var _functions_%s [%d]rideFunction\n", ver, len(keys)))
+	sb.WriteString("func init() {\n")
+	sb.WriteString(fmt.Sprintf("_functions_%s = [%d]rideFunction{", ver, len(keys)))
 	for i, k := range keys {
 		sb.WriteString(m[k])
 		if i < len(m)-1 {
@@ -610,6 +737,7 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 		}
 	}
 	sb.WriteString("}\n")
+	sb.WriteString("}\n\n")
 
 	// Create list of costs
 	sb.WriteString(fmt.Sprintf("var _catalogue_%s = [...]int{", ver))
@@ -619,8 +747,9 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 			sb.WriteString(", ")
 		}
 	}
-	sb.WriteString("}\n")
+	sb.WriteString("}\n\n")
 
+	// Create map of function costs
 	sb.WriteString(fmt.Sprintf("var Catalogue%s = map[string]int{", ver))
 	for i, k := range keys {
 		sb.WriteString(fmt.Sprintf("\"%s\":%d", k, c[k]))
@@ -628,7 +757,17 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 			sb.WriteString(", ")
 		}
 	}
-	sb.WriteString("}\n")
+	sb.WriteString("}\n\n")
+
+	// Create map for evaluation zero cost constructors
+	sb.WriteString(fmt.Sprintf("var FreeFunctions%s = map[string]struct{}{", ver))
+	for i, k := range n {
+		sb.WriteString(fmt.Sprintf("\"%s\":{}", k))
+		if i < len(m)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("}\n\n")
 
 	// Create string of concatenated names of functions
 	sb.WriteString(fmt.Sprintf("const _names_%s = \"%s\"\n", ver, strings.Join(keys, "")))
@@ -644,28 +783,31 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 		}
 	}
 	sb.WriteString("}\n\n")
+
 	sb.WriteString(fmt.Sprintf("func functionName%s(i int) string {\n", ver))
 	sb.WriteString(fmt.Sprintf("if i < 0 || i > %d {\n", len(keys)-1))
 	sb.WriteString("return \"\"\n")
 	sb.WriteString("}\n")
-	sb.WriteString(fmt.Sprintf("return _names_%s[_index_%s[i]:_index_%s[i+1]]\n}\n", ver, ver, ver))
+	sb.WriteString(fmt.Sprintf("return _names_%s[_index_%s[i]:_index_%s[i+1]]\n}\n\n", ver, ver, ver))
+
 	sb.WriteString(fmt.Sprintf("func function%s(id int) rideFunction {\n", ver))
 	sb.WriteString(fmt.Sprintf("if id < 0 || id > %d {\n", len(keys)-1))
 	sb.WriteString("return nil\n")
 	sb.WriteString("}\n")
-	sb.WriteString(fmt.Sprintf("return _functions_%s[id]\n}\n", ver))
+	sb.WriteString(fmt.Sprintf("return _functions_%s[id]\n}\n\n", ver))
+
 	sb.WriteString(fmt.Sprintf("func checkFunction%s(name string) (uint16, bool) {\n", ver))
 	sb.WriteString(fmt.Sprintf("for i := 0; i <= %d; i++ {\n", len(keys)-1))
 	sb.WriteString(fmt.Sprintf("if _names_%s[_index_%s[i]:_index_%s[i+1]] == name {\n", ver, ver, ver))
 	sb.WriteString("return uint16(i), true\n")
 	sb.WriteString("}\n}\n")
 	sb.WriteString("return 0, false\n")
-	sb.WriteString("}\n")
+	sb.WriteString("}\n\n")
 	sb.WriteString(fmt.Sprintf("func cost%s(id int) int {\n", ver))
 	sb.WriteString(fmt.Sprintf("if id < 0 || id > %d {\n", len(keys)-1))
 	sb.WriteString("return -1\n")
 	sb.WriteString("}\n")
-	sb.WriteString(fmt.Sprintf("return _catalogue_%s[id]\n}\n", ver))
+	sb.WriteString(fmt.Sprintf("return _catalogue_%s[id]\n}\n\n", ver))
 }
 
 func createTuples(sb *strings.Builder) {
@@ -686,7 +828,7 @@ func createTuples(sb *strings.Builder) {
 			sb.WriteString(fmt.Sprintf("%s rideType\n", el))
 		}
 		sb.WriteString("}\n\n")
-		sb.WriteString(fmt.Sprintf("func newTuple%d(_ RideEnvironment, args ...rideType) (rideType, error) {\n", n))
+		sb.WriteString(fmt.Sprintf("func newTuple%d(_ Environment, args ...rideType) (rideType, error) {\n", n))
 		sb.WriteString(fmt.Sprintf("if len(args) != %d {\n", n))
 		sb.WriteString("return nil, errors.New(\"invalid number of arguments\")\n")
 		sb.WriteString("}\n")
@@ -734,9 +876,10 @@ func main() {
 	sb.WriteString("// Code generated by ride/generate/main.go. DO NOT EDIT.\n")
 	sb.WriteString("\n")
 	sb.WriteString("package ride\n")
-	createFunctionsList(sb, "V2", functionsV2(), catalogueV2())
-	createFunctionsList(sb, "V3", functionsV3(), catalogueV3())
-	createFunctionsList(sb, "V4", functionsV4(), catalogueV4())
+	createFunctionsList(sb, "V2", functionsV2(), catalogueV2(), freeConstructorsV2())
+	createFunctionsList(sb, "V3", functionsV3(), catalogueV3(), freeConstructorsV3())
+	createFunctionsList(sb, "V4", functionsV4(), catalogueV4(), freeConstructorsV4())
+	createFunctionsList(sb, "V5", functionsV5(), catalogueV5(), freeConstructorsV5())
 	code := sb.String()
 	b, err := format.Source([]byte(code))
 	if err != nil {
@@ -755,6 +898,7 @@ func main() {
 	createConstants(sb, "V2", constantsV2())
 	createConstants(sb, "V3", constantsV3())
 	createConstants(sb, "V4", constantsV4())
+	createConstants(sb, "V5", constantsV5())
 	createConstructors(sb, constantsV4())
 	code = sb.String()
 	b, err = format.Source([]byte(code))
@@ -780,7 +924,7 @@ func main() {
 	sb.WriteString(")\n")
 	for _, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		fn := fmt.Sprintf("bls12Groth16Verify_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(env RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(env Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if err := checkArgs(args, 3); err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
@@ -801,14 +945,14 @@ func main() {
 		sb.WriteString("}\n")
 		sb.WriteString("ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)\n")
 		sb.WriteString("if err != nil {\n")
-		sb.WriteString("return rideUnit{}, err\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
 		sb.WriteString("return rideBoolean(ok), nil\n")
 		sb.WriteString("}\n\n")
 	}
 	for _, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		fn := fmt.Sprintf("bn256Groth16Verify_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(env RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(env Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if err := checkArgs(args, 3); err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
@@ -829,14 +973,14 @@ func main() {
 		sb.WriteString("}\n")
 		sb.WriteString("ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)\n")
 		sb.WriteString("if err != nil {\n")
-		sb.WriteString("return rideUnit{}, err\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
 		sb.WriteString("return rideBoolean(ok), nil\n")
 		sb.WriteString("}\n\n")
 	}
 	for _, l := range []int{8, 16, 32, 64, 128} {
 		fn := fmt.Sprintf("sigVerify_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(env RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(env Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if err := checkArgs(args, 3); err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
@@ -869,7 +1013,7 @@ func main() {
 	}
 	for _, l := range []int{16, 32, 64, 128} {
 		fn := fmt.Sprintf("rsaVerify_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if err := checkArgs(args, 4); err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
@@ -915,7 +1059,7 @@ func main() {
 	}
 	for _, l := range []int{16, 32, 64, 128} {
 		fn := fmt.Sprintf("keccak256_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(env RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(env Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("data, err := bytesOrStringArg(args)\n")
 		sb.WriteString("if err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
@@ -932,7 +1076,7 @@ func main() {
 	}
 	for _, l := range []int{16, 32, 64, 128} {
 		fn := fmt.Sprintf("blake2b256_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("data, err := bytesOrStringArg(args)\n")
 		sb.WriteString("if err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
@@ -949,7 +1093,7 @@ func main() {
 	}
 	for _, l := range []int{16, 32, 64, 128} {
 		fn := fmt.Sprintf("sha256_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ RideEnvironment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ Environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("data, err := bytesOrStringArg(args)\n")
 		sb.WriteString("if err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))

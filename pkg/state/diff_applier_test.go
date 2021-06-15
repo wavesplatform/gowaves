@@ -71,7 +71,7 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	to.stor.flush(t)
 	profile, err = to.stor.entities.balances.wavesBalance(testGlobal.senderInfo.addr, true)
 	assert.NoError(t, err, "wavesBalance() failed")
-	assert.Equal(t, diff.leaseIn, int64(profile.leaseIn))
+	assert.Equal(t, diff.leaseIn, profile.leaseIn)
 	// Test that leasing leased money leads to error.
 	diff = balanceDiff{leaseOut: 101, blockID: blockID0}
 	changes = []balanceChanges{
@@ -133,13 +133,13 @@ func TestTransferOverspend(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	// Create overspend transfer to self.
 	tx := createTransferWithSig(t)
-	info := defaultDifferInfo(t)
+	info := defaultDifferInfo()
 	info.blockInfo.Timestamp = settings.MainNetSettings.CheckTempNegativeAfterTime - 1
 	tx.Timestamp = info.blockInfo.Timestamp
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
 	// Set balance equal to tx Fee.
 	err := to.stor.entities.balances.setAssetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, tx.Fee, blockID0)
-	assert.NoError(t, err, "setAssetBalacne() failed")
+	assert.NoError(t, err, "setAssetBalance() failed")
 	to.stor.flush(t)
 
 	// Sending to self more than possess before settings.MainNetSettings.CheckTempNegativeAfterTime is fine.

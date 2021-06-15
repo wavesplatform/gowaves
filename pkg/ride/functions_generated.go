@@ -11,7 +11,7 @@ import (
 	c2 "github.com/wavesplatform/gowaves/pkg/ride/crypto"
 )
 
-func bls12Groth16Verify_1(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_1(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_1")
 	}
@@ -32,12 +32,12 @@ func bls12Groth16Verify_1(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_1")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_2(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_2(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_2")
 	}
@@ -58,12 +58,12 @@ func bls12Groth16Verify_2(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_2")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_3(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_3(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_3")
 	}
@@ -84,12 +84,12 @@ func bls12Groth16Verify_3(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_3")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_4(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_4(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_4")
 	}
@@ -110,12 +110,12 @@ func bls12Groth16Verify_4(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_4")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_5(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_5(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_5")
 	}
@@ -136,12 +136,12 @@ func bls12Groth16Verify_5(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_5")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_6(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_6(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_6")
 	}
@@ -162,12 +162,12 @@ func bls12Groth16Verify_6(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_6")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_7(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_7(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_7")
 	}
@@ -188,12 +188,12 @@ func bls12Groth16Verify_7(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_7")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_8(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_8(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_8")
 	}
@@ -214,12 +214,12 @@ func bls12Groth16Verify_8(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_8")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_9(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_9(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_9")
 	}
@@ -240,12 +240,12 @@ func bls12Groth16Verify_9(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_9")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_10(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_10(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_10")
 	}
@@ -266,12 +266,12 @@ func bls12Groth16Verify_10(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_10")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_11(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_11(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_11")
 	}
@@ -292,12 +292,12 @@ func bls12Groth16Verify_11(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_11")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_12(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_12(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_12")
 	}
@@ -318,12 +318,12 @@ func bls12Groth16Verify_12(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_12")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_13(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_13(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_13")
 	}
@@ -344,12 +344,12 @@ func bls12Groth16Verify_13(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_13")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_14(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_14(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_14")
 	}
@@ -370,12 +370,12 @@ func bls12Groth16Verify_14(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_14")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bls12Groth16Verify_15(env RideEnvironment, args ...rideType) (rideType, error) {
+func bls12Groth16Verify_15(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify_15")
 	}
@@ -396,12 +396,12 @@ func bls12Groth16Verify_15(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bls12381{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bls12Groth16Verify_15")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_1(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_1(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_1")
 	}
@@ -422,12 +422,12 @@ func bn256Groth16Verify_1(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_1")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_2(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_2(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_2")
 	}
@@ -448,12 +448,12 @@ func bn256Groth16Verify_2(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_2")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_3(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_3(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_3")
 	}
@@ -474,12 +474,12 @@ func bn256Groth16Verify_3(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_3")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_4(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_4(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_4")
 	}
@@ -500,12 +500,12 @@ func bn256Groth16Verify_4(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_4")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_5(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_5(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_5")
 	}
@@ -526,12 +526,12 @@ func bn256Groth16Verify_5(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_5")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_6(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_6(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_6")
 	}
@@ -552,12 +552,12 @@ func bn256Groth16Verify_6(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_6")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_7(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_7(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_7")
 	}
@@ -578,12 +578,12 @@ func bn256Groth16Verify_7(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_7")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_8(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_8(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_8")
 	}
@@ -604,12 +604,12 @@ func bn256Groth16Verify_8(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_8")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_9(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_9(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_9")
 	}
@@ -630,12 +630,12 @@ func bn256Groth16Verify_9(env RideEnvironment, args ...rideType) (rideType, erro
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_9")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_10(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_10(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_10")
 	}
@@ -656,12 +656,12 @@ func bn256Groth16Verify_10(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_10")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_11(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_11(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_11")
 	}
@@ -682,12 +682,12 @@ func bn256Groth16Verify_11(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_11")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_12(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_12(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_12")
 	}
@@ -708,12 +708,12 @@ func bn256Groth16Verify_12(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_12")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_13(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_13(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_13")
 	}
@@ -734,12 +734,12 @@ func bn256Groth16Verify_13(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_13")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_14(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_14(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_14")
 	}
@@ -760,12 +760,12 @@ func bn256Groth16Verify_14(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_14")
 	}
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify_15(env RideEnvironment, args ...rideType) (rideType, error) {
+func bn256Groth16Verify_15(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify_15")
 	}
@@ -786,12 +786,12 @@ func bn256Groth16Verify_15(env RideEnvironment, args ...rideType) (rideType, err
 	}
 	ok, err := crypto.Bn256{}.Groth16Verify(key, proof, inputs)
 	if err != nil {
-		return rideUnit{}, err
+		return nil, errors.Wrap(err, "bn256Groth16Verify_15")
 	}
 	return rideBoolean(ok), nil
 }
 
-func sigVerify_8(env RideEnvironment, args ...rideType) (rideType, error) {
+func sigVerify_8(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_8")
 	}
@@ -822,7 +822,7 @@ func sigVerify_8(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func sigVerify_16(env RideEnvironment, args ...rideType) (rideType, error) {
+func sigVerify_16(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_16")
 	}
@@ -853,7 +853,7 @@ func sigVerify_16(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func sigVerify_32(env RideEnvironment, args ...rideType) (rideType, error) {
+func sigVerify_32(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_32")
 	}
@@ -884,7 +884,7 @@ func sigVerify_32(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func sigVerify_64(env RideEnvironment, args ...rideType) (rideType, error) {
+func sigVerify_64(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_64")
 	}
@@ -915,7 +915,7 @@ func sigVerify_64(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func sigVerify_128(env RideEnvironment, args ...rideType) (rideType, error) {
+func sigVerify_128(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify_128")
 	}
@@ -946,7 +946,7 @@ func sigVerify_128(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func rsaVerify_16(_ RideEnvironment, args ...rideType) (rideType, error) {
+func rsaVerify_16(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "rsaVerify_16")
 	}
@@ -990,7 +990,7 @@ func rsaVerify_16(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func rsaVerify_32(_ RideEnvironment, args ...rideType) (rideType, error) {
+func rsaVerify_32(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "rsaVerify_32")
 	}
@@ -1034,7 +1034,7 @@ func rsaVerify_32(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func rsaVerify_64(_ RideEnvironment, args ...rideType) (rideType, error) {
+func rsaVerify_64(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "rsaVerify_64")
 	}
@@ -1078,7 +1078,7 @@ func rsaVerify_64(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func rsaVerify_128(_ RideEnvironment, args ...rideType) (rideType, error) {
+func rsaVerify_128(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "rsaVerify_128")
 	}
@@ -1122,7 +1122,7 @@ func rsaVerify_128(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func keccak256_16(env RideEnvironment, args ...rideType) (rideType, error) {
+func keccak256_16(env Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256_16")
@@ -1137,7 +1137,7 @@ func keccak256_16(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func keccak256_32(env RideEnvironment, args ...rideType) (rideType, error) {
+func keccak256_32(env Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256_32")
@@ -1152,7 +1152,7 @@ func keccak256_32(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func keccak256_64(env RideEnvironment, args ...rideType) (rideType, error) {
+func keccak256_64(env Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256_64")
@@ -1167,7 +1167,7 @@ func keccak256_64(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func keccak256_128(env RideEnvironment, args ...rideType) (rideType, error) {
+func keccak256_128(env Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256_128")
@@ -1182,7 +1182,7 @@ func keccak256_128(env RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func blake2b256_16(_ RideEnvironment, args ...rideType) (rideType, error) {
+func blake2b256_16(_ Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256_16")
@@ -1197,7 +1197,7 @@ func blake2b256_16(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func blake2b256_32(_ RideEnvironment, args ...rideType) (rideType, error) {
+func blake2b256_32(_ Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256_32")
@@ -1212,7 +1212,7 @@ func blake2b256_32(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func blake2b256_64(_ RideEnvironment, args ...rideType) (rideType, error) {
+func blake2b256_64(_ Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256_64")
@@ -1227,7 +1227,7 @@ func blake2b256_64(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func blake2b256_128(_ RideEnvironment, args ...rideType) (rideType, error) {
+func blake2b256_128(_ Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256_128")
@@ -1242,7 +1242,7 @@ func blake2b256_128(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func sha256_16(_ RideEnvironment, args ...rideType) (rideType, error) {
+func sha256_16(_ Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sha256_16")
@@ -1258,7 +1258,7 @@ func sha256_16(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d), nil
 }
 
-func sha256_32(_ RideEnvironment, args ...rideType) (rideType, error) {
+func sha256_32(_ Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sha256_32")
@@ -1274,7 +1274,7 @@ func sha256_32(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d), nil
 }
 
-func sha256_64(_ RideEnvironment, args ...rideType) (rideType, error) {
+func sha256_64(_ Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sha256_64")
@@ -1290,7 +1290,7 @@ func sha256_64(_ RideEnvironment, args ...rideType) (rideType, error) {
 	return rideBytes(d), nil
 }
 
-func sha256_128(_ RideEnvironment, args ...rideType) (rideType, error) {
+func sha256_128(_ Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sha256_128")

@@ -25,31 +25,45 @@ import (
 
 const (
 	//WavesAssetName is the default name for basic WAVES asset.
-	WavesAssetName       = "WAVES"
-	quotedWavesAssetName = "\"" + WavesAssetName + "\""
-	orderLen             = crypto.PublicKeySize + crypto.PublicKeySize + 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8
-	orderV2FixedBodyLen  = 1 + orderLen
-	orderV3FixedBodyLen  = 1 + orderLen + 1
-	orderV1MinLen        = crypto.SignatureSize + orderLen
-	orderV2MinLen        = orderV2FixedBodyLen + proofsMinLen
-	orderV3MinLen        = orderV3FixedBodyLen + proofsMinLen
-	jsonNull             = "null"
-	integerArgumentLen   = 1 + 8
-	booleanArgumentLen   = 1
-	binaryArgumentMinLen = 1 + 4
-	stringArgumentMinLen = 1 + 4
-	listArgumentMinLen   = 1 + 4
-	PriceConstant        = 100000000
-	MaxOrderAmount       = 100 * PriceConstant * PriceConstant
-	MaxOrderTTL          = uint64((30 * 24 * time.Hour) / time.Millisecond)
-	maxKeySize           = 100
-	maxPBKeySize         = 400
-	maxValueSize         = 32767
-
-	maxScriptActions                     = 10
-	maxDataEntryScriptActions            = 100
-	maxDataEntryScriptActionsSizeInBytes = 5 * 1024
+	WavesAssetName                       = "WAVES"
+	quotedWavesAssetName                 = "\"" + WavesAssetName + "\""
+	orderLen                             = crypto.PublicKeySize + crypto.PublicKeySize + 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8
+	orderV2FixedBodyLen                  = 1 + orderLen
+	orderV3FixedBodyLen                  = 1 + orderLen + 1
+	orderV1MinLen                        = crypto.SignatureSize + orderLen
+	orderV2MinLen                        = orderV2FixedBodyLen + proofsMinLen
+	orderV3MinLen                        = orderV3FixedBodyLen + proofsMinLen
+	jsonNull                             = "null"
+	integerArgumentLen                   = 1 + 8
+	booleanArgumentLen                   = 1
+	binaryArgumentMinLen                 = 1 + 4
+	stringArgumentMinLen                 = 1 + 4
+	listArgumentMinLen                   = 1 + 4
+	PriceConstant                        = 100000000
+	MaxOrderAmount                       = 100 * PriceConstant * PriceConstant
+	MaxOrderTTL                          = uint64((30 * 24 * time.Hour) / time.Millisecond)
+	MaxKeySize                           = 100
+	MaxPBKeySize                         = 400
+	maxValueSize                         = 32767
+	MaxDataEntryScriptActions            = 100
+	MaxDataEntryScriptActionsSizeInBytes = 5 * 1024
 )
+
+type MaxScriptActions struct {
+	BeforeRideScriptV5 int
+	AfterRideScriptV5  int
+}
+
+func NewMaxScriptActions() MaxScriptActions {
+	return MaxScriptActions{BeforeRideScriptV5: 10, AfterRideScriptV5: 30}
+}
+
+func (a MaxScriptActions) GetMaxScriptsComplexityInBlock(scriptVersion int) int {
+	if scriptVersion > 5 {
+		return a.AfterRideScriptV5
+	}
+	return a.BeforeRideScriptV5
+}
 
 type Timestamp = uint64
 type Score = big.Int
@@ -145,13 +159,21 @@ func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
 
 	a, err := crypto.NewDigestFromBytes(b)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create OptionalAsset from Base58 string")
+		return nil, errors.Wrap(err, "failed to create OptionalAsset from bytes")
 	}
 	return &OptionalAsset{Present: true, ID: a}, nil
 }
 
 func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {
+	waves := crypto.Digest{}
+	if d == waves {
+		return &OptionalAsset{Present: false}
+	}
 	return &OptionalAsset{Present: true, ID: d}
+}
+
+func NewOptionalAssetWaves() OptionalAsset {
+	return OptionalAsset{Present: false}
 }
 
 // String method converts OptionalAsset to its text representation
@@ -1799,11 +1821,11 @@ func (e IntegerDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
@@ -1927,11 +1949,11 @@ func (e BooleanDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large11")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large22")
 		}
 	}
@@ -2059,11 +2081,11 @@ func (e BinaryDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
@@ -2194,11 +2216,11 @@ func (e StringDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
@@ -2328,11 +2350,11 @@ func (e DeleteDataEntry) Valid(version byte) error {
 	}
 	switch version {
 	case 1:
-		if len(utf16.Encode([]rune(e.Key))) > maxKeySize {
+		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > maxPBKeySize {
+		if len([]byte(e.Key)) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}

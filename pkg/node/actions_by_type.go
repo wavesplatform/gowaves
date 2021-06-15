@@ -2,8 +2,9 @@ package node
 
 import (
 	"math/big"
-	"net"
 	"reflect"
+
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -25,16 +26,14 @@ func ScoreAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM)
 
 func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	metricGetPeersMessage.Inc()
-	rs, err := services.Peers.KnownPeers()
-	if err != nil {
-		zap.L().Error("failed got known peers", zap.Error(err))
-		return fsm, nil, err
-	}
+	rs := services.Peers.KnownPeers()
+
 	var out []proto.PeerInfo
 	for _, r := range rs {
+		ipPort := proto.IpPort(r)
 		out = append(out, proto.PeerInfo{
-			Addr: net.IP(r.IP[:]),
-			Port: uint16(r.Port),
+			Addr: ipPort.Addr(),
+			Port: uint16(ipPort.Port()),
 		})
 	}
 	mess.ID.SendMessage(&proto.PeersMessage{Peers: out})
@@ -43,20 +42,15 @@ func GetPeersAction(services services.Services, mess peer.ProtoMessage, fsm stat
 
 func PeersAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	metricPeersMessage.Inc()
-	rs, err := services.Peers.KnownPeers()
-	if err != nil {
-		zap.L().Error("failed got known peers", zap.Error(err))
-		return fsm, nil, err
-	}
+	rs := services.Peers.KnownPeers()
+
 	m := mess.Message.(*proto.PeersMessage).Peers
 	if len(m) == 0 {
 		return fsm, nil, nil
 	}
 	for _, p := range m {
-		rs = append(rs, proto.TCPAddr{
-			IP:   p.Addr,
-			Port: int(p.Port),
-		})
+		known := storage.KnownPeer(proto.NewTCPAddr(p.Addr, int(p.Port)).ToIpPort())
+		rs = append(rs, known)
 	}
 	return fsm, nil, services.Peers.UpdateKnownPeers(rs)
 }
@@ -85,17 +79,17 @@ func GetBlockAction(services services.Services, mess peer.ProtoMessage, fsm stat
 	return fsm, nil, nil
 }
 
-// received asked earlier signatures
-func SignaturesAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
-	sigs := mess.Message.(*proto.SignaturesMessage).Signatures
-	blockIDs := make([]proto.BlockID, len(sigs))
-	for i, sig := range sigs {
+// SignaturesAction receives requested earlier signatures
+func SignaturesAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+	signatures := mess.Message.(*proto.SignaturesMessage).Signatures
+	blockIDs := make([]proto.BlockID, len(signatures))
+	for i, sig := range signatures {
 		blockIDs[i] = proto.NewBlockIDFromSignature(sig)
 	}
 	return fsm.BlockIDs(mess.ID, blockIDs)
 }
 
-// peers asks us about our signatures
+// GetSignaturesAction replies to signature requests
 func GetSignaturesAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	for _, sig := range mess.Message.(*proto.GetSignaturesMessage).Signatures {
 		block, err := services.State.Header(proto.NewBlockIDFromSignature(sig))
@@ -126,7 +120,7 @@ func sendSignatures(services services.Services, block *proto.BlockHeader, p peer
 		out = append(out, b.BlockSignature)
 	}
 
-	// if we put smth except first block
+	// There are block signatures to send in addition to requested one
 	if len(out) > 1 {
 		p.SendMessage(&proto.SignaturesMessage{
 			Signatures: out,
@@ -152,7 +146,7 @@ func sendBlockIds(services services.Services, block *proto.BlockHeader, p peer.P
 		out = append(out, b.BlockID())
 	}
 
-	// if we put smth except first block
+	// There are block signatures to send in addition to requested one
 	if len(out) > 1 {
 		p.SendMessage(&proto.BlockIdsMessage{
 			Blocks: out,
@@ -160,8 +154,8 @@ func sendBlockIds(services services.Services, block *proto.BlockHeader, p peer.P
 	}
 }
 
-// remote node mined microblock and sent us info about it.
-func MicroBlockInvAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+// MicroBlockInvAction handles notification about new microblock.
+func MicroBlockInvAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	inv := &proto.MicroBlockInv{}
 	err := inv.UnmarshalBinary(mess.Message.(*proto.MicroBlockInvMessage).Body)
 	if err != nil {
@@ -170,7 +164,7 @@ func MicroBlockInvAction(services services.Services, mess peer.ProtoMessage, fsm
 	return fsm.MicroBlockInv(mess.ID, inv)
 }
 
-// Our miner mined microblock, sent MicroblockInv to other nodes, they asked us about Microblock.
+// MicroBlockRequestAction handles microblock requests.
 func MicroBlockRequestAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	blockID, err := proto.NewBlockIDFromBytes(mess.Message.(*proto.MicroBlockRequestMessage).TotalBlockSig)
 	if err != nil {
@@ -192,7 +186,7 @@ func MicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm st
 	return fsm.MicroBlock(mess.ID, micro)
 }
 
-// arrived protobuf block
+// PBBlockAction handles protobuf block message.
 func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	b := &proto.Block{}
 	err := b.UnmarshalFromProtobuf(mess.Message.(*proto.PBBlockMessage).PBBlockBytes)
@@ -204,7 +198,7 @@ func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FS
 	return fsm.Block(mess.ID, b)
 }
 
-func PBMicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
+func PBMicroBlockAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	micro := &proto.MicroBlock{}
 	err := micro.UnmarshalFromProtobuf(mess.Message.(*proto.PBMicroBlockMessage).MicroBlockBytes)
 	if err != nil {
@@ -229,23 +223,24 @@ func BlockIdsAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.F
 	return fsm.BlockIDs(mess.ID, mess.Message.(*proto.BlockIdsMessage).Blocks)
 }
 
-// TODO broadcast
+// TransactionAction handles new transaction message.
 func TransactionAction(s services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
-	tbts := mess.Message.(*proto.TransactionMessage).Transaction
-	t, err := proto.BytesToTransaction(tbts, s.Scheme)
+	b := mess.Message.(*proto.TransactionMessage).Transaction
+	tx, err := proto.BytesToTransaction(b, s.Scheme)
 	if err != nil {
 		return fsm, nil, err
 	}
-	return fsm.Transaction(mess.ID, t)
+	return fsm.Transaction(mess.ID, tx)
 }
 
-// TODO broadcast transaction
+// PBTransactionAction handles protobuf transaction message.
 func PBTransactionAction(_ services.Services, mess peer.ProtoMessage, fsm state_fsm.FSM) (state_fsm.FSM, state_fsm.Async, error) {
 	b := mess.Message.(*proto.PBTransactionMessage).Transaction
 	t, err := proto.SignedTxFromProtobuf(b)
 	if err != nil {
 		return fsm, nil, err
 	}
+	// TODO add transaction re-broadcast
 	return fsm.Transaction(mess.ID, t)
 }
 

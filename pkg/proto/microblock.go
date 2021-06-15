@@ -320,7 +320,7 @@ func (a *MicroBlockInvMessage) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-// ?? total block sig or id
+// MicroBlockRequestMessage total block signature or ID.
 type MicroBlockRequestMessage struct {
 	TotalBlockSig []byte
 }
