@@ -43,7 +43,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var version = proto.Version{Major: 1, Minor: 2, Patch: 3}
+var version = proto.Version{Major: 1, Minor: 3, Patch: 0}
 
 const maxTransactionTimeForwardOffset = 300 // seconds
 

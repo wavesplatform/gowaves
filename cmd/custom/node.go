@@ -36,7 +36,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var version = proto.Version{Major: 1, Minor: 2, Patch: 3}
+var version = proto.Version{Major: 1, Minor: 3, Patch: 0}
 
 var (
 	logLevel          = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
