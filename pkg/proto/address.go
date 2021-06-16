@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io"
-	"strconv"
-	"strings"
-
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"io"
+	"strconv"
+	"strings"
+	"unicode/utf8"
 )
 
 const (
@@ -344,12 +344,14 @@ func NewAlias(scheme byte, alias string) *Alias {
 	return &Alias{aliasVersion, scheme, alias}
 }
 
-// Valid validates the Alias checking it length, version and symbols.
+// Valid validates the Alias checking it UTF8 length, version and symbols.
 func (a Alias) Valid() (bool, error) {
 	if v := a.Version; v != aliasVersion {
 		return false, errors.Errorf("%d is incorrect alias version, expected %d", v, aliasVersion)
 	}
-	if l := len(a.Alias); l < AliasMinLength || l > AliasMaxLength {
+	// nickeskov: runes count because non ASCII symbols can have length > 1 byte
+	//	Using of utf8.RuneCountInString reproduces scala node behaviour
+	if l := utf8.RuneCountInString(a.Alias); l < AliasMinLength || l > AliasMaxLength {
 		return false, errs.NewTxValidationError(fmt.Sprintf("Alias '%s' length should be between %d and %d", a.Alias, AliasMinLength, AliasMaxLength))
 	}
 	if !correctAlphabet(a.Alias) {
