@@ -76,18 +76,21 @@ type aliases struct {
 
 	disabled map[string]bool
 
+	hasher *stateHasher
+
 	calculateHashes bool
-	hasher          *stateHasher
+	extendedAPI     bool
 }
 
-func newAliases(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, calcHashes bool) *aliases {
+func newAliases(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, hs *historyStorage, calcHashes, extendedAPI bool) *aliases {
 	return &aliases{
 		db:              db,
 		dbBatch:         dbBatch,
 		hs:              hs,
 		disabled:        make(map[string]bool),
-		calculateHashes: calcHashes,
 		hasher:          newStateHasher(),
+		calculateHashes: calcHashes,
+		extendedAPI:     extendedAPI,
 	}
 }
 
@@ -257,4 +260,14 @@ func (a *aliases) disabledAliases() (map[string]struct{}, error) {
 		als[key.alias] = struct{}{}
 	}
 	return als, nil
+}
+
+func (a *aliases) startProvidingAliasesByAddr() error {
+	if a.extendedAPI {
+		// Already provides.
+		return nil
+	}
+	// TODO(nickeskov): need flush?
+	a.extendedAPI = true
+	return nil
 }

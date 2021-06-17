@@ -62,7 +62,10 @@ type blockchainEntitiesStorage struct {
 	calculateHashes   bool
 }
 
-func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter, calcHashes bool) (*blockchainEntitiesStorage, error) {
+func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter, params *StateParams) (*blockchainEntitiesStorage, error) {
+	calcHashes := params.BuildStateHashes
+	extendedAPI := params.StoreExtendedApiData
+
 	balances, err := newBalances(hs.db, hs, calcHashes)
 	if err != nil {
 		return nil, err
@@ -74,7 +77,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	features := newFeatures(rw, hs.db, hs, sets, settings.FeaturesInfo)
 	return &blockchainEntitiesStorage{
 		hs,
-		newAliases(hs.db, hs.dbBatch, hs, calcHashes),
+		newAliases(hs.db, hs.dbBatch, hs, calcHashes, extendedAPI),
 		newAssets(hs.db, hs.dbBatch, hs),
 		newLeases(hs, calcHashes),
 		newScores(hs),
@@ -407,7 +410,7 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v", err))
 	}
-	stor, err := newBlockchainEntitiesStorage(hs, settings, rw, params.BuildStateHashes)
+	stor, err := newBlockchainEntitiesStorage(hs, settings, rw, &params)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v", err))
 	}

@@ -16,3 +16,8 @@ func (a *App) AddrByAlias(alias proto.Alias) (proto.Address, error) {
 	}
 	return addr, nil
 }
+
+func (a *App) AliasesOfAddr(addr proto.Address) ([]proto.Alias, error) {
+	// TODO(nickeskov): implement me
+	panic("AliasesOfAddr: NOT IMPLEMENTED")
+}
