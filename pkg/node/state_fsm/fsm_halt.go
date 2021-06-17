@@ -54,6 +54,10 @@ func (a HaltFSM) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (FSM, Asyn
 	return noop(a)
 }
 
+func (a HaltFSM) String() string {
+	return "Halt"
+}
+
 func HaltTransition(info BaseInfo) (FSM, Async, error) {
 	zap.S().Debugf("started HaltTransition ")
 	info.peers.Close()

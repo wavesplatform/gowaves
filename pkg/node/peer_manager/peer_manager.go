@@ -2,12 +2,13 @@ package peer_manager
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"math/big"
 	"net"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -202,7 +203,7 @@ func (a *PeerManagerImpl) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
 		return nil, nil, false
 	}
 
-	peers := make([]peerInfo, 0)
+	peers := make([]peerInfo, 0, len(a.active))
 	for _, p := range a.active {
 		peers = append(peers, p)
 	}
@@ -219,8 +220,9 @@ func (a *PeerManagerImpl) UpdateScore(p peer.Peer, score *big.Int) error {
 	if row, ok := a.active[p]; ok {
 		row.score = score
 		a.active[p] = row
+		return nil
 	}
-	return nil
+	return errors.Errorf("peer '%s' is not active", p.ID())
 }
 
 func (a *PeerManagerImpl) IsSuspended(p peer.Peer) bool {

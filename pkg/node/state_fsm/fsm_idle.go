@@ -1,10 +1,15 @@
 package state_fsm
 
 import (
+	"time"
+
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
-	. "github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
+	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
+	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
@@ -43,15 +48,15 @@ func (a *IdleFsm) MicroBlockInv(_ peer.Peer, _ *proto.MicroBlockInv) (FSM, Async
 	return a.baseInfo.d.Noop(a)
 }
 
-func (a *IdleFsm) Task(task AsyncTask) (FSM, Async, error) {
+func (a *IdleFsm) Task(task tasks.AsyncTask) (FSM, Async, error) {
 	zap.S().Debugf("IdleFsm Task: got task type %d, data %+v", task.TaskType, task.Data)
 	switch task.TaskType {
-	case Ping:
+	case tasks.Ping:
 		return noop(a)
-	case AskPeers:
+	case tasks.AskPeers:
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
-	case MineMicro: // Do nothing
+	case tasks.MineMicro: // Do nothing
 		return a, nil, nil
 	default:
 		return a, nil, errors.Errorf("IdleFsm Task: unknown task type %d, data %+v", task.TaskType, task.Data)
@@ -66,12 +71,6 @@ func (a *IdleFsm) BlockIDs(_ peer.Peer, _ []proto.BlockID) (FSM, Async, error) {
 	return a.baseInfo.d.Noop(a)
 }
 
-func NewIdleFsm(info BaseInfo) *IdleFsm {
-	return &IdleFsm{
-		baseInfo: info,
-	}
-}
-
 func (a *IdleFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 	fsm, as, err := newPeer(a, p, a.baseInfo.peers)
 	if a.baseInfo.peers.ConnectedCount() == a.baseInfo.minPeersMining {
@@ -83,9 +82,36 @@ func (a *IdleFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 
 func (a *IdleFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 	metrics.FSMScore("idle", score, p.Handshake().NodeName)
-	return handleScore(a, a.baseInfo, p, score)
+	ok, err := a.baseInfo.IsNewScoreHigher(p, score)
+	if err != nil {
+		return a, nil, err
+	}
+	if !ok { // New score is not higher than our own score, nothing to do
+		return a, nil, nil
+	}
+	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(a.baseInfo.storage)
+	if err != nil {
+		return a, nil, err
+	}
+	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, a.baseInfo.scheme), lastSignatures)
+	c := conf{
+		peerSyncWith: p,
+		timeout:      30 * time.Second,
+	}
+	zap.S().Debugf("[Idle] Starting synchronisation with peer '%s'", p.ID())
+	return NewSyncFsm(a.baseInfo, c.Now(), internal)
 }
 
 func (a *IdleFsm) Block(_ peer.Peer, _ *proto.Block) (FSM, Async, error) {
 	return noop(a)
+}
+
+func (a *IdleFsm) String() string {
+	return "Idle"
+}
+
+func NewIdleFsm(info BaseInfo) *IdleFsm {
+	return &IdleFsm{
+		baseInfo: info,
+	}
 }
