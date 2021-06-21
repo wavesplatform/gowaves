@@ -20,8 +20,8 @@ func RunMetaMaskService(ctx context.Context, address string) error {
 	server := &http.Server{Addr: address, Handler: nil}
 
 	go func() {
-		zap.S().Info("shutting down metamask service...")
 		err := server.Shutdown(ctx)
+		zap.S().Info("shutting down metamask service...")
 		if err != nil && !errors.Is(err, context.Canceled) {
 			zap.S().Errorf("failed to shutdown metamask service: %v", err)
 		}
