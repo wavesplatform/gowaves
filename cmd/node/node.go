@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"math/rand"
 	"net/http"
 	_ "net/http"
@@ -413,6 +414,18 @@ func main() {
 			err := grpcServer.Run(ctx, conf.GrpcAddr)
 			if err != nil {
 				zap.S().Errorf("grpcServer.Run(): %v", err)
+			}
+		}()
+	}
+
+	enableMetaMaskService := true
+	address := ":8245"
+	if enableMetaMaskService {
+		go func() {
+			zap.S().Infof("Starting metamask service on %s...", address)
+			err := metamask.RunMetaMaskService(ctx, address)
+			if err != nil {
+				zap.S().Errorf("metamask service: %v", err)
 			}
 		}()
 	}

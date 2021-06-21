@@ -28,6 +28,7 @@ require (
 	github.com/prometheus/client_golang v1.7.1
 	github.com/rakyll/statik v0.1.7
 	github.com/seiflotfy/cuckoofilter v0.0.0-20190302225222-764cb5258d9b
+	github.com/semrush/zenrpc/v2 v2.1.0
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.2.2
 	github.com/spf13/pflag v1.0.5
