@@ -2,7 +2,9 @@ package metamask
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"github.com/semrush/zenrpc/v2"
+	"go.uber.org/zap"
 	"log"
 	"net/http"
 	"os"
@@ -18,11 +20,16 @@ func RunMetaMaskService(ctx context.Context, address string) error {
 	server := &http.Server{Addr: address, Handler: nil}
 
 	go func() {
-		err := server.ListenAndServe()
-		if err != nil {
-			log.Printf("failed to start metamask service")
+		zap.S().Info("shutting down metamask service...")
+		err := server.Shutdown(ctx)
+		if err != nil && !errors.Is(err, context.Canceled){
+			zap.S().Errorf("failed to shutdown metamask service: %v", err)
 		}
 	}()
-	server.Shutdown(ctx)
+	err := server.ListenAndServe()
+
+	if err != nil && err != http.ErrServerClosed {
+		return err
+	}
 	return nil
 }
