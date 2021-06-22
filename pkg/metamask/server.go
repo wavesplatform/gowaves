@@ -11,7 +11,7 @@ import (
 )
 
 func RunMetaMaskService(ctx context.Context, address string) error {
-	rpc := zenrpc.NewServer(zenrpc.Options{ExposeSMD: true})
+	rpc := zenrpc.NewServer(zenrpc.Options{ExposeSMD: true, AllowCORS: true})
 	rpc.Register("", MetaMask{}) // public
 	rpc.Use(zenrpc.Logger(log.New(os.Stderr, "", log.LstdFlags)))
 
@@ -31,5 +31,6 @@ func RunMetaMaskService(ctx context.Context, address string) error {
 	if err != nil && err != http.ErrServerClosed {
 		return err
 	}
+
 	return nil
 }
