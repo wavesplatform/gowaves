@@ -51,6 +51,8 @@ const (
 	maxArguments                         = 22
 	maxFunctionNameBytes                 = 255
 	maxInvokeScriptWithProofsBytes       = 5 * 1024
+
+	topRideVersion = 5
 )
 
 // IssueWithProofs is a transaction to issue new asset, second version.
@@ -186,7 +188,7 @@ func validContentType(t byte) bool {
 
 // version in range [0, 5)
 func validStdVersion(v byte) bool {
-	return v < 5
+	return v <= topRideVersion
 }
 
 func (tx *IssueWithProofs) Validate() (Transaction, error) {
@@ -209,7 +211,7 @@ func (tx *IssueWithProofs) Validate() (Transaction, error) {
 			if !validContentType(tx.Script[1]) {
 				return tx, errors.Errorf("Invalid content type of script: %d", tx.Script[1])
 			}
-			if tx.Script[2] > 4 { // 4 is current max script version
+			if tx.Script[2] > topRideVersion {
 				return tx, errors.Errorf("Invalid version of script: %d", tx.Script[2])
 			}
 
@@ -3152,7 +3154,7 @@ func (tx *DataWithProofs) bodyUnmarshalBinary(data []byte) error {
 		if err != nil {
 			return errors.Errorf("failed to extract type of data entry")
 		}
-		switch DataValueType(t) {
+		switch t {
 		case DataInteger:
 			var ie IntegerDataEntry
 			err = ie.UnmarshalBinary(data)
@@ -4281,7 +4283,7 @@ func (tx *InvokeScriptWithProofs) Clone() *InvokeScriptWithProofs {
 	return out
 }
 
-//NewUnsignedSetAssetScriptWithProofs creates new unsigned SetAssetScriptWithProofs transaction.
+//NewUnsignedInvokeScriptWithProofs creates new unsigned InvokeScriptWithProofs transaction.
 func NewUnsignedInvokeScriptWithProofs(v, chain byte, senderPK crypto.PublicKey, scriptRecipient Recipient, call FunctionCall, payments ScriptPayments, feeAsset OptionalAsset, fee, timestamp uint64) *InvokeScriptWithProofs {
 	return &InvokeScriptWithProofs{
 		Type:            InvokeScriptTransaction,
@@ -4756,7 +4758,7 @@ func (tx *UpdateAssetInfoWithProofs) MarshalBinary() ([]byte, error) {
 	return nil, errors.New("binary format is not defined for UpdateAssetInfoTransaction")
 }
 
-func (tx *UpdateAssetInfoWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
+func (tx *UpdateAssetInfoWithProofs) UnmarshalBinary(_ []byte, _ Scheme) error {
 	return errors.New("binary format is not defined for UpdateAssetInfoTransaction")
 }
 
