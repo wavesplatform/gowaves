@@ -184,7 +184,7 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 	if err != nil {
 		return err
 	}
-	var recipientAddr *proto.Address
+	var recipientAddr *proto.WavesAddress
 	if tx.Recipient.Address == nil {
 		recipientAddr, err = tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
 		if err != nil {

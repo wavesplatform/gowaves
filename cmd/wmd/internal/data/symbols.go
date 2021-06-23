@@ -42,11 +42,11 @@ type Symbols struct {
 	tickers map[string]crypto.Digest
 	tokens  map[crypto.Digest]string
 	mu      sync.RWMutex
-	oracle  proto.Address
+	oracle  proto.WavesAddress
 	scheme  byte
 }
 
-func NewSymbolsFromFile(name string, oracle proto.Address, scheme byte) (*Symbols, error) {
+func NewSymbolsFromFile(name string, oracle proto.WavesAddress, scheme byte) (*Symbols, error) {
 	wrapError := func(err error) error {
 		return errors.Wrapf(err, "failed to import symbols from file '%s'", name)
 	}

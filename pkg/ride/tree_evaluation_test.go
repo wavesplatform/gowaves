@@ -883,9 +883,9 @@ var wrappedSt WrappedState
 var firstScript string
 var secondScript string
 var assetIDIssue crypto.Digest
-var addr proto.Address
+var addr proto.WavesAddress
 var addrPK crypto.PublicKey
-var addressCallable proto.Address
+var addressCallable proto.WavesAddress
 var addressCallablePK crypto.PublicKey
 
 func smartStateDappFromDapp() types.SmartState {
@@ -919,7 +919,7 @@ func smartStateDappFromDapp() types.SmartState {
 			}
 			return nil, nil
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			if recipient.Alias != nil {
 				if recipient.Alias.Alias == "alias" {
 					addr, err := proto.NewAddressFromString("3MsCoDnBbgzjQ7BgGk9xcruM6JVZ5jF8YCV")
@@ -931,7 +931,7 @@ func smartStateDappFromDapp() types.SmartState {
 		AddingBlockHeightFunc: func() (uint64, error) {
 			return 10, nil
 		},
-		NewestScriptPKByAddrFunc: func(address proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(address proto.WavesAddress) (crypto.PublicKey, error) {
 			// payments test
 			if address.String() == "3P8eZVKS7a4troGckytxaefLAi9w7P5aMna" {
 				return crypto.NewPublicKeyFromBase58("FztxsodUc9V7iVzodkGumnZFtHnNTxYSETZfxBFAw9R3")
@@ -960,11 +960,11 @@ func smartStateDappFromDapp() types.SmartState {
 			balance := 0
 			return uint64(balance), nil
 		},
-		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.Address, error) {
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
 			if alias.Alias == "alias" {
 				return proto.NewAddressFromString("3MsCoDnBbgzjQ7BgGk9xcruM6JVZ5jF8YCV")
 			}
-			return proto.Address{}, errors.New("unexpected alias")
+			return proto.WavesAddress{}, errors.New("unexpected alias")
 		},
 		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
 
@@ -1050,7 +1050,7 @@ func smartStateDappFromDapp() types.SmartState {
 	}
 }
 
-var thisAddress proto.Address
+var thisAddress proto.WavesAddress
 var tx *proto.InvokeScriptWithProofs
 var inv rideObject
 var id []byte
@@ -1073,7 +1073,7 @@ var envDappFromDapp = &MockRideEnvironment{
 	thisFunc: func() rideType {
 		return rideAddress(thisAddress)
 	},
-	setNewDAppAddressFunc: func(address proto.Address) {
+	setNewDAppAddressFunc: func(address proto.WavesAddress) {
 		thisAddress = address
 		wrappedSt.cle = rideAddress(address)
 	},
@@ -1094,12 +1094,12 @@ func tearDownDappFromDapp() {
 	firstScript = ""
 	secondScript = ""
 	assetIDIssue = crypto.Digest{}
-	addr = proto.Address{}
-	addressCallable = proto.Address{}
+	addr = proto.WavesAddress{}
+	addressCallable = proto.WavesAddress{}
 	addrPK = crypto.PublicKey{}
 	addressCallablePK = crypto.PublicKey{}
 
-	thisAddress = proto.Address{}
+	thisAddress = proto.WavesAddress{}
 	tx = nil
 	id = nil
 }
@@ -1143,7 +1143,7 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 	return nil
 }
 
-func AddWavesToSender(senderAddress proto.Address, amount int64, asset proto.OptionalAsset) error {
+func AddWavesToSender(senderAddress proto.WavesAddress, amount int64, asset proto.OptionalAsset) error {
 	senderRecipient := proto.NewRecipientFromAddress(senderAddress)
 
 	searchBalance, searchAddr, err := wrappedSt.diff.findBalance(senderRecipient, asset)

@@ -5,24 +5,25 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"net/http"
 )
 
 type Transactions struct {
 	options Options
 }
 
-// Creates new transaction api section
+// NewTransactions creates new transaction api section.
 func NewTransactions(options Options) *Transactions {
 	return &Transactions{
 		options: options,
 	}
 }
 
-// Get transaction that is in the UTX
+// UnconfirmedInfo gets transaction that is in the UTX.
 func (a *Transactions) UnconfirmedInfo(ctx context.Context, id crypto.Digest) (proto.Transaction, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/transactions/unconfirmed/info/%s", id.String()))
 	if err != nil {
@@ -54,7 +55,7 @@ func (a *Transactions) UnconfirmedInfo(ctx context.Context, id crypto.Digest) (p
 	return out[0], response, nil
 }
 
-// Get the number of unconfirmed transactions in the UTX pool
+// UnconfirmedSize gets the number of unconfirmed transactions in the UTX pool.
 func (a *Transactions) UnconfirmedSize(ctx context.Context) (uint64, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, "/transactions/unconfirmed/size")
 	if err != nil {
@@ -75,7 +76,7 @@ func (a *Transactions) UnconfirmedSize(ctx context.Context) (uint64, *Response, 
 	return out["size"], response, nil
 }
 
-// Get the number of unconfirmed transactions in the UTX pool
+// Unconfirmed gets the number of unconfirmed transactions in the UTX pool.
 func (a *Transactions) Unconfirmed(ctx context.Context) ([]proto.Transaction, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, "/transactions/unconfirmed")
 	if err != nil {
@@ -96,7 +97,7 @@ func (a *Transactions) Unconfirmed(ctx context.Context) ([]proto.Transaction, *R
 	return out, response, nil
 }
 
-// Get transaction info
+// Info gets transaction info.
 func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (proto.Transaction, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/transactions/info/%s", id.String()))
 	if err != nil {
@@ -128,8 +129,8 @@ func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (proto.Transa
 	return out[0], response, nil
 }
 
-// Get list of transactions where specified address has been involved
-func (a *Transactions) Address(ctx context.Context, address proto.Address, limit uint) ([]proto.Transaction, *Response, error) {
+// Address gets list of transactions where specified address has been involved.
+func (a *Transactions) Address(ctx context.Context, address proto.WavesAddress, limit uint) ([]proto.Transaction, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/transactions/address/%s/limit/%d", address.String(), limit))
 	if err != nil {
 		return nil, nil, err

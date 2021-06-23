@@ -175,7 +175,7 @@ func (a *ThreadSafeReadWrapper) EstimatorVersion() (int, error) {
 	return a.s.EstimatorVersion()
 }
 
-func (a *ThreadSafeReadWrapper) AddrByAlias(alias proto.Alias) (proto.Address, error) {
+func (a *ThreadSafeReadWrapper) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.AddrByAlias(alias)

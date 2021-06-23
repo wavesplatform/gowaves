@@ -227,7 +227,7 @@ type nodeBlockInfo struct {
 	id        int
 	blockID   proto.BlockID
 	height    uint64
-	generator proto.Address
+	generator proto.WavesAddress
 	blockTime uint64
 	err       error
 }

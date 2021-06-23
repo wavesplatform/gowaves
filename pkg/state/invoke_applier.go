@@ -56,13 +56,13 @@ func newInvokeApplier(
 }
 
 type payment struct {
-	sender   proto.Address
-	receiver proto.Address
+	sender   proto.WavesAddress
+	receiver proto.WavesAddress
 	amount   uint64
 	asset    proto.OptionalAsset
 }
 
-func (ia *invokeApplier) newPaymentFromTransferScriptAction(senderAddress proto.Address, action *proto.TransferScriptAction) (*payment, error) {
+func (ia *invokeApplier) newPaymentFromTransferScriptAction(senderAddress proto.WavesAddress, action *proto.TransferScriptAction) (*payment, error) {
 	if action.Recipient.Address == nil {
 		return nil, errors.New("transfer has unresolved aliases")
 	}
@@ -92,7 +92,7 @@ func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediat
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.Address, action *proto.TransferScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.WavesAddress, action *proto.TransferScriptAction) (txDiff, error) {
 	pmt, err := ia.newPaymentFromTransferScriptAction(scriptAddr, action)
 	if err != nil {
 		return txDiff{}, err
@@ -102,7 +102,7 @@ func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.Address, a
 	return ia.newTxDiffFromPayment(pmt, false)
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptIssue(senderAddress proto.Address, action *proto.IssueScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptIssue(senderAddress proto.WavesAddress, action *proto.IssueScriptAction) (txDiff, error) {
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: senderAddress, asset: action.ID[:]}
 	senderAssetBalanceDiff := action.Quantity
@@ -112,7 +112,7 @@ func (ia *invokeApplier) newTxDiffFromScriptIssue(senderAddress proto.Address, a
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptReissue(senderAddress proto.Address, action *proto.ReissueScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptReissue(senderAddress proto.WavesAddress, action *proto.ReissueScriptAction) (txDiff, error) {
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: senderAddress, asset: action.AssetID[:]}
 	senderAssetBalanceDiff := action.Quantity
@@ -122,7 +122,7 @@ func (ia *invokeApplier) newTxDiffFromScriptReissue(senderAddress proto.Address,
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptBurn(senderAddress proto.Address, action *proto.BurnScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptBurn(senderAddress proto.WavesAddress, action *proto.BurnScriptAction) (txDiff, error) {
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: senderAddress, asset: action.AssetID[:]}
 	senderAssetBalanceDiff := -action.Quantity
@@ -132,7 +132,7 @@ func (ia *invokeApplier) newTxDiffFromScriptBurn(senderAddress proto.Address, ac
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddress proto.Address, action *proto.LeaseScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddress proto.WavesAddress, action *proto.LeaseScriptAction) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := wavesBalanceKey{address: senderAddress}
 	receiverKey := wavesBalanceKey{address: recipientAddress}
@@ -145,7 +145,7 @@ func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddres
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(senderAddress proto.Address, leaseInfo *leasing) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(senderAddress proto.WavesAddress, leaseInfo *leasing) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := wavesBalanceKey{address: senderAddress}
 	senderLeaseOutDiff := -int64(leaseInfo.Amount)
@@ -253,7 +253,7 @@ func errorForSmartAsset(res ride.Result, asset crypto.Digest) error {
 type addlInvokeInfo struct {
 	*fallibleValidationParams
 
-	scriptAddr           *proto.Address
+	scriptAddr           *proto.WavesAddress
 	scriptPK             crypto.PublicKey
 	scriptRuns           uint64
 	failedChanges        txBalanceChanges
@@ -263,7 +263,7 @@ type addlInvokeInfo struct {
 	libVersion           byte
 }
 
-func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction, info *addlInvokeInfo) (crypto.PublicKey, proto.Address, error) {
+func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction, info *addlInvokeInfo) (crypto.PublicKey, proto.WavesAddress, error) {
 	senderPK := info.scriptPK
 	senderAddress := *info.scriptAddr
 	if a.SenderPK() != nil {
@@ -271,7 +271,7 @@ func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction,
 		senderPK = *a.SenderPK()
 		senderAddress, err = proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, senderPK)
 		if err != nil {
-			return crypto.PublicKey{}, proto.Address{}, err
+			return crypto.PublicKey{}, proto.WavesAddress{}, err
 		}
 	}
 	return senderPK, senderAddress, nil

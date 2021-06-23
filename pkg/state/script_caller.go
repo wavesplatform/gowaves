@@ -201,7 +201,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	return a.callAssetScriptCommon(env, assetID, params)
 }
 
-func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, scriptAddress proto.Address) (bool, []proto.ScriptAction, error) {
+func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (bool, []proto.ScriptAction, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "failed to create RIDE environment")

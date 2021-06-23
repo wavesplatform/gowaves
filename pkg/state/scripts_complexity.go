@@ -23,7 +23,7 @@ func newScriptsComplexity(hs *historyStorage) *scriptsComplexity {
 }
 
 func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address, ev int, filter bool) (*ride.TreeEstimation, error) {
-	key := accountScriptComplexityKey{ev, addr}
+	key := accountScriptComplexityKey{ev, addr.ID()}
 	recordBytes, err := sc.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (sc *scriptsComplexity) newestScriptComplexityByAddr(addr proto.Address, ev
 }
 
 func (sc *scriptsComplexity) originalEstimatorVersion(addr proto.Address, filter bool) (int, error) {
-	key := accountOriginalEstimatorVersionKey{addr}
+	key := accountOriginalEstimatorVersionKey{addr.ID()}
 	recordBytes, err := sc.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return 0, err
@@ -48,7 +48,7 @@ func (sc *scriptsComplexity) originalEstimatorVersion(addr proto.Address, filter
 	return int(record.Version), nil
 }
 
-func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.Address, filter bool) (*ride.TreeEstimation, error) {
+func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.WavesAddress, filter bool) (*ride.TreeEstimation, error) {
 	ev, err := sc.originalEstimatorVersion(addr, filter)
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func (sc *scriptsComplexity) scriptComplexityByAsset(asset crypto.Digest, filter
 }
 
 func (sc *scriptsComplexity) scriptComplexityByAddress(addr proto.Address, ev int, filter bool) (*ride.TreeEstimation, error) {
-	key := accountScriptComplexityKey{ev, addr}
+	key := accountScriptComplexityKey{ev, addr.ID()}
 	recordBytes, err := sc.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
@@ -105,13 +105,13 @@ func (sc *scriptsComplexity) saveComplexitiesForAddr(addr proto.Address, estimat
 		if err != nil {
 			return errors.Wrapf(err, "failed to save complexities record for address '%s' in block '%s'", addr.String(), blockID.String())
 		}
-		key := accountScriptComplexityKey{v, addr}
+		key := accountScriptComplexityKey{v, addr.ID()}
 		err = sc.hs.addNewEntry(accountScriptComplexity, key.bytes(), recordBytes, blockID)
 		if err != nil {
 			return errors.Wrapf(err, "failed to save complexities record for address '%s' in block '%s'", addr.String(), blockID.String())
 		}
 	}
-	key := accountOriginalEstimatorVersionKey{addr}
+	key := accountOriginalEstimatorVersionKey{addr.ID()}
 	record := estimatorVersionRecord{uint8(min)}
 	recordBytes, err := cbor.Marshal(record)
 	if err != nil {

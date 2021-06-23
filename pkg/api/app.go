@@ -17,8 +17,8 @@ import (
 )
 
 type account struct {
-	Address   proto.Address    `json:"address"`
-	PublicKey crypto.PublicKey `json:"public_key"`
+	Address   proto.WavesAddress `json:"address"`
+	PublicKey crypto.PublicKey   `json:"public_key"`
 }
 
 type SchedulerEmits interface {

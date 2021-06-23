@@ -16,7 +16,7 @@ type WrappedState struct {
 	scheme          proto.Scheme
 	invokeCount     uint64
 	act             []proto.ScriptAction
-	blackList       []proto.Address
+	blackList       []proto.WavesAddress
 	totalComplexity int
 }
 
@@ -51,8 +51,8 @@ func (ws *WrappedState) checkTotalComplexity() (int, bool) {
 	return ws.totalComplexity, true
 }
 
-func (ws *WrappedState) callee() proto.Address {
-	return proto.Address(ws.cle)
+func (ws *WrappedState) callee() proto.WavesAddress {
+	return proto.WavesAddress(ws.cle)
 }
 
 func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env Environment) error {
@@ -72,7 +72,7 @@ func (ws *WrappedState) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, e
 	return ws.diff.state.NewestLeasingInfo(id)
 }
 
-func (ws *WrappedState) NewestScriptPKByAddr(addr proto.Address) (crypto.PublicKey, error) {
+func (ws *WrappedState) NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error) {
 	return ws.diff.state.NewestScriptPKByAddr(addr)
 }
 func (ws *WrappedState) NewestTransactionByID(id []byte) (proto.Transaction, error) {
@@ -85,11 +85,11 @@ func (ws *WrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
 func (ws *WrappedState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
 	return ws.diff.state.GetByteTree(recipient)
 }
-func (ws *WrappedState) NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error) {
+func (ws *WrappedState) NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
 	return ws.diff.state.NewestRecipientToAddress(recipient)
 }
 
-func (ws *WrappedState) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
+func (ws *WrappedState) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 	return ws.diff.state.NewestAddrByAlias(alias)
 }
 
@@ -464,7 +464,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 	return r.Result(), nil
 }
 
-func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.Address, env Environment) error {
+func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.WavesAddress, env Environment) error {
 	*otherActionsCount++
 
 	assetResult, err := ws.validateAsset(res, res.Asset, env)
@@ -817,7 +817,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 		case *proto.TransferScriptAction:
-			var senderAddress proto.Address
+			var senderAddress proto.WavesAddress
 			var senderPK crypto.PublicKey
 			if res.Sender != nil {
 				senderPK = *res.Sender
@@ -1085,7 +1085,7 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 	}
-	recipient := proto.NewRecipientFromAddress(proto.Address(env.th.(rideAddress)))
+	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
 	env.inv["originalCaller"] = rideAddress(caller)
 	env.inv["originalCallerPublicKey"] = rideBytes(callerPK.Bytes())
@@ -1167,7 +1167,7 @@ func (e *EvaluationEnvironment) SetThisFromAssetInfo(info *proto.AssetInfo) {
 	e.th = assetInfoToObject(info)
 }
 
-func (e *EvaluationEnvironment) SetThisFromAddress(addr proto.Address) {
+func (e *EvaluationEnvironment) SetThisFromAddress(addr proto.WavesAddress) {
 	e.th = rideAddress(addr)
 }
 
@@ -1262,7 +1262,7 @@ func (e *EvaluationEnvironment) state() types.SmartState {
 	return e.st
 }
 
-func (e *EvaluationEnvironment) setNewDAppAddress(address proto.Address) {
+func (e *EvaluationEnvironment) setNewDAppAddress(address proto.WavesAddress) {
 	ws, _ := e.st.(*WrappedState)
 	ws.cle = rideAddress(address)
 

@@ -698,7 +698,7 @@ func (s *stateManager) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, er
 	return &leaseInfo, nil
 }
 
-func (s *stateManager) NewestScriptPKByAddr(addr proto.Address) (crypto.PublicKey, error) {
+func (s *stateManager) NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error) {
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
 	return s.stor.scriptsStorage.NewestScriptPKByAddr(addr, true)
@@ -743,7 +743,7 @@ func (s *stateManager) HeightToBlockID(height uint64) (proto.BlockID, error) {
 	return blockID, nil
 }
 
-func (s *stateManager) newestAssetBalance(addr proto.Address, asset []byte) (uint64, error) {
+func (s *stateManager) newestAssetBalance(addr proto.WavesAddress, asset []byte) (uint64, error) {
 	// Retrieve old balance from historyStorage.
 	balance, err := s.stor.balances.newestAssetBalance(addr, asset, true)
 	if err != nil {
@@ -766,7 +766,7 @@ func (s *stateManager) newestAssetBalance(addr proto.Address, asset []byte) (uin
 	return balance, nil
 }
 
-func (s *stateManager) newestWavesBalanceProfile(addr proto.Address) (*balanceProfile, error) {
+func (s *stateManager) newestWavesBalanceProfile(addr proto.WavesAddress) (*balanceProfile, error) {
 	// Retrieve the latest balance from historyStorage.
 	profile, err := s.stor.balances.newestWavesBalance(addr, true)
 	if err != nil {
@@ -1533,7 +1533,7 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 	return s.ScoreAtHeight(height)
 }
 
-func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error) {
+func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
 	if recipient.Address == nil {
@@ -1542,7 +1542,7 @@ func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (*pro
 	return recipient.Address, nil
 }
 
-func (s *stateManager) recipientToAddress(recipient proto.Recipient) (*proto.Address, error) {
+func (s *stateManager) recipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
 	if recipient.Address == nil {
 		return s.stor.aliases.addrByAlias(recipient.Alias.Alias, true)
 	}
@@ -1593,20 +1593,20 @@ func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, pa
 	return nil
 }
 
-func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.Address, error) {
+func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
 	addr, err := s.stor.aliases.newestAddrByAlias(alias.Alias, true)
 	if err != nil {
-		return proto.Address{}, wrapErr(RetrievalError, err)
+		return proto.WavesAddress{}, wrapErr(RetrievalError, err)
 	}
 	return *addr, nil
 }
 
-func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.Address, error) {
+func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 	addr, err := s.stor.aliases.addrByAlias(alias.Alias, true)
 	if err != nil {
-		return proto.Address{}, wrapErr(RetrievalError, err)
+		return proto.WavesAddress{}, wrapErr(RetrievalError, err)
 	}
 	return *addr, nil
 }
@@ -1711,7 +1711,7 @@ func (s *stateManager) RetrieveNewestEntry(account proto.Recipient, key string) 
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveNewestEntry(*addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveNewestEntry(addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1723,7 +1723,7 @@ func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEnt
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entries, err := s.stor.accountsDataStor.retrieveEntries(*addr, true)
+	entries, err := s.stor.accountsDataStor.retrieveEntries(addr, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1737,7 +1737,7 @@ func (s *stateManager) IsStateUntouched(account proto.Recipient) (bool, error) {
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
-	entryExist, err := s.stor.accountsDataStor.entryExists(*addr, true)
+	entryExist, err := s.stor.accountsDataStor.entryExists(addr, true)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
@@ -1749,7 +1749,7 @@ func (s *stateManager) RetrieveEntry(account proto.Recipient, key string) (proto
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveEntry(*addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveEntry(addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1763,7 +1763,7 @@ func (s *stateManager) RetrieveNewestIntegerEntry(account proto.Recipient, key s
 	}
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
-	entry, err := s.stor.accountsDataStor.retrieveNewestIntegerEntry(*addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveNewestIntegerEntry(addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1775,7 +1775,7 @@ func (s *stateManager) RetrieveIntegerEntry(account proto.Recipient, key string)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveIntegerEntry(*addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveIntegerEntry(addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1789,7 +1789,7 @@ func (s *stateManager) RetrieveNewestBooleanEntry(account proto.Recipient, key s
 	}
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
-	entry, err := s.stor.accountsDataStor.retrieveNewestBooleanEntry(*addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveNewestBooleanEntry(addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1801,7 +1801,7 @@ func (s *stateManager) RetrieveBooleanEntry(account proto.Recipient, key string)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveBooleanEntry(*addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveBooleanEntry(addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1815,7 +1815,7 @@ func (s *stateManager) RetrieveNewestStringEntry(account proto.Recipient, key st
 	}
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
-	entry, err := s.stor.accountsDataStor.retrieveNewestStringEntry(*addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveNewestStringEntry(addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1827,7 +1827,7 @@ func (s *stateManager) RetrieveStringEntry(account proto.Recipient, key string) 
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveStringEntry(*addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveStringEntry(addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1841,7 +1841,7 @@ func (s *stateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key st
 	}
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
-	entry, err := s.stor.accountsDataStor.retrieveNewestBinaryEntry(*addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveNewestBinaryEntry(addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1853,7 +1853,7 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	entry, err := s.stor.accountsDataStor.retrieveBinaryEntry(*addr, key, true)
+	entry, err := s.stor.accountsDataStor.retrieveBinaryEntry(addr, key, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

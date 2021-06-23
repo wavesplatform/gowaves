@@ -48,7 +48,7 @@ func (a *LocalScore) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// All info you need to debug
+// Info returns all info you need to debug.
 func (a *Debug) Info(ctx context.Context) (*DebugInfo, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
@@ -75,7 +75,7 @@ func (a *Debug) Info(ctx context.Context) (*DebugInfo, *Response, error) {
 	return out, response, nil
 }
 
-// Get sizes and full hashes for last blocks
+// Blocks gets sizes and full hashes for last blocks.
 func (a *Debug) Blocks(ctx context.Context, howMany uint64) ([]map[uint64]string, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
@@ -103,12 +103,12 @@ func (a *Debug) Blocks(ctx context.Context, howMany uint64) ([]map[uint64]string
 }
 
 type DebugMinerInfo struct {
-	Address       proto.Address `json:"address"`
-	MiningBalance uint64        `json:"miningBalance"`
-	Timestamp     uint64        `json:"timestamp"`
+	Address       proto.WavesAddress `json:"address"`
+	MiningBalance uint64             `json:"miningBalance"`
+	Timestamp     uint64             `json:"timestamp"`
 }
 
-// All miner info you need to debug
+// MinerInfo gets all miner info you need to debug.
 func (a *Debug) MinerInfo(ctx context.Context) ([]*DebugMinerInfo, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
@@ -140,7 +140,7 @@ type DebugHistoryInfo struct {
 	MicroBlockIds []proto.BlockID `json:"microBlockIds"`
 }
 
-// All history info you need to debug
+// HistoryInfo gets all history info you need to debug.
 func (a *Debug) HistoryInfo(ctx context.Context) (*DebugHistoryInfo, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
@@ -167,7 +167,7 @@ func (a *Debug) HistoryInfo(ctx context.Context) (*DebugHistoryInfo, *Response, 
 	return out, response, nil
 }
 
-// Currently running node config
+// ConfigInfo currently running node config.
 func (a *Debug) ConfigInfo(ctx context.Context, full bool) ([]byte, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
@@ -219,7 +219,7 @@ type BalancesHistoryRow struct {
 	Balance uint64 `json:"balance"`
 }
 
-func (a *Debug) BalancesHistory(ctx context.Context, address proto.Address) ([]*BalancesHistoryRow, *Response, error) {
+func (a *Debug) BalancesHistory(ctx context.Context, address proto.WavesAddress) ([]*BalancesHistoryRow, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/debug/balances/history/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
@@ -245,9 +245,9 @@ type StateChangesResponse struct {
 	StateChanges struct {
 		Data      proto.DataEntries `json:"data"`
 		Transfers []*struct {
-			Address proto.Address `json:"address"`
-			Asset   crypto.Digest `json:"asset"`
-			Amount  uint64        `json:"amount"`
+			Address proto.WavesAddress `json:"address"`
+			Asset   crypto.Digest      `json:"asset"`
+			Amount  uint64             `json:"amount"`
 		} `json:"transfers"`
 	} `json:"stateChanges"`
 }

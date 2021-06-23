@@ -35,13 +35,13 @@ type TransactionWithBytes struct {
 
 // SmartState is a part of state used by smart contracts.
 type SmartState interface {
-	NewestScriptPKByAddr(addr proto.Address) (crypto.PublicKey, error)
+	NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error)
 	AddingBlockHeight() (uint64, error)
 	NewestTransactionByID([]byte) (proto.Transaction, error)
 	NewestTransactionHeightByID([]byte) (uint64, error)
 	GetByteTree(recipient proto.Recipient) (proto.Script, error)
-	NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error)
-	NewestAddrByAlias(alias proto.Alias) (proto.Address, error)
+	NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error)
+	NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error)
 	NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, error)
 	IsStateUntouched(account proto.Recipient) (bool, error)
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.

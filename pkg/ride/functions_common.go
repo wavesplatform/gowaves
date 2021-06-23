@@ -204,7 +204,7 @@ func recipientProperty(obj rideType, key string) (proto.Recipient, error) {
 	case rideRecipient:
 		recipient = proto.Recipient(tp)
 	case rideAddress:
-		recipient = proto.NewRecipientFromAddress(proto.Address(tp))
+		recipient = proto.NewRecipientFromAddress(proto.WavesAddress(tp))
 	case rideAlias:
 		recipient = proto.NewRecipientFromAlias(proto.Alias(tp))
 	default:

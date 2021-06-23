@@ -15,42 +15,42 @@ import (
 )
 
 type assetBalanceKey struct {
-	address proto.Address
+	address proto.WavesAddress
 	asset   crypto.Digest
 }
 
 func (k *assetBalanceKey) bytes() []byte {
-	buf := make([]byte, 1+proto.AddressSize+crypto.DigestSize)
+	buf := make([]byte, 1+proto.WavesAddressSize+crypto.DigestSize)
 	buf[0] = assetBalanceKeyPrefix
 	copy(buf[1:], k.address[:])
-	copy(buf[1+proto.AddressSize:], k.asset[:])
+	copy(buf[1+proto.WavesAddressSize:], k.asset[:])
 	return buf
 }
 
 type assetBalanceHistoryKey struct {
 	height  uint32
-	address proto.Address
+	address proto.WavesAddress
 	asset   crypto.Digest
 }
 
 func (k assetBalanceHistoryKey) bytes() []byte {
-	buf := make([]byte, 1+4+proto.AddressSize+crypto.DigestSize)
+	buf := make([]byte, 1+4+proto.WavesAddressSize+crypto.DigestSize)
 	buf[0] = assetBalanceHistoryKeyPrefix
 	binary.BigEndian.PutUint32(buf[1:], k.height)
 	copy(buf[1+4:], k.address[:])
-	copy(buf[1+4+proto.AddressSize:], k.asset[:])
+	copy(buf[1+4+proto.WavesAddressSize:], k.asset[:])
 	return buf
 }
 
 func (k *assetBalanceHistoryKey) fromBytes(data []byte) error {
-	if l := len(data); l < 1+4+proto.AddressSize+crypto.DigestSize {
+	if l := len(data); l < 1+4+proto.WavesAddressSize+crypto.DigestSize {
 		return errors.Errorf("%d bytes is not enough for assetBalanceHistoryKey", l)
 	}
 	data = data[1:]
 	k.height = binary.BigEndian.Uint32(data)
 	data = data[4:]
-	copy(k.address[:], data[:proto.AddressSize])
-	data = data[proto.AddressSize:]
+	copy(k.address[:], data[:proto.WavesAddressSize])
+	data = data[proto.WavesAddressSize:]
 	copy(k.asset[:], data[:crypto.DigestSize])
 	return nil
 }
@@ -78,15 +78,15 @@ func (c *balanceDiff) fromBytes(data []byte) error {
 }
 
 type assetIssuerKey struct {
-	address proto.Address
+	address proto.WavesAddress
 	asset   crypto.Digest
 }
 
 func (k *assetIssuerKey) bytes() []byte {
-	buf := make([]byte, 1+proto.AddressSize+crypto.DigestSize)
+	buf := make([]byte, 1+proto.WavesAddressSize+crypto.DigestSize)
 	buf[0] = assetIssuerKeyPrefix
 	copy(buf[1:], k.address[:])
-	copy(buf[1+proto.AddressSize:], k.asset[:])
+	copy(buf[1+proto.WavesAddressSize:], k.asset[:])
 	return buf
 }
 
@@ -128,14 +128,14 @@ func (k *assetHistoryKey) fromBytes(data []byte) error {
 
 type asset struct {
 	name       string
-	issuer     proto.Address
+	issuer     proto.WavesAddress
 	decimals   uint8
 	reissuable bool
 	sponsored  bool
 	supply     uint64
 }
 
-const assetInfoSize = 2 + proto.AddressSize + 1 + 1 + 1 + 8
+const assetInfoSize = 2 + proto.WavesAddressSize + 1 + 1 + 1 + 8
 
 func newAssetInfoFromIssueChange(scheme byte, ch data.IssueChange) (asset, error) {
 	a, err := proto.NewAddressFromPublicKey(scheme, ch.Issuer)
@@ -152,7 +152,7 @@ func (a asset) bytes() []byte {
 	proto.PutStringWithUInt16Len(buf[p:], a.name)
 	p += 2 + nl
 	copy(buf[p:], a.issuer[:])
-	p += proto.AddressSize
+	p += proto.WavesAddressSize
 	buf[p] = a.decimals
 	p++
 	proto.PutBool(buf[p:], a.reissuable)
@@ -173,8 +173,8 @@ func (a *asset) fromBytes(data []byte) error {
 	}
 	a.name = s
 	data = data[2+len(s):]
-	copy(a.issuer[:], data[:proto.AddressSize])
-	data = data[proto.AddressSize:]
+	copy(a.issuer[:], data[:proto.WavesAddressSize])
+	data = data[proto.WavesAddressSize:]
 	a.decimals = data[0]
 	data = data[1:]
 	a.reissuable, err = proto.Bool(data)
@@ -338,7 +338,7 @@ func rollbackAssets(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHeig
 	return nil
 }
 
-func updateBalanceAndHistory(bs *blockState, batch *leveldb.Batch, height uint32, addr proto.Address, asset crypto.Digest, in, out uint64) error {
+func updateBalanceAndHistory(bs *blockState, batch *leveldb.Batch, height uint32, addr proto.WavesAddress, asset crypto.Digest, in, out uint64) error {
 	//get current state of balance
 	balance, k, err := bs.balance(addr, asset)
 	if err != nil {
@@ -362,7 +362,7 @@ func updateBalanceAndHistory(bs *blockState, batch *leveldb.Batch, height uint32
 func putAccounts(bs *blockState, batch *leveldb.Batch, height uint32, accountChanges []data.AccountChange) error {
 	for _, u := range accountChanges {
 		// get the address bytes from the account or from state
-		var addr proto.Address
+		var addr proto.WavesAddress
 		if !bytes.Equal(u.Account.Address[:], emptyAddress[:]) {
 			addr = u.Account.Address
 		} else {

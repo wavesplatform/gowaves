@@ -4,13 +4,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
-	"google.golang.org/protobuf/encoding/protowire"
 	protobuf "google.golang.org/protobuf/proto"
 )
-
-func Int64ToProtobuf(val int64) ([]byte, error) {
-	return protowire.AppendVarint(nil, uint64(val)), nil
-}
 
 func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
 	return protobuf.MarshalOptions{Deterministic: true}.Marshal(pb)
@@ -63,10 +58,10 @@ type ProtobufConverter struct {
 	err             error
 }
 
-func (c *ProtobufConverter) Address(scheme byte, addr []byte) (Address, error) {
+func (c *ProtobufConverter) Address(scheme byte, addr []byte) (WavesAddress, error) {
 	a, err := RebuildAddress(scheme, addr)
 	if err != nil {
-		return Address{}, err
+		return WavesAddress{}, err
 	}
 	return a, nil
 }
