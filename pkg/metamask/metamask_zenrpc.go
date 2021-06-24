@@ -11,13 +11,17 @@ import (
 )
 
 var RPC = struct {
-	MetaMask struct{ Eth_blockNumber, Net_version, Eth_getBalance, Eth_getBlockByNumber string }
+	MetaMask struct{ Eth_blockNumber, Net_version, Eth_getBalance, Eth_getBlockByNumber, Eth_gasPrice, Eth_getCode, Eth_getTransactionCount, Eth_sendrawtransaction string }
 }{
-	MetaMask: struct{ Eth_blockNumber, Net_version, Eth_getBalance, Eth_getBlockByNumber string }{
-		Eth_blockNumber:      "eth_blocknumber",
-		Net_version:          "net_version",
-		Eth_getBalance:       "eth_getbalance",
-		Eth_getBlockByNumber: "eth_getblockbynumber",
+	MetaMask: struct{ Eth_blockNumber, Net_version, Eth_getBalance, Eth_getBlockByNumber, Eth_gasPrice, Eth_getCode, Eth_getTransactionCount, Eth_sendrawtransaction string }{
+		Eth_blockNumber:         "eth_blocknumber",
+		Net_version:             "net_version",
+		Eth_getBalance:          "eth_getbalance",
+		Eth_getBlockByNumber:    "eth_getblockbynumber",
+		Eth_gasPrice:            "eth_gasprice",
+		Eth_getCode:             "eth_getcode",
+		Eth_getTransactionCount: "eth_gettransactioncount",
+		Eth_sendrawtransaction:  "eth_sendrawtransaction",
 	},
 }
 
@@ -26,7 +30,7 @@ func (MetaMask) SMD() smd.ServiceInfo {
 		Description: ``,
 		Methods: map[string]smd.Service{
 			"Eth_blockNumber": {
-				Description: ``,
+				Description: `/* Returns the number of most recent block */`,
 				Parameters:  []smd.JSONSchema{},
 				Returns: smd.JSONSchema{
 					Description: ``,
@@ -35,7 +39,7 @@ func (MetaMask) SMD() smd.ServiceInfo {
 				},
 			},
 			"Net_version": {
-				Description: ``,
+				Description: `/* Returns the current network id */`,
 				Parameters:  []smd.JSONSchema{},
 				Returns: smd.JSONSchema{
 					Description: ``,
@@ -44,10 +48,12 @@ func (MetaMask) SMD() smd.ServiceInfo {
 				},
 			},
 			"Eth_getBalance": {
-				Description: ``,
+				Description: `/* Returns the balance of the account of given address
+   - address: 20 Bytes - address to check for balance
+   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */`,
 				Parameters: []smd.JSONSchema{
 					{
-						Name:        "addr",
+						Name:        "address",
 						Optional:    false,
 						Description: ``,
 						Type:        smd.String,
@@ -66,10 +72,12 @@ func (MetaMask) SMD() smd.ServiceInfo {
 				},
 			},
 			"Eth_getBlockByNumber": {
-				Description: ``,
+				Description: `/* Returns information about a block by block number.
+   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
+   - filter: if true it returns the full transaction objects, if false only the hashes of the transactions */`,
 				Parameters: []smd.JSONSchema{
 					{
-						Name:        "blockNumber",
+						Name:        "block",
 						Optional:    false,
 						Description: ``,
 						Type:        smd.Integer,
@@ -79,6 +87,80 @@ func (MetaMask) SMD() smd.ServiceInfo {
 						Optional:    false,
 						Description: ``,
 						Type:        smd.Boolean,
+					},
+				},
+				Returns: smd.JSONSchema{
+					Description: ``,
+					Optional:    false,
+					Type:        smd.String,
+				},
+			},
+			"Eth_gasPrice": {
+				Description: `/* Returns the current price per gas in wei */`,
+				Parameters:  []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: ``,
+					Optional:    false,
+					Type:        smd.Integer,
+				},
+			},
+			"Eth_getCode": {
+				Description: `/* Returns the compiled smart contract code, if any, at a given address.
+   - address: 20 Bytes - address to check for balance
+   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */`,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "address",
+						Optional:    false,
+						Description: ``,
+						Type:        smd.String,
+					},
+					{
+						Name:        "block",
+						Optional:    false,
+						Description: ``,
+						Type:        smd.Integer,
+					},
+				},
+				Returns: smd.JSONSchema{
+					Description: ``,
+					Optional:    false,
+					Type:        smd.String,
+				},
+			},
+			"Eth_getTransactionCount": {
+				Description: `/* Returns the number of transactions sent from an address.
+   - address: 20 Bytes - address to check for balance
+   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */`,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "address",
+						Optional:    false,
+						Description: ``,
+						Type:        smd.String,
+					},
+					{
+						Name:        "block",
+						Optional:    false,
+						Description: ``,
+						Type:        smd.String,
+					},
+				},
+				Returns: smd.JSONSchema{
+					Description: ``,
+					Optional:    false,
+					Type:        smd.String,
+				},
+			},
+			"Eth_sendrawtransaction": {
+				Description: `/* Creates new message call transaction or a contract creation for signed transactions.
+   - signedTxData: The signed transaction data. */`,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "signedTxData",
+						Optional:    false,
+						Description: ``,
+						Type:        smd.String,
 					},
 				},
 				Returns: smd.JSONSchema{
@@ -105,12 +187,12 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 
 	case RPC.MetaMask.Eth_getBalance:
 		var args = struct {
-			Addr        string `json:"addr"`
+			Address     string `json:"address"`
 			BlockNumber int    `json:"blockNumber"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"addr", "blockNumber"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"address", "blockNumber"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -121,16 +203,16 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 			}
 		}
 
-		resp.Set(s.Eth_getBalance(args.Addr, args.BlockNumber))
+		resp.Set(s.Eth_getBalance(args.Address, args.BlockNumber))
 
 	case RPC.MetaMask.Eth_getBlockByNumber:
 		var args = struct {
-			BlockNumber int  `json:"blockNumber"`
-			Filter      bool `json:"filter"`
+			Block  int  `json:"block"`
+			Filter bool `json:"filter"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"blockNumber", "filter"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"block", "filter"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -141,7 +223,69 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 			}
 		}
 
-		resp.Set(s.Eth_getBlockByNumber(args.BlockNumber, args.Filter))
+		resp.Set(s.Eth_getBlockByNumber(args.Block, args.Filter))
+
+	case RPC.MetaMask.Eth_gasPrice:
+		resp.Set(s.Eth_gasPrice())
+
+	case RPC.MetaMask.Eth_getCode:
+		var args = struct {
+			Address string `json:"address"`
+			Block   int    `json:"block"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"address", "block"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.Eth_getCode(args.Address, args.Block))
+
+	case RPC.MetaMask.Eth_getTransactionCount:
+		var args = struct {
+			Address string `json:"address"`
+			Block   string `json:"block"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"address", "block"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.Eth_getTransactionCount(args.Address, args.Block))
+
+	case RPC.MetaMask.Eth_sendrawtransaction:
+		var args = struct {
+			SignedTxData string `json:"signedTxData"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"signedTxData"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.Eth_sendrawtransaction(args.SignedTxData))
 
 	default:
 		resp = zenrpc.NewResponseError(nil, zenrpc.MethodNotFound, "", nil)
