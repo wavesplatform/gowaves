@@ -419,7 +419,7 @@ func main() {
 		}()
 	}
 
-	address := ":8245"
+	address := ":8545"
 	if *enableMetaMaskService {
 		go func() {
 			zap.S().Infof("Starting metamask service on %s...", address)
