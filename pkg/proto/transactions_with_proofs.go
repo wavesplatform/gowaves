@@ -1441,7 +1441,7 @@ func (tx *ExchangeWithProofs) Validate() (Transaction, error) {
 	if err != nil {
 		return tx, err
 	}
-	if tx.Price > bo.GetPrice() || tx.Price < so.GetPrice() {
+	if tx.Version < 3 && tx.Price > bo.GetPrice() || tx.Price < so.GetPrice() {
 		if tx.Price > bo.GetPrice() {
 			return tx, errors.Errorf("invalid price: tx.Price %d > bo.GetPrice() %d", tx.Price, bo.GetPrice())
 		}

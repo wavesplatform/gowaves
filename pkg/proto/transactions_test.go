@@ -2377,6 +2377,17 @@ func newSignedOrderV1(t *testing.T, sender, matcher crypto.PublicKey, amountAsse
 	return *o
 }
 
+func newSignedOrderV4(t *testing.T, sender, matcher crypto.PublicKey, amountAsset, priceAsset OptionalAsset, ot OrderType, price, amount, ts, exp, fee uint64, sID, sSig string) OrderV4 {
+	id, err := crypto.NewDigestFromBase58(sID)
+	require.NoError(t, err)
+	sig, err := crypto.NewSignatureFromBase58(sSig)
+	require.NoError(t, err)
+	o := NewUnsignedOrderV4(sender, matcher, amountAsset, priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{})
+	o.ID = &id
+	o.Proofs = NewProofsFromSignature(&sig)
+	return *o
+}
+
 func TestExchangeWithSigFromMainNet(t *testing.T) {
 	tests := []struct {
 		matcher        string
@@ -2718,6 +2729,19 @@ func TestExchangeWithProofsValidations(t *testing.T) {
 		assert.Error(t, err)
 		assert.Regexp(t, tc.err, err, fmt.Sprintf("expected error: %s", tc.err))
 	}
+}
+
+func TestExchangeV3PriceValidation(t *testing.T) {
+	buySender, _ := crypto.NewPublicKeyFromBase58("HFw9wjsuaeZ6w8HqJeyxz9RUXJN8krLpgjwtPrqyicr")
+	sellSender, _ := crypto.NewPublicKeyFromBase58("BvJEWY79uQEFetuyiZAF5U4yjPioMj9J6ZrF9uTNfe3E")
+	mpk, _ := crypto.NewPublicKeyFromBase58("BvJEWY79uQEFetuyiZAF5U4yjPioMj9J6ZrF9uTNfe3E")
+	aa, _ := NewOptionalAssetFromString("3JmaWyFqWo8YSA8x3DXCBUW7veesxacvKx19dMv7wTMg")
+	pa, _ := NewOptionalAssetFromString("25FEqEjRkqK6yCkiT7Lz6SAYz7gUFCtxfCChnrVFD5AT")
+	sbo := newSignedOrderV4(t, buySender, mpk, *aa, *pa, Buy, 1000000, 800000000, 1624445095222, 1626950695222, 300000, "3fdNTCQ7o2TvN8eDV3m7J9aSLxcUitwN2SMZpn1irSXX", "3aKUz8boZingH8r18grL8Rst5RyGVnESaQtuEoV5piUnvJKNf67xFwFpPpmfiuAuud1AAzj94xYNw1MKkmJaBicR")
+	sso := newSignedOrderV4(t, sellSender, mpk, *aa, *pa, Sell, 1000000, 800000000, 1624445095267, 1626950695267, 300000, "81Xc8YP1Ev2bqvSLgN5k3ent6Fr7rnEdCg8x2DH5twqX", "4VQmM6QB8yaQ1AChNNkVH5EvVKenS8YG7YqXK9SsjWAnjJm5xvd48kW2akwcEbhgzqqGMDtS2AmeGSfpEcHEMYGU")
+	tx := NewUnsignedExchangeWithProofs(3, &sbo, &sso, 100000000, 800000000, 100, 100, 300000, 1624445095293)
+	_, err := tx.Validate()
+	assert.NoError(t, err)
 }
 
 func TestExchangeWithProofsFromTestNet(t *testing.T) {
