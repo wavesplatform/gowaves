@@ -186,8 +186,7 @@ func validContentType(t byte) bool {
 	return t >= 1 && t <= 3
 }
 
-// version in range [0, 5)
-func validStdVersion(v byte) bool {
+func validScriptVersion(v byte) bool {
 	return v <= topRideVersion
 }
 
@@ -200,10 +199,9 @@ func (tx *IssueWithProofs) Validate() (Transaction, error) {
 		return tx, err
 	}
 	if tx.NonEmptyScript() {
-		if !validStdVersion(tx.Script[0]) {
+		if !validScriptVersion(tx.Script[0]) {
 			return tx, errors.Errorf("Invalid version of script: %d", tx.Script[0])
 		}
-
 		if tx.Script[0] == 0 { // version byte
 			if len(tx.Script) <= 2 {
 				return tx, errors.Errorf("Illegal length of script: %d", len(tx.Script))
@@ -211,12 +209,10 @@ func (tx *IssueWithProofs) Validate() (Transaction, error) {
 			if !validContentType(tx.Script[1]) {
 				return tx, errors.Errorf("Invalid content type of script: %d", tx.Script[1])
 			}
-			if tx.Script[2] > topRideVersion {
+			if !validScriptVersion(tx.Script[2]) {
 				return tx, errors.Errorf("Invalid version of script: %d", tx.Script[2])
 			}
-
 		}
-
 		if !tx.Script.IsValidChecksum() {
 			return tx, errors.Errorf("Invalid checksum: %+v", []byte(tx.Script))
 		}
