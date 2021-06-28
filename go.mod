@@ -37,12 +37,13 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d
 	github.com/throttled/throttled/v2 v2.7.1
+	github.com/umbracle/fastrlp v0.0.0-20210128110402-41364ca56ca8
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/xenolf/lego v2.7.2+incompatible
 	go.uber.org/atomic v1.4.0
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.10.0
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/net v0.0.0-20201006153459-a7d1128ccaa0 // indirect
 	golang.org/x/sys v0.0.0-20201008064518-c1f3e3309c71
 	google.golang.org/genproto v0.0.0-20201007142714-5c0e72c5e71e // indirect

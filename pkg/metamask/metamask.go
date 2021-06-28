@@ -1,6 +1,12 @@
 package metamask
 
-import "github.com/semrush/zenrpc/v2"
+import (
+	"encoding/hex"
+	"github.com/semrush/zenrpc/v2"
+	"github.com/umbracle/fastrlp"
+	"go.uber.org/zap"
+	"strings"
+)
 
 //go:generate zenrpc
 
@@ -54,6 +60,17 @@ func (as MetaMask) Eth_getTransactionCount(address string, block string) string 
 /* Creates new message call transaction or a contract creation for signed transactions.
    - signedTxData: The signed transaction data. */
 func (as MetaMask) Eth_sendrawtransaction(signedTxData string) string {
-	// returns 32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available.
+	encodedTx := strings.TrimPrefix(signedTxData, "0x")
+
+	data, err := hex.DecodeString(encodedTx)
+	if err != nil {
+		zap.S().Errorf("Eth_sendrawtransaction: failed to decode tx: %v", err)
+	}
+
+	parse := fastrlp.Parser{}
+	rlpVal, err := parse.Parse(data)
+	var tx LegacyTx
+	err = tx.unmarshalFromFastRLP(rlpVal)
+
 	return ""
 }
