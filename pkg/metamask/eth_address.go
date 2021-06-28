@@ -1,10 +1,5 @@
 package metamask
 
-import (
-	"github.com/pkg/errors"
-	"github.com/umbracle/fastrlp"
-)
-
 const (
 	// EthAddressLength is the expected length of the address in bytes
 	EthAddressLength = 20
@@ -20,13 +15,13 @@ func (a *EthAddress) Bytes() []byte {
 	return nil
 }
 
-func (a *EthAddress) unmarshalFromFastRLP(val *fastrlp.Value) error {
-	if err := val.GetAddr(a[:]); err != nil {
-		return errors.Wrap(err, "failed to unmarshal Address from fastRLP value")
-	}
-	return nil
-}
-
-func (a *EthAddress) marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Value {
-	return arena.NewBytes(a.Bytes())
-}
+//func (a *EthAddress) unmarshalFromFastRLP(val *fastrlp.Value) error {
+//	if err := val.GetAddr(a[:]); err != nil {
+//		return errors.Wrap(err, "failed to unmarshal Address from fastRLP value")
+//	}
+//	return nil
+//}
+//
+//func (a *EthAddress) marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Value {
+//	return arena.NewBytes(a.Bytes())
+//}

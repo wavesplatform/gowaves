@@ -69,8 +69,14 @@ func (as MetaMask) Eth_sendrawtransaction(signedTxData string) string {
 
 	parse := fastrlp.Parser{}
 	rlpVal, err := parse.Parse(data)
+	if err != nil {
+		zap.S().Errorf("Eth_sendrawtransaction: failed to parse tx: %v", err)
+	}
 	var tx LegacyTx
 	err = tx.unmarshalFromFastRLP(rlpVal)
+	if err != nil {
+		zap.S().Errorf("Eth_sendrawtransaction: failed to unmarshal rlp value: %v", err)
+	}
 
 	return ""
 }
