@@ -1297,7 +1297,11 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initia
 		if err != nil {
 			return err
 		}
-		if err = s.stor.leases.cancelLeasesToAliases(disabledAliases, blockID); err != nil {
+		changes, err := s.stor.leases.cancelLeasesToAliases(disabledAliases, blockID)
+		if err != nil {
+			return err
+		}
+		if err := s.stor.balances.cancelLeases(changes, blockID); err != nil {
 			return err
 		}
 	}

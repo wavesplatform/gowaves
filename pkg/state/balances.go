@@ -339,6 +339,31 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.Address]int64
 	return nil
 }
 
+func (s *balances) cancelLeases(changes map[proto.Address]balanceDiff, blockID proto.BlockID) error {
+	zap.S().Infof("Updating balances for cancelled leases")
+	for a, bd := range changes {
+		k := wavesBalanceKey{address: a}
+		r, err := s.newestWavesRecord(k.bytes(), true)
+		if err != nil {
+			return err
+		}
+		profile := r.balanceProfile
+		newProfile, err := bd.applyTo(&profile)
+		if err != nil {
+			return err
+		}
+		val := &wavesValue{leaseChange: true, profile: *newProfile}
+		if err := s.setWavesBalance(a, val, blockID); err != nil {
+			return err
+		}
+		zap.S().Infof("Balance of %s changed from (B: %d, LIn: %d, LOut: %d) to (B: %d, lIn: %d, lOut: %d)",
+			a.String(), profile.balance, profile.leaseIn, profile.leaseOut,
+			newProfile.balance, newProfile.leaseIn, newProfile.leaseOut)
+	}
+	zap.S().Infof("Finished to update balances")
+	return nil
+}
+
 type assetInfoFn func(crypto.Digest, bool) (*assetInfo, error)
 
 func (s *balances) nftList(addr proto.Address, limit uint64, after []byte, assetInfoById assetInfoFn) ([]crypto.Digest, error) {
