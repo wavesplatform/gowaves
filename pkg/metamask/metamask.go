@@ -5,6 +5,7 @@ import (
 	"github.com/semrush/zenrpc/v2"
 	"github.com/umbracle/fastrlp"
 	"go.uber.org/zap"
+	"math/big"
 	"strings"
 )
 
@@ -60,23 +61,34 @@ func (as MetaMask) Eth_getTransactionCount(address string, block string) string 
 /* Creates new message call transaction or a contract creation for signed transactions.
    - signedTxData: The signed transaction data. */
 func (as MetaMask) Eth_sendrawtransaction(signedTxData string) string {
+
 	encodedTx := strings.TrimPrefix(signedTxData, "0x")
 
 	data, err := hex.DecodeString(encodedTx)
 	if err != nil {
-		zap.S().Errorf("Eth_sendrawtransaction: failed to decode tx: %v", err)
+		zap.S().Errorf("failed to decode tx")
 	}
 
 	parse := fastrlp.Parser{}
 	rlpVal, err := parse.Parse(data)
-	if err != nil {
-		zap.S().Errorf("Eth_sendrawtransaction: failed to parse tx: %v", err)
-	}
 	var tx LegacyTx
-	err = tx.unmarshalFromFastRLP(rlpVal)
-	if err != nil {
-		zap.S().Errorf("Eth_sendrawtransaction: failed to unmarshal rlp value: %v", err)
-	}
+	err = tx.UnmarshalFromFastRLP(rlpVal)
+
+	// returns 32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available.
+	blockNumber := big.NewInt(5)
+	conifg := &ChainConfig{}
+	tx.chainID()
+	chainID := deriveChainId(tx.V)
+	conifg.ChainID = chainID
+	var rawTx Transaction
+
+	rawTx = NewTx(&tx)
+
+	signer := MakeSigner(conifg, blockNumber)
+	sender, err := Sender(signer, &rawTx)
+
+	zap.S().Infof("Receiver is %s\n", tx.To.Hex())
+	zap.S().Infof("Sender is %s\n", sender.Hex())
 
 	return ""
 }

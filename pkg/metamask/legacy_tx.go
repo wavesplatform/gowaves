@@ -9,16 +9,16 @@ import (
 
 // LegacyTx is the transaction data of regular Ethereum transactions.
 type LegacyTx struct {
-	Nonce    uint64      // nonce of sender account
-	GasPrice *big.Int    // wei per gas
-	Gas      uint64      // gas limit
-	To       *EthAddress // nil value means contract creation
-	Value    *big.Int    // wei amount
-	Data     []byte      // contract invocation input data
-	V, R, S  *big.Int    // signature values
+	Nonce    uint64   // nonce of sender account
+	GasPrice *big.Int // wei per gas
+	Gas      uint64   // gas limit
+	To       *Address // nil value means contract creation
+	Value    *big.Int // wei amount
+	Data     []byte   // contract invocation input data
+	V, R, S  *big.Int // signature values
 }
 
-func (ltx *LegacyTx) unmarshalFromFastRLP(value *fastrlp.Value) error {
+func (ltx *LegacyTx) UnmarshalFromFastRLP(value *fastrlp.Value) error {
 	const legacyTxFieldsCount = 9
 
 	elems, err := value.GetElems()
@@ -105,7 +105,7 @@ func (ltx *LegacyTx) DecodeRLP(rlpData []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := ltx.unmarshalFromFastRLP(rlpVal); err != nil {
+	if err := ltx.UnmarshalFromFastRLP(rlpVal); err != nil {
 		return errors.Wrap(err, "failed to parse LegacyTx from RLP encoded data")
 	}
 	return nil
@@ -119,4 +119,40 @@ func (ltx *LegacyTx) EncodeRLP(w io.Writer) error {
 		return err
 	}
 	return nil
+}
+
+// copy creates a deep copy of the transaction data and initializes all fields.
+func (ltx *LegacyTx) copy() TxData {
+	return &LegacyTx{
+		Nonce:    ltx.Nonce,
+		GasPrice: copyBigInt(ltx.GasPrice),
+		Gas:      ltx.Gas,
+		To:       ltx.To.copy(),
+		Value:    copyBigInt(ltx.Value),
+		Data:     copyBytes(ltx.Data),
+		V:        copyBigInt(ltx.V),
+		R:        copyBigInt(ltx.R),
+		S:        copyBigInt(ltx.S),
+	}
+}
+
+// accessors for innerTx.
+func (ltx *LegacyTx) txType() byte           { return LegacyTxType }
+func (ltx *LegacyTx) chainID() *big.Int      { return deriveChainId(ltx.V) }
+func (ltx *LegacyTx) accessList() AccessList { return nil }
+func (ltx *LegacyTx) data() []byte           { return ltx.Data }
+func (ltx *LegacyTx) gas() uint64            { return ltx.Gas }
+func (ltx *LegacyTx) gasPrice() *big.Int     { return ltx.GasPrice }
+func (ltx *LegacyTx) gasTipCap() *big.Int    { return ltx.GasPrice }
+func (ltx *LegacyTx) gasFeeCap() *big.Int    { return ltx.GasPrice }
+func (ltx *LegacyTx) value() *big.Int        { return ltx.Value }
+func (ltx *LegacyTx) nonce() uint64          { return ltx.Nonce }
+func (ltx *LegacyTx) to() *Address           { return ltx.To }
+
+func (ltx *LegacyTx) rawSignatureValues() (v, r, s *big.Int) {
+	return ltx.V, ltx.R, ltx.S
+}
+
+func (ltx *LegacyTx) setSignatureValues(chainID, v, r, s *big.Int) {
+	ltx.V, ltx.R, ltx.S = v, r, s
 }

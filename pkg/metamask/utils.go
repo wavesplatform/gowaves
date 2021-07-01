@@ -6,12 +6,12 @@ import (
 	"math/big"
 )
 
-func unmarshalTransactionToFieldFastRLP(value *fastrlp.Value) (*EthAddress, error) {
+func unmarshalTransactionToFieldFastRLP(value *fastrlp.Value) (*Address, error) {
 	toBytes, err := value.Bytes()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse TO bytes")
 	}
-	addrTo := &EthAddress{}
+	addrTo := &Address{}
 	switch len(toBytes) {
 	case 0:
 		addrTo = nil
@@ -37,4 +37,22 @@ func unmarshalSignatureValuesFastRLP(vValue, rValue, sValue *fastrlp.Value) (V, 
 	}
 
 	return V, R, S, nil
+}
+
+// copyBytes returns an exact copy of the provided bytes.
+func copyBytes(bytes []byte) []byte {
+	if bytes == nil {
+		return nil
+	}
+	copiedBytes := make([]byte, len(bytes))
+	copy(copiedBytes, bytes)
+	return copiedBytes
+}
+
+// copyBytes returns an exact copy of the provided big.Int.
+func copyBigInt(v *big.Int) *big.Int {
+	if v == nil {
+		return nil
+	}
+	return new(big.Int).Set(v)
 }
