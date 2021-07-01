@@ -82,24 +82,27 @@ func (a *IdleFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 
 func (a *IdleFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 	metrics.FSMScore("idle", score, p.Handshake().NodeName)
-	ok, err := a.baseInfo.IsNewScoreHigher(p, score)
+	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
+		return a, nil, err
+	}
+	nodeScore, err := a.baseInfo.storage.CurrentScore()
 	if err != nil {
 		return a, nil, err
 	}
-	if !ok { // New score is not higher than our own score, nothing to do
-		return a, nil, nil
+	if score.Cmp(nodeScore) == 1 {
+		lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(a.baseInfo.storage)
+		if err != nil {
+			return a, nil, err
+		}
+		internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, a.baseInfo.scheme), lastSignatures)
+		c := conf{
+			peerSyncWith: p,
+			timeout:      30 * time.Second,
+		}
+		zap.S().Debugf("[Idle] Starting synchronisation with peer '%s'", p.ID())
+		return NewSyncFsm(a.baseInfo, c.Now(), internal)
 	}
-	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(a.baseInfo.storage)
-	if err != nil {
-		return a, nil, err
-	}
-	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, a.baseInfo.scheme), lastSignatures)
-	c := conf{
-		peerSyncWith: p,
-		timeout:      30 * time.Second,
-	}
-	zap.S().Debugf("[Idle] Starting synchronisation with peer '%s'", p.ID())
-	return NewSyncFsm(a.baseInfo, c.Now(), internal)
+	return noop(a)
 }
 
 func (a *IdleFsm) Block(_ peer.Peer, _ *proto.Block) (FSM, Async, error) {

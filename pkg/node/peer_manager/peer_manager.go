@@ -4,7 +4,6 @@ import (
 	"context"
 	"math/big"
 	"net"
-	"sort"
 	"sync"
 	"time"
 
@@ -30,12 +29,6 @@ func newPeerInfo(peer peer.Peer) peerInfo {
 	}
 }
 
-type byScore []peerInfo
-
-func (a byScore) Len() int           { return len(a) }
-func (a byScore) Less(i, j int) bool { return a[i].score.Cmp(a[j].score) < 0 }
-func (a byScore) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
 type PeerManager interface {
 	Connected(peer.Peer) (peer.Peer, bool)
 	NewConnection(peer.Peer) error
@@ -46,7 +39,6 @@ type PeerManager interface {
 	Suspend(peer peer.Peer, suspendTime time.Time, reason string)
 	Suspended() []storage.SuspendedPeer
 	AddConnected(peer.Peer)
-	PeerWithHighestScore() (peer.Peer, *big.Int, bool)
 	UpdateScore(p peer.Peer, score *proto.Score) error
 	UpdateKnownPeers([]storage.KnownPeer) error
 	KnownPeers() []storage.KnownPeer
@@ -193,25 +185,6 @@ func (a *PeerManagerImpl) AddConnected(peer peer.Peer) {
 	defer a.mu.Unlock()
 	delete(a.spawned, peer.RemoteAddr().ToIpPort())
 	a.active[peer] = newPeerInfo(peer)
-}
-
-func (a *PeerManagerImpl) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
-	if len(a.active) == 0 {
-		return nil, nil, false
-	}
-
-	peers := make([]peerInfo, 0, len(a.active))
-	for _, p := range a.active {
-		peers = append(peers, p)
-	}
-
-	sort.Sort(byScore(peers))
-
-	highest := peers[len(peers)-1]
-	return highest.peer, highest.score, true
 }
 
 func (a *PeerManagerImpl) UpdateScore(p peer.Peer, score *big.Int) error {

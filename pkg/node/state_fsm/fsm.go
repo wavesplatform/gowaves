@@ -1,7 +1,6 @@
 package state_fsm
 
 import (
-	"math/big"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
@@ -73,30 +72,6 @@ func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.P
 
 func (a *BaseInfo) CleanUtx() {
 	utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
-}
-
-func (a *BaseInfo) IsNewScoreHigher(p peer.Peer, s *proto.Score) (bool, error) {
-	var networkHighestScore *big.Int
-	if _, s, ok := a.peers.PeerWithHighestScore(); ok {
-		networkHighestScore = s
-	}
-	if s.Cmp(networkHighestScore) == 1 { // Received score is higher than any known score
-		err := a.peers.UpdateScore(p, s)
-		if err != nil {
-			return false, err
-		}
-		myScore, err := a.storage.CurrentScore()
-		if err != nil {
-			return false, err
-		}
-		return s.Cmp(myScore) == 1, nil
-	} else { // Not the highest on the network, just update the nodes score
-		err := a.peers.UpdateScore(p, s)
-		if err != nil {
-			return false, err
-		}
-		return false, nil
-	}
 }
 
 type FromBaseInfo interface {

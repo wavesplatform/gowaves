@@ -5,7 +5,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
-	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/sync_internal"
 	"github.com/wavesplatform/gowaves/pkg/node/state_fsm/tasks"
@@ -132,24 +131,30 @@ func (a *SyncFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 
 func (a *SyncFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 	metrics.FSMScore("sync", score, p.Handshake().NodeName)
-	ok, err := a.baseInfo.IsNewScoreHigher(p, score)
-	if err != nil {
+	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
 		return a, nil, err
 	}
-	if !ok { // New score is not higher than our own score, nothing to do
-		return a, nil, nil
-	}
-	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(a.baseInfo.storage)
-	if err != nil {
-		return a, nil, err
-	}
-	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, a.baseInfo.scheme), lastSignatures)
-	c := conf{
-		peerSyncWith: p,
-		timeout:      30 * time.Second,
-	}
-	zap.S().Debugf("[Sync] Higher score received, strating synchronisation with peer '%s'", p.ID())
-	return NewSyncFsm(a.baseInfo, c.Now(), internal)
+	//TODO: Handle new higher score
+	/*
+		nodeScore, err := a.baseInfo.storage.CurrentScore()
+		if err != nil {
+			return a, nil, err
+		}
+		if score.Cmp(nodeScore) == 1 {
+			lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(a.baseInfo.storage)
+			if err != nil {
+				return a, nil, err
+			}
+			internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, a.baseInfo.scheme), lastSignatures)
+			c := conf{
+				peerSyncWith: p,
+				timeout:      30 * time.Second,
+			}
+			zap.S().Debugf("[Sync] Higher score received, starting synchronisation with peer '%s'", p.ID())
+			return NewSyncFsm(a.baseInfo, c.Now(), internal)
+		}
+	*/
+	return noop(a)
 }
 
 func (a *SyncFsm) Block(p peer.Peer, block *proto.Block) (FSM, Async, error) {

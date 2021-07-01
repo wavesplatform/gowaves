@@ -10,7 +10,6 @@ import (
 	storage "github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	peer "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	proto "github.com/wavesplatform/gowaves/pkg/proto"
-	big "math/big"
 	net "net"
 	reflect "reflect"
 	time "time"
@@ -159,22 +158,6 @@ func (m *MockPeerManager) AddConnected(arg0 peer.Peer) {
 func (mr *MockPeerManagerMockRecorder) AddConnected(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddConnected", reflect.TypeOf((*MockPeerManager)(nil).AddConnected), arg0)
-}
-
-// PeerWithHighestScore mocks base method
-func (m *MockPeerManager) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PeerWithHighestScore")
-	ret0, _ := ret[0].(peer.Peer)
-	ret1, _ := ret[1].(*big.Int)
-	ret2, _ := ret[2].(bool)
-	return ret0, ret1, ret2
-}
-
-// PeerWithHighestScore indicates an expected call of PeerWithHighestScore
-func (mr *MockPeerManagerMockRecorder) PeerWithHighestScore() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PeerWithHighestScore", reflect.TypeOf((*MockPeerManager)(nil).PeerWithHighestScore))
 }
 
 // UpdateScore mocks base method
