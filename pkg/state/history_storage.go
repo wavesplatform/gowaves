@@ -229,7 +229,7 @@ func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 		dataSize := len(data)
 		recordSize := property.recordSize
 		if dataSize < 1+recordSize {
-			return nil, errInvalidDataSize
+			return nil, errors.Wrapf(errInvalidDataSize, "entity type %v", entityType)
 		}
 		for i := 1; i <= dataSize-recordSize; i += recordSize {
 			var entry historyEntry
