@@ -163,6 +163,7 @@ func (a *NGFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPai
 		metrics.FSMKeyBlockDeclined("ng", block, err)
 		return a, nil, err
 	}
+	zap.S().Infof("Key block '%s' generated and applied", block.ID.String())
 	metrics.FSMKeyBlockApplied("ng", block)
 
 	a.blocksCache.Clear()
