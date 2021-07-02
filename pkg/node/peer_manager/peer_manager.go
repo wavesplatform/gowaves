@@ -123,7 +123,7 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 	}
 	if a.IsSuspended(p) {
 		_ = p.Close()
-		return errors.New("peer is suspended")
+		return errors.Errorf("peer '%s' is suspended", p.ID())
 	}
 	if p.Handshake().Version.CmpMinor(a.version) >= 2 {
 		err := errors.Errorf(
