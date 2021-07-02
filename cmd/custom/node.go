@@ -46,7 +46,7 @@ var (
 	apiAddr           = flag.String("api-address", "", "Address for REST API")
 	grpcAddr          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
 	cfgPath           = flag.String("cfg-path", "", "Path to configuration JSON file. No default value.")
-	enableGrpcApi     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
+	enableGrpcApi     = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
 	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
 	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	buildStateHashes  = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
