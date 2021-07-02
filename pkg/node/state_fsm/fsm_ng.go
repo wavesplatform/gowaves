@@ -35,9 +35,11 @@ func (a *NGFsm) Task(task AsyncTask) (FSM, Async, error) {
 	case Ping:
 		return noop(a)
 	case AskPeers:
+		zap.S().Debug("[NG] Requesting peers")
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case MineMicro:
+		zap.S().Debug("[NG] Generating micro-block")
 		t := task.Data.(MineMicroTaskData)
 		return a.mineMicro(t.Block, t.Limits, t.KeyPair, t.Vrf)
 	default:

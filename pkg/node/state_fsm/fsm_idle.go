@@ -49,17 +49,17 @@ func (a *IdleFsm) MicroBlockInv(_ peer.Peer, _ *proto.MicroBlockInv) (FSM, Async
 }
 
 func (a *IdleFsm) Task(task tasks.AsyncTask) (FSM, Async, error) {
-	zap.S().Debugf("IdleFsm Task: got task type %d, data %+v", task.TaskType, task.Data)
 	switch task.TaskType {
 	case tasks.Ping:
 		return noop(a)
 	case tasks.AskPeers:
+		zap.S().Debug("[Idle] Requesting peers")
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.MineMicro: // Do nothing
 		return a, nil, nil
 	default:
-		return a, nil, errors.Errorf("IdleFsm Task: unknown task type %d, data %+v", task.TaskType, task.Data)
+		return a, nil, errors.Errorf("unexpected internal task '%d' with data '%+v' received by %s FSM", task.TaskType, task.Data, a.String())
 	}
 }
 
@@ -100,7 +100,7 @@ func (a *IdleFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 			timeout:      30 * time.Second,
 		}
 		zap.S().Debugf("[Idle] Starting synchronisation with peer '%s'", p.ID())
-		return NewSyncFsm(a.baseInfo, c.Now(), internal)
+		return NewSyncFsm(a.baseInfo, c.Now(a.baseInfo.tm), internal)
 	}
 	return noop(a)
 }

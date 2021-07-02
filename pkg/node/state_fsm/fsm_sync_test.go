@@ -15,6 +15,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+//go:generate moq -pkg state_fsm -out time_moq.go ../../types Time:MockTime
+
 func TestSyncFsm_Sync(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -28,7 +30,15 @@ func TestSyncFsm_Sync(t *testing.T) {
 	mockPeer.EXPECT().Handshake().Return(proto.Handshake{Version: proto.NewVersion(1, 2, 0)})
 	mockPeer.EXPECT().SendMessage(gomock.Any())
 
-	baseInfo := BaseInfo{peers: mockManager, storage: mockState}
+	baseInfo := BaseInfo{
+		peers:   mockManager,
+		storage: mockState,
+		tm: &MockTime{
+			NowFunc: func() time.Time {
+				return time.Now()
+			},
+		},
+	}
 	lastSignatures, err := signatures.LastSignaturesImpl{}.LastBlockIDs(baseInfo.storage)
 	require.NoError(t, err)
 	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(mockPeer, baseInfo.scheme), lastSignatures)
@@ -36,7 +46,7 @@ func TestSyncFsm_Sync(t *testing.T) {
 		peerSyncWith: mockPeer,
 		timeout:      30 * time.Second,
 	}
-	fsm, async, err := NewSyncFsm(baseInfo, c.Now(), internal)
+	fsm, async, err := NewSyncFsm(baseInfo, c.Now(baseInfo.tm), internal)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, fsm)

@@ -12,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 )
 
@@ -23,10 +24,10 @@ type conf struct {
 	timeout time.Duration
 }
 
-func (c conf) Now() conf {
+func (c conf) Now(tm types.Time) conf {
 	return conf{
 		peerSyncWith:    c.peerSyncWith,
-		lastReceiveTime: time.Now(),
+		lastReceiveTime: tm.Now(),
 		timeout:         c.timeout,
 	}
 }
@@ -68,18 +69,18 @@ func (a *SyncFsm) MicroBlockInv(_ peer.Peer, _ *proto.MicroBlockInv) (FSM, Async
 func (a *SyncFsm) Task(task tasks.AsyncTask) (FSM, Async, error) {
 	switch task.TaskType {
 	case tasks.AskPeers:
-		zap.S().Debug("[Sync] Got internal AskPeers task")
+		zap.S().Debug("[Sync] Requesting peers")
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.Ping:
-		zap.S().Debug("[Sync] Got internal Ping task")
+		zap.S().Debug("[Sync] Checking timeout")
 		timeout := a.conf.lastReceiveTime.Add(a.conf.timeout).Before(a.baseInfo.tm.Now())
 		if timeout {
 			zap.S().Debugf("[Sync] Timeout (%s) while syncronisation with peer '%s'", a.conf.timeout.String(), a.conf.peerSyncWith.ID())
 			return NewIdleFsm(a.baseInfo), nil, TimeoutErr
 		}
 		return a, nil, nil
-	case tasks.MineMicro: // Do nothing
+	case tasks.MineMicro:
 		return a, nil, nil
 	default:
 		return a, nil, errors.Errorf("unexpected internal task '%d' with data '%+v' received by %s FSM", task.TaskType, task.Data, a.String())
@@ -111,7 +112,7 @@ func (a *SyncFsm) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (FSM, Asy
 	}
 	if internal.RequestedCount() > 0 {
 		// Blocks were requested waiting for them to receive and apply
-		return newSyncFsm(a.baseInfo, a.conf.Now(), internal), nil, nil
+		return newSyncFsm(a.baseInfo, a.conf.Now(a.baseInfo.tm), internal), nil, nil
 	}
 	// No blocks were request, switching to NG working mode
 	err = a.baseInfo.storage.StartProvidingExtendedApi()
@@ -167,7 +168,7 @@ func (a *SyncFsm) Block(p peer.Peer, block *proto.Block) (FSM, Async, error) {
 	if err != nil {
 		return newSyncFsm(a.baseInfo, a.conf, internal), nil, err
 	}
-	return a.applyBlocks(a.baseInfo, a.conf.Now(), internal)
+	return a.applyBlocks(a.baseInfo, a.conf.Now(a.baseInfo.tm), internal)
 }
 
 func (a *SyncFsm) MinedBlock(block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte) (FSM, Async, error) {
