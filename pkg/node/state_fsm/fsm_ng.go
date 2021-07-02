@@ -91,7 +91,7 @@ func (a *NGFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 			timeout:      30 * time.Second,
 		}
 		zap.S().Debugf("[NG] Higher score received, starting synchronisation with peer '%s'", p.ID())
-		return NewSyncFsm(a.baseInfo, c, internal)
+		return NewSyncFsm(a.baseInfo, c.Now(a.baseInfo.tm), internal)
 	}
 	return noop(a)
 }
