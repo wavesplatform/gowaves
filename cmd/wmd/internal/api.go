@@ -645,7 +645,7 @@ func (a *DataFeedAPI) convertToTickerInfo(aa, pa *data.AssetInfo, aaBalance, paB
 	return data.NewTickerInfo(sb.String(), *aa, *pa, aaBalance, paBalance, c)
 }
 
-func (a *DataFeedAPI) getIssuerBalance(issuer proto.Address, asset crypto.Digest) (uint64, error) {
+func (a *DataFeedAPI) getIssuerBalance(issuer proto.WavesAddress, asset crypto.Digest) (uint64, error) {
 	if bytes.Equal(issuer[:], data.WavesIssuerAddress[:]) {
 		return 0, nil
 	}

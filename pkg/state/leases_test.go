@@ -68,7 +68,7 @@ func TestCancelLeases(t *testing.T) {
 	badSenderStr := leasings[0].sender
 	badSender, err := proto.NewAddressFromString(badSenderStr)
 	assert.NoError(t, err, "failed to create address from string")
-	sendersToCancel := make(map[proto.Address]struct{})
+	sendersToCancel := make(map[proto.WavesAddress]struct{})
 	var empty struct{}
 	sendersToCancel[badSender] = empty
 	err = to.leases.cancelLeases(sendersToCancel, blockID0)
@@ -124,7 +124,7 @@ func TestValidLeaseIns(t *testing.T) {
 		{"3PNXHYoWp83VaWudq9ds9LpS5xykWuJHiHp", 0xff},
 		{"3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo", 0xaa},
 	}
-	properLeaseIns := make(map[proto.Address]int64)
+	properLeaseIns := make(map[proto.WavesAddress]int64)
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")

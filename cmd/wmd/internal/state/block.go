@@ -12,7 +12,7 @@ import (
 
 type blockState struct {
 	snapshot        *leveldb.Snapshot
-	aliasBindings   map[proto.Alias]proto.Address
+	aliasBindings   map[proto.Alias]proto.WavesAddress
 	balances        map[assetBalanceKey]uint64
 	issuers         map[assetIssuerKey]struct{}
 	assets          map[assetKey]asset
@@ -24,7 +24,7 @@ type blockState struct {
 func newBlockState(snapshot *leveldb.Snapshot) *blockState {
 	return &blockState{
 		snapshot:        snapshot,
-		aliasBindings:   make(map[proto.Alias]proto.Address),
+		aliasBindings:   make(map[proto.Alias]proto.WavesAddress),
 		balances:        make(map[assetBalanceKey]uint64),
 		issuers:         make(map[assetIssuerKey]struct{}),
 		assets:          make(map[assetKey]asset),
@@ -34,8 +34,8 @@ func newBlockState(snapshot *leveldb.Snapshot) *blockState {
 	}
 }
 
-func (s *blockState) addressByAlias(alias proto.Alias) (proto.Address, bool, error) {
-	var a proto.Address
+func (s *blockState) addressByAlias(alias proto.Alias) (proto.WavesAddress, bool, error) {
+	var a proto.WavesAddress
 	a, ok := s.aliasBindings[alias]
 	if !ok {
 		k := aliasKey{prefix: aliasToAddressKeyPrefix, alias: alias}
@@ -54,7 +54,7 @@ func (s *blockState) addressByAlias(alias proto.Alias) (proto.Address, bool, err
 	return a, true, nil
 }
 
-func (s *blockState) isIssuer(address proto.Address, asset crypto.Digest) (bool, error) {
+func (s *blockState) isIssuer(address proto.WavesAddress, asset crypto.Digest) (bool, error) {
 	k := assetIssuerKey{address: address, asset: asset}
 	_, ok := s.issuers[k]
 	if !ok {
@@ -69,7 +69,7 @@ func (s *blockState) isIssuer(address proto.Address, asset crypto.Digest) (bool,
 	return true, nil
 }
 
-func (s *blockState) balance(address proto.Address, asset crypto.Digest) (uint64, assetBalanceKey, error) {
+func (s *blockState) balance(address proto.WavesAddress, asset crypto.Digest) (uint64, assetBalanceKey, error) {
 	k := assetBalanceKey{address: address, asset: asset}
 	var b uint64
 	b, ok := s.balances[k]

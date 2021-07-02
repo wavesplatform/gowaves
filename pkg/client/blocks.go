@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"net/http"
 )
 
 type Blocks struct {
@@ -81,23 +82,23 @@ func (a *Blocks) HeightByID(ctx context.Context, id proto.BlockID) (*BlocksHeigh
 }
 
 type Headers struct {
-	Version            uint64           `json:"version"`
-	Timestamp          uint64           `json:"timestamp"`
-	Reference          proto.BlockID    `json:"reference"`
-	NxtConsensus       NxtConsensus     `json:"nxt-consensus"`
-	TransactionsRoot   string           `json:"transactionsRoot"`
-	Features           []uint64         `json:"features"`
-	DesiredReward      int64            `json:"desiredReward"`
-	Generator          proto.Address    `json:"generator"`
-	GeneratorPublicKey string           `json:"generatorPublicKey"`
-	Signature          crypto.Signature `json:"signature"`
-	Blocksize          uint64           `json:"blocksize"`
-	TransactionCount   uint64           `json:"transactionCount"`
-	Height             uint64           `json:"height"`
-	TotalFee           int64            `json:"totalFee"`
-	Reward             int64            `json:"reward"`
-	VRF                string           `json:"VRF"`
-	ID                 proto.BlockID    `json:"id"`
+	Version            uint64             `json:"version"`
+	Timestamp          uint64             `json:"timestamp"`
+	Reference          proto.BlockID      `json:"reference"`
+	NxtConsensus       NxtConsensus       `json:"nxt-consensus"`
+	TransactionsRoot   string             `json:"transactionsRoot"`
+	Features           []uint64           `json:"features"`
+	DesiredReward      int64              `json:"desiredReward"`
+	Generator          proto.WavesAddress `json:"generator"`
+	GeneratorPublicKey string             `json:"generatorPublicKey"`
+	Signature          crypto.Signature   `json:"signature"`
+	Blocksize          uint64             `json:"blocksize"`
+	TransactionCount   uint64             `json:"transactionCount"`
+	Height             uint64             `json:"height"`
+	TotalFee           int64              `json:"totalFee"`
+	Reward             int64              `json:"reward"`
+	VRF                string             `json:"VRF"`
+	ID                 proto.BlockID      `json:"id"`
 }
 
 type NxtConsensus struct {
@@ -198,7 +199,7 @@ func (b *TransactionsField) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Get block at specified height
+// At gets block at specified height.
 func (a *Blocks) At(ctx context.Context, height uint64) (*Block, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/at/%d", height))
 	if err != nil {
@@ -241,7 +242,7 @@ func (a *Blocks) Delay(ctx context.Context, id proto.BlockID, blockNum uint64) (
 	return out.Delay, response, nil
 }
 
-// Get block by its signature
+// Signature gets block by its signature.
 func (a *Blocks) Signature(ctx context.Context, id proto.BlockID) (*Block, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/blocks/signature/%s", id.String()))
 	if err != nil {
@@ -346,7 +347,7 @@ func (a *Blocks) Seq(ctx context.Context, from, to uint64) ([]*Block, *Response,
 	return out, response, nil
 }
 
-func (a *Blocks) Address(ctx context.Context, addr proto.Address, from, to uint64) ([]*Block, *Response, error) {
+func (a *Blocks) Address(ctx context.Context, addr proto.WavesAddress, from, to uint64) ([]*Block, *Response, error) {
 	if from > to {
 		return nil, nil, errors.New("invalid arguments")
 	}

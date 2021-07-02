@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	// Address size + length of block num + transaction offset length.
-	addrTxRecordSize = proto.AddressSize + blockNumLen + txMetaSize
+	// AddressID size + length of block num + transaction offset length.
+	addrTxRecordSize = proto.AddressIDSize + blockNumLen + txMetaSize
 
 	maxEmsortMem = 200 * 1024 * 1024 // 200 MiB.
 
@@ -196,8 +196,8 @@ func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte
 	if err != nil {
 		return err
 	}
-	copy(newRecord[:proto.AddressSize], addr.Bytes())
-	pos := proto.AddressSize
+	copy(newRecord[:proto.AddressIDSize], addr.ID().Bytes())
+	pos := proto.AddressIDSize
 	info, err := at.rw.newestTransactionInfoByID(txID)
 	if err != nil {
 		return err
@@ -207,7 +207,7 @@ func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte
 	pos += blockNumLen
 	copy(newRecord[pos:], meta.bytes())
 	if at.params.providesData {
-		return at.stor.addRecordBytes(newRecord[:proto.AddressSize], newRecord[proto.AddressSize:], filter)
+		return at.stor.addRecordBytes(newRecord[:proto.AddressIDSize], newRecord[proto.AddressIDSize:], filter)
 	}
 	if _, err := at.addrTransactionsBuf.Write(newRecord); err != nil {
 		return err
@@ -219,7 +219,7 @@ func (at *addressTransactions) newTransactionsByAddrIterator(addr proto.Address)
 	if !at.params.providesData {
 		return nil, errors.New("state does not provide transactions by addresses now")
 	}
-	key := addr.Bytes()
+	key := addr.ID().Bytes()
 	iter, err := at.stor.newBackwardRecordIterator(key)
 	if err != nil {
 		return nil, err
@@ -244,8 +244,8 @@ func (at *addressTransactions) offsetFromBytes(offsetBytes []byte) uint64 {
 }
 
 func (at *addressTransactions) handleRecord(record []byte, filter bool) error {
-	key := record[:proto.AddressSize]
-	newRecordBytes := record[proto.AddressSize:]
+	key := record[:proto.AddressIDSize]
+	newRecordBytes := record[proto.AddressIDSize:]
 	lastOffsetBytes, err := at.stor.newestLastRecordByKey(key, filter)
 	if err == errNotFound {
 		// The first record for this key.
@@ -320,7 +320,7 @@ func (at *addressTransactions) persist(filter bool) error {
 		// we shouldn't check isValid() on records.
 		isValid := true
 		if filter {
-			blockNum := binary.BigEndian.Uint32(record[proto.AddressSize : proto.AddressSize+4])
+			blockNum := binary.BigEndian.Uint32(record[proto.AddressIDSize : proto.AddressIDSize+4])
 			isValid, err = at.stateDB.isValidBlock(blockNum)
 			if err != nil {
 				return errors.Wrap(err, "isValidBlock() failed")

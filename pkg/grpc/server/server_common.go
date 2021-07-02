@@ -35,7 +35,7 @@ func (s *Server) transactionToTransactionResponse(tx proto.Transaction, confirme
 	return res, nil
 }
 
-func (s *Server) newStateIterator(sender, recipient *proto.Address) (state.TransactionIterator, error) {
+func (s *Server) newStateIterator(sender, recipient *proto.WavesAddress) (state.TransactionIterator, error) {
 	if sender != nil {
 		return s.state.NewAddrTransactionsIterator(*sender)
 	} else if recipient != nil {

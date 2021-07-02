@@ -163,7 +163,7 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 		{addr2, balanceProfile{10, 1, 0}, blockID1, 1},
 		{addr3, balanceProfile{10, 5, 0}, blockID1, 0},
 	}
-	leaseIns := make(map[proto.Address]int64)
+	leaseIns := make(map[proto.WavesAddress]int64)
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")

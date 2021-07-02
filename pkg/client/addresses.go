@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"net/http"
-	"strings"
 )
 
 type Addresses struct {
@@ -24,13 +25,13 @@ func NewAddresses(options Options) *Addresses {
 }
 
 type AddressesBalance struct {
-	Address       proto.Address `json:"address"`
-	Confirmations uint64        `json:"confirmations"`
-	Balance       uint64        `json:"balance"`
+	Address       proto.WavesAddress `json:"address"`
+	Confirmations uint64             `json:"confirmations"`
+	Balance       uint64             `json:"balance"`
 }
 
 // Balance returns account's balance by its address
-func (a *Addresses) Balance(ctx context.Context, address proto.Address) (*AddressesBalance, *Response, error) {
+func (a *Addresses) Balance(ctx context.Context, address proto.WavesAddress) (*AddressesBalance, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("addresses/balance/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
@@ -51,15 +52,15 @@ func (a *Addresses) Balance(ctx context.Context, address proto.Address) (*Addres
 }
 
 type AddressesBalanceDetails struct {
-	Address    proto.Address `json:"address"`
-	Regular    uint64        `json:"regular"`
-	Generating uint64        `json:"generating"`
-	Available  uint64        `json:"available"`
-	Effective  uint64        `json:"effective"`
+	Address    proto.WavesAddress `json:"address"`
+	Regular    uint64             `json:"regular"`
+	Generating uint64             `json:"generating"`
+	Available  uint64             `json:"available"`
+	Effective  uint64             `json:"effective"`
 }
 
 // BalanceDetails returns account's detail balance by its address
-func (a *Addresses) BalanceDetails(ctx context.Context, address proto.Address) (*AddressesBalanceDetails, *Response, error) {
+func (a *Addresses) BalanceDetails(ctx context.Context, address proto.WavesAddress) (*AddressesBalanceDetails, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/balance/details/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
@@ -80,13 +81,13 @@ func (a *Addresses) BalanceDetails(ctx context.Context, address proto.Address) (
 }
 
 type AddressesScriptInfo struct {
-	Address    proto.Address `json:"address"`
-	Complexity uint64        `json:"complexity"`
-	ExtraFee   uint64        `json:"extraFee"`
+	Address    proto.WavesAddress `json:"address"`
+	Complexity uint64             `json:"complexity"`
+	ExtraFee   uint64             `json:"extraFee"`
 }
 
 // ScriptInfo gets account's script information
-func (a *Addresses) ScriptInfo(ctx context.Context, address proto.Address) (*AddressesScriptInfo, *Response, error) {
+func (a *Addresses) ScriptInfo(ctx context.Context, address proto.WavesAddress) (*AddressesScriptInfo, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/scriptInfo/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
@@ -106,8 +107,8 @@ func (a *Addresses) ScriptInfo(ctx context.Context, address proto.Address) (*Add
 	return out, response, nil
 }
 
-// Get wallet accounts addresses
-func (a *Addresses) Addresses(ctx context.Context) ([]proto.Address, *Response, error) {
+// Addresses gets wallet accounts addresses
+func (a *Addresses) Addresses(ctx context.Context) ([]proto.WavesAddress, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, "/addresses")
 	if err != nil {
 		return nil, nil, err
@@ -117,7 +118,7 @@ func (a *Addresses) Addresses(ctx context.Context) ([]proto.Address, *Response, 
 		return nil, nil, err
 	}
 
-	var out []proto.Address
+	var out []proto.WavesAddress
 	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
@@ -127,12 +128,12 @@ func (a *Addresses) Addresses(ctx context.Context) ([]proto.Address, *Response, 
 }
 
 type AddressesValidate struct {
-	Address proto.Address `json:"address"`
-	Valid   bool          `json:"valid"`
+	Address proto.WavesAddress `json:"address"`
+	Valid   bool               `json:"valid"`
 }
 
-// Check whether address is valid or not
-func (a *Addresses) Validate(ctx context.Context, address proto.Address) (*AddressesValidate, *Response, error) {
+// Validate checks whether address is valid or not
+func (a *Addresses) Validate(ctx context.Context, address proto.WavesAddress) (*AddressesValidate, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/validate/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
@@ -152,13 +153,13 @@ func (a *Addresses) Validate(ctx context.Context, address proto.Address) (*Addre
 }
 
 type AddressesEffectiveBalance struct {
-	Address       proto.Address `json:"address"`
-	Confirmations uint64        `json:"confirmations"`
-	Balance       uint64        `json:"balance"`
+	Address       proto.WavesAddress `json:"address"`
+	Confirmations uint64             `json:"confirmations"`
+	Balance       uint64             `json:"balance"`
 }
 
-// Account's balance
-func (a *Addresses) EffectiveBalance(ctx context.Context, address proto.Address) (*AddressesEffectiveBalance, *Response, error) {
+// EffectiveBalance gets account's balance
+func (a *Addresses) EffectiveBalance(ctx context.Context, address proto.WavesAddress) (*AddressesEffectiveBalance, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/effectiveBalance/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
@@ -178,11 +179,11 @@ func (a *Addresses) EffectiveBalance(ctx context.Context, address proto.Address)
 }
 
 type addressesPublicKey struct {
-	Address *proto.Address `json:"address"`
+	Address *proto.WavesAddress `json:"address"`
 }
 
-// Generate address from public key
-func (a *Addresses) PublicKey(ctx context.Context, publicKey string) (*proto.Address, *Response, error) {
+// PublicKey generates address from public key
+func (a *Addresses) PublicKey(ctx context.Context, publicKey string) (*proto.WavesAddress, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/publicKey/%s", publicKey))
 	if err != nil {
 		return nil, nil, err
@@ -211,8 +212,8 @@ type AddressesSignText struct {
 	Signature crypto.Signature `json:"signature"`
 }
 
-// Sign a message with a private key associated with address
-func (a *Addresses) SignText(ctx context.Context, address proto.Address, message string) (*AddressesSignText, *Response, error) {
+// SignText signs a message with a private key associated with address
+func (a *Addresses) SignText(ctx context.Context, address proto.WavesAddress, message string) (*AddressesSignText, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
 	}
@@ -250,8 +251,8 @@ type VerifyTextReq struct {
 	Signature crypto.Signature `json:"signature"`
 }
 
-// Check a signature of a message signed by an account
-func (a *Addresses) VerifyText(ctx context.Context, address proto.Address, body VerifyTextReq) (bool, *Response, error) {
+// VerifyText checks a signature of a message signed by an account
+func (a *Addresses) VerifyText(ctx context.Context, address proto.WavesAddress, body VerifyTextReq) (bool, *Response, error) {
 	if a.options.ApiKey == "" {
 		return false, nil, NoApiKeyError
 	}
@@ -286,14 +287,14 @@ func (a *Addresses) VerifyText(ctx context.Context, address proto.Address, body 
 }
 
 type BalanceAfterConfirmations struct {
-	Address       proto.Address `json:"address"`
-	Confirmations uint64        `json:"confirmations"`
-	Balance       uint64        `json:"balance"`
+	Address       proto.WavesAddress `json:"address"`
+	Confirmations uint64             `json:"confirmations"`
+	Balance       uint64             `json:"balance"`
 }
 
-// Balance of address after confirmations
+// BalanceAfterConfirmations returns balance of an address after given number of confirmations.
 func (a *Addresses) BalanceAfterConfirmations(
-	ctx context.Context, address proto.Address, confirmations uint64) (*BalanceAfterConfirmations, *Response, error) {
+	ctx context.Context, address proto.WavesAddress, confirmations uint64) (*BalanceAfterConfirmations, *Response, error) {
 
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/addresses/balance/%s/%d", address.String(), confirmations))
 	if err != nil {

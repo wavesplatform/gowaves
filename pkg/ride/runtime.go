@@ -164,7 +164,7 @@ func (o rideObject) get(prop string) (rideType, error) {
 	return v, nil
 }
 
-type rideAddress proto.Address
+type rideAddress proto.WavesAddress
 
 func (a rideAddress) instanceOf() string {
 	return "Address"
@@ -367,7 +367,7 @@ type Environment interface {
 	txID() rideType // Invoke transaction ID
 	state() types.SmartState
 	timestamp() uint64
-	setNewDAppAddress(address proto.Address)
+	setNewDAppAddress(address proto.WavesAddress)
 	checkMessageLength(int) bool
 	takeString(s string, n int) rideString
 	invocation() rideObject // Invocation object made of invoke transaction

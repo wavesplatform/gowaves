@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net/http"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type Assets struct {
@@ -23,8 +24,8 @@ func NewAssets(options Options) *Assets {
 }
 
 type AssetsBalances struct {
-	Address  proto.Address   `json:"address"`
-	Balances []AssetsBalance `json:"balances"`
+	Address  proto.WavesAddress `json:"address"`
+	Balances []AssetsBalance    `json:"balances"`
 }
 
 type AssetsBalance struct {
@@ -37,8 +38,8 @@ type AssetsBalance struct {
 	IssueTransaction     proto.IssueWithSig `json:"issueTransaction"`
 }
 
-// Provides detailed information about given asset
-func (a *Assets) BalanceByAddress(ctx context.Context, address proto.Address) (*AssetsBalances, *Response, error) {
+// BalanceByAddress provides detailed information about given asset
+func (a *Assets) BalanceByAddress(ctx context.Context, address proto.WavesAddress) (*AssetsBalances, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/assets/balance/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
@@ -59,13 +60,13 @@ func (a *Assets) BalanceByAddress(ctx context.Context, address proto.Address) (*
 }
 
 type AssetsBalanceAndAsset struct {
-	Address proto.Address `json:"address"`
-	AssetId crypto.Digest `json:"assetId"`
-	Balance uint64        `json:"balance"`
+	Address proto.WavesAddress `json:"address"`
+	AssetId crypto.Digest      `json:"assetId"`
+	Balance uint64             `json:"balance"`
 }
 
-// Account's balance by given asset
-func (a *Assets) BalanceByAddressAndAsset(ctx context.Context, address proto.Address, assetId crypto.Digest) (*AssetsBalanceAndAsset, *Response, error) {
+// BalanceByAddressAndAsset returns account's balance by given asset.
+func (a *Assets) BalanceByAddressAndAsset(ctx context.Context, address proto.WavesAddress, assetId crypto.Digest) (*AssetsBalanceAndAsset, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/assets/balance/%s/%s", address.String(), assetId.String()))
 	if err != nil {
 		return nil, nil, err
@@ -86,19 +87,19 @@ func (a *Assets) BalanceByAddressAndAsset(ctx context.Context, address proto.Add
 }
 
 type AssetsDetail struct {
-	AssetId              crypto.Digest `json:"assetId"`
-	IssueHeight          uint64        `json:"issueHeight"`
-	IssueTimestamp       uint64        `json:"issueTimestamp"`
-	Issuer               proto.Address `json:"issuer"`
-	Name                 string        `json:"name"`
-	Description          string        `json:"description"`
-	Decimals             uint64        `json:"decimals"`
-	Reissuable           bool          `json:"reissuable"`
-	Quantity             uint64        `json:"quantity"`
-	MinSponsoredAssetFee uint64        `json:"minSponsoredAssetFee"`
+	AssetId              crypto.Digest      `json:"assetId"`
+	IssueHeight          uint64             `json:"issueHeight"`
+	IssueTimestamp       uint64             `json:"issueTimestamp"`
+	Issuer               proto.WavesAddress `json:"issuer"`
+	Name                 string             `json:"name"`
+	Description          string             `json:"description"`
+	Decimals             uint64             `json:"decimals"`
+	Reissuable           bool               `json:"reissuable"`
+	Quantity             uint64             `json:"quantity"`
+	MinSponsoredAssetFee uint64             `json:"minSponsoredAssetFee"`
 }
 
-// Provides detailed information about given asset
+// Details provides detailed information about given asset.
 func (a *Assets) Details(ctx context.Context, assetId crypto.Digest) (*AssetsDetail, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/assets/details/%s", assetId.String()))
 	if err != nil {
@@ -121,7 +122,7 @@ func (a *Assets) Details(ctx context.Context, assetId crypto.Digest) (*AssetsDet
 
 type AssetsDistribution map[string]uint64
 
-// Asset balance distribution by account
+// Distribution gets asset balance distribution by account.
 func (a *Assets) Distribution(ctx context.Context, assetId crypto.Digest) (AssetsDistribution, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/assets/%s/distribution", assetId.String()))
 	if err != nil {
@@ -143,25 +144,25 @@ func (a *Assets) Distribution(ctx context.Context, assetId crypto.Digest) (Asset
 }
 
 type AssetsIssueReq struct {
-	Sender      proto.Address `json:"sender"`
-	Name        string        `json:"name"`
-	Description string        `json:"description"`
-	Quantity    uint64        `json:"quantity"`
-	Decimals    uint8         `json:"decimals"`
-	Reissuable  bool          `json:"reissuable"`
-	Fee         uint64        `json:"fee"`
-	Timestamp   uint64        `json:"timestamp"`
+	Sender      proto.WavesAddress `json:"sender"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	Quantity    uint64             `json:"quantity"`
+	Decimals    uint8              `json:"decimals"`
+	Reissuable  bool               `json:"reissuable"`
+	Fee         uint64             `json:"fee"`
+	Timestamp   uint64             `json:"timestamp"`
 }
 
 type AssetsIssue struct {
-	Sender      proto.Address `json:"sender"`
-	Name        string        `json:"name"`
-	Description string        `json:"description"`
-	Quantity    uint64        `json:"quantity"`
-	Decimals    uint8         `json:"decimals"`
-	Reissuable  bool          `json:"reissuable"`
-	Fee         uint64        `json:"fee"`
-	Timestamp   uint64        `json:"timestamp"`
+	Sender      proto.WavesAddress `json:"sender"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	Quantity    uint64             `json:"quantity"`
+	Decimals    uint8              `json:"decimals"`
+	Reissuable  bool               `json:"reissuable"`
+	Fee         uint64             `json:"fee"`
+	Timestamp   uint64             `json:"timestamp"`
 }
 
 // Issue new Asset
@@ -205,7 +206,7 @@ func (a *Assets) Issue(ctx context.Context, issueReq AssetsIssueReq) (*AssetsIss
 type AssetsMassTransfersReq struct {
 	Version    uint8                   `json:"version"`
 	AssetId    crypto.Digest           `json:"asset_id"`
-	Sender     proto.Address           `json:"sender"`
+	Sender     proto.WavesAddress      `json:"sender"`
 	Transfers  []AssetsMassTransferReq `json:"transfers"`
 	Fee        uint64                  `json:"fee"`
 	Attachment []byte                  `json:"attachment"`
@@ -213,11 +214,11 @@ type AssetsMassTransfersReq struct {
 }
 
 type AssetsMassTransferReq struct {
-	Recipient proto.Address `json:"recipient"`
-	Amount    uint64        `json:"amount"`
+	Recipient proto.WavesAddress `json:"recipient"`
+	Amount    uint64             `json:"amount"`
 }
 
-// Mass transfer of assets
+// MassTransfer creates a mass transfer of assets.
 func (a *Assets) MassTransfer(ctx context.Context, transfersReq AssetsMassTransfersReq) (*proto.MassTransferWithProofs, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
@@ -259,11 +260,11 @@ func (a *Assets) MassTransfer(ctx context.Context, transfersReq AssetsMassTransf
 }
 
 type AssetsSponsorReq struct {
-	Sender               proto.Address `json:"sender"`
-	AssetId              crypto.Digest `json:"assetId"`
-	MinSponsoredAssetFee uint64        `json:"minSponsoredAssetFee"`
-	Fee                  uint64        `json:"fee"`
-	Version              uint8         `json:"version"`
+	Sender               proto.WavesAddress `json:"sender"`
+	AssetId              crypto.Digest      `json:"assetId"`
+	MinSponsoredAssetFee uint64             `json:"minSponsoredAssetFee"`
+	Fee                  uint64             `json:"fee"`
+	Version              uint8              `json:"version"`
 }
 
 // Sponsor provided asset
@@ -301,11 +302,11 @@ func (a *Assets) Sponsor(ctx context.Context, sponsorReq AssetsSponsorReq) (*pro
 }
 
 type AssetsBurnReq struct {
-	Sender    proto.Address `json:"sender"`
-	AssetId   crypto.Digest `json:"assetId"`
-	Quantity  uint64        `json:"quantity"`
-	Fee       uint64        `json:"fee"`
-	Timestamp uint64        `json:"timestamp"`
+	Sender    proto.WavesAddress `json:"sender"`
+	AssetId   crypto.Digest      `json:"assetId"`
+	Quantity  uint64             `json:"quantity"`
+	Fee       uint64             `json:"fee"`
+	Timestamp uint64             `json:"timestamp"`
 }
 
 // Burn some of your assets

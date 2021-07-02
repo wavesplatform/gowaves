@@ -21,29 +21,29 @@ func NewAlias(options Options) *Alias {
 	}
 }
 
-func (a *Alias) Get(ctx context.Context, alias string) (proto.Address, *Response, error) {
+func (a *Alias) Get(ctx context.Context, alias string) (proto.WavesAddress, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/alias/by-alias/%s", alias))
 	if err != nil {
-		return proto.Address{}, nil, err
+		return proto.WavesAddress{}, nil, err
 	}
 
 	req, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
-		return proto.Address{}, nil, err
+		return proto.WavesAddress{}, nil, err
 	}
 
 	out := struct {
-		Address proto.Address `json:"address"`
+		Address proto.WavesAddress `json:"address"`
 	}{}
 	response, err := doHttp(ctx, a.options, req, &out)
 	if err != nil {
-		return proto.Address{}, response, err
+		return proto.WavesAddress{}, response, err
 	}
 
 	return out.Address, response, nil
 }
 
-func (a *Alias) GetByAddress(ctx context.Context, address proto.Address) ([]*proto.Alias, *Response, error) {
+func (a *Alias) GetByAddress(ctx context.Context, address proto.WavesAddress) ([]*proto.Alias, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/alias/by-address/%s", address.String()))
 	if err != nil {
 		return nil, nil, err
@@ -64,10 +64,10 @@ func (a *Alias) GetByAddress(ctx context.Context, address proto.Address) ([]*pro
 }
 
 type AliasCreateReq struct {
-	Sender    proto.Address `json:"sender"`
-	Alias     string        `json:"alias"`
-	Fee       uint64        `json:"fee"`
-	Timestamp uint64        `json:"timestamp,omitempty"`
+	Sender    proto.WavesAddress `json:"sender"`
+	Alias     string             `json:"alias"`
+	Fee       uint64             `json:"fee"`
+	Timestamp uint64             `json:"timestamp,omitempty"`
 }
 
 type CreateAliasWithSig struct {

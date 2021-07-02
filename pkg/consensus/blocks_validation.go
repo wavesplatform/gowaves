@@ -185,7 +185,7 @@ func (cv *Validator) validateEffectiveBalance(header *proto.BlockHeader, balance
 	return nil
 }
 
-func (cv *Validator) generatingBalance(height uint64, addr proto.Address) (uint64, error) {
+func (cv *Validator) generatingBalance(height uint64, addr proto.WavesAddress) (uint64, error) {
 	start, end := cv.RangeForGeneratingBalanceByHeight(height)
 	balance, err := cv.state.NewestEffectiveBalance(proto.NewRecipientFromAddress(addr), start, end)
 	if err != nil {

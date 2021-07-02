@@ -78,7 +78,8 @@ func TestGetActiveLeases(t *testing.T) {
 	conn := connect(t, grpcTestAddr)
 	defer func() {
 		cancel()
-		conn.Close()
+		err = conn.Close()
+		require.NoError(t, err)
 		stateCloser()
 	}()
 

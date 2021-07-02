@@ -72,7 +72,7 @@ type StateInfo interface {
 	EstimatorVersion() (int, error)
 
 	// Aliases.
-	AddrByAlias(alias proto.Alias) (proto.Address, error)
+	AddrByAlias(alias proto.Alias) (proto.WavesAddress, error)
 
 	// Accounts data storage.
 	RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error)

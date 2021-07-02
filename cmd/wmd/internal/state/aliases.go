@@ -3,16 +3,17 @@ package state
 import (
 	"bytes"
 	"encoding/binary"
+	"math"
+
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"math"
 )
 
 var (
-	emptyAddress = proto.Address{}
+	emptyAddress = proto.WavesAddress{}
 )
 
 type aliasKey struct {
@@ -44,23 +45,23 @@ func (k aliasHistoryKey) bytes() []byte {
 }
 
 type aliasChange struct {
-	prev proto.Address
-	curr proto.Address
+	prev proto.WavesAddress
+	curr proto.WavesAddress
 }
 
 func (c aliasChange) bytes() []byte {
-	buf := make([]byte, 2*proto.AddressSize)
+	buf := make([]byte, 2*proto.WavesAddressSize)
 	copy(buf, c.prev[:])
-	copy(buf[proto.AddressSize:], c.curr[:])
+	copy(buf[proto.WavesAddressSize:], c.curr[:])
 	return buf
 }
 
 func (c *aliasChange) fromBytes(data []byte) error {
-	if l := len(data); l < 2*proto.AddressSize {
-		return errors.Errorf("%d is not enough bytes for aliasChange, expected %d", l, 2*proto.AddressSize)
+	if l := len(data); l < 2*proto.WavesAddressSize {
+		return errors.Errorf("%d is not enough bytes for aliasChange, expected %d", l, 2*proto.WavesAddressSize)
 	}
-	copy(c.prev[:], data[:proto.AddressSize])
-	copy(c.curr[:], data[proto.AddressSize:2*proto.AddressSize])
+	copy(c.prev[:], data[:proto.WavesAddressSize])
+	copy(c.curr[:], data[proto.WavesAddressSize:2*proto.WavesAddressSize])
 	return nil
 }
 
@@ -88,7 +89,7 @@ func rollbackAliases(snapshot *leveldb.Snapshot, batch *leveldb.Batch, removeHei
 	l := uint32Key{aliasHistoryKeyPrefix, math.MaxInt32}
 	it := snapshot.NewIterator(&util.Range{Start: s.bytes(), Limit: l.bytes()}, nil)
 	remove := make([]proto.Alias, 0)
-	downgrade := make(map[proto.Alias]proto.Address)
+	downgrade := make(map[proto.Alias]proto.WavesAddress)
 	if it.Last() {
 		for {
 			key := it.Key()

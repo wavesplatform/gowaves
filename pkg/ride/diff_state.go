@@ -34,7 +34,7 @@ type diffSponsorship struct {
 }
 
 type diffNewAssetInfo struct {
-	dAppIssuer  proto.Address
+	dAppIssuer  proto.WavesAddress
 	name        string
 	description string
 	quantity    int64

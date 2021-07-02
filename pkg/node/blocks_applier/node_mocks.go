@@ -1,14 +1,10 @@
 package blocks_applier
 
 import (
-	"context"
 	"math/big"
-	"net"
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -26,7 +22,7 @@ type MockStateManager struct {
 	blockIDToHeight map[proto.BlockID]proto.Height
 }
 
-func (a *MockStateManager) HeaderBytes(blockID proto.BlockID) ([]byte, error) {
+func (a *MockStateManager) HeaderBytes(_ proto.BlockID) ([]byte, error) {
 	panic("implement me")
 }
 
@@ -34,7 +30,7 @@ func (a *MockStateManager) Map(func(state.State) error) error {
 	panic("not impl")
 }
 
-func (a *MockStateManager) HeaderBytesByHeight(height uint64) ([]byte, error) {
+func (a *MockStateManager) HeaderBytesByHeight(_ uint64) ([]byte, error) {
 	panic("implement me")
 }
 
@@ -75,7 +71,7 @@ func (a *MockStateManager) BlockByHeight(height proto.Height) (*proto.Block, err
 	return a.state[height-1], nil
 }
 
-func (a *MockStateManager) Header(block proto.BlockID) (*proto.BlockHeader, error) {
+func (a *MockStateManager) Header(_ proto.BlockID) (*proto.BlockHeader, error) {
 	panic("implement me")
 }
 
@@ -102,7 +98,7 @@ func (a *MockStateManager) BlockIDToHeight(blockID proto.BlockID) (uint64, error
 	return 0, notFound()
 }
 
-func (a *MockStateManager) HeightToBlockID(height uint64) (proto.BlockID, error) {
+func (a *MockStateManager) HeightToBlockID(_ uint64) (proto.BlockID, error) {
 	panic("implement me")
 }
 
@@ -110,7 +106,7 @@ func (a *MockStateManager) WavesAddressesNumber() (uint64, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) AddressesNumber(wavesonly bool) (uint64, error) {
+func (a *MockStateManager) AddressesNumber(_ bool) (uint64, error) {
 	panic("implement me")
 }
 
@@ -118,11 +114,11 @@ func (a *MockStateManager) Mutex() *lock.RwMutex {
 	return lock.NewRwMutex(&sync.RWMutex{})
 }
 
-func (a *MockStateManager) AddNewBlocks(blocks [][]byte) error {
+func (a *MockStateManager) AddNewBlocks(_ [][]byte) error {
 	panic("implement me")
 }
 
-func (a *MockStateManager) AddOldBlocks(blocks [][]byte) error {
+func (a *MockStateManager) AddOldBlocks(_ [][]byte) error {
 	panic("implement me")
 }
 
@@ -139,7 +135,7 @@ func (a *MockStateManager) RollbackToHeight(height uint64) error {
 	return nil
 }
 
-func (a *MockStateManager) RollbackTo(removalEdge proto.BlockID) error {
+func (a *MockStateManager) RollbackTo(_ proto.BlockID) error {
 	panic("implement me")
 }
 
@@ -162,11 +158,11 @@ func (a *MockStateManager) CurrentScore() (*big.Int, error) {
 	return a.ScoreAtHeight(proto.Height(len(a.state)))
 }
 
-func (a *MockStateManager) EffectiveBalanceStable(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
+func (a *MockStateManager) EffectiveBalanceStable(_ proto.Recipient, _, _ uint64) (uint64, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, checkScripts bool) error {
+func (a *MockStateManager) ValidateNextTx(_ proto.Transaction, _, _ uint64, _ proto.BlockVersion, _ bool) error {
 	panic("implement me")
 }
 
@@ -182,66 +178,66 @@ func (a *MockStateManager) Peers() ([]proto.TCPAddr, error) {
 	return a.Peers_, nil
 }
 
-func (a *MockStateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
+func (a *MockStateManager) RetrieveEntries(_ proto.Recipient) ([]proto.DataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
+func (a *MockStateManager) RetrieveEntry(_ proto.Recipient, _ string) (proto.DataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+func (a *MockStateManager) RetrieveIntegerEntry(_ proto.Recipient, _ string) (*proto.IntegerDataEntry, error) {
 	panic("implement me")
 }
-func (a *MockStateManager) RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-	panic("implement me")
-}
-
-func (a *MockStateManager) RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+func (a *MockStateManager) RetrieveBooleanEntry(_ proto.Recipient, _ string) (*proto.BooleanDataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) RetrieveBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+func (a *MockStateManager) RetrieveStringEntry(_ proto.Recipient, _ string) (*proto.StringDataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) TransactionHeightByID(id []byte) (proto.Height, error) {
+func (a *MockStateManager) RetrieveBinaryEntry(_ proto.Recipient, _ string) (*proto.BinaryDataEntry, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) NewAddrTransactionsIterator(addr proto.Address) (state.TransactionIterator, error) {
+func (a *MockStateManager) TransactionHeightByID(_ []byte) (proto.Height, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) TransactionByID(id []byte) (proto.Transaction, error) {
+func (a *MockStateManager) NewAddrTransactionsIterator(_ proto.WavesAddress) (state.TransactionIterator, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
+func (a *MockStateManager) TransactionByID(_ []byte) (proto.Transaction, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+func (a *MockStateManager) AssetIsSponsored(_ crypto.Digest) (bool, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+func (a *MockStateManager) AssetInfo(_ crypto.Digest) (*proto.AssetInfo, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
+func (a *MockStateManager) FullAssetInfo(_ crypto.Digest) (*proto.FullAssetInfo, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error) {
+func (a *MockStateManager) ScriptInfoByAccount(_ proto.Recipient) (*proto.ScriptInfo, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
+func (a *MockStateManager) ScriptInfoByAsset(_ crypto.Digest) (*proto.ScriptInfo, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
+func (a *MockStateManager) IsActiveLeasing(_ crypto.Digest) (bool, error) {
+	panic("implement me")
+}
+
+func (a *MockStateManager) InvokeResultByID(_ crypto.Digest) (*proto.ScriptResult, error) {
 	panic("implement me")
 }
 
@@ -253,11 +249,11 @@ func (a *MockStateManager) ProvidesStateHashes() (bool, error) {
 	panic("not implemented")
 }
 
-func (a *MockStateManager) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+func (a *MockStateManager) StateHashAtHeight(_ uint64) (*proto.StateHash, error) {
 	panic("not implemented")
 }
 
-func (a *MockStateManager) IsNotFound(err error) bool {
+func (a *MockStateManager) IsNotFound(_ error) bool {
 	panic("implement me")
 }
 
@@ -265,7 +261,7 @@ func (a *MockStateManager) Close() error {
 	panic("implement me")
 }
 
-func (a *MockStateManager) AddBlocks(blocks [][]byte, initialisation bool) error {
+func (a *MockStateManager) AddBlocks(_ [][]byte, _ bool) error {
 	panic("implement me")
 }
 
@@ -273,15 +269,15 @@ func (a *MockStateManager) BlockchainSettings() (*settings.BlockchainSettings, e
 	panic("implement me")
 }
 
-func (a *MockStateManager) AddrByAlias(alias proto.Alias) (proto.Address, error) {
+func (a *MockStateManager) AddrByAlias(_ proto.Alias) (proto.WavesAddress, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
+func (a *MockStateManager) FullWavesBalance(_ proto.Recipient) (*proto.FullWavesBalance, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (a *MockStateManager) AccountBalance(_ proto.Recipient, _ []byte) (uint64, error) {
 	panic("implement me")
 }
 
@@ -308,43 +304,43 @@ func (a *MockStateManager) AddOldDeserializedBlocks([]*proto.Block) error {
 	panic("implement me")
 }
 
-func (a *MockStateManager) BlockBytes(blockID proto.BlockID) ([]byte, error) {
+func (a *MockStateManager) BlockBytes(_ proto.BlockID) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) BlockBytesByHeight(height proto.Height) ([]byte, error) {
+func (a *MockStateManager) BlockBytesByHeight(_ proto.Height) ([]byte, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
+func (a *MockStateManager) VotesNumAtHeight(_ int16, _ proto.Height) (uint64, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) VotesNum(featureID int16) (uint64, error) {
+func (a *MockStateManager) VotesNum(_ int16) (uint64, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) IsActivated(featureID int16) (bool, error) {
+func (a *MockStateManager) IsActivated(_ int16) (bool, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) IsActiveAtHeight(featureID int16, height proto.Height) (bool, error) {
+func (a *MockStateManager) IsActiveAtHeight(_ int16, _ proto.Height) (bool, error) {
 	panic("not implemented")
 }
 
-func (a *MockStateManager) ActivationHeight(featureID int16) (uint64, error) {
+func (a *MockStateManager) ActivationHeight(_ int16) (uint64, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) IsApproved(featureID int16) (bool, error) {
+func (a *MockStateManager) IsApproved(_ int16) (bool, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) IsApprovedAtHeight(featureID int16, height uint64) (bool, error) {
+func (a *MockStateManager) IsApprovedAtHeight(_ int16, _ uint64) (bool, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) ApprovalHeight(featureID int16) (uint64, error) {
+func (a *MockStateManager) ApprovalHeight(_ int16) (uint64, error) {
 	panic("implement me")
 }
 
@@ -356,101 +352,6 @@ func (a *MockStateManager) StartProvidingExtendedApi() error {
 	panic("implement me")
 }
 
-func (a *MockStateManager) HitSourceAtHeight(height proto.Height) ([]byte, error) {
+func (a *MockStateManager) HitSourceAtHeight(_ proto.Height) ([]byte, error) {
 	panic("not implemented")
-}
-
-type mockPeerManager struct {
-	connected map[peer.Peer]struct{}
-}
-
-func (a *mockPeerManager) Spawned() []proto.IpPort {
-	panic("implement me")
-}
-
-func (a *mockPeerManager) IsSuspended(peer.Peer) bool {
-	panic("implement me")
-}
-
-func (a *mockPeerManager) Suspend(peer.Peer, string) {
-	panic("implement me")
-}
-
-func (a *mockPeerManager) Suspended() []string {
-	panic("implement me")
-}
-
-func (a *mockPeerManager) Disconnect(peer.Peer) {
-	panic("implement me")
-}
-
-func (a *mockPeerManager) Block(peer.Peer) {
-	panic("implement me")
-}
-
-func (a *mockPeerManager) UpdateScore(p peer.Peer, score *proto.Score) {
-	panic("implement me")
-}
-
-func (a *mockPeerManager) Score(p peer.Peer) (*proto.Score, error) {
-	panic("implement me")
-}
-
-func (a *mockPeerManager) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
-	panic("implement me")
-}
-
-func (a *mockPeerManager) Close() {
-	panic("implement me")
-}
-
-func (*mockPeerManager) Banned(peer.Peer) bool {
-	panic("implement me")
-}
-
-func (*mockPeerManager) SpawnOutgoingConnections(ctx context.Context) {
-	panic("implement me")
-}
-
-func (*mockPeerManager) UpdateKnownPeers([]proto.TCPAddr) error {
-	panic("implement me")
-}
-
-func (*mockPeerManager) AddConnected(p peer.Peer) {
-	panic("implement me")
-}
-
-func (*mockPeerManager) AskPeers() {
-	panic("implement me")
-}
-
-func (*mockPeerManager) EachConnected(func(peer.Peer, *big.Int)) {
-	panic("implement me")
-}
-
-func (*mockPeerManager) SpawnIncomingConnection(ctx context.Context, n net.Conn) error {
-	panic("implement me")
-}
-
-func NewMockPeerManagerWithDefaultPeer() (*mockPeerManager, *mock.Peer) {
-	p := mock.NewPeer()
-	m := make(map[peer.Peer]struct{})
-	m[p] = struct{}{}
-
-	return &mockPeerManager{
-		connected: m,
-	}, p
-}
-
-func (a *mockPeerManager) Connected(p peer.Peer) (peer.Peer, bool) {
-	_, ok := a.connected[p]
-	return p, ok
-}
-
-func (a *mockPeerManager) KnownPeers() ([]proto.TCPAddr, error) {
-	panic("implement me")
-}
-
-func (a *mockPeerManager) Connect(context.Context, proto.TCPAddr) error {
-	panic("implement me")
 }

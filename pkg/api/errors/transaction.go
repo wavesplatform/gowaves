@@ -1,8 +1,9 @@
 package errors
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net/http"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type transactionError struct {
@@ -23,7 +24,7 @@ type (
 	AlreadyInStateError             transactionError
 	AccountBalanceErrorsError       struct {
 		transactionError
-		Details map[proto.Address]string `json:"details"`
+		Details map[proto.WavesAddress]string `json:"details"`
 	}
 	OrderInvalidError struct {
 		transactionError

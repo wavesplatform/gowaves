@@ -12,14 +12,14 @@ import (
 )
 
 type dataEntryRecordForHashes struct {
-	addr  *proto.Address
+	addr  []byte
 	key   []byte
 	value []byte
 }
 
 func (dr *dataEntryRecordForHashes) less(other stateComponent) bool {
 	dr2 := other.(*dataEntryRecordForHashes)
-	val := bytes.Compare(dr.addr[:], dr2.addr[:])
+	val := bytes.Compare(dr.addr, dr2.addr)
 	if val > 0 {
 		return false
 	} else if val == 0 {
@@ -29,7 +29,7 @@ func (dr *dataEntryRecordForHashes) less(other stateComponent) bool {
 }
 
 func (dr *dataEntryRecordForHashes) writeTo(w io.Writer) error {
-	if _, err := w.Write(dr.addr[:]); err != nil {
+	if _, err := w.Write(dr.addr); err != nil {
 		return err
 	}
 	if _, err := w.Write(dr.key); err != nil {
@@ -71,7 +71,7 @@ type accountsDataStorage struct {
 	hs      *historyStorage
 	hasher  *stateHasher
 
-	addrToNumMem map[proto.Address]uint64
+	addrToNumMem map[proto.AddressID]uint64
 	addrNum      uint64
 
 	uncertainEntries map[entryId]proto.DataEntry
@@ -85,7 +85,7 @@ func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, 
 		dbBatch:          dbBatch,
 		hs:               hs,
 		hasher:           newStateHasher(),
-		addrToNumMem:     make(map[proto.Address]uint64),
+		addrToNumMem:     make(map[proto.AddressID]uint64),
 		uncertainEntries: make(map[entryId]proto.DataEntry),
 		calculateHashes:  calcHashes,
 	}
@@ -110,14 +110,14 @@ func (s *accountsDataStorage) setLastAddrNum(lastAddrNum uint64) error {
 }
 
 func (s *accountsDataStorage) newestAddrToNum(addr proto.Address) (uint64, error) {
-	if addrNum, ok := s.addrToNumMem[addr]; ok {
+	if addrNum, ok := s.addrToNumMem[addr.ID()]; ok {
 		return addrNum, nil
 	}
 	return s.addrToNum(addr)
 }
 
 func (s *accountsDataStorage) addrToNum(addr proto.Address) (uint64, error) {
-	addrToNumKey := accountStorAddrToNumKey{addr}
+	addrToNumKey := accountStorAddrToNumKey{addr.ID()}
 	addrNumBytes, err := s.db.Get(addrToNumKey.bytes())
 	if err != nil {
 		return 0, err
@@ -137,8 +137,8 @@ func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint64, error) {
 	}
 	newAddrNum := lastAddrNum + s.addrNum
 	s.addrNum++
-	s.addrToNumMem[addr] = newAddrNum
-	addrToNum := accountStorAddrToNumKey{addr}
+	s.addrToNumMem[addr.ID()] = newAddrNum
+	addrToNum := accountStorAddrToNumKey{addr.ID()}
 	newAddrNumBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(newAddrNumBytes, newAddrNum)
 	s.dbBatch.Put(addrToNum.bytes(), newAddrNumBytes)
@@ -182,7 +182,7 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 	}
 	if s.calculateHashes {
 		r := &dataEntryRecordForHashes{
-			addr:  &addr,
+			addr:  addr.Bytes(),
 			key:   []byte(entry.GetKey()),
 			value: valueBytes,
 		}
@@ -475,7 +475,7 @@ func (s *accountsDataStorage) flush() error {
 }
 
 func (s *accountsDataStorage) reset() {
-	s.addrToNumMem = make(map[proto.Address]uint64)
+	s.addrToNumMem = make(map[proto.AddressID]uint64)
 	s.addrNum = 0
 	if s.calculateHashes {
 		s.hasher.reset()

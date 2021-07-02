@@ -12,15 +12,15 @@ type Leasing struct {
 	options Options
 }
 
-// Creates new leasing
+// NewLeasing creates new leasing.
 func NewLeasing(options Options) *Leasing {
 	return &Leasing{
 		options: options,
 	}
 }
 
-// Get lease transactions
-func (a *Leasing) Active(ctx context.Context, address proto.Address) ([]*proto.LeaseWithSig, *Response, error) {
+// Active gets lease transactions.
+func (a *Leasing) Active(ctx context.Context, address proto.WavesAddress) ([]*proto.LeaseWithSig, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/leasing/active/%s", address.String()))
 	if err != nil {
 		return nil, nil, err

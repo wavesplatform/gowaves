@@ -12,7 +12,7 @@ type Consensus struct {
 	options Options
 }
 
-// creates new consensus api section
+// NewConsensus creates new consensus api section.
 func NewConsensus(options Options) *Consensus {
 	return &Consensus{
 		options: options,
@@ -20,12 +20,12 @@ func NewConsensus(options Options) *Consensus {
 }
 
 type ConsensusGeneratingBalance struct {
-	Address proto.Address `json:"address"`
-	Balance uint64        `json:"balance"`
+	Address proto.WavesAddress `json:"address"`
+	Balance uint64             `json:"balance"`
 }
 
-// Account's generating balance(the same as balance atm)
-func (a Consensus) GeneratingBalance(ctx context.Context, address proto.Address) (*ConsensusGeneratingBalance, *Response, error) {
+// GeneratingBalance returns account's generating balance (the same as balance atm).
+func (a Consensus) GeneratingBalance(ctx context.Context, address proto.WavesAddress) (*ConsensusGeneratingBalance, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
 	}
@@ -52,7 +52,7 @@ func (a Consensus) GeneratingBalance(ctx context.Context, address proto.Address)
 	return out, response, nil
 }
 
-// Generation signature of a block with specified id
+// GenerationSignatureByBlock returns generation signature of a block with specified ID.
 func (a *Consensus) GenerationSignatureByBlock(ctx context.Context, blockID string) (string, *Response, error) {
 	if a.options.ApiKey == "" {
 		return "", nil, NoApiKeyError
@@ -79,7 +79,7 @@ func (a *Consensus) GenerationSignatureByBlock(ctx context.Context, blockID stri
 	return out["generationSignature"], response, nil
 }
 
-// Base target of a block with specified id
+// BaseTargetByBlock gets base target of a block with specified ID.
 func (a *Consensus) BaseTargetByBlock(ctx context.Context, blockID string) (uint64, *Response, error) {
 	if a.options.ApiKey == "" {
 		return 0, nil, NoApiKeyError
@@ -111,7 +111,7 @@ type ConsensusBaseTarget struct {
 	Score      string `json:"score"`
 }
 
-// Base target of a last block
+// BaseTarget gets base target of the last block.
 func (a *Consensus) BaseTarget(ctx context.Context) (*ConsensusBaseTarget, *Response, error) {
 	if a.options.ApiKey == "" {
 		return nil, nil, NoApiKeyError
@@ -138,7 +138,7 @@ func (a *Consensus) BaseTarget(ctx context.Context) (*ConsensusBaseTarget, *Resp
 	return out, response, nil
 }
 
-// Shows which consensus algo being using
+// Algo shows which consensus algo is in use.
 func (a *Consensus) Algo(ctx context.Context) (string, *Response, error) {
 	if a.options.ApiKey == "" {
 		return "", nil, NoApiKeyError
@@ -165,7 +165,7 @@ func (a *Consensus) Algo(ctx context.Context) (string, *Response, error) {
 	return out["consensusAlgo"], response, nil
 }
 
-// Generation signature of a last block
+// GenerationSignature gets generation signature of the last block.
 func (a *Consensus) GenerationSignature(ctx context.Context) (string, *Response, error) {
 	if a.options.ApiKey == "" {
 		return "", nil, NoApiKeyError

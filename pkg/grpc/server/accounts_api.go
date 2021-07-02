@@ -45,7 +45,7 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 	return nil
 }
 
-func (s *Server) GetScript(ctx context.Context, req *g.AccountRequest) (*g.ScriptData, error) {
+func (s *Server) GetScript(_ context.Context, req *g.AccountRequest) (*g.ScriptData, error) {
 	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
 	if err != nil {
@@ -140,7 +140,7 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 	return nil
 }
 
-func (s *Server) ResolveAlias(ctx context.Context, req *wrappers.StringValue) (*wrappers.BytesValue, error) {
+func (s *Server) ResolveAlias(_ context.Context, req *wrappers.StringValue) (*wrappers.BytesValue, error) {
 	alias := proto.NewAlias(s.scheme, req.Value)
 	addr, err := s.state.AddrByAlias(*alias)
 	if err != nil {
@@ -168,7 +168,7 @@ type getActiveLeasesHandler struct {
 
 func (h *getActiveLeasesHandler) handle(tx proto.Transaction, _ bool) error {
 	var id []byte
-	var sender proto.Address
+	var sender proto.WavesAddress
 	var recipient proto.Recipient
 	var amount int64
 	var err error

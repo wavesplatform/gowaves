@@ -90,7 +90,7 @@ type MockRideEnvironment struct {
 	setInvocationFunc func(inv rideObject)
 
 	// setNewDAppAddressFunc mocks the setNewDAppAddress method.
-	setNewDAppAddressFunc func(address proto.Address)
+	setNewDAppAddressFunc func(address proto.WavesAddress)
 
 	// stateFunc mocks the state method.
 	stateFunc func() types.SmartState
@@ -140,7 +140,7 @@ type MockRideEnvironment struct {
 		// setNewDAppAddress holds details about calls to the setNewDAppAddress method.
 		setNewDAppAddress []struct {
 			// Address is the address argument value.
-			Address proto.Address
+			Address proto.WavesAddress
 		}
 		// state holds details about calls to the state method.
 		state []struct {
@@ -374,12 +374,12 @@ func (mock *MockRideEnvironment) setInvocationCalls() []struct {
 }
 
 // setNewDAppAddress calls setNewDAppAddressFunc.
-func (mock *MockRideEnvironment) setNewDAppAddress(address proto.Address) {
+func (mock *MockRideEnvironment) setNewDAppAddress(address proto.WavesAddress) {
 	if mock.setNewDAppAddressFunc == nil {
 		panic("MockRideEnvironment.setNewDAppAddressFunc: method is nil but Environment.setNewDAppAddress was just called")
 	}
 	callInfo := struct {
-		Address proto.Address
+		Address proto.WavesAddress
 	}{
 		Address: address,
 	}
@@ -393,10 +393,10 @@ func (mock *MockRideEnvironment) setNewDAppAddress(address proto.Address) {
 // Check the length with:
 //     len(mockedEnvironment.setNewDAppAddressCalls())
 func (mock *MockRideEnvironment) setNewDAppAddressCalls() []struct {
-	Address proto.Address
+	Address proto.WavesAddress
 } {
 	var calls []struct {
-		Address proto.Address
+		Address proto.WavesAddress
 	}
 	mock.locksetNewDAppAddress.RLock()
 	calls = mock.calls.setNewDAppAddress

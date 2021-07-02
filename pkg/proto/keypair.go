@@ -30,10 +30,10 @@ func MustKeyPair(seed []byte) KeyPair {
 	return out
 }
 
-func (a KeyPair) Addr(scheme byte) (Address, error) {
+func (a KeyPair) Addr(scheme byte) (WavesAddress, error) {
 	addr, err := NewAddressFromPublicKey(scheme, a.Public)
 	if err != nil {
-		return Address{}, err
+		return WavesAddress{}, err
 	}
 	return addr, nil
 }

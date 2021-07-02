@@ -8,7 +8,7 @@ import (
 )
 
 type txFilter struct {
-	sender    proto.Address
+	sender    proto.WavesAddress
 	recipient proto.Recipient
 	ids       map[string]bool
 	scheme    byte
@@ -100,8 +100,8 @@ func (f *txFilter) filter(tx proto.Transaction) bool {
 	return f.filterSender(tx) && f.filterRecipient(tx) && f.filterId(tx)
 }
 
-func (f *txFilter) getSenderRecipient() (*proto.Address, *proto.Address) {
-	var sender, recipient *proto.Address
+func (f *txFilter) getSenderRecipient() (*proto.WavesAddress, *proto.WavesAddress) {
+	var sender, recipient *proto.WavesAddress
 	if f.hasSender {
 		sender = &f.sender
 	}

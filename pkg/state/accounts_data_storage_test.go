@@ -174,7 +174,7 @@ func TestRetrieveIntegerEntry(t *testing.T) {
 	err = to.accountsDataStor.commitUncertain(blockID0)
 	assert.NoError(t, err)
 	entry, err = to.accountsDataStor.retrieveNewestIntegerEntry(addr0, entry1.Key, true)
-	assert.NoError(t, err, "retrieveNewesIntegerEntry failed")
+	assert.NoError(t, err, "retrieveNewestIntegerEntry failed")
 	assert.Equal(t, entry1, entry)
 	to.stor.flush(t)
 	entry, err = to.accountsDataStor.retrieveIntegerEntry(addr0, entry1.Key, true)

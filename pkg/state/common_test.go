@@ -57,7 +57,7 @@ var (
 type testAddrData struct {
 	sk        crypto.SecretKey
 	pk        crypto.PublicKey
-	addr      proto.Address
+	addr      proto.WavesAddress
 	rcp       proto.Recipient
 	wavesKey  string
 	assetKeys []string
