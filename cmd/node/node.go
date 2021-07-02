@@ -319,6 +319,7 @@ func main() {
 		peerStorage,
 		int(limitConnections),
 		version,
+		conf.WavesNetwork,
 	)
 	go peerManager.Run(ctx)
 

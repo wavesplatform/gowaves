@@ -64,10 +64,11 @@ type PeerManagerImpl struct {
 	connectPeers     bool // spawn outgoing
 	limitConnections int
 	version          proto.Version
+	networkName      string
 }
 
 func NewPeerManager(spawner PeerSpawner, storage PeerStorage,
-	limitConnections int, version proto.Version) *PeerManagerImpl {
+	limitConnections int, version proto.Version, networkName string) *PeerManagerImpl {
 
 	return &PeerManagerImpl{
 		spawner:          spawner,
@@ -77,6 +78,7 @@ func NewPeerManager(spawner PeerSpawner, storage PeerStorage,
 		connectPeers:     true,
 		limitConnections: limitConnections,
 		version:          version,
+		networkName:      networkName,
 	}
 }
 
@@ -135,7 +137,13 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 		_ = p.Close()
 		return proto.NewInfoMsg(err)
 	}
-
+	if p.Handshake().AppName != a.networkName {
+		err := errors.Errorf("peer '%s' has the invalid network name '%s', required '%s'",
+			p.ID(), p.Handshake().AppName, a.networkName)
+		a.Suspend(p, time.Now(), err.Error())
+		_ = p.Close()
+		return proto.NewInfoMsg(err)
+	}
 	in, out := a.InOutCount()
 	switch p.Direction() {
 	case peer.Incoming:

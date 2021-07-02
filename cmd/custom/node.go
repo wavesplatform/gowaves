@@ -209,7 +209,7 @@ func main() {
 		zap.S().Info("Successfully dropped peers storage")
 	}
 
-	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, peerStorage, int(limitConnections), version)
+	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, peerStorage, int(limitConnections), version, conf.WavesNetwork)
 	go peerManager.Run(ctx)
 
 	scheduler := scheduler2.NewScheduler(
