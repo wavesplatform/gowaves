@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -85,6 +86,7 @@ func run() error {
 	}
 
 	params := state.DefaultStateParams()
+	params.StorageParams.DbParams.OpenFilesCacheCapacityRate = keyvalue.MaxOpenFilesCacheCapacityRate
 	params.VerificationGoroutinesNum = 2 * runtime.NumCPU()
 	params.DbParams.WriteBuffer = 16 * MB
 	params.StoreExtendedApiData = extendedAPI

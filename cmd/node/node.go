@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"math/rand"
 	"net/http"
 	_ "net/http"
@@ -19,6 +20,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
@@ -85,6 +87,11 @@ var (
 	metricsID                             = flag.Int("metrics-id", -1, "ID of the node on the metrics collection system")
 	metricsURL                            = flag.String("metrics-url", "", "URL of InfluxDB or Telegraf in form of 'http://username:password@host:port/db'")
 	dropPeers                             = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
+	dbFileDescriptorsRate                 = flag.Float64("db-file-descriptors-rate", state.DefaultOpenFilesCacheCapacityRate,
+		fmt.Sprintf("Part of allowed file descriptors that will be used for state database caches. Value shall be between %f and %f.",
+			keyvalue.MinOpenFilesCacheCapacityRate,
+			keyvalue.MaxOpenFilesCacheCapacityRate,
+		))
 )
 
 var defaultPeers = map[string]string{
@@ -123,6 +130,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("profiler: %v", *profiler)
 	zap.S().Debugf("bloom: %v", *bloomFilter)
 	zap.S().Debugf("drop-peers: %v", *dropPeers)
+	zap.S().Debugf("db-file-descriptors-rate: %v", *dbFileDescriptorsRate)
 }
 
 func main() {
@@ -247,6 +255,7 @@ func main() {
 	}
 
 	params := state.DefaultStateParams()
+	params.StorageParams.DbParams.OpenFilesCacheCapacityRate = *dbFileDescriptorsRate
 	params.StoreExtendedApiData = *buildExtendedApi
 	params.ProvideExtendedApi = *serveExtendedApi
 	params.BuildStateHashes = *buildStateHashes

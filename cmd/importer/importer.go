@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -94,6 +95,7 @@ func main() {
 		dataDir = tempDir
 	}
 	params := state.DefaultStateParams()
+	params.StorageParams.DbParams.OpenFilesCacheCapacityRate = keyvalue.MaxOpenFilesCacheCapacityRate
 	params.VerificationGoroutinesNum = *verificationGoroutinesNum
 	params.DbParams.WriteBuffer = *writeBufferSize * MiB
 	params.StoreExtendedApiData = *buildDataForExtendedApi

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -34,6 +35,7 @@ func main() {
 		return
 	}
 	params := state.DefaultStateParams()
+	params.StorageParams.DbParams.OpenFilesCacheCapacityRate = keyvalue.MaxOpenFilesCacheCapacityRate
 	params.BuildStateHashes = *buildStateHashes
 	params.StoreExtendedApiData = *buildExtendedApi
 	s, err := state.NewState(*statePath, params, cfg)
