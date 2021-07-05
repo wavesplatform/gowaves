@@ -1534,7 +1534,11 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	return s.ScoreAtHeight(height)
+	score, err := s.stor.scores.score(height, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return score, nil
 }
 
 func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error) {

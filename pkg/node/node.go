@@ -101,12 +101,12 @@ func (a *Node) Serve(ctx context.Context) error {
 	}
 }
 
-func (a *Node) logErrors(err error) {
+func (a *Node) logErrors(fsm state_fsm.FSM, err error) {
 	switch e := err.(type) {
 	case *proto.InfoMsg:
-		zap.S().Debug(e.Error())
+		zap.S().Debugf("[%s] %s", fsm.String(), e.Error())
 	default:
-		zap.S().Error(e.Error())
+		zap.S().Errorf("[%s] %s", fsm.String(), e.Error())
 	}
 }
 
@@ -165,7 +165,7 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 				default:
 				}
 			default:
-				zap.S().Errorf("unknown internalMess %T", t)
+				zap.S().Errorf("[%s] Unknown internal message '%T'", fsm.String(), t)
 				continue
 			}
 		case task := <-tasksCh:
@@ -178,19 +178,18 @@ func (a *Node) Run(ctx context.Context, p peer.Parent, InternalMessageCh chan me
 				fsm, async, err = fsm.PeerError(m.Peer, t)
 			}
 		case mess := <-p.MessageCh:
-			zap.S().Debugf("received proto Message %T", mess.Message)
+			zap.S().Debugf("[%s] Network message '%T' received", fsm.String(), mess.Message)
 			action, ok := actions[reflect.TypeOf(mess.Message)]
 			if !ok {
-				zap.S().Errorf("unknown proto Message %T", mess.Message)
+				zap.S().Errorf("[%s] Unknown network message '%T'", fsm.String(), mess.Message)
 				continue
 			}
 			fsm, async, err = action(a.services, mess, fsm)
 		}
 		if err != nil {
-			a.logErrors(err)
+			a.logErrors(fsm, err)
 		}
 		spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
-		zap.S().Debugf("FSM %T", fsm)
 	}
 }
 
