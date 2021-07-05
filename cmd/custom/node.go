@@ -34,6 +34,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
+	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
@@ -41,25 +42,28 @@ import (
 var version = proto.Version{Major: 1, Minor: 3, Patch: 0}
 
 var (
-	logLevel              = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath             = flag.String("state-path", "", "Path to node's state directory")
-	peerAddresses         = flag.String("peers", "", "Addresses of peers to connect to")
-	declAddr              = flag.String("declared-address", "", "Address to listen on")
-	apiAddr               = flag.String("api-address", "", "Address for REST API")
-	grpcAddr              = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
-	cfgPath               = flag.String("cfg-path", "", "Path to configuration JSON file. No default value.")
-	enableGrpcApi         = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
-	buildExtendedApi      = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
-	serveExtendedApi      = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
-	buildStateHashes      = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
-	minerVoteFeatures     = flag.String("vote", "", "Miner vote features")
-	reward                = flag.String("reward", "", "Miner reward: for example 600000000")
-	outdateS              = flag.String("outdate", "4h", "Interval between last applied block and current time. If greater than no mining, no transaction accepted. Example 1d4h30m")
-	walletPath            = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
-	walletPassword        = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
-	limitConnectionsS     = flag.String("limit-connections", "30", "N incoming and outgoing connections")
-	minPeersMining        = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining")
-	dropPeers             = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
+	logLevel          = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath         = flag.String("state-path", "", "Path to node's state directory")
+	peerAddresses     = flag.String("peers", "", "Addresses of peers to connect to")
+	declAddr          = flag.String("declared-address", "", "Address to listen on")
+	apiAddr           = flag.String("api-address", "", "Address for REST API")
+	grpcAddr          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	cfgPath           = flag.String("cfg-path", "", "Path to configuration JSON file. No default value.")
+	enableGrpcApi     = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
+	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
+	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
+	buildStateHashes  = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
+	minerVoteFeatures = flag.String("vote", "", "Miner vote features")
+	reward            = flag.String("reward", "", "Miner reward: for example 600000000")
+	outdateS          = flag.String("outdate", "4h", "Interval between last applied block and current time. If greater than no mining, no transaction accepted. Example 1d4h30m")
+	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
+	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
+	limitConnectionsS = flag.String("limit-connections", "30", "N incoming and outgoing connections")
+	minPeersMining    = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining")
+	dropPeers         = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
+	fileDescriptors   = flag.Int("file-descriptors", fdlimit.DefaultMaxFDs,
+		fmt.Sprintf("Maximum allowed file descriptors count for process. Value shall be greater or equal than %d.", fdlimit.DefaultMaxFDs),
+	)
 	dbFileDescriptorsRate = flag.Float64("db-file-descriptors-rate", state.DefaultOpenFilesCacheCapacityRate,
 		fmt.Sprintf("Part of allowed file descriptors that will be used for state database caches. Value shall be between %f and %f.",
 			keyvalue.MinOpenFilesCacheCapacityRate,
@@ -73,9 +77,19 @@ func init() {
 
 func main() {
 	flag.Parse()
+
 	if *cfgPath == "" {
-		zap.S().Error("Please provide path to blockchain config JSON file")
-		return
+		zap.S().Fatalf("Please provide path to blockchain config JSON file")
+	}
+	if *fileDescriptors < fdlimit.DefaultMaxFDs {
+		zap.S().Fatalf(
+			"Invalid 'file-descriptors' flag value (%d). Value shall be greater or equal than %d.",
+			*fileDescriptors, fdlimit.DefaultMaxFDs,
+		)
+	}
+	_, err := fdlimit.SetMaxFDs(uint64(*fileDescriptors))
+	if err != nil {
+		zap.S().Fatalf("Failed to set max file descriptors count: %v", err)
 	}
 
 	common.SetupLogger(*logLevel)

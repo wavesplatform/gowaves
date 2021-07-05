@@ -17,6 +17,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
+	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 	"go.uber.org/zap"
 )
 
@@ -37,15 +38,16 @@ func main() {
 
 func run() error {
 	var (
-		node           string
-		statePath      string
-		blockchainType string
-		height         uint64
-		extendedAPI    bool
-		compare        bool
-		search         bool
-		showHelp       bool
-		showVersion    bool
+		node            string
+		statePath       string
+		blockchainType  string
+		height          uint64
+		extendedAPI     bool
+		compare         bool
+		search          bool
+		showHelp        bool
+		showVersion     bool
+		fileDescriptors int
 	)
 
 	common.SetupLogger("INFO")
@@ -59,6 +61,9 @@ func run() error {
 	flag.BoolVar(&search, "search", false, "Search for the topmost equal state hashes")
 	flag.BoolVar(&showHelp, "help", false, "Show usage information and exit")
 	flag.BoolVar(&showVersion, "version", false, "Print version information and quit")
+	flag.IntVar(&fileDescriptors, "file-descriptors", fdlimit.DefaultMaxFDs,
+		fmt.Sprintf("Maximum allowed file descriptors count for process. Value shall be greater or equal than %d.", fdlimit.DefaultMaxFDs),
+	)
 	flag.Parse()
 
 	if showHelp {
@@ -72,6 +77,17 @@ func run() error {
 
 	if search {
 		compare = true
+	}
+
+	if fileDescriptors < fdlimit.DefaultMaxFDs {
+		zap.S().Fatalf(
+			"Invalid 'file-descriptors' flag value (%d). Value shall be greater or equal than %d.",
+			fileDescriptors, fdlimit.DefaultMaxFDs,
+		)
+	}
+	_, err := fdlimit.SetMaxFDs(uint64(fileDescriptors))
+	if err != nil {
+		zap.S().Fatalf("Failed to set max file descriptors count: %v", err)
 	}
 
 	if statePath == "" || len(strings.Fields(statePath)) > 1 {

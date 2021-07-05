@@ -87,11 +87,15 @@ var (
 	metricsID                             = flag.Int("metrics-id", -1, "ID of the node on the metrics collection system")
 	metricsURL                            = flag.String("metrics-url", "", "URL of InfluxDB or Telegraf in form of 'http://username:password@host:port/db'")
 	dropPeers                             = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
-	dbFileDescriptorsRate                 = flag.Float64("db-file-descriptors-rate", state.DefaultOpenFilesCacheCapacityRate,
+	fileDescriptors                       = flag.Int("file-descriptors", fdlimit.DefaultMaxFDs,
+		fmt.Sprintf("Maximum allowed file descriptors count for process. Value shall be greater or equal than %d.", fdlimit.DefaultMaxFDs),
+	)
+	dbFileDescriptorsRate = flag.Float64("db-file-descriptors-rate", state.DefaultOpenFilesCacheCapacityRate,
 		fmt.Sprintf("Part of allowed file descriptors that will be used for state database caches. Value shall be between %f and %f.",
 			keyvalue.MinOpenFilesCacheCapacityRate,
 			keyvalue.MaxOpenFilesCacheCapacityRate,
-		))
+		),
+	)
 )
 
 var defaultPeers = map[string]string{
@@ -130,15 +134,23 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("profiler: %v", *profiler)
 	zap.S().Debugf("bloom: %v", *bloomFilter)
 	zap.S().Debugf("drop-peers: %v", *dropPeers)
+	zap.S().Debugf("file-descriptors: %v", *fileDescriptors)
 	zap.S().Debugf("db-file-descriptors-rate: %v", *dbFileDescriptorsRate)
 }
 
 func main() {
-	_, err := fdlimit.SetMaxFDs(1024)
-	if err != nil {
-		panic(err)
-	}
 	flag.Parse()
+
+	if *fileDescriptors < fdlimit.DefaultMaxFDs {
+		zap.S().Fatalf(
+			"Invalid 'file-descriptors' flag value (%d). Value shall be greater or equal than %d.",
+			*fileDescriptors, fdlimit.DefaultMaxFDs,
+		)
+	}
+	_, err := fdlimit.SetMaxFDs(uint64(*fileDescriptors))
+	if err != nil {
+		zap.S().Fatalf("Failed to set max file descriptors count: %v", err)
+	}
 
 	common.SetupLogger(*logLevel)
 
