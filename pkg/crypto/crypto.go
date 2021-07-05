@@ -9,6 +9,7 @@ import (
 	"hash"
 	"strings"
 
+	edwards "filippo.io/edwards25519"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto/internal"
@@ -360,21 +361,10 @@ func GenerateSecretKey(seed []byte) SecretKey {
 }
 
 func GeneratePublicKey(sk SecretKey) PublicKey {
+	s, _ := new(edwards.Scalar).SetBytesWithClamping(sk[:]) // Error is ignored because it only a size check
+	p := new(edwards.Point).ScalarBaseMult(s)
 	var pk PublicKey
-	s := [SecretKeySize]byte(sk)
-	var ed internal.ExtendedGroupElement
-	internal.GeScalarMultBase(&ed, &s)
-	var edYPlusOne = new(internal.FieldElement)
-	internal.FeAdd(edYPlusOne, &ed.Y, &ed.Z)
-	var oneMinusEdY = new(internal.FieldElement)
-	internal.FeSub(oneMinusEdY, &ed.Z, &ed.Y)
-	var invOneMinusEdY = new(internal.FieldElement)
-	internal.FeInvert(invOneMinusEdY, oneMinusEdY)
-	var montX = new(internal.FieldElement)
-	internal.FeMul(montX, edYPlusOne, invOneMinusEdY)
-	p := new([PublicKeySize]byte)
-	internal.FeToBytes(p, montX)
-	copy(pk[:], p[:])
+	copy(pk[:], p.BytesMontgomery())
 	return pk
 }
 
