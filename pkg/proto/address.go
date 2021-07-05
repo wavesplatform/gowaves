@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io"
-	"strconv"
-	"strings"
-
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"io"
+	"strconv"
+	"strings"
+	"unicode/utf8"
 )
 
 const (
@@ -31,10 +31,10 @@ const (
 	AliasAlphabet  = "-.0123456789@_abcdefghijklmnopqrstuvwxyz"
 	AliasPrefix    = "alias"
 
-	MainNetScheme   byte = 'W'
-	TestNetScheme   byte = 'T'
-	StageNetScheme  byte = 'S'
-	CustomNetScheme byte = 'E'
+	MainNetScheme   Scheme = 'W'
+	TestNetScheme   Scheme = 'T'
+	StageNetScheme  Scheme = 'S'
+	CustomNetScheme Scheme = 'E'
 )
 
 // Address is the transformed Public Key with additional bytes of the version, a blockchain scheme and a checksum.
@@ -344,12 +344,14 @@ func NewAlias(scheme byte, alias string) *Alias {
 	return &Alias{aliasVersion, scheme, alias}
 }
 
-// Valid validates the Alias checking it length, version and symbols.
+// Valid validates the Alias checking it UTF8 length, version and symbols.
 func (a Alias) Valid() (bool, error) {
 	if v := a.Version; v != aliasVersion {
 		return false, errors.Errorf("%d is incorrect alias version, expected %d", v, aliasVersion)
 	}
-	if l := len(a.Alias); l < AliasMinLength || l > AliasMaxLength {
+	// nickeskov: runes count because non ASCII symbols can have length > 1 byte
+	//	Using of utf8.RuneCountInString reproduces scala node behaviour
+	if l := utf8.RuneCountInString(a.Alias); l < AliasMinLength || l > AliasMaxLength {
 		return false, errs.NewTxValidationError(fmt.Sprintf("Alias '%s' length should be between %d and %d", a.Alias, AliasMinLength, AliasMaxLength))
 	}
 	if !correctAlphabet(a.Alias) {
@@ -530,4 +532,30 @@ func (r *Recipient) String() string {
 		return r.Alias.String()
 	}
 	return r.Address.String()
+}
+
+// SchemeFromString returns Scheme from string representation (short or full).
+func SchemeFromString(scheme string) Scheme {
+	switch len(scheme) {
+	case 0:
+		return CustomNetScheme
+	case 1:
+		switch b := scheme[0]; b {
+		case MainNetScheme, StageNetScheme, TestNetScheme:
+			return b
+		default:
+			return CustomNetScheme
+		}
+	default:
+		switch scheme {
+		case "mainnet":
+			return MainNetScheme
+		case "stagenet":
+			return StageNetScheme
+		case "testnet":
+			return TestNetScheme
+		default:
+			return CustomNetScheme
+		}
+	}
 }

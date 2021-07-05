@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"github.com/mr-tron/base58"
 	"time"
 
 	"github.com/pkg/errors"
@@ -34,9 +35,24 @@ type App struct {
 	peers         peer_manager.PeerManager
 	sync          types.StateSync
 	services      services.Services
+	config        AppConfig
 }
 
-func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services) (*App, error) {
+type AppConfig struct {
+	BlockchainType string
+	BuildVersion   string
+}
+
+func (ac *AppConfig) Validate() error {
+	// TODO(nickeskov): implement me
+	return nil
+}
+
+func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services, config AppConfig) (*App, error) {
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
 	digest, err := crypto.SecureHash([]byte(apiKey))
 	if err != nil {
 		return nil, err
@@ -50,7 +66,12 @@ func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services)
 		utx:           services.UtxPool,
 		peers:         services.Peers,
 		services:      services,
+		config:        config,
 	}, nil
+}
+
+func (a *App) Config() *AppConfig {
+	return &a.config
 }
 
 func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) error {
@@ -94,6 +115,18 @@ func (a *App) LoadKeys(apiKey string, password []byte) error {
 		return err
 	}
 	return a.services.Wallet.Load(password)
+}
+
+// WalletSeeds returns wallet seeds in base58 encoding.
+func (a *App) WalletSeeds() []string {
+	seeds := a.services.Wallet.Seeds()
+
+	seeds58 := make([]string, 0, len(seeds))
+	for _, seed := range seeds {
+		seed58 := base58.Encode(seed)
+		seeds58 = append(seeds58, seed58)
+	}
+	return seeds58
 }
 
 func (a *App) Accounts() ([]account, error) {

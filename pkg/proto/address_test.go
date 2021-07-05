@@ -169,3 +169,29 @@ func TestRecipient_WriteTo(t *testing.T) {
 	require.Equal(t, bin, buf.Bytes())
 
 }
+
+func TestSchemeFromString(t *testing.T) {
+	tests := []struct {
+		schemeStr      string
+		expectedScheme Scheme
+	}{
+		{"", CustomNetScheme},
+
+		{"W", MainNetScheme},
+		{"S", StageNetScheme},
+		{"T", TestNetScheme},
+
+		{"E", CustomNetScheme},
+		{"@", CustomNetScheme},
+
+		{"mainnet", MainNetScheme},
+		{"stagenet", StageNetScheme},
+		{"testnet", TestNetScheme},
+		{"any-string", CustomNetScheme},
+	}
+
+	for _, testCase := range tests {
+		actualScheme := SchemeFromString(testCase.schemeStr)
+		require.Equal(t, testCase.expectedScheme, actualScheme)
+	}
+}

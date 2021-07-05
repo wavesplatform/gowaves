@@ -46,7 +46,7 @@ var (
 	apiAddr           = flag.String("api-address", "", "Address for REST API")
 	grpcAddr          = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
 	cfgPath           = flag.String("cfg-path", "", "Path to configuration JSON file. No default value.")
-	enableGrpcApi     = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
+	enableGrpcApi     = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
 	buildExtendedApi  = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
 	serveExtendedApi  = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	buildStateHashes  = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
@@ -58,6 +58,11 @@ var (
 	limitConnectionsS = flag.String("limit-connections", "30", "N incoming and outgoing connections")
 	minPeersMining    = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining")
 	dropPeers         = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
+)
+
+// nickeskov: compile time constants with defaults
+var (
+	buildVersion = "(not specified)"
 )
 
 func init() {
@@ -209,7 +214,7 @@ func main() {
 		zap.S().Info("Successfully dropped peers storage")
 	}
 
-	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, peerStorage, int(limitConnections), version)
+	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, peerStorage, int(limitConnections), version, conf.WavesNetwork)
 	go peerManager.Run(ctx)
 
 	scheduler := scheduler2.NewScheduler(
@@ -267,8 +272,12 @@ func main() {
 		}
 	}
 
+	apiConfig := api.AppConfig{
+		BlockchainType: "",
+		BuildVersion:   buildVersion,
+	}
 	// TODO hardcore
-	app, err := api.NewApp("integration-test-rest-api", scheduler, nodeServices)
+	app, err := api.NewApp("integration-test-rest-api", scheduler, nodeServices, apiConfig)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

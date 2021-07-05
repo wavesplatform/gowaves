@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -433,6 +434,85 @@ func (a *NodeApi) Addresses(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
+func (a *NodeApi) NodeStatus(w http.ResponseWriter, r *http.Request) error {
+	type resp struct {
+		BlockchainHeight uint64 `json:"blockchainHeight"`
+		StateHeight      uint64 `json:"stateHeight"`
+		UpdatedTimestamp int64  `json:"updatedTimestamp"`
+		UpdatedDate      string `json:"updatedDate"`
+	}
+
+	stateHeight, err := a.app.state.Height()
+	if err != nil {
+		return errors.Wrap(err, "failed to get state height in NodeStatus HTTP endpoint")
+	}
+
+	// TODO(nickeskov): create new method in state (like TopBlock, but for TopBlockHeader)
+	blockHeader, err := a.state.HeaderByHeight(stateHeight)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get block header from state by height %d", stateHeight)
+	}
+	updatedTimestampMillis := int64(blockHeader.Timestamp)
+
+	out := resp{
+		BlockchainHeight: stateHeight,
+		StateHeight:      stateHeight,
+		UpdatedTimestamp: updatedTimestampMillis,
+		UpdatedDate:      fromUnixMillis(updatedTimestampMillis).Format(time.RFC3339Nano),
+	}
+	if err := trySendJson(w, out); err != nil {
+		return errors.Wrap(err, "NodeStatus")
+	}
+	return nil
+}
+
+func (a *NodeApi) BuildVersion(w http.ResponseWriter, _ *http.Request) error {
+	type ver struct {
+		Version string `json:"version"`
+	}
+
+	buildVersion := a.app.Config().BuildVersion
+
+	out := ver{Version: fmt.Sprintf("GoWaves %s", buildVersion)}
+	if err := trySendJson(w, out); err != nil {
+		return errors.Wrap(err, "BuildVersion")
+	}
+	return nil
+}
+
+func (a *NodeApi) AddrByAlias(w http.ResponseWriter, r *http.Request) error {
+	type addrResponse struct {
+		Address string `json:"address"`
+	}
+
+	// nickeskov: alias as plain text without an 'alias' prefix and chain ID (scheme)
+	aliasShort := chi.URLParam(r, "alias")
+
+	chainID := proto.SchemeFromString(a.app.Config().BlockchainType)
+
+	alias := proto.NewAlias(chainID, aliasShort)
+	if _, err := alias.Valid(); err != nil {
+		// TODO(nickeskov): check that error msg looks like in scala
+		msg := err.Error()
+		return apiErrs.NewCustomValidationError(msg)
+	}
+
+	addr, err := a.app.AddrByAlias(*alias)
+	if err != nil {
+		origErr := errors.Cause(err)
+		if state.IsNotFound(origErr) {
+			return apiErrs.NewAliasDoesNotExistError(alias.String())
+		}
+		return errors.Wrapf(err, "failed to find addr by short alias %q", aliasShort)
+	}
+
+	resp := addrResponse{Address: addr.String()}
+	if err := trySendJson(w, resp); err != nil {
+		return errors.Wrap(err, "AddrByAlias")
+	}
+	return nil
+}
+
 func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.NodeProcesses()
 	if err := trySendJson(w, rs); err != nil {
@@ -459,20 +539,44 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// tryParseJson receives reader and out params. out MUST be a pointer
-func tryParseJson(r io.Reader, out interface{}) error {
-	// TODO(nickeskov): check empty reader
-	err := json.NewDecoder(r).Decode(out)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to unmarshal %T as JSON into %T", r, out)
+func (a *NodeApi) sendSelfInterrupt(w http.ResponseWriter, _ *http.Request) error {
+	type resp struct {
+		Stopped bool `json:"stopped"`
 	}
+
+	selfPid := os.Getpid()
+	p, err := os.FindProcess(selfPid)
+	if err != nil {
+		return errors.Wrapf(err, "failed to find process (self) with pid %d", selfPid)
+	}
+	interrupt := os.Interrupt
+	if err := p.Signal(interrupt); err != nil {
+		return errors.Wrapf(err,
+			"failed to send signal %q to self process with pid %d", interrupt, selfPid)
+	}
+	if err := trySendJson(w, resp{Stopped: true}); err != nil {
+		return errors.Wrap(err, "sendSelfInterrupt")
+	}
+	zap.S().Infof("Sent by node HTTP API to self process %q signal", interrupt)
 	return nil
 }
 
-func trySendJson(w io.Writer, v interface{}) error {
-	err := json.NewEncoder(w).Encode(v)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to marshal %T to JSON and write it to %T", v, w)
+func (a *NodeApi) walletSeed(w http.ResponseWriter, _ *http.Request) error {
+	type seed struct {
+		Seed string `json:"seed"`
+	}
+
+	// TODO(nickeskov): This works not like in scala node.
+	// 	Scala node don't have multiple wallets, it have only one wallet.
+
+	seeds58 := a.app.WalletSeeds()
+	seeds := make([]seed, 0, len(seeds58))
+	for _, seed58 := range seeds58 {
+		seeds = append(seeds, seed{Seed: seed58})
+	}
+
+	if err := trySendJson(w, seeds); err != nil {
+		return errors.Wrap(err, "walletSeed")
 	}
 	return nil
 }

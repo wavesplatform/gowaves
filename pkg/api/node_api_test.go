@@ -1,6 +1,12 @@
 package api
 
 import (
+	"context"
+	"github.com/go-chi/chi"
+	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/mock"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -78,4 +84,33 @@ func TestNodeApi_FindFirstInvalidRuneInBase58String(t *testing.T) {
 
 	actual := findFirstInvalidRuneInBase58String("42354")
 	assert.Nil(t, actual)
+}
+
+func TestNodeApi_AddrByAlias(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	testAlias := "some_alias"
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	resp := httptest.NewRecorder()
+
+	stateMock := mock.NewMockState(ctrl)
+	stateMock.EXPECT().
+		AddrByAlias(*proto.NewAlias(proto.TestNetScheme, testAlias)).
+		Return(proto.Address{}, nil)
+
+	api := NodeApi{
+		app: &App{
+			state:  stateMock,
+			config: AppConfig{BlockchainType: "testnet"},
+		},
+	}
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("alias", testAlias)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	err := api.AddrByAlias(resp, req)
+	require.NoError(t, err)
 }

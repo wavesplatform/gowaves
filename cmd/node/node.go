@@ -58,7 +58,7 @@ var (
 	apiAddr                               = flag.String("api-address", "", "Address for REST API")
 	apiKey                                = flag.String("api-key", "", "Api key")
 	grpcAddr                              = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
-	enableGrpcApi                         = flag.Bool("enable-grpc-api", true, "Enables/disables gRPC API")
+	enableGrpcApi                         = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
 	buildExtendedApi                      = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
 	serveExtendedApi                      = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
 	buildStateHashes                      = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
@@ -91,6 +91,11 @@ var defaultPeers = map[string]string{
 	"testnet":  "159.69.126.149:6868,94.130.105.239:6868,159.69.126.153:6868,94.130.172.201:6868",
 	"stagenet": "88.99.185.128:6868,49.12.15.166:6868,95.216.205.3:6868,88.198.179.16:6868",
 }
+
+// nickeskov: compile time constants with defaults
+var (
+	buildVersion = "(not specified)"
+)
 
 type Scheduler interface {
 	Mine() chan scheduler.Emit
@@ -319,6 +324,7 @@ func main() {
 		peerStorage,
 		int(limitConnections),
 		version,
+		conf.WavesNetwork,
 	)
 	go peerManager.Run(ctx)
 
@@ -378,7 +384,12 @@ func main() {
 		}
 	}
 
-	app, err := api.NewApp(*apiKey, minerScheduler, svs)
+	apiConfig := api.AppConfig{
+		BlockchainType: *blockchainType,
+		BuildVersion:   buildVersion,
+	}
+
+	app, err := api.NewApp(*apiKey, minerScheduler, svs, apiConfig)
 	if err != nil {
 		zap.S().Error(err)
 		cancel()

@@ -105,7 +105,7 @@ func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (c
 
 	_, err = handshake.ReadFrom(c)
 	if err != nil {
-		zap.S().Debugf("Failed to read handshake: %s %s", err, a.params.Address)
+		zap.S().Debugf("[%s] Failed to read handshake: %v", a.params.Address.String(), err)
 		select {
 		case <-ctx.Done():
 			return nil, nil, errors.Wrap(ctx.Err(), "connector.connect")

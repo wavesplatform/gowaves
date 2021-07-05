@@ -394,7 +394,8 @@ func putAccounts(bs *blockState, batch *leveldb.Batch, height uint32, accountCha
 					return errors.Wrapf(err, "failed to get the sponsorship for '%s'", u.Asset.String())
 				}
 				if !ok {
-					return errors.Errorf("no asset info for an asset '%s'", u.Asset.String())
+					zap.S().Warnf("Transaction sponsored with asset '%s' issued by Invoke", u.Asset.String())
+					return nil //TODO: errors.Errorf("no asset info for an asset '%s'", u.Asset.String())
 				}
 				if a.sponsored {
 					err := updateBalanceAndHistory(bs, batch, height, a.issuer, u.Asset, u.In, u.Out)

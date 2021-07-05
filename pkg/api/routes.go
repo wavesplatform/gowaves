@@ -105,6 +105,10 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			r.Get("/", wrapper(a.Addresses))
 		})
 
+		r.Route("/alias", func(r chi.Router) {
+			r.Get("/by-alias/{alias}", wrapper(a.AddrByAlias))
+		})
+
 		r.Route("/transactions", func(r chi.Router) {
 			r.Get("/unconfirmed/size", wrapper(a.unconfirmedSize))
 
@@ -125,6 +129,21 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 
 		r.Route("/debug", func(r chi.Router) {
 			r.Get("/stateHash/{height:\\d+}", wrapper(a.stateHash))
+		})
+
+		r.Route("/node", func(r chi.Router) {
+			r.Get("/status", wrapper(a.NodeStatus))
+			r.Get("/version", wrapper(a.BuildVersion))
+
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Post("/stop", wrapper(a.sendSelfInterrupt))
+		})
+
+		r.Route("/wallet", func(r chi.Router) {
+			rAuth := r.With(checkAuthMiddleware)
+
+			rAuth.Get("/seed", wrapper(a.walletSeed))
 		})
 
 		// enable or disable history sync

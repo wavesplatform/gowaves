@@ -293,7 +293,10 @@ func createStorageObjects() (*testStorageObjects, []string, error) {
 	if err != nil {
 		return nil, res, err
 	}
-	entities, err := newBlockchainEntitiesStorage(hs, settings.MainNetSettings, rw, false)
+	params := StateParams{
+		BuildStateHashes: false,
+	}
+	entities, err := newBlockchainEntitiesStorage(hs, settings.MainNetSettings, rw, &params)
 	if err != nil {
 		return nil, res, err
 	}
