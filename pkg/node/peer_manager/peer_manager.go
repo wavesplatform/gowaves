@@ -2,12 +2,12 @@ package peer_manager
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"math/big"
 	"net"
-	"sort"
 	"sync"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -29,12 +29,6 @@ func newPeerInfo(peer peer.Peer) peerInfo {
 	}
 }
 
-type byScore []peerInfo
-
-func (a byScore) Len() int           { return len(a) }
-func (a byScore) Less(i, j int) bool { return a[i].score.Cmp(a[j].score) < 0 }
-func (a byScore) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
 type PeerManager interface {
 	Connected(peer.Peer) (peer.Peer, bool)
 	NewConnection(peer.Peer) error
@@ -45,7 +39,6 @@ type PeerManager interface {
 	Suspend(peer peer.Peer, suspendTime time.Time, reason string)
 	Suspended() []storage.SuspendedPeer
 	AddConnected(peer.Peer)
-	PeerWithHighestScore() (peer.Peer, *big.Int, bool)
 	UpdateScore(p peer.Peer, score *proto.Score) error
 	UpdateKnownPeers([]storage.KnownPeer) error
 	KnownPeers() []storage.KnownPeer
@@ -71,10 +64,11 @@ type PeerManagerImpl struct {
 	connectPeers     bool // spawn outgoing
 	limitConnections int
 	version          proto.Version
+	networkName      string
 }
 
 func NewPeerManager(spawner PeerSpawner, storage PeerStorage,
-	limitConnections int, version proto.Version) *PeerManagerImpl {
+	limitConnections int, version proto.Version, networkName string) *PeerManagerImpl {
 
 	return &PeerManagerImpl{
 		spawner:          spawner,
@@ -84,6 +78,7 @@ func NewPeerManager(spawner PeerSpawner, storage PeerStorage,
 		connectPeers:     true,
 		limitConnections: limitConnections,
 		version:          version,
+		networkName:      networkName,
 	}
 }
 
@@ -130,7 +125,7 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 	}
 	if a.IsSuspended(p) {
 		_ = p.Close()
-		return errors.New("peer is suspended")
+		return errors.Errorf("peer '%s' is suspended", p.ID())
 	}
 	if p.Handshake().Version.CmpMinor(a.version) >= 2 {
 		err := errors.Errorf(
@@ -142,7 +137,13 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 		_ = p.Close()
 		return proto.NewInfoMsg(err)
 	}
-
+	if p.Handshake().AppName != a.networkName {
+		err := errors.Errorf("peer '%s' has the invalid network name '%s', required '%s'",
+			p.ID(), p.Handshake().AppName, a.networkName)
+		a.Suspend(p, time.Now(), err.Error())
+		_ = p.Close()
+		return proto.NewInfoMsg(err)
+	}
 	in, out := a.InOutCount()
 	switch p.Direction() {
 	case peer.Incoming:
@@ -194,33 +195,15 @@ func (a *PeerManagerImpl) AddConnected(peer peer.Peer) {
 	a.active[peer] = newPeerInfo(peer)
 }
 
-func (a *PeerManagerImpl) PeerWithHighestScore() (peer.Peer, *big.Int, bool) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
-	if len(a.active) == 0 {
-		return nil, nil, false
-	}
-
-	peers := make([]peerInfo, 0)
-	for _, p := range a.active {
-		peers = append(peers, p)
-	}
-
-	sort.Sort(byScore(peers))
-
-	highest := peers[len(peers)-1]
-	return highest.peer, highest.score, true
-}
-
 func (a *PeerManagerImpl) UpdateScore(p peer.Peer, score *big.Int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if row, ok := a.active[p]; ok {
 		row.score = score
 		a.active[p] = row
+		return nil
 	}
-	return nil
+	return errors.Errorf("peer '%s' is not active", p.ID())
 }
 
 func (a *PeerManagerImpl) IsSuspended(p peer.Peer) bool {

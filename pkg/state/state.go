@@ -1297,7 +1297,11 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID, initia
 		if err != nil {
 			return err
 		}
-		if err = s.stor.leases.cancelLeasesToAliases(disabledAliases, blockID); err != nil {
+		changes, err := s.stor.leases.cancelLeasesToAliases(disabledAliases, blockID)
+		if err != nil {
+			return err
+		}
+		if err := s.stor.balances.cancelLeases(changes, blockID); err != nil {
 			return err
 		}
 	}
@@ -1530,7 +1534,11 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	return s.ScoreAtHeight(height)
+	score, err := s.stor.scores.score(height, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return score, nil
 }
 
 func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (*proto.Address, error) {

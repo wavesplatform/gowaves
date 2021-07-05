@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"time"
@@ -275,7 +276,7 @@ func (s *Synchronizer) equalIDs(height int) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return rbs == lbs, nil
+	return bytes.Equal(rbs.Bytes(), lbs.Bytes()), nil
 }
 
 func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto.PublicKey) ([]data.Trade, []data.IssueChange, []data.AssetChange, []data.AccountChange, []data.AliasBind, error) {

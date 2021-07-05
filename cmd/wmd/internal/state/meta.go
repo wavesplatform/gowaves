@@ -2,11 +2,12 @@ package state
 
 import (
 	"encoding/binary"
+	"math"
+
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"math"
 )
 
 var heightKeyBytes = []byte{heightKeyPrefix}
@@ -62,7 +63,7 @@ func block(snapshot *leveldb.Snapshot, height uint32) (proto.BlockID, bool, erro
 	}
 	bid, err := proto.NewBlockIDFromBytes(b)
 	if err != nil {
-		return proto.BlockID{}, false, nil
+		return proto.BlockID{}, false, wrapError(err)
 	}
 	return bid, true, nil
 }

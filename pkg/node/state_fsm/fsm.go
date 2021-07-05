@@ -95,6 +95,8 @@ type FSM interface {
 	Transaction(p peer.Peer, t proto.Transaction) (FSM, Async, error)
 
 	Halt() (FSM, Async, error)
+
+	String() string
 }
 
 func NewFsm(

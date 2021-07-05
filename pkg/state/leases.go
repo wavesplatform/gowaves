@@ -116,10 +116,10 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID prot
 	return nil
 }
 
-func (l *leases) cancelLeasesToAliases(aliases map[string]struct{}, blockID proto.BlockID) error {
+func (l *leases) cancelLeasesToAliases(aliases map[string]struct{}, blockID proto.BlockID) (map[proto.Address]balanceDiff, error) {
 	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
 	if err != nil {
-		return errors.Wrap(err, "failed to create key iterator to cancel leases to stolen aliases")
+		return nil, errors.Wrap(err, "failed to create key iterator to cancel leases to stolen aliases")
 	}
 	defer func() {
 		leaseIter.Release()
@@ -129,30 +129,43 @@ func (l *leases) cancelLeasesToAliases(aliases map[string]struct{}, blockID prot
 	}()
 
 	// Iterate all the leases.
-	zap.S().Info("Started collecting leases")
+	zap.S().Info("Started cancelling leases to disabled aliases")
+	changes := make(map[proto.Address]balanceDiff)
 	for leaseIter.Next() {
 		keyBytes := keyvalue.SafeKey(leaseIter)
 		var key leaseKey
 		if err := key.unmarshal(keyBytes); err != nil {
-			return errors.Wrap(err, "failed ot unmarshal leasing key")
+			return nil, errors.Wrap(err, "failed ot unmarshal leasing key")
 		}
 		leaseBytes := keyvalue.SafeValue(leaseIter)
 		record := new(leasing)
 		if err := cbor.Unmarshal(leaseBytes, record); err != nil {
-			return errors.Wrap(err, "failed to unmarshal lease")
+			return nil, errors.Wrap(err, "failed to unmarshal lease")
 		}
 		if record.isActive() && record.RecipientAlias != nil {
 			if _, ok := aliases[record.RecipientAlias.Alias]; ok {
 				zap.S().Infof("State: canceling lease %s", key.leaseID.String())
 				record.Status = LeaseCanceled
 				if err := l.addLeasing(key.leaseID, record, blockID); err != nil {
-					return errors.Wrap(err, "failed to save lease to storage")
+					return nil, errors.Wrap(err, "failed to save lease to storage")
+				}
+				if diff, ok := changes[record.Sender]; ok {
+					diff.leaseOut += -int64(record.Amount)
+					changes[record.Sender] = diff
+				} else {
+					changes[record.Sender] = newBalanceDiff(0, 0, -int64(record.Amount), false)
+				}
+				if diff, ok := changes[record.Recipient]; ok {
+					diff.leaseIn += -int64(record.Amount)
+					changes[record.Recipient] = diff
+				} else {
+					changes[record.Recipient] = newBalanceDiff(0, -int64(record.Amount), 0, false)
 				}
 			}
 		}
 	}
-	zap.S().Info("Finished collecting leases")
-	return nil
+	zap.S().Info("Finished cancelling leases to disabled aliases")
+	return changes, nil
 }
 
 func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
