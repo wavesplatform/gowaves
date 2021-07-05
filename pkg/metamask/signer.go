@@ -3,7 +3,7 @@ package metamask
 import (
 	"fmt"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/sha3"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"math/big"
 )
 
@@ -270,22 +270,6 @@ func decodeSignature(sig []byte) (r, s, v *big.Int) {
 	return r, s, v
 }
 
-// NewKeccakState creates a new KeccakState
-func NewKeccakState() KeccakState {
-	return sha3.NewLegacyKeccak256().(KeccakState)
-}
-
-// Keccak256 calculates and returns the Keccak256 hash of the input data.
-func Keccak256(data ...[]byte) []byte {
-	b := make([]byte, 32)
-	d := NewKeccakState()
-	for _, b := range data {
-		d.Write(b)
-	}
-	d.Read(b)
-	return b
-}
-
 func recoverPlain(sighash Hash, R, S, Vb *big.Int, homestead bool) (Address, error) {
 	if Vb.BitLen() > 8 {
 		return Address{}, ErrInvalidSig
@@ -301,14 +285,25 @@ func recoverPlain(sighash Hash, R, S, Vb *big.Int, homestead bool) (Address, err
 	copy(sig[64-len(s):64], s)
 	sig[64] = V
 	// recover the public key from the signature
-	pub, err := Ecrecover(sighash[:], sig)
+	pubKey, err := crypto.ECDSARecoverPublicKey(sighash[:], sig)
 	if err != nil {
 		return Address{}, err
 	}
-	if len(pub) == 0 || pub[0] != 4 {
-		return Address{}, errors.New("invalid public key")
+	//pub, err := crypto.Ecrecover(sighash[:], sig)
+	//if err != nil {
+	//	return Address{}, err
+	//}
+	//if len(pubKey) == 0 || pub[0] != 4 {
+	//	return Address{}, errors.New("invalid public key")
+	//}
+	var addrKey Address
+	//var addr Address
+	//copy(addr[:], crypto.Keccak256(pub[1:])[12:])
+	res := pubKey.SerializeUncompressed()[1:]
+	l, err := crypto.Keccak256(res)
+	if err != nil {
+		return Address{}, err
 	}
-	var addr Address
-	copy(addr[:], Keccak256(pub[1:])[12:])
-	return addr, nil
+	copy(addrKey[:], l[12:])
+	return addrKey, nil
 }

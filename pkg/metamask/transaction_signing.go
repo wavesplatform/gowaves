@@ -47,12 +47,11 @@ type ChainConfig struct {
 
 // MakeSigner returns a Signer based on the given chain config and block number.
 func MakeSigner(config *ChainConfig, blockNumber *big.Int) Signer {
-	var signer Signer
 	//switch {
 	//case config.IsLondon(blockNumber):
 	//	signer = NewLondonSigner(config.ChainID)
 	//case config.IsBerlin(blockNumber):
-	signer = NewEIP2930Signer(config.ChainID)
+	signer := NewEIP2930Signer(config.ChainID)
 	//case config.IsEIP155(blockNumber):
 	//	signer = NewEIP155Signer(config.ChainID)
 	//case config.IsHomestead(blockNumber):

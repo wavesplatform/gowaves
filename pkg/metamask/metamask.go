@@ -66,13 +66,19 @@ func (as MetaMask) Eth_sendrawtransaction(signedTxData string) string {
 
 	data, err := hex.DecodeString(encodedTx)
 	if err != nil {
-		zap.S().Errorf("failed to decode tx")
+		zap.S().Errorf("failed to decode tx: %v", err)
 	}
 
 	parse := fastrlp.Parser{}
 	rlpVal, err := parse.Parse(data)
+	if err != nil {
+		zap.S().Errorf("failed to parse tx: %v", err)
+	}
 	var tx LegacyTx
 	err = tx.UnmarshalFromFastRLP(rlpVal)
+	if err != nil {
+		zap.S().Errorf("failed to unmarshal rlp value: %v", err)
+	}
 
 	// returns 32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available.
 	blockNumber := big.NewInt(5)
@@ -80,13 +86,14 @@ func (as MetaMask) Eth_sendrawtransaction(signedTxData string) string {
 	tx.chainID()
 	chainID := deriveChainId(tx.V)
 	conifg.ChainID = chainID
-	var rawTx Transaction
 
-	rawTx = NewTx(&tx)
+	rawTx := NewTx(&tx)
 
 	signer := MakeSigner(conifg, blockNumber)
 	sender, err := Sender(signer, &rawTx)
-
+	if err != nil {
+		zap.S().Errorf("failed to get sender")
+	}
 	zap.S().Infof("Receiver is %s\n", tx.To.Hex())
 	zap.S().Infof("Sender is %s\n", sender.Hex())
 

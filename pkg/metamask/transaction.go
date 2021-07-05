@@ -30,9 +30,9 @@ type RLPEncoder interface {
 	EncodeRLP(io.Writer) error
 }
 
-type fastRLPUnmarshaler interface {
-	unmarshalFromFastRLP(value *fastrlp.Value) error
-}
+//type fastRLPUnmarshaler interface {
+//	unmarshalFromFastRLP(value *fastrlp.Value) error
+//}
 
 type fastRLPMarshaler interface {
 	marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Value
