@@ -39,6 +39,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
+	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
@@ -125,7 +126,7 @@ func debugCommandLineParameters() {
 }
 
 func main() {
-	err := common.SetMaxOpenFiles(1024)
+	_, err := fdlimit.SetMaxFDs(1024)
 	if err != nil {
 		panic(err)
 	}

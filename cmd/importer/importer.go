@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
+	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 	"go.uber.org/zap"
 )
 
@@ -39,9 +40,9 @@ var (
 )
 
 func main() {
-	err := setMaxOpenFiles(1024)
+	_, err := fdlimit.SetMaxFDs(1024)
 	if err != nil {
-		zap.S().Fatalf("Failed to setup MaxOpenFiles: %v", err)
+		zap.S().Fatalf("Failed to set max file descriptors count: %v", err)
 	}
 	flag.Parse()
 
