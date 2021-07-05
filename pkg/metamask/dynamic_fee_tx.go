@@ -181,3 +181,23 @@ func (dftx *DynamicFeeTx) rawSignatureValues() (v, r, s *big.Int) {
 func (dftx *DynamicFeeTx) setSignatureValues(chainID, v, r, s *big.Int) {
 	dftx.ChainID, dftx.V, dftx.R, dftx.S = chainID, v, r, s
 }
+
+func (dftx *DynamicFeeTx) signerHashFastRLP(chainID *big.Int, arena *fastrlp.Arena) *fastrlp.Value {
+	values := [...]*fastrlp.Value{
+		arena.NewBigInt(chainID),
+		arena.NewUint(dftx.Nonce),
+		arena.NewBigInt(dftx.GasTipCap),
+		arena.NewBigInt(dftx.GasFeeCap),
+		arena.NewUint(dftx.Gas),
+		arena.NewBytes(dftx.To.Bytes()),
+		arena.NewBigInt(dftx.Value),
+		arena.NewBytes(dftx.Data),
+		marshalAccessListToFastRLP(arena, dftx.AccessList),
+	}
+
+	array := arena.NewArray()
+	for _, value := range values {
+		array.Set(value)
+	}
+	return array
+}

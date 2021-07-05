@@ -256,3 +256,22 @@ func (altx *AccessListTx) rawSignatureValues() (v, r, s *big.Int) {
 func (altx *AccessListTx) setSignatureValues(chainID, v, r, s *big.Int) {
 	altx.ChainID, altx.V, altx.R, altx.S = chainID, v, r, s
 }
+
+func (altx *AccessListTx) signerHashFastRLP(chainID *big.Int, arena *fastrlp.Arena) *fastrlp.Value {
+	values := [...]*fastrlp.Value{
+		arena.NewBigInt(chainID),
+		arena.NewUint(altx.Nonce),
+		arena.NewBigInt(altx.GasPrice),
+		arena.NewUint(altx.Gas),
+		arena.NewBytes(altx.To.Bytes()),
+		arena.NewBigInt(altx.Value),
+		arena.NewBytes(altx.Data),
+		marshalAccessListToFastRLP(arena, altx.AccessList),
+	}
+
+	array := arena.NewArray()
+	for _, value := range values {
+		array.Set(value)
+	}
+	return array
+}

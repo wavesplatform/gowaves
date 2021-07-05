@@ -3,12 +3,18 @@ package metamask
 import (
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
+	"hash"
 )
 
 const (
 	// HashLength is the expected length of the hash in bytes
 	HashLength = 32
 )
+
+type hashImpl interface {
+	hash.Hash
+	Read([]byte) (int, error)
+}
 
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
 type Hash [HashLength]byte
@@ -38,19 +44,19 @@ func unmarshalHashesFromFastRLP(value *fastrlp.Value) ([]Hash, error) {
 	}
 	hashes := make([]Hash, 0, len(elems))
 	for _, elem := range elems {
-		var hash Hash
-		if err := hash.unmarshalFromFastRLP(elem); err != nil {
+		var h Hash
+		if err := h.unmarshalFromFastRLP(elem); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal Hash from fastRLP value")
 		}
-		hashes = append(hashes, hash)
+		hashes = append(hashes, h)
 	}
 	return hashes, nil
 }
 
 func marshalHashesToFastRLP(arena *fastrlp.Arena, hashes []Hash) *fastrlp.Value {
 	array := arena.NewArray()
-	for _, hash := range hashes {
-		val := hash.marshalToFastRLP(arena)
+	for _, h := range hashes {
+		val := h.marshalToFastRLP(arena)
 		array.Set(val)
 	}
 	return array

@@ -156,3 +156,23 @@ func (ltx *LegacyTx) rawSignatureValues() (v, r, s *big.Int) {
 func (ltx *LegacyTx) setSignatureValues(chainID, v, r, s *big.Int) {
 	ltx.V, ltx.R, ltx.S = v, r, s
 }
+
+func (ltx *LegacyTx) signerHashFastRLP(chainID *big.Int, arena *fastrlp.Arena) *fastrlp.Value {
+	values := [...]*fastrlp.Value{
+		arena.NewUint(ltx.Nonce),
+		arena.NewBigInt(ltx.GasPrice),
+		arena.NewUint(ltx.Gas),
+		arena.NewBytes(ltx.To.Bytes()),
+		arena.NewBigInt(ltx.Value),
+		arena.NewBytes(ltx.Data),
+		arena.NewBigInt(chainID),
+		arena.NewUint(0),
+		arena.NewUint(0),
+	}
+
+	array := arena.NewArray()
+	for _, value := range values {
+		array.Set(value)
+	}
+	return array
+}

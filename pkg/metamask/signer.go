@@ -3,7 +3,9 @@ package metamask
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"golang.org/x/crypto/sha3"
 	"math/big"
 )
 
@@ -64,7 +66,7 @@ func (s eip2930Signer) Sender(tx *Transaction) (Address, error) {
 	//if tx.ChainId().Cmp(s.chainId) != 0 {
 	//	return Address{}, ErrInvalidChainId
 	//}
-	return recoverPlain(s.Hash(tx), R, S, V, true)
+	return recoverPlain(tx.SignerHash(s.chainId), R, S, V, true)
 }
 
 func (s eip2930Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
@@ -88,30 +90,17 @@ func (s eip2930Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *bi
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (s eip2930Signer) Hash(tx *Transaction) Hash {
+	arena := &fastrlp.Arena{}
+	hashValues := tx.inner.signerHashFastRLP(s.chainId, arena)
+
+	var rlpData []byte
+
 	switch tx.Type() {
 	case LegacyTxType:
-		return rlpHash([]interface{}{
-			tx.Nonce(),
-			tx.GasPrice(),
-			tx.Gas(),
-			tx.To(),
-			tx.Value(),
-			tx.Data(),
-			s.chainId, uint(0), uint(0),
-		})
-	//case AccessListTxType:
-	//	return prefixedRlpHash(
-	//		tx.Type(),
-	//		[]interface{}{
-	//			s.chainId,
-	//			tx.Nonce(),
-	//			tx.GasPrice(),
-	//			tx.Gas(),
-	//			tx.To(),
-	//			tx.Value(),
-	//			tx.Data(),
-	//			tx.AccessList(),
-	//		})
+		rlpData = hashValues.MarshalTo(nil)
+	case AccessListTxType, DynamicFeeTxType:
+		rlpData = append(rlpData, tx.Type())
+		rlpData = hashValues.MarshalTo(rlpData)
 	default:
 		// This _should_ not happen, but in case someone sends in a bad
 		// json struct via RPC, it's probably more prudent to return an
@@ -119,6 +108,12 @@ func (s eip2930Signer) Hash(tx *Transaction) Hash {
 		//panic("Unsupported transaction type: %d", tx.typ)
 		return Hash{}
 	}
+	var h Hash
+	sha := sha3.NewLegacyKeccak256().(hashImpl)
+	// nickeskov: it always returns a nil error
+	_, _ = sha.Write(rlpData)
+	_, _ = sha.Read(h[:])
+	return h
 }
 
 type EIP155Signer struct {
@@ -160,7 +155,7 @@ func (s EIP155Signer) Sender(tx *Transaction) (Address, error) {
 	V, R, S := tx.RawSignatureValues()
 	V = new(big.Int).Sub(V, s.chainIdMul)
 	V.Sub(V, big8)
-	return recoverPlain(s.Hash(tx), R, S, V, true)
+	return recoverPlain(tx.SignerHash(s.chainId), R, S, V, true)
 }
 
 // SignatureValues returns signature values. This signature
@@ -180,15 +175,30 @@ func (s EIP155Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (s EIP155Signer) Hash(tx *Transaction) Hash {
-	return rlpHash([]interface{}{
-		tx.Nonce(),
-		tx.GasPrice(),
-		tx.Gas(),
-		tx.To(),
-		tx.Value(),
-		tx.Data(),
-		s.chainId, uint(0), uint(0),
-	})
+	arena := &fastrlp.Arena{}
+	hashValues := tx.inner.signerHashFastRLP(s.chainId, arena)
+
+	var rlpData []byte
+
+	switch tx.Type() {
+	case LegacyTxType:
+		rlpData = hashValues.MarshalTo(nil)
+	case AccessListTxType, DynamicFeeTxType:
+		rlpData = append(rlpData, tx.Type())
+		rlpData = hashValues.MarshalTo(rlpData)
+	default:
+		// This _should_ not happen, but in case someone sends in a bad
+		// json struct via RPC, it's probably more prudent to return an
+		// empty hash instead of killing the node with a panic
+		//panic("Unsupported transaction type: %d", tx.typ)
+		return Hash{}
+	}
+	var h Hash
+	sha := sha3.NewLegacyKeccak256().(hashImpl)
+	// nickeskov: it always returns a nil error
+	_, _ = sha.Write(rlpData)
+	_, _ = sha.Read(h[:])
+	return h
 }
 
 // HomesteadTransaction implements TransactionInterface using the
@@ -215,7 +225,7 @@ func (hs HomesteadSigner) Sender(tx *Transaction) (Address, error) {
 		return Address{}, ErrTxTypeNotSupported
 	}
 	v, r, s := tx.RawSignatureValues()
-	return recoverPlain(hs.Hash(tx), r, s, v, true)
+	return recoverPlain(tx.SignerHash(hs.ChainID()), r, s, v, true)
 }
 
 type FrontierSigner struct{}
@@ -234,7 +244,7 @@ func (fs FrontierSigner) Sender(tx *Transaction) (Address, error) {
 		return Address{}, ErrTxTypeNotSupported
 	}
 	v, r, s := tx.RawSignatureValues()
-	return recoverPlain(fs.Hash(tx), r, s, v, false)
+	return recoverPlain(tx.SignerHash(fs.ChainID()), r, s, v, true)
 }
 
 // SignatureValues returns signature values. This signature
@@ -250,14 +260,30 @@ func (fs FrontierSigner) SignatureValues(tx *Transaction, sig []byte) (r, s, v *
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (fs FrontierSigner) Hash(tx *Transaction) Hash {
-	return rlpHash([]interface{}{
-		tx.Nonce(),
-		tx.GasPrice(),
-		tx.Gas(),
-		tx.To(),
-		tx.Value(),
-		tx.Data(),
-	})
+	arena := &fastrlp.Arena{}
+	hashValues := tx.inner.signerHashFastRLP(fs.ChainID(), arena)
+
+	var rlpData []byte
+
+	switch tx.Type() {
+	case LegacyTxType:
+		rlpData = hashValues.MarshalTo(nil)
+	case AccessListTxType, DynamicFeeTxType:
+		rlpData = append(rlpData, tx.Type())
+		rlpData = hashValues.MarshalTo(rlpData)
+	default:
+		// This _should_ not happen, but in case someone sends in a bad
+		// json struct via RPC, it's probably more prudent to return an
+		// empty hash instead of killing the node with a panic
+		//panic("Unsupported transaction type: %d", tx.typ)
+		return Hash{}
+	}
+	var h Hash
+	sha := sha3.NewLegacyKeccak256().(hashImpl)
+	// nickeskov: it always returns a nil error
+	_, _ = sha.Write(rlpData)
+	_, _ = sha.Read(h[:])
+	return h
 }
 
 func decodeSignature(sig []byte) (r, s, v *big.Int) {
@@ -289,16 +315,8 @@ func recoverPlain(sighash Hash, R, S, Vb *big.Int, homestead bool) (Address, err
 	if err != nil {
 		return Address{}, err
 	}
-	//pub, err := crypto.Ecrecover(sighash[:], sig)
-	//if err != nil {
-	//	return Address{}, err
-	//}
-	//if len(pubKey) == 0 || pub[0] != 4 {
-	//	return Address{}, errors.New("invalid public key")
-	//}
+
 	var addrKey Address
-	//var addr Address
-	//copy(addr[:], crypto.Keccak256(pub[1:])[12:])
 	res := pubKey.SerializeUncompressed()[1:]
 	l, err := crypto.Keccak256(res)
 	if err != nil {

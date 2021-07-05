@@ -4,6 +4,7 @@ import (
 	stderr "errors"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
+	"golang.org/x/crypto/sha3"
 	"io"
 	"math/big"
 )
@@ -21,6 +22,10 @@ var (
 	ErrTxTypeNotSupported = stderr.New("transaction type not supported")
 	errEmptyTypedTx       = stderr.New("empty typed transaction bytes")
 )
+
+type fastRLPSignerHasher interface {
+	signerHashFastRLP(chainID *big.Int, arena *fastrlp.Arena) *fastrlp.Value
+}
 
 type RLPDecoder interface {
 	DecodeRLP([]byte) error
@@ -57,6 +62,7 @@ type TxData interface {
 	setSignatureValues(chainID, v, r, s *big.Int)
 
 	fastRLPMarshaler
+	fastRLPSignerHasher
 }
 
 type Transaction struct {
@@ -222,4 +228,31 @@ func (tx *Transaction) Protected() bool {
 	default:
 		return true
 	}
+}
+
+func (tx *Transaction) SignerHash(chainID *big.Int) Hash {
+	arena := &fastrlp.Arena{}
+	hashValues := tx.inner.signerHashFastRLP(chainID, arena)
+
+	var rlpData []byte
+
+	switch tx.Type() {
+	case LegacyTxType:
+		rlpData = hashValues.MarshalTo(nil)
+	case AccessListTxType, DynamicFeeTxType:
+		rlpData = append(rlpData, tx.Type())
+		rlpData = hashValues.MarshalTo(rlpData)
+	default:
+		// This _should_ not happen, but in case someone sends in a bad
+		// json struct via RPC, it's probably more prudent to return an
+		// empty hash instead of killing the node with a panic
+		//panic("Unsupported transaction type: %d", tx.typ)
+		return Hash{}
+	}
+	var h Hash
+	sha := sha3.NewLegacyKeccak256().(hashImpl)
+	// nickeskov: it always returns a nil error
+	_, _ = sha.Write(rlpData)
+	_, _ = sha.Read(h[:])
+	return h
 }
