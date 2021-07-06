@@ -8,7 +8,14 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 	"go.uber.org/zap"
+)
+
+const (
+	MinOpenFilesCacheCapacityRate     = 0.1
+	DefaultOpenFilesCacheCapacityRate = 0.6
+	MaxOpenFilesCacheCapacityRate     = 0.8
 )
 
 type pair struct {
@@ -132,16 +139,45 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 type KeyValParams struct {
 	CacheParams
 	BloomFilterParams
-	WriteBuffer         int
-	CompactionTableSize int
-	CompactionTotalSize int
+	WriteBuffer                int
+	CompactionTableSize        int
+	CompactionTotalSize        int
+	OpenFilesCacheCapacityRate float64
+}
+
+func (kvp *KeyValParams) Validate() error {
+	if kvp.OpenFilesCacheCapacityRate < MinOpenFilesCacheCapacityRate ||
+		kvp.OpenFilesCacheCapacityRate > MaxOpenFilesCacheCapacityRate {
+		return errors.Errorf(
+			"invalid KeyValParams.OpenFilesCacheCapacityRate value %f: it shall be between %f and %f",
+			kvp.OpenFilesCacheCapacityRate,
+			MinOpenFilesCacheCapacityRate,
+			MaxOpenFilesCacheCapacityRate,
+		)
+	}
+	return nil
 }
 
 func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
+	// nickeskov: we assume that KeyValParams are valid
+	currentFDs, err := fdlimit.CurrentFDs()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get current file descriptors count")
+	}
+	openFilesCacheCapacity := int(params.OpenFilesCacheCapacityRate * float64(currentFDs))
+
+	zap.S().Debugf(
+		"leveldb.opt.Options.OpenFilesCacheCapacity has been evaluated to %d. CurrentFDs=%d, OpenFilesCacheCapacityRate=%f",
+		openFilesCacheCapacity,
+		currentFDs,
+		params.OpenFilesCacheCapacityRate,
+	)
+
 	dbOptions := &opt.Options{
-		WriteBuffer:         params.WriteBuffer,
-		CompactionTableSize: params.CompactionTableSize,
-		CompactionTotalSize: params.CompactionTotalSize,
+		WriteBuffer:            params.WriteBuffer,
+		CompactionTableSize:    params.CompactionTableSize,
+		CompactionTotalSize:    params.CompactionTotalSize,
+		OpenFilesCacheCapacity: openFilesCacheCapacity,
 	}
 	db, err := leveldb.OpenFile(path, dbOptions)
 	if err != nil {
