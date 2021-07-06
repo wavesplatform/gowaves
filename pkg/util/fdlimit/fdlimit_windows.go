@@ -21,9 +21,9 @@ func SetMaxFDs(max uint64) (uint64, error) {
 }
 
 func CurrentFDs() (uint64, error) {
-	return hardFDLimit, 0
+	return hardFDLimit, nil
 }
 
 func MaxFDs() (uint64, error) {
-	return hardFDLimit, 0
+	return hardFDLimit, nil
 }
