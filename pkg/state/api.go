@@ -1,6 +1,7 @@
 package state
 
 import (
+	"github.com/pkg/errors"
 	"math/big"
 	"runtime"
 
@@ -193,9 +194,12 @@ type State interface {
 // params are state parameters (see below).
 // settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
 func NewState(dataDir string, params StateParams, settings *settings.BlockchainSettings) (State, error) {
+	if err := params.Validate(); err != nil {
+		return nil, errors.Wrap(err, "failed to create new state instance (invalid params)")
+	}
 	s, err := newStateManager(dataDir, params, settings)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create new state instance")
 	}
 	return NewThreadSafeState(s), nil
 }
@@ -206,6 +210,13 @@ type StorageParams struct {
 	DbParams        keyvalue.KeyValParams
 }
 
+func (sp *StorageParams) Validate() error {
+	if err := sp.DbParams.Validate(); err != nil {
+		return errors.Wrap(err, "failed to validate KeyValParams")
+	}
+	return nil
+}
+
 func DefaultStorageParams() StorageParams {
 	dbParams := keyvalue.KeyValParams{
 		CacheParams: keyvalue.CacheParams{Size: DefaultCacheSize},
@@ -214,9 +225,10 @@ func DefaultStorageParams() StorageParams {
 			FalsePositiveProbability: DefaultBloomFilterFalsePositiveProbability,
 			Store:                    keyvalue.NewStore(""),
 		},
-		WriteBuffer:         DefaultWriteBuffer,
-		CompactionTableSize: DefaultCompactionTableSize,
-		CompactionTotalSize: DefaultCompactionTotalSize,
+		WriteBuffer:                DefaultWriteBuffer,
+		CompactionTableSize:        DefaultCompactionTableSize,
+		CompactionTotalSize:        DefaultCompactionTotalSize,
+		OpenFilesCacheCapacityRate: DefaultOpenFilesCacheCapacityRate,
 	}
 	return StorageParams{
 		OffsetLen:       DefaultOffsetLen,
@@ -247,6 +259,13 @@ type StateParams struct {
 	ProvideExtendedApi bool
 	// BuildStateHashes enables building and storing state hashes by height.
 	BuildStateHashes bool
+}
+
+func (sp *StateParams) Validate() error {
+	if err := sp.StorageParams.Validate(); err != nil {
+		return errors.Wrap(err, "failed to validate StorageParams")
+	}
+	return nil
 }
 
 func DefaultStateParams() StateParams {

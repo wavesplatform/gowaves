@@ -164,6 +164,14 @@ func (o rideObject) get(prop string) (rideType, error) {
 	return v, nil
 }
 
+func (o rideObject) copy() rideObject {
+	r := make(rideObject)
+	for k, v := range o {
+		r[k] = v
+	}
+	return r
+}
+
 type rideAddress proto.Address
 
 func (a rideAddress) instanceOf() string {
