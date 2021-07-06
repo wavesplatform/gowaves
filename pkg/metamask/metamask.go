@@ -32,8 +32,8 @@ func (as MetaMask) Net_version() int {
 /* Returns the balance of the account of given address
    - address: 20 Bytes - address to check for balance
    - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */
-func (as MetaMask) Eth_getBalance(address string, blockNumber int) int {
-	return 100
+func (as MetaMask) Eth_getBalance(address string, blockNumber int) string {
+	return "0x0234c8a3397aab58" // 0.159
 }
 
 /* Returns information about a block by block number.

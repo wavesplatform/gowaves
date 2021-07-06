@@ -68,7 +68,7 @@ func (MetaMask) SMD() smd.ServiceInfo {
 				Returns: smd.JSONSchema{
 					Description: ``,
 					Optional:    false,
-					Type:        smd.Integer,
+					Type:        smd.String,
 				},
 			},
 			"Eth_getBlockByNumber": {
