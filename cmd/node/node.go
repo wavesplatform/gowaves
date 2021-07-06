@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"math/rand"
 	"net/http"
 	_ "net/http"
@@ -58,6 +59,7 @@ var (
 	apiAddr                               = flag.String("api-address", "", "Address for REST API")
 	apiKey                                = flag.String("api-key", "", "Api key")
 	grpcAddr                              = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	enableMetaMaskService                 = flag.Bool("enable-metamask", true, "Enables/disables metamask service")
 	enableGrpcApi                         = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
 	buildExtendedApi                      = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
 	serveExtendedApi                      = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
@@ -414,6 +416,17 @@ func main() {
 			err := grpcServer.Run(ctx, conf.GrpcAddr)
 			if err != nil {
 				zap.S().Errorf("grpcServer.Run(): %v", err)
+			}
+		}()
+	}
+
+	address := ":8545"
+	if *enableMetaMaskService {
+		go func() {
+			zap.S().Infof("Starting metamask service on %s...", address)
+			err := metamask.RunMetaMaskService(ctx, address, st)
+			if err != nil {
+				zap.S().Errorf("metamask service: %v", err)
 			}
 		}()
 	}

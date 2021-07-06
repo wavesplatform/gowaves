@@ -11,6 +11,7 @@ require (
 	github.com/coocood/freecache v1.1.0
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
 	github.com/ericlagergren/decimal v0.0.0-20190912144844-2c3e3e1ef942
+	github.com/ethereum/go-ethereum v1.9.15 // indirect
 	github.com/fxamacker/cbor/v2 v2.3.0
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/golang/mock v1.4.3
@@ -28,6 +29,7 @@ require (
 	github.com/prometheus/client_golang v1.7.1
 	github.com/rakyll/statik v0.1.7
 	github.com/seiflotfy/cuckoofilter v0.0.0-20190302225222-764cb5258d9b
+	github.com/semrush/zenrpc/v2 v2.1.0
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.2.2
 	github.com/spf13/pflag v1.0.5
@@ -36,12 +38,13 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d
 	github.com/throttled/throttled/v2 v2.7.1
+	github.com/umbracle/fastrlp v0.0.0-20210128110402-41364ca56ca8
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/xenolf/lego v2.7.2+incompatible
 	go.uber.org/atomic v1.4.0
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.10.0
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/net v0.0.0-20201006153459-a7d1128ccaa0 // indirect
 	golang.org/x/sys v0.0.0-20201008064518-c1f3e3309c71
 	google.golang.org/genproto v0.0.0-20201007142714-5c0e72c5e71e // indirect
