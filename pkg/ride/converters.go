@@ -931,7 +931,12 @@ func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (r
 	r[instanceFieldName] = rideString("Invocation")
 	r["transactionId"] = rideBytes(tx.ID.Bytes())
 	r["caller"] = rideAddress(sender)
-	r["callerPublicKey"] = rideBytes(common.Dup(tx.SenderPK.Bytes()))
+	callerPK := rideBytes(common.Dup(tx.SenderPK.Bytes()))
+	r["callerPublicKey"] = callerPK
+	if v >= 5 {
+		r["originCaller"] = rideAddress(sender)
+		r["originCallerPublicKey"] = callerPK
+	}
 	switch v {
 	case 4, 5:
 		payments := make(rideList, len(tx.Payments))
