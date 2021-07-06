@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"github.com/semrush/zenrpc/v2"
 	"github.com/umbracle/fastrlp"
+	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 	"math/big"
 	"strings"
@@ -11,7 +12,10 @@ import (
 
 //go:generate zenrpc
 
-type MetaMask struct{ zenrpc.Service }
+type MetaMask struct {
+	zenrpc.Service
+	state state.State
+}
 
 /* Returns the number of most recent block */
 func (as MetaMask) Eth_blockNumber() int {

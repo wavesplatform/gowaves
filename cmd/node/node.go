@@ -423,7 +423,7 @@ func main() {
 	if *enableMetaMaskService {
 		go func() {
 			zap.S().Infof("Starting metamask service on %s...", address)
-			err := metamask.RunMetaMaskService(ctx, address)
+			err := metamask.RunMetaMaskService(ctx, address, st)
 			if err != nil {
 				zap.S().Errorf("metamask service: %v", err)
 			}
