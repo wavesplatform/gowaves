@@ -38,6 +38,7 @@ func (as MetaMask) Eth_chainId() string {
    - address: 20 Bytes - address to check for balance
    - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */
 func (as MetaMask) Eth_getBalance(address string, blockNumber int) string {
+	// return balance in wei. 1 ether is equivalent to 1 x 10^18 wei (
 	return "0x0234c8a3397aab58" // 0.159
 }
 
