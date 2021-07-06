@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
@@ -32,6 +34,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
+	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"go.uber.org/zap"
 )
@@ -58,6 +61,14 @@ var (
 	limitConnectionsS = flag.String("limit-connections", "30", "N incoming and outgoing connections")
 	minPeersMining    = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining")
 	dropPeers         = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
+	fileDescriptors   = flag.Int("file-descriptors", fdlimit.DefaultMaxFDs,
+		fmt.Sprintf("Maximum allowed file descriptors count for process. Value shall be greater or equal than %d.", fdlimit.DefaultMaxFDs),
+	)
+	dbFileDescriptorsRate = flag.Float64("db-file-descriptors-rate", state.DefaultOpenFilesCacheCapacityRate,
+		fmt.Sprintf("Part of allowed file descriptors that will be used for state database caches. Value shall be between %f and %f.",
+			keyvalue.MinOpenFilesCacheCapacityRate,
+			keyvalue.MaxOpenFilesCacheCapacityRate,
+		))
 )
 
 func init() {
@@ -66,9 +77,19 @@ func init() {
 
 func main() {
 	flag.Parse()
+
 	if *cfgPath == "" {
-		zap.S().Error("Please provide path to blockchain config JSON file")
-		return
+		zap.S().Fatalf("Please provide path to blockchain config JSON file")
+	}
+	if *fileDescriptors < fdlimit.DefaultMaxFDs {
+		zap.S().Fatalf(
+			"Invalid 'file-descriptors' flag value (%d). Value shall be greater or equal than %d.",
+			*fileDescriptors, fdlimit.DefaultMaxFDs,
+		)
+	}
+	_, err := fdlimit.SetMaxFDs(uint64(*fileDescriptors))
+	if err != nil {
+		zap.S().Fatalf("Failed to set max file descriptors count: %v", err)
 	}
 
 	common.SetupLogger(*logLevel)
@@ -148,6 +169,7 @@ func main() {
 	go ntpTime.Run(ctx, 2*time.Minute)
 
 	params := state.DefaultStateParams()
+	params.StorageParams.DbParams.OpenFilesCacheCapacityRate = *dbFileDescriptorsRate
 	params.StoreExtendedApiData = *buildExtendedApi
 	params.ProvideExtendedApi = *serveExtendedApi
 	params.BuildStateHashes = *buildStateHashes
