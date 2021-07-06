@@ -29,6 +29,11 @@ func (as MetaMask) Net_version() int {
 	return 3
 }
 
+/* Returns the chain id */
+func (as MetaMask) Eth_chainId() string {
+	return "0x5d"
+}
+
 /* Returns the balance of the account of given address
    - address: 20 Bytes - address to check for balance
    - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */
