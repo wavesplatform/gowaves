@@ -7003,3 +7003,163 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 	}
 	assert.Equal(t, expectedResult, sr)
 }
+
+func TestOriginCaller(t *testing.T) {
+	/*
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		let contract = base58'3PGZyyPg7Mx91yaNT8k3MWxSQzuzusMUyzX'
+
+		@Callable(i)
+		func call() = {
+		  strict res = invoke(Address(contract),  "call", [], [])
+		  match (res) {
+		      case b:Boolean => if b then ([], res) else throw("fail!!!")
+		      case _ => throw("not a boolean")
+		    }
+		}
+	*/
+	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAIY29udHJhY3QBAAAAGgFXoJWHaFIS+neTXowyvvYUIY9fLjbMmBsgAAAAAQAAAAFpAQAAAARjYWxsAAAAAAQAAAADcmVzCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQUAAAAIY29udHJhY3QCAAAABGNhbGwFAAAAA25pbAUAAAADbmlsAwkAAAAAAAACBQAAAANyZXMFAAAAA3JlcwQAAAAHJG1hdGNoMAUAAAADcmVzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAAdCb29sZWFuBAAAAAFiBQAAAAckbWF0Y2gwAwUAAAABYgkABRQAAAACBQAAAANuaWwFAAAAA3JlcwkAAAIAAAABAgAAAAdmYWlsISEhCQAAAgAAAAECAAAADW5vdCBhIGJvb2xlYW4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAFMoVsA="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/*
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+		func call() = {
+		  ([BinaryEntry("origin-caller-address", i.originCaller.bytes), BinaryEntry("origin-caller-pk", i.originCallerPublicKey)], true)
+		}
+	*/
+	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAJAAUUAAAAAgkABEwAAAACCQEAAAALQmluYXJ5RW50cnkAAAACAgAAABVvcmlnaW4tY2FsbGVyLWFkZHJlc3MICAUAAAABaQAAAAxvcmlnaW5DYWxsZXIAAAAFYnl0ZXMJAARMAAAAAgkBAAAAC0JpbmFyeUVudHJ5AAAAAgIAAAAQb3JpZ2luLWNhbGxlci1wawgFAAAAAWkAAAAVb3JpZ2luQ2FsbGVyUHVibGljS2V5BQAAAANuaWwGAAAAAAd0XdI="
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	txID, err := crypto.NewDigestFromBase58("BuCo8EEM2VbvjJbC6VyBVa64m2fNmdSoKLSxmoshnbmv")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	senderPK, err := crypto.NewPublicKeyFromBase58("EY3etWLNnrLg4znKsncuJFXVUHiP61PYpuZTAED98QUS")
+	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, senderPK)
+	require.NoError(t, err)
+	dApp1, err := proto.NewAddressFromString("3PH75p2rmMKCV2nyW4TsAdFgFtmc61mJaqA")
+	require.NoError(t, err)
+	dApp1PK, err := crypto.NewPublicKeyFromBase58("3GtkwhnMmG1yeozW51o4dJ1x3BDToPaLBXyBWKGdAc2e")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(5, proto.MainNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &MockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.MainNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.MainNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		setNewDAppAddressFunc: func(address proto.Address) {
+			testDAppAddress = address
+		},
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.Address.String() {
+			case "3PGZyyPg7Mx91yaNT8k3MWxSQzuzusMUyzX":
+				return src2, nil
+			case "3PH75p2rmMKCV2nyW4TsAdFgFtmc61mJaqA":
+				return src1, nil
+			default:
+				return nil, errors.Errorf("unexpected address %s", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+			switch addr {
+			case senderAddress:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			}
+			return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+			return recipient.Address, nil
+		},
+	}
+	testState := initWrappedState(mockState, env)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	require.True(t, r.res)
+
+	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+
+	expectedDataWrites := []*proto.DataEntryScriptAction{
+		{
+			Sender: &dApp1PK,
+			Entry:  &proto.BinaryDataEntry{Key: "origin-caller-address", Value: senderAddress.Bytes()},
+		},
+		{
+			Sender: &dApp1PK,
+			Entry:  &proto.BinaryDataEntry{Key: "origin-caller-pk", Value: senderPK.Bytes()},
+		},
+	}
+
+	expectedResult := &proto.ScriptResult{
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:     proto.ScriptErrorMessage{},
+	}
+	assert.Equal(t, expectedResult, sr)
+}
