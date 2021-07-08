@@ -1,0 +1,8 @@
+strict digraph {
+  node [shape=box,style="rounded,filled"]
+  start=0
+  splines=ortho
+  "github.com/kilic/bn254" [fontcolor="0.000 0.000 0.000",fillcolor="0.886 0.734 1.000"]
+  "github.com/wavesplatform/gowaves" [fontcolor="0.000 0.000 0.000",fillcolor="0.149 0.955 1.000"]
+  "github.com/wavesplatform/gowaves" -> "github.com/kilic/bn254"
+}
