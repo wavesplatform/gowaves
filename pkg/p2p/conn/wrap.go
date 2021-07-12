@@ -18,7 +18,7 @@ func WrapConnection(conn net.Conn, pool Pool, toRemoteCh chan []byte, fromRemote
 		fromRemoteCh: fromRemoteCh,
 		errCh:        errCh,
 		sendFunc:     sendToRemote,
-		recvFunc:     recvFromRemote,
+		receiveFunc:  receiveFromRemote,
 		skip:         skip,
 	})
 }
@@ -30,7 +30,7 @@ type wrapParams struct {
 	fromRemoteCh chan []byte
 	errCh        chan error
 	sendFunc     func(closed *atomic.Bool, conn io.Writer, ctx context.Context, toRemoteCh chan []byte, errCh chan error)
-	recvFunc     func(closed *atomic.Bool, pool Pool, reader io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter)
+	receiveFunc  func(closed *atomic.Bool, pool Pool, reader io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter, addr string)
 	skip         SkipFilter
 }
 
@@ -46,7 +46,7 @@ func wrapConnection(params wrapParams) *ConnectionImpl {
 
 	bufReader := bufio.NewReader(params.conn)
 
-	go params.recvFunc(impl.receiveClosed, params.pool, bufReader, params.fromRemoteCh, params.errCh, params.skip)
+	go params.receiveFunc(impl.receiveClosed, params.pool, bufReader, params.fromRemoteCh, params.errCh, params.skip, params.conn.RemoteAddr().String())
 	go params.sendFunc(impl.sendClosed, params.conn, ctx, params.toRemoteCh, params.errCh)
 
 	return impl
