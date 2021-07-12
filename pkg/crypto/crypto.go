@@ -469,9 +469,15 @@ func Verify(publicKey PublicKey, sig Signature, data []byte) bool {
 		return false
 	}
 	h := sha512.New()
-	h.Write(sig[:32])
-	h.Write(pk)
-	h.Write(data)
+	if _, err := h.Write(sig[:32]); err != nil {
+		return false
+	}
+	if _, err := h.Write(pk); err != nil {
+		return false
+	}
+	if _, err := h.Write(data); err != nil {
+		return false
+	}
 	hd := make([]byte, 0, sha512.Size)
 	hd = h.Sum(hd)
 	ks, err := edwards.NewScalar().SetUniformBytes(hd)
