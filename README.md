@@ -112,7 +112,7 @@ To list the seed execute the following command and provide the password then ask
  
 ### Building from sources
 
-Go version 1.12 or later is required to build the `node`, `importer`, `wallet` and other tools. 
+Go version 1.16 or later is required to build the `node`, `importer`, `wallet` and other tools. 
 
 Build as usual or execute the appropriate `make` task:
 
