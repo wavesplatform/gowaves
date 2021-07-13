@@ -9,9 +9,10 @@ import (
 	"hash"
 	"strings"
 
+	edwards "filippo.io/edwards25519"
+	"filippo.io/edwards25519/field"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto/internal"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/sha3"
@@ -23,6 +24,14 @@ const (
 	PublicKeySize = KeySize
 	SecretKeySize = KeySize
 	SignatureSize = 64
+)
+
+var (
+	prefix = []byte{
+		0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+	}
+	one = new(field.Element).One()
 )
 
 type Digest [DigestSize]byte
@@ -360,21 +369,13 @@ func GenerateSecretKey(seed []byte) SecretKey {
 }
 
 func GeneratePublicKey(sk SecretKey) PublicKey {
+	s, err := new(edwards.Scalar).SetBytesWithClamping(sk[:])
+	if err != nil { // The only possible error is on size check
+		panic(err)
+	}
+	p := new(edwards.Point).ScalarBaseMult(s)
 	var pk PublicKey
-	s := [SecretKeySize]byte(sk)
-	var ed internal.ExtendedGroupElement
-	internal.GeScalarMultBase(&ed, &s)
-	var edYPlusOne = new(internal.FieldElement)
-	internal.FeAdd(edYPlusOne, &ed.Y, &ed.Z)
-	var oneMinusEdY = new(internal.FieldElement)
-	internal.FeSub(oneMinusEdY, &ed.Z, &ed.Y)
-	var invOneMinusEdY = new(internal.FieldElement)
-	internal.FeInvert(invOneMinusEdY, oneMinusEdY)
-	var montX = new(internal.FieldElement)
-	internal.FeMul(montX, edYPlusOne, invOneMinusEdY)
-	p := new([PublicKeySize]byte)
-	internal.FeToBytes(p, montX)
-	copy(pk[:], p[:])
+	copy(pk[:], p.BytesMontgomery())
 	return pk
 }
 
@@ -393,145 +394,119 @@ func GenerateKeyPair(seed []byte) (SecretKey, PublicKey, error) {
 
 func Sign(secretKey SecretKey, data []byte) (Signature, error) {
 	var sig Signature
-	var edPubKeyPoint internal.ExtendedGroupElement
-	sk := [SecretKeySize]byte(secretKey)
-	internal.GeScalarMultBase(&edPubKeyPoint, &sk)
-
-	var edPubKey = new([PublicKeySize]byte)
-	edPubKeyPoint.ToBytes(edPubKey)
-	signBit := edPubKey[31] & 0x80
-	s, err := sign(&sk, edPubKey, data)
+	sks, err := edwards.NewScalar().SetBytesWithClamping(secretKey[:])
 	if err != nil {
 		return sig, err
 	}
-	s[63] &= 0x7f
-	s[63] |= signBit
-	copy(sig[:], s[:SignatureSize])
+	pkp := new(edwards.Point).ScalarBaseMult(sks)
+	pkb := pkp.Bytes()
+	sf := pkb[31] & 0x80
+
+	random := make([]byte, sha512.Size)
+	if _, err := rand.Read(random); err != nil {
+		return sig, err
+	}
+
+	md := make([]byte, 0, sha512.Size)
+	h := sha512.New()
+	if _, err := h.Write(prefix); err != nil {
+		return sig, err
+	}
+	if _, err := h.Write(sks.Bytes()); err != nil {
+		return sig, err
+	}
+	if _, err := h.Write(data); err != nil {
+		return sig, err
+	}
+	if _, err := h.Write(random); err != nil {
+		return sig, err
+	}
+	md = h.Sum(md)
+
+	rs, err := edwards.NewScalar().SetUniformBytes(md)
+	if err != nil {
+		return sig, err
+	}
+
+	rp := new(edwards.Point).ScalarBaseMult(rs)
+
+	hd := make([]byte, 0, sha512.Size)
+	h.Reset()
+	if _, err := h.Write(rp.Bytes()); err != nil {
+		return sig, err
+	}
+	if _, err := h.Write(pkb); err != nil {
+		return sig, err
+	}
+	if _, err := h.Write(data); err != nil {
+		return sig, err
+	}
+	hd = h.Sum(hd)
+
+	ks, err := edwards.NewScalar().SetUniformBytes(hd)
+	if err != nil {
+		return sig, err
+	}
+
+	ss := edwards.NewScalar().MultiplyAdd(ks, sks, rs)
+
+	copy(sig[:DigestSize], rp.Bytes())
+	copy(sig[DigestSize:], ss.Bytes())
+
+	sig[63] &= 0x7f
+	sig[63] |= sf
 	return sig, nil
 }
 
-func sign(curvePrivateKey, edPublicKey *[DigestSize]byte, data []byte) ([SignatureSize]byte, error) {
-	var signature [64]byte
-	var prefix = bytes.Repeat([]byte{0xff}, 32)
-	prefix[0] = 0xfe
-
-	random := make([]byte, 64)
-	if _, err := rand.Read(random); err != nil {
-		return signature, err
-	}
-
-	var messageDigest, hramDigest [64]byte
-	h := sha512.New()
-	if _, err := h.Write(prefix); err != nil {
-		return signature, err
-	}
-	if _, err := h.Write(curvePrivateKey[:]); err != nil {
-		return signature, err
-	}
-	if _, err := h.Write(data); err != nil {
-		return signature, err
-	}
-	if _, err := h.Write(random); err != nil {
-		return signature, err
-	}
-	h.Sum(messageDigest[:0])
-
-	var messageDigestReduced [32]byte
-	internal.ScReduce(&messageDigestReduced, &messageDigest)
-	var R internal.ExtendedGroupElement
-	internal.GeScalarMultBase(&R, &messageDigestReduced)
-
-	var encodedR [32]byte
-	R.ToBytes(&encodedR)
-
-	h.Reset()
-	if _, err := h.Write(encodedR[:]); err != nil {
-		return signature, err
-	}
-	if _, err := h.Write(edPublicKey[:]); err != nil {
-		return signature, err
-	}
-	if _, err := h.Write(data); err != nil {
-		return signature, err
-	}
-	h.Sum(hramDigest[:0])
-	var hramDigestReduced [32]byte
-	internal.ScReduce(&hramDigestReduced, &hramDigest)
-
-	var s [32]byte
-	internal.ScMulAdd(&s, &hramDigestReduced, curvePrivateKey, &messageDigestReduced)
-
-	copy(signature[:], encodedR[:])
-	copy(signature[32:], s[:])
-	return signature, nil
-}
-
-func Verify(publicKey PublicKey, signature Signature, data []byte) bool {
-	pk := [DigestSize]byte(publicKey)
-	var montX = new(internal.FieldElement)
-	internal.FeFromBytes(montX, &pk)
-
-	var one = new(internal.FieldElement)
-	internal.FeOne(one)
-	var montXMinusOne = new(internal.FieldElement)
-	internal.FeSub(montXMinusOne, montX, one)
-	var montXPlusOne = new(internal.FieldElement)
-	internal.FeAdd(montXPlusOne, montX, one)
-	var invMontXPlusOne = new(internal.FieldElement)
-	internal.FeInvert(invMontXPlusOne, montXPlusOne)
-	var edY = new(internal.FieldElement)
-	internal.FeMul(edY, montXMinusOne, invMontXPlusOne)
-
-	var edPubKey = new([PublicKeySize]byte)
-	internal.FeToBytes(edPubKey, edY)
-
-	edPubKey[31] &= 0x7F
-	edPubKey[31] |= signature[63] & 0x80
-
-	s := new([SignatureSize]byte)
-	copy(s[:], signature[:])
-	s[63] &= 0x7f
-
-	return verify(edPubKey, data, s)
-}
-
-func verify(publicKey *[PublicKeySize]byte, message []byte, sig *[SignatureSize]byte) bool {
+func Verify(publicKey PublicKey, sig Signature, data []byte) bool {
+	pk := publicKeyFromMontgomery(publicKey, sig[63])
+	sig[63] &= 0x7f
 	if sig[63]&224 != 0 {
 		return false
 	}
-
-	var A internal.ExtendedGroupElement
-	if !A.FromBytes(publicKey) {
+	ap, err := new(edwards.Point).SetBytes(pk)
+	if err != nil {
 		return false
 	}
-	internal.FeNeg(&A.X, &A.X)
-	internal.FeNeg(&A.T, &A.T)
-
 	h := sha512.New()
-	_, _ = h.Write(sig[:32])
-	_, _ = h.Write(publicKey[:])
-	_, _ = h.Write(message)
-	var digest [64]byte
-	h.Sum(digest[:0])
-
-	var hReduced [32]byte
-	internal.ScReduce(&hReduced, &digest)
-
-	var R internal.ProjectiveGroupElement
-	var s [32]byte
-	copy(s[:], sig[32:])
-
-	// https://tools.ietf.org/html/rfc8032#section-5.1.7 requires that s be in
-	// the range [0, order) in order to prevent signature malleability.
-	if !internal.ScMinimal(&s) {
+	if _, err := h.Write(sig[:32]); err != nil {
 		return false
 	}
+	if _, err := h.Write(pk); err != nil {
+		return false
+	}
+	if _, err := h.Write(data); err != nil {
+		return false
+	}
+	hd := make([]byte, 0, sha512.Size)
+	hd = h.Sum(hd)
+	ks, err := edwards.NewScalar().SetUniformBytes(hd)
+	if err != nil {
+		return false
+	}
+	ss, err := edwards.NewScalar().SetCanonicalBytes(sig[32:])
+	if err != nil {
+		return false
+	}
+	nap := new(edwards.Point).Negate(ap)
+	rp := new(edwards.Point).VarTimeDoubleScalarBaseMult(ks, nap, ss)
+	return bytes.Equal(sig[:32], rp.Bytes())
+}
 
-	internal.GeDoubleScalarMultVartime(&R, &hReduced, &A, &s)
+func publicKeyFromMontgomery(publicKey PublicKey, sb byte) []byte {
+	x, err := new(field.Element).SetBytes(publicKey[:])
+	if err != nil {
+		panic(err)
+	}
+	xMinusOne := new(field.Element).Subtract(x, one)
+	xPlusOne := new(field.Element).Add(x, one)
+	invXPlusOne := new(field.Element).Invert(xPlusOne)
+	y := new(field.Element).Multiply(xMinusOne, invXPlusOne)
 
-	var checkR [32]byte
-	R.ToBytes(&checkR)
-	return bytes.Equal(sig[:32], checkR[:])
+	pk := y.Bytes()
+	pk[31] &= 0x7F
+	pk[31] |= sb & 0x80
+	return pk
 }
 
 func array32FromBase58(s, name string) ([32]byte, error) {
