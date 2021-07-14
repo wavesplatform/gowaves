@@ -24,7 +24,7 @@ func (a *PersistFsm) PeerError(p peer.Peer, e error) (FSM, Async, error) {
 
 func (a *PersistFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 	err := a.peers.UpdateScore(p, score)
-	return a, nil, err
+	return a, nil, proto.NewInfoMsg(err)
 }
 
 func (a *PersistFsm) Block(p peer.Peer, block *proto.Block) (FSM, Async, error) {

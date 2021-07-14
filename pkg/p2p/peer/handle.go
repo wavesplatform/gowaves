@@ -39,7 +39,7 @@ func bytesToMessage(b []byte, d DuplicateChecker, resendTo chan ProtoMessage, po
 	select {
 	case resendTo <- mess:
 	default:
-		zap.S().Debugf("Failed to resend to Parent, channel is full: %s, %T", m, m)
+		zap.S().Warnf("Failed to resend to Parent, channel is full: %s, %T", m, m)
 	}
 	return nil
 }

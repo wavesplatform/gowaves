@@ -255,7 +255,7 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 			defer a.removeSpawned(addr)
 			err := a.spawner.SpawnOutgoing(ctx, addr)
 			if err != nil {
-				zap.S().Warnf("[%s] Failed to establish outbound connection: %v", ipPort.String(), err)
+				zap.S().Debugf("[%s] Failed to establish outbound connection: %v", ipPort.String(), err)
 			}
 		}(ipPort)
 	}
