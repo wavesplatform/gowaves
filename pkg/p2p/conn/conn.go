@@ -98,6 +98,11 @@ func receiveFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader
 		b := pool.Get()
 		// put header before payload
 		if _, err := header.Copy(b); err != nil {
+			pool.Put(b)
+			if nonRecoverableError(err) {
+				handleErr(err, errCh)
+				return
+			}
 			handleErr(err, errCh)
 			continue
 		}
@@ -118,7 +123,7 @@ func receiveFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader
 		case fromRemoteCh <- b:
 		default:
 			pool.Put(b)
-			zap.S().Warnf("[%s] receiveFromRemote send bytes failed, chan is full", addr)
+			zap.S().Warnf("[%s] Failed to send bytes from network to upstream channel because it's full", addr)
 		}
 	}
 }

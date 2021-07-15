@@ -79,6 +79,7 @@ func Handle(params HandlerParams) error {
 				select {
 				case params.Parent.InfoCh <- out:
 				default:
+					zap.S().Warnf("[%s] Failed to send decoded netowrk message to upstream channel because it's full", params.Peer.ID())
 				}
 			}
 
