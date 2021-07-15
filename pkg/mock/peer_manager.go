@@ -38,21 +38,6 @@ func (m *MockPeerManager) EXPECT() *MockPeerManagerMockRecorder {
 	return m.recorder
 }
 
-// Connected mocks base method
-func (m *MockPeerManager) Connected(arg0 peer.Peer) (peer.Peer, bool) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Connected", arg0)
-	ret0, _ := ret[0].(peer.Peer)
-	ret1, _ := ret[1].(bool)
-	return ret0, ret1
-}
-
-// Connected indicates an expected call of Connected
-func (mr *MockPeerManagerMockRecorder) Connected(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Connected", reflect.TypeOf((*MockPeerManager)(nil).Connected), arg0)
-}
-
 // NewConnection mocks base method
 func (m *MockPeerManager) NewConnection(arg0 peer.Peer) error {
 	m.ctrl.T.Helper()
@@ -81,21 +66,6 @@ func (mr *MockPeerManagerMockRecorder) ConnectedCount() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConnectedCount", reflect.TypeOf((*MockPeerManager)(nil).ConnectedCount))
 }
 
-// InOutCount mocks base method
-func (m *MockPeerManager) InOutCount() (int, int) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "InOutCount")
-	ret0, _ := ret[0].(int)
-	ret1, _ := ret[1].(int)
-	return ret0, ret1
-}
-
-// InOutCount indicates an expected call of InOutCount
-func (mr *MockPeerManagerMockRecorder) InOutCount() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InOutCount", reflect.TypeOf((*MockPeerManager)(nil).InOutCount))
-}
-
 // EachConnected mocks base method
 func (m *MockPeerManager) EachConnected(arg0 func(peer.Peer, *proto.Score)) {
 	m.ctrl.T.Helper()
@@ -106,20 +76,6 @@ func (m *MockPeerManager) EachConnected(arg0 func(peer.Peer, *proto.Score)) {
 func (mr *MockPeerManagerMockRecorder) EachConnected(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EachConnected", reflect.TypeOf((*MockPeerManager)(nil).EachConnected), arg0)
-}
-
-// IsSuspended mocks base method
-func (m *MockPeerManager) IsSuspended(arg0 peer.Peer) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsSuspended", arg0)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// IsSuspended indicates an expected call of IsSuspended
-func (mr *MockPeerManagerMockRecorder) IsSuspended(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSuspended", reflect.TypeOf((*MockPeerManager)(nil).IsSuspended), arg0)
 }
 
 // Suspend mocks base method
@@ -148,18 +104,6 @@ func (mr *MockPeerManagerMockRecorder) Suspended() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Suspended", reflect.TypeOf((*MockPeerManager)(nil).Suspended))
 }
 
-// AddConnected mocks base method
-func (m *MockPeerManager) AddConnected(arg0 peer.Peer) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "AddConnected", arg0)
-}
-
-// AddConnected indicates an expected call of AddConnected
-func (mr *MockPeerManagerMockRecorder) AddConnected(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddConnected", reflect.TypeOf((*MockPeerManager)(nil).AddConnected), arg0)
-}
-
 // UpdateScore mocks base method
 func (m *MockPeerManager) UpdateScore(p peer.Peer, score *proto.Score) error {
 	m.ctrl.T.Helper()
@@ -174,20 +118,6 @@ func (mr *MockPeerManagerMockRecorder) UpdateScore(p, score interface{}) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateScore", reflect.TypeOf((*MockPeerManager)(nil).UpdateScore), p, score)
 }
 
-// UpdateKnownPeers mocks base method
-func (m *MockPeerManager) UpdateKnownPeers(arg0 []storage.KnownPeer) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateKnownPeers", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UpdateKnownPeers indicates an expected call of UpdateKnownPeers
-func (mr *MockPeerManagerMockRecorder) UpdateKnownPeers(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateKnownPeers", reflect.TypeOf((*MockPeerManager)(nil).UpdateKnownPeers), arg0)
-}
-
 // KnownPeers mocks base method
 func (m *MockPeerManager) KnownPeers() []storage.KnownPeer {
 	m.ctrl.T.Helper()
@@ -200,6 +130,20 @@ func (m *MockPeerManager) KnownPeers() []storage.KnownPeer {
 func (mr *MockPeerManagerMockRecorder) KnownPeers() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "KnownPeers", reflect.TypeOf((*MockPeerManager)(nil).KnownPeers))
+}
+
+// UpdateKnownPeers mocks base method
+func (m *MockPeerManager) UpdateKnownPeers(arg0 []storage.KnownPeer) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateKnownPeers", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateKnownPeers indicates an expected call of UpdateKnownPeers
+func (mr *MockPeerManagerMockRecorder) UpdateKnownPeers(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateKnownPeers", reflect.TypeOf((*MockPeerManager)(nil).UpdateKnownPeers), arg0)
 }
 
 // Close mocks base method

@@ -1,7 +1,5 @@
 package state
 
-import "github.com/wavesplatform/gowaves/pkg/keyvalue"
-
 const (
 	// Default values.
 	// Cache parameters.
@@ -15,10 +13,9 @@ const (
 	DefaultBloomFilterFalsePositiveProbability = 0.0001
 
 	// Db parameters.
-	DefaultWriteBuffer                = 32 * 1024 * 1024
-	DefaultCompactionTableSize        = 8 * 1024 * 1024
-	DefaultCompactionTotalSize        = 10 * 1024 * 1024
-	DefaultOpenFilesCacheCapacityRate = keyvalue.DefaultOpenFilesCacheCapacityRate
+	DefaultWriteBuffer         = 32 * 1024 * 1024
+	DefaultCompactionTableSize = 8 * 1024 * 1024
+	DefaultCompactionTotalSize = 10 * 1024 * 1024
 
 	// Block storage parameters.
 	// DefaultOffsetLen is the amount of bytes needed to store offset of transactions in blockchain file.

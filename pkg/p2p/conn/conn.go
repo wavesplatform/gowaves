@@ -2,6 +2,7 @@ package conn
 
 import (
 	"context"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net"
@@ -47,23 +48,23 @@ func sendToRemote(closed *atomic.Bool, conn io.Writer, ctx context.Context, toRe
 }
 
 // nonRecoverableError returns `true` if we can't recover from such error.
-// we should close connection and exit
+// On non-recoverable errors we should close connection and exit.
 func nonRecoverableError(err error) bool {
 	if err != nil {
 		if err == io.EOF {
 			return true
 		}
-		if strings.Contains(err.Error(), "use of closed network connection") {
+		if errors.Is(err, net.ErrClosed) || strings.Contains(err.Error(), "use of closed network connection") {
 			return true
 		}
 	}
 	return false
 }
 
-// if returned type is `true`, then network message will be skipped.
+// SkipFilter indicates that the network message should be skipped.
 type SkipFilter func(proto.Header) bool
 
-func recvFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter) {
+func receiveFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter, addr string) {
 	defer stopped.Store(true)
 	for {
 		header := proto.Header{}
@@ -97,6 +98,11 @@ func recvFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader, f
 		b := pool.Get()
 		// put header before payload
 		if _, err := header.Copy(b); err != nil {
+			pool.Put(b)
+			if nonRecoverableError(err) {
+				handleErr(err, errCh)
+				return
+			}
 			handleErr(err, errCh)
 			continue
 		}
@@ -117,7 +123,7 @@ func recvFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader, f
 		case fromRemoteCh <- b:
 		default:
 			pool.Put(b)
-			zap.L().Warn("recvFromRemote send bytes failed, chan is full")
+			zap.S().Warnf("[%s] Failed to send bytes from network to upstream channel because it's full", addr)
 		}
 	}
 }

@@ -1,17 +1,18 @@
 package storage
 
 import (
-	"github.com/fxamacker/cbor/v2"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/fxamacker/cbor/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func TestMarshalUnmarshalCborFromFile(t *testing.T) {
@@ -134,8 +135,8 @@ func (s *binaryStorageCborSuite) TestCBORStorageKnown() {
 
 		// nickeskov: check that all data saved in cache
 		cachedKnown := make(knownPeers)
-		for _, k := range s.storage.Known() {
-			cachedKnown[k] = struct{}{}
+		for _, k := range s.storage.Known(10) {
+			cachedKnown[k] = 0
 		}
 
 		for k := range cachedKnown {
@@ -384,7 +385,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageDrops() {
 	checkKnownStorageFile := func() {
 		var unmarshalled knownPeers
 		require.Equal(s.T(), io.EOF, unmarshalCborFromFile(s.storage.knownFilePath, &unmarshalled))
-		require.Empty(s.T(), s.storage.Known())
+		require.Empty(s.T(), s.storage.Known(10))
 	}
 
 	s.Run("drop suspended peers", func() {

@@ -1,14 +1,15 @@
 package storage
 
 import (
-	"github.com/fxamacker/cbor/v2"
-	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/fxamacker/cbor/v2"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -20,7 +21,7 @@ type CBORStorage struct {
 	storageDir        string
 	suspended         suspendedPeers
 	suspendedFilePath string
-	known             knownPeers // nickeskov: list of all ever known peers with a publicly available declared address
+	known             knownPeers // Map of all ever known peers with a publicly available declared address and the last connection attempt timestamp.
 	knownFilePath     string
 }
 
@@ -63,7 +64,7 @@ func newCBORStorageInDir(storageDir string, now time.Time) (*CBORStorage, error)
 	}
 
 	if len(storage.suspended) != 0 {
-		// nickeskov: remove expired peers
+		// Remove expired peers
 		if err := storage.RefreshSuspended(now); err != nil {
 			return nil, errors.Wrapf(err,
 				"failed to refresh suspended peers while opening peers storage with path %q", storageDir)
@@ -72,15 +73,10 @@ func newCBORStorageInDir(storageDir string, now time.Time) (*CBORStorage, error)
 	return storage, nil
 }
 
-func (bs *CBORStorage) Known() []KnownPeer {
+func (bs *CBORStorage) Known(limit int) []KnownPeer {
 	bs.rwMutex.RLock()
 	defer bs.rwMutex.RUnlock()
-
-	known := make([]KnownPeer, 0, len(bs.known))
-	for k := range bs.known {
-		known = append(known, k)
-	}
-	return known
+	return bs.known.OldestFirst(limit)
 }
 
 // AddKnown adds known peers into peers storage with strong error guarantees.
@@ -92,16 +88,17 @@ func (bs *CBORStorage) AddKnown(known []KnownPeer) error {
 	bs.rwMutex.Lock()
 	defer bs.rwMutex.Unlock()
 
-	// nickeskov: save old values in backup
+	// Save existing known peers with their last attempt timestamps in backup
 	backup := bs.unsafeKnownIntersection(known)
-	// nickeskov: fast path if all known peers already in storage
+	// Fast path if all known peers already in storage
 	if len(backup) == len(known) {
 		return nil
 	}
 
-	// nickeskov: add new values into known map
+	// Add new values into known map with current timestamp
+	ts := time.Now().UnixNano()
 	for _, k := range known {
-		bs.known[k] = struct{}{}
+		bs.known[k] = ts
 	}
 
 	if err := bs.unsafeSyncKnown(known, backup); err != nil {
@@ -119,14 +116,14 @@ func (bs *CBORStorage) DeleteKnown(known []KnownPeer) error {
 	bs.rwMutex.Lock()
 	defer bs.rwMutex.Unlock()
 
-	// nickeskov: save old values in backup
+	// Save old values in backup
 	backup := bs.unsafeKnownIntersection(known)
-	// nickeskov: delete entries from known map
+	// Delete entries from known map
 	for _, k := range known {
 		delete(bs.known, k)
 	}
 
-	// nickeskov: newEntries is nil because there no new entries
+	// newEntries is nil because there no new entries
 	if err := bs.unsafeSyncKnown(nil, backup); err != nil {
 		return errors.Wrap(err, "failed to delete known peers")
 	}
@@ -162,9 +159,9 @@ func (bs *CBORStorage) AddSuspended(suspended []SuspendedPeer) error {
 	bs.rwMutex.Lock()
 	defer bs.rwMutex.Unlock()
 
-	// nickeskov: save old values in backup
+	// Save old values in backup
 	backup := bs.unsafeSuspendedIntersection(suspended)
-	// nickeskov: add new values into suspended map
+	// Add new values into suspended map
 	for _, s := range suspended {
 		bs.suspended[s.IP] = s
 	}
@@ -206,14 +203,14 @@ func (bs *CBORStorage) DeleteSuspendedByIP(suspended []SuspendedPeer) error {
 	bs.rwMutex.Lock()
 	defer bs.rwMutex.Unlock()
 
-	// nickeskov: save old values in backup
+	// Save old values in backup
 	backup := bs.unsafeSuspendedIntersection(suspended)
-	// nickeskov: delete entries from known map
+	// Delete entries from known map
 	for _, s := range suspended {
 		delete(bs.suspended, s.IP)
 	}
 
-	// nickeskov: newEntries is nil because there no new entries
+	// newEntries is nil because there no new entries
 	if err := bs.unsafeSyncSuspended(nil, backup); err != nil {
 		return errors.Wrap(err, "failed to delete suspended peers")
 	}
@@ -233,12 +230,12 @@ func (bs *CBORStorage) RefreshSuspended(now time.Time) error {
 		}
 	}
 	if len(backup) == 0 {
-		// nickeskov: peers don't expired
+		// No expired peers
 		return nil
 	}
 
 	if err := marshalToCborAndSyncToFile(bs.suspendedFilePath, bs.suspended); err != nil {
-		// nickeskov: restore previous values into map to eliminate side effects
+		// Restore previous values into map to eliminate side effects
 		for _, b := range backup {
 			bs.suspended[b.IP] = b
 		}
@@ -267,7 +264,7 @@ func (bs *CBORStorage) DropStorage() error {
 
 	if err := bs.unsafeDropKnown(); err != nil {
 		bs.suspended = suspendedBackup
-		// nickeskov: it's almost impossible case, but if it happens we have inconsistency in suspended peers
+		// It's almost impossible case, but if it happens we have inconsistency in suspended peers
 		// but honestly it's not fatal error
 		if syncErr := marshalToCborAndSyncToFile(bs.suspendedFilePath, bs.suspended); syncErr != nil {
 			return errors.Wrapf(err, "failed to sync suspended peers storage from backup: %v", syncErr)
@@ -277,64 +274,61 @@ func (bs *CBORStorage) DropStorage() error {
 	return nil
 }
 
-func (bs *CBORStorage) unsafeSyncKnown(newEntries, backup []KnownPeer) error {
-	err := marshalToCborAndSyncToFile(bs.knownFilePath, bs.known)
-	if err == nil {
-		return nil
+func (bs *CBORStorage) unsafeSyncKnown(newEntries []KnownPeer, backup knownPeers) error {
+	if err := marshalToCborAndSyncToFile(bs.knownFilePath, bs.known); err != nil {
+		// In case of failure restore initial state from backup
+		for _, k := range newEntries {
+			delete(bs.known, k)
+		}
+		for k, v := range backup {
+			bs.known[k] = v
+		}
+		return errors.Wrap(err, "failed to marshal known peers and sync storage")
 	}
-	// nickeskov: remove known from map to eliminate side effects
-	for _, k := range newEntries {
-		delete(bs.known, k)
-	}
-	// nickeskov: restore from backup
-	for _, b := range backup {
-		bs.known[b] = struct{}{}
-	}
-	return errors.Wrap(err, "failed to marshal known peers and sync storage")
+	return nil
 }
 
 func (bs *CBORStorage) unsafeDropKnown() error {
-	// nickeskov: truncate suspendedStorageFile to zero size
+	// Truncate suspendedStorageFile to zero size
 	if err := os.Truncate(bs.knownFilePath, 0); err != nil {
 		return errors.Wrapf(err, "failed to drop known storage file %q", bs.knownFilePath)
 	}
-	// nickeskov: clear map
+	// Clear map
 	bs.known = knownPeers{}
 	return nil
 }
 
 func (bs *CBORStorage) unsafeSyncSuspended(newEntries, backup []SuspendedPeer) error {
-	err := marshalToCborAndSyncToFile(bs.suspendedFilePath, bs.suspended)
-	if err == nil {
-		return nil
+	if err := marshalToCborAndSyncToFile(bs.suspendedFilePath, bs.suspended); err != nil {
+		// Remove suspended from map to eliminate side effects
+		for _, s := range newEntries {
+			delete(bs.suspended, s.IP)
+		}
+		// Restore state before error from backup
+		for _, s := range backup {
+			bs.suspended[s.IP] = s
+		}
+		return errors.Wrap(err, "failed to marshal suspended peers and sync storage")
 	}
-	// nickeskov: remove suspended from map to eliminate side effects
-	for _, s := range newEntries {
-		delete(bs.suspended, s.IP)
-	}
-	// nickeskov: restore from backup
-	for _, s := range backup {
-		bs.suspended[s.IP] = s
-	}
-	return errors.Wrap(err, "failed to marshal suspended peers and sync storage")
+	return nil
 }
 
 func (bs *CBORStorage) unsafeDropSuspended() error {
-	// nickeskov: truncate suspendedStorageFile to zero size
+	// Truncate suspendedStorageFile to zero size
 	if err := os.Truncate(bs.suspendedFilePath, 0); err != nil {
 		return errors.Wrapf(err, "failed to drop suspended storage file %q", bs.suspendedFilePath)
 	}
-	// nickeskov: clear map
+	// Clear map
 	bs.suspended = suspendedPeers{}
 	return nil
 }
 
 // unsafeKnownIntersection returns values from known map which intersects with input values
-func (bs *CBORStorage) unsafeKnownIntersection(known []KnownPeer) []KnownPeer {
-	var intersection []KnownPeer
+func (bs *CBORStorage) unsafeKnownIntersection(known []KnownPeer) knownPeers {
+	intersection := knownPeers{}
 	for _, k := range known {
-		if _, in := bs.known[k]; in {
-			intersection = append(intersection, k)
+		if v, in := bs.known[k]; in {
+			intersection[k] = v
 		}
 	}
 	return intersection

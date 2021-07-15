@@ -42,7 +42,7 @@ func TestConnectionImpl_Close(t *testing.T) {
 		fromRemoteCh: make(chan []byte, 2),
 		errCh:        make(chan error, 1),
 		sendFunc:     sendToRemote,
-		recvFunc:     recvFromRemote,
+		receiveFunc:  receiveFromRemote,
 	}
 
 	conn := wrapConnection(params)
@@ -61,9 +61,9 @@ func TestRecvFromRemote_Transaction(t *testing.T) {
 	pool := bytespool.NewNoOpBytesPool(len(messBytes))
 	fromRemoteCh := make(chan []byte, 2)
 
-	recvFromRemote(atomic.NewBool(false), pool, bytes.NewReader(messBytes), fromRemoteCh, make(chan error, 1), func(headerBytes proto.Header) bool {
+	receiveFromRemote(atomic.NewBool(false), pool, bytes.NewReader(messBytes), fromRemoteCh, make(chan error, 1), func(headerBytes proto.Header) bool {
 		return false
-	})
+	}, "test")
 
 	retBytes := <-fromRemoteCh
 	assert.Equal(t, messBytes, retBytes)

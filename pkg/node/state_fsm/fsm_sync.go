@@ -133,7 +133,7 @@ func (a *SyncFsm) NewPeer(p peer.Peer) (FSM, Async, error) {
 func (a *SyncFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 	metrics.FSMScore("sync", score, p.Handshake().NodeName)
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
-		return a, nil, err
+		return a, nil, proto.NewInfoMsg(err)
 	}
 	//TODO: Handle new higher score
 	/*
