@@ -79,7 +79,7 @@ const (
 	MaxLeaseTransactionVersion           = 3
 	MaxLeaseCancelTransactionVersion     = 3
 	MaxCreateAliasTransactionVersion     = 3
-	MaxMassTransferTransactionVersion    = 2
+	MaxMassTransferTransactionVersion    = 3
 	MaxDataTransactionVersion            = 2
 	MaxSetScriptTransactionVersion       = 2
 	MaxSponsorshipTransactionVersion     = 2
