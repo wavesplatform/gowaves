@@ -10,6 +10,14 @@ import (
 	"net/http"
 )
 
+type appError struct {
+	error
+}
+
+var (
+	appErrorNoData = appError{errors.New("no data")}
+)
+
 type BadRequestError struct {
 	error
 }

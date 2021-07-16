@@ -75,6 +75,18 @@ func blockFromProtobufToProtobuf(t *testing.T, hexStr string) {
 	assert.Equal(t, block, res)
 }
 
+func blockEncodeJson(b *Block) ([]byte, error) {
+	other := *b
+	if b.Transactions.Count() == 0 {
+		other.Transactions = nil
+	}
+	bts, err := json.Marshal(other)
+	if err != nil {
+		return nil, err
+	}
+	return bts, nil
+}
+
 func blockFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
 	decoded, err := hex.DecodeString(hexStr)
 	if err != nil {
@@ -83,7 +95,7 @@ func blockFromBinaryToBinary(t *testing.T, hexStr, jsonStr string) {
 	var b Block
 	err = b.UnmarshalBinary(decoded, MainNetScheme)
 	assert.NoError(t, err, "UnmarshalBinary() for block failed")
-	bts, err := BlockEncodeJson(&b)
+	bts, err := blockEncodeJson(&b)
 	assert.NoError(t, err, "json.Marshal() for block failed")
 	str := string(bts)
 	assert.Equalf(t, jsonStr, str, "block marshaled to wrong json:\nhave: %s\nwant: %s", str, jsonStr)
@@ -96,7 +108,7 @@ func blockFromJSONToJSON(t *testing.T, jsonStr string) {
 	var b Block
 	err := json.Unmarshal([]byte(jsonStr), &b)
 	assert.NoError(t, err, "json.Unmarshal() for block failed")
-	bts, err := BlockEncodeJson(&b)
+	bts, err := blockEncodeJson(&b)
 	assert.NoError(t, err, "json.Marshal() for block failed")
 	str := string(bts)
 	assert.JSONEqf(t, jsonStr, str, "block marshaled to wrong json:\nhave: %s\nwant: %s", str, jsonStr)

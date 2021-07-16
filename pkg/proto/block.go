@@ -420,7 +420,7 @@ func AppendHeaderBytesToTransactions(headerBytes, transactions []byte) ([]byte, 
 // Block is a block of the blockchain
 type Block struct {
 	BlockHeader
-	Transactions Transactions `json:"transactions,omitempty"`
+	Transactions Transactions `json:"transactions"` // nickeskov: without omitemtpy for node HTTP API compatibility
 }
 
 func (b *Block) Marshal(scheme Scheme) ([]byte, error) {
@@ -763,18 +763,6 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockI
 		return nil, errors.Wrap(err, "failed to generate block ID")
 	}
 	return b, nil
-}
-
-func BlockEncodeJson(b *Block) ([]byte, error) {
-	other := *b
-	if b.Transactions.Count() == 0 {
-		other.Transactions = nil
-	}
-	bts, err := json.Marshal(other)
-	if err != nil {
-		return nil, err
-	}
-	return bts, nil
 }
 
 //BlockGetSignature get signature from block without deserialization

@@ -64,9 +64,10 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 	// nickeskov: go node routes
 	r.Route("/go", func(r chi.Router) {
 		r.Route("/blocks", func(r chi.Router) {
+			r.Get("/id/{id}", wrapper(a.BlockAtID))
 			r.Get("/score/at/{id:\\d+}", wrapper(a.BlockScoreAt))
-			r.Get("/id/{id}", wrapper(a.BlockIDAt))
 			r.Get("/generators", wrapper(a.BlocksGenerators))
+			r.Get("/first", wrapper(a.BlocksFirst))
 
 			rAuth := r.With(checkAuthMiddleware)
 
@@ -94,11 +95,17 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 	// nickeskov: json api
 	r.Group(func(r chi.Router) {
 		r.Route("/blocks", func(r chi.Router) {
-			r.Get("/last", wrapper(a.BlocksLast))
+			r.Get("/{id}", wrapper(a.BlockAtID))
+
 			r.Get("/height", wrapper(a.BlockHeight))
-			r.Get("/first", wrapper(a.BlocksFirst))
-			r.Get("/at/{height}", wrapper(a.BlockAt))
-			r.Get("/{id}", wrapper(a.BlockIDAt))
+			r.Get("/height/{id}", wrapper(a.BlockHeightByID))
+
+			r.Get("/at/{height}", wrapper(a.BlockAtHeight))
+			r.Get("/last", wrapper(a.BlocksLast))
+
+			r.Get("/headers/{id}", wrapper(a.BlockHeaderAtID))
+			r.Get("/headers/last", wrapper(a.BlocksLastHeader))
+			r.Get("/headers/at/{height}", wrapper(a.BlockHeaderAtHeight))
 		})
 
 		r.Route("/addresses", func(r chi.Router) {

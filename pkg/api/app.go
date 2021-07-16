@@ -88,6 +88,10 @@ func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) error {
 	}
 }
 
+func (a *App) BlockchainHeight() (proto.Height, error) {
+	return a.state.Height()
+}
+
 func (a *App) LoadKeys(apiKey string, password []byte) error {
 	err := a.checkAuth(apiKey)
 	if err != nil {

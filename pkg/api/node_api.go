@@ -53,28 +53,33 @@ func (a *NodeApi) BlocksLast(w http.ResponseWriter, _ *http.Request) error {
 		return errors.Wrap(err, "BlocksLast: failed to get last block")
 	}
 
-	bts, err := proto.BlockEncodeJson(block)
-	if err != nil {
-		return errors.Wrap(err, "BlocksLast: failed to marshal block to JSON")
+	if err := trySendJson(w, block); err != nil {
+		return errors.Wrap(err, "BlocksLast")
 	}
-	if _, err = w.Write(bts); err != nil {
-		return errors.Wrap(err, "BlocksLast: failed to write block json to ResponseWriter")
+	return nil
+}
+
+func (a *NodeApi) BlocksLastHeader(w http.ResponseWriter, _ *http.Request) error {
+	blockHeader, err := a.app.BlocksLastHeader()
+	if err != nil {
+		return errors.Wrap(err, "BlocksLastHeader: failed to get last block header")
+	}
+
+	if err := trySendJson(w, blockHeader); err != nil {
+		return errors.Wrap(err, "BlocksLastHeader")
 	}
 	return nil
 }
 
 func (a *NodeApi) BlocksFirst(w http.ResponseWriter, _ *http.Request) error {
-	block, err := a.state.BlockByHeight(1)
+	block, err := a.app.BlockByHeight(1)
 	if err != nil {
 		return errors.Wrap(err, "BlocksFirst")
 	}
 	block.Height = 1
-	bts, err := proto.BlockEncodeJson(block)
-	if err != nil {
-		return errors.Wrap(err, "BlocksFirst: failed to marshal block to JSON")
-	}
-	if _, err = w.Write(bts); err != nil {
-		return errors.Wrap(err, "BlocksFirst: failed to write block json to ResponseWriter")
+
+	if err := trySendJson(w, block); err != nil {
+		return errors.Wrap(err, "BlocksFirst")
 	}
 	return nil
 }
@@ -100,36 +105,6 @@ func blockIDAtInvalidCharErr(invalidChar rune, id string) *apiErrs.InvalidBlockI
 	)
 }
 
-func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
-	s := chi.URLParam(r, "height")
-	id, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		// nickeskov: message taken from scala node
-		// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/fdsfasdff" -H  "accept: application/json"`
-		return blockIDAtInvalidLenErr("at")
-	}
-
-	block, err := a.state.BlockByHeight(id)
-	if err != nil {
-		origErr := errors.Cause(err)
-		if state.IsNotFound(origErr) {
-			// nickeskov: it's strange, but scala node sends empty response...
-			// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/0" -H  "accept: application/json"`
-			return nil
-		}
-		return errors.Wrap(err,
-			"BlockAt: expected NotFound in state error, but received other error")
-	}
-
-	block.Height = id
-	err = json.NewEncoder(w).Encode(block)
-	if err != nil {
-		return errors.Wrap(err,
-			"BlockEncodeJson: failed to marshal block to JSON and write to ResponseWriter")
-	}
-	return nil
-}
-
 func findFirstInvalidRuneInBase58String(str string) *rune {
 	for _, r := range str {
 		if _, err := base58.Decode(string(r)); err != nil {
@@ -139,39 +114,133 @@ func findFirstInvalidRuneInBase58String(str string) *rune {
 	return nil
 }
 
-func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
-	// nickeskov: in this case id param must be non zero length
-	s := chi.URLParam(r, "id")
-	id, err := proto.NewBlockIDFromBase58(s)
+func parseBase58EncodedBlockID(idParam string) (proto.BlockID, error) {
+	id, err := proto.NewBlockIDFromBase58(idParam)
 	if err != nil {
-		if invalidRune := findFirstInvalidRuneInBase58String(s); invalidRune != nil {
-			return blockIDAtInvalidCharErr(*invalidRune, s)
+		if invalidRune := findFirstInvalidRuneInBase58String(idParam); invalidRune != nil {
+			return proto.BlockID{}, blockIDAtInvalidCharErr(*invalidRune, idParam)
 		}
-		return blockIDAtInvalidLenErr(s)
+		return proto.BlockID{}, blockIDAtInvalidLenErr(idParam)
 	}
-	block, err := a.state.Block(id)
+	return id, nil
+}
+
+func (a *NodeApi) BlockAtHeight(w http.ResponseWriter, r *http.Request) error {
+	s := chi.URLParam(r, "height")
+	height, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		// nickeskov: message taken from scala node
+		// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/fdsfasdff" -H  "accept: application/json"`
+		return blockIDAtInvalidLenErr("at")
+	}
+
+	block, err := a.app.BlockByHeight(height)
 	if err != nil {
 		origErr := errors.Cause(err)
-		if state.IsNotFound(origErr) {
+		if origErr == appErrorNoData {
+			// nickeskov: it's strange, but scala node sends empty response...
+			// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/0" -H  "accept: application/json"`
+			return nil
+		}
+		return errors.Wrap(err,
+			"BlockAtHeight: expected NotFound in state error, but received other error")
+	}
+
+	block.Height = height
+	if err := trySendJson(w, block); err != nil {
+		return errors.Wrap(err, "BlockAtHeight")
+	}
+	return nil
+}
+
+func (a *NodeApi) BlockHeaderAtHeight(w http.ResponseWriter, r *http.Request) error {
+	s := chi.URLParam(r, "height")
+	height, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		// nickeskov: message taken from scala node
+		// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/fdsfasdff" -H  "accept: application/json"`
+		return blockIDAtInvalidLenErr("at")
+	}
+
+	blockHeader, err := a.app.HeaderByHeight(height)
+	if err != nil {
+		origErr := errors.Cause(err)
+		if origErr == appErrorNoData {
+			// nickeskov: it's strange, but scala node sends empty response...
+			// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/0" -H  "accept: application/json"`
+			return nil
+		}
+		return errors.Wrap(err,
+			"BlockHeaderAtHeight: expected NotFound in state error, but received other error")
+	}
+
+	blockHeader.Height = height
+	if err := trySendJson(w, blockHeader); err != nil {
+		return errors.Wrap(err, "BlockHeaderAtHeight")
+	}
+	return nil
+}
+
+func (a *NodeApi) BlockAtID(w http.ResponseWriter, r *http.Request) error {
+	// nickeskov: in this case id param must be non zero length
+	idParam := chi.URLParam(r, "id")
+	id, err := parseBase58EncodedBlockID(idParam)
+	if err != nil {
+		return err
+	}
+	block, err := a.app.Block(id)
+	if err != nil {
+		origErr := errors.Cause(err)
+		if origErr == appErrorNoData {
 			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrapf(err,
-			"BlockIDAt: expected NotFound in state error, but received other error for blockID=%s",
-			s,
+			"BlockAtID: expected 'NotFound in state' error, but received other error for blockID=%s",
+			idParam,
 		)
 	}
 
-	height, err := a.state.BlockIDToHeight(id)
+	height, err := a.app.BlockIDToHeight(id)
 	if err != nil {
-		// TODO(nickeskov): should handle state.IsNotFound(...)?
+		// TODO(nickeskov): should handle appErrorNoData?
 		return errors.Wrapf(err,
-			"BlockIDAt: failed to execute state.BlockIDToHeight for blockID=%s", s)
+			"BlockAtID: failed to execute BlockIDToHeight for blockID=%s", idParam)
 	}
 	block.Height = height
-	err = json.NewEncoder(w).Encode(block)
+	if err := trySendJson(w, block); err != nil {
+		return errors.Wrap(err, "BlockAtID")
+	}
+	return nil
+}
+
+func (a *NodeApi) BlockHeaderAtID(w http.ResponseWriter, r *http.Request) error {
+	// nickeskov: in this case id param must be non zero length
+	idParam := chi.URLParam(r, "id")
+	id, err := parseBase58EncodedBlockID(idParam)
 	if err != nil {
-		return errors.Wrap(err,
-			"BlockIDAt: failed to marshal block to JSON and write to ResponseWriter")
+		return err
+	}
+	blockHeader, err := a.app.Header(id)
+	if err != nil {
+		origErr := errors.Cause(err)
+		if origErr == appErrorNoData {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrapf(err,
+			"BlockHeaderAtID: expected 'NotFound in state' error, but received other error for blockID=%s",
+			idParam,
+		)
+	}
+
+	height, err := a.app.BlockIDToHeight(id)
+	if err != nil {
+		// TODO(nickeskov): should handle appErrorNoData?
+		return errors.Wrapf(err,
+			"BlockHeaderAtID: failed to execute BlockIDToHeight for blockID=%s", idParam)
+	}
+	blockHeader.Height = height
+	if err := trySendJson(w, blockHeader); err != nil {
+		return errors.Wrap(err, "BlockHeaderAtID")
 	}
 	return nil
 }
@@ -181,13 +250,42 @@ func (a *NodeApi) BlockHeight(w http.ResponseWriter, _ *http.Request) error {
 		Height uint64 `json:"height"`
 	}
 
-	height, err := a.state.Height()
+	height, err := a.app.BlockchainHeight()
 	if err != nil {
 		return errors.Wrap(err, "BlockHeight: failed to bet blocks height")
 	}
 
 	if err := trySendJson(w, blockHeightResponse{Height: height}); err != nil {
 		return errors.Wrap(err, "BlockHeight")
+	}
+	return nil
+}
+
+func (a *NodeApi) BlockHeightByID(w http.ResponseWriter, r *http.Request) error {
+	type blockHeightByIDResponse struct {
+		Height uint64 `json:"height"`
+	}
+
+	idParam := chi.URLParam(r, "id")
+	id, err := parseBase58EncodedBlockID(idParam)
+	if err != nil {
+		return err
+	}
+
+	height, err := a.app.BlockIDToHeight(id)
+	if err != nil {
+		origErr := errors.Cause(err)
+		if origErr == appErrorNoData {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrapf(err,
+			"BlockHeightByID: expected 'NotFound in state' error, but received other error for blockID=%s",
+			idParam,
+		)
+	}
+
+	if err := trySendJson(w, blockHeightByIDResponse{Height: height}); err != nil {
+		return errors.Wrap(err, "BlockHeightByID")
 	}
 	return nil
 }
