@@ -271,7 +271,7 @@ func resultDiff(a, b *waves.InvokeScriptResult, scheme byte) string {
 		addDataDiff(sb, a.GetData(), b.GetData())
 	}
 	if len(a.GetTransfers()) != 0 || len(b.GetTransfers()) != 0 {
-		addTransfersDiff(sb, a.GetTransfers(), b.GetTransfers())
+		addTransfersDiff(sb, a.GetTransfers(), b.GetTransfers(), scheme)
 	}
 	if len(a.GetIssues()) != 0 || len(b.GetIssues()) != 0 {
 		addIssuesDiff(sb, a.GetIssues(), b.GetIssues())
@@ -581,27 +581,34 @@ func equalPayments(a, b *waves.InvokeScriptResult_Payment) bool {
 		a.GetAmount().GetAmount() == b.GetAmount().GetAmount()
 }
 
-func paymentString(p *waves.InvokeScriptResult_Payment) string {
+func paymentString(p *waves.InvokeScriptResult_Payment, scheme byte) string {
+	as := ""
+	a, err := proto.RebuildAddress(scheme, p.GetAddress())
+	if err != nil {
+		as = fmt.Sprintf("invalid address '%s'", base58.Encode(p.GetAddress()))
+	} else {
+		as = a.String()
+	}
 	return fmt.Sprintf("Address: %s; AsssetID: %s; Amount: %d",
-		base58.Encode(p.GetAddress()), base58.Encode(p.GetAmount().GetAssetId()), p.GetAmount().GetAmount())
+		as, base58.Encode(p.GetAmount().GetAssetId()), p.GetAmount().GetAmount())
 }
 
-func addTransfersDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Payment) {
+func addTransfersDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Payment, scheme byte) {
 	la := len(a)
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
 		if !equalPayments(a[i], b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", paymentString(a[i])))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", paymentString(b[i])))
+			lsb.WriteString(fmt.Sprintf("\t-%s\n", paymentString(a[i], scheme)))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", paymentString(b[i], scheme)))
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", paymentString(a[i])))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", paymentString(a[i], scheme)))
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", paymentString(b[i])))
+			lsb.WriteString(fmt.Sprintf("\t+%s\n", paymentString(b[i], scheme)))
 		}
 	}
 	if lsb.Len() > 0 {
