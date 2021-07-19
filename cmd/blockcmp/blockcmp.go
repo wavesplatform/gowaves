@@ -238,42 +238,27 @@ func transactionResults(c *g.ClientConn, scheme byte, txs []proto.Transaction) (
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	ids := make([][]byte, len(txs))
-	for i, tx := range txs {
-		id, err := tx.GetID(scheme)
+	api := grpc.NewTransactionsApiClient(c)
+	r := make([]*waves.InvokeScriptResult, len(txs))
+	for i := 0; i < len(txs); i++ {
+		id, err := txs[i].GetID(scheme)
 		if err != nil {
 			return nil, err
 		}
-		ids[i] = id
-	}
-
-	api := grpc.NewTransactionsApiClient(c)
-	request := &grpc.TransactionsRequest{
-		TransactionIds: ids,
-	}
-	stream, err := api.GetStateChanges(ctx, request, g.EmptyCallOption{}) // nolint
-	if err != nil {
-		return nil, err
-	}
-	r := make([]*waves.InvokeScriptResult, len(txs))
-	for i := 0; i < len(txs); i++ {
+		request := &grpc.TransactionsRequest{
+			TransactionIds: [][]byte{id},
+		}
+		//goland:noinspection GoDeprecation
+		stream, err := api.GetStateChanges(ctx, request, g.EmptyCallOption{}) // nolint
+		if err != nil {
+			return nil, err
+		}
 		rsp, err := stream.Recv()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				request := &grpc.TransactionsRequest{
-					TransactionIds: ids[i:],
-				}
-				stream, err = api.GetStateChanges(ctx, request, g.EmptyCallOption{}) // nolint
-				if err != nil {
-					return nil, err
-				}
-				rsp, err = stream.Recv()
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				return nil, err
+				continue
 			}
+			return nil, err
 		}
 		r[i] = rsp.GetResult()
 	}
