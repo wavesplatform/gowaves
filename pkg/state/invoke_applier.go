@@ -694,7 +694,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if info.senderScripted {
 		// Since activation of RideV5 (16) feature we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit
 		if info.rideV5Activated {
-			treeEstimation, err := ia.stor.scriptsComplexity.newestScriptComplexityByAddr(*scriptAddr, info.checkerInfo.estimatorVersion(), !info.initialisation)
+			treeEstimation, err := ia.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(*scriptAddr, !info.initialisation)
 			if err != nil {
 				return nil, errors.Wrap(err, "invoke failed to get verifier complexity")
 			}
