@@ -251,7 +251,7 @@ func transactionResults(c *g.ClientConn, scheme byte, txs []proto.Transaction) (
 	request := &grpc.TransactionsRequest{
 		TransactionIds: ids,
 	}
-	stream, err := api.GetStateChanges(ctx, request, g.EmptyCallOption{})
+	stream, err := api.GetStateChanges(ctx, request, g.EmptyCallOption{}) // nolint
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +263,7 @@ func transactionResults(c *g.ClientConn, scheme byte, txs []proto.Transaction) (
 				request := &grpc.TransactionsRequest{
 					TransactionIds: ids[i:],
 				}
-				stream, err = api.GetStateChanges(ctx, request, g.EmptyCallOption{})
+				stream, err = api.GetStateChanges(ctx, request, g.EmptyCallOption{}) // nolint
 				if err != nil {
 					return nil, err
 				}
