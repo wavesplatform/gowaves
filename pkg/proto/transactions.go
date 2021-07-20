@@ -72,7 +72,7 @@ const (
 	MaxGenesisTransactionVersion         = 2
 	MaxPaymentTransactionVersion         = 2
 	MaxTransferTransactionVersion        = 127
-	MaxIssueTransactionVersion           = 3
+	MaxIssueTransactionVersion           = 127
 	MaxReissueTransactionVersion         = 3
 	MaxBurnTransactionVersion            = 3
 	MaxExchangeTransactionVersion        = 3
