@@ -2,7 +2,7 @@ package fourbyte
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"math/big"
 	"reflect"
 )
@@ -66,8 +66,7 @@ func toGoType(index int, t Type, output []byte) (interface{}, error) {
 	case BoolTy:
 		return readBool(returnOutput)
 	case AddressTy:
-		// TODO(nickeskov): use our address
-		return common.BytesToAddress(returnOutput), nil
+		return metamask.BytesToAddress(returnOutput), nil
 	case BytesTy:
 		return output[begin : begin+length], nil
 	default:

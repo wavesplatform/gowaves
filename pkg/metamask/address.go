@@ -1,10 +1,8 @@
 package metamask
 
 import (
-	"encoding/hex"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
-	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -14,6 +12,14 @@ const (
 
 // Address represents the 20 byte address of an Ethereum account.
 type Address [AddressLength]byte
+
+// BytesToAddress returns Address with value b.
+// If b is larger than len(h), b will be cropped from the left.
+func BytesToAddress(b []byte) Address {
+	var a Address
+	a.SetBytes(b)
+	return a
+}
 
 func (a *Address) Bytes() []byte {
 	if a == nil {
@@ -29,23 +35,25 @@ func (a *Address) SetBytes(b []byte) {
 	copy(a[AddressLength-len(b):], b)
 }
 
-func (a *Address) Decode() string {
-	b := a[:]
-	return hex.EncodeToString(b)
+// Hash converts an address to a hash by left-padding it with zeros.
+func (a Address) Hash() Hash {
+	return BytesToHash(a[:])
 }
 
-func (a Address) hex() []byte {
-	var buf [len(a)*2 + 2]byte
-	copy(buf[:2], "0x")
-	hex.Encode(buf[2:], a[:])
-	return buf[:]
+func (a Address) Hex() string {
+	return string(a.checksumHex())
+}
+
+// String implements fmt.Stringer.
+func (a Address) String() string {
+	return a.Hex()
 }
 
 func (a *Address) checksumHex() []byte {
-	buf := a.hex()
+	buf := HexEncodeToBytes(a[:])
 
 	// compute checksum
-	sha := sha3.NewLegacyKeccak256()
+	sha := NewKeccakState()
 	_, _ = sha.Write(buf[2:])
 	hash := sha.Sum(nil)
 	for i := 2; i < len(buf); i++ {
@@ -60,10 +68,6 @@ func (a *Address) checksumHex() []byte {
 		}
 	}
 	return buf[:]
-}
-
-func (a Address) Hex() string {
-	return string(a.checksumHex())
 }
 
 // copy returns an exact copy of the provided Address.

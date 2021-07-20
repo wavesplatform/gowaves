@@ -25,9 +25,9 @@ func getJsonAbi(selector string) ([]byte, error) {
 		Type string `json:"type"`
 	}
 	type ABI struct {
-		Name   string    `json:"name"`
-		Type   string    `json:"type"`
-		Inputs []Arg `json:"inputs"`
+		Name   string `json:"name"`
+		Type   string `json:"type"`
+		Inputs []Arg  `json:"inputs"`
 	}
 	// Validate the unescapedSelector and extract it's components
 	groups := selectorRegexp.FindStringSubmatch(selector)

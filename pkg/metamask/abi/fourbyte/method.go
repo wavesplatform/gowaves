@@ -1,8 +1,8 @@
 package fourbyte
 
 import (
-"fmt"
-"strings"
+	"fmt"
+	"strings"
 )
 
 type FunctionType byte
@@ -74,4 +74,3 @@ func NewMethod(rawName string, funType FunctionType, inputs, outputs Arguments) 
 func (m *Method) String() string {
 	return m.str
 }
-

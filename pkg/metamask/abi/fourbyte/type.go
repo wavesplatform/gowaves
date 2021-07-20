@@ -2,7 +2,7 @@ package fourbyte
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"reflect"
 )
 
@@ -92,8 +92,7 @@ func (t Type) GetType() reflect.Type {
 	case SliceTy:
 		return reflect.SliceOf(t.Elem.GetType())
 	case AddressTy:
-		// TODO(nickeskov): use our address
-		return reflect.TypeOf(common.Address{})
+		return reflect.TypeOf(metamask.Address{})
 	case BytesTy:
 		return reflect.SliceOf(reflect.TypeOf(byte(0)))
 	default:

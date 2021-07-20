@@ -5,7 +5,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"golang.org/x/crypto/sha3"
 	"math/big"
 )
 
@@ -108,12 +107,7 @@ func (s eip2930Signer) Hash(tx *Transaction) Hash {
 		//panic("Unsupported transaction type: %d", tx.typ)
 		return Hash{}
 	}
-	var h Hash
-	sha := sha3.NewLegacyKeccak256().(hashImpl)
-	// nickeskov: it always returns a nil error
-	_, _ = sha.Write(rlpData)
-	_, _ = sha.Read(h[:])
-	return h
+	return Keccak256Hash(rlpData)
 }
 
 type EIP155Signer struct {
@@ -193,12 +187,7 @@ func (s EIP155Signer) Hash(tx *Transaction) Hash {
 		//panic("Unsupported transaction type: %d", tx.typ)
 		return Hash{}
 	}
-	var h Hash
-	sha := sha3.NewLegacyKeccak256().(hashImpl)
-	// nickeskov: it always returns a nil error
-	_, _ = sha.Write(rlpData)
-	_, _ = sha.Read(h[:])
-	return h
+	return Keccak256Hash(rlpData)
 }
 
 // HomesteadTransaction implements TransactionInterface using the
@@ -278,12 +267,7 @@ func (fs FrontierSigner) Hash(tx *Transaction) Hash {
 		//panic("Unsupported transaction type: %d", tx.typ)
 		return Hash{}
 	}
-	var h Hash
-	sha := sha3.NewLegacyKeccak256().(hashImpl)
-	// nickeskov: it always returns a nil error
-	_, _ = sha.Write(rlpData)
-	_, _ = sha.Read(h[:])
-	return h
+	return Keccak256Hash(rlpData)
 }
 
 func decodeSignature(sig []byte) (r, s, v *big.Int) {

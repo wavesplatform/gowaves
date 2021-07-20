@@ -3,8 +3,8 @@ package fourbyte
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"strings"
 )
 
@@ -48,7 +48,7 @@ type Selector [selectorLen]byte
 
 func NewSelector(sig Signature) Selector {
 	var selector Selector
-	copy(selector[:], crypto.Keccak256([]byte(sig)))
+	copy(selector[:], metamask.Keccak256([]byte(sig)))
 	return selector
 }
 

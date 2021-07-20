@@ -1,6 +1,5 @@
 package fourbyte
 
-
 import "math/big"
 
 var (
@@ -13,4 +12,3 @@ var (
 	// MaxUint256 is the maximum value that can be represented by a uint256.
 	MaxUint256 = new(big.Int).Sub(new(big.Int).Lsh(Big1, 256), Big1)
 )
-
