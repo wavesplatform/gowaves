@@ -231,15 +231,8 @@ func getTransaction(message proto.Message, scheme proto.Scheme) (proto.Transacti
 					return nil, err
 				}
 				return &tx, nil
-			case byte(proto.UpdateAssetInfoTransaction):
-				var tx proto.UpdateAssetInfoWithProofs
-				err := tx.UnmarshalBinary(txb, scheme)
-				if err != nil {
-					return nil, err
-				}
-				return &tx, nil
 			default:
-				return nil, errors.New("unknown transaction")
+				return nil, errors.New("unknown or unsupported transaction")
 			}
 
 		case byte(proto.IssueTransaction):
