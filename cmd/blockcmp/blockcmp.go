@@ -102,7 +102,8 @@ func run() error {
 
 	flag.StringVar(&nodes, "nodes", "", "Nodes gRPC API URLs separated by comma")
 	flag.IntVar(&height, "height", 0, "Height to compare blocks at")
-	flag.StringVar(&blockchainType, "blockchain-type", "mainnet", "Blockchain type mainnet/testnet/stagenet, default value is mainnet")
+	flag.StringVar(&blockchainType, "blockchain-type", "mainnet",
+		"Blockchain type mainnet/testnet/stagenet, default value is mainnet")
 	flag.Parse()
 
 	if nodes == "" {
@@ -178,7 +179,8 @@ func compareBlocks(clients []*g.ClientConn, scheme byte, height int) (*report, e
 			return nil, err
 		}
 		if height > h {
-			return nil, errors.Errorf("height %d is above of blockchain tip (%d) at node %s", height, h, c.Target())
+			return nil, errors.Errorf("height %d is above of blockchain tip (%d) at node %s",
+				height, h, c.Target())
 		}
 		blockID, txs, err := blockTransactions(c, scheme, height)
 		if err != nil {
@@ -293,7 +295,8 @@ func resultDiff(a, b *waves.InvokeScriptResult, scheme byte) string {
 	}
 	if a.GetErrorMessage().GetText() != b.GetErrorMessage().GetText() {
 		sb.WriteString("\tError:\n")
-		sb.WriteString(fmt.Sprintf("\t-%s\n\t+%s\n", a.GetErrorMessage().GetText(), b.GetErrorMessage().GetText()))
+		sb.WriteString(fmt.Sprintf("\t-%s\n\t+%s\n",
+			a.GetErrorMessage().GetText(), b.GetErrorMessage().GetText()))
 	}
 	return sb.String()
 }
@@ -311,15 +314,19 @@ func addBurnsDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Burn) {
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
 		if a[i].GetAmount() != b[i].GetAmount() || !bytes.Equal(a[i].GetAssetId(), b[i].GetAssetId()) {
-			lsb.WriteString(fmt.Sprintf("\t-AssetID: %s; Amount: %d\n", base58.Encode(a[i].GetAssetId()), a[i].Amount))
-			lsb.WriteString(fmt.Sprintf("\t+AssetID: %s; Amount: %d\n", base58.Encode(b[i].GetAssetId()), b[i].Amount))
+			lsb.WriteString(fmt.Sprintf("\t-AssetID: %s; Amount: %d\n",
+				base58.Encode(a[i].GetAssetId()), a[i].Amount))
+			lsb.WriteString(fmt.Sprintf("\t+AssetID: %s; Amount: %d\n",
+				base58.Encode(b[i].GetAssetId()), b[i].Amount))
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+AssetID: %s; Amount: %d\n", base58.Encode(a[i].GetAssetId()), a[i].Amount))
+			lsb.WriteString(fmt.Sprintf("\t+AssetID: %s; Amount: %d\n",
+				base58.Encode(a[i].GetAssetId()), a[i].Amount))
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+AssetID: %s; Amount: %d\n", base58.Encode(b[i].GetAssetId()), b[i].Amount))
+			lsb.WriteString(fmt.Sprintf("\t+AssetID: %s; Amount: %d\n",
+				base58.Encode(b[i].GetAssetId()), b[i].Amount))
 		}
 	}
 	if lsb.Len() > 0 {
@@ -383,9 +390,10 @@ func equalIssues(a, b *waves.InvokeScriptResult_Issue) bool {
 }
 
 func issueString(i *waves.InvokeScriptResult_Issue) string {
-	return fmt.Sprintf("AssetID: %s; Name: %s; Description: %s; Amount: %d; Decimals: %d; Reissuable: %t; Script: %s; Nonce: %d\n",
-		base58.Encode(i.GetAssetId()), i.GetName(), i.GetDescription(), i.GetAmount(), i.GetDecimals(), i.GetReissuable(),
-		base64.StdEncoding.EncodeToString(i.GetScript()), i.GetNonce())
+	return fmt.Sprintf(
+		"AssetID: %s; Name: %s; Description: %s; Amount: %d; Decimals: %d; Reissuable: %t; Script: %s; Nonce: %d\n",
+		base58.Encode(i.GetAssetId()), i.GetName(), i.GetDescription(), i.GetAmount(), i.GetDecimals(),
+		i.GetReissuable(), base64.StdEncoding.EncodeToString(i.GetScript()), i.GetNonce())
 }
 
 func addIssuesDiff(sb *strings.Builder, a, b []*waves.InvokeScriptResult_Issue) {
