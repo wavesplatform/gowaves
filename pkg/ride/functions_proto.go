@@ -80,11 +80,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 
 	oldInvocationParam := env.invocation()
 
-	invocationParam := make(rideObject)
-	for key, value := range oldInvocationParam {
-		invocationParam[key] = value
-	}
-
+	invocationParam := oldInvocationParam.copy()
 	invocationParam["caller"] = callerAddress
 	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(callerAddress))
 	if err != nil {
@@ -242,11 +238,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 
 	oldInvocationParam := env.invocation()
 
-	invocationParam := make(rideObject)
-	for key, value := range oldInvocationParam {
-		invocationParam[key] = value
-	}
-
+	invocationParam := oldInvocationParam.copy()
 	invocationParam["caller"] = callerAddress
 	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(callerAddress))
 	if err != nil {
