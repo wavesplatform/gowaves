@@ -59,7 +59,7 @@ func NewMaxScriptActions() MaxScriptActions {
 }
 
 func (a MaxScriptActions) GetMaxScriptsComplexityInBlock(scriptVersion int) int {
-	if scriptVersion > 5 {
+	if scriptVersion >= 5 {
 		return a.AfterRideScriptV5
 	}
 	return a.BeforeRideScriptV5
