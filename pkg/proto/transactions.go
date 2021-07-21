@@ -71,20 +71,20 @@ const (
 	// Max allowed versions of transactions.
 	MaxGenesisTransactionVersion         = 2
 	MaxPaymentTransactionVersion         = 2
-	MaxTransferTransactionVersion        = 3
-	MaxIssueTransactionVersion           = 3
+	MaxTransferTransactionVersion        = 127
+	MaxIssueTransactionVersion           = 127
 	MaxReissueTransactionVersion         = 3
 	MaxBurnTransactionVersion            = 3
 	MaxExchangeTransactionVersion        = 3
 	MaxLeaseTransactionVersion           = 3
 	MaxLeaseCancelTransactionVersion     = 3
 	MaxCreateAliasTransactionVersion     = 3
-	MaxMassTransferTransactionVersion    = 2
-	MaxDataTransactionVersion            = 2
-	MaxSetScriptTransactionVersion       = 2
+	MaxMassTransferTransactionVersion    = 127
+	MaxDataTransactionVersion            = 127
+	MaxSetScriptTransactionVersion       = 127
 	MaxSponsorshipTransactionVersion     = 2
 	MaxSetAssetScriptTransactionVersion  = 2
-	MaxInvokeScriptTransactionVersion    = 2
+	MaxInvokeScriptTransactionVersion    = 127
 	MaxUpdateAssetInfoTransactionVersion = 1
 
 	MinFee = 100_000
