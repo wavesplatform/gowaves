@@ -5722,7 +5722,7 @@ func TestInvokeScriptWithProofsValidations(t *testing.T) {
 		{ScriptPayments{{12345, *a1}}, "foo", repeat(StringArgument{Value: "some value should be ok"}, 100), 13245, "too many arguments", 1},
 		{ScriptPayments{{0, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, 1234, "at least one payment has a non-positive amount", 1},
 		{ScriptPayments{{math.MaxInt64 + 123, *a1}}, "foo", Arguments{StringArgument{Value: "some value should be ok"}}, 12345, "at least one payment has a too big amount", 1},
-		{ScriptPayments{}, "foo", Arguments{IntegerArgument{Value: 1234567890}}, 1, "unexpected version 3 for InvokeScriptWithProofs", 3},
+		{ScriptPayments{}, "foo", Arguments{IntegerArgument{Value: 1234567890}}, 1, "unexpected version 128 for InvokeScriptWithProofs", 128},
 		//TODO: add test on arguments evaluation
 	}
 	for _, tc := range tests {
