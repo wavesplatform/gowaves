@@ -250,7 +250,7 @@ func (tx *Transaction) SignerHash(chainID *big.Int) Hash {
 		return Hash{}
 	}
 	var h Hash
-	sha := sha3.NewLegacyKeccak256().(hashImpl)
+	sha := sha3.NewLegacyKeccak256().(KeccakState)
 	// nickeskov: it always returns a nil error
 	_, _ = sha.Write(rlpData)
 	_, _ = sha.Read(h[:])

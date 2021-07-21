@@ -3,7 +3,6 @@ package metamask
 import (
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
-	"hash"
 )
 
 const (
@@ -11,19 +10,43 @@ const (
 	HashLength = 32
 )
 
-type hashImpl interface {
-	hash.Hash
-	Read([]byte) (int, error)
-}
-
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
 type Hash [HashLength]byte
+
+// BytesToHash sets b to hash.
+// If b is larger than len(h), b will be cropped from the left.
+func BytesToHash(b []byte) Hash {
+	var h Hash
+	h.SetBytes(b)
+	return h
+}
 
 func (h *Hash) Bytes() []byte {
 	if h == nil {
 		return nil
 	}
 	return h[:]
+}
+
+// String implements the stringer interface and is used also by the logger when
+// doing full logging into a file.
+func (h Hash) String() string {
+	return h.Hex()
+}
+
+// Hex converts a hash to a hex string.
+func (h Hash) Hex() string {
+	return HexEncodeToString(h[:])
+}
+
+// SetBytes sets the hash to the value of b.
+// If b is larger than len(h), b will be cropped from the left.
+func (h *Hash) SetBytes(b []byte) {
+	if len(b) > len(h) {
+		b = b[len(b)-HashLength:]
+	}
+
+	copy(h[HashLength-len(b):], b)
 }
 
 func (h *Hash) unmarshalFromFastRLP(val *fastrlp.Value) error {

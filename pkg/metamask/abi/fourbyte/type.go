@@ -2,7 +2,7 @@ package fourbyte
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"reflect"
 )
 
@@ -18,7 +18,7 @@ const (
 	SliceTy
 	BytesTy
 	//ArrayTy
-	//TupleTy
+	TupleTy
 
 	AddressTy // nickeskov: we use this type only for erc20 transfers
 
@@ -36,11 +36,11 @@ type Type struct {
 
 	stringKind string // holds the unparsed string for deriving signatures
 
-	//// Tuple relative fields
-	//TupleRawName  string       // Raw struct name defined in source code, may be empty.
-	//TupleElems    []*Type      // Type information of all tuple fields
-	//TupleRawNames []string     // Raw field name of all tuple fields
-	//TupleType     reflect.Type // Underlying struct of the tuple
+	// Tuple relative fields
+	TupleRawName  string       // Raw struct name defined in source code, may be empty.
+	TupleElems    []*Type      // Type information of all tuple fields
+	TupleRawNames []string     // Raw field name of all tuple fields
+	TupleType     reflect.Type // Underlying struct of the tuple
 }
 
 func (t *Type) String() string {
@@ -60,21 +60,15 @@ func requiresLengthPrefix(t Type) bool {
 // variable actually occupies.
 // For a dynamic variable, the returned size is fixed 32 bytes, which is used
 // to store the location reference for actual value storage.
-// TODO(nickeskov): remove this
 func getTypeSize(t Type) int {
-	//if t.T == ArrayTy && !isDynamicType(*t.Elem) {
-	//	// Recursively calculate type size if it is a nested array
-	//	if t.Elem.T == ArrayTy || t.Elem.T == TupleTy {
-	//		return t.Size * getTypeSize(*t.Elem)
-	//	}
-	//	return t.Size * 32
-	//} else if t.T == TupleTy && !isDynamicType(t) {
-	//	total := 0
-	//	for _, elem := range t.TupleElems {
-	//		total += getTypeSize(*elem)
-	//	}
-	//	return total
-	//}
+	if t.T == TupleTy && !isDynamicType(t) {
+		// Recursively calculate type size if it is a nested tuple
+		total := 0
+		for _, elem := range t.TupleElems {
+			total += getTypeSize(*elem)
+		}
+		return total
+	}
 	return 32
 }
 
@@ -91,12 +85,33 @@ func (t Type) GetType() reflect.Type {
 		return reflect.TypeOf("")
 	case SliceTy:
 		return reflect.SliceOf(t.Elem.GetType())
+	case TupleTy:
+		return t.TupleType
 	case AddressTy:
 		// TODO(nickeskov): use our address
-		return reflect.TypeOf(common.Address{})
+		return reflect.TypeOf(metamask.Address{})
 	case BytesTy:
 		return reflect.SliceOf(reflect.TypeOf(byte(0)))
 	default:
 		panic(fmt.Errorf("invalid ABI type (T=%d)", t.T))
 	}
+}
+
+// isDynamicType returns true if the type is dynamic.
+// The following types are called “dynamic”:
+// * bytes
+// * string
+// * T[] for any T
+// * T[k] for any dynamic T and any k >= 0
+// * (T1,...,Tk) if Ti is dynamic for some 1 <= i <= k
+func isDynamicType(t Type) bool {
+	if t.T == TupleTy {
+		for _, elem := range t.TupleElems {
+			if isDynamicType(*elem) {
+				return true
+			}
+		}
+		return false
+	}
+	return t.T == StringTy || t.T == BytesTy || t.T == SliceTy
 }

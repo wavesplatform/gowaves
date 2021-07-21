@@ -1,6 +1,7 @@
 package metamask
 
 import (
+	"encoding/hex"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
 	"math/big"
@@ -55,4 +56,17 @@ func copyBigInt(v *big.Int) *big.Int {
 		return nil
 	}
 	return new(big.Int).Set(v)
+}
+
+// HexEncodeToBytes encodes b as a hex string with 0x prefix.
+func HexEncodeToBytes(b []byte) []byte {
+	enc := make([]byte, len(b)*2+2)
+	copy(enc, "0x")
+	hex.Encode(enc[2:], b)
+	return enc
+}
+
+// HexEncodeToString encodes b as a hex string with 0x prefix.
+func HexEncodeToString(b []byte) string {
+	return string(HexEncodeToBytes(b))
 }
