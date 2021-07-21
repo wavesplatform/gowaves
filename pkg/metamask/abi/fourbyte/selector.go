@@ -7,14 +7,6 @@ import (
 	"strings"
 )
 
-// selectorRegexp is used to validate that a 4byte database selector corresponds
-// to a valid ABI function declaration.
-//
-// Note, although uppercase letters are not part of the ABI spec, this regexp
-// still accepts it as the general format is valid. It will be rejected later
-// by the type checker.
-//var selectorRegexp = regexp.MustCompile(`^([^\)]+)\(([A-Za-z0-9,\[\]]*)\)`)
-
 // DecodedCallData is an internal type to represent a method call parsed according
 // to an ABI method signature.
 type DecodedCallData struct {

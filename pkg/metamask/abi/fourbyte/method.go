@@ -29,6 +29,7 @@ type Method struct {
 // A method should always be created using NewMethod.
 // It also precomputes the sig representation and the string representation
 // of the method.
+// TODO(nickeskov): remove outputs
 func NewMethod(rawName string, funType FunctionType, inputs, outputs Arguments) Method {
 	var (
 		inputNames  = make([]string, len(inputs))
@@ -73,4 +74,9 @@ func NewMethod(rawName string, funType FunctionType, inputs, outputs Arguments) 
 
 func (m *Method) String() string {
 	return m.str
+}
+
+func (m *Method) IsERC20() bool {
+	_, isERC20 := erc20Methods[m.Sig.Selector()]
+	return isERC20
 }
