@@ -116,6 +116,16 @@ func (s RideString) get(prop string) (RideType, error) {
 
 type RideBytes []byte
 
+func NewRideBytes(b []byte) (RideBytes, error) {
+	if len(b) > maxBytesLength {
+		return nil, errors.Errorf(
+			"NewRideBytes: length of bytes (%d) is greater than allowed (%d)",
+			len(b), maxBytesLength,
+		)
+	}
+	return RideBytes(b), nil
+}
+
 func (b RideBytes) instanceOf() string {
 	return "ByteVector"
 }

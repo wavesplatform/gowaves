@@ -88,6 +88,32 @@ func (db *Database) ParseCallDataNew(data []byte) (*DecodedCallData, error) {
 	return info, nil
 }
 
+func (db *Database) ParseCallDataRide(data []byte) (*DecodedCallData, error) {
+	// If the data is empty, we have a plain value transfer, nothing more to do
+	if len(data) == 0 {
+		return nil, errors.New("transaction doesn't contain data")
+	}
+	// Validate the call data that it has the 4byte prefix and the rest divisible by 32 bytes
+	if len(data) < 4 {
+		return nil, errors.New("transaction data is not valid ABI: missing the 4 byte call prefix")
+	}
+	if n := len(data) - 4; n%32 != 0 {
+		return nil, errors.Errorf("transaction data is not valid ABI (length should be a multiple of 32 (was %d))", n)
+	}
+	var selector Selector
+	copy(selector[:], data[:len(selector)])
+	method, err := db.MethodBySelector(selector)
+	if err != nil {
+		return nil, errors.Errorf("Transaction contains data, but the ABI signature could not be found: %v", err)
+	}
+
+	info, err := parseArgDataToRideTypes(&method, data[len(selector):])
+	if err != nil {
+		return nil, errors.Errorf("Transaction contains data, but provided ABI signature could not be verified: %v", err)
+	}
+	return info, nil
+}
+
 type decodedArg struct {
 	Soltype Argument
 	Value   interface{}
@@ -113,16 +139,28 @@ func (da *decodedArg) InternalType() byte {
 }
 
 func parseArgData(method *Method, argData []byte) (*DecodedCallData, error) {
-	//method, err := abi.MethodById(selector)
-	//if err != nil {
-	//	return nil, errors.Wrapf(err, "failed to get method by id, id=%s", selector.String())
-	//}
-	values, err := method.Inputs.UnpackValues(argData)
+	values, _, err := method.Inputs.UnpackValues(argData)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unpack Inputs arguments ABI data")
 	}
 
-	// TODO(nickeskov): use our types
+	decoded := DecodedCallData{Signature: method.Sig.String(), Name: method.RawName}
+	for i := 0; i < len(method.Inputs); i++ {
+		decoded.Inputs = append(decoded.Inputs, decodedArg{
+			Soltype: method.Inputs[i],
+			Value:   values[i],
+		})
+	}
+	return &decoded, nil
+}
+
+func parseArgDataToRideTypes(method *Method, argData []byte) (*DecodedCallData, error) {
+	// TODO(nickeskov): parse payments here
+	values, _, err := method.Inputs.UnpackRideValues(argData)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unpack Inputs arguments ABI data")
+	}
+
 	decoded := DecodedCallData{Signature: method.Sig.String(), Name: method.RawName}
 	for i := 0; i < len(method.Inputs); i++ {
 		decoded.Inputs = append(decoded.Inputs, decodedArg{

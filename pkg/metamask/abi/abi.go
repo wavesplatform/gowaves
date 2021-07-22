@@ -17,6 +17,15 @@ func parseNew(data []byte) (*fourbyte.DecodedCallData, error) {
 	return decodedData, err
 }
 
+func parseRide(data []byte) (*fourbyte.DecodedCallData, error) {
+	db, err := fourbyte.NewDatabase()
+	if err != nil {
+		fmt.Println(err)
+	}
+	decodedData, err := db.ParseCallDataRide(data)
+	return decodedData, err
+}
+
 var selectorRegexp = regexp.MustCompile(`^([^\)]+)\(([A-Za-z0-9,\[\]]*)\)`)
 
 func getJsonAbi(selector string) ([]byte, error) {
