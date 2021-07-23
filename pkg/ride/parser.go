@@ -8,6 +8,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
+	g "github.com/wavesplatform/gowaves/pkg/ride/meta/generated"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -97,11 +100,11 @@ func (p *parser) parseDApp() (*Tree, error) {
 		AppVersion: int(av),
 		LibVersion: int(lv),
 	}
-	meta, err := p.readMeta()
+	m, err := p.readMeta()
 	if err != nil {
 		return nil, err
 	}
-	tree.Meta = meta
+	tree.Meta = m
 
 	n, err := p.readInt()
 	if err != nil {
@@ -137,6 +140,10 @@ func (p *parser) parseDApp() (*Tree, error) {
 		}
 		fn.invocationParameter = invocationParameter
 		functions[i] = fn
+		// Update callable name in tree's meta
+		if len(tree.Meta.Functions) > i {
+			tree.Meta.Functions[i].Name = fn.Name
+		}
 	}
 	tree.Functions = functions
 
@@ -413,19 +420,29 @@ func (p *parser) readDeclaration() (Node, error) {
 	}
 }
 
-func (p *parser) readMeta() (ScriptMeta, error) {
+func (p *parser) readMeta() (meta.DApp, error) {
 	v, err := p.readInt()
 	if err != nil {
-		return ScriptMeta{}, err
+		return meta.DApp{}, err
 	}
 	b, err := p.readBytes()
 	if err != nil {
-		return ScriptMeta{}, err
+		return meta.DApp{}, err
 	}
-	return ScriptMeta{
-		Version: int(v),
-		Bytes:   b,
-	}, nil
+	switch v {
+	case 0:
+		pbMeta := new(g.DAppMeta)
+		if err := protobuf.Unmarshal(b, pbMeta); err != nil {
+			return meta.DApp{}, err
+		}
+		m, err := meta.Convert(pbMeta)
+		if err != nil {
+			return meta.DApp{}, err
+		}
+		return m, nil
+	default:
+		return meta.DApp{}, errors.Errorf("unsupported script meta version %d", v)
+	}
 }
 
 func IsDApp(data []byte) bool {

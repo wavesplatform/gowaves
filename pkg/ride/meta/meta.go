@@ -2,22 +2,46 @@ package meta
 
 import (
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/ride"
 	g "github.com/wavesplatform/gowaves/pkg/ride/meta/generated"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
-type Type byte
+// Type interface represents all type descriptors that can be encoded in Meta.
+type Type interface {
+	_type()
+}
+
+// SimpleType is one of a four basic types of Meta.
+type SimpleType byte
+
+func (t SimpleType) _type() {}
 
 const (
-	TypeInt = iota + 1
+	Int SimpleType = 1 << iota
+	Bytes
+	Boolean
+	String
+	list
 )
 
+// UnionType represents a composition of basic types.
+type UnionType []SimpleType
+
+func (t UnionType) _type() {}
+
+// ListType is a list of items of Inner type.
+type ListType struct {
+	Inner Type
+}
+
+func (t ListType) _type() {}
+
+// Function is a function signature descriptor. Functions has Name and list of argument's types.
 type Function struct {
 	Name      string
 	Arguments []Type
 }
 
+// DApp is a collection of callable functions' descriptions. As additional it has Version and Abbreviations map.
 type DApp struct {
 	Version       int
 	Functions     []Function
@@ -35,24 +59,7 @@ func (a *Abbreviations) CompactToOriginal(compact string) (string, error) {
 	return "", errors.Errorf("short name '%s' not found", compact)
 }
 
-func FromProtobuf(meta ride.ScriptMeta) (DApp, error) {
-	switch meta.Version {
-	case 0:
-		pbMeta := new(g.DAppMeta)
-		if err := protobuf.Unmarshal(meta.Bytes, pbMeta); err != nil {
-			return DApp{}, err
-		}
-		m, err := convert(pbMeta)
-		if err != nil {
-			return DApp{}, err
-		}
-		return m, nil
-	default:
-		return DApp{}, errors.Errorf("unsupported script meta version %d", meta.Version)
-	}
-}
-
-func convert(meta *g.DAppMeta) (DApp, error) {
+func Convert(meta *g.DAppMeta) (DApp, error) {
 	v := int(meta.GetVersion())
 	abbreviations := convertAbbreviations(meta.GetCompactNameAndOriginalNamePairList())
 	switch v {
@@ -94,7 +101,7 @@ func convertAbbreviations(pairs []*g.DAppMeta_CompactNameAndOriginalNamePair) Ab
 }
 
 func convertFunctions(version int, functions []*g.DAppMeta_CallableFuncSignature) ([]Function, error) {
-	var typeConverter func([]byte) []Type
+	var typeConverter func([]byte) ([]Type, error)
 	switch version {
 	case 1:
 		typeConverter = convertTypesV1
@@ -105,7 +112,10 @@ func convertFunctions(version int, functions []*g.DAppMeta_CallableFuncSignature
 	}
 	r := make([]Function, len(functions))
 	for i, f := range functions {
-		types := typeConverter(f.GetTypes())
+		types, err := typeConverter(f.GetTypes())
+		if err != nil {
+			return nil, err
+		}
 		r[i] = Function{
 			Name:      "",
 			Arguments: types,
@@ -114,10 +124,46 @@ func convertFunctions(version int, functions []*g.DAppMeta_CallableFuncSignature
 	return r, nil
 }
 
-func convertTypesV1(dtypes []byte) []Type {
-	return nil
+func parseUnion(t byte) Type {
+	r := make([]SimpleType, 0, 4)
+	for i := 0; i < 4; i++ {
+		m := byte(1 << i)
+		if t&m == m {
+			r = append(r, SimpleType(m))
+		}
+	}
+	if len(r) == 1 {
+		return r[0]
+	}
+	return UnionType(r)
 }
 
-func convertTypesV2(types []byte) []Type {
-	return nil
+func convertTypesV1(types []byte) ([]Type, error) {
+	r := make([]Type, 0, len(types))
+	for _, t := range types {
+		if t < 1 || t > 15 {
+			return nil, errors.Errorf("unsupproted type '%d' for meta V1", t)
+		}
+		r = append(r, parseUnion(t))
+	}
+	return r, nil
+}
+
+func parseList(t byte) Type {
+	if t < byte(list) {
+		return parseUnion(t)
+	}
+	t = t ^ byte(list)
+	return ListType{Inner: parseUnion(t)}
+}
+
+func convertTypesV2(types []byte) ([]Type, error) {
+	r := make([]Type, 0, len(types))
+	for _, t := range types {
+		if t < 1 || t > 31 {
+			return nil, errors.Errorf("unsupported type '%d' for meta V2", t)
+		}
+		r = append(r, parseList(t))
+	}
+	return r, nil
 }
