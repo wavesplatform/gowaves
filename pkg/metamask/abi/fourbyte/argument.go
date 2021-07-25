@@ -15,21 +15,23 @@ type Arguments []Argument
 func (arguments Arguments) UnpackValues(data []byte) ([]interface{}, []byte, error) {
 	retval := make([]interface{}, 0, len(arguments))
 	virtualArgs := 0
-	readTotal := 0
+	readArgsTotal := 0
 	for index, arg := range arguments {
 		marshalledValue, err := toGoType((index+virtualArgs)*32, arg.Type, data)
 		if arg.Type.T == TupleTy && !isDynamicType(arg.Type) {
 			// If we have a static tuple, like (uint256, bool, uint256), these are
 			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(arg.Type)/32 - 1
+			tupleSize := getTypeSize(arg.Type)/32 - 1
+			virtualArgs += tupleSize
+			readArgsTotal += tupleSize
 		}
 		if err != nil {
 			return nil, nil, err
 		}
 		retval = append(retval, marshalledValue)
-		readTotal = (index + virtualArgs) * 32
+		readArgsTotal += 1
 	}
-	return retval, data[readTotal:], nil
+	return retval, data[readArgsTotal*32:], nil
 }
 
 // UnpackRideValues can be used to unpack ABI-encoded hexdata according to the ABI-specification,
@@ -38,21 +40,23 @@ func (arguments Arguments) UnpackValues(data []byte) ([]interface{}, []byte, err
 func (arguments Arguments) UnpackRideValues(data []byte) ([]ride.RideType, []byte, error) {
 	retval := make([]ride.RideType, 0, len(arguments))
 	virtualArgs := 0
-	readTotal := 0
+	readArgsTotal := 0
 	for index, arg := range arguments {
 		marshalledValue, err := toRideType((index+virtualArgs)*32, arg.Type, data)
 		if arg.Type.T == TupleTy && !isDynamicType(arg.Type) {
 			// If we have a static tuple, like (uint256, bool, uint256), these are
 			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(arg.Type)/32 - 1
+			tupleSize := getTypeSize(arg.Type)/32 - 1
+			virtualArgs += tupleSize
+			readArgsTotal += tupleSize
 		}
 		if err != nil {
 			return nil, nil, err
 		}
 		retval = append(retval, marshalledValue)
-		readTotal = (index + virtualArgs) * 32
+		readArgsTotal += 1
 	}
-	return retval, data[readTotal:], nil
+	return retval, data[readArgsTotal*32:], nil
 }
 
 // TODO(nickeskov): add ABI spec marshaling

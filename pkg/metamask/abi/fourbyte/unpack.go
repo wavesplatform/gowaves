@@ -114,6 +114,22 @@ func readRideInteger(typ Type, b []byte) ride.RideType {
 	}
 }
 
+func tryAsInt64(rideT ride.RideType) (int64, error) {
+	switch rideInt := rideT.(type) {
+	case ride.RideInt:
+		return int64(rideInt), nil
+	case *ride.RideBigInt:
+		if !rideInt.V.IsInt64() {
+			return 0, errors.New(
+				"abi: failed to convert BigInt as int64, value too big",
+			)
+		}
+		return rideInt.V.Int64(), nil
+	default:
+		return 0, errors.Errorf("abi: failed to convert RideType as int64, type is not number")
+	}
+}
+
 // forEachUnpack iteratively unpack elements.
 func forEachUnpack(t Type, output []byte, start, size int) (interface{}, error) {
 	if size < 0 {
@@ -219,19 +235,7 @@ func extractIndexFromFirstElemOfTuple(index int, t Type, output []byte) (int64, 
 	if err != nil {
 		return 0, err
 	}
-	switch rideInt := rideT.(type) {
-	case ride.RideInt:
-		return int64(rideInt), nil
-	case *ride.RideBigInt:
-		if !rideInt.V.IsInt64() {
-			return 0, errors.New(
-				"abi: failed to convert eth tuple to ride union, failed to represent index value as int64",
-			)
-		}
-		return rideInt.V.Int64(), nil
-	default:
-		panic("BUG, CREATE REPORT: readRideInteger must return only (RideInt) or (*RideBigInt) types")
-	}
+	return tryAsInt64(rideT)
 }
 
 func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error) {
@@ -271,6 +275,94 @@ func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error)
 		retval = append(retval, marshalledValue)
 	}
 	return retval[unionIndex], nil
+}
+
+type Payment struct {
+	AssetID metamask.Address
+	Amount  int64
+}
+
+var (
+	paymentType = Type{
+		T: TupleTy,
+		TupleElems: []*Type{
+			{T: AddressTy},
+			{Size: 64, T: IntTy},
+		},
+		TupleRawNames: []string{},
+	}
+	paymentsType = Type{
+		Elem: &paymentType,
+		T:    SliceTy,
+	}
+)
+
+func unpackPayment(output []byte) (Payment, error) {
+	assetIDType := paymentType.TupleElems[0]
+	amountType := paymentType.TupleElems[1]
+
+	var (
+		assetID metamask.Address
+		amount  int64
+	)
+
+	assetRideValue, err := toRideType(0, *assetIDType, output)
+	if err != nil {
+		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse assetID")
+	}
+	if assetIDBytes, ok := assetRideValue.(ride.RideBytes); ok {
+		assetID.SetBytes(assetIDBytes)
+	} else {
+		panic("BUG, CREATE REPORT: failed to parse payment, assetRideValue type must be RideBytes type")
+	}
+
+	amountRideValue, err := toRideType(1, *amountType, output)
+	if err != nil {
+		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse amount")
+	}
+	if amount, err = tryAsInt64(amountRideValue); err != nil {
+		panic("BUG, CREATE REPORT: failed to parse payment, amountRideValue type must be representable as int64")
+	}
+
+	payment := Payment{
+		AssetID: assetID,
+		Amount:  amount,
+	}
+	return payment, nil
+}
+
+func unpackPayments(output []byte) ([]Payment, error) {
+	if len(output) == 0 {
+		return nil, nil
+	}
+
+	begin, size, err := lengthPrefixPointsTo(0, output)
+	if err != nil {
+		return nil, err
+	}
+	// nickeskov: jumping to the data section
+	output = output[begin:]
+
+	if size < 0 {
+		return nil, errors.Errorf("cannot marshal input to array, size is negative (%d)", size)
+	}
+	if 32*size > len(output) {
+		return nil, errors.Errorf(
+			"abi: cannot marshal in to go array: offset %d would go over slice boundary (len=%d)",
+			len(output), 32*size,
+		)
+	}
+
+	elemSize := getTypeSize(*paymentsType.Elem)
+	payments := make([]Payment, 0, size)
+	for i := 0; i < size; i++ {
+		payment, err := unpackPayment(output[i*elemSize:])
+		if err != nil {
+			return nil, err
+		}
+		payments = append(payments, payment)
+	}
+	return payments, nil
 }
 
 // lengthPrefixPointsTo interprets a 32 byte slice as an offset and then determines which indices to look to decode the type.

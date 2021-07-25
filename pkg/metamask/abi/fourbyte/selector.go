@@ -13,6 +13,7 @@ type DecodedCallData struct {
 	Signature string
 	Name      string
 	Inputs    []decodedArg
+	Payments  []Payment
 }
 
 // String implements stringer interface for decodedCallData
@@ -139,12 +140,16 @@ func (da *decodedArg) InternalType() byte {
 }
 
 func parseArgData(method *Method, argData []byte) (*DecodedCallData, error) {
-	values, _, err := method.Inputs.UnpackValues(argData)
+	values, paymentsABI, err := method.Inputs.UnpackValues(argData)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unpack Inputs arguments ABI data")
 	}
+	payments, err := unpackPayments(paymentsABI)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unpack payments")
+	}
 
-	decoded := DecodedCallData{Signature: method.Sig.String(), Name: method.RawName}
+	decoded := DecodedCallData{Signature: method.Sig.String(), Name: method.RawName, Payments: payments}
 	for i := 0; i < len(method.Inputs); i++ {
 		decoded.Inputs = append(decoded.Inputs, decodedArg{
 			Soltype: method.Inputs[i],
@@ -155,18 +160,22 @@ func parseArgData(method *Method, argData []byte) (*DecodedCallData, error) {
 }
 
 func parseArgDataToRideTypes(method *Method, argData []byte) (*DecodedCallData, error) {
-	// TODO(nickeskov): parse payments here
-	values, _, err := method.Inputs.UnpackRideValues(argData)
+	values, paymentsABI, err := method.Inputs.UnpackRideValues(argData)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unpack Inputs arguments ABI data")
 	}
+	payments, err := unpackPayments(paymentsABI)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unpack payments")
+	}
 
-	decoded := DecodedCallData{Signature: method.Sig.String(), Name: method.RawName}
+	decoded := DecodedCallData{Signature: method.Sig.String(), Name: method.RawName, Payments: payments}
 	for i := 0; i < len(method.Inputs); i++ {
 		decoded.Inputs = append(decoded.Inputs, decodedArg{
 			Soltype: method.Inputs[i],
 			Value:   values[i],
 		})
 	}
+
 	return &decoded, nil
 }
