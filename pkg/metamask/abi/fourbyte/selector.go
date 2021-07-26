@@ -12,7 +12,7 @@ import (
 type DecodedCallData struct {
 	Signature string
 	Name      string
-	Inputs    []decodedArg
+	Inputs    []DecodedArg
 }
 
 // String implements stringer interface for decodedCallData
@@ -88,12 +88,12 @@ func (db *Database) ParseCallDataNew(data []byte) (*DecodedCallData, error) {
 	return info, nil
 }
 
-type decodedArg struct {
+type DecodedArg struct {
 	Soltype Argument
 	Value   interface{}
 }
 
-func (da *decodedArg) String() string {
+func (da *DecodedArg) String() string {
 	var value string
 	switch val := da.Value.(type) {
 	case fmt.Stringer:
@@ -104,11 +104,11 @@ func (da *decodedArg) String() string {
 	return fmt.Sprintf("%v: %v", da.Soltype.Type.String(), value)
 }
 
-func (da *decodedArg) DecodedValue() interface{} {
+func (da *DecodedArg) DecodedValue() interface{} {
 	return da.Value
 }
 
-func (da *decodedArg) InternalType() byte {
+func (da *DecodedArg) InternalType() byte {
 	return byte(da.Soltype.Type.T)
 }
 
@@ -125,7 +125,7 @@ func parseArgData(method *Method, argData []byte) (*DecodedCallData, error) {
 	// TODO(nickeskov): use our types
 	decoded := DecodedCallData{Signature: method.Sig.String(), Name: method.RawName}
 	for i := 0; i < len(method.Inputs); i++ {
-		decoded.Inputs = append(decoded.Inputs, decodedArg{
+		decoded.Inputs = append(decoded.Inputs, DecodedArg{
 			Soltype: method.Inputs[i],
 			Value:   values[i],
 		})

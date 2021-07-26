@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/metamask/abi/fourbyte"
 	"math/big"
 	"strings"
 	"testing"
@@ -40,7 +41,25 @@ func TestJsonAbi(t *testing.T) {
 	callData, err := parseNew(data)
 	require.NoError(t, err)
 
-	resJson, err := getJsonAbi(callData.Signature)
+	resJson, err := getJsonAbi(callData.Signature, callData.Inputs)
+	require.NoError(t, err)
+	require.Equal(t, string(resJson), expectedJson)
+}
+
+func TestJsonAbiPayments(t *testing.T) {
+	expectedJson := `[{"name":"transfer","type":"function","inputs":[{"type":"address"},{"type":"uint256"},{"type":"[(address, uint256)]"}]}]`
+
+	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
+	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
+	require.NoError(t, err)
+	callData, err := parseNew(data)
+	require.NoError(t, err)
+	callData.Inputs = append(callData.Inputs, fourbyte.DecodedArg{
+		Soltype: fourbyte.Argument{},
+		Value:   5,
+	})
+
+	resJson, err := getJsonAbi(callData.Signature, callData.Inputs)
 	require.NoError(t, err)
 	require.Equal(t, string(resJson), expectedJson)
 }
