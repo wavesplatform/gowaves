@@ -118,7 +118,7 @@ func tryAsInt64(rideT ride.RideType) (int64, error) {
 	switch rideInt := rideT.(type) {
 	case ride.RideInt:
 		return int64(rideInt), nil
-	case *ride.RideBigInt:
+	case ride.RideBigInt:
 		if !rideInt.V.IsInt64() {
 			return 0, errors.New(
 				"abi: failed to convert BigInt as int64, value too big",

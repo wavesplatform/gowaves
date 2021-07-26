@@ -8,11 +8,6 @@ import (
 	"strings"
 )
 
-var __4byteJson = map[string]string{
-	"a9059cbb": "transfer(address,uint256)",
-	"23b872dd": "transferFrom(address,address,uint256)",
-}
-
 const (
 	selectorLen = 4
 

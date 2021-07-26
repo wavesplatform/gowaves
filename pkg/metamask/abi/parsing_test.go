@@ -32,6 +32,45 @@ func TestTransfer(t *testing.T) {
 	require.Equal(t, expectedSecondArg, callData.Inputs[1].DecodedValue().(*big.Int).String())
 }
 
+func TestRandomFunctionABIParsing(t *testing.T) {
+	// taken and modified from https://etherscan.io/tx/0x2667bb17f2076cad4966849255898fbcaca68f2eb0d9ba585b310c79c098e970
+
+	const (
+		testSignature = fourbyte.Signature("minta(address,uint256,uint256,uint256,uint256)")
+		hexData       = "0xe00c88d6000000000000000000000000892555e75350e11f2058d086c72b9c94c9493d7200000000000000000000000000000000000000000000000000000000000000a50000000000000000000000000000000000000000000000056bc75e2d631000000000000000000000000000000000000000000000000000056bc75e2d63100000000000000000000000000000000000000000000000000000000000000000000a"
+	)
+
+	var customDB = map[fourbyte.Selector]fourbyte.Method{
+		testSignature.Selector(): {
+			Type:    fourbyte.Callable,
+			RawName: "minta",
+			Inputs: fourbyte.Arguments{
+				{Name: "_token", Type: fourbyte.Type{T: fourbyte.AddressTy}},
+				{Name: "_id", Type: fourbyte.Type{T: fourbyte.UintTy, Size: 256}},
+				{Name: "_supply", Type: fourbyte.Type{T: fourbyte.UintTy, Size: 256}},
+				{Name: "_listPrice", Type: fourbyte.Type{T: fourbyte.UintTy, Size: 256}},
+				{Name: "_fee", Type: fourbyte.Type{T: fourbyte.UintTy, Size: 256}},
+			},
+			Sig: testSignature,
+		},
+	}
+
+	data, err := hex.DecodeString(strings.TrimPrefix(hexData, "0x"))
+	require.NoError(t, err)
+	db := fourbyte.NewCustomDatabase(customDB)
+	callData, err := db.ParseCallDataRide(data)
+	require.NoError(t, err)
+
+	require.Equal(t, "minta", callData.Name)
+	var addr metamask.Address
+	addr.SetBytes(callData.Inputs[0].Value.(ride.RideBytes))
+	require.Equal(t, "0x892555E75350E11f2058d086C72b9C94C9493d72", addr.String())
+	require.Equal(t, "165", callData.Inputs[1].Value.(ride.RideBigInt).String())
+	require.Equal(t, "100000000000000000000", callData.Inputs[2].Value.(ride.RideBigInt).String())
+	require.Equal(t, "100000000000000000000", callData.Inputs[3].Value.(ride.RideBigInt).String())
+	require.Equal(t, "10", callData.Inputs[4].Value.(ride.RideBigInt).String())
+}
+
 func TestTransferWithRideTypes(t *testing.T) {
 	// from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
 

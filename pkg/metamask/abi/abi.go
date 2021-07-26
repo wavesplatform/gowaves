@@ -9,19 +9,13 @@ import (
 )
 
 func parseNew(data []byte) (*fourbyte.DecodedCallData, error) {
-	db, err := fourbyte.NewDatabase()
-	if err != nil {
-		fmt.Println(err)
-	}
+	db := fourbyte.NewDatabase()
 	decodedData, err := db.ParseCallDataNew(data)
 	return decodedData, err
 }
 
 func parseRide(data []byte) (*fourbyte.DecodedCallData, error) {
-	db, err := fourbyte.NewDatabase()
-	if err != nil {
-		fmt.Println(err)
-	}
+	db := fourbyte.NewDatabase()
 	decodedData, err := db.ParseCallDataRide(data)
 	return decodedData, err
 }

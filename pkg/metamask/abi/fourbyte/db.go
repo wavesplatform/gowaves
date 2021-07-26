@@ -1,7 +1,6 @@
 package fourbyte
 
 import (
-	"encoding/hex"
 	"fmt"
 	"github.com/pkg/errors"
 	"strings"
@@ -28,35 +27,30 @@ func (cd DecodedCallData) String() string {
 // Database is a 4byte database with the possibility of maintaining an immutable
 // set (embedded) into the process and a mutable set (loaded and written to file).
 type Database struct {
-	embedded map[string]string
-	custom   map[string]string
+	embedded map[Selector]Method
+	custom   map[Selector]Method
 }
 
 // New loads the standard signature database embedded in the package.
-func NewDatabase() (*Database, error) {
-	db := &Database{make(map[string]string), make(map[string]string)}
-	db.embedded = __4byteJson
-
-	return db, nil
+func NewDatabase() Database {
+	return Database{
+		embedded: erc20Methods,
+		custom:   make(map[Selector]Method),
+	}
 }
 
-// This method does not validate the match, it's assumed the caller will do.
-func (db *Database) Selector(id []byte) (string, error) {
-	if len(id) < 4 {
-		return "", fmt.Errorf("expected 4-byte id, got %d", len(id))
+func NewCustomDatabase(custom map[Selector]Method) Database {
+	return Database{
+		embedded: erc20Methods,
+		custom:   custom,
 	}
-	sig := hex.EncodeToString(id[:4])
-	if selector, exists := db.embedded[sig]; exists {
-		return selector, nil
-	}
-	if selector, exists := db.custom[sig]; exists {
-		return selector, nil
-	}
-	return "", fmt.Errorf("signature %v not found", sig)
 }
 
 func (db *Database) MethodBySelector(id Selector) (Method, error) {
-	if method, ok := erc20Methods[id]; ok {
+	if method, ok := db.embedded[id]; ok {
+		return method, nil
+	}
+	if method, ok := db.custom[id]; ok {
 		return method, nil
 	}
 	// TODO(nickeskov): support ride scripts metadata
