@@ -65,9 +65,9 @@ func TestJsonAbi(t *testing.T) {
 	callData, err := parseNew(data)
 	require.NoError(t, err)
 
-	resJson, err := getJsonAbi(callData.Signature, callData.Inputs)
+	resJson, err := getJsonAbi(callData.Signature, callData.Payments)
 	require.NoError(t, err)
-	require.Equal(t, string(resJson), expectedJson)
+	require.Equal(t, expectedJson, string(resJson))
 }
 
 func TestJsonAbiPayments(t *testing.T) {
@@ -78,12 +78,9 @@ func TestJsonAbiPayments(t *testing.T) {
 	require.NoError(t, err)
 	callData, err := parseNew(data)
 	require.NoError(t, err)
-	callData.Inputs = append(callData.Inputs, fourbyte.DecodedArg{
-		Soltype: fourbyte.Argument{},
-		Value:   5,
-	})
+	callData.Payments = append(callData.Payments, fourbyte.Payment{})
 
-	resJson, err := getJsonAbi(callData.Signature, callData.Inputs)
+	resJson, err := getJsonAbi(callData.Signature, callData.Payments)
 	require.NoError(t, err)
-	require.Equal(t, string(resJson), expectedJson)
+	require.Equal(t, expectedJson, string(resJson))
 }

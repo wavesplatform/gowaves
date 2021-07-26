@@ -28,7 +28,7 @@ func parseRide(data []byte) (*fourbyte.DecodedCallData, error) {
 
 var selectorRegexp = regexp.MustCompile(`^([^\)]+)\(([A-Za-z0-9,\[\]]*)\)`)
 
-func getJsonAbi(selector string, decodedArgs []fourbyte.DecodedArg) ([]byte, error) {
+func getJsonAbi(selector string, payments []fourbyte.Payment) ([]byte, error) {
 	// Define a tiny fake ABI struct for JSON marshalling
 	type Arg struct {
 		Type string `json:"type"`
@@ -54,7 +54,7 @@ func getJsonAbi(selector string, decodedArgs []fourbyte.DecodedArg) ([]byte, err
 		}
 	}
 
-	if len(decodedArgs) > len(arguments) {
+	if payments != nil {
 		// it means that payments are attached
 		arg := "[(address, uint256)]" // payments
 		arguments = append(arguments, Arg{arg})
