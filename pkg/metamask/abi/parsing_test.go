@@ -71,7 +71,7 @@ func TestJsonAbi(t *testing.T) {
 }
 
 func TestJsonAbiPayments(t *testing.T) {
-	expectedJson := `[{"name":"transfer","type":"function","inputs":[{"type":"address"},{"type":"uint256"},{"type":"[(address, uint256)]"}]}]`
+	expectedJson := `[{"name":"transfer","type":"function","inputs":[{"type":"address"},{"type":"uint256"},{"type":"(address, uint256)[]"}]}]`
 
 	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))

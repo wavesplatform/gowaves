@@ -56,7 +56,7 @@ func getJsonAbi(selector string, payments []fourbyte.Payment) ([]byte, error) {
 
 	if payments != nil {
 		// it means that payments are attached
-		arg := "[(address, uint256)]" // payments
+		arg := "(address, uint256)[]" // payments
 		arguments = append(arguments, Arg{arg})
 	}
 	return json.Marshal([]ABI{{name, "function", arguments}})
