@@ -1,5 +1,7 @@
 package ride
 
+import "github.com/wavesplatform/gowaves/pkg/ride/meta"
+
 type Node interface {
 	node()
 	SetBlock(node Node)
@@ -158,17 +160,12 @@ func NewPropertyNode(name string, object Node) *PropertyNode {
 	}
 }
 
-type ScriptMeta struct {
-	Version int
-	Bytes   []byte
-}
-
 type Tree struct {
 	Digest       [32]byte
 	AppVersion   int
 	LibVersion   int
 	HasBlockV2   bool
-	Meta         ScriptMeta
+	Meta         meta.DApp
 	Declarations []Node
 	Functions    []Node
 	Verifier     Node
