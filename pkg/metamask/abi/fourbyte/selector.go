@@ -12,7 +12,7 @@ import (
 type DecodedCallData struct {
 	Signature string
 	Name      string
-	Inputs    []decodedArg
+	Inputs    []DecodedArg
 	Payments  []Payment
 }
 
@@ -115,7 +115,6 @@ func (db *Database) ParseCallDataRide(data []byte) (*DecodedCallData, error) {
 	return info, nil
 }
 
-
 type DecodedArg struct {
 	Soltype Argument
 	Value   interface{}
@@ -172,7 +171,7 @@ func parseArgDataToRideTypes(method *Method, argData []byte) (*DecodedCallData, 
 
 	decoded := DecodedCallData{Signature: method.Sig.String(), Name: method.RawName, Payments: payments}
 	for i := 0; i < len(method.Inputs); i++ {
-		decoded.Inputs = append(decoded.Inputs, decodedArg{
+		decoded.Inputs = append(decoded.Inputs, DecodedArg{
 			Soltype: method.Inputs[i],
 			Value:   values[i],
 		})
