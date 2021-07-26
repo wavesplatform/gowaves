@@ -23,6 +23,12 @@ const (
 	list
 )
 
+const (
+	basicTypesCount    = 4
+	combinedBasicTypes = byte(Int | Bytes | Boolean | String)
+	combinedListTypes  = byte(Int | Bytes | Boolean | String | list)
+)
+
 // UnionType represents a composition of basic types.
 type UnionType []SimpleType
 
@@ -125,8 +131,8 @@ func convertFunctions(version int, functions []*g.DAppMeta_CallableFuncSignature
 }
 
 func parseUnion(t byte) Type {
-	r := make([]SimpleType, 0, 4)
-	for i := 0; i < 4; i++ {
+	r := make([]SimpleType, 0, basicTypesCount)
+	for i := 0; i < basicTypesCount; i++ {
 		m := byte(1 << i)
 		if t&m == m {
 			r = append(r, SimpleType(m))
@@ -141,7 +147,7 @@ func parseUnion(t byte) Type {
 func convertTypesV1(types []byte) ([]Type, error) {
 	r := make([]Type, 0, len(types))
 	for _, t := range types {
-		if t < 1 || t > 15 {
+		if t < byte(Int) || t > combinedBasicTypes {
 			return nil, errors.Errorf("unsupproted type '%d' for meta V1", t)
 		}
 		r = append(r, parseUnion(t))
@@ -160,7 +166,7 @@ func parseList(t byte) Type {
 func convertTypesV2(types []byte) ([]Type, error) {
 	r := make([]Type, 0, len(types))
 	for _, t := range types {
-		if t < 1 || t > 31 {
+		if t < byte(Int) || t > combinedListTypes {
 			return nil, errors.Errorf("unsupported type '%d' for meta V2", t)
 		}
 		r = append(r, parseList(t))
