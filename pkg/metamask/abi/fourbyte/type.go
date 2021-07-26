@@ -3,6 +3,7 @@ package fourbyte
 import (
 	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/metamask"
+	"math/big"
 	"reflect"
 )
 
@@ -114,4 +115,32 @@ func isDynamicType(t Type) bool {
 		return false
 	}
 	return t.T == StringTy || t.T == BytesTy || t.T == SliceTy
+}
+
+// reflectIntType returns the reflect using the given size and
+// unsignedness.
+func reflectIntType(unsigned bool, size int) reflect.Type {
+	if unsigned {
+		switch size {
+		case 8:
+			return reflect.TypeOf(uint8(0))
+		case 16:
+			return reflect.TypeOf(uint16(0))
+		case 32:
+			return reflect.TypeOf(uint32(0))
+		case 64:
+			return reflect.TypeOf(uint64(0))
+		}
+	}
+	switch size {
+	case 8:
+		return reflect.TypeOf(int8(0))
+	case 16:
+		return reflect.TypeOf(int16(0))
+	case 32:
+		return reflect.TypeOf(int32(0))
+	case 64:
+		return reflect.TypeOf(int64(0))
+	}
+	return reflect.TypeOf(&big.Int{})
 }
