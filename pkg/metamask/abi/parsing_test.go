@@ -57,30 +57,75 @@ func TestTransferWithRideTypes(t *testing.T) {
 func TestJsonAbi(t *testing.T) {
 	// from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
 
-	expectedJson := `[{"name":"transfer","type":"function","inputs":[{"type":"address"},{"type":"uint256"}]}]`
+	expectedJson := `
+	[
+	  {
+		"name":"transfer",
+		"type":"function",
+		"inputs": [
+		  {
+			"name":"_to",
+			"type":"address"
+		  },
+		  {
+			"name":"_value",
+			"type":"uint256"
+		  },
+		  {
+			"name":"",
+			"type":"tuple[]",
+			"components": [
+			  {
+				"name": "",
+				"type": "address"
+			  },
+			  {
+			    "name": "",
+			    "type": "uint256"
+			  }
+            ]
+		  }
+		]
+	  },
+	  {
+	    "name":"transferFrom",
+		"type":"function",
+		"inputs": [
+		  {
+			"name":"_from",
+			"type":"address"
+		  },
+		  {
+			"name":"_to",
+			"type":"address"
+		  },
+		  {
+			"name":"_value",
+			"type":"uint256"
+		  },
+		  {
+			"name":"",
+			"type":"tuple[]",
+			"components": [
+			  {
+				"name": "",
+				"type": "address"
+			  },
+			  {
+			    "name": "",
+			    "type": "uint256"
+			  }
+            ]
+		  }
+		]
+	  }
+	]
+`
+	expectedJson = strings.ReplaceAll(expectedJson, "\n", "")
+	expectedJson = strings.ReplaceAll(expectedJson, "\t", "")
+	expectedJson = strings.ReplaceAll(expectedJson, " ", "")
 
-	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
-	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
-	require.NoError(t, err)
-	callData, err := parseNew(data)
-	require.NoError(t, err)
-
-	resJson, err := getJsonAbi(callData.Signature, callData.Payments)
-	require.NoError(t, err)
-	require.Equal(t, expectedJson, string(resJson))
-}
-
-func TestJsonAbiPayments(t *testing.T) {
-	expectedJson := `[{"name":"transfer","type":"function","inputs":[{"type":"address"},{"type":"uint256"},{"type":"(address, uint256)[]"}]}]`
-
-	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
-	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
-	require.NoError(t, err)
-	callData, err := parseNew(data)
-	require.NoError(t, err)
-	callData.Payments = append(callData.Payments, fourbyte.Payment{})
-
-	resJson, err := getJsonAbi(callData.Signature, callData.Payments)
+	resJson, err := getJsonAbi(fourbyte.Erc20Methods)
 	require.NoError(t, err)
 	require.Equal(t, expectedJson, string(resJson))
 }

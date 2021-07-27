@@ -72,7 +72,7 @@ func (s *Selector) FromHex(hexSelector string) error {
 	return nil
 }
 
-var erc20Methods = map[Selector]Method{
+var Erc20Methods = map[Selector]Method{
 	erc20TransferSignature.Selector(): {
 		RawName: "transfer",
 		Type:    Callable,

@@ -63,12 +63,9 @@ func NewMethod(rawName string, funType FunctionType, inputs, outputs Arguments) 
 	return Method{
 		RawName: rawName,
 		Type:    funType,
-
-		Inputs: inputs,
-
-		str: str,
-
-		Sig: sig,
+		Inputs:  inputs,
+		str:     str,
+		Sig:     sig,
 	}
 }
 
@@ -77,6 +74,6 @@ func (m *Method) String() string {
 }
 
 func (m *Method) IsERC20() bool {
-	_, isERC20 := erc20Methods[m.Sig.Selector()]
+	_, isERC20 := Erc20Methods[m.Sig.Selector()]
 	return isERC20
 }

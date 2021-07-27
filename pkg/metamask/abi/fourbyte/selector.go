@@ -56,7 +56,7 @@ func (db *Database) Selector(id []byte) (string, error) {
 }
 
 func (db *Database) MethodBySelector(id Selector) (Method, error) {
-	if method, ok := erc20Methods[id]; ok {
+	if method, ok := Erc20Methods[id]; ok {
 		return method, nil
 	}
 	// TODO(nickeskov): support ride scripts metadata
