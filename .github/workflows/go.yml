@@ -1,7 +1,22 @@
 name: build
-on: [push]
+on: [ push ]
 
 jobs:
+  golangci:
+    name: lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        go-version: [ 1.16.x ]
+        os: [ macos-latest, windows-latest, ubuntu-latest ]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: latest
+          args: --skip-dirs pkg/crypto/internal/groth16/bn256/utils/bn254 --timeout 5m
 
   build:
     name: ubuntu
@@ -9,10 +24,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@master
-      - name: Set up Go 1.15
+      - name: Set up Go 1.16
         uses: actions/setup-go@v1
         with:
-          go-version: 1.15
+          go-version: 1.16
         id: go
 
       - name: Set up GolangCI-Lint

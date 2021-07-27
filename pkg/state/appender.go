@@ -418,7 +418,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	case proto.InvokeScriptTransaction, proto.ExchangeTransaction:
 		// Invoke and Exchange transactions should be handled differently.
 		// They may fail, and will be saved to blockchain anyway.
-		fallibleInfo := &fallibleValidationParams{params, accountHasVerifierScript}
+		fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
 		applicationRes, err = a.handleFallible(tx, fallibleInfo)
 		if err != nil {
 			msg := "fallible validation failed"
@@ -555,6 +555,7 @@ func (a *txAppender) moveChangesToHistoryStorage(initialisation bool) error {
 type fallibleValidationParams struct {
 	*appendTxParams
 	senderScripted bool
+	senderAddress  proto.Address
 }
 
 type applicationResult struct {
