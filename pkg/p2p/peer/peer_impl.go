@@ -37,7 +37,7 @@ func (a *PeerImpl) Direction() Direction {
 }
 
 func (a *PeerImpl) Close() error {
-	defer a.cancel()
+	a.cancel()
 	return a.conn.Close()
 }
 
