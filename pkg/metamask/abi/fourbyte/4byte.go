@@ -1,7 +1,6 @@
 package fourbyte
 
 import (
-	"bytes"
 	"encoding"
 	"encoding/hex"
 	"fmt"
@@ -179,41 +178,15 @@ func (stb sliceTextBuilder) MarshalText() (text []byte, err error) {
 type tupleTextBuilder []encoding.TextMarshaler
 
 func (ttb tupleTextBuilder) MarshalText() (text []byte, err error) {
-	if len(ttb) == 0 {
-		return []byte("()"), nil
-	}
-
-	var buf bytes.Buffer
-	buf.WriteString("(")
-	for i := 0; i < len(ttb)-1; i++ {
-		elem := ttb[i]
+	elements := make([]string, 0, len(ttb))
+	for _, elem := range ttb {
 		marshaled, err := elem.MarshalText()
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to marshal tuple element, type %T", elem)
 		}
-		// nickeskov: can't fail
-		_, _ = fmt.Fprintf(&buf, "%s,", marshaled)
+		elements = append(elements, string(marshaled))
 	}
-	// nickeskov: marshal the last one
-	elem := ttb[len(ttb)-1]
-	marshaled, err := elem.MarshalText()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal %T", elem)
-	}
-	_, _ = fmt.Fprintf(&buf, "%s)", marshaled)
-	return buf.Bytes(), nil
-
-	//elements := make([]string, 0, len(ttb))
-	//for _, elem := range ttb {
-	//	marshaled, err := elem.MarshalText()
-	//	if err != nil {
-	//		return nil, errors.Wrapf(err, "failed to marshal tuple element, type %T", elem)
-	//	}
-	//	elements = append(elements, string(marshaled))
-	//}
-	//
-	//return []byte(fmt.Sprintf("(%s)", strings.Join(elements, ","))), nil
-
+	return []byte(fmt.Sprintf("(%s)", strings.Join(elements, ","))), nil
 }
 
 type unionTextBuilder []encoding.TextMarshaler
@@ -266,19 +239,12 @@ type functionTextBuilder struct {
 }
 
 func (ftb functionTextBuilder) MarshalText() (text []byte, err error) {
-	var buf bytes.Buffer
-	// nickeksov: can't fail
-	_, _ = fmt.Fprintf(&buf, "%s(", ftb.functionMeta.Name)
-	if len(ftb.functionMeta.Arguments) == 0 {
-		if err := ftb.handlePayments(&buf); err != nil {
-			return nil, errors.Wrap(err, "failed to handle payments in functionTextBuilder")
-		}
-		buf.WriteString(")")
-		return buf.Bytes(), nil
+	sliceLen := len(ftb.functionMeta.Arguments)
+	if ftb.addPayments {
+		sliceLen += 1
 	}
-
-	for i := 0; i < len(ftb.functionMeta.Arguments)-1; i++ {
-		arg := ftb.functionMeta.Arguments[i]
+	elements := make([]string, 0, sliceLen)
+	for _, arg := range ftb.functionMeta.Arguments {
 		marshaler, err := rideMetaTypeToTextMarshaler(arg)
 		if err != nil {
 			return nil, errors.Errorf("failed to create function argument text marshaler, type %T", arg)
@@ -287,68 +253,16 @@ func (ftb functionTextBuilder) MarshalText() (text []byte, err error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to marshal function argument, type %T", arg)
 		}
-		// nickeskov: can't fail
-		_, _ = fmt.Fprintf(&buf, "%s,", marshaled)
+		elements = append(elements, string(marshaled))
 	}
-	// nickeskov: marshal the last one
-	arg := ftb.functionMeta.Arguments[len(ftb.functionMeta.Arguments)-1]
-	marshaler, err := rideMetaTypeToTextMarshaler(arg)
-	if err != nil {
-		return nil, errors.Errorf("failed to create function argument text marshaler, type %T", arg)
-	}
-	marshaled, err := marshaler.MarshalText()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal function argument, type %T", arg)
-	}
-	// nickeskov: can't fail
-	_, _ = fmt.Fprintf(&buf, "%s", marshaled)
-
-	if ftb.addPayments {
-		buf.WriteString(",")
-		if err := ftb.handlePayments(&buf); err != nil {
-			return nil, errors.Wrap(err, "failed to handle payments in functionTextBuilder")
-		}
-	}
-	buf.WriteString(")")
-	return buf.Bytes(), nil
-
-	//sliceLen := len(ftb.functionMeta.Arguments)
-	//if ftb.addPayments {
-	//	sliceLen += 1
-	//}
-	//elements := make([]string, 0, sliceLen)
-	//for _, arg := range ftb.functionMeta.Arguments {
-	//	marshaler, err := rideMetaTypeToTextMarshaler(arg)
-	//	if err != nil {
-	//		return nil, errors.Errorf("failed to create function argument text marshaler, type %T", arg)
-	//	}
-	//	marshaled, err := marshaler.MarshalText()
-	//	if err != nil {
-	//		return nil, errors.Wrapf(err, "failed to marshal function argument, type %T", arg)
-	//	}
-	//	elements = append(elements, string(marshaled))
-	//}
-	//if ftb.addPayments {
-	//	payments, err := sliceTextBuilder{t: paymentTextBuilder{}}.MarshalText()
-	//	if err != nil {
-	//		return nil, errors.Wrap(err, "failed to marshal payments")
-	//	}
-	//	elements = append(elements, string(payments))
-	//}
-	//
-	//return []byte(fmt.Sprintf("%s(%s)", ftb.functionMeta.Name, strings.Join(elements, ","))), nil
-
-}
-
-func (ftb *functionTextBuilder) handlePayments(buf *bytes.Buffer) error {
 	if ftb.addPayments {
 		payments, err := sliceTextBuilder{t: paymentTextBuilder{}}.MarshalText()
 		if err != nil {
-			return errors.Wrap(err, "failed to marshal payments")
+			return nil, errors.Wrap(err, "failed to marshal payments")
 		}
-		_, _ = fmt.Fprintf(buf, "%s", payments)
+		elements = append(elements, string(payments))
 	}
-	return nil
+	return []byte(fmt.Sprintf("%s(%s)", ftb.functionMeta.Name, strings.Join(elements, ","))), nil
 }
 
 var erc20Methods = map[Selector]Method{
