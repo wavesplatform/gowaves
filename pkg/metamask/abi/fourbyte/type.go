@@ -2,7 +2,9 @@ package fourbyte
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/metamask"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"math/big"
 	"reflect"
 )
@@ -143,4 +145,74 @@ func reflectIntType(unsigned bool, size int) reflect.Type {
 		return reflect.TypeOf(int64(0))
 	}
 	return reflect.TypeOf(&big.Int{})
+}
+
+func AbiTypeFromRideMetaType(metaT meta.Type) (abiT *Type, err error) {
+	switch t := metaT.(type) {
+	case meta.SimpleType:
+		switch t {
+		case meta.Int:
+			abiT = &Type{T: IntTy, Size: 64}
+		case meta.Bytes:
+			abiT = &Type{T: BytesTy}
+		case meta.Boolean:
+			abiT = &Type{T: BoolTy}
+		case meta.String:
+			abiT = &Type{T: StringTy}
+		default:
+			return nil, errors.Errorf("invalid ride simple type (%d)", t)
+		}
+	case meta.ListType:
+		inner, err := AbiTypeFromRideMetaType(t.Inner)
+		if err != nil {
+			return nil, errors.Wrapf(err,
+				"failed to create abi type for ride meta list type, inner type %T", t.Inner,
+			)
+		}
+		abiT = &Type{Elem: inner, T: SliceTy}
+	case meta.UnionType:
+		indexElemStrKindMarshaler := intTextBuilder{
+			size:     8,
+			unsigned: true,
+		}
+		indexElemStringKind, err := indexElemStrKindMarshaler.MarshalText()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to marshal index elem stringKind")
+		}
+		tupleUnitsT := append(make([]*Type, 0, len(t)+1),
+			&Type{
+				Size:       indexElemStrKindMarshaler.size,
+				T:          UintTy,
+				stringKind: string(indexElemStringKind),
+			},
+		)
+		for _, unitT := range t {
+			unit, err := AbiTypeFromRideMetaType(unitT)
+			if err != nil {
+				return nil, errors.Wrapf(err,
+					"failed to create abi type for ride meta union type, unit type %T", unitT,
+				)
+			}
+			tupleUnitsT = append(tupleUnitsT, unit)
+		}
+		abiT = &Type{
+			T:             TupleTy,
+			TupleElems:    tupleUnitsT,
+			TupleRawNames: make([]string, len(tupleUnitsT)),
+		}
+	default:
+		return nil, errors.Errorf("unsupported ride metadata type, type %T", t)
+	}
+	// TODO(nickeskov): Do we really need this? In result we have recursion inside recursion.
+	stringKindMarshaler, err := rideMetaTypeToTextMarshaler(metaT)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create stringKind marshaler for ride meta type %T", metaT)
+	}
+	stringKind, err := stringKindMarshaler.MarshalText()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create stringKind for ride meta type %T", metaT)
+	}
+	abiT.stringKind = string(stringKind)
+
+	return abiT, nil
 }
