@@ -23,7 +23,9 @@ func TestTransfer(t *testing.T) {
 	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
-	callData, err := parseNew(data)
+
+	callData, err := parseNew(data, true)
+	// nickeskov: no error because we have zero length bytes data for payments
 	require.NoError(t, err)
 
 	require.Equal(t, expectedSignature, callData.Signature)
@@ -58,7 +60,8 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 	data, err := hex.DecodeString(strings.TrimPrefix(hexData, "0x"))
 	require.NoError(t, err)
 	db := fourbyte.NewCustomDatabase(customDB)
-	callData, err := db.ParseCallDataRide(data)
+	callData, err := db.ParseCallDataRide(data, true)
+	// nickeskov: no error because we have zero length bytes data for payments
 	require.NoError(t, err)
 
 	require.Equal(t, "minta", callData.Name)
@@ -82,7 +85,8 @@ func TestTransferWithRideTypes(t *testing.T) {
 	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
-	callData, err := parseRide(data)
+	callData, err := parseRide(data, true)
+	// nickeskov: no error because we have zero length bytes data for payments
 	require.NoError(t, err)
 
 	var addr metamask.Address
@@ -101,7 +105,7 @@ func TestJsonAbi(t *testing.T) {
 	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
-	callData, err := parseNew(data)
+	callData, err := parseNew(data, false)
 	require.NoError(t, err)
 
 	resJson, err := getJsonAbi(callData.Signature, callData.Payments)
@@ -115,7 +119,7 @@ func TestJsonAbiPayments(t *testing.T) {
 	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
-	callData, err := parseNew(data)
+	callData, err := parseNew(data, false)
 	require.NoError(t, err)
 	callData.Payments = append(callData.Payments, fourbyte.Payment{})
 

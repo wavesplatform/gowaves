@@ -8,15 +8,15 @@ import (
 	"strings"
 )
 
-func parseNew(data []byte) (*fourbyte.DecodedCallData, error) {
+func parseNew(data []byte, parsePayments bool) (*fourbyte.DecodedCallData, error) {
 	db := fourbyte.NewDatabase()
-	decodedData, err := db.ParseCallDataNew(data)
+	decodedData, err := db.ParseCallDataNew(data, parsePayments)
 	return decodedData, err
 }
 
-func parseRide(data []byte) (*fourbyte.DecodedCallData, error) {
+func parseRide(data []byte, parsePayments bool) (*fourbyte.DecodedCallData, error) {
 	db := fourbyte.NewDatabase()
-	decodedData, err := db.ParseCallDataRide(data)
+	decodedData, err := db.ParseCallDataRide(data, parsePayments)
 	return decodedData, err
 }
 

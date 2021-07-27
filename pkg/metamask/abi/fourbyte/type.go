@@ -91,7 +91,6 @@ func (t Type) GetType() reflect.Type {
 	case TupleTy:
 		return t.TupleType
 	case AddressTy:
-		// TODO(nickeskov): use our address
 		return reflect.TypeOf(metamask.Address{})
 	case BytesTy:
 		return reflect.SliceOf(reflect.TypeOf(byte(0)))
