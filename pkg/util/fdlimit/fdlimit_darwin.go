@@ -9,7 +9,7 @@ import (
 
 const darwinMaxRLimit = 4096
 
-func SetMaxFDs(max uint64) (uint64, error) {
+func RaiseMaxFDs(max uint64) (uint64, error) {
 	var rLimit unix.Rlimit
 	if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rLimit); err != nil {
 		return 0, errors.Wrap(err, "error getting rlimit")

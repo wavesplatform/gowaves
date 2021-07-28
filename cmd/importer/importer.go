@@ -46,7 +46,7 @@ func main() {
 	if err != nil {
 		zap.S().Fatalf("Initialization error: %v", err)
 	}
-	_, err = fdlimit.SetMaxFDs(maxFDs)
+	_, err = fdlimit.RaiseMaxFDs(maxFDs)
 	if err != nil {
 		zap.S().Fatalf("Initialization error: %v", err)
 	}
