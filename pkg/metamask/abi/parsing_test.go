@@ -44,7 +44,6 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 
 	var customDB = map[fourbyte.Selector]fourbyte.Method{
 		testSignature.Selector(): {
-			Type:    fourbyte.Callable,
 			RawName: "minta",
 			Inputs: fourbyte.Arguments{
 				{Name: "_token", Type: fourbyte.Type{T: fourbyte.AddressTy}},

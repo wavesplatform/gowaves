@@ -268,7 +268,6 @@ func (ftb functionTextBuilder) MarshalText() (text []byte, err error) {
 var erc20Methods = map[Selector]Method{
 	erc20TransferSignature.Selector(): {
 		RawName: "transfer",
-		Type:    Callable,
 		Inputs: Arguments{
 			Argument{
 				Name: "_to",
@@ -291,7 +290,6 @@ var erc20Methods = map[Selector]Method{
 	},
 	erc20TransferFromSignature.Selector(): {
 		RawName: "transferFrom",
-		Type:    Callable,
 		Inputs: Arguments{
 			Argument{
 				Name: "_from",
