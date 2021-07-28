@@ -13,8 +13,8 @@ type Remote struct {
 
 func NewRemote() Remote {
 	return Remote{
-		ToCh:   make(chan []byte, 150),
-		FromCh: make(chan []byte, 150),
+		ToCh:   make(chan []byte, 50),
+		FromCh: make(chan []byte, 50),
 		ErrCh:  make(chan error, 10),
 	}
 }
@@ -26,8 +26,8 @@ type Parent struct {
 
 func NewParent() Parent {
 	return Parent{
-		MessageCh: make(chan ProtoMessage, 1000),
-		InfoCh:    make(chan InfoMessage, 100),
+		MessageCh: make(chan ProtoMessage, 100),
+		InfoCh:    make(chan InfoMessage, 10),
 	}
 }
 
