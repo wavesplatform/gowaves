@@ -123,7 +123,7 @@ func receiveFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader
 		case fromRemoteCh <- b:
 		default:
 			pool.Put(b)
-			zap.S().Warnf("[%s] Failed to send bytes from network to upstream channel because it's full", addr)
+			zap.S().Debugf("[%s] Failed to send bytes from network to upstream channel because it's full", addr)
 		}
 	}
 }

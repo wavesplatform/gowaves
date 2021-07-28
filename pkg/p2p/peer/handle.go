@@ -39,7 +39,7 @@ func bytesToMessage(b []byte, d DuplicateChecker, resendTo chan ProtoMessage, po
 	select {
 	case resendTo <- mess:
 	default:
-		zap.S().Warnf("[%s] Failed to resend message of type '%T' because upstream channel is full", p.ID(), m)
+		zap.S().Debugf("[%s] Failed to resend message of type '%T' because upstream channel is full", p.ID(), m)
 	}
 	return nil
 }
@@ -79,7 +79,7 @@ func Handle(params HandlerParams) error {
 				select {
 				case params.Parent.InfoCh <- out:
 				default:
-					zap.S().Warnf("[%s] Failed to send decoded netowrk message to upstream channel because it's full", params.Peer.ID())
+					zap.S().Warnf("[%s] Failed to send error message '%s' to upstream channel because it's full", params.Peer.ID(), err.Error())
 				}
 			}
 
