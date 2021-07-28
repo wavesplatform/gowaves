@@ -85,7 +85,7 @@ func defaultDifferInfo() *differInfo {
 
 func defaultAppendTxParams(t *testing.T) *appendTxParams {
 	return &appendTxParams{
-		checkerInfo:    defaultCheckerInfo(t),
+		checkerInfo:    defaultCheckerInfo(),
 		blockInfo:      defaultBlockInfo(),
 		block:          defaultBlock(),
 		acceptFailed:   false,
@@ -342,7 +342,7 @@ func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
 
 func (s *testStorageObjects) createAssetUsingInfo(t *testing.T, assetID crypto.Digest, info *assetInfo) {
 	s.addBlock(t, blockID0)
-	err := s.entities.assets.issueAsset(assetID, info, blockID0)
+	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), info, blockID0)
 	assert.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
 }
@@ -350,7 +350,7 @@ func (s *testStorageObjects) createAssetUsingInfo(t *testing.T, assetID crypto.D
 func (s *testStorageObjects) createAssetAtBlock(t *testing.T, assetID crypto.Digest, blockID proto.BlockID) *assetInfo {
 	s.addBlock(t, blockID)
 	assetInfo := defaultAssetInfo(true)
-	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID)
+	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, blockID)
 	assert.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
 	return assetInfo
@@ -361,7 +361,7 @@ func (s *testStorageObjects) createAssetWithDecimals(t *testing.T, assetID crypt
 	assetInfo := defaultAssetInfo(true)
 	require.True(t, decimals >= 0)
 	assetInfo.decimals = int8(decimals)
-	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID0)
+	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, blockID0)
 	assert.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
 	return assetInfo
@@ -377,7 +377,7 @@ func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *a
 
 func (s *testStorageObjects) createSmartAsset(t *testing.T, assetID crypto.Digest) {
 	s.addBlock(t, blockID0)
-	err := s.entities.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	err := s.entities.scriptsStorage.setAssetScript(proto.AssetIDFromDigest(assetID), testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err, "setAssetScript failed")
 	s.flush(t)
 }

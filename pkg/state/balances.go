@@ -364,7 +364,7 @@ func (s *balances) cancelLeases(changes map[proto.WavesAddress]balanceDiff, bloc
 	return nil
 }
 
-type assetInfoFn func(crypto.Digest, bool) (*assetInfo, error)
+type assetInfoFn func(proto.AssetID, bool) (*assetInfo, error)
 
 func (s *balances) nftList(addr proto.WavesAddress, limit uint64, after []byte, assetInfoById assetInfoFn) ([]crypto.Digest, error) {
 	key := assetBalanceKey{address: addr}
@@ -421,7 +421,7 @@ func (s *balances) nftList(addr proto.WavesAddress, limit uint64, after []byte, 
 		if err != nil {
 			return nil, err
 		}
-		assetInfo, err := assetInfoById(assetID, true)
+		assetInfo, err := assetInfoById(proto.AssetIDFromDigest(assetID), true)
 		if err != nil {
 			return nil, err
 		}

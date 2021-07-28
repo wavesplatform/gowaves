@@ -308,7 +308,7 @@ func TestNftList(t *testing.T) {
 	err = to.balances.setAssetBalance(addr, assetIDBytes, 123, blockID0)
 	assert.NoError(t, err)
 	asset := defaultNFT()
-	err = to.stor.entities.assets.issueAsset(assetID, asset, blockID0)
+	err = to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), asset, blockID0)
 	assert.NoError(t, err)
 	to.stor.flush(t)
 	fn := to.stor.entities.assets.assetInfo

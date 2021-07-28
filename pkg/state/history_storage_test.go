@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -91,7 +92,7 @@ func TestNewestDataIterator(t *testing.T) {
 	val0 := []byte{1, 2, 3}
 	key1 := accountScriptKey{addr: testGlobal.minerInfo.addr}
 	val1 := []byte{100}
-	key2 := assetScriptKey{asset: testGlobal.asset0.asset.ID}
+	key2 := assetScriptKey{assetID: proto.AssetIDFromDigest(testGlobal.asset0.asset.ID)}
 	val2 := []byte{88}
 	err = to.hs.addNewEntry(accountScript, key0.bytes(), val0, blockID0)
 	assert.NoError(t, err, "addNewEntry() failed")

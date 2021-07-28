@@ -306,22 +306,22 @@ func (k *scoreKey) bytes() []byte {
 }
 
 type assetConstKey struct {
-	assetID crypto.Digest
+	assetID proto.AssetID
 }
 
 func (k *assetConstKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
+	buf := make([]byte, 1+proto.AssetIDSize)
 	buf[0] = assetConstKeyPrefix
 	copy(buf[1:], k.assetID[:])
 	return buf
 }
 
 type assetHistKey struct {
-	assetID crypto.Digest
+	assetID proto.AssetID
 }
 
 func (k *assetHistKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
+	buf := make([]byte, 1+proto.AddressIDSize)
 	buf[0] = assetHistKeyPrefix
 	copy(buf[1:], k.assetID[:])
 	return buf
@@ -571,13 +571,13 @@ func (k *accountScriptKey) bytes() []byte {
 }
 
 type assetScriptKey struct {
-	asset crypto.Digest
+	assetID proto.AssetID
 }
 
 func (k *assetScriptKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = assetScriptKeyPrefix
-	copy(buf[1:], k.asset[:])
+	copy(buf[1:], k.assetID[:])
 	return buf
 }
 

@@ -58,7 +58,7 @@ func TestPerformIssueWithSig(t *testing.T) {
 	}
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(*tx.ID, true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(*tx.ID), true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueWithSig transaction")
 }
@@ -93,7 +93,7 @@ func TestPerformIssueWithProofs(t *testing.T) {
 	}
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(*tx.ID, true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(*tx.ID), true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, assetInfo, *info, "invalid asset info after performing IssueWithSig transaction")
 }
@@ -117,7 +117,7 @@ func TestPerformReissueWithSig(t *testing.T) {
 	assetInfo.quantity.Add(&assetInfo.quantity, big.NewInt(int64(tx.Quantity)))
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID), true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueWithSig transaction")
 }
@@ -141,7 +141,7 @@ func TestPerformReissueWithProofs(t *testing.T) {
 	assetInfo.quantity.Add(&assetInfo.quantity, big.NewInt(int64(tx.Quantity)))
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID), true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueWithSig transaction")
 }
@@ -164,7 +164,7 @@ func TestPerformBurnWithSig(t *testing.T) {
 	assetInfo.quantity.Sub(&assetInfo.quantity, big.NewInt(int64(tx.Amount)))
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID), true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnWithSig transaction")
 }
@@ -187,7 +187,7 @@ func TestPerformBurnWithProofs(t *testing.T) {
 	assetInfo.quantity.Sub(&assetInfo.quantity, big.NewInt(int64(tx.Amount)))
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(testGlobal.asset0.asset.ID, true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID), true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing BurnWithProofs transaction")
 }
@@ -580,7 +580,7 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	err := to.tp.performSetAssetScriptWithProofs(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performSetAssetScriptWithProofs() failed")
 
-	assetID := tx.AssetID
+	assetID := proto.AssetIDFromDigest(tx.AssetID)
 
 	// Test newest before flushing.
 	isSmartAsset := to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
@@ -666,7 +666,7 @@ func TestPerformUpdateAssetInfoWithProofs(t *testing.T) {
 	assetInfo.description = tx.Description
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(tx.AssetID, true)
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(tx.AssetID), true)
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing UpdateAssetInfo transaction")
 }

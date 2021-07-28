@@ -136,7 +136,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 }
 
 func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
-	tree, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !params.initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAsset(proto.AssetIDFromDigest(assetID), !params.initialisation)
 	if err != nil {
 		return nil, err
 	}

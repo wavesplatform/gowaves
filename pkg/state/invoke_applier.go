@@ -220,18 +220,18 @@ func (ia *invokeApplier) countEmptyDataEntryKeys(actions []proto.ScriptAction) u
 func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, initialisation bool) uint64 {
 	scriptRuns := uint64(0)
 	for _, action := range actions {
-		var assetID crypto.Digest
+		var id proto.AssetID
 		switch a := action.(type) {
 		case *proto.TransferScriptAction:
-			assetID = a.Asset.ID
+			id = proto.AssetIDFromDigest(a.Asset.ID)
 		case *proto.ReissueScriptAction:
-			assetID = a.AssetID
+			id = proto.AssetIDFromDigest(a.AssetID)
 		case *proto.BurnScriptAction:
-			assetID = a.AssetID
+			id = proto.AssetIDFromDigest(a.AssetID)
 		default:
 			continue
 		}
-		isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(assetID, initialisation)
+		isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(id, initialisation)
 		if isSmartAsset {
 			scriptRuns++
 		}
@@ -347,7 +347,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if !assetExists {
 				return proto.DAppError, info.failedChanges, errors.New("invalid asset in transfer")
 			}
-			isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(a.Asset.ID, !info.initialisation)
+			isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
 			if isSmartAsset {
 				fullTr, err := proto.NewFullScriptTransfer(a, senderAddress, info.scriptPK, tx)
 				if err != nil {
@@ -392,11 +392,12 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					reissuable:  a.Reissuable,
 				},
 			}
-			ia.stor.assets.issueAssetUncertain(a.ID, assetInfo)
+			id := proto.AssetIDFromDigest(a.ID)
+			ia.stor.assets.issueAssetUncertain(id, assetInfo)
 			// Currently asset script is always empty.
 			// TODO: if this script is ever set, don't forget to
 			// also save complexity for it here using saveComplexityForAsset().
-			ia.stor.scriptsStorage.setAssetScriptUncertain(a.ID, proto.Script{}, senderPK)
+			ia.stor.scriptsStorage.setAssetScriptUncertain(id, proto.Script{}, senderPK)
 			txDiff, err := ia.newTxDiffFromScriptIssue(senderAddress, a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
@@ -415,7 +416,8 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 
 		case *proto.ReissueScriptAction:
 			// Check validity of reissue.
-			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
+			id := proto.AssetIDFromDigest(a.AssetID)
+			assetInfo, err := ia.stor.assets.newestAssetInfo(id, !info.initialisation)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -440,7 +442,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				reissuable: a.Reissuable,
 				diff:       a.Quantity,
 			}
-			if err := ia.stor.assets.reissueAssetUncertain(a.AssetID, change, !info.initialisation); err != nil {
+			if err := ia.stor.assets.reissueAssetUncertain(id, change, !info.initialisation); err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
 			txDiff, err := ia.newTxDiffFromScriptReissue(senderAddress, a)
@@ -461,7 +463,8 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 
 		case *proto.BurnScriptAction:
 			// Check burn.
-			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
+			id := proto.AssetIDFromDigest(a.AssetID)
+			assetInfo, err := ia.stor.assets.newestAssetInfo(id, !info.initialisation)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -488,7 +491,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			change := &assetBurnChange{
 				diff: a.Quantity,
 			}
-			if err := ia.stor.assets.burnAssetUncertain(a.AssetID, change, !info.initialisation); err != nil {
+			if err := ia.stor.assets.burnAssetUncertain(id, change, !info.initialisation); err != nil {
 				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to burn asset")
 			}
 			txDiff, err := ia.newTxDiffFromScriptBurn(senderAddress, a)
@@ -508,7 +511,8 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 
 		case *proto.SponsorshipScriptAction:
-			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
+			id := proto.AssetIDFromDigest(a.AssetID)
+			assetInfo, err := ia.stor.assets.newestAssetInfo(id, !info.initialisation)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -522,7 +526,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if assetInfo.issuer != senderPK {
 				return proto.DAppError, info.failedChanges, errors.Errorf("asset %s was not issued by this DApp", a.AssetID.String())
 			}
-			isSmart := ia.stor.scriptsStorage.newestIsSmartAsset(a.AssetID, !info.initialisation)
+			isSmart := ia.stor.scriptsStorage.newestIsSmartAsset(id, !info.initialisation)
 			if isSmart {
 				return proto.DAppError, info.failedChanges, errors.Errorf("can not sponsor smart asset %s", a.AssetID.String())
 			}
@@ -807,9 +811,9 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 	return nil
 }
 
-func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
+func (ia *invokeApplier) validateActionSmartAsset(assetID crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
 	txID crypto.Digest, txTimestamp uint64, params *appendTxParams) (bool, ride.Result, error) {
-	isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(asset, !params.initialisation)
+	isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(assetID), !params.initialisation)
 	if !isSmartAsset {
 		return true, nil, nil
 	}
@@ -821,7 +825,7 @@ func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action pr
 	if err != nil {
 		return false, nil, err
 	}
-	res, err := ia.sc.callAssetScriptCommon(env, asset, params)
+	res, err := ia.sc.callAssetScriptCommon(env, assetID, params)
 	if err != nil {
 		return false, nil, err
 	}

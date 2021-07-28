@@ -207,7 +207,7 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams, isRideV5Acti
 	// Therefore, the extra fee for smart fee asset below is also wrong, but it must be there,
 	// again for compatibility with Scala.
 	if params.txAssets.feeAsset.Present {
-		hasScript := params.stor.scriptsStorage.newestIsSmartAsset(params.txAssets.feeAsset.ID, !params.initialisation)
+		hasScript := params.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(params.txAssets.feeAsset.ID), !params.initialisation)
 		if hasScript {
 			smartAssets += 1
 		}

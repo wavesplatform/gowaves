@@ -146,7 +146,7 @@ func TestSetAssetScript(t *testing.T) {
 	}()
 
 	to.stor.addBlock(t, blockID0)
-	assetID := testGlobal.asset0.asset.ID
+	assetID := proto.AssetIDFromDigest(testGlobal.asset0.asset.ID)
 	err = to.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err, "setAssetScript() failed")
 

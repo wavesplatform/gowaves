@@ -493,7 +493,7 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 func (s *stateManager) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
-	return s.stor.scriptsStorage.newestScriptBytesByAsset(asset.ID, true)
+	return s.stor.scriptsStorage.newestScriptBytesByAsset(proto.AssetIDFromDigest(asset.ID), true)
 }
 
 func (s *stateManager) Mutex() *lock.RwMutex {
@@ -1942,9 +1942,10 @@ func (s *stateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
 }
 
 func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+	id := proto.AssetIDFromDigest(assetID)
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
-	info, err := s.stor.assets.newestAssetInfo(assetID, true)
+	info, err := s.stor.assets.newestAssetInfo(id, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1959,7 +1960,7 @@ func (s *stateManager) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo,
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scripted := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
+	scripted := s.stor.scriptsStorage.newestIsSmartAsset(id, true)
 	return &proto.AssetInfo{
 		ID:              assetID,
 		Quantity:        info.quantity.Uint64(),
@@ -1979,9 +1980,10 @@ func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAs
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
+	id := proto.AssetIDFromDigest(assetID)
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
-	info, err := s.stor.assets.newestAssetInfo(assetID, true)
+	info, err := s.stor.assets.newestAssetInfo(id, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2007,7 +2009,7 @@ func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAs
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
 	}
-	isScripted := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
+	isScripted := s.stor.scriptsStorage.newestIsSmartAsset(id, true)
 	if isScripted {
 		scriptInfo, err := s.NewestScriptInfoByAsset(assetID)
 		if err != nil {
@@ -2019,7 +2021,8 @@ func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAs
 }
 
 func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
-	info, err := s.stor.assets.assetInfo(assetID, true)
+	id := proto.AssetIDFromDigest(assetID)
+	info, err := s.stor.assets.assetInfo(id, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2034,7 +2037,7 @@ func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scripted, err := s.stor.scriptsStorage.isSmartAsset(assetID, true)
+	scripted, err := s.stor.scriptsStorage.isSmartAsset(id, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2055,7 +2058,8 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	info, err := s.stor.assets.assetInfo(assetID, true)
+	id := proto.AssetIDFromDigest(assetID)
+	info, err := s.stor.assets.assetInfo(id, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2082,7 +2086,7 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
 	}
-	isScripted, err := s.stor.scriptsStorage.isSmartAsset(assetID, true)
+	isScripted, err := s.stor.scriptsStorage.isSmartAsset(id, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2148,7 +2152,7 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 }
 
 func (s *stateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error) {
-	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAsset(assetID, true)
+	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAsset(proto.AssetIDFromDigest(assetID), true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2170,7 +2174,8 @@ func (s *stateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptIn
 }
 
 func (s *stateManager) NewestScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error) {
-	scriptBytes, err := s.stor.scriptsStorage.newestScriptBytesByAsset(assetID, true)
+	id := proto.AssetIDFromDigest(assetID)
+	scriptBytes, err := s.stor.scriptsStorage.newestScriptBytesByAsset(id, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

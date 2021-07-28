@@ -380,7 +380,7 @@ func (td *transactionDiffer) handleSponsorship(ch *txBalanceChanges, fee uint64,
 	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
-	assetInfo, err := td.stor.assets.newestAssetInfo(feeAsset.ID, !info.initialisation)
+	assetInfo, err := td.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(feeAsset.ID), !info.initialisation)
 	if err != nil {
 		return err
 	}
@@ -642,7 +642,7 @@ func (td *transactionDiffer) orderAssetDecimals(transaction proto.Transaction, p
 			asset = buy.GetAssetPair().PriceAsset
 		}
 		if asset.Present {
-			info, err := td.stor.assets.newestAssetInfo(asset.ID, filter)
+			info, err := td.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(asset.ID), filter)
 			if err != nil {
 				return 0, err
 			}
