@@ -13,8 +13,8 @@ type Remote struct {
 
 func NewRemote() Remote {
 	return Remote{
-		ToCh:   make(chan []byte, 10),
-		FromCh: make(chan []byte, 10),
+		ToCh:   make(chan []byte, 100),
+		FromCh: make(chan []byte, 100),
 		ErrCh:  make(chan error, 10),
 	}
 }
