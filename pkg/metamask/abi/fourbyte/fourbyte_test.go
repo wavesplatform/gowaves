@@ -51,15 +51,15 @@ func TestBuildSignatureFromRideFunctionMeta(t *testing.T) {
 
 func TestAbiTypeFromRideMetaType(t *testing.T) {
 	testdata := []struct {
-		expected *Type
+		expected Type
 		metaType meta.Type
 	}{
-		{expected: &Type{T: IntTy, Size: 64, stringKind: "int64"}, metaType: meta.Int},
-		{expected: &Type{T: BoolTy, stringKind: "bool"}, metaType: meta.Boolean},
-		{expected: &Type{T: StringTy, stringKind: "string"}, metaType: meta.String},
-		{expected: &Type{T: BytesTy, stringKind: "bytes"}, metaType: meta.Bytes},
+		{expected: Type{T: IntTy, Size: 64, stringKind: "int64"}, metaType: meta.Int},
+		{expected: Type{T: BoolTy, stringKind: "bool"}, metaType: meta.Boolean},
+		{expected: Type{T: StringTy, stringKind: "string"}, metaType: meta.String},
+		{expected: Type{T: BytesTy, stringKind: "bytes"}, metaType: meta.Bytes},
 		{
-			expected: &Type{
+			expected: Type{
 				Elem: &Type{
 					T:          IntTy,
 					Size:       64,
@@ -70,11 +70,11 @@ func TestAbiTypeFromRideMetaType(t *testing.T) {
 			},
 			metaType: meta.ListType{Inner: meta.Int}},
 		{
-			expected: &Type{
+			expected: Type{
 				Elem: &Type{
 					T:          TupleTy,
 					stringKind: "(uint8,bool,string,bytes,int64)",
-					TupleElems: []*Type{
+					TupleElems: []Type{
 						{T: UintTy, Size: 8, stringKind: "uint8"},
 						{T: BoolTy, stringKind: "bool"},
 						{T: StringTy, stringKind: "string"},
@@ -90,7 +90,7 @@ func TestAbiTypeFromRideMetaType(t *testing.T) {
 		},
 	}
 	for _, test := range testdata {
-		actual, err := AbiTypeFromRideMetaType(test.metaType)
+		actual, err := AbiTypeFromRideTypeMeta(test.metaType)
 		require.NoError(t, err)
 		require.Equal(t, test.expected, actual)
 	}

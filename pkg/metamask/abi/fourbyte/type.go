@@ -41,7 +41,7 @@ type Type struct {
 
 	// Tuple relative fields
 	TupleRawName  string       // Raw struct name defined in source code, may be empty.
-	TupleElems    []*Type      // Type information of all tuple fields
+	TupleElems    []Type       // Type information of all tuple fields
 	TupleRawNames []string     // Raw field name of all tuple fields
 	TupleType     reflect.Type // Underlying struct of the tuple
 }
@@ -68,7 +68,7 @@ func getTypeSize(t Type) int {
 		// Recursively calculate type size if it is a nested tuple
 		total := 0
 		for _, elem := range t.TupleElems {
-			total += getTypeSize(*elem)
+			total += getTypeSize(elem)
 		}
 		return total
 	}
@@ -109,7 +109,7 @@ func (t Type) GetType() reflect.Type {
 func isDynamicType(t Type) bool {
 	if t.T == TupleTy {
 		for _, elem := range t.TupleElems {
-			if isDynamicType(*elem) {
+			if isDynamicType(elem) {
 				return true
 			}
 		}
@@ -146,29 +146,29 @@ func reflectIntType(unsigned bool, size int) reflect.Type {
 	return reflect.TypeOf(&big.Int{})
 }
 
-func AbiTypeFromRideMetaType(metaT meta.Type) (abiT *Type, err error) {
+func AbiTypeFromRideTypeMeta(metaT meta.Type) (abiT Type, err error) {
 	switch t := metaT.(type) {
 	case meta.SimpleType:
 		switch t {
 		case meta.Int:
-			abiT = &Type{T: IntTy, Size: 64}
+			abiT = Type{T: IntTy, Size: 64}
 		case meta.Bytes:
-			abiT = &Type{T: BytesTy}
+			abiT = Type{T: BytesTy}
 		case meta.Boolean:
-			abiT = &Type{T: BoolTy}
+			abiT = Type{T: BoolTy}
 		case meta.String:
-			abiT = &Type{T: StringTy}
+			abiT = Type{T: StringTy}
 		default:
-			return nil, errors.Errorf("invalid ride simple type (%d)", t)
+			return Type{}, errors.Errorf("invalid ride simple type (%d)", t)
 		}
 	case meta.ListType:
-		inner, err := AbiTypeFromRideMetaType(t.Inner)
+		inner, err := AbiTypeFromRideTypeMeta(t.Inner)
 		if err != nil {
-			return nil, errors.Wrapf(err,
+			return Type{}, errors.Wrapf(err,
 				"failed to create abi type for ride meta list type, inner type %T", t.Inner,
 			)
 		}
-		abiT = &Type{Elem: inner, T: SliceTy}
+		abiT = Type{Elem: &inner, T: SliceTy}
 	case meta.UnionType:
 		indexElemStrKindMarshaler := intTextBuilder{
 			size:     8,
@@ -176,40 +176,40 @@ func AbiTypeFromRideMetaType(metaT meta.Type) (abiT *Type, err error) {
 		}
 		indexElemStringKind, err := indexElemStrKindMarshaler.MarshalText()
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to marshal index elem stringKind")
+			return Type{}, errors.Wrap(err, "failed to marshal index elem stringKind")
 		}
-		tupleUnitsT := append(make([]*Type, 0, len(t)+1),
-			&Type{
+		tupleUnitsT := append(make([]Type, 0, len(t)+1),
+			Type{
 				Size:       indexElemStrKindMarshaler.size,
 				T:          UintTy,
 				stringKind: string(indexElemStringKind),
 			},
 		)
 		for _, unitT := range t {
-			unit, err := AbiTypeFromRideMetaType(unitT)
+			unit, err := AbiTypeFromRideTypeMeta(unitT)
 			if err != nil {
-				return nil, errors.Wrapf(err,
+				return Type{}, errors.Wrapf(err,
 					"failed to create abi type for ride meta union type, unit type %T", unitT,
 				)
 			}
 			tupleUnitsT = append(tupleUnitsT, unit)
 		}
-		abiT = &Type{
+		abiT = Type{
 			T:             TupleTy,
 			TupleElems:    tupleUnitsT,
 			TupleRawNames: make([]string, len(tupleUnitsT)),
 		}
 	default:
-		return nil, errors.Errorf("unsupported ride metadata type, type %T", t)
+		return Type{}, errors.Errorf("unsupported ride metadata type, type %T", t)
 	}
 	// TODO(nickeskov): Do we really need this? In result we have recursion inside recursion.
 	stringKindMarshaler, err := rideMetaTypeToTextMarshaler(metaT)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create stringKind marshaler for ride meta type %T", metaT)
+		return Type{}, errors.Wrapf(err, "failed to create stringKind marshaler for ride meta type %T", metaT)
 	}
 	stringKind, err := stringKindMarshaler.MarshalText()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create stringKind for ride meta type %T", metaT)
+		return Type{}, errors.Wrapf(err, "failed to create stringKind for ride meta type %T", metaT)
 	}
 	abiT.stringKind = string(stringKind)
 

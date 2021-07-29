@@ -3,6 +3,7 @@ package fourbyte
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"strings"
 )
 
@@ -44,6 +45,20 @@ func NewCustomDatabase(custom map[Selector]Method) Database {
 		embedded: erc20Methods,
 		custom:   custom,
 	}
+}
+
+func NewDBFromRideDAppMeta(dApp meta.DApp) (Database, error) {
+	methods := make(map[Selector]Method, len(dApp.Functions))
+	for _, fn := range dApp.Functions {
+		method, err := NewMethodFromRideFunctionMeta(fn)
+		if err != nil {
+			return Database{}, errors.Wrapf(err,
+				"failed to build ABI db from DApp metadata, verison %d", dApp.Version,
+			)
+		}
+		methods[method.Sig.Selector()] = method
+	}
+	return NewCustomDatabase(methods), nil
 }
 
 func (db *Database) MethodBySelector(id Selector) (Method, error) {

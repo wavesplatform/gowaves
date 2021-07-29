@@ -211,14 +211,14 @@ func forTupleUnpack(t Type, output []byte) (interface{}, error) {
 	retval := reflect.New(t.GetType()).Elem()
 	virtualArgs := 0
 	for index, elem := range t.TupleElems {
-		marshalledValue, err := toGoType((index+virtualArgs)*32, *elem, output)
+		marshalledValue, err := toGoType((index+virtualArgs)*32, elem, output)
 		if err != nil {
 			return nil, err
 		}
-		if elem.T == TupleTy && !isDynamicType(*elem) {
+		if elem.T == TupleTy && !isDynamicType(elem) {
 			// If we have a static tuple, like (uint256, bool, uint256), these are
 			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(*elem)/32 - 1
+			virtualArgs += getTypeSize(elem)/32 - 1
 		}
 		retval.Field(index).Set(reflect.ValueOf(marshalledValue))
 	}
@@ -248,7 +248,7 @@ func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error)
 		)
 	}
 
-	unionIndex, err := extractIndexFromFirstElemOfTuple(0, *t.TupleElems[0], output)
+	unionIndex, err := extractIndexFromFirstElemOfTuple(0, t.TupleElems[0], output)
 	if err != nil {
 		return nil, err
 	}
@@ -263,14 +263,14 @@ func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error)
 	virtualArgs := 0
 	for index := 1; index < len(elems); index++ {
 		elem := elems[index]
-		marshalledValue, err := toRideType((index+virtualArgs)*32, *elem, output)
+		marshalledValue, err := toRideType((index+virtualArgs)*32, elem, output)
 		if err != nil {
 			return nil, err
 		}
-		if elem.T == TupleTy && !isDynamicType(*elem) {
+		if elem.T == TupleTy && !isDynamicType(elem) {
 			// If we have a static tuple, like (uint256, bool, uint256), these are
 			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(*elem)/32 - 1
+			virtualArgs += getTypeSize(elem)/32 - 1
 		}
 		retval = append(retval, marshalledValue)
 	}
@@ -285,7 +285,7 @@ type Payment struct {
 var (
 	paymentType = Type{
 		T: TupleTy,
-		TupleElems: []*Type{
+		TupleElems: []Type{
 			{T: AddressTy},
 			{Size: 64, T: IntTy},
 		},
@@ -306,7 +306,7 @@ func unpackPayment(output []byte) (Payment, error) {
 		amount  int64
 	)
 
-	assetRideValue, err := toRideType(0, *assetIDType, output)
+	assetRideValue, err := toRideType(0, assetIDType, output)
 	if err != nil {
 		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse assetID")
 	}
@@ -316,7 +316,7 @@ func unpackPayment(output []byte) (Payment, error) {
 		panic("BUG, CREATE REPORT: failed to parse payment, assetRideValue type must be RideBytes type")
 	}
 
-	amountRideValue, err := toRideType(1, *amountType, output)
+	amountRideValue, err := toRideType(1, amountType, output)
 	if err != nil {
 		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse amount")
 	}
