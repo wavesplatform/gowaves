@@ -16,19 +16,19 @@ func parseRide(data []byte) (*fourbyte.DecodedCallData, error) {
 	return decodedData, err
 }
 
+type Arg struct {
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	Components []Arg  `json:"components,omitempty"`
+}
+type ABI struct {
+	Name   string `json:"name"`
+	Type   string `json:"type"`
+	Inputs []Arg  `json:"inputs"`
+}
+
 func getJsonAbi(metaDApp map[fourbyte.Selector]fourbyte.Method) ([]byte, error) {
 	// Define a tiny fake ABI struct for JSON marshalling
-	type Arg struct {
-		Name       string `json:"name"`
-		Type       string `json:"type"`
-		Components []Arg  `json:"components,omitempty"`
-	}
-	type ABI struct {
-		Name   string `json:"name"`
-		Type   string `json:"type"`
-		Inputs []Arg  `json:"inputs"`
-	}
-
 	var abi []ABI
 
 	for _, method := range metaDApp {

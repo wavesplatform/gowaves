@@ -2,10 +2,12 @@ package abi
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"github.com/wavesplatform/gowaves/pkg/metamask/abi/fourbyte"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -99,11 +101,18 @@ func TestJsonAbi(t *testing.T) {
 	  }
 	]
 `
-	expectedJson = strings.ReplaceAll(expectedJson, "\n", "")
-	expectedJson = strings.ReplaceAll(expectedJson, "\t", "")
-	expectedJson = strings.ReplaceAll(expectedJson, " ", "")
-
-	resJson, err := getJsonAbi(fourbyte.Erc20Methods)
+	var expectedABI []ABI
+	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
-	require.Equal(t, expectedJson, string(resJson))
+
+	resJsonABI, err := getJsonAbi(fourbyte.Erc20Methods)
+	require.NoError(t, err)
+	var abi []ABI
+	err = json.Unmarshal(resJsonABI, &abi)
+	require.NoError(t, err)
+
+	sort.Slice(abi, func(i, j int) bool { return abi[i].Name < abi[j].Name })
+	sort.Slice(expectedABI, func(i, j int) bool { return expectedABI[i].Name < expectedABI[j].Name })
+
+	require.Equal(t, expectedABI, abi)
 }
