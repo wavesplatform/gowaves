@@ -7,6 +7,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"github.com/wavesplatform/gowaves/pkg/metamask/abi/fourbyte"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"math/big"
 	"strings"
 	"testing"
@@ -125,4 +126,46 @@ func TestJsonAbiPayments(t *testing.T) {
 	resJson, err := getJsonAbi(callData.Signature, callData.Payments)
 	require.NoError(t, err)
 	require.Equal(t, expectedJson, string(resJson))
+}
+
+func TestParsingABIUsingRideMeta(t *testing.T) {
+	// hexdata created with https://github.com/rust-ethereum/ethabi
+
+	testdata := []struct {
+		rideFunctionMeta     meta.Function
+		hexdata              string
+		expectedResultValues []ride.RideType
+	}{
+		{
+			rideFunctionMeta: meta.Function{
+				Name:      "some_test_fn",
+				Arguments: []meta.Type{meta.Boolean, meta.String, meta.String},
+			},
+			hexdata: "0x7afebf3b0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000861736661736466730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000015657468657265756d2061626920746573742e2e2e2e0000000000000000000000",
+			expectedResultValues: []ride.RideType{
+				ride.RideBoolean(true), ride.RideString("asfasdfs"), ride.RideString("ethereum abi test...."),
+			},
+		},
+	}
+	for _, test := range testdata {
+		data, err := hex.DecodeString(strings.TrimPrefix(test.hexdata, "0x"))
+		require.NoError(t, err)
+
+		dAppMeta := meta.DApp{
+			Version:       1,
+			Functions:     []meta.Function{test.rideFunctionMeta},
+			Abbreviations: meta.Abbreviations{},
+		}
+		db, err := fourbyte.NewDBFromRideDAppMeta(dAppMeta)
+		require.NoError(t, err)
+
+		decodedCallData, err := db.ParseCallDataRide(data, false)
+		require.NoError(t, err)
+
+		values := make([]ride.RideType, 0, len(decodedCallData.Inputs))
+		for _, arg := range decodedCallData.Inputs {
+			values = append(values, arg.Value.(ride.RideType))
+		}
+		require.Equal(t, test.expectedResultValues, values)
+	}
 }
