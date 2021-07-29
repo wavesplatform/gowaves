@@ -3,12 +3,10 @@ package fourbyte
 import (
 	"encoding/binary"
 	stdErr "errors"
-	"math/big"
-	"reflect"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"math/big"
 )
 
 var (
@@ -29,47 +27,6 @@ func readBool(word []byte) (bool, error) {
 		return true, nil
 	default:
 		return false, errBadBool
-	}
-}
-
-// readInteger reads the integer based on its kind and returns the appropriate value.
-func readInteger(typ Type, b []byte) interface{} {
-	if typ.T == UintTy {
-		switch typ.Size {
-		case 8:
-			return b[len(b)-1]
-		case 16:
-			return binary.BigEndian.Uint16(b[len(b)-2:])
-		case 32:
-			return binary.BigEndian.Uint32(b[len(b)-4:])
-		case 64:
-			return binary.BigEndian.Uint64(b[len(b)-8:])
-		default:
-			// the only case left for unsigned integer is uint256.
-			return new(big.Int).SetBytes(b)
-		}
-	}
-	switch typ.Size {
-	case 8:
-		return int8(b[len(b)-1])
-	case 16:
-		return int16(binary.BigEndian.Uint16(b[len(b)-2:]))
-	case 32:
-		return int32(binary.BigEndian.Uint32(b[len(b)-4:]))
-	case 64:
-		return int64(binary.BigEndian.Uint64(b[len(b)-8:]))
-	default:
-		// the only case left for integer is int256
-		// big.SetBytes can't tell if a number is negative or positive in itself.
-		// On EVM, if the returned number > max int256, it is negative.
-		// A number is > max int256 if the bit at position 255 is set.
-		ret := new(big.Int).SetBytes(b)
-		if ret.Bit(255) == 1 {
-			ret.Add(MaxUint256, new(big.Int).Neg(ret))
-			ret.Add(ret, Big1)
-			ret.Neg(ret)
-		}
-		return ret
 	}
 }
 
@@ -131,43 +88,6 @@ func tryAsInt64(rideT ride.RideType) (int64, error) {
 }
 
 // forEachUnpack iteratively unpack elements.
-func forEachUnpack(t Type, output []byte, start, size int) (interface{}, error) {
-	if size < 0 {
-		return nil, errors.Errorf("cannot marshal input to array, size is negative (%d)", size)
-	}
-	if start+32*size > len(output) {
-		return nil, errors.Errorf(
-			"abi: cannot marshal in to go array: offset %d would go over slice boundary (len=%d)",
-			len(output), start+32*size,
-		)
-	}
-	if t.T != SliceTy {
-		return nil, errors.Errorf("abi: invalid type in slice unpacking stage")
-
-	}
-
-	// this value will become our slice or our array, depending on the type
-	refSlice := reflect.MakeSlice(t.GetType(), size, size)
-
-	// Arrays have packed elements, resulting in longer unpack steps.
-	// Slices have just 32 bytes per element (pointing to the contents).
-	elemSize := getTypeSize(*t.Elem)
-
-	for i, j := start, 0; j < size; i, j = i+elemSize, j+1 {
-		inter, err := toGoType(i, *t.Elem, output)
-		if err != nil {
-			return nil, err
-		}
-
-		// append the item to our reflect slice
-		refSlice.Index(j).Set(reflect.ValueOf(inter))
-	}
-
-	// return the interface
-	return refSlice.Interface(), nil
-}
-
-// forEachUnpack iteratively unpack elements.
 func forEachUnpackRideList(t Type, output []byte, start, size int) (ride.RideList, error) {
 	if size < 0 {
 		return nil, errors.Errorf("cannot marshal input to array, size is negative (%d)", size)
@@ -202,27 +122,6 @@ func forEachUnpackRideList(t Type, output []byte, start, size int) (ride.RideLis
 
 	// return the interface
 	return refSlice, nil
-}
-
-func forTupleUnpack(t Type, output []byte) (interface{}, error) {
-	if t.T != TupleTy {
-		return nil, errors.New("abi: type in forTupleUnpack must be TupleTy")
-	}
-	retval := reflect.New(t.GetType()).Elem()
-	virtualArgs := 0
-	for index, elem := range t.TupleElems {
-		marshalledValue, err := toGoType((index+virtualArgs)*32, *elem, output)
-		if err != nil {
-			return nil, err
-		}
-		if elem.T == TupleTy && !isDynamicType(*elem) {
-			// If we have a static tuple, like (uint256, bool, uint256), these are
-			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(*elem)/32 - 1
-		}
-		retval.Field(index).Set(reflect.ValueOf(marshalledValue))
-	}
-	return retval.Interface(), nil
 }
 
 func extractIndexFromFirstElemOfTuple(index int, t Type, output []byte) (int64, error) {
@@ -420,58 +319,6 @@ func tuplePointsTo(index int, output []byte) (start int, err error) {
 		return 0, errors.Errorf("abi offset larger than int64: %v", offset)
 	}
 	return int(offset.Uint64()), nil
-}
-
-// toGoType parses the output bytes and recursively assigns the value of these bytes
-// into a go type with accordance with the ABI spec.
-func toGoType(index int, t Type, output []byte) (interface{}, error) {
-	if index+32 > len(output) {
-		return nil, errors.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d",
-			len(output), index+32,
-		)
-	}
-
-	var (
-		returnOutput  []byte
-		begin, length int
-		err           error
-	)
-
-	// if we require a length prefix, find the beginning word and size returned.
-	if requiresLengthPrefix(t) {
-		begin, length, err = lengthPrefixPointsTo(index, output)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		returnOutput = output[index : index+32]
-	}
-
-	switch t.T {
-	case TupleTy:
-		if isDynamicType(t) {
-			begin, err := tuplePointsTo(index, output)
-			if err != nil {
-				return nil, err
-			}
-			return forTupleUnpack(t, output[begin:])
-		}
-		return forTupleUnpack(t, output[index:])
-	case SliceTy:
-		return forEachUnpack(t, output[begin:], 0, length)
-	case StringTy: // variable arrays are written at the end of the return bytes
-		return string(output[begin : begin+length]), nil
-	case IntTy, UintTy:
-		return readInteger(t, returnOutput), nil
-	case BoolTy:
-		return readBool(returnOutput)
-	case AddressTy:
-		return metamask.BytesToAddress(returnOutput), nil
-	case BytesTy:
-		return output[begin : begin+length], nil
-	default:
-		return nil, errors.Errorf("abi: unknown type %v", t.T)
-	}
 }
 
 func toRideType(index int, t Type, output []byte) (ride.RideType, error) {
