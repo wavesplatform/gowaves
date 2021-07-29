@@ -95,3 +95,89 @@ func TestAbiTypeFromRideMetaType(t *testing.T) {
 		require.Equal(t, test.expected, actual)
 	}
 }
+
+func TestNewDBFromRideDAppMeta(t *testing.T) {
+	dAppMeta := meta.DApp{
+		Version: 1,
+		Functions: []meta.Function{
+			{Name: "func1", Arguments: []meta.Type{meta.Int, meta.Boolean}},
+			{Name: "boba8", Arguments: []meta.Type{meta.String, meta.Bytes, meta.ListType{Inner: meta.String}}},
+			{
+				Name: "allKind",
+				Arguments: []meta.Type{
+					meta.String,
+					meta.Int,
+					meta.Bytes,
+					meta.Boolean,
+					meta.ListType{Inner: meta.Int},
+					meta.UnionType{meta.String, meta.Boolean, meta.Int, meta.Bytes},
+				}},
+		},
+	}
+	expectedFuncs := []Method{
+		{
+			RawName: "func1",
+			Sig:     "func1(int64,bool)",
+			Inputs: Arguments{
+				{Name: "", Type: Type{Size: 64, T: IntTy, stringKind: "int64"}},
+				{Name: "", Type: Type{T: BoolTy, stringKind: "bool"}},
+			},
+		},
+		{
+			RawName: "boba8",
+			Sig:     "boba8(string,bytes,string[])",
+			Inputs: Arguments{
+				{Name: "", Type: Type{T: StringTy, stringKind: "string"}},
+				{Name: "", Type: Type{T: BytesTy, stringKind: "bytes"}},
+				{
+					Name: "",
+					Type: Type{
+						T:          SliceTy,
+						stringKind: "string[]",
+						Elem:       &Type{T: StringTy, stringKind: "string"}},
+				},
+			},
+		},
+		{
+			RawName: "allKind",
+			Sig:     "allKind(string,int64,bytes,bool,int64[],(uint8,string,bool,int64,bytes))",
+			Inputs: Arguments{
+				{Name: "", Type: Type{T: StringTy, stringKind: "string"}},
+				{Name: "", Type: Type{Size: 64, T: IntTy, stringKind: "int64"}},
+				{Name: "", Type: Type{T: BytesTy, stringKind: "bytes"}},
+				{Name: "", Type: Type{T: BoolTy, stringKind: "bool"}},
+				{
+					Name: "",
+					Type: Type{
+						T:          SliceTy,
+						stringKind: "int64[]",
+						Elem:       &Type{Size: 64, T: IntTy, stringKind: "int64"}},
+				},
+				{
+					Name: "",
+					Type: Type{
+						T:          TupleTy,
+						stringKind: "(uint8,string,bool,int64,bytes)",
+						TupleElems: []Type{
+							{Size: 8, T: UintTy, stringKind: "uint8"},
+							{T: StringTy, stringKind: "string"},
+							{T: BoolTy, stringKind: "bool"},
+							{Size: 64, T: IntTy, stringKind: "int64"},
+							{T: BytesTy, stringKind: "bytes"},
+						},
+						TupleRawNames: make([]string, 5),
+					},
+				},
+			},
+		},
+	}
+
+	db, err := NewDBFromRideDAppMeta(dAppMeta)
+	require.NoError(t, err)
+
+	for _, expectedFunc := range expectedFuncs {
+		actualFunc, err := db.MethodBySelector(expectedFunc.Sig.Selector())
+		require.NoError(t, err, "failed while looking function %q", expectedFunc.String())
+		require.Equal(t, expectedFunc, actualFunc)
+	}
+}
