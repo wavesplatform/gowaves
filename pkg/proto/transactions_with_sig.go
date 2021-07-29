@@ -260,6 +260,14 @@ func (tx *IssueWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, e
 	}, nil
 }
 
+func (tx *IssueWithSig) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
+	stx, err := tx.ToProtobufSigned(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
+}
+
 //TransferWithSig transaction to transfer any token from one account to another. Version 1.
 type TransferWithSig struct {
 	Type      TransactionType   `json:"type"`
@@ -534,6 +542,14 @@ func (tx *TransferWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction
 	}, nil
 }
 
+func (tx *TransferWithSig) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
+	stx, err := tx.ToProtobufSigned(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
+}
+
 func (tx *TransferWithSig) UnmarshalJSON(data []byte) error {
 	tmp := struct {
 		Type      TransactionType   `json:"type"`
@@ -783,6 +799,14 @@ func (tx *ReissueWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction,
 	}, nil
 }
 
+func (tx *ReissueWithSig) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
+	stx, err := tx.ToProtobufSigned(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
+}
+
 //BurnWithSig transaction allows to decrease the total supply of the existing asset. Asset must be reissuable.
 type BurnWithSig struct {
 	Type      TransactionType   `json:"type"`
@@ -1000,6 +1024,14 @@ func (tx *BurnWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, er
 		Transaction: unsigned,
 		Proofs:      proofs.Bytes(),
 	}, nil
+}
+
+func (tx *BurnWithSig) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
+	stx, err := tx.ToProtobufSigned(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 //ExchangeWithSig is a transaction to store settlement on blockchain.
@@ -1332,7 +1364,7 @@ func (tx *ExchangeWithSig) bodyUnmarshalBinary(data []byte) (int, error) {
 	return n, nil
 }
 
-//Sing calculates ID and Signature of the transaction.
+// Sign calculates ID and Signature of the transaction
 func (tx *ExchangeWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
@@ -1463,6 +1495,14 @@ func (tx *ExchangeWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction
 		Transaction: unsigned,
 		Proofs:      proofs.Bytes(),
 	}, nil
+}
+
+func (tx *ExchangeWithSig) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
+	stx, err := tx.ToProtobufSigned(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 //LeaseWithSig is a transaction that allows to lease Waves to other account.
@@ -1694,6 +1734,14 @@ func (tx *LeaseWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, e
 	}, nil
 }
 
+func (tx *LeaseWithSig) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
+	stx, err := tx.ToProtobufSigned(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
+}
+
 //LeaseCancelWithSig transaction can be used to cancel previously created leasing.
 type LeaseCancelWithSig struct {
 	Type      TransactionType   `json:"type"`
@@ -1914,6 +1962,14 @@ func (tx *LeaseCancelWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransact
 		Transaction: unsigned,
 		Proofs:      proofs.Bytes(),
 	}, nil
+}
+
+func (tx *LeaseCancelWithSig) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
+	stx, err := tx.ToProtobufSigned(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 type CreateAliasWithSig struct {
@@ -2165,4 +2221,12 @@ func (tx *CreateAliasWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransact
 		Transaction: unsigned,
 		Proofs:      proofs.Bytes(),
 	}, nil
+}
+
+func (tx *CreateAliasWithSig) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
+	stx, err := tx.ToProtobufSigned(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }

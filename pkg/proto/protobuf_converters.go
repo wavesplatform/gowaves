@@ -53,6 +53,19 @@ func SignedTxFromProtobuf(data []byte) (Transaction, error) {
 	return res, nil
 }
 
+func WrappedTxFromProtobuf(data []byte) (Transaction, error) {
+	var pbTx g.TransactionWrapper
+	if err := protobuf.Unmarshal(data, &pbTx); err != nil {
+		return nil, err
+	}
+	var c ProtobufConverter
+	res, err := c.WrappedTransaction(&pbTx)
+	if err != nil {
+		return nil, err
+	}
+	return res, err
+}
+
 type ProtobufConverter struct {
 	FallbackChainID byte
 	err             error
@@ -1038,6 +1051,10 @@ func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transac
 	return c.signedTransaction(stx)
 }
 
+func (c *ProtobufConverter) WrappedTransaction(wtx *g.TransactionWrapper) (Transaction, error) {
+	return c.wrappedTransaction(wtx)
+}
+
 func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transaction, error) {
 	tx, err := c.Transaction(stx.Transaction)
 	if err != nil {
@@ -1154,6 +1171,22 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 	}
 }
 
+func (c *ProtobufConverter) wrappedTransaction(wtx *g.TransactionWrapper) (Transaction, error) {
+	switch tx := wtx.GetTransaction().(type) {
+	case *g.TransactionWrapper_WavesTransaction:
+		return c.signedTransaction(tx.WavesTransaction)
+	case *g.TransactionWrapper_EthereumTransaction:
+		return c.ethereumTransaction(tx.EthereumTransaction)
+	default:
+		return nil, errors.New("unsupported wrapped transaction")
+	}
+}
+
+func (c *ProtobufConverter) ethereumTransaction(etx []byte) (Transaction, error) {
+	//TODO: Here we have to deserialize etx bytes into EthereumTransaction (or whatever it named) business object
+	return nil, errors.New("not implemented")
+}
+
 func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, error) {
 	txs, err := c.SignedTransactions(mb.MicroBlock.WavesTransactions)
 	if err != nil {
@@ -1179,11 +1212,11 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 }
 
 func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
-	txs, err := c.BlockTransactions(block)
+	header, err := c.BlockHeader(block)
 	if err != nil {
 		return Block{}, err
 	}
-	header, err := c.BlockHeader(block)
+	txs, err := c.BlockTransactions(block, header.Version)
 	if err != nil {
 		return Block{}, err
 	}
@@ -1198,14 +1231,31 @@ func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
 	}, nil
 }
 
-func (c *ProtobufConverter) BlockTransactions(block *g.Block) ([]Transaction, error) {
-	return c.SignedTransactions(block.WavesTransactions)
+func (c *ProtobufConverter) BlockTransactions(block *g.Block, version BlockVersion) ([]Transaction, error) {
+	switch version {
+	case WrappedTransactionsBlockVersion:
+		return c.WrappedTransactions(block.WrappedTransactions)
+	default:
+		return c.SignedTransactions(block.WavesTransactions)
+	}
 }
 
 func (c *ProtobufConverter) SignedTransactions(txs []*g.SignedTransaction) ([]Transaction, error) {
 	res := make([]Transaction, len(txs))
 	for i, stx := range txs {
 		tx, err := c.SignedTransaction(stx)
+		if err != nil {
+			return nil, err
+		}
+		res[i] = tx
+	}
+	return res, nil
+}
+
+func (c *ProtobufConverter) WrappedTransactions(txs []*g.TransactionWrapper) ([]Transaction, error) {
+	res := make([]Transaction, len(txs))
+	for i, wtx := range txs {
+		tx, err := c.WrappedTransaction(wtx)
 		if err != nil {
 			return nil, err
 		}

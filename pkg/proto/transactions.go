@@ -214,6 +214,7 @@ type Transaction interface {
 	// Conversion to Protobuf types.
 	ToProtobuf(scheme Scheme) (*g.Transaction, error)
 	ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
+	ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error)
 }
 
 func IsProtobufTx(tx Transaction) bool {
@@ -636,6 +637,14 @@ func (tx *Genesis) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 	}, nil
 }
 
+func (tx *Genesis) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
+	stx, err := tx.ToProtobufSigned(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
+}
+
 //Payment transaction is deprecated and can be used only for validation of blockchain.
 type Payment struct {
 	Type      TransactionType   `json:"type"`
@@ -943,6 +952,14 @@ func (tx *Payment) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 		Transaction: unsigned,
 		Proofs:      proofs.Bytes(),
 	}, nil
+}
+
+func (tx *Payment) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
+	stx, err := tx.ToProtobufSigned(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 type Issue struct {

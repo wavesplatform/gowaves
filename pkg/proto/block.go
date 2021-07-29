@@ -26,6 +26,7 @@ const (
 	NgBlockVersion
 	RewardBlockVersion
 	ProtobufBlockVersion
+	WrappedTransactionsBlockVersion
 )
 
 type Marshaller interface {
@@ -158,7 +159,7 @@ func (id *BlockID) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-// Block info (except transactions)
+// BlockHeader contains Block meta-information without transactions
 type BlockHeader struct {
 	Version                BlockVersion `json:"version"`
 	Timestamp              uint64       `json:"timestamp"`
@@ -572,16 +573,25 @@ func (b *Block) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (b *Block) ToProtobuf(scheme Scheme) (*g.Block, error) {
-	block, err := b.BlockHeader.HeaderToProtobuf(scheme)
+	protoBlock, err := b.BlockHeader.HeaderToProtobuf(scheme)
 	if err != nil {
 		return nil, err
 	}
-	protoTransactions, err := b.Transactions.ToProtobuf(scheme)
-	if err != nil {
-		return nil, err
+	switch b.Version {
+	case WrappedTransactionsBlockVersion:
+		protoTransactions, err := b.Transactions.ToProtobufWrapped(scheme)
+		if err != nil {
+			return nil, err
+		}
+		protoBlock.WrappedTransactions = protoTransactions
+	default:
+		protoTransactions, err := b.Transactions.ToProtobuf(scheme)
+		if err != nil {
+			return nil, err
+		}
+		protoBlock.WavesTransactions = protoTransactions
 	}
-	block.WavesTransactions = protoTransactions
-	return block, nil
+	return protoBlock, nil
 }
 
 func (b *Block) ToProtobufWithHeight(currentScheme Scheme, height uint64) (*pb.BlockWithHeight, error) {
@@ -787,16 +797,6 @@ func BlockGetSignature(data []byte) (crypto.Signature, error) {
 	return sig, nil
 }
 
-//BlockGetParent get parent signature from block without deserialization
-func BlockGetParent(data []byte) (crypto.Signature, error) {
-	parent := crypto.Signature{}
-	if len(data) < 73 {
-		return parent, errors.Errorf("not enough bytes to decode block parent signature, want at least 73, found %d", len(data))
-	}
-	copy(parent[:], data[9:73])
-	return parent, nil
-}
-
 type BlockMarshaller struct {
 	b *Block
 }
@@ -892,7 +892,19 @@ func (a Transactions) ToProtobuf(scheme Scheme) ([]*g.SignedTransaction, error) 
 	return protoTransactions, nil
 }
 
-func (a *Transactions) UnmarshalFromProtobuf(data []byte) error {
+func (a Transactions) ToProtobufWrapped(scheme Scheme) ([]*g.TransactionWrapper, error) {
+	protoTransactions := make([]*g.TransactionWrapper, len(a))
+	for i, tx := range a {
+		protoTx, err := tx.ToProtobufWrapped(scheme)
+		if err != nil {
+			return nil, err
+		}
+		protoTransactions[i] = protoTx
+	}
+	return protoTransactions, nil
+}
+
+func (a *Transactions) UnmarshalFromProtobuf(data []byte, blockVersion BlockVersion) error {
 	transactions := Transactions{}
 	for len(data) > 0 {
 		txSize := int(binary.BigEndian.Uint32(data[0:4]))
@@ -900,11 +912,19 @@ func (a *Transactions) UnmarshalFromProtobuf(data []byte) error {
 			return errors.New("invalid data size")
 		}
 		txBytes := data[4 : txSize+4]
-		tx, err := SignedTxFromProtobuf(txBytes)
-		if err != nil {
-			return err
+		if blockVersion >= WrappedTransactionsBlockVersion {
+			tx, err := WrappedTxFromProtobuf(txBytes)
+			if err != nil {
+				return err
+			}
+			transactions = append(transactions, tx)
+		} else {
+			tx, err := SignedTxFromProtobuf(txBytes)
+			if err != nil {
+				return err
+			}
+			transactions = append(transactions, tx)
 		}
-		transactions = append(transactions, tx)
 		data = data[txSize+4:]
 	}
 	*a = transactions

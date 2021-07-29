@@ -127,7 +127,7 @@ func (a *MicroBlock) UnmarshalBinary(b []byte, scheme Scheme) error {
 	}
 	if proto {
 		txs := new(Transactions)
-		if err := txs.UnmarshalFromProtobuf(bts); err != nil {
+		if err := txs.UnmarshalFromProtobuf(bts, BlockVersion(a.VersionField)); err != nil {
 			return errors.Wrap(err, "failed to unmarshal transactions from protobuf")
 		}
 		a.Transactions = *txs
