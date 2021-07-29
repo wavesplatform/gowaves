@@ -35,8 +35,6 @@ func TestTransferWithRideTypes(t *testing.T) {
 }
 
 func TestJsonAbi(t *testing.T) {
-	// from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
-
 	expectedJson := `
 	[
 	  {

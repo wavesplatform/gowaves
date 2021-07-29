@@ -28,13 +28,12 @@ type ABI struct {
 }
 
 func getJsonAbi(metaDApp map[fourbyte.Selector]fourbyte.Method) ([]byte, error) {
-	// Define a tiny fake ABI struct for JSON marshalling
 	var abi []ABI
 
 	for _, method := range metaDApp {
 		arguments := make([]Arg, 0)
 		for _, arg := range method.Inputs {
-			a := Arg{Name: arg.Name, Type: arg.Type.String()}
+			a := Arg{Name: arg.Name}
 
 			switch arg.Type.T {
 			case fourbyte.TupleTy:
