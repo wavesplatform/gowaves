@@ -580,7 +580,7 @@ func (b *Block) ToProtobuf(scheme Scheme) (*g.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	block.Transactions = protoTransactions
+	block.WavesTransactions = protoTransactions
 	return block, nil
 }
 
@@ -593,7 +593,7 @@ func (b *Block) ToProtobufWithHeight(currentScheme Scheme, height uint64) (*pb.B
 	if err != nil {
 		return nil, err
 	}
-	block.Block.Transactions = txs
+	block.Block.WavesTransactions = txs
 	return block, nil
 }
 

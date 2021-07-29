@@ -1155,7 +1155,7 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 }
 
 func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, error) {
-	txs, err := c.SignedTransactions(mb.MicroBlock.Transactions)
+	txs, err := c.SignedTransactions(mb.MicroBlock.WavesTransactions)
 	if err != nil {
 		return MicroBlock{}, err
 	}
@@ -1165,7 +1165,7 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 		Reference:             c.blockID(mb.MicroBlock.Reference),
 		TotalResBlockSigField: c.signature(mb.MicroBlock.UpdatedBlockSignature),
 		TotalBlockID:          c.blockID(mb.TotalBlockId),
-		TransactionCount:      uint32(len(mb.MicroBlock.Transactions)),
+		TransactionCount:      uint32(len(mb.MicroBlock.WavesTransactions)),
 		Transactions:          txs,
 		SenderPK:              c.publicKey(mb.MicroBlock.SenderPublicKey),
 		Signature:             c.signature(mb.Signature),
@@ -1199,7 +1199,7 @@ func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
 }
 
 func (c *ProtobufConverter) BlockTransactions(block *g.Block) ([]Transaction, error) {
-	return c.SignedTransactions(block.Transactions)
+	return c.SignedTransactions(block.WavesTransactions)
 }
 
 func (c *ProtobufConverter) SignedTransactions(txs []*g.SignedTransaction) ([]Transaction, error) {
@@ -1245,7 +1245,7 @@ func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 		RewardVote:           block.Header.RewardVote,
 		ConsensusBlockLength: uint32(consensus.BinarySize()),
 		NxtConsensus:         consensus,
-		TransactionCount:     len(block.Transactions),
+		TransactionCount:     len(block.WavesTransactions),
 		GenPublicKey:         c.publicKey(block.Header.Generator),
 		BlockSignature:       c.signature(block.Signature),
 		TransactionsRoot:     block.Header.TransactionsRoot,
