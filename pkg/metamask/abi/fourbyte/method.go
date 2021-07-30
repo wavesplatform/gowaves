@@ -11,22 +11,11 @@ type Method struct {
 	// Sig returns the methods string signature according to the ABI spec.
 	// e.g.		function foo(uint32 a, int b) = "foo(uint32,int256)"
 	// Please note that "int" is substitute for its canonical representation "int256"
-	Sig Signature
+	Payments *Argument
+	Sig      Signature
 }
 
-// NewMethod creates a new Method.
-// A method should always be created using NewMethod.
-// It also precomputes the sig representation and the string representation
-// of the method.
-func NewMethod(rawName string, inputs Arguments) Method {
-	return Method{
-		RawName: rawName,
-		Inputs:  inputs,
-		Sig:     NewSignature(rawName, inputs),
-	}
-}
-
-func NewMethodFromRideFunctionMeta(rideF meta.Function) (Method, error) {
+func NewMethodFromRideFunctionMeta(rideF meta.Function, addPayments bool) (Method, error) {
 	args := make(Arguments, 0, len(rideF.Arguments))
 	for _, rideT := range rideF.Arguments {
 		// nickeskov: empty because we don't have any info in metadata about argument name
@@ -38,7 +27,23 @@ func NewMethodFromRideFunctionMeta(rideF meta.Function) (Method, error) {
 		}
 		args = append(args, t)
 	}
-	return NewMethod(rideF.Name, args), nil
+	sig, err := NewSignatureFromRideFunctionMeta(rideF, addPayments)
+	if err != nil {
+		return Method{}, errors.Wrapf(err,
+			"failed to build function signature for ABI method with name %s", rideF.Name,
+		)
+	}
+	var payments *Argument
+	if addPayments {
+		payments = &paymentsArgument
+	}
+	meth := Method{
+		RawName:  rideF.Name,
+		Inputs:   args,
+		Payments: payments,
+		Sig:      sig,
+	}
+	return meth, nil
 }
 
 func (m *Method) String() string {

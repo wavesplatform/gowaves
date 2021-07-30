@@ -286,14 +286,21 @@ var (
 	paymentType = Type{
 		T: TupleTy,
 		TupleElems: []Type{
-			{T: AddressTy},
+			{T: BytesTy},
 			{Size: 64, T: IntTy},
 		},
-		TupleRawNames: []string{},
+		TupleRawNames: []string{
+			"id",
+			"value",
+		},
 	}
 	paymentsType = Type{
 		Elem: &paymentType,
 		T:    SliceTy,
+	}
+	paymentsArgument = Argument{
+		Name: "payments",
+		Type: paymentsType,
 	}
 )
 
@@ -358,7 +365,7 @@ func unpackPayments(output []byte) ([]Payment, error) {
 	for i := 0; i < size; i++ {
 		payment, err := unpackPayment(output[i*elemSize:])
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to unpack payment")
 		}
 		payments = append(payments, payment)
 	}
@@ -367,7 +374,7 @@ func unpackPayments(output []byte) ([]Payment, error) {
 
 // lengthPrefixPointsTo interprets a 32 byte slice as an offset and then determines which indices to look to decode the type.
 func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err error) {
-	// TODO(nickeskov): I have no idea how it works, but we should...
+	// nickeskov: I have no idea how it works, but we should...
 
 	bigOffsetEnd := big.NewInt(0).SetBytes(output[index : index+32])
 	bigOffsetEnd.Add(bigOffsetEnd, Big32)

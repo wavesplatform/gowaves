@@ -36,14 +36,14 @@ func TestBuildSignatureFromRideFunctionMeta(t *testing.T) {
 			payments: false,
 		},
 		{
-			expectedSig: "metaPayments(bool,bytes,(address,uint64)[])",
+			expectedSig: "metaPayments(bool,bytes,(bytes,int64)[])",
 			metadata:    meta.Function{Name: "metaPayments", Arguments: []meta.Type{meta.Boolean, meta.Bytes}},
 			payments:    true,
 		},
 	}
 
 	for _, test := range testdata {
-		actualSig, err := BuildSignatureFromRideFunctionMeta(test.metadata, test.payments)
+		actualSig, err := NewSignatureFromRideFunctionMeta(test.metadata, test.payments)
 		require.NoError(t, err)
 		require.Equal(t, test.expectedSig, actualSig)
 	}
@@ -122,6 +122,7 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 				{Name: "", Type: Type{Size: 64, T: IntTy, stringKind: "int64"}},
 				{Name: "", Type: Type{T: BoolTy, stringKind: "bool"}},
 			},
+			Payments: nil,
 		},
 		{
 			RawName: "boba8",
@@ -137,6 +138,7 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 						Elem:       &Type{T: StringTy, stringKind: "string"}},
 				},
 			},
+			Payments: nil,
 		},
 		{
 			RawName: "allKind",
@@ -169,10 +171,11 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 					},
 				},
 			},
+			Payments: nil,
 		},
 	}
 
-	db, err := NewDBFromRideDAppMeta(dAppMeta)
+	db, err := NewDBFromRideDAppMeta(dAppMeta, false)
 	require.NoError(t, err)
 
 	for _, expectedFunc := range expectedFuncs {

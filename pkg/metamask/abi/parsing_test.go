@@ -53,7 +53,8 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 				{Name: "_listPrice", Type: fourbyte.Type{T: fourbyte.UintTy, Size: 256}},
 				{Name: "_fee", Type: fourbyte.Type{T: fourbyte.UintTy, Size: 256}},
 			},
-			Sig: testSignature,
+			Payments: nil,
+			Sig:      testSignature,
 		},
 	}
 
@@ -156,7 +157,7 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 			Functions:     []meta.Function{test.rideFunctionMeta},
 			Abbreviations: meta.Abbreviations{},
 		}
-		db, err := fourbyte.NewDBFromRideDAppMeta(dAppMeta)
+		db, err := fourbyte.NewDBFromRideDAppMeta(dAppMeta, false)
 		require.NoError(t, err)
 
 		decodedCallData, err := db.ParseCallDataRide(data, false)

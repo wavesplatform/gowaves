@@ -47,10 +47,10 @@ func NewCustomDatabase(custom map[Selector]Method) Database {
 	}
 }
 
-func NewDBFromRideDAppMeta(dApp meta.DApp) (Database, error) {
+func NewDBFromRideDAppMeta(dApp meta.DApp, addPayments bool) (Database, error) {
 	methods := make(map[Selector]Method, len(dApp.Functions))
 	for _, fn := range dApp.Functions {
-		method, err := NewMethodFromRideFunctionMeta(fn)
+		method, err := NewMethodFromRideFunctionMeta(fn, addPayments)
 		if err != nil {
 			return Database{}, errors.Wrapf(err,
 				"failed to build ABI db from DApp metadata, verison %d", dApp.Version,

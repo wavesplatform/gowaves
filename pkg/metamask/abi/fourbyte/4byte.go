@@ -24,16 +24,7 @@ const (
 
 type Signature string
 
-func NewSignature(funcName string, inputArgs Arguments) Signature {
-	typeStrings := make([]string, len(inputArgs))
-	for i := range inputArgs {
-		typeStrings[i] = inputArgs[i].Type.String()
-	}
-	sig := fmt.Sprintf("%s(%s)", funcName, strings.Join(typeStrings, ","))
-	return Signature(sig)
-}
-
-func BuildSignatureFromRideFunctionMeta(fn meta.Function, addPayments bool) (Signature, error) {
+func NewSignatureFromRideFunctionMeta(fn meta.Function, addPayments bool) (Signature, error) {
 	builder := functionTextBuilder{
 		addPayments:  addPayments,
 		functionMeta: fn,
@@ -209,21 +200,15 @@ func (utb unionTextBuilder) MarshalText() (text []byte, err error) {
 	return text, nil
 }
 
-type addressTextBuilder struct{}
-
-func (atb addressTextBuilder) MarshalText() (text []byte, err error) {
-	return []byte("address"), nil
-}
-
 type paymentTextBuilder struct{}
 
 func (ptb paymentTextBuilder) MarshalText() (text []byte, err error) {
 	tupleBuilder := tupleTextBuilder{
-		addressTextBuilder{},
+		bytesTextBuilder{},
 		// nickeskov: asset amount field in payment
 		intTextBuilder{
 			size:     64,
-			unsigned: true,
+			unsigned: false,
 		},
 	}
 	text, err = tupleBuilder.MarshalText()
@@ -286,7 +271,8 @@ var erc20Methods = map[Selector]Method{
 				},
 			},
 		},
-		Sig: erc20TransferSignature,
+		Payments: nil,
+		Sig:      erc20TransferSignature,
 	},
 	erc20TransferFromSignature.Selector(): {
 		RawName: "transferFrom",
@@ -316,6 +302,7 @@ var erc20Methods = map[Selector]Method{
 				},
 			},
 		},
-		Sig: erc20TransferFromSignature,
+		Payments: nil,
+		Sig:      erc20TransferFromSignature,
 	},
 }
