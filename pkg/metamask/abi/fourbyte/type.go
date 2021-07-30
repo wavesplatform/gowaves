@@ -1,12 +1,8 @@
 package fourbyte
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
-	"math/big"
-	"reflect"
 )
 
 type ArgT byte
@@ -15,20 +11,14 @@ type ArgT byte
 const (
 	IntTy ArgT = iota
 	UintTy
-	BoolTy
-
-	StringTy
-	SliceTy
 	BytesTy
-	//ArrayTy
+	BoolTy
+	StringTy
+
+	SliceTy
 	TupleTy
 
 	AddressTy // nickeskov: we use this type only for erc20 transfers
-
-	//FixedBytesTy
-	//HashTy
-	//FixedPointTy
-	//FunctionTy
 )
 
 // Type is the reflection of the supported argument type.
@@ -40,10 +30,9 @@ type Type struct {
 	stringKind string // holds the unparsed string for deriving signatures
 
 	// Tuple relative fields
-	TupleRawName  string       // Raw struct name defined in source code, may be empty.
-	TupleElems    []Type       // Type information of all tuple fields
-	TupleRawNames []string     // Raw field name of all tuple fields
-	TupleType     reflect.Type // Underlying struct of the tuple
+	TupleRawName  string   // Raw struct name defined in source code, may be empty.
+	TupleElems    []Type   // Type information of all tuple fields
+	TupleRawNames []string // Raw field name of all tuple fields
 }
 
 func (t *Type) String() string {
@@ -75,30 +64,6 @@ func getTypeSize(t Type) int {
 	return 32
 }
 
-// GetType returns the reflection type of the ABI type.
-func (t Type) GetType() reflect.Type {
-	switch t.T {
-	case IntTy:
-		return reflectIntType(false, t.Size)
-	case UintTy:
-		return reflectIntType(true, t.Size)
-	case BoolTy:
-		return reflect.TypeOf(false)
-	case StringTy:
-		return reflect.TypeOf("")
-	case SliceTy:
-		return reflect.SliceOf(t.Elem.GetType())
-	case TupleTy:
-		return t.TupleType
-	case AddressTy:
-		return reflect.TypeOf(metamask.Address{})
-	case BytesTy:
-		return reflect.SliceOf(reflect.TypeOf(byte(0)))
-	default:
-		panic(fmt.Errorf("invalid ABI type (T=%d)", t.T))
-	}
-}
-
 // isDynamicType returns true if the type is dynamic.
 // The following types are called “dynamic”:
 // * bytes
@@ -116,34 +81,6 @@ func isDynamicType(t Type) bool {
 		return false
 	}
 	return t.T == StringTy || t.T == BytesTy || t.T == SliceTy
-}
-
-// reflectIntType returns the reflect using the given size and
-// unsignedness.
-func reflectIntType(unsigned bool, size int) reflect.Type {
-	if unsigned {
-		switch size {
-		case 8:
-			return reflect.TypeOf(uint8(0))
-		case 16:
-			return reflect.TypeOf(uint16(0))
-		case 32:
-			return reflect.TypeOf(uint32(0))
-		case 64:
-			return reflect.TypeOf(uint64(0))
-		}
-	}
-	switch size {
-	case 8:
-		return reflect.TypeOf(int8(0))
-	case 16:
-		return reflect.TypeOf(int16(0))
-	case 32:
-		return reflect.TypeOf(int32(0))
-	case 64:
-		return reflect.TypeOf(int64(0))
-	}
-	return reflect.TypeOf(&big.Int{})
 }
 
 func AbiTypeFromRideTypeMeta(metaT meta.Type) (abiT Type, err error) {

@@ -2,13 +2,11 @@ package abi
 
 import (
 	"encoding/hex"
-	"fmt"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"github.com/wavesplatform/gowaves/pkg/metamask/abi/fourbyte"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
-	"math/big"
 	"strings"
 	"testing"
 )
@@ -25,14 +23,17 @@ func TestTransfer(t *testing.T) {
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
 
-	callData, err := parseNew(data, true)
+	db := fourbyte.NewDatabase(map[fourbyte.Selector]fourbyte.Method{})
+	callData, err := db.ParseCallDataRide(data, true)
 	// nickeskov: no error because we have zero length bytes data for payments
 	require.NoError(t, err)
 
 	require.Equal(t, expectedSignature, callData.Signature)
 	require.Equal(t, expectedName, callData.Name)
-	require.Equal(t, expectedFirstArg, callData.Inputs[0].DecodedValue().(fmt.Stringer).String())
-	require.Equal(t, expectedSecondArg, callData.Inputs[1].DecodedValue().(*big.Int).String())
+	var addr metamask.Address
+	addr.SetBytes(callData.Inputs[0].Value.(ride.RideBytes))
+	require.Equal(t, expectedFirstArg, addr.String())
+	require.Equal(t, expectedSecondArg, callData.Inputs[1].Value.(ride.RideBigInt).String())
 }
 
 func TestRandomFunctionABIParsing(t *testing.T) {
@@ -60,7 +61,7 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 
 	data, err := hex.DecodeString(strings.TrimPrefix(hexData, "0x"))
 	require.NoError(t, err)
-	db := fourbyte.NewCustomDatabase(customDB)
+	db := fourbyte.NewDatabase(customDB)
 	callData, err := db.ParseCallDataRide(data, true)
 	// nickeskov: no error because we have zero length bytes data for payments
 	require.NoError(t, err)
@@ -86,7 +87,9 @@ func TestTransferWithRideTypes(t *testing.T) {
 	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
-	callData, err := parseRide(data, true)
+
+	db := fourbyte.NewDatabase(map[fourbyte.Selector]fourbyte.Method{})
+	callData, err := db.ParseCallDataRide(data, true)
 	// nickeskov: no error because we have zero length bytes data for payments
 	require.NoError(t, err)
 
@@ -106,7 +109,8 @@ func TestJsonAbi(t *testing.T) {
 	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
-	callData, err := parseNew(data, false)
+	db := fourbyte.NewDatabase(map[fourbyte.Selector]fourbyte.Method{})
+	callData, err := db.ParseCallDataRide(data, false)
 	require.NoError(t, err)
 
 	resJson, err := getJsonAbi(callData.Signature, callData.Payments)
@@ -120,7 +124,8 @@ func TestJsonAbiPayments(t *testing.T) {
 	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
-	callData, err := parseNew(data, false)
+	db := fourbyte.NewDatabase(map[fourbyte.Selector]fourbyte.Method{})
+	callData, err := db.ParseCallDataRide(data, false)
 	require.NoError(t, err)
 	callData.Payments = append(callData.Payments, fourbyte.Payment{})
 

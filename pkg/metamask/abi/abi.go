@@ -8,18 +8,6 @@ import (
 	"strings"
 )
 
-func parseNew(data []byte, parsePayments bool) (*fourbyte.DecodedCallData, error) {
-	db := fourbyte.NewDatabase()
-	decodedData, err := db.ParseCallDataNew(data, parsePayments)
-	return decodedData, err
-}
-
-func parseRide(data []byte, parsePayments bool) (*fourbyte.DecodedCallData, error) {
-	db := fourbyte.NewDatabase()
-	decodedData, err := db.ParseCallDataRide(data, parsePayments)
-	return decodedData, err
-}
-
 var selectorRegexp = regexp.MustCompile(`^([^\)]+)\(([A-Za-z0-9,\[\]]*)\)`)
 
 func getJsonAbi(selector string, payments []fourbyte.Payment) ([]byte, error) {

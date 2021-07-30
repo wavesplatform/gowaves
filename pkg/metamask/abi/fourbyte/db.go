@@ -32,15 +32,10 @@ type Database struct {
 	custom   map[Selector]Method
 }
 
-// New loads the standard signature database embedded in the package.
-func NewDatabase() Database {
-	return Database{
-		embedded: erc20Methods,
-		custom:   make(map[Selector]Method),
+func NewDatabase(custom map[Selector]Method) Database {
+	if custom == nil {
+		custom = make(map[Selector]Method)
 	}
-}
-
-func NewCustomDatabase(custom map[Selector]Method) Database {
 	return Database{
 		embedded: erc20Methods,
 		custom:   custom,
@@ -58,7 +53,7 @@ func NewDBFromRideDAppMeta(dApp meta.DApp, addPayments bool) (Database, error) {
 		}
 		methods[method.Sig.Selector()] = method
 	}
-	return NewCustomDatabase(methods), nil
+	return NewDatabase(methods), nil
 }
 
 func (db *Database) MethodBySelector(id Selector) (Method, error) {
@@ -70,32 +65,6 @@ func (db *Database) MethodBySelector(id Selector) (Method, error) {
 	}
 	// TODO(nickeskov): support ride scripts metadata
 	return Method{}, fmt.Errorf("signature %v not found", id.String())
-}
-
-func (db *Database) ParseCallDataNew(data []byte, parsePayments bool) (*DecodedCallData, error) {
-	// If the data is empty, we have a plain value transfer, nothing more to do
-	if len(data) == 0 {
-		return nil, errors.New("transaction doesn't contain data")
-	}
-	// Validate the call data that it has the 4byte prefix and the rest divisible by 32 bytes
-	if len(data) < 4 {
-		return nil, errors.New("transaction data is not valid ABI: missing the 4 byte call prefix")
-	}
-	if n := len(data) - 4; n%32 != 0 {
-		return nil, errors.Errorf("transaction data is not valid ABI (length should be a multiple of 32 (was %d))", n)
-	}
-	var selector Selector
-	copy(selector[:], data[:len(selector)])
-	method, err := db.MethodBySelector(selector)
-	if err != nil {
-		return nil, errors.Errorf("Transaction contains data, but the ABI signature could not be found: %v", err)
-	}
-
-	info, err := parseArgData(&method, data[len(selector):], parsePayments)
-	if err != nil {
-		return nil, errors.Errorf("Transaction contains data, but provided ABI signature could not be verified: %v", err)
-	}
-	return info, nil
 }
 
 func (db *Database) ParseCallDataRide(data []byte, parsePayments bool) (*DecodedCallData, error) {
@@ -146,29 +115,6 @@ func (da *DecodedArg) DecodedValue() interface{} {
 
 func (da *DecodedArg) InternalType() byte {
 	return byte(da.Soltype.Type.T)
-}
-
-func parseArgData(method *Method, argData []byte, parsePayments bool) (*DecodedCallData, error) {
-	values, paymentsABI, err := method.Inputs.UnpackValues(argData)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to unpack Inputs arguments ABI data")
-	}
-	var payments []Payment
-	if parsePayments {
-		payments, err = unpackPayments(paymentsABI)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to unpack payments")
-		}
-	}
-
-	decoded := DecodedCallData{Signature: method.Sig.String(), Name: method.RawName, Payments: payments}
-	for i := 0; i < len(method.Inputs); i++ {
-		decoded.Inputs = append(decoded.Inputs, DecodedArg{
-			Soltype: method.Inputs[i],
-			Value:   values[i],
-		})
-	}
-	return &decoded, nil
 }
 
 func parseArgDataToRideTypes(method *Method, argData []byte, parsePayments bool) (*DecodedCallData, error) {
