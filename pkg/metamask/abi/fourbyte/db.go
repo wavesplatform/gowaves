@@ -57,13 +57,15 @@ func NewDBFromRideDAppMeta(dApp meta.DApp, addPayments bool) (Database, error) {
 }
 
 func (db *Database) MethodBySelector(id Selector) (Method, error) {
-	if method, ok := Erc20Methods[id]; ok {
+	if method, ok := db.embedded[id]; ok {
+		return method, nil
+	}
+	if method, ok := db.custom[id]; ok {
 		return method, nil
 	}
 	// TODO(nickeskov): support ride scripts metadata
 	return Method{}, fmt.Errorf("signature %v not found", id.String())
 }
-
 
 func (db *Database) ParseCallDataRide(data []byte, parsePayments bool) (*DecodedCallData, error) {
 	// If the data is empty, we have a plain value transfer, nothing more to do
@@ -83,7 +85,6 @@ func (db *Database) ParseCallDataRide(data []byte, parsePayments bool) (*Decoded
 	if err != nil {
 		return nil, errors.Errorf("Transaction contains data, but the ABI signature could not be found: %v", err)
 	}
-
 
 	info, err := parseArgDataToRideTypes(&method, data[len(selector):], parsePayments)
 	if err != nil {

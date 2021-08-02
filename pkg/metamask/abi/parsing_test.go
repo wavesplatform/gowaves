@@ -7,8 +7,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"github.com/wavesplatform/gowaves/pkg/metamask/abi/fourbyte"
 	"github.com/wavesplatform/gowaves/pkg/ride"
-	"sort"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
+	"sort"
 	"strings"
 	"testing"
 )
