@@ -185,7 +185,7 @@ var (
 	paymentType = Type{
 		T: TupleTy,
 		TupleElems: []Type{
-			{T: AddressTy},
+			{T: BytesTy},
 			{Size: 64, T: IntTy},
 		},
 		TupleRawNames: []string{
