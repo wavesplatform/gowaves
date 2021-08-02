@@ -7,15 +7,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/metamask/abi/fourbyte"
 )
 
-func parseRide(data []byte) (*fourbyte.DecodedCallData, error) {
-	db, err := fourbyte.NewDatabase()
-	if err != nil {
-		fmt.Println(err)
-	}
-	decodedData, err := db.ParseCallDataRide(data)
-	return decodedData, err
-}
-
 type Arg struct {
 	Name       string `json:"name"`
 	Type       string `json:"type"`

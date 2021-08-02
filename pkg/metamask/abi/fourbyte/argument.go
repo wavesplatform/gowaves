@@ -1,6 +1,10 @@
 package fourbyte
 
-import "github.com/wavesplatform/gowaves/pkg/ride"
+import (
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
+)
 
 type Argument struct {
 	Name string
@@ -8,6 +12,20 @@ type Argument struct {
 }
 
 type Arguments []Argument
+
+func NewArgumentFromRideTypeMeta(name string, rideT meta.Type) (Argument, error) {
+	t, err := AbiTypeFromRideTypeMeta(rideT)
+	if err != nil {
+		return Argument{}, errors.Wrapf(err,
+			"failed to build ABI argument with name %q from ride type metadata", name,
+		)
+	}
+	arg := Argument{
+		Name: name,
+		Type: t,
+	}
+	return arg, err
+}
 
 // UnpackRideValues can be used to unpack ABI-encoded hexdata according to the ABI-specification,
 // without supplying a struct to unpack into. Instead, this method returns a list containing the

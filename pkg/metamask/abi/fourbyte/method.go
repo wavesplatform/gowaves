@@ -1,76 +1,54 @@
 package fourbyte
 
 import (
-	"fmt"
-	"strings"
-)
-
-type FunctionType byte
-
-const (
-	Callable FunctionType = iota
-	Verifier
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
 
 type Method struct {
-	Type FunctionType
-
 	RawName string // RawName is the raw method name parsed from ABI
 	Inputs  Arguments
-
-	str string
 	// Sig returns the methods string signature according to the ABI spec.
 	// e.g.		function foo(uint32 a, int b) = "foo(uint32,int256)"
 	// Please note that "int" is substitute for its canonical representation "int256"
-	Sig Signature
+	Payments *Argument
+	Sig      Signature
 }
 
-// NewMethod creates a new Method.
-// A method should always be created using NewMethod.
-// It also precomputes the sig representation and the string representation
-// of the method.
-// TODO(nickeskov): remove outputs
-func NewMethod(rawName string, funType FunctionType, inputs, outputs Arguments) Method {
-	var (
-		inputNames  = make([]string, len(inputs))
-		outputNames = make([]string, len(outputs))
-	)
-	for i, input := range inputs {
-		inputNames[i] = fmt.Sprintf("%v %v", input.Type, input.Name)
-	}
-	for i, output := range outputs {
-		outputNames[i] = output.Type.String()
-		if len(output.Name) > 0 {
-			outputNames[i] += fmt.Sprintf(" %v", output.Name)
+func NewMethodFromRideFunctionMeta(rideF meta.Function, addPayments bool) (Method, error) {
+	args := make(Arguments, 0, len(rideF.Arguments))
+	for _, rideT := range rideF.Arguments {
+		// nickeskov: empty because we don't have any info in metadata about argument name
+		t, err := NewArgumentFromRideTypeMeta("", rideT)
+		if err != nil {
+			return Method{}, errors.Wrapf(err,
+				"failed to build ABI method with name %q from ride function metadata", rideF.Name,
+			)
 		}
+		args = append(args, t)
 	}
-	// calculate the signature and method id. Note only function
-	// has meaningful signature and id.
-	var (
-		sig Signature
-	)
-	if funType == Callable {
-		sig = NewSignature(rawName, inputs)
+	sig, err := NewSignatureFromRideFunctionMeta(rideF, addPayments)
+	if err != nil {
+		return Method{}, errors.Wrapf(err,
+			"failed to build function signature for ABI method with name %s", rideF.Name,
+		)
 	}
-
-	identity := fmt.Sprintf("function %v", rawName)
-	if funType == Verifier {
-		identity = "verifier"
+	var payments *Argument
+	if addPayments {
+		payments = &paymentsArgument
 	}
 
-	str := fmt.Sprintf("%v(%v) returns(%v)", identity, strings.Join(inputNames, ", "), strings.Join(outputNames, ", "))
-
-	return Method{
-		RawName: rawName,
-		Type:    funType,
-		Inputs:  inputs,
-		str:     str,
-		Sig:     sig,
+	meth := Method{
+		RawName:  rideF.Name,
+		Inputs:   args,
+		Payments: payments,
+		Sig:      sig,
 	}
+	return meth, nil
 }
 
 func (m *Method) String() string {
-	return m.str
+	return m.Sig.String()
 }
 
 func (m *Method) IsERC20() bool {

@@ -75,7 +75,8 @@ func tryAsInt64(rideT ride.RideType) (int64, error) {
 	switch rideInt := rideT.(type) {
 	case ride.RideInt:
 		return int64(rideInt), nil
-	case *ride.RideBigInt:
+
+	case ride.RideBigInt:
 		if !rideInt.V.IsInt64() {
 			return 0, errors.New(
 				"abi: failed to convert BigInt as int64, value too big",
@@ -135,6 +136,7 @@ func extractIndexFromFirstElemOfTuple(index int, t Type, output []byte) (int64, 
 		return 0, err
 	}
 	return tryAsInt64(rideT)
+
 }
 
 func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error) {
@@ -146,8 +148,7 @@ func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error)
 			"abi: failed to convert eth tuple to ride union, elements count of eth tuple must greater than 2",
 		)
 	}
-
-	unionIndex, err := extractIndexFromFirstElemOfTuple(0, *t.TupleElems[0], output)
+	unionIndex, err := extractIndexFromFirstElemOfTuple(0, t.TupleElems[0], output)
 	if err != nil {
 		return nil, err
 	}
@@ -162,14 +163,13 @@ func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error)
 	virtualArgs := 0
 	for index := 1; index < len(elems); index++ {
 		elem := elems[index]
-		marshalledValue, err := toRideType((index+virtualArgs)*32, *elem, output)
+		marshalledValue, err := toRideType((index+virtualArgs)*32, elem, output)
 		if err != nil {
 			return nil, err
 		}
-		if elem.T == TupleTy && !isDynamicType(*elem) {
-			// If we have a static tuple, like (uint256, bool, uint256), these are
-			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(*elem)/32 - 1
+		if elem.T == TupleTy && !isDynamicType(elem) {
+
+			virtualArgs += getTypeSize(elem)/32 - 1
 		}
 		retval = append(retval, marshalledValue)
 	}
@@ -184,15 +184,22 @@ type Payment struct {
 var (
 	paymentType = Type{
 		T: TupleTy,
-		TupleElems: []*Type{
+		TupleElems: []Type{
 			{T: AddressTy},
 			{Size: 64, T: IntTy},
 		},
-		TupleRawNames: []string{},
+		TupleRawNames: []string{
+			"id",
+			"value",
+		},
 	}
 	paymentsType = Type{
 		Elem: &paymentType,
 		T:    SliceTy,
+	}
+	paymentsArgument = Argument{
+		Name: "payments",
+		Type: paymentsType,
 	}
 )
 
@@ -205,7 +212,7 @@ func unpackPayment(output []byte) (Payment, error) {
 		amount  int64
 	)
 
-	assetRideValue, err := toRideType(0, *assetIDType, output)
+	assetRideValue, err := toRideType(0, assetIDType, output)
 	if err != nil {
 		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse assetID")
 	}
@@ -215,7 +222,7 @@ func unpackPayment(output []byte) (Payment, error) {
 		panic("BUG, CREATE REPORT: failed to parse payment, assetRideValue type must be RideBytes type")
 	}
 
-	amountRideValue, err := toRideType(1, *amountType, output)
+	amountRideValue, err := toRideType(1, amountType, output)
 	if err != nil {
 		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse amount")
 	}
@@ -257,7 +264,7 @@ func unpackPayments(output []byte) ([]Payment, error) {
 	for i := 0; i < size; i++ {
 		payment, err := unpackPayment(output[i*elemSize:])
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to unpack payment")
 		}
 		payments = append(payments, payment)
 	}
@@ -266,7 +273,7 @@ func unpackPayments(output []byte) ([]Payment, error) {
 
 // lengthPrefixPointsTo interprets a 32 byte slice as an offset and then determines which indices to look to decode the type.
 func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err error) {
-	// TODO(nickeskov): I have no idea how it works, but we should...
+	// nickeskov: I have no idea how it works, but we should...
 
 	bigOffsetEnd := big.NewInt(0).SetBytes(output[index : index+32])
 	bigOffsetEnd.Add(bigOffsetEnd, Big32)
