@@ -27,7 +27,7 @@ func getArgumentABI(argType *fourbyte.Type) (Arg, error) {
 
 	switch argType.T {
 	case fourbyte.TupleTy:
-		a.Type = "tuple[]"
+		a.Type = "tuple"
 		for i, tupleElem := range argType.TupleElems {
 			internalElem, err := getArgumentABI(&tupleElem)
 			if err != nil {
@@ -42,8 +42,8 @@ func getArgumentABI(argType *fourbyte.Type) (Arg, error) {
 		if err != nil {
 			return a, errors.Errorf("failed to parse slice type, %v", err)
 		}
-
 		a.Type = fmt.Sprintf("%s[]", internalElem.Type)
+		a.Components = internalElem.Components
 
 	case fourbyte.StringTy: // variable arrays are written at the end of the return bytes
 		a.Type = "string"
@@ -80,7 +80,12 @@ func getJsonAbi(metaDApp []fourbyte.Method) ([]byte, error) {
 			arguments = append(arguments, a)
 		}
 		if method.Payments != nil {
-			arguments = append(arguments, Arg{Name: "", Type: "tuple[]", Components: []Arg{{Name: "", Type: "address"}, {Name: "", Type: "int64"}}})
+			payment, err := getArgumentABI(&method.Payments.Type)
+			if err != nil {
+				return nil, errors.Errorf("failed to parse payments to json abi, %v", err)
+			}
+			payment.Name = method.Payments.Name
+			arguments = append(arguments, payment)
 		}
 
 		m := ABI{Name: method.RawName, Type: "function", Inputs: arguments}

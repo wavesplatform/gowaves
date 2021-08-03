@@ -184,33 +184,45 @@ var TestMethodWithAllTypes = []fourbyte.Method{
 	{
 		RawName: "testFunction",
 		Inputs: fourbyte.Arguments{
-			{Name: "", Type: fourbyte.Type{T: fourbyte.StringTy, StringKind: "string"}},
-			{Name: "", Type: fourbyte.Type{T: fourbyte.IntTy, StringKind: "int64"}},
-			{Name: "", Type: fourbyte.Type{T: fourbyte.BytesTy, StringKind: "bytes"}},
-			{Name: "", Type: fourbyte.Type{T: fourbyte.BoolTy, StringKind: "bool"}},
+			{Name: "stringVar", Type: fourbyte.Type{T: fourbyte.StringTy}},
+			{Name: "intVar", Type: fourbyte.Type{T: fourbyte.IntTy}},
+			{Name: "bytesVar", Type: fourbyte.Type{T: fourbyte.BytesTy}},
+			{Name: "boolVar", Type: fourbyte.Type{T: fourbyte.BoolTy}},
 			{
-				Name: "",
+				Name: "sliceVar",
 				Type: fourbyte.Type{
 					T:    fourbyte.SliceTy,
-					Elem: &fourbyte.Type{T: fourbyte.IntTy, StringKind: "int64"}},
+					Elem: &fourbyte.Type{T: fourbyte.IntTy}},
 			},
 			{
-				Name: "",
+				Name: "tupleSliceVar",
 				Type: fourbyte.Type{
-					T:          fourbyte.TupleTy,
-					StringKind: "(uint8,string,bool,int64,bytes)",
+					T: fourbyte.TupleTy,
 					TupleElems: []fourbyte.Type{
-						{T: fourbyte.UintTy, StringKind: "uint8"},
-						{T: fourbyte.StringTy, StringKind: "string"},
-						{T: fourbyte.BoolTy, StringKind: "bool"},
-						{T: fourbyte.IntTy, StringKind: "int64"},
-						{T: fourbyte.BytesTy, StringKind: "bytes"},
+						{T: fourbyte.UintTy},
+						{T: fourbyte.StringTy},
+						{T: fourbyte.BoolTy},
+						{T: fourbyte.IntTy},
+						{T: fourbyte.BytesTy},
 					},
-					TupleRawNames: make([]string, 5),
+					TupleRawNames: []string{"uintVar", "stringVar", "boolVar", "intVar", "bytesVar"},
 				},
 			},
 		},
-		Payments: &fourbyte.Argument{},
+		Payments: &fourbyte.Argument{
+			Name: "payments",
+			Type: fourbyte.Type{
+				T: fourbyte.SliceTy,
+				Elem: &fourbyte.Type{
+					T: fourbyte.TupleTy,
+					TupleElems: []fourbyte.Type{
+						{T: fourbyte.IntTy, StringKind: "int64"},
+						{T: fourbyte.AddressTy, StringKind: "address"},
+					},
+					TupleRawNames: []string{"number", "addr"},
+				},
+			},
+		},
 	},
 }
 
@@ -222,62 +234,62 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
     "type": "function",
     "inputs": [
       {
-        "name": "",
+        "name": "stringVar",
         "type": "string"
       },
       {
-        "name": "",
+        "name": "intVar",
         "type": "int64"
       },
       {
-        "name": "",
+        "name": "bytesVar",
         "type": "bytes"
       },
       {
-        "name": "",
+        "name": "boolVar",
         "type": "bool"
       },
       {
-        "name": "",
+        "name": "sliceVar",
         "type": "int64[]"
       },
       {
-        "name": "",
-        "type": "tuple[]",
+        "name": "tupleSliceVar",
+        "type": "tuple",
         "components": [
           {
-            "name": "",
+            "name": "uintVar",
             "type": "uint8"
           },
           {
-            "name": "",
+            "name": "stringVar",
             "type": "string"
           },
           {
-            "name": "",
+            "name": "boolVar",
             "type": "bool"
           },
           {
-            "name": "",
+            "name": "intVar",
             "type": "int64"
           },
           {
-            "name": "",
+            "name": "bytesVar",
             "type": "bytes"
           }
         ]
       },
       {
-        "name": "",
+        "name": "payments",
         "type": "tuple[]",
         "components": [
           {
-            "name": "",
-            "type": "address"
+            "name": "number",
+            "type": "int64"
           },
           {
-            "name": "",
-            "type": "int64"
+            "name": "addr",
+            "type": "bytes"
           }
         ]
       }
@@ -291,6 +303,7 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
 
 	resJsonABI, err := getJsonAbi(TestMethodWithAllTypes)
 	require.NoError(t, err)
+	fmt.Println(string(resJsonABI))
 	var abi []ABI
 	err = json.Unmarshal(resJsonABI, &abi)
 	require.NoError(t, err)
