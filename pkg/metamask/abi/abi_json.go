@@ -7,24 +7,25 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/metamask/abi/fourbyte"
 )
 
-type Arg struct {
-	Name       string `json:"name"`
-	Type       string `json:"type"`
-	Components []Arg  `json:"components,omitempty"`
+type argABI struct {
+	Name       string   `json:"name"`
+	Type       string   `json:"type"`
+	Components []argABI `json:"components,omitempty"`
 }
 
-type ABI struct {
-	Name   string `json:"name"`
-	Type   string `json:"type"`
-	Inputs []Arg  `json:"inputs"`
+type abi struct {
+	Name   string   `json:"name"`
+	Type   string   `json:"type"`
+	Inputs []argABI `json:"inputs"`
 }
 
-func getArgumentABI(argType *fourbyte.Type) (Arg, error) {
-	a := Arg{}
+func getArgumentABI(argType *fourbyte.Type) (argABI, error) {
+	a := argABI{}
 	if argType == nil {
 		return a, nil
 	}
 
+	// this is the types that correspond with Ride
 	switch argType.T {
 	case fourbyte.TupleTy:
 		a.Type = "tuple"
@@ -65,10 +66,10 @@ func getArgumentABI(argType *fourbyte.Type) (Arg, error) {
 }
 
 func getJsonAbi(metaDApp []fourbyte.Method) ([]byte, error) {
-	var abi []ABI
+	var abiResult []abi
 
 	for _, method := range metaDApp {
-		arguments := make([]Arg, 0)
+		arguments := make([]argABI, 0)
 		for _, arg := range method.Inputs {
 			a, err := getArgumentABI(&arg.Type)
 			if err != nil {
@@ -87,9 +88,9 @@ func getJsonAbi(metaDApp []fourbyte.Method) ([]byte, error) {
 			arguments = append(arguments, payment)
 		}
 
-		m := ABI{Name: method.RawName, Type: "function", Inputs: arguments}
-		abi = append(abi, m)
+		m := abi{Name: method.RawName, Type: "function", Inputs: arguments}
+		abiResult = append(abiResult, m)
 	}
 
-	return json.MarshalIndent(abi, "", "  ")
+	return json.MarshalIndent(abiResult, "", "  ")
 }
