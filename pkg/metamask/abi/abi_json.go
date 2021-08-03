@@ -92,5 +92,5 @@ func getJsonAbi(metaDApp []fourbyte.Method) ([]byte, error) {
 		abiResult = append(abiResult, m)
 	}
 
-	return json.MarshalIndent(abiResult, "", "  ")
+	return json.Marshal(abiResult)
 }

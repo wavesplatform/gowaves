@@ -160,21 +160,21 @@ func TestJsonAbi(t *testing.T) {
   }
 ]
 `
-	var expectedABI []ABI
+	var expectedABI []abi
 	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
 
 	resJsonABI, err := getJsonAbi(TestErc20Methods)
 	require.NoError(t, err)
 	fmt.Println(string(resJsonABI))
-	var abi []ABI
-	err = json.Unmarshal(resJsonABI, &abi)
+	var abiRes []abi
+	err = json.Unmarshal(resJsonABI, &abiRes)
 	require.NoError(t, err)
 
-	sort.Slice(abi, func(i, j int) bool { return abi[i].Name < abi[j].Name })
+	sort.Slice(abiRes, func(i, j int) bool { return abiRes[i].Name < abiRes[j].Name })
 	sort.Slice(expectedABI, func(i, j int) bool { return expectedABI[i].Name < expectedABI[j].Name })
 
-	require.Equal(t, expectedABI, abi)
+	require.Equal(t, expectedABI, abiRes)
 }
 
 var TestMethodWithAllTypes = []fourbyte.Method{
@@ -294,21 +294,21 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
   }
 ]
 `
-	var expectedABI []ABI
+	var expectedABI []abi
 	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
 
 	resJsonABI, err := getJsonAbi(TestMethodWithAllTypes)
 	require.NoError(t, err)
 	fmt.Println(string(resJsonABI))
-	var abi []ABI
-	err = json.Unmarshal(resJsonABI, &abi)
+	var abiRes []abi
+	err = json.Unmarshal(resJsonABI, &abiRes)
 	require.NoError(t, err)
 
-	sort.Slice(abi, func(i, j int) bool { return abi[i].Name < abi[j].Name })
+	sort.Slice(abiRes, func(i, j int) bool { return abiRes[i].Name < abiRes[j].Name })
 	sort.Slice(expectedABI, func(i, j int) bool { return expectedABI[i].Name < expectedABI[j].Name })
 
-	require.Equal(t, expectedABI, abi)
+	require.Equal(t, expectedABI, abiRes)
 }
 
 func TestParsingABIUsingRideMeta(t *testing.T) {
