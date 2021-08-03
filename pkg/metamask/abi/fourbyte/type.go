@@ -23,6 +23,7 @@ const (
 
 // Type is the reflection of the supported argument type.
 type Type struct {
+	// TODO change type of elem to `Argument`
 	Elem *Type // nested types for SliceTy
 	Size int
 	T    ArgT // Our own type checking
