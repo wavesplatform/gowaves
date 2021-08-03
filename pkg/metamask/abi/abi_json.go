@@ -43,7 +43,7 @@ func getArgumentABI(argType *fourbyte.Type) (Arg, error) {
 			return a, errors.Errorf("failed to parse slice type, %v", err)
 		}
 
-		a.Type = fmt.Sprintf(internalElem.Type, "[]")
+		a.Type = fmt.Sprintf("%s[]", internalElem.Type)
 
 	case fourbyte.StringTy: // variable arrays are written at the end of the return bytes
 		a.Type = "string"
@@ -65,7 +65,7 @@ func getArgumentABI(argType *fourbyte.Type) (Arg, error) {
 	return a, nil
 }
 
-func getJsonAbi(metaDApp map[fourbyte.Selector]fourbyte.Method) ([]byte, error) {
+func getJsonAbi(metaDApp []fourbyte.Method) ([]byte, error) {
 	var abi []ABI
 
 	for _, method := range metaDApp {
@@ -87,5 +87,5 @@ func getJsonAbi(metaDApp map[fourbyte.Selector]fourbyte.Method) ([]byte, error) 
 		abi = append(abi, m)
 	}
 
-	return json.Marshal(abi)
+	return json.MarshalIndent(abi, "", "  ")
 }
