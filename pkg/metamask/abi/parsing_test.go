@@ -3,6 +3,7 @@ package abi
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"github.com/wavesplatform/gowaves/pkg/metamask/abi/fourbyte"
@@ -78,85 +79,236 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 	require.Equal(t, "10", callData.Inputs[4].Value.(ride.RideBigInt).String())
 }
 
+var TestErc20Methods = []fourbyte.Method{
+	{
+		RawName: "transfer",
+		Inputs: fourbyte.Arguments{
+			fourbyte.Argument{
+				Name: "_to",
+				Type: fourbyte.Type{
+					T: fourbyte.AddressTy,
+				},
+			},
+			fourbyte.Argument{
+				Name: "_value",
+				Type: fourbyte.Type{
+					T: fourbyte.IntTy,
+				},
+			},
+		},
+		Payments: nil,
+	}, {
+		RawName: "transferFrom",
+		Inputs: fourbyte.Arguments{
+			fourbyte.Argument{
+				Name: "_from",
+				Type: fourbyte.Type{
+					T: fourbyte.AddressTy,
+				},
+			},
+			fourbyte.Argument{
+				Name: "_to",
+				Type: fourbyte.Type{
+					T: fourbyte.AddressTy,
+				},
+			},
+			fourbyte.Argument{
+				Name: "_value",
+				Type: fourbyte.Type{
+					T: fourbyte.IntTy,
+				},
+			},
+		},
+		Payments: nil,
+	},
+}
+
 func TestJsonAbi(t *testing.T) {
 	expectedJson := `
-	[
-	  {
-		"name":"transfer",
-		"type":"function",
-		"inputs": [
-		  {
-			"name":"_to",
-			"type":"address"
-		  },
-		  {
-			"name":"_value",
-			"type":"uint256"
-		  },
-		  {
-			"name":"",
-			"type":"tuple[]",
-			"components": [
-			  {
-				"name": "",
-				"type": "address"
-			  },
-			  {
-			    "name": "",
-			    "type": "uint256"
-			  }
-            ]
-		  }
-		]
-	  },
-	  {
-	    "name":"transferFrom",
-		"type":"function",
-		"inputs": [
-		  {
-			"name":"_from",
-			"type":"address"
-		  },
-		  {
-			"name":"_to",
-			"type":"address"
-		  },
-		  {
-			"name":"_value",
-			"type":"uint256"
-		  },
-		  {
-			"name":"",
-			"type":"tuple[]",
-			"components": [
-			  {
-				"name": "",
-				"type": "address"
-			  },
-			  {
-			    "name": "",
-			    "type": "uint256"
-			  }
-            ]
-		  }
-		]
-	  }
-	]
+[
+  {
+    "name": "transfer",
+    "type": "function",
+    "inputs": [
+      {
+        "name": "_to",
+        "type": "bytes"
+      },
+      {
+        "name": "_value",
+        "type": "int64"
+      }
+    ]
+  },
+  {
+    "name": "transferFrom",
+    "type": "function",
+    "inputs": [
+      {
+        "name": "_from",
+        "type": "bytes"
+      },
+      {
+        "name": "_to",
+        "type": "bytes"
+      },
+      {
+        "name": "_value",
+        "type": "int64"
+      }
+    ]
+  }
+]
 `
-	var expectedABI []ABI
+	var expectedABI []abi
 	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
 
-	resJsonABI, err := getJsonAbi(fourbyte.Erc20Methods)
+	resJsonABI, err := getJsonAbi(TestErc20Methods)
 	require.NoError(t, err)
-	var abi []ABI
-	err = json.Unmarshal(resJsonABI, &abi)
+	fmt.Println(string(resJsonABI))
+	var abiRes []abi
+	err = json.Unmarshal(resJsonABI, &abiRes)
 	require.NoError(t, err)
 
-	sort.Slice(abi, func(i, j int) bool { return abi[i].Name < abi[j].Name })
+	sort.Slice(abiRes, func(i, j int) bool { return abiRes[i].Name < abiRes[j].Name })
 	sort.Slice(expectedABI, func(i, j int) bool { return expectedABI[i].Name < expectedABI[j].Name })
 
-	require.Equal(t, expectedABI, abi)
+	require.Equal(t, expectedABI, abiRes)
+}
+
+var TestMethodWithAllTypes = []fourbyte.Method{
+	{
+		RawName: "testFunction",
+		Inputs: fourbyte.Arguments{
+			{Name: "stringVar", Type: fourbyte.Type{T: fourbyte.StringTy}},
+			{Name: "intVar", Type: fourbyte.Type{T: fourbyte.IntTy}},
+			{Name: "bytesVar", Type: fourbyte.Type{T: fourbyte.BytesTy}},
+			{Name: "boolVar", Type: fourbyte.Type{T: fourbyte.BoolTy}},
+			{
+				Name: "sliceVar",
+				Type: fourbyte.Type{
+					T:    fourbyte.SliceTy,
+					Elem: &fourbyte.Type{T: fourbyte.IntTy}},
+			},
+			{
+				Name: "tupleSliceVar",
+				Type: fourbyte.Type{
+					T: fourbyte.TupleTy,
+					TupleElems: []fourbyte.Type{
+						{T: fourbyte.UintTy},
+						{T: fourbyte.StringTy},
+						{T: fourbyte.BoolTy},
+						{T: fourbyte.IntTy},
+						{T: fourbyte.BytesTy},
+					},
+					TupleRawNames: []string{"uintVar", "stringVar", "boolVar", "intVar", "bytesVar"},
+				},
+			},
+		},
+		Payments: &fourbyte.Argument{
+			Name: "payments",
+			Type: fourbyte.Type{
+				T: fourbyte.SliceTy,
+				Elem: &fourbyte.Type{
+					T: fourbyte.TupleTy,
+					TupleElems: []fourbyte.Type{
+						{T: fourbyte.IntTy},
+						{T: fourbyte.AddressTy},
+					},
+					TupleRawNames: []string{"number", "addr"},
+				},
+			},
+		},
+	},
+}
+
+func TestJsonAbiWithAllTypes(t *testing.T) {
+	expectedJson := `
+[
+  {
+    "name": "testFunction",
+    "type": "function",
+    "inputs": [
+      {
+        "name": "stringVar",
+        "type": "string"
+      },
+      {
+        "name": "intVar",
+        "type": "int64"
+      },
+      {
+        "name": "bytesVar",
+        "type": "bytes"
+      },
+      {
+        "name": "boolVar",
+        "type": "bool"
+      },
+      {
+        "name": "sliceVar",
+        "type": "int64[]"
+      },
+      {
+        "name": "tupleSliceVar",
+        "type": "tuple",
+        "components": [
+          {
+            "name": "uintVar",
+            "type": "uint8"
+          },
+          {
+            "name": "stringVar",
+            "type": "string"
+          },
+          {
+            "name": "boolVar",
+            "type": "bool"
+          },
+          {
+            "name": "intVar",
+            "type": "int64"
+          },
+          {
+            "name": "bytesVar",
+            "type": "bytes"
+          }
+        ]
+      },
+      {
+        "name": "payments",
+        "type": "tuple[]",
+        "components": [
+          {
+            "name": "number",
+            "type": "int64"
+          },
+          {
+            "name": "addr",
+            "type": "bytes"
+          }
+        ]
+      }
+    ]
+  }
+]
+`
+	var expectedABI []abi
+	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
+	require.NoError(t, err)
+
+	resJsonABI, err := getJsonAbi(TestMethodWithAllTypes)
+	require.NoError(t, err)
+	fmt.Println(string(resJsonABI))
+	var abiRes []abi
+	err = json.Unmarshal(resJsonABI, &abiRes)
+	require.NoError(t, err)
+
+	sort.Slice(abiRes, func(i, j int) bool { return abiRes[i].Name < abiRes[j].Name })
+	sort.Slice(expectedABI, func(i, j int) bool { return expectedABI[i].Name < expectedABI[j].Name })
+
+	require.Equal(t, expectedABI, abiRes)
 }
 
 func TestParsingABIUsingRideMeta(t *testing.T) {
