@@ -13,13 +13,13 @@ import (
 const (
 	selectorLen = 4
 
-	addressSize = 20
+	AddressSize = 20
 	uint256Size = 256
 )
 
 const (
-	erc20TransferSignature     Signature = "transfer(address,uint256)"
-	erc20TransferFromSignature Signature = "transferFrom(address,address,uint256)"
+	Erc20TransferSignature     Signature = "transfer(address,uint256)"
+	Erc20TransferFromSignature Signature = "transferFrom(address,address,uint256)"
 )
 
 type Signature string
@@ -251,15 +251,15 @@ func (ftb functionTextBuilder) MarshalText() (text []byte, err error) {
 }
 
 var Erc20Methods = map[Selector]Method{
-	erc20TransferSignature.Selector(): {
+	Erc20TransferSignature.Selector(): {
 		RawName: "transfer",
 		Inputs: Arguments{
 			Argument{
 				Name: "_to",
 				Type: Type{
-					Size:       addressSize,
+					Size:       AddressSize,
 					T:          AddressTy,
-					stringKind: "address",
+					StringKind: "address",
 				},
 			},
 			Argument{
@@ -267,30 +267,30 @@ var Erc20Methods = map[Selector]Method{
 				Type: Type{
 					Size:       uint256Size,
 					T:          UintTy,
-					stringKind: "uint256",
+					StringKind: "uint256",
 				},
 			},
 		},
 		Payments: nil,
-		Sig:      erc20TransferSignature,
+		Sig:      Erc20TransferSignature,
 	},
-	erc20TransferFromSignature.Selector(): {
+	Erc20TransferFromSignature.Selector(): {
 		RawName: "transferFrom",
 		Inputs: Arguments{
 			Argument{
 				Name: "_from",
 				Type: Type{
-					Size:       addressSize,
+					Size:       AddressSize,
 					T:          AddressTy,
-					stringKind: "address",
+					StringKind: "address",
 				},
 			},
 			Argument{
 				Name: "_to",
 				Type: Type{
-					Size:       addressSize,
+					Size:       AddressSize,
 					T:          AddressTy,
-					stringKind: "address",
+					StringKind: "address",
 				},
 			},
 			Argument{
@@ -298,11 +298,11 @@ var Erc20Methods = map[Selector]Method{
 				Type: Type{
 					Size:       uint256Size,
 					T:          UintTy,
-					stringKind: "uint256",
+					StringKind: "uint256",
 				},
 			},
 		},
 		Payments: nil,
-		Sig:      erc20TransferFromSignature,
+		Sig:      Erc20TransferFromSignature,
 	},
 }

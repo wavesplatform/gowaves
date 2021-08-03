@@ -78,6 +78,54 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 	require.Equal(t, "10", callData.Inputs[4].Value.(ride.RideBigInt).String())
 }
 
+var TestErc20Methods = map[fourbyte.Selector]fourbyte.Method{
+	fourbyte.Erc20TransferSignature.Selector(): {
+		RawName: "transfer",
+		Inputs: fourbyte.Arguments{
+			fourbyte.Argument{
+				Name: "_to",
+				Type: fourbyte.Type{
+					T:          fourbyte.AddressTy,
+					StringKind: "address",
+				},
+			},
+			fourbyte.Argument{
+				Name: "_value",
+				Type: fourbyte.Type{
+					T: fourbyte.IntTy,
+				},
+			},
+		},
+		Payments: nil,
+	},
+	fourbyte.Erc20TransferFromSignature.Selector(): {
+		RawName: "transferFrom",
+		Inputs: fourbyte.Arguments{
+			fourbyte.Argument{
+				Name: "_from",
+				Type: fourbyte.Type{
+					T:          fourbyte.AddressTy,
+					StringKind: "address",
+				},
+			},
+			fourbyte.Argument{
+				Name: "_to",
+				Type: fourbyte.Type{
+					T:          fourbyte.AddressTy,
+					StringKind: "address",
+				},
+			},
+			fourbyte.Argument{
+				Name: "_value",
+				Type: fourbyte.Type{
+					T: fourbyte.IntTy,
+				},
+			},
+		},
+		Payments: nil,
+	},
+}
+
 func TestJsonAbi(t *testing.T) {
 	expectedJson := `
 	[
@@ -87,25 +135,11 @@ func TestJsonAbi(t *testing.T) {
 		"inputs": [
 		  {
 			"name":"_to",
-			"type":"address"
+			"type":"bytes"
 		  },
 		  {
 			"name":"_value",
-			"type":"uint256"
-		  },
-		  {
-			"name":"",
-			"type":"tuple[]",
-			"components": [
-			  {
-				"name": "",
-				"type": "address"
-			  },
-			  {
-			    "name": "",
-			    "type": "uint256"
-			  }
-            ]
+			"type":"int64"
 		  }
 		]
 	  },
@@ -115,29 +149,15 @@ func TestJsonAbi(t *testing.T) {
 		"inputs": [
 		  {
 			"name":"_from",
-			"type":"address"
+			"type":"bytes"
 		  },
 		  {
 			"name":"_to",
-			"type":"address"
+			"type":"bytes"
 		  },
 		  {
 			"name":"_value",
-			"type":"uint256"
-		  },
-		  {
-			"name":"",
-			"type":"tuple[]",
-			"components": [
-			  {
-				"name": "",
-				"type": "address"
-			  },
-			  {
-			    "name": "",
-			    "type": "uint256"
-			  }
-            ]
+			"type":"int64"
 		  }
 		]
 	  }
@@ -147,7 +167,7 @@ func TestJsonAbi(t *testing.T) {
 	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
 
-	resJsonABI, err := getJsonAbi(fourbyte.Erc20Methods)
+	resJsonABI, err := getJsonAbi(TestErc20Methods)
 	require.NoError(t, err)
 	var abi []ABI
 	err = json.Unmarshal(resJsonABI, &abi)

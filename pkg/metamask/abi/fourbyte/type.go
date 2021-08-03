@@ -27,7 +27,7 @@ type Type struct {
 	Size int
 	T    ArgT // Our own type checking
 
-	stringKind string // holds the unparsed string for deriving signatures
+	StringKind string // holds the unparsed string for deriving signatures
 
 	// Tuple relative fields
 	TupleRawName  string   // Raw struct name defined in source code, may be empty.
@@ -36,7 +36,7 @@ type Type struct {
 }
 
 func (t *Type) String() string {
-	return t.stringKind
+	return t.StringKind
 }
 
 // requiresLengthPrefix returns whether the type requires any sort of length prefixing.
@@ -119,7 +119,7 @@ func AbiTypeFromRideTypeMeta(metaT meta.Type) (abiT Type, err error) {
 			Type{
 				Size:       indexElemStrKindMarshaler.size,
 				T:          UintTy,
-				stringKind: string(indexElemStringKind),
+				StringKind: string(indexElemStringKind),
 			},
 		)
 		for _, unitT := range t {
@@ -148,7 +148,7 @@ func AbiTypeFromRideTypeMeta(metaT meta.Type) (abiT Type, err error) {
 	if err != nil {
 		return Type{}, errors.Wrapf(err, "failed to create stringKind for ride meta type %T", metaT)
 	}
-	abiT.stringKind = string(stringKind)
+	abiT.StringKind = string(stringKind)
 
 	return abiT, nil
 }
