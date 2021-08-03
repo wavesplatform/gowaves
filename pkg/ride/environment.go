@@ -385,7 +385,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		return true, nil
 	}
 
-	txID, err := crypto.NewDigestFromBytes(env.txID().(rideBytes))
+	txID, err := crypto.NewDigestFromBytes(env.txID().(RideBytes))
 	if err != nil {
 		return false, err
 	}
@@ -1053,14 +1053,14 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 type EvaluationEnvironment struct {
 	sch     proto.Scheme
 	st      types.SmartState
-	h       rideInt
+	h       RideInt
 	tx      rideObject
-	id      rideType
-	th      rideType
+	id      RideType
+	th      RideType
 	time    uint64
 	b       rideObject
 	check   func(int) bool
-	takeStr func(s string, n int) rideString
+	takeStr func(s string, n int) RideString
 	inv     rideObject
 	ver     int
 }
@@ -1074,9 +1074,9 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*EvaluationEnv
 	return &EvaluationEnvironment{
 		sch:     scheme,
 		st:      state,
-		h:       rideInt(height),
+		h:       RideInt(height),
 		check:   func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
-		takeStr: func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
+		takeStr: func(s string, n int) RideString { panic("function 'takeStr' was not initialized") },
 	}, nil
 }
 
@@ -1171,7 +1171,7 @@ func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) {
 }
 
 func (e *EvaluationEnvironment) SetTransactionFromScriptTransfer(transfer *proto.FullScriptTransfer) {
-	e.id = rideBytes(transfer.ID.Bytes())
+	e.id = RideBytes(transfer.ID.Bytes())
 	e.tx = scriptTransferToObject(transfer)
 }
 
@@ -1198,7 +1198,7 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 	if err != nil {
 		return err
 	}
-	e.id = rideBytes(id)
+	e.id = RideBytes(id)
 	obj, err := transactionToObject(e.sch, tx)
 	if err != nil {
 		return err
@@ -1233,7 +1233,7 @@ func (e *EvaluationEnvironment) scheme() byte {
 	return e.sch
 }
 
-func (e *EvaluationEnvironment) height() rideInt {
+func (e *EvaluationEnvironment) height() RideInt {
 	return e.h
 }
 
@@ -1241,7 +1241,7 @@ func (e *EvaluationEnvironment) transaction() rideObject {
 	return e.tx
 }
 
-func (e *EvaluationEnvironment) this() rideType {
+func (e *EvaluationEnvironment) this() RideType {
 	return e.th
 }
 
@@ -1249,7 +1249,7 @@ func (e *EvaluationEnvironment) block() rideObject {
 	return e.b
 }
 
-func (e *EvaluationEnvironment) txID() rideType {
+func (e *EvaluationEnvironment) txID() RideType {
 	return e.id
 }
 
@@ -1268,7 +1268,7 @@ func (e *EvaluationEnvironment) checkMessageLength(l int) bool {
 	return e.check(l)
 }
 
-func (e *EvaluationEnvironment) takeString(s string, n int) rideString {
+func (e *EvaluationEnvironment) takeString(s string, n int) RideString {
 	return e.takeStr(s, n)
 }
 

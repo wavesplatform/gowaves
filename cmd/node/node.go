@@ -51,16 +51,17 @@ var version = proto.Version{Major: 1, Minor: 3, Patch: 0}
 const maxTransactionTimeForwardOffset = 300 // seconds
 
 var (
-	logLevel                              = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath                             = flag.String("state-path", "", "Path to node's state directory")
-	blockchainType                        = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
-	peerAddresses                         = flag.String("peers", "", "Addresses of peers to connect to")
-	declAddr                              = flag.String("declared-address", "", "Address to listen on")
-	nodeName                              = flag.String("name", "gowaves", "Node name.")
-	cfgPath                               = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
-	apiAddr                               = flag.String("api-address", "", "Address for REST API")
-	apiKey                                = flag.String("api-key", "", "Api key")
-	grpcAddr                              = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	logLevel       = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath      = flag.String("state-path", "", "Path to node's state directory")
+	blockchainType = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
+	peerAddresses  = flag.String("peers", "", "Addresses of peers to connect to")
+	declAddr       = flag.String("declared-address", "", "Address to listen on")
+	nodeName       = flag.String("name", "gowaves", "Node name.")
+	cfgPath        = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
+	apiAddr        = flag.String("api-address", "", "Address for REST API")
+	apiKey         = flag.String("api-key", "", "Api key")
+	grpcAddr       = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	//enableMetaMaskService                 = flag.Bool("enable-metamask", true, "Enables/disables metamask service")
 	enableGrpcApi                         = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
 	buildExtendedApi                      = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
 	serveExtendedApi                      = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
@@ -136,6 +137,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("drop-peers: %v", *dropPeers)
 	zap.S().Debugf("file-descriptors: %v", *fileDescriptors)
 	zap.S().Debugf("db-file-descriptors-rate: %v", *dbFileDescriptorsRate)
+	//zap.S().Debugf("enableMetaMaskService: %v", *enableMetaMaskService)
 }
 
 func main() {
@@ -439,6 +441,18 @@ func main() {
 			}
 		}()
 	}
+
+	// TODO(nickeskov): add into a next release
+	//address := ":8545"
+	//if *enableMetaMaskService {
+	//	go func() {
+	//		zap.S().Infof("Starting metamask service on %s...", address)
+	//		err := metamask.RunMetaMaskService(ctx, address, st)
+	//		if err != nil {
+	//			zap.S().Errorf("metamask service: %v", err)
+	//		}
+	//	}()
+	//}
 
 	var gracefulStop = make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM)

@@ -13,21 +13,21 @@ import (
 
 const maxBytesLength = 65536
 
-func bytesArg(args []rideType) (rideBytes, error) {
+func bytesArg(args []RideType) (RideBytes, error) {
 	if len(args) != 1 {
 		return nil, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
 	}
 	if args[0] == nil {
 		return nil, errors.Errorf("argument 1 is empty")
 	}
-	b, ok := args[0].(rideBytes)
+	b, ok := args[0].(RideBytes)
 	if !ok {
 		return nil, errors.Errorf("argument 1 is not of type 'ByteVector' but '%s'", args[0].instanceOf())
 	}
 	return b, nil
 }
 
-func bytesAndIntArgs(args []rideType) ([]byte, int, error) {
+func bytesAndIntArgs(args []RideType) ([]byte, int, error) {
 	if len(args) != 2 {
 		return nil, 0, errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
 	}
@@ -37,18 +37,18 @@ func bytesAndIntArgs(args []rideType) ([]byte, int, error) {
 	if args[1] == nil {
 		return nil, 0, errors.Errorf("argument 2 is empty")
 	}
-	b, ok := args[0].(rideBytes)
+	b, ok := args[0].(RideBytes)
 	if !ok {
 		return nil, 0, errors.Errorf("argument 1 is not of type 'ByteVector' but '%s'", args[0].instanceOf())
 	}
-	i, ok := args[1].(rideInt)
+	i, ok := args[1].(RideInt)
 	if !ok {
 		return nil, 0, errors.Errorf("argument 2 is not of type 'Int' but '%s'", args[1].instanceOf())
 	}
 	return b, int(i), nil
 }
 
-func bytesArgs2(args []rideType) (rideBytes, rideBytes, error) {
+func bytesArgs2(args []RideType) (RideBytes, RideBytes, error) {
 	if len(args) != 2 {
 		return nil, nil, errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
 	}
@@ -58,18 +58,18 @@ func bytesArgs2(args []rideType) (rideBytes, rideBytes, error) {
 	if args[1] == nil {
 		return nil, nil, errors.Errorf("argument 2 is empty")
 	}
-	b1, ok := args[0].(rideBytes)
+	b1, ok := args[0].(RideBytes)
 	if !ok {
 		return nil, nil, errors.Errorf("argument 1 is not of type 'ByteVector' but '%s'", args[0].instanceOf())
 	}
-	b2, ok := args[1].(rideBytes)
+	b2, ok := args[1].(RideBytes)
 	if !ok {
 		return nil, nil, errors.Errorf("argument 2 is not of type 'ByteVector' but '%s'", args[1].instanceOf())
 	}
 	return b1, b2, nil
 }
 
-func bytesOrUnitArgAsBytes(args ...rideType) ([]byte, error) {
+func bytesOrUnitArgAsBytes(args ...RideType) ([]byte, error) {
 	if len(args) != 1 {
 		return nil, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
 	}
@@ -77,7 +77,7 @@ func bytesOrUnitArgAsBytes(args ...rideType) ([]byte, error) {
 		return nil, errors.Errorf("argument is empty")
 	}
 	switch arg := args[0].(type) {
-	case rideBytes:
+	case RideBytes:
 		return arg, nil
 	case rideUnit:
 		return nil, nil
@@ -86,15 +86,15 @@ func bytesOrUnitArgAsBytes(args ...rideType) ([]byte, error) {
 	}
 }
 
-func sizeBytes(_ Environment, args ...rideType) (rideType, error) {
+func sizeBytes(_ Environment, args ...RideType) (RideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sizeBytes")
 	}
-	return rideInt(len(b)), nil
+	return RideInt(len(b)), nil
 }
 
-func takeBytes(_ Environment, args ...rideType) (rideType, error) {
+func takeBytes(_ Environment, args ...RideType) (RideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeBytes")
@@ -102,7 +102,7 @@ func takeBytes(_ Environment, args ...rideType) (rideType, error) {
 	return takeRideBytes(b, n), nil
 }
 
-func dropBytes(_ Environment, args ...rideType) (rideType, error) {
+func dropBytes(_ Environment, args ...RideType) (RideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropBytes")
@@ -110,7 +110,7 @@ func dropBytes(_ Environment, args ...rideType) (rideType, error) {
 	return dropRideBytes(b, n), nil
 }
 
-func concatBytes(_ Environment, args ...rideType) (rideType, error) {
+func concatBytes(_ Environment, args ...RideType) (RideType, error) {
 	b1, b2, err := bytesArgs2(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "concatBytes")
@@ -122,42 +122,42 @@ func concatBytes(_ Environment, args ...rideType) (rideType, error) {
 	out := make([]byte, l)
 	copy(out, b1)
 	copy(out[len(b1):], b2)
-	return rideBytes(out), nil
+	return RideBytes(out), nil
 }
 
-func toBase58(_ Environment, args ...rideType) (rideType, error) {
+func toBase58(_ Environment, args ...RideType) (RideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase58")
 	}
-	return rideString(base58.Encode(b)), nil
+	return RideString(base58.Encode(b)), nil
 }
 
-func fromBase58(_ Environment, args ...rideType) (rideType, error) {
+func fromBase58(_ Environment, args ...RideType) (RideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase58")
 	}
 	str := string(s)
 	if str == "" {
-		return rideBytes{}, nil
+		return RideBytes{}, nil
 	}
 	r, err := base58.Decode(str)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase58")
 	}
-	return rideBytes(r), nil
+	return RideBytes(r), nil
 }
 
-func toBase64(_ Environment, args ...rideType) (rideType, error) {
+func toBase64(_ Environment, args ...RideType) (RideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase64")
 	}
-	return rideString(base64.StdEncoding.EncodeToString(b)), nil
+	return RideString(base64.StdEncoding.EncodeToString(b)), nil
 }
 
-func fromBase64(_ Environment, args ...rideType) (rideType, error) {
+func fromBase64(_ Environment, args ...RideType) (RideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase64")
@@ -169,20 +169,20 @@ func fromBase64(_ Environment, args ...rideType) (rideType, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "fromBase64")
 		}
-		return rideBytes(decoded), nil
+		return RideBytes(decoded), nil
 	}
-	return rideBytes(decoded), nil
+	return RideBytes(decoded), nil
 }
 
-func toBase16(_ Environment, args ...rideType) (rideType, error) {
+func toBase16(_ Environment, args ...RideType) (RideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase16")
 	}
-	return rideString(hex.EncodeToString(b)), nil
+	return RideString(hex.EncodeToString(b)), nil
 }
 
-func fromBase16(_ Environment, args ...rideType) (rideType, error) {
+func fromBase16(_ Environment, args ...RideType) (RideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase16")
@@ -192,10 +192,10 @@ func fromBase16(_ Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase16")
 	}
-	return rideBytes(decoded), nil
+	return RideBytes(decoded), nil
 }
 
-func dropRightBytes(_ Environment, args ...rideType) (rideType, error) {
+func dropRightBytes(_ Environment, args ...RideType) (RideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropRightBytes")
@@ -203,7 +203,7 @@ func dropRightBytes(_ Environment, args ...rideType) (rideType, error) {
 	return takeRideBytes(b, len(b)-n), nil
 }
 
-func takeRightBytes(_ Environment, args ...rideType) (rideType, error) {
+func takeRightBytes(_ Environment, args ...RideType) (RideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeRightBytes")
@@ -211,18 +211,18 @@ func takeRightBytes(_ Environment, args ...rideType) (rideType, error) {
 	return dropRideBytes(b, len(b)-n), nil
 }
 
-func bytesToUTF8String(_ Environment, args ...rideType) (rideType, error) {
+func bytesToUTF8String(_ Environment, args ...RideType) (RideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToUTF8String")
 	}
 	if s := string(b); utf8.ValidString(s) {
-		return rideString(s), nil
+		return RideString(s), nil
 	}
 	return nil, errors.Errorf("invalid UTF-8 sequence")
 }
 
-func bytesToInt(_ Environment, args ...rideType) (rideType, error) {
+func bytesToInt(_ Environment, args ...RideType) (RideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToInt")
@@ -230,10 +230,10 @@ func bytesToInt(_ Environment, args ...rideType) (rideType, error) {
 	if l := len(b); l < 8 {
 		return nil, errors.Errorf("bytesToInt: %d is too little bytes to make int value", l)
 	}
-	return rideInt(binary.BigEndian.Uint64(b)), nil
+	return RideInt(binary.BigEndian.Uint64(b)), nil
 }
 
-func bytesToIntWithOffset(_ Environment, args ...rideType) (rideType, error) {
+func bytesToIntWithOffset(_ Environment, args ...RideType) (RideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToLongWithOffset")
@@ -241,10 +241,10 @@ func bytesToIntWithOffset(_ Environment, args ...rideType) (rideType, error) {
 	if n < 0 || n > len(b)-8 {
 		return nil, errors.Errorf("bytesToLongWithOffset: offset %d is out of bytes array bounds", n)
 	}
-	return rideInt(binary.BigEndian.Uint64(b[n:])), nil
+	return RideInt(binary.BigEndian.Uint64(b[n:])), nil
 }
 
-func takeRideBytes(b []byte, n int) rideBytes {
+func takeRideBytes(b []byte, n int) RideBytes {
 	l := n
 	if bl := len(b); l > bl {
 		l = bl
@@ -252,12 +252,12 @@ func takeRideBytes(b []byte, n int) rideBytes {
 	if l < 0 {
 		l = 0
 	}
-	r := make(rideBytes, l)
+	r := make(RideBytes, l)
 	copy(r, b[:l])
 	return r
 }
 
-func dropRideBytes(b []byte, n int) rideBytes {
+func dropRideBytes(b []byte, n int) RideBytes {
 	l := n
 	bl := len(b)
 	if l > bl {
@@ -266,7 +266,7 @@ func dropRideBytes(b []byte, n int) rideBytes {
 	if l < 0 {
 		l = 0
 	}
-	r := make(rideBytes, bl-l)
+	r := make(RideBytes, bl-l)
 	copy(r, b[l:])
 	return r
 }
