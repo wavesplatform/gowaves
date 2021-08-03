@@ -50,7 +50,6 @@ func getArgumentABI(argType *fourbyte.Type) (Arg, error) {
 	case fourbyte.IntTy:
 		a.Type = "int64"
 	case fourbyte.UintTy:
-		a.Name = "typeIndex"
 		a.Type = "uint8"
 	case fourbyte.BoolTy:
 		a.Type = "bool"
