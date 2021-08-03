@@ -86,8 +86,7 @@ var TestErc20Methods = []fourbyte.Method{
 			fourbyte.Argument{
 				Name: "_to",
 				Type: fourbyte.Type{
-					T:          fourbyte.AddressTy,
-					StringKind: "address",
+					T: fourbyte.AddressTy,
 				},
 			},
 			fourbyte.Argument{
@@ -104,15 +103,13 @@ var TestErc20Methods = []fourbyte.Method{
 			fourbyte.Argument{
 				Name: "_from",
 				Type: fourbyte.Type{
-					T:          fourbyte.AddressTy,
-					StringKind: "address",
+					T: fourbyte.AddressTy,
 				},
 			},
 			fourbyte.Argument{
 				Name: "_to",
 				Type: fourbyte.Type{
-					T:          fourbyte.AddressTy,
-					StringKind: "address",
+					T: fourbyte.AddressTy,
 				},
 			},
 			fourbyte.Argument{
@@ -216,8 +213,8 @@ var TestMethodWithAllTypes = []fourbyte.Method{
 				Elem: &fourbyte.Type{
 					T: fourbyte.TupleTy,
 					TupleElems: []fourbyte.Type{
-						{T: fourbyte.IntTy, StringKind: "int64"},
-						{T: fourbyte.AddressTy, StringKind: "address"},
+						{T: fourbyte.IntTy},
+						{T: fourbyte.AddressTy},
 					},
 					TupleRawNames: []string{"number", "addr"},
 				},

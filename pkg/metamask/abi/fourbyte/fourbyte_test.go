@@ -54,37 +54,37 @@ func TestAbiTypeFromRideMetaType(t *testing.T) {
 		expected Type
 		metaType meta.Type
 	}{
-		{expected: Type{T: IntTy, Size: 64, StringKind: "int64"}, metaType: meta.Int},
-		{expected: Type{T: BoolTy, StringKind: "bool"}, metaType: meta.Boolean},
-		{expected: Type{T: StringTy, StringKind: "string"}, metaType: meta.String},
-		{expected: Type{T: BytesTy, StringKind: "bytes"}, metaType: meta.Bytes},
+		{expected: Type{T: IntTy, Size: 64, stringKind: "int64"}, metaType: meta.Int},
+		{expected: Type{T: BoolTy, stringKind: "bool"}, metaType: meta.Boolean},
+		{expected: Type{T: StringTy, stringKind: "string"}, metaType: meta.String},
+		{expected: Type{T: BytesTy, stringKind: "bytes"}, metaType: meta.Bytes},
 		{
 			expected: Type{
 				Elem: &Type{
 					T:          IntTy,
 					Size:       64,
-					StringKind: "int64",
+					stringKind: "int64",
 				},
 				T:          SliceTy,
-				StringKind: "int64[]",
+				stringKind: "int64[]",
 			},
 			metaType: meta.ListType{Inner: meta.Int}},
 		{
 			expected: Type{
 				Elem: &Type{
 					T:          TupleTy,
-					StringKind: "(uint8,bool,string,bytes,int64)",
+					stringKind: "(uint8,bool,string,bytes,int64)",
 					TupleElems: []Type{
-						{T: UintTy, Size: 8, StringKind: "uint8"},
-						{T: BoolTy, StringKind: "bool"},
-						{T: StringTy, StringKind: "string"},
-						{T: BytesTy, StringKind: "bytes"},
-						{T: IntTy, Size: 64, StringKind: "int64"},
+						{T: UintTy, Size: 8, stringKind: "uint8"},
+						{T: BoolTy, stringKind: "bool"},
+						{T: StringTy, stringKind: "string"},
+						{T: BytesTy, stringKind: "bytes"},
+						{T: IntTy, Size: 64, stringKind: "int64"},
 					},
 					TupleRawNames: make([]string, 5),
 				},
 				T:          SliceTy,
-				StringKind: "(uint8,bool,string,bytes,int64)[]",
+				stringKind: "(uint8,bool,string,bytes,int64)[]",
 			},
 			metaType: meta.ListType{Inner: meta.UnionType{meta.Boolean, meta.String, meta.Bytes, meta.Int}},
 		},
@@ -119,8 +119,8 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 			RawName: "func1",
 			Sig:     "func1(int64,bool)",
 			Inputs: Arguments{
-				{Name: "", Type: Type{Size: 64, T: IntTy, StringKind: "int64"}},
-				{Name: "", Type: Type{T: BoolTy, StringKind: "bool"}},
+				{Name: "", Type: Type{Size: 64, T: IntTy, stringKind: "int64"}},
+				{Name: "", Type: Type{T: BoolTy, stringKind: "bool"}},
 			},
 			Payments: nil,
 		},
@@ -128,14 +128,14 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 			RawName: "boba8",
 			Sig:     "boba8(string,bytes,string[])",
 			Inputs: Arguments{
-				{Name: "", Type: Type{T: StringTy, StringKind: "string"}},
-				{Name: "", Type: Type{T: BytesTy, StringKind: "bytes"}},
+				{Name: "", Type: Type{T: StringTy, stringKind: "string"}},
+				{Name: "", Type: Type{T: BytesTy, stringKind: "bytes"}},
 				{
 					Name: "",
 					Type: Type{
 						T:          SliceTy,
-						StringKind: "string[]",
-						Elem:       &Type{T: StringTy, StringKind: "string"}},
+						stringKind: "string[]",
+						Elem:       &Type{T: StringTy, stringKind: "string"}},
 				},
 			},
 			Payments: nil,
@@ -144,28 +144,28 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 			RawName: "allKind",
 			Sig:     "allKind(string,int64,bytes,bool,int64[],(uint8,string,bool,int64,bytes))",
 			Inputs: Arguments{
-				{Name: "", Type: Type{T: StringTy, StringKind: "string"}},
-				{Name: "", Type: Type{Size: 64, T: IntTy, StringKind: "int64"}},
-				{Name: "", Type: Type{T: BytesTy, StringKind: "bytes"}},
-				{Name: "", Type: Type{T: BoolTy, StringKind: "bool"}},
+				{Name: "", Type: Type{T: StringTy, stringKind: "string"}},
+				{Name: "", Type: Type{Size: 64, T: IntTy, stringKind: "int64"}},
+				{Name: "", Type: Type{T: BytesTy, stringKind: "bytes"}},
+				{Name: "", Type: Type{T: BoolTy, stringKind: "bool"}},
 				{
 					Name: "",
 					Type: Type{
 						T:          SliceTy,
-						StringKind: "int64[]",
-						Elem:       &Type{Size: 64, T: IntTy, StringKind: "int64"}},
+						stringKind: "int64[]",
+						Elem:       &Type{Size: 64, T: IntTy, stringKind: "int64"}},
 				},
 				{
 					Name: "",
 					Type: Type{
 						T:          TupleTy,
-						StringKind: "(uint8,string,bool,int64,bytes)",
+						stringKind: "(uint8,string,bool,int64,bytes)",
 						TupleElems: []Type{
-							{Size: 8, T: UintTy, StringKind: "uint8"},
-							{T: StringTy, StringKind: "string"},
-							{T: BoolTy, StringKind: "bool"},
-							{Size: 64, T: IntTy, StringKind: "int64"},
-							{T: BytesTy, StringKind: "bytes"},
+							{Size: 8, T: UintTy, stringKind: "uint8"},
+							{T: StringTy, stringKind: "string"},
+							{T: BoolTy, stringKind: "bool"},
+							{Size: 64, T: IntTy, stringKind: "int64"},
+							{T: BytesTy, stringKind: "bytes"},
 						},
 						TupleRawNames: make([]string, 5),
 					},
