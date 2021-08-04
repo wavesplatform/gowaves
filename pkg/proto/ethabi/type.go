@@ -23,7 +23,6 @@ const (
 
 // Type is the reflection of the supported argument type.
 type Type struct {
-	// TODO change type of elem to `Argument`
 	Elem *Type // nested types for SliceTy
 	Size int
 	T    ArgT // Our own type checking
@@ -31,9 +30,8 @@ type Type struct {
 	stringKind string // holds the unparsed string for deriving signatures
 
 	// Tuple relative fields
-	TupleRawName  string   // Raw struct name defined in source code, may be empty.
-	TupleElems    []Type   // Type information of all tuple fields
-	TupleRawNames []string // Raw field name of all tuple fields
+	TupleRawName string    // Raw struct name defined in source code, may be empty.
+	TupleFields  Arguments // Type and name information of all tuple fields
 }
 
 func (t *Type) String() string {
@@ -57,8 +55,8 @@ func getTypeSize(t Type) int {
 	if t.T == TupleTy && !isDynamicType(t) {
 		// Recursively calculate type size if it is a nested tuple
 		total := 0
-		for _, elem := range t.TupleElems {
-			total += getTypeSize(elem)
+		for _, elem := range t.TupleFields {
+			total += getTypeSize(elem.Type)
 		}
 		return total
 	}
@@ -74,8 +72,8 @@ func getTypeSize(t Type) int {
 // * (T1,...,Tk) if Ti is dynamic for some 1 <= i <= k
 func isDynamicType(t Type) bool {
 	if t.T == TupleTy {
-		for _, elem := range t.TupleElems {
-			if isDynamicType(elem) {
+		for _, elem := range t.TupleFields {
+			if isDynamicType(elem.Type) {
 				return true
 			}
 		}
@@ -116,26 +114,31 @@ func AbiTypeFromRideTypeMeta(metaT meta.Type) (abiT Type, err error) {
 		if err != nil {
 			return Type{}, errors.Wrap(err, "failed to marshal index elem stringKind")
 		}
-		tupleUnitsT := append(make([]Type, 0, len(t)+1),
-			Type{
-				Size:       indexElemStrKindMarshaler.size,
-				T:          UintTy,
-				stringKind: string(indexElemStringKind),
+		tupleFields := append(make(Arguments, 0, len(t)+1),
+			Argument{
+				Name: "union_index",
+				Type: Type{
+					Size:       indexElemStrKindMarshaler.size,
+					T:          UintTy,
+					stringKind: string(indexElemStringKind),
+				},
 			},
 		)
-		for _, unitT := range t {
-			unit, err := AbiTypeFromRideTypeMeta(unitT)
+		for _, fieldT := range t {
+			field, err := AbiTypeFromRideTypeMeta(fieldT)
 			if err != nil {
 				return Type{}, errors.Wrapf(err,
-					"failed to create abi type for ride meta union type, unit type %T", unitT,
+					"failed to create abi type for ride meta union type, field type %T", fieldT,
 				)
 			}
-			tupleUnitsT = append(tupleUnitsT, unit)
+			tupleFields = append(tupleFields, Argument{
+				Name: "",
+				Type: field,
+			})
 		}
 		abiT = Type{
-			T:             TupleTy,
-			TupleElems:    tupleUnitsT,
-			TupleRawNames: make([]string, len(tupleUnitsT)),
+			T:           TupleTy,
+			TupleFields: tupleFields,
 		}
 	default:
 		return Type{}, errors.Errorf("unsupported ride metadata type, type %T", t)

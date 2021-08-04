@@ -77,50 +77,6 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 	require.Equal(t, "10", callData.Inputs[4].Value.(ride.RideBigInt).String())
 }
 
-var TestErc20Methods = []Method{
-	{
-		RawName: "transfer",
-		Inputs: Arguments{
-			Argument{
-				Name: "_to",
-				Type: Type{
-					T: AddressTy,
-				},
-			},
-			Argument{
-				Name: "_value",
-				Type: Type{
-					T: IntTy,
-				},
-			},
-		},
-		Payments: nil,
-	}, {
-		RawName: "transferFrom",
-		Inputs: Arguments{
-			Argument{
-				Name: "_from",
-				Type: Type{
-					T: AddressTy,
-				},
-			},
-			Argument{
-				Name: "_to",
-				Type: Type{
-					T: AddressTy,
-				},
-			},
-			Argument{
-				Name: "_value",
-				Type: Type{
-					T: IntTy,
-				},
-			},
-		},
-		Payments: nil,
-	},
-}
-
 func TestJsonAbi(t *testing.T) {
 	expectedJson := `
 [
@@ -134,7 +90,7 @@ func TestJsonAbi(t *testing.T) {
       },
       {
         "name": "_value",
-        "type": "int64"
+        "type": "uint256"
       }
     ]
   },
@@ -152,7 +108,7 @@ func TestJsonAbi(t *testing.T) {
       },
       {
         "name": "_value",
-        "type": "int64"
+        "type": "uint256"
       }
     ]
   }
@@ -162,7 +118,12 @@ func TestJsonAbi(t *testing.T) {
 	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
 
-	resJsonABI, err := getJsonAbi(TestErc20Methods)
+	erc20Methods := make([]Method, 0, len(Erc20Methods))
+	for _, method := range Erc20Methods {
+		erc20Methods = append(erc20Methods, method)
+	}
+
+	resJsonABI, err := getJsonAbi(erc20Methods)
 	require.NoError(t, err)
 	fmt.Println(string(resJsonABI))
 	var abiRes []abi
@@ -180,27 +141,26 @@ var TestMethodWithAllTypes = []Method{
 		RawName: "testFunction",
 		Inputs: Arguments{
 			{Name: "stringVar", Type: Type{T: StringTy}},
-			{Name: "intVar", Type: Type{T: IntTy}},
+			{Name: "intVar", Type: Type{T: IntTy, Size: 64}},
 			{Name: "bytesVar", Type: Type{T: BytesTy}},
 			{Name: "boolVar", Type: Type{T: BoolTy}},
 			{
 				Name: "sliceVar",
 				Type: Type{
 					T:    SliceTy,
-					Elem: &Type{T: IntTy}},
+					Elem: &Type{T: IntTy, Size: 64}},
 			},
 			{
 				Name: "tupleSliceVar",
 				Type: Type{
 					T: TupleTy,
-					TupleElems: []Type{
-						{T: UintTy},
-						{T: StringTy},
-						{T: BoolTy},
-						{T: IntTy},
-						{T: BytesTy},
+					TupleFields: Arguments{
+						{Name: "union_index", Type: Type{T: UintTy, Size: 8}},
+						{Name: "stringVar", Type: Type{T: StringTy}},
+						{Name: "boolVar", Type: Type{T: BoolTy}},
+						{Name: "intVar", Type: Type{T: IntTy, Size: 64}},
+						{Name: "bytesVar", Type: Type{T: BytesTy}},
 					},
-					TupleRawNames: []string{"uintVar", "stringVar", "boolVar", "intVar", "bytesVar"},
 				},
 			},
 		},
@@ -210,11 +170,10 @@ var TestMethodWithAllTypes = []Method{
 				T: SliceTy,
 				Elem: &Type{
 					T: TupleTy,
-					TupleElems: []Type{
-						{T: IntTy},
-						{T: AddressTy},
+					TupleFields: Arguments{
+						{Name: "number", Type: Type{T: IntTy, Size: 64}},
+						{Name: "addr", Type: Type{T: AddressTy}},
 					},
-					TupleRawNames: []string{"number", "addr"},
 				},
 			},
 		},
@@ -253,7 +212,7 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
         "type": "tuple",
         "components": [
           {
-            "name": "uintVar",
+            "name": "union_index",
             "type": "uint8"
           },
           {

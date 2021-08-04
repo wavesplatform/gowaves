@@ -143,33 +143,33 @@ func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error)
 	if t.T != TupleTy {
 		return nil, errors.New("abi: type in forTupleUnpack must be TupleTy")
 	}
-	if len(t.TupleElems) < 2 {
+	if len(t.TupleFields) < 2 {
 		return nil, errors.New(
 			"abi: failed to convert eth tuple to ride union, elements count of eth tuple must greater than 2",
 		)
 	}
-	unionIndex, err := extractIndexFromFirstElemOfTuple(0, t.TupleElems[0], output)
+	unionIndex, err := extractIndexFromFirstElemOfTuple(0, t.TupleFields[0].Type, output)
 	if err != nil {
 		return nil, err
 	}
-	elems := t.TupleElems[1:]
-	if unionIndex >= int64(len(elems)) {
+	fields := t.TupleFields[1:]
+	if unionIndex >= int64(len(fields)) {
 		return nil, errors.Errorf(
-			"abi: failed to convert eth tuple to ride union, union index (%d) greater than tuple elems count (%d)",
-			unionIndex, len(elems),
+			"abi: failed to convert eth tuple to ride union, union index (%d) greater than tuple fields count (%d)",
+			unionIndex, len(fields),
 		)
 	}
-	retval := make([]ride.RideType, 0, len(elems))
+	retval := make([]ride.RideType, 0, len(fields))
 	virtualArgs := 0
-	for index := 1; index < len(elems); index++ {
-		elem := elems[index]
-		marshalledValue, err := toRideType((index+virtualArgs)*32, elem, output)
+	for index := 1; index < len(fields); index++ {
+		field := fields[index]
+		marshalledValue, err := toRideType((index+virtualArgs)*32, field.Type, output)
 		if err != nil {
 			return nil, err
 		}
-		if elem.T == TupleTy && !isDynamicType(elem) {
+		if field.Type.T == TupleTy && !isDynamicType(field.Type) {
 
-			virtualArgs += getTypeSize(elem)/32 - 1
+			virtualArgs += getTypeSize(field.Type)/32 - 1
 		}
 		retval = append(retval, marshalledValue)
 	}
@@ -184,13 +184,9 @@ type Payment struct {
 var (
 	paymentType = Type{
 		T: TupleTy,
-		TupleElems: []Type{
-			{T: BytesTy},
-			{Size: 64, T: IntTy},
-		},
-		TupleRawNames: []string{
-			"id",
-			"value",
+		TupleFields: Arguments{
+			{Name: "id", Type: Type{T: BytesTy}},
+			{Name: "value", Type: Type{T: IntTy, Size: 64}},
 		},
 	}
 	paymentsType = Type{
@@ -204,8 +200,8 @@ var (
 )
 
 func unpackPayment(output []byte) (Payment, error) {
-	assetIDType := paymentType.TupleElems[0]
-	amountType := paymentType.TupleElems[1]
+	assetIDType := paymentType.TupleFields[0].Type
+	amountType := paymentType.TupleFields[1].Type
 
 	var (
 		assetID proto.AssetID

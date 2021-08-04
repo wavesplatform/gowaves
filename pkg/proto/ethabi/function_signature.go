@@ -11,13 +11,6 @@ import (
 )
 
 const (
-	selectorLen = 4
-
-	addressSize = 20
-	uint256Size = 256
-)
-
-const (
 	erc20TransferSignature     Signature = "transfer(address,uint256)"
 	erc20TransferFromSignature Signature = "transferFrom(address,address,uint256)"
 )
@@ -47,7 +40,7 @@ func (s Signature) Selector() Selector {
 	return NewSelector(s)
 }
 
-type Selector [selectorLen]byte
+type Selector [4]byte
 
 func NewSelector(sig Signature) Selector {
 	var selector Selector
@@ -258,7 +251,7 @@ var Erc20Methods = map[Selector]Method{
 			Argument{
 				Name: "_to",
 				Type: Type{
-					Size:       addressSize,
+					Size:       proto.EthereumAddressSize,
 					T:          AddressTy,
 					stringKind: "address",
 				},
@@ -266,7 +259,7 @@ var Erc20Methods = map[Selector]Method{
 			Argument{
 				Name: "_value",
 				Type: Type{
-					Size:       uint256Size,
+					Size:       256,
 					T:          UintTy,
 					stringKind: "uint256",
 				},
@@ -281,7 +274,7 @@ var Erc20Methods = map[Selector]Method{
 			Argument{
 				Name: "_from",
 				Type: Type{
-					Size:       addressSize,
+					Size:       proto.EthereumAddressSize,
 					T:          AddressTy,
 					stringKind: "address",
 				},
@@ -289,7 +282,7 @@ var Erc20Methods = map[Selector]Method{
 			Argument{
 				Name: "_to",
 				Type: Type{
-					Size:       addressSize,
+					Size:       proto.EthereumAddressSize,
 					T:          AddressTy,
 					stringKind: "address",
 				},
@@ -297,7 +290,7 @@ var Erc20Methods = map[Selector]Method{
 			Argument{
 				Name: "_value",
 				Type: Type{
-					Size:       uint256Size,
+					Size:       256,
 					T:          UintTy,
 					stringKind: "uint256",
 				},

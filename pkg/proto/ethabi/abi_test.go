@@ -74,14 +74,13 @@ func TestAbiTypeFromRideMetaType(t *testing.T) {
 				Elem: &Type{
 					T:          TupleTy,
 					stringKind: "(uint8,bool,string,bytes,int64)",
-					TupleElems: []Type{
-						{T: UintTy, Size: 8, stringKind: "uint8"},
-						{T: BoolTy, stringKind: "bool"},
-						{T: StringTy, stringKind: "string"},
-						{T: BytesTy, stringKind: "bytes"},
-						{T: IntTy, Size: 64, stringKind: "int64"},
+					TupleFields: Arguments{
+						{Name: "union_index", Type: Type{T: UintTy, Size: 8, stringKind: "uint8"}},
+						{Name: "", Type: Type{T: BoolTy, stringKind: "bool"}},
+						{Name: "", Type: Type{T: StringTy, stringKind: "string"}},
+						{Name: "", Type: Type{T: BytesTy, stringKind: "bytes"}},
+						{Name: "", Type: Type{T: IntTy, Size: 64, stringKind: "int64"}},
 					},
-					TupleRawNames: make([]string, 5),
 				},
 				T:          SliceTy,
 				stringKind: "(uint8,bool,string,bytes,int64)[]",
@@ -160,14 +159,13 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 					Type: Type{
 						T:          TupleTy,
 						stringKind: "(uint8,string,bool,int64,bytes)",
-						TupleElems: []Type{
-							{Size: 8, T: UintTy, stringKind: "uint8"},
-							{T: StringTy, stringKind: "string"},
-							{T: BoolTy, stringKind: "bool"},
-							{Size: 64, T: IntTy, stringKind: "int64"},
-							{T: BytesTy, stringKind: "bytes"},
+						TupleFields: Arguments{
+							{Name: "union_index", Type: Type{T: UintTy, Size: 8, stringKind: "uint8"}},
+							{Name: "", Type: Type{T: StringTy, stringKind: "string"}},
+							{Name: "", Type: Type{T: BoolTy, stringKind: "bool"}},
+							{Name: "", Type: Type{T: IntTy, Size: 64, stringKind: "int64"}},
+							{Name: "", Type: Type{T: BytesTy, stringKind: "bytes"}},
 						},
-						TupleRawNames: make([]string, 5),
 					},
 				},
 			},

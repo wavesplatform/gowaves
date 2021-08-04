@@ -28,12 +28,12 @@ func getArgumentABI(argType *Type) (argABI, error) {
 	switch argType.T {
 	case TupleTy:
 		a.Type = "tuple"
-		for i, tupleElem := range argType.TupleElems {
-			internalElem, err := getArgumentABI(&tupleElem)
+		for _, tupleElem := range argType.TupleFields {
+			internalElem, err := getArgumentABI(&tupleElem.Type)
 			if err != nil {
 				return a, errors.Errorf("failed to parse slice type, %v", err)
 			}
-			internalElem.Name = argType.TupleRawNames[i]
+			internalElem.Name = tupleElem.Name
 			a.Components = append(a.Components, internalElem)
 		}
 
@@ -48,9 +48,25 @@ func getArgumentABI(argType *Type) (argABI, error) {
 	case StringTy: // variable arrays are written at the end of the return bytes
 		a.Type = "string"
 	case IntTy:
-		a.Type = "int64"
+		builder := intTextBuilder{
+			size:     argType.Size,
+			unsigned: false,
+		}
+		t, err := builder.MarshalText()
+		if err != nil {
+			return argABI{}, errors.Wrapf(err, "failed to create JSON argABI for type %q", argType.String())
+		}
+		a.Type = string(t)
 	case UintTy:
-		a.Type = "uint8"
+		builder := intTextBuilder{
+			size:     argType.Size,
+			unsigned: true,
+		}
+		t, err := builder.MarshalText()
+		if err != nil {
+			return argABI{}, errors.Wrapf(err, "failed to create JSON argABI for type %q", argType.String())
+		}
+		a.Type = string(t)
 	case BoolTy:
 		a.Type = "bool"
 	case AddressTy:
