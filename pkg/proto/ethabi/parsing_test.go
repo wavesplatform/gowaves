@@ -1,12 +1,11 @@
-package abi
+package ethabi
 
 import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/metamask"
-	"github.com/wavesplatform/gowaves/pkg/metamask/abi/fourbyte"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"sort"
@@ -26,16 +25,14 @@ func TestTransferWithRideTypes(t *testing.T) {
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
 
-	db := fourbyte.NewDatabase(map[fourbyte.Selector]fourbyte.Method{})
+	db := NewDatabase(map[Selector]Method{})
 	callData, err := db.ParseCallDataRide(data, true)
 	// nickeskov: no error because we have zero length bytes data for payments
 	require.NoError(t, err)
 
 	require.Equal(t, expectedSignature, callData.Signature)
 	require.Equal(t, expectedName, callData.Name)
-	var addr metamask.Address
-	addr.SetBytes(callData.Inputs[0].Value.(ride.RideBytes))
-	require.Equal(t, expectedFirstArg, addr.String())
+	require.Equal(t, expectedFirstArg, proto.BytesToEthereumAddress(callData.Inputs[0].Value.(ride.RideBytes)).String())
 	require.Equal(t, expectedSecondArg, callData.Inputs[1].Value.(ride.RideBigInt).String())
 }
 
@@ -43,19 +40,19 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 	// taken and modified from https://etherscan.io/tx/0x2667bb17f2076cad4966849255898fbcaca68f2eb0d9ba585b310c79c098e970
 
 	const (
-		testSignature = fourbyte.Signature("minta(address,uint256,uint256,uint256,uint256)")
+		testSignature = Signature("minta(address,uint256,uint256,uint256,uint256)")
 		hexData       = "0xe00c88d6000000000000000000000000892555e75350e11f2058d086c72b9c94c9493d7200000000000000000000000000000000000000000000000000000000000000a50000000000000000000000000000000000000000000000056bc75e2d631000000000000000000000000000000000000000000000000000056bc75e2d63100000000000000000000000000000000000000000000000000000000000000000000a"
 	)
 
-	var customDB = map[fourbyte.Selector]fourbyte.Method{
+	var customDB = map[Selector]Method{
 		testSignature.Selector(): {
 			RawName: "minta",
-			Inputs: fourbyte.Arguments{
-				{Name: "_token", Type: fourbyte.Type{T: fourbyte.AddressTy}},
-				{Name: "_id", Type: fourbyte.Type{T: fourbyte.UintTy, Size: 256}},
-				{Name: "_supply", Type: fourbyte.Type{T: fourbyte.UintTy, Size: 256}},
-				{Name: "_listPrice", Type: fourbyte.Type{T: fourbyte.UintTy, Size: 256}},
-				{Name: "_fee", Type: fourbyte.Type{T: fourbyte.UintTy, Size: 256}},
+			Inputs: Arguments{
+				{Name: "_token", Type: Type{T: AddressTy}},
+				{Name: "_id", Type: Type{T: UintTy, Size: 256}},
+				{Name: "_supply", Type: Type{T: UintTy, Size: 256}},
+				{Name: "_listPrice", Type: Type{T: UintTy, Size: 256}},
+				{Name: "_fee", Type: Type{T: UintTy, Size: 256}},
 			},
 			Payments: nil,
 			Sig:      testSignature,
@@ -64,58 +61,59 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 
 	data, err := hex.DecodeString(strings.TrimPrefix(hexData, "0x"))
 	require.NoError(t, err)
-	db := fourbyte.NewDatabase(customDB)
+	db := NewDatabase(customDB)
 	callData, err := db.ParseCallDataRide(data, true)
 	// nickeskov: no error because we have zero length bytes data for payments
 	require.NoError(t, err)
 
 	require.Equal(t, "minta", callData.Name)
-	var addr metamask.Address
-	addr.SetBytes(callData.Inputs[0].Value.(ride.RideBytes))
-	require.Equal(t, "0x892555E75350E11f2058d086C72b9C94C9493d72", addr.String())
+	require.Equal(t,
+		"0x892555E75350E11f2058d086C72b9C94C9493d72",
+		proto.BytesToEthereumAddress(callData.Inputs[0].Value.(ride.RideBytes)).String(),
+	)
 	require.Equal(t, "165", callData.Inputs[1].Value.(ride.RideBigInt).String())
 	require.Equal(t, "100000000000000000000", callData.Inputs[2].Value.(ride.RideBigInt).String())
 	require.Equal(t, "100000000000000000000", callData.Inputs[3].Value.(ride.RideBigInt).String())
 	require.Equal(t, "10", callData.Inputs[4].Value.(ride.RideBigInt).String())
 }
 
-var TestErc20Methods = []fourbyte.Method{
+var TestErc20Methods = []Method{
 	{
 		RawName: "transfer",
-		Inputs: fourbyte.Arguments{
-			fourbyte.Argument{
+		Inputs: Arguments{
+			Argument{
 				Name: "_to",
-				Type: fourbyte.Type{
-					T: fourbyte.AddressTy,
+				Type: Type{
+					T: AddressTy,
 				},
 			},
-			fourbyte.Argument{
+			Argument{
 				Name: "_value",
-				Type: fourbyte.Type{
-					T: fourbyte.IntTy,
+				Type: Type{
+					T: IntTy,
 				},
 			},
 		},
 		Payments: nil,
 	}, {
 		RawName: "transferFrom",
-		Inputs: fourbyte.Arguments{
-			fourbyte.Argument{
+		Inputs: Arguments{
+			Argument{
 				Name: "_from",
-				Type: fourbyte.Type{
-					T: fourbyte.AddressTy,
+				Type: Type{
+					T: AddressTy,
 				},
 			},
-			fourbyte.Argument{
+			Argument{
 				Name: "_to",
-				Type: fourbyte.Type{
-					T: fourbyte.AddressTy,
+				Type: Type{
+					T: AddressTy,
 				},
 			},
-			fourbyte.Argument{
+			Argument{
 				Name: "_value",
-				Type: fourbyte.Type{
-					T: fourbyte.IntTy,
+				Type: Type{
+					T: IntTy,
 				},
 			},
 		},
@@ -177,44 +175,44 @@ func TestJsonAbi(t *testing.T) {
 	require.Equal(t, expectedABI, abiRes)
 }
 
-var TestMethodWithAllTypes = []fourbyte.Method{
+var TestMethodWithAllTypes = []Method{
 	{
 		RawName: "testFunction",
-		Inputs: fourbyte.Arguments{
-			{Name: "stringVar", Type: fourbyte.Type{T: fourbyte.StringTy}},
-			{Name: "intVar", Type: fourbyte.Type{T: fourbyte.IntTy}},
-			{Name: "bytesVar", Type: fourbyte.Type{T: fourbyte.BytesTy}},
-			{Name: "boolVar", Type: fourbyte.Type{T: fourbyte.BoolTy}},
+		Inputs: Arguments{
+			{Name: "stringVar", Type: Type{T: StringTy}},
+			{Name: "intVar", Type: Type{T: IntTy}},
+			{Name: "bytesVar", Type: Type{T: BytesTy}},
+			{Name: "boolVar", Type: Type{T: BoolTy}},
 			{
 				Name: "sliceVar",
-				Type: fourbyte.Type{
-					T:    fourbyte.SliceTy,
-					Elem: &fourbyte.Type{T: fourbyte.IntTy}},
+				Type: Type{
+					T:    SliceTy,
+					Elem: &Type{T: IntTy}},
 			},
 			{
 				Name: "tupleSliceVar",
-				Type: fourbyte.Type{
-					T: fourbyte.TupleTy,
-					TupleElems: []fourbyte.Type{
-						{T: fourbyte.UintTy},
-						{T: fourbyte.StringTy},
-						{T: fourbyte.BoolTy},
-						{T: fourbyte.IntTy},
-						{T: fourbyte.BytesTy},
+				Type: Type{
+					T: TupleTy,
+					TupleElems: []Type{
+						{T: UintTy},
+						{T: StringTy},
+						{T: BoolTy},
+						{T: IntTy},
+						{T: BytesTy},
 					},
 					TupleRawNames: []string{"uintVar", "stringVar", "boolVar", "intVar", "bytesVar"},
 				},
 			},
 		},
-		Payments: &fourbyte.Argument{
+		Payments: &Argument{
 			Name: "payments",
-			Type: fourbyte.Type{
-				T: fourbyte.SliceTy,
-				Elem: &fourbyte.Type{
-					T: fourbyte.TupleTy,
-					TupleElems: []fourbyte.Type{
-						{T: fourbyte.IntTy},
-						{T: fourbyte.AddressTy},
+			Type: Type{
+				T: SliceTy,
+				Elem: &Type{
+					T: TupleTy,
+					TupleElems: []Type{
+						{T: IntTy},
+						{T: AddressTy},
 					},
 					TupleRawNames: []string{"number", "addr"},
 				},
@@ -339,7 +337,7 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 			Functions:     []meta.Function{test.rideFunctionMeta},
 			Abbreviations: meta.Abbreviations{},
 		}
-		db, err := fourbyte.NewDBFromRideDAppMeta(dAppMeta, false)
+		db, err := NewDBFromRideDAppMeta(dAppMeta, false)
 		require.NoError(t, err)
 
 		decodedCallData, err := db.ParseCallDataRide(data, false)
@@ -347,7 +345,7 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 
 		values := make([]ride.RideType, 0, len(decodedCallData.Inputs))
 		for _, arg := range decodedCallData.Inputs {
-			values = append(values, arg.Value.(ride.RideType))
+			values = append(values, arg.Value)
 		}
 		require.Equal(t, test.expectedResultValues, values)
 	}

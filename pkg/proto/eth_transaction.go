@@ -1,4 +1,4 @@
-package metamask
+package proto
 
 import (
 	stderr "errors"
@@ -9,9 +9,11 @@ import (
 	"math/big"
 )
 
-// Ethereum transaction types.
+// TxType is an ethereum transaction type.
+type TxType byte
+
 const (
-	LegacyTxType byte = iota
+	LegacyTxType TxType = iota
 	AccessListTxType
 	DynamicFeeTxType
 )
@@ -43,12 +45,12 @@ type fastRLPMarshaler interface {
 	marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Value
 }
 
-type TxData interface {
-	txType() byte
-	copy() TxData // creates a deep copy and initializes all fields
+type EthereumTxData interface {
+	txType() TxType
+	copy() EthereumTxData // creates a deep copy and initializes all fields
 
 	chainID() *big.Int
-	accessList() AccessList
+	accessList() EthereumAccessList
 	data() []byte
 	gas() uint64
 	gasPrice() *big.Int
@@ -56,7 +58,7 @@ type TxData interface {
 	gasFeeCap() *big.Int
 	value() *big.Int
 	nonce() uint64
-	to() *Address
+	to() *EthereumAddress
 
 	rawSignatureValues() (v, r, s *big.Int)
 	setSignatureValues(chainID, v, r, s *big.Int)
@@ -65,68 +67,68 @@ type TxData interface {
 	fastRLPSignerHasher
 }
 
-type Transaction struct {
-	inner TxData
+type EthereumTransaction struct {
+	inner EthereumTxData
 }
 
-func NewTx(inner TxData) Transaction {
-	var tx Transaction
+func NewTx(inner EthereumTxData) EthereumTransaction {
+	var tx EthereumTransaction
 	tx.setDecoded(inner)
 	return tx
 }
 
 // Type returns the transaction type.
-func (tx *Transaction) Type() uint8 {
+func (tx *EthereumTransaction) Type() TxType {
 	return tx.inner.txType()
 }
 
 // ChainId returns the EIP155 chain ID of the transaction. The return value will always be
 // non-nil. For legacy transactions which are not replay-protected, the return value is
 // zero.
-func (tx *Transaction) ChainId() *big.Int {
+func (tx *EthereumTransaction) ChainId() *big.Int {
 	return tx.inner.chainID()
 }
 
 // Data returns the input data of the transaction.
-func (tx *Transaction) Data() []byte { return tx.inner.data() }
+func (tx *EthereumTransaction) Data() []byte { return tx.inner.data() }
 
-// AccessList returns the access list of the transaction.
-func (tx *Transaction) AccessList() AccessList { return tx.inner.accessList() }
+// EthereumAccessList returns the access list of the transaction.
+func (tx *EthereumTransaction) AccessList() EthereumAccessList { return tx.inner.accessList() }
 
 // Gas returns the gas limit of the transaction.
-func (tx *Transaction) Gas() uint64 { return tx.inner.gas() }
+func (tx *EthereumTransaction) Gas() uint64 { return tx.inner.gas() }
 
 // GasPrice returns the gas price of the transaction.
-func (tx *Transaction) GasPrice() *big.Int { return copyBigInt(tx.inner.gasPrice()) }
+func (tx *EthereumTransaction) GasPrice() *big.Int { return copyBigInt(tx.inner.gasPrice()) }
 
 // GasTipCap returns the gasTipCap per gas of the transaction.
-func (tx *Transaction) GasTipCap() *big.Int { return copyBigInt(tx.inner.gasTipCap()) }
+func (tx *EthereumTransaction) GasTipCap() *big.Int { return copyBigInt(tx.inner.gasTipCap()) }
 
 // GasFeeCap returns the fee cap per gas of the transaction.
-func (tx *Transaction) GasFeeCap() *big.Int { return copyBigInt(tx.inner.gasFeeCap()) }
+func (tx *EthereumTransaction) GasFeeCap() *big.Int { return copyBigInt(tx.inner.gasFeeCap()) }
 
 // Value returns the ether amount of the transaction.
-func (tx *Transaction) Value() *big.Int { return copyBigInt(tx.inner.value()) }
+func (tx *EthereumTransaction) Value() *big.Int { return copyBigInt(tx.inner.value()) }
 
 // Nonce returns the sender account nonce of the transaction.
-func (tx *Transaction) Nonce() uint64 { return tx.inner.nonce() }
+func (tx *EthereumTransaction) Nonce() uint64 { return tx.inner.nonce() }
 
 // To returns the recipient address of the transaction.
 // For contract-creation transactions, To returns nil.
-func (tx *Transaction) To() *Address { return tx.inner.to().copy() }
+func (tx *EthereumTransaction) To() *EthereumAddress { return tx.inner.to().copy() }
 
 // RawSignatureValues returns the V, R, S signature values of the transaction.
 // The return values should not be modified by the caller.
-func (tx *Transaction) RawSignatureValues() (v, r, s *big.Int) {
+func (tx *EthereumTransaction) RawSignatureValues() (v, r, s *big.Int) {
 	return tx.inner.rawSignatureValues()
 }
 
-func (tx *Transaction) Hash() Hash {
+func (tx *EthereumTransaction) Hash() EthereumHash {
 	// TODO(nickeskov): implement me
 	panic("implement me")
 }
 
-func (tx *Transaction) DecodeRLP(rlpData []byte) error {
+func (tx *EthereumTransaction) DecodeRLP(rlpData []byte) error {
 	parser := fastrlp.Parser{}
 	rlpVal, err := parser.Parse(rlpData)
 	if err != nil {
@@ -135,11 +137,11 @@ func (tx *Transaction) DecodeRLP(rlpData []byte) error {
 	return tx.unmarshalFromFastRLP(rlpVal)
 }
 
-func (tx *Transaction) unmarshalFromFastRLP(value *fastrlp.Value) error {
+func (tx *EthereumTransaction) unmarshalFromFastRLP(value *fastrlp.Value) error {
 	switch value.Type() {
 	case fastrlp.TypeArray:
 		// nickeskov: It's a legacy transaction.
-		var inner LegacyTx
+		var inner EthereumLegacyTx
 		err := inner.UnmarshalFromFastRLP(value)
 		if err == nil {
 			tx.setDecoded(&inner)
@@ -161,7 +163,7 @@ func (tx *Transaction) unmarshalFromFastRLP(value *fastrlp.Value) error {
 	}
 }
 
-func (tx Transaction) EncodeRLP(w io.Writer) error {
+func (tx EthereumTransaction) EncodeRLP(w io.Writer) error {
 	arena := &fastrlp.Arena{}
 	var fastrlpTx *fastrlp.Value
 	// nickeskov: maybe use buffer pool?
@@ -176,24 +178,24 @@ func (tx Transaction) EncodeRLP(w io.Writer) error {
 	return nil
 }
 
-func (tx *Transaction) setDecoded(inner TxData) {
+func (tx *EthereumTransaction) setDecoded(inner EthereumTxData) {
 	tx.inner = inner
 }
 
 // decodeTyped decodes a typed transaction from the canonical format.
-func (tx *Transaction) decodeTyped(rlpData []byte) (TxData, error) {
+func (tx *EthereumTransaction) decodeTyped(rlpData []byte) (EthereumTxData, error) {
 	if len(rlpData) == 0 {
 		return nil, errEmptyTypedTx
 	}
-	switch txType, rlpData := rlpData[0], rlpData[1:]; txType {
+	switch txType, rlpData := rlpData[0], rlpData[1:]; TxType(txType) {
 	case AccessListTxType:
-		var inner AccessListTx
+		var inner EthereumAccessListTx
 		if err := inner.DecodeRLP(rlpData); err != nil {
 			return nil, err
 		}
 		return &inner, nil
 	case DynamicFeeTxType:
-		var inner DynamicFeeTx
+		var inner EthereumDynamicFeeTx
 		if err := inner.DecodeRLP(rlpData); err != nil {
 			return nil, err
 		}
@@ -204,8 +206,8 @@ func (tx *Transaction) decodeTyped(rlpData []byte) (TxData, error) {
 }
 
 // encodeTyped writes the canonical encoding of a typed transaction to w.
-func (tx *Transaction) encodeTyped(arena *fastrlp.Arena) *fastrlp.Value {
-	rlpMarshaledTx := []byte{tx.Type()}
+func (tx *EthereumTransaction) encodeTyped(arena *fastrlp.Arena) *fastrlp.Value {
+	rlpMarshaledTx := []byte{byte(tx.Type())}
 	typedTxVal := tx.inner.marshalToFastRLP(arena)
 	rlpMarshaledTx = typedTxVal.MarshalTo(rlpMarshaledTx)
 	return arena.NewBytes(rlpMarshaledTx)
@@ -221,16 +223,16 @@ func isProtectedV(V *big.Int) bool {
 }
 
 // Protected says whether the transaction is replay-protected.
-func (tx *Transaction) Protected() bool {
+func (tx *EthereumTransaction) Protected() bool {
 	switch tx := tx.inner.(type) {
-	case *LegacyTx:
+	case *EthereumLegacyTx:
 		return tx.V != nil && isProtectedV(tx.V)
 	default:
 		return true
 	}
 }
 
-func (tx *Transaction) SignerHash(chainID *big.Int) Hash {
+func (tx *EthereumTransaction) SignerHash(chainID *big.Int) EthereumHash {
 	arena := &fastrlp.Arena{}
 	hashValues := tx.inner.signerHashFastRLP(chainID, arena)
 
@@ -240,16 +242,16 @@ func (tx *Transaction) SignerHash(chainID *big.Int) Hash {
 	case LegacyTxType:
 		rlpData = hashValues.MarshalTo(nil)
 	case AccessListTxType, DynamicFeeTxType:
-		rlpData = append(rlpData, tx.Type())
+		rlpData = append(rlpData, byte(tx.Type()))
 		rlpData = hashValues.MarshalTo(rlpData)
 	default:
 		// This _should_ not happen, but in case someone sends in a bad
 		// json struct via RPC, it's probably more prudent to return an
 		// empty hash instead of killing the node with a panic
 		//panic("Unsupported transaction type: %d", tx.typ)
-		return Hash{}
+		return EthereumHash{}
 	}
-	var h Hash
+	var h EthereumHash
 	sha := sha3.NewLegacyKeccak256().(KeccakState)
 	// nickeskov: it always returns a nil error
 	_, _ = sha.Write(rlpData)

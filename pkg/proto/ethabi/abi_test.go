@@ -1,4 +1,4 @@
-package fourbyte
+package ethabi
 
 import (
 	"github.com/stretchr/testify/require"

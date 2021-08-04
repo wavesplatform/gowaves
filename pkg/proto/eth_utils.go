@@ -1,18 +1,17 @@
-package metamask
+package proto
 
 import (
-	"encoding/hex"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
 	"math/big"
 )
 
-func unmarshalTransactionToFieldFastRLP(value *fastrlp.Value) (*Address, error) {
+func unmarshalTransactionToFieldFastRLP(value *fastrlp.Value) (*EthereumAddress, error) {
 	toBytes, err := value.Bytes()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse TO bytes")
 	}
-	addrTo := &Address{}
+	addrTo := &EthereumAddress{}
 	switch len(toBytes) {
 	case 0:
 		addrTo = nil
@@ -56,17 +55,4 @@ func copyBigInt(v *big.Int) *big.Int {
 		return nil
 	}
 	return new(big.Int).Set(v)
-}
-
-// HexEncodeToBytes encodes b as a hex string with 0x prefix.
-func HexEncodeToBytes(b []byte) []byte {
-	enc := make([]byte, len(b)*2+2)
-	copy(enc, "0x")
-	hex.Encode(enc[2:], b)
-	return enc
-}
-
-// HexEncodeToString encodes b as a hex string with 0x prefix.
-func HexEncodeToString(b []byte) string {
-	return string(HexEncodeToBytes(b))
 }

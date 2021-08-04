@@ -1,10 +1,10 @@
-package fourbyte
+package ethabi
 
 import (
 	"encoding/binary"
 	stdErr "errors"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/metamask"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"math/big"
 )
@@ -177,7 +177,7 @@ func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error)
 }
 
 type Payment struct {
-	AssetID metamask.Address
+	AssetID proto.AssetID
 	Amount  int64
 }
 
@@ -208,7 +208,7 @@ func unpackPayment(output []byte) (Payment, error) {
 	amountType := paymentType.TupleElems[1]
 
 	var (
-		assetID metamask.Address
+		assetID proto.AssetID
 		amount  int64
 	)
 
@@ -217,7 +217,7 @@ func unpackPayment(output []byte) (Payment, error) {
 		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse assetID")
 	}
 	if assetIDBytes, ok := assetRideValue.(ride.RideBytes); ok {
-		assetID.SetBytes(assetIDBytes)
+		copy(assetID[:], assetIDBytes)
 	} else {
 		panic("BUG, CREATE REPORT: failed to parse payment, assetRideValue type must be RideBytes type")
 	}
@@ -374,7 +374,7 @@ func toRideType(index int, t Type, output []byte) (ride.RideType, error) {
 		}
 		return ride.RideBoolean(boolean), nil
 	case AddressTy:
-		address := metamask.BytesToAddress(returnOutput)
+		address := proto.BytesToEthereumAddress(returnOutput)
 		return ride.RideBytes(address.Bytes()), nil
 	case BytesTy:
 		bytes, err := ride.NewRideBytes(output[begin : begin+length])

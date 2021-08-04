@@ -1,11 +1,11 @@
-package fourbyte
+package ethabi
 
 import (
 	"encoding"
 	"encoding/hex"
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/metamask"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"strings"
 )
@@ -51,7 +51,8 @@ type Selector [selectorLen]byte
 
 func NewSelector(sig Signature) Selector {
 	var selector Selector
-	copy(selector[:], metamask.Keccak256([]byte(sig)))
+	hash := proto.Keccak256EthereumHash([]byte(sig))
+	copy(selector[:], hash[:])
 	return selector
 }
 

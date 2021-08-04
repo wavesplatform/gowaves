@@ -3,7 +3,7 @@ package metamask
 import (
 	"encoding/hex"
 	"github.com/semrush/zenrpc/v2"
-	"github.com/umbracle/fastrlp"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 	"math/big"
@@ -79,32 +79,24 @@ func (as MetaMask) Eth_sendrawtransaction(signedTxData string) string {
 		zap.S().Errorf("failed to decode tx: %v", err)
 	}
 
-	parse := fastrlp.Parser{}
-	rlpVal, err := parse.Parse(data)
+	var tx proto.EthereumTransaction
+	err = tx.DecodeRLP(data)
 	if err != nil {
-		zap.S().Errorf("failed to parse tx: %v", err)
-	}
-	var tx LegacyTx
-	err = tx.UnmarshalFromFastRLP(rlpVal)
-	if err != nil {
-		zap.S().Errorf("failed to unmarshal rlp value: %v", err)
+		zap.S().Errorf("failed to unmarshal rlp encoded ethereum transaction: %v", err)
 	}
 
 	// returns 32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available.
 	blockNumber := big.NewInt(5)
-	conifg := &ChainConfig{}
-	tx.chainID()
-	chainID := deriveChainId(tx.V)
-	conifg.ChainID = chainID
+	conifg := &proto.ChainConfig{
+		ChainID: tx.ChainId(),
+	}
 
-	rawTx := NewTx(&tx)
-
-	signer := MakeSigner(conifg, blockNumber)
-	sender, err := Sender(signer, &rawTx)
+	signer := proto.MakeSigner(conifg, blockNumber)
+	sender, err := proto.Sender(signer, &tx)
 	if err != nil {
 		zap.S().Errorf("failed to get sender")
 	}
-	zap.S().Infof("Receiver is %s\n", tx.To.Hex())
+	zap.S().Infof("Receiver is %s\n", tx.To().String())
 	zap.S().Infof("Sender is %s\n", sender.Hex())
 
 	return ""

@@ -2,6 +2,7 @@ package proto
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -155,4 +156,17 @@ func NewTimestampFromUSeconds(seconds uint64) uint64 {
 func NetworkStrFromScheme(scheme Scheme) string {
 	prefix := "waves"
 	return prefix + string(scheme)
+}
+
+// HexEncodeToBytes encodes b as a hex string as bytes with 0x prefix.
+func HexEncodeToBytes(b []byte) []byte {
+	enc := make([]byte, len(b)*2+2)
+	copy(enc, "0x")
+	hex.Encode(enc[2:], b)
+	return enc
+}
+
+// HexEncodeToString encodes b as a hex string with 0x prefix.
+func HexEncodeToString(b []byte) string {
+	return string(HexEncodeToBytes(b))
 }

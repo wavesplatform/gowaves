@@ -1,10 +1,6 @@
-package fourbyte
+package ethabi
 
 import "math/big"
-
-var (
-	ABIPadding = 32
-)
 
 var (
 	Big1  = big.NewInt(1)

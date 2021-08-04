@@ -1,4 +1,4 @@
-package metamask
+package proto
 
 import (
 	"math/big"
@@ -26,8 +26,8 @@ type ChainConfig struct {
 	DAOForkSupport bool     `json:"daoForkSupport,omitempty"` // Whether the nodes supports or opposes the DAO hard-fork
 
 	// EIP150 implements the Gas price changes (https://github.com/ethereum/EIPs/issues/150)
-	EIP150Block *big.Int `json:"eip150Block,omitempty"` // EIP150 HF block (nil = no fork)
-	EIP150Hash  Hash     `json:"eip150Hash,omitempty"`  // EIP150 HF hash (needed for header only clients as only gas pricing changed)
+	EIP150Block *big.Int     `json:"eip150Block,omitempty"` // EIP150 HF block (nil = no fork)
+	EIP150Hash  EthereumHash `json:"eip150Hash,omitempty"`  // EIP150 HF hash (needed for header only clients as only gas pricing changed)
 
 	EIP155Block *big.Int `json:"eip155Block,omitempty"` // EIP155 HF block
 	EIP158Block *big.Int `json:"eip158Block,omitempty"` // EIP158 HF block
@@ -63,11 +63,11 @@ func MakeSigner(config *ChainConfig, blockNumber *big.Int) Signer {
 	return signer
 }
 
-func Sender(signer Signer, tx *Transaction) (Address, error) {
+func Sender(signer Signer, tx *EthereumTransaction) (EthereumAddress, error) {
 
 	addr, err := signer.Sender(tx)
 	if err != nil {
-		return Address{}, err
+		return EthereumAddress{}, err
 	}
 	return addr, nil
 }

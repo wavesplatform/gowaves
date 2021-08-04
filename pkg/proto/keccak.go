@@ -1,4 +1,4 @@
-package metamask
+package proto
 
 import (
 	"golang.org/x/crypto/sha3"
@@ -18,20 +18,9 @@ func NewKeccakState() KeccakState {
 	return sha3.NewLegacyKeccak256().(KeccakState)
 }
 
-// Keccak256 calculates and returns the Keccak256 hash of the input data.
-func Keccak256(data ...[]byte) []byte {
-	sha := NewKeccakState()
-	for _, b := range data {
-		_, _ = sha.Write(b)
-	}
-	h := make([]byte, HashLength)
-	_, _ = sha.Read(h)
-	return h
-}
-
-// Keccak256Hash calculates and returns the Keccak256 hash of the input data,
-// converting it to an internal Hash data structure.
-func Keccak256Hash(data ...[]byte) (h Hash) {
+// Keccak256EthereumHash calculates and returns the Keccak256 hash of the input data,
+// converting it to an EthereumHash data structure.
+func Keccak256EthereumHash(data ...[]byte) (h EthereumHash) {
 	sha := NewKeccakState()
 	for _, b := range data {
 		_, _ = sha.Write(b)

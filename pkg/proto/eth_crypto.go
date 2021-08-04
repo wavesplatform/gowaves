@@ -1,4 +1,4 @@
-package metamask
+package proto
 
 import (
 	"math/big"

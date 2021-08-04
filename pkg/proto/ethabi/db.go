@@ -1,8 +1,9 @@
-package fourbyte
+package ethabi
 
 import (
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"strings"
 )
@@ -95,7 +96,7 @@ func (db *Database) ParseCallDataRide(data []byte, parsePayments bool) (*Decoded
 
 type DecodedArg struct {
 	Soltype Argument
-	Value   interface{}
+	Value   ride.RideType
 }
 
 func (da *DecodedArg) String() string {

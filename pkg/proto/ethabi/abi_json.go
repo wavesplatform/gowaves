@@ -1,10 +1,9 @@
-package abi
+package ethabi
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/metamask/abi/fourbyte"
 )
 
 type argABI struct {
@@ -19,7 +18,7 @@ type abi struct {
 	Inputs []argABI `json:"inputs"`
 }
 
-func getArgumentABI(argType *fourbyte.Type) (argABI, error) {
+func getArgumentABI(argType *Type) (argABI, error) {
 	a := argABI{}
 	if argType == nil {
 		return a, nil
@@ -27,7 +26,7 @@ func getArgumentABI(argType *fourbyte.Type) (argABI, error) {
 
 	// this is the types that correspond with Ride
 	switch argType.T {
-	case fourbyte.TupleTy:
+	case TupleTy:
 		a.Type = "tuple"
 		for i, tupleElem := range argType.TupleElems {
 			internalElem, err := getArgumentABI(&tupleElem)
@@ -38,7 +37,7 @@ func getArgumentABI(argType *fourbyte.Type) (argABI, error) {
 			a.Components = append(a.Components, internalElem)
 		}
 
-	case fourbyte.SliceTy:
+	case SliceTy:
 		internalElem, err := getArgumentABI(argType.Elem)
 		if err != nil {
 			return a, errors.Errorf("failed to parse slice type, %v", err)
@@ -46,17 +45,17 @@ func getArgumentABI(argType *fourbyte.Type) (argABI, error) {
 		a.Type = fmt.Sprintf("%s[]", internalElem.Type)
 		a.Components = internalElem.Components
 
-	case fourbyte.StringTy: // variable arrays are written at the end of the return bytes
+	case StringTy: // variable arrays are written at the end of the return bytes
 		a.Type = "string"
-	case fourbyte.IntTy:
+	case IntTy:
 		a.Type = "int64"
-	case fourbyte.UintTy:
+	case UintTy:
 		a.Type = "uint8"
-	case fourbyte.BoolTy:
+	case BoolTy:
 		a.Type = "bool"
-	case fourbyte.AddressTy:
+	case AddressTy:
 		a.Type = "bytes"
-	case fourbyte.BytesTy:
+	case BytesTy:
 		a.Type = "bytes"
 	default:
 		return a, errors.Errorf("abi: unknown type %s", a.Type)
@@ -65,7 +64,7 @@ func getArgumentABI(argType *fourbyte.Type) (argABI, error) {
 	return a, nil
 }
 
-func getJsonAbi(metaDApp []fourbyte.Method) ([]byte, error) {
+func getJsonAbi(metaDApp []Method) ([]byte, error) {
 	var abiResult []abi
 
 	for _, method := range metaDApp {

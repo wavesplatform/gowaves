@@ -1,4 +1,4 @@
-package metamask
+package proto
 
 import (
 	"fmt"
@@ -13,16 +13,16 @@ var ErrInvalidChainId = errors.New("invalid chain id for signer")
 
 type Signer interface {
 	// Sender returns the sender address of the transaction.
-	Sender(tx *Transaction) (Address, error)
+	Sender(tx *EthereumTransaction) (EthereumAddress, error)
 
 	// SignatureValues returns the raw R, S, V values corresponding to the
 	// given signature.
-	SignatureValues(tx *Transaction, sig []byte) (r, s, v *big.Int, err error)
+	SignatureValues(tx *EthereumTransaction, sig []byte) (r, s, v *big.Int, err error)
 	ChainID() *big.Int
 
 	// Hash returns 'signature hash', i.e. the transaction hash that is signed by the
 	// private key. This hash does not uniquely identify the transaction.
-	Hash(tx *Transaction) Hash
+	Hash(tx *EthereumTransaction) EthereumHash
 
 	// Equal returns true if the given signer is the same as the receiver.
 	Equal(Signer) bool
@@ -46,7 +46,7 @@ func (s eip2930Signer) Equal(s2 Signer) bool {
 	return ok && x.chainId.Cmp(s.chainId) == 0
 }
 
-func (s eip2930Signer) Sender(tx *Transaction) (Address, error) {
+func (s eip2930Signer) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
 	V, R, S := tx.RawSignatureValues()
 	switch tx.Type() {
 	case LegacyTxType:
@@ -60,19 +60,19 @@ func (s eip2930Signer) Sender(tx *Transaction) (Address, error) {
 		// id, add 27 to become equivalent to unprotected Homestead signatures.
 		V = new(big.Int).Add(V, big.NewInt(27))
 	default:
-		return Address{}, ErrTxTypeNotSupported
+		return EthereumAddress{}, ErrTxTypeNotSupported
 	}
 	//if tx.ChainId().Cmp(s.chainId) != 0 {
-	//	return Address{}, ErrInvalidChainId
+	//	return EthereumAddress{}, ErrInvalidChainId
 	//}
 	return recoverPlain(tx.SignerHash(s.chainId), R, S, V, true)
 }
 
-func (s eip2930Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
+func (s eip2930Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S, V *big.Int, err error) {
 	switch txdata := tx.inner.(type) {
-	case *LegacyTx:
+	case *EthereumLegacyTx:
 		return s.EIP155Signer.SignatureValues(tx, sig)
-	case *AccessListTx:
+	case *EthereumAccessListTx:
 		// Check that chain ID of tx matches the signer. We also accept ID zero here,
 		// because it indicates that the chain ID was not specified in the tx.
 		if txdata.ChainID.Sign() != 0 && txdata.ChainID.Cmp(s.chainId) != 0 {
@@ -88,7 +88,7 @@ func (s eip2930Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *bi
 
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
-func (s eip2930Signer) Hash(tx *Transaction) Hash {
+func (s eip2930Signer) Hash(tx *EthereumTransaction) EthereumHash {
 	arena := &fastrlp.Arena{}
 	hashValues := tx.inner.signerHashFastRLP(s.chainId, arena)
 
@@ -98,16 +98,16 @@ func (s eip2930Signer) Hash(tx *Transaction) Hash {
 	case LegacyTxType:
 		rlpData = hashValues.MarshalTo(nil)
 	case AccessListTxType, DynamicFeeTxType:
-		rlpData = append(rlpData, tx.Type())
+		rlpData = append(rlpData, byte(tx.Type()))
 		rlpData = hashValues.MarshalTo(rlpData)
 	default:
 		// This _should_ not happen, but in case someone sends in a bad
 		// json struct via RPC, it's probably more prudent to return an
 		// empty hash instead of killing the node with a panic
 		//panic("Unsupported transaction type: %d", tx.typ)
-		return Hash{}
+		return EthereumHash{}
 	}
-	return Keccak256Hash(rlpData)
+	return Keccak256EthereumHash(rlpData)
 }
 
 type EIP155Signer struct {
@@ -135,16 +135,16 @@ func (s EIP155Signer) Equal(s2 Signer) bool {
 
 var big8 = big.NewInt(8)
 
-func (s EIP155Signer) Sender(tx *Transaction) (Address, error) {
+func (s EIP155Signer) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
 	if tx.Type() != LegacyTxType {
-		return Address{}, ErrTxTypeNotSupported
+		return EthereumAddress{}, ErrTxTypeNotSupported
 	}
 	if !tx.Protected() {
 		return HomesteadSigner{}.Sender(tx)
 	}
 	// TODO
 	if tx.ChainId().Cmp(s.chainId) != 0 {
-		return Address{}, ErrInvalidChainId
+		return EthereumAddress{}, ErrInvalidChainId
 	}
 	V, R, S := tx.RawSignatureValues()
 	V = new(big.Int).Sub(V, s.chainIdMul)
@@ -154,7 +154,7 @@ func (s EIP155Signer) Sender(tx *Transaction) (Address, error) {
 
 // SignatureValues returns signature values. This signature
 // needs to be in the [R || S || V] format where V is 0 or 1.
-func (s EIP155Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
+func (s EIP155Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S, V *big.Int, err error) {
 	if tx.Type() != LegacyTxType {
 		return nil, nil, nil, ErrTxTypeNotSupported
 	}
@@ -168,7 +168,7 @@ func (s EIP155Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big
 
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
-func (s EIP155Signer) Hash(tx *Transaction) Hash {
+func (s EIP155Signer) Hash(tx *EthereumTransaction) EthereumHash {
 	arena := &fastrlp.Arena{}
 	hashValues := tx.inner.signerHashFastRLP(s.chainId, arena)
 
@@ -178,16 +178,16 @@ func (s EIP155Signer) Hash(tx *Transaction) Hash {
 	case LegacyTxType:
 		rlpData = hashValues.MarshalTo(nil)
 	case AccessListTxType, DynamicFeeTxType:
-		rlpData = append(rlpData, tx.Type())
+		rlpData = append(rlpData, byte(tx.Type()))
 		rlpData = hashValues.MarshalTo(rlpData)
 	default:
 		// This _should_ not happen, but in case someone sends in a bad
 		// json struct via RPC, it's probably more prudent to return an
 		// empty hash instead of killing the node with a panic
 		//panic("Unsupported transaction type: %d", tx.typ)
-		return Hash{}
+		return EthereumHash{}
 	}
-	return Keccak256Hash(rlpData)
+	return Keccak256EthereumHash(rlpData)
 }
 
 // HomesteadTransaction implements TransactionInterface using the
@@ -205,13 +205,13 @@ func (s HomesteadSigner) Equal(s2 Signer) bool {
 
 // SignatureValues returns signature values. This signature
 // needs to be in the [R || S || V] format where V is 0 or 1.
-func (hs HomesteadSigner) SignatureValues(tx *Transaction, sig []byte) (r, s, v *big.Int, err error) {
+func (hs HomesteadSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (r, s, v *big.Int, err error) {
 	return hs.FrontierSigner.SignatureValues(tx, sig)
 }
 
-func (hs HomesteadSigner) Sender(tx *Transaction) (Address, error) {
+func (hs HomesteadSigner) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
 	if tx.Type() != LegacyTxType {
-		return Address{}, ErrTxTypeNotSupported
+		return EthereumAddress{}, ErrTxTypeNotSupported
 	}
 	v, r, s := tx.RawSignatureValues()
 	return recoverPlain(tx.SignerHash(hs.ChainID()), r, s, v, true)
@@ -228,9 +228,9 @@ func (s FrontierSigner) Equal(s2 Signer) bool {
 	return ok
 }
 
-func (fs FrontierSigner) Sender(tx *Transaction) (Address, error) {
+func (fs FrontierSigner) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
 	if tx.Type() != LegacyTxType {
-		return Address{}, ErrTxTypeNotSupported
+		return EthereumAddress{}, ErrTxTypeNotSupported
 	}
 	v, r, s := tx.RawSignatureValues()
 	return recoverPlain(tx.SignerHash(fs.ChainID()), r, s, v, true)
@@ -238,7 +238,7 @@ func (fs FrontierSigner) Sender(tx *Transaction) (Address, error) {
 
 // SignatureValues returns signature values. This signature
 // needs to be in the [R || S || V] format where V is 0 or 1.
-func (fs FrontierSigner) SignatureValues(tx *Transaction, sig []byte) (r, s, v *big.Int, err error) {
+func (fs FrontierSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (r, s, v *big.Int, err error) {
 	if tx.Type() != LegacyTxType {
 		return nil, nil, nil, ErrTxTypeNotSupported
 	}
@@ -248,7 +248,7 @@ func (fs FrontierSigner) SignatureValues(tx *Transaction, sig []byte) (r, s, v *
 
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
-func (fs FrontierSigner) Hash(tx *Transaction) Hash {
+func (fs FrontierSigner) Hash(tx *EthereumTransaction) EthereumHash {
 	arena := &fastrlp.Arena{}
 	hashValues := tx.inner.signerHashFastRLP(fs.ChainID(), arena)
 
@@ -258,16 +258,16 @@ func (fs FrontierSigner) Hash(tx *Transaction) Hash {
 	case LegacyTxType:
 		rlpData = hashValues.MarshalTo(nil)
 	case AccessListTxType, DynamicFeeTxType:
-		rlpData = append(rlpData, tx.Type())
+		rlpData = append(rlpData, byte(tx.Type()))
 		rlpData = hashValues.MarshalTo(rlpData)
 	default:
 		// This _should_ not happen, but in case someone sends in a bad
 		// json struct via RPC, it's probably more prudent to return an
 		// empty hash instead of killing the node with a panic
 		//panic("Unsupported transaction type: %d", tx.typ)
-		return Hash{}
+		return EthereumHash{}
 	}
-	return Keccak256Hash(rlpData)
+	return Keccak256EthereumHash(rlpData)
 }
 
 func decodeSignature(sig []byte) (r, s, v *big.Int) {
@@ -280,13 +280,13 @@ func decodeSignature(sig []byte) (r, s, v *big.Int) {
 	return r, s, v
 }
 
-func recoverPlain(sighash Hash, R, S, Vb *big.Int, homestead bool) (Address, error) {
+func recoverPlain(sighash EthereumHash, R, S, Vb *big.Int, homestead bool) (EthereumAddress, error) {
 	if Vb.BitLen() > 8 {
-		return Address{}, ErrInvalidSig
+		return EthereumAddress{}, ErrInvalidSig
 	}
 	V := byte(Vb.Uint64() - 27)
 	if !ValidateSignatureValues(V, R, S, homestead) {
-		return Address{}, ErrInvalidSig
+		return EthereumAddress{}, ErrInvalidSig
 	}
 	// encode the signature in uncompressed format
 	r, s := R.Bytes(), S.Bytes()
@@ -297,14 +297,14 @@ func recoverPlain(sighash Hash, R, S, Vb *big.Int, homestead bool) (Address, err
 	// recover the public key from the signature
 	pubKey, err := crypto.ECDSARecoverPublicKey(sighash[:], sig)
 	if err != nil {
-		return Address{}, err
+		return EthereumAddress{}, err
 	}
 
-	var addrKey Address
+	var addrKey EthereumAddress
 	res := pubKey.SerializeUncompressed()[1:]
 	l, err := crypto.Keccak256(res)
 	if err != nil {
-		return Address{}, err
+		return EthereumAddress{}, err
 	}
 	copy(addrKey[:], l[12:])
 	return addrKey, nil

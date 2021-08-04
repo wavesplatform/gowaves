@@ -1,4 +1,4 @@
-package metamask
+package proto
 
 import (
 	"bytes"
@@ -23,7 +23,7 @@ func TestLegacyTxContractCreation(t *testing.T) {
 	parse := fastrlp.Parser{}
 	rlpVal, err := parse.Parse(data)
 	require.NoError(t, err)
-	var tx LegacyTx
+	var tx EthereumLegacyTx
 	err = tx.UnmarshalFromFastRLP(rlpVal)
 	require.NoError(t, err)
 
@@ -48,11 +48,11 @@ func TestLegacyTx(t *testing.T) {
 	rlpVal, err := parse.Parse(data)
 	require.NoError(t, err)
 
-	var tx LegacyTx
+	var tx EthereumLegacyTx
 	err = tx.UnmarshalFromFastRLP(rlpVal)
 	require.NoError(t, err)
 
-	require.Len(t, tx.To.Bytes(), AddressLength)
+	require.Len(t, tx.To.tryToBytes(), EthereumAddressSize)
 
 	out := bytes.NewBuffer(nil)
 	err = tx.EncodeRLP(out)

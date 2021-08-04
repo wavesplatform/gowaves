@@ -3,7 +3,6 @@ package proto
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"strconv"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -56,22 +56,96 @@ type Address interface {
 // EthereumAddress is the first 20 bytes of Public Key's hash for the Waves address, or the 20 bytes of an Ethereum address.
 type EthereumAddress [EthereumAddressSize]byte
 
-// Bytes converts the fixed-length byte array of the EthereumAddress to a slice of bytes.
-func (b EthereumAddress) Bytes() []byte {
-	return b[:]
+// BytesToEthereumAddress returns EthereumAddress with value b.
+// If b is larger than len(h), b will be cropped from the left.
+func BytesToEthereumAddress(b []byte) EthereumAddress {
+	var a EthereumAddress
+	a.setBytes(b)
+	return a
 }
 
-func (b EthereumAddress) ID() AddressID {
+// Bytes converts the fixed-length byte array of the EthereumAddress to a slice of bytes.
+func (ea EthereumAddress) Bytes() []byte {
+	return ea[:]
+}
+
+// Bytes converts the fixed-length byte array of the EthereumAddress to a slice of bytes.
+// If *EthereumAddress == nil copy returns nil.
+func (ea *EthereumAddress) tryToBytes() []byte {
+	if ea == nil {
+		return nil
+	}
+	return ea.Bytes()
+}
+
+// setBytes sets bytes to EthereumAddress with right side priority.
+func (ea *EthereumAddress) setBytes(b []byte) {
+	if len(b) > len(ea) {
+		b = b[len(b)-EthereumAddressSize:]
+	}
+	copy(ea[EthereumAddressSize-len(b):], b)
+}
+
+func (ea EthereumAddress) ID() AddressID {
 	var id AddressID
-	copy(id[:], b[:])
+	copy(id[:], ea[:])
 	return id
 }
 
-func (b EthereumAddress) String() string {
-	sb := new(strings.Builder)
-	sb.WriteString("0x")
-	sb.WriteString(hex.EncodeToString(b[:]))
-	return sb.String()
+// Hash converts an address to a EthereumHash by left-padding it with zeros.
+func (ea EthereumAddress) Hash() EthereumHash {
+	return BytesToEthereumHash(ea[:])
+}
+
+func (ea EthereumAddress) Hex() string {
+	return string(ea.checksumHex())
+}
+
+func (ea EthereumAddress) String() string {
+	return ea.Hex()
+}
+
+func (ea *EthereumAddress) checksumHex() []byte {
+	buf := HexEncodeToBytes(ea[:])
+
+	// compute checksum
+	sha := NewKeccakState()
+	// nickeskov: can't fail
+	_, _ = sha.Write(buf[2:])
+	hash := sha.Sum(nil)
+	for i := 2; i < len(buf); i++ {
+		hashByte := hash[(i-2)/2]
+		if i%2 == 0 {
+			hashByte = hashByte >> 4
+		} else {
+			hashByte &= 0xf
+		}
+		if buf[i] > '9' && hashByte > 7 {
+			buf[i] -= 32
+		}
+	}
+	return buf[:]
+}
+
+// copy returns an exact copy of the provided EthereumAddress.
+// If *EthereumAddress == nil copy returns nil.
+func (ea *EthereumAddress) copy() *EthereumAddress {
+	if ea == nil {
+		return nil
+	}
+	cpy := *ea
+	return &cpy
+}
+
+func (ea *EthereumAddress) unmarshalFromFastRLP(val *fastrlp.Value) error {
+	if err := val.GetAddr(ea[:]); err != nil {
+		return errors.Wrap(err, "failed to unmarshal EthereumAddress from fastRLP value")
+	}
+	return nil
+}
+
+func (ea *EthereumAddress) marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Value {
+	return arena.NewBytes(ea.Bytes())
 }
 
 // WavesAddress is the transformed Public Key with additional bytes of the version, a blockchain scheme and a checksum.
