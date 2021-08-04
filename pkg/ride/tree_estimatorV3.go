@@ -28,15 +28,16 @@ func (f *fsV3) set(key string, cost int, usages []string) {
 	f.functions[key] = fd{cost, usages}
 }
 
-func (f *fsV3) get(key string) (int, []string, error) {
+// Changed the order of searching. User `functions` are searched first.
+func (f *fsV3) get(key string) (int, []string, bool) {
 	fd, ok := f.functions[key]
 	if !ok {
 		if f.parent == nil {
-			return 0, nil, errors.Errorf("user function '%s' not found", key)
+			return 0, nil, false
 		}
 		return f.parent.get(key)
 	}
-	return fd.cost, fd.usages, nil
+	return fd.cost, fd.usages, true
 }
 
 type estimationScopeV3 struct {
@@ -67,14 +68,20 @@ func (s *estimationScopeV3) setFunction(id string, cost int, usages []string) {
 	s.functions.set(id, cost, usages)
 }
 
+// Changed the order of searching. User `functions` are searched first.
 func (s *estimationScopeV3) function(id string, enableInvocation bool) (int, []string, error) {
+	cost, usages, found := s.functions.get(id)
+	if found {
+		return cost, usages, nil
+	}
+
 	if c, ok := s.builtin[id]; ok {
 		if (id == "1020" || id == "1021") && !enableInvocation {
 			return 0, nil, errors.Errorf("function '%s' not found", id)
 		}
 		return c, nil, nil
 	}
-	return s.functions.get(id)
+	return 0, nil, errors.Errorf("function '%s' not found", id)
 }
 
 func (s *estimationScopeV3) used(id string) bool {

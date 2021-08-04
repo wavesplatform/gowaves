@@ -113,14 +113,14 @@ func (s *evaluationScope) popUserFunction() error {
 	return nil
 }
 
-func (s *evaluationScope) userFunction(id string) (*FunctionDeclarationNode, int, error) {
+func (s *evaluationScope) userFunction(id string) (*FunctionDeclarationNode, int, bool) {
 	for i := len(s.user) - 1; i >= 0; i-- {
 		uf := s.user[i]
 		if uf.fn.Name == id {
-			return uf.fn, uf.sp, nil
+			return uf.fn, uf.sp, true
 		}
 	}
-	return nil, 0, errors.Errorf("user function '%s' is not found", id)
+	return nil, 0, false
 }
 
 func newEvaluationScope(v int, env Environment, enableInvocation bool) (evaluationScope, error) {
@@ -376,8 +376,44 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		}
 		return r, nil
 
+
 	case *FunctionCallNode:
+		// Changed the order of searching. User `functions` are searched first.
 		name := n.Name
+		uf, cl, found := e.s.userFunction(name)
+		if found {
+			if len(n.Arguments) != len(uf.Arguments) {
+				return nil, errors.Errorf("mismatched arguments number of user function '%s'", name)
+			}
+
+			args := make([]esValue, len(n.Arguments))
+			for i, arg := range n.Arguments {
+				an := uf.Arguments[i]
+				av, err := e.walk(arg) // materialize argument
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to materialize argument '%s' of user function '%s", an, name)
+				}
+				if isThrow(av) {
+					return av, nil
+				}
+				args[i] = esValue{id: an, value: av}
+			}
+			e.s.cs = append(e.s.cs, make([]esValue, len(args)))
+			for i, arg := range args {
+				e.s.cs[len(e.s.cs)-1][i] = arg
+			}
+			var tmp int
+			tmp, e.s.cl = e.s.cl, cl
+
+			r, err := e.walk(uf.Body)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", name)
+			}
+			e.s.cs = e.s.cs[:len(e.s.cs)-1]
+			e.s.cl = tmp
+			return r, nil
+		}
+
 		f, ok := e.s.system[name]
 		if ok { // System function
 			cost, ok := e.s.costs[name]
@@ -405,40 +441,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			e.complexity += cost
 			return r, nil
 		}
-		uf, cl, err := e.s.userFunction(name)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to call function '%s'", name)
-		}
-		if len(n.Arguments) != len(uf.Arguments) {
-			return nil, errors.Errorf("mismatched arguments number of user function '%s'", name)
-		}
-
-		args := make([]esValue, len(n.Arguments))
-		for i, arg := range n.Arguments {
-			an := uf.Arguments[i]
-			av, err := e.walk(arg) // materialize argument
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to materialize argument '%s' of user function '%s", an, name)
-			}
-			if isThrow(av) {
-				return av, nil
-			}
-			args[i] = esValue{id: an, value: av}
-		}
-		e.s.cs = append(e.s.cs, make([]esValue, len(args)))
-		for i, arg := range args {
-			e.s.cs[len(e.s.cs)-1][i] = arg
-		}
-		var tmp int
-		tmp, e.s.cl = e.s.cl, cl
-
-		r, err := e.walk(uf.Body)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", name)
-		}
-		e.s.cs = e.s.cs[:len(e.s.cs)-1]
-		e.s.cl = tmp
-		return r, nil
+		return nil, errors.Errorf("function '%s' is not found either in the system functions or in the user functions ", name)
 
 	case *PropertyNode:
 		name := n.Name
