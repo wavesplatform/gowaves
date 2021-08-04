@@ -376,7 +376,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		}
 		return r, nil
 
-
 	case *FunctionCallNode:
 		// Changed the order of searching. User `functions` are searched first.
 		name := n.Name
