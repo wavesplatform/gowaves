@@ -18,7 +18,7 @@ type EthereumLegacyTx struct {
 	V, R, S  *big.Int         // signature values
 }
 
-func (ltx *EthereumLegacyTx) UnmarshalFromFastRLP(value *fastrlp.Value) error {
+func (ltx *EthereumLegacyTx) unmarshalFromFastRLP(value *fastrlp.Value) error {
 	const legacyTxFieldsCount = 9
 
 	elems, err := value.GetElems()
@@ -105,7 +105,7 @@ func (ltx *EthereumLegacyTx) DecodeRLP(rlpData []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := ltx.UnmarshalFromFastRLP(rlpVal); err != nil {
+	if err := ltx.unmarshalFromFastRLP(rlpVal); err != nil {
 		return errors.Wrap(err, "failed to parse EthereumLegacyTx from RLP encoded data")
 	}
 	return nil
@@ -137,7 +137,7 @@ func (ltx *EthereumLegacyTx) copy() EthereumTxData {
 }
 
 // accessors for innerTx.
-func (ltx *EthereumLegacyTx) txType() TxType                 { return LegacyTxType }
+func (ltx *EthereumLegacyTx) txType() EthereumTxType         { return LegacyTxType }
 func (ltx *EthereumLegacyTx) chainID() *big.Int              { return deriveChainId(ltx.V) }
 func (ltx *EthereumLegacyTx) accessList() EthereumAccessList { return nil }
 func (ltx *EthereumLegacyTx) data() []byte                   { return ltx.Data }

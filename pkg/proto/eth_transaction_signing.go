@@ -46,25 +46,12 @@ type ChainConfig struct {
 }
 
 // MakeSigner returns a Signer based on the given chain config and block number.
-func MakeSigner(config *ChainConfig, blockNumber *big.Int) Signer {
-	//switch {
-	//case config.IsLondon(blockNumber):
-	//	signer = NewLondonSigner(config.ChainID)
-	//case config.IsBerlin(blockNumber):
-	signer := NewEIP2930Signer(config.ChainID)
-	//case config.IsEIP155(blockNumber):
-	//	signer = NewEIP155Signer(config.ChainID)
-	//case config.IsHomestead(blockNumber):
-	//	signer = HomesteadSigner{}
-	//default:
-	//	panic("не берлин")
-	//	signer = FrontierSigner{}
-	//}
-	return signer
+func MakeSigner(chainID *big.Int) Signer {
+	// nickeskov: LondonSigner is a main signer after the London hardfork (hardfork date - 05.08.2021)
+	return NewLondonSigner(chainID)
 }
 
 func Sender(signer Signer, tx *EthereumTransaction) (EthereumAddress, error) {
-
 	addr, err := signer.Sender(tx)
 	if err != nil {
 		return EthereumAddress{}, err

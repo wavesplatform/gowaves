@@ -6,7 +6,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
-	"math/big"
 	"strings"
 )
 
@@ -85,13 +84,7 @@ func (as MetaMask) Eth_sendrawtransaction(signedTxData string) string {
 		zap.S().Errorf("failed to unmarshal rlp encoded ethereum transaction: %v", err)
 	}
 
-	// returns 32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available.
-	blockNumber := big.NewInt(5)
-	conifg := &proto.ChainConfig{
-		ChainID: tx.ChainId(),
-	}
-
-	signer := proto.MakeSigner(conifg, blockNumber)
+	signer := proto.MakeSigner(tx.ChainId())
 	sender, err := proto.Sender(signer, &tx)
 	if err != nil {
 		zap.S().Errorf("failed to get sender")

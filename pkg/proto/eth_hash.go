@@ -26,6 +26,10 @@ func (h EthereumHash) Bytes() []byte {
 	return h[:]
 }
 
+func (h EthereumHash) Empty() bool {
+	return h == EthereumHash{}
+}
+
 // Bytes converts the fixed-length byte array of the EthereumHash to a slice of bytes.
 // If *EthereumAddress == nil copy returns nil.
 func (h *EthereumHash) tryToBytes() []byte {

@@ -24,7 +24,7 @@ func TestLegacyTxContractCreation(t *testing.T) {
 	rlpVal, err := parse.Parse(data)
 	require.NoError(t, err)
 	var tx EthereumLegacyTx
-	err = tx.UnmarshalFromFastRLP(rlpVal)
+	err = tx.unmarshalFromFastRLP(rlpVal)
 	require.NoError(t, err)
 
 	require.Nil(t, tx.To)
@@ -49,7 +49,7 @@ func TestLegacyTx(t *testing.T) {
 	require.NoError(t, err)
 
 	var tx EthereumLegacyTx
-	err = tx.UnmarshalFromFastRLP(rlpVal)
+	err = tx.unmarshalFromFastRLP(rlpVal)
 	require.NoError(t, err)
 
 	require.Len(t, tx.To.tryToBytes(), EthereumAddressSize)

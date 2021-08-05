@@ -4,19 +4,31 @@ import (
 	stderr "errors"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
-	"golang.org/x/crypto/sha3"
 	"io"
 	"math/big"
 )
 
-// TxType is an ethereum transaction type.
-type TxType byte
+// EthereumTxType is an ethereum transaction type.
+type EthereumTxType byte
 
 const (
-	LegacyTxType TxType = iota
+	LegacyTxType EthereumTxType = iota
 	AccessListTxType
 	DynamicFeeTxType
 )
+
+func (e EthereumTxType) String() string {
+	switch e {
+	case LegacyTxType:
+		return "LegacyTxType"
+	case AccessListTxType:
+		return "AccessListTxType"
+	case DynamicFeeTxType:
+		return "DynamicFeeTxType"
+	default:
+		return ""
+	}
+}
 
 var (
 	ErrInvalidSig         = errors.New("invalid transaction v, r, s values")
@@ -46,7 +58,7 @@ type fastRLPMarshaler interface {
 }
 
 type EthereumTxData interface {
-	txType() TxType
+	txType() EthereumTxType
 	copy() EthereumTxData // creates a deep copy and initializes all fields
 
 	chainID() *big.Int
@@ -68,17 +80,112 @@ type EthereumTxData interface {
 }
 
 type EthereumTransaction struct {
-	inner EthereumTxData
+	inner           EthereumTxData
+	innerBinarySize int
 }
 
-func NewTx(inner EthereumTxData) EthereumTransaction {
-	var tx EthereumTransaction
-	tx.setDecoded(inner)
-	return tx
-}
+//func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
+//	return TransactionTypeInfo{
+//		Type:         EthereumMetamaskTransaction,
+//		ProofVersion: Proof,
+//	}
+//}
+//
+//func (tx *EthereumTransaction) GetVersion() byte {
+//	// TODO(nickeskov): Is that right?
+//	return byte(tx.Type())
+//}
+//
+//func (tx *EthereumTransaction) GetID(scheme Scheme) ([]byte, error) {
+//	if tx.ID == nil {
+//		if err := tx.GenerateID(scheme); err != nil {
+//			return nil, err
+//		}
+//	}
+//	return tx.ID.Bytes(), nil
+//}
+//
+//func (tx *EthereumTransaction) GetSenderPK() crypto.PublicKey {
+//	panic("implement me")
+//}
+//
+//func (tx *EthereumTransaction) GetFee() uint64 {
+//	// TODO(nickeskov): from what field i should take fee value?
+//	panic("implement me")
+//}
+//
+//func (tx *EthereumTransaction) GetTimestamp() uint64 {
+//	return tx.Nonce()
+//}
+//
+//func (tx *EthereumTransaction) Validate() (Transaction, error) {
+//	// TODO(nickeskov): how to validate tx?
+//	panic("implement me")
+//}
+//
+//func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
+//	if tx.ID == nil {
+//		body, err := MarshalTxBody(scheme, tx)
+//		if err != nil {
+//			return err
+//		}
+//		id := crypto.MustFastHash(body)
+//		tx.ID = &id
+//	}
+//	return nil
+//}
+//
+//func (tx *EthereumTransaction) Sign(scheme Scheme, sk crypto.SecretKey) error {
+//	// TODO(nickeskov_: Do we need it?
+//	return errors.New("Sign method for EthereumTransaction isn't implemented")
+//}
+//
+//func (tx *EthereumTransaction) MarshalBinary() ([]byte, error) {
+//	panic("implement me")
+//}
+//
+//func (tx *EthereumTransaction) UnmarshalBinary(bytes []byte, scheme Scheme) error {
+//	panic("implement me")
+//}
+//
+//func (tx *EthereumTransaction) BodyMarshalBinary() ([]byte, error) {
+//	panic("implement me")
+//}
+//
+//func (tx *EthereumTransaction) BinarySize() int {
+//	return tx.innerBinarySize
+//}
+//
+//func (tx *EthereumTransaction) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+//	return MarshalTxDeterministic(tx, scheme)
+//}
+//
+//func (tx *EthereumTransaction) UnmarshalFromProtobuf(bytes []byte) error {
+//	panic("implement me")
+//}
+//
+//func (tx *EthereumTransaction) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+//	panic("implement me")
+//}
+//
+//func (tx *EthereumTransaction) UnmarshalSignedFromProtobuf(bytes []byte) error {
+//	panic("implement me")
+//}
+//
+//func (tx *EthereumTransaction) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+//	panic("implement me")
+//}
+//
+//func (tx *EthereumTransaction) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+//	panic("implement me")
+//}
+//
+//func (tx *EthereumTransaction) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
+//	panic("implement me")
+//}
 
 // Type returns the transaction type.
-func (tx *EthereumTransaction) Type() TxType {
+func (tx *EthereumTransaction) Type() EthereumTxType {
 	return tx.inner.txType()
 }
 
@@ -92,7 +199,7 @@ func (tx *EthereumTransaction) ChainId() *big.Int {
 // Data returns the input data of the transaction.
 func (tx *EthereumTransaction) Data() []byte { return tx.inner.data() }
 
-// EthereumAccessList returns the access list of the transaction.
+// AccessList returns the access list of the transaction.
 func (tx *EthereumTransaction) AccessList() EthereumAccessList { return tx.inner.accessList() }
 
 // Gas returns the gas limit of the transaction.
@@ -142,25 +249,29 @@ func (tx *EthereumTransaction) unmarshalFromFastRLP(value *fastrlp.Value) error 
 	case fastrlp.TypeArray:
 		// nickeskov: It's a legacy transaction.
 		var inner EthereumLegacyTx
-		err := inner.UnmarshalFromFastRLP(value)
-		if err == nil {
-			tx.setDecoded(&inner)
+		if err := inner.unmarshalFromFastRLP(value); err != nil {
+			return errors.Wrapf(err,
+				"failed to unmarshal from RLP ethereum legacy transaction, txType %q",
+				LegacyTxType.String(),
+			)
 		}
-		return err
+		tx.inner = &inner
 	case fastrlp.TypeBytes:
 		// nickeskov: It's an EIP-2718 typed TX envelope.
 		typedTxBytes, err := value.Bytes()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to represent RLP value as bytes")
 		}
 		inner, err := tx.decodeTyped(typedTxBytes)
-		if err == nil {
-			tx.setDecoded(inner)
+		if err != nil {
+			return errors.Wrap(err, "failed to unmarshal from RLP ethereum typed transaction")
 		}
-		return err
+		tx.inner = inner
 	default:
 		return ErrTxTypeDecode
 	}
+	tx.innerBinarySize = int(value.Len())
+	return nil
 }
 
 func (tx EthereumTransaction) EncodeRLP(w io.Writer) error {
@@ -178,26 +289,28 @@ func (tx EthereumTransaction) EncodeRLP(w io.Writer) error {
 	return nil
 }
 
-func (tx *EthereumTransaction) setDecoded(inner EthereumTxData) {
-	tx.inner = inner
-}
-
 // decodeTyped decodes a typed transaction from the canonical format.
 func (tx *EthereumTransaction) decodeTyped(rlpData []byte) (EthereumTxData, error) {
 	if len(rlpData) == 0 {
 		return nil, errEmptyTypedTx
 	}
-	switch txType, rlpData := rlpData[0], rlpData[1:]; TxType(txType) {
+	switch txType, rlpData := rlpData[0], rlpData[1:]; EthereumTxType(txType) {
 	case AccessListTxType:
 		var inner EthereumAccessListTx
 		if err := inner.DecodeRLP(rlpData); err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err,
+				"failed to unmarshal ethereum tx from RLP, txType %q",
+				AccessListTxType.String(),
+			)
 		}
 		return &inner, nil
 	case DynamicFeeTxType:
 		var inner EthereumDynamicFeeTx
 		if err := inner.DecodeRLP(rlpData); err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err,
+				"failed to unmarshal ethereum tx from RLP, txType %q",
+				DynamicFeeTxType.String(),
+			)
 		}
 		return &inner, nil
 	default:
@@ -230,31 +343,4 @@ func (tx *EthereumTransaction) Protected() bool {
 	default:
 		return true
 	}
-}
-
-func (tx *EthereumTransaction) SignerHash(chainID *big.Int) EthereumHash {
-	arena := &fastrlp.Arena{}
-	hashValues := tx.inner.signerHashFastRLP(chainID, arena)
-
-	var rlpData []byte
-
-	switch tx.Type() {
-	case LegacyTxType:
-		rlpData = hashValues.MarshalTo(nil)
-	case AccessListTxType, DynamicFeeTxType:
-		rlpData = append(rlpData, byte(tx.Type()))
-		rlpData = hashValues.MarshalTo(rlpData)
-	default:
-		// This _should_ not happen, but in case someone sends in a bad
-		// json struct via RPC, it's probably more prudent to return an
-		// empty hash instead of killing the node with a panic
-		//panic("Unsupported transaction type: %d", tx.typ)
-		return EthereumHash{}
-	}
-	var h EthereumHash
-	sha := sha3.NewLegacyKeccak256().(KeccakState)
-	// nickeskov: it always returns a nil error
-	_, _ = sha.Write(rlpData)
-	_, _ = sha.Read(h[:])
-	return h
 }
