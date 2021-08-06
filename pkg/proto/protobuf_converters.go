@@ -1184,7 +1184,11 @@ func (c *ProtobufConverter) wrappedTransaction(wtx *g.TransactionWrapper) (Trans
 
 func (c *ProtobufConverter) ethereumTransaction(etx []byte) (Transaction, error) {
 	//TODO: Here we have to deserialize etx bytes into EthereumTransaction (or whatever it named) business object
-	return nil, errors.New("not implemented")
+	var tx EthereumTransaction
+	if err := tx.DecodeRLP(etx); err != nil {
+		return nil, errors.Wrap(err, "failed to decode ethereum transaction from RLP")
+	}
+	return &tx, nil
 }
 
 func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, error) {

@@ -1,9 +1,12 @@
 package proto
 
 import (
+	"bytes"
 	stderr "errors"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"io"
 	"math/big"
 )
@@ -82,107 +85,123 @@ type EthereumTxData interface {
 type EthereumTransaction struct {
 	inner           EthereumTxData
 	innerBinarySize int
+	ID              *crypto.Digest
 }
 
-//func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
-//	return TransactionTypeInfo{
-//		Type:         EthereumMetamaskTransaction,
-//		ProofVersion: Proof,
-//	}
-//}
-//
-//func (tx *EthereumTransaction) GetVersion() byte {
-//	// TODO(nickeskov): Is that right?
-//	return byte(tx.Type())
-//}
-//
-//func (tx *EthereumTransaction) GetID(scheme Scheme) ([]byte, error) {
-//	if tx.ID == nil {
-//		if err := tx.GenerateID(scheme); err != nil {
-//			return nil, err
-//		}
-//	}
-//	return tx.ID.Bytes(), nil
-//}
-//
-//func (tx *EthereumTransaction) GetSenderPK() crypto.PublicKey {
-//	panic("implement me")
-//}
-//
-//func (tx *EthereumTransaction) GetFee() uint64 {
-//	// TODO(nickeskov): from what field i should take fee value?
-//	panic("implement me")
-//}
-//
-//func (tx *EthereumTransaction) GetTimestamp() uint64 {
-//	return tx.Nonce()
-//}
-//
-//func (tx *EthereumTransaction) Validate() (Transaction, error) {
-//	// TODO(nickeskov): how to validate tx?
-//	panic("implement me")
-//}
-//
-//func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
-//	if tx.ID == nil {
-//		body, err := MarshalTxBody(scheme, tx)
-//		if err != nil {
-//			return err
-//		}
-//		id := crypto.MustFastHash(body)
-//		tx.ID = &id
-//	}
-//	return nil
-//}
-//
-//func (tx *EthereumTransaction) Sign(scheme Scheme, sk crypto.SecretKey) error {
-//	// TODO(nickeskov_: Do we need it?
-//	return errors.New("Sign method for EthereumTransaction isn't implemented")
-//}
-//
-//func (tx *EthereumTransaction) MarshalBinary() ([]byte, error) {
-//	panic("implement me")
-//}
-//
-//func (tx *EthereumTransaction) UnmarshalBinary(bytes []byte, scheme Scheme) error {
-//	panic("implement me")
-//}
-//
-//func (tx *EthereumTransaction) BodyMarshalBinary() ([]byte, error) {
-//	panic("implement me")
-//}
-//
-//func (tx *EthereumTransaction) BinarySize() int {
-//	return tx.innerBinarySize
-//}
-//
-//func (tx *EthereumTransaction) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
-//	return MarshalTxDeterministic(tx, scheme)
-//}
-//
-//func (tx *EthereumTransaction) UnmarshalFromProtobuf(bytes []byte) error {
-//	panic("implement me")
-//}
-//
-//func (tx *EthereumTransaction) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-//	panic("implement me")
-//}
-//
-//func (tx *EthereumTransaction) UnmarshalSignedFromProtobuf(bytes []byte) error {
-//	panic("implement me")
-//}
-//
-//func (tx *EthereumTransaction) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-//	panic("implement me")
-//}
-//
-//func (tx *EthereumTransaction) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
-//	panic("implement me")
-//}
-//
-//func (tx *EthereumTransaction) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-//	panic("implement me")
-//}
+func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
+	return TransactionTypeInfo{
+		Type:         EthereumMetamaskTransaction,
+		ProofVersion: Proof,
+	}
+}
+
+func (tx *EthereumTransaction) GetVersion() byte {
+	// TODO(nickeskov): Is that right?
+	return byte(tx.Type())
+}
+
+func (tx *EthereumTransaction) GetID(scheme Scheme) ([]byte, error) {
+	if tx.ID == nil {
+		if err := tx.GenerateID(scheme); err != nil {
+			return nil, err
+		}
+	}
+	return tx.ID.Bytes(), nil
+}
+
+func (tx *EthereumTransaction) GetSenderPK() crypto.PublicKey {
+	// TODO(nickeskov): on my mind we need to refactor this to support EthereumTX public key
+	panic("implement me")
+}
+
+func (tx *EthereumTransaction) GetFee() uint64 {
+	// TODO(nickeskov): from what field i should take fee value?
+	panic("implement me")
+}
+
+func (tx *EthereumTransaction) GetTimestamp() uint64 {
+	return tx.Nonce()
+}
+
+func (tx *EthereumTransaction) Validate() (Transaction, error) {
+	// TODO(nickeskov): how to validate tx?
+	panic("implement me")
+}
+
+func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
+	if tx.ID == nil {
+		body, err := MarshalTxBody(scheme, tx)
+		if err != nil {
+			return err
+		}
+		id := crypto.MustFastHash(body)
+		tx.ID = &id
+	}
+	return nil
+}
+
+func (tx *EthereumTransaction) Sign(scheme Scheme, sk crypto.SecretKey) error {
+	// TODO(nickeskov_: Do we need it?
+	return errors.New("Sign method for EthereumTransaction isn't implemented")
+}
+
+func (tx *EthereumTransaction) MarshalBinary() ([]byte, error) {
+	var b bytes.Buffer
+	b.Grow(tx.innerBinarySize)
+	if err := tx.EncodeRLP(&b); err != nil {
+		return nil, errors.Wrapf(err,
+			"failed to marshal ethereum transaction to RLP, txType %q",
+			tx.Type().String(),
+		)
+	}
+	return b.Bytes(), nil
+}
+
+func (tx *EthereumTransaction) UnmarshalBinary(bytes []byte, scheme Scheme) error {
+	if err := tx.DecodeRLP(bytes); err != nil {
+		return errors.Wrap(err, "failed to UnmarshalBinary ethereum transaction from RLP")
+	}
+	if err := tx.GenerateID(scheme); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (tx *EthereumTransaction) BodyMarshalBinary() ([]byte, error) {
+	panic("implement me")
+}
+
+func (tx *EthereumTransaction) BinarySize() int {
+	return tx.innerBinarySize
+}
+
+func (tx *EthereumTransaction) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalTxDeterministic(tx, scheme)
+}
+
+func (tx *EthereumTransaction) UnmarshalFromProtobuf(bytes []byte) error {
+	panic("implement me")
+}
+
+func (tx *EthereumTransaction) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	panic("implement me")
+}
+
+func (tx *EthereumTransaction) UnmarshalSignedFromProtobuf(bytes []byte) error {
+	panic("implement me")
+}
+
+func (tx *EthereumTransaction) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
+	panic("implement me")
+}
+
+func (tx *EthereumTransaction) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
+	panic("implement me")
+}
+
+func (tx *EthereumTransaction) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
+	panic("implement me")
+}
 
 // Type returns the transaction type.
 func (tx *EthereumTransaction) Type() EthereumTxType {
