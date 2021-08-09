@@ -45,13 +45,13 @@ type ChainConfig struct {
 
 }
 
-// MakeSigner returns a Signer based on the given chain config and block number.
-func MakeSigner(chainID *big.Int) Signer {
+// MakeEthereumSigner returns a EthereumSigner based on the given chain config and block number.
+func MakeEthereumSigner(chainID *big.Int) EthereumSigner {
 	// nickeskov: LondonSigner is a main signer after the London hardfork (hardfork date - 05.08.2021)
-	return NewLondonSigner(chainID)
+	return NewLondonEthereumSigner(chainID)
 }
 
-func Sender(signer Signer, tx *EthereumTransaction) (EthereumAddress, error) {
+func ExtractEthereumSender(signer EthereumSigner, tx *EthereumTransaction) (EthereumAddress, error) {
 	addr, err := signer.Sender(tx)
 	if err != nil {
 		return EthereumAddress{}, err

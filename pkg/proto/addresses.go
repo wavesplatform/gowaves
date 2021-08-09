@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"golang.org/x/crypto/sha3"
 	"io"
 	"strconv"
 	"strings"
@@ -109,7 +110,7 @@ func (ea *EthereumAddress) checksumHex() []byte {
 	buf := HexEncodeToBytes(ea[:])
 
 	// compute checksum
-	sha := NewKeccakState()
+	sha := sha3.NewLegacyKeccak256()
 	// nickeskov: can't fail
 	_, _ = sha.Write(buf[2:])
 	hash := sha.Sum(nil)

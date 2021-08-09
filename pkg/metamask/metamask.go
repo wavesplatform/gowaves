@@ -84,8 +84,8 @@ func (as MetaMask) Eth_sendrawtransaction(signedTxData string) string {
 		zap.S().Errorf("failed to unmarshal rlp encoded ethereum transaction: %v", err)
 	}
 
-	signer := proto.MakeSigner(tx.ChainId())
-	sender, err := proto.Sender(signer, &tx)
+	signer := proto.MakeEthereumSigner(tx.ChainId())
+	sender, err := proto.ExtractEthereumSender(signer, &tx)
 	if err != nil {
 		zap.S().Errorf("failed to get sender")
 	}

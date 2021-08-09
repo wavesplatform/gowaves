@@ -62,7 +62,7 @@ type fastRLPMarshaler interface {
 }
 
 type EthereumTxData interface {
-	txType() EthereumTxType
+	ethereumTxType() EthereumTxType
 	copy() EthereumTxData // creates a deep copy and initializes all fields
 
 	chainID() *big.Int
@@ -86,7 +86,7 @@ type EthereumTxData interface {
 type EthereumTransaction struct {
 	inner           EthereumTxData
 	innerBinarySize int
-	ID              *crypto.Digest
+	id              *crypto.Digest
 }
 
 func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
@@ -98,16 +98,16 @@ func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
 
 func (tx *EthereumTransaction) GetVersion() byte {
 	// TODO(nickeskov): Is that right?
-	return byte(tx.Type())
+	return byte(tx.EthereumTxType())
 }
 
 func (tx *EthereumTransaction) GetID(scheme Scheme) ([]byte, error) {
-	if tx.ID == nil {
+	if tx.id == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
 		}
 	}
-	return tx.ID.Bytes(), nil
+	return tx.id.Bytes(), nil
 }
 
 func (tx *EthereumTransaction) GetSenderPK() crypto.PublicKey {
@@ -125,12 +125,16 @@ func (tx *EthereumTransaction) GetTimestamp() uint64 {
 }
 
 func (tx *EthereumTransaction) Validate() (Transaction, error) {
-	// TODO(nickeskov): how to validate tx?
-	panic("implement me")
+	signer := MakeEthereumSigner(tx.ChainId())
+	_, err := ExtractEthereumSender(signer, tx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to validate EthereumTransaction")
+	}
+	return tx, nil
 }
 
 func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
-	if tx.ID != nil {
+	if tx.id != nil {
 		return nil
 	}
 	body, err := MarshalTxBody(scheme, tx)
@@ -138,7 +142,7 @@ func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
 		return err
 	}
 	id := crypto.MustFastHash(body)
-	tx.ID = &id
+	tx.id = &id
 	return nil
 }
 
@@ -148,18 +152,25 @@ func (tx *EthereumTransaction) Sign(_ Scheme, _ crypto.SecretKey) error {
 }
 
 func (tx *EthereumTransaction) MarshalBinary() ([]byte, error) {
-	var b bytes.Buffer
-	b.Grow(tx.innerBinarySize)
-	if err := tx.EncodeRLP(&b); err != nil {
-		return nil, errors.Wrapf(err,
-			"failed to marshal ethereum transaction to RLP, txType %q",
-			tx.Type().String(),
-		)
+	rlpData, err := tx.BodyMarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal binary ethereum transaction")
 	}
-	return b.Bytes(), nil
+	data := make([]byte, 1+len(rlpData))
+	data[0] = byte(tx.GetTypeInfo().Type)
+	copy(data[1:], rlpData)
+	return data, nil
 }
 
 func (tx *EthereumTransaction) UnmarshalBinary(bytes []byte, scheme Scheme) error {
+	if l := len(bytes); l < 1 {
+		return errors.New("failed to UnmarshalBinary ethereum transaction, received empty data")
+	}
+	if bytes[0] != byte(tx.GetTypeInfo().Type) {
+		return errors.Errorf("incorrect transaction type %d for EthereumTransaction transaction", bytes[0])
+	}
+
+	bytes = bytes[1:]
 	if err := tx.DecodeRLP(bytes); err != nil {
 		return errors.Wrap(err, "failed to UnmarshalBinary ethereum transaction from RLP")
 	}
@@ -170,16 +181,19 @@ func (tx *EthereumTransaction) UnmarshalBinary(bytes []byte, scheme Scheme) erro
 }
 
 func (tx *EthereumTransaction) BodyMarshalBinary() ([]byte, error) {
-	data, err := tx.MarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal binary ethereum transaction")
+	var b bytes.Buffer
+	b.Grow(tx.innerBinarySize)
+	if err := tx.EncodeRLP(&b); err != nil {
+		return nil, errors.Wrapf(err,
+			"failed to marshal ethereum transaction to RLP, ehtTxType %q",
+			tx.EthereumTxType().String(),
+		)
 	}
-	return data, nil
+	return b.Bytes(), nil
 }
 
 func (tx *EthereumTransaction) BinarySize() int {
-	// TODO(nickeskov): This field doesn't equal zero only if it has been decoded from RLP. Is it critical?
-	return tx.innerBinarySize
+	return tx.GetTypeInfo().Type.BinarySize() + tx.innerBinarySize
 }
 
 func (tx *EthereumTransaction) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
@@ -232,7 +246,7 @@ func (tx *EthereumTransaction) ToProtobufWrapped(_ Scheme) (*g.TransactionWrappe
 	if err != nil {
 		return nil, errors.Wrapf(err,
 			"failed to marshal binary EthereumTransaction, type %q",
-			tx.Type().String(),
+			tx.EthereumTxType().String(),
 		)
 	}
 	wrapped := g.TransactionWrapper{
@@ -243,9 +257,9 @@ func (tx *EthereumTransaction) ToProtobufWrapped(_ Scheme) (*g.TransactionWrappe
 	return &wrapped, nil
 }
 
-// Type returns the transaction type.
-func (tx *EthereumTransaction) Type() EthereumTxType {
-	return tx.inner.txType()
+// EthereumTxType returns the transaction type.
+func (tx *EthereumTransaction) EthereumTxType() EthereumTxType {
+	return tx.inner.ethereumTxType()
 }
 
 // ChainId returns the EIP155 chain ID of the transaction. The return value will always be
@@ -310,7 +324,7 @@ func (tx *EthereumTransaction) unmarshalFromFastRLP(value *fastrlp.Value) error 
 		var inner EthereumLegacyTx
 		if err := inner.unmarshalFromFastRLP(value); err != nil {
 			return errors.Wrapf(err,
-				"failed to unmarshal from RLP ethereum legacy transaction, txType %q",
+				"failed to unmarshal from RLP ethereum legacy transaction, ethereumTxType %q",
 				LegacyTxType.String(),
 			)
 		}
@@ -337,7 +351,7 @@ func (tx EthereumTransaction) EncodeRLP(w io.Writer) error {
 	arena := &fastrlp.Arena{}
 	var fastrlpTx *fastrlp.Value
 	// nickeskov: maybe use buffer pool?
-	if tx.Type() == LegacyTxType {
+	if tx.EthereumTxType() == LegacyTxType {
 		fastrlpTx = tx.inner.marshalToFastRLP(arena)
 	} else {
 		fastrlpTx = tx.encodeTyped(arena)
@@ -358,7 +372,7 @@ func (tx *EthereumTransaction) decodeTyped(rlpData []byte) (EthereumTxData, erro
 		var inner EthereumAccessListTx
 		if err := inner.DecodeRLP(rlpData); err != nil {
 			return nil, errors.Wrapf(err,
-				"failed to unmarshal ethereum tx from RLP, txType %q",
+				"failed to unmarshal ethereum tx from RLP, ethereumTxType %q",
 				AccessListTxType.String(),
 			)
 		}
@@ -367,7 +381,7 @@ func (tx *EthereumTransaction) decodeTyped(rlpData []byte) (EthereumTxData, erro
 		var inner EthereumDynamicFeeTx
 		if err := inner.DecodeRLP(rlpData); err != nil {
 			return nil, errors.Wrapf(err,
-				"failed to unmarshal ethereum tx from RLP, txType %q",
+				"failed to unmarshal ethereum tx from RLP, ethereumTxType %q",
 				DynamicFeeTxType.String(),
 			)
 		}
@@ -379,7 +393,7 @@ func (tx *EthereumTransaction) decodeTyped(rlpData []byte) (EthereumTxData, erro
 
 // encodeTyped writes the canonical encoding of a typed transaction to w.
 func (tx *EthereumTransaction) encodeTyped(arena *fastrlp.Arena) *fastrlp.Value {
-	rlpMarshaledTx := []byte{byte(tx.Type())}
+	rlpMarshaledTx := []byte{byte(tx.EthereumTxType())}
 	typedTxVal := tx.inner.marshalToFastRLP(arena)
 	rlpMarshaledTx = typedTxVal.MarshalTo(rlpMarshaledTx)
 	return arena.NewBytes(rlpMarshaledTx)

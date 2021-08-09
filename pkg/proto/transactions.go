@@ -40,6 +40,10 @@ const (
 	EthereumMetamaskTransaction                            // 18 - EthereumMetamaskTransaction is a transaction which received from metamask
 )
 
+func (tt TransactionType) BinarySize() int {
+	return 1
+}
+
 // TxFailureReason indicates Transactions failure reasons.
 type TxFailureReason byte
 
@@ -108,17 +112,18 @@ var (
 	}
 
 	bytesToTransactionsV1 = map[TransactionType]reflect.Type{
-		GenesisTransaction:      reflect.TypeOf(Genesis{}),
-		PaymentTransaction:      reflect.TypeOf(Payment{}),
-		IssueTransaction:        reflect.TypeOf(IssueWithSig{}),
-		TransferTransaction:     reflect.TypeOf(TransferWithSig{}),
-		ReissueTransaction:      reflect.TypeOf(ReissueWithSig{}),
-		BurnTransaction:         reflect.TypeOf(BurnWithSig{}),
-		ExchangeTransaction:     reflect.TypeOf(ExchangeWithSig{}),
-		LeaseTransaction:        reflect.TypeOf(LeaseWithSig{}),
-		LeaseCancelTransaction:  reflect.TypeOf(LeaseCancelWithSig{}),
-		CreateAliasTransaction:  reflect.TypeOf(CreateAliasWithSig{}),
-		MassTransferTransaction: reflect.TypeOf(MassTransferWithProofs{}),
+		GenesisTransaction:          reflect.TypeOf(Genesis{}),
+		PaymentTransaction:          reflect.TypeOf(Payment{}),
+		IssueTransaction:            reflect.TypeOf(IssueWithSig{}),
+		TransferTransaction:         reflect.TypeOf(TransferWithSig{}),
+		ReissueTransaction:          reflect.TypeOf(ReissueWithSig{}),
+		BurnTransaction:             reflect.TypeOf(BurnWithSig{}),
+		ExchangeTransaction:         reflect.TypeOf(ExchangeWithSig{}),
+		LeaseTransaction:            reflect.TypeOf(LeaseWithSig{}),
+		LeaseCancelTransaction:      reflect.TypeOf(LeaseCancelWithSig{}),
+		CreateAliasTransaction:      reflect.TypeOf(CreateAliasWithSig{}),
+		MassTransferTransaction:     reflect.TypeOf(MassTransferWithProofs{}),
+		EthereumMetamaskTransaction: reflect.TypeOf(EthereumTransaction{}), // TODO(nickeskov): Is it correct?
 	}
 
 	ProtobufTransactionsVersions = map[TransactionType]byte{

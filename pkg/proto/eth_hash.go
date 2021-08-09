@@ -3,6 +3,7 @@ package proto
 import (
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 const (
@@ -12,6 +13,14 @@ const (
 
 // EthereumHash represents the 32 byte Keccak256 hash of arbitrary data.
 type EthereumHash [EthereumHashSize]byte
+
+// Keccak256EthereumHash calculates and returns the Keccak256 hash of the input data,
+// converting it to an EthereumHash data structure.
+func Keccak256EthereumHash(data []byte) EthereumHash {
+	// nickeskov: can't fail
+	digest, _ := crypto.Keccak256(data)
+	return EthereumHash(digest)
+}
 
 // BytesToEthereumHash sets b to hash.
 // If b is larger than len(h), b will be cropped from the left.
