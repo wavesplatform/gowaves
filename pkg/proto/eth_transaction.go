@@ -7,6 +7,7 @@ import (
 	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	protobuf "google.golang.org/protobuf/proto"
 	"io"
 	"math/big"
 )
@@ -115,8 +116,8 @@ func (tx *EthereumTransaction) GetSenderPK() crypto.PublicKey {
 }
 
 func (tx *EthereumTransaction) GetFee() uint64 {
-	// TODO(nickeskov): from what field i should take fee value?
-	panic("implement me")
+	// nickeskov: in scala node this is "gasLimit" field.
+	return tx.Gas()
 }
 
 func (tx *EthereumTransaction) GetTimestamp() uint64 {
@@ -129,18 +130,19 @@ func (tx *EthereumTransaction) Validate() (Transaction, error) {
 }
 
 func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
-	if tx.ID == nil {
-		body, err := MarshalTxBody(scheme, tx)
-		if err != nil {
-			return err
-		}
-		id := crypto.MustFastHash(body)
-		tx.ID = &id
+	if tx.ID != nil {
+		return nil
 	}
+	body, err := MarshalTxBody(scheme, tx)
+	if err != nil {
+		return err
+	}
+	id := crypto.MustFastHash(body)
+	tx.ID = &id
 	return nil
 }
 
-func (tx *EthereumTransaction) Sign(scheme Scheme, sk crypto.SecretKey) error {
+func (tx *EthereumTransaction) Sign(_ Scheme, _ crypto.SecretKey) error {
 	// TODO(nickeskov_: Do we need it?
 	return errors.New("Sign method for EthereumTransaction isn't implemented")
 }
@@ -168,39 +170,77 @@ func (tx *EthereumTransaction) UnmarshalBinary(bytes []byte, scheme Scheme) erro
 }
 
 func (tx *EthereumTransaction) BodyMarshalBinary() ([]byte, error) {
-	panic("implement me")
+	data, err := tx.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal binary ethereum transaction")
+	}
+	return data, nil
 }
 
 func (tx *EthereumTransaction) BinarySize() int {
+	// TODO(nickeskov): This field doesn't equal zero only if it has been decoded from RLP. Is it critical?
 	return tx.innerBinarySize
 }
 
 func (tx *EthereumTransaction) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
-	return MarshalTxDeterministic(tx, scheme)
+	// TODO(nickeskov): Is it correct?
+	pb, err := tx.ToProtobufWrapped(scheme)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed 'MarshalToProtobuf' EthereumTransaction")
+	}
+	data, err := protobuf.MarshalOptions{Deterministic: true}.Marshal(pb)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal protobuf message ('TransactionWrapped') to bytes")
+	}
+	return data, nil
 }
 
 func (tx *EthereumTransaction) UnmarshalFromProtobuf(bytes []byte) error {
-	panic("implement me")
+	t, err := WrappedTxFromProtobuf(bytes)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal from protobuf ethereum transaction")
+	}
+	ethTx, ok := t.(*EthereumTransaction)
+	if !ok {
+		return errors.Errorf(
+			"failed to convert unmarshalled result '%T' to '*EthereumTransaction' type",
+			t,
+		)
+	}
+	*tx = *ethTx
+	return nil
 }
 
-func (tx *EthereumTransaction) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
-	panic("implement me")
+func (tx *EthereumTransaction) MarshalSignedToProtobuf(_ Scheme) ([]byte, error) {
+	return nil, errors.New("EthereumTransaction does not support 'MarshalSignedToProtobuf' method.")
 }
 
-func (tx *EthereumTransaction) UnmarshalSignedFromProtobuf(bytes []byte) error {
-	panic("implement me")
+func (tx *EthereumTransaction) UnmarshalSignedFromProtobuf(_ []byte) error {
+	return errors.New("EthereumTransaction does not support 'UnmarshalSignedFromProtobuf' method.")
 }
 
-func (tx *EthereumTransaction) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	panic("implement me")
+func (tx *EthereumTransaction) ToProtobuf(_ Scheme) (*g.Transaction, error) {
+	return nil, errors.New("EthereumTransaction does not support 'ToProtobuf' method.")
 }
 
-func (tx *EthereumTransaction) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error) {
-	panic("implement me")
+func (tx *EthereumTransaction) ToProtobufSigned(_ Scheme) (*g.SignedTransaction, error) {
+	return nil, errors.New("EthereumTransaction does not support 'ToProtobufSigned' method.")
 }
 
-func (tx *EthereumTransaction) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	panic("implement me")
+func (tx *EthereumTransaction) ToProtobufWrapped(_ Scheme) (*g.TransactionWrapper, error) {
+	data, err := tx.MarshalBinary()
+	if err != nil {
+		return nil, errors.Wrapf(err,
+			"failed to marshal binary EthereumTransaction, type %q",
+			tx.Type().String(),
+		)
+	}
+	wrapped := g.TransactionWrapper{
+		Transaction: &g.TransactionWrapper_EthereumTransaction{
+			EthereumTransaction: data,
+		},
+	}
+	return &wrapped, nil
 }
 
 // Type returns the transaction type.
