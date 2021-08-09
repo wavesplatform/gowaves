@@ -87,6 +87,7 @@ type EthereumTransaction struct {
 	inner           EthereumTxData
 	innerBinarySize int
 	id              *crypto.Digest
+	sender          *EthereumAddress
 }
 
 func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
@@ -125,11 +126,15 @@ func (tx *EthereumTransaction) GetTimestamp() uint64 {
 }
 
 func (tx *EthereumTransaction) Validate() (Transaction, error) {
+	if tx.sender != nil {
+		return tx, nil
+	}
 	signer := MakeEthereumSigner(tx.ChainId())
-	_, err := ExtractEthereumSender(signer, tx)
+	sender, err := ExtractEthereumSender(signer, tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to validate EthereumTransaction")
 	}
+	tx.sender = &sender
 	return tx, nil
 }
 
@@ -296,6 +301,15 @@ func (tx *EthereumTransaction) Nonce() uint64 { return tx.inner.nonce() }
 // To returns the recipient address of the transaction.
 // For contract-creation transactions, To returns nil.
 func (tx *EthereumTransaction) To() *EthereumAddress { return tx.inner.to().copy() }
+
+// From returns the sender address of the transaction.
+// Returns error if transaction doesn't pass validation.
+func (tx *EthereumTransaction) From() (*EthereumAddress, error) {
+	if _, err := tx.Validate(); err != nil {
+		return nil, err
+	}
+	return tx.sender.copy(), nil
+}
 
 // RawSignatureValues returns the V, R, S signature values of the transaction.
 // The return values should not be modified by the caller.
