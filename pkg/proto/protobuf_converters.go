@@ -1184,7 +1184,7 @@ func (c *ProtobufConverter) wrappedTransaction(wtx *g.TransactionWrapper) (Trans
 
 func (c *ProtobufConverter) ethereumTransaction(etx []byte) (Transaction, error) {
 	var tx EthereumTransaction
-	if err := tx.DecodeRLP(etx); err != nil {
+	if err := tx.bodyUnmarshalBinary(etx); err != nil {
 		return nil, errors.Wrap(err, "failed to decode ethereum transaction from RLP")
 	}
 	return &tx, nil

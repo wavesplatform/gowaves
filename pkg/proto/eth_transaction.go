@@ -197,6 +197,13 @@ func (tx *EthereumTransaction) BodyMarshalBinary() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
+func (tx *EthereumTransaction) bodyUnmarshalBinary(rlpData []byte) error {
+	if err := tx.DecodeRLP(rlpData); err != nil {
+		return errors.Wrapf(err, "failed to unmarshal ethereum transaction from RLP")
+	}
+	return nil
+}
+
 func (tx *EthereumTransaction) BinarySize() int {
 	return tx.GetTypeInfo().Type.BinarySize() + tx.innerBinarySize
 }
@@ -247,7 +254,8 @@ func (tx *EthereumTransaction) ToProtobufSigned(_ Scheme) (*g.SignedTransaction,
 }
 
 func (tx *EthereumTransaction) ToProtobufWrapped(_ Scheme) (*g.TransactionWrapper, error) {
-	data, err := tx.MarshalBinary()
+	// nickeskov: marshal body to rlp
+	rlpData, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrapf(err,
 			"failed to marshal binary EthereumTransaction, type %q",
@@ -256,7 +264,7 @@ func (tx *EthereumTransaction) ToProtobufWrapped(_ Scheme) (*g.TransactionWrappe
 	}
 	wrapped := g.TransactionWrapper{
 		Transaction: &g.TransactionWrapper_EthereumTransaction{
-			EthereumTransaction: data,
+			EthereumTransaction: rlpData,
 		},
 	}
 	return &wrapped, nil
@@ -317,10 +325,10 @@ func (tx *EthereumTransaction) RawSignatureValues() (v, r, s *big.Int) {
 	return tx.inner.rawSignatureValues()
 }
 
-func (tx *EthereumTransaction) Hash() EthereumHash {
-	// TODO(nickeskov): implement me
-	panic("implement me")
-}
+//func (tx *EthereumTransaction) Hash() EthereumHash {
+//	// TODO(nickeskov): implement me
+//	panic("implement me")
+//}
 
 func (tx *EthereumTransaction) DecodeRLP(rlpData []byte) error {
 	parser := fastrlp.Parser{}
