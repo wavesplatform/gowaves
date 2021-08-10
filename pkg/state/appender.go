@@ -430,6 +430,36 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		// Exchange and Invoke balances are validated in UTX when acceptFailed is false.
 		// When acceptFailed is true, balances are validated inside handleFallible().
 		needToValidateBalanceDiff = params.validatingUtx && !params.acceptFailed
+	case proto.EthereumMetamaskTransaction:
+		ethTx, ok := tx.(*proto.EthereumTransaction)
+		if !ok {
+			return errors.New("failed to cast interface transaction to ethereum transaction structure")
+		}
+		// transfer waves case
+		if ethTx.Data() == nil {
+			// Execute transaction's scripts, check against state.
+			txScriptsRuns, err := a.checkTransactionScripts(ethTx, accountHasVerifierScript, params)
+			if err != nil {
+				return err
+			}
+			// Create balance diff of this tx.
+			differInfo := &differInfo{params.initialisation, params.blockInfo}
+			txChanges, err := a.blockDiffer.createTransactionDiff(ethTx, params.block, differInfo)
+			if err != nil {
+				return errs.Extend(err, "create transaction diff")
+			}
+			applicationRes = &applicationResult{true, txScriptsRuns, txChanges}
+			// In UTX balances are always validated.
+			needToValidateBalanceDiff = params.validatingUtx
+			break
+		}
+
+		// invoke either erc20 or a dApp function
+		if ethTx.To() == nil {
+			ethTx.Data()
+			// TODO invoke erc20 or dApp
+		}
+
 	default:
 		// Execute transaction's scripts, check against state.
 		txScriptsRuns, err := a.checkTransactionScripts(tx, accountHasVerifierScript, params)
