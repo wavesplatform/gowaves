@@ -58,14 +58,13 @@ func NewDBFromRideDAppMeta(dApp meta.DApp, addPayments bool) (Database, error) {
 }
 
 func (db *Database) MethodBySelector(id Selector) (Method, error) {
-	if method, ok := db.embedded[id]; ok {
-		return method, nil
-	}
 	if method, ok := db.custom[id]; ok {
 		return method, nil
 	}
-	// TODO(nickeskov): support ride scripts metadata
-	return Method{}, fmt.Errorf("signature %v not found", id.String())
+	if method, ok := db.embedded[id]; ok {
+		return method, nil
+	}
+	return Method{}, fmt.Errorf("signature %q not found", id.String())
 }
 
 func (db *Database) ParseCallDataRide(data []byte, parsePayments bool) (*DecodedCallData, error) {
