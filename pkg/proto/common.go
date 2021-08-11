@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -158,15 +159,20 @@ func NetworkStrFromScheme(scheme Scheme) string {
 	return prefix + string(scheme)
 }
 
-// HexEncodeToBytes encodes b as a hex string as bytes with 0x prefix.
-func HexEncodeToBytes(b []byte) []byte {
+// EncodeToHexString encodes b as a hex string with 0x prefix.
+func EncodeToHexString(b []byte) string {
 	enc := make([]byte, len(b)*2+2)
 	copy(enc, "0x")
 	hex.Encode(enc[2:], b)
-	return enc
+	return string(enc)
 }
 
-// HexEncodeToString encodes b as a hex string with 0x prefix.
-func HexEncodeToString(b []byte) string {
-	return string(HexEncodeToBytes(b))
+// DecodeFromHexString decodes bytes from a hex string which can start with 0x prefix.
+func DecodeFromHexString(s string) ([]byte, error) {
+	s = strings.TrimPrefix(s, "0x")
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }

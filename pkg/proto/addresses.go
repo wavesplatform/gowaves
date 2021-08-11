@@ -111,7 +111,7 @@ func (ea EthereumAddress) String() string {
 }
 
 func (ea *EthereumAddress) checksumHex() []byte {
-	buf := HexEncodeToBytes(ea[:])
+	buf := []byte(EncodeToHexString(ea[:]))
 
 	// compute checksum
 	sha := sha3.NewLegacyKeccak256()
