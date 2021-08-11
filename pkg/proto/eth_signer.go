@@ -1,6 +1,8 @@
 package proto
 
 import (
+	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -13,6 +15,36 @@ import (
 var ErrInvalidChainId = errors.New("invalid chain id for signer")
 
 const ethereumSignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
+
+type EthereumPublicKey btcec.PublicKey
+
+func (epk EthereumPublicKey) String() string {
+	return hex.EncodeToString(epk.SerializeUncompressed())
+}
+
+// ToECDSA returns the public key as a *ecdsa.PublicKey.
+func (epk *EthereumPublicKey) ToECDSA() *ecdsa.PublicKey {
+	return (*ecdsa.PublicKey)(epk)
+}
+
+// SerializeUncompressed serializes a public key in a 65-byte uncompressed format.
+func (epk *EthereumPublicKey) SerializeUncompressed() []byte {
+	return (*btcec.PublicKey)(epk).SerializeUncompressed()
+}
+
+func (epk *EthereumPublicKey) ToEthereumAddress() EthereumAddress {
+	pubBytes := epk.SerializeUncompressed()
+	// nickeskov: can't fail
+	hash, _ := crypto.Keccak256(pubBytes[1:])
+	var addr EthereumAddress
+	addr.setBytes(hash[12:])
+	return addr
+}
+
+// SerializeXYCoordinates serializes a public key in a 64-byte uncompressed format without 0x4 byte prefix.
+func (epk *EthereumPublicKey) SerializeXYCoordinates() []byte {
+	return epk.SerializeUncompressed()[1:]
+}
 
 type EthereumSigner interface {
 	// Sender returns the sender address of the transaction.
@@ -323,10 +355,10 @@ func recoverEthereumAddress(sighash EthereumHash, R, S, Vb *big.Int, homestead b
 	if err != nil {
 		return EthereumAddress{}, err
 	}
-	return ecdsaPublicKeyToAddress(pubKey), nil
+	return pubKey.ToEthereumAddress(), nil
 }
 
-func recoverEthereumPubKey(sighash EthereumHash, R, S, Vb *big.Int, homestead bool) (*btcec.PublicKey, error) {
+func recoverEthereumPubKey(sighash EthereumHash, R, S, Vb *big.Int, homestead bool) (*EthereumPublicKey, error) {
 	if Vb.BitLen() > 8 {
 		return nil, ErrInvalidSig
 	}
@@ -345,14 +377,5 @@ func recoverEthereumPubKey(sighash EthereumHash, R, S, Vb *big.Int, homestead bo
 	if err != nil {
 		return nil, err
 	}
-	return pubKey, nil
-}
-
-func ecdsaPublicKeyToAddress(p *btcec.PublicKey) EthereumAddress {
-	pubBytes := p.SerializeUncompressed()
-	// nickeskov: can't fail
-	hash, _ := crypto.Keccak256(pubBytes[1:])
-	var addr EthereumAddress
-	addr.setBytes(hash[12:])
-	return addr
+	return (*EthereumPublicKey)(pubKey), nil
 }
