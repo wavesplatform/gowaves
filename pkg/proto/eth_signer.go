@@ -22,22 +22,22 @@ const (
 
 type EthereumPublicKey btcec.PublicKey
 
-func NewEthereumPublicKeyFromHexString(s string) (*EthereumPublicKey, error) {
+func NewEthereumPublicKeyFromHexString(s string) (EthereumPublicKey, error) {
 	b, err := DecodeFromHexString(s)
 	if err != nil {
-		return nil, errors.Wrapf(err,
+		return EthereumPublicKey{}, errors.Wrapf(err,
 			"failed to decode marshaled EthereumPublicKey into bytes from hex string %q", s,
 		)
 	}
 	return NewEthereumPublicKeyFromBytes(b)
 }
 
-func NewEthereumPublicKeyFromBytes(b []byte) (*EthereumPublicKey, error) {
+func NewEthereumPublicKeyFromBytes(b []byte) (EthereumPublicKey, error) {
 	var pubKey EthereumPublicKey
 	if err := pubKey.UnmarshalBinary(b); err != nil {
-		return nil, err
+		return EthereumPublicKey{}, err
 	}
-	return &pubKey, nil
+	return pubKey, nil
 }
 
 func (epk *EthereumPublicKey) String() string {
@@ -186,7 +186,7 @@ func (s londonSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S
 	if txdata.ChainID.Sign() != 0 && txdata.ChainID.Cmp(s.chainId) != 0 {
 		return nil, nil, nil, ErrInvalidChainId
 	}
-	R, S, _, err = decodeSignature(sig)
+	R, S, _, err = decodeSignature(sig, true)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -255,7 +255,7 @@ func (s eip2930Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, 
 		if txdata.ChainID.Sign() != 0 && txdata.ChainID.Cmp(s.chainId) != 0 {
 			return nil, nil, nil, ErrInvalidChainId
 		}
-		R, S, _, err = decodeSignature(sig)
+		R, S, _, err = decodeSignature(sig, true)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -321,7 +321,6 @@ func (s eip155Signer) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, err
 	if !tx.Protected() {
 		return HomesteadSigner{}.SenderPK(tx)
 	}
-	// TODO
 	if tx.ChainId().Cmp(s.chainId) != 0 {
 		return nil, ErrInvalidChainId
 	}
@@ -337,7 +336,7 @@ func (s eip155Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S
 	if tx.EthereumTxType() != LegacyTxType {
 		return nil, nil, nil, ErrTxTypeNotSupported
 	}
-	R, S, V, err = decodeSignature(sig)
+	R, S, V, err = decodeSignature(sig, true)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -434,7 +433,7 @@ func (fs FrontierSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (r
 	if tx.EthereumTxType() != LegacyTxType {
 		return nil, nil, nil, ErrTxTypeNotSupported
 	}
-	r, s, v, err = decodeSignature(sig)
+	r, s, v, err = decodeSignature(sig, true)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -465,14 +464,21 @@ func (fs FrontierSigner) Hash(tx *EthereumTransaction) EthereumHash {
 	return Keccak256EthereumHash(rlpData)
 }
 
-func decodeSignature(sig []byte) (r, s, v *big.Int, err error) {
+// decodeSignature decodes r, s, v signature values from bytes.
+// Note, the produced signature conforms to the secp256k1 curve R, S and V values,
+// where the V value will be 27 or 28 for legacy reasons, if legacyV==true.
+func decodeSignature(sig []byte, legacyV bool) (r, s, v *big.Int, err error) {
 	if len(sig) != ethereumSignatureLength {
 		return nil, nil, nil,
 			errors.Errorf("wrong size for signature: got %d, want %d", len(sig), ethereumSignatureLength)
 	}
 	r = new(big.Int).SetBytes(sig[:32])
 	s = new(big.Int).SetBytes(sig[32:64])
-	v = new(big.Int).SetBytes([]byte{sig[64] + 27})
+	vByte := sig[64]
+	if legacyV {
+		vByte += 27 // Transform V from 0/1 to 27/28 according to the yellow paper
+	}
+	v = new(big.Int).SetBytes([]byte{vByte})
 	return r, s, v, nil
 }
 
@@ -481,7 +487,7 @@ func recoverEthereumPubKey(sighash EthereumHash, R, S, Vb *big.Int, homestead bo
 		return nil, ErrInvalidSig
 	}
 	V := byte(Vb.Uint64() - 27)
-	if !ValidateSignatureValues(V, R, S, homestead) {
+	if !ValidateEthereumSignatureValues(V, R, S, homestead) {
 		return nil, ErrInvalidSig
 	}
 	// encode the signature in uncompressed format

@@ -420,7 +420,7 @@ type Order interface {
 	BinarySize() int
 }
 
-func MarshalOrderBody(scheme Scheme, o Order) ([]byte, error) {
+func MarshalOrderBody(scheme Scheme, o Order) (data []byte, err error) {
 	switch o.GetVersion() {
 	case 1:
 		o, ok := o.(*OrderV1)
@@ -441,11 +441,15 @@ func MarshalOrderBody(scheme Scheme, o Order) ([]byte, error) {
 		}
 		return o.BodyMarshalBinary()
 	case 4:
-		ov4, ok := o.(*OrderV4)
-		if !ok {
-			return nil, errors.New("failed to cast an order version 4 to *OrderV4")
+		switch o := o.(type) {
+		case *OrderV4:
+			data, err = o.BodyMarshalBinary(scheme)
+		case *EthereumOrderV4:
+			data, err = o.BodyMarshalBinary(scheme)
+		default:
+			return nil, errors.New("failed to cast an order version 4 to *OrderV4 or *EthereumOrderV4")
 		}
-		return ov4.BodyMarshalBinary(scheme)
+		return data, err
 	default:
 		return nil, errors.New("invalid order version")
 	}
@@ -1476,6 +1480,37 @@ func (o *OrderV4) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error
 	}
 	return o.Proofs.Verify(0, publicKey, b)
 }
+
+type EthereumOrderV4 struct {
+	EthereumSenderPK  EthereumPublicKey `json:"senderPublicKey"`
+	EthereumSignature EthereumSignature `json:"ethSignature"`
+	OrderV4
+}
+
+func (o EthereumOrderV4) GetSenderPK() crypto.PublicKey {
+	panic(errors.New("BUG, CREATE REPORT: EthereumOrderV4 doesn't support waves public key."))
+}
+
+func (o EthereumOrderV4) ToProtobuf(scheme Scheme) *g.Order {
+	res := o.OrderV4.ToProtobuf(scheme)
+	// nickeskov: can't fail
+	res.SenderPublicKey = o.EthereumSenderPK.SerializeXYCoordinates()
+	res.Eip712Signature = o.EthereumSignature.Bytes()
+	return res
+}
+
+func (o *EthereumOrderV4) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
+	pbOrder := o.ToProtobuf(scheme)
+	pbOrder.Proofs = nil
+	return MarshalToProtobufDeterministic(pbOrder)
+}
+
+func (o EthereumOrderV4) GetEthereumSenderPK() EthereumPublicKey {
+	return o.EthereumSenderPK
+}
+
+// TODO(nickeskov): eth verify
+// TODO(nickeskov): sign error stub
 
 const (
 	proofsVersion  byte = 1

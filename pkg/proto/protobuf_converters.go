@@ -226,6 +226,7 @@ func (c *ProtobufConverter) Recipient(scheme byte, recipient *g.Recipient) (Reci
 	if recipient == nil {
 		return Recipient{}, errors.New("empty recipient")
 	}
+	// TODO(nickeskov): suppoet ethereum addr in recipient
 	switch r := recipient.Recipient.(type) {
 	case *g.Recipient_PublicKeyHash:
 		addr, err := c.Address(scheme, r.PublicKeyHash)
@@ -309,13 +310,24 @@ func (c *ProtobufConverter) signature(data []byte) crypto.Signature {
 	return sig
 }
 
+func (c *ProtobufConverter) ethSignature(data []byte) EthereumSignature {
+	if c.err != nil {
+		return EthereumSignature{}
+	}
+	sig, err := NewEthereumSignatureFromBytes(data)
+	if err != nil {
+		c.err = err
+		return EthereumSignature{}
+	}
+	return sig
+}
+
 func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 	if c.err != nil {
 		return nil
 	}
 	var order Order
 	body := OrderBody{
-		SenderPK:   c.publicKey(o.SenderPublicKey),
 		MatcherPK:  c.publicKey(o.MatcherPublicKey),
 		AssetPair:  c.assetPair(o.AssetPair),
 		OrderType:  c.orderType(o.OrderSide),
@@ -325,13 +337,43 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 		Expiration: c.uint64(o.Expiration),
 		MatcherFee: c.amount(o.MatcherFee),
 	}
+
+	if o.Version < 4 {
+		if len(o.Eip712Signature) > 0 {
+			// nickeskov: see isValid method in com/wavesplatform/transaction/assets/exchange/Order.scala
+			c.err = errors.New("ethSignature available only in V4")
+			return nil
+		}
+		body.SenderPK = c.publicKey(o.SenderPublicKey)
+	}
+
 	switch o.Version {
 	case 4:
-		order = &OrderV4{
+		orderV4 := OrderV4{
 			Version:         c.byte(o.Version),
 			Proofs:          c.proofs(o.Proofs),
 			OrderBody:       body,
 			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
+		}
+		if len(o.Eip712Signature) != 0 {
+			if len(o.Proofs) != 0 {
+				// nickeskov: see isValid method in com/wavesplatform/transaction/assets/exchange/Order.scala
+				c.err = errors.New("ethSignature excludes proofs")
+				return nil
+			}
+			ethPubKey, err := NewEthereumPublicKeyFromBytes(o.SenderPublicKey)
+			if err != nil {
+				c.err = err
+				return nil
+			}
+			order = &EthereumOrderV4{
+				EthereumSignature: c.ethSignature(o.Eip712Signature),
+				EthereumSenderPK:  ethPubKey,
+				OrderV4:           orderV4,
+			}
+		} else {
+			orderV4.SenderPK = c.publicKey(o.SenderPublicKey)
+			order = &orderV4
 		}
 	case 3:
 		order = &OrderV3{
