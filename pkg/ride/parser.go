@@ -273,7 +273,7 @@ func (p *parser) parseNext() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		name, err := p.readFunctionName(ft)
+		function, err := p.readFunctionName(ft)
 		if err != nil {
 			return nil, err
 		}
@@ -290,7 +290,7 @@ func (p *parser) parseNext() (Node, error) {
 			}
 			arguments[i] = arg
 		}
-		return NewFunctionCallNode(name, arguments), nil
+		return NewFunctionCallNode(function, arguments), nil
 
 	case tokenBlockV2:
 		p.seenBlockV2 = true
@@ -361,18 +361,22 @@ func (p *parser) readString() (string, error) {
 	return string(b), nil
 }
 
-func (p *parser) readFunctionName(ft byte) (string, error) {
+func (p *parser) readFunctionName(ft byte) (function, error) {
 	switch ft {
 	case functionTypeNative:
 		id, err := p.readShort()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		return strconv.Itoa(int(id)), nil
+		return nativeFunction(strconv.Itoa(int(id))), nil
 	case functionTypeUser:
-		return p.readString()
+		name, err := p.readString()
+		if err != nil {
+			return nil, err
+		}
+		return userFunction(name), nil
 	default:
-		return "", errors.Errorf("unsupported function type %d", ft)
+		return nil, errors.Errorf("unsupported function type %d", ft)
 	}
 }
 

@@ -128,8 +128,33 @@ func NewFunctionDeclarationNode(name string, arguments []string, body, block Nod
 	}
 }
 
+type function interface {
+	Name() string
+	Type() string
+}
+
+type userFunction string
+
+func (name userFunction) Name() string {
+	return string(name)
+}
+
+func (name userFunction) Type() string {
+	return "user function"
+}
+
+type nativeFunction string
+
+func (name nativeFunction) Name() string {
+	return string(name)
+}
+
+func (name nativeFunction) Type() string {
+	return "native function"
+}
+
 type FunctionCallNode struct {
-	Name      string
+	Function  function
 	Arguments []Node
 }
 
@@ -137,9 +162,9 @@ func (*FunctionCallNode) node() {}
 
 func (*FunctionCallNode) SetBlock(Node) {}
 
-func NewFunctionCallNode(name string, arguments []Node) *FunctionCallNode {
+func NewFunctionCallNode(function function, arguments []Node) *FunctionCallNode {
 	return &FunctionCallNode{
-		Name:      name,
+		Function:  function,
 		Arguments: arguments,
 	}
 }
