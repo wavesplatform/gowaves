@@ -56,7 +56,7 @@ func (h EthereumHash) String() string {
 
 // Hex converts a hash to a hex string.
 func (h EthereumHash) Hex() string {
-	return HexEncodeToString(h[:])
+	return EncodeToHexString(h[:])
 }
 
 // SetBytes sets the hash to the value of b.

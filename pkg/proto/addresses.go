@@ -93,6 +93,10 @@ func (ea EthereumAddress) ID() AddressID {
 	return id
 }
 
+func (ea EthereumAddress) WavesAddress(scheme byte) (WavesAddress, error) {
+	return newAddressFromPublicKeyHash(scheme, ea[:])
+}
+
 // Hash converts an address to a EthereumHash by left-padding it with zeros.
 func (ea EthereumAddress) Hash() EthereumHash {
 	return BytesToEthereumHash(ea[:])
@@ -107,7 +111,7 @@ func (ea EthereumAddress) String() string {
 }
 
 func (ea *EthereumAddress) checksumHex() []byte {
-	buf := HexEncodeToBytes(ea[:])
+	buf := []byte(EncodeToHexString(ea[:]))
 
 	// compute checksum
 	sha := sha3.NewLegacyKeccak256()
@@ -187,22 +191,31 @@ func (a *WavesAddress) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+func (a *WavesAddress) EthereumAddress() EthereumAddress {
+	return EthereumAddress(a.ID())
+}
+
 // NewAddressFromPublicKey produces an WavesAddress from given scheme and Public Key bytes.
 func NewAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) (WavesAddress, error) {
-	var a WavesAddress
-	a[0] = wavesAddressVersion
-	a[1] = scheme
 	h, err := crypto.SecureHash(publicKey[:])
 	if err != nil {
-		return a, errors.Wrap(err, "failed to produce Digest from PublicKey")
+		return WavesAddress{}, errors.Wrap(err, "failed to produce Digest from PublicKey")
 	}
-	copy(a[wavesAddressHeaderSize:], h[:wavesAddressBodySize])
-	cs, err := addressChecksum(a[:wavesAddressHeaderSize+wavesAddressBodySize])
+	return newAddressFromPublicKeyHash(scheme, h[:])
+}
+
+// newAddressFromPublicKeyHash produces an WavesAddress from given public key hash.
+func newAddressFromPublicKeyHash(scheme byte, pubKeyHash []byte) (WavesAddress, error) {
+	var addr WavesAddress
+	addr[0] = wavesAddressVersion
+	addr[1] = scheme
+	copy(addr[wavesAddressHeaderSize:], pubKeyHash[:wavesAddressBodySize])
+	checksum, err := addressChecksum(addr[:wavesAddressHeaderSize+wavesAddressBodySize])
 	if err != nil {
-		return a, errors.Wrap(err, "failed to calculate WavesAddress checksum")
+		return addr, errors.Wrap(err, "failed to calculate WavesAddress checksum")
 	}
-	copy(a[wavesAddressHeaderSize+wavesAddressBodySize:], cs)
-	return a, nil
+	copy(addr[wavesAddressHeaderSize+wavesAddressBodySize:], checksum)
+	return addr, nil
 }
 
 // NewAddressLikeFromAnyBytes produces an WavesAddress from given scheme and bytes.

@@ -20,3 +20,7 @@ func ECDSARecoverPublicKey(digest, signature []byte) (*btcec.PublicKey, error) {
 	}
 	return pub, nil
 }
+
+func S256() *btcec.KoblitzCurve {
+	return curve
+}

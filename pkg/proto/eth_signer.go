@@ -1,7 +1,7 @@
 package proto
 
 import (
-	"fmt"
+	"crypto/ecdsa"
 	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -12,15 +12,108 @@ import (
 
 var ErrInvalidChainId = errors.New("invalid chain id for signer")
 
-const ethereumSignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
+const (
+	ethereumSignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
+
+	ethPublicKeyUncompressedPrefix byte = 0x4         // prefix which means this is uncompressed point
+	ethPublicKeyBytesUncompressed       = 1 + 32 + 32 // 0x4 prefix + x_coordinate bytes + y_coordinate bytes
+	ethPublicKeyBytesCompressed         = 1 + 32      // y_bit (0x02 if y is even, 0x03 if y is odd) + x_coordinate bytes
+)
+
+type EthereumPublicKey btcec.PublicKey
+
+func NewEthereumPublicKeyFromHexString(s string) (*EthereumPublicKey, error) {
+	b, err := DecodeFromHexString(s)
+	if err != nil {
+		return nil, errors.Wrapf(err,
+			"failed to decode marshaled EthereumPublicKey into bytes from hex string %q", s,
+		)
+	}
+	return NewEthereumPublicKeyFromBytes(b)
+}
+
+func NewEthereumPublicKeyFromBytes(b []byte) (*EthereumPublicKey, error) {
+	var pubKey EthereumPublicKey
+	if err := pubKey.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+	return &pubKey, nil
+}
+
+func (epk *EthereumPublicKey) String() string {
+	// nickeskov: can't fail
+	data, _ := epk.MarshalBinary()
+	return EncodeToHexString(data)
+}
+
+func (epk *EthereumPublicKey) MarshalBinary() (data []byte, err error) {
+	// nickeskov: right way is to use SerializeUncompressed
+	// 	but for scala compatibility we use a 64 byte representation (scala node uses web3j library)
+	return epk.SerializeXYCoordinates(), nil
+}
+
+func (epk *EthereumPublicKey) UnmarshalBinary(data []byte) error {
+	if len(data) == ethPublicKeyBytesUncompressed-1 {
+		// nickeskov: special case for web3j (scala node)
+		//	in this library public key len == 64 bytes (key without prefix)
+		uncompressed := make([]byte, ethPublicKeyBytesUncompressed)
+		uncompressed[0] = ethPublicKeyUncompressedPrefix
+		copy(uncompressed[1:], data)
+		data = uncompressed
+	}
+	pubKeyLen := len(data)
+	if pubKeyLen != ethPublicKeyBytesUncompressed && pubKeyLen != ethPublicKeyBytesCompressed {
+		return errors.Errorf(
+			"wrong size for marshaled ethereum public key: got %d, want %d or %d",
+			pubKeyLen,
+			ethPublicKeyBytesUncompressed,
+			ethPublicKeyBytesCompressed,
+		)
+	}
+	pubKey, err := btcec.ParsePubKey(data, crypto.S256())
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse EthereumPublicKey from bytes %q", EncodeToHexString(data))
+	}
+	*epk = EthereumPublicKey(*pubKey)
+	return nil
+}
+
+// ToECDSA returns the public key as a *ecdsa.PublicKey.
+func (epk *EthereumPublicKey) ToECDSA() *ecdsa.PublicKey {
+	return (*ecdsa.PublicKey)(epk)
+}
+
+// SerializeUncompressed serializes a public key in a 65-byte uncompressed format.
+func (epk *EthereumPublicKey) SerializeUncompressed() []byte {
+	return (*btcec.PublicKey)(epk).SerializeUncompressed()
+}
+
+// SerializeCompressed serializes a public key in a 33-byte compressed format.
+func (epk *EthereumPublicKey) SerializeCompressed() []byte {
+	return (*btcec.PublicKey)(epk).SerializeCompressed()
+}
+
+// SerializeXYCoordinates serializes a public key in a 64-byte uncompressed format without 0x4 byte prefix.
+func (epk *EthereumPublicKey) SerializeXYCoordinates() []byte {
+	return epk.SerializeUncompressed()[1:]
+}
+
+func (epk *EthereumPublicKey) EthereumAddress() EthereumAddress {
+	xy := epk.SerializeXYCoordinates()
+	// nickeskov: can't fail
+	hash, _ := crypto.Keccak256(xy)
+	var addr EthereumAddress
+	addr.setBytes(hash[12:])
+	return addr
+}
 
 type EthereumSigner interface {
 	// Sender returns the sender address of the transaction.
 	Sender(tx *EthereumTransaction) (EthereumAddress, error)
 
-	// SignatureValues returns the raw R, S, V values corresponding to the
-	// given signature.
+	// SignatureValues returns the raw R, S, V values corresponding to the given signature.
 	SignatureValues(tx *EthereumTransaction, sig []byte) (R, S, V *big.Int, err error)
+
 	ChainID() *big.Int
 
 	// Hash returns 'signature hash', i.e. the transaction hash that is signed by the
@@ -72,7 +165,10 @@ func (s londonSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S
 	if txdata.ChainID.Sign() != 0 && txdata.ChainID.Cmp(s.chainId) != 0 {
 		return nil, nil, nil, ErrInvalidChainId
 	}
-	R, S, _ = decodeSignature(sig)
+	R, S, _, err = decodeSignature(sig)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	V = big.NewInt(int64(sig[64]))
 	return R, S, V, nil
 }
@@ -130,7 +226,10 @@ func (s eip2930Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, 
 		if txdata.ChainID.Sign() != 0 && txdata.ChainID.Cmp(s.chainId) != 0 {
 			return nil, nil, nil, ErrInvalidChainId
 		}
-		R, S, _ = decodeSignature(sig)
+		R, S, _, err = decodeSignature(sig)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 		V = big.NewInt(int64(sig[64]))
 	default:
 		return nil, nil, nil, ErrTxTypeNotSupported
@@ -201,7 +300,10 @@ func (s eip155Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S
 	if tx.EthereumTxType() != LegacyTxType {
 		return nil, nil, nil, ErrTxTypeNotSupported
 	}
-	R, S, V = decodeSignature(sig)
+	R, S, V, err = decodeSignature(sig)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	if s.chainId.Sign() != 0 {
 		V = big.NewInt(int64(sig[64] + 35))
 		V.Add(V, s.chainIdMul)
@@ -279,7 +381,10 @@ func (fs FrontierSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (r
 	if tx.EthereumTxType() != LegacyTxType {
 		return nil, nil, nil, ErrTxTypeNotSupported
 	}
-	r, s, v = decodeSignature(sig)
+	r, s, v, err = decodeSignature(sig)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	return r, s, v, nil
 }
 
@@ -307,14 +412,15 @@ func (fs FrontierSigner) Hash(tx *EthereumTransaction) EthereumHash {
 	return Keccak256EthereumHash(rlpData)
 }
 
-func decodeSignature(sig []byte) (r, s, v *big.Int) {
+func decodeSignature(sig []byte) (r, s, v *big.Int, err error) {
 	if len(sig) != ethereumSignatureLength {
-		panic(fmt.Sprintf("wrong size for signature: got %d, want %d", len(sig), ethereumSignatureLength))
+		return nil, nil, nil,
+			errors.Errorf("wrong size for signature: got %d, want %d", len(sig), ethereumSignatureLength)
 	}
 	r = new(big.Int).SetBytes(sig[:32])
 	s = new(big.Int).SetBytes(sig[32:64])
 	v = new(big.Int).SetBytes([]byte{sig[64] + 27})
-	return r, s, v
+	return r, s, v, nil
 }
 
 func recoverEthereumAddress(sighash EthereumHash, R, S, Vb *big.Int, homestead bool) (EthereumAddress, error) {
@@ -323,10 +429,10 @@ func recoverEthereumAddress(sighash EthereumHash, R, S, Vb *big.Int, homestead b
 	if err != nil {
 		return EthereumAddress{}, err
 	}
-	return ecdsaPublicKeyToAddress(pubKey), nil
+	return pubKey.EthereumAddress(), nil
 }
 
-func recoverEthereumPubKey(sighash EthereumHash, R, S, Vb *big.Int, homestead bool) (*btcec.PublicKey, error) {
+func recoverEthereumPubKey(sighash EthereumHash, R, S, Vb *big.Int, homestead bool) (*EthereumPublicKey, error) {
 	if Vb.BitLen() > 8 {
 		return nil, ErrInvalidSig
 	}
@@ -345,14 +451,5 @@ func recoverEthereumPubKey(sighash EthereumHash, R, S, Vb *big.Int, homestead bo
 	if err != nil {
 		return nil, err
 	}
-	return pubKey, nil
-}
-
-func ecdsaPublicKeyToAddress(p *btcec.PublicKey) EthereumAddress {
-	pubBytes := p.SerializeUncompressed()
-	// nickeskov: can't fail
-	hash, _ := crypto.Keccak256(pubBytes[1:])
-	var addr EthereumAddress
-	addr.setBytes(hash[12:])
-	return addr
+	return (*EthereumPublicKey)(pubKey), nil
 }

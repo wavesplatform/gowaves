@@ -30,7 +30,7 @@ func TestTransferWithRideTypes(t *testing.T) {
 	// nickeskov: no error because we have zero length bytes data for payments
 	require.NoError(t, err)
 
-	require.Equal(t, expectedSignature, callData.Signature)
+	require.Equal(t, expectedSignature, callData.Signature.String())
 	require.Equal(t, expectedName, callData.Name)
 	require.Equal(t, expectedFirstArg, proto.BytesToEthereumAddress(callData.Inputs[0].Value.(ride.RideBytes)).String())
 	require.Equal(t, expectedSecondArg, callData.Inputs[1].Value.(ride.RideBigInt).String())
@@ -118,12 +118,12 @@ func TestJsonAbi(t *testing.T) {
 	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
 
-	erc20Methods := make([]Method, 0, len(Erc20Methods))
-	for _, method := range Erc20Methods {
-		erc20Methods = append(erc20Methods, method)
+	erc20Meth := make([]Method, 0, len(erc20Methods))
+	for _, method := range erc20Methods {
+		erc20Meth = append(erc20Meth, method)
 	}
 
-	resJsonABI, err := getJsonAbi(erc20Methods)
+	resJsonABI, err := getJsonAbi(erc20Meth)
 	require.NoError(t, err)
 	fmt.Println(string(resJsonABI))
 	var abiRes []abi

@@ -11,7 +11,7 @@ import (
 // DecodedCallData is an internal type to represent a method call parsed according
 // to an ABI method signature.
 type DecodedCallData struct {
-	Signature string
+	Signature Signature
 	Name      string
 	Inputs    []DecodedArg
 	Payments  []Payment
@@ -27,10 +27,10 @@ func (cd DecodedCallData) String() string {
 }
 
 // Database is a 4byte database with the possibility of maintaining an immutable
-// set (embedded) into the process and a mutable set (loaded and written to file).
+// set (erc20) into the process and a mutable set (loaded and written to file).
 type Database struct {
-	embedded map[Selector]Method
-	custom   map[Selector]Method
+	erc20  map[Selector]Method
+	custom map[Selector]Method
 }
 
 func NewDatabase(custom map[Selector]Method) Database {
@@ -38,8 +38,8 @@ func NewDatabase(custom map[Selector]Method) Database {
 		custom = make(map[Selector]Method)
 	}
 	return Database{
-		embedded: Erc20Methods,
-		custom:   custom,
+		erc20:  erc20Methods,
+		custom: custom,
 	}
 }
 
@@ -58,14 +58,23 @@ func NewDBFromRideDAppMeta(dApp meta.DApp, addPayments bool) (Database, error) {
 }
 
 func (db *Database) MethodBySelector(id Selector) (Method, error) {
-	if method, ok := db.embedded[id]; ok {
-		return method, nil
-	}
 	if method, ok := db.custom[id]; ok {
 		return method, nil
 	}
-	// TODO(nickeskov): support ride scripts metadata
-	return Method{}, fmt.Errorf("signature %v not found", id.String())
+	if method, ok := db.erc20[id]; ok {
+		return method, nil
+	}
+	return Method{}, fmt.Errorf("signature %q not found", id.String())
+}
+
+func (db *Database) IsERC20(id Selector) bool {
+	if _, ok := db.custom[id]; ok {
+		return false
+	}
+	if _, ok := db.erc20[id]; ok {
+		return true
+	}
+	return false
 }
 
 func (db *Database) ParseCallDataRide(data []byte, parsePayments bool) (*DecodedCallData, error) {
@@ -132,7 +141,7 @@ func parseArgDataToRideTypes(method *Method, argData []byte, parsePayments bool)
 		}
 	}
 
-	decoded := DecodedCallData{Signature: method.Sig.String(), Name: method.RawName, Payments: payments}
+	decoded := DecodedCallData{Signature: method.Sig, Name: method.RawName, Payments: payments}
 	for i := 0; i < len(method.Inputs); i++ {
 		decoded.Inputs = append(decoded.Inputs, DecodedArg{
 			Soltype: method.Inputs[i],
