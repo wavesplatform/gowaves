@@ -157,7 +157,7 @@ func (e *treeEstimatorV2) wrapFunction(node *FunctionDeclarationNode) Node {
 	for i := range node.Arguments {
 		args[i] = NewBooleanNode(true)
 	}
-	node.SetBlock(NewFunctionCallNode(node.Name, args))
+	node.SetBlock(NewFunctionCallNode(userFunction(node.Name), args))
 	var block Node
 	block = NewAssignmentNode(node.invocationParameter, NewBooleanNode(true), node)
 	for i := len(e.tree.Declarations) - 1; i >= 0; i-- {
@@ -227,7 +227,7 @@ func (e *treeEstimatorV2) walk(node Node) (int, error) {
 		return bc + 5, nil
 
 	case *FunctionCallNode:
-		id := n.Name
+		id := n.Function.Name()
 		ac := 0
 		for i, a := range n.Arguments {
 			c, err := e.walk(a)
