@@ -2,11 +2,11 @@ package state
 
 import (
 	"fmt"
-
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
@@ -384,6 +384,48 @@ type appendTxParams struct {
 	initialisation   bool
 }
 
+func guessEthereumTransactionKind(ethTx *proto.EthereumTransaction) (proto.EthereumTransactionKind, error) {
+	if len(ethTx.Data()) == 0 {
+		return &proto.EthereumTransferWavesTx{}, nil
+	}
+	db := ethabi.NewDatabase(map[ethabi.Selector]ethabi.Method{})
+	callData, err := db.ParseCallDataRide(ethTx.Data(), true)
+	if err != nil {
+		return nil, errors.Errorf("failed to parse data from eth tx, %v", err)
+	}
+	if db.IsERC20(callData.Signature.Selector()) {
+		return &proto.EthereumTransferAssetsTx{}, nil
+	}
+	return &proto.EthereumInvokeScriptTx{}, nil
+}
+
+func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*applicationResult, error) {
+	applicationRes, err := a.handleFallible(tx, fallibleInfo)
+	if err != nil {
+		msg := "fallible validation failed"
+		if txID, err2 := tx.GetID(a.settings.AddressSchemeCharacter); err2 == nil {
+			msg = fmt.Sprintf("fallible validation failed for transaction '%s'", base58.Encode(txID))
+		}
+		return nil, errs.Extend(err, msg)
+	}
+	return applicationRes, nil
+}
+
+func (a *txAppender) handleDefaultTransaction(tx proto.Transaction, params *appendTxParams, accountHasVerifierScript bool) (*applicationResult, error) {
+	// Execute transaction's scripts, check against state.
+	txScriptsRuns, err := a.checkTransactionScripts(tx, accountHasVerifierScript, params)
+	if err != nil {
+		return nil, err
+	}
+	// Create balance diff of this tx.
+	differInfo := &differInfo{params.initialisation, params.blockInfo}
+	txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, differInfo)
+	if err != nil {
+		return nil, errs.Extend(err, "create transaction diff")
+	}
+	return &applicationResult{true, txScriptsRuns, txChanges}, nil
+}
+
 func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) error {
 	defer func() {
 		a.sc.resetRecentTxComplexity()
@@ -419,13 +461,9 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		// Invoke and Exchange transactions should be handled differently.
 		// They may fail, and will be saved to blockchain anyway.
 		fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
-		applicationRes, err = a.handleFallible(tx, fallibleInfo)
+		applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
 		if err != nil {
-			msg := "fallible validation failed"
-			if txID, err2 := tx.GetID(a.settings.AddressSchemeCharacter); err2 == nil {
-				msg = fmt.Sprintf("fallible validation failed for transaction '%s'", base58.Encode(txID))
-			}
-			return errs.Extend(err, msg)
+			return errors.Errorf("failed to handle invoke or exchange transaction, %v", err)
 		}
 		// Exchange and Invoke balances are validated in UTX when acceptFailed is false.
 		// When acceptFailed is true, balances are validated inside handleFallible().
@@ -435,44 +473,26 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		if !ok {
 			return errors.New("failed to cast interface transaction to ethereum transaction structure")
 		}
-		// transfer waves case
-		if ethTx.Data() == nil {
-			// Execute transaction's scripts, check against state.
-			txScriptsRuns, err := a.checkTransactionScripts(ethTx, accountHasVerifierScript, params)
-			if err != nil {
-				return err
-			}
-			// Create balance diff of this tx.
-			differInfo := &differInfo{params.initialisation, params.blockInfo}
-			txChanges, err := a.blockDiffer.createTransactionDiff(ethTx, params.block, differInfo)
-			if err != nil {
-				return errs.Extend(err, "create transaction diff")
-			}
-			applicationRes = &applicationResult{true, txScriptsRuns, txChanges}
-			// In UTX balances are always validated.
-			needToValidateBalanceDiff = params.validatingUtx
-			break
+		ethTx.TxKind, err = guessEthereumTransactionKind(ethTx)
+		if err != nil {
+			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
 		}
 
-		// invoke either erc20 or a dApp function
-		if ethTx.To() == nil {
-			ethTx.Data()
-			// TODO invoke erc20 or dApp
+		switch ethTx.TxKind.(type) {
+		case *proto.EthereumTransferWavesTx:
+			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
+			// In UTX balances are always validated.
+			needToValidateBalanceDiff = params.validatingUtx
+		case *proto.EthereumInvokeScriptTx, *proto.EthereumTransferAssetsErc20Tx:
+			fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
+			applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
+			if err != nil {
+				return errors.Errorf("failed to handle invoke or exchange transaction, %v", err)
+			}
 		}
 
 	default:
-		// Execute transaction's scripts, check against state.
-		txScriptsRuns, err := a.checkTransactionScripts(tx, accountHasVerifierScript, params)
-		if err != nil {
-			return err
-		}
-		// Create balance diff of this tx.
-		differInfo := &differInfo{params.initialisation, params.blockInfo}
-		txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, differInfo)
-		if err != nil {
-			return errs.Extend(err, "create transaction diff")
-		}
-		applicationRes = &applicationResult{true, txScriptsRuns, txChanges}
+		applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 		// In UTX balances are always validated.
 		needToValidateBalanceDiff = params.validatingUtx
 	}

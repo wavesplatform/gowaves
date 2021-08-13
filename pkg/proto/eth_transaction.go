@@ -83,11 +83,37 @@ type EthereumTxData interface {
 	fastRLPSignerHasher
 }
 
+type EthereumTransactionKind interface {
+	Type() string
+}
+
+type EthereumTransferWavesTx struct {
+}
+
+func (tx *EthereumTransferWavesTx) Type() string {
+	return "EthereumTransferWavesTx"
+}
+
+type EthereumTransferAssetsErc20Tx struct {
+}
+
+func (tx *EthereumTransferAssetsErc20Tx) Type() string {
+	return "EthereumTransferAssetsErc20Tx"
+}
+
+type EthereumInvokeScriptTx struct {
+}
+
+func (tx *EthereumInvokeScriptTx) Type() string {
+	return "EthereumInvokeScriptTx"
+}
+
 type EthereumTransaction struct {
 	inner           EthereumTxData
 	innerBinarySize int
 	id              *crypto.Digest
 	sender          *EthereumAddress
+	TxKind          EthereumTransactionKind
 }
 
 func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
