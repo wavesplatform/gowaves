@@ -44,7 +44,7 @@ type Selector [4]byte
 
 func NewSelector(sig Signature) Selector {
 	var selector Selector
-	hash := proto.Keccak256EthereumHash([]byte(sig))
+	hash := proto.NewKeccak256EthereumHash([]byte(sig))
 	copy(selector[:], hash[:])
 	return selector
 }

@@ -1491,6 +1491,10 @@ func (o EthereumOrderV4) GetSenderPK() crypto.PublicKey {
 	panic(errors.New("BUG, CREATE REPORT: EthereumOrderV4 doesn't support waves public key."))
 }
 
+func (o EthereumOrderV4) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
+	panic(errors.New("BUG, CREATE REPORT: EthereumOrderV4 doesn't support waves Verify."))
+}
+
 func (o EthereumOrderV4) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderV4.ToProtobuf(scheme)
 	// nickeskov: can't fail
@@ -1509,8 +1513,68 @@ func (o EthereumOrderV4) GetEthereumSenderPK() EthereumPublicKey {
 	return o.EthereumSenderPK
 }
 
-// TODO(nickeskov): eth verify
-// TODO(nickeskov): sign error stub
+func (o EthereumOrderV4) ValidateEthereumSignature(scheme Scheme) (bool, error) {
+	msg := ethereumTypedDataMessage{
+		"version":           int(o.Version),
+		"matcherPublicKey":  o.MatcherPK.String(),
+		"amountAsset":       o.AssetPair.AmountAsset.String(),
+		"priceAsset":        o.AssetPair.PriceAsset.String(),
+		"orderType":         strings.ToUpper(o.OrderType.String()),
+		"amount":            o.Amount,
+		"price":             o.Price,
+		"timestamp":         o.Timestamp,
+		"expiration":        o.Expiration,
+		"matcherFee":        o.MatcherFee,
+		"matcherFeeAssetId": o.MatcherFeeAsset.String(),
+	}
+	typedData := buildEthereumOrderV4TypedData(scheme, msg)
+	hash, err := typedData.Hash()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to validate ethereum signature for EthereumOrderV4")
+	}
+	_, r, s := o.EthereumSignature.AsVRS()
+	return VerifyEthereumSignature(&o.EthereumSenderPK, r, s, hash.Bytes()), nil
+}
+
+func buildEthereumOrderV4TypedData(scheme Scheme, message ethereumTypedDataMessage) ethereumTypedData {
+	verifyingContract := [20]byte{}
+	for i := range verifyingContract {
+		verifyingContract[i] = scheme
+	}
+	var orderDomain = ethereumTypedData{
+		Types: ethereumTypedDataTypes{
+			"EIP712Domain": []ethereumTypedDataType{
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
+			},
+			"Order": []ethereumTypedDataType{
+				{Name: "version", Type: "int32"},
+				{Name: "matcherPublicKey", Type: "string"},
+				{Name: "amountAsset", Type: "string"},
+				{Name: "priceAsset", Type: "string"},
+				{Name: "orderType", Type: "string"},
+				{Name: "amount", Type: "int64"},
+				{Name: "price", Type: "int64"},
+				{Name: "timestamp", Type: "int64"},
+				{Name: "expiration", Type: "int64"},
+				{Name: "matcherFee", Type: "int64"},
+				{Name: "matcherFeeAssetId", Type: "string"},
+			},
+		},
+		PrimaryType: "Order",
+		Domain: ethereumTypedDataDomain{
+			Name:              "Waves Exchange",
+			Version:           "1",
+			ChainId:           newHexOrDecimal256(int64(scheme)),
+			VerifyingContract: EncodeToHexString(verifyingContract[:]),
+			//Salt:              "", // TODO(nickeskov): Ask scala team about it.
+		},
+		Message: message,
+	}
+	return orderDomain
+}
 
 const (
 	proofsVersion  byte = 1

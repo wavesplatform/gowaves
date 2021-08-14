@@ -14,11 +14,11 @@ const (
 // EthereumHash represents the 32 byte Keccak256 hash of arbitrary data.
 type EthereumHash [EthereumHashSize]byte
 
-// Keccak256EthereumHash calculates and returns the Keccak256 hash of the input data,
+// NewKeccak256EthereumHash calculates and returns the Keccak256 hash of the input data,
 // converting it to an EthereumHash data structure.
-func Keccak256EthereumHash(data []byte) EthereumHash {
+func NewKeccak256EthereumHash(data []byte) EthereumHash {
 	// nickeskov: can't fail
-	digest, _ := crypto.Keccak256(data)
+	digest := crypto.MustKeccak256(data)
 	return EthereumHash(digest)
 }
 

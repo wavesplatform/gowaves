@@ -6,17 +6,15 @@ import (
 	"math/big"
 )
 
-// Common big integers often used
 var (
-	Big1           = big.NewInt(1)
-	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
 	secp256k1N, _  = new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
+	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
 )
 
 // ValidateEthereumSignatureValues verifies whether the signature values are valid with
 // the given chain rules. The v value is assumed to be either 0 or 1.
 func ValidateEthereumSignatureValues(v byte, r, s *big.Int, homestead bool) bool {
-	if r.Cmp(Big1) < 0 || s.Cmp(Big1) < 0 {
+	if r.Cmp(big1) < 0 || s.Cmp(big1) < 0 {
 		return false
 	}
 	// reject upper range of s values (ECDSA malleability)

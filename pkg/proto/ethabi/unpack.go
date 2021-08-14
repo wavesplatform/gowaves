@@ -13,6 +13,13 @@ var (
 	errBadBool = stdErr.New("abi: improperly encoded boolean value")
 )
 
+var (
+	big1  = big.NewInt(1)
+	big32 = big.NewInt(32)
+	// maxUint256 is the maximum value that can be represented by a uint256.
+	maxUint256 = new(big.Int).Sub(new(big.Int).Lsh(big1, 256), big1)
+)
+
 // readBool reads a bool.
 func readBool(word []byte) (bool, error) {
 	for _, b := range word[:31] {
@@ -63,8 +70,8 @@ func readRideInteger(typ Type, b []byte) ride.RideType {
 		// A number is > max int256 if the bit at position 255 is set.
 		ret := new(big.Int).SetBytes(b)
 		if ret.Bit(255) == 1 {
-			ret.Add(MaxUint256, new(big.Int).Neg(ret))
-			ret.Add(ret, Big1)
+			ret.Add(maxUint256, new(big.Int).Neg(ret))
+			ret.Add(ret, big1)
 			ret.Neg(ret)
 		}
 		return ride.RideBigInt{V: ret}
@@ -272,7 +279,7 @@ func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err 
 	// nickeskov: I have no idea how it works, but we should...
 
 	bigOffsetEnd := big.NewInt(0).SetBytes(output[index : index+32])
-	bigOffsetEnd.Add(bigOffsetEnd, Big32)
+	bigOffsetEnd.Add(bigOffsetEnd, big32)
 	outputLength := big.NewInt(int64(len(output)))
 
 	if bigOffsetEnd.Cmp(outputLength) > 0 {

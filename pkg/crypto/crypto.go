@@ -316,6 +316,15 @@ func Keccak256(data []byte) (Digest, error) {
 	return d, nil
 }
 
+func MustKeccak256(data []byte) Digest {
+	digest, err := Keccak256(data)
+	if err != nil {
+		// nickeskov: if it fails then it is definitely a standard library bug
+		panic(errors.Wrap(err, "BUG, CREATE REPORT: crypto.Keccak256 has failed!"))
+	}
+	return digest
+}
+
 func NewFastHash() (hash.Hash, error) {
 	return blake2b.New256(nil)
 }
