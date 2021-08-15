@@ -330,6 +330,25 @@ func (tc *transactionChecker) checkTransferWithSig(transaction proto.Transaction
 	return smartAssets, nil
 }
 
+func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
+	tx, ok := transaction.(*proto.EthereumTransaction)
+	if !ok {
+		return nil, errors.New("failed to convert interface to TransferWithSig transaction")
+	}
+
+	switch tx.TxKind.(type) {
+	case *proto.EthereumTransferWavesTx:
+
+	case *proto.EthereumInvokeScriptTx:
+
+	case *proto.EthereumTransferAssetsErc20Tx:
+
+	default:
+		return nil, errors.New("failed to check ethereum transaction, wrong kind of tx")
+	}
+	return nil, nil
+}
+
 func (tc *transactionChecker) checkTransferWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.TransferWithProofs)
 	if !ok {

@@ -394,7 +394,7 @@ func guessEthereumTransactionKind(ethTx *proto.EthereumTransaction) (proto.Ether
 		return nil, errors.Errorf("failed to parse data from eth tx, %v", err)
 	}
 	if db.IsERC20(callData.Signature.Selector()) {
-		return &proto.EthereumTransferAssetsTx{}, nil
+		return &proto.EthereumTransferAssetsErc20Tx{}, nil
 	}
 	return &proto.EthereumInvokeScriptTx{}, nil
 }
@@ -481,18 +481,24 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		switch ethTx.TxKind.(type) {
 		case *proto.EthereumTransferWavesTx:
 			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
+			if err != nil {
+				return errors.Errorf("failed to handle ethereum transaction, %v", err)
+			}
 			// In UTX balances are always validated.
 			needToValidateBalanceDiff = params.validatingUtx
 		case *proto.EthereumInvokeScriptTx, *proto.EthereumTransferAssetsErc20Tx:
 			fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
 			applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
 			if err != nil {
-				return errors.Errorf("failed to handle invoke or exchange transaction, %v", err)
+				return errors.Errorf("failed to handle ethereum transaction, %v", err)
 			}
 		}
 
 	default:
 		applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
+		if err != nil {
+			return errors.Errorf("failed to handle transaction, %v", err)
+		}
 		// In UTX balances are always validated.
 		needToValidateBalanceDiff = params.validatingUtx
 	}

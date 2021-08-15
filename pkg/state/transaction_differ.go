@@ -454,6 +454,54 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 	return changes, nil
 }
 
+//func (td *transactionDiffer) createDiffEthereumTransfer(tx *proto.EthereumTransaction, info *differInfo) (txBalanceChanges, error) {
+//	diff := newTxDiff()
+//
+//	//updateMinIntermediateBalance := false
+//	//if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
+//	//	updateMinIntermediateBalance = true
+//	//}
+//	// Append sender diff.
+//	EthSenderAddr, err := tx.From()
+//	if err != nil {
+//		return txBalanceChanges{}, err
+//	}
+//	senderAddress, err := EthSenderAddr.WavesAddress(td.settings.AddressSchemeCharacter)
+//	if err != nil {
+//		return txBalanceChanges{}, err
+//	}
+//	// TODO fee
+//	//senderFeeKey := byteKey(senderAddr, tx.FeeAsset.ToID())
+//	//senderFeeBalanceDiff := -int64(tx.GetFee())
+//	//if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+//	//	return txBalanceChanges{}, err
+//	//}
+//	// TODO amount
+//	//senderAmountKey := byteKey(senderAddr, tx.AmountAsset.ToID())
+//	//senderAmountBalanceDiff := -int64(tx.Amount)
+//	//if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(senderAmountBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+//	//	return txBalanceChanges{}, err
+//	//}
+//	// Append receiver diff.
+//	recipientAddress, err := tx.To().WavesAddress(td.settings.AddressSchemeCharacter)
+//	if err != nil {
+//		return txBalanceChanges{}, err
+//	}
+//	// TODO amount
+//	//receiverKey := byteKey(recipientAddress, tx.AmountAsset.ToID())
+//	//receiverBalanceDiff := int64(tx.Amount)
+//	//if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+//	//	return txBalanceChanges{}, err
+//	//}
+//	addrs := []proto.WavesAddress{senderAddress, recipientAddress}
+//	changes := newTxBalanceChanges(addrs, diff)
+//	// TODO is it possible to have sponsorship?
+//	//if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+//	//	return txBalanceChanges{}, err
+//	//}
+//	return changes, nil
+//}
+
 func (td *transactionDiffer) createDiffTransferWithSig(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.TransferWithSig)
 	if !ok {
@@ -461,6 +509,14 @@ func (td *transactionDiffer) createDiffTransferWithSig(transaction proto.Transac
 	}
 	return td.createDiffTransfer(&tx.Transfer, info)
 }
+
+//func (td *transactionDiffer) createDiffEthereumTransactionWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+//	tx, ok := transaction.(*proto.EthereumTransaction)
+//	if !ok {
+//		return txBalanceChanges{}, errors.New("failed to convert interface to EthereumTransaction transaction")
+//	}
+//	return td.createDiffEthereumTransfer(tx, info)
+//}
 
 func (td *transactionDiffer) createDiffTransferWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.TransferWithProofs)

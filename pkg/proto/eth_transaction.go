@@ -114,6 +114,8 @@ type EthereumTransaction struct {
 	id              *crypto.Digest
 	sender          *EthereumAddress
 	TxKind          EthereumTransactionKind
+	AmountAsset     OptionalAsset
+	FeeAsset        OptionalAsset
 }
 
 func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
@@ -339,6 +341,9 @@ func (tx *EthereumTransaction) To() *EthereumAddress { return tx.inner.to().copy
 // From returns the sender address of the transaction.
 // Returns error if transaction doesn't pass validation.
 func (tx *EthereumTransaction) From() (*EthereumAddress, error) {
+	if tx.sender != nil {
+		return tx.sender, nil
+	}
 	if _, err := tx.Validate(); err != nil {
 		return nil, err
 	}
