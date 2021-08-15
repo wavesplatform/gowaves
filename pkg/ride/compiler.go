@@ -350,14 +350,14 @@ func (c *compiler) callNode(bb *bytes.Buffer, node *FunctionCallNode) error {
 	}
 	cnt := encode(uint16(len(node.Arguments)))
 
-	if id, ok := c.checkFunction(node.Name); ok {
+	if id, ok := c.checkFunction(node.Function.Name()); ok {
 		//External function
 		bb.WriteByte(OpExternalCall)
 		bb.Write(encode(id))
 		bb.Write(cnt)
 	} else {
 		//Internal function
-		decl, err := c.lookupFunction(node.Name)
+		decl, err := c.lookupFunction(node.Function.Name())
 		if err != nil {
 			return err
 		}
