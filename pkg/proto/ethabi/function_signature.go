@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	erc20TransferSignature     Signature = "transfer(address,uint256)"
-	erc20TransferFromSignature Signature = "transferFrom(address,address,uint256)"
+	Erc20TransferSignature     Signature = "transfer(address,uint256)"
+	Erc20TransferFromSignature Signature = "transferFrom(address,address,uint256)"
 )
 
 type Signature string
@@ -245,7 +245,7 @@ func (ftb functionTextBuilder) MarshalText() (text []byte, err error) {
 }
 
 var erc20Methods = map[Selector]Method{
-	erc20TransferSignature.Selector(): {
+	Erc20TransferSignature.Selector(): {
 		RawName: "transfer",
 		Inputs: Arguments{
 			Argument{
@@ -266,9 +266,9 @@ var erc20Methods = map[Selector]Method{
 			},
 		},
 		Payments: nil,
-		Sig:      erc20TransferSignature,
+		Sig:      Erc20TransferSignature,
 	},
-	erc20TransferFromSignature.Selector(): {
+	Erc20TransferFromSignature.Selector(): {
 		RawName: "transferFrom",
 		Inputs: Arguments{
 			Argument{
@@ -297,6 +297,6 @@ var erc20Methods = map[Selector]Method{
 			},
 		},
 		Payments: nil,
-		Sig:      erc20TransferFromSignature,
+		Sig:      Erc20TransferFromSignature,
 	},
 }

@@ -114,8 +114,6 @@ type EthereumTransaction struct {
 	id              *crypto.Digest
 	sender          *EthereumAddress
 	TxKind          EthereumTransactionKind
-	AmountAsset     OptionalAsset
-	FeeAsset        OptionalAsset
 }
 
 func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
