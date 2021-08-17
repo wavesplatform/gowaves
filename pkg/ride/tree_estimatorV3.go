@@ -28,15 +28,15 @@ func (f *fsV3) set(key string, cost int, usages []string) {
 	f.functions[key] = fd{cost, usages}
 }
 
-func (f *fsV3) get(key string) (int, []string, error) {
+func (f *fsV3) get(key string) (int, []string, bool) {
 	fd, ok := f.functions[key]
 	if !ok {
 		if f.parent == nil {
-			return 0, nil, errors.Errorf("user function '%s' not found", key)
+			return 0, nil, false
 		}
 		return f.parent.get(key)
 	}
-	return fd.cost, fd.usages, nil
+	return fd.cost, fd.usages, true
 }
 
 type estimationScopeV3 struct {
@@ -67,14 +67,32 @@ func (s *estimationScopeV3) setFunction(id string, cost int, usages []string) {
 	s.functions.set(id, cost, usages)
 }
 
-func (s *estimationScopeV3) function(id string, enableInvocation bool) (int, []string, error) {
-	if c, ok := s.builtin[id]; ok {
-		if (id == "1020" || id == "1021") && !enableInvocation {
-			return 0, nil, errors.Errorf("function '%s' not found", id)
+func (s *estimationScopeV3) function(function function, enableInvocation bool) (int, []string, error) {
+	id := function.Name()
+	switch function.(type) {
+	case userFunction:
+		cost, usages, found := s.functions.get(id)
+		if found {
+			return cost, usages, nil
 		}
-		return c, nil, nil
+		if c, ok := s.builtin[id]; ok {
+			if (id == "1020" || id == "1021") && !enableInvocation {
+				return 0, nil, errors.Errorf("user function '%s' not found", id)
+			}
+			return c, nil, nil
+		}
+		return 0, nil, errors.Errorf("user function '%s' not found", id)
+	case nativeFunction:
+		if c, ok := s.builtin[id]; ok {
+			if (id == "1020" || id == "1021") && !enableInvocation {
+				return 0, nil, errors.Errorf("function '%s' not found", id)
+			}
+			return c, nil, nil
+		}
+		return 0, nil, errors.Errorf("native function '%s' not found", id)
+	default:
+		return 0, nil, errors.Errorf("unknown type of function '%s'", id)
 	}
-	return s.functions.get(id)
 }
 
 func (s *estimationScopeV3) used(id string) bool {
@@ -192,7 +210,8 @@ func (e *treeEstimatorV3) wrapFunction(node *FunctionDeclarationNode) Node {
 	for i := range node.Arguments {
 		args[i] = NewBooleanNode(true)
 	}
-	node.SetBlock(NewFunctionCallNode(node.Name, args))
+	// It's definitely user function as node is sent from FunctionDeclarationNode
+	node.SetBlock(NewFunctionCallNode(userFunction(node.Name), args))
 	var block Node
 	block = NewAssignmentNode(node.invocationParameter, NewBooleanNode(true), node)
 	for i := len(e.tree.Declarations) - 1; i >= 0; i-- {
@@ -275,10 +294,10 @@ func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
 		return bc, nil
 
 	case *FunctionCallNode:
-		id := n.Name
-		fc, bu, err := e.scope.function(id, enableInvocation)
+		name := n.Function.Name()
+		fc, bu, err := e.scope.function(n.Function, enableInvocation)
 		if err != nil {
-			return 0, errors.Wrapf(err, "failed to estimate the call of function '%s'", id)
+			return 0, errors.Wrapf(err, "failed to estimate the call of function '%s'", name)
 		}
 		for _, u := range bu {
 			e.scope.use(u)
@@ -288,7 +307,7 @@ func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
 			tmp := e.scope.save()
 			c, err := e.walk(a, enableInvocation)
 			if err != nil {
-				return 0, errors.Wrapf(err, "failed to estimate parameter %d of function call '%s'", i, id)
+				return 0, errors.Wrapf(err, "failed to estimate parameter %d of function call '%s'", i, name)
 			}
 			e.scope.restore(tmp)
 			ac += c
