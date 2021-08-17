@@ -272,7 +272,11 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address, filter bool) (
 func (s *accountsDataStorage) entryExists(addr proto.Address, filter bool) (bool, error) {
 	addrNum, err := s.addrToNum(addr)
 	if err != nil {
-		return false, err
+		// If there is no number for the address, no data for this address was saved before
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return false, nil
+		}
+		return false, err // Other bloom filter errors is possible
 	}
 	key := accountsDataStorKey{addrNum: addrNum}
 	iter, err := s.hs.newTopEntryIteratorByPrefix(key.accountPrefix(), filter)
