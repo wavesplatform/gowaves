@@ -4,8 +4,8 @@ import (
 	"context"
 	"net"
 
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/network"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -17,14 +17,14 @@ type PeerSpawner interface {
 }
 
 type PeerOutgoingSpawnerImpl struct {
-	pool         bytespool.Pool
+	pool         *bytebufferpool.Pool
 	parent       peer.Parent
 	wavesNetwork string
 	declAddr     proto.TCPAddr
 	skipFunc     conn.SkipFilter
 }
 
-func NewPeerSpawner(pool bytespool.Pool, skipFunc conn.SkipFilter, parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr) *PeerOutgoingSpawnerImpl {
+func NewPeerSpawner(pool *bytebufferpool.Pool, skipFunc conn.SkipFilter, parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr) *PeerOutgoingSpawnerImpl {
 	return &PeerOutgoingSpawnerImpl{
 		pool:         pool,
 		skipFunc:     skipFunc,

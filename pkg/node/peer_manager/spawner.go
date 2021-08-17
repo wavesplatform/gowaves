@@ -4,7 +4,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/common"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/incoming"
@@ -27,7 +27,7 @@ type PeerSpawner interface {
 }
 
 type PeerSpawnerImpl struct {
-	pool             bytespool.Pool
+	pool             *bytebufferpool.Pool
 	parent           peer.Parent
 	wavesNetwork     string
 	declAddr         proto.TCPAddr
@@ -38,7 +38,7 @@ type PeerSpawnerImpl struct {
 	DuplicateChecker DuplicateChecker
 }
 
-func NewPeerSpawner(pool bytespool.Pool, parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
+func NewPeerSpawner(pool *bytebufferpool.Pool, parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
 	return &PeerSpawnerImpl{
 		pool:             pool,
 		skipFunc:         noSkip,

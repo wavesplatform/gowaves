@@ -1,20 +1,21 @@
 package peer
 
 import (
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type Remote struct {
 	ToCh   chan []byte
-	FromCh chan []byte
+	FromCh chan *bytebufferpool.ByteBuffer
 	ErrCh  chan error
 }
 
 func NewRemote() Remote {
 	return Remote{
 		ToCh:   make(chan []byte, 100),
-		FromCh: make(chan []byte, 100),
+		FromCh: make(chan *bytebufferpool.ByteBuffer, 100),
 		ErrCh:  make(chan error, 10),
 	}
 }

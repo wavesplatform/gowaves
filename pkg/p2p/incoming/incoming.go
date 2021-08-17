@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -22,7 +22,7 @@ type IncomingPeerParams struct {
 	Conn             net.Conn
 	Parent           peer.Parent
 	DeclAddr         proto.TCPAddr
-	Pool             bytespool.Pool
+	Pool             *bytebufferpool.Pool
 	Skip             conn.SkipFilter
 	NodeName         string
 	NodeNonce        uint64

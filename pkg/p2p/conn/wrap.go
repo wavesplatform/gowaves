@@ -6,11 +6,11 @@ import (
 	"io"
 	"net"
 
-	. "github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/valyala/bytebufferpool"
 	"go.uber.org/atomic"
 )
 
-func WrapConnection(conn net.Conn, pool Pool, toRemoteCh chan []byte, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter) Connection {
+func WrapConnection(conn net.Conn, pool *bytebufferpool.Pool, toRemoteCh chan []byte, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter) Connection {
 	return wrapConnection(wrapParams{
 		conn:         conn,
 		pool:         pool,
@@ -25,12 +25,12 @@ func WrapConnection(conn net.Conn, pool Pool, toRemoteCh chan []byte, fromRemote
 
 type wrapParams struct {
 	conn         net.Conn
-	pool         Pool
+	pool         *bytebufferpool.Pool
 	toRemoteCh   chan []byte
-	fromRemoteCh chan []byte
+	fromRemoteCh chan *bytebufferpool.ByteBuffer
 	errCh        chan error
 	sendFunc     func(closed *atomic.Bool, conn io.Writer, ctx context.Context, toRemoteCh chan []byte, errCh chan error)
-	receiveFunc  func(closed *atomic.Bool, pool Pool, reader io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter, addr string)
+	receiveFunc  func(closed *atomic.Bool, pool *bytebufferpool.Pool, reader io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, addr string)
 	skip         SkipFilter
 }
 

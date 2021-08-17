@@ -6,9 +6,9 @@ import (
 	"net"
 	"time"
 
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -28,7 +28,7 @@ type IncomingPeerParams struct {
 	Conn         net.Conn
 	Parent       peer.Parent
 	DeclAddr     proto.TCPAddr
-	Pool         bytespool.Pool
+	Pool         *bytebufferpool.Pool
 	Skip         conn.SkipFilter
 }
 

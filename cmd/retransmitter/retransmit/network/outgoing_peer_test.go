@@ -2,15 +2,16 @@ package network
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"net"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/valyala/bytebufferpool"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -100,7 +101,7 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 	params := OutgoingPeerParams{
 		Address:  server.Addr().String(),
 		Parent:   parent,
-		Pool:     bytespool.NewBytesPool(10, 2*1024*1024),
+		Pool:     new(bytebufferpool.Pool),
 		DeclAddr: proto.TCPAddr{},
 	}
 	go RunOutgoingPeer(ctx, params)

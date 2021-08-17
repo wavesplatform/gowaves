@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -14,19 +14,19 @@ type DuplicateChecker interface {
 	Add([]byte) (isNew bool)
 }
 
-func bytesToMessage(b []byte, d DuplicateChecker, resendTo chan ProtoMessage, pool bytespool.Pool, p Peer) error {
+func bytesToMessage(b *bytebufferpool.ByteBuffer, d DuplicateChecker, resendTo chan ProtoMessage, pool *bytebufferpool.Pool, p Peer) error {
 	defer func() {
 		pool.Put(b)
 	}()
 
 	if d != nil {
-		isNew := d.Add(b)
+		isNew := d.Add(b.Bytes())
 		if !isNew {
 			return nil
 		}
 	}
 
-	m, err := proto.UnmarshalMessage(b)
+	m, err := proto.UnmarshalMessage(b.Bytes())
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ type HandlerParams struct {
 	Connection       conn.Connection
 	Remote           Remote
 	Parent           Parent
-	Pool             bytespool.Pool
+	Pool             *bytebufferpool.Pool
 	Peer             Peer
 	DuplicateChecker DuplicateChecker
 }
@@ -69,8 +69,8 @@ func Handle(params HandlerParams) error {
 			}
 			return errors.Wrap(params.Ctx.Err(), "Handle")
 
-		case bts := <-params.Remote.FromCh:
-			err := bytesToMessage(bts, params.DuplicateChecker, params.Parent.MessageCh, params.Pool, params.Peer)
+		case bb := <-params.Remote.FromCh:
+			err := bytesToMessage(bb, params.DuplicateChecker, params.Parent.MessageCh, params.Pool, params.Peer)
 			if err != nil {
 				out := InfoMessage{
 					Peer:  params.Peer,

@@ -16,10 +16,10 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
@@ -295,8 +295,8 @@ func main() {
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 	bindAddr := proto.NewTCPAddrFromString(*bindAddress)
 
-	mb := 1024 * 1014
-	pool := bytespool.NewBytesPool(64, mb+(mb/2))
+	mb := 1 << (10 * 2)
+	pool := new(bytebufferpool.Pool)
 
 	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(st, ntpTime, outdatePeriodSeconds*1000), cfg)
 
@@ -380,7 +380,7 @@ func main() {
 				return
 			}
 			if err := peerManager.AddAddress(ctx, tcpAddr); err != nil {
-				// Than means that we have problems with peers storage
+				// That means that we have problems with peers storage
 				zap.S().Errorf("Failed to add addres into know peers storage: %v", err)
 				cancel()
 				return

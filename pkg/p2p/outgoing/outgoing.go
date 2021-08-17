@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -21,7 +21,7 @@ type EstablishParams struct {
 	Address          proto.TCPAddr
 	WavesNetwork     string
 	Parent           peer.Parent
-	Pool             bytespool.Pool
+	Pool             *bytebufferpool.Pool
 	DeclAddr         proto.TCPAddr
 	Skip             conn.SkipFilter
 	NodeName         string

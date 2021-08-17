@@ -8,11 +8,13 @@ import (
 	"net"
 	"strings"
 
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
+
+const maxMessageSize = 2 << (10 * 2)
 
 type Dialer func(network string, addr string) (net.Conn, error)
 
@@ -64,7 +66,7 @@ func nonRecoverableError(err error) bool {
 // SkipFilter indicates that the network message should be skipped.
 type SkipFilter func(proto.Header) bool
 
-func receiveFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter, addr string) {
+func receiveFromRemote(stopped *atomic.Bool, pool *bytebufferpool.Pool, conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, addr string) {
 	defer stopped.Store(true)
 	for {
 		header := proto.Header{}
@@ -86,8 +88,7 @@ func receiveFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader
 			continue
 		}
 		// received too long message than we expected, probably it is error, discard
-		messageIsTooLong := int(header.HeaderLength()+header.PayloadLength) > pool.BytesLen()
-		if messageIsTooLong {
+		if int(header.HeaderLength()+header.PayloadLength) > maxMessageSize {
 			_, err = io.CopyN(ioutil.Discard, conn, int64(header.PayloadLength))
 			if nonRecoverableError(err) {
 				handleErr(err, errCh)
@@ -97,7 +98,7 @@ func receiveFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader
 		}
 		b := pool.Get()
 		// put header before payload
-		if _, err := header.Copy(b); err != nil {
+		if _, err := header.WriteTo(b); err != nil {
 			pool.Put(b)
 			if nonRecoverableError(err) {
 				handleErr(err, errCh)
@@ -107,9 +108,10 @@ func receiveFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader
 			continue
 		}
 		// then read all message to remaining buffer
-		hl := header.HeaderLength()
-		pl := header.PayloadLength
-		_, err = proto.ReadPayload(b[hl:hl+pl], conn)
+		//hl := header.HeaderLength()
+		pl := int64(header.PayloadLength)
+		_, err = io.CopyN(b, conn, pl)
+		//_, err = proto.ReadPayload(b.B[hl:hl+pl], conn)
 		if err != nil {
 			pool.Put(b)
 			if nonRecoverableError(err) {
