@@ -235,12 +235,18 @@ func parseBytes(encType interface{}) ([]byte, bool) {
 	}
 }
 
+func bigUint64(x uint64) *big.Int {
+	i := big.Int{}
+	return i.SetUint64(x)
+}
+
 func parseInteger(encType string, encValue interface{}) (*big.Int, error) {
 	var (
 		length int
 		signed = strings.HasPrefix(encType, "int")
 		b      *big.Int
 	)
+
 	if encType == "int" || encType == "uint" {
 		length = 256
 	} else {
@@ -256,7 +262,10 @@ func parseInteger(encType string, encValue interface{}) (*big.Int, error) {
 		}
 		length = atoiSize
 	}
+
 	switch v := encValue.(type) {
+	case *big.Int:
+		b = v
 	case *hexOrDecimal256:
 		b = (*big.Int)(v)
 	case string:
@@ -265,15 +274,49 @@ func parseInteger(encType string, encValue interface{}) (*big.Int, error) {
 			return nil, err
 		}
 		b = (*big.Int)(&hexIntValue)
+
 	case float64:
-		// JSON parses non-strings as float64. Fail if we cannot
+		// standard JSON unmarshal parses non-strings as float64. Fail if we cannot
 		// convert it losslessly
 		if float64(int64(v)) == v {
 			b = big.NewInt(int64(v))
 		} else {
-			return nil, errors.Errorf("invalid float value %v for type %v", v, encType)
+			return nil, fmt.Errorf("invalid float value %v for type %v", v, encType)
 		}
+	case float32:
+		// Fail if we cannot convert it losslessly
+		if float32(int64(v)) == v {
+			b = big.NewInt(int64(v))
+		} else {
+			return nil, fmt.Errorf("invalid float value %v for type %v", v, encType)
+		}
+
+	case int:
+		b = big.NewInt(int64(v))
+	case uint:
+		b = bigUint64(uint64(v))
+
+	case int64:
+		b = big.NewInt(v)
+	case uint64:
+		b = bigUint64(v)
+
+	case int32:
+		b = big.NewInt(int64(v))
+	case uint32:
+		b = bigUint64(uint64(v))
+
+	case int16:
+		b = big.NewInt(int64(v))
+	case uint16:
+		b = bigUint64(uint64(v))
+
+	case int8:
+		b = big.NewInt(int64(v))
+	case byte:
+		b = bigUint64(uint64(v))
 	}
+
 	if b == nil {
 		return nil, errors.Errorf("invalid integer value %v/%T for type %v", encValue, encValue, encType)
 	}

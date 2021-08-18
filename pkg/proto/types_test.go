@@ -1590,3 +1590,62 @@ func TestStateHash_GenerateSumHash(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, correctSumHash, sh.SumHash)
 }
+
+func TestEthereumOrderV4_Verify(t *testing.T) {
+	const ethTestScheme = 'E'
+	ethStub32 := bytes.Repeat([]byte{ethTestScheme}, 32)
+
+	stubAssetID, err := crypto.NewDigestFromBytes(ethStub32)
+	require.NoError(t, err)
+
+	matcherPKStub, err := crypto.NewPublicKeyFromBytes(ethStub32)
+	require.NoError(t, err)
+
+	testAssetPair := AssetPair{
+		AmountAsset: OptionalAsset{
+			Present: true,
+			ID:      stubAssetID,
+		},
+		PriceAsset: OptionalAsset{
+			Present: true,
+			ID:      stubAssetID,
+		},
+	}
+
+	testEthPubKeyHex := "0xd10a150ba9a535125481e017a09c2ac6a1ab43fc43f7ab8f0d44635106672dd7de4f775c06b730483862cbc4371a646d86df77b3815593a846b7272ace008c42"
+	testEthSenderPK, err := NewEthereumPublicKeyFromHexString(testEthPubKeyHex)
+	require.NoError(t, err)
+
+	testEthSigHex := "0x54119bc5b24d9363b7a1a31a71a2e6194dfeedc5e9644893b0a04bb57004e5b14342c1ce29ee00877da49180fd6d7fb332ff400231f809da7ed0dcb07c504e2d1c"
+	testEthSig, err := NewEthereumSignatureFromHexString(testEthSigHex)
+	require.NoError(t, err)
+
+	ethOrder := EthereumOrderV4{
+		EthereumSenderPK:  testEthSenderPK,
+		EthereumSignature: testEthSig,
+		OrderV4: OrderV4{
+			Version: 1,
+			ID:      nil,
+			Proofs:  nil, // no proofs because order has EthereumSignature
+			MatcherFeeAsset: OptionalAsset{
+				Present: true,
+				ID:      stubAssetID,
+			}, // waves asset by default
+			OrderBody: OrderBody{
+				SenderPK:   crypto.PublicKey{}, // empty because this is ethereum-signed order
+				MatcherPK:  matcherPKStub,
+				AssetPair:  testAssetPair,
+				OrderType:  Buy,
+				Price:      1,
+				Amount:     1,
+				Timestamp:  123,
+				Expiration: 321,
+				MatcherFee: 1,
+			},
+		},
+	}
+
+	valid, err := ethOrder.ValidateEthereumSignature(ethTestScheme)
+	require.NoError(t, err)
+	require.True(t, valid)
+}

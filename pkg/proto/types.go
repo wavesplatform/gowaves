@@ -1497,7 +1497,6 @@ func (o EthereumOrderV4) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool
 
 func (o EthereumOrderV4) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderV4.ToProtobuf(scheme)
-	// nickeskov: can't fail
 	res.SenderPublicKey = o.EthereumSenderPK.SerializeXYCoordinates()
 	res.Eip712Signature = o.EthereumSignature.Bytes()
 	return res
@@ -1513,25 +1512,34 @@ func (o EthereumOrderV4) GetEthereumSenderPK() EthereumPublicKey {
 	return o.EthereumSenderPK
 }
 
-func (o EthereumOrderV4) ValidateEthereumSignature(scheme Scheme) (bool, error) {
+func (o EthereumOrderV4) ethereumTypedDataHash(scheme Scheme) (EthereumHash, error) {
 	msg := ethereumTypedDataMessage{
-		"version":           int(o.Version),
+		"version":           int32(o.Version),
 		"matcherPublicKey":  o.MatcherPK.String(),
 		"amountAsset":       o.AssetPair.AmountAsset.String(),
 		"priceAsset":        o.AssetPair.PriceAsset.String(),
 		"orderType":         strings.ToUpper(o.OrderType.String()),
-		"amount":            o.Amount,
-		"price":             o.Price,
-		"timestamp":         o.Timestamp,
-		"expiration":        o.Expiration,
-		"matcherFee":        o.MatcherFee,
+		"amount":            int64(o.Amount),
+		"price":             int64(o.Price),
+		"timestamp":         int64(o.Timestamp),
+		"expiration":        int64(o.Expiration),
+		"matcherFee":        int64(o.MatcherFee),
 		"matcherFeeAssetId": o.MatcherFeeAsset.String(),
 	}
 	typedData := buildEthereumOrderV4TypedData(scheme, msg)
 	hash, err := typedData.Hash()
 	if err != nil {
+		return EthereumHash{}, errors.Wrap(err, "failed calculate ethereum typed data hash for EthereumOrderV4")
+	}
+	return hash, nil
+}
+
+func (o EthereumOrderV4) ValidateEthereumSignature(scheme Scheme) (bool, error) {
+	hash, err := o.ethereumTypedDataHash(scheme)
+	if err != nil {
 		return false, errors.Wrap(err, "failed to validate ethereum signature for EthereumOrderV4")
 	}
+	// TODO(nickeskov): Should we validate 'V' signature value?
 	_, r, s := o.EthereumSignature.AsVRS()
 	return VerifyEthereumSignature(&o.EthereumSenderPK, r, s, hash.Bytes()), nil
 }

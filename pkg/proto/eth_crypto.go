@@ -8,7 +8,7 @@ import (
 
 var (
 	secp256k1N, _  = new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
-	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
+	secp256k1halfN = new(big.Int).Div(secp256k1N, big2)
 )
 
 // ValidateEthereumSignatureValues verifies whether the signature values are valid with
@@ -45,6 +45,15 @@ const (
 // EthereumSignature represents ethereum signature (v, r, s signature values).
 type EthereumSignature struct {
 	sig []byte
+}
+
+func NewEthereumSignatureFromHexString(hexString string) (EthereumSignature, error) {
+	b, err := DecodeFromHexString(hexString)
+	if err != nil {
+		return EthereumSignature{},
+			errors.Wrap(err, "failed parse hex string to bytes to create EthereumSignature")
+	}
+	return NewEthereumSignatureFromBytes(b)
 }
 
 func NewEthereumSignatureFromBytes(b []byte) (EthereumSignature, error) {
