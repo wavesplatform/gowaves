@@ -10,10 +10,9 @@ import (
 	"go.uber.org/atomic"
 )
 
-func WrapConnection(conn net.Conn, pool *bytebufferpool.Pool, toRemoteCh chan []byte, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter) Connection {
+func WrapConnection(conn net.Conn, toRemoteCh chan []byte, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter) Connection {
 	return wrapConnection(wrapParams{
 		conn:         conn,
-		pool:         pool,
 		toRemoteCh:   toRemoteCh,
 		fromRemoteCh: fromRemoteCh,
 		errCh:        errCh,
@@ -25,12 +24,11 @@ func WrapConnection(conn net.Conn, pool *bytebufferpool.Pool, toRemoteCh chan []
 
 type wrapParams struct {
 	conn         net.Conn
-	pool         *bytebufferpool.Pool
 	toRemoteCh   chan []byte
 	fromRemoteCh chan *bytebufferpool.ByteBuffer
 	errCh        chan error
 	sendFunc     func(closed *atomic.Bool, conn io.Writer, ctx context.Context, toRemoteCh chan []byte, errCh chan error)
-	receiveFunc  func(closed *atomic.Bool, pool *bytebufferpool.Pool, reader io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, addr string)
+	receiveFunc  func(closed *atomic.Bool, reader io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, addr string)
 	skip         SkipFilter
 }
 
@@ -46,7 +44,7 @@ func wrapConnection(params wrapParams) *ConnectionImpl {
 
 	bufReader := bufio.NewReader(params.conn)
 
-	go params.receiveFunc(impl.receiveClosed, params.pool, bufReader, params.fromRemoteCh, params.errCh, params.skip, params.conn.RemoteAddr().String())
+	go params.receiveFunc(impl.receiveClosed, bufReader, params.fromRemoteCh, params.errCh, params.skip, params.conn.RemoteAddr().String())
 	go params.sendFunc(impl.sendClosed, params.conn, ctx, params.toRemoteCh, params.errCh)
 
 	return impl

@@ -12,7 +12,6 @@ import (
 
 	"github.com/spf13/afero"
 	flag "github.com/spf13/pflag"
-	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/httpserver"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
@@ -128,17 +127,11 @@ func main() {
 		return
 	}
 
-	pool := new(bytebufferpool.Pool)
-
 	parent := peer.NewParent()
-
-	spawner := retransmit.NewPeerSpawner(pool, skipUselessMessages, parent, wavesNetwork, declAddr)
-
+	spawner := retransmit.NewPeerSpawner(skipUselessMessages, parent, wavesNetwork, declAddr)
 	scheme := schemes[wavesNetwork]
 	behaviour := retransmit.NewBehaviour(knownPeers, spawner, scheme)
-
 	r := retransmit.NewRetransmitter(behaviour, parent)
-
 	r.Run(ctx)
 
 	if addresses == "" {

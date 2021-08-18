@@ -16,7 +16,6 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
@@ -46,7 +45,10 @@ import (
 
 var version = proto.Version{Major: 1, Minor: 3, Patch: 0}
 
-const maxTransactionTimeForwardOffset = 300 // seconds
+const (
+	maxTransactionTimeForwardOffset = 300 // seconds
+	mb                              = 1 << (10 * 2)
+)
 
 var (
 	logLevel                              = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
@@ -295,15 +297,9 @@ func main() {
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 	bindAddr := proto.NewTCPAddrFromString(*bindAddress)
 
-	mb := 1 << (10 * 2)
-	pool := new(bytebufferpool.Pool)
-
 	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(st, ntpTime, outdatePeriodSeconds*1000), cfg)
-
 	parent := peer.NewParent()
-
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version)
-
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version)
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(*statePath, time.Now())
 	if err != nil {
 		zap.S().Errorf("Failed to open or create peers storage: %v", err)

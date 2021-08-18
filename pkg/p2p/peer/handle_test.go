@@ -60,19 +60,17 @@ func TestHandleReceive(t *testing.T) {
 	parent := NewParent()
 	var wg sync.WaitGroup
 	wg.Add(1)
-	pool := new(bytebufferpool.Pool)
 	go func() {
 		_ = Handle(HandlerParams{
 			Ctx:              ctx,
 			Connection:       c,
 			Parent:           parent,
 			Remote:           remote,
-			Pool:             pool,
 			DuplicateChecker: common.NewDuplicateChecker(),
 		})
 		wg.Done()
 	}()
-	bb := pool.Get()
+	bb := bytebufferpool.Get()
 	_, err := bb.Write(byte_helpers.TransferWithSig.MessageBytes)
 	require.NoError(t, err)
 	remote.FromCh <- bb

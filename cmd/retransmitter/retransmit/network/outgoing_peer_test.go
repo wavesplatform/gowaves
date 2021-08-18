@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 
 	"github.com/stretchr/testify/assert"
@@ -17,22 +16,22 @@ import (
 )
 
 type server struct {
-	conn        net.Conn
-	l           net.Listener
-	readedBytes [][]byte
-	mu          sync.Mutex
+	conn      net.Conn
+	l         net.Listener
+	readBytes [][]byte
+	mu        sync.Mutex
 }
 
 func (a *server) addReadBytes(b []byte) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.readedBytes = append(a.readedBytes, b)
+	a.readBytes = append(a.readBytes, b)
 }
 
 func (a *server) GetReadBytes() [][]byte {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.readedBytes
+	return a.readBytes
 }
 
 func runServerAsync(listen string) *server {
@@ -84,7 +83,7 @@ func (a *server) Addr() net.Addr {
 
 func (a *server) stop() {
 	_ = a.conn.SetDeadline(time.Now().Add(-1 * time.Second))
-	a.conn.Close()
+	_ = a.conn.Close()
 }
 
 func TestOutgoingPeer_SendMessage(t *testing.T) {
@@ -101,7 +100,6 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 	params := OutgoingPeerParams{
 		Address:  server.Addr().String(),
 		Parent:   parent,
-		Pool:     new(bytebufferpool.Pool),
 		DeclAddr: proto.TCPAddr{},
 	}
 	go RunOutgoingPeer(ctx, params)

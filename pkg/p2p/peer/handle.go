@@ -14,9 +14,9 @@ type DuplicateChecker interface {
 	Add([]byte) (isNew bool)
 }
 
-func bytesToMessage(b *bytebufferpool.ByteBuffer, d DuplicateChecker, resendTo chan ProtoMessage, pool *bytebufferpool.Pool, p Peer) error {
+func bytesToMessage(b *bytebufferpool.ByteBuffer, d DuplicateChecker, resendTo chan ProtoMessage, p Peer) error {
 	defer func() {
-		pool.Put(b)
+		bytebufferpool.Put(b)
 	}()
 
 	if d != nil {
@@ -50,7 +50,6 @@ type HandlerParams struct {
 	Connection       conn.Connection
 	Remote           Remote
 	Parent           Parent
-	Pool             *bytebufferpool.Pool
 	Peer             Peer
 	DuplicateChecker DuplicateChecker
 }
@@ -70,7 +69,7 @@ func Handle(params HandlerParams) error {
 			return errors.Wrap(params.Ctx.Err(), "Handle")
 
 		case bb := <-params.Remote.FromCh:
-			err := bytesToMessage(bb, params.DuplicateChecker, params.Parent.MessageCh, params.Pool, params.Peer)
+			err := bytesToMessage(bb, params.DuplicateChecker, params.Parent.MessageCh, params.Peer)
 			if err != nil {
 				out := InfoMessage{
 					Peer:  params.Peer,

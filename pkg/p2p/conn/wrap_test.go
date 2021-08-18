@@ -32,9 +32,8 @@ func TestWrapConnection(t *testing.T) {
 	conn, err := net.Dial("tcp", listener.Addr().String())
 	require.NoError(t, err)
 
-	pool := new(bytebufferpool.Pool)
 	ch := make(chan *bytebufferpool.ByteBuffer, 1)
-	wrapped := WrapConnection(conn, pool, nil, ch, nil, func(bytes proto.Header) bool {
+	wrapped := WrapConnection(conn, nil, ch, nil, func(bytes proto.Header) bool {
 		return false
 	})
 

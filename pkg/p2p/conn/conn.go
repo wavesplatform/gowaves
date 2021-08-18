@@ -66,7 +66,7 @@ func nonRecoverableError(err error) bool {
 // SkipFilter indicates that the network message should be skipped.
 type SkipFilter func(proto.Header) bool
 
-func receiveFromRemote(stopped *atomic.Bool, pool *bytebufferpool.Pool, conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, addr string) {
+func receiveFromRemote(stopped *atomic.Bool, conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, addr string) {
 	defer stopped.Store(true)
 	for {
 		header := proto.Header{}
@@ -96,10 +96,10 @@ func receiveFromRemote(stopped *atomic.Bool, pool *bytebufferpool.Pool, conn io.
 			}
 			continue
 		}
-		b := pool.Get()
+		b := bytebufferpool.Get()
 		// put header before payload
 		if _, err := header.WriteTo(b); err != nil {
-			pool.Put(b)
+			bytebufferpool.Put(b)
 			if nonRecoverableError(err) {
 				handleErr(err, errCh)
 				return
@@ -113,7 +113,7 @@ func receiveFromRemote(stopped *atomic.Bool, pool *bytebufferpool.Pool, conn io.
 		_, err = io.CopyN(b, conn, pl)
 		//_, err = proto.ReadPayload(b.B[hl:hl+pl], conn)
 		if err != nil {
-			pool.Put(b)
+			bytebufferpool.Put(b)
 			if nonRecoverableError(err) {
 				handleErr(err, errCh)
 				return
@@ -124,7 +124,7 @@ func receiveFromRemote(stopped *atomic.Bool, pool *bytebufferpool.Pool, conn io.
 		select {
 		case fromRemoteCh <- b:
 		default:
-			pool.Put(b)
+			bytebufferpool.Put(b)
 			zap.S().Debugf("[%s] Failed to send bytes from network to upstream channel because it's full", addr)
 		}
 	}

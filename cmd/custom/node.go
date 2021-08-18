@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
@@ -192,13 +191,9 @@ func main() {
 
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
-	pool := new(bytebufferpool.Pool)
-
 	parent := peer.NewParent()
-
 	utx := utxpool.New(10000, utxpool.NewValidator(nodeState, ntpTime, outdateSeconds*1000), custom)
-
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
 
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(*statePath, time.Now())
 	if err != nil {

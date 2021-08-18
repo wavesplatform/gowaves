@@ -33,11 +33,8 @@ func TestConnectionImpl_Close(t *testing.T) {
 
 	c, err := net.Dial("tcp", listener.Addr().String())
 	require.NoError(t, err)
-	pool := new(bytebufferpool.Pool)
-
 	params := wrapParams{
 		conn:         c,
-		pool:         pool,
 		toRemoteCh:   nil,
 		fromRemoteCh: make(chan *bytebufferpool.ByteBuffer, 2),
 		errCh:        make(chan error, 1),
@@ -58,10 +55,9 @@ func TestRecvFromRemote_Transaction(t *testing.T) {
 	zap.ReplaceGlobals(logger)
 
 	messBytes := byte_helpers.TransferWithSig.MessageBytes
-	pool := new(bytebufferpool.Pool)
 	fromRemoteCh := make(chan *bytebufferpool.ByteBuffer, 2)
 
-	receiveFromRemote(atomic.NewBool(false), pool, bytes.NewReader(messBytes), fromRemoteCh, make(chan error, 1), func(headerBytes proto.Header) bool {
+	receiveFromRemote(atomic.NewBool(false), bytes.NewReader(messBytes), fromRemoteCh, make(chan error, 1), func(headerBytes proto.Header) bool {
 		return false
 	}, "test")
 
