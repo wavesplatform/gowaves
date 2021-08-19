@@ -2053,6 +2053,39 @@ func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error
 	}, nil
 }
 
+func (s *stateManager) AssetInfoByID(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+	info, err := s.stor.assets.assetInfo(id, filter)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	if !info.quantity.IsUint64() {
+		return nil, wrapErr(Other, errors.New("asset quantity overflows uint64"))
+	}
+	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.issuer)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	assetID := proto.ReconstructDigest(id, info.tail)
+	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	scripted, err := s.stor.scriptsStorage.isSmartAsset(id, true)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return &proto.AssetInfo{
+		ID:              assetID,
+		Quantity:        info.quantity.Uint64(),
+		Decimals:        byte(info.decimals),
+		Issuer:          issuer,
+		IssuerPublicKey: info.issuer,
+		Reissuable:      info.reissuable,
+		Scripted:        scripted,
+		Sponsored:       sponsored,
+	}, nil
+}
+
 func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
 	ai, err := s.AssetInfo(assetID)
 	if err != nil {
