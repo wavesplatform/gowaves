@@ -5,15 +5,19 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 const (
-	peersStorageDir = "peers_storage"
+	// if you change peers storage data format, you have to increment peersStorageCurrentVersion
+	peersStorageCurrentVersion = 1
+	peersStorageDir            = "peers_storage"
 )
 
 type CBORStorage struct {
@@ -27,10 +31,10 @@ type CBORStorage struct {
 
 func NewCBORStorage(baseDir string, now time.Time) (*CBORStorage, error) {
 	storageDir := filepath.Join(baseDir, peersStorageDir)
-	return newCBORStorageInDir(storageDir, now)
+	return newCBORStorageInDir(storageDir, now, peersStorageCurrentVersion)
 }
 
-func newCBORStorageInDir(storageDir string, now time.Time) (*CBORStorage, error) {
+func newCBORStorageInDir(storageDir string, now time.Time, currVersion int) (*CBORStorage, error) {
 	if err := os.MkdirAll(storageDir, os.ModePerm); err != nil {
 		return nil, errors.Wrapf(err, "failed to create peers storage directory %q", storageDir)
 	}
@@ -39,28 +43,48 @@ func newCBORStorageInDir(storageDir string, now time.Time) (*CBORStorage, error)
 	if err := createFileIfNotExist(knownFile); err != nil {
 		return nil, errors.Wrap(err, "failed to create known peers storage file")
 	}
-
 	suspendedFile := suspendedFilePath(storageDir)
 	if err := createFileIfNotExist(suspendedFile); err != nil {
 		return nil, errors.Wrap(err, "failed to create suspended peers storage file")
 	}
 
-	known := knownPeers{}
-	if err := unmarshalCborFromFile(knownFile, &known); err != nil && err != io.EOF {
-		return nil, errors.Wrapf(err, "failed to load known peers from file %q", knownFile)
-	}
-
-	suspended := suspendedPeers{}
-	if err := unmarshalCborFromFile(suspendedFile, &suspended); err != nil && err != io.EOF {
-		return nil, errors.Wrapf(err, "failed to load suspended peers from file %q", suspendedFile)
-	}
-
 	storage := &CBORStorage{
 		storageDir:        storageDir,
-		suspended:         suspended,
+		suspended:         suspendedPeers{},
 		suspendedFilePath: suspendedFile,
-		known:             known,
+		known:             knownPeers{},
 		knownFilePath:     knownFile,
+	}
+
+	versionFile := storageVersionFilePath(storageDir)
+	oldVersion, err := getPeersStorageVersion(versionFile)
+	switch {
+	case err == io.EOF:
+		// Empty version file, set new version
+		if err := storage.invalidateStorageAndUpdateVersion(versionFile, currVersion, oldVersion); err != nil {
+			return nil, errors.Wrap(err, "failed set version to new peers storage")
+		}
+	case err != nil:
+		return nil, errors.Wrap(err, "failed to validate peers storage version")
+	}
+
+	if oldVersion != currVersion {
+		// Invalidating old peers storage
+		zap.S().Debugf(
+			"Detected different peers storage versions: old='%d', current='%d'. Removing old peers storage.",
+			oldVersion,
+			currVersion,
+		)
+		if err := storage.invalidateStorageAndUpdateVersion(versionFile, currVersion, oldVersion); err != nil {
+			return nil, errors.Wrap(err, "failed invalidate storage and set new version to peers storage")
+		}
+	}
+
+	if err := unmarshalCborFromFile(knownFile, &storage.known); err != nil && err != io.EOF {
+		return nil, errors.Wrapf(err, "failed to load known peers from file %q", knownFile)
+	}
+	if err := unmarshalCborFromFile(suspendedFile, &storage.suspended); err != nil && err != io.EOF {
+		return nil, errors.Wrapf(err, "failed to load suspended peers from file %q", suspendedFile)
 	}
 
 	if len(storage.suspended) != 0 {
@@ -274,6 +298,24 @@ func (bs *CBORStorage) DropStorage() error {
 	return nil
 }
 
+func (bs *CBORStorage) invalidateStorageAndUpdateVersion(versionFile string, currVersion, oldVersion int) error {
+	if err := bs.DropStorage(); err != nil {
+		return errors.Wrapf(err,
+			"failed to drop peers storage in case of different versions, old='%d', current='%d'",
+			oldVersion,
+			currVersion,
+		)
+	}
+	if err := updatePeersStorageVersion(versionFile, currVersion); err != nil {
+		return errors.Wrapf(err,
+			"failed to update peers storage file, old='%d', current='%d'",
+			oldVersion,
+			currVersion,
+		)
+	}
+	return nil
+}
+
 func (bs *CBORStorage) unsafeSyncKnown(newEntries []KnownPeer, backup knownPeers) error {
 	if err := marshalToCborAndSyncToFile(bs.knownFilePath, bs.known); err != nil {
 		// In case of failure restore initial state from backup
@@ -391,6 +433,10 @@ func suspendedFilePath(storageDir string) string {
 	return filepath.Join(storageDir, "peers_suspended.cbor")
 }
 
+func storageVersionFilePath(storageDir string) string {
+	return filepath.Join(storageDir, "peers_storage_version.txt")
+}
+
 func createFileIfNotExist(path string) (err error) {
 	knownFile, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
@@ -402,4 +448,32 @@ func createFileIfNotExist(path string) (err error) {
 		}
 	}()
 	return nil
+}
+
+func updatePeersStorageVersion(storageVersionFile string, newVersion int) error {
+	stringVersion := strconv.Itoa(newVersion)
+	err := ioutil.WriteFile(storageVersionFile, []byte(stringVersion), 0644)
+	if err != nil {
+		return errors.Wrapf(err, "failed to write data in file %q", storageVersionFile)
+	}
+	return nil
+}
+
+func getPeersStorageVersion(storageVersionFile string) (int, error) {
+	if err := createFileIfNotExist(storageVersionFile); err != nil {
+		return 0, errors.Wrap(err, "failed to create if not exists storage version file")
+	}
+	versionData, err := ioutil.ReadFile(storageVersionFile)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to read from file %q", storageVersionFile)
+	}
+	if len(versionData) == 0 {
+		// it's a new peers storage
+		return 0, io.EOF
+	}
+	oldVersion, err := strconv.Atoi(string(versionData))
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to parse peers storage version from file %q", storageVersionFile)
+	}
+	return oldVersion, nil
 }
