@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/wavesplatform/gowaves/pkg/client"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -38,16 +37,15 @@ func main() {
 
 func run() error {
 	var (
-		node            string
-		statePath       string
-		blockchainType  string
-		height          uint64
-		extendedAPI     bool
-		compare         bool
-		search          bool
-		showHelp        bool
-		showVersion     bool
-		fileDescriptors int
+		node           string
+		statePath      string
+		blockchainType string
+		height         uint64
+		extendedAPI    bool
+		compare        bool
+		search         bool
+		showHelp       bool
+		showVersion    bool
 	)
 
 	common.SetupLogger("INFO")
@@ -61,9 +59,6 @@ func run() error {
 	flag.BoolVar(&search, "search", false, "Search for the topmost equal state hashes")
 	flag.BoolVar(&showHelp, "help", false, "Show usage information and exit")
 	flag.BoolVar(&showVersion, "version", false, "Print version information and quit")
-	flag.IntVar(&fileDescriptors, "file-descriptors", fdlimit.DefaultMaxFDs,
-		fmt.Sprintf("Maximum allowed file descriptors count for process. Value shall be greater or equal than %d.", fdlimit.DefaultMaxFDs),
-	)
 	flag.Parse()
 
 	if showHelp {
@@ -79,15 +74,13 @@ func run() error {
 		compare = true
 	}
 
-	if fileDescriptors < fdlimit.DefaultMaxFDs {
-		zap.S().Fatalf(
-			"Invalid 'file-descriptors' flag value (%d). Value shall be greater or equal than %d.",
-			fileDescriptors, fdlimit.DefaultMaxFDs,
-		)
-	}
-	_, err := fdlimit.SetMaxFDs(uint64(fileDescriptors))
+	maxFDs, err := fdlimit.MaxFDs()
 	if err != nil {
-		zap.S().Fatalf("Failed to set max file descriptors count: %v", err)
+		zap.S().Fatalf("Initialization error: %v", err)
+	}
+	_, err = fdlimit.RaiseMaxFDs(maxFDs)
+	if err != nil {
+		zap.S().Fatalf("Initialization error: %v", err)
 	}
 
 	if statePath == "" || len(strings.Fields(statePath)) > 1 {
@@ -102,7 +95,6 @@ func run() error {
 	}
 
 	params := state.DefaultStateParams()
-	params.StorageParams.DbParams.OpenFilesCacheCapacityRate = keyvalue.MaxOpenFilesCacheCapacityRate
 	params.VerificationGoroutinesNum = 2 * runtime.NumCPU()
 	params.DbParams.WriteBuffer = 16 * MB
 	params.StoreExtendedApiData = extendedAPI

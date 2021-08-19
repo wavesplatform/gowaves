@@ -9,7 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/stretchr/testify/require"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/common"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
@@ -65,12 +66,14 @@ func TestHandleReceive(t *testing.T) {
 			Connection:       c,
 			Parent:           parent,
 			Remote:           remote,
-			Pool:             bytespool.NewBytesPool(1, 15*1024),
 			DuplicateChecker: common.NewDuplicateChecker(),
 		})
 		wg.Done()
 	}()
-	remote.FromCh <- byte_helpers.TransferWithSig.MessageBytes
+	bb := bytebufferpool.Get()
+	_, err := bb.Write(byte_helpers.TransferWithSig.MessageBytes)
+	require.NoError(t, err)
+	remote.FromCh <- bb
 	assert.IsType(t, &proto.TransactionMessage{}, (<-parent.MessageCh).Message)
 	cancel()
 	wg.Wait()
