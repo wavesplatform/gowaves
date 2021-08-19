@@ -12,12 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	MinOpenFilesCacheCapacityRate     = 0.1
-	DefaultOpenFilesCacheCapacityRate = 0.6
-	MaxOpenFilesCacheCapacityRate     = 0.8
-)
-
 type pair struct {
 	key      []byte
 	value    []byte
@@ -139,38 +133,23 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 type KeyValParams struct {
 	CacheParams
 	BloomFilterParams
-	WriteBuffer                int
-	CompactionTableSize        int
-	CompactionTotalSize        int
-	OpenFilesCacheCapacityRate float64
-}
-
-func (kvp *KeyValParams) Validate() error {
-	if kvp.OpenFilesCacheCapacityRate < MinOpenFilesCacheCapacityRate ||
-		kvp.OpenFilesCacheCapacityRate > MaxOpenFilesCacheCapacityRate {
-		return errors.Errorf(
-			"invalid KeyValParams.OpenFilesCacheCapacityRate value %f: it shall be between %f and %f",
-			kvp.OpenFilesCacheCapacityRate,
-			MinOpenFilesCacheCapacityRate,
-			MaxOpenFilesCacheCapacityRate,
-		)
-	}
-	return nil
+	WriteBuffer            int
+	CompactionTableSize    int
+	CompactionTotalSize    int
+	OpenFilesCacheCapacity int
 }
 
 func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
-	// nickeskov: we assume that KeyValParams are valid
 	currentFDs, err := fdlimit.CurrentFDs()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get current file descriptors count")
 	}
-	openFilesCacheCapacity := int(params.OpenFilesCacheCapacityRate * float64(currentFDs))
+	openFilesCacheCapacity := params.OpenFilesCacheCapacity
 
 	zap.S().Debugf(
-		"leveldb.opt.Options.OpenFilesCacheCapacity has been evaluated to %d. CurrentFDs=%d, OpenFilesCacheCapacityRate=%f",
+		"leveldb.opt.Options.OpenFilesCacheCapacity has been evaluated to %d. CurrentFDs=%d",
 		openFilesCacheCapacity,
 		currentFDs,
-		params.OpenFilesCacheCapacityRate,
 	)
 
 	dbOptions := &opt.Options{
@@ -268,7 +247,7 @@ func (k *KeyVal) Flush(b1 Batch) error {
 	defer k.mu.Unlock()
 	b, ok := b1.(*batch)
 	if !ok {
-		return errors.New("can't convert batch interface to leveldb's batch")
+		return errors.New("can't convert Batch interface to leveldb batch")
 	}
 	if err := k.db.Write(b.leveldbBatch(), nil); err != nil {
 		return err

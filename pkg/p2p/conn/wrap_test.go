@@ -7,13 +7,13 @@ import (
 
 	"github.com/magiconair/properties/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 	"go.uber.org/zap"
 )
 
-//test that we receiving bytes
+//test that we are receiving bytes
 func TestWrapConnection(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	zap.ReplaceGlobals(logger)
@@ -32,9 +32,8 @@ func TestWrapConnection(t *testing.T) {
 	conn, err := net.Dial("tcp", listener.Addr().String())
 	require.NoError(t, err)
 
-	pool := bytespool.NewBytesPool(1, len(byte_helpers.TransferWithSig.MessageBytes))
-	ch := make(chan []byte, 1)
-	wrapped := WrapConnection(conn, pool, nil, ch, nil, func(bytes proto.Header) bool {
+	ch := make(chan *bytebufferpool.ByteBuffer, 1)
+	wrapped := WrapConnection(conn, nil, ch, nil, func(bytes proto.Header) bool {
 		return false
 	})
 
@@ -42,7 +41,7 @@ func TestWrapConnection(t *testing.T) {
 	case <-time.After(10 * time.Millisecond):
 		t.Fatalf("no value arrived in 10ms")
 	case m := <-ch:
-		assert.Equal(t, byte_helpers.TransferWithSig.MessageBytes, m)
+		assert.Equal(t, byte_helpers.TransferWithSig.MessageBytes, m.Bytes())
 		require.NoError(t, wrapped.Close())
 	}
 }
