@@ -1043,7 +1043,7 @@ func TestCheckSetAssetScriptWithProofs(t *testing.T) {
 	tx := createSetAssetScriptWithProofs(t)
 	info := defaultCheckerInfo()
 
-	assetInfo := defaultAssetInfo(true)
+	assetInfo := defaultAssetInfo(proto.DigestTail(tx.AssetID), true)
 	assetInfo.issuer = tx.SenderPK
 	to.stor.createAssetUsingInfo(t, tx.AssetID, assetInfo)
 

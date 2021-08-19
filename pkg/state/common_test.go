@@ -83,7 +83,7 @@ func defaultDifferInfo() *differInfo {
 	return &differInfo{false, defaultBlockInfo()}
 }
 
-func defaultAppendTxParams(t *testing.T) *appendTxParams {
+func defaultAppendTxParams() *appendTxParams {
 	return &appendTxParams{
 		checkerInfo:    defaultCheckerInfo(),
 		blockInfo:      defaultBlockInfo(),
@@ -94,8 +94,8 @@ func defaultAppendTxParams(t *testing.T) *appendTxParams {
 	}
 }
 
-func defaultFallibleValidationParams(t *testing.T) *fallibleValidationParams {
-	appendTxPrms := defaultAppendTxParams(t)
+func defaultFallibleValidationParams() *fallibleValidationParams {
+	appendTxPrms := defaultAppendTxParams()
 	return &fallibleValidationParams{
 		appendTxParams: appendTxPrms,
 		senderScripted: false,
@@ -218,9 +218,10 @@ func defaultTestKeyValParams() keyvalue.KeyValParams {
 	return keyvalue.KeyValParams{CacheParams: defaultTestCacheParams(), BloomFilterParams: defaultTestBloomFilterParams()}
 }
 
-func defaultNFT() *assetInfo {
+func defaultNFT(tail [12]byte) *assetInfo {
 	return &assetInfo{
 		assetConstInfo{
+			tail:     tail,
 			issuer:   testGlobal.issuerInfo.pk,
 			decimals: 0,
 		},
@@ -234,9 +235,10 @@ func defaultNFT() *assetInfo {
 	}
 }
 
-func defaultAssetInfo(reissuable bool) *assetInfo {
+func defaultAssetInfo(tail [12]byte, reissuable bool) *assetInfo {
 	return &assetInfo{
 		assetConstInfo: assetConstInfo{
+			tail:     tail,
 			issuer:   testGlobal.issuerInfo.pk,
 			decimals: 2,
 		},
@@ -349,7 +351,7 @@ func (s *testStorageObjects) createAssetUsingInfo(t *testing.T, assetID crypto.D
 
 func (s *testStorageObjects) createAssetAtBlock(t *testing.T, assetID crypto.Digest, blockID proto.BlockID) *assetInfo {
 	s.addBlock(t, blockID)
-	assetInfo := defaultAssetInfo(true)
+	assetInfo := defaultAssetInfo(proto.DigestTail(assetID), true)
 	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, blockID)
 	assert.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
@@ -358,7 +360,7 @@ func (s *testStorageObjects) createAssetAtBlock(t *testing.T, assetID crypto.Dig
 
 func (s *testStorageObjects) createAssetWithDecimals(t *testing.T, assetID crypto.Digest, decimals int) *assetInfo {
 	s.addBlock(t, blockID0)
-	assetInfo := defaultAssetInfo(true)
+	assetInfo := defaultAssetInfo(proto.DigestTail(assetID), true)
 	require.True(t, decimals >= 0)
 	assetInfo.decimals = int8(decimals)
 	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, blockID0)

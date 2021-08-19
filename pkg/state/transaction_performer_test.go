@@ -45,6 +45,7 @@ func TestPerformIssueWithSig(t *testing.T) {
 	to.stor.flush(t)
 	assetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
+			tail:     proto.DigestTail(*tx.ID),
 			issuer:   tx.SenderPK,
 			decimals: int8(tx.Decimals),
 		},
@@ -75,11 +76,13 @@ func TestPerformIssueWithProofs(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	tx := createIssueWithProofs(t, 1000)
+
 	err := to.tp.performIssueWithProofs(tx, defaultPerformerInfo())
 	assert.NoError(t, err, "performIssueWithProofs() failed")
 	to.stor.flush(t)
 	assetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
+			tail:     proto.DigestTail(*tx.ID),
 			issuer:   tx.SenderPK,
 			decimals: int8(tx.Decimals),
 		},

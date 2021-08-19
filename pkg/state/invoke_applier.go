@@ -382,6 +382,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			// Create asset's info.
 			assetInfo := &assetInfo{
 				assetConstInfo: assetConstInfo{
+					tail:     proto.DigestTail(a.ID),
 					issuer:   senderPK,
 					decimals: int8(a.Decimals),
 				},
