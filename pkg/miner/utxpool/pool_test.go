@@ -47,10 +47,6 @@ func (a transaction) ToProtobufSigned(_ proto.Scheme) (*g.SignedTransaction, err
 	panic("not implemented")
 }
 
-func (a transaction) ToProtobufWrapped(_ proto.Scheme) (*g.TransactionWrapper, error) {
-	panic("not implemented")
-}
-
 func (a transaction) Sign(_ proto.Scheme, _ crypto.SecretKey) error {
 	panic("not implemented")
 }
