@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/common"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/incoming"
@@ -27,7 +26,6 @@ type PeerSpawner interface {
 }
 
 type PeerSpawnerImpl struct {
-	pool             bytespool.Pool
 	parent           peer.Parent
 	wavesNetwork     string
 	declAddr         proto.TCPAddr
@@ -38,9 +36,8 @@ type PeerSpawnerImpl struct {
 	DuplicateChecker DuplicateChecker
 }
 
-func NewPeerSpawner(pool bytespool.Pool, parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
+func NewPeerSpawner(parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
 	return &PeerSpawnerImpl{
-		pool:             pool,
 		skipFunc:         noSkip,
 		parent:           parent,
 		wavesNetwork:     WavesNetwork,
@@ -57,7 +54,6 @@ func (a *PeerSpawnerImpl) SpawnOutgoing(ctx context.Context, address proto.TCPAd
 		Address:          address,
 		WavesNetwork:     a.wavesNetwork,
 		Parent:           a.parent,
-		Pool:             a.pool,
 		DeclAddr:         a.declAddr,
 		Skip:             a.skipFunc,
 		NodeName:         a.nodeName,
@@ -69,18 +65,16 @@ func (a *PeerSpawnerImpl) SpawnOutgoing(ctx context.Context, address proto.TCPAd
 }
 
 func (a *PeerSpawnerImpl) SpawnIncoming(ctx context.Context, c net.Conn) error {
-	params := incoming.IncomingPeerParams{
+	params := incoming.PeerParams{
 		WavesNetwork:     a.wavesNetwork,
 		Conn:             c,
 		Skip:             a.skipFunc,
 		Parent:           a.parent,
 		DeclAddr:         a.declAddr,
-		Pool:             a.pool,
 		DuplicateChecker: a.DuplicateChecker,
-
-		NodeName:  a.nodeName,
-		NodeNonce: a.nodeNonce,
-		Version:   a.version,
+		NodeName:         a.nodeName,
+		NodeNonce:        a.nodeNonce,
+		Version:          a.version,
 	}
 
 	return incoming.RunIncomingPeer(ctx, params)

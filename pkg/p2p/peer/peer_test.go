@@ -1,8 +1,9 @@
 package peer
 
 import (
-	"github.com/magiconair/properties/assert"
 	"testing"
+
+	"github.com/magiconair/properties/assert"
 )
 
 func TestID(t *testing.T) {

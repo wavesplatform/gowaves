@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -17,12 +16,11 @@ type DuplicateChecker interface {
 	Add([]byte) bool
 }
 
-type IncomingPeerParams struct {
+type PeerParams struct {
 	WavesNetwork     string
 	Conn             net.Conn
 	Parent           peer.Parent
 	DeclAddr         proto.TCPAddr
-	Pool             bytespool.Pool
 	Skip             conn.SkipFilter
 	NodeName         string
 	NodeNonce        uint64
@@ -30,12 +28,12 @@ type IncomingPeerParams struct {
 	DuplicateChecker DuplicateChecker
 }
 
-func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) error {
+func RunIncomingPeer(ctx context.Context, params PeerParams) error {
 	ctx, cancel := context.WithCancel(ctx)
 	return runIncomingPeer(ctx, cancel, params)
 }
 
-func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params IncomingPeerParams) error {
+func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params PeerParams) error {
 	c := params.Conn
 
 	readHandshake := proto.Handshake{}
@@ -77,7 +75,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Inco
 	}
 
 	remote := peer.NewRemote()
-	connection := conn.WrapConnection(c, params.Pool, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
+	connection := conn.WrapConnection(c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
 	peerImpl := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote, cancel)
 
 	out := peer.InfoMessage{
@@ -94,7 +92,6 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Inco
 		Connection:       connection,
 		Remote:           remote,
 		Parent:           params.Parent,
-		Pool:             params.Pool,
 		Peer:             peerImpl,
 		DuplicateChecker: params.DuplicateChecker,
 	})

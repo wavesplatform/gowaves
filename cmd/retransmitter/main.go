@@ -15,7 +15,6 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/httpserver"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -128,17 +127,11 @@ func main() {
 		return
 	}
 
-	pool := bytespool.NewStats(bytespool.NewBytesPool(96, 151*1024)) // 151KB
-
 	parent := peer.NewParent()
-
-	spawner := retransmit.NewPeerSpawner(pool, skipUselessMessages, parent, wavesNetwork, declAddr)
-
+	spawner := retransmit.NewPeerSpawner(skipUselessMessages, parent, wavesNetwork, declAddr)
 	scheme := schemes[wavesNetwork]
 	behaviour := retransmit.NewBehaviour(knownPeers, spawner, scheme)
-
 	r := retransmit.NewRetransmitter(behaviour, parent)
-
 	r.Run(ctx)
 
 	if addresses == "" {
@@ -167,18 +160,6 @@ func main() {
 		err := srv.ListenAndServe()
 		if err != nil {
 			zap.S().Error(err)
-		}
-	}()
-
-	go func() {
-		for {
-			select {
-			case <-time.After(2 * time.Second):
-				allocations, puts, gets := pool.Stat()
-				zap.S().Info("allocations: ", allocations, " puts: ", puts, " gets: ", gets)
-			case <-ctx.Done():
-				return
-			}
 		}
 	}()
 

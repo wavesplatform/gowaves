@@ -74,7 +74,7 @@ func (a *NGFsm) PeerError(p peer.Peer, e error) (FSM, Async, error) {
 func (a *NGFsm) Score(p peer.Peer, score *proto.Score) (FSM, Async, error) {
 	metrics.FSMScore("ng", score, p.Handshake().NodeName)
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
-		return a, nil, err
+		return a, nil, proto.NewInfoMsg(err)
 	}
 	nodeScore, err := a.baseInfo.storage.CurrentScore()
 	if err != nil {
