@@ -98,7 +98,7 @@ func (s *binaryStorageCborSuite) SetupTest() {
 		}
 	}()
 	now := time.Now()
-	storage, err := newCBORStorageInDir(tmpdir, now)
+	storage, err := newCBORStorageInDir(tmpdir, now, peersStorageCurrentVersion)
 	require.NoError(s.T(), err)
 
 	s.storage = storage
@@ -297,7 +297,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageSuspended() {
 		}()
 
 		newNow := now.Add(suspendDuration)
-		storage, err := newCBORStorageInDir(s.storage.storageDir, newNow)
+		storage, err := newCBORStorageInDir(s.storage.storageDir, newNow, peersStorageCurrentVersion)
 		require.NoError(s.T(), err)
 		s.storage = storage
 
@@ -333,7 +333,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageSuspended() {
 	})
 }
 
-func (s *binaryStorageCborSuite) TestCBORStorageDrops() {
+func (s *binaryStorageCborSuite) TestCBORStorageDropsAndVersioning() {
 	suspendDuration := time.Minute * 5
 	now := s.now.Truncate(time.Millisecond)
 	suspended := []SuspendedPeer{
@@ -418,6 +418,33 @@ func (s *binaryStorageCborSuite) TestCBORStorageDrops() {
 
 		err := s.storage.DropStorage()
 		require.NoError(s.T(), err)
+
+		checkSuspendedStorageFile()
+		checkKnownStorageFile()
+	})
+
+	s.Run("drop peers storage in case of different version", func() {
+		versionFilePath := storageVersionFilePath(s.storage.storageDir)
+		defer func() {
+			storage, err := newCBORStorageInDir(s.storage.storageDir, s.now, peersStorageCurrentVersion)
+			require.NoError(s.T(), err)
+			s.storage = storage
+
+			version, err := getPeersStorageVersion(versionFilePath)
+			require.NoError(s.T(), err)
+			require.Equal(s.T(), peersStorageCurrentVersion, version)
+
+			require.NoError(s.T(), s.storage.AddSuspended(suspended))
+			require.NoError(s.T(), s.storage.AddKnown(known))
+		}()
+
+		storage, err := newCBORStorageInDir(s.storage.storageDir, s.now, -1)
+		require.NoError(s.T(), err)
+		s.storage = storage
+
+		version, err := getPeersStorageVersion(versionFilePath)
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), -1, version)
 
 		checkSuspendedStorageFile()
 		checkKnownStorageFile()
