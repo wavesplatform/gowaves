@@ -150,6 +150,11 @@ func TestMicroBlockV5VerifySignature(t *testing.T) {
 	require.NoError(t, err)
 	micro := new(MicroBlock)
 	err = micro.UnmarshalFromProtobuf(b)
+
+	//b, err = micro.MarshalToProtobuf('T')
+	//require.NoError(t, err)
+	//println(base64.StdEncoding.EncodeToString(b))
+
 	require.NoError(t, err)
 	ok, err := micro.VerifySignature('T')
 	require.NoError(t, err)

@@ -1,6 +1,8 @@
 package proto
 
 import (
+	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -8,7 +10,14 @@ import (
 )
 
 func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
-	return protobuf.MarshalOptions{Deterministic: true}.Marshal(pb)
+	println()
+	spew.Dump(pb)
+	b, err := protobuf.MarshalOptions{Deterministic: true}.Marshal(pb)
+	if err != nil {
+		return b, err
+	}
+	fmt.Printf("MarshalToProtobufDeterministic(|%+v| %T)=%x\n", pb, pb, b)
+	return b, err
 }
 
 func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
@@ -24,7 +33,8 @@ func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	return MarshalToProtobufDeterministic(pbTx)
+	b, err := MarshalToProtobufDeterministic(pbTx)
+	return b, err
 }
 
 func TxFromProtobuf(data []byte) (Transaction, error) {

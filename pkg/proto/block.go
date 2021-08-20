@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/jinzhu/copier"
@@ -845,8 +846,9 @@ func (a Transactions) WriteTo(proto bool, scheme Scheme, w io.Writer) (int64, er
 		return a.WriteToBinary(w)
 	}
 	s := serializer.New(w)
-	for _, t := range a {
-		bts, err := t.MarshalSignedToProtobuf(scheme)
+	println("func (a Transactions) WriteTo(proto bool, scheme Scheme, w io.Writer) (int64, error)")
+	for i, t := range a {
+		bts, err := t.MarshalSignedToProtobuf(scheme); fmt.Printf("t[%d, len=%d]=%x\n", i, len(bts), bts)
 		if err != nil {
 			return 0, err
 		}
