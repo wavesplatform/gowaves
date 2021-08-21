@@ -368,11 +368,11 @@ func (tx *EthereumTransaction) WavesAddressFrom(scheme byte) (WavesAddress, erro
 	return sender, nil
 }
 
-func (tx *EthereumTransaction) GetDecodedData() (*ethabi.DecodedCallData, error) {
+func (tx *EthereumTransaction) GetDecodedData() (DecodedCallData, error) {
 	if tx.decodedData != nil {
 		return tx.decodedData, nil
 	}
-	db := ethabi.NewDatabase(map[ethabi.Selector]ethabi.Method{})
+	db := NewDatabase(map[Selector]Method{})
 	decodedData, err := db.ParseCallDataRide(tx.Data(), true)
 	if err != nil {
 		return nil, errors.Errorf("failed to parse ethereum data")

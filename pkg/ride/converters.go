@@ -4,7 +4,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -874,7 +873,7 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	return r, nil
 }
 
-func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) []proto.Argument {
+func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []DecodedArg) []proto.Argument {
 	var arguments []proto.Argument
 	for _, decodedArg := range decodedArgs {
 		var arg proto.Argument

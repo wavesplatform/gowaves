@@ -8,7 +8,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -516,7 +515,7 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 		updateMinIntermediateBalance = true
 	}
 
-	db := ethabi.NewDatabase(map[ethabi.Selector]ethabi.Method{})
+	db := NewDatabase(map[Selector]Method{})
 	callData, err := db.ParseCallDataRide(tx.Data(), true)
 	if err != nil {
 		return txBalanceChanges{}, errors.Errorf("failed to parse data from ethereum transaction, %v", err)
@@ -529,7 +528,7 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 	var amount int64
 
 	switch callData.Signature.Selector() {
-	case ethabi.Erc20TransferSignature.Selector():
+	case Erc20TransferSignature.Selector():
 		// TODO it's in wei
 		v, ok := callData.Inputs[1].Value.(ride.RideBigInt)
 		if !ok {

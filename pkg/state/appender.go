@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
@@ -388,7 +387,7 @@ func guessEthereumTransactionKind(ethTx *proto.EthereumTransaction) (proto.Ether
 	if len(ethTx.Data()) == 0 {
 		return &proto.EthereumTransferWavesTx{}, nil
 	}
-	db := ethabi.NewDatabase(map[ethabi.Selector]ethabi.Method{})
+	db := NewDatabase(map[Selector]Method{})
 	callData, err := db.ParseCallDataRide(ethTx.Data(), true)
 	if err != nil {
 		return nil, errors.Errorf("failed to parse data from eth tx, %v", err)
