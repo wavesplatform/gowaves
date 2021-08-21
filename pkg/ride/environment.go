@@ -1216,12 +1216,31 @@ func (e *EvaluationEnvironment) SetTransactionFromOrder(order proto.Order) error
 	return nil
 }
 
-func (e *EvaluationEnvironment) SetInvoke(tx *proto.InvokeScriptWithProofs, v int) error {
-	obj, err := invocationToObject(v, e.sch, tx)
-	if err != nil {
-		return err
+func (e *EvaluationEnvironment) SetInvoke(tx proto.Transaction, v int) error {
+	switch tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+		invokeTx, ok := tx.(*proto.InvokeScriptWithProofs)
+		if !ok {
+			return errors.New("failed to convert transaction to type InvokeScriptWithProofs")
+		}
+		obj, err := invocationToObject(v, e.sch, invokeTx)
+		if err != nil {
+			return err
+		}
+		e.inv = obj
+	case *proto.EthereumTransaction:
+		ethereumInvokeTx, ok := tx.(*proto.EthereumTransaction)
+		if !ok {
+			return errors.New("failed to convert transaction to type InvokeScriptWithProofs")
+		}
+		obj, err := ethereumInvocationToObject(v, e.sch, ethereumInvokeTx)
+		if err != nil {
+			return err
+		}
+		e.inv = obj
+	default:
+		return errors.New("failed to set invocation, wrong type of tx")
 	}
-	e.inv = obj
 	return nil
 }
 

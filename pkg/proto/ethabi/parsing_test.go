@@ -114,19 +114,19 @@ func TestJsonAbi(t *testing.T) {
   }
 ]
 `
-	var expectedABI []abi
+	var expectedABI []proto.abi
 	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
 
-	erc20Meth := make([]Method, 0, len(erc20Methods))
-	for _, method := range erc20Methods {
+	erc20Meth := make([]Method, 0, len(Erc20Methods))
+	for _, method := range Erc20Methods {
 		erc20Meth = append(erc20Meth, method)
 	}
 
-	resJsonABI, err := getJsonAbi(erc20Meth)
+	resJsonABI, err := proto.getJsonAbi(erc20Meth)
 	require.NoError(t, err)
 	fmt.Println(string(resJsonABI))
-	var abiRes []abi
+	var abiRes []proto.abi
 	err = json.Unmarshal(resJsonABI, &abiRes)
 	require.NoError(t, err)
 
@@ -251,14 +251,14 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
   }
 ]
 `
-	var expectedABI []abi
+	var expectedABI []proto.abi
 	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
 
-	resJsonABI, err := getJsonAbi(TestMethodWithAllTypes)
+	resJsonABI, err := proto.getJsonAbi(TestMethodWithAllTypes)
 	require.NoError(t, err)
 	fmt.Println(string(resJsonABI))
-	var abiRes []abi
+	var abiRes []proto.abi
 	err = json.Unmarshal(resJsonABI, &abiRes)
 	require.NoError(t, err)
 

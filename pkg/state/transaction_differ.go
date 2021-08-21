@@ -464,11 +464,7 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 		updateMinIntermediateBalance = true
 	}
 	// Append sender diff.
-	EthSenderAddr, err := tx.From()
-	if err != nil {
-		return txBalanceChanges{}, err
-	}
-	senderAddress, err := EthSenderAddr.WavesAddress(td.settings.AddressSchemeCharacter)
+	senderAddress, err := tx.WavesAddressFrom(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -1469,6 +1465,42 @@ func (td *transactionDiffer) createFeeDiffInvokeScriptWithProofs(transaction pro
 	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
 	}
+	return changes, nil
+}
+
+func (td *transactionDiffer) createFeeDiffEthereumInvokeScriptWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.EthereumTransaction)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
+	}
+	diff := newTxDiff()
+	// Append sender diff.
+	EthSenderAddr, err := tx.From()
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderAddress, err := EthSenderAddr.WavesAddress(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	wavesAsset := proto.NewOptionalAssetWaves()
+	senderFeeKey := byteKey(senderAddress, wavesAsset.ToID())
+	senderFeeBalanceDiff := -int64(tx.GetFee())
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	scriptAddress, err := tx.To().WavesAddress(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+
+	addresses := []proto.WavesAddress{senderAddress, scriptAddress}
+	changes := newTxBalanceChanges(addresses, diff)
+
+	// TODO sponsorship
+	//if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+	//	return txBalanceChanges{}, err
+	//}
 	return changes, nil
 }
 

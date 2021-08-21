@@ -277,7 +277,7 @@ func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction,
 	return senderPK, senderAddress, nil
 }
 
-func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, info *addlInvokeInfo) (proto.TxFailureReason, txBalanceChanges, error) {
+func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvokeInfo) (proto.TxFailureReason, txBalanceChanges, error) {
 	// Check smart asset scripts on payments.
 	for _, smartAsset := range info.paymentSmartAssets {
 		r, err := ia.sc.callAssetScript(tx, smartAsset, info.fallibleValidationParams.appendTxParams)
@@ -326,7 +326,15 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 	}
 	// Empty keys rejected since protobuf version.
 	if proto.IsProtobufTx(tx) && ia.countEmptyDataEntryKeys(info.actions) > 0 {
-		return proto.DAppError, info.failedChanges, errs.NewTxValidationError(fmt.Sprintf("Empty keys aren't allowed in tx version >= %d", tx.Version))
+		return proto.DAppError, info.failedChanges, errs.NewTxValidationError(fmt.Sprintf("Empty keys aren't allowed in tx version >= %d", tx.GetVersion()))
+	}
+
+	var txID *crypto.Digest
+	switch t := tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+		txID = t.ID
+	case *proto.EthereumTransaction:
+		txID = t.ID
 	}
 	// Perform actions.
 	for _, action := range info.actions {
@@ -349,7 +357,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 			isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
 			if isSmartAsset {
-				fullTr, err := proto.NewFullScriptTransfer(a, senderAddress, info.scriptPK, tx)
+				fullTr, err := proto.NewFullScriptTransfer(a, senderAddress, info.scriptPK, txID, tx.GetTimestamp())
 				if err != nil {
 					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to convert transfer to full script transfer")
 				}
@@ -430,7 +438,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if math.MaxInt64-a.Quantity < assetInfo.quantity.Int64() && info.block.Timestamp >= ia.settings.ReissueBugWindowTimeEnd {
 				return proto.DAppError, info.failedChanges, errors.New("asset total value overflow")
 			}
-			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, *tx.ID, tx.Timestamp, info.appendTxParams)
+			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, *txID, tx.GetTimestamp(), info.appendTxParams)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -479,7 +487,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if assetInfo.quantity.Cmp(quantityDiff) == -1 {
 				return proto.DAppError, info.failedChanges, errs.NewAccountBalanceError("trying to burn more assets than exist at all")
 			}
-			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, *tx.ID, tx.Timestamp, info.appendTxParams)
+			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, *txID, tx.GetTimestamp(), info.appendTxParams)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -547,7 +555,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 
 			// Add new leasing info
 			l := &leasing{
-				OriginTransactionID: tx.ID,
+				OriginTransactionID: txID,
 				Sender:              senderAddress,
 				Recipient:           recipientAddress,
 				Amount:              uint64(a.Amount),
@@ -579,7 +587,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				return proto.DAppError, info.failedChanges, errors.Errorf("attempt to cancel leasing that was created by other account; leaser '%s'; canceller '%s'; leasing: %s", li.Sender.String(), senderAddress.String(), a.LeaseID.String()) //TODO: Create a scala compatible error in errs package and use it here
 			}
 			// Update leasing info
-			if err := ia.stor.leases.cancelLeasingUncertain(a.LeaseID, info.blockInfo.Height, tx.ID, !info.initialisation); err != nil {
+			if err := ia.stor.leases.cancelLeasingUncertain(a.LeaseID, info.blockInfo.Height, txID, !info.initialisation); err != nil {
 				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to cancel leasing")
 			}
 
@@ -687,7 +695,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 			return nil, errors.Wrap(err, "invokeFunction() failed")
 		}
 		res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), actions: scriptActions, changes: failedChanges}
-		return ia.handleInvocationResult(tx, info, res)
+		return ia.handleInvocationResult(*tx.ID, info, res)
 	}
 	var scriptRuns uint64 = 0
 	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
@@ -743,7 +751,121 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 			changes:    changes,
 		}
 	}
-	return ia.handleInvocationResult(tx, info, res)
+	return ia.handleInvocationResult(*tx.ID, info, res)
+}
+
+func (ia *invokeApplier) applyEthereumInvokeScript(tx *proto.EthereumTransaction, info *fallibleValidationParams) (*applicationResult, error) {
+	// In defer we should clean all the temp changes invoke does to state.
+	defer func() {
+		ia.invokeDiffStor.invokeDiffsStor.reset()
+	}()
+
+	// If BlockV5 feature is not activated, we never accept failed transactions.
+	info.acceptFailed = info.blockV5Activated && info.acceptFailed
+	// Check sender script, if any.
+	// Basic checks against state.
+	paymentSmartAssets, err := ia.txHandler.checkTx(tx, info.checkerInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	scriptAddr, err := tx.WavesAddressTo(ia.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, err
+	}
+	tree, err := ia.stor.scriptsStorage.newestScriptByAddr(scriptAddr, !info.initialisation)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
+	}
+	callData, err := tx.GetDecodedData()
+	if err != nil {
+		return nil, err
+	}
+	// TODO
+	//scriptPK, err := ia.stor.scriptsStorage.NewestScriptPKByAddr(*scriptAddr, !info.initialisation)
+	//if err != nil {
+	//	return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
+	//}
+	// Check that the script's library supports multiple payments.
+	// We don't have to check feature activation because we done it before.
+	if len(callData.Payments) >= 2 && tree.LibVersion < 4 {
+		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
+	}
+	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
+	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
+	if disableSelfTransfers && len(callData.Payments) > 0 {
+		sender, err := tx.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to apply script invocation")
+		}
+		if sender == scriptAddr {
+			return nil, errors.New("paying to DApp itself is forbidden since RIDE V4")
+		}
+	}
+	// Basic differ for InvokeScript creates only fee and payment diff.
+	// Create changes for both failed and successful scenarios.
+	differInfo := &differInfo{info.initialisation, info.blockInfo}
+	failedChanges, err := ia.blockDiffer.createFailedTransactionDiff(tx, info.block, differInfo)
+	if err != nil {
+		return nil, err
+	}
+	// Call script function.
+	ok, scriptActions, err := ia.sc.ethereumInvokeFunction(tree, tx, info, scriptAddr)
+	if !ok {
+		// When ok is false, it means that we could not even start invocation.
+		// We just return error in such case.
+		return nil, errors.Wrap(err, "invokeFunction() failed")
+	}
+	if err != nil {
+		// If ok is true, but error is not nil, it means that invocation has failed.
+		if !info.acceptFailed {
+			return nil, errors.Wrap(err, "invokeFunction() failed")
+		}
+		res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), actions: scriptActions, changes: failedChanges}
+		return ia.handleInvocationResult(*tx.ID, info, res)
+	}
+	var scriptRuns uint64 = 0
+	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
+	if !info.rideV5Activated {
+		actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
+		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
+	}
+
+	var res *invocationResult
+	code, changes, err := ia.fallibleValidation(tx, &addlInvokeInfo{
+		fallibleValidationParams: info,
+		scriptAddr:               &scriptAddr,
+		//scriptPK:                 scriptPK,
+		scriptRuns:           scriptRuns,
+		failedChanges:        failedChanges,
+		actions:              scriptActions,
+		paymentSmartAssets:   paymentSmartAssets,
+		disableSelfTransfers: disableSelfTransfers,
+		libVersion:           byte(tree.LibVersion),
+	})
+	if err != nil {
+		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", tx.ID.String(), err.Error())
+		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
+		if !info.acceptFailed {
+			return nil, err
+		}
+		res = &invocationResult{
+			failed:     true,
+			code:       code,
+			text:       err.Error(),
+			scriptRuns: scriptRuns,
+			actions:    scriptActions,
+			changes:    changes,
+		}
+	} else {
+		res = &invocationResult{
+			failed:     false,
+			scriptRuns: scriptRuns,
+			actions:    scriptActions,
+			changes:    changes,
+		}
+	}
+	return ia.handleInvocationResult(*tx.ID, info, res)
 }
 
 type invocationResult struct {
@@ -764,14 +886,14 @@ func toScriptResult(ir *invocationResult) (*proto.ScriptResult, error) {
 	return proto.NewScriptResult(ir.actions, errorMsg)
 }
 
-func (ia *invokeApplier) handleInvocationResult(tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, res *invocationResult) (*applicationResult, error) {
+func (ia *invokeApplier) handleInvocationResult(txID crypto.Digest, info *fallibleValidationParams, res *invocationResult) (*applicationResult, error) {
 	if ia.buildApiData && !info.validatingUtx {
 		// Save invoke result for extended API.
 		res, err := toScriptResult(res)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to save script result")
 		}
-		if err := ia.stor.invokeResults.saveResult(*tx.ID, res, info.block.BlockID()); err != nil {
+		if err := ia.stor.invokeResults.saveResult(txID, res, info.block.BlockID()); err != nil {
 			return nil, errors.Wrap(err, "failed to save script result")
 		}
 	}
@@ -784,7 +906,7 @@ func (ia *invokeApplier) handleInvocationResult(tx *proto.InvokeScriptWithProofs
 	}, nil
 }
 
-func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRuns, issuedAssetsCount uint64) error {
+func (ia *invokeApplier) checkFullFee(tx proto.Transaction, scriptRuns, issuedAssetsCount uint64) error {
 	sponsorshipActivated, err := ia.stor.features.newestIsActivated(int16(settings.FeeSponsorship))
 	if err != nil {
 		return err
@@ -795,19 +917,33 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 	}
 	minIssueFee := feeConstants[proto.IssueTransaction] * FeeUnit * issuedAssetsCount
 	minWavesFee := scriptExtraFee*scriptRuns + feeConstants[proto.InvokeScriptTransaction]*FeeUnit + minIssueFee
-	wavesFee := tx.Fee
-	if tx.FeeAsset.Present {
-		wavesFee, err = ia.stor.sponsoredAssets.sponsoredAssetToWaves(tx.FeeAsset.ID, tx.Fee)
-		if err != nil {
-			return errs.Extend(err, "failed to convert fee asset to waves")
+
+	wavesFee := tx.GetFee()
+
+	switch t := tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+		if t.FeeAsset.Present {
+			wavesFee, err = ia.stor.sponsoredAssets.sponsoredAssetToWaves(t.FeeAsset.ID, t.Fee)
+			if err != nil {
+				return errs.Extend(err, "failed to convert fee asset to waves")
+			}
+		}
+		if wavesFee < minWavesFee {
+			feeAssetStr := t.FeeAsset.String()
+			return errs.NewFeeValidation(fmt.Sprintf(
+				"Fee in %s for InvokeScriptTransaction (%d in %s) with %d total scripts invoked does not exceed minimal value of %d WAVES",
+				feeAssetStr, t.Fee, feeAssetStr, scriptRuns, minWavesFee))
+		}
+	case *proto.EthereumTransaction:
+		wavesAsset := proto.NewOptionalAssetWaves()
+		if wavesFee < minWavesFee {
+			feeAssetStr := wavesAsset.String()
+			return errs.NewFeeValidation(fmt.Sprintf(
+				"Fee in %s for InvokeScriptTransaction (%d in %s) with %d total scripts invoked does not exceed minimal value of %d WAVES",
+				feeAssetStr, t.GetFee(), feeAssetStr, scriptRuns, minWavesFee))
 		}
 	}
-	if wavesFee < minWavesFee {
-		feeAssetStr := tx.FeeAsset.String()
-		return errs.NewFeeValidation(fmt.Sprintf(
-			"Fee in %s for InvokeScriptTransaction (%d in %s) with %d total scripts invoked does not exceed minimal value of %d WAVES",
-			feeAssetStr, tx.Fee, feeAssetStr, scriptRuns, minWavesFee))
-	}
+
 	return nil
 }
 

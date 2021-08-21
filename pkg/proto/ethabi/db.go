@@ -38,7 +38,7 @@ func NewDatabase(custom map[Selector]Method) Database {
 		custom = make(map[Selector]Method)
 	}
 	return Database{
-		erc20:  erc20Methods,
+		erc20:  Erc20Methods,
 		custom: custom,
 	}
 }
@@ -135,7 +135,7 @@ func parseArgDataToRideTypes(method *Method, argData []byte, parsePayments bool)
 
 	var payments []Payment
 	if parsePayments {
-		payments, err = unpackPayments(paymentsABI)
+		payments, err = UnpackPayments(paymentsABI)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to unpack payments")
 		}

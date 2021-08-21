@@ -233,7 +233,7 @@ func unpackPayment(output []byte) (Payment, error) {
 	return payment, nil
 }
 
-func unpackPayments(output []byte) ([]Payment, error) {
+func UnpackPayments(output []byte) ([]Payment, error) {
 	if len(output) == 0 {
 		return nil, nil
 	}

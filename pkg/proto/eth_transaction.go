@@ -111,7 +111,7 @@ func (tx *EthereumInvokeScriptTx) Type() string {
 type EthereumTransaction struct {
 	inner           EthereumTxData
 	innerBinarySize int
-	id              *crypto.Digest
+	ID              *crypto.Digest
 	sender          *EthereumAddress
 	TxKind          EthereumTransactionKind
 }
@@ -129,12 +129,12 @@ func (tx *EthereumTransaction) GetVersion() byte {
 }
 
 func (tx *EthereumTransaction) GetID(scheme Scheme) ([]byte, error) {
-	if tx.id == nil {
+	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
 		}
 	}
-	return tx.id.Bytes(), nil
+	return tx.ID.Bytes(), nil
 }
 
 func (tx *EthereumTransaction) GetSenderPK() crypto.PublicKey {
@@ -165,7 +165,7 @@ func (tx *EthereumTransaction) Validate() (Transaction, error) {
 }
 
 func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
-	if tx.id != nil {
+	if tx.ID != nil {
 		return nil
 	}
 	body, err := MarshalTxBody(scheme, tx)
@@ -173,7 +173,7 @@ func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
 		return err
 	}
 	id := crypto.MustFastHash(body)
-	tx.id = &id
+	tx.ID = &id
 	return nil
 }
 
@@ -336,6 +336,14 @@ func (tx *EthereumTransaction) Nonce() uint64 { return tx.inner.nonce() }
 // For contract-creation transactions, To returns nil.
 func (tx *EthereumTransaction) To() *EthereumAddress { return tx.inner.to().copy() }
 
+func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (WavesAddress, error) {
+	to, err := tx.To().WavesAddress(scheme)
+	if err != nil {
+		return WavesAddress{}, err
+	}
+	return to, nil
+}
+
 // From returns the sender address of the transaction.
 // Returns error if transaction doesn't pass validation.
 func (tx *EthereumTransaction) From() (*EthereumAddress, error) {
@@ -346,6 +354,31 @@ func (tx *EthereumTransaction) From() (*EthereumAddress, error) {
 		return nil, err
 	}
 	return tx.sender.copy(), nil
+}
+
+func (tx *EthereumTransaction) WavesAddressFrom(scheme byte) (WavesAddress, error) {
+	ethSender, err := tx.From()
+	if err != nil {
+		return WavesAddress{}, err
+	}
+	sender, err := ethSender.WavesAddress(scheme)
+	if err != nil {
+		return WavesAddress{}, err
+	}
+	return sender, nil
+}
+
+func (tx *EthereumTransaction) GetDecodedData() (*ethabi.DecodedCallData, error) {
+	if tx.decodedData != nil {
+		return tx.decodedData, nil
+	}
+	db := ethabi.NewDatabase(map[ethabi.Selector]ethabi.Method{})
+	decodedData, err := db.ParseCallDataRide(tx.Data(), true)
+	if err != nil {
+		return nil, errors.Errorf("failed to parse ethereum data")
+	}
+	tx.decodedData = decodedData
+	return decodedData, nil
 }
 
 // RawSignatureValues returns the V, R, S signature values of the transaction.

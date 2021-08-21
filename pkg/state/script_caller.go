@@ -268,6 +268,79 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	return true, r.ScriptActions(), err
 }
 
+func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.EthereumTransaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (bool, []proto.ScriptAction, error) {
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
+	if err != nil {
+		return false, nil, errors.Wrap(err, "failed to create RIDE environment")
+	}
+	env.SetThisFromAddress(scriptAddress)
+	env.SetLastBlock(info.blockInfo)
+	// TODO is it correct?
+	env.SetTimestamp(tx.Nonce())
+	err = env.SetTransaction(tx)
+	if err != nil {
+		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+	}
+	err = env.SetInvoke(tx, tree.LibVersion)
+	if err != nil {
+		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+	}
+	env.ChooseSizeCheck(tree.LibVersion)
+
+	err = env.ChooseTakeString(info.rideV5Activated)
+	if err != nil {
+		return false, nil, errors.Wrap(err, "failed to choose takeString")
+	}
+	// Since V5 we have to create environment with wrapped state to which we put attached payments
+	if tree.LibVersion >= 5 {
+		// TODO in needs to have a senderPK
+		//env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)
+		//if err != nil {
+		//	return false, nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+		//}
+	}
+	decodedData, err := tx.GetDecodedData()
+	if err != nil {
+		return false, nil, errors.Errorf("failed to decode data of ethereum transaction")
+	}
+	arguments := ride.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
+	r, err := ride.CallFunction(env, tree, decodedData.Name, arguments)
+	if err != nil {
+		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+	}
+	if sr, ok := r.(ride.ScriptResult); ok {
+		return false, nil, errors.Errorf("unexpected ScriptResult: %v", sr)
+	}
+	// Increase complexity.
+	if info.rideV5Activated { // After activation of RideV5 add actual execution complexity
+		a.recentTxComplexity += uint64(r.Complexity())
+	} else {
+		// For callable (function) we have to use latest possible estimation
+		ev, err := a.state.EstimatorVersion()
+		if err != nil {
+			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+		}
+		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, ev, !info.initialisation)
+		if err != nil {
+			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+		}
+		fn := decodedData.Name
+		if fn == "" {
+			fn = "default"
+		}
+		c, ok := est.Functions[fn]
+		if !ok {
+			return false, nil, errors.Errorf("no estimation for function '%s' on invocation of transaction '%s'", fn, tx.ID.String())
+		}
+		a.recentTxComplexity += uint64(c)
+	}
+	err = nil
+	if !r.Result() { // Replace failure status with an error
+		err = errors.Errorf("call failed: %s", r.UserError())
+	}
+	return true, r.ScriptActions(), err
+}
+
 func (a *scriptCaller) getTotalComplexity() uint64 {
 	return a.totalComplexity + a.recentTxComplexity
 }

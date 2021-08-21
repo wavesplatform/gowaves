@@ -244,7 +244,7 @@ func (ftb functionTextBuilder) MarshalText() (text []byte, err error) {
 	return []byte(fmt.Sprintf("%s(%s)", ftb.functionMeta.Name, strings.Join(elements, ","))), nil
 }
 
-var erc20Methods = map[Selector]Method{
+var Erc20Methods = map[Selector]Method{
 	Erc20TransferSignature.Selector(): {
 		RawName: "transfer",
 		Inputs: Arguments{
