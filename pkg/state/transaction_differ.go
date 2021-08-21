@@ -10,6 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -197,8 +198,9 @@ func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 }
 
 type differInfo struct {
-	initialisation bool
-	blockInfo      *proto.BlockInfo
+	initialisation  bool
+	blockInfo       *proto.BlockInfo
+	decodedCallData *ethabi.DecodedCallData
 }
 
 func (i *differInfo) hasMiner() bool {
@@ -515,11 +517,7 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 		updateMinIntermediateBalance = true
 	}
 
-	db := NewDatabase(map[Selector]Method{})
-	callData, err := db.ParseCallDataRide(tx.Data(), true)
-	if err != nil {
-		return txBalanceChanges{}, errors.Errorf("failed to parse data from ethereum transaction, %v", err)
-	}
+	decodedData := info.decodedCallData
 
 	var senderAddress proto.WavesAddress
 	var recipientAddress proto.WavesAddress
@@ -527,10 +525,10 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 
 	var amount int64
 
-	switch callData.Signature.Selector() {
-	case Erc20TransferSignature.Selector():
+	switch decodedData.Signature.Selector() {
+	case ethabi.Erc20TransferSignature.Selector():
 		// TODO it's in wei
-		v, ok := callData.Inputs[1].Value.(ride.RideBigInt)
+		v, ok := decodedData.Inputs[1].Value.(ride.RideBigInt)
 		if !ok {
 			return txBalanceChanges{}, errors.Errorf("failed to convert big int value from transfer argument to rideBigInt")
 		}
@@ -549,7 +547,7 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 			return txBalanceChanges{}, err
 		}
 
-		rideEthRecipientAddress, ok := callData.Inputs[0].Value.(ride.RideBytes)
+		rideEthRecipientAddress, ok := decodedData.Inputs[0].Value.(ride.RideBytes)
 		if !ok {
 			return txBalanceChanges{}, errors.New("failed to convert address from argument of transfer erc20 function to rideBytes")
 		}
@@ -559,7 +557,7 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 			return txBalanceChanges{}, err
 		}
 	case ethabi.Erc20TransferFromSignature.Selector():
-		v, ok := callData.Inputs[2].Value.(ride.RideBigInt)
+		v, ok := decodedData.Inputs[2].Value.(ride.RideBigInt)
 		if !ok {
 			return txBalanceChanges{}, errors.Errorf("failed to convert big int value from transfer argument to rideBigInt")
 		}
@@ -569,17 +567,18 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 		}
 		amount = v.V.Int64()
 
-		rideEthSenderAddress, ok := callData.Inputs[0].Value.(ride.RideBytes) // here is the real sender according to the transferFrom function
+		rideEthSenderAddress, ok := decodedData.Inputs[0].Value.(ride.RideBytes) // here is the real sender according to the transferFrom function
 		if !ok {
-			return txBalanceChanges{}, errors.Errorf("failed to convert argument to rideBytes. Unexpected argument type, %v", err)
+			return txBalanceChanges{}, errors.Errorf("failed to convert argument to rideBytes. Unexpected argument type %s", decodedData.Inputs[0].Value)
 		}
 		ethSenderAddress := proto.BytesToEthereumAddress(rideEthSenderAddress)
+		var err error
 		senderAddress, err = ethSenderAddress.WavesAddress(td.settings.AddressSchemeCharacter)
 		if err != nil {
 			return txBalanceChanges{}, err
 		}
 
-		rideEthRecipientAddress, ok := callData.Inputs[0].Value.(ride.RideBytes)
+		rideEthRecipientAddress, ok := decodedData.Inputs[0].Value.(ride.RideBytes)
 		if !ok {
 			return txBalanceChanges{}, errors.New("failed to convert address from argument of transfer erc20 function to rideBytes")
 		}

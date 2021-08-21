@@ -8,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -268,6 +269,28 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	return true, r.ScriptActions(), err
 }
 
+func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) []proto.Argument {
+	var arguments []proto.Argument
+	for _, decodedArg := range decodedArgs {
+		var arg proto.Argument
+		switch decodedArg.Value.(type) {
+		case ride.RideInt:
+			arg = &proto.IntegerArgument{}
+		case ride.RideBoolean:
+			arg = &proto.BooleanArgument{}
+		case ride.RideBytes:
+			arg = &proto.BinaryArgument{}
+		case ride.RideString:
+			arg = &proto.StringArgument{}
+		case ride.RideList:
+			arg = &proto.ListArgument{}
+		}
+		arguments = append(arguments, arg)
+
+	}
+	return arguments
+}
+
 func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.EthereumTransaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (bool, []proto.ScriptAction, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
 	if err != nil {
@@ -275,13 +298,22 @@ func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.Ethereu
 	}
 	env.SetThisFromAddress(scriptAddress)
 	env.SetLastBlock(info.blockInfo)
-	// TODO is it correct?
 	env.SetTimestamp(tx.Nonce())
 	err = env.SetTransaction(tx)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
-	err = env.SetInvoke(tx, tree.LibVersion)
+	abiPayments := info.decodedAbiData.Payments
+	var scriptPayments []proto.ScriptPayment
+	for _, p := range abiPayments {
+		asset, err := proto.NewOptionalAssetFromBytes(p.AssetID.Bytes())
+		if err != nil {
+			return false, nil, err
+		}
+		payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: *asset}
+		scriptPayments = append(scriptPayments, payment)
+	}
+	err = env.SetEthereumInvoke(tx, tree.LibVersion, scriptPayments)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
@@ -292,18 +324,17 @@ func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.Ethereu
 		return false, nil, errors.Wrap(err, "failed to choose takeString")
 	}
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
-	if tree.LibVersion >= 5 {
-		// TODO in needs to have a senderPK
-		//env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)
-		//if err != nil {
-		//	return false, nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
-		//}
-	}
-	decodedData, err := tx.GetDecodedData()
-	if err != nil {
-		return false, nil, errors.Errorf("failed to decode data of ethereum transaction")
-	}
-	arguments := ride.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
+	// TODO in needs to have a senderPK
+	//if tree.LibVersion >= 5 {
+	//
+	//	//env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)
+	//	//if err != nil {
+	//	//	return false, nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+	//	//}
+	//}
+	decodedData := info.decodedAbiData
+
+	arguments := ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
 	r, err := ride.CallFunction(env, tree, decodedData.Name, arguments)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())

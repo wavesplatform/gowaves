@@ -368,19 +368,6 @@ func (tx *EthereumTransaction) WavesAddressFrom(scheme byte) (WavesAddress, erro
 	return sender, nil
 }
 
-func (tx *EthereumTransaction) GetDecodedData() (DecodedCallData, error) {
-	if tx.decodedData != nil {
-		return tx.decodedData, nil
-	}
-	db := NewDatabase(map[Selector]Method{})
-	decodedData, err := db.ParseCallDataRide(tx.Data(), true)
-	if err != nil {
-		return nil, errors.Errorf("failed to parse ethereum data")
-	}
-	tx.decodedData = decodedData
-	return decodedData, nil
-}
-
 // RawSignatureValues returns the V, R, S signature values of the transaction.
 // The return values should not be modified by the caller.
 func (tx *EthereumTransaction) RawSignatureValues() (v, r, s *big.Int) {

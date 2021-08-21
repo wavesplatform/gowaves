@@ -6673,7 +6673,7 @@ func TestScriptPaymentPublicKey(t *testing.T) {
 		Timestamp:       1599565088614,
 	}
 
-	tr, _ := proto.NewFullScriptTransfer(action, addr, pk, tx)
+	tr, _ := proto.NewFullScriptTransfer(action, addr, pk, tx.ID, tx.Timestamp)
 	env := &MockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme

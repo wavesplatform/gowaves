@@ -873,28 +873,6 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	return r, nil
 }
 
-func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []DecodedArg) []proto.Argument {
-	var arguments []proto.Argument
-	for _, decodedArg := range decodedArgs {
-		var arg proto.Argument
-		switch decodedArg.Value.(type) {
-		case RideInt:
-			arg = &proto.IntegerArgument{}
-		case RideBoolean:
-			arg = &proto.BooleanArgument{}
-		case RideBytes:
-			arg = &proto.BinaryArgument{}
-		case RideString:
-			arg = &proto.StringArgument{}
-		case RideList:
-			arg = &proto.ListArgument{}
-		}
-		arguments = append(arguments, arg)
-
-	}
-	return arguments
-}
-
 func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTransaction) (rideObject, error) {
 	return nil, nil
 }
@@ -983,7 +961,7 @@ func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (r
 	return r, nil
 }
 
-func ethereumInvocationToObject(v int, scheme byte, tx *proto.EthereumTransaction) (rideObject, error) {
+func ethereumInvocationToObject(v int, scheme byte, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err
@@ -1001,33 +979,17 @@ func ethereumInvocationToObject(v int, scheme byte, tx *proto.EthereumTransactio
 		//r["originCallerPublicKey"] = callerPK
 	}
 
-	decodedData, err := tx.GetDecodedData()
-	if err != nil {
-		return nil, errors.Errorf("failed to get decoded data of ethereum tx, %v", err)
-	}
 	switch v {
 	case 4, 5:
-
-		payments := make(RideList, len(decodedData.Payments))
-		for i, p := range decodedData.Payments {
-			asset, err := proto.NewOptionalAssetFromBytes(p.AssetID.Bytes())
-			if err != nil {
-				return nil, errors.Errorf("failed to get asset for payments, %v", err)
-			}
-			scriptPayment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: *asset}
-			payments[i] = attachedPaymentToObject(scriptPayment)
+		payments := make(RideList, len(scriptPayments))
+		for i, p := range scriptPayments {
+			payments[i] = attachedPaymentToObject(p)
 		}
 		r["payments"] = payments
 	default:
 		r["payment"] = rideUnit{}
-		if len(decodedData.Payments) > 0 {
-			p := decodedData.Payments[0]
-			asset, err := proto.NewOptionalAssetFromBytes(p.AssetID.Bytes())
-			if err != nil {
-				return nil, errors.Errorf("failed to get asset for payments, %v", err)
-			}
-			scriptPayment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: *asset}
-			r["payment"] = attachedPaymentToObject(scriptPayment)
+		if len(scriptPayments) > 0 {
+			r["payment"] = attachedPaymentToObject(scriptPayments[0])
 		}
 	}
 	wavesAsset := proto.NewOptionalAssetWaves()

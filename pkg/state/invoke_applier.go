@@ -314,8 +314,16 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 	if err := ia.checkFullFee(tx, info.scriptRuns, issuedAssetsCount); err != nil {
 		return proto.InsufficientActionsFee, info.failedChanges, err
 	}
+	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
+	var txID *crypto.Digest
+	switch t := tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+		txID = t.ID
+	case *proto.EthereumTransaction:
+		txID = t.ID
+		differInfo.decodedCallData = info.decodedAbiData
+	}
 	// Add feeAndPaymentChanges to stor before performing actions.
-	differInfo := &differInfo{info.initialisation, info.blockInfo}
 	feeAndPaymentChanges, err := ia.blockDiffer.createTransactionDiff(tx, info.block, differInfo)
 	if err != nil {
 		return proto.DAppError, info.failedChanges, err
@@ -329,13 +337,6 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		return proto.DAppError, info.failedChanges, errs.NewTxValidationError(fmt.Sprintf("Empty keys aren't allowed in tx version >= %d", tx.GetVersion()))
 	}
 
-	var txID *crypto.Digest
-	switch t := tx.(type) {
-	case *proto.InvokeScriptWithProofs:
-		txID = t.ID
-	case *proto.EthereumTransaction:
-		txID = t.ID
-	}
 	// Perform actions.
 	for _, action := range info.actions {
 		senderPK, senderAddress, err := ia.senderCredentialsFromScriptAction(action, info)
@@ -677,7 +678,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	// Basic differ for InvokeScript creates only fee and payment diff.
 	// Create changes for both failed and successful scenarios.
-	differInfo := &differInfo{info.initialisation, info.blockInfo}
+	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
 	failedChanges, err := ia.blockDiffer.createFailedTransactionDiff(tx, info.block, differInfo)
 	if err != nil {
 		return nil, err
@@ -777,10 +778,8 @@ func (ia *invokeApplier) applyEthereumInvokeScript(tx *proto.EthereumTransaction
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 	}
-	callData, err := tx.GetDecodedData()
-	if err != nil {
-		return nil, err
-	}
+	decodedData := info.decodedAbiData
+
 	// TODO
 	//scriptPK, err := ia.stor.scriptsStorage.NewestScriptPKByAddr(*scriptAddr, !info.initialisation)
 	//if err != nil {
@@ -788,12 +787,12 @@ func (ia *invokeApplier) applyEthereumInvokeScript(tx *proto.EthereumTransaction
 	//}
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we done it before.
-	if len(callData.Payments) >= 2 && tree.LibVersion < 4 {
+	if len(decodedData.Payments) >= 2 && tree.LibVersion < 4 {
 		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
 	}
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
 	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
-	if disableSelfTransfers && len(callData.Payments) > 0 {
+	if disableSelfTransfers && len(decodedData.Payments) > 0 {
 		sender, err := tx.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to apply script invocation")
@@ -804,7 +803,7 @@ func (ia *invokeApplier) applyEthereumInvokeScript(tx *proto.EthereumTransaction
 	}
 	// Basic differ for InvokeScript creates only fee and payment diff.
 	// Create changes for both failed and successful scenarios.
-	differInfo := &differInfo{info.initialisation, info.blockInfo}
+	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo, decodedCallData: info.decodedAbiData}
 	failedChanges, err := ia.blockDiffer.createFailedTransactionDiff(tx, info.block, differInfo)
 	if err != nil {
 		return nil, err

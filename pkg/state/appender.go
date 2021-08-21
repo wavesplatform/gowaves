@@ -7,6 +7,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
 )
@@ -190,7 +191,7 @@ func (a *txAppender) checkProtobufVersion(tx proto.Transaction, blockV5Activated
 }
 
 func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationParams) error {
-	differInfo := &differInfo{info.initialisation, info.blockInfo}
+	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
 	var feeChanges txBalanceChanges
 	var err error
 	switch tx.GetTypeInfo().Type {
@@ -373,6 +374,7 @@ func (a *txAppender) verifyTxSigAndData(tx proto.Transaction, params *appendTxPa
 
 type appendTxParams struct {
 	chans            *verifierChans
+	decodedAbiData   *ethabi.DecodedCallData
 	checkerInfo      *checkerInfo
 	blockInfo        *proto.BlockInfo
 	block            *proto.BlockHeader
@@ -383,16 +385,12 @@ type appendTxParams struct {
 	initialisation   bool
 }
 
-func guessEthereumTransactionKind(ethTx *proto.EthereumTransaction) (proto.EthereumTransactionKind, error) {
+func guessEthereumTransactionKind(ethTx *proto.EthereumTransaction, decodedData ethabi.DecodedCallData) (proto.EthereumTransactionKind, error) {
 	if len(ethTx.Data()) == 0 {
 		return &proto.EthereumTransferWavesTx{}, nil
 	}
-	db := NewDatabase(map[Selector]Method{})
-	callData, err := db.ParseCallDataRide(ethTx.Data(), true)
-	if err != nil {
-		return nil, errors.Errorf("failed to parse data from eth tx, %v", err)
-	}
-	if db.IsERC20(callData.Signature.Selector()) {
+	db := ethabi.NewDatabase(map[ethabi.Selector]ethabi.Method{})
+	if db.IsERC20(decodedData.Signature.Selector()) {
 		return &proto.EthereumTransferAssetsErc20Tx{}, nil
 	}
 	return &proto.EthereumInvokeScriptTx{}, nil
@@ -417,7 +415,7 @@ func (a *txAppender) handleDefaultTransaction(tx proto.Transaction, params *appe
 		return nil, err
 	}
 	// Create balance diff of this tx.
-	differInfo := &differInfo{params.initialisation, params.blockInfo}
+	differInfo := &differInfo{params.initialisation, params.blockInfo, params.decodedAbiData}
 	txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, differInfo)
 	if err != nil {
 		return nil, errs.Extend(err, "create transaction diff")
@@ -472,11 +470,18 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		if !ok {
 			return errors.New("failed to cast interface transaction to ethereum transaction structure")
 		}
-		err := ethTx.GenerateID(a.settings.AddressSchemeCharacter)
+		db := ethabi.NewDatabase(map[ethabi.Selector]ethabi.Method{})
+		decodedData, err := db.ParseCallDataRide(ethTx.Data(), true)
+		if err != nil {
+			return errors.Errorf("failed to parse ethereum data")
+		}
+		params.decodedAbiData = decodedData
+
+		err = ethTx.GenerateID(a.settings.AddressSchemeCharacter)
 		if err != nil {
 			return errors.Errorf("failed to generate transaction id for ethereum transaction, %v", err)
 		}
-		ethTx.TxKind, err = guessEthereumTransactionKind(ethTx)
+		ethTx.TxKind, err = guessEthereumTransactionKind(ethTx, *params.decodedAbiData)
 		if err != nil {
 			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
 		}
@@ -722,7 +727,7 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 		return nil, err
 	}
 	// Create balance changes for both failure and success.
-	differInfo := &differInfo{info.initialisation, info.blockInfo}
+	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
 	failedChanges, err := a.blockDiffer.createFailedTransactionDiff(tx, info.block, differInfo)
 	if err != nil {
 		return nil, err
