@@ -107,9 +107,21 @@ func (epk *EthereumPublicKey) EthereumAddress() EthereumAddress {
 	return addr
 }
 
+func (epk *EthereumPublicKey) copy() *EthereumPublicKey {
+	cpy := EthereumPublicKey{
+		Curve: epk.Curve,
+		X:     epk.X,
+		Y:     epk.Y,
+	}
+	return &cpy
+}
+
 type EthereumSigner interface {
 	// Sender returns the sender address of the transaction.
 	Sender(tx *EthereumTransaction) (EthereumAddress, error)
+
+	// SenderPK returns the sender public key of the transaction.
+	SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, error)
 
 	// SignatureValues returns the raw R, S, V values corresponding to the given signature.
 	SignatureValues(tx *EthereumTransaction, sig []byte) (R, S, V *big.Int, err error)
@@ -136,18 +148,26 @@ func NewLondonEthereumSigner(chainId *big.Int) EthereumSigner {
 	return londonSigner{newEIP2930Signer(chainId)}
 }
 
-func (s londonSigner) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
+func (s londonSigner) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, error) {
 	if tx.EthereumTxType() != DynamicFeeTxType {
-		return s.eip2930Signer.Sender(tx)
+		return s.eip2930Signer.SenderPK(tx)
 	}
 	V, R, S := tx.RawSignatureValues()
 	// DynamicFee txs are defined to use 0 and 1 as their recovery
 	// id, add 27 to become equivalent to unprotected Homestead signatures.
 	V = new(big.Int).Add(V, big.NewInt(27))
 	if tx.ChainId().Cmp(s.chainId) != 0 {
-		return EthereumAddress{}, ErrInvalidChainId
+		return nil, ErrInvalidChainId
 	}
-	return recoverEthereumAddress(s.Hash(tx), R, S, V, true)
+	return recoverEthereumPubKey(s.Hash(tx), R, S, V, true)
+}
+
+func (s londonSigner) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
+	pk, err := s.SenderPK(tx)
+	if err != nil {
+		return EthereumAddress{}, err
+	}
+	return pk.EthereumAddress(), nil
 }
 
 func (s londonSigner) Equal(s2 EthereumSigner) bool {
@@ -203,17 +223,25 @@ func (s eip2930Signer) Equal(s2 EthereumSigner) bool {
 }
 
 func (s eip2930Signer) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
+	pk, err := s.SenderPK(tx)
+	if err != nil {
+		return EthereumAddress{}, err
+	}
+	return pk.EthereumAddress(), nil
+}
+
+func (s eip2930Signer) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, error) {
 	if tx.EthereumTxType() != AccessListTxType {
-		return s.eip155Signer.Sender(tx)
+		return s.eip155Signer.SenderPK(tx)
 	}
 	V, R, S := tx.RawSignatureValues()
 	// AL txs are defined to use 0 and 1 as their recovery
 	// id, add 27 to become equivalent to unprotected Homestead signatures.
 	V = new(big.Int).Add(V, big.NewInt(27))
 	if tx.ChainId().Cmp(s.chainId) != 0 {
-		return EthereumAddress{}, ErrInvalidChainId
+		return nil, ErrInvalidChainId
 	}
-	return recoverEthereumAddress(s.Hash(tx), R, S, V, true)
+	return recoverEthereumPubKey(s.Hash(tx), R, S, V, true)
 }
 
 func (s eip2930Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S, V *big.Int, err error) {
@@ -278,20 +306,28 @@ func (s eip155Signer) Equal(s2 EthereumSigner) bool {
 var big8 = big.NewInt(8)
 
 func (s eip155Signer) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
+	pk, err := s.SenderPK(tx)
+	if err != nil {
+		return EthereumAddress{}, err
+	}
+	return pk.EthereumAddress(), nil
+}
+
+func (s eip155Signer) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, error) {
 	if tx.EthereumTxType() != LegacyTxType {
-		return EthereumAddress{}, ErrTxTypeNotSupported
+		return nil, ErrTxTypeNotSupported
 	}
 	if !tx.Protected() {
-		return HomesteadSigner{}.Sender(tx)
+		return HomesteadSigner{}.SenderPK(tx)
 	}
 	// TODO
 	if tx.ChainId().Cmp(s.chainId) != 0 {
-		return EthereumAddress{}, ErrInvalidChainId
+		return nil, ErrInvalidChainId
 	}
 	V, R, S := tx.RawSignatureValues()
 	V = new(big.Int).Sub(V, s.chainIdMul)
 	V.Sub(V, big8)
-	return recoverEthereumAddress(s.Hash(tx), R, S, V, true)
+	return recoverEthereumPubKey(s.Hash(tx), R, S, V, true)
 }
 
 // SignatureValues returns signature values. This signature
@@ -349,11 +385,19 @@ func (hs HomesteadSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (
 }
 
 func (hs HomesteadSigner) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
+	pk, err := hs.SenderPK(tx)
+	if err != nil {
+		return EthereumAddress{}, err
+	}
+	return pk.EthereumAddress(), nil
+}
+
+func (hs HomesteadSigner) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, error) {
 	if tx.EthereumTxType() != LegacyTxType {
-		return EthereumAddress{}, ErrTxTypeNotSupported
+		return nil, ErrTxTypeNotSupported
 	}
 	v, r, s := tx.RawSignatureValues()
-	return recoverEthereumAddress(hs.Hash(tx), r, s, v, true)
+	return recoverEthereumPubKey(hs.Hash(tx), r, s, v, true)
 }
 
 type FrontierSigner struct{}
@@ -368,11 +412,19 @@ func (fs FrontierSigner) Equal(s2 EthereumSigner) bool {
 }
 
 func (fs FrontierSigner) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
+	pk, err := fs.SenderPK(tx)
+	if err != nil {
+		return EthereumAddress{}, err
+	}
+	return pk.EthereumAddress(), nil
+}
+
+func (fs FrontierSigner) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, error) {
 	if tx.EthereumTxType() != LegacyTxType {
-		return EthereumAddress{}, ErrTxTypeNotSupported
+		return nil, ErrTxTypeNotSupported
 	}
 	v, r, s := tx.RawSignatureValues()
-	return recoverEthereumAddress(fs.Hash(tx), r, s, v, true)
+	return recoverEthereumPubKey(fs.Hash(tx), r, s, v, true)
 }
 
 // SignatureValues returns signature values. This signature
@@ -421,15 +473,6 @@ func decodeSignature(sig []byte) (r, s, v *big.Int, err error) {
 	s = new(big.Int).SetBytes(sig[32:64])
 	v = new(big.Int).SetBytes([]byte{sig[64] + 27})
 	return r, s, v, nil
-}
-
-func recoverEthereumAddress(sighash EthereumHash, R, S, Vb *big.Int, homestead bool) (EthereumAddress, error) {
-	// recover the public key from the signature
-	pubKey, err := recoverEthereumPubKey(sighash, R, S, Vb, homestead)
-	if err != nil {
-		return EthereumAddress{}, err
-	}
-	return pubKey.EthereumAddress(), nil
 }
 
 func recoverEthereumPubKey(sighash EthereumHash, R, S, Vb *big.Int, homestead bool) (*EthereumPublicKey, error) {
