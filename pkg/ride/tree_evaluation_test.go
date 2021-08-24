@@ -1372,7 +1372,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
 	expectedDiffResult.balances[senderAddress.String()+assetExp.String()] = balanceSender
 
-	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, asset: assetExp, effectiveHistory: []int64{2467, 2457}}
+	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, asset: assetExp, effectiveHistory: []int64{2457}}
 	expectedDiffResult.balances[addressCallable.String()+assetExp.String()] = balanceCallable
 
 	assetFromIssue := *proto.NewOptionalAssetFromDigest(sr.Issues[0].ID)
