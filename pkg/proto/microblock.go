@@ -2,10 +2,11 @@ package proto
 
 import (
 	"bytes"
-	"encoding/hex"
+	"encoding/base64"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"io"
+
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
@@ -162,7 +163,7 @@ func (a *MicroBlock) VerifySignature(scheme Scheme) (bool, error) {
 		return false, err
 	}
 
-	println(hex.EncodeToString(buf.Bytes()))
+	//println(hex.EncodeToString(buf.Bytes()))
 
 	return crypto.Verify(a.SenderPK, a.Signature, buf.Bytes()), nil
 }
@@ -192,9 +193,12 @@ func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, e
 	spew.Dump(a)
 	println()
 	s := serializer.NewNonFallable(w)
-	s.Byte(a.VersionField); fmt.Printf("a.VersionField=%v\n", a.VersionField)
-	s.Bytes(a.Reference.Bytes()); fmt.Printf("a.Reference.Bytes()=%x\n", a.Reference.Bytes())
-	s.Bytes(a.TotalResBlockSigField.Bytes()); fmt.Printf("a.TotalResBlockSigField.Bytes()=%x\n", a.TotalResBlockSigField.Bytes())
+	s.Byte(a.VersionField)
+	fmt.Printf("a.VersionField=%v\n", a.VersionField)
+	s.Bytes(a.Reference.Bytes())
+	fmt.Printf("a.Reference.Bytes()=%x\n", a.Reference.Bytes())
+	s.Bytes(a.TotalResBlockSigField.Bytes())
+	fmt.Printf("a.TotalResBlockSigField.Bytes()=%x\n", a.TotalResBlockSigField.Bytes())
 	// Serialize transactions in separate buffer to get the size
 	txsBuf := new(bytes.Buffer)
 	txsSerializer := serializer.NewNonFallable(txsBuf)
@@ -203,11 +207,15 @@ func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, e
 		return 0, err
 	}
 	// Write transactions bytes size and its count
-	s.Uint32(uint32(txsBuf.Len() + 4)); fmt.Printf("uint32(txsBuf.Len() + 4)=%d\n", uint32(txsBuf.Len() + 4))
-	s.Uint32(a.TransactionCount); fmt.Printf("a.TransactionCount=%d\n", a.TransactionCount)
+	s.Uint32(uint32(txsBuf.Len() + 4))
+	fmt.Printf("uint32(txsBuf.Len() + 4)=%d\n", uint32(txsBuf.Len()+4))
+	s.Uint32(a.TransactionCount)
+	fmt.Printf("a.TransactionCount=%d\n", a.TransactionCount)
 	// Write transactions bytes
-	s.Bytes(txsBuf.Bytes()); fmt.Printf("txsBuf.Bytes()=%x\n", txsBuf.Bytes())
-	s.Bytes(a.SenderPK.Bytes()); fmt.Printf("a.SenderPK.Bytes()=%x\n", a.SenderPK.Bytes())
+	s.Bytes(txsBuf.Bytes())
+	fmt.Printf("txsBuf.Bytes()=%x\n", txsBuf.Bytes())
+	s.Bytes(a.SenderPK.Bytes())
+	fmt.Printf("a.SenderPK.Bytes()=%x\n", a.SenderPK.Bytes())
 	println()
 	return s.N(), nil
 }

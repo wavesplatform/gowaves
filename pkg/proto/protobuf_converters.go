@@ -1,7 +1,9 @@
 package proto
 
 import (
+	"encoding/base64"
 	"fmt"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -16,7 +18,7 @@ func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
 	if err != nil {
 		return b, err
 	}
-	fmt.Printf("MarshalToProtobufDeterministic(|%+v| %T)=%x\n", pb, pb, b)
+	fmt.Printf("MarshalToProtobufDeterministic(|%+v| %T)=%s\n", pb, pb, base64.StdEncoding.EncodeToString(b))
 	return b, err
 }
 
@@ -25,7 +27,8 @@ func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return MarshalToProtobufDeterministic(pbTx)
+	return pbTx.MarshalVT()
+	//return MarshalToProtobufDeterministic(pbTx)
 }
 
 func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
@@ -33,8 +36,9 @@ func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	b, err := MarshalToProtobufDeterministic(pbTx)
-	return b, err
+	return pbTx.MarshalVT()
+	//b, err := MarshalToProtobufDeterministic(pbTx)
+	//return b, err
 }
 
 func TxFromProtobuf(data []byte) (Transaction, error) {

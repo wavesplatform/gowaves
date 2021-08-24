@@ -2,6 +2,7 @@ package proto
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -848,7 +849,9 @@ func (a Transactions) WriteTo(proto bool, scheme Scheme, w io.Writer) (int64, er
 	s := serializer.New(w)
 	println("func (a Transactions) WriteTo(proto bool, scheme Scheme, w io.Writer) (int64, error)")
 	for i, t := range a {
-		bts, err := t.MarshalSignedToProtobuf(scheme); fmt.Printf("t[%d, len=%d]=%x\n", i, len(bts), bts)
+		bts, err := t.MarshalSignedToProtobuf(scheme)
+		println("TX:", base64.StdEncoding.EncodeToString(bts))
+		fmt.Printf("t[%d, len=%d]=%x\n", i, len(bts), bts)
 		if err != nil {
 			return 0, err
 		}
