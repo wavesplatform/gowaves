@@ -46,12 +46,12 @@ func (a *Serializer) StringWithUInt16Len(s string) error {
 
 // StringWithUInt32Len writes to the buffer `buf` four bytes of the string's `s` length followed with the bytes of string itself.
 func (a *Serializer) StringWithUInt32Len(s string) error {
-	len_s_u32 := uint32(len(s))
-	max_u32 := uint32(math.MaxUint32)
-	if len_s_u32 > max_u32 {
-		return errors.Errorf("too long string, expected max %d, found %d", max_u32, len_s_u32)
+	lenStrU32 := uint32(len(s))
+	maxU32 := uint32(math.MaxUint32)
+	if lenStrU32 > maxU32 {
+		return errors.Errorf("too long string, expected max %d, found %d", maxU32, lenStrU32)
 	}
-	err := a.Uint32(len_s_u32)
+	err := a.Uint32(lenStrU32)
 	if err != nil {
 		return err
 	}
