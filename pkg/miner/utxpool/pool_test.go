@@ -99,6 +99,10 @@ func (a transaction) GetSenderPK() crypto.PublicKey {
 	panic("not implemented")
 }
 
+func (a transaction) GetSender(scheme proto.Scheme) (proto.Address, error) {
+	panic("not implemented")
+}
+
 func tr(fee uint64) *transaction {
 	return &transaction{fee: fee}
 }

@@ -111,9 +111,8 @@ func (tx *EthereumTransaction) GetID(scheme Scheme) ([]byte, error) {
 	return tx.id.Bytes(), nil
 }
 
-func (tx *EthereumTransaction) GetSenderPK() crypto.PublicKey {
-	// TODO(nickeskov): on my mind we need to refactor this to support EthereumTX public key
-	panic("implement me")
+func (tx *EthereumTransaction) GetSender(scheme Scheme) (Address, error) {
+	return tx.From()
 }
 
 func (tx *EthereumTransaction) GetFee() uint64 {

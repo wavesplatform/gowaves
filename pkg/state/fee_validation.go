@@ -178,11 +178,15 @@ func (tc *txCosts) toString() string {
 
 func scriptsCost(tx proto.Transaction, params *feeValidationParams, isRideV5Activated bool, estimatorVersion int) (*txCosts, error) {
 	smartAssets := uint64(len(params.txAssets.smartAssets))
-	senderAddr, err := proto.NewAddressFromPublicKey(params.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	senderAddr, err := tx.GetSender(params.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, err
 	}
-	accountScripted, err := params.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !params.initialisation)
+	senderWavesAddr, ok := senderAddr.(proto.WavesAddress)
+	if !ok {
+		return nil, errors.Errorf("address %q must be a waves address, not %T", senderAddr.String(), senderAddr)
+	}
+	accountScripted, err := params.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr, !params.initialisation)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +194,7 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams, isRideV5Acti
 	// check complexity of script for free verifier if complexity <= 200
 	complexity := 0
 	if accountScripted && isRideV5Activated {
-		treeEstimation, err := params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderAddr, estimatorVersion, !params.initialisation)
+		treeEstimation, err := params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderWavesAddr, estimatorVersion, !params.initialisation)
 		if err != nil {
 			return nil, errors.Errorf("failed to get complexity by addr from store, %v", err)
 		}
