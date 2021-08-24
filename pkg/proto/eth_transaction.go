@@ -111,9 +111,10 @@ func (tx *EthereumInvokeScriptTx) Type() string {
 type EthereumTransaction struct {
 	inner           EthereumTxData
 	innerBinarySize int
-	ID              *crypto.Digest
 	sender          *EthereumAddress
 	TxKind          EthereumTransactionKind
+	ID              *crypto.Digest
+	senderPK        *EthereumPublicKey
 }
 
 func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
@@ -152,15 +153,15 @@ func (tx *EthereumTransaction) GetTimestamp() uint64 {
 }
 
 func (tx *EthereumTransaction) Validate() (Transaction, error) {
-	if tx.sender != nil {
+	if tx.senderPK != nil {
 		return tx, nil
 	}
 	signer := MakeEthereumSigner(tx.ChainId())
-	sender, err := ExtractEthereumSender(signer, tx)
+	senderPK, err := signer.SenderPK(tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to validate EthereumTransaction")
 	}
-	tx.sender = &sender
+	tx.senderPK = senderPK
 	return tx, nil
 }
 
@@ -353,7 +354,17 @@ func (tx *EthereumTransaction) From() (*EthereumAddress, error) {
 	if _, err := tx.Validate(); err != nil {
 		return nil, err
 	}
-	return tx.sender.copy(), nil
+	addr := tx.senderPK.EthereumAddress()
+	return &addr, nil
+}
+
+// FromPK returns the sender public key of the transaction.
+// Returns error if transaction doesn't pass validation.
+func (tx *EthereumTransaction) FromPK() (*EthereumPublicKey, error) {
+	if _, err := tx.Validate(); err != nil {
+		return nil, err
+	}
+	return tx.senderPK.copy(), nil
 }
 
 func (tx *EthereumTransaction) WavesAddressFrom(scheme byte) (WavesAddress, error) {

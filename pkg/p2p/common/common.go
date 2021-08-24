@@ -6,18 +6,18 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-// Keep last hash of network message.
+// DuplicateChecker keeps last hash of network message.
 type DuplicateChecker struct {
 	last crypto.Digest
 	lock sync.Mutex
 }
 
-// Creates new DuplicateChecker.
+// NewDuplicateChecker creates new instance of DuplicateChecker.
 func NewDuplicateChecker() *DuplicateChecker {
 	return &DuplicateChecker{}
 }
 
-// Compares new bytes with previous, if equal message is now new.
+// Add compares new bytes with previous, if equal message is now new.
 func (a *DuplicateChecker) Add(b []byte) (isNew bool) {
 	digest := crypto.MustFastHash(b)
 	a.lock.Lock()

@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 	"go.uber.org/atomic"
@@ -33,16 +33,13 @@ func TestConnectionImpl_Close(t *testing.T) {
 
 	c, err := net.Dial("tcp", listener.Addr().String())
 	require.NoError(t, err)
-	pool := bytespool.NewBytesPool(32, 2*1024*1024)
-
 	params := wrapParams{
 		conn:         c,
-		pool:         pool,
 		toRemoteCh:   nil,
-		fromRemoteCh: make(chan []byte, 2),
+		fromRemoteCh: make(chan *bytebufferpool.ByteBuffer, 2),
 		errCh:        make(chan error, 1),
 		sendFunc:     sendToRemote,
-		recvFunc:     recvFromRemote,
+		receiveFunc:  receiveFromRemote,
 	}
 
 	conn := wrapConnection(params)
@@ -58,13 +55,12 @@ func TestRecvFromRemote_Transaction(t *testing.T) {
 	zap.ReplaceGlobals(logger)
 
 	messBytes := byte_helpers.TransferWithSig.MessageBytes
-	pool := bytespool.NewNoOpBytesPool(len(messBytes))
-	fromRemoteCh := make(chan []byte, 2)
+	fromRemoteCh := make(chan *bytebufferpool.ByteBuffer, 2)
 
-	recvFromRemote(atomic.NewBool(false), pool, bytes.NewReader(messBytes), fromRemoteCh, make(chan error, 1), func(headerBytes proto.Header) bool {
+	receiveFromRemote(atomic.NewBool(false), bytes.NewReader(messBytes), fromRemoteCh, make(chan error, 1), func(headerBytes proto.Header) bool {
 		return false
-	})
+	}, "test")
 
-	retBytes := <-fromRemoteCh
-	assert.Equal(t, messBytes, retBytes)
+	bb := <-fromRemoteCh
+	assert.Equal(t, messBytes, bb.Bytes())
 }

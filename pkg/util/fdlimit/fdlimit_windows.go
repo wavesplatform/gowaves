@@ -9,7 +9,7 @@ import (
 // hardFDLimit is the number of file descriptors allowed at max by the kernel.
 const hardFDLimit = 16 * 1024
 
-func SetMaxFDs(max uint64) (uint64, error) {
+func RaiseMaxFDs(max uint64) (uint64, error) {
 	// This function is No-op:
 	//  * Linux/Darwin counterparts need to manually increase per process limits
 	//  * On Windows Go uses the CreateFile API, which is limited to 16K files, non

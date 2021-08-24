@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -21,7 +20,6 @@ type EstablishParams struct {
 	Address          proto.TCPAddr
 	WavesNetwork     string
 	Parent           peer.Parent
-	Pool             bytespool.Pool
 	DeclAddr         proto.TCPAddr
 	Skip             conn.SkipFilter
 	NodeName         string
@@ -67,7 +65,6 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		Connection:       p.connection,
 		Remote:           remote,
 		Parent:           params.Parent,
-		Pool:             params.Pool,
 		Peer:             peerImpl,
 		DuplicateChecker: params.DuplicateChecker,
 	})
@@ -113,5 +110,5 @@ func (a *connector) connect(ctx context.Context, c net.Conn, v proto.Version) (c
 			return nil, nil, err
 		}
 	}
-	return conn.WrapConnection(c, a.params.Pool, a.remote.ToCh, a.remote.FromCh, a.remote.ErrCh, a.params.Skip), &handshake, nil
+	return conn.WrapConnection(c, a.remote.ToCh, a.remote.FromCh, a.remote.ErrCh, a.params.Skip), &handshake, nil
 }

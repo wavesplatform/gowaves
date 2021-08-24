@@ -8,7 +8,7 @@ import (
 	"os"
 	"runtime/debug"
 
-	"github.com/cespare/xxhash"
+	"github.com/cespare/xxhash/v2"
 	"github.com/pkg/errors"
 	"github.com/steakknife/bloomfilter"
 	"go.uber.org/zap"
