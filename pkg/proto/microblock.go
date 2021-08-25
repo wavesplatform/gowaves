@@ -2,7 +2,6 @@ package proto
 
 import (
 	"bytes"
-	"encoding/base64"
 	"fmt"
 	"io"
 

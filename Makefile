@@ -169,9 +169,9 @@ mock:
 	mockgen -source pkg/grpc/server/api.go -destination pkg/mock/grpc.go -package mock GrpcHandlers
 
 proto:
-	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src --plugin protoc-gen-go="${GOBIN}/protoc-gen-go" --go-vtproto_out=$(GOPATH)/src --plugin protoc-gen-go-vtproto="${GOBIN}/protoc-gen-go-vtproto" --go-vtproto_opt=features=marshal+unmarshal+size pkg/grpc/protobuf-schemas/proto/waves/*.proto
-	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src --plugin protoc-gen-go-grpc="${GOBIN}/protoc-gen-go-grpc" pkg/grpc/protobuf-schemas/proto/waves/node/grpc/*.proto
-	@protoc --proto_path=pkg/ride/meta/proto --go_out=$(GOPATH)/src --plugin protoc-gen-go="${GOBIN}/protoc-gen-go" pkg/ride/meta/proto/*.proto
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src --plugin protoc-gen-go="${GOBIN}/protoc-gen-go" --go-wproto_out=$(GOPATH)/src --plugin protoc-gen-go-wproto="${GOBIN}/protoc-gen-go-wproto" --go-wproto_opt=features=marshal+unmarshal+size pkg/grpc/protobuf-schemas/proto/waves/*.proto
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=plugins=grpc:$(GOPATH)/src pkg/grpc/protobuf-schemas/proto/waves/node/grpc/*.proto
+	@protoc --proto_path=pkg/ride/meta/proto --go_out=plugins=grpc:$(GOPATH)/src pkg/ride/meta/proto/*.proto
 
 build-integration-linux:
 	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/integration ./cmd/integration
