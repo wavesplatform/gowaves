@@ -184,7 +184,7 @@ func TestOrderV1SigningRoundTrip(t *testing.T) {
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
 		if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
-			if r, err := o.Verify(MainNetScheme, pk); assert.NoError(t, err) {
+			if r, err := o.Verify(MainNetScheme); assert.NoError(t, err) {
 				assert.True(t, r)
 			}
 			if b, err := o.MarshalBinary(); assert.NoError(t, err) {
@@ -437,7 +437,7 @@ func TestOrderV2SigningRoundTrip(t *testing.T) {
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV2(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
 		if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
-			if r, err := o.Verify(MainNetScheme, pk); assert.NoError(t, err) {
+			if r, err := o.Verify(MainNetScheme); assert.NoError(t, err) {
 				assert.True(t, r)
 			}
 			if b, err := o.MarshalBinary(); assert.NoError(t, err) {
@@ -634,7 +634,7 @@ func TestOrderV3SigningRoundTrip(t *testing.T) {
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV3(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee, *fa)
 		if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
-			if r, err := o.Verify(MainNetScheme, pk); assert.NoError(t, err) {
+			if r, err := o.Verify(MainNetScheme); assert.NoError(t, err) {
 				assert.True(t, r)
 			}
 			if b, err := o.MarshalBinary(); assert.NoError(t, err) {
@@ -1645,7 +1645,7 @@ func TestEthereumOrderV4_Verify(t *testing.T) {
 		},
 	}
 
-	valid, err := ethOrder.ValidateEthereumSignature(ethTestScheme)
+	valid, err := ethOrder.VerifyEthereumSignature(ethTestScheme)
 	require.NoError(t, err)
 	require.True(t, valid)
 }

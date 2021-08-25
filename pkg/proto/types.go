@@ -414,7 +414,7 @@ type Order interface {
 	GetSenderPK() crypto.PublicKey
 	GenerateID(scheme Scheme) error
 	GetProofs() (*ProofsV1, error)
-	Verify(Scheme, crypto.PublicKey) (bool, error)
+	Verify(Scheme) (bool, error)
 	ToProtobuf(Scheme) *g.Order
 	ToProtobufSigned(Scheme) *g.Order
 	BinarySize() int
@@ -798,7 +798,7 @@ func (o *OrderV1) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV1) Verify(_ Scheme, publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV1) Verify(_ Scheme) (bool, error) {
 	if o.Signature == nil {
 		return false, errors.New("empty signature")
 	}
@@ -806,7 +806,7 @@ func (o *OrderV1) Verify(_ Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV1")
 	}
-	return crypto.Verify(publicKey, *o.Signature, b), nil
+	return crypto.Verify(o.SenderPK, *o.Signature, b), nil
 }
 
 //MarshalBinary writes order to its bytes representation.
@@ -1026,12 +1026,12 @@ func (o *OrderV2) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV2) Verify(_ Scheme, publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV2) Verify(_ Scheme) (bool, error) {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV2")
 	}
-	return o.Proofs.Verify(0, publicKey, b)
+	return o.Proofs.Verify(0, o.SenderPK, b)
 }
 
 //MarshalBinary writes order to its bytes representation.
@@ -1275,12 +1275,12 @@ func (o *OrderV3) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV3) Verify(_ Scheme, publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV3) Verify(_ Scheme) (bool, error) {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV3")
 	}
-	return o.Proofs.Verify(0, publicKey, b)
+	return o.Proofs.Verify(0, o.SenderPK, b)
 }
 
 //MarshalBinary writes order to its bytes representation.
@@ -1473,12 +1473,12 @@ func (o *OrderV4) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV4) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV4) Verify(scheme Scheme) (bool, error) {
 	b, err := o.BodyMarshalBinary(scheme)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV4")
 	}
-	return o.Proofs.Verify(0, publicKey, b)
+	return o.Proofs.Verify(0, o.SenderPK, b)
 }
 
 type EthereumOrderV4 struct {
@@ -1491,8 +1491,8 @@ func (o EthereumOrderV4) GetSenderPK() crypto.PublicKey {
 	panic(errors.New("BUG, CREATE REPORT: EthereumOrderV4 doesn't support waves public key."))
 }
 
-func (o EthereumOrderV4) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
-	panic(errors.New("BUG, CREATE REPORT: EthereumOrderV4 doesn't support waves Verify."))
+func (o EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
+	return o.VerifyEthereumSignature(scheme)
 }
 
 func (o EthereumOrderV4) ToProtobuf(scheme Scheme) *g.Order {
@@ -1534,7 +1534,7 @@ func (o EthereumOrderV4) ethereumTypedDataHash(scheme Scheme) (EthereumHash, err
 	return hash, nil
 }
 
-func (o EthereumOrderV4) ValidateEthereumSignature(scheme Scheme) (bool, error) {
+func (o EthereumOrderV4) VerifyEthereumSignature(scheme Scheme) (bool, error) {
 	hash, err := o.ethereumTypedDataHash(scheme)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to validate ethereum signature for EthereumOrderV4")
