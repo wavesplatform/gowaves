@@ -640,14 +640,10 @@ func (td *transactionDiffer) createDiffEthereumTransactionWithProofs(transaction
 		return td.createDiffEthereumTransferWaves(ethTx, info)
 	case *proto.EthereumTransferAssetsErc20Tx:
 		return td.createDiffEthereumErc20Invoke(ethTx, info)
-	case *proto.EthereumInvokeScriptTx:
-
 	default:
 		return txBalanceChanges{}, errors.New("wrong kind of ethereum transaction")
 
 	}
-	// TODO
-	return txBalanceChanges{}, nil
 }
 
 func (td *transactionDiffer) createDiffTransferWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {

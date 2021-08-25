@@ -971,12 +971,15 @@ func ethereumInvocationToObject(v int, scheme byte, tx *proto.EthereumTransactio
 	r["transactionId"] = RideBytes(tx.ID.Bytes())
 	r["caller"] = rideAddress(sender)
 	// TODO it needs to have a function for callerPK
-	//callerPK := RideBytes(common.Dup(tx.SenderPK.Bytes()))
-	//r["callerPublicKey"] = callerPK
+	callerEthereumPK, err := tx.FromPK()
+	if err != nil {
+		return nil, errors.Errorf("failed to get public key from ethereum transaction %v", err)
+	}
+	callerPK := RideBytes(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
+	r["callerPublicKey"] = callerPK
 	if v >= 5 {
 		r["originCaller"] = rideAddress(sender)
-		// TODO the same
-		//r["originCallerPublicKey"] = callerPK
+		r["originCallerPublicKey"] = callerPK
 	}
 
 	switch v {

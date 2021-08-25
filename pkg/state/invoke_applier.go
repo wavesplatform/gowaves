@@ -780,11 +780,10 @@ func (ia *invokeApplier) applyEthereumInvokeScript(tx *proto.EthereumTransaction
 	}
 	decodedData := info.decodedAbiData
 
-	// TODO
-	//scriptPK, err := ia.stor.scriptsStorage.NewestScriptPKByAddr(*scriptAddr, !info.initialisation)
-	//if err != nil {
-	//	return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
-	//}
+	scriptPK, err := ia.stor.scriptsStorage.NewestScriptPKByAddr(scriptAddr, !info.initialisation)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
+	}
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we done it before.
 	if len(decodedData.Payments) >= 2 && tree.LibVersion < 4 {
@@ -834,13 +833,13 @@ func (ia *invokeApplier) applyEthereumInvokeScript(tx *proto.EthereumTransaction
 	code, changes, err := ia.fallibleValidation(tx, &addlInvokeInfo{
 		fallibleValidationParams: info,
 		scriptAddr:               &scriptAddr,
-		//scriptPK:                 scriptPK,
-		scriptRuns:           scriptRuns,
-		failedChanges:        failedChanges,
-		actions:              scriptActions,
-		paymentSmartAssets:   paymentSmartAssets,
-		disableSelfTransfers: disableSelfTransfers,
-		libVersion:           byte(tree.LibVersion),
+		scriptPK:                 scriptPK,
+		scriptRuns:               scriptRuns,
+		failedChanges:            failedChanges,
+		actions:                  scriptActions,
+		paymentSmartAssets:       paymentSmartAssets,
+		disableSelfTransfers:     disableSelfTransfers,
+		libVersion:               byte(tree.LibVersion),
 	})
 	if err != nil {
 		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", tx.ID.String(), err.Error())

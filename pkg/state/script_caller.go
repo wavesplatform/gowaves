@@ -324,14 +324,17 @@ func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.Ethereu
 		return false, nil, errors.Wrap(err, "failed to choose takeString")
 	}
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
-	// TODO in needs to have a senderPK
-	//if tree.LibVersion >= 5 {
-	//
-	//	//env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)
-	//	//if err != nil {
-	//	//	return false, nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
-	//	//}
-	//}
+
+	if tree.LibVersion >= 5 {
+		sender, err := tx.WavesAddressFrom(a.settings.AddressSchemeCharacter)
+		if err != nil {
+			return false, nil, errors.Errorf("failed to get waves address from ethereum transaction %v", err)
+		}
+		env, err = ride.NewEthereumEnvironmentWithWrappedState(env, scriptPayments, sender)
+		if err != nil {
+			return false, nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+		}
+	}
 	decodedData := info.decodedAbiData
 
 	arguments := ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
