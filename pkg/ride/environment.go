@@ -55,8 +55,8 @@ func (ws *WrappedState) callee() proto.Address {
 	return proto.Address(ws.cle)
 }
 
-func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env Environment) error {
-	modifiedActions, err := ws.ApplyToState(actions, env)
+func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env Environment, isPayments bool) error {
+	modifiedActions, err := ws.ApplyToState(actions, env, isPayments)
 	if err != nil {
 		return err
 	}
@@ -723,7 +723,7 @@ func (ws *WrappedState) incrementInvCount() {
 	ws.invokeCount++
 }
 
-func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environment) ([]proto.ScriptAction, error) {
+func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environment, isPayments bool) ([]proto.ScriptAction, error) {
 	dataEntriesCount := 0
 	dataEntriesSize := 0
 	otherActionsCount := 0
@@ -837,9 +837,12 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				res.Sender = &senderPK
 			}
 
-			err = ws.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress, env)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of transfer action or attached payments")
+			if !isPayments {
+				err = ws.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress, env)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to pass validation of transfer action or attached payments")
+				}
+
 			}
 
 			searchBalance, searchAddr, err := ws.diff.findBalance(res.Recipient, res.Asset)

@@ -142,7 +142,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("failed to get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
-	err = ws.smartAppendActions(paymentActions, env)
+	err = ws.smartAppendActions(paymentActions, env, true)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to apply attachedPayments")
 	}
@@ -164,7 +164,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 			return nil, errors.Errorf(res.UserError())
 		}
 
-		err = ws.smartAppendActions(res.ScriptActions(), env)
+		err = ws.smartAppendActions(res.ScriptActions(), env, false)
 		if err != nil {
 			return nil, err
 		}
@@ -301,7 +301,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("failed get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
-	err = ws.smartAppendActions(paymentActions, env)
+	err = ws.smartAppendActions(paymentActions, env, true)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to apply attachedPayments")
 	}
@@ -328,7 +328,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 			return nil, errors.Errorf(res.UserError())
 		}
 
-		err = ws.smartAppendActions(res.ScriptActions(), env)
+		err = ws.smartAppendActions(res.ScriptActions(), env, false)
 		if err != nil {
 			return nil, err
 		}
