@@ -44,7 +44,7 @@ func createInvokeApplierTestObjects(t *testing.T) (*invokeApplierTestObjects, st
 }
 
 func (to *invokeApplierTestObjects) fallibleValidationParams(t *testing.T) *fallibleValidationParams {
-	info := defaultFallibleValidationParams(t)
+	info := defaultFallibleValidationParams()
 	err := to.state.stateDB.addBlock(info.block.BlockID())
 	assert.NoError(t, err)
 	return info

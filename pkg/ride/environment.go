@@ -182,6 +182,7 @@ func (ws *WrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key 
 
 	return ws.diff.state.RetrieveNewestIntegerEntry(account, key)
 }
+
 func (ws *WrappedState) RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
 	address, err := ws.diff.state.NewestRecipientToAddress(account)
 	if err != nil {
@@ -197,6 +198,7 @@ func (ws *WrappedState) RetrieveNewestBooleanEntry(account proto.Recipient, key 
 	}
 	return ws.diff.state.RetrieveNewestBooleanEntry(account, key)
 }
+
 func (ws *WrappedState) RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
 	address, err := ws.diff.state.NewestRecipientToAddress(account)
 	if err != nil {
@@ -212,6 +214,7 @@ func (ws *WrappedState) RetrieveNewestStringEntry(account proto.Recipient, key s
 	}
 	return ws.diff.state.RetrieveNewestStringEntry(account, key)
 }
+
 func (ws *WrappedState) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 	address, err := ws.diff.state.NewestRecipientToAddress(account)
 	if err != nil {
@@ -227,6 +230,7 @@ func (ws *WrappedState) RetrieveNewestBinaryEntry(account proto.Recipient, key s
 	}
 	return ws.diff.state.RetrieveNewestBinaryEntry(account, key)
 }
+
 func (ws *WrappedState) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
 	if cost := ws.diff.findSponsorship(assetID); cost != nil {
 		if *cost == 0 {
@@ -236,41 +240,34 @@ func (ws *WrappedState) NewestAssetIsSponsored(assetID crypto.Digest) (bool, err
 	}
 	return ws.diff.state.NewestAssetIsSponsored(assetID)
 }
+
 func (ws *WrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
 	searchNewAsset := ws.diff.findNewAsset(assetID)
-
 	if searchNewAsset == nil {
-
 		assetFromStore, err := ws.diff.state.NewestAssetInfo(assetID)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get asset's info from store")
 		}
-
 		if oldAssetFromDiff := ws.diff.findOldAsset(assetID); oldAssetFromDiff != nil {
 			quantity := int64(assetFromStore.Quantity) + oldAssetFromDiff.diffQuantity
 
 			assetFromStore.Quantity = uint64(quantity)
 			return assetFromStore, nil
 		}
-
 		return assetFromStore, nil
 	}
-
 	issuerPK, err := ws.NewestScriptPKByAddr(searchNewAsset.dAppIssuer)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get issuerPK from address in NewestAssetInfo")
 	}
-
 	scripted := false
 	if searchNewAsset.script != nil {
 		scripted = true
 	}
-
 	sponsored, err := ws.NewestAssetIsSponsored(assetID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find out sponsoring of the asset")
 	}
-
 	return &proto.AssetInfo{
 		ID:              assetID,
 		Quantity:        uint64(searchNewAsset.quantity),
@@ -282,6 +279,7 @@ func (ws *WrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo
 		Sponsored:       sponsored,
 	}, nil
 }
+
 func (ws *WrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
 	searchNewAsset := ws.diff.findNewAsset(assetID)
 
@@ -352,6 +350,7 @@ func (ws *WrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullA
 func (ws *WrappedState) NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error) {
 	return ws.diff.state.NewestHeaderByHeight(height)
 }
+
 func (ws *WrappedState) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
 	return ws.diff.state.BlockVRF(blockHeader, height)
 }
@@ -359,6 +358,7 @@ func (ws *WrappedState) BlockVRF(blockHeader *proto.BlockHeader, height proto.He
 func (ws *WrappedState) EstimatorVersion() (int, error) {
 	return ws.diff.state.EstimatorVersion()
 }
+
 func (ws *WrappedState) IsNotFound(err error) bool {
 	return ws.diff.state.IsNotFound(err)
 }
