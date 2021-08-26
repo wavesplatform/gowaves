@@ -185,7 +185,7 @@ type Transaction interface {
 	GetTypeInfo() TransactionTypeInfo
 	GetVersion() byte
 	GetID(scheme Scheme) ([]byte, error)
-	GetSenderPK() crypto.PublicKey
+	GetSender(scheme Scheme) (Address, error)
 	GetFee() uint64
 	GetTimestamp() uint64
 
@@ -251,11 +251,10 @@ func MarshalTxBody(scheme Scheme, tx Transaction) ([]byte, error) {
 
 // TransactionToProtobufCommon converts to protobuf structure with fields
 // that are common for all of the transaction types.
-func TransactionToProtobufCommon(scheme Scheme, tx Transaction) *g.Transaction {
-	pk := tx.GetSenderPK()
+func TransactionToProtobufCommon(scheme Scheme, senderPublicKey []byte, tx Transaction) *g.Transaction {
 	return &g.Transaction{
 		ChainId:         int32(scheme),
-		SenderPublicKey: pk.Bytes(),
+		SenderPublicKey: senderPublicKey,
 		Timestamp:       int64(tx.GetTimestamp()),
 		Version:         int32(tx.GetVersion()),
 	}
@@ -458,6 +457,10 @@ func (tx Genesis) GetSenderPK() crypto.PublicKey {
 	return crypto.PublicKey{}
 }
 
+func (tx Genesis) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, crypto.PublicKey{})
+}
+
 func (tx *Genesis) generateID(scheme Scheme) error {
 	body, err := MarshalTxBody(scheme, tx)
 	if err != nil {
@@ -629,7 +632,8 @@ func (tx *Genesis) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 		RecipientAddress: addrBody,
 		Amount:           int64(tx.Amount),
 	}}
-	res := TransactionToProtobufCommon(scheme, tx)
+	pk := tx.GetSenderPK()
+	res := TransactionToProtobufCommon(scheme, pk.Bytes(), tx)
 	res.Data = txData
 	return res, nil
 }
@@ -715,6 +719,10 @@ func (tx *Payment) GenerateID(_ Scheme) error {
 
 func (tx Payment) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx Payment) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx Payment) GetID(scheme Scheme) ([]byte, error) {
@@ -945,7 +953,7 @@ func (tx *Payment) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 		Amount:           int64(tx.Amount),
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -988,6 +996,10 @@ func (i Issue) BinarySize() int {
 
 func (i Issue) GetSenderPK() crypto.PublicKey {
 	return i.SenderPK
+}
+
+func (i Issue) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, i.SenderPK)
 }
 
 func (i Issue) GetFee() uint64 {
@@ -1111,6 +1123,10 @@ func (tr Transfer) BinarySize() int {
 
 func (tr Transfer) GetSenderPK() crypto.PublicKey {
 	return tr.SenderPK
+}
+
+func (tr Transfer) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tr.SenderPK)
 }
 
 func (tr Transfer) GetFee() uint64 {
@@ -1314,6 +1330,10 @@ func (r Reissue) GetSenderPK() crypto.PublicKey {
 	return r.SenderPK
 }
 
+func (r Reissue) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, r.SenderPK)
+}
+
 func (r Reissue) GetFee() uint64 {
 	return r.Fee
 }
@@ -1397,6 +1417,10 @@ func (b Burn) ToProtobuf() *g.Transaction_Burn {
 
 func (b Burn) GetSenderPK() crypto.PublicKey {
 	return b.SenderPK
+}
+
+func (b Burn) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, b.SenderPK)
 }
 
 func (b Burn) GetFee() uint64 {
@@ -1493,6 +1517,10 @@ func (l Lease) GetSenderPK() crypto.PublicKey {
 	return l.SenderPK
 }
 
+func (l Lease) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, l.SenderPK)
+}
+
 func (l Lease) GetFee() uint64 {
 	return l.Fee
 }
@@ -1584,6 +1612,10 @@ func (lc LeaseCancel) GetSenderPK() crypto.PublicKey {
 	return lc.SenderPK
 }
 
+func (lc LeaseCancel) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, lc.SenderPK)
+}
+
 func (lc LeaseCancel) GetFee() uint64 {
 	return lc.Fee
 }
@@ -1648,6 +1680,10 @@ func (ca CreateAlias) ToProtobuf() *g.Transaction_CreateAlias {
 
 func (ca CreateAlias) GetSenderPK() crypto.PublicKey {
 	return ca.SenderPK
+}
+
+func (ca CreateAlias) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, ca.SenderPK)
 }
 
 func (ca CreateAlias) GetFee() uint64 {

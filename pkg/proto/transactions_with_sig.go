@@ -237,7 +237,7 @@ func (tx *IssueWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *IssueWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.Issue.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -516,7 +516,7 @@ func (tx *TransferWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *TransferWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData, err := tx.Transfer.ToProtobuf()
 	if err != nil {
 		return nil, err
@@ -776,7 +776,7 @@ func (tx *ReissueWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *ReissueWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.Reissue.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -1003,7 +1003,7 @@ func (tx *BurnWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *BurnWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.Burn.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -1092,6 +1092,10 @@ func (tx *ExchangeWithSig) Clone() *ExchangeWithSig {
 
 func (tx ExchangeWithSig) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx ExchangeWithSig) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx ExchangeWithSig) GetBuyOrder() (Order, error) {
@@ -1476,7 +1480,7 @@ func (tx *ExchangeWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 		Orders:         orders,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -1708,7 +1712,7 @@ func (tx *LeaseWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *LeaseWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData, err := tx.Lease.ToProtobuf()
 	if err != nil {
 		return nil, err
@@ -1941,7 +1945,7 @@ func (tx *LeaseCancelWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *LeaseCancelWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.LeaseCancel.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -2200,7 +2204,7 @@ func (tx *CreateAliasWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *CreateAliasWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.CreateAlias.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee

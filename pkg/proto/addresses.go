@@ -52,6 +52,7 @@ type Address interface {
 	ID() AddressID
 	Bytes() []byte
 	String() string
+	Equal(address Address) bool
 }
 
 // EthereumAddress is the first 20 bytes of Public Key's hash for the Waves address, or the 20 bytes of an Ethereum address.
@@ -108,6 +109,17 @@ func (ea EthereumAddress) Hex() string {
 
 func (ea EthereumAddress) String() string {
 	return ea.Hex()
+}
+
+func (ea EthereumAddress) Equal(address Address) bool {
+	switch other := address.(type) {
+	case EthereumAddress, *EthereumAddress:
+		return bytes.Equal(ea.Bytes(), other.Bytes())
+	case WavesAddress, *WavesAddress:
+		return false
+	default:
+		panic(errors.Errorf("BUG, CREATE REPORT: unknown address type %T", address))
+	}
 }
 
 func (ea *EthereumAddress) checksumHex() []byte {
@@ -169,6 +181,17 @@ func (a WavesAddress) ID() AddressID {
 // String produces the BASE58 string representation of the WavesAddress.
 func (a WavesAddress) String() string {
 	return base58.Encode(a[:])
+}
+
+func (a WavesAddress) Equal(address Address) bool {
+	switch other := address.(type) {
+	case WavesAddress, *WavesAddress:
+		return bytes.Equal(a.Bytes(), other.Bytes())
+	case EthereumAddress, *EthereumAddress:
+		return false
+	default:
+		panic(errors.Errorf("BUG, CREATE REPORT: unknown address type %T", address))
+	}
 }
 
 // MarshalJSON is the custom JSON marshal function for the WavesAddress.
@@ -318,10 +341,6 @@ func (a *WavesAddress) Valid() (bool, error) {
 // Bytes converts the fixed-length byte array of the WavesAddress to a slice of bytes.
 func (a WavesAddress) Bytes() []byte {
 	return a[:]
-}
-
-func (a *WavesAddress) Eq(b WavesAddress) bool {
-	return bytes.Equal(a.Bytes(), b.Bytes())
 }
 
 func addressChecksum(b []byte) ([]byte, error) {

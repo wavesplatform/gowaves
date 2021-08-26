@@ -495,7 +495,7 @@ func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *prot
 				return errors.Wrap(err, "failed to validate TransferScriptAction")
 			}
 		}
-		if res.Recipient.Address.Eq(senderAddress) {
+		if res.Recipient.Address.Equal(senderAddress) {
 			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
 		}
 	}
@@ -675,7 +675,7 @@ func (ws *WrappedState) validateLeaseAction(otherActionsCount *int, res *proto.L
 			return errors.Wrap(err, "failed to validate TransferScriptAction")
 		}
 	}
-	if res.Recipient.Address.Eq(senderAddress) {
+	if res.Recipient.Address.Equal(senderAddress) {
 		return errors.New("leasing to DApp itself is forbidden")
 	}
 

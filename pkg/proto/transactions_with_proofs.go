@@ -109,7 +109,7 @@ func (tx *IssueWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *IssueWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.Issue.ToProtobuf()
 	txData.Issue.Script = tx.Script
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
@@ -460,7 +460,7 @@ func (tx *TransferWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *TransferWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData, err := tx.Transfer.ToProtobuf()
 	if err != nil {
 		return nil, err
@@ -777,7 +777,7 @@ func (tx *ReissueWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *ReissueWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.Reissue.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -1028,7 +1028,7 @@ func (tx *BurnWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *BurnWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.Burn.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -1304,7 +1304,7 @@ func (tx *ExchangeWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) 
 		Orders:         orders,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -1369,6 +1369,10 @@ func (tx *ExchangeWithProofs) Clone() *ExchangeWithProofs {
 
 func (tx ExchangeWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx ExchangeWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx ExchangeWithProofs) GetBuyOrder() (Order, error) {
@@ -1894,7 +1898,7 @@ func (tx *LeaseWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *LeaseWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData, err := tx.Lease.ToProtobuf()
 	if err != nil {
 		return nil, err
@@ -2133,7 +2137,7 @@ func (tx *LeaseCancelWithProofs) UnmarshalSignedFromProtobuf(data []byte) error 
 }
 
 func (tx *LeaseCancelWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.LeaseCancel.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -2390,7 +2394,7 @@ func (tx *CreateAliasWithProofs) UnmarshalSignedFromProtobuf(data []byte) error 
 }
 
 func (tx *CreateAliasWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.CreateAlias.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -2708,6 +2712,10 @@ func (tx MassTransferWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
+func (tx MassTransferWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, crypto.PublicKey{})
+}
+
 func (tx MassTransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -2986,7 +2994,7 @@ func (tx *MassTransferWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, err
 		Attachment: tx.Attachment,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -3087,6 +3095,10 @@ func (tx *DataWithProofs) GenerateID(scheme Scheme) error {
 
 func (tx DataWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx DataWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx DataWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -3398,7 +3410,7 @@ func (tx *DataWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 		Data: entries,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -3478,6 +3490,10 @@ func (tx *SetScriptWithProofs) GenerateID(scheme Scheme) error {
 
 func (tx SetScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx SetScriptWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx SetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -3699,7 +3715,7 @@ func (tx *SetScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error)
 		Script: tx.Script,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -3766,6 +3782,10 @@ func (tx *SponsorshipWithProofs) GenerateID(scheme Scheme) error {
 
 func (tx SponsorshipWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx SponsorshipWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx SponsorshipWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -3980,7 +4000,7 @@ func (tx *SponsorshipWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, erro
 		MinFee: &g.Amount{AssetId: tx.AssetID.Bytes(), Amount: int64(tx.MinAssetFee)},
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -4052,6 +4072,10 @@ func (tx *SetAssetScriptWithProofs) GenerateID(scheme Scheme) error {
 
 func (tx SetAssetScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx SetAssetScriptWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx SetAssetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -4285,7 +4309,7 @@ func (tx *SetAssetScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, e
 		Script:  tx.Script,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -4354,6 +4378,10 @@ func (tx InvokeScriptWithProofs) GetVersion() byte {
 
 func (tx InvokeScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx InvokeScriptWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx InvokeScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -4712,7 +4740,7 @@ func (tx *InvokeScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, err
 		Payments:     payments,
 	}}
 	fee := &g.Amount{AssetId: tx.FeeAsset.ToID(), Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -4774,6 +4802,10 @@ func (tx UpdateAssetInfoWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx UpdateAssetInfoWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx UpdateAssetInfoWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx UpdateAssetInfoWithProofs) GetFee() uint64 {
@@ -4909,7 +4941,7 @@ func (tx *UpdateAssetInfoWithProofs) UnmarshalSignedFromProtobuf(data []byte) er
 }
 
 func (tx *UpdateAssetInfoWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := &g.Transaction_UpdateAssetInfo{
 		UpdateAssetInfo: &g.UpdateAssetInfoTransactionData{AssetId: tx.AssetID.Bytes(), Name: tx.Name, Description: tx.Description},
 	}

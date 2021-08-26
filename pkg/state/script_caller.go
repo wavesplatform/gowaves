@@ -86,11 +86,15 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 }
 
 func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *appendTxParams) error {
-	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	senderAddr, err := tx.GetSender(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return err
 	}
-	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !params.initialisation)
+	senderWavesAddr, ok := senderAddr.(proto.WavesAddress)
+	if !ok {
+		return errors.Errorf("address %q must be a waves address, not %T", senderAddr.String(), senderAddr)
+	}
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderWavesAddr, !params.initialisation)
 	if err != nil {
 		return err
 	}
@@ -106,7 +110,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	if err := env.ChooseTakeString(params.rideV5Activated); err != nil {
 		return errors.Wrap(err, "failed to initialize environment")
 	}
-	env.SetThisFromAddress(senderAddr)
+	env.SetThisFromAddress(senderWavesAddr)
 	env.SetLastBlock(params.blockInfo)
 	err = env.SetTransaction(tx)
 	if err != nil {
@@ -127,7 +131,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For account script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderAddr, !params.initialisation)
+		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr, !params.initialisation)
 		if err != nil {
 			return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 		}

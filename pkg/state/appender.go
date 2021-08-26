@@ -439,11 +439,15 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		return errs.Extend(err, "check duplicate tx ids")
 	}
 	// Verify tx signature and internal data correctness.
-	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	senderAddr, err := tx.GetSender(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return errs.Extend(err, "failed to get sender addr by pk")
 	}
-	accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !params.initialisation)
+	senderWavesAddr, ok := senderAddr.(proto.WavesAddress)
+	if !ok {
+		return errors.Errorf("address %q must be a waves address, not %T", senderAddr.String(), senderAddr)
+	}
+	accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr, !params.initialisation)
 	if err != nil {
 		return errs.Extend(err, "account has verifier")
 	}
