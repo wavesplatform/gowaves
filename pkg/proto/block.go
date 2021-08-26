@@ -26,7 +26,6 @@ const (
 	NgBlockVersion
 	RewardBlockVersion
 	ProtobufBlockVersion
-	WrappedTransactionsBlockVersion
 )
 
 type Marshaller interface {
@@ -577,20 +576,11 @@ func (b *Block) ToProtobuf(scheme Scheme) (*g.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch b.Version {
-	case WrappedTransactionsBlockVersion:
-		protoTransactions, err := b.Transactions.ToProtobufWrapped(scheme)
-		if err != nil {
-			return nil, err
-		}
-		protoBlock.WrappedTransactions = protoTransactions
-	default:
-		protoTransactions, err := b.Transactions.ToProtobuf(scheme)
-		if err != nil {
-			return nil, err
-		}
-		protoBlock.WavesTransactions = protoTransactions
+	protoTransactions, err := b.Transactions.ToProtobuf(scheme)
+	if err != nil {
+		return nil, err
 	}
+	protoBlock.Transactions = protoTransactions
 	return protoBlock, nil
 }
 
@@ -603,7 +593,7 @@ func (b *Block) ToProtobufWithHeight(currentScheme Scheme, height uint64) (*pb.B
 	if err != nil {
 		return nil, err
 	}
-	block.Block.WavesTransactions = txs
+	block.Block.Transactions = txs
 	return block, nil
 }
 
@@ -892,18 +882,6 @@ func (a Transactions) ToProtobuf(scheme Scheme) ([]*g.SignedTransaction, error) 
 	return protoTransactions, nil
 }
 
-func (a Transactions) ToProtobufWrapped(scheme Scheme) ([]*g.TransactionWrapper, error) {
-	protoTransactions := make([]*g.TransactionWrapper, len(a))
-	for i, tx := range a {
-		protoTx, err := tx.ToProtobufWrapped(scheme)
-		if err != nil {
-			return nil, err
-		}
-		protoTransactions[i] = protoTx
-	}
-	return protoTransactions, nil
-}
-
 func (a *Transactions) UnmarshalFromProtobuf(data []byte, blockVersion BlockVersion) error {
 	transactions := Transactions{}
 	for len(data) > 0 {
@@ -912,19 +890,11 @@ func (a *Transactions) UnmarshalFromProtobuf(data []byte, blockVersion BlockVers
 			return errors.New("invalid data size")
 		}
 		txBytes := data[4 : txSize+4]
-		if blockVersion >= WrappedTransactionsBlockVersion {
-			tx, err := WrappedTxFromProtobuf(txBytes)
-			if err != nil {
-				return err
-			}
-			transactions = append(transactions, tx)
-		} else {
-			tx, err := SignedTxFromProtobuf(txBytes)
-			if err != nil {
-				return err
-			}
-			transactions = append(transactions, tx)
+		tx, err := SignedTxFromProtobuf(txBytes)
+		if err != nil {
+			return err
 		}
+		transactions = append(transactions, tx)
 		data = data[txSize+4:]
 	}
 	*a = transactions
