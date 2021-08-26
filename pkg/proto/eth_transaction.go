@@ -297,12 +297,12 @@ func (tx *EthereumTransaction) To() *EthereumAddress { return tx.inner.to().copy
 
 // From returns the sender address of the transaction.
 // Returns error if transaction doesn't pass validation.
-func (tx *EthereumTransaction) From() (*EthereumAddress, error) {
+func (tx *EthereumTransaction) From() (EthereumAddress, error) {
 	if _, err := tx.Validate(); err != nil {
-		return nil, err
+		return EthereumAddress{}, err
 	}
 	addr := tx.senderPK.EthereumAddress()
-	return &addr, nil
+	return addr, nil
 }
 
 // FromPK returns the sender public key of the transaction.
