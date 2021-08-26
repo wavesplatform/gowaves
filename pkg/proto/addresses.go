@@ -53,6 +53,7 @@ type Address interface {
 	Bytes() []byte
 	String() string
 	Equal(address Address) bool
+	ToWavesAddress(scheme Scheme) (WavesAddress, error)
 }
 
 // EthereumAddress is the first 20 bytes of Public Key's hash for the Waves address, or the 20 bytes of an Ethereum address.
@@ -94,10 +95,6 @@ func (ea EthereumAddress) ID() AddressID {
 	return id
 }
 
-func (ea EthereumAddress) WavesAddress(scheme byte) (WavesAddress, error) {
-	return newAddressFromPublicKeyHash(scheme, ea[:])
-}
-
 // Hash converts an address to a EthereumHash by left-padding it with zeros.
 func (ea EthereumAddress) Hash() EthereumHash {
 	return BytesToEthereumHash(ea[:])
@@ -120,6 +117,10 @@ func (ea EthereumAddress) Equal(address Address) bool {
 	default:
 		panic(errors.Errorf("BUG, CREATE REPORT: unknown address type %T", address))
 	}
+}
+
+func (ea EthereumAddress) ToWavesAddress(scheme Scheme) (WavesAddress, error) {
+	return newAddressFromPublicKeyHash(scheme, ea[:])
 }
 
 func (ea *EthereumAddress) checksumHex() []byte {
@@ -194,6 +195,10 @@ func (a WavesAddress) Equal(address Address) bool {
 	}
 }
 
+func (a WavesAddress) ToWavesAddress(_ Scheme) (WavesAddress, error) {
+	return a, nil
+}
+
 // MarshalJSON is the custom JSON marshal function for the WavesAddress.
 func (a WavesAddress) MarshalJSON() ([]byte, error) {
 	return B58Bytes(a[:]).MarshalJSON()
@@ -227,7 +232,7 @@ func NewAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) (WavesAddr
 	return newAddressFromPublicKeyHash(scheme, h[:])
 }
 
-// newAddressFromPublicKeyHash produces an WavesAddress from given public key hash.
+// newAddressFromPublicKeyHash produces an WavesAddress from given public key hash (AddressID).
 func newAddressFromPublicKeyHash(scheme byte, pubKeyHash []byte) (WavesAddress, error) {
 	var addr WavesAddress
 	addr[0] = wavesAddressVersion
