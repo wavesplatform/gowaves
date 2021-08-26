@@ -127,17 +127,9 @@ func (tx *IssueWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *IssueWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 func (tx IssueWithProofs) GetTypeInfo() TransactionTypeInfo {
@@ -480,17 +472,9 @@ func (tx *TransferWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransact
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *TransferWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 func (tx TransferWithProofs) GetTypeInfo() TransactionTypeInfo {
@@ -794,17 +778,9 @@ func (tx *ReissueWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransacti
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *ReissueWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 func (tx ReissueWithProofs) GetTypeInfo() TransactionTypeInfo {
@@ -1045,17 +1021,9 @@ func (tx *BurnWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction,
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *BurnWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 func (tx BurnWithProofs) GetTypeInfo() TransactionTypeInfo {
@@ -1319,17 +1287,9 @@ func (tx *ExchangeWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransact
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *ExchangeWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 func (tx ExchangeWithProofs) GetTypeInfo() TransactionTypeInfo {
@@ -1918,17 +1878,9 @@ func (tx *LeaseWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *LeaseWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 func (tx LeaseWithProofs) GetTypeInfo() TransactionTypeInfo {
@@ -2154,17 +2106,9 @@ func (tx *LeaseCancelWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTrans
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *LeaseCancelWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 func (tx LeaseCancelWithProofs) GetTypeInfo() TransactionTypeInfo {
@@ -2411,17 +2355,9 @@ func (tx *CreateAliasWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTrans
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *CreateAliasWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 func (tx CreateAliasWithProofs) GetTypeInfo() TransactionTypeInfo {
@@ -3009,17 +2945,9 @@ func (tx *MassTransferWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTran
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *MassTransferWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 func (tx *MassTransferWithProofs) UnmarshalJSON(data []byte) error {
@@ -3434,17 +3362,9 @@ func (tx *DataWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction,
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *DataWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 //SetScriptWithProofs is a transaction to set smart script on an account.
@@ -3730,17 +3650,9 @@ func (tx *SetScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransac
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *SetScriptWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 //SponsorshipWithProofs is a transaction to setup fee sponsorship for an asset.
@@ -4015,17 +3927,9 @@ func (tx *SponsorshipWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTrans
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *SponsorshipWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 //SetAssetScriptWithProofs is a transaction to set smart script on an asset.
@@ -4324,17 +4228,9 @@ func (tx *SetAssetScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTr
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *SetAssetScriptWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 type InvokeScriptWithProofs struct {
@@ -4755,17 +4651,9 @@ func (tx *InvokeScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTran
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *InvokeScriptWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }
 
 type UpdateAssetInfoWithProofs struct {
@@ -4960,15 +4848,7 @@ func (tx *UpdateAssetInfoWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedT
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
-}
-
-func (tx *UpdateAssetInfoWithProofs) ToProtobufWrapped(scheme Scheme) (*g.TransactionWrapper, error) {
-	stx, err := tx.ToProtobufSigned(scheme)
-	if err != nil {
-		return nil, err
-	}
-	return &g.TransactionWrapper{Transaction: &g.TransactionWrapper_WavesTransaction{WavesTransaction: stx}}, nil
 }

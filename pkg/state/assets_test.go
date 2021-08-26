@@ -39,7 +39,7 @@ func TestIssueAsset(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
-	asset := defaultAssetInfo(false)
+	asset := defaultAssetInfo(proto.DigestTail(assetID), false)
 	id := proto.AssetIDFromDigest(assetID)
 	err = to.assets.issueAsset(id, asset, blockID0)
 	assert.NoError(t, err, "failed to issue asset")
@@ -70,7 +70,7 @@ func TestReissueAsset(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
-	asset := defaultAssetInfo(true)
+	asset := defaultAssetInfo(proto.DigestTail(assetID), true)
 	id := proto.AssetIDFromDigest(assetID)
 	err = to.assets.issueAsset(id, asset, blockID0)
 	assert.NoError(t, err, "failed to issue asset")
@@ -100,7 +100,7 @@ func TestBurnAsset(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
-	asset := defaultAssetInfo(false)
+	asset := defaultAssetInfo(proto.DigestTail(assetID), false)
 	id := proto.AssetIDFromDigest(assetID)
 	err = to.assets.issueAsset(id, asset, blockID0)
 	assert.NoError(t, err, "failed to issue asset")
@@ -129,7 +129,7 @@ func TestUpdateAssetInfo(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
-	asset := defaultAssetInfo(false)
+	asset := defaultAssetInfo(proto.DigestTail(assetID), false)
 	id := proto.AssetIDFromDigest(assetID)
 	err = to.assets.issueAsset(id, asset, blockID0)
 	assert.NoError(t, err, "failed to issue asset")
@@ -152,6 +152,7 @@ func TestUpdateAssetInfo(t *testing.T) {
 	resAsset, err = to.assets.assetInfo(id, true)
 	assert.NoError(t, err, "failed to get asset info")
 	assert.Equal(t, asset, resAsset)
+	assert.Equal(t, assetID, proto.ReconstructDigest(id, resAsset.tail))
 }
 
 func TestNewestLastUpdateHeight(t *testing.T) {
@@ -168,7 +169,7 @@ func TestNewestLastUpdateHeight(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	assetID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{0xff}, crypto.DigestSize))
 	assert.NoError(t, err, "failed to create digest from bytes")
-	asset := defaultAssetInfo(false)
+	asset := defaultAssetInfo(proto.DigestTail(assetID), false)
 	id := proto.AssetIDFromDigest(assetID)
 	err = to.assets.issueAsset(id, asset, blockID0)
 	assert.NoError(t, err, "failed to issue asset")
@@ -204,7 +205,7 @@ func TestAssetsUncertain(t *testing.T) {
 	assert.NoError(t, err, "failed to create digest from bytes")
 
 	// Issue uncertain asset and check it can be retrieved with newestAssetInfo().
-	asset := defaultAssetInfo(false)
+	asset := defaultAssetInfo(proto.DigestTail(assetID), false)
 	id := proto.AssetIDFromDigest(assetID)
 	to.assets.issueAssetUncertain(id, asset)
 	inf, err := to.assets.newestAssetInfo(id, true)
