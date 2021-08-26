@@ -24,7 +24,7 @@ func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	return MarshalToProtobufDeterministic(pbTx)
+	return pbTx.MarshalVTFlat()
 }
 
 func TxFromProtobuf(data []byte) (Transaction, error) {
@@ -392,7 +392,7 @@ func (c *ProtobufConverter) transfers(scheme byte, transfers []*g.MassTransferTr
 }
 
 func (c *ProtobufConverter) attachment(att []byte) Attachment {
-	// this cast is required, tests fill fall if remove!
+	// this cast is required, tests fill fall if removed!
 	if len(att) == 0 {
 		return Attachment{}
 	}
