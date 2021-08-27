@@ -60,7 +60,7 @@ func NewEthereumSignatureFromBytes(b []byte) (EthereumSignature, error) {
 	sigLen := len(b)
 	if sigLen != ethereumSignatureLength && sigLen != weirdEthereumSignatureLength {
 		return EthereumSignature{},
-			errors.Errorf("ethSignature should be of length %d or %d",
+			errors.Errorf("eip712Signature should be of length %d or %d",
 				ethereumSignatureLength, weirdEthereumSignatureLength)
 	}
 	sig := make([]byte, sigLen)

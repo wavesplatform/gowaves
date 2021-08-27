@@ -1645,7 +1645,7 @@ func TestEthereumOrderV4_Verify(t *testing.T) {
 		},
 	}
 
-	valid, err := ethOrder.VerifyEthereumSignature(ethTestScheme)
+	valid, err := ethOrder.Verify(ethTestScheme)
 	require.NoError(t, err)
 	require.True(t, valid)
 }

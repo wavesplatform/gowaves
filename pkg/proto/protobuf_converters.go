@@ -226,7 +226,6 @@ func (c *ProtobufConverter) Recipient(scheme byte, recipient *g.Recipient) (Reci
 	if recipient == nil {
 		return Recipient{}, errors.New("empty recipient")
 	}
-	// TODO(nickeskov): suppoet ethereum addr in recipient
 	switch r := recipient.Recipient.(type) {
 	case *g.Recipient_PublicKeyHash:
 		addr, err := c.Address(scheme, r.PublicKeyHash)
@@ -341,7 +340,7 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 	if o.Version < 4 {
 		if len(o.Eip712Signature) > 0 {
 			// nickeskov: see isValid method in com/wavesplatform/transaction/assets/exchange/Order.scala
-			c.err = errors.New("ethSignature available only in OrderV4")
+			c.err = errors.New("eip712Signature available only in OrderV4")
 			return nil
 		}
 		body.SenderPK = c.publicKey(o.SenderPublicKey)
@@ -358,7 +357,7 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 		if len(o.Eip712Signature) != 0 {
 			if len(o.Proofs) != 0 {
 				// nickeskov: see isValid method in com/wavesplatform/transaction/assets/exchange/Order.scala
-				c.err = errors.New("ethSignature excludes proofs")
+				c.err = errors.New("eip712Signature excludes proofs")
 				return nil
 			}
 			ethPubKey, err := NewEthereumPublicKeyFromBytes(o.SenderPublicKey)

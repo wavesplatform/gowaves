@@ -411,9 +411,6 @@ type Order interface {
 	GetTimestamp() uint64
 	GetMatcherFee() uint64
 	GetMatcherFeeAsset() OptionalAsset
-	// GetSenderPK returns sender public key. It works only for WavesOrder.
-	// TODO(nickeskov): remove that
-	GetSenderPK() crypto.PublicKey
 	GetSenderPKBytes() []byte
 	GetSender(scheme Scheme) (Address, error)
 	GenerateID(scheme Scheme) error
@@ -1526,7 +1523,13 @@ func (o *EthereumOrderV4) GenerateID(scheme Scheme) error {
 }
 
 func (o *EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
-	return o.VerifyEthereumSignature(scheme)
+	hash, err := o.ethereumTypedDataHash(scheme)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to validate ethereum signature for EthereumOrderV4")
+	}
+	// TODO(nickeskov): Should we validate 'V' signature value?
+	_, r, s := o.EthereumSignature.AsVRS()
+	return VerifyEthereumSignature(&o.EthereumSenderPK, r, s, hash.Bytes()), nil
 }
 
 func (o *EthereumOrderV4) Sign(_ Scheme, _ crypto.SecretKey) error {
@@ -1576,16 +1579,6 @@ func (o EthereumOrderV4) ethereumTypedDataHash(scheme Scheme) (EthereumHash, err
 		return EthereumHash{}, errors.Wrap(err, "failed calculate ethereum typed data hash for EthereumOrderV4")
 	}
 	return hash, nil
-}
-
-func (o *EthereumOrderV4) VerifyEthereumSignature(scheme Scheme) (bool, error) {
-	hash, err := o.ethereumTypedDataHash(scheme)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to validate ethereum signature for EthereumOrderV4")
-	}
-	// TODO(nickeskov): Should we validate 'V' signature value?
-	_, r, s := o.EthereumSignature.AsVRS()
-	return VerifyEthereumSignature(&o.EthereumSenderPK, r, s, hash.Bytes()), nil
 }
 
 func buildEthereumOrderV4TypedData(scheme Scheme, message ethereumTypedDataMessage) ethereumTypedData {
