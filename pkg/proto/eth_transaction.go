@@ -7,7 +7,6 @@ import (
 	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
-	protobuf "google.golang.org/protobuf/proto"
 	"io"
 	"math/big"
 )
@@ -111,7 +110,6 @@ func (tx *EthereumInvokeScriptTx) Type() string {
 type EthereumTransaction struct {
 	inner           EthereumTxData
 	innerBinarySize int
-	sender          *EthereumAddress
 	TxKind          EthereumTransactionKind
 	ID              *crypto.Digest
 	senderPK        *EthereumPublicKey
@@ -234,28 +232,27 @@ func (tx *EthereumTransaction) BinarySize() int {
 	return tx.GetTypeInfo().Type.BinarySize() + tx.innerBinarySize
 }
 
-func (tx *EthereumTransaction) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
-	// TODO(nickeskov): Is it correct?
-	pb, err := tx.ToProtobufWrapped(scheme)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed 'MarshalToProtobuf' EthereumTransaction")
-	}
-	data, err := protobuf.MarshalOptions{Deterministic: true}.Marshal(pb)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal protobuf message ('TransactionWrapped') to bytes")
-	}
-	return data, nil
+func (tx *EthereumTransaction) MarshalToProtobuf(_ Scheme) ([]byte, error) {
+	return nil, errors.New("EthereumTransaction does not support 'MarshalToProtobuf' method.")
 }
 
-func (tx *EthereumTransaction) UnmarshalFromProtobuf(bytes []byte) error {
-	t, err := WrappedTxFromProtobuf(bytes)
+func (tx *EthereumTransaction) UnmarshalFromProtobuf(_ []byte) error {
+	return errors.New("EthereumTransaction does not support 'UnmarshalFromProtobuf' method.")
+}
+
+func (tx *EthereumTransaction) MarshalSignedToProtobuf(scheme Scheme) ([]byte, error) {
+	return MarshalSignedTxDeterministic(tx, scheme)
+}
+
+func (tx *EthereumTransaction) UnmarshalSignedFromProtobuf(bytes []byte) error {
+	t, err := SignedTxFromProtobuf(bytes)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal from protobuf ethereum transaction")
 	}
 	ethTx, ok := t.(*EthereumTransaction)
 	if !ok {
 		return errors.Errorf(
-			"failed to convert unmarshalled result '%T' to '*EthereumTransaction' type",
+			"failed to cast unmarshalled result '%T' to '*EthereumTransaction' type",
 			t,
 		)
 	}
@@ -263,23 +260,11 @@ func (tx *EthereumTransaction) UnmarshalFromProtobuf(bytes []byte) error {
 	return nil
 }
 
-func (tx *EthereumTransaction) MarshalSignedToProtobuf(_ Scheme) ([]byte, error) {
-	return nil, errors.New("EthereumTransaction does not support 'MarshalSignedToProtobuf' method.")
-}
-
-func (tx *EthereumTransaction) UnmarshalSignedFromProtobuf(_ []byte) error {
-	return errors.New("EthereumTransaction does not support 'UnmarshalSignedFromProtobuf' method.")
-}
-
 func (tx *EthereumTransaction) ToProtobuf(_ Scheme) (*g.Transaction, error) {
 	return nil, errors.New("EthereumTransaction does not support 'ToProtobuf' method.")
 }
 
 func (tx *EthereumTransaction) ToProtobufSigned(_ Scheme) (*g.SignedTransaction, error) {
-	return nil, errors.New("EthereumTransaction does not support 'ToProtobufSigned' method.")
-}
-
-func (tx *EthereumTransaction) ToProtobufWrapped(_ Scheme) (*g.TransactionWrapper, error) {
 	// nickeskov: marshal body to rlp
 	rlpData, err := tx.BodyMarshalBinary()
 	if err != nil {
@@ -288,8 +273,8 @@ func (tx *EthereumTransaction) ToProtobufWrapped(_ Scheme) (*g.TransactionWrappe
 			tx.EthereumTxType().String(),
 		)
 	}
-	wrapped := g.TransactionWrapper{
-		Transaction: &g.TransactionWrapper_EthereumTransaction{
+	wrapped := g.SignedTransaction{
+		Transaction: &g.SignedTransaction_EthereumTransaction{
 			EthereumTransaction: rlpData,
 		},
 	}
@@ -337,7 +322,7 @@ func (tx *EthereumTransaction) Nonce() uint64 { return tx.inner.nonce() }
 func (tx *EthereumTransaction) To() *EthereumAddress { return tx.inner.to().copy() }
 
 func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (WavesAddress, error) {
-	to, err := tx.To().WavesAddress(scheme)
+	to, err := tx.To().ToWavesAddress(scheme)
 	if err != nil {
 		return WavesAddress{}, err
 	}
@@ -346,15 +331,13 @@ func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (WavesAddress, error)
 
 // From returns the sender address of the transaction.
 // Returns error if transaction doesn't pass validation.
-func (tx *EthereumTransaction) From() (*EthereumAddress, error) {
-	if tx.sender != nil {
-		return tx.sender, nil
-	}
+
+func (tx *EthereumTransaction) From() (EthereumAddress, error) {
 	if _, err := tx.Validate(); err != nil {
-		return nil, err
+		return EthereumAddress{}, err
 	}
 	addr := tx.senderPK.EthereumAddress()
-	return &addr, nil
+	return addr, nil
 }
 
 // FromPK returns the sender public key of the transaction.
@@ -371,7 +354,7 @@ func (tx *EthereumTransaction) WavesAddressFrom(scheme byte) (WavesAddress, erro
 	if err != nil {
 		return WavesAddress{}, err
 	}
-	sender, err := ethSender.WavesAddress(scheme)
+	sender, err := ethSender.ToWavesAddress(scheme)
 	if err != nil {
 		return WavesAddress{}, err
 	}

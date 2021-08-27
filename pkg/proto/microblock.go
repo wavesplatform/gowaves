@@ -75,7 +75,7 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 			Reference:             ref,
 			UpdatedBlockSignature: total,
 			SenderPublicKey:       a.SenderPK.Bytes(),
-			WavesTransactions:     txs,
+			Transactions:          txs,
 		},
 		Signature:    sig,
 		TotalBlockId: a.TotalBlockID.Bytes(),

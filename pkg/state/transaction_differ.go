@@ -491,7 +491,7 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 		return txBalanceChanges{}, err
 	}
 	// Append receiver diff.
-	recipientAddress, err := tx.To().WavesAddress(td.settings.AddressSchemeCharacter)
+	recipientAddress, err := tx.To().ToWavesAddress(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -542,7 +542,7 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 		if err != nil {
 			return txBalanceChanges{}, err
 		}
-		senderAddress, err = EthSenderAddr.WavesAddress(td.settings.AddressSchemeCharacter)
+		senderAddress, err = EthSenderAddr.ToWavesAddress(td.settings.AddressSchemeCharacter)
 		if err != nil {
 			return txBalanceChanges{}, err
 		}
@@ -552,7 +552,7 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 			return txBalanceChanges{}, errors.New("failed to convert address from argument of transfer erc20 function to rideBytes")
 		}
 		ethRecipientAddress := proto.BytesToEthereumAddress(rideEthRecipientAddress)
-		recipientAddress, err = ethRecipientAddress.WavesAddress(td.settings.AddressSchemeCharacter)
+		recipientAddress, err = ethRecipientAddress.ToWavesAddress(td.settings.AddressSchemeCharacter)
 		if err != nil {
 			return txBalanceChanges{}, err
 		}
@@ -573,7 +573,7 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 		}
 		ethSenderAddress := proto.BytesToEthereumAddress(rideEthSenderAddress)
 		var err error
-		senderAddress, err = ethSenderAddress.WavesAddress(td.settings.AddressSchemeCharacter)
+		senderAddress, err = ethSenderAddress.ToWavesAddress(td.settings.AddressSchemeCharacter)
 		if err != nil {
 			return txBalanceChanges{}, err
 		}
@@ -583,7 +583,7 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 			return txBalanceChanges{}, errors.New("failed to convert address from argument of transfer erc20 function to rideBytes")
 		}
 		ethRecipientAddress := proto.BytesToEthereumAddress(rideEthRecipientAddress)
-		recipientAddress, err = ethRecipientAddress.WavesAddress(td.settings.AddressSchemeCharacter)
+		recipientAddress, err = ethRecipientAddress.ToWavesAddress(td.settings.AddressSchemeCharacter)
 		if err != nil {
 			return txBalanceChanges{}, err
 		}
@@ -1473,7 +1473,7 @@ func (td *transactionDiffer) createFeeDiffEthereumInvokeScriptWithProofs(transac
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
-	senderAddress, err := EthSenderAddr.WavesAddress(td.settings.AddressSchemeCharacter)
+	senderAddress, err := EthSenderAddr.ToWavesAddress(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -1483,7 +1483,7 @@ func (td *transactionDiffer) createFeeDiffEthereumInvokeScriptWithProofs(transac
 	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, true)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	scriptAddress, err := tx.To().WavesAddress(td.settings.AddressSchemeCharacter)
+	scriptAddress, err := tx.To().ToWavesAddress(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
