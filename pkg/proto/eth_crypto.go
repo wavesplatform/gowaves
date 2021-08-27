@@ -37,82 +37,37 @@ func VerifyEthereumSignature(pubKey *EthereumPublicKey, r, s *big.Int, hash []by
 	return sig.Verify(hash, (*btcec.PublicKey)(pubKey))
 }
 
-const (
-	// TODO(nickeskov): this is weird case. ethSig can't have size == 129, but in scala node it can...
-	weirdEthereumSignatureLength = 129
-)
-
 // EthereumSignature represents ethereum signature (v, r, s signature values).
 type EthereumSignature struct {
-	sig []byte
+	sig [ethereumSignatureLength]byte
 }
 
-func NewEthereumSignatureFromHexString(hexString string) (EthereumSignature, error) {
+func NewEthereumSignatureFromHexString(hexString string) (ethSig EthereumSignature, err error) {
 	b, err := DecodeFromHexString(hexString)
 	if err != nil {
-		return EthereumSignature{},
-			errors.Wrap(err, "failed parse hex string to bytes to create EthereumSignature")
+		return ethSig, errors.Wrap(err, "failed parse hex string to bytes to create EthereumSignature")
 	}
 	return NewEthereumSignatureFromBytes(b)
 }
 
-func NewEthereumSignatureFromBytes(b []byte) (EthereumSignature, error) {
+func NewEthereumSignatureFromBytes(b []byte) (ethSig EthereumSignature, err error) {
 	sigLen := len(b)
-	if sigLen != ethereumSignatureLength && sigLen != weirdEthereumSignatureLength {
-		return EthereumSignature{},
-			errors.Errorf("eip712Signature should be of length %d or %d",
-				ethereumSignatureLength, weirdEthereumSignatureLength)
+	if sigLen != ethereumSignatureLength {
+		return ethSig, errors.Errorf("eip712Signature should be of length %d", ethereumSignatureLength)
 	}
-	sig := make([]byte, sigLen)
-	copy(sig, b)
-	return EthereumSignature{sig: sig}, nil
+	copy(ethSig.sig[:], b)
+	return ethSig, nil
 }
 
 func (es EthereumSignature) Bytes() []byte {
-	return es.sig
-}
-
-func (es EthereumSignature) MarshalBinary() ([]byte, error) {
-	b := make([]byte, len(es.sig))
-	copy(b, es.sig[:])
-	return b, nil
-}
-
-func (es *EthereumSignature) UnmarshalBinary(data []byte) error {
-	newEthSig, err := NewEthereumSignatureFromBytes(data)
-	if err != nil {
-		return errors.Wrap(err, "failed unmarshal binary EthereumSignature")
-	}
-	*es = newEthSig
-	return nil
-}
-
-func (es EthereumSignature) MarshalJSON() ([]byte, error) {
-	// TODO(nickeskov): Should it be hex or base58?
-	return []byte(EncodeToHexString(es.sig)), nil
-}
-
-func (es *EthereumSignature) UnmarshalJSON(value []byte) error {
-	sig, err := DecodeFromHexString(string(value))
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal JSON EthereumSignature")
-	}
-	*es = EthereumSignature{sig: sig}
-	return nil
+	return es.sig[:]
 }
 
 // AsVRS return ethereum signature as V, R, S signature values.
 // Note that V can be 27/28 for legacy reasons, but real V value is 0/1.
 func (es EthereumSignature) AsVRS() (v, r, s *big.Int) {
-	switch len(es.sig) {
-	case ethereumSignatureLength:
-		r = new(big.Int).SetBytes(es.sig[:32])
-		s = new(big.Int).SetBytes(es.sig[32:64])
-		v = new(big.Int).SetBytes([]byte{es.sig[64]})
-	case weirdEthereumSignatureLength:
-		r = new(big.Int).SetBytes(es.sig[:64])
-		s = new(big.Int).SetBytes(es.sig[64:128])
-		v = new(big.Int).SetBytes([]byte{es.sig[128]})
-	}
+	r = new(big.Int).SetBytes(es.sig[:32])
+	s = new(big.Int).SetBytes(es.sig[32:64])
+	v = new(big.Int).SetBytes([]byte{es.sig[64]})
 	return v, r, s
 }
