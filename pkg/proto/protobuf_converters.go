@@ -341,7 +341,7 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 	if o.Version < 4 {
 		if len(o.Eip712Signature) > 0 {
 			// nickeskov: see isValid method in com/wavesplatform/transaction/assets/exchange/Order.scala
-			c.err = errors.New("ethSignature available only in V4")
+			c.err = errors.New("ethSignature available only in OrderV4")
 			return nil
 		}
 		body.SenderPK = c.publicKey(o.SenderPublicKey)

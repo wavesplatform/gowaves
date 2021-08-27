@@ -12,6 +12,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
+// TODO(nickeskov): change use AddressID in byteKey function
+
 func byteKey(addr proto.WavesAddress, assetID []byte) []byte {
 	if assetID == nil {
 		k := wavesBalanceKey{addr}
@@ -613,10 +615,9 @@ func (td *transactionDiffer) createDiffBurnWithProofs(transaction proto.Transact
 
 func (td *transactionDiffer) orderFeeKey(address proto.WavesAddress, order proto.Order) []byte {
 	switch o := order.(type) {
-	case *proto.OrderV4:
-		return byteKey(address, o.MatcherFeeAsset.ToID())
-	case *proto.OrderV3:
-		return byteKey(address, o.MatcherFeeAsset.ToID())
+	case *proto.EthereumOrderV4, *proto.OrderV4, *proto.OrderV3:
+		matcherFeeAsset := o.GetMatcherFeeAsset()
+		return byteKey(address, matcherFeeAsset.ToID())
 	default:
 		k := wavesBalanceKey{address}
 		return k.bytes()

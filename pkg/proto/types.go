@@ -411,7 +411,11 @@ type Order interface {
 	GetTimestamp() uint64
 	GetMatcherFee() uint64
 	GetMatcherFeeAsset() OptionalAsset
+	// GetSenderPK returns sender public key. It works only for WavesOrder.
+	// TODO(nickeskov): remove that
 	GetSenderPK() crypto.PublicKey
+	GetSenderPKBytes() []byte
+	GetSender(scheme Scheme) (Address, error)
 	GenerateID(scheme Scheme) error
 	GetProofs() (*ProofsV1, error)
 	Verify(Scheme) (bool, error)
@@ -524,6 +528,14 @@ func (o OrderBody) Valid() (bool, error) {
 
 func (o OrderBody) GetSenderPK() crypto.PublicKey {
 	return o.SenderPK
+}
+
+func (o OrderBody) GetSenderPKBytes() []byte {
+	return o.SenderPK.Bytes()
+}
+
+func (o OrderBody) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, o.SenderPK)
 }
 
 func (o *OrderBody) SpendAsset() OptionalAsset {
@@ -1487,28 +1499,60 @@ type EthereumOrderV4 struct {
 	OrderV4
 }
 
-func (o EthereumOrderV4) GetSenderPK() crypto.PublicKey {
+func (o *EthereumOrderV4) GetSenderPK() crypto.PublicKey {
 	panic(errors.New("BUG, CREATE REPORT: EthereumOrderV4 doesn't support waves public key."))
 }
 
-func (o EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
+func (o *EthereumOrderV4) GetSenderPKBytes() []byte {
+	// 64 bytes of uncompressed ethereum public key
+	return o.EthereumSenderPK.SerializeXYCoordinates()
+}
+
+func (o *EthereumOrderV4) GetSender(_ Scheme) (Address, error) {
+	return o.EthereumSenderPK.EthereumAddress(), nil
+}
+
+func (o *EthereumOrderV4) GenerateID(scheme Scheme) error {
+	b, err := o.BodyMarshalBinary(scheme)
+	if err != nil {
+		return err
+	}
+	d, err := crypto.FastHash(b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign OrderV4")
+	}
+	o.ID = &d
+	return nil
+}
+
+func (o *EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
 	return o.VerifyEthereumSignature(scheme)
 }
 
-func (o EthereumOrderV4) ToProtobuf(scheme Scheme) *g.Order {
+func (o *EthereumOrderV4) Sign(_ Scheme, _ crypto.SecretKey) error {
+	return errors.Errorf("(%T) doesn't support Sign method", o)
+}
+
+func (o *EthereumOrderV4) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderV4.ToProtobuf(scheme)
-	res.SenderPublicKey = o.EthereumSenderPK.SerializeXYCoordinates()
+	// 64 bytes of uncompressed ethereum public key
+	res.SenderPublicKey = o.GetSenderPKBytes()
+	return res
+}
+
+func (o *EthereumOrderV4) ToProtobufSigned(scheme Scheme) *g.Order {
+	res := o.ToProtobuf(scheme)
 	res.Eip712Signature = o.EthereumSignature.Bytes()
 	return res
 }
 
 func (o *EthereumOrderV4) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	pbOrder := o.ToProtobuf(scheme)
-	pbOrder.Proofs = nil
+	pbOrder.Eip712Signature = nil
 	return MarshalToProtobufDeterministic(pbOrder)
 }
 
-func (o EthereumOrderV4) GetEthereumSenderPK() EthereumPublicKey {
+func (o *EthereumOrderV4) GetEthereumSenderPK() EthereumPublicKey {
 	return o.EthereumSenderPK
 }
 
@@ -1534,7 +1578,7 @@ func (o EthereumOrderV4) ethereumTypedDataHash(scheme Scheme) (EthereumHash, err
 	return hash, nil
 }
 
-func (o EthereumOrderV4) VerifyEthereumSignature(scheme Scheme) (bool, error) {
+func (o *EthereumOrderV4) VerifyEthereumSignature(scheme Scheme) (bool, error) {
 	hash, err := o.ethereumTypedDataHash(scheme)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to validate ethereum signature for EthereumOrderV4")

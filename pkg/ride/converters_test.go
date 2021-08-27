@@ -1070,15 +1070,17 @@ func (a *OrderTestSuite) Test_matcherFeeAssetId() {
 
 func (a *OrderTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.GetSenderPK())
+	addr, err := a.tx.GetSender(proto.MainNetScheme)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	wavesAddr, err := addr.ToWavesAddress(proto.MainNetScheme)
+	a.NoError(err)
+	a.Equal(rideAddress(wavesAddr), rs["sender"])
 }
 
 func (a *OrderTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	pk := a.tx.GetSenderPK()
-	a.Equal(RideBytes(pk.Bytes()), rs["senderPublicKey"])
+	pkBytes := a.tx.GetSenderPKBytes()
+	a.Equal(RideBytes(pkBytes), rs["senderPublicKey"])
 }
 
 func (a *OrderTestSuite) Test_bodyBytes() {
