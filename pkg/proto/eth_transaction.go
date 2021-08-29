@@ -94,6 +94,7 @@ func (tx *EthereumTransferWavesTx) Type() string {
 }
 
 type EthereumTransferAssetsErc20Tx struct {
+	Asset OptionalAsset
 }
 
 func (tx *EthereumTransferAssetsErc20Tx) Type() string {

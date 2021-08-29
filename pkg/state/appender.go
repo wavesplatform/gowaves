@@ -385,13 +385,21 @@ type appendTxParams struct {
 	initialisation   bool
 }
 
-func guessEthereumTransactionKind(ethTx *proto.EthereumTransaction, decodedData ethabi.DecodedCallData) (proto.EthereumTransactionKind, error) {
+func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransaction, decodedData ethabi.DecodedCallData) (proto.EthereumTransactionKind, error) {
 	if len(ethTx.Data()) == 0 {
 		return &proto.EthereumTransferWavesTx{}, nil
 	}
 	db := ethabi.NewDatabase(map[ethabi.Selector]ethabi.Method{})
 	if db.IsERC20(decodedData.Signature.Selector()) {
-		return &proto.EthereumTransferAssetsErc20Tx{}, nil
+		//assetID := proto.
+		assetID := proto.AssetID{}
+		copy(assetID[:], ethTx.To()[:proto.AssetIDSize])
+		asset, err := a.state.AssetInfoByID(assetID, true)
+		if err != nil {
+			return nil, errors.Errorf("failed to get asset info by ethereum recipient address %s, %v", ethTx.To().String(), err)
+		}
+
+		return &proto.EthereumTransferAssetsErc20Tx{Asset: *proto.NewOptionalAssetFromDigest(asset.ID)}, nil
 	}
 	return &proto.EthereumInvokeScriptTx{}, nil
 }
@@ -491,7 +499,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		if err != nil {
 			return errors.Errorf("failed to generate transaction id for ethereum transaction, %v", err)
 		}
-		ethTx.TxKind, err = guessEthereumTransactionKind(ethTx, *params.decodedAbiData)
+		ethTx.TxKind, err = a.guessEthereumTransactionKind(ethTx, *params.decodedAbiData)
 		if err != nil {
 			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
 		}

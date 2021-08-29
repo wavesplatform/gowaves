@@ -40,7 +40,7 @@ var _ Environment = &MockRideEnvironment{}
 //             setInvocationFunc: func(inv rideObject)  {
 // 	               panic("mock out the setInvocation method")
 //             },
-//             setNewDAppAddressFunc: func(address proto.Address)  {
+//             setNewDAppAddressFunc: func(address proto.WavesAddress)  {
 // 	               panic("mock out the setNewDAppAddress method")
 //             },
 //             stateFunc: func() types.SmartState {

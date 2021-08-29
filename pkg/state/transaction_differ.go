@@ -12,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
+	m "math"
 )
 
 func byteKey(addr proto.WavesAddress, assetID []byte) []byte {
@@ -477,12 +478,12 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 		return txBalanceChanges{}, err
 	}
 
-	// TODO it's in wei
 	var amount int64
 	if ok := tx.Value().IsInt64(); !ok {
 		return txBalanceChanges{}, errors.Errorf("failed to convert big int value to int64. value is %s", tx.Value().String())
 	}
-	amount = tx.Value().Int64()
+	amount = tx.Value().Int64() // it's 10^18. Needs to be 10^8
+	amount = amount / int64(m.Pow(10, 10))
 
 	senderAmountKey := byteKey(senderAddress, wavesAsset.ToID())
 
@@ -527,7 +528,6 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 
 	switch decodedData.Signature.Selector() {
 	case ethabi.Erc20TransferSignature.Selector():
-		// TODO it's in wei
 		v, ok := decodedData.Inputs[1].Value.(ride.RideBigInt)
 		if !ok {
 			return txBalanceChanges{}, errors.Errorf("failed to convert big int value from transfer argument to rideBigInt")
@@ -589,17 +589,21 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 		}
 	}
 
+	// Fee
 	wavesAsset := proto.NewOptionalAssetWaves()
-	// TODO here should be a conversion between recipient and asset ID
-	asset := proto.OptionalAsset{}
-
 	senderFeeKey := byteKey(senderAddress, wavesAsset.ToID())
 	senderFeeBalanceDiff := -int64(tx.GetFee())
 	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
 
-	senderAmountKey := byteKey(senderAddress, asset.ToID())
+	// transfer
+	txErc20Type, ok := tx.TxKind.(*proto.EthereumTransferAssetsErc20Tx)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20Tx")
+	}
+
+	senderAmountKey := byteKey(senderAddress, txErc20Type.Asset.ToID())
 
 	senderAmountBalanceDiff := -amount
 	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(senderAmountBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
@@ -607,7 +611,7 @@ func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTra
 	}
 	// Append receiver diff.
 
-	receiverKey := byteKey(recipientAddress, wavesAsset.ToID())
+	receiverKey := byteKey(recipientAddress, txErc20Type.Asset.ToID())
 	receiverBalanceDiff := amount
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err

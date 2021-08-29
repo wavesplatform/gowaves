@@ -23,6 +23,9 @@ var _ types.SmartState = &MockSmartState{}
 //             AddingBlockHeightFunc: func() (uint64, error) {
 // 	               panic("mock out the AddingBlockHeight method")
 //             },
+//             AssetInfoByIDFunc: func(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+// 	               panic("mock out the AssetInfoByID method")
+//             },
 //             BlockVRFFunc: func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error) {
 // 	               panic("mock out the BlockVRF method")
 //             },
@@ -99,6 +102,9 @@ type MockSmartState struct {
 	// AddingBlockHeightFunc mocks the AddingBlockHeight method.
 	AddingBlockHeightFunc func() (uint64, error)
 
+	// AssetInfoByIDFunc mocks the AssetInfoByID method.
+	AssetInfoByIDFunc func(id proto.AssetID, filter bool) (*proto.AssetInfo, error)
+
 	// BlockVRFFunc mocks the BlockVRF method.
 	BlockVRFFunc func(blockHeader *proto.BlockHeader, height uint64) ([]byte, error)
 
@@ -169,6 +175,13 @@ type MockSmartState struct {
 	calls struct {
 		// AddingBlockHeight holds details about calls to the AddingBlockHeight method.
 		AddingBlockHeight []struct {
+		}
+		// AssetInfoByID holds details about calls to the AssetInfoByID method.
+		AssetInfoByID []struct {
+			// ID is the id argument value.
+			ID proto.AssetID
+			// Filter is the filter argument value.
+			Filter bool
 		}
 		// BlockVRF holds details about calls to the BlockVRF method.
 		BlockVRF []struct {
@@ -292,6 +305,7 @@ type MockSmartState struct {
 		}
 	}
 	lockAddingBlockHeight           sync.RWMutex
+	lockAssetInfoByID               sync.RWMutex
 	lockBlockVRF                    sync.RWMutex
 	lockEstimatorVersion            sync.RWMutex
 	lockGetByteTree                 sync.RWMutex
@@ -339,6 +353,41 @@ func (mock *MockSmartState) AddingBlockHeightCalls() []struct {
 	mock.lockAddingBlockHeight.RLock()
 	calls = mock.calls.AddingBlockHeight
 	mock.lockAddingBlockHeight.RUnlock()
+	return calls
+}
+
+// AssetInfoByID calls AssetInfoByIDFunc.
+func (mock *MockSmartState) AssetInfoByID(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+	if mock.AssetInfoByIDFunc == nil {
+		panic("MockSmartState.AssetInfoByIDFunc: method is nil but SmartState.AssetInfoByID was just called")
+	}
+	callInfo := struct {
+		ID     proto.AssetID
+		Filter bool
+	}{
+		ID:     id,
+		Filter: filter,
+	}
+	mock.lockAssetInfoByID.Lock()
+	mock.calls.AssetInfoByID = append(mock.calls.AssetInfoByID, callInfo)
+	mock.lockAssetInfoByID.Unlock()
+	return mock.AssetInfoByIDFunc(id, filter)
+}
+
+// AssetInfoByIDCalls gets all the calls that were made to AssetInfoByID.
+// Check the length with:
+//     len(mockedSmartState.AssetInfoByIDCalls())
+func (mock *MockSmartState) AssetInfoByIDCalls() []struct {
+	ID     proto.AssetID
+	Filter bool
+} {
+	var calls []struct {
+		ID     proto.AssetID
+		Filter bool
+	}
+	mock.lockAssetInfoByID.RLock()
+	calls = mock.calls.AssetInfoByID
+	mock.lockAssetInfoByID.RUnlock()
 	return calls
 }
 

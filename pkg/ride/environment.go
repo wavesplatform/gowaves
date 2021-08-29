@@ -166,6 +166,10 @@ func (ws *WrappedState) IsStateUntouched(account proto.Recipient) (bool, error) 
 	return ws.diff.state.IsStateUntouched(account)
 }
 
+func (ws *WrappedState) AssetInfoByID(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+	return ws.diff.state.AssetInfoByID(id, filter)
+}
+
 func (ws *WrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 	address, err := ws.diff.state.NewestRecipientToAddress(account)
 	if err != nil {
