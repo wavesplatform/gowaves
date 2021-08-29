@@ -13,7 +13,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 	m "math"
+	"math/big"
 )
+
+var diffEthWaves = m.Pow(10, 10) // in ethereum numbers are represented in 10^18. In waves it's 10^8
 
 func byteKey(addr proto.WavesAddress, assetID []byte) []byte {
 	if assetID == nil {
@@ -478,12 +481,11 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 		return txBalanceChanges{}, err
 	}
 
-	var amount int64
-	if ok := tx.Value().IsInt64(); !ok {
-		return txBalanceChanges{}, errors.Errorf("failed to convert big int value to int64. value is %s", tx.Value().String())
+	res := new(big.Int).Div(tx.Value(), big.NewInt(int64(diffEthWaves)))
+	if ok := res.IsInt64(); !ok {
+		return txBalanceChanges{}, errors.Errorf("failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
 	}
-	amount = tx.Value().Int64() // it's 10^18. Needs to be 10^8
-	amount = amount / int64(m.Pow(10, 10))
+	amount := res.Int64()
 
 	senderAmountKey := byteKey(senderAddress, wavesAsset.ToID())
 

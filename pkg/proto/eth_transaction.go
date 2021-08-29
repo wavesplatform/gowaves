@@ -323,7 +323,7 @@ func (tx *EthereumTransaction) Nonce() uint64 { return tx.inner.nonce() }
 func (tx *EthereumTransaction) To() *EthereumAddress { return tx.inner.to().copy() }
 
 func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (WavesAddress, error) {
-	to, err := tx.To().ToWavesAddress(scheme)
+	to, err := tx.inner.to().ToWavesAddress(scheme)
 	if err != nil {
 		return WavesAddress{}, err
 	}

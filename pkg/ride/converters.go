@@ -970,7 +970,6 @@ func ethereumInvocationToObject(v int, scheme byte, tx *proto.EthereumTransactio
 	r[instanceFieldName] = RideString("Invocation")
 	r["transactionId"] = RideBytes(tx.ID.Bytes())
 	r["caller"] = rideAddress(sender)
-	// TODO it needs to have a function for callerPK
 	callerEthereumPK, err := tx.FromPK()
 	if err != nil {
 		return nil, errors.Errorf("failed to get public key from ethereum transaction %v", err)
