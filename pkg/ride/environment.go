@@ -941,6 +941,18 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 			ws.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
 
+			senderRcp := proto.NewRecipientFromAddress(ws.callee())
+			asset := proto.NewOptionalAssetFromDigest(res.AssetID)
+			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, *asset)
+			if err != nil {
+				return nil, err
+			}
+
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+			if err != nil {
+				return nil, err
+			}
+
 		case *proto.BurnScriptAction:
 			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
@@ -967,6 +979,18 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				break
 			}
 			ws.diff.burnNewAsset(res.AssetID, res.Quantity)
+
+			senderRcp := proto.NewRecipientFromAddress(ws.callee())
+			asset := proto.NewOptionalAssetFromDigest(res.AssetID)
+			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, *asset)
+			if err != nil {
+				return nil, err
+			}
+
+			err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset.ID, senderRcp)
+			if err != nil {
+				return nil, err
+			}
 
 		case *proto.LeaseScriptAction:
 			senderAddress := ws.callee()
