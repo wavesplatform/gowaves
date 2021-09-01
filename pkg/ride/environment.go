@@ -55,8 +55,8 @@ func (ws *WrappedState) callee() proto.Address {
 	return proto.Address(ws.cle)
 }
 
-func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env Environment, isPayments bool) error {
-	modifiedActions, err := ws.ApplyToState(actions, env, isPayments)
+func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env Environment) error {
+	modifiedActions, err := ws.ApplyToState(actions, env)
 	if err != nil {
 		return err
 	}
@@ -392,7 +392,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	timestamp := env.timestamp()
 
-	localEnv, err := NewEnvironment(env.scheme(), env.state())
+	localEnv, err := NewEnvironment(env.scheme(), env.state(), env.internalPaymentsValidationHeight())
 	if err != nil {
 		return false, err
 	}
@@ -723,7 +723,7 @@ func (ws *WrappedState) incrementInvCount() {
 	ws.invokeCount++
 }
 
-func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environment, isPayments bool) ([]proto.ScriptAction, error) {
+func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environment) ([]proto.ScriptAction, error) {
 	dataEntriesCount := 0
 	dataEntriesSize := 0
 	otherActionsCount := 0
@@ -837,12 +837,11 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				res.Sender = &senderPK
 			}
 
-			if !isPayments {
+			if env.validateInternalPayments() {
 				err = ws.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress, env)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to pass validation of transfer action or attached payments")
 				}
-
 			}
 
 			searchBalance, searchAddr, err := ws.diff.findBalance(res.Recipient, res.Asset)
@@ -1054,32 +1053,33 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 }
 
 type EvaluationEnvironment struct {
-	sch     proto.Scheme
-	st      types.SmartState
-	h       rideInt
-	tx      rideObject
-	id      rideType
-	th      rideType
-	time    uint64
-	b       rideObject
-	check   func(int) bool
-	takeStr func(s string, n int) rideString
-	inv     rideObject
-	ver     int
+	sch                   proto.Scheme
+	st                    types.SmartState
+	h                     rideInt
+	tx                    rideObject
+	id                    rideType
+	th                    rideType
+	time                  uint64
+	b                     rideObject
+	check                 func(int) bool
+	takeStr               func(s string, n int) rideString
+	inv                   rideObject
+	ver                   int
+	validatePaymentsAfter uint64
 }
 
-func NewEnvironment(scheme proto.Scheme, state types.SmartState) (*EvaluationEnvironment, error) {
+func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64) (*EvaluationEnvironment, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
 		return nil, err
 	}
-
 	return &EvaluationEnvironment{
-		sch:     scheme,
-		st:      state,
-		h:       rideInt(height),
-		check:   func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
-		takeStr: func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
+		sch:                   scheme,
+		st:                    state,
+		h:                     rideInt(height),
+		check:                 func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
+		takeStr:               func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
+		validatePaymentsAfter: internalPaymentsValidationHeight,
 	}, nil
 }
 
@@ -1122,16 +1122,17 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 	}
 
 	return &EvaluationEnvironment{
-		sch:     env.sch,
-		st:      st,
-		h:       env.h,
-		tx:      env.tx,
-		id:      env.id,
-		th:      env.th,
-		b:       env.b,
-		check:   env.check,
-		takeStr: env.takeStr,
-		inv:     env.inv,
+		sch:                   env.sch,
+		st:                    st,
+		h:                     env.h,
+		tx:                    env.tx,
+		id:                    env.id,
+		th:                    env.th,
+		b:                     env.b,
+		check:                 env.check,
+		takeStr:               env.takeStr,
+		inv:                   env.inv,
+		validatePaymentsAfter: env.validatePaymentsAfter,
 	}, nil
 }
 
@@ -1285,6 +1286,14 @@ func (e *EvaluationEnvironment) setInvocation(inv rideObject) {
 
 func (e *EvaluationEnvironment) libVersion() int {
 	return e.ver
+}
+
+func (e *EvaluationEnvironment) validateInternalPayments() bool {
+	return int(e.h) > int(e.validatePaymentsAfter)
+}
+
+func (e *EvaluationEnvironment) internalPaymentsValidationHeight() uint64 {
+	return e.validatePaymentsAfter
 }
 
 func isAssetWaves(assetID []byte) bool {

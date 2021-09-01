@@ -28,6 +28,9 @@ var _ Environment = &MockRideEnvironment{}
 //             heightFunc: func() rideInt {
 // 	               panic("mock out the height method")
 //             },
+//             internalPaymentsValidationHeightFunc: func() uint64 {
+// 	               panic("mock out the internalPaymentsValidationHeight method")
+//             },
 //             invocationFunc: func() rideObject {
 // 	               panic("mock out the invocation method")
 //             },
@@ -61,6 +64,9 @@ var _ Environment = &MockRideEnvironment{}
 //             txIDFunc: func() rideType {
 // 	               panic("mock out the txID method")
 //             },
+//             validateInternalPaymentsFunc: func() bool {
+// 	               panic("mock out the validateInternalPayments method")
+//             },
 //         }
 //
 //         // use mockedEnvironment in code that requires Environment
@@ -76,6 +82,9 @@ type MockRideEnvironment struct {
 
 	// heightFunc mocks the height method.
 	heightFunc func() rideInt
+
+	// internalPaymentsValidationHeightFunc mocks the internalPaymentsValidationHeight method.
+	internalPaymentsValidationHeightFunc func() uint64
 
 	// invocationFunc mocks the invocation method.
 	invocationFunc func() rideObject
@@ -110,6 +119,9 @@ type MockRideEnvironment struct {
 	// txIDFunc mocks the txID method.
 	txIDFunc func() rideType
 
+	// validateInternalPaymentsFunc mocks the validateInternalPayments method.
+	validateInternalPaymentsFunc func() bool
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// block holds details about calls to the block method.
@@ -122,6 +134,9 @@ type MockRideEnvironment struct {
 		}
 		// height holds details about calls to the height method.
 		height []struct {
+		}
+		// internalPaymentsValidationHeight holds details about calls to the internalPaymentsValidationHeight method.
+		internalPaymentsValidationHeight []struct {
 		}
 		// invocation holds details about calls to the invocation method.
 		invocation []struct {
@@ -164,21 +179,26 @@ type MockRideEnvironment struct {
 		// txID holds details about calls to the txID method.
 		txID []struct {
 		}
+		// validateInternalPayments holds details about calls to the validateInternalPayments method.
+		validateInternalPayments []struct {
+		}
 	}
-	lockblock              sync.RWMutex
-	lockcheckMessageLength sync.RWMutex
-	lockheight             sync.RWMutex
-	lockinvocation         sync.RWMutex
-	locklibVersion         sync.RWMutex
-	lockscheme             sync.RWMutex
-	locksetInvocation      sync.RWMutex
-	locksetNewDAppAddress  sync.RWMutex
-	lockstate              sync.RWMutex
-	locktakeString         sync.RWMutex
-	lockthis               sync.RWMutex
-	locktimestamp          sync.RWMutex
-	locktransaction        sync.RWMutex
-	locktxID               sync.RWMutex
+	lockblock                            sync.RWMutex
+	lockcheckMessageLength               sync.RWMutex
+	lockheight                           sync.RWMutex
+	lockinternalPaymentsValidationHeight sync.RWMutex
+	lockinvocation                       sync.RWMutex
+	locklibVersion                       sync.RWMutex
+	lockscheme                           sync.RWMutex
+	locksetInvocation                    sync.RWMutex
+	locksetNewDAppAddress                sync.RWMutex
+	lockstate                            sync.RWMutex
+	locktakeString                       sync.RWMutex
+	lockthis                             sync.RWMutex
+	locktimestamp                        sync.RWMutex
+	locktransaction                      sync.RWMutex
+	locktxID                             sync.RWMutex
+	lockvalidateInternalPayments         sync.RWMutex
 }
 
 // block calls blockFunc.
@@ -261,6 +281,32 @@ func (mock *MockRideEnvironment) heightCalls() []struct {
 	mock.lockheight.RLock()
 	calls = mock.calls.height
 	mock.lockheight.RUnlock()
+	return calls
+}
+
+// internalPaymentsValidationHeight calls internalPaymentsValidationHeightFunc.
+func (mock *MockRideEnvironment) internalPaymentsValidationHeight() uint64 {
+	if mock.internalPaymentsValidationHeightFunc == nil {
+		panic("MockRideEnvironment.internalPaymentsValidationHeightFunc: method is nil but Environment.internalPaymentsValidationHeight was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockinternalPaymentsValidationHeight.Lock()
+	mock.calls.internalPaymentsValidationHeight = append(mock.calls.internalPaymentsValidationHeight, callInfo)
+	mock.lockinternalPaymentsValidationHeight.Unlock()
+	return mock.internalPaymentsValidationHeightFunc()
+}
+
+// internalPaymentsValidationHeightCalls gets all the calls that were made to internalPaymentsValidationHeight.
+// Check the length with:
+//     len(mockedEnvironment.internalPaymentsValidationHeightCalls())
+func (mock *MockRideEnvironment) internalPaymentsValidationHeightCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockinternalPaymentsValidationHeight.RLock()
+	calls = mock.calls.internalPaymentsValidationHeight
+	mock.lockinternalPaymentsValidationHeight.RUnlock()
 	return calls
 }
 
@@ -566,5 +612,31 @@ func (mock *MockRideEnvironment) txIDCalls() []struct {
 	mock.locktxID.RLock()
 	calls = mock.calls.txID
 	mock.locktxID.RUnlock()
+	return calls
+}
+
+// validateInternalPayments calls validateInternalPaymentsFunc.
+func (mock *MockRideEnvironment) validateInternalPayments() bool {
+	if mock.validateInternalPaymentsFunc == nil {
+		panic("MockRideEnvironment.validateInternalPaymentsFunc: method is nil but Environment.validateInternalPayments was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockvalidateInternalPayments.Lock()
+	mock.calls.validateInternalPayments = append(mock.calls.validateInternalPayments, callInfo)
+	mock.lockvalidateInternalPayments.Unlock()
+	return mock.validateInternalPaymentsFunc()
+}
+
+// validateInternalPaymentsCalls gets all the calls that were made to validateInternalPayments.
+// Check the length with:
+//     len(mockedEnvironment.validateInternalPaymentsCalls())
+func (mock *MockRideEnvironment) validateInternalPaymentsCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockvalidateInternalPayments.RLock()
+	calls = mock.calls.validateInternalPayments
+	mock.lockvalidateInternalPayments.RUnlock()
 	return calls
 }

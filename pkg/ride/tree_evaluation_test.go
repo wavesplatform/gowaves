@@ -1085,6 +1085,12 @@ var envDappFromDapp = &MockRideEnvironment{
 	timestampFunc: func() uint64 {
 		return 1564703444249
 	},
+	validateInternalPaymentsFunc: func() bool {
+		return true
+	},
+	internalPaymentsValidationHeightFunc: func() uint64 {
+		return 0
+	},
 }
 
 func tearDownDappFromDapp() {

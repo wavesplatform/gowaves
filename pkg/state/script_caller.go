@@ -46,7 +46,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve account script")
 	}
-	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
 		return errors.Wrap(err, "failed to create RIDE environment")
 	}
@@ -97,7 +97,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	if err != nil {
 		return err
 	}
-	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
@@ -181,7 +181,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 }
 
 func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTransfer, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
-	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +190,7 @@ func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTra
 }
 
 func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
-	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 }
 
 func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, scriptAddress proto.Address) (bool, []proto.ScriptAction, error) {
-	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "failed to create RIDE environment")
 	}
