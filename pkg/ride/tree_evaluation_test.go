@@ -3218,7 +3218,7 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 	balance := diffBalance{regular: 1, leaseIn: 0, asset: *assetCat}
 	expectedDiffResult.balances[addr.String()+assetCat.String()] = balance
 
-	balanceCallable := diffBalance{regular: 9999, leaseOut: 0, asset: *assetCat}
+	balanceCallable := diffBalance{regular: 10049, leaseOut: 0, asset: *assetCat} // the balance was 9999. reissue + 100. burn - 50. = 10049
 	expectedDiffResult.balances[addressCallable.String()+assetCat.String()] = balanceCallable
 
 	oldAsset := diffOldAssetInfo{diffQuantity: 50}

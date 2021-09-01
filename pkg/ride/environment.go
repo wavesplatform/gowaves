@@ -819,7 +819,9 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 		case *proto.TransferScriptAction:
 			var senderAddress proto.Address
 			var senderPK crypto.PublicKey
+			var act string
 			if res.Sender != nil {
+				act = "attached payments"
 				senderPK = *res.Sender
 				var err error
 				senderAddress, err = proto.NewAddressFromPublicKey(ws.scheme, senderPK)
@@ -827,6 +829,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 					return nil, errors.Wrap(err, "failed to get address  by public key")
 				}
 			} else {
+				act = "transfer action"
 				pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to get public key by address")
@@ -840,7 +843,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			if env.validateInternalPayments() {
 				err = ws.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress, env)
 				if err != nil {
-					return nil, errors.Wrapf(err, "failed to pass validation of transfer action or attached payments")
+					return nil, errors.Wrapf(err, "failed to pass validation of %s", act)
 				}
 			}
 
@@ -917,6 +920,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 		case *proto.ReissueScriptAction:
+
 			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
@@ -928,21 +932,6 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
 
-			searchNewAsset := ws.diff.findNewAsset(res.AssetID)
-			if searchNewAsset == nil {
-				if oldAssetFromDiff := ws.diff.findOldAsset(res.AssetID); oldAssetFromDiff != nil {
-					oldAssetFromDiff.diffQuantity += res.Quantity
-
-					ws.diff.oldAssetsInfo[res.AssetID.String()] = *oldAssetFromDiff
-					break
-				}
-				var assetInfo diffOldAssetInfo
-				assetInfo.diffQuantity += res.Quantity
-				ws.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
-				break
-			}
-			ws.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
-
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
 			asset := proto.NewOptionalAssetFromDigest(res.AssetID)
 			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, *asset)
@@ -950,11 +939,33 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				return nil, err
 			}
 
+			searchNewAsset := ws.diff.findNewAsset(res.AssetID)
+			if searchNewAsset == nil {
+				if oldAssetFromDiff := ws.diff.findOldAsset(res.AssetID); oldAssetFromDiff != nil {
+					oldAssetFromDiff.diffQuantity += res.Quantity
+
+					ws.diff.oldAssetsInfo[res.AssetID.String()] = *oldAssetFromDiff
+					err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+					if err != nil {
+						return nil, err
+					}
+					break
+				}
+				var assetInfo diffOldAssetInfo
+				assetInfo.diffQuantity += res.Quantity
+				ws.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
+				err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+				if err != nil {
+					return nil, err
+				}
+				break
+			}
+			ws.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
+
 			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
 			if err != nil {
 				return nil, err
 			}
-
 		case *proto.BurnScriptAction:
 			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
@@ -967,27 +978,35 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
 
-			searchAsset := ws.diff.findNewAsset(res.AssetID)
-			if searchAsset == nil {
-				if oldAssetFromDiff := ws.diff.findOldAsset(res.AssetID); oldAssetFromDiff != nil {
-					oldAssetFromDiff.diffQuantity -= res.Quantity
-
-					ws.diff.oldAssetsInfo[res.AssetID.String()] = *oldAssetFromDiff
-					break
-				}
-				var assetInfo diffOldAssetInfo
-				assetInfo.diffQuantity -= res.Quantity
-				ws.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
-				break
-			}
-			ws.diff.burnNewAsset(res.AssetID, res.Quantity)
-
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
 			asset := proto.NewOptionalAssetFromDigest(res.AssetID)
 			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, *asset)
 			if err != nil {
 				return nil, err
 			}
+
+			searchAsset := ws.diff.findNewAsset(res.AssetID)
+			if searchAsset == nil {
+				if oldAssetFromDiff := ws.diff.findOldAsset(res.AssetID); oldAssetFromDiff != nil {
+					oldAssetFromDiff.diffQuantity -= res.Quantity
+
+					ws.diff.oldAssetsInfo[res.AssetID.String()] = *oldAssetFromDiff
+					err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset.ID, senderRcp)
+					if err != nil {
+						return nil, err
+					}
+					break
+				}
+				var assetInfo diffOldAssetInfo
+				assetInfo.diffQuantity -= res.Quantity
+				ws.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
+				err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset.ID, senderRcp)
+				if err != nil {
+					return nil, err
+				}
+				break
+			}
+			ws.diff.burnNewAsset(res.AssetID, res.Quantity)
 
 			err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset.ID, senderRcp)
 			if err != nil {

@@ -6,14 +6,12 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
-
-	"github.com/wavesplatform/gowaves/pkg/util/common"
-
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	c2 "github.com/wavesplatform/gowaves/pkg/ride/crypto"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func isAddressInBL(dAppAddress proto.Address, blackList []proto.Address) bool {
