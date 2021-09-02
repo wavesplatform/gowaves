@@ -344,10 +344,14 @@ const (
 )
 
 func (t OrderType) String() string {
-	if t == 0 {
+	switch t {
+	case Buy:
 		return buyOrderName
+	case Sell:
+		return sellOrderName
+	default:
+		panic(errors.Errorf("BUG, CREATE REPORT: unknown order type (%d)", t))
 	}
-	return sellOrderName
 }
 
 //MarshalJSON writes value of OrderType to JSON representation.
@@ -1559,8 +1563,17 @@ func (o *EthereumOrderV4) GetEthereumSenderPK() EthereumPublicKey {
 	return o.EthereumSenderPK
 }
 
-func (o EthereumOrderV4) ethereumTypedDataHash(scheme Scheme) (EthereumHash, error) {
-	msg := ethereumTypedDataMessage{
+func (o *EthereumOrderV4) ethereumTypedDataHash(scheme Scheme) (EthereumHash, error) {
+	typedData := o.buildEthereumOrderV4TypedData(scheme)
+	hash, err := typedData.Hash()
+	if err != nil {
+		return EthereumHash{}, errors.Wrap(err, "failed calculate ethereum typed data hash for EthereumOrderV4")
+	}
+	return hash, nil
+}
+
+func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumTypedData {
+	message := ethereumTypedDataMessage{
 		"version":           int32(o.Version),
 		"matcherPublicKey":  o.MatcherPK.String(),
 		"amountAsset":       o.AssetPair.AmountAsset.String(),
@@ -1573,15 +1586,7 @@ func (o EthereumOrderV4) ethereumTypedDataHash(scheme Scheme) (EthereumHash, err
 		"matcherFee":        int64(o.MatcherFee),
 		"matcherFeeAssetId": o.MatcherFeeAsset.String(),
 	}
-	typedData := buildEthereumOrderV4TypedData(scheme, msg)
-	hash, err := typedData.Hash()
-	if err != nil {
-		return EthereumHash{}, errors.Wrap(err, "failed calculate ethereum typed data hash for EthereumOrderV4")
-	}
-	return hash, nil
-}
 
-func buildEthereumOrderV4TypedData(scheme Scheme, message ethereumTypedDataMessage) ethereumTypedData {
 	verifyingContract := [20]byte{}
 	for i := range verifyingContract {
 		verifyingContract[i] = scheme
