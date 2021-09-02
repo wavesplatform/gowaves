@@ -2388,6 +2388,31 @@ func newSignedOrderV4(t *testing.T, sender, matcher crypto.PublicKey, amountAsse
 	return *o
 }
 
+func newEthereumOrderV4(t *testing.T, ethSenderHex, ethSigHex *string, matcher crypto.PublicKey, amountAsset, priceAsset OptionalAsset, ot OrderType, price, amount, ts, exp, fee uint64) EthereumOrderV4 {
+	var (
+		err       error
+		ethSender EthereumPublicKey
+		ethSig    EthereumSignature
+	)
+	if ethSenderHex != nil {
+		ethSender, err = NewEthereumPublicKeyFromHexString(*ethSenderHex)
+		require.NoError(t, err)
+	}
+	if ethSigHex != nil {
+		ethSig, err = NewEthereumSignatureFromHexString(*ethSigHex)
+		require.NoError(t, err)
+	}
+
+	// sender PK should be always empty because we use ethSender in EthereumOrderV4
+	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcher, amountAsset, priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{})
+	ethereumOrderV4 := EthereumOrderV4{
+		EthereumSenderPK:  ethSender,
+		EthereumSignature: ethSig,
+		OrderV4:           *orderV4,
+	}
+	return ethereumOrderV4
+}
+
 func TestExchangeWithSigFromMainNet(t *testing.T) {
 	tests := []struct {
 		matcher        string

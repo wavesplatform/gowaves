@@ -15,7 +15,7 @@ var ErrInvalidChainId = errors.New("invalid chain id for signer")
 const (
 	ethereumSignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
 
-	ethereumPublicKeyUncompressedPrefix byte = 0x4         // prefix which means this is uncompressed point
+	ethereumPublicKeyUncompressedPrefix byte = 0x4         // prefix which means this is an uncompressed point
 	ethereumPublicKeyBytesUncompressed       = 1 + 32 + 32 // 0x4 prefix + x_coordinate bytes + y_coordinate bytes
 	ethereumPublicKeyBytesCompressed         = 1 + 32      // y_bit (0x02 if y is even, 0x03 if y is odd) + x_coordinate bytes
 )
