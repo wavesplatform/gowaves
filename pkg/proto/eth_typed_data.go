@@ -43,11 +43,11 @@ func (t *ethereumTypedDataType) isReferenceType() bool {
 type ethereumTypedDataTypes map[string][]ethereumTypedDataType
 
 type ethereumTypedDataDomain struct {
-	Name              string           `json:"name"`
-	Version           string           `json:"version"`
-	ChainId           *hexOrDecimal256 `json:"chainId"`
-	VerifyingContract string           `json:"verifyingContract"`
-	Salt              string           `json:"salt"`
+	Name              string           `json:"name,omitempty"`
+	Version           string           `json:"version,omitempty"`
+	ChainId           *hexOrDecimal256 `json:"chainId,omitempty"`
+	VerifyingContract string           `json:"verifyingContract,omitempty"`
+	Salt              string           `json:"salt,omitempty"`
 }
 
 type ethereumTypedDataMessage = map[string]interface{}
