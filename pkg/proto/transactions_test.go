@@ -2388,23 +2388,30 @@ func newSignedOrderV4(t *testing.T, sender, matcher crypto.PublicKey, amountAsse
 	return *o
 }
 
-func newEthereumOrderV4(t *testing.T, ethSenderHex, ethSigHex *string, matcher crypto.PublicKey, amountAsset, priceAsset OptionalAsset, ot OrderType, price, amount, ts, exp, fee uint64) EthereumOrderV4 {
+func newEthereumOrderV4(t *testing.T, ethSenderPKHex, ethSignatureHex, matcherPKBase58, amountAssetBase58, priceAssetBase58 string, ot OrderType, price, amount, ts, exp, fee uint64) EthereumOrderV4 {
 	var (
 		err       error
 		ethSender EthereumPublicKey
 		ethSig    EthereumSignature
 	)
-	if ethSenderHex != nil {
-		ethSender, err = NewEthereumPublicKeyFromHexString(*ethSenderHex)
+	if ethSenderPKHex != "" {
+		ethSender, err = NewEthereumPublicKeyFromHexString(ethSenderPKHex)
 		require.NoError(t, err)
 	}
-	if ethSigHex != nil {
-		ethSig, err = NewEthereumSignatureFromHexString(*ethSigHex)
+	if ethSignatureHex != "" {
+		ethSig, err = NewEthereumSignatureFromHexString(ethSignatureHex)
 		require.NoError(t, err)
 	}
 
+	matcher, err := crypto.NewPublicKeyFromBase58(matcherPKBase58)
+	require.NoError(t, err)
+	amountAsset, err := NewOptionalAssetFromString(amountAssetBase58)
+	require.NoError(t, err)
+	priceAsset, err := NewOptionalAssetFromString(priceAssetBase58)
+	require.NoError(t, err)
+
 	// sender PK should be always empty because we use ethSender in EthereumOrderV4
-	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcher, amountAsset, priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{})
+	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcher, *amountAsset, *priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{})
 	ethereumOrderV4 := EthereumOrderV4{
 		EthereumSenderPK:  ethSender,
 		EthereumSignature: ethSig,
