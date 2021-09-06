@@ -1593,8 +1593,7 @@ func TestStateHash_GenerateSumHash(t *testing.T) {
 }
 
 func TestEthereumOrderV4(t *testing.T) {
-	const ethTestScheme = 'E'
-	ethStub32 := bytes.Repeat([]byte{ethTestScheme}, 32)
+	ethStub32 := bytes.Repeat([]byte{CustomNetScheme}, 32)
 
 	stubAssetID, err := crypto.NewDigestFromBytes(ethStub32)
 	require.NoError(t, err)
@@ -1631,12 +1630,12 @@ func TestEthereumOrderV4(t *testing.T) {
 		require.NoError(t, err)
 
 		ethOrder := EthereumOrderV4{
-			EthereumSenderPK:  testEthSenderPK,
-			EthereumSignature: testEthSig,
+			SenderPK:        testEthSenderPK,
+			Eip712Signature: testEthSig,
 			OrderV4: OrderV4{
 				Version: 1,
 				ID:      nil,
-				Proofs:  nil, // no proofs because order has EthereumSignature
+				Proofs:  nil, // no proofs because order has Eip712Signature
 				MatcherFeeAsset: OptionalAsset{
 					Present: true,
 					ID:      stubAssetID,
@@ -1655,7 +1654,7 @@ func TestEthereumOrderV4(t *testing.T) {
 			},
 		}
 
-		valid, err := ethOrder.Verify(ethTestScheme)
+		valid, err := ethOrder.Verify(CustomNetScheme)
 		require.NoError(t, err)
 		require.True(t, valid)
 	})
@@ -1694,9 +1693,12 @@ func TestEthereumOrderV4(t *testing.T) {
 		}
 
 		pc := ProtobufConverter{}
-		_ = pc.extractOrder(pbTestOrder)
-		require.Error(t, pc.err)
-		require.Equal(t, "eip712Signature excludes proofs", pc.err.Error())
+		order := pc.extractOrder(pbTestOrder)
+		require.NoError(t, pc.err)
+		valid, err := order.Valid()
+		require.False(t, valid)
+		require.Error(t, err)
+		require.Equal(t, "eip712Signature excludes proofs", err.Error())
 	})
 }
 
@@ -1747,5 +1749,106 @@ func TestEthereumOrderV4_Verify(t *testing.T) {
 		valid, err := order.Verify(tc.scheme)
 		require.NoError(t, err)
 		require.True(t, valid)
+	}
+}
+
+func TestEthereumOrderV4_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		scheme             Scheme
+		jsonOrder          string
+		orderBodyBase58    string
+		orderIDBase58      string
+		eip712SignatureHex string
+	}{
+		{
+			scheme: TestNetScheme,
+			jsonOrder: `
+				{
+				   "version":4,
+				   "id":"fystnKAsFF8U55VGEjUVcT4qkxcinEMBjY7t4wTphB5",
+				   "sender":"3N2sMJ78BuYwoLHreuwjbk6dZgsnudxecBR",
+				   "senderPublicKey":"5BQPcwDXaZexgonPb8ipDrLRXY3RHn1kFLP9fqp1s6M6xiRhC4LvsAq2HueXCMzkpuXsrLnuBA3SdkJyuhNZXMCd",
+				   "matcherPublicKey":"9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+				   "assetPair":{
+					  "amountAsset":"5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
+					  "priceAsset":null
+				   },
+				   "orderType":"sell",
+				   "amount":1,
+				   "price":100,
+				   "timestamp":1,
+				   "expiration":123,
+				   "matcherFee":100000,
+				   "signature":"",
+				   "proofs":[
+			
+				   ],
+				   "matcherFeeAssetId":null,
+				   "eip712Signature":"0xc8ba2bdafd27742546b3be34883efc51d6cdffbb235798d7b51876c6854791f019b0522d7a39b6f2087cba46ae86919b71a2d9d7920dfc8e00246d8f02a258f21b"
+				}`,
+			orderBodyBase58:    "J2bf9Vo1nP6PGNJhQDCH9YQDW9nRBXajxTAk9Jqc5MXKNKPVHbPZJzMA4ByaWT9zLph2JQZ9sC5Dh9KLtARRiPBW4hzwq6xezdEmPAky1KjJM6eebYYcFzpkY1ZNaF68fNXbUmzSDS4Lu2SQPxKm6UowSSWV9SVjpwRNAjKbCg6cnBD2A3mVZ5Vw4iWgmHchAH9P73fW9x56jzWuSCvTSZsyVAGWdL8UGiLaC59txcskQwanfZfd5QuPTZ1NTSmy925rz6n32dcCmM1sJLTrV9gRmqRQLpzgvzQA9VgWC9bzvmQW",
+			orderIDBase58:      "fystnKAsFF8U55VGEjUVcT4qkxcinEMBjY7t4wTphB5",
+			eip712SignatureHex: "0xc8ba2bdafd27742546b3be34883efc51d6cdffbb235798d7b51876c6854791f019b0522d7a39b6f2087cba46ae86919b71a2d9d7920dfc8e00246d8f02a258f21b",
+		},
+		{
+			scheme: TestNetScheme,
+			jsonOrder: `
+				{
+				   "version":4,
+				   "id":"6XTFGCXmEDeXrsWXVXWty876HNTMBeX6vTgQoAw3WnH2",
+				   "sender":"3N2sMJ78BuYwoLHreuwjbk6dZgsnudxecBR",
+				   "senderPublicKey":"5BQPcwDXaZexgonPb8ipDrLRXY3RHn1kFLP9fqp1s6M6xiRhC4LvsAq2HueXCMzkpuXsrLnuBA3SdkJyuhNZXMCd",
+				   "matcherPublicKey":"9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+				   "assetPair":{
+					  "amountAsset":"5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
+					  "priceAsset":null
+				   },
+				   "orderType":"buy",
+				   "amount":1,
+				   "price":100,
+				   "timestamp":1,
+				   "expiration":123,
+				   "matcherFee":100000,
+				   "signature":"",
+				   "proofs":[
+					  
+				   ],
+				   "matcherFeeAssetId":null,
+				   "eip712Signature":"0xe5ff562bfb0296e95b631365599c87f1c5002597bf56a131f289765275d2580f5344c62999404c37cd858ea037328ac91eca16ad1ce69c345ebb52fde70b66251c"
+				}`,
+			orderBodyBase58:    "shFRJaXeYerjLQyMtvdYADWwg97iDVfxLcAXSFVYRsvGkujuY76NnKEfoztWQpsSKYzZiTr1BdVVrPn3AqJfDfmkA2ss5PGtU6DZbVZEUbc6U6vtrYA7986kVioKbySLJheEA8bnd3TPNWJXPs1bNA48nUkRiE7s7mbWGDCSzjncjwmPu4hbEHd6TAw2G2UxA5kVp2ivYFjHUDSm1NkZEHfgqtFLtZmrTYMZCCuCH1PiBo37K4RRnyvXogxdLp3pWZtCdCwWjVRUS19EFZDjyXn13XiZKtHSbu7y2hhgKFKyu",
+			orderIDBase58:      "6XTFGCXmEDeXrsWXVXWty876HNTMBeX6vTgQoAw3WnH2",
+			eip712SignatureHex: "0xe5ff562bfb0296e95b631365599c87f1c5002597bf56a131f289765275d2580f5344c62999404c37cd858ea037328ac91eca16ad1ce69c345ebb52fde70b66251c",
+		},
+	}
+	for _, tc := range tests {
+		var (
+			err                     error
+			expectedOrderID         []byte
+			expectedOrderBodyBytes  []byte
+			expectedEip712Signature EthereumSignature
+		)
+		expectedOrderID, err = base58.Decode(tc.orderIDBase58)
+		require.NoError(t, err)
+		expectedEip712Signature, err = NewEthereumSignatureFromHexString(tc.eip712SignatureHex)
+		require.NoError(t, err)
+		expectedOrderBodyBytes, err = base58.Decode(tc.orderBodyBase58)
+		require.NoError(t, err)
+
+		order := EthereumOrderV4{}
+		err = json.Unmarshal([]byte(tc.jsonOrder), &order)
+		require.NoError(t, err)
+
+		require.Equal(t, expectedEip712Signature, order.Eip712Signature)
+
+		actualOrderBody, err := order.BodyMarshalBinary(tc.scheme)
+		require.NoError(t, err)
+		require.Equal(t, expectedOrderBodyBytes, actualOrderBody)
+
+		err = order.GenerateID(tc.scheme)
+		require.NoError(t, err)
+		actualOrderID, err := order.GetID()
+		require.NoError(t, err)
+		require.Equal(t, expectedOrderID, actualOrderID)
 	}
 }

@@ -97,12 +97,13 @@ func (b B58Bytes) String() string {
 
 // MarshalJSON writes B58Bytes Value as JSON string
 func (b B58Bytes) MarshalJSON() ([]byte, error) {
-	s := base58.Encode(b)
-	var sb strings.Builder
+	s := b.String()
+	var sb bytes.Buffer
+	sb.Grow(2 + len(s))
 	sb.WriteRune('"')
 	sb.WriteString(s)
 	sb.WriteRune('"')
-	return []byte(sb.String()), nil
+	return sb.Bytes(), nil
 }
 
 // UnmarshalJSON reads B58Bytes from JSON string
@@ -129,6 +130,51 @@ func (b *B58Bytes) UnmarshalJSON(value []byte) error {
 }
 
 func (b B58Bytes) Bytes() []byte {
+	return b
+}
+
+type HexBytes []byte
+
+// String represents underlying bytes as Hex string with 0x prefix
+func (b HexBytes) String() string {
+	return EncodeToHexString(b)
+}
+
+// MarshalJSON writes HexBytes Value as JSON string
+func (b HexBytes) MarshalJSON() ([]byte, error) {
+	s := b.String()
+	var sb bytes.Buffer
+	sb.Grow(2 + len(s))
+	sb.WriteRune('"')
+	sb.WriteString(s)
+	sb.WriteRune('"')
+	return sb.Bytes(), nil
+}
+
+// UnmarshalJSON reads HexBytes from JSON string
+func (b *HexBytes) UnmarshalJSON(value []byte) error {
+	s := string(value)
+	if s == jsonNull {
+		*b = nil
+		return nil
+	}
+	s, err := strconv.Unquote(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal HexBytes from JSON")
+	}
+	if s == "" {
+		*b = []byte{}
+		return nil
+	}
+	v, err := DecodeFromHexString(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to decode HexBytes")
+	}
+	*b = v
+	return nil
+}
+
+func (b HexBytes) Bytes() []byte {
 	return b
 }
 
@@ -398,10 +444,6 @@ func (p AssetPair) ToProtobuf() *g.AssetPair {
 	return &g.AssetPair{AmountAssetId: p.AmountAsset.ToID(), PriceAssetId: p.PriceAsset.ToID()}
 }
 
-type OrderVersion struct {
-	Version byte `json:"version"`
-}
-
 type Order interface {
 	GetID() ([]byte, error)
 	GetVersion() byte
@@ -426,7 +468,7 @@ type Order interface {
 }
 
 func MarshalOrderBody(scheme Scheme, o Order) (data []byte, err error) {
-	switch o.GetVersion() {
+	switch version := o.GetVersion(); version {
 	case 1:
 		o, ok := o.(*OrderV1)
 		if !ok {
@@ -456,7 +498,7 @@ func MarshalOrderBody(scheme Scheme, o Order) (data []byte, err error) {
 		}
 		return data, err
 	default:
-		return nil, errors.New("invalid order version")
+		return nil, errors.Errorf("invalid order version %d", version)
 	}
 }
 
@@ -525,10 +567,6 @@ func (o OrderBody) Valid() (bool, error) {
 		return false, errors.New("expiration should be positive")
 	}
 	return true, nil
-}
-
-func (o OrderBody) GetSenderPK() crypto.PublicKey {
-	return o.SenderPK
 }
 
 func (o OrderBody) GetSenderPKBytes() []byte {
@@ -1495,22 +1533,26 @@ func (o *OrderV4) Verify(scheme Scheme) (bool, error) {
 }
 
 type EthereumOrderV4 struct {
-	EthereumSenderPK  EthereumPublicKey `json:"senderPublicKey"`
-	EthereumSignature EthereumSignature `json:"ethSignature"`
+	SenderPK        EthereumPublicKey `json:"senderPublicKey"`
+	Eip712Signature EthereumSignature `json:"eip712Signature,omitempty"`
 	OrderV4
 }
 
-func (o *EthereumOrderV4) GetSenderPK() crypto.PublicKey {
-	panic(errors.New("BUG, CREATE REPORT: EthereumOrderV4 doesn't support waves public key."))
+func (o *EthereumOrderV4) Valid() (bool, error) {
+	if len(o.Proofs.Proofs) > 0 {
+		// nickeskov: see isValid method in com/wavesplatform/transaction/assets/exchange/Order.scala
+		return false, errors.New("eip712Signature excludes proofs")
+	}
+	return o.OrderV4.Valid()
 }
 
 func (o *EthereumOrderV4) GetSenderPKBytes() []byte {
 	// 64 bytes of uncompressed ethereum public key
-	return o.EthereumSenderPK.SerializeXYCoordinates()
+	return o.SenderPK.SerializeXYCoordinates()
 }
 
 func (o *EthereumOrderV4) GetSender(_ Scheme) (Address, error) {
-	return o.EthereumSenderPK.EthereumAddress(), nil
+	return o.SenderPK.EthereumAddress(), nil
 }
 
 func (o *EthereumOrderV4) GenerateID(scheme Scheme) error {
@@ -1532,8 +1574,8 @@ func (o *EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
 		return false, errors.Wrap(err, "failed to validate ethereum signature for EthereumOrderV4")
 	}
 	// TODO(nickeskov): Should we validate 'V' signature value?
-	_, r, s := o.EthereumSignature.AsVRS()
-	return VerifyEthereumSignature(&o.EthereumSenderPK, r, s, hash.Bytes()), nil
+	_, r, s := o.Eip712Signature.AsVRS()
+	return VerifyEthereumSignature(&o.SenderPK, r, s, hash.Bytes()), nil
 }
 
 func (o *EthereumOrderV4) Sign(_ Scheme, _ crypto.SecretKey) error {
@@ -1544,23 +1586,18 @@ func (o *EthereumOrderV4) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderV4.ToProtobuf(scheme)
 	// 64 bytes of uncompressed ethereum public key
 	res.SenderPublicKey = o.GetSenderPKBytes()
+	res.Eip712Signature = o.Eip712Signature.Bytes()
 	return res
 }
 
 func (o *EthereumOrderV4) ToProtobufSigned(scheme Scheme) *g.Order {
 	res := o.ToProtobuf(scheme)
-	res.Eip712Signature = o.EthereumSignature.Bytes()
 	return res
 }
 
 func (o *EthereumOrderV4) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	pbOrder := o.ToProtobuf(scheme)
-	pbOrder.Eip712Signature = nil
 	return MarshalToProtobufDeterministic(pbOrder)
-}
-
-func (o *EthereumOrderV4) GetEthereumSenderPK() EthereumPublicKey {
-	return o.EthereumSenderPK
 }
 
 func (o *EthereumOrderV4) ethereumTypedDataHash(scheme Scheme) (EthereumHash, error) {

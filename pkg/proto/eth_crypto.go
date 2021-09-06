@@ -51,23 +51,50 @@ func NewEthereumSignatureFromHexString(hexString string) (ethSig EthereumSignatu
 }
 
 func NewEthereumSignatureFromBytes(b []byte) (ethSig EthereumSignature, err error) {
-	sigLen := len(b)
-	if sigLen != ethereumSignatureLength {
-		return ethSig, errors.Errorf("eip712Signature should be of length %d", ethereumSignatureLength)
+	err = ethSig.UnmarshalBinary(b)
+	if err != nil {
+		return EthereumSignature{}, err
 	}
-	copy(ethSig.sig[:], b)
 	return ethSig, nil
 }
 
-func (es EthereumSignature) Bytes() []byte {
+func (es *EthereumSignature) Bytes() []byte {
 	return es.sig[:]
 }
 
 // AsVRS return ethereum signature as V, R, S signature values.
 // Note that V can be 27/28 for legacy reasons, but real V value is 0/1.
-func (es EthereumSignature) AsVRS() (v, r, s *big.Int) {
+func (es *EthereumSignature) AsVRS() (v, r, s *big.Int) {
 	r = new(big.Int).SetBytes(es.sig[:32])
 	s = new(big.Int).SetBytes(es.sig[32:64])
 	v = new(big.Int).SetBytes([]byte{es.sig[64]})
 	return v, r, s
+}
+
+func (es *EthereumSignature) MarshalBinary() (data []byte, err error) {
+	return es.Bytes(), nil
+}
+
+func (es *EthereumSignature) UnmarshalBinary(data []byte) error {
+	sigLen := len(data)
+	if sigLen != ethereumSignatureLength {
+		return errors.Errorf("eip712Signature should be of length %d", ethereumSignatureLength)
+	}
+	copy(es.sig[:], data)
+	return nil
+}
+
+func (es *EthereumSignature) MarshalJSON() ([]byte, error) {
+	// nickeskov: can't fail
+	data, _ := es.MarshalBinary()
+	return HexBytes(data).MarshalJSON()
+}
+
+func (es *EthereumSignature) UnmarshalJSON(bytes []byte) error {
+	sigBytes := HexBytes{}
+	err := sigBytes.UnmarshalJSON(bytes)
+	if err != nil {
+		return err
+	}
+	return es.UnmarshalBinary(sigBytes)
 }

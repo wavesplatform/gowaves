@@ -346,33 +346,17 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 		body.SenderPK = c.publicKey(o.SenderPublicKey)
 	}
 
-	switch o.Version {
-	case 4:
-		orderV4 := OrderV4{
-			Version:         c.byte(o.Version),
-			Proofs:          c.proofs(o.Proofs),
-			OrderBody:       body,
-			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
+	switch version := o.Version; version {
+	case 1:
+		order = &OrderV1{
+			Signature: c.proof(o.Proofs),
+			OrderBody: body,
 		}
-		if len(o.Eip712Signature) != 0 {
-			if len(o.Proofs) != 0 {
-				// nickeskov: see isValid method in com/wavesplatform/transaction/assets/exchange/Order.scala
-				c.err = errors.New("eip712Signature excludes proofs")
-				return nil
-			}
-			ethPubKey, err := NewEthereumPublicKeyFromBytes(o.SenderPublicKey)
-			if err != nil {
-				c.err = err
-				return nil
-			}
-			order = &EthereumOrderV4{
-				EthereumSignature: c.ethSignature(o.Eip712Signature),
-				EthereumSenderPK:  ethPubKey,
-				OrderV4:           orderV4,
-			}
-		} else {
-			orderV4.SenderPK = c.publicKey(o.SenderPublicKey)
-			order = &orderV4
+	case 2:
+		order = &OrderV2{
+			Version:   c.byte(o.Version),
+			Proofs:    c.proofs(o.Proofs),
+			OrderBody: body,
 		}
 	case 3:
 		order = &OrderV3{
@@ -381,17 +365,31 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 			OrderBody:       body,
 			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
 		}
-	case 2:
-		order = &OrderV2{
-			Version:   c.byte(o.Version),
-			Proofs:    c.proofs(o.Proofs),
-			OrderBody: body,
+	case 4:
+		orderV4 := OrderV4{
+			Version:         c.byte(o.Version),
+			Proofs:          c.proofs(o.Proofs),
+			OrderBody:       body,
+			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
+		}
+		if len(o.Eip712Signature) != 0 {
+			ethPubKey, err := NewEthereumPublicKeyFromBytes(o.SenderPublicKey)
+			if err != nil {
+				c.err = err
+				return nil
+			}
+			order = &EthereumOrderV4{
+				Eip712Signature: c.ethSignature(o.Eip712Signature),
+				SenderPK:        ethPubKey,
+				OrderV4:         orderV4,
+			}
+		} else {
+			orderV4.SenderPK = c.publicKey(o.SenderPublicKey)
+			order = &orderV4
 		}
 	default:
-		order = &OrderV1{
-			Signature: c.proof(o.Proofs),
-			OrderBody: body,
-		}
+		c.err = errors.Errorf("invalid order version %d", version)
+		return nil
 	}
 	scheme := c.byte(o.ChainId)
 	if scheme == 0 {
@@ -399,6 +397,7 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 	}
 	if err := order.GenerateID(scheme); err != nil {
 		c.err = err
+		return nil
 	}
 	return order
 }
