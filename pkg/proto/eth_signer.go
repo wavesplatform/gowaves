@@ -15,9 +15,9 @@ var ErrInvalidChainId = errors.New("invalid chain id for signer")
 const (
 	ethereumSignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
 
-	ethPublicKeyUncompressedPrefix byte = 0x4         // prefix which means this is uncompressed point
-	ethPublicKeyBytesUncompressed       = 1 + 32 + 32 // 0x4 prefix + x_coordinate bytes + y_coordinate bytes
-	ethPublicKeyBytesCompressed         = 1 + 32      // y_bit (0x02 if y is even, 0x03 if y is odd) + x_coordinate bytes
+	ethereumPublicKeyUncompressedPrefix byte = 0x4         // prefix which means this is uncompressed point
+	ethereumPublicKeyBytesUncompressed       = 1 + 32 + 32 // 0x4 prefix + x_coordinate bytes + y_coordinate bytes
+	ethereumPublicKeyBytesCompressed         = 1 + 32      // y_bit (0x02 if y is even, 0x03 if y is odd) + x_coordinate bytes
 )
 
 type EthereumPublicKey btcec.PublicKey
@@ -53,21 +53,22 @@ func (epk *EthereumPublicKey) MarshalBinary() (data []byte, err error) {
 }
 
 func (epk *EthereumPublicKey) UnmarshalBinary(data []byte) error {
-	if len(data) == ethPublicKeyBytesUncompressed-1 {
+	if len(data) == ethereumPublicKeyBytesUncompressed-1 {
 		// nickeskov: special case for web3j (scala node)
-		//	in this library public key len == 64 bytes (key without prefix)
-		uncompressed := make([]byte, ethPublicKeyBytesUncompressed)
-		uncompressed[0] = ethPublicKeyUncompressedPrefix
+		//	in this library public key len == 64 bytes (uncompressed key without prefix)
+		uncompressed := make([]byte, ethereumPublicKeyBytesUncompressed)
+		uncompressed[0] = ethereumPublicKeyUncompressedPrefix
 		copy(uncompressed[1:], data)
 		data = uncompressed
 	}
 	pubKeyLen := len(data)
-	if pubKeyLen != ethPublicKeyBytesUncompressed && pubKeyLen != ethPublicKeyBytesCompressed {
+	if pubKeyLen != ethereumPublicKeyBytesUncompressed && pubKeyLen != ethereumPublicKeyBytesCompressed {
 		return errors.Errorf(
-			"wrong size for marshaled ethereum public key: got %d, want %d or %d",
+			"wrong size for marshaled ethereum public key: got %d, want %d (uncompressed without prefix) or %d (uncompressed) or %d (compressed)",
 			pubKeyLen,
-			ethPublicKeyBytesUncompressed,
-			ethPublicKeyBytesCompressed,
+			ethereumPublicKeyBytesUncompressed-1,
+			ethereumPublicKeyBytesUncompressed,
+			ethereumPublicKeyBytesCompressed,
 		)
 	}
 	pubKey, err := btcec.ParsePubKey(data, crypto.S256())
