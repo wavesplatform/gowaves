@@ -1376,7 +1376,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	expectedDiffResult.balances[addressCallable.String()+assetExp.String()] = balanceCallable
 
 	assetFromIssue := *proto.NewOptionalAssetFromDigest(sr.Issues[0].ID)
-	balanceCallableAsset := diffBalance{regular: 1, leaseOut: 0, asset: assetFromIssue}
+	balanceCallableAsset := diffBalance{regular: 6, leaseOut: 0, asset: assetFromIssue} // +1 after Issue. + 10 after Reissue. -5 after Burn. = 6
 	expectedDiffResult.balances[addressCallable.String()+assetFromIssue.String()] = balanceCallableAsset
 
 	intEntry1 := proto.IntegerDataEntry{Key: "int", Value: 1}
