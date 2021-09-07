@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"

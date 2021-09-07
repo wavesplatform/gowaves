@@ -1,6 +1,7 @@
 package ride
 
 import (
+	"bytes"
 	"unicode/utf16"
 
 	"github.com/pkg/errors"
@@ -1305,9 +1306,11 @@ func (e *EvaluationEnvironment) state() types.SmartState {
 }
 
 func (e *EvaluationEnvironment) setNewDAppAddress(address proto.Address) {
-	ws, _ := e.st.(*WrappedState)
+	ws, ok := e.st.(*WrappedState)
+	if !ok {
+		panic("not a WrappedState")
+	}
 	ws.cle = rideAddress(address)
-
 	e.SetThisFromAddress(address)
 }
 
@@ -1339,15 +1342,8 @@ func (e *EvaluationEnvironment) internalPaymentsValidationHeight() uint64 {
 	return e.validatePaymentsAfter
 }
 
+var wavesAssetBytes = crypto.Digest{}.Bytes()
+
 func isAssetWaves(assetID []byte) bool {
-	wavesAsset := crypto.Digest{}
-	if len(wavesAsset) != len(assetID) {
-		return false
-	}
-	for i := range assetID {
-		if assetID[i] != wavesAsset[i] {
-			return false
-		}
-	}
-	return true
+	return bytes.Equal(wavesAssetBytes, assetID)
 }
