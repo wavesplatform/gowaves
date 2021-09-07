@@ -109,11 +109,11 @@ func (tx *EthereumInvokeScriptTx) Type() string {
 }
 
 type EthereumTransaction struct {
-	inner           EthereumTxData
+	Inner           EthereumTxData
 	innerBinarySize int
 	TxKind          EthereumTransactionKind
 	ID              *crypto.Digest
-	senderPK        *EthereumPublicKey
+	SenderPK        *EthereumPublicKey
 }
 
 func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
@@ -151,7 +151,7 @@ func (tx *EthereumTransaction) GetTimestamp() uint64 {
 }
 
 func (tx *EthereumTransaction) Validate() (Transaction, error) {
-	if tx.senderPK != nil {
+	if tx.SenderPK != nil {
 		return tx, nil
 	}
 	signer := MakeEthereumSigner(tx.ChainId())
@@ -159,7 +159,7 @@ func (tx *EthereumTransaction) Validate() (Transaction, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to validate EthereumTransaction")
 	}
-	tx.senderPK = senderPK
+	tx.SenderPK = senderPK
 	return tx, nil
 }
 
@@ -284,46 +284,46 @@ func (tx *EthereumTransaction) ToProtobufSigned(_ Scheme) (*g.SignedTransaction,
 
 // EthereumTxType returns the transaction type.
 func (tx *EthereumTransaction) EthereumTxType() EthereumTxType {
-	return tx.inner.ethereumTxType()
+	return tx.Inner.ethereumTxType()
 }
 
 // ChainId returns the EIP155 chain ID of the transaction. The return value will always be
 // non-nil. For legacy transactions which are not replay-protected, the return value is
 // zero.
 func (tx *EthereumTransaction) ChainId() *big.Int {
-	return tx.inner.chainID()
+	return tx.Inner.chainID()
 }
 
 // Data returns the input data of the transaction.
-func (tx *EthereumTransaction) Data() []byte { return tx.inner.data() }
+func (tx *EthereumTransaction) Data() []byte { return tx.Inner.data() }
 
 // AccessList returns the access list of the transaction.
-func (tx *EthereumTransaction) AccessList() EthereumAccessList { return tx.inner.accessList() }
+func (tx *EthereumTransaction) AccessList() EthereumAccessList { return tx.Inner.accessList() }
 
 // Gas returns the gas limit of the transaction.
-func (tx *EthereumTransaction) Gas() uint64 { return tx.inner.gas() }
+func (tx *EthereumTransaction) Gas() uint64 { return tx.Inner.gas() }
 
 // GasPrice returns the gas price of the transaction.
-func (tx *EthereumTransaction) GasPrice() *big.Int { return copyBigInt(tx.inner.gasPrice()) }
+func (tx *EthereumTransaction) GasPrice() *big.Int { return copyBigInt(tx.Inner.gasPrice()) }
 
 // GasTipCap returns the gasTipCap per gas of the transaction.
-func (tx *EthereumTransaction) GasTipCap() *big.Int { return copyBigInt(tx.inner.gasTipCap()) }
+func (tx *EthereumTransaction) GasTipCap() *big.Int { return copyBigInt(tx.Inner.gasTipCap()) }
 
 // GasFeeCap returns the fee cap per gas of the transaction.
-func (tx *EthereumTransaction) GasFeeCap() *big.Int { return copyBigInt(tx.inner.gasFeeCap()) }
+func (tx *EthereumTransaction) GasFeeCap() *big.Int { return copyBigInt(tx.Inner.gasFeeCap()) }
 
 // Value returns the ether amount of the transaction.
-func (tx *EthereumTransaction) Value() *big.Int { return copyBigInt(tx.inner.value()) }
+func (tx *EthereumTransaction) Value() *big.Int { return copyBigInt(tx.Inner.value()) }
 
 // Nonce returns the sender account nonce of the transaction.
-func (tx *EthereumTransaction) Nonce() uint64 { return tx.inner.nonce() }
+func (tx *EthereumTransaction) Nonce() uint64 { return tx.Inner.nonce() }
 
 // To returns the recipient address of the transaction.
 // For contract-creation transactions, To returns nil.
-func (tx *EthereumTransaction) To() *EthereumAddress { return tx.inner.to().copy() }
+func (tx *EthereumTransaction) To() *EthereumAddress { return tx.Inner.to().copy() }
 
 func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (WavesAddress, error) {
-	to, err := tx.inner.to().ToWavesAddress(scheme)
+	to, err := tx.Inner.to().ToWavesAddress(scheme)
 	if err != nil {
 		return WavesAddress{}, err
 	}
@@ -337,7 +337,7 @@ func (tx *EthereumTransaction) From() (EthereumAddress, error) {
 	if _, err := tx.Validate(); err != nil {
 		return EthereumAddress{}, err
 	}
-	addr := tx.senderPK.EthereumAddress()
+	addr := tx.SenderPK.EthereumAddress()
 	return addr, nil
 }
 
@@ -347,7 +347,7 @@ func (tx *EthereumTransaction) FromPK() (*EthereumPublicKey, error) {
 	if _, err := tx.Validate(); err != nil {
 		return nil, err
 	}
-	return tx.senderPK.copy(), nil
+	return tx.SenderPK.copy(), nil
 }
 
 func (tx *EthereumTransaction) WavesAddressFrom(scheme byte) (WavesAddress, error) {
@@ -365,7 +365,7 @@ func (tx *EthereumTransaction) WavesAddressFrom(scheme byte) (WavesAddress, erro
 // RawSignatureValues returns the V, R, S signature values of the transaction.
 // The return values should not be modified by the caller.
 func (tx *EthereumTransaction) RawSignatureValues() (v, r, s *big.Int) {
-	return tx.inner.rawSignatureValues()
+	return tx.Inner.rawSignatureValues()
 }
 
 //func (tx *EthereumTransaction) Hash() EthereumHash {
@@ -393,7 +393,7 @@ func (tx *EthereumTransaction) unmarshalFromFastRLP(value *fastrlp.Value) error 
 				LegacyTxType.String(),
 			)
 		}
-		tx.inner = &inner
+		tx.Inner = &inner
 	case fastrlp.TypeBytes:
 		// nickeskov: It's an EIP-2718 typed TX envelope.
 		typedTxBytes, err := value.Bytes()
@@ -404,7 +404,7 @@ func (tx *EthereumTransaction) unmarshalFromFastRLP(value *fastrlp.Value) error 
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal from RLP ethereum typed transaction")
 		}
-		tx.inner = inner
+		tx.Inner = inner
 	default:
 		return ErrTxTypeDecode
 	}
@@ -417,7 +417,7 @@ func (tx EthereumTransaction) EncodeRLP(w io.Writer) error {
 	var fastrlpTx *fastrlp.Value
 	// nickeskov: maybe use buffer pool?
 	if tx.EthereumTxType() == LegacyTxType {
-		fastrlpTx = tx.inner.marshalToFastRLP(arena)
+		fastrlpTx = tx.Inner.marshalToFastRLP(arena)
 	} else {
 		fastrlpTx = tx.encodeTyped(arena)
 	}
@@ -459,7 +459,7 @@ func (tx *EthereumTransaction) decodeTyped(rlpData []byte) (EthereumTxData, erro
 // encodeTyped writes the canonical encoding of a typed transaction to w.
 func (tx *EthereumTransaction) encodeTyped(arena *fastrlp.Arena) *fastrlp.Value {
 	rlpMarshaledTx := []byte{byte(tx.EthereumTxType())}
-	typedTxVal := tx.inner.marshalToFastRLP(arena)
+	typedTxVal := tx.Inner.marshalToFastRLP(arena)
 	rlpMarshaledTx = typedTxVal.MarshalTo(rlpMarshaledTx)
 	return arena.NewBytes(rlpMarshaledTx)
 }
@@ -475,7 +475,7 @@ func isProtectedV(V *big.Int) bool {
 
 // Protected says whether the transaction is replay-protected.
 func (tx *EthereumTransaction) Protected() bool {
-	switch tx := tx.inner.(type) {
+	switch tx := tx.Inner.(type) {
 	case *EthereumLegacyTx:
 		return tx.V != nil && isProtectedV(tx.V)
 	default:

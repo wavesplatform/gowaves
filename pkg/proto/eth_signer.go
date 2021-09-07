@@ -177,7 +177,7 @@ func (s londonSigner) Equal(s2 EthereumSigner) bool {
 }
 
 func (s londonSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S, V *big.Int, err error) {
-	txdata, ok := tx.inner.(*EthereumDynamicFeeTx)
+	txdata, ok := tx.Inner.(*EthereumDynamicFeeTx)
 	if !ok {
 		return s.eip2930Signer.SignatureValues(tx, sig)
 	}
@@ -201,7 +201,7 @@ func (s londonSigner) Hash(tx *EthereumTransaction) EthereumHash {
 		return s.eip2930Signer.Hash(tx)
 	}
 	arena := &fastrlp.Arena{}
-	hashValues := tx.inner.signerHashFastRLP(s.chainId, arena)
+	hashValues := tx.Inner.signerHashFastRLP(s.chainId, arena)
 
 	rlpData := []byte{byte(tx.EthereumTxType())}
 	rlpData = hashValues.MarshalTo(rlpData)
@@ -246,7 +246,7 @@ func (s eip2930Signer) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, er
 }
 
 func (s eip2930Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S, V *big.Int, err error) {
-	switch txdata := tx.inner.(type) {
+	switch txdata := tx.Inner.(type) {
 	case *EthereumLegacyTx:
 		return s.eip155Signer.SignatureValues(tx, sig)
 	case *EthereumAccessListTx:
@@ -273,7 +273,7 @@ func (s eip2930Signer) Hash(tx *EthereumTransaction) EthereumHash {
 		return s.eip155Signer.Hash(tx)
 	}
 	arena := &fastrlp.Arena{}
-	hashValues := tx.inner.signerHashFastRLP(s.chainId, arena)
+	hashValues := tx.Inner.signerHashFastRLP(s.chainId, arena)
 
 	rlpData := []byte{byte(tx.EthereumTxType())}
 	rlpData = hashValues.MarshalTo(rlpData)
@@ -359,7 +359,7 @@ func (s eip155Signer) Hash(tx *EthereumTransaction) EthereumHash {
 		return EthereumHash{}
 	}
 	arena := &fastrlp.Arena{}
-	hashValues := tx.inner.signerHashFastRLP(s.chainId, arena)
+	hashValues := tx.Inner.signerHashFastRLP(s.chainId, arena)
 
 	rlpData := hashValues.MarshalTo(nil)
 
@@ -445,7 +445,7 @@ func (fs FrontierSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (r
 // It does not uniquely identify the transaction.
 func (fs FrontierSigner) Hash(tx *EthereumTransaction) EthereumHash {
 	arena := &fastrlp.Arena{}
-	hashValues := tx.inner.signerHashFastRLP(fs.ChainID(), arena)
+	hashValues := tx.Inner.signerHashFastRLP(fs.ChainID(), arena)
 
 	var rlpData []byte
 
