@@ -1,38 +1,44 @@
 package state
 
 import (
-	"fmt"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"math/big"
 	"testing"
 )
 
-
-
 func TestEthereumTransferWaves(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	txHandler, err := newTransactionHandler(genBlockId('1'), nil, nil)
-	store := blockchainEntitiesStorage{features: &features{}}
+	appendTxParams.blockInfo.Timestamp = 0
+	txHandler, err := newTransactionHandler(genBlockId('1'), nil, &settings.BlockchainSettings{FunctionalitySettings: settings.FunctionalitySettings{CheckTempNegativeAfterTime: 1, AllowLeasedBalanceTransferUntilTime: 1}})
+	var feautures = &MockFeaturesState{
+		newestIsActivatedFunc: func(featureID int16) (bool, error) {
+			return false, nil
+		},
+	}
+	store := blockchainEntitiesStorage{features: feautures}
 	assert.NoError(t, err)
 	txAppender := txAppender{
-		txHandler: txHandler,
-		stor: &store,
+		txHandler:   txHandler,
+		stor:        &store,
+		blockDiffer: &blockDiffer{handler: txHandler, settings: &settings.BlockchainSettings{}},
 	}
 
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("0xc4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 
 	recipientBytes, err := base58.Decode("241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
-	recipient := proto.BytesToEthereumAddress(recipientBytes)
+	assert.NoError(t, err)
+	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 	ethereumTxData := &proto.EthereumLegacyTx{
-		Value: big.NewInt(100),
-		To: &recipient,
-		Data: nil,
+		Value:    big.NewInt(1000000000000000),
+		To:       &recipientEth,
+		Data:     nil,
 		GasPrice: big.NewInt(1),
-		Nonce: 2,
-		Gas: 100,
+		Nonce:    2,
+		Gas:      100,
 	}
 	tx := proto.EthereumTransaction{
 		Inner:    ethereumTxData,
@@ -43,5 +49,20 @@ func TestEthereumTransferWaves(t *testing.T) {
 
 	applRes, err := txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	assert.NoError(t, err)
-	fmt.Println(applRes)
+	assert.True(t, applRes.status)
+	wavesAsset := proto.NewOptionalAssetWaves()
+	sender, err := tx.SenderPK.EthereumAddress().ToWavesAddress(0)
+	assert.NoError(t, err)
+	senderKey := byteKey(sender, wavesAsset.ToID())
+
+	recipient, err := recipientEth.ToWavesAddress(0)
+	assert.NoError(t, err)
+	recipientKey := byteKey(recipient, wavesAsset.ToID())
+
+	senderBalance := applRes.changes.diff[string(senderKey)].balance
+	recipientBalance := applRes.changes.diff[string(recipientKey)].balance
+
+	assert.Equal(t, senderBalance, int64(-100100))
+	assert.Equal(t, recipientBalance, int64(100000))
+
 }

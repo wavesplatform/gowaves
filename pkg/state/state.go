@@ -49,7 +49,7 @@ type blockchainEntitiesStorage struct {
 	scores            *scores
 	blocksInfo        *blocksInfo
 	balances          *balances
-	features          *features
+	features          FeaturesState
 	monetaryPolicy    *monetaryPolicy
 	ordersVolumes     *ordersVolumes
 	accountsDataStor  *accountsDataStorage
