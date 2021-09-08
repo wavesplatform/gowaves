@@ -827,7 +827,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				var err error
 				senderAddress, err = proto.NewAddressFromPublicKey(ws.scheme, senderPK)
 				if err != nil {
-					return nil, errors.Wrap(err, "failed to get address  by public key")
+					return nil, errors.Wrap(err, "failed to get address by public key")
 				}
 			} else {
 				act = "transfer action"

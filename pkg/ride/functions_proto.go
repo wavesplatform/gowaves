@@ -137,7 +137,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	env.setNewDAppAddress(*address)
 	err = ws.smartAppendActions(paymentActions, env)
 	if err != nil {
-		return nil, errors.Wrapf(err, "reentrantInvoke")
+		return nil, errors.Wrapf(err, "reentrantInvoke: failed to apply attached payments")
 	}
 
 	if ws.invCount() > 1 {
@@ -289,7 +289,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	env.setNewDAppAddress(*address)
 	err = ws.smartAppendActions(paymentActions, env)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invoke")
+		return nil, errors.Wrapf(err, "invoke: failed to apply attached payments")
 	}
 
 	// append a call to the stack to protect a user from the reentrancy attack
@@ -340,7 +340,7 @@ func ensureRecipientAddress(env Environment, recipient proto.Recipient) (proto.R
 		}
 		address, err := env.state().NewestAddrByAlias(*recipient.Alias)
 		if err != nil {
-			return proto.Recipient{}, errors.Errorf("invoke: failed to get address by alias, %v", err)
+			return proto.Recipient{}, errors.Errorf("failed to get address by alias, %v", err)
 		}
 		recipient.Address = &address
 		return recipient, nil
