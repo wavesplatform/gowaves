@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/btcsuite/btcd/btcec"
 	"io"
 	"math/big"
 	"reflect"
@@ -21,6 +22,7 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -97,13 +99,7 @@ func (b B58Bytes) String() string {
 
 // MarshalJSON writes B58Bytes Value as JSON string
 func (b B58Bytes) MarshalJSON() ([]byte, error) {
-	s := b.String()
-	var sb bytes.Buffer
-	sb.Grow(2 + len(s))
-	sb.WriteRune('"')
-	sb.WriteString(s)
-	sb.WriteRune('"')
-	return sb.Bytes(), nil
+	return common.ToBase58JSON(b), nil
 }
 
 // UnmarshalJSON reads B58Bytes from JSON string
@@ -1532,6 +1528,16 @@ func (o *OrderV4) Verify(scheme Scheme) (bool, error) {
 	return o.Proofs.Verify(0, o.SenderPK, b)
 }
 
+//NewSignedEthereumOrderV4 creates the new ethereum signed order.
+func NewSignedEthereumOrderV4(senderPK EthereumPublicKey, eip712Signature EthereumSignature, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset) *EthereumOrderV4 {
+	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee, matcherFeeAsset)
+	return &EthereumOrderV4{
+		SenderPK:        senderPK,
+		Eip712Signature: eip712Signature,
+		OrderV4:         *orderV4,
+	}
+}
+
 type EthereumOrderV4 struct {
 	SenderPK        EthereumPublicKey `json:"senderPublicKey"`
 	Eip712Signature EthereumSignature `json:"eip712Signature,omitempty"`
@@ -1598,6 +1604,37 @@ func (o *EthereumOrderV4) ToProtobufSigned(scheme Scheme) *g.Order {
 func (o *EthereumOrderV4) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	pbOrder := o.ToProtobuf(scheme)
 	return MarshalToProtobufDeterministic(pbOrder)
+}
+
+// EthereumSign signs order with provided *btcec.PrivateKey. This method is used only for test purposes
+func (o *EthereumOrderV4) EthereumSign(scheme Scheme, key *EthereumPrivateKey) (err error) {
+	typedData := o.buildEthereumOrderV4TypedData(scheme)
+	data, err := typedData.RawData()
+	if err != nil {
+		return errors.Wrap(err, "failed to build typed data and sign EthereumOrderV4 with 'ethereumSecretKey'")
+	}
+	h, err := crypto.Keccak256(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to calculate 'Keccak256' hash")
+	}
+	eip712SignatureBytes, err := crypto.ECDSASign(h[:], (*btcec.PrivateKey)(key))
+	if err != nil {
+		return errors.Wrap(err, "failed to sign EthereumOrderV4 with 'ethereumSecretKey'")
+	}
+	eip712SignatureBytes[len(eip712SignatureBytes)-1] += 27 // Transform V signature value from 0/1 to 27/28 according to the yellow paper
+	eip712Signature, err := NewEthereumSignatureFromBytes(eip712SignatureBytes)
+	if err != nil {
+		return errors.Wrapf(err, "failed to convert '%x' bytes to EthereumSignature", eip712SignatureBytes)
+	}
+	o.Eip712Signature = eip712Signature
+
+	if o.ID == nil {
+		err := o.GenerateID(scheme)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (o *EthereumOrderV4) ethereumTypedDataHash(scheme Scheme) (EthereumHash, error) {

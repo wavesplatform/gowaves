@@ -59,17 +59,25 @@ type ethereumTypedData struct {
 	Message     ethereumTypedDataMessage `json:"message"`
 }
 
-func (typedData *ethereumTypedData) Hash() (EthereumHash, error) {
+func (typedData *ethereumTypedData) RawData() ([]byte, error) {
 	domainSeparator, err := typedData.HashStructMap("EIP712Domain", typedData.Domain.Map())
 	if err != nil {
-		return EthereumHash{}, err
+		return nil, err
 	}
 	typedDataHash, err := typedData.HashStructMap(typedData.PrimaryType, typedData.Message)
 	if err != nil {
-		return EthereumHash{}, err
+		return nil, err
 	}
 	rawData := fmt.Sprintf("\x19\x01%s%s", string(domainSeparator.Bytes()), string(typedDataHash.Bytes()))
-	return NewKeccak256EthereumHash([]byte(rawData)), nil
+	return []byte(rawData), nil
+}
+
+func (typedData *ethereumTypedData) Hash() (EthereumHash, error) {
+	rawData, err := typedData.RawData()
+	if err != nil {
+		return EthereumHash{}, nil
+	}
+	return NewKeccak256EthereumHash(rawData), nil
 }
 
 // HashStructMap generates a keccak256 hash of the encoding of the provided data

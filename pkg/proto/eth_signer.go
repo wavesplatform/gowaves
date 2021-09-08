@@ -20,6 +20,10 @@ const (
 	ethereumPublicKeyBytesCompressed         = 1 + 32      // y_bit (0x02 if y is even, 0x03 if y is odd) + x_coordinate bytes
 )
 
+// EthereumPrivateKey is an Ethereum ecdsa.PrivateKey.
+type EthereumPrivateKey btcec.PrivateKey
+
+// EthereumPublicKey is an Ethereum ecdsa.PublicKey
 type EthereumPublicKey btcec.PublicKey
 
 // MarshalJSON marshal EthereumPublicKey in base58 encoding.

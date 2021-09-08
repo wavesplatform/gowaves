@@ -2410,14 +2410,8 @@ func newEthereumOrderV4(t *testing.T, ethSenderPKHex, ethSignatureHex, matcherPK
 	priceAsset, err := NewOptionalAssetFromString(priceAssetBase58)
 	require.NoError(t, err)
 
-	// sender PK should be always empty because we use ethSender in EthereumOrderV4
-	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcher, *amountAsset, *priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{})
-	ethereumOrderV4 := EthereumOrderV4{
-		SenderPK:        ethSender,
-		Eip712Signature: ethSig,
-		OrderV4:         *orderV4,
-	}
-	return ethereumOrderV4
+	ethereumOrderV4 := NewSignedEthereumOrderV4(ethSender, ethSig, matcher, *amountAsset, *priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{})
+	return *ethereumOrderV4
 }
 
 func TestExchangeWithSigFromMainNet(t *testing.T) {

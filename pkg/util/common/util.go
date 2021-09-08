@@ -2,6 +2,7 @@
 package common
 
 import (
+	"bytes"
 	"encoding/base64"
 	"os"
 	"os/user"
@@ -141,11 +142,12 @@ func FromBase64JSONUnsized(value []byte, name string) ([]byte, error) {
 
 func ToBase58JSON(b []byte) []byte {
 	s := base58.Encode(b)
-	var sb strings.Builder
+	var sb bytes.Buffer
+	sb.Grow(2 + len(s))
 	sb.WriteRune('"')
 	sb.WriteString(s)
 	sb.WriteRune('"')
-	return []byte(sb.String())
+	return sb.Bytes()
 }
 
 func FromBase58JSONUnsized(value []byte, name string) ([]byte, error) {

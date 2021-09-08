@@ -557,20 +557,7 @@ func TestCreateDiffExchangeWithProofs(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
-func createExchangeWithProofsWithOrdersV3(t *testing.T) *proto.ExchangeWithProofs {
-	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, 10e8, 100, 0, 0, 3, *testGlobal.asset2.asset)
-	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
-	require.NoError(t, err, "bo.Sign() failed")
-	so := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, 10e8, 100, 0, 0, 3, *testGlobal.asset2.asset)
-	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
-	require.NoError(t, err, "so.Sign() failed")
-	tx := proto.NewUnsignedExchangeWithProofs(2, bo, so, bo.Price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
-	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
-	require.NoError(t, err, "tx.Sign() failed")
-	return tx
-}
-
-func createExchangeWithProofsWithOrdersV4(t *testing.T, price, amount uint64) *proto.ExchangeWithProofs {
+func createExchangeV3WithProofsWithOrdersV4(t *testing.T, price, amount uint64) *proto.ExchangeWithProofs {
 	bo := proto.NewUnsignedOrderV4(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, price, amount, 0, 0, 3, *testGlobal.asset2.asset)
 	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	require.NoError(t, err, "bo.Sign() failed")
@@ -603,7 +590,7 @@ func createExchangeV2WithProofsWithOrdersV3(t *testing.T, price, amount uint64) 
 	so := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, price, amount, 0, 0, 3, *testGlobal.asset2.asset)
 	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
 	require.NoError(t, err, "so.Sign() failed")
-	tx := proto.NewUnsignedExchangeWithProofs(2, bo, so, price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
+	tx := proto.NewUnsignedExchangeWithProofs(2, bo, so, bo.Price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
 	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
 	require.NoError(t, err, "tx.Sign() failed")
 	return tx
@@ -618,7 +605,7 @@ func TestCreateDiffExchangeWithProofsWithOrdersV3(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createExchangeWithProofsWithOrdersV3(t)
+	tx := createExchangeV2WithProofsWithOrdersV3(t, 10e8, 100)
 	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 
@@ -701,7 +688,7 @@ func TestCreateDiffExchangeV3WithProofsWithOrdersV4(t *testing.T) {
 	amount := uint64(1)
 	price := uint64(10 * priceConstant)
 
-	tx3o4 := createExchangeWithProofsWithOrdersV4(t, 10*priceConstant, amount)
+	tx3o4 := createExchangeV3WithProofsWithOrdersV4(t, 10*priceConstant, amount)
 	ch1, err := to.td.createDiffExchange(tx3o4, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 
