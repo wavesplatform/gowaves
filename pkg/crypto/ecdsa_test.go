@@ -94,3 +94,44 @@ func BenchmarkECDSARecoverPublicKey(b *testing.B) {
 		b.StartTimer()
 	}
 }
+
+func TestECDSASign(t *testing.T) {
+	tests := []struct {
+		message          string
+		privateKeyHex    string
+		signatureHex     string
+		isValidSignature bool
+	}{
+		{
+			message:          "foo",
+			privateKeyHex:    "289c2857d4598e37fb9647507e47a309d6133539bf21a8b9cb6df88fd5232032",
+			signatureHex:     "d155e94305af7e07dd8c32873e5c03cb95c9e05960ef85be9c07f671da58c73718c19adc397a211aa9e87e519e2038c5a3b658618db335f74f800b8e0cfeef4401",
+			isValidSignature: true,
+		},
+		{
+			message:          "bar",
+			privateKeyHex:    "289c2857d4598e37fb9647507e47a309d6133539bf21a8b9cb6df88fd5232032",
+			signatureHex:     "d127ddb88b9be7e79fe046a2055706f8bde67506baeb69989e0eb57be097f93926bb7f1236ed1a66f6445cf48fb547bec72927ae4724af44e78c303d01a002c600",
+			isValidSignature: true,
+		},
+		{
+			message:          "foo",
+			privateKeyHex:    "289c2857d4598e37fb9647507e47a309d6133539bf21a8b9cb6df88fd5232032",
+			signatureHex:     "f155e94305af7e07dd8c32873e5c03cb95c9e05960ef85be9c07f671da58c73718c19adc397a211aa9e87e519e2038c5a3b658618db335f74f800b8e0cfeef4401",
+			isValidSignature: false,
+		},
+	}
+	for _, tc := range tests {
+		key, err := ECDSAPrivateKeyFromHexString(tc.privateKeyHex)
+		require.NoError(t, err)
+		message, err := Keccak256([]byte(tc.message))
+		require.NoError(t, err)
+		signature, err := ECDSASign(message[:], key)
+		require.NoError(t, err, "Sign error:", err)
+		if tc.isValidSignature {
+			require.Equal(t, tc.signatureHex, hex.EncodeToString(signature))
+		} else {
+			require.NotEqual(t, tc.signatureHex, hex.EncodeToString(signature))
+		}
+	}
+}
