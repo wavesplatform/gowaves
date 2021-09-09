@@ -1347,13 +1347,20 @@ func signatureToProofs(sig *crypto.Signature) RideList {
 
 func proofs(proofs *proto.ProofsV1) RideList {
 	r := make(RideList, 8)
-	pl := len(proofs.Proofs)
-	for i := 0; i < 8; i++ {
-		if i < pl {
-			r[i] = RideBytes(common.Dup(proofs.Proofs[i].Bytes()))
-			continue
+	if proofs != nil {
+		proofsLen := len(proofs.Proofs)
+		for i := range r {
+			if i < proofsLen {
+				r[i] = RideBytes(common.Dup(proofs.Proofs[i].Bytes()))
+			} else {
+				r[i] = RideBytes(nil)
+			}
 		}
-		r[i] = RideBytes(nil)
+	} else {
+		// special case for ethereum stuff
+		for i := range r {
+			r[i] = RideBytes(nil)
+		}
 	}
 	return r
 }
