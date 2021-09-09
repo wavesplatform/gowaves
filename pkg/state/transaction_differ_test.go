@@ -557,37 +557,108 @@ func TestCreateDiffExchangeWithProofs(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
-func createExchangeV3WithProofsWithOrdersV4(t *testing.T, price, amount uint64) *proto.ExchangeWithProofs {
-	bo := proto.NewUnsignedOrderV4(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, price, amount, 0, 0, 3, *testGlobal.asset2.asset)
+type orderBuildTypeID byte
+
+const (
+	orderV3 orderBuildTypeID = iota + 1
+	orderV4
+	ethereumOrderV4
+)
+
+type orderBuildInfo struct {
+	orderBuildTypeID orderBuildTypeID
+	price            uint64
+	amount           uint64
+}
+
+func createExchangeV3WithProofsWithOrdersV4(t *testing.T, info orderBuildInfo) *proto.ExchangeWithProofs {
+	bo := proto.NewUnsignedOrderV4(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, info.price, info.amount, 0, 0, 3, *testGlobal.asset2.asset)
 	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	require.NoError(t, err, "bo.Sign() failed")
-	so := proto.NewUnsignedOrderV4(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, price, amount, 0, 0, 3, *testGlobal.asset2.asset)
+	so := proto.NewUnsignedOrderV4(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, info.price, info.amount, 0, 0, 3, *testGlobal.asset2.asset)
 	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
 	require.NoError(t, err, "so.Sign() failed")
-	tx := proto.NewUnsignedExchangeWithProofs(3, bo, so, price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
+	tx := proto.NewUnsignedExchangeWithProofs(3, bo, so, info.price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
 	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
 	require.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
 
-func createExchangeV3WithProofsWithMixedOrders(t *testing.T, price1, price2, amount uint64) *proto.ExchangeWithProofs {
-	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, price1, amount, 0, 0, 3, *testGlobal.asset2.asset)
-	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
-	require.NoError(t, err, "bo.Sign() failed")
-	so := proto.NewUnsignedOrderV4(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, price2, amount, 0, 0, 3, *testGlobal.asset2.asset)
-	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
-	require.NoError(t, err, "so.Sign() failed")
-	tx := proto.NewUnsignedExchangeWithProofs(3, bo, so, price2, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
-	err = tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
+//func createExchangeV3WithProofsWithMixedOrders(t *testing.T, price1, price2, amount uint64) *proto.ExchangeWithProofs {
+func createExchangeV3WithProofsWithMixedOrders(t *testing.T, buyInfo, sellInfo orderBuildInfo) *proto.ExchangeWithProofs {
+	var bo proto.Order
+	switch buyInfo.orderBuildTypeID {
+	case orderV3:
+		boV3 := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, buyInfo.price, buyInfo.amount, 0, 0, 3, *testGlobal.asset2.asset)
+		err := boV3.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+		require.NoError(t, err, "boV3.Sign() failed")
+		bo = boV3
+	case orderV4:
+		boV4 := proto.NewUnsignedOrderV4(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, buyInfo.price, buyInfo.amount, 0, 0, 3, *testGlobal.asset2.asset)
+		err := boV4.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+		require.NoError(t, err, "boV4.Sign() failed")
+		bo = boV4
+	case ethereumOrderV4:
+		const (
+			senderSKHex = "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4"
+			senderPKHex = "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743"
+		)
+		senderPK, err := proto.NewEthereumPublicKeyFromHexString(senderPKHex)
+		require.NoError(t, err)
+		senderSK, err := crypto.ECDSAPrivateKeyFromHexString(senderSKHex)
+		require.NoError(t, err)
+
+		eboV4 := proto.NewUnsignedEthereumOrderV4(senderPK, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, buyInfo.price, buyInfo.amount, 0, 0, 3, *testGlobal.asset2.asset)
+		err = eboV4.EthereumSign(proto.MainNetScheme, (*proto.EthereumPrivateKey)(senderSK))
+		require.NoError(t, err, "eboV4.EthereumSign() failed")
+		bo = eboV4
+	default:
+		require.Fail(t, "unknown orderBuildTypeID in buy order")
+		return nil
+	}
+
+	var so proto.Order
+	switch sellInfo.orderBuildTypeID {
+	case orderV3:
+		soV3 := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, sellInfo.price, sellInfo.amount, 0, 0, 3, *testGlobal.asset2.asset)
+		err := soV3.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+		require.NoError(t, err, "soV3.Sign() failed")
+		so = soV3
+	case orderV4:
+		soV4 := proto.NewUnsignedOrderV4(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, sellInfo.price, sellInfo.amount, 0, 0, 3, *testGlobal.asset2.asset)
+		err := soV4.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
+		require.NoError(t, err, "soV4.Sign() failed")
+		so = soV4
+	case ethereumOrderV4:
+		const (
+			recipientSKHex = "0x837cd5bde5402623b2d09c9779bc585cafe5bb1a3d94b369b0b2264f7e1ef45c"
+			recipientPKHex = "0xc4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53"
+		)
+		recipientPK, err := proto.NewEthereumPublicKeyFromHexString(recipientPKHex)
+		require.NoError(t, err)
+		recipientSK, err := crypto.ECDSAPrivateKeyFromHexString(recipientSKHex)
+		require.NoError(t, err)
+
+		esoV4 := proto.NewUnsignedEthereumOrderV4(recipientPK, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, sellInfo.price, sellInfo.amount, 0, 0, 3, *testGlobal.asset2.asset)
+		err = esoV4.EthereumSign(proto.MainNetScheme, (*proto.EthereumPrivateKey)(recipientSK))
+		require.NoError(t, err, "esoV4.EthereumSign() failed")
+		so = esoV4
+	default:
+		require.Fail(t, "unknown orderBuildTypeID in sell order")
+		return nil
+	}
+
+	tx := proto.NewUnsignedExchangeWithProofs(3, bo, so, sellInfo.price, bo.GetAmount(), 1, 2, defaultFee, defaultTimestamp)
+	err := tx.Sign(proto.MainNetScheme, testGlobal.matcherInfo.sk)
 	require.NoError(t, err, "tx.Sign() failed")
 	return tx
 }
 
-func createExchangeV2WithProofsWithOrdersV3(t *testing.T, price, amount uint64) *proto.ExchangeWithProofs {
-	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, price, amount, 0, 0, 3, *testGlobal.asset2.asset)
+func createExchangeV2WithProofsWithOrdersV3(t *testing.T, info orderBuildInfo) *proto.ExchangeWithProofs {
+	bo := proto.NewUnsignedOrderV3(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, info.price, info.amount, 0, 0, 3, *testGlobal.asset2.asset)
 	err := bo.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	require.NoError(t, err, "bo.Sign() failed")
-	so := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, price, amount, 0, 0, 3, *testGlobal.asset2.asset)
+	so := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, info.price, info.amount, 0, 0, 3, *testGlobal.asset2.asset)
 	err = so.Sign(proto.MainNetScheme, testGlobal.recipientInfo.sk)
 	require.NoError(t, err, "so.Sign() failed")
 	tx := proto.NewUnsignedExchangeWithProofs(2, bo, so, bo.Price, bo.Amount, 1, 2, defaultFee, defaultTimestamp)
@@ -605,7 +676,10 @@ func TestCreateDiffExchangeWithProofsWithOrdersV3(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	tx := createExchangeV2WithProofsWithOrdersV3(t, 10e8, 100)
+	tx := createExchangeV2WithProofsWithOrdersV3(t, orderBuildInfo{
+		price:  10e8,
+		amount: 100,
+	})
 	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 
@@ -688,15 +762,33 @@ func TestCreateDiffExchangeV3WithProofsWithOrdersV4(t *testing.T) {
 	amount := uint64(1)
 	price := uint64(10 * priceConstant)
 
-	tx3o4 := createExchangeV3WithProofsWithOrdersV4(t, 10*priceConstant, amount)
+	tx3o4 := createExchangeV3WithProofsWithOrdersV4(t, orderBuildInfo{
+		price:  price,
+		amount: amount,
+	})
 	ch1, err := to.td.createDiffExchange(tx3o4, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 
-	tx2o3 := createExchangeV2WithProofsWithOrdersV3(t, 10*priceConstant*priceConstant, amount)
+	tx2o3 := createExchangeV2WithProofsWithOrdersV3(t, orderBuildInfo{
+		price:  10 * priceConstant * priceConstant,
+		amount: amount,
+	})
 	ch2, err := to.td.createDiffExchange(tx2o3, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 
-	tx3mo := createExchangeV3WithProofsWithMixedOrders(t, 10*priceConstant*priceConstant, 10*priceConstant, amount)
+	tx3mo := createExchangeV3WithProofsWithMixedOrders(t,
+		orderBuildInfo{
+			orderBuildTypeID: orderV3,
+			price:            10 * priceConstant * priceConstant,
+			amount:           amount,
+		},
+		orderBuildInfo{
+			orderBuildTypeID: orderV4,
+			price:            10 * priceConstant,
+			amount:           amount,
+		},
+	)
+
 	ch3, err := to.td.createDiffExchange(tx3mo, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 

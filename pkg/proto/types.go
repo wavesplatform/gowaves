@@ -1528,12 +1528,12 @@ func (o *OrderV4) Verify(scheme Scheme) (bool, error) {
 	return o.Proofs.Verify(0, o.SenderPK, b)
 }
 
-//NewSignedEthereumOrderV4 creates the new ethereum signed order.
-func NewSignedEthereumOrderV4(senderPK EthereumPublicKey, eip712Signature EthereumSignature, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset) *EthereumOrderV4 {
+//NewUnsignedEthereumOrderV4 creates the new ethereum unsigned order.
+func NewUnsignedEthereumOrderV4(senderPK EthereumPublicKey, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset) *EthereumOrderV4 {
 	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee, matcherFeeAsset)
 	return &EthereumOrderV4{
 		SenderPK:        senderPK,
-		Eip712Signature: eip712Signature,
+		Eip712Signature: EthereumSignature{},
 		OrderV4:         *orderV4,
 	}
 }
