@@ -407,9 +407,8 @@ func orderToObject(scheme proto.Scheme, o proto.Order) (rideObject, error) {
 		return nil, errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
 	}
 	var body []byte
-	if _, ok := o.(*proto.EthereumOrderV4); ok {
-		body = nil
-	} else {
+	// we should leave bodyBytes empty only for proto.EthereumOrderV4
+	if _, ok := o.(*proto.EthereumOrderV4); !ok {
 		body, err = proto.MarshalOrderBody(scheme, o)
 		if err != nil {
 			return nil, errors.Wrap(err, "orderToObject")
