@@ -55,6 +55,14 @@ func ECDSASign(hash []byte, prv *btcec.PrivateKey) ([]byte, error) {
 	return sig, nil
 }
 
+func ECDSAParsePublicKeyFromHex(hexString string) (*btcec.PublicKey, error) {
+	data, err := hex.DecodeString(strings.TrimPrefix(hexString, "0x"))
+	if err != nil {
+		return nil, err
+	}
+	return ECDSAParsePublicKey(data)
+}
+
 func ECDSAParsePublicKey(data []byte) (*btcec.PublicKey, error) {
 	return btcec.ParsePubKey(data, curve)
 }
