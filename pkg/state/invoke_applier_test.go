@@ -79,7 +79,7 @@ func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.WavesAddr
 	assert.NoError(t, err, "failed to set account script")
 }
 
-func (to *invokeApplierTestObjects) setDApp(t *testing.T, dappFilename string, dappAddr *testAddrData) {
+func (to *invokeApplierTestObjects) setDApp(t *testing.T, dappFilename string, dappAddr *testWavesAddrData) {
 	dir, err := getLocalDir()
 	assert.NoError(t, err, "getLocalDir() failed")
 	dAppPath := filepath.Join(dir, "testdata", "scripts", dappFilename)
