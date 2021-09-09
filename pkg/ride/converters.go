@@ -406,9 +406,14 @@ func orderToObject(scheme proto.Scheme, o proto.Order) (rideObject, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
 	}
-	body, err := proto.MarshalOrderBody(scheme, o)
-	if err != nil {
-		return nil, errors.Wrap(err, "orderToObject")
+	var body []byte
+	if _, ok := o.(*proto.EthereumOrderV4); ok {
+		body = nil
+	} else {
+		body, err = proto.MarshalOrderBody(scheme, o)
+		if err != nil {
+			return nil, errors.Wrap(err, "orderToObject")
+		}
 	}
 	p, err := o.GetProofs()
 	if err != nil {
