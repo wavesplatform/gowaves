@@ -385,8 +385,8 @@ type appendTxParams struct {
 	initialisation   bool
 }
 
-func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransaction, decodedData ethabi.DecodedCallData) (proto.EthereumTransactionKind, error) {
-	if len(ethTx.Data()) == 0 {
+func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransaction, decodedData *ethabi.DecodedCallData) (proto.EthereumTransactionKind, error) {
+	if decodedData == nil {
 		return &proto.EthereumTransferWavesTx{}, nil
 	}
 	db := ethabi.NewDatabase(map[ethabi.Selector]ethabi.Method{})
@@ -488,18 +488,21 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		if !ok {
 			return errors.New("failed to cast interface transaction to ethereum transaction structure")
 		}
-		db := ethabi.NewDatabase(map[ethabi.Selector]ethabi.Method{})
-		decodedData, err := db.ParseCallDataRide(ethTx.Data(), true)
-		if err != nil {
-			return errors.Errorf("failed to parse ethereum data")
+		if ethTx.Data() != nil {
+			db := ethabi.NewDatabase(nil)
+			decodedData, err := db.ParseCallDataRide(ethTx.Data(), true)
+			if err != nil {
+				return errors.Errorf("failed to parse ethereum data")
+			}
+			params.decodedAbiData = decodedData
 		}
-		params.decodedAbiData = decodedData
+
 
 		err = ethTx.GenerateID(a.settings.AddressSchemeCharacter)
 		if err != nil {
 			return errors.Errorf("failed to generate transaction id for ethereum transaction, %v", err)
 		}
-		ethTx.TxKind, err = a.guessEthereumTransactionKind(ethTx, *params.decodedAbiData)
+		ethTx.TxKind, err = a.guessEthereumTransactionKind(ethTx, params.decodedAbiData)
 		if err != nil {
 			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
 		}
