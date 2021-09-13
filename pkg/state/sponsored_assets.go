@@ -59,7 +59,7 @@ func (s *sponsorshipRecord) unmarshalBinary(data []byte) error {
 
 type sponsoredAssets struct {
 	rw       *blockReadWriter
-	features *features
+	features FeaturesState
 	hs       *historyStorage
 	settings *settings.BlockchainSettings
 

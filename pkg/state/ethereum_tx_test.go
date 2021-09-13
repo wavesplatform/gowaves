@@ -21,10 +21,13 @@ import (
 func defaultTxAppender(t *testing.T, storage ScriptStorageState, state types.SmartState) txAppender {
 	var feautures = &MockFeaturesState{
 		newestIsActivatedFunc: func(featureID int16) (bool, error) {
+			if featureID == int16(settings.SmartAccounts) {
+				return true, nil
+			}
 			return false, nil
 		},
 	}
-	store := blockchainEntitiesStorage{features: feautures, scriptsStorage: storage}
+	store := blockchainEntitiesStorage{features: feautures, scriptsStorage: storage, sponsoredAssets: &sponsoredAssets{features: feautures, settings: &settings.BlockchainSettings{}}}
 	blockchainSettings := &settings.BlockchainSettings{FunctionalitySettings: settings.FunctionalitySettings{CheckTempNegativeAfterTime: 1, AllowLeasedBalanceTransferUntilTime: 1}}
 	txHandler, err := newTransactionHandler(genBlockId('1'), &store, blockchainSettings, state)
 	assert.NoError(t, err)
@@ -128,6 +131,15 @@ func lessenDecodedDataAmount(t *testing.T, decodedData *ethabi.DecodedCallData) 
 }
 
 func TestEthereumTransferAssets(t *testing.T) {
+	storage := &MockScriptStorageState{
+		NewestScriptPKByAddrFunc: func(address proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
+			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
+		},
+		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) bool {
+			return false
+		},
+	}
+
 	appendTxParams := defaultAppendTxParams()
 	state := &AnotherMockSmartState{
 		AssetInfoByIDFunc: func(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
@@ -136,7 +148,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 			return &proto.AssetInfo{ID: r}, nil
 		},
 	}
-	txAppender := defaultTxAppender(t, nil, state)
+	txAppender := defaultTxAppender(t, storage, state)
 
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
