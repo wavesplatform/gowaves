@@ -60,7 +60,7 @@ func newTxAppender(
 		return nil, err
 	}
 	genesis := settings.Genesis
-	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings)
+	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, state)
 	if err != nil {
 		return nil, err
 	}

@@ -26,7 +26,7 @@ func defaultTxAppender(t *testing.T, storage ScriptStorageState, state types.Sma
 	}
 	store := blockchainEntitiesStorage{features: feautures, scriptsStorage: storage}
 	blockchainSettings := &settings.BlockchainSettings{FunctionalitySettings: settings.FunctionalitySettings{CheckTempNegativeAfterTime: 1, AllowLeasedBalanceTransferUntilTime: 1}}
-	txHandler, err := newTransactionHandler(genBlockId('1'), &store, blockchainSettings)
+	txHandler, err := newTransactionHandler(genBlockId('1'), &store, blockchainSettings, state)
 	assert.NoError(t, err)
 
 	blockchainEntitiesStor := blockchainEntitiesStorage{scriptsStorage: storage}

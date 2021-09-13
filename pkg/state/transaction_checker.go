@@ -3,6 +3,8 @@ package state
 import (
 	"bytes"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/state/ethabi"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"math"
 	"math/big"
 	"unicode/utf8"
@@ -49,14 +51,16 @@ type transactionChecker struct {
 	genesis  proto.BlockID
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
+	state    types.SmartState
 }
 
 func newTransactionChecker(
 	genesis proto.BlockID,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
+	state types.SmartState,
 ) (*transactionChecker, error) {
-	return &transactionChecker{genesis, stor, settings}, nil
+	return &transactionChecker{genesis, stor, settings, state}, nil
 }
 
 func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) error {
@@ -336,17 +340,95 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		return nil, errors.New("failed to convert interface to TransferWithSig transaction")
 	}
 
-	switch tx.TxKind.(type) {
+	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTx:
-
-	case *proto.EthereumInvokeScriptTx:
-
+		assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: nil}
+		if err := tc.checkFee(transaction, assets, info); err != nil {
+			return nil, err
+		}
+		return nil, nil
 	case *proto.EthereumTransferAssetsErc20Tx:
+		allAssets := []proto.OptionalAsset{kind.Asset}
+		smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
+		if err != nil {
+			return nil, err
+		}
+		assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: smartAssets}
+		if err := tc.checkFee(transaction, assets, info); err != nil {
+			return nil, err
+		}
+		activated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccounts))
+		if err != nil {
+			return nil, err
+		}
+		if !activated {
+			return nil, errors.New("SmartAccounts feature has not been activated yet")
+		}
+		return smartAssets, nil
+	case *proto.EthereumInvokeScriptTx:
+		if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
+			return nil, errs.Extend(err, "invalid timestamp")
+		}
+		ride4DAppsActivated, err := tc.stor.features.newestIsActivated(int16(settings.Ride4DApps))
+		if err != nil {
+			return nil, err
+		}
+		if !ride4DAppsActivated {
+			return nil, errors.New("can not use InvokeScript before Ride4DApps activation")
+		}
+
+		multiPaymentActivated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
+		if err != nil {
+			return nil, err
+		}
+		rideV5activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
+		if err != nil {
+			return nil, err
+		}
+		db := ethabi.NewDatabase(nil)
+		decodedData, err := db.ParseCallDataRide(tx.Data(), true)
+		if err != nil {
+			return nil, err
+		}
+		abiPayments := decodedData.Payments
+
+		l := len(abiPayments)
+		switch {
+		case l > 1 && !multiPaymentActivated && !rideV5activated:
+			return nil, errors.New("no more than one payment is allowed")
+		case l > 2 && multiPaymentActivated && !rideV5activated:
+			return nil, errors.New("no more than two payments is allowed")
+		case l > 10 && rideV5activated:
+			return nil, errors.New("no more than ten payments is allowed since RideV5 activation")
+		}
+		var paymentAssets []proto.OptionalAsset
+		for _, payment := range abiPayments {
+			assetID, err := tc.state.AssetInfoByID(payment.AssetID, true)
+			if err != nil {
+				return nil, err
+			}
+			asset, err := proto.NewOptionalAssetFromBytes(assetID.ID.Bytes())
+			if err != nil {
+				return nil, err
+			}
+			if err := tc.checkAsset(asset, info.initialisation); err != nil {
+				return nil, errs.Extend(err, "bad payment asset")
+			}
+			paymentAssets = append(paymentAssets, *asset)
+		}
+		smartAssets, err := tc.smartAssets(paymentAssets, info.initialisation)
+		if err != nil {
+			return nil, err
+		}
+		assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: smartAssets}
+		if err := tc.checkFee(transaction, assets, info); err != nil {
+			return nil, err
+		}
+		return smartAssets, nil
 
 	default:
 		return nil, errors.New("failed to check ethereum transaction, wrong kind of tx")
 	}
-	return nil, nil
 }
 
 func (tc *transactionChecker) checkTransferWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
