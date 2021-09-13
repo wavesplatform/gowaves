@@ -497,7 +497,6 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 			params.decodedAbiData = decodedData
 		}
 
-
 		err = ethTx.GenerateID(a.settings.AddressSchemeCharacter)
 		if err != nil {
 			return errors.Errorf("failed to generate transaction id for ethereum transaction, %v", err)

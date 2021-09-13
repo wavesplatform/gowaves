@@ -512,7 +512,7 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 	return changes, nil
 }
 
-func (td *transactionDiffer) createDiffEthereumErc20Invoke(tx *proto.EthereumTransaction, info *differInfo) (txBalanceChanges, error) {
+func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransaction, info *differInfo) (txBalanceChanges, error) {
 	diff := newTxDiff()
 
 	updateMinIntermediateBalance := false
@@ -645,7 +645,7 @@ func (td *transactionDiffer) createDiffEthereumTransactionWithProofs(transaction
 	case *proto.EthereumTransferWavesTx:
 		return td.createDiffEthereumTransferWaves(ethTx, info)
 	case *proto.EthereumTransferAssetsErc20Tx:
-		return td.createDiffEthereumErc20Invoke(ethTx, info)
+		return td.createDiffEthereumErc20(ethTx, info)
 	default:
 		return txBalanceChanges{}, errors.New("wrong kind of ethereum transaction")
 

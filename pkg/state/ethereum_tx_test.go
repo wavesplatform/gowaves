@@ -1,7 +1,9 @@
 package state
 
 import (
+	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,19 +18,24 @@ import (
 	"testing"
 )
 
-func defaultTxAppender(t *testing.T) txAppender {
-	txHandler, err := newTransactionHandler(genBlockId('1'), nil, &settings.BlockchainSettings{FunctionalitySettings: settings.FunctionalitySettings{CheckTempNegativeAfterTime: 1, AllowLeasedBalanceTransferUntilTime: 1}})
-	assert.NoError(t, err)
+func defaultTxAppender(t *testing.T, storage ScriptStorageState, state types.SmartState) txAppender {
 	var feautures = &MockFeaturesState{
 		newestIsActivatedFunc: func(featureID int16) (bool, error) {
 			return false, nil
 		},
 	}
-	store := blockchainEntitiesStorage{features: feautures}
+	store := blockchainEntitiesStorage{features: feautures, scriptsStorage: storage}
+	blockchainSettings := &settings.BlockchainSettings{FunctionalitySettings: settings.FunctionalitySettings{CheckTempNegativeAfterTime: 1, AllowLeasedBalanceTransferUntilTime: 1}}
+	txHandler, err := newTransactionHandler(genBlockId('1'), &store, blockchainSettings)
+	assert.NoError(t, err)
+
+	blockchainEntitiesStor := blockchainEntitiesStorage{scriptsStorage: storage}
 	txAppender := txAppender{
 		txHandler:   txHandler,
 		stor:        &store,
+		state:       state,
 		blockDiffer: &blockDiffer{handler: txHandler, settings: &settings.BlockchainSettings{}},
+		ia:          &invokeApplier{sc: &scriptCaller{stor: &store, state: state, settings: blockchainSettings}, blockDiffer: &blockDiffer{stor: &store, handler: txHandler, settings: blockchainSettings}, state: state, txHandler: txHandler, settings: blockchainSettings, stor: &blockchainEntitiesStor, invokeDiffStor: &diffStorageWrapped{invokeDiffsStor: &diffStorage{changes: []balanceChanges{}}}},
 	}
 	return txAppender
 }
@@ -46,11 +53,11 @@ func defaultEthereumLegacyTxData(value int64, to *proto.EthereumAddress, data []
 
 func defaultEthereumDynamicFeeTx(value int64, to *proto.EthereumAddress, data []byte) *proto.EthereumDynamicFeeTx {
 	return &proto.EthereumDynamicFeeTx{
-		Value:    big.NewInt(value),
-		To:       to,
-		Data:     data,
-		Nonce:    2,
-		Gas:      100,
+		Value: big.NewInt(value),
+		To:    to,
+		Data:  data,
+		Nonce: 2,
+		Gas:   100,
 	}
 }
 
@@ -67,7 +74,7 @@ func defaultEthereumAccessListTx(value int64, to *proto.EthereumAddress, data []
 
 func TestEthereumTransferWaves(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	txAppender := defaultTxAppender(t)
+	txAppender := defaultTxAppender(t, nil, nil)
 
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
@@ -78,7 +85,6 @@ func TestEthereumTransferWaves(t *testing.T) {
 
 	var TxInnerSeveralData []proto.EthereumTxData
 	TxInnerSeveralData = append(TxInnerSeveralData, defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil), defaultEthereumDynamicFeeTx(1000000000000000, &recipientEth, nil), defaultEthereumAccessListTx(1000000000000000, &recipientEth, nil))
-
 
 	for _, txInnerData := range TxInnerSeveralData {
 
@@ -114,24 +120,24 @@ func TestEthereumTransferWaves(t *testing.T) {
 	}
 }
 
-func smartStateDappFromDapp() types.SmartState {
-	return &ride.MockSmartState{
-		NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
-			return nil, nil
-		},
-	}
+func lessenDecodedDataAmount(t *testing.T, decodedData *ethabi.DecodedCallData) {
+	v, ok := decodedData.Inputs[1].Value.(ride.RideBigInt)
+	assert.True(t, ok)
+	res := new(big.Int).Div(v.V, big.NewInt(int64(diffEthWaves)))
+	decodedData.Inputs[1].Value = ride.RideBigInt{V: res}
 }
 
 func TestEthereumTransferAssets(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	txAppender := defaultTxAppender(t)
-	txAppender.state =
-	//
-	//state := &ride.MockSmartState{
-	//	NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
-	//		return nil, nil
-	//	},
-	//}
+	state := &AnotherMockSmartState{
+		AssetInfoByIDFunc: func(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+			var r crypto.Digest
+			copy(r[:20], id[:])
+			return &proto.AssetInfo{ID: r}, nil
+		},
+	}
+	txAppender := defaultTxAppender(t, nil, state)
+
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 
@@ -152,40 +158,149 @@ func TestEthereumTransferAssets(t *testing.T) {
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
 
-
 	var txData proto.EthereumTxData = defaultEthereumLegacyTxData(1000000000000000, &recipientEth, data)
-		tx := proto.EthereumTransaction{
-			Inner:    txData,
-			ID:       nil,
-			SenderPK: senderPK,
-		}
-		db := ethabi.NewDatabase(nil)
-		assert.NotNil(t, tx.Data())
-		decodedData, err := db.ParseCallDataRide(tx.Data(), true)
-		tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, decodedData)
-		appendTxParams.decodedAbiData = decodedData
+	tx := proto.EthereumTransaction{
+		Inner:    txData,
+		ID:       nil,
+		SenderPK: senderPK,
+	}
+	db := ethabi.NewDatabase(nil)
+	assert.NotNil(t, tx.Data())
+	decodedData, err := db.ParseCallDataRide(tx.Data(), true)
+	assert.NoError(t, err)
+	lessenDecodedDataAmount(t, decodedData)
+	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, decodedData)
+	assert.NoError(t, err)
+	appendTxParams.decodedAbiData = decodedData
 
-		applRes, err := txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
-		assert.NoError(t, err)
-		assert.True(t, applRes.status)
+	applRes, err := txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
+	assert.NoError(t, err)
+	assert.True(t, applRes.status)
 
-		sender, err := tx.SenderPK.EthereumAddress().ToWavesAddress(0)
-		assert.NoError(t, err)
+	sender, err := tx.SenderPK.EthereumAddress().ToWavesAddress(0)
+	assert.NoError(t, err)
 
-		wavesAsset := proto.NewOptionalAssetWaves()
+	wavesAsset := proto.NewOptionalAssetWaves()
 
-		senderKey := byteKey(sender, wavesAsset.ToID())
+	senderWavesKey := byteKey(sender, wavesAsset.ToID())
 
-		recipient, err := recipientEth.ToWavesAddress(0)
-		assert.NoError(t, err)
-		recipientKey := byteKey(recipient, wavesAsset.ToID())
+	txKindTransferAssets := tx.TxKind.(*proto.EthereumTransferAssetsErc20Tx)
 
-		senderBalance := applRes.changes.diff[string(senderKey)].balance
-		recipientBalance := applRes.changes.diff[string(recipientKey)].balance
+	senderKey := byteKey(sender, txKindTransferAssets.Asset.ToID())
 
-		assert.Equal(t, senderBalance, int64(-100100))
-		assert.Equal(t, recipientBalance, int64(100000))
+	recipient, err := recipientEth.ToWavesAddress(0)
+	assert.NoError(t, err)
+	rideEthRecipientAddress, ok := decodedData.Inputs[0].Value.(ride.RideBytes)
+	assert.True(t, ok)
+	ethRecipientAddress := proto.BytesToEthereumAddress(rideEthRecipientAddress)
+	recipient, err = ethRecipientAddress.ToWavesAddress(0)
+	assert.NoError(t, err)
+	recipientKey := byteKey(recipient, txKindTransferAssets.Asset.ToID())
+
+	senderWavesBalance := applRes.changes.diff[string(senderWavesKey)].balance
+	senderBalance := applRes.changes.diff[string(senderKey)].balance
+	recipientBalance := applRes.changes.diff[string(recipientKey)].balance
+
+	assert.Equal(t, senderWavesBalance, int64(-100))
+	assert.Equal(t, senderBalance, int64(-20947030000000))
+	assert.Equal(t, recipientBalance, int64(20947030000000))
 
 }
 
+func defaultDecodedData(name string, arguments []ethabi.DecodedArg, payments []ethabi.Payment) ethabi.DecodedCallData {
+	var decodedData ethabi.DecodedCallData
+	decodedData.Name = name
+	decodedData.Inputs = arguments
+	decodedData.Payments = payments
+	return decodedData
+}
 
+func applyScript(t *testing.T, tx *proto.EthereumTransaction, stor ScriptStorageState, info *fallibleValidationParams) (proto.WavesAddress, *ride.Tree) {
+	scriptAddr, err := tx.WavesAddressTo(0)
+	require.NoError(t, err)
+	tree, err := stor.newestScriptByAddr(scriptAddr, !info.initialisation)
+	require.NoError(t, err)
+	return scriptAddr, tree
+}
+
+func TestEthereumInvoke(t *testing.T) {
+	appendTxParams := defaultAppendTxParams()
+	newestScriptByAddrFunc := func(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+		/*
+			{-# STDLIB_VERSION 4 #-}
+			{-# CONTENT_TYPE DAPP #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+
+			@Callable(i)
+			func call(number: Int) = {
+			  [
+			    IntegerEntry("int", number)
+			  ]
+			}
+		*/
+		src, err := base64.StdEncoding.DecodeString("AAIEAAAAAAAAAAcIAhIDCgEBAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAEAAAAGbnVtYmVyCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANpbnQFAAAABm51bWJlcgUAAAADbmlsAAAAAE5VO+E=")
+		require.NoError(t, err)
+
+		tree, err := ride.Parse(src)
+		require.NoError(t, err)
+		assert.NotNil(t, tree)
+
+		return tree, nil
+	}
+	storage := &MockScriptStorageState{
+		newestScriptByAddrFunc: newestScriptByAddrFunc,
+		scriptByAddrFunc:       newestScriptByAddrFunc,
+		NewestScriptPKByAddrFunc: func(address proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
+			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
+		},
+	}
+	state := &AnotherMockSmartState{
+		AssetInfoByIDFunc: func(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+			var r crypto.Digest
+			copy(r[:20], id[:])
+			return &proto.AssetInfo{ID: r}, nil
+		},
+		AddingBlockHeightFunc: func() (uint64, error) {
+			return 1000, nil
+		},
+		EstimatorVersionFunc: func() (int, error) {
+			return 3, nil
+		},
+	}
+	txAppender := defaultTxAppender(t, storage, state)
+	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
+	assert.NoError(t, err)
+	sender, err := senderPK.EthereumAddress().ToWavesAddress(0)
+	assert.NoError(t, err)
+	recipientBytes, err := base58.Decode("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
+	assert.NoError(t, err)
+	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
+
+	var txData proto.EthereumTxData = defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil)
+	tx := proto.EthereumTransaction{
+		Inner:    txData,
+		ID:       nil,
+		SenderPK: senderPK,
+	}
+
+	decodedData := defaultDecodedData("call", []ethabi.DecodedArg{{Value: ride.RideInt(10)}}, []ethabi.Payment{{Amount: 5}})
+	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, &decodedData)
+	assert.NoError(t, err)
+	appendTxParams.decodedAbiData = &decodedData
+
+	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
+
+	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
+	fallibleInfo.rideV5Activated = true
+	ok, actions, err := txAppender.ia.sc.ethereumInvokeFunction(tree, &tx, fallibleInfo, scriptAddress)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	fmt.Println(actions)
+
+	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.IntegerDataEntry{Key: "int", Value: 10}},
+	}
+
+	assert.Equal(t, expectedDataEntryWrites[0], actions[0])
+
+}

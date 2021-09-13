@@ -273,26 +273,42 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	return true, r.ScriptActions(), err
 }
 
-func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) []proto.Argument {
+func convertRideInterfaceToSpecificType(decodedArg ride.RideType) (proto.Argument, error) {
+	var arg proto.Argument
+	switch m := decodedArg.(type) {
+	case ride.RideInt:
+		arg = &proto.IntegerArgument{Value: int64(m)}
+	case ride.RideBoolean:
+		arg = &proto.BooleanArgument{Value: bool(m)}
+	case ride.RideBytes:
+		arg = &proto.BinaryArgument{Value: m}
+	case ride.RideString:
+		arg = &proto.StringArgument{Value: string(m)}
+	case ride.RideList:
+		var miniArgs proto.Arguments
+		for _, v := range m {
+			a, err := convertRideInterfaceToSpecificType(v)
+			if err != nil {
+				return nil, err
+			}
+			miniArgs = append(miniArgs, a)
+		}
+		arg = &proto.ListArgument{Items: miniArgs}
+	}
+	return arg, nil
+}
+
+func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) ([]proto.Argument, error) {
 	var arguments []proto.Argument
 	for _, decodedArg := range decodedArgs {
-		var arg proto.Argument
-		switch decodedArg.Value.(type) {
-		case ride.RideInt:
-			arg = &proto.IntegerArgument{}
-		case ride.RideBoolean:
-			arg = &proto.BooleanArgument{}
-		case ride.RideBytes:
-			arg = &proto.BinaryArgument{}
-		case ride.RideString:
-			arg = &proto.StringArgument{}
-		case ride.RideList:
-			arg = &proto.ListArgument{}
+		arg, err := convertRideInterfaceToSpecificType(decodedArg.Value)
+		if err != nil {
+			return nil, err
 		}
 		arguments = append(arguments, arg)
 
 	}
-	return arguments
+	return arguments, nil
 }
 
 func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.EthereumTransaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (bool, []proto.ScriptAction, error) {
@@ -310,7 +326,11 @@ func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.Ethereu
 	abiPayments := info.decodedAbiData.Payments
 	var scriptPayments []proto.ScriptPayment
 	for _, p := range abiPayments {
-		asset, err := proto.NewOptionalAssetFromBytes(p.AssetID.Bytes())
+		assetID, err := a.state.AssetInfoByID(p.AssetID, true)
+		if err != nil {
+			return false, nil, err
+		}
+		asset, err := proto.NewOptionalAssetFromBytes(assetID.ID.Bytes())
 		if err != nil {
 			return false, nil, err
 		}
@@ -341,7 +361,10 @@ func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.Ethereu
 	}
 	decodedData := info.decodedAbiData
 
-	arguments := ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
+	arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
+	if err != nil {
+		return false, nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
+	}
 	r, err := ride.CallFunction(env, tree, decodedData.Name, arguments)
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
