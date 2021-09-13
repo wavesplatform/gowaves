@@ -294,7 +294,10 @@ func convertRideInterfaceToSpecificType(decodedArg ride.RideType) (proto.Argumen
 			miniArgs = append(miniArgs, a)
 		}
 		arg = &proto.ListArgument{Items: miniArgs}
+	default:
+		return nil, errors.New("unknown argument type")
 	}
+
 	return arg, nil
 }
 
