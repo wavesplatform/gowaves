@@ -315,7 +315,7 @@ func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.Decode
 }
 
 func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.EthereumTransaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (bool, []proto.ScriptAction, error) {
-	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state)
+	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "failed to create RIDE environment")
 	}

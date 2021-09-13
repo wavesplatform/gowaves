@@ -8,6 +8,7 @@ import (
 	m "math"
 	"math/big"
 )
+
 var rideDiffEthWaves = m.Pow(10, 10) // in ethereum numbers are represented in 10^18. In waves it's 10^8
 
 func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) {
@@ -893,8 +894,6 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		return nil, err
 	}
 
-
-
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTx:
 		r := make(rideObject)
@@ -937,35 +936,35 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["proofs"] = proofs(nil)
 		return r, nil
 	case *proto.EthereumInvokeScriptTx:
-		r := make(rideObject)
-		r[instanceFieldName] = RideString("InvokeScriptTransaction")
-		r["version"] = RideInt(tx.GetVersion())
-		r["id"] = RideBytes(tx.ID.Bytes())
-		r["sender"] = rideAddress(sender)
-		r["senderPublicKey"] = RideBytes(common.Dup(callerPK))
-		r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(to))
-		switch {
-		case len(tx.Payments) == 1:
-			p := attachedPaymentToObject(tx.Payments[0])
-			r["payment"] = p
-			r["payments"] = RideList{p}
-		case len(tx.Payments) > 1:
-			pl := make(RideList, len(tx.Payments))
-			for i, p := range tx.Payments {
-				pl[i] = attachedPaymentToObject(p)
-			}
-			r["payments"] = pl
-		default:
-			r["payment"] = rideUnit{}
-			r["payments"] = make(RideList, 0)
-		}
-		r["feeAssetId"] = optionalAsset(tx.FeeAsset)
-		r["function"] = RideString(tx.FunctionCall.Name)
-		r["args"] = args
-		r["fee"] = RideInt(tx.Fee)
-		r["timestamp"] = RideInt(tx.Timestamp)
-		r["bodyBytes"] = RideBytes(body)
-		r["proofs"] = proofs(tx.Proofs)
+		//r := make(rideObject)
+		//r[instanceFieldName] = RideString("InvokeScriptTransaction")
+		//r["version"] = RideInt(tx.GetVersion())
+		//r["id"] = RideBytes(tx.ID.Bytes())
+		//r["sender"] = rideAddress(sender)
+		//r["senderPublicKey"] = RideBytes(common.Dup(callerPK))
+		//r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(to))
+		//switch {
+		//case len(tx.Payments) == 1:
+		//	p := attachedPaymentToObject(tx.Payments[0])
+		//	r["payment"] = p
+		//	r["payments"] = RideList{p}
+		//case len(tx.Payments) > 1:
+		//	pl := make(RideList, len(tx.Payments))
+		//	for i, p := range tx.Payments {
+		//		pl[i] = attachedPaymentToObject(p)
+		//	}
+		//	r["payments"] = pl
+		//default:
+		//	r["payment"] = rideUnit{}
+		//	r["payments"] = make(RideList, 0)
+		//}
+		//r["feeAssetId"] = optionalAsset(tx.FeeAsset)
+		//r["function"] = RideString(tx.FunctionCall.Name)
+		//r["args"] = args
+		//r["fee"] = RideInt(tx.Fee)
+		//r["timestamp"] = RideInt(tx.Timestamp)
+		//r["bodyBytes"] = RideBytes(body)
+		//r["proofs"] = proofs(tx.Proofs)
 
 	default:
 		return nil, errors.New("unknown ethereum transaction kind")
