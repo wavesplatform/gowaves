@@ -5,7 +5,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
+	m "math"
+	"math/big"
 )
+var rideDiffEthWaves = m.Pow(10, 10) // in ethereum numbers are represented in 10^18. In waves it's 10^8
 
 func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) {
 	switch transaction := tx.(type) {
@@ -60,6 +63,7 @@ func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) 
 	case *proto.UpdateAssetInfoWithProofs:
 		return updateAssetInfoWithProofsToObject(scheme, transaction)
 	case *proto.EthereumTransaction:
+
 		return ethereumInvokeScriptWithProofsToObject(scheme, transaction)
 	default:
 		return nil, errors.Errorf("conversion to RIDE object is not implemented for %T", transaction)
@@ -874,6 +878,98 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 }
 
 func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTransaction) (rideObject, error) {
+	sender, err := tx.WavesAddressFrom(scheme)
+	if err != nil {
+		return nil, err
+	}
+	callerEthereumPK, err := tx.FromPK()
+	if err != nil {
+		return nil, errors.Errorf("failed to get public key from ethereum transaction %v", err)
+	}
+	callerPK := RideBytes(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
+
+	to, err := tx.WavesAddressTo(scheme)
+	if err != nil {
+		return nil, err
+	}
+
+
+
+	switch kind := tx.TxKind.(type) {
+	case *proto.EthereumTransferWavesTx:
+		r := make(rideObject)
+		r[instanceFieldName] = RideString("TransferTransaction")
+		r["version"] = RideInt(tx.GetVersion())
+		r["id"] = RideBytes(tx.ID.Bytes())
+		r["sender"] = rideAddress(sender)
+		r["senderPublicKey"] = RideBytes(common.Dup(callerPK))
+		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(to))
+		r["assetId"] = optionalAsset(proto.NewOptionalAssetWaves())
+		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(rideDiffEthWaves)))
+		if ok := res.IsInt64(); !ok {
+			return nil, errors.Errorf("transferWithProofsToObject: failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
+		}
+		amount := res.Int64()
+		r["amount"] = RideInt(amount)
+		r["fee"] = RideInt(tx.GetFee())
+		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
+		r["attachment"] = RideBytes(nil)
+		r["timestamp"] = RideInt(tx.GetTimestamp())
+		r["bodyBytes"] = RideBytes(nil)
+		r["proofs"] = proofs(nil)
+		return r, nil
+	case *proto.EthereumTransferAssetsErc20Tx:
+		r := make(rideObject)
+		r[instanceFieldName] = RideString("TransferTransaction")
+		r["version"] = RideInt(tx.GetVersion())
+		r["id"] = RideBytes(tx.ID.Bytes())
+		r["sender"] = rideAddress(sender)
+		r["senderPublicKey"] = RideBytes(common.Dup(callerPK))
+		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(to))
+		r["assetId"] = optionalAsset(kind.Asset)
+		amount := tx.Value().Int64()
+		r["amount"] = RideInt(amount)
+		r["fee"] = RideInt(tx.GetFee())
+		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
+		r["attachment"] = RideBytes(nil)
+		r["timestamp"] = RideInt(tx.GetTimestamp())
+		r["bodyBytes"] = RideBytes(nil)
+		r["proofs"] = proofs(nil)
+		return r, nil
+	case *proto.EthereumInvokeScriptTx:
+		r := make(rideObject)
+		r[instanceFieldName] = RideString("InvokeScriptTransaction")
+		r["version"] = RideInt(tx.GetVersion())
+		r["id"] = RideBytes(tx.ID.Bytes())
+		r["sender"] = rideAddress(sender)
+		r["senderPublicKey"] = RideBytes(common.Dup(callerPK))
+		r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(to))
+		switch {
+		case len(tx.Payments) == 1:
+			p := attachedPaymentToObject(tx.Payments[0])
+			r["payment"] = p
+			r["payments"] = RideList{p}
+		case len(tx.Payments) > 1:
+			pl := make(RideList, len(tx.Payments))
+			for i, p := range tx.Payments {
+				pl[i] = attachedPaymentToObject(p)
+			}
+			r["payments"] = pl
+		default:
+			r["payment"] = rideUnit{}
+			r["payments"] = make(RideList, 0)
+		}
+		r["feeAssetId"] = optionalAsset(tx.FeeAsset)
+		r["function"] = RideString(tx.FunctionCall.Name)
+		r["args"] = args
+		r["fee"] = RideInt(tx.Fee)
+		r["timestamp"] = RideInt(tx.Timestamp)
+		r["bodyBytes"] = RideBytes(body)
+		r["proofs"] = proofs(tx.Proofs)
+
+	default:
+		return nil, errors.New("unknown ethereum transaction kind")
+	}
 	return nil, nil
 }
 
