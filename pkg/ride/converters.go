@@ -924,10 +924,9 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["id"] = RideBytes(tx.ID.Bytes())
 		r["sender"] = rideAddress(sender)
 		r["senderPublicKey"] = RideBytes(common.Dup(callerPK))
-		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(to))
+		//r["recipient"] = from decodedData
 		r["assetId"] = optionalAsset(kind.Asset)
-		amount := tx.Value().Int64()
-		r["amount"] = RideInt(amount)
+		//r["amount"] = from decodedData
 		r["fee"] = RideInt(tx.GetFee())
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		r["attachment"] = RideBytes(nil)
@@ -936,6 +935,8 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["proofs"] = proofs(nil)
 		return r, nil
 	case *proto.EthereumInvokeScriptTx:
+		// TODO we need to have access to decodedData of eth tx to make this, but we don't now
+
 		//r := make(rideObject)
 		//r[instanceFieldName] = RideString("InvokeScriptTransaction")
 		//r["version"] = RideInt(tx.GetVersion())
