@@ -1,3 +1,4 @@
+//go:build linux || netbsd || openbsd || solaris || freebsd || dragonfly
 // +build linux netbsd openbsd solaris freebsd dragonfly
 
 package fdlimit

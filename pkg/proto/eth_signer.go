@@ -71,7 +71,7 @@ func (epk *EthereumPublicKey) UnmarshalBinary(data []byte) error {
 			ethereumPublicKeyBytesCompressed,
 		)
 	}
-	pubKey, err := btcec.ParsePubKey(data, crypto.S256())
+	pubKey, err := crypto.ECDSAParsePublicKey(data)
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse EthereumPublicKey from bytes %q", EncodeToHexString(data))
 	}

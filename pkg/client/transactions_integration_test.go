@@ -1,12 +1,14 @@
+//go:build integration
 // +build integration
 
 package client
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestTransactionIntegration_All(t *testing.T) {
