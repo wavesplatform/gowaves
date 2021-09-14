@@ -13,6 +13,8 @@ import (
 	"testing"
 )
 
+// TODO(nickeskov): check MethodsMap when parsePayments == true
+
 func TestTransferWithRideTypes(t *testing.T) {
 	// from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
 
@@ -25,9 +27,8 @@ func TestTransferWithRideTypes(t *testing.T) {
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
 
-	db := NewDatabase(map[Selector]Method{})
-	callData, err := db.ParseCallDataRide(data, true)
-	// nickeskov: no error because we have zero length bytes data for payments
+	erc20Db := NewErc20MethodsMap()
+	callData, err := erc20Db.ParseCallDataRide(data)
 	require.NoError(t, err)
 
 	require.Equal(t, expectedSignature, callData.Signature.String())
@@ -61,9 +62,11 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 
 	data, err := hex.DecodeString(strings.TrimPrefix(hexData, "0x"))
 	require.NoError(t, err)
-	db := NewDatabase(customDB)
-	callData, err := db.ParseCallDataRide(data, true)
-	// nickeskov: no error because we have zero length bytes data for payments
+	db := MethodsMap{
+		methods:       customDB,
+		parsePayments: false,
+	}
+	callData, err := db.ParseCallDataRide(data)
 	require.NoError(t, err)
 
 	require.Equal(t, "minta", callData.Name)
@@ -296,10 +299,10 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 			Functions:     []meta.Function{test.rideFunctionMeta},
 			Abbreviations: meta.Abbreviations{},
 		}
-		db, err := NewDBFromRideDAppMeta(dAppMeta, false)
+		db, err := newMethodsMapFromRideDAppMeta(dAppMeta, false)
 		require.NoError(t, err)
 
-		decodedCallData, err := db.ParseCallDataRide(data, false)
+		decodedCallData, err := db.ParseCallDataRide(data)
 		require.NoError(t, err)
 
 		values := make([]ride.RideType, 0, len(decodedCallData.Inputs))

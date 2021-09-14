@@ -17,7 +17,7 @@ type DecodedCallData struct {
 	Payments  []Payment
 }
 
-// String implements stringer interface for decodedCallData
+// String implements stringer interface for DecodedCallData
 func (cd DecodedCallData) String() string {
 	args := make([]string, len(cd.Inputs))
 	for i, arg := range cd.Inputs {
@@ -26,77 +26,73 @@ func (cd DecodedCallData) String() string {
 	return fmt.Sprintf("%s(%s)", cd.Name, strings.Join(args, ","))
 }
 
-// Database is a 4byte database with the possibility of maintaining an immutable
-// set (erc20) into the process and a mutable set (loaded and written to file).
-type Database struct {
-	erc20  map[Selector]Method
-	custom map[Selector]Method
+// IsERC20Selector checks that is is an ERC20 functions selector (ERC20 transfers)
+func IsERC20Selector(id Selector) bool {
+	_, ok := erc20Methods[id]
+	return ok
 }
 
-func NewDatabase(custom map[Selector]Method) Database {
-	if custom == nil {
-		custom = make(map[Selector]Method)
-	}
-	return Database{
-		erc20:  erc20Methods,
-		custom: custom,
+type MethodsMap struct {
+	methods       map[Selector]Method
+	parsePayments bool
+}
+
+func NewErc20MethodsMap() MethodsMap {
+	return MethodsMap{
+		methods:       erc20Methods,
+		parsePayments: false,
 	}
 }
 
-func NewDBFromRideDAppMeta(dApp meta.DApp, addPayments bool) (Database, error) {
+func NewMethodsMapFromRideDAppMeta(dApp meta.DApp) (MethodsMap, error) {
+	return newMethodsMapFromRideDAppMeta(dApp, true)
+}
+
+func newMethodsMapFromRideDAppMeta(dApp meta.DApp, parsePayments bool) (MethodsMap, error) {
 	methods := make(map[Selector]Method, len(dApp.Functions))
 	for _, fn := range dApp.Functions {
-		method, err := NewMethodFromRideFunctionMeta(fn, addPayments)
+		method, err := NewMethodFromRideFunctionMeta(fn, parsePayments)
 		if err != nil {
-			return Database{}, errors.Wrapf(err,
+			return MethodsMap{}, errors.Wrapf(err,
 				"failed to build ABI db from DApp metadata, verison %d", dApp.Version,
 			)
 		}
 		methods[method.Sig.Selector()] = method
 	}
-	return NewDatabase(methods), nil
+	db := MethodsMap{
+		methods:       methods,
+		parsePayments: parsePayments,
+	}
+	return db, nil
 }
 
-func (db *Database) MethodBySelector(id Selector) (Method, error) {
-	if method, ok := db.custom[id]; ok {
-		return method, nil
-	}
-	if method, ok := db.erc20[id]; ok {
+func (db MethodsMap) MethodBySelector(id Selector) (Method, error) {
+	if method, ok := db.methods[id]; ok {
 		return method, nil
 	}
 	return Method{}, fmt.Errorf("signature %q not found", id.String())
 }
 
-func (db *Database) IsERC20(id Selector) bool {
-	if _, ok := db.custom[id]; ok {
-		return false
-	}
-	if _, ok := db.erc20[id]; ok {
-		return true
-	}
-	return false
-}
-
-func (db *Database) ParseCallDataRide(data []byte, parsePayments bool) (*DecodedCallData, error) {
+func (db MethodsMap) ParseCallDataRide(data []byte) (*DecodedCallData, error) {
 	// If the data is empty, we have a plain value transfer, nothing more to do
 	if len(data) == 0 {
 		return nil, errors.New("transaction doesn't contain data")
 	}
 	// Validate the call data that it has the 4byte prefix and the rest divisible by 32 bytes
-	if len(data) < 4 {
+	if len(data) < selectorSize {
 		return nil, errors.New("transaction data is not valid ABI: missing the 4 byte call prefix")
 	}
-	if n := len(data) - 4; n%32 != 0 {
+	if n := len(data) - selectorSize; n%32 != 0 {
 		return nil, errors.Errorf("transaction data is not valid ABI (length should be a multiple of 32 (was %d))", n)
 	}
 	var selector Selector
-	copy(selector[:], data[:len(selector)])
+	copy(selector[:], data[:selectorSize])
 	method, err := db.MethodBySelector(selector)
 	if err != nil {
 		return nil, errors.Errorf("Transaction contains data, but the ABI signature could not be found: %v", err)
 	}
 
-	info, err := parseArgDataToRideTypes(&method, data[len(selector):], parsePayments)
+	info, err := parseArgDataToRideTypes(&method, data[selectorSize:], db.parsePayments)
 	if err != nil {
 		return nil, errors.Errorf("Transaction contains data, but provided ABI signature could not be verified: %v", err)
 	}

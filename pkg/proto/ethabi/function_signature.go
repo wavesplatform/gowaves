@@ -40,7 +40,9 @@ func (s Signature) Selector() Selector {
 	return NewSelector(s)
 }
 
-type Selector [4]byte
+const selectorSize = 4
+
+type Selector [selectorSize]byte
 
 func NewSelector(sig Signature) Selector {
 	var selector Selector
@@ -54,16 +56,16 @@ func (s Selector) String() string {
 }
 
 func (s Selector) Hex() string {
-	return hex.EncodeToString(s[:])
+	return fmt.Sprintf("0x%s", hex.EncodeToString(s[:]))
 }
 
 func (s *Selector) FromHex(hexSelector string) error {
-	bts, err := hex.DecodeString(hexSelector)
+	bts, err := hex.DecodeString(strings.TrimPrefix(hexSelector, "0x"))
 	if err != nil {
 		return errors.Wrap(err, "failed to decode hex string for selector")
 	}
-	if len(bts) != len(s) {
-		return errors.Errorf("invalid hex selector bytes, expected %d, received %d", len(s), len(bts))
+	if len(bts) != selectorSize {
+		return errors.Errorf("invalid hex selector bytes, expected %d, received %d", selectorSize, len(bts))
 	}
 	copy(s[:], bts)
 	return nil
