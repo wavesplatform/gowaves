@@ -96,24 +96,6 @@ func TestJsonAbi(t *testing.T) {
         "type": "uint256"
       }
     ]
-  },
-  {
-    "name": "transferFrom",
-    "type": "function",
-    "inputs": [
-      {
-        "name": "_from",
-        "type": "bytes"
-      },
-      {
-        "name": "_to",
-        "type": "bytes"
-      },
-      {
-        "name": "_value",
-        "type": "uint256"
-      }
-    ]
   }
 ]
 `

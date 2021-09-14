@@ -10,11 +10,6 @@ import (
 	"strings"
 )
 
-const (
-	erc20TransferSignature     Signature = "transfer(address,uint256)"
-	erc20TransferFromSignature Signature = "transferFrom(address,address,uint256)"
-)
-
 type Signature string
 
 func NewSignatureFromRideFunctionMeta(fn meta.Function, addPayments bool) (Signature, error) {
@@ -246,6 +241,8 @@ func (ftb functionTextBuilder) MarshalText() (text []byte, err error) {
 	return []byte(fmt.Sprintf("%s(%s)", ftb.functionMeta.Name, strings.Join(elements, ","))), nil
 }
 
+const erc20TransferSignature Signature = "transfer(address,uint256)"
+
 var erc20Methods = map[Selector]Method{
 	erc20TransferSignature.Selector(): {
 		RawName: "transfer",
@@ -269,36 +266,5 @@ var erc20Methods = map[Selector]Method{
 		},
 		Payments: nil,
 		Sig:      erc20TransferSignature,
-	},
-	erc20TransferFromSignature.Selector(): {
-		RawName: "transferFrom",
-		Inputs: Arguments{
-			Argument{
-				Name: "_from",
-				Type: Type{
-					Size:       proto.EthereumAddressSize,
-					T:          AddressTy,
-					stringKind: "address",
-				},
-			},
-			Argument{
-				Name: "_to",
-				Type: Type{
-					Size:       proto.EthereumAddressSize,
-					T:          AddressTy,
-					stringKind: "address",
-				},
-			},
-			Argument{
-				Name: "_value",
-				Type: Type{
-					Size:       256,
-					T:          UintTy,
-					stringKind: "uint256",
-				},
-			},
-		},
-		Payments: nil,
-		Sig:      erc20TransferFromSignature,
 	},
 }
