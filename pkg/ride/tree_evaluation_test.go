@@ -1092,6 +1092,9 @@ var envDappFromDapp = &MockRideEnvironment{
 	internalPaymentsValidationHeightFunc: func() uint64 {
 		return 0
 	},
+	maxDataEntriesSizeFunc: func() int {
+		return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+	},
 }
 
 func tearDownDappFromDapp() {
@@ -6884,6 +6887,9 @@ func TestOriginCaller(t *testing.T) {
 		setNewDAppAddressFunc: func(address proto.Address) {
 			testDAppAddress = address
 		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
 	}
 
 	mockState := &MockSmartState{
@@ -7058,6 +7064,9 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		validateInternalPaymentsFunc: func() bool {
 			return true
 		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
 	}
 
 	mockState := &MockSmartState{
@@ -7227,6 +7236,9 @@ func TestAliasesInInvokes(t *testing.T) {
 		},
 		validateInternalPaymentsFunc: func() bool {
 			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
 	}
 
@@ -7459,6 +7471,9 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		txIDFunc: func() rideType {
 			return rideBytes(tx.ID.Bytes())
 		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
 	}
 
 	mockState := &MockSmartState{
@@ -7644,6 +7659,9 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 		validateInternalPaymentsFunc: func() bool {
 			return true
 		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
 	}
 
 	mockState := &MockSmartState{
@@ -7819,6 +7837,9 @@ func TestReissueInInvoke(t *testing.T) {
 		},
 		validateInternalPaymentsFunc: func() bool {
 			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
 	}
 

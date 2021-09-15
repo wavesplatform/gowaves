@@ -298,9 +298,14 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 	if info.libVersion >= 4 {
 		keySizeValidationVersion = 2
 	}
+	maxDataEntriesSize := proto.MaxDataEntriesScriptActionsSizeInBytesV1
+	if info.blockV5Activated {
+		maxDataEntriesSize = proto.MaxDataEntriesScriptActionsSizeInBytesV2
+	}
 	restrictions := proto.ActionsValidationRestrictions{
 		DisableSelfTransfers:     info.disableSelfTransfers,
 		KeySizeValidationVersion: keySizeValidationVersion,
+		MaxDataEntriesSize:       maxDataEntriesSize,
 	}
 
 	if err := proto.ValidateActions(info.actions, restrictions, int(info.libVersion)); err != nil {
@@ -648,7 +653,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 	}
 	// Check that the script's library supports multiple payments.
-	// We don't have to check feature activation because we done it before.
+	// We don't have to check feature activation because we've done it before.
 	if len(tx.Payments) >= 2 && tree.LibVersion < 4 {
 		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
 	}
