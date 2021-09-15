@@ -235,7 +235,7 @@ func unpackPayment(output []byte) (Payment, error) {
 
 func UnpackPayments(output []byte) ([]Payment, error) {
 	if len(output) == 0 {
-		return nil, nil
+		return nil, errors.Errorf("empty payments bytes")
 	}
 
 	begin, size, err := lengthPrefixPointsTo(0, output)

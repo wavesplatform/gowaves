@@ -389,8 +389,7 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 	if decodedData == nil {
 		return &proto.EthereumTransferWavesTx{}, nil
 	}
-	db := ethabi.NewDatabase(map[ethabi.Selector]ethabi.Method{})
-	if db.IsERC20(decodedData.Signature.Selector()) {
+	if ethabi.IsERC20Selector(decodedData.Signature.Selector()) {
 		//assetID := proto.
 		assetID := proto.AssetID{}
 		copy(assetID[:], ethTx.To()[:proto.AssetIDSize])
@@ -489,8 +488,8 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 			return errors.New("failed to cast interface transaction to ethereum transaction structure")
 		}
 		if ethTx.Data() != nil {
-			db := ethabi.NewDatabase(nil)
-			decodedData, err := db.ParseCallDataRide(ethTx.Data(), true)
+			db := ethabi.NewErc20MethodsMap()
+			decodedData, err := db.ParseCallDataRide(ethTx.Data())
 			if err != nil {
 				return errors.Errorf("failed to parse ethereum data")
 			}

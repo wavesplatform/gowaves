@@ -176,9 +176,9 @@ func TestEthereumTransferAssets(t *testing.T) {
 		ID:       nil,
 		SenderPK: senderPK,
 	}
-	db := ethabi.NewDatabase(nil)
+	db := ethabi.NewErc20MethodsMap()
 	assert.NotNil(t, tx.Data())
-	decodedData, err := db.ParseCallDataRide(tx.Data(), true)
+	decodedData, err := db.ParseCallDataRide(tx.Data())
 	assert.NoError(t, err)
 	lessenDecodedDataAmount(t, decodedData)
 	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, decodedData)

@@ -385,8 +385,19 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		if err != nil {
 			return nil, err
 		}
-		db := ethabi.NewDatabase(nil)
-		decodedData, err := db.ParseCallDataRide(tx.Data(), true)
+		scriptAddr, err := tx.WavesAddressTo(tc.settings.AddressSchemeCharacter)
+		if err != nil {
+			return nil, err
+		}
+		tree, err := tc.stor.scriptsStorage.newestScriptByAddr(scriptAddr, !info.initialisation)
+		if err != nil {
+			return nil, err
+		}
+		db, err := ethabi.NewMethodsMapFromRideDAppMeta(tree.Meta)
+		if err != nil {
+			return nil, err
+		}
+		decodedData, err := db.ParseCallDataRide(tx.Data())
 		if err != nil {
 			return nil, err
 		}
