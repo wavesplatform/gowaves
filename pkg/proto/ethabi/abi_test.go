@@ -36,7 +36,7 @@ func TestBuildSignatureFromRideFunctionMeta(t *testing.T) {
 			payments: false,
 		},
 		{
-			expectedSig: "metaPayments(bool,bytes,(bytes,int64)[])",
+			expectedSig: "metaPayments(bool,bytes,(bytes32,int64)[])",
 			metadata:    meta.Function{Name: "metaPayments", Arguments: []meta.Type{meta.Boolean, meta.Bytes}},
 			payments:    true,
 		},

@@ -2,15 +2,15 @@ package ethabi
 
 import (
 	"encoding/binary"
-	stdErr "errors"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"math/big"
 )
 
 var (
-	errBadBool = stdErr.New("abi: improperly encoded boolean value")
+	errBadBool = errors.New("abi: improperly encoded boolean value")
 )
 
 // readBool reads a bool.
@@ -75,7 +75,6 @@ func tryAsInt64(rideT ride.RideType) (int64, error) {
 	switch rideInt := rideT.(type) {
 	case ride.RideInt:
 		return int64(rideInt), nil
-
 	case ride.RideBigInt:
 		if !rideInt.V.IsInt64() {
 			return 0, errors.New(
@@ -176,8 +175,25 @@ func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error)
 	return retval[unionIndex], nil
 }
 
+// readFixedRideBytes creates a ride.RideBytes with length 1..32 to be read from.
+func readFixedRideBytes(t Type, word []byte) (ride.RideBytes, error) {
+	// type check
+	if t.T != FixedBytesTy {
+		return nil, errors.Errorf("abi: invalid type in call to make fixed byte array")
+	}
+	// size check
+	if t.Size < 1 || t.Size > 32 {
+		return nil, errors.Errorf(
+			"abi: invalid type size in call to make fixed byte array, want 0 < size <= 32, actual size=%d",
+			t.Size,
+		)
+	}
+	array := word[0:t.Size]
+	return array, nil
+}
+
 type Payment struct {
-	AssetID proto.AssetID
+	AssetID crypto.Digest
 	Amount  int64
 }
 
@@ -185,7 +201,7 @@ var (
 	paymentType = Type{
 		T: TupleTy,
 		TupleFields: Arguments{
-			{Name: "id", Type: Type{T: BytesTy}},
+			{Name: "id", Type: Type{T: FixedBytesTy, Size: 32}},
 			{Name: "value", Type: Type{T: IntTy, Size: 64}},
 		},
 	}
@@ -204,16 +220,16 @@ func unpackPayment(output []byte) (Payment, error) {
 	amountType := paymentType.TupleFields[1].Type
 
 	var (
-		assetID proto.AssetID
-		amount  int64
+		fullAssetID crypto.Digest
+		amount      int64
 	)
 
 	assetRideValue, err := toRideType(0, assetIDType, output)
 	if err != nil {
-		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse assetID")
+		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse fullAssetID")
 	}
-	if assetIDBytes, ok := assetRideValue.(ride.RideBytes); ok {
-		copy(assetID[:], assetIDBytes)
+	if fullAssetIDBytes, ok := assetRideValue.(ride.RideBytes); ok {
+		copy(fullAssetID[:], fullAssetIDBytes)
 	} else {
 		panic("BUG, CREATE REPORT: failed to parse payment, assetRideValue type must be RideBytes type")
 	}
@@ -227,7 +243,7 @@ func unpackPayment(output []byte) (Payment, error) {
 	}
 
 	payment := Payment{
-		AssetID: assetID,
+		AssetID: fullAssetID,
 		Amount:  amount,
 	}
 	return payment, nil
@@ -378,6 +394,12 @@ func toRideType(index int, t Type, output []byte) (ride.RideType, error) {
 			return nil, err
 		}
 		return bytes, nil
+	case FixedBytesTy:
+		fixedBytes, err := readFixedRideBytes(t, returnOutput)
+		if err != nil {
+			return nil, err
+		}
+		return fixedBytes, err
 	default:
 		return nil, errors.Errorf("abi: unknown type %v", t.T)
 	}

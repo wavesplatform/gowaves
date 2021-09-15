@@ -35,9 +35,9 @@ func (s Signature) Selector() Selector {
 	return NewSelector(s)
 }
 
-const selectorSize = 4
+const SelectorSize = 4
 
-type Selector [selectorSize]byte
+type Selector [SelectorSize]byte
 
 func NewSelector(sig Signature) Selector {
 	var selector Selector
@@ -59,8 +59,8 @@ func (s *Selector) FromHex(hexSelector string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to decode hex string for selector")
 	}
-	if len(bts) != selectorSize {
-		return errors.Errorf("invalid hex selector bytes, expected %d, received %d", selectorSize, len(bts))
+	if len(bts) != SelectorSize {
+		return errors.Errorf("invalid hex selector bytes, expected %d, received %d", SelectorSize, len(bts))
 	}
 	copy(s[:], bts)
 	return nil
@@ -125,6 +125,17 @@ func (itb intTextBuilder) MarshalText() (text []byte, err error) {
 		unsignedPrefix = "u"
 	}
 	return []byte(fmt.Sprintf("%sint%d", unsignedPrefix, itb.size)), nil
+}
+
+type fixedBytesTextBuilder struct {
+	size int
+}
+
+func (fbtb fixedBytesTextBuilder) MarshalText() (text []byte, err error) {
+	if fbtb.size < 1 || fbtb.size > 32 {
+		return nil, errors.Errorf("invalid fixed bytes type size (%d)", fbtb.size)
+	}
+	return []byte(fmt.Sprintf("bytes%d", fbtb.size)), nil
 }
 
 type bytesTextBuilder struct{}
@@ -195,8 +206,11 @@ type paymentTextBuilder struct{}
 
 func (ptb paymentTextBuilder) MarshalText() (text []byte, err error) {
 	tupleBuilder := tupleTextBuilder{
-		bytesTextBuilder{},
-		// nickeskov: asset amount field in payment
+		// full asset ID
+		fixedBytesTextBuilder{
+			size: 32,
+		},
+		// asset amount field in payment
 		intTextBuilder{
 			size:     64,
 			unsigned: false,

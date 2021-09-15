@@ -4,13 +4,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
-	"sort"
-	"strings"
-	"testing"
 )
 
 // TODO(nickeskov): check MethodsMap when parsePayments == true
@@ -89,7 +90,7 @@ func TestJsonAbi(t *testing.T) {
     "inputs": [
       {
         "name": "_to",
-        "type": "bytes"
+        "type": "address"
       },
       {
         "name": "_value",
@@ -110,7 +111,6 @@ func TestJsonAbi(t *testing.T) {
 
 	resJsonABI, err := getJsonAbi(erc20Meth)
 	require.NoError(t, err)
-	fmt.Println(string(resJsonABI))
 	var abiRes []abi
 	err = json.Unmarshal(resJsonABI, &abiRes)
 	require.NoError(t, err)
@@ -121,51 +121,42 @@ func TestJsonAbi(t *testing.T) {
 	require.Equal(t, expectedABI, abiRes)
 }
 
-var TestMethodWithAllTypes = []Method{
-	{
-		RawName: "testFunction",
-		Inputs: Arguments{
-			{Name: "stringVar", Type: Type{T: StringTy}},
-			{Name: "intVar", Type: Type{T: IntTy, Size: 64}},
-			{Name: "bytesVar", Type: Type{T: BytesTy}},
-			{Name: "boolVar", Type: Type{T: BoolTy}},
-			{
-				Name: "sliceVar",
-				Type: Type{
-					T:    SliceTy,
-					Elem: &Type{T: IntTy, Size: 64}},
-			},
-			{
-				Name: "tupleSliceVar",
-				Type: Type{
-					T: TupleTy,
-					TupleFields: Arguments{
-						{Name: "union_index", Type: Type{T: UintTy, Size: 8}},
-						{Name: "stringVar", Type: Type{T: StringTy}},
-						{Name: "boolVar", Type: Type{T: BoolTy}},
-						{Name: "intVar", Type: Type{T: IntTy, Size: 64}},
-						{Name: "bytesVar", Type: Type{T: BytesTy}},
-					},
-				},
-			},
-		},
-		Payments: &Argument{
-			Name: "payments",
-			Type: Type{
-				T: SliceTy,
-				Elem: &Type{
-					T: TupleTy,
-					TupleFields: Arguments{
-						{Name: "number", Type: Type{T: IntTy, Size: 64}},
-						{Name: "addr", Type: Type{T: AddressTy}},
-					},
-				},
-			},
-		},
-	},
-}
-
 func TestJsonAbiWithAllTypes(t *testing.T) {
+	testMethodWithAllTypes := []Method{
+		{
+			RawName: "testFunction",
+			Inputs: Arguments{
+				{Name: "stringVar", Type: Type{T: StringTy}},
+				{Name: "intVar", Type: Type{T: IntTy, Size: 64}},
+				{Name: "bytesVar", Type: Type{T: BytesTy}},
+				{Name: "boolVar", Type: Type{T: BoolTy}},
+				{
+					Name: "sliceVar",
+					Type: Type{
+						T:    SliceTy,
+						Elem: &Type{T: IntTy, Size: 64}},
+				},
+				{
+					Name: "tupleSliceVar",
+					Type: Type{
+						T: TupleTy,
+						TupleFields: Arguments{
+							{Name: "union_index", Type: Type{T: UintTy, Size: 8}},
+							{Name: "stringVar", Type: Type{T: StringTy}},
+							{Name: "boolVar", Type: Type{T: BoolTy}},
+							{Name: "intVar", Type: Type{T: IntTy, Size: 64}},
+							{Name: "bytesVar", Type: Type{T: BytesTy}},
+							{Name: "addrVar", Type: Type{T: AddressTy}},
+						},
+					},
+				},
+			},
+			Payments: &Argument{
+				Name: "payments",
+				Type: paymentsType,
+			},
+		},
+	}
 	expectedJson := `
 [
   {
@@ -215,6 +206,10 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
           {
             "name": "bytesVar",
             "type": "bytes"
+          },
+          {
+            "name": "addrVar",
+            "type": "address"
           }
         ]
       },
@@ -223,12 +218,12 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
         "type": "tuple[]",
         "components": [
           {
-            "name": "number",
-            "type": "int64"
+            "name": "id",
+            "type": "bytes32"
           },
           {
-            "name": "addr",
-            "type": "bytes"
+            "name": "value",
+            "type": "int64"
           }
         ]
       }
@@ -240,7 +235,7 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
 	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
 
-	resJsonABI, err := getJsonAbi(TestMethodWithAllTypes)
+	resJsonABI, err := getJsonAbi(testMethodWithAllTypes)
 	require.NoError(t, err)
 	fmt.Println(string(resJsonABI))
 	var abiRes []abi

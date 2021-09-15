@@ -79,20 +79,20 @@ func (db MethodsMap) ParseCallDataRide(data []byte) (*DecodedCallData, error) {
 		return nil, errors.New("transaction doesn't contain data")
 	}
 	// Validate the call data that it has the 4byte prefix and the rest divisible by 32 bytes
-	if len(data) < selectorSize {
+	if len(data) < SelectorSize {
 		return nil, errors.New("transaction data is not valid ABI: missing the 4 byte call prefix")
 	}
-	if n := len(data) - selectorSize; n%32 != 0 {
+	if n := len(data) - SelectorSize; n%32 != 0 {
 		return nil, errors.Errorf("transaction data is not valid ABI (length should be a multiple of 32 (was %d))", n)
 	}
 	var selector Selector
-	copy(selector[:], data[:selectorSize])
+	copy(selector[:], data[:SelectorSize])
 	method, err := db.MethodBySelector(selector)
 	if err != nil {
 		return nil, errors.Errorf("Transaction contains data, but the ABI signature could not be found: %v", err)
 	}
 
-	info, err := parseArgDataToRideTypes(&method, data[selectorSize:], db.parsePayments)
+	info, err := parseArgDataToRideTypes(&method, data[SelectorSize:], db.parsePayments)
 	if err != nil {
 		return nil, errors.Errorf("Transaction contains data, but provided ABI signature could not be verified: %v", err)
 	}
