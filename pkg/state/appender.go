@@ -385,21 +385,54 @@ type appendTxParams struct {
 	initialisation   bool
 }
 
-func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransaction, decodedData *ethabi.DecodedCallData) (proto.EthereumTransactionKind, error) {
-	if decodedData == nil {
+func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransaction, params *appendTxParams) (proto.EthereumTransactionKind, error) {
+	if ethTx.Data() == nil {
 		return &proto.EthereumTransferWavesTx{}, nil
 	}
-	if ethabi.IsERC20Selector(decodedData.Signature.Selector()) {
-		//assetID := proto.
-		assetID := proto.AssetID{}
-		copy(assetID[:], ethTx.To()[:proto.AssetIDSize])
-		asset, err := a.state.AssetInfoByID(assetID, true)
-		if err != nil {
-			return nil, errors.Errorf("failed to get asset info by ethereum recipient address %s, %v", ethTx.To().String(), err)
-		}
 
+	selectorBytes := ethTx.Data()
+	selector, err := ethabi.NewSelectorFromBytes(selectorBytes[:4])
+	if err != nil {
+		return nil, errors.Errorf("failed to guess ethereum transaction kind, %v", err)
+	}
+
+	assetID := proto.AssetID{}
+	copy(assetID[:], ethTx.To()[:proto.AssetIDSize])
+	asset, err := a.state.AssetInfoByID(assetID, true)
+	if err != nil {
+		return nil, errors.Errorf("failed to get asset info by ethereum recipient address %s, %v", ethTx.To().String(), err)
+	}
+
+	if ethabi.IsERC20Selector(selector) && asset != nil { // TODO if the error is "Not found" then we should break
+
+		db := ethabi.NewErc20MethodsMap()
+		decodedData, err := db.ParseCallDataRide(ethTx.Data())
+		if err != nil {
+			return nil, errors.Errorf("failed to parse ethereum data")
+		}
+		params.decodedAbiData = decodedData
 		return &proto.EthereumTransferAssetsErc20Tx{Asset: *proto.NewOptionalAssetFromDigest(asset.ID)}, nil
 	}
+
+	// TODO it'd better if we have a function tree.Meta.Contains(sel selector) bool to make the last case clear
+	scriptAddr, err := ethTx.WavesAddressTo(a.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, err
+	}
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(scriptAddr, !params.initialisation)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
+	}
+	db, err := ethabi.NewMethodsMapFromRideDAppMeta(tree.Meta)
+	if err != nil {
+		return nil, err
+	}
+	decodedData, err := db.ParseCallDataRide(ethTx.Data())
+	if err != nil {
+		return nil, errors.Errorf("failed to parse ethereum data")
+	}
+	params.decodedAbiData = decodedData
+
 	return &proto.EthereumInvokeScriptTx{}, nil
 }
 
@@ -487,20 +520,11 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		if !ok {
 			return errors.New("failed to cast interface transaction to ethereum transaction structure")
 		}
-		if ethTx.Data() != nil {
-			db := ethabi.NewErc20MethodsMap()
-			decodedData, err := db.ParseCallDataRide(ethTx.Data())
-			if err != nil {
-				return errors.Errorf("failed to parse ethereum data")
-			}
-			params.decodedAbiData = decodedData
-		}
-
 		err = ethTx.GenerateID(a.settings.AddressSchemeCharacter)
 		if err != nil {
 			return errors.Errorf("failed to generate transaction id for ethereum transaction, %v", err)
 		}
-		ethTx.TxKind, err = a.guessEthereumTransactionKind(ethTx, params.decodedAbiData)
+		ethTx.TxKind, err = a.guessEthereumTransactionKind(ethTx, params)
 		if err != nil {
 			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
 		}

@@ -176,14 +176,10 @@ func TestEthereumTransferAssets(t *testing.T) {
 		ID:       nil,
 		SenderPK: senderPK,
 	}
-	db := ethabi.NewErc20MethodsMap()
-	assert.NotNil(t, tx.Data())
-	decodedData, err := db.ParseCallDataRide(tx.Data())
+
+	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, appendTxParams)
 	assert.NoError(t, err)
-	lessenDecodedDataAmount(t, decodedData)
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, decodedData)
-	assert.NoError(t, err)
-	appendTxParams.decodedAbiData = decodedData
+	lessenDecodedDataAmount(t, appendTxParams.decodedAbiData)
 
 	applRes, err := txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	assert.NoError(t, err)
@@ -202,7 +198,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 
 	recipient, err := recipientEth.ToWavesAddress(0)
 	assert.NoError(t, err)
-	rideEthRecipientAddress, ok := decodedData.Inputs[0].Value.(ride.RideBytes)
+	rideEthRecipientAddress, ok := appendTxParams.decodedAbiData.Inputs[0].Value.(ride.RideBytes)
 	assert.True(t, ok)
 	ethRecipientAddress := proto.BytesToEthereumAddress(rideEthRecipientAddress)
 	recipient, err = ethRecipientAddress.ToWavesAddress(0)
@@ -296,7 +292,7 @@ func TestEthereumInvoke(t *testing.T) {
 	}
 
 	decodedData := defaultDecodedData("call", []ethabi.DecodedArg{{Value: ride.RideInt(10)}}, []ethabi.Payment{{Amount: 5}})
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, &decodedData)
+	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, appendTxParams)
 	assert.NoError(t, err)
 	appendTxParams.decodedAbiData = &decodedData
 

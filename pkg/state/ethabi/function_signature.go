@@ -51,6 +51,19 @@ func NewSelector(sig Signature) Selector {
 	return selector
 }
 
+func NewSelectorFromBytes(a []byte) (Selector, error) {
+	if a == nil {
+		return Selector{}, errors.New("failed to create new selector, the input is nil")
+	}
+	if len(a) != selectorSize {
+		return Selector{}, errors.Errorf("failed to create new selector, the size of input is not equal to %d", selectorSize)
+	}
+
+	var selector Selector
+	copy(selector[:], a[:])
+	return selector, nil
+}
+
 func (s Selector) String() string {
 	return s.Hex()
 }
@@ -270,36 +283,5 @@ var Erc20Methods = map[Selector]Method{
 		},
 		Payments: nil,
 		Sig:      Erc20TransferSignature,
-	},
-	Erc20TransferFromSignature.Selector(): {
-		RawName: "transferFrom",
-		Inputs: Arguments{
-			Argument{
-				Name: "_from",
-				Type: Type{
-					Size:       proto.EthereumAddressSize,
-					T:          AddressTy,
-					stringKind: "address",
-				},
-			},
-			Argument{
-				Name: "_to",
-				Type: Type{
-					Size:       proto.EthereumAddressSize,
-					T:          AddressTy,
-					stringKind: "address",
-				},
-			},
-			Argument{
-				Name: "_value",
-				Type: Type{
-					Size:       256,
-					T:          UintTy,
-					stringKind: "uint256",
-				},
-			},
-		},
-		Payments: nil,
-		Sig:      Erc20TransferFromSignature,
 	},
 }
