@@ -383,6 +383,7 @@ type Environment interface {
 	libVersion() int
 	validateInternalPayments() bool
 	internalPaymentsValidationHeight() uint64
+	maxDataEntriesSize() int
 }
 
 type rideConstructor func(Environment) rideType

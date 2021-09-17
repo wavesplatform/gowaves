@@ -450,9 +450,8 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		localEnv.SetThisFromAssetInfo(assetInfo)
 	}
 
-	if err := localEnv.ChooseTakeString(true); err != nil {
-		return false, errors.Wrap(err, "failed to initialize local environment")
-	}
+	localEnv.ChooseTakeString(true)
+	localEnv.ChooseMaxDataEntriesSize(true)
 
 	r, err := CallVerifier(localEnv, tree)
 	if err != nil {
@@ -531,8 +530,8 @@ func (ws *WrappedState) validateDataEntryAction(dataEntriesCount *int, dataEntri
 	}
 
 	*dataEntriesSize += res.Entry.BinarySize()
-	if *dataEntriesSize > proto.MaxDataEntryScriptActionsSizeInBytes {
-		return errors.Errorf("total size of data entries produced by script is more than %d bytes", proto.MaxDataEntryScriptActionsSizeInBytes)
+	if *dataEntriesSize > restrictions.MaxDataEntriesSize {
+		return errors.Errorf("total size of data entries produced by script is more than %d bytes", restrictions.MaxDataEntriesSize)
 	}
 	return nil
 }
@@ -741,6 +740,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 	restrictions := proto.ActionsValidationRestrictions{
 		DisableSelfTransfers:     disableSelfTransfers,
 		KeySizeValidationVersion: keySizeValidationVersion,
+		MaxDataEntriesSize:       env.maxDataEntriesSize(),
 	}
 
 	for _, action := range actions {
@@ -1110,6 +1110,7 @@ type EvaluationEnvironment struct {
 	inv                   rideObject
 	ver                   int
 	validatePaymentsAfter uint64
+	mds                   int
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64) (*EvaluationEnvironment, error) {
@@ -1177,16 +1178,15 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 		takeStr:               env.takeStr,
 		inv:                   env.inv,
 		validatePaymentsAfter: env.validatePaymentsAfter,
+		mds:                   env.mds,
 	}, nil
 }
 
-func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) error {
+func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
+	e.takeStr = takeRideString
 	if !isRideV5 {
 		e.takeStr = takeRideStringWrong
-		return nil
 	}
-	e.takeStr = takeRideString
-	return nil
 }
 
 func (e *EvaluationEnvironment) ChooseSizeCheck(v int) {
@@ -1195,6 +1195,13 @@ func (e *EvaluationEnvironment) ChooseSizeCheck(v int) {
 		e.check = func(l int) bool {
 			return l <= maxMessageLength
 		}
+	}
+}
+
+func (e *EvaluationEnvironment) ChooseMaxDataEntriesSize(isRideV5 bool) {
+	e.mds = proto.MaxDataEntriesScriptActionsSizeInBytesV1
+	if isRideV5 {
+		e.mds = proto.MaxDataEntriesScriptActionsSizeInBytesV2
 	}
 }
 
@@ -1340,6 +1347,10 @@ func (e *EvaluationEnvironment) validateInternalPayments() bool {
 
 func (e *EvaluationEnvironment) internalPaymentsValidationHeight() uint64 {
 	return e.validatePaymentsAfter
+}
+
+func (e *EvaluationEnvironment) maxDataEntriesSize() int {
+	return e.mds
 }
 
 var wavesAssetBytes = crypto.Digest{}.Bytes()
