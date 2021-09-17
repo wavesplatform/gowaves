@@ -7052,7 +7052,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		setNewDAppAddressFunc: func(address proto.Address) {
+		setNewDAppAddressFunc: func(address proto.WavesAddress) {
 			testDAppAddress = address
 		},
 		validateInternalPaymentsFunc: func() bool {
@@ -7071,7 +7071,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 				return nil, errors.Errorf("unexpected address %s", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case senderAddress:
 				return senderPK, nil
@@ -7082,7 +7082,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 			}
 			return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			return recipient.Address, nil
 		},
 		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
@@ -7243,7 +7243,7 @@ func TestAliasesInInvokes(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case sender:
 				return senderPK, nil
@@ -7255,7 +7255,7 @@ func TestAliasesInInvokes(t *testing.T) {
 				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 			}
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			switch recipient.String() {
 			case dApp1.String():
 				return &dApp1, nil
@@ -7267,14 +7267,14 @@ func TestAliasesInInvokes(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.Address, error) {
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
 			switch alias.String() {
 			case caller.String():
 				return dApp1, nil
 			case callee.String():
 				return dApp2, nil
 			default:
-				return proto.Address{}, errors.Errorf("unexpected alias '%s'", alias.String())
+				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
 			}
 		},
 		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
@@ -7299,7 +7299,7 @@ func TestAliasesInInvokes(t *testing.T) {
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
-	env.setNewDAppAddressFunc = func(address proto.Address) {
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
@@ -7330,7 +7330,7 @@ func TestAliasesInInvokes(t *testing.T) {
 }
 
 // makeAddressAndPK creates keys and an address on TestNet from given string as seed
-func makeAddressAndPK(t *testing.T, s string) (crypto.SecretKey, crypto.PublicKey, proto.Address) {
+func makeAddressAndPK(t *testing.T, s string) (crypto.SecretKey, crypto.PublicKey, proto.WavesAddress) {
 	sk, pk, err := crypto.GenerateKeyPair([]byte(s))
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, pk)
@@ -7474,7 +7474,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case sender:
 				return senderPK, nil
@@ -7488,7 +7488,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 			}
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			switch recipient.String() {
 			case dApp1.String():
 				return &dApp1, nil
@@ -7522,7 +7522,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
-	env.setNewDAppAddressFunc = func(address proto.Address) {
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
@@ -7657,7 +7657,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case sender:
 				return senderPK, nil
@@ -7669,7 +7669,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 			}
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			switch recipient.String() {
 			case dApp1.String():
 				return &dApp1, nil
@@ -7720,7 +7720,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
-	env.setNewDAppAddressFunc = func(address proto.Address) {
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
@@ -7833,7 +7833,7 @@ func TestReissueInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case sender:
 				return senderPK, nil
@@ -7845,7 +7845,7 @@ func TestReissueInInvoke(t *testing.T) {
 				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 			}
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			switch recipient.String() {
 			case dApp1.String():
 				return &dApp1, nil
@@ -7894,7 +7894,7 @@ func TestReissueInInvoke(t *testing.T) {
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
-	env.setNewDAppAddressFunc = func(address proto.Address) {
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
