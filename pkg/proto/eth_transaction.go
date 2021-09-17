@@ -134,7 +134,6 @@ func (tx *EthereumTransaction) Validate() (Transaction, error) {
 }
 
 func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
-	// TODO(nickeskov): check scala realization
 	if tx.id != nil {
 		return nil
 	}
@@ -142,7 +141,10 @@ func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
 	if err != nil {
 		return err
 	}
-	id := crypto.MustFastHash(body)
+	id, err := crypto.Keccak256(body)
+	if err != nil {
+		return err
+	}
 	tx.id = &id
 	return nil
 }
@@ -192,8 +194,8 @@ func (tx *EthereumTransaction) BodyMarshalBinary() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (tx *EthereumTransaction) bodyUnmarshalBinary(rlpData []byte) error {
-	if err := tx.DecodeCanonical(rlpData); err != nil {
+func (tx *EthereumTransaction) bodyUnmarshalBinary(canonical []byte) error {
+	if err := tx.DecodeCanonical(canonical); err != nil {
 		return errors.Wrapf(err, "failed to unmarshal ethereum transaction from canonical representation")
 	}
 	return nil
@@ -236,20 +238,19 @@ func (tx *EthereumTransaction) ToProtobuf(_ Scheme) (*g.Transaction, error) {
 }
 
 func (tx *EthereumTransaction) ToProtobufSigned(_ Scheme) (*g.SignedTransaction, error) {
-	// nickeskov: marshal body to rlp
-	rlpData, err := tx.BodyMarshalBinary()
+	canonical, err := tx.BodyMarshalBinary()
 	if err != nil {
 		return nil, errors.Wrapf(err,
 			"failed to marshal binary EthereumTransaction, type %q",
 			tx.EthereumTxType().String(),
 		)
 	}
-	wrapped := g.SignedTransaction{
+	signed := g.SignedTransaction{
 		Transaction: &g.SignedTransaction_EthereumTransaction{
-			EthereumTransaction: rlpData,
+			EthereumTransaction: canonical,
 		},
 	}
-	return &wrapped, nil
+	return &signed, nil
 }
 
 // EthereumTxType returns the transaction type.
