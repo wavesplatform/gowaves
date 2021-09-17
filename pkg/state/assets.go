@@ -353,14 +353,14 @@ func (a *assets) newestAssetInfo(assetID proto.AssetID, filter bool) (*assetInfo
 // "Stable" asset info from database.
 // This should be used by external APIs.
 func (a *assets) assetInfo(assetID proto.AssetID, filter bool) (*assetInfo, error) {
-	constInfo, err := a.constInfo(assetID)
+	constInfo, err := a.constInfo(assetID) // `errs.UnknownAsset` error here
 	if err != nil {
 		return nil, err
 	}
 	histKey := assetHistKey{assetID: assetID}
 	recordBytes, err := a.hs.topEntryData(histKey.bytes(), filter)
 	if err != nil {
-		return nil, err
+		return nil, err // `keyvalue.ErrNotFound` or "empty history" errors here
 	}
 	var record assetHistoryRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
