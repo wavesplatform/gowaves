@@ -97,8 +97,7 @@ func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
 }
 
 func (tx *EthereumTransaction) GetVersion() byte {
-	// TODO(nickeskov): Is that right?
-	return byte(tx.EthereumTxType())
+	return 0
 }
 
 func (tx *EthereumTransaction) GetID(scheme Scheme) ([]byte, error) {
