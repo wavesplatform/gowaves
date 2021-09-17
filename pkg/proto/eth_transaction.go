@@ -2,32 +2,32 @@ package proto
 
 import (
 	"bytes"
-	stderr "errors"
+	"io"
+	"math/big"
+
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
-	"io"
-	"math/big"
 )
 
 // EthereumTxType is an ethereum transaction type.
 type EthereumTxType byte
 
 const (
-	LegacyTxType EthereumTxType = iota
-	AccessListTxType
-	DynamicFeeTxType
+	EthereumLegacyTxType EthereumTxType = iota
+	EthereumAccessListTxType
+	EthereumDynamicFeeTxType
 )
 
 func (e EthereumTxType) String() string {
 	switch e {
-	case LegacyTxType:
-		return "LegacyTxType"
-	case AccessListTxType:
-		return "AccessListTxType"
-	case DynamicFeeTxType:
-		return "DynamicFeeTxType"
+	case EthereumLegacyTxType:
+		return "EthereumLegacyTxType"
+	case EthereumAccessListTxType:
+		return "EthereumAccessListTxType"
+	case EthereumDynamicFeeTxType:
+		return "EthereumDynamicFeeTxType"
 	default:
 		return ""
 	}
@@ -35,9 +35,7 @@ func (e EthereumTxType) String() string {
 
 var (
 	ErrInvalidSig         = errors.New("invalid transaction v, r, s values")
-	ErrTxTypeDecode       = stderr.New("expected RLP list or RLP bytes")
-	ErrTxTypeNotSupported = stderr.New("transaction type not supported")
-	errEmptyTypedTx       = stderr.New("empty typed transaction bytes")
+	ErrTxTypeNotSupported = errors.New("transaction type not supported")
 )
 
 type fastRLPSignerHasher interface {
@@ -114,7 +112,7 @@ func (tx *EthereumTransaction) GetSender(scheme Scheme) (Address, error) {
 }
 
 func (tx *EthereumTransaction) GetFee() uint64 {
-	// nickeskov: in scala node this is "gasLimit" field.
+	// in scala node this is "gasLimit" field.
 	return tx.Gas()
 }
 
@@ -136,6 +134,7 @@ func (tx *EthereumTransaction) Validate() (Transaction, error) {
 }
 
 func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
+	// TODO(nickeskov): check scala realization
 	if tx.id != nil {
 		return nil
 	}
@@ -149,7 +148,6 @@ func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
 }
 
 func (tx *EthereumTransaction) Sign(_ Scheme, _ crypto.SecretKey) error {
-	// TODO(nickeskov_: Do we need it?
 	return errors.New("Sign method for EthereumTransaction isn't implemented")
 }
 
@@ -172,12 +170,12 @@ func (tx *EthereumTransaction) UnmarshalBinary(bytes []byte, scheme Scheme) erro
 		return errors.Errorf("incorrect transaction type %d for EthereumTransaction transaction", bytes[0])
 	}
 
-	bytes = bytes[1:]
-	if err := tx.DecodeRLP(bytes); err != nil {
-		return errors.Wrap(err, "failed to UnmarshalBinary ethereum transaction from RLP")
+	ethereumTxCanonicalBytes := bytes[1:]
+	if err := tx.DecodeCanonical(ethereumTxCanonicalBytes); err != nil {
+		return errors.Wrap(err, "failed to UnmarshalBinary ethereum transaction from canonical representation")
 	}
 	if err := tx.GenerateID(scheme); err != nil {
-		return err
+		return errors.Wrap(err, "failed to generate ID for ethereum transaction")
 	}
 	return nil
 }
@@ -185,9 +183,9 @@ func (tx *EthereumTransaction) UnmarshalBinary(bytes []byte, scheme Scheme) erro
 func (tx *EthereumTransaction) BodyMarshalBinary() ([]byte, error) {
 	var b bytes.Buffer
 	b.Grow(tx.innerBinarySize)
-	if err := tx.EncodeRLP(&b); err != nil {
+	if err := tx.EncodeCanonical(&b); err != nil {
 		return nil, errors.Wrapf(err,
-			"failed to marshal ethereum transaction to RLP, ehtTxType %q",
+			"failed to marshal ethereum transaction to canonical representation, ehtTxType %q",
 			tx.EthereumTxType().String(),
 		)
 	}
@@ -195,8 +193,8 @@ func (tx *EthereumTransaction) BodyMarshalBinary() ([]byte, error) {
 }
 
 func (tx *EthereumTransaction) bodyUnmarshalBinary(rlpData []byte) error {
-	if err := tx.DecodeRLP(rlpData); err != nil {
-		return errors.Wrapf(err, "failed to unmarshal ethereum transaction from RLP")
+	if err := tx.DecodeCanonical(rlpData); err != nil {
+		return errors.Wrapf(err, "failed to unmarshal ethereum transaction from canonical representation")
 	}
 	return nil
 }
@@ -319,86 +317,80 @@ func (tx *EthereumTransaction) RawSignatureValues() (v, r, s *big.Int) {
 	return tx.inner.rawSignatureValues()
 }
 
-//func (tx *EthereumTransaction) Hash() EthereumHash {
-//	// TODO(nickeskov): implement me
-//	panic("implement me")
-//}
-
-func (tx *EthereumTransaction) DecodeRLP(rlpData []byte) error {
-	parser := fastrlp.Parser{}
-	rlpVal, err := parser.Parse(rlpData)
-	if err != nil {
-		return err
-	}
-	return tx.unmarshalFromFastRLP(rlpVal)
-}
-
-func (tx *EthereumTransaction) unmarshalFromFastRLP(value *fastrlp.Value) error {
-	switch value.Type() {
-	case fastrlp.TypeArray:
-		// nickeskov: It's a legacy transaction.
+// DecodeCanonical decodes the canonical binary encoding of transactions.
+// It supports legacy RLP transactions and EIP2718 typed transactions.
+func (tx *EthereumTransaction) DecodeCanonical(canonicalData []byte) error {
+	// check according to the EIP2718
+	if len(canonicalData) > 0 && canonicalData[0] > 0x7f {
+		// It's a legacy transaction.
+		parser := fastrlp.Parser{}
+		value, err := parser.Parse(canonicalData)
+		if err != nil {
+			return errors.Wrap(err, "failed to parse canonical representation as RLP")
+		}
 		var inner EthereumLegacyTx
 		if err := inner.unmarshalFromFastRLP(value); err != nil {
 			return errors.Wrapf(err,
 				"failed to unmarshal from RLP ethereum legacy transaction, ethereumTxType %q",
-				LegacyTxType.String(),
+				EthereumLegacyTxType.String(),
 			)
 		}
 		tx.inner = &inner
-	case fastrlp.TypeBytes:
-		// nickeskov: It's an EIP-2718 typed TX envelope.
-		typedTxBytes, err := value.Bytes()
+	} else {
+		// It's an EIP2718 typed transaction envelope.
+		inner, err := tx.decodeTypedCanonical(canonicalData)
 		if err != nil {
-			return errors.Wrap(err, "failed to represent RLP value as bytes")
-		}
-		inner, err := tx.decodeTyped(typedTxBytes)
-		if err != nil {
-			return errors.Wrap(err, "failed to unmarshal from RLP ethereum typed transaction")
+			return errors.Wrap(err,
+				"failed to unmarshal from canonical representation ethereum typed transaction",
+			)
 		}
 		tx.inner = inner
-	default:
-		return ErrTxTypeDecode
 	}
-	tx.innerBinarySize = int(value.Len())
+	tx.innerBinarySize = len(canonicalData)
 	return nil
 }
 
-func (tx EthereumTransaction) EncodeRLP(w io.Writer) error {
-	arena := &fastrlp.Arena{}
-	var fastrlpTx *fastrlp.Value
-	// nickeskov: maybe use buffer pool?
-	if tx.EthereumTxType() == LegacyTxType {
-		fastrlpTx = tx.inner.marshalToFastRLP(arena)
+// EncodeCanonical writes the canonical binary encoding of a transaction to w.
+// For legacy transactions, it returns the RLP encoding. For EIP-2718 typed
+// transactions, it returns the type and payload.
+func (tx *EthereumTransaction) EncodeCanonical(w io.Writer) error {
+	var (
+		canonical []byte
+		arena     fastrlp.Arena
+	)
+	if tx.EthereumTxType() == EthereumLegacyTxType {
+		fastrlpTx := tx.inner.marshalToFastRLP(&arena)
+		canonical = fastrlpTx.MarshalTo(nil)
 	} else {
-		fastrlpTx = tx.encodeTyped(arena)
+		canonical = tx.encodeTypedCanonical(&arena)
 	}
-	if _, err := w.Write(fastrlpTx.MarshalTo(nil)); err != nil {
-		return err
+	if _, err := w.Write(canonical); err != nil {
+		return errors.Wrapf(err, "failed to write canonical encoded ethereum transaction to %T", w)
 	}
 	return nil
 }
 
-// decodeTyped decodes a typed transaction from the canonical format.
-func (tx *EthereumTransaction) decodeTyped(rlpData []byte) (EthereumTxData, error) {
-	if len(rlpData) == 0 {
-		return nil, errEmptyTypedTx
+// decodeTypedCanonical decodes a typed transaction from the canonical format.
+func (tx *EthereumTransaction) decodeTypedCanonical(canonicalData []byte) (EthereumTxData, error) {
+	if len(canonicalData) == 0 {
+		return nil, errors.New("empty typed transaction bytes")
 	}
-	switch txType, rlpData := rlpData[0], rlpData[1:]; EthereumTxType(txType) {
-	case AccessListTxType:
+	switch txType, rlpData := canonicalData[0], canonicalData[1:]; EthereumTxType(txType) {
+	case EthereumAccessListTxType:
 		var inner EthereumAccessListTx
 		if err := inner.DecodeRLP(rlpData); err != nil {
 			return nil, errors.Wrapf(err,
 				"failed to unmarshal ethereum tx from RLP, ethereumTxType %q",
-				AccessListTxType.String(),
+				EthereumAccessListTxType.String(),
 			)
 		}
 		return &inner, nil
-	case DynamicFeeTxType:
+	case EthereumDynamicFeeTxType:
 		var inner EthereumDynamicFeeTx
 		if err := inner.DecodeRLP(rlpData); err != nil {
 			return nil, errors.Wrapf(err,
 				"failed to unmarshal ethereum tx from RLP, ethereumTxType %q",
-				DynamicFeeTxType.String(),
+				EthereumDynamicFeeTxType.String(),
 			)
 		}
 		return &inner, nil
@@ -407,12 +399,13 @@ func (tx *EthereumTransaction) decodeTyped(rlpData []byte) (EthereumTxData, erro
 	}
 }
 
-// encodeTyped writes the canonical encoding of a typed transaction to w.
-func (tx *EthereumTransaction) encodeTyped(arena *fastrlp.Arena) *fastrlp.Value {
-	rlpMarshaledTx := []byte{byte(tx.EthereumTxType())}
+// encodeTypedCanonical returns the canonical encoding of a typed transaction.
+func (tx *EthereumTransaction) encodeTypedCanonical(arena *fastrlp.Arena) []byte {
 	typedTxVal := tx.inner.marshalToFastRLP(arena)
-	rlpMarshaledTx = typedTxVal.MarshalTo(rlpMarshaledTx)
-	return arena.NewBytes(rlpMarshaledTx)
+	canonicalMarshaled := make([]byte, 0, 1+typedTxVal.Len())
+	canonicalMarshaled = append(canonicalMarshaled, byte(tx.EthereumTxType()))
+	canonicalMarshaled = typedTxVal.MarshalTo(canonicalMarshaled)
+	return canonicalMarshaled
 }
 
 func isProtectedV(V *big.Int) bool {
