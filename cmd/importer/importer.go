@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"runtime"
@@ -12,7 +11,6 @@ import (
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/importer"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -36,9 +34,6 @@ var (
 	writeBufferSize           = flag.Int("write-buffer", 16, "Write buffer size in MiB.")
 	buildDataForExtendedApi   = flag.Bool("build-extended-api", false, "Build and store additional data required for extended API in state. WARNING: this slows down the import, use only if you do really need extended API.")
 	buildStateHashes          = flag.Bool("build-state-hashes", false, "Calculate and store state hashes for each block height.")
-	fileDescriptors           = flag.Int("file-descriptors", fdlimit.DefaultMaxFDs,
-		fmt.Sprintf("Maximum allowed file descriptors count for process. Value shall be greater or equal than %d.", fdlimit.DefaultMaxFDs),
-	)
 	// Debug.
 	cpuProfilePath = flag.String("cpuprofile", "", "Write cpu profile to this file.")
 	memProfilePath = flag.String("memprofile", "", "Write memory profile to this file.")
@@ -47,15 +42,13 @@ var (
 func main() {
 	flag.Parse()
 
-	if *fileDescriptors < fdlimit.DefaultMaxFDs {
-		zap.S().Fatalf(
-			"Invalid 'file-descriptors' flag value (%d). Value shall be greater or equal than %d.",
-			*fileDescriptors, fdlimit.DefaultMaxFDs,
-		)
-	}
-	_, err := fdlimit.SetMaxFDs(uint64(*fileDescriptors))
+	maxFDs, err := fdlimit.MaxFDs()
 	if err != nil {
-		zap.S().Fatalf("Failed to set max file descriptors count: %v", err)
+		zap.S().Fatalf("Initialization error: %v", err)
+	}
+	_, err = fdlimit.RaiseMaxFDs(maxFDs)
+	if err != nil {
+		zap.S().Fatalf("Initialization error: %v", err)
 	}
 
 	common.SetupLogger(*logLevel)
@@ -106,7 +99,7 @@ func main() {
 		dataDir = tempDir
 	}
 	params := state.DefaultStateParams()
-	params.StorageParams.DbParams.OpenFilesCacheCapacityRate = keyvalue.MaxOpenFilesCacheCapacityRate
+	params.StorageParams.DbParams.OpenFilesCacheCapacity = int(maxFDs - 10)
 	params.VerificationGoroutinesNum = *verificationGoroutinesNum
 	params.DbParams.WriteBuffer = *writeBufferSize * MiB
 	params.StoreExtendedApiData = *buildDataForExtendedApi

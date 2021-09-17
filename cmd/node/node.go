@@ -10,7 +10,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -20,8 +19,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
@@ -48,7 +45,10 @@ import (
 
 var version = proto.Version{Major: 1, Minor: 3, Patch: 0}
 
-const maxTransactionTimeForwardOffset = 300 // seconds
+const (
+	maxTransactionTimeForwardOffset = 300 // seconds
+	mb                              = 1 << (10 * 2)
+)
 
 var (
 	logLevel                              = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
@@ -73,7 +73,7 @@ var (
 	outdatePeriod                         = flag.String("outdate", "4h", "Interval after last block then generation is allowed. Example 1d4h30m")
 	walletPath                            = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default.")
 	walletPassword                        = flag.String("wallet-password", "", "Pass password for wallet.")
-	limitConnectionsS                     = flag.String("limit-connections", "30", "N incoming and outgoing connections.")
+	limitAllConnections                   = flag.Uint("limit-connections", 60, "Total limit of network connections, both inbound and outbound. Divided in half to limit each direction. Default value is 60.")
 	minPeersMining                        = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining.")
 	disableMiner                          = flag.Bool("disable-miner", false, "Disable miner. Enabled by default.")
 	profiler                              = flag.Bool("profiler", false, "Start built-in profiler on 'http://localhost:6060/debug/pprof/'")
@@ -87,15 +87,8 @@ var (
 	metricsID                             = flag.Int("metrics-id", -1, "ID of the node on the metrics collection system")
 	metricsURL                            = flag.String("metrics-url", "", "URL of InfluxDB or Telegraf in form of 'http://username:password@host:port/db'")
 	dropPeers                             = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
-	fileDescriptors                       = flag.Int("file-descriptors", fdlimit.DefaultMaxFDs,
-		fmt.Sprintf("Maximum allowed file descriptors count for process. Value shall be greater or equal than %d.", fdlimit.DefaultMaxFDs),
-	)
-	dbFileDescriptorsRate = flag.Float64("db-file-descriptors-rate", state.DefaultOpenFilesCacheCapacityRate,
-		fmt.Sprintf("Part of allowed file descriptors that will be used for state database caches. Value shall be between %f and %f.",
-			keyvalue.MinOpenFilesCacheCapacityRate,
-			keyvalue.MaxOpenFilesCacheCapacityRate,
-		),
-	)
+	dbFileDescriptors                     = flag.Int("db-file-descriptors", state.DefaultOpenFilesCacheCapacity, fmt.Sprintf("Maximum allowed file descriptors count that will be used by state database. Default value is %d.", state.DefaultOpenFilesCacheCapacity))
+	newConnectionsLimit                   = flag.Int("new-connections-limit", 10, "Number of new outbound connections established simultaneously, defaults to 10. Should be positive. Big numbers can badly affect file descriptors consumption.")
 )
 
 var defaultPeers = map[string]string{
@@ -130,26 +123,27 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("disable-miner %v", *disableMiner)
 	zap.S().Debugf("wallet-path: %s", *walletPath)
 	zap.S().Debugf("wallet-password: %s", *walletPassword)
-	zap.S().Debugf("limit-connections: %s", *limitConnectionsS)
+	zap.S().Debugf("limit-connections: %d", *limitAllConnections)
 	zap.S().Debugf("profiler: %v", *profiler)
 	zap.S().Debugf("bloom: %v", *bloomFilter)
 	zap.S().Debugf("drop-peers: %v", *dropPeers)
-	zap.S().Debugf("file-descriptors: %v", *fileDescriptors)
-	zap.S().Debugf("db-file-descriptors-rate: %v", *dbFileDescriptorsRate)
+	zap.S().Debugf("db-file-descriptors: %v", *dbFileDescriptors)
+	zap.S().Debugf("new-connections-limit: %v", *newConnectionsLimit)
 }
 
 func main() {
 	flag.Parse()
 
-	if *fileDescriptors < fdlimit.DefaultMaxFDs {
-		zap.S().Fatalf(
-			"Invalid 'file-descriptors' flag value (%d). Value shall be greater or equal than %d.",
-			*fileDescriptors, fdlimit.DefaultMaxFDs,
-		)
-	}
-	_, err := fdlimit.SetMaxFDs(uint64(*fileDescriptors))
+	maxFDs, err := fdlimit.MaxFDs()
 	if err != nil {
-		zap.S().Fatalf("Failed to set max file descriptors count: %v", err)
+		zap.S().Fatalf("Initialization failure: %v", err)
+	}
+	_, err = fdlimit.RaiseMaxFDs(maxFDs)
+	if err != nil {
+		zap.S().Fatalf("Initialization failure: %v", err)
+	}
+	if maxAvailableFileDescriptors := int(maxFDs) - int(*limitAllConnections) - 10; *dbFileDescriptors > maxAvailableFileDescriptors {
+		zap.S().Fatalf("Invalid 'db-file-descriptors' flag value (%d). Value shall be less or equal to %d.", *dbFileDescriptors, maxAvailableFileDescriptors)
 	}
 
 	common.SetupLogger(*logLevel)
@@ -231,12 +225,6 @@ func main() {
 		}
 	}
 
-	limitConnections, err := strconv.ParseUint(*limitConnectionsS, 10, 64)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
 	path := *statePath
 	if path == "" {
 		path, err = common.GetStatePath()
@@ -267,7 +255,7 @@ func main() {
 	}
 
 	params := state.DefaultStateParams()
-	params.StorageParams.DbParams.OpenFilesCacheCapacityRate = *dbFileDescriptorsRate
+	params.StorageParams.DbParams.OpenFilesCacheCapacity = *dbFileDescriptors
 	params.StoreExtendedApiData = *buildExtendedApi
 	params.ProvideExtendedApi = *serveExtendedApi
 	params.BuildStateHashes = *buildStateHashes
@@ -309,15 +297,9 @@ func main() {
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 	bindAddr := proto.NewTCPAddrFromString(*bindAddress)
 
-	mb := 1024 * 1014
-	pool := bytespool.NewBytesPool(64, mb+(mb/2))
-
 	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(st, ntpTime, outdatePeriodSeconds*1000), cfg)
-
 	parent := peer.NewParent()
-
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(pool, parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version)
-
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version)
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(*statePath, time.Now())
 	if err != nil {
 		zap.S().Errorf("Failed to open or create peers storage: %v", err)
@@ -339,9 +321,11 @@ func main() {
 	peerManager := peer_manager.NewPeerManager(
 		peerSpawnerImpl,
 		peerStorage,
-		int(limitConnections),
+		int(*limitAllConnections/2),
 		version,
 		conf.WavesNetwork,
+		!*disableOutgoingConnections,
+		*newConnectionsLimit,
 	)
 	go peerManager.Run(ctx)
 
@@ -374,7 +358,6 @@ func main() {
 	}
 
 	mine := miner.NewMicroblockMiner(svs, features, reward, maxTransactionTimeForwardOffset)
-	peerManager.SetConnectPeers(!*disableOutgoingConnections)
 	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
 
 	n := node.NewNode(svs, declAddr, bindAddr, proto.NewTimestampFromUSeconds(outdatePeriodSeconds))
@@ -387,13 +370,13 @@ func main() {
 		for _, addr := range addresses {
 			tcpAddr := proto.NewTCPAddrFromString(addr)
 			if tcpAddr.Empty() {
-				// nickeskov: that means that configuration parameter is invalid
+				// That means that configuration parameter is invalid
 				zap.S().Errorf("Failed to parse TCPAddr from string %q", tcpAddr.String())
 				cancel()
 				return
 			}
 			if err := peerManager.AddAddress(ctx, tcpAddr); err != nil {
-				// nickeskov: than means that we have problems with peers storage
+				// That means that we have problems with peers storage
 				zap.S().Errorf("Failed to add addres into know peers storage: %v", err)
 				cancel()
 				return

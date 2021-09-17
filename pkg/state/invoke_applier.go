@@ -817,7 +817,7 @@ func (ia *invokeApplier) validateActionSmartAsset(assetID crypto.Digest, action 
 	if !isSmartAsset {
 		return true, nil, nil
 	}
-	env, err := ride.NewEnvironment(ia.settings.AddressSchemeCharacter, ia.state)
+	env, err := ride.NewEnvironment(ia.settings.AddressSchemeCharacter, ia.state, ia.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
 		return false, nil, err
 	}

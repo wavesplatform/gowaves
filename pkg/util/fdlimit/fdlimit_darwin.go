@@ -1,5 +1,5 @@
-//go:build linux || netbsd || openbsd || solaris || freebsd || dragonfly
-// +build linux netbsd openbsd solaris freebsd dragonfly
+//go:build darwin
+// +build darwin
 
 package fdlimit
 
@@ -8,6 +8,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const darwinMaxRLimit = 4096
+
 func RaiseMaxFDs(max uint64) (uint64, error) {
 	var rLimit unix.Rlimit
 	if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rLimit); err != nil {
@@ -15,8 +17,8 @@ func RaiseMaxFDs(max uint64) (uint64, error) {
 	}
 
 	// Try to update the rLimit to the max allowance
-	if max > rLimit.Max {
-		max = rLimit.Max
+	if max > darwinMaxRLimit {
+		max = darwinMaxRLimit
 	}
 	if rLimit.Cur > max {
 		return rLimit.Cur, nil
