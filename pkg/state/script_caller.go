@@ -53,9 +53,8 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	env.SetThisFromAddress(sender)
 	env.SetLastBlock(lastBlockInfo)
 	env.ChooseSizeCheck(tree.LibVersion)
-	if err := env.ChooseTakeString(isRideV5); err != nil {
-		return errors.Wrap(err, "failed to initialize environment")
-	}
+	env.ChooseTakeString(isRideV5)
+	env.ChooseMaxDataEntriesSize(isRideV5)
 	err = env.SetTransactionFromOrder(order)
 	if err != nil {
 		return errors.Wrap(err, "failed to convert order")
@@ -102,9 +101,8 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
-	if err := env.ChooseTakeString(params.rideV5Activated); err != nil {
-		return errors.Wrap(err, "failed to initialize environment")
-	}
+	env.ChooseTakeString(params.rideV5Activated)
+	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
 	env.SetThisFromAddress(senderAddr)
 	env.SetLastBlock(params.blockInfo)
 	err = env.SetTransaction(tx)
@@ -141,9 +139,8 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 		return nil, err
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
-	if err := env.ChooseTakeString(params.rideV5Activated); err != nil {
-		return nil, errors.Wrap(err, "failed to initialize environment")
-	}
+	env.ChooseTakeString(params.rideV5Activated)
+	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
 	switch tree.LibVersion {
 	case 4, 5:
 		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
@@ -219,10 +216,9 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
 
-	err = env.ChooseTakeString(info.rideV5Activated)
-	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to choose takeString")
-	}
+	env.ChooseTakeString(info.rideV5Activated)
+	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
+
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
 	if tree.LibVersion >= 5 {
 		env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)

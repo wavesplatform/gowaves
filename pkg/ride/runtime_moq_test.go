@@ -37,6 +37,9 @@ var _ Environment = &MockRideEnvironment{}
 //             libVersionFunc: func() int {
 // 	               panic("mock out the libVersion method")
 //             },
+//             maxDataEntriesSizeFunc: func() int {
+// 	               panic("mock out the maxDataEntriesSize method")
+//             },
 //             schemeFunc: func() byte {
 // 	               panic("mock out the scheme method")
 //             },
@@ -92,6 +95,9 @@ type MockRideEnvironment struct {
 	// libVersionFunc mocks the libVersion method.
 	libVersionFunc func() int
 
+	// maxDataEntriesSizeFunc mocks the maxDataEntriesSize method.
+	maxDataEntriesSizeFunc func() int
+
 	// schemeFunc mocks the scheme method.
 	schemeFunc func() byte
 
@@ -144,6 +150,9 @@ type MockRideEnvironment struct {
 		// libVersion holds details about calls to the libVersion method.
 		libVersion []struct {
 		}
+		// maxDataEntriesSize holds details about calls to the maxDataEntriesSize method.
+		maxDataEntriesSize []struct {
+		}
 		// scheme holds details about calls to the scheme method.
 		scheme []struct {
 		}
@@ -189,6 +198,7 @@ type MockRideEnvironment struct {
 	lockinternalPaymentsValidationHeight sync.RWMutex
 	lockinvocation                       sync.RWMutex
 	locklibVersion                       sync.RWMutex
+	lockmaxDataEntriesSize               sync.RWMutex
 	lockscheme                           sync.RWMutex
 	locksetInvocation                    sync.RWMutex
 	locksetNewDAppAddress                sync.RWMutex
@@ -359,6 +369,32 @@ func (mock *MockRideEnvironment) libVersionCalls() []struct {
 	mock.locklibVersion.RLock()
 	calls = mock.calls.libVersion
 	mock.locklibVersion.RUnlock()
+	return calls
+}
+
+// maxDataEntriesSize calls maxDataEntriesSizeFunc.
+func (mock *MockRideEnvironment) maxDataEntriesSize() int {
+	if mock.maxDataEntriesSizeFunc == nil {
+		panic("MockRideEnvironment.maxDataEntriesSizeFunc: method is nil but Environment.maxDataEntriesSize was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockmaxDataEntriesSize.Lock()
+	mock.calls.maxDataEntriesSize = append(mock.calls.maxDataEntriesSize, callInfo)
+	mock.lockmaxDataEntriesSize.Unlock()
+	return mock.maxDataEntriesSizeFunc()
+}
+
+// maxDataEntriesSizeCalls gets all the calls that were made to maxDataEntriesSize.
+// Check the length with:
+//     len(mockedEnvironment.maxDataEntriesSizeCalls())
+func (mock *MockRideEnvironment) maxDataEntriesSizeCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockmaxDataEntriesSize.RLock()
+	calls = mock.calls.maxDataEntriesSize
+	mock.lockmaxDataEntriesSize.RUnlock()
 	return calls
 }
 

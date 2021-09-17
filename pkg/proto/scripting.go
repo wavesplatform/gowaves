@@ -425,6 +425,7 @@ type ActionsValidationRestrictions struct {
 	DisableSelfTransfers     bool
 	ScriptAddress            Address
 	KeySizeValidationVersion byte
+	MaxDataEntriesSize       int
 	Scheme                   byte
 }
 
@@ -455,8 +456,8 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 				}
 			}
 			dataEntriesSize += ta.Entry.BinarySize()
-			if dataEntriesSize > MaxDataEntryScriptActionsSizeInBytes {
-				return errors.Errorf("total size of data entries produced by script is more than %d bytes", MaxDataEntryScriptActionsSizeInBytes)
+			if dataEntriesSize > restrictions.MaxDataEntriesSize {
+				return errors.Errorf("total size of data entries produced by script is more than %d bytes", restrictions.MaxDataEntriesSize)
 			}
 
 		case *TransferScriptAction:
