@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -17,7 +16,6 @@ type OutgoingPeerParams struct {
 	Address      string
 	WavesNetwork string
 	Parent       peer.Parent
-	Pool         bytespool.Pool
 	DeclAddr     proto.TCPAddr
 	Skip         conn.SkipFilter
 }
@@ -67,7 +65,6 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 		Connection: p.connection,
 		Remote:     remote,
 		Parent:     params.Parent,
-		Pool:       params.Pool,
 		Peer:       p,
 	}); err != nil {
 		zap.S().Errorf("peer.Handle(): %v\n", err)
@@ -128,7 +125,7 @@ func (a *OutgoingPeer) connect(ctx context.Context, wavesNetwork string, remote 
 				continue
 			}
 		}
-		return conn.WrapConnection(c, a.params.Pool, remote.ToCh, remote.FromCh, remote.ErrCh, a.params.Skip), &handshake, nil
+		return conn.WrapConnection(c, remote.ToCh, remote.FromCh, remote.ErrCh, a.params.Skip), &handshake, nil
 	}
 
 	return nil, nil, errors.Errorf("can't connect 20 times")

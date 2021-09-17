@@ -59,14 +59,25 @@ func (s *estimationScopeV1) setFunction(id string, cost int) {
 	s.functions[id] = cost
 }
 
-func (s *estimationScopeV1) function(id string) (int, error) {
-	if c, ok := s.builtin[id]; ok {
-		return c, nil
+func (s *estimationScopeV1) function(function function) (int, error) {
+	id := function.Name()
+	switch function.(type) {
+	case userFunction:
+		if c, ok := s.functions[id]; ok {
+			return c, nil
+		}
+		if c, ok := s.builtin[id]; ok {
+			return c, nil
+		}
+		return 0, errors.Errorf("function '%s' not found", id)
+	case nativeFunction:
+		if c, ok := s.builtin[id]; ok {
+			return c, nil
+		}
+		return 0, errors.Errorf("system function '%s' not found", id)
+	default:
+		return 0, errors.Errorf("function '%s' not found", id)
 	}
-	if c, ok := s.functions[id]; ok {
-		return c, nil
-	}
-	return 0, errors.Errorf("function '%s' not found", id)
 }
 
 type treeEstimatorV1 struct {
@@ -142,7 +153,7 @@ func (e *treeEstimatorV1) wrapFunction(node *FunctionDeclarationNode) Node {
 	for i := range node.Arguments {
 		args[i] = NewBooleanNode(true)
 	}
-	node.SetBlock(NewFunctionCallNode(node.Name, args))
+	node.SetBlock(NewFunctionCallNode(userFunction(node.Name), args))
 	var block Node
 	block = NewAssignmentNode(node.invocationParameter, NewBooleanNode(true), node)
 	for i := len(e.tree.Declarations) - 1; i >= 0; i-- {
@@ -225,8 +236,9 @@ func (e *treeEstimatorV1) walk(node Node) (int, error) {
 		return bc + 5, nil
 
 	case *FunctionCallNode:
-		id := n.Name
-		fc, err := e.scope.function(id)
+		id := n.Function.Name()
+		function := n.Function
+		fc, err := e.scope.function(function)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate the call of function '%s'", id)
 		}

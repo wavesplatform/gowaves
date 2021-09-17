@@ -13,6 +13,8 @@ export GO111MODULE=on
 
 all: vendor vetcheck fmtcheck build gotest mod-clean
 
+ci: vendor vetcheck fmtcheck build release-node gotest mod-clean
+
 ver:
 	@echo Building version: $(VERSION)
 
@@ -89,12 +91,16 @@ release-retransmitter: ver build-retransmitter-linux build-retransmitter-darwin 
 
 build-node-linux:
 	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/node ./cmd/node
+build-node-linux-arm:
+	@GOOS=linux GOARCH=arm go build -o build/bin/linux-arm/node ./cmd/node
+build-node-linux-i386:
+	@GOOS=linux GOARCH=386 go build -o build/bin/linux-i386/node ./cmd/node
 build-node-darwin:
 	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/node ./cmd/node
 build-node-windows:
 	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/node.exe ./cmd/node
 
-release-node: ver build-node-linux build-node-darwin build-node-windows
+release-node: ver build-node-linux build-node-linux-arm build-node-linux-i386 build-node-darwin build-node-windows
 
 dist-node: release-node build-node-mainnet-deb-package build-node-testnet-deb-package build-node-stagenet-deb-package
 	@mkdir -p build/dist
@@ -163,6 +169,7 @@ build-genconfig:
 mock:
 	mockgen -source pkg/miner/utxpool/cleaner.go -destination pkg/miner/utxpool/mock.go -package utxpool stateWrapper
 	mockgen -source pkg/node/peer_manager/peer_manager.go -destination pkg/mock/peer_manager.go -package mock PeerManager
+	mockgen -source pkg/node/peer_manager/peer_storage.go -destination pkg/mock/peer_storage.go -package mock PeerStorage
 	mockgen -source pkg/p2p/peer/peer.go -destination pkg/mock/peer.go -package mock Peer
 	mockgen -source pkg/state/api.go -destination pkg/mock/state.go -package mock State
 	mockgen -source pkg/node/state_fsm/default.go -destination pkg/node/state_fsm/default_mock.go -package state_fsm Default

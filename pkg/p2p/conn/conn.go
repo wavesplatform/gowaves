@@ -2,16 +2,19 @@ package conn
 
 import (
 	"context"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net"
 	"strings"
 
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
+	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
+
+const maxMessageSize = 2 << (10 * 2)
 
 type Dialer func(network string, addr string) (net.Conn, error)
 
@@ -47,23 +50,23 @@ func sendToRemote(closed *atomic.Bool, conn io.Writer, ctx context.Context, toRe
 }
 
 // nonRecoverableError returns `true` if we can't recover from such error.
-// we should close connection and exit
+// On non-recoverable errors we should close connection and exit.
 func nonRecoverableError(err error) bool {
 	if err != nil {
 		if err == io.EOF {
 			return true
 		}
-		if strings.Contains(err.Error(), "use of closed network connection") {
+		if errors.Is(err, net.ErrClosed) || strings.Contains(err.Error(), "use of closed network connection") {
 			return true
 		}
 	}
 	return false
 }
 
-// if returned type is `true`, then network message will be skipped.
+// SkipFilter indicates that the network message should be skipped.
 type SkipFilter func(proto.Header) bool
 
-func recvFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader, fromRemoteCh chan []byte, errCh chan error, skip SkipFilter) {
+func receiveFromRemote(stopped *atomic.Bool, conn io.Reader, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, addr string) {
 	defer stopped.Store(true)
 	for {
 		header := proto.Header{}
@@ -85,8 +88,7 @@ func recvFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader, f
 			continue
 		}
 		// received too long message than we expected, probably it is error, discard
-		messageIsTooLong := int(header.HeaderLength()+header.PayloadLength) > pool.BytesLen()
-		if messageIsTooLong {
+		if int(header.HeaderLength()+header.PayloadLength) > maxMessageSize {
 			_, err = io.CopyN(ioutil.Discard, conn, int64(header.PayloadLength))
 			if nonRecoverableError(err) {
 				handleErr(err, errCh)
@@ -94,18 +96,24 @@ func recvFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader, f
 			}
 			continue
 		}
-		b := pool.Get()
+		b := bytebufferpool.Get()
 		// put header before payload
-		if _, err := header.Copy(b); err != nil {
+		if _, err := header.WriteTo(b); err != nil {
+			bytebufferpool.Put(b)
+			if nonRecoverableError(err) {
+				handleErr(err, errCh)
+				return
+			}
 			handleErr(err, errCh)
 			continue
 		}
 		// then read all message to remaining buffer
-		hl := header.HeaderLength()
-		pl := header.PayloadLength
-		_, err = proto.ReadPayload(b[hl:hl+pl], conn)
+		//hl := header.HeaderLength()
+		pl := int64(header.PayloadLength)
+		_, err = io.CopyN(b, conn, pl)
+		//_, err = proto.ReadPayload(b.B[hl:hl+pl], conn)
 		if err != nil {
-			pool.Put(b)
+			bytebufferpool.Put(b)
 			if nonRecoverableError(err) {
 				handleErr(err, errCh)
 				return
@@ -116,8 +124,8 @@ func recvFromRemote(stopped *atomic.Bool, pool bytespool.Pool, conn io.Reader, f
 		select {
 		case fromRemoteCh <- b:
 		default:
-			pool.Put(b)
-			zap.L().Warn("recvFromRemote send bytes failed, chan is full")
+			bytebufferpool.Put(b)
+			zap.S().Debugf("[%s] Failed to send bytes from network to upstream channel because it's full", addr)
 		}
 	}
 }
