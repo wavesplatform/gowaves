@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
 
@@ -33,8 +32,8 @@ func TestTransferWithRideTypes(t *testing.T) {
 
 	require.Equal(t, expectedSignature, callData.Signature.String())
 	require.Equal(t, expectedName, callData.Name)
-	require.Equal(t, expectedFirstArg, fmt.Sprintf("0x%x", callData.Inputs[0].Value.(ride.RideBytes)))
-	require.Equal(t, expectedSecondArg, callData.Inputs[1].Value.(ride.RideBigInt).String())
+	require.Equal(t, expectedFirstArg, fmt.Sprintf("0x%x", callData.Inputs[0].Value.(Bytes)))
+	require.Equal(t, expectedSecondArg, callData.Inputs[1].Value.(BigInt).V.String())
 }
 
 func TestRandomFunctionABIParsing(t *testing.T) {
@@ -72,12 +71,12 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 	require.Equal(t, "minta", callData.Name)
 	require.Equal(t,
 		strings.ToLower("0x892555E75350E11f2058d086C72b9C94C9493d72"),
-		fmt.Sprintf("0x%x", callData.Inputs[0].Value.(ride.RideBytes)),
+		fmt.Sprintf("0x%x", callData.Inputs[0].Value.(Bytes)),
 	)
-	require.Equal(t, "165", callData.Inputs[1].Value.(ride.RideBigInt).String())
-	require.Equal(t, "100000000000000000000", callData.Inputs[2].Value.(ride.RideBigInt).String())
-	require.Equal(t, "100000000000000000000", callData.Inputs[3].Value.(ride.RideBigInt).String())
-	require.Equal(t, "10", callData.Inputs[4].Value.(ride.RideBigInt).String())
+	require.Equal(t, "165", callData.Inputs[1].Value.(BigInt).V.String())
+	require.Equal(t, "100000000000000000000", callData.Inputs[2].Value.(BigInt).V.String())
+	require.Equal(t, "100000000000000000000", callData.Inputs[3].Value.(BigInt).V.String())
+	require.Equal(t, "10", callData.Inputs[4].Value.(BigInt).V.String())
 }
 
 func TestJsonAbi(t *testing.T) {
@@ -253,17 +252,15 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 	testdata := []struct {
 		rideFunctionMeta     meta.Function
 		hexdata              string
-		expectedResultValues []ride.RideType
+		expectedResultValues []DataType
 	}{
 		{
 			rideFunctionMeta: meta.Function{
 				Name:      "some_test_fn",
 				Arguments: []meta.Type{meta.Boolean, meta.String, meta.String},
 			},
-			hexdata: "0x7afebf3b0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000861736661736466730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000015657468657265756d2061626920746573742e2e2e2e0000000000000000000000",
-			expectedResultValues: []ride.RideType{
-				ride.RideBoolean(true), ride.RideString("asfasdfs"), ride.RideString("ethereum abi test...."),
-			},
+			hexdata:              "0x7afebf3b0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000861736661736466730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000015657468657265756d2061626920746573742e2e2e2e0000000000000000000000",
+			expectedResultValues: []DataType{Bool(true), String("asfasdfs"), String("ethereum abi test....")},
 		},
 	}
 	for _, test := range testdata {
@@ -281,7 +278,7 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 		decodedCallData, err := db.ParseCallDataRide(data)
 		require.NoError(t, err)
 
-		values := make([]ride.RideType, 0, len(decodedCallData.Inputs))
+		values := make([]DataType, 0, len(decodedCallData.Inputs))
 		for _, arg := range decodedCallData.Inputs {
 			values = append(values, arg.Value)
 		}

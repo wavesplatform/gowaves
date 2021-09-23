@@ -2,10 +2,10 @@ package ethabi
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/ride"
-	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
 
 // DecodedCallData is an internal type to represent a method call parsed according
@@ -101,7 +101,7 @@ func (db MethodsMap) ParseCallDataRide(data []byte) (*DecodedCallData, error) {
 
 type DecodedArg struct {
 	Soltype Argument
-	Value   ride.RideType
+	Value   DataType
 }
 
 func (da *DecodedArg) String() string {

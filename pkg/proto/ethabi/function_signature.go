@@ -4,10 +4,11 @@ import (
 	"encoding"
 	"encoding/hex"
 	"fmt"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
-	"strings"
 )
 
 type Signature string
