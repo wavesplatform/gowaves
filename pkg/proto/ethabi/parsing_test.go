@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
@@ -21,7 +20,7 @@ func TestTransferWithRideTypes(t *testing.T) {
 
 	expectedSignature := "transfer(address,uint256)"
 	expectedName := "transfer"
-	expectedFirstArg := "0x9a1989946ae4249AAC19ac7a038d24Aab03c3D8c"
+	expectedFirstArg := strings.ToLower("0x9a1989946ae4249AAC19ac7a038d24Aab03c3D8c")
 	expectedSecondArg := "209470300000000000000000"
 
 	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
@@ -34,7 +33,7 @@ func TestTransferWithRideTypes(t *testing.T) {
 
 	require.Equal(t, expectedSignature, callData.Signature.String())
 	require.Equal(t, expectedName, callData.Name)
-	require.Equal(t, expectedFirstArg, proto.BytesToEthereumAddress(callData.Inputs[0].Value.(ride.RideBytes)).String())
+	require.Equal(t, expectedFirstArg, fmt.Sprintf("0x%x", callData.Inputs[0].Value.(ride.RideBytes)))
 	require.Equal(t, expectedSecondArg, callData.Inputs[1].Value.(ride.RideBigInt).String())
 }
 
@@ -72,8 +71,8 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 
 	require.Equal(t, "minta", callData.Name)
 	require.Equal(t,
-		"0x892555E75350E11f2058d086C72b9C94C9493d72",
-		proto.BytesToEthereumAddress(callData.Inputs[0].Value.(ride.RideBytes)).String(),
+		strings.ToLower("0x892555E75350E11f2058d086C72b9C94C9493d72"),
+		fmt.Sprintf("0x%x", callData.Inputs[0].Value.(ride.RideBytes)),
 	)
 	require.Equal(t, "165", callData.Inputs[1].Value.(ride.RideBigInt).String())
 	require.Equal(t, "100000000000000000000", callData.Inputs[2].Value.(ride.RideBigInt).String())

@@ -3,6 +3,7 @@ package ethabi
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/pkg/errors"
 )
 

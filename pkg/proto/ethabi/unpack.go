@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"math/big"
 )
@@ -386,8 +385,13 @@ func toRideType(index int, t Type, output []byte) (ride.RideType, error) {
 		}
 		return ride.RideBoolean(boolean), nil
 	case AddressTy:
-		address := proto.BytesToEthereumAddress(returnOutput)
-		return ride.RideBytes(address.Bytes()), nil
+		if len(returnOutput) == 0 {
+			return nil, errors.Errorf(
+				"invalid etherum address size, expected %d, actual %d",
+				ethereumAddressSize, len(returnOutput),
+			)
+		}
+		return ride.RideBytes(returnOutput[len(returnOutput)-ethereumAddressSize:]), nil
 	case BytesTy:
 		bytes, err := ride.NewRideBytes(output[begin : begin+length])
 		if err != nil {

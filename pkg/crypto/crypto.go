@@ -306,6 +306,14 @@ func MustSignatureFromBase58(s string) Signature {
 	return rs
 }
 
+func MustKeccak256(data []byte) Digest {
+	d, err := Keccak256(data)
+	if err != nil {
+		panic(errors.Errorf("BUG, CREATE REPORT: failed to calculate Keccak256 hash: %v", err))
+	}
+	return d
+}
+
 func Keccak256(data []byte) (Digest, error) {
 	var d Digest
 	h := sha3.NewLegacyKeccak256()

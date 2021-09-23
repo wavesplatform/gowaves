@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"strings"
 )
@@ -41,7 +41,7 @@ type Selector [SelectorSize]byte
 
 func NewSelector(sig Signature) Selector {
 	var selector Selector
-	hash := proto.Keccak256EthereumHash([]byte(sig))
+	hash := crypto.MustKeccak256([]byte(sig))
 	copy(selector[:], hash[:])
 	return selector
 }
@@ -253,32 +253,4 @@ func (ftb functionTextBuilder) MarshalText() (text []byte, err error) {
 		elements = append(elements, string(payments))
 	}
 	return []byte(fmt.Sprintf("%s(%s)", ftb.functionMeta.Name, strings.Join(elements, ","))), nil
-}
-
-const erc20TransferSignature Signature = "transfer(address,uint256)"
-
-var erc20Methods = map[Selector]Method{
-	erc20TransferSignature.Selector(): {
-		RawName: "transfer",
-		Inputs: Arguments{
-			Argument{
-				Name: "_to",
-				Type: Type{
-					Size:       proto.EthereumAddressSize,
-					T:          AddressTy,
-					stringKind: "address",
-				},
-			},
-			Argument{
-				Name: "_value",
-				Type: Type{
-					Size:       256,
-					T:          UintTy,
-					stringKind: "uint256",
-				},
-			},
-		},
-		Payments: nil,
-		Sig:      erc20TransferSignature,
-	},
 }
