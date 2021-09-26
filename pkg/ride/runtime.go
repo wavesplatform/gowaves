@@ -381,6 +381,9 @@ type Environment interface {
 	invocation() rideObject // Invocation object made of invoke transaction
 	setInvocation(inv rideObject)
 	libVersion() int
+	validateInternalPayments() bool
+	internalPaymentsValidationHeight() uint64
+	maxDataEntriesSize() int
 }
 
 type rideConstructor func(Environment) rideType

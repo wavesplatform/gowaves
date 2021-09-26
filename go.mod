@@ -12,7 +12,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.1
 	github.com/coocood/freecache v1.1.0
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
-	github.com/ericlagergren/decimal v0.0.0-20190912144844-2c3e3e1ef942
+	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
 	github.com/fxamacker/cbor/v2 v2.3.0
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/golang/mock v1.4.3

@@ -1211,6 +1211,10 @@ func convertToAction(env Environment, obj rideType) (proto.ScriptAction, error) 
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
 		}
+		recipient, err = ensureRecipientAddress(env, recipient)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
+		}
 		amount, err := intProperty(obj, "amount")
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
@@ -1247,6 +1251,10 @@ func convertToAction(env Environment, obj rideType) (proto.ScriptAction, error) 
 
 	case "Lease":
 		recipient, err := recipientProperty(obj, "recipient")
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+		}
+		recipient, err = ensureRecipientAddress(env, recipient)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert Lease to LeaseScriptAction")
 		}
