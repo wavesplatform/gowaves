@@ -6850,9 +6850,9 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	let asset = base58'2fCdmsn6maErwtLuzxoUrCBkh2vx5SvXtMKAJtN4YBgd'
 
 	@Callable(i)
-	func call() = ([ScriptTransfer(i.caller, 100, asset)], true)
+	func call() = ([IntegerEntry("int", 1)], true)
 	*/
-	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAFYXNzZXQBAAAAIBik6Y0sQVWjpHFHkXuac+oNVrjohHPSl3mTMou+GnrKAAAAAQAAAAFpAQAAAARjYWxsAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAZAUAAAAFYXNzZXQFAAAAA25pbAYAAAAAJHZp5w=="
+	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAFYXNzZXQBAAAAIBik6Y0sQVWjpHFHkXuac+oNVrjohHPSl3mTMou+GnrKAAAAAQAAAAFpAQAAAARjYWxsAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANpbnQAAAAAAAAAAAEFAAAAA25pbAYAAAAAC4haXQ=="
 	src2, err := base64.StdEncoding.DecodeString(code2)
 	require.NoError(t, err)
 
@@ -7184,15 +7184,16 @@ func TestAliasesInInvokes(t *testing.T) {
 	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	expectedResult := &proto.ScriptResult{
-		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
-		Transfers:    []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 100_000_000}},
-		Issues:       make([]*proto.IssueScriptAction, 0),
-		Reissues:     make([]*proto.ReissueScriptAction, 0),
-		Burns:        make([]*proto.BurnScriptAction, 0),
-		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
-		Leases:       make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
-		ErrorMsg:     proto.ScriptErrorMessage{},
+		DataEntries:      make([]*proto.DataEntryScriptAction, 0),
+		Transfers:        []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 100_000_000}},
+		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
+		Issues:           make([]*proto.IssueScriptAction, 0),
+		Reissues:         make([]*proto.ReissueScriptAction, 0),
+		Burns:            make([]*proto.BurnScriptAction, 0),
+		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
+		Leases:           make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:         proto.ScriptErrorMessage{},
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -7411,15 +7412,16 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	expectedResult := &proto.ScriptResult{
-		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
-		Transfers:    []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *nftOA}, {Sender: &dApp1PK, Recipient: proto.NewRecipientFromAddress(dApp3), Amount: 1, Asset: *nftOA}, {Sender: &dApp3PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *nftOA}},
-		Issues:       []*proto.IssueScriptAction{{Sender: &dApp2PK, ID: nft, Name: "TEST_ASSET", Description: "ASSET FOR INTEGRATION TESTING", Quantity: 1, Decimals: 0, Reissuable: false}},
-		Reissues:     make([]*proto.ReissueScriptAction, 0),
-		Burns:        make([]*proto.BurnScriptAction, 0),
-		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
-		Leases:       make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
-		ErrorMsg:     proto.ScriptErrorMessage{},
+		DataEntries:      make([]*proto.DataEntryScriptAction, 0),
+		Transfers:        []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *nftOA}, {Sender: &dApp3PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *nftOA}},
+		AttachedPayments: []*proto.AttachedPaymentScriptAction{{Sender: &dApp1PK, Recipient: proto.NewRecipientFromAddress(dApp3), Amount: 1, Asset: *nftOA}},
+		Issues:           []*proto.IssueScriptAction{{Sender: &dApp2PK, ID: nft, Name: "TEST_ASSET", Description: "ASSET FOR INTEGRATION TESTING", Quantity: 1, Decimals: 0, Reissuable: false}},
+		Reissues:         make([]*proto.ReissueScriptAction, 0),
+		Burns:            make([]*proto.BurnScriptAction, 0),
+		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
+		Leases:           make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:         proto.ScriptErrorMessage{},
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -7789,15 +7791,16 @@ func TestReissueInInvoke(t *testing.T) {
 	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	expectedResult := &proto.ScriptResult{
-		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
-		Transfers:    []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *optionalAsset}, {Recipient: proto.NewRecipientFromAddress(sender), Amount: 1, Asset: *optionalAsset}},
-		Issues:       make([]*proto.IssueScriptAction, 0),
-		Reissues:     []*proto.ReissueScriptAction{{Sender: &dApp2PK, AssetID: asset, Quantity: 1, Reissuable: true}},
-		Burns:        make([]*proto.BurnScriptAction, 0),
-		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
-		Leases:       make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
-		ErrorMsg:     proto.ScriptErrorMessage{},
+		DataEntries:      make([]*proto.DataEntryScriptAction, 0),
+		Transfers:        []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *optionalAsset}, {Recipient: proto.NewRecipientFromAddress(sender), Amount: 1, Asset: *optionalAsset}},
+		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
+		Issues:           make([]*proto.IssueScriptAction, 0),
+		Reissues:         []*proto.ReissueScriptAction{{Sender: &dApp2PK, AssetID: asset, Quantity: 1, Reissuable: true}},
+		Burns:            make([]*proto.BurnScriptAction, 0),
+		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
+		Leases:           make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:         proto.ScriptErrorMessage{},
 	}
 	assert.Equal(t, expectedResult, sr)
 }

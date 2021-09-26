@@ -511,7 +511,7 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	}
 
 	if balance < uint64(res.Amount) {
-		return errors.Errorf("not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+		return errors.Errorf("attached payments: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
 			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 	}
 
@@ -560,7 +560,7 @@ func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *prot
 	}
 
 	if balance < uint64(res.Amount) {
-		return errors.Errorf("not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+		return errors.Errorf("transfer action: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
 			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 	}
 
