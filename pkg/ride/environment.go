@@ -415,6 +415,21 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 			ID:        &txID,
 		}
 		localEnv.SetTransactionFromScriptTransfer(fullTr)
+	case *proto.AttachedPaymentScriptAction:
+		sender, err := proto.NewAddressFromPublicKey(localEnv.scheme(), *res.Sender)
+		if err != nil {
+			return false, err
+		}
+
+		fullTr := &proto.FullScriptTransfer{
+			Amount:    uint64(res.Amount),
+			Asset:     res.Asset,
+			Recipient: res.Recipient,
+			Sender:    sender,
+			Timestamp: timestamp,
+			ID:        &txID,
+		}
+		localEnv.SetTransactionFromScriptTransfer(fullTr)
 
 	case *proto.ReissueScriptAction, *proto.BurnScriptAction:
 		err = localEnv.SetTransactionFromScriptAction(action, *action.SenderPK(), txID, timestamp)
