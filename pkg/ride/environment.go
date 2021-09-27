@@ -2,6 +2,7 @@ package ride
 
 import (
 	"bytes"
+	"fmt"
 	"unicode/utf16"
 
 	"github.com/pkg/errors"
@@ -910,6 +911,11 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 		case *proto.TransferScriptAction:
 			var senderAddress proto.Address
 			var senderPK crypto.PublicKey
+
+			// TODO убрать
+			if res.Amount == 31 {
+				fmt.Println("kek")
+			}
 
 			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
