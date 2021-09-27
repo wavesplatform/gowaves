@@ -588,22 +588,22 @@ func TestDappCallable(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 	require.EqualValues(t,
 		&proto.ScriptResult{
 			DataEntries: []*proto.DataEntryScriptAction{
 				{Entry: &proto.StringDataEntry{Key: "abc_q", Value: "abc"}},
 				{Entry: &proto.StringDataEntry{Key: "abc_a", Value: "abc"}},
 			},
-			Transfers:        make([]*proto.TransferScriptAction, 0),
-			AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-			Issues:           make([]*proto.IssueScriptAction, 0),
-			Reissues:         make([]*proto.ReissueScriptAction, 0),
-			Burns:            make([]*proto.BurnScriptAction, 0),
-			Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-			Leases:           make([]*proto.LeaseScriptAction, 0),
-			LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+			Transfers:    make([]*proto.TransferScriptAction, 0),
+			Issues:       make([]*proto.IssueScriptAction, 0),
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+			Leases:       make([]*proto.LeaseScriptAction, 0),
+			LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 		},
 		sr,
 	)
@@ -658,22 +658,22 @@ func TestDappDefaultFunc(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 	require.EqualValues(t,
 		&proto.ScriptResult{
 			DataEntries: []*proto.DataEntryScriptAction{
 				{Entry: &proto.StringDataEntry{Key: "a", Value: "b"}},
 				{Entry: &proto.BinaryDataEntry{Key: "sender", Value: addr.Bytes()}},
 			},
-			Transfers:        make([]*proto.TransferScriptAction, 0),
-			AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-			Issues:           make([]*proto.IssueScriptAction, 0),
-			Reissues:         make([]*proto.ReissueScriptAction, 0),
-			Burns:            make([]*proto.BurnScriptAction, 0),
-			Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-			Leases:           make([]*proto.LeaseScriptAction, 0),
-			LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+			Transfers:    make([]*proto.TransferScriptAction, 0),
+			Issues:       make([]*proto.IssueScriptAction, 0),
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+			Leases:       make([]*proto.LeaseScriptAction, 0),
+			LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 		},
 		sr,
 	)
@@ -792,19 +792,19 @@ func TestTransferSet(t *testing.T) {
 		Asset:     proto.OptionalAsset{Present: false},
 	}
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 	require.EqualValues(t,
 		&proto.ScriptResult{
-			DataEntries:      make([]*proto.DataEntryScriptAction, 0),
-			Transfers:        []*proto.TransferScriptAction{&scriptTransfer},
-			AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-			Issues:           make([]*proto.IssueScriptAction, 0),
-			Reissues:         make([]*proto.ReissueScriptAction, 0),
-			Burns:            make([]*proto.BurnScriptAction, 0),
-			Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-			Leases:           make([]*proto.LeaseScriptAction, 0),
-			LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+			DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+			Transfers:    []*proto.TransferScriptAction{&scriptTransfer},
+			Issues:       make([]*proto.IssueScriptAction, 0),
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+			Leases:       make([]*proto.LeaseScriptAction, 0),
+			LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 		},
 		sr,
 	)
@@ -841,8 +841,9 @@ func TestScriptResult(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100500,
@@ -850,15 +851,14 @@ func TestScriptResult(t *testing.T) {
 	}
 	require.Equal(t,
 		&proto.ScriptResult{
-			DataEntries:      []*proto.DataEntryScriptAction{{Entry: &proto.IntegerDataEntry{Key: "key", Value: 100}}},
-			Transfers:        []*proto.TransferScriptAction{&scriptTransfer},
-			AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-			Issues:           make([]*proto.IssueScriptAction, 0),
-			Reissues:         make([]*proto.ReissueScriptAction, 0),
-			Burns:            make([]*proto.BurnScriptAction, 0),
-			Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-			Leases:           make([]*proto.LeaseScriptAction, 0),
-			LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+			DataEntries:  []*proto.DataEntryScriptAction{{Entry: &proto.IntegerDataEntry{Key: "key", Value: 100}}},
+			Transfers:    []*proto.TransferScriptAction{&scriptTransfer},
+			Issues:       make([]*proto.IssueScriptAction, 0),
+			Reissues:     make([]*proto.ReissueScriptAction, 0),
+			Burns:        make([]*proto.BurnScriptAction, 0),
+			Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+			Leases:       make([]*proto.LeaseScriptAction, 0),
+			LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 		},
 		sr,
 	)
@@ -1338,22 +1338,21 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 	expectedLeaseWrites[0].ID = sr.Leases[0].ID
 	assetExp := proto.OptionalAsset{}
 
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      expectedDataEntryWrites,
-		Transfers:        expectedTransferWrites,
-		AttachedPayments: expectedAttachedPaymentActions,
-		Issues:           expectedIssueWrites,
-		Reissues:         expectedReissueWrites,
-		Burns:            expectedBurnWrites,
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           expectedLeaseWrites,
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    expectedTransferWrites,
+		Issues:       expectedIssueWrites,
+		Reissues:     expectedReissueWrites,
+		Burns:        expectedBurnWrites,
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       expectedLeaseWrites,
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 
 	assert.Equal(t, expectedActionsResult, sr)
@@ -1526,19 +1525,18 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      expectedDataEntryWrites,
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -1699,19 +1697,18 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      expectedDataEntryWrites,
-		Transfers:        expectedTransferWrites,
-		AttachedPayments: expectedAttachedPaymentActions,
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    expectedTransferWrites,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -1892,19 +1889,19 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      expectedDataEntryWrites,
-		Transfers:        expectedTransferWrites,
-		AttachedPayments: expectedAttachedPaymentActions,
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    expectedTransferWrites,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -2227,19 +2224,18 @@ func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      expectedDataEntryWrites,
-		Transfers:        expectedTransferWrites,
-		AttachedPayments: expectedAttachedPaymentActions,
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    expectedTransferWrites,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -2349,19 +2345,18 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      make([]*proto.DataEntryScriptAction, 0),
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -2548,19 +2543,18 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      make([]*proto.DataEntryScriptAction, 0),
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -2696,19 +2690,18 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      expectedDataEntryWrites,
-		Transfers:        expectedTransferWrites,
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    expectedTransferWrites,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 
 	assert.Equal(t, expectedActionsResult, sr)
@@ -2855,19 +2848,18 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.ElementsMatch(t, expectedAttachedPaymentWrites, ap)
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      expectedDataEntryWrites,
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: expectedAttachedPaymentWrites,
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 
 	assert.Equal(t, expectedActionsResult, sr)
@@ -3036,19 +3028,18 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      make([]*proto.DataEntryScriptAction, 0),
-		Transfers:        expectedTransferWrites,
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         expectedReissueWrites,
-		Burns:            expectedBurnWrites,
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+		Transfers:    expectedTransferWrites,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     expectedReissueWrites,
+		Burns:        expectedBurnWrites,
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 
 	assert.Equal(t, expectedActionsResult, sr)
@@ -3211,19 +3202,18 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      expectedDataEntryWrites,
-		Transfers:        expectedTransferWrites,
-		AttachedPayments: expectedAttachedPaymentActions,
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    expectedTransferWrites,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedActionsResult, sr)
 
@@ -3721,9 +3711,9 @@ func TestHashScriptFunc(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	decodedScript, err := base64.StdEncoding.DecodeString(script)
 	require.NoError(t, err)
 	hash, err := crypto.FastHash(decodedScript)
@@ -3734,15 +3724,14 @@ func TestHashScriptFunc(t *testing.T) {
 	}
 
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      expectedDataEntryWrites,
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 
 	assert.Equal(t, expectedActionsResult, sr)
@@ -3849,23 +3838,22 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.BooleanDataEntry{Key: "virgin", Value: false}},
 	}
 
 	expectedActionsResult := &proto.ScriptResult{
-		DataEntries:      expectedDataEntryWrites,
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 
 	assert.Equal(t, expectedActionsResult, sr)
@@ -4232,24 +4220,23 @@ func TestWhaleDApp(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "wl_ref_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "3P8Fvy1yDwNHvVrabe4ek5b9dAwxFjDKV7R"}},
 		{Entry: &proto.StringDataEntry{Key: "wl_bio_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: `{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}`}},
 		{Entry: &proto.StringDataEntry{Key: "wl_sts_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "invited"}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -4361,9 +4348,9 @@ func TestExchangeDApp(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	assert.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	ev, err := base64.StdEncoding.DecodeString("AAAAAAABhqAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLw==")
 	require.NoError(t, err)
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -4382,15 +4369,14 @@ func TestExchangeDApp(t *testing.T) {
 		},
 	}
 	expectedResult := &proto.ScriptResult{
-		Transfers:        expectedTransfers,
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		DataEntries:      expectedDataWrites,
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		Transfers:    expectedTransfers,
+		DataEntries:  expectedDataWrites,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -4675,23 +4661,22 @@ func TestLigaDApp1(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "STAGE", Value: 2}},
 		{Entry: &proto.IntegerDataEntry{Key: "BALANCE_SNAPSHOT", Value: 98750005}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 
@@ -4862,9 +4847,9 @@ func TestLigaDApp1(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedDataWrites = []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "STAGE", Value: 31}},
 		{Entry: &proto.IntegerDataEntry{Key: "PRIZE_POOL", Value: 94800004}},
@@ -4872,15 +4857,14 @@ func TestLigaDApp1(t *testing.T) {
 		{Entry: &proto.IntegerDataEntry{Key: "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye_SOLD", Value: 5}},
 	}
 	expectedResult = &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -4994,22 +4978,21 @@ func TestTestingDApp(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "mainLog", Value: "1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY - 3N4XM8G5WXzdkLXYDL6X229Entc5Hqgz7DM - 1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY -> 3NBQxw1ZzTfWbrLjWj2euMwizncrGG4nXJX"}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -5111,22 +5094,21 @@ func TestDropElementDApp(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "1", Value: "aaa,bbb,ccc - ccc = aaa,bbb"}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -5228,8 +5210,9 @@ func TestMathDApp(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "deltaT", Value: 6301369}},
@@ -5242,15 +5225,14 @@ func TestMathDApp(t *testing.T) {
 		{Entry: &proto.IntegerDataEntry{Key: "firstProjectedPrice", Value: 0}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -5357,8 +5339,9 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "3MwT5r4YSyG4QAiqi8VNZkL9eP9e354DXfE_waves", Value: 7012000}},
@@ -5371,15 +5354,14 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		{Recipient: proto.NewRecipientFromAddress(a), Amount: 0, Asset: *asset},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        expectedTransfers,
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    expectedTransfers,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -5489,23 +5471,23 @@ func Test8Ball(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "3Mz67eGY4aNdBHJtgbRPVde3KwAeN3ULLHG_q", Value: "What is my purpose?"}},
 		{Entry: &proto.StringDataEntry{Key: "3Mz67eGY4aNdBHJtgbRPVde3KwAeN3ULLHG_a", Value: "Yes - definitely."}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -5845,8 +5827,9 @@ func TestBadType(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "E3veSYzwJJEYEjgYAWV5vTi4TjsqbGuFDnCxSmrHmQXB", Value: "INIT_FCaP4jLhLawzEqbwAQGAVvPQBv2h3LdERCx7fckDvnzr_1_3_1_1_5_null_0_-"}},
@@ -5857,15 +5840,14 @@ func TestBadType(t *testing.T) {
 		{Recipient: proto.NewRecipientFromAddress(a), Amount: 13000000, Asset: proto.OptionalAsset{}},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        expectedTransfers,
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    expectedTransfers,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -6010,8 +5992,9 @@ func TestNoDeclaration(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "tailPointer", Value: ""}},
@@ -6029,15 +6012,14 @@ func TestNoDeclaration(t *testing.T) {
 		},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        expectedTransfers,
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    expectedTransfers,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -6200,8 +6182,9 @@ func TestZeroReissue(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "share_token_supply", Value: 10000}},
@@ -6224,15 +6207,14 @@ func TestZeroReissue(t *testing.T) {
 		},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        expectedTransfers,
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         expectedReissues,
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    expectedTransfers,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     expectedReissues,
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -6423,8 +6405,9 @@ func TestStageNet2(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_amount", Value: 99500000}},
@@ -6440,15 +6423,14 @@ func TestStageNet2(t *testing.T) {
 		},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        expectedTransfers,
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
+		DataEntries:  expectedDataWrites,
+		Transfers:    expectedTransfers,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -6625,8 +6607,9 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedTransfers := []*proto.TransferScriptAction{
 		{
@@ -6636,16 +6619,15 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 		},
 	}
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      make([]*proto.DataEntryScriptAction, 0),
-		Transfers:        expectedTransfers,
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
-		ErrorMsg:         proto.ScriptErrorMessage{},
+		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+		Transfers:    expectedTransfers,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:     proto.ScriptErrorMessage{},
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -6785,8 +6767,9 @@ func TestOriginCaller(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{
@@ -6800,16 +6783,15 @@ func TestOriginCaller(t *testing.T) {
 	}
 
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      expectedDataWrites,
-		Transfers:        make([]*proto.TransferScriptAction, 0),
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
-		ErrorMsg:         proto.ScriptErrorMessage{},
+		DataEntries:  expectedDataWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:     proto.ScriptErrorMessage{},
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -7181,19 +7163,19 @@ func TestAliasesInInvokes(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      make([]*proto.DataEntryScriptAction, 0),
-		Transfers:        []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 100_000_000}},
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
-		ErrorMsg:         proto.ScriptErrorMessage{},
+		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+		Transfers:    []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 100_000_000}},
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:     proto.ScriptErrorMessage{},
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -7409,19 +7391,19 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 	require.True(t, r.res)
 
 	nftOA := proto.NewOptionalAssetFromDigest(nft)
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.ElementsMatch(t, []*proto.AttachedPaymentScriptAction{{Sender: &dApp1PK, Recipient: proto.NewRecipientFromAddress(dApp3), Amount: 1, Asset: *nftOA}}, ap)
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      make([]*proto.DataEntryScriptAction, 0),
-		Transfers:        []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *nftOA}, {Sender: &dApp3PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *nftOA}},
-		AttachedPayments: []*proto.AttachedPaymentScriptAction{{Sender: &dApp1PK, Recipient: proto.NewRecipientFromAddress(dApp3), Amount: 1, Asset: *nftOA}},
-		Issues:           []*proto.IssueScriptAction{{Sender: &dApp2PK, ID: nft, Name: "TEST_ASSET", Description: "ASSET FOR INTEGRATION TESTING", Quantity: 1, Decimals: 0, Reissuable: false}},
-		Reissues:         make([]*proto.ReissueScriptAction, 0),
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
-		ErrorMsg:         proto.ScriptErrorMessage{},
+		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+		Transfers:    []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *nftOA}, {Sender: &dApp3PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *nftOA}},
+		Issues:       []*proto.IssueScriptAction{{Sender: &dApp2PK, ID: nft, Name: "TEST_ASSET", Description: "ASSET FOR INTEGRATION TESTING", Quantity: 1, Decimals: 0, Reissuable: false}},
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:     proto.ScriptErrorMessage{},
 	}
 	assert.Equal(t, expectedResult, sr)
 }
@@ -7788,19 +7770,19 @@ func TestReissueInInvoke(t *testing.T) {
 	require.True(t, r.res)
 
 	optionalAsset := proto.NewOptionalAssetFromDigest(asset)
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 	expectedResult := &proto.ScriptResult{
-		DataEntries:      make([]*proto.DataEntryScriptAction, 0),
-		Transfers:        []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *optionalAsset}, {Recipient: proto.NewRecipientFromAddress(sender), Amount: 1, Asset: *optionalAsset}},
-		AttachedPayments: make([]*proto.AttachedPaymentScriptAction, 0),
-		Issues:           make([]*proto.IssueScriptAction, 0),
-		Reissues:         []*proto.ReissueScriptAction{{Sender: &dApp2PK, AssetID: asset, Quantity: 1, Reissuable: true}},
-		Burns:            make([]*proto.BurnScriptAction, 0),
-		Sponsorships:     make([]*proto.SponsorshipScriptAction, 0),
-		Leases:           make([]*proto.LeaseScriptAction, 0),
-		LeaseCancels:     make([]*proto.LeaseCancelScriptAction, 0),
-		ErrorMsg:         proto.ScriptErrorMessage{},
+		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+		Transfers:    []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *optionalAsset}, {Recipient: proto.NewRecipientFromAddress(sender), Amount: 1, Asset: *optionalAsset}},
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     []*proto.ReissueScriptAction{{Sender: &dApp2PK, AssetID: asset, Quantity: 1, Reissuable: true}},
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:     proto.ScriptErrorMessage{},
 	}
 	assert.Equal(t, expectedResult, sr)
 }

@@ -46,8 +46,7 @@ func (a AttachedPaymentScriptAction) SenderPK() *crypto.PublicKey {
 }
 
 func (a *AttachedPaymentScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, error) {
-	// TODO
-	return nil, nil
+	panic("Serialization of AttachedPaymentScriptAction should not be called")
 }
 
 // TransferScriptAction is an action to emit transfer of asset.
@@ -279,20 +278,19 @@ func (msg *ScriptErrorMessage) ToProtobuf() *g.InvokeScriptResult_ErrorMessage {
 }
 
 type ScriptResult struct {
-	DataEntries      []*DataEntryScriptAction
-	Transfers        []*TransferScriptAction
-	AttachedPayments []*AttachedPaymentScriptAction
-	Issues           []*IssueScriptAction
-	Reissues         []*ReissueScriptAction
-	Burns            []*BurnScriptAction
-	Sponsorships     []*SponsorshipScriptAction
-	Leases           []*LeaseScriptAction
-	LeaseCancels     []*LeaseCancelScriptAction
-	ErrorMsg         ScriptErrorMessage
+	DataEntries  []*DataEntryScriptAction
+	Transfers    []*TransferScriptAction
+	Issues       []*IssueScriptAction
+	Reissues     []*ReissueScriptAction
+	Burns        []*BurnScriptAction
+	Sponsorships []*SponsorshipScriptAction
+	Leases       []*LeaseScriptAction
+	LeaseCancels []*LeaseCancelScriptAction
+	ErrorMsg     ScriptErrorMessage
 }
 
 // NewScriptResult creates correct representation of invocation actions for storage and API.
-func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptResult, error) {
+func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptResult, []*AttachedPaymentScriptAction, error) {
 	entries := make([]*DataEntryScriptAction, 0)
 	transfers := make([]*TransferScriptAction, 0)
 	attachedPayments := make([]*AttachedPaymentScriptAction, 0)
@@ -324,21 +322,20 @@ func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptRes
 		case *LeaseCancelScriptAction:
 			leaseCancels = append(leaseCancels, ta)
 		default:
-			return nil, errors.Errorf("unsupported action type '%T'", a)
+			return nil, nil, errors.Errorf("unsupported action type '%T'", a)
 		}
 	}
 	return &ScriptResult{
-		DataEntries:      entries,
-		Transfers:        transfers,
-		AttachedPayments: attachedPayments,
-		Issues:           issues,
-		Reissues:         reissues,
-		Burns:            burns,
-		Sponsorships:     sponsorships,
-		Leases:           leases,
-		LeaseCancels:     leaseCancels,
-		ErrorMsg:         msg,
-	}, nil
+		DataEntries:  entries,
+		Transfers:    transfers,
+		Issues:       issues,
+		Reissues:     reissues,
+		Burns:        burns,
+		Sponsorships: sponsorships,
+		Leases:       leases,
+		LeaseCancels: leaseCancels,
+		ErrorMsg:     msg,
+	}, attachedPayments, nil
 }
 
 func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {

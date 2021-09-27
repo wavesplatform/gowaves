@@ -825,7 +825,8 @@ func toScriptResult(ir *invocationResult) (*proto.ScriptResult, error) {
 	if ir.failed {
 		errorMsg = proto.ScriptErrorMessage{Code: ir.code, Text: ir.text}
 	}
-	return proto.NewScriptResult(ir.actions, errorMsg)
+	sr, _, err := proto.NewScriptResult(ir.actions, errorMsg)
+	return sr, err
 }
 
 func (ia *invokeApplier) handleInvocationResult(tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, res *invocationResult) (*applicationResult, error) {
