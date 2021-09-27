@@ -228,17 +228,19 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	}
 
 	r, err := ride.CallFunction(env, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
-	if err != nil {
+	if err != nil { // Do not add spent complexity to recentComplexity here because this error indicates broken RIDE evaluator
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
-	if sr, ok := r.(ride.ScriptResult); ok {
+	if sr, ok := r.(ride.ScriptResult); ok { // The same as in previous exit the evaluation is broken somehow
 		return false, nil, errors.Errorf("unexpected ScriptResult: %v", sr)
 	}
-	// Increase complexity.
-	if info.rideV5Activated { // After activation of RideV5 add actual execution complexity
+	// Increase recent complexity
+	if !info.rideV5Activated {
+		// After activation of RideV5 we have to add actual execution complexity
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
-		// For callable (function) we have to use latest possible estimation
+		// Estimation based complexity counting
+		// For callable (function) we have to use the latest possible estimation
 		ev, err := a.state.EstimatorVersion()
 		if err != nil {
 			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())

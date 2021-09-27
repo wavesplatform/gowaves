@@ -726,6 +726,73 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 	}
 }
 
+func TestFailedInvokeApplicationComplexity(t *testing.T) {
+	to, path := createInvokeApplierTestObjects(t)
+
+	defer func() {
+		err := to.state.Close()
+		require.NoError(t, err, "state.Close() failed")
+		err = os.RemoveAll(path)
+		require.NoError(t, err, "failed to remove test data dir")
+	}()
+
+	info := to.fallibleValidationParams(t)
+	info.acceptFailed = true
+	info.blockV5Activated = true
+	to.setDApp(t, "ride4_asset.base64", testGlobal.recipientInfo)
+
+	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
+
+	sender, dapp := invokeSenderRecipient()
+	newAsset, name := createGeneratedAsset(t)
+	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
+	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	tests := []invokeApplierTestData{
+		{
+			payments: []proto.ScriptPayment{},
+			fc:       fc,
+			errorRes: false,
+			failRes:  false,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}:     invokeFee * 2,
+				{dapp, &newAsset}: 100000,
+			},
+			correctAddrs: []proto.Address{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+		},
+		{
+			payments: []proto.ScriptPayment{},
+			fc:       fc1,
+			errorRes: false,
+			failRes:  false,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}:     invokeFee,
+				{dapp, &newAsset}: 110000,
+			},
+			correctAddrs: []proto.Address{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+		},
+		{
+			payments: []proto.ScriptPayment{},
+			fc:       fc1,
+			errorRes: false,
+			failRes:  true,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}:     0,
+				{dapp, &newAsset}: 110000,
+			},
+			correctAddrs: []proto.Address{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr, // Script address should be although its balance does not change.
+			},
+		},
+	}
+	for _, tc := range tests {
+		tc.applyTest(t, to, info)
+	}
+}
+
 // Tests on leasing actions use the following script
 /*
 {-# STDLIB_VERSION 5 #-}

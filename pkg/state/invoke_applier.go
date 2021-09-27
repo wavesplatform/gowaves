@@ -684,7 +684,8 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	if err != nil {
 		// If ok is true, but error is not nil, it means that invocation has failed.
-		if !info.acceptFailed {
+		if !info.acceptFailed || ia.sc.recentTxComplexity < FailFreeInvokeComplexity {
+			// We don't accept failed transactions or failed transaction spent less than 1000 complexity
 			return nil, errors.Wrap(err, "invokeFunction() failed")
 		}
 		res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), actions: scriptActions, changes: failedChanges}
