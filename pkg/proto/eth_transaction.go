@@ -11,6 +11,9 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
+// EthereumGasPrice is a constant GasPrice which equals 10GWei according to the specification
+const EthereumGasPrice = 10 * EthereumGWei
+
 // EthereumTxType is an ethereum transaction type.
 type EthereumTxType byte
 
@@ -49,10 +52,6 @@ type RLPDecoder interface {
 type RLPEncoder interface {
 	EncodeRLP(io.Writer) error
 }
-
-//type fastRLPUnmarshaler interface {
-//	unmarshalFromFastRLP(value *fastrlp.Value) error
-//}
 
 type fastRLPMarshaler interface {
 	marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Value
