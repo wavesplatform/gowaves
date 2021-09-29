@@ -450,11 +450,6 @@ type ActionsValidationRestrictions struct {
 	Scheme                   byte
 }
 
-func getMaxScriptActions(libVersion int) int {
-	maxScriptActionInstance := NewMaxScriptActions()
-	return maxScriptActionInstance.GetMaxScriptsComplexityInBlock(libVersion)
-}
-
 func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions, libVersion int) error {
 	dataEntriesCount := 0
 	dataEntriesSize := 0
@@ -484,7 +479,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 		case *TransferScriptAction:
 			otherActionsCount++
 
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
@@ -523,7 +518,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 			}
 		case *IssueScriptAction:
 			otherActionsCount++
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
@@ -542,7 +537,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *ReissueScriptAction:
 			otherActionsCount++
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
@@ -552,7 +547,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *BurnScriptAction:
 			otherActionsCount++
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
@@ -562,7 +557,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *SponsorshipScriptAction:
 			otherActionsCount++
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
@@ -572,7 +567,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *LeaseScriptAction:
 			otherActionsCount++
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
@@ -593,7 +588,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *LeaseCancelScriptAction:
 			otherActionsCount++
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
