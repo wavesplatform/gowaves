@@ -3812,7 +3812,7 @@ func TestActionsLimitInvoke(t *testing.T) {
 		}
 	*/
 
-	/* script 2.1
+	/* script 2
 		{-# STDLIB_VERSION 5 #-}
 		{-# CONTENT_TYPE DAPP #-}
 		{-# SCRIPT_TYPE ACCOUNT #-}
