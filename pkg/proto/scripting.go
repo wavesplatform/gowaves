@@ -32,6 +32,23 @@ func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
 	return a.Entry.ToProtobuf()
 }
 
+type AttachedPaymentScriptAction struct {
+	Sender    *crypto.PublicKey
+	Recipient Recipient
+	Amount    int64
+	Asset     OptionalAsset
+}
+
+func (a AttachedPaymentScriptAction) scriptAction() {}
+
+func (a AttachedPaymentScriptAction) SenderPK() *crypto.PublicKey {
+	return a.Sender
+}
+
+func (a *AttachedPaymentScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, error) {
+	panic("Serialization of AttachedPaymentScriptAction should not be called")
+}
+
 // TransferScriptAction is an action to emit transfer of asset.
 type TransferScriptAction struct {
 	Sender    *crypto.PublicKey
@@ -273,21 +290,25 @@ type ScriptResult struct {
 }
 
 // NewScriptResult creates correct representation of invocation actions for storage and API.
-func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptResult, error) {
+func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptResult, []*AttachedPaymentScriptAction, error) {
 	entries := make([]*DataEntryScriptAction, 0)
 	transfers := make([]*TransferScriptAction, 0)
+	attachedPayments := make([]*AttachedPaymentScriptAction, 0)
 	issues := make([]*IssueScriptAction, 0)
 	reissues := make([]*ReissueScriptAction, 0)
 	burns := make([]*BurnScriptAction, 0)
 	sponsorships := make([]*SponsorshipScriptAction, 0)
 	leases := make([]*LeaseScriptAction, 0)
 	leaseCancels := make([]*LeaseCancelScriptAction, 0)
+
 	for _, a := range actions {
 		switch ta := a.(type) {
 		case *DataEntryScriptAction:
 			entries = append(entries, ta)
 		case *TransferScriptAction:
 			transfers = append(transfers, ta)
+		case *AttachedPaymentScriptAction:
+			attachedPayments = append(attachedPayments, ta)
 		case *IssueScriptAction:
 			issues = append(issues, ta)
 		case *ReissueScriptAction:
@@ -301,7 +322,7 @@ func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptRes
 		case *LeaseCancelScriptAction:
 			leaseCancels = append(leaseCancels, ta)
 		default:
-			return nil, errors.Errorf("unsupported action type '%T'", a)
+			return nil, nil, errors.Errorf("unsupported action type '%T'", a)
 		}
 	}
 	return &ScriptResult{
@@ -314,7 +335,7 @@ func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptRes
 		Leases:       leases,
 		LeaseCancels: leaseCancels,
 		ErrorMsg:     msg,
-	}, nil
+	}, attachedPayments, nil
 }
 
 func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
@@ -483,7 +504,23 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 					return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
 				}
 			}
-
+		case *AttachedPaymentScriptAction:
+			if ta.Amount < 0 {
+				return errors.New("negative transfer amount")
+			}
+			if restrictions.DisableSelfTransfers {
+				senderAddress := restrictions.ScriptAddress
+				if ta.SenderPK() != nil {
+					var err error
+					senderAddress, err = NewAddressFromPublicKey(restrictions.Scheme, *ta.SenderPK())
+					if err != nil {
+						return errors.Wrap(err, "failed to validate TransferScriptAction")
+					}
+				}
+				if ta.Recipient.Address.Eq(senderAddress) {
+					return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
+				}
+			}
 		case *IssueScriptAction:
 			otherActionsCount++
 			maxScriptActions := getMaxScriptActions(libVersion)
