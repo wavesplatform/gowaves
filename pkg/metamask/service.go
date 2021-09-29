@@ -4,19 +4,18 @@ import (
 	"context"
 	"github.com/pkg/errors"
 	"github.com/semrush/zenrpc/v2"
-	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 	"log"
 	"net/http"
 	"os"
 )
 
-func RunMetaMaskService(ctx context.Context, address string, state state.State) error {
+func RunMetaMaskService(ctx context.Context, address string, service RPCService) error {
 	rpc := zenrpc.NewServer(zenrpc.Options{ExposeSMD: true, AllowCORS: true})
-	rpc.Register("", MetaMask{state: state}) // public
+	rpc.Register("", service) // public
 	rpc.Use(zenrpc.Logger(log.New(os.Stderr, "", log.LstdFlags)))
 
-	http.Handle("/", rpc)
+	http.Handle("/eth", rpc)
 
 	server := &http.Server{Addr: address, Handler: nil}
 

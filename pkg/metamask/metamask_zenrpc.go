@@ -11,11 +11,12 @@ import (
 )
 
 var RPC = struct {
-	MetaMask struct{ Eth_blockNumber, Net_version, Eth_getBalance, Eth_getBlockByNumber, Eth_gasPrice, Eth_getCode, Eth_getTransactionCount, Eth_sendrawtransaction string }
+	RPCService struct{ Eth_blockNumber, Net_version, Eth_chainId, Eth_getBalance, Eth_getBlockByNumber, Eth_gasPrice, Eth_getCode, Eth_getTransactionCount, Eth_sendrawtransaction string }
 }{
-	MetaMask: struct{ Eth_blockNumber, Net_version, Eth_getBalance, Eth_getBlockByNumber, Eth_gasPrice, Eth_getCode, Eth_getTransactionCount, Eth_sendrawtransaction string }{
+	RPCService: struct{ Eth_blockNumber, Net_version, Eth_chainId, Eth_getBalance, Eth_getBlockByNumber, Eth_gasPrice, Eth_getCode, Eth_getTransactionCount, Eth_sendrawtransaction string }{
 		Eth_blockNumber:         "eth_blocknumber",
 		Net_version:             "net_version",
+		Eth_chainId:             "eth_chainid",
 		Eth_getBalance:          "eth_getbalance",
 		Eth_getBlockByNumber:    "eth_getblockbynumber",
 		Eth_gasPrice:            "eth_gasprice",
@@ -25,7 +26,7 @@ var RPC = struct {
 	},
 }
 
-func (MetaMask) SMD() smd.ServiceInfo {
+func (RPCService) SMD() smd.ServiceInfo {
 	return smd.ServiceInfo{
 		Description: ``,
 		Methods: map[string]smd.Service{
@@ -35,7 +36,7 @@ func (MetaMask) SMD() smd.ServiceInfo {
 				Returns: smd.JSONSchema{
 					Description: ``,
 					Optional:    false,
-					Type:        smd.Integer,
+					Type:        smd.String,
 				},
 			},
 			"Net_version": {
@@ -45,6 +46,15 @@ func (MetaMask) SMD() smd.ServiceInfo {
 					Description: ``,
 					Optional:    false,
 					Type:        smd.Integer,
+				},
+			},
+			"Eth_chainId": {
+				Description: `/* Returns the chain id */`,
+				Parameters:  []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: ``,
+					Optional:    false,
+					Type:        smd.String,
 				},
 			},
 			"Eth_getBalance": {
@@ -59,10 +69,10 @@ func (MetaMask) SMD() smd.ServiceInfo {
 						Type:        smd.String,
 					},
 					{
-						Name:        "blockNumber",
+						Name:        "blockOrTag",
 						Optional:    false,
 						Description: ``,
-						Type:        smd.Integer,
+						Type:        smd.String,
 					},
 				},
 				Returns: smd.JSONSchema{
@@ -77,10 +87,10 @@ func (MetaMask) SMD() smd.ServiceInfo {
    - filter: if true it returns the full transaction objects, if false only the hashes of the transactions */`,
 				Parameters: []smd.JSONSchema{
 					{
-						Name:        "block",
+						Name:        "blockOrTag",
 						Optional:    false,
 						Description: ``,
-						Type:        smd.Integer,
+						Type:        smd.String,
 					},
 					{
 						Name:        "filter",
@@ -92,7 +102,7 @@ func (MetaMask) SMD() smd.ServiceInfo {
 				Returns: smd.JSONSchema{
 					Description: ``,
 					Optional:    false,
-					Type:        smd.String,
+					Type:        smd.Object,
 				},
 			},
 			"Eth_gasPrice": {
@@ -101,7 +111,7 @@ func (MetaMask) SMD() smd.ServiceInfo {
 				Returns: smd.JSONSchema{
 					Description: ``,
 					Optional:    false,
-					Type:        smd.Integer,
+					Type:        smd.String,
 				},
 			},
 			"Eth_getCode": {
@@ -116,10 +126,10 @@ func (MetaMask) SMD() smd.ServiceInfo {
 						Type:        smd.String,
 					},
 					{
-						Name:        "block",
+						Name:        "blockOrTag",
 						Optional:    false,
 						Description: ``,
-						Type:        smd.Integer,
+						Type:        smd.String,
 					},
 				},
 				Returns: smd.JSONSchema{
@@ -140,7 +150,7 @@ func (MetaMask) SMD() smd.ServiceInfo {
 						Type:        smd.String,
 					},
 					{
-						Name:        "block",
+						Name:        "blockOrTag",
 						Optional:    false,
 						Description: ``,
 						Type:        smd.String,
@@ -174,25 +184,28 @@ func (MetaMask) SMD() smd.ServiceInfo {
 }
 
 // Invoke is as generated code from zenrpc cmd
-func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMessage) zenrpc.Response {
+func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMessage) zenrpc.Response {
 	resp := zenrpc.Response{}
 	var err error
 
 	switch method {
-	case RPC.MetaMask.Eth_blockNumber:
+	case RPC.RPCService.Eth_blockNumber:
 		resp.Set(s.Eth_blockNumber())
 
-	case RPC.MetaMask.Net_version:
+	case RPC.RPCService.Net_version:
 		resp.Set(s.Net_version())
 
-	case RPC.MetaMask.Eth_getBalance:
+	case RPC.RPCService.Eth_chainId:
+		resp.Set(s.Eth_chainId())
+
+	case RPC.RPCService.Eth_getBalance:
 		var args = struct {
-			Address     string `json:"address"`
-			BlockNumber int    `json:"blockNumber"`
+			Address    string `json:"address"`
+			BlockOrTag string `json:"blockOrTag"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"address", "blockNumber"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"address", "blockOrTag"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -203,16 +216,16 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 			}
 		}
 
-		resp.Set(s.Eth_getBalance(args.Address, args.BlockNumber))
+		resp.Set(s.Eth_getBalance(args.Address, args.BlockOrTag))
 
-	case RPC.MetaMask.Eth_getBlockByNumber:
+	case RPC.RPCService.Eth_getBlockByNumber:
 		var args = struct {
-			Block  int  `json:"block"`
-			Filter bool `json:"filter"`
+			BlockOrTag string `json:"blockOrTag"`
+			Filter     bool   `json:"filter"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"block", "filter"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"blockOrTag", "filter"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -223,19 +236,19 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 			}
 		}
 
-		resp.Set(s.Eth_getBlockByNumber(args.Block, args.Filter))
+		resp.Set(s.Eth_getBlockByNumber(args.BlockOrTag, args.Filter))
 
-	case RPC.MetaMask.Eth_gasPrice:
+	case RPC.RPCService.Eth_gasPrice:
 		resp.Set(s.Eth_gasPrice())
 
-	case RPC.MetaMask.Eth_getCode:
+	case RPC.RPCService.Eth_getCode:
 		var args = struct {
-			Address string `json:"address"`
-			Block   int    `json:"block"`
+			Address    string `json:"address"`
+			BlockOrTag string `json:"blockOrTag"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"address", "block"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"address", "blockOrTag"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -246,16 +259,16 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 			}
 		}
 
-		resp.Set(s.Eth_getCode(args.Address, args.Block))
+		resp.Set(s.Eth_getCode(args.Address, args.BlockOrTag))
 
-	case RPC.MetaMask.Eth_getTransactionCount:
+	case RPC.RPCService.Eth_getTransactionCount:
 		var args = struct {
-			Address string `json:"address"`
-			Block   string `json:"block"`
+			Address    string `json:"address"`
+			BlockOrTag string `json:"blockOrTag"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"address", "block"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"address", "blockOrTag"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -266,9 +279,9 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 			}
 		}
 
-		resp.Set(s.Eth_getTransactionCount(args.Address, args.Block))
+		resp.Set(s.Eth_getTransactionCount(args.Address, args.BlockOrTag))
 
-	case RPC.MetaMask.Eth_sendrawtransaction:
+	case RPC.RPCService.Eth_sendrawtransaction:
 		var args = struct {
 			SignedTxData string `json:"signedTxData"`
 		}{}
