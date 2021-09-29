@@ -415,6 +415,21 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 			ID:        &txID,
 		}
 		localEnv.SetTransactionFromScriptTransfer(fullTr)
+	case *proto.AttachedPaymentScriptAction:
+		sender, err := proto.NewAddressFromPublicKey(localEnv.scheme(), *res.Sender)
+		if err != nil {
+			return false, err
+		}
+
+		fullTr := &proto.FullScriptTransfer{
+			Amount:    uint64(res.Amount),
+			Asset:     res.Asset,
+			Recipient: res.Recipient,
+			Sender:    sender,
+			Timestamp: timestamp,
+			ID:        &txID,
+		}
+		localEnv.SetTransactionFromScriptTransfer(fullTr)
 
 	case *proto.ReissueScriptAction, *proto.BurnScriptAction:
 		err = localEnv.SetTransactionFromScriptAction(action, *action.SenderPK(), txID, timestamp)
@@ -464,6 +479,45 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 	return r.Result(), nil
 }
 
+func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAction, sender proto.Address, env Environment, restrictions proto.ActionsValidationRestrictions) error {
+	assetResult, err := ws.validateAsset(res, res.Asset, env)
+	if err != nil {
+		return errors.Wrapf(err, "failed to validate asset")
+	}
+	if !assetResult {
+		return errors.New("action is forbidden by smart asset script")
+	}
+
+	if res.Amount < 0 {
+		return errors.New("negative transfer amount")
+	}
+	if restrictions.DisableSelfTransfers {
+		senderAddress := restrictions.ScriptAddress
+		if res.SenderPK() != nil {
+			var err error
+			senderAddress, err = proto.NewAddressFromPublicKey(restrictions.Scheme, *res.SenderPK())
+			if err != nil {
+				return errors.Wrap(err, "failed to validate TransferScriptAction")
+			}
+		}
+		if res.Recipient.Address.Eq(senderAddress) {
+			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
+		}
+	}
+	senderRcp := proto.NewRecipientFromAddress(sender)
+	balance, err := ws.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
+	if err != nil {
+		return err
+	}
+
+	if balance < uint64(res.Amount) {
+		return errors.Errorf("attached payments: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
+	}
+
+	return nil
+}
+
 func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.Address, env Environment) error {
 	*otherActionsCount++
 
@@ -506,7 +560,7 @@ func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *prot
 	}
 
 	if balance < uint64(res.Amount) {
-		return errors.Errorf("not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+		return errors.Errorf("transfer action: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
 			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 	}
 
@@ -816,36 +870,59 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			default:
 
 			}
+		case *proto.AttachedPaymentScriptAction:
+			var senderAddress proto.Address
+			var senderPK crypto.PublicKey
+			senderPK = *res.Sender
+			var err error
+			senderAddress, err = proto.NewAddressFromPublicKey(ws.scheme, senderPK)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get address  by public key")
+			}
+
+			if env.validateInternalPayments() {
+				err = ws.validatePaymentAction(res, senderAddress, env, restrictions)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to pass validation of attached payments")
+				}
+			}
+
+			searchBalance, searchAddr, err := ws.diff.findBalance(res.Recipient, res.Asset)
+			if err != nil {
+				return nil, err
+			}
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
+			if err != nil {
+				return nil, err
+			}
+
+			senderRecipient := proto.NewRecipientFromAddress(senderAddress)
+			senderSearchBalance, senderSearchAddr, err := ws.diff.findBalance(senderRecipient, res.Asset)
+			if err != nil {
+				return nil, err
+			}
+
+			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecipient)
+			if err != nil {
+				return nil, err
+			}
 
 		case *proto.TransferScriptAction:
 			var senderAddress proto.Address
 			var senderPK crypto.PublicKey
-			var act string
-			if res.Sender != nil {
-				act = "attached payments"
-				senderPK = *res.Sender
-				var err error
-				senderAddress, err = proto.NewAddressFromPublicKey(ws.scheme, senderPK)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get address by public key")
-				}
-			} else {
-				act = "transfer action"
-				pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get public key by address")
-				}
-				senderPK = pk
-				senderAddress = ws.callee()
 
-				res.Sender = &senderPK
+			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
+			senderPK = pk
+			senderAddress = ws.callee()
 
-			if env.validateInternalPayments() {
-				err = ws.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress, env)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to pass validation of %s", act)
-				}
+			res.Sender = &senderPK
+
+			err = ws.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress, env)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to pass validation of transfer action")
 			}
 
 			searchBalance, searchAddr, err := ws.diff.findBalance(res.Recipient, res.Asset)

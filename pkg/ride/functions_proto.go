@@ -124,10 +124,10 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.New("reentrantInvoke: no more than ten payments is allowed since RideV5 activation")
 	}
 
-	var paymentActions []proto.ScriptAction
+	var attachedPaymentActions []proto.ScriptAction
 	for _, payment := range attachedPayments {
-		action := &proto.TransferScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
-		paymentActions = append(paymentActions, action)
+		payment := &proto.AttachedPaymentScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
+		attachedPaymentActions = append(attachedPaymentActions, payment)
 	}
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
@@ -135,7 +135,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("reentrantInvoke: failed to get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
-	err = ws.smartAppendActions(paymentActions, env)
+	err = ws.smartAppendActions(attachedPaymentActions, env)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reentrantInvoke: failed to apply attached payments")
 	}
@@ -276,10 +276,10 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.New("invoke: no more than ten payments is allowed since RideV5 activation")
 	}
 
-	var paymentActions []proto.ScriptAction
+	var attachedPaymentActions []proto.ScriptAction
 	for _, payment := range attachedPayments {
-		action := &proto.TransferScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
-		paymentActions = append(paymentActions, action)
+		payment := &proto.AttachedPaymentScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
+		attachedPaymentActions = append(attachedPaymentActions, payment)
 	}
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
@@ -287,7 +287,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("invoke: failed get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
-	err = ws.smartAppendActions(paymentActions, env)
+	err = ws.smartAppendActions(attachedPaymentActions, env)
 	if err != nil {
 		return nil, errors.Wrapf(err, "invoke: failed to apply attached payments")
 	}

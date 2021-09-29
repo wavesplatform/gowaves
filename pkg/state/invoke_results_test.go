@@ -35,7 +35,7 @@ func TestSaveEmptyInvokeResult(t *testing.T) {
 	}()
 	invokeID := crypto.MustDigestFromBase58(invokeId)
 	to.stor.addBlock(t, blockID0)
-	savedRes, err := proto.NewScriptResult(nil, proto.ScriptErrorMessage{})
+	savedRes, _, err := proto.NewScriptResult(nil, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
 	err = to.invokeResults.saveResult(invokeID, savedRes, blockID0)
 	require.NoError(t, err)

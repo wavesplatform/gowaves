@@ -3290,6 +3290,18 @@ func NewFullScriptTransfer(action *TransferScriptAction, sender Address, senderP
 	}, nil
 }
 
+func NewFullScriptTransferFromPaymentAction(action *AttachedPaymentScriptAction, sender Address, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+	return &FullScriptTransfer{
+		Amount:    uint64(action.Amount),
+		Asset:     action.Asset,
+		Recipient: action.Recipient,
+		Sender:    sender,
+		SenderPK:  senderPK,
+		Timestamp: tx.Timestamp,
+		ID:        tx.ID,
+	}, nil
+}
+
 // ScriptPayment part of InvokeScriptTransaction that describes attached payments that comes in with invoke.
 type ScriptPayment struct {
 	Amount uint64        `json:"amount"`
