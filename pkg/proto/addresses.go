@@ -62,7 +62,7 @@ type EthereumAddress [EthereumAddressSize]byte
 func NewEthereumAddressFromHexString(s string) (EthereumAddress, error) {
 	b, err := DecodeFromHexString(s)
 	if err != nil {
-		return EthereumAddress{}, nil
+		return EthereumAddress{}, err
 	}
 	return NewEthereumAddressFromBytes(b)
 }
