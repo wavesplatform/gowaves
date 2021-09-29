@@ -575,7 +575,7 @@ type assetScriptKey struct {
 }
 
 func (k *assetScriptKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
+	buf := make([]byte, 1+proto.AssetIDSize)
 	buf[0] = assetScriptKeyPrefix
 	copy(buf[1:], k.assetID[:])
 	return buf
