@@ -48,22 +48,15 @@ const (
 	MaxDataEntryScriptActions                = 100
 	MaxDataEntriesScriptActionsSizeInBytesV1 = 5 * 1024
 	MaxDataEntriesScriptActionsSizeInBytesV2 = 15 * 1024
+	MaxScriptActionsV1                       = 10
+	MaxScriptActionsV2                       = 30
 )
 
-type MaxScriptActions struct {
-	BeforeRideScriptV5 int
-	AfterRideScriptV5  int
-}
-
-func NewMaxScriptActions() MaxScriptActions {
-	return MaxScriptActions{BeforeRideScriptV5: 10, AfterRideScriptV5: 30}
-}
-
-func (a MaxScriptActions) GetMaxScriptsComplexityInBlock(scriptVersion int) int {
+func GetMaxScriptActions(scriptVersion int) int {
 	if scriptVersion >= 5 {
-		return a.AfterRideScriptV5
+		return MaxScriptActionsV2
 	}
-	return a.BeforeRideScriptV5
+	return MaxScriptActionsV1
 }
 
 type Timestamp = uint64
