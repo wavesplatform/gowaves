@@ -141,6 +141,21 @@ func (ea EthereumAddress) ToWavesAddress(scheme Scheme) (WavesAddress, error) {
 	return newAddressFromPublicKeyHash(scheme, ea[:])
 }
 
+func (ea EthereumAddress) MarshalJSON() ([]byte, error) {
+	hexString := ea.Hex()
+	return []byte(fmt.Sprintf("\"%s\"", hexString)), nil
+}
+
+func (ea *EthereumAddress) UnmarshalJSON(bytes []byte) error {
+	hexString := strings.Trim(string(bytes), "\"")
+	addr, err := NewEthereumAddressFromHexString(hexString)
+	if err != nil {
+		return err
+	}
+	*ea = addr
+	return nil
+}
+
 func (ea *EthereumAddress) checksumHex() []byte {
 	buf := []byte(EncodeToHexString(ea[:]))
 
