@@ -1,6 +1,7 @@
 package state
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -39,42 +40,43 @@ func TestSponsorAsset(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	properCost := uint64(100500)
-	id := testGlobal.asset0.asset.ID
-	err = to.sponsoredAssets.sponsorAsset(id, properCost, blockID0)
+	assetIDDigest := testGlobal.asset0.asset.ID
+	assetID := proto.AssetIDFromDigest(assetIDDigest)
+	err = to.sponsoredAssets.sponsorAsset(assetIDDigest, properCost, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
-	newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(id, true)
+	newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(assetIDDigest, true)
 	assert.NoError(t, err, "newestIsSponsored() failed")
 	assert.Equal(t, newestIsSponsored, true)
-	isSponsored, err := to.sponsoredAssets.isSponsored(id, true)
+	isSponsored, err := to.sponsoredAssets.isSponsored(assetID, true)
 	assert.NoError(t, err, "isSponsored() failed")
 	assert.Equal(t, isSponsored, false)
-	newestCost, err := to.sponsoredAssets.newestAssetCost(id, true)
+	newestCost, err := to.sponsoredAssets.newestAssetCost(assetIDDigest, true)
 	assert.NoError(t, err, "newestAssetCost() failed")
 	assert.Equal(t, newestCost, properCost)
-	_, err = to.sponsoredAssets.assetCost(id, true)
+	_, err = to.sponsoredAssets.assetCost(assetID, true)
 	assert.Error(t, err, "assetCost() did not fail witn new asset before flushing")
 	// Flush.
 	to.stor.flush(t)
-	newestIsSponsored, err = to.sponsoredAssets.newestIsSponsored(id, true)
+	newestIsSponsored, err = to.sponsoredAssets.newestIsSponsored(assetIDDigest, true)
 	assert.NoError(t, err, "newestIsSponsored() failed")
 	assert.Equal(t, newestIsSponsored, true)
-	isSponsored, err = to.sponsoredAssets.isSponsored(id, true)
+	isSponsored, err = to.sponsoredAssets.isSponsored(assetID, true)
 	assert.NoError(t, err, "isSponsored() failed")
 	assert.Equal(t, isSponsored, true)
-	newestCost, err = to.sponsoredAssets.newestAssetCost(id, true)
+	newestCost, err = to.sponsoredAssets.newestAssetCost(assetIDDigest, true)
 	assert.NoError(t, err, "newestAssetCost() failed")
 	assert.Equal(t, newestCost, properCost)
-	cost, err := to.sponsoredAssets.assetCost(id, true)
+	cost, err := to.sponsoredAssets.assetCost(assetID, true)
 	assert.NoError(t, err, "assetCost() failed")
 	assert.Equal(t, cost, properCost)
 	// Check that asset with 0 cost is no longer considered sponsored.
-	err = to.sponsoredAssets.sponsorAsset(id, 0, blockID0)
+	err = to.sponsoredAssets.sponsorAsset(assetIDDigest, 0, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
-	newestIsSponsored, err = to.sponsoredAssets.newestIsSponsored(id, true)
+	newestIsSponsored, err = to.sponsoredAssets.newestIsSponsored(assetIDDigest, true)
 	assert.NoError(t, err, "newestIsSponsored() failed")
 	assert.Equal(t, newestIsSponsored, false)
 	to.stor.flush(t)
-	isSponsored, err = to.sponsoredAssets.isSponsored(id, true)
+	isSponsored, err = to.sponsoredAssets.isSponsored(assetID, true)
 	assert.NoError(t, err, "isSponsored() failed")
 	assert.Equal(t, isSponsored, false)
 }
@@ -91,20 +93,21 @@ func TestSponsorAssetUncertain(t *testing.T) {
 	}()
 
 	properCost := uint64(100500)
-	id := testGlobal.asset0.asset.ID
+	assetIDDigest := testGlobal.asset0.asset.ID
+	assetID := proto.AssetIDFromDigest(assetIDDigest)
 	test := func() {
 		to.stor.addBlock(t, blockID0)
-		to.sponsoredAssets.sponsorAssetUncertain(id, properCost)
-		newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(id, true)
+		to.sponsoredAssets.sponsorAssetUncertain(assetIDDigest, properCost)
+		newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(assetIDDigest, true)
 		assert.NoError(t, err, "newestIsSponsored() failed")
 		assert.Equal(t, newestIsSponsored, true)
-		isSponsored, err := to.sponsoredAssets.isSponsored(id, true)
+		isSponsored, err := to.sponsoredAssets.isSponsored(assetID, true)
 		assert.NoError(t, err, "isSponsored() failed")
 		assert.Equal(t, isSponsored, false)
-		newestCost, err := to.sponsoredAssets.newestAssetCost(id, true)
+		newestCost, err := to.sponsoredAssets.newestAssetCost(assetIDDigest, true)
 		assert.NoError(t, err, "newestAssetCost() failed")
 		assert.Equal(t, newestCost, properCost)
-		_, err = to.sponsoredAssets.assetCost(id, true)
+		_, err = to.sponsoredAssets.assetCost(assetID, true)
 		assert.Error(t, err, "assetCost() did not fail witn new asset before flushing")
 	}
 	tests := []struct {
@@ -117,18 +120,18 @@ func TestSponsorAssetUncertain(t *testing.T) {
 		test()
 		if tc.drop {
 			to.sponsoredAssets.dropUncertain()
-			_, err = to.sponsoredAssets.newestAssetCost(id, true)
+			_, err = to.sponsoredAssets.newestAssetCost(assetIDDigest, true)
 			assert.Error(t, err)
-			newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(id, true)
+			newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(assetIDDigest, true)
 			assert.NoError(t, err)
 			assert.Equal(t, false, newestIsSponsored)
 		} else if tc.commit {
 			err = to.sponsoredAssets.commitUncertain(blockID0)
 			assert.NoError(t, err)
-			cost, err := to.sponsoredAssets.newestAssetCost(id, true)
+			cost, err := to.sponsoredAssets.newestAssetCost(assetIDDigest, true)
 			assert.NoError(t, err)
 			assert.Equal(t, properCost, cost)
-			newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(id, true)
+			newestIsSponsored, err := to.sponsoredAssets.newestIsSponsored(assetIDDigest, true)
 			assert.NoError(t, err)
 			assert.Equal(t, true, newestIsSponsored)
 		}

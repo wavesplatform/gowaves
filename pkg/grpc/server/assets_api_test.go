@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,7 +32,7 @@ func TestGetInfo(t *testing.T) {
 	cl := g.NewAssetsApiClient(conn)
 
 	assetId := crypto.MustDigestFromBase58("DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J")
-	correctInfo, err := st.FullAssetInfo(assetId)
+	correctInfo, err := st.FullAssetInfo(proto.AssetIDFromDigest(assetId))
 	assert.NoError(t, err)
 	correctInfoProto, err := correctInfo.ToProtobuf(sets.AddressSchemeCharacter)
 	assert.NoError(t, err)

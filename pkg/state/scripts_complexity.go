@@ -57,7 +57,7 @@ func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.Wav
 }
 
 func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset crypto.Digest, filter bool) (*ride.TreeEstimation, error) {
-	key := assetScriptComplexityKey{asset}
+	key := assetScriptComplexityKey{proto.AssetIDFromDigest(asset)}
 	recordBytes, err := sc.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
@@ -69,8 +69,8 @@ func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset crypto.Digest, 
 	return record, nil
 }
 
-func (sc *scriptsComplexity) scriptComplexityByAsset(asset crypto.Digest, filter bool) (*ride.TreeEstimation, error) {
-	key := assetScriptComplexityKey{asset}
+func (sc *scriptsComplexity) scriptComplexityByAsset(assetID proto.AssetID, filter bool) (*ride.TreeEstimation, error) {
+	key := assetScriptComplexityKey{assetID}
 	recordBytes, err := sc.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
@@ -129,7 +129,7 @@ func (sc *scriptsComplexity) saveComplexitiesForAsset(asset crypto.Digest, estim
 	if err != nil {
 		return errors.Wrapf(err, "failed to save complexity record for asset '%s' in block '%s'", asset.String(), blockID.String())
 	}
-	key := assetScriptComplexityKey{asset}
+	key := assetScriptComplexityKey{proto.AssetIDFromDigest(asset)}
 	err = sc.hs.addNewEntry(assetScriptComplexity, key.bytes(), recordBytes, blockID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to save complexity record for asset '%s' in block '%s'", asset.String(), blockID.String())

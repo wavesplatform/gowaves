@@ -549,11 +549,11 @@ func (k *accountsDataStorKey) unmarshal(data []byte) error {
 }
 
 type sponsorshipKey struct {
-	assetID crypto.Digest
+	assetID proto.AssetID
 }
 
 func (k *sponsorshipKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
+	buf := make([]byte, 1+proto.AssetIDSize)
 	buf[0] = sponsorshipKeyPrefix
 	copy(buf[1:], k.assetID[:])
 	return buf
@@ -595,11 +595,11 @@ func (k *accountScriptComplexityKey) bytes() []byte {
 }
 
 type assetScriptComplexityKey struct {
-	asset crypto.Digest
+	asset proto.AssetID
 }
 
 func (k *assetScriptComplexityKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
+	buf := make([]byte, 1+proto.AssetIDSize)
 	buf[0] = assetScriptComplexityKeyPrefix
 	copy(buf[1:], k.asset[:])
 	return buf

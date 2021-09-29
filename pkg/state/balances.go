@@ -366,7 +366,7 @@ func (s *balances) cancelLeases(changes map[proto.WavesAddress]balanceDiff, bloc
 
 type assetInfoFn func(proto.AssetID, bool) (*assetInfo, error)
 
-func (s *balances) nftList(addr proto.WavesAddress, limit uint64, after []byte, assetInfoById assetInfoFn) ([]crypto.Digest, error) {
+func (s *balances) nftList(addr proto.WavesAddress, limit uint64, afterAsset *crypto.Digest, assetInfoById assetInfoFn) ([]crypto.Digest, error) {
 	key := assetBalanceKey{address: addr}
 	iter, err := s.hs.newTopEntryIteratorByPrefix(key.addressPrefix(), true)
 	if err != nil {
@@ -380,12 +380,8 @@ func (s *balances) nftList(addr proto.WavesAddress, limit uint64, after []byte, 
 	}()
 
 	var k assetBalanceKey
-	if after != nil {
+	if afterAsset != nil {
 		// Iterate until `after_asset_id` asset is found.
-		afterID, err := crypto.NewDigestFromBytes(after)
-		if err != nil {
-			return nil, err
-		}
 		for iter.Next() {
 			keyBytes := keyvalue.SafeKey(iter)
 			if err := k.unmarshal(keyBytes); err != nil {
@@ -395,7 +391,7 @@ func (s *balances) nftList(addr proto.WavesAddress, limit uint64, after []byte, 
 			if err != nil {
 				return nil, err
 			}
-			if assetID == afterID {
+			if assetID == *afterAsset {
 				break
 			}
 		}

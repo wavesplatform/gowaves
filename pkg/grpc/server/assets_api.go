@@ -15,7 +15,7 @@ func (s *Server) GetInfo(ctx context.Context, req *g.AssetRequest) (*g.AssetInfo
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	ai, err := s.state.FullAssetInfo(id)
+	ai, err := s.state.FullAssetInfo(proto.AssetIDFromDigest(id))
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, err.Error())
 	}
@@ -32,7 +32,11 @@ func (s *Server) GetNFTList(req *g.NFTRequest, srv g.AssetsApi_GetNFTListServer)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	nfts, err := s.state.NFTList(proto.NewRecipientFromAddress(addr), uint64(req.Limit), req.AfterAssetId)
+	assetID, err := crypto.NewDigestFromBytes(req.AfterAssetId)
+	if err != nil {
+		return err
+	}
+	nfts, err := s.state.NFTList(proto.NewRecipientFromAddress(addr), uint64(req.Limit), assetID)
 	if err != nil {
 		return status.Errorf(codes.Internal, err.Error())
 	}

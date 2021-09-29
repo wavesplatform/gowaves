@@ -88,7 +88,8 @@ func newSponsoredAssets(
 }
 
 func (s *sponsoredAssets) sponsorAsset(assetID crypto.Digest, assetCost uint64, blockID proto.BlockID) error {
-	key := sponsorshipKey{assetID: assetID}
+	id := proto.AssetIDFromDigest(assetID)
+	key := sponsorshipKey{assetID: id}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
 	record := &sponsorshipRecord{assetCost}
@@ -127,7 +128,7 @@ func (s *sponsoredAssets) newestIsSponsored(assetID crypto.Digest, filter bool) 
 	return true, nil
 }
 
-func (s *sponsoredAssets) isSponsored(assetID crypto.Digest, filter bool) (bool, error) {
+func (s *sponsoredAssets) isSponsored(assetID proto.AssetID, filter bool) (bool, error) {
 	key := sponsorshipKey{assetID: assetID}
 	if _, err := s.hs.topEntryData(key.bytes(), filter); err != nil {
 		// No sponsorship info for this asset at all.
@@ -148,7 +149,8 @@ func (s *sponsoredAssets) newestAssetCost(assetID crypto.Digest, filter bool) (u
 	if cost, ok := s.uncertainSponsoredAssets[assetID]; ok {
 		return cost, nil
 	}
-	key := sponsorshipKey{assetID: assetID}
+	id := proto.AssetIDFromDigest(assetID)
+	key := sponsorshipKey{assetID: id}
 	recordBytes, err := s.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return 0, err
@@ -160,7 +162,7 @@ func (s *sponsoredAssets) newestAssetCost(assetID crypto.Digest, filter bool) (u
 	return record.assetCost, nil
 }
 
-func (s *sponsoredAssets) assetCost(assetID crypto.Digest, filter bool) (uint64, error) {
+func (s *sponsoredAssets) assetCost(assetID proto.AssetID, filter bool) (uint64, error) {
 	key := sponsorshipKey{assetID: assetID}
 	recordBytes, err := s.hs.topEntryData(key.bytes(), filter)
 	if err != nil {

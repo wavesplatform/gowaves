@@ -94,14 +94,14 @@ type StateInfo interface {
 	NewAddrTransactionsIterator(addr proto.Address) (TransactionIterator, error)
 
 	// Asset fee sponsorship.
-	AssetIsSponsored(assetID crypto.Digest) (bool, error)
-	AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
-	FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
-	NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error)
+	AssetIsSponsored(assetID proto.AssetID) (bool, error)
+	AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error)
+	FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error)
+	NFTList(account proto.Recipient, limit uint64, afterAsset crypto.Digest) ([]*proto.FullAssetInfo, error)
 
 	// Script information.
 	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)
-	ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error)
+	ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error)
 
 	// Leases.
 	IsActiveLeasing(leaseID crypto.Digest) (bool, error)

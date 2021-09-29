@@ -1933,7 +1933,7 @@ func (s *stateManager) NewestAssetIsSponsored(assetID crypto.Digest) (bool, erro
 	return sponsored, nil
 }
 
-func (s *stateManager) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
+func (s *stateManager) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
 	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
@@ -2020,9 +2020,8 @@ func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAs
 	return res, nil
 }
 
-func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
-	id := proto.AssetIDFromDigest(assetID)
-	info, err := s.stor.assets.assetInfo(id, true)
+func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
+	info, err := s.stor.assets.assetInfo(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2037,12 +2036,12 @@ func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scripted, err := s.stor.scriptsStorage.isSmartAsset(id, true)
+	scripted, err := s.stor.scriptsStorage.isSmartAsset(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return &proto.AssetInfo{
-		ID:              assetID,
+		ID:              assetID.Digest(info.tail),
 		Quantity:        info.quantity.Uint64(),
 		Decimals:        byte(info.decimals),
 		Issuer:          issuer,
@@ -2056,8 +2055,8 @@ func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error
 // AssetInfoByID returns stable (stored in DB) information about an asset by given ID.
 // If there is no asset for the given ID error of type `errs.UnknownAsset` is returned.
 // Errors of types `state.RetrievalError` returned in case of broken DB.
-func (s *stateManager) AssetInfoByID(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
-	info, err := s.stor.assets.assetInfo(id, filter)
+func (s *stateManager) AssetInfoByID(assetID proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+	info, err := s.stor.assets.assetInfo(assetID, filter)
 	if err != nil {
 		if errors.Is(err, errs.UnknownAsset{}) {
 			return nil, err
@@ -2071,17 +2070,16 @@ func (s *stateManager) AssetInfoByID(id proto.AssetID, filter bool) (*proto.Asse
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	assetID := proto.ReconstructDigest(id, info.tail)
 	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scripted, err := s.stor.scriptsStorage.isSmartAsset(id, true)
+	scripted, err := s.stor.scriptsStorage.isSmartAsset(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	return &proto.AssetInfo{
-		ID:              assetID,
+		ID:              assetID.Digest(info.tail),
 		Quantity:        info.quantity.Uint64(),
 		Decimals:        byte(info.decimals),
 		Issuer:          issuer,
@@ -2092,13 +2090,12 @@ func (s *stateManager) AssetInfoByID(id proto.AssetID, filter bool) (*proto.Asse
 	}, nil
 }
 
-func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
 	ai, err := s.AssetInfo(assetID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	id := proto.AssetIDFromDigest(assetID)
-	info, err := s.stor.assets.assetInfo(id, true)
+	info, err := s.stor.assets.assetInfo(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2109,6 +2106,7 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 		Description:      info.description,
 		IssueTransaction: tx,
 	}
+
 	isSponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -2125,7 +2123,7 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
 	}
-	isScripted, err := s.stor.scriptsStorage.isSmartAsset(id, true)
+	isScripted, err := s.stor.scriptsStorage.isSmartAsset(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2139,19 +2137,19 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 	return res, nil
 }
 
-func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error) {
+func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAsset crypto.Digest) ([]*proto.FullAssetInfo, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	fn := s.stor.assets.assetInfo
-	nfts, err := s.stor.balances.nftList(*addr, limit, afterAssetID, fn)
+	nfts, err := s.stor.balances.nftList(*addr, limit, &afterAsset, fn)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
 	infos := make([]*proto.FullAssetInfo, len(nfts))
 	for i, nft := range nfts {
-		info, err := s.FullAssetInfo(nft)
+		info, err := s.FullAssetInfo(proto.AssetIDFromDigest(nft))
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
@@ -2190,8 +2188,8 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 	}, nil
 }
 
-func (s *stateManager) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error) {
-	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAsset(proto.AssetIDFromDigest(assetID), true)
+func (s *stateManager) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error) {
+	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAsset(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

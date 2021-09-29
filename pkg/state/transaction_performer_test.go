@@ -480,7 +480,7 @@ func TestPerformSponsorshipWithProofs(t *testing.T) {
 	assert.NoError(t, err, "newestAssetCost() failed")
 	assert.Equal(t, assetCost, tx.MinAssetFee)
 
-	isSponsored, err = to.stor.entities.sponsoredAssets.isSponsored(tx.AssetID, true)
+	isSponsored, err = to.stor.entities.sponsoredAssets.isSponsored(proto.AssetIDFromDigest(tx.AssetID), true)
 	assert.NoError(t, err, "isSponsored() failed")
 	assert.Equal(t, isSponsored, false)
 
@@ -494,11 +494,11 @@ func TestPerformSponsorshipWithProofs(t *testing.T) {
 	assert.NoError(t, err, "newestAssetCost() failed")
 	assert.Equal(t, assetCost, tx.MinAssetFee)
 
-	isSponsored, err = to.stor.entities.sponsoredAssets.isSponsored(tx.AssetID, true)
+	isSponsored, err = to.stor.entities.sponsoredAssets.isSponsored(proto.AssetIDFromDigest(tx.AssetID), true)
 	assert.NoError(t, err, "isSponsored() failed")
 	assert.Equal(t, isSponsored, true)
 
-	assetCost, err = to.stor.entities.sponsoredAssets.assetCost(tx.AssetID, true)
+	assetCost, err = to.stor.entities.sponsoredAssets.assetCost(proto.AssetIDFromDigest(tx.AssetID), true)
 	assert.NoError(t, err, "assetCost() failed")
 	assert.Equal(t, assetCost, tx.MinAssetFee)
 }

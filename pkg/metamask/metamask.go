@@ -85,7 +85,7 @@ func (s RPCService) Eth_gasPrice() string {
 }
 
 func (s RPCService) Eth_estimateGas(gas string) {
-	// TODO(nickeskov): 
+	// TODO(nickeskov):
 }
 
 //type callParams struct {
