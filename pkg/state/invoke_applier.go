@@ -77,6 +77,21 @@ func (ia *invokeApplier) newPaymentFromTransferScriptAction(senderAddress proto.
 	}, nil
 }
 
+func (ia *invokeApplier) newPaymentFromAttachedPaymentAction(senderAddress proto.WavesAddress, action *proto.AttachedPaymentScriptAction) (*payment, error) {
+	if action.Recipient.Address == nil {
+		return nil, errors.New("transfer has unresolved aliases")
+	}
+	if action.Amount < 0 {
+		return nil, errors.New("negative transfer amount")
+	}
+	return &payment{
+		sender:   senderAddress,
+		receiver: *action.Recipient.Address,
+		amount:   uint64(action.Amount),
+		asset:    action.Asset,
+	}, nil
+}
+
 func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediateBalance bool) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := byteKey(pmt.sender, pmt.asset.ToID())
@@ -94,6 +109,16 @@ func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediat
 
 func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.WavesAddress, action *proto.TransferScriptAction) (txDiff, error) {
 	pmt, err := ia.newPaymentFromTransferScriptAction(scriptAddr, action)
+	if err != nil {
+		return txDiff{}, err
+	}
+	// updateMinIntermediateBalance is set to false here, because in Scala implementation
+	// only fee and payments are checked for temporary negative balance.
+	return ia.newTxDiffFromPayment(pmt, false)
+}
+
+func (ia *invokeApplier) newTxDiffFromAttachedPaymentAction(scriptAddr proto.WavesAddress, action *proto.AttachedPaymentScriptAction) (txDiff, error) {
+	pmt, err := ia.newPaymentFromAttachedPaymentAction(scriptAddr, action)
 	if err != nil {
 		return txDiff{}, err
 	}
@@ -298,9 +323,14 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 	if info.libVersion >= 4 {
 		keySizeValidationVersion = 2
 	}
+	maxDataEntriesSize := proto.MaxDataEntriesScriptActionsSizeInBytesV1
+	if info.blockV5Activated {
+		maxDataEntriesSize = proto.MaxDataEntriesScriptActionsSizeInBytesV2
+	}
 	restrictions := proto.ActionsValidationRestrictions{
 		DisableSelfTransfers:     info.disableSelfTransfers,
 		KeySizeValidationVersion: keySizeValidationVersion,
+		MaxDataEntriesSize:       maxDataEntriesSize,
 	}
 
 	if err := proto.ValidateActions(info.actions, restrictions, int(info.libVersion)); err != nil {
@@ -372,6 +402,44 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				}
 			}
 			txDiff, err := ia.newTxDiffFromScriptTransfer(senderAddress, a)
+			if err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			// diff must be saved to storage, because further asset scripts must take
+			// recent balance changes into account.
+			if err := ia.saveIntermediateDiff(txDiff); err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			// Append intermediate diff to common diff.
+			for key, balanceDiff := range txDiff {
+				if err := totalChanges.diff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+					return proto.DAppError, info.failedChanges, err
+				}
+			}
+		case *proto.AttachedPaymentScriptAction:
+			// Perform transfers.
+			recipientAddress := a.Recipient.Address
+			totalChanges.appendAddr(*recipientAddress)
+			assetExists := ia.stor.assets.newestAssetExists(a.Asset, !info.initialisation)
+			if !assetExists {
+				return proto.DAppError, info.failedChanges, errors.New("invalid asset in transfer")
+			}
+			isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
+			if isSmartAsset {
+				fullTr, err := proto.NewFullScriptTransferFromPaymentAction(a, senderAddress, info.scriptPK, txID, tx.GetTimestamp())
+				if err != nil {
+					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to convert transfer to full script transfer")
+				}
+				// Call asset script if transferring smart asset.
+				res, err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, info.appendTxParams)
+				if err != nil {
+					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to call asset script on transfer set")
+				}
+				if !res.Result() {
+					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(res, a.Asset.ID)
+				}
+			}
+			txDiff, err := ia.newTxDiffFromAttachedPaymentAction(senderAddress, a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -662,7 +730,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 	}
 	// Check that the script's library supports multiple payments.
-	// We don't have to check feature activation because we done it before.
+	// We don't have to check feature activation because we've done it before.
 	if len(tx.Payments) >= 2 && tree.LibVersion < 4 {
 		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
 	}
@@ -882,7 +950,8 @@ func toScriptResult(ir *invocationResult) (*proto.ScriptResult, error) {
 	if ir.failed {
 		errorMsg = proto.ScriptErrorMessage{Code: ir.code, Text: ir.text}
 	}
-	return proto.NewScriptResult(ir.actions, errorMsg)
+	sr, _, err := proto.NewScriptResult(ir.actions, errorMsg)
+	return sr, err
 }
 
 func (ia *invokeApplier) handleInvocationResult(txID crypto.Digest, info *fallibleValidationParams, res *invocationResult) (*applicationResult, error) {

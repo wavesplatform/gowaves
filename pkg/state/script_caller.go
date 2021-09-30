@@ -6,9 +6,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/state/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -54,9 +54,8 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	env.SetThisFromAddress(sender)
 	env.SetLastBlock(lastBlockInfo)
 	env.ChooseSizeCheck(tree.LibVersion)
-	if err := env.ChooseTakeString(isRideV5); err != nil {
-		return errors.Wrap(err, "failed to initialize environment")
-	}
+	env.ChooseTakeString(isRideV5)
+	env.ChooseMaxDataEntriesSize(isRideV5)
 	err = env.SetTransactionFromOrder(order)
 	if err != nil {
 		return errors.Wrap(err, "failed to convert order")
@@ -107,9 +106,8 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
-	if err := env.ChooseTakeString(params.rideV5Activated); err != nil {
-		return errors.Wrap(err, "failed to initialize environment")
-	}
+	env.ChooseTakeString(params.rideV5Activated)
+	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
 	env.SetThisFromAddress(senderWavesAddr)
 	env.SetLastBlock(params.blockInfo)
 	err = env.SetTransaction(tx)
@@ -146,9 +144,8 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 		return nil, err
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
-	if err := env.ChooseTakeString(params.rideV5Activated); err != nil {
-		return nil, errors.Wrap(err, "failed to initialize environment")
-	}
+	env.ChooseTakeString(params.rideV5Activated)
+	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
 	switch tree.LibVersion {
 	case 4, 5:
 		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
@@ -224,10 +221,9 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
 
-	err = env.ChooseTakeString(info.rideV5Activated)
-	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to choose takeString")
-	}
+	env.ChooseTakeString(info.rideV5Activated)
+	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
+
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
 	if tree.LibVersion >= 5 {
 		env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)
@@ -304,7 +300,11 @@ func convertRideInterfaceToSpecificType(decodedArg ride.RideType) (proto.Argumen
 func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) ([]proto.Argument, error) {
 	var arguments []proto.Argument
 	for _, decodedArg := range decodedArgs {
-		arg, err := convertRideInterfaceToSpecificType(decodedArg.Value)
+		value, err := ride.EthABIDataTypeToRideType(decodedArg.Value)
+		if err != nil {
+			return nil, errors.Errorf("failed to convert data type to ride type %v", err)
+		}
+		arg, err := convertRideInterfaceToSpecificType(value)
 		if err != nil {
 			return nil, err
 		}
@@ -329,7 +329,7 @@ func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.Ethereu
 	abiPayments := info.decodedAbiData.Payments
 	var scriptPayments []proto.ScriptPayment
 	for _, p := range abiPayments {
-		assetID, err := a.state.AssetInfoByID(p.AssetID, true)
+		assetID, err := a.state.AssetInfoByID(proto.AssetIDFromDigest(p.AssetID), true)
 		if err != nil {
 			return false, nil, err
 		}
@@ -346,7 +346,7 @@ func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.Ethereu
 	}
 	env.ChooseSizeCheck(tree.LibVersion)
 
-	err = env.ChooseTakeString(info.rideV5Activated)
+	env.ChooseTakeString(info.rideV5Activated)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "failed to choose takeString")
 	}

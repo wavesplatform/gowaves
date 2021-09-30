@@ -79,7 +79,7 @@ func (as MetaMask) Eth_sendrawtransaction(signedTxData string) string {
 	}
 
 	var tx proto.EthereumTransaction
-	err = tx.DecodeRLP(data)
+	err = tx.DecodeCanonical(data)
 	if err != nil {
 		zap.S().Errorf("failed to unmarshal rlp encoded ethereum transaction: %v", err)
 	}

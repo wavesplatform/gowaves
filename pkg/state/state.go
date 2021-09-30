@@ -2053,9 +2053,15 @@ func (s *stateManager) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error
 	}, nil
 }
 
+// AssetInfoByID returns stable (stored in DB) information about an asset by given ID.
+// If there is no asset for the given ID error of type `errs.UnknownAsset` is returned.
+// Errors of types `state.RetrievalError` returned in case of broken DB.
 func (s *stateManager) AssetInfoByID(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
 	info, err := s.stor.assets.assetInfo(id, filter)
 	if err != nil {
+		if errors.Is(err, errs.UnknownAsset{}) {
+			return nil, err
+		}
 		return nil, wrapErr(RetrievalError, err)
 	}
 	if !info.quantity.IsUint64() {

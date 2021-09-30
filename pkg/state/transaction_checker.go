@@ -3,7 +3,7 @@ package state
 import (
 	"bytes"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/state/ethabi"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"math"
 	"math/big"
@@ -414,7 +414,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		}
 		var paymentAssets []proto.OptionalAsset
 		for _, payment := range abiPayments {
-			assetID, err := tc.state.AssetInfoByID(payment.AssetID, true)
+			assetID, err := tc.state.AssetInfoByID(proto.AssetIDFromDigest(payment.AssetID), true)
 			if err != nil {
 				return nil, err
 			}

@@ -1,10 +1,29 @@
 package proto
 
 import (
+	"math/big"
+
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
-	"math/big"
 )
+
+const (
+	EthereumWei            uint64 = 1
+	EthereumGWei                  = 1e9 * EthereumWei
+	EthereumEther                 = 1e9 * EthereumGWei
+	waveletToWeiMultiplier        = EthereumEther / PriceConstant
+)
+
+func WaveletToEthereumWei(waveletAmount uint64) *big.Int {
+	return new(big.Int).Mul(
+		new(big.Int).SetUint64(waveletAmount),
+		new(big.Int).SetUint64(waveletToWeiMultiplier),
+	)
+}
+
+func EthereumWeiToWavelet(weiAmount *big.Int) uint64 {
+	return new(big.Int).Div(weiAmount, new(big.Int).SetUint64(waveletToWeiMultiplier)).Uint64()
+}
 
 func unmarshalTransactionToFieldFastRLP(value *fastrlp.Value) (*EthereumAddress, error) {
 	toBytes, err := value.Bytes()

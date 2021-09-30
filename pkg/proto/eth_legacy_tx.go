@@ -137,7 +137,7 @@ func (ltx *EthereumLegacyTx) copy() EthereumTxData {
 }
 
 // accessors for innerTx.
-func (ltx *EthereumLegacyTx) ethereumTxType() EthereumTxType { return LegacyTxType }
+func (ltx *EthereumLegacyTx) ethereumTxType() EthereumTxType { return EthereumLegacyTxType }
 func (ltx *EthereumLegacyTx) chainID() *big.Int              { return deriveChainId(ltx.V) }
 func (ltx *EthereumLegacyTx) accessList() EthereumAccessList { return nil }
 func (ltx *EthereumLegacyTx) data() []byte                   { return ltx.Data }

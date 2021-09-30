@@ -70,6 +70,10 @@ func unmarshalAccessListFastRLP(value *fastrlp.Value) (EthereumAccessList, error
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get elements array")
 	}
+	// fast path
+	if len(elems) == 0 {
+		return nil, nil
+	}
 	hashes := make(EthereumAccessList, 0, len(elems))
 	for _, elem := range elems {
 		var accessTuple EthereumAccessTuple
@@ -237,7 +241,7 @@ func (altx *EthereumAccessListTx) copy() EthereumTxData {
 }
 
 // accessors for innerTx.
-func (altx *EthereumAccessListTx) ethereumTxType() EthereumTxType { return AccessListTxType }
+func (altx *EthereumAccessListTx) ethereumTxType() EthereumTxType { return EthereumAccessListTxType }
 func (altx *EthereumAccessListTx) chainID() *big.Int              { return altx.ChainID }
 func (altx *EthereumAccessListTx) accessList() EthereumAccessList { return altx.AccessList }
 func (altx *EthereumAccessListTx) data() []byte                   { return altx.Data }
