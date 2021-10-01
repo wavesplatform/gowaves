@@ -2,6 +2,8 @@ package metamask
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 
 	"github.com/semrush/zenrpc/v2"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -60,7 +62,12 @@ func (s RPCService) Eth_getBalance(address, blockOrTag string) (string, error) {
 		// todo
 		return "", err
 	}
-	amount, err := s.accountBalance(ethAddr)
+	wavesAddr, err := ethAddr.ToWavesAddress(s.services.Scheme)
+	if err != nil {
+		// todo
+		return "", err
+	}
+	amount, err := s.services.State.AccountBalance(proto.Recipient{Address: &wavesAddr}, nil)
 	if err != nil {
 		// todo
 		return "", err
@@ -88,58 +95,80 @@ func (s RPCService) Eth_estimateGas(gas string) {
 	// TODO(nickeskov):
 }
 
-//type callParams struct {
-//	To   proto.EthereumAddress `json:"to"`
-//	Data string                `json:"data"`
-//}
-//
-//var (
-//	erc20SymbolSelector   = ethabi.Signature("symbol()").Selector()           // "0x95d89b41"
-//	erc20DecimalsSelector = ethabi.Signature("decimals()").Selector()         // "0x313ce567"
-//	erc20BalanceSelector  = ethabi.Signature("balanceOf(address)").Selector() // "0x70a08231"
-//)
-//
-//func (s RPCService) Eth_call(params callParams) (string, error) {
-//	zap.S().Infof("Eth_call was called: params %+v", params)
-//
-//	contractAddress := params.To
-//	hexCallData := params.Data
-//
-//	callData, err := proto.DecodeFromHexString(hexCallData)
-//	if err != nil {
-//		return "", errors.Wrapf(err, "failed to decode 'data' parameter as hex")
-//	}
-//	var selector ethabi.Selector
-//	copy(selector[:], callData)
-//
-//	switch selector {
-//	case erc20SymbolSelector:
-//	case erc20DecimalsSelector:
-//
-//	case erc20BalanceSelector:
-//		if len(callData) != ethabi.SelectorSize+proto.EthereumAddressSize {
-//			return "", errors.Errorf(
-//				"invalid call data for \"balanceOf(address)\" ERC20 function, call data %q", hexCallData,
-//			)
-//		}
-//		addr, err := proto.NewEthereumAddressFromBytes(callData[ethabi.SelectorSize:])
-//		if err != nil {
-//			// todo
-//			return "", err
-//		}
-//		amount, err := s.accountBalance(addr)
-//		if err != nil {
-//			// todo
-//			return "", err
-//		}
-//		return fmt.Sprintf("0x%x", proto.WaveletToEthereumWei(amount)), nil // 0.159
-//	default:
-//		return "", errors.Errorf(
-//			"unexpected call (selector %q) for %q at %q",
-//			selector.String(), hexCallData, contractAddress.String(),
-//		)
-//	}
-//}
+type callParams struct {
+	To   proto.EthereumAddress `json:"to"`
+	Data string                `json:"data"`
+}
+
+var (
+	erc20SymbolSelector   = ethabi.Signature("symbol()").Selector()           // "0x95d89b41"
+	erc20DecimalsSelector = ethabi.Signature("decimals()").Selector()         // "0x313ce567"
+	erc20BalanceSelector  = ethabi.Signature("balanceOf(address)").Selector() // "0x70a08231"
+)
+
+func (s RPCService) Eth_call(params callParams) (string, error) {
+	zap.S().Infof("Eth_call was called: params %+v", params)
+
+	callData, err := proto.DecodeFromHexString(params.Data)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to decode 'data' parameter as hex")
+	}
+	var selector ethabi.Selector
+	copy(selector[:], callData)
+
+	shortAssetID := proto.AssetID(params.To)
+
+	switch selector {
+	case erc20SymbolSelector:
+		fullInfo, err := s.services.State.FullAssetInfo(shortAssetID)
+		if err != nil {
+			// todo
+			return "", err
+		}
+		return fullInfo.Name, nil
+	case erc20DecimalsSelector:
+		info, err := s.services.State.AssetInfo(shortAssetID)
+		if err != nil {
+			// todo
+			return "", err
+		}
+		// TODO(nickeskov): decimal or hex?
+		return fmt.Sprintf("%d", info.Decimals), nil
+
+	case erc20BalanceSelector:
+		if len(callData) != ethabi.SelectorSize+proto.EthereumAddressSize {
+			return "", errors.Errorf(
+				"invalid call data for \"balanceOf(address)\" ERC20 function, call data %q", params.Data,
+			)
+		}
+		ethAddr, err := proto.NewEthereumAddressFromBytes(callData[ethabi.SelectorSize:])
+		if err != nil {
+			// todo
+			return "", err
+		}
+		wavesAddr, err := ethAddr.ToWavesAddress(s.services.Scheme)
+		if err != nil {
+			// todo
+			return "", err
+		}
+		info, err := s.services.State.AssetInfo(shortAssetID)
+		if err != nil {
+			// todo
+			return "", err
+		}
+		accountBalance, err := s.services.State.AccountBalance(proto.Recipient{Address: &wavesAddr}, info.ID.Bytes())
+		if err != nil {
+			// todo
+			return "", err
+		}
+		return fmt.Sprintf("0x%x", proto.WaveletToEthereumWei(accountBalance)), nil // 0.159
+	default:
+		return "", errors.Errorf(
+			"unexpected call (selector %q) for %q at %q",
+			selector.String(), params.Data, shortAssetID.String(),
+		)
+	}
+}
 
 /* Returns the compiled smart contract code, if any, at a given address.
    - address: 20 Bytes - address to check for balance
@@ -202,16 +231,4 @@ func (s RPCService) Eth_sendrawtransaction(signedTxData string) string {
 	zap.S().Infof("Sender is %s\n", sender.Hex())
 
 	return ""
-}
-
-func (s RPCService) accountBalance(addr proto.Address) (uint64, error) {
-	wavesAddr, err := addr.ToWavesAddress(s.services.Scheme)
-	if err != nil {
-		return 0, err
-	}
-	amount, err := s.services.State.AccountBalance(proto.Recipient{Address: &wavesAddr}, nil)
-	if err != nil {
-		return 0, err
-	}
-	return amount, nil
 }
