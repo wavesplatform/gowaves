@@ -6361,11 +6361,11 @@ func TestEthereumGetSenderAndFromPK(t *testing.T) {
 	require.NoError(t, err)
 	ethereumAddr := ethereumPK.EthereumAddress()
 
-	tx := &EthereumTransaction{senderPK: ethereumPK}
+	tx := &EthereumTransaction{senderPK: &ethereumPK}
 
 	actualPK, err := tx.FromPK()
 	require.NoError(t, err)
-	require.Equal(t, ethereumPK, actualPK)
+	require.Equal(t, &ethereumPK, actualPK)
 
 	actualAddr, err := tx.GetSender(TestNetScheme)
 	require.NoError(t, err)
