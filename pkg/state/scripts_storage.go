@@ -48,12 +48,12 @@ func (ac *accountScripRecordForHashes) less(other stateComponent) bool {
 }
 
 type assetScripRecordForHashes struct {
-	asset  []byte
+	asset  crypto.Digest
 	script proto.Script
 }
 
 func (as *assetScripRecordForHashes) writeTo(w io.Writer) error {
-	if _, err := w.Write(as.asset); err != nil {
+	if _, err := w.Write(as.asset[:]); err != nil {
 		return err
 	}
 	if len(as.script) != 0 {
@@ -66,7 +66,7 @@ func (as *assetScripRecordForHashes) writeTo(w io.Writer) error {
 
 func (as *assetScripRecordForHashes) less(other stateComponent) bool {
 	as2 := other.(*assetScripRecordForHashes)
-	return bytes.Compare(as.asset, as2.asset) == -1
+	return bytes.Compare(as.asset[:], as2.asset[:]) == -1
 }
 
 func scriptExists(recordBytes []byte) bool {
@@ -105,6 +105,11 @@ func (r *scriptRecord) unmarshalBinary(data []byte) error {
 	return nil
 }
 
+type scriptRecordWithAdditionalInfo struct {
+	scriptRecord scriptRecord
+	assetIDTail  [proto.AssetIDTailSize]byte // this field doesn't stored to db and it used only for state hash calculation
+}
+
 // TODO: LRU cache for script ASTs here only makes sense at the import stage.
 // It shouldn't be used at all when the node does rollbacks or validates UTX,
 // because it has to be cleared after each rollback or UTX validation,
@@ -117,7 +122,7 @@ type scriptsStorage struct {
 	assetScriptsHasher   *stateHasher
 	calculateHashes      bool
 
-	uncertainAssetScripts map[proto.AssetID]scriptRecord
+	uncertainAssetScripts map[proto.AssetID]scriptRecordWithAdditionalInfo
 }
 
 func newScriptsStorage(hs *historyStorage, calcHashes bool) (*scriptsStorage, error) {
@@ -131,7 +136,7 @@ func newScriptsStorage(hs *historyStorage, calcHashes bool) (*scriptsStorage, er
 		accountScriptsHasher:  newStateHasher(),
 		assetScriptsHasher:    newStateHasher(),
 		calculateHashes:       calcHashes,
-		uncertainAssetScripts: make(map[proto.AssetID]scriptRecord),
+		uncertainAssetScripts: make(map[proto.AssetID]scriptRecordWithAdditionalInfo),
 	}, nil
 }
 
@@ -213,7 +218,8 @@ func (ss *scriptsStorage) scriptTreeByKey(key []byte, filter bool) (*ride.Tree, 
 
 func (ss *scriptsStorage) commitUncertain(blockID proto.BlockID) error {
 	for assetID, r := range ss.uncertainAssetScripts {
-		if err := ss.setAssetScript(assetID, r.script, r.pk, blockID); err != nil {
+		fullAssetID := proto.ReconstructDigest(assetID, r.assetIDTail)
+		if err := ss.setAssetScript(fullAssetID, r.scriptRecord.script, r.scriptRecord.pk, blockID); err != nil {
 			return err
 		}
 	}
@@ -221,21 +227,28 @@ func (ss *scriptsStorage) commitUncertain(blockID proto.BlockID) error {
 }
 
 func (ss *scriptsStorage) dropUncertain() {
-	ss.uncertainAssetScripts = make(map[proto.AssetID]scriptRecord)
+	ss.uncertainAssetScripts = make(map[proto.AssetID]scriptRecordWithAdditionalInfo)
 }
 
-func (ss *scriptsStorage) setAssetScriptUncertain(assetID proto.AssetID, script proto.Script, pk crypto.PublicKey) {
-	ss.uncertainAssetScripts[assetID] = scriptRecord{pk: pk, script: script}
+func (ss *scriptsStorage) setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) {
+	// NOTE: we use fullAssetID (crypto.Digest) only for state hashes compatibility
+	ss.uncertainAssetScripts[proto.AssetIDFromDigest(fullAssetID)] = scriptRecordWithAdditionalInfo{
+		assetIDTail: proto.DigestTail(fullAssetID),
+		scriptRecord: scriptRecord{
+			pk:     pk,
+			script: script,
+		},
+	}
 }
 
-func (ss *scriptsStorage) setAssetScript(assetID proto.AssetID, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
-	key := assetScriptKey{assetID: assetID}
+func (ss *scriptsStorage) setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
+	key := assetScriptKey{assetID: proto.AssetIDFromDigest(assetID)}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
 	record := scriptRecord{pk: pk, script: script}
 	if ss.calculateHashes {
 		as := &assetScripRecordForHashes{
-			asset:  assetID[:],
+			asset:  assetID,
 			script: script,
 		}
 		if err := ss.assetScriptsHasher.push(keyStr, as, blockID); err != nil {
@@ -247,7 +260,7 @@ func (ss *scriptsStorage) setAssetScript(assetID proto.AssetID, script proto.Scr
 
 func (ss *scriptsStorage) newestIsSmartAsset(assetID proto.AssetID, filter bool) bool {
 	if r, ok := ss.uncertainAssetScripts[assetID]; ok {
-		return len(r.script) != 0
+		return len(r.scriptRecord.script) != 0
 	}
 	key := assetScriptKey{assetID: assetID}
 	keyBytes := key.bytes()
@@ -272,10 +285,10 @@ func (ss *scriptsStorage) isSmartAsset(assetID proto.AssetID, filter bool) (bool
 
 func (ss *scriptsStorage) newestScriptByAsset(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
 	if r, ok := ss.uncertainAssetScripts[assetID]; ok {
-		if r.scriptIsEmpty() {
+		if r.scriptRecord.scriptIsEmpty() {
 			return nil, proto.ErrNotFound
 		}
-		return scriptBytesToTree(r.script)
+		return scriptBytesToTree(r.scriptRecord.script)
 	}
 	key := assetScriptKey{assetID: assetID}
 	keyBytes := key.bytes()
