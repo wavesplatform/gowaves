@@ -2649,7 +2649,7 @@ func (tx MassTransferWithProofs) GetSenderPK() crypto.PublicKey {
 }
 
 func (tx MassTransferWithProofs) GetSender(scheme Scheme) (Address, error) {
-	return NewAddressFromPublicKey(scheme, crypto.PublicKey{})
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx MassTransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
