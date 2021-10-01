@@ -4,15 +4,11 @@ import (
 	"encoding"
 	"encoding/hex"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"strings"
-)
 
-const (
-	erc20TransferSignature     Signature = "transfer(address,uint256)"
-	erc20TransferFromSignature Signature = "transferFrom(address,address,uint256)"
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
 
 type Signature string
@@ -40,11 +36,13 @@ func (s Signature) Selector() Selector {
 	return NewSelector(s)
 }
 
-type Selector [4]byte
+const SelectorSize = 4
+
+type Selector [SelectorSize]byte
 
 func NewSelector(sig Signature) Selector {
 	var selector Selector
-	hash := proto.NewKeccak256EthereumHash([]byte(sig))
+	hash := crypto.MustKeccak256([]byte(sig))
 	copy(selector[:], hash[:])
 	return selector
 }
@@ -54,16 +52,16 @@ func (s Selector) String() string {
 }
 
 func (s Selector) Hex() string {
-	return hex.EncodeToString(s[:])
+	return fmt.Sprintf("0x%s", hex.EncodeToString(s[:]))
 }
 
 func (s *Selector) FromHex(hexSelector string) error {
-	bts, err := hex.DecodeString(hexSelector)
+	bts, err := hex.DecodeString(strings.TrimPrefix(hexSelector, "0x"))
 	if err != nil {
 		return errors.Wrap(err, "failed to decode hex string for selector")
 	}
-	if len(bts) != len(s) {
-		return errors.Errorf("invalid hex selector bytes, expected %d, received %d", len(s), len(bts))
+	if len(bts) != SelectorSize {
+		return errors.Errorf("invalid hex selector bytes, expected %d, received %d", SelectorSize, len(bts))
 	}
 	copy(s[:], bts)
 	return nil
@@ -128,6 +126,17 @@ func (itb intTextBuilder) MarshalText() (text []byte, err error) {
 		unsignedPrefix = "u"
 	}
 	return []byte(fmt.Sprintf("%sint%d", unsignedPrefix, itb.size)), nil
+}
+
+type fixedBytesTextBuilder struct {
+	size int
+}
+
+func (fbtb fixedBytesTextBuilder) MarshalText() (text []byte, err error) {
+	if fbtb.size < 1 || fbtb.size > 32 {
+		return nil, errors.Errorf("invalid fixed bytes type size (%d)", fbtb.size)
+	}
+	return []byte(fmt.Sprintf("bytes%d", fbtb.size)), nil
 }
 
 type bytesTextBuilder struct{}
@@ -198,8 +207,11 @@ type paymentTextBuilder struct{}
 
 func (ptb paymentTextBuilder) MarshalText() (text []byte, err error) {
 	tupleBuilder := tupleTextBuilder{
-		bytesTextBuilder{},
-		// nickeskov: asset amount field in payment
+		// full asset ID
+		fixedBytesTextBuilder{
+			size: 32,
+		},
+		// asset amount field in payment
 		intTextBuilder{
 			size:     64,
 			unsigned: false,
@@ -242,61 +254,4 @@ func (ftb functionTextBuilder) MarshalText() (text []byte, err error) {
 		elements = append(elements, string(payments))
 	}
 	return []byte(fmt.Sprintf("%s(%s)", ftb.functionMeta.Name, strings.Join(elements, ","))), nil
-}
-
-var erc20Methods = map[Selector]Method{
-	erc20TransferSignature.Selector(): {
-		RawName: "transfer",
-		Inputs: Arguments{
-			Argument{
-				Name: "_to",
-				Type: Type{
-					Size:       proto.EthereumAddressSize,
-					T:          AddressTy,
-					stringKind: "address",
-				},
-			},
-			Argument{
-				Name: "_value",
-				Type: Type{
-					Size:       256,
-					T:          UintTy,
-					stringKind: "uint256",
-				},
-			},
-		},
-		Payments: nil,
-		Sig:      erc20TransferSignature,
-	},
-	erc20TransferFromSignature.Selector(): {
-		RawName: "transferFrom",
-		Inputs: Arguments{
-			Argument{
-				Name: "_from",
-				Type: Type{
-					Size:       proto.EthereumAddressSize,
-					T:          AddressTy,
-					stringKind: "address",
-				},
-			},
-			Argument{
-				Name: "_to",
-				Type: Type{
-					Size:       proto.EthereumAddressSize,
-					T:          AddressTy,
-					stringKind: "address",
-				},
-			},
-			Argument{
-				Name: "_value",
-				Type: Type{
-					Size:       256,
-					T:          UintTy,
-					stringKind: "uint256",
-				},
-			},
-		},
-		Payments: nil,
-		Sig:      erc20TransferFromSignature,
-	},
 }

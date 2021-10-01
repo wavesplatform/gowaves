@@ -3,6 +3,7 @@ package ethabi
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/pkg/errors"
 )
 
@@ -36,7 +37,6 @@ func getArgumentABI(argType *Type) (argABI, error) {
 			internalElem.Name = tupleElem.Name
 			a.Components = append(a.Components, internalElem)
 		}
-
 	case SliceTy:
 		internalElem, err := getArgumentABI(argType.Elem)
 		if err != nil {
@@ -44,9 +44,6 @@ func getArgumentABI(argType *Type) (argABI, error) {
 		}
 		a.Type = fmt.Sprintf("%s[]", internalElem.Type)
 		a.Components = internalElem.Components
-
-	case StringTy: // variable arrays are written at the end of the return bytes
-		a.Type = "string"
 	case IntTy:
 		builder := intTextBuilder{
 			size:     argType.Size,
@@ -67,12 +64,23 @@ func getArgumentABI(argType *Type) (argABI, error) {
 			return argABI{}, errors.Wrapf(err, "failed to create JSON argABI for type %q", argType.String())
 		}
 		a.Type = string(t)
+	case FixedBytesTy:
+		builder := fixedBytesTextBuilder{
+			size: argType.Size,
+		}
+		t, err := builder.MarshalText()
+		if err != nil {
+			return argABI{}, errors.Wrapf(err, "failed to create JSON argABI for type %q", argType.String())
+		}
+		a.Type = string(t)
 	case BoolTy:
 		a.Type = "bool"
 	case AddressTy:
-		a.Type = "bytes"
+		a.Type = "address"
 	case BytesTy:
 		a.Type = "bytes"
+	case StringTy:
+		a.Type = "string"
 	default:
 		return a, errors.Errorf("abi: unknown type %s", a.Type)
 	}

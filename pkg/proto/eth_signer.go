@@ -173,7 +173,7 @@ func NewLondonEthereumSigner(chainId *big.Int) EthereumSigner {
 }
 
 func (s londonSigner) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, error) {
-	if tx.EthereumTxType() != DynamicFeeTxType {
+	if tx.EthereumTxType() != EthereumDynamicFeeTxType {
 		return s.eip2930Signer.SenderPK(tx)
 	}
 	V, R, S := tx.RawSignatureValues()
@@ -220,7 +220,7 @@ func (s londonSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (s londonSigner) Hash(tx *EthereumTransaction) EthereumHash {
-	if tx.EthereumTxType() != DynamicFeeTxType {
+	if tx.EthereumTxType() != EthereumDynamicFeeTxType {
 		return s.eip2930Signer.Hash(tx)
 	}
 	arena := &fastrlp.Arena{}
@@ -255,7 +255,7 @@ func (s eip2930Signer) Sender(tx *EthereumTransaction) (EthereumAddress, error) 
 }
 
 func (s eip2930Signer) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, error) {
-	if tx.EthereumTxType() != AccessListTxType {
+	if tx.EthereumTxType() != EthereumAccessListTxType {
 		return s.eip155Signer.SenderPK(tx)
 	}
 	V, R, S := tx.RawSignatureValues()
@@ -292,7 +292,7 @@ func (s eip2930Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, 
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (s eip2930Signer) Hash(tx *EthereumTransaction) EthereumHash {
-	if tx.EthereumTxType() != AccessListTxType {
+	if tx.EthereumTxType() != EthereumAccessListTxType {
 		return s.eip155Signer.Hash(tx)
 	}
 	arena := &fastrlp.Arena{}
@@ -338,7 +338,7 @@ func (s eip155Signer) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
 }
 
 func (s eip155Signer) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, error) {
-	if tx.EthereumTxType() != LegacyTxType {
+	if tx.EthereumTxType() != EthereumLegacyTxType {
 		return nil, ErrTxTypeNotSupported
 	}
 	if !tx.Protected() {
@@ -356,7 +356,7 @@ func (s eip155Signer) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, err
 // SignatureValues returns signature values. This signature
 // needs to be in the [R || S || V] format where V is 0 or 1.
 func (s eip155Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S, V *big.Int, err error) {
-	if tx.EthereumTxType() != LegacyTxType {
+	if tx.EthereumTxType() != EthereumLegacyTxType {
 		return nil, nil, nil, ErrTxTypeNotSupported
 	}
 	R, S, V, err = decodeSignature(sig, true)
@@ -373,7 +373,7 @@ func (s eip155Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S
 // Hash returns the hash to be signed by the sender.
 // It does not uniquely identify the transaction.
 func (s eip155Signer) Hash(tx *EthereumTransaction) EthereumHash {
-	if tx.EthereumTxType() != LegacyTxType {
+	if tx.EthereumTxType() != EthereumLegacyTxType {
 		// This _should_ not happen, but in case someone sends in a bad
 		// json struct via RPC, it's probably more prudent to return an
 		// empty hash instead of killing the node with a panic
@@ -416,7 +416,7 @@ func (hs HomesteadSigner) Sender(tx *EthereumTransaction) (EthereumAddress, erro
 }
 
 func (hs HomesteadSigner) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, error) {
-	if tx.EthereumTxType() != LegacyTxType {
+	if tx.EthereumTxType() != EthereumLegacyTxType {
 		return nil, ErrTxTypeNotSupported
 	}
 	v, r, s := tx.RawSignatureValues()
@@ -443,7 +443,7 @@ func (fs FrontierSigner) Sender(tx *EthereumTransaction) (EthereumAddress, error
 }
 
 func (fs FrontierSigner) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, error) {
-	if tx.EthereumTxType() != LegacyTxType {
+	if tx.EthereumTxType() != EthereumLegacyTxType {
 		return nil, ErrTxTypeNotSupported
 	}
 	v, r, s := tx.RawSignatureValues()
@@ -453,7 +453,7 @@ func (fs FrontierSigner) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, 
 // SignatureValues returns signature values. This signature
 // needs to be in the [R || S || V] format where V is 0 or 1.
 func (fs FrontierSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (r, s, v *big.Int, err error) {
-	if tx.EthereumTxType() != LegacyTxType {
+	if tx.EthereumTxType() != EthereumLegacyTxType {
 		return nil, nil, nil, ErrTxTypeNotSupported
 	}
 	r, s, v, err = decodeSignature(sig, true)
@@ -472,9 +472,9 @@ func (fs FrontierSigner) Hash(tx *EthereumTransaction) EthereumHash {
 	var rlpData []byte
 
 	switch tx.EthereumTxType() {
-	case LegacyTxType:
+	case EthereumLegacyTxType:
 		rlpData = hashValues.MarshalTo(nil)
-	case AccessListTxType, DynamicFeeTxType:
+	case EthereumAccessListTxType, EthereumDynamicFeeTxType:
 		rlpData = append(rlpData, byte(tx.EthereumTxType()))
 		rlpData = hashValues.MarshalTo(rlpData)
 	default:

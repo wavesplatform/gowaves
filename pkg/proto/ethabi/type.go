@@ -18,7 +18,8 @@ const (
 	SliceTy
 	TupleTy
 
-	AddressTy // nickeskov: we use this type only for erc20 transfers
+	AddressTy    // we use this type only for erc20 transfers
+	FixedBytesTy // we use this type only for payment asset
 )
 
 // Type is the reflection of the supported argument type.

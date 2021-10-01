@@ -2,15 +2,16 @@ package ethabi
 
 import (
 	"encoding/binary"
-	stdErr "errors"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"math/big"
 )
 
 var (
-	errBadBool = stdErr.New("abi: improperly encoded boolean value")
+	Big1  = big.NewInt(1)
+	Big32 = big.NewInt(32)
+	// MaxUint256 is the maximum value that can be represented by a uint256.
+	MaxUint256 = new(big.Int).Sub(new(big.Int).Lsh(Big1, 256), Big1)
 )
 
 var (
@@ -24,7 +25,7 @@ var (
 func readBool(word []byte) (bool, error) {
 	for _, b := range word[:31] {
 		if b != 0 {
-			return false, errBadBool
+			return false, errors.New("abi: improperly encoded boolean value")
 		}
 	}
 	switch word[31] {
@@ -33,36 +34,36 @@ func readBool(word []byte) (bool, error) {
 	case 1:
 		return true, nil
 	default:
-		return false, errBadBool
+		return false, errors.New("abi: improperly encoded boolean value")
 	}
 }
 
-// readRideInteger reads the integer based on its kind and returns the appropriate value.
-func readRideInteger(typ Type, b []byte) ride.RideType {
+// readInteger reads the integer based on its kind and returns the appropriate value.
+func readInteger(typ Type, b []byte) DataType {
 	if typ.T == UintTy {
 		switch typ.Size {
 		case 8:
-			return ride.RideInt(b[len(b)-1])
+			return Int(b[len(b)-1])
 		case 16:
-			return ride.RideInt(binary.BigEndian.Uint16(b[len(b)-2:]))
+			return Int(binary.BigEndian.Uint16(b[len(b)-2:]))
 		case 32:
-			return ride.RideInt(binary.BigEndian.Uint32(b[len(b)-4:]))
+			return Int(binary.BigEndian.Uint32(b[len(b)-4:]))
 		case 64:
-			return ride.RideInt(binary.BigEndian.Uint64(b[len(b)-8:]))
+			return Int(binary.BigEndian.Uint64(b[len(b)-8:]))
 		default:
 			// the only case left for unsigned integer is uint256.
-			return ride.RideBigInt{V: new(big.Int).SetBytes(b)}
+			return BigInt{V: new(big.Int).SetBytes(b)}
 		}
 	}
 	switch typ.Size {
 	case 8:
-		return ride.RideInt(int8(b[len(b)-1]))
+		return Int(int8(b[len(b)-1]))
 	case 16:
-		return ride.RideInt(int16(binary.BigEndian.Uint16(b[len(b)-2:])))
+		return Int(int16(binary.BigEndian.Uint16(b[len(b)-2:])))
 	case 32:
-		return ride.RideInt(int32(binary.BigEndian.Uint32(b[len(b)-4:])))
+		return Int(int32(binary.BigEndian.Uint32(b[len(b)-4:])))
 	case 64:
-		return ride.RideInt(int64(binary.BigEndian.Uint64(b[len(b)-8:])))
+		return Int(int64(binary.BigEndian.Uint64(b[len(b)-8:])))
 	default:
 		// the only case left for integer is int256
 		// big.SetBytes can't tell if a number is negative or positive in itself.
@@ -74,29 +75,28 @@ func readRideInteger(typ Type, b []byte) ride.RideType {
 			ret.Add(ret, big1)
 			ret.Neg(ret)
 		}
-		return ride.RideBigInt{V: ret}
+		return BigInt{V: ret}
 	}
 }
 
-func tryAsInt64(rideT ride.RideType) (int64, error) {
-	switch rideInt := rideT.(type) {
-	case ride.RideInt:
-		return int64(rideInt), nil
-
-	case ride.RideBigInt:
-		if !rideInt.V.IsInt64() {
+func tryAsInt64(dataT DataType) (int64, error) {
+	switch i := dataT.(type) {
+	case Int:
+		return int64(i), nil
+	case BigInt:
+		if !i.V.IsInt64() {
 			return 0, errors.New(
 				"abi: failed to convert BigInt as int64, value too big",
 			)
 		}
-		return rideInt.V.Int64(), nil
+		return i.V.Int64(), nil
 	default:
 		return 0, errors.Errorf("abi: failed to convert RideType as int64, type is not number")
 	}
 }
 
 // forEachUnpack iteratively unpack elements.
-func forEachUnpackRideList(t Type, output []byte, start, size int) (ride.RideList, error) {
+func forEachUnpackRideList(t Type, output []byte, start, size int) (List, error) {
 	if size < 0 {
 		return nil, errors.Errorf("cannot marshal input to array, size is negative (%d)", size)
 	}
@@ -112,14 +112,14 @@ func forEachUnpackRideList(t Type, output []byte, start, size int) (ride.RideLis
 	}
 
 	// this value will become our slice or our array, depending on the type
-	refSlice := make(ride.RideList, 0, size)
+	refSlice := make(List, 0, size)
 
 	// Arrays have packed elements, resulting in longer unpack steps.
 	// Slices have just 32 bytes per element (pointing to the contents).
 	elemSize := getTypeSize(*t.Elem)
 
 	for i, j := start, 0; j < size; i, j = i+elemSize, j+1 {
-		inter, err := toRideType(i, *t.Elem, output)
+		inter, err := toDataType(i, *t.Elem, output)
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +138,7 @@ func extractIndexFromFirstElemOfTuple(index int, t Type, output []byte) (int64, 
 			"abi: failed to convert eth tuple to ride union, first element of eth tuple must be a number",
 		)
 	}
-	rideT, err := toRideType(index, t, output)
+	rideT, err := toDataType(index, t, output)
 	if err != nil {
 		return 0, err
 	}
@@ -146,7 +146,7 @@ func extractIndexFromFirstElemOfTuple(index int, t Type, output []byte) (int64, 
 
 }
 
-func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error) {
+func forUnionTupleUnpackToDataType(t Type, output []byte) (DataType, error) {
 	if t.T != TupleTy {
 		return nil, errors.New("abi: type in forTupleUnpack must be TupleTy")
 	}
@@ -166,11 +166,11 @@ func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error)
 			unionIndex, len(fields),
 		)
 	}
-	retval := make([]ride.RideType, 0, len(fields))
+	retval := make([]DataType, 0, len(fields))
 	virtualArgs := 0
 	for index := 1; index < len(fields); index++ {
 		field := fields[index]
-		marshalledValue, err := toRideType((index+virtualArgs)*32, field.Type, output)
+		marshalledValue, err := toDataType((index+virtualArgs)*32, field.Type, output)
 		if err != nil {
 			return nil, err
 		}
@@ -183,8 +183,25 @@ func forUnionTupleUnpackToRideType(t Type, output []byte) (ride.RideType, error)
 	return retval[unionIndex], nil
 }
 
+// readFixedBytes creates a Bytes with length 1..32 to be read from.
+func readFixedBytes(t Type, word []byte) (Bytes, error) {
+	// type check
+	if t.T != FixedBytesTy {
+		return nil, errors.Errorf("abi: invalid type in call to make fixed byte array")
+	}
+	// size check
+	if t.Size < 1 || t.Size > 32 {
+		return nil, errors.Errorf(
+			"abi: invalid type size in call to make fixed byte array, want 0 < size <= 32, actual size=%d",
+			t.Size,
+		)
+	}
+	array := word[0:t.Size]
+	return array, nil
+}
+
 type Payment struct {
-	AssetID proto.AssetID
+	AssetID crypto.Digest
 	Amount  int64
 }
 
@@ -192,7 +209,7 @@ var (
 	paymentType = Type{
 		T: TupleTy,
 		TupleFields: Arguments{
-			{Name: "id", Type: Type{T: BytesTy}},
+			{Name: "id", Type: Type{T: FixedBytesTy, Size: 32}},
 			{Name: "value", Type: Type{T: IntTy, Size: 64}},
 		},
 	}
@@ -211,21 +228,21 @@ func unpackPayment(output []byte) (Payment, error) {
 	amountType := paymentType.TupleFields[1].Type
 
 	var (
-		assetID proto.AssetID
-		amount  int64
+		fullAssetID crypto.Digest
+		amount      int64
 	)
 
-	assetRideValue, err := toRideType(0, assetIDType, output)
+	assetRideValue, err := toDataType(0, assetIDType, output)
 	if err != nil {
-		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse assetID")
+		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse fullAssetID")
 	}
-	if assetIDBytes, ok := assetRideValue.(ride.RideBytes); ok {
-		copy(assetID[:], assetIDBytes)
+	if fullAssetIDBytes, ok := assetRideValue.(Bytes); ok {
+		copy(fullAssetID[:], fullAssetIDBytes)
 	} else {
 		panic("BUG, CREATE REPORT: failed to parse payment, assetRideValue type must be RideBytes type")
 	}
 
-	amountRideValue, err := toRideType(1, amountType, output)
+	amountRideValue, err := toDataType(1, amountType, output)
 	if err != nil {
 		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse amount")
 	}
@@ -234,7 +251,7 @@ func unpackPayment(output []byte) (Payment, error) {
 	}
 
 	payment := Payment{
-		AssetID: assetID,
+		AssetID: fullAssetID,
 		Amount:  amount,
 	}
 	return payment, nil
@@ -242,7 +259,7 @@ func unpackPayment(output []byte) (Payment, error) {
 
 func unpackPayments(output []byte) ([]Payment, error) {
 	if len(output) == 0 {
-		return nil, nil
+		return nil, errors.Errorf("empty payments bytes")
 	}
 
 	begin, size, err := lengthPrefixPointsTo(0, output)
@@ -331,7 +348,7 @@ func tuplePointsTo(index int, output []byte) (start int, err error) {
 	return int(offset.Uint64()), nil
 }
 
-func toRideType(index int, t Type, output []byte) (ride.RideType, error) {
+func toDataType(index int, t Type, output []byte) (DataType, error) {
 	if index+32 > len(output) {
 		return nil, errors.Errorf("abi: cannot marshal in to go type: length insufficient %d require %d",
 			len(output), index+32,
@@ -361,30 +378,37 @@ func toRideType(index int, t Type, output []byte) (ride.RideType, error) {
 			if err != nil {
 				return nil, err
 			}
-			return forUnionTupleUnpackToRideType(t, output[begin:])
+			return forUnionTupleUnpackToDataType(t, output[begin:])
 		}
-		return forUnionTupleUnpackToRideType(t, output[index:])
+		return forUnionTupleUnpackToDataType(t, output[index:])
 	case SliceTy:
 		return forEachUnpackRideList(t, output[begin:], 0, length)
 	case StringTy: // variable arrays are written at the end of the return bytes
-		return ride.RideString(output[begin : begin+length]), nil
+		return String(output[begin : begin+length]), nil
 	case IntTy, UintTy:
-		return readRideInteger(t, returnOutput), nil
+		return readInteger(t, returnOutput), nil
 	case BoolTy:
 		boolean, err := readBool(returnOutput)
 		if err != nil {
 			return nil, err
 		}
-		return ride.RideBoolean(boolean), nil
+		return Bool(boolean), nil
 	case AddressTy:
-		address := proto.BytesToEthereumAddress(returnOutput)
-		return ride.RideBytes(address.Bytes()), nil
+		if len(returnOutput) == 0 {
+			return nil, errors.Errorf(
+				"invalid etherum address size, expected %d, actual %d",
+				ethereumAddressSize, len(returnOutput),
+			)
+		}
+		return Bytes(returnOutput[len(returnOutput)-ethereumAddressSize:]), nil
 	case BytesTy:
-		bytes, err := ride.NewRideBytes(output[begin : begin+length])
+		return Bytes(output[begin : begin+length]), nil
+	case FixedBytesTy:
+		fixedBytes, err := readFixedBytes(t, returnOutput)
 		if err != nil {
 			return nil, err
 		}
-		return bytes, nil
+		return fixedBytes, err
 	default:
 		return nil, errors.Errorf("abi: unknown type %v", t.T)
 	}

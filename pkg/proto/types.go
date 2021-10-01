@@ -27,44 +27,38 @@ import (
 
 const (
 	//WavesAssetName is the default name for basic WAVES asset.
-	WavesAssetName                       = "WAVES"
-	quotedWavesAssetName                 = "\"" + WavesAssetName + "\""
-	orderLen                             = crypto.PublicKeySize + crypto.PublicKeySize + 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8
-	orderV2FixedBodyLen                  = 1 + orderLen
-	orderV3FixedBodyLen                  = 1 + orderLen + 1
-	orderV1MinLen                        = crypto.SignatureSize + orderLen
-	orderV2MinLen                        = orderV2FixedBodyLen + proofsMinLen
-	orderV3MinLen                        = orderV3FixedBodyLen + proofsMinLen
-	jsonNull                             = "null"
-	integerArgumentLen                   = 1 + 8
-	booleanArgumentLen                   = 1
-	binaryArgumentMinLen                 = 1 + 4
-	stringArgumentMinLen                 = 1 + 4
-	listArgumentMinLen                   = 1 + 4
-	PriceConstant                        = 100000000
-	MaxOrderAmount                       = 100 * PriceConstant * PriceConstant
-	MaxOrderTTL                          = uint64((30 * 24 * time.Hour) / time.Millisecond)
-	MaxKeySize                           = 100
-	MaxPBKeySize                         = 400
-	maxValueSize                         = 32767
-	MaxDataEntryScriptActions            = 100
-	MaxDataEntryScriptActionsSizeInBytes = 5 * 1024
+	WavesAssetName                           = "WAVES"
+	quotedWavesAssetName                     = "\"" + WavesAssetName + "\""
+	orderLen                                 = crypto.PublicKeySize + crypto.PublicKeySize + 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8
+	orderV2FixedBodyLen                      = 1 + orderLen
+	orderV3FixedBodyLen                      = 1 + orderLen + 1
+	orderV1MinLen                            = crypto.SignatureSize + orderLen
+	orderV2MinLen                            = orderV2FixedBodyLen + proofsMinLen
+	orderV3MinLen                            = orderV3FixedBodyLen + proofsMinLen
+	jsonNull                                 = "null"
+	integerArgumentLen                       = 1 + 8
+	booleanArgumentLen                       = 1
+	binaryArgumentMinLen                     = 1 + 4
+	stringArgumentMinLen                     = 1 + 4
+	listArgumentMinLen                       = 1 + 4
+	PriceConstant                            = 100000000
+	MaxOrderAmount                           = 100 * PriceConstant * PriceConstant
+	MaxOrderTTL                              = uint64((30 * 24 * time.Hour) / time.Millisecond)
+	MaxKeySize                               = 100
+	MaxPBKeySize                             = 400
+	maxValueSize                             = 32767
+	MaxDataEntryScriptActions                = 100
+	MaxDataEntriesScriptActionsSizeInBytesV1 = 5 * 1024
+	MaxDataEntriesScriptActionsSizeInBytesV2 = 15 * 1024
+	MaxScriptActionsV1                       = 10
+	MaxScriptActionsV2                       = 30
 )
 
-type MaxScriptActions struct {
-	BeforeRideScriptV5 int
-	AfterRideScriptV5  int
-}
-
-func NewMaxScriptActions() MaxScriptActions {
-	return MaxScriptActions{BeforeRideScriptV5: 10, AfterRideScriptV5: 30}
-}
-
-func (a MaxScriptActions) GetMaxScriptsComplexityInBlock(scriptVersion int) int {
+func GetMaxScriptActions(scriptVersion int) int {
 	if scriptVersion >= 5 {
-		return a.AfterRideScriptV5
+		return MaxScriptActionsV2
 	}
-	return a.BeforeRideScriptV5
+	return MaxScriptActionsV1
 }
 
 type Timestamp = uint64
@@ -3458,6 +3452,18 @@ type FullScriptTransfer struct {
 }
 
 func NewFullScriptTransfer(action *TransferScriptAction, sender WavesAddress, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+	return &FullScriptTransfer{
+		Amount:    uint64(action.Amount),
+		Asset:     action.Asset,
+		Recipient: action.Recipient,
+		Sender:    sender,
+		SenderPK:  senderPK,
+		Timestamp: tx.Timestamp,
+		ID:        tx.ID,
+	}, nil
+}
+
+func NewFullScriptTransferFromPaymentAction(action *AttachedPaymentScriptAction, sender WavesAddress, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,

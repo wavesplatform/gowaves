@@ -10,7 +10,7 @@ func TestSignature_Selector(t *testing.T) {
 	// from https://etherscan.io/tx/0x2667bb17f2076cad4966849255898fbcaca68f2eb0d9ba585b310c79c098e970
 
 	const testSignatureMint = Signature("mint(string,string,address,uint256,uint256,uint256,uint256)")
-	require.Equal(t, "bdc01110", testSignatureMint.Selector().Hex())
+	require.Equal(t, "0xbdc01110", testSignatureMint.Selector().Hex())
 }
 
 func TestBuildSignatureFromRideFunctionMeta(t *testing.T) {
@@ -36,7 +36,7 @@ func TestBuildSignatureFromRideFunctionMeta(t *testing.T) {
 			payments: false,
 		},
 		{
-			expectedSig: "metaPayments(bool,bytes,(bytes,int64)[])",
+			expectedSig: "metaPayments(bool,bytes,(bytes32,int64)[])",
 			metadata:    meta.Function{Name: "metaPayments", Arguments: []meta.Type{meta.Boolean, meta.Bytes}},
 			payments:    true,
 		},
@@ -173,7 +173,7 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 		},
 	}
 
-	db, err := NewDBFromRideDAppMeta(dAppMeta, false)
+	db, err := newMethodsMapFromRideDAppMeta(dAppMeta, false)
 	require.NoError(t, err)
 
 	for _, expectedFunc := range expectedFuncs {

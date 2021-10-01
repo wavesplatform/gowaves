@@ -59,6 +59,24 @@ type Address interface {
 // EthereumAddress is the first 20 bytes of Public Key's hash for the Waves address, or the 20 bytes of an Ethereum address.
 type EthereumAddress [EthereumAddressSize]byte
 
+func NewEthereumAddressFromHexString(s string) (EthereumAddress, error) {
+	b, err := DecodeFromHexString(s)
+	if err != nil {
+		return EthereumAddress{}, err
+	}
+	return NewEthereumAddressFromBytes(b)
+}
+
+func NewEthereumAddressFromBytes(b []byte) (EthereumAddress, error) {
+	if len(b) != EthereumAddressSize {
+		return EthereumAddress{},
+			errors.Errorf("invalid EthereumAddress size: got %d, want %d", len(b), EthereumAddressSize)
+	}
+	var addr EthereumAddress
+	copy(addr[:], b)
+	return addr, nil
+}
+
 // BytesToEthereumAddress returns EthereumAddress with value b.
 // If b is larger than len(h), b will be cropped from the left.
 func BytesToEthereumAddress(b []byte) EthereumAddress {
@@ -121,6 +139,21 @@ func (ea EthereumAddress) Equal(address Address) bool {
 
 func (ea EthereumAddress) ToWavesAddress(scheme Scheme) (WavesAddress, error) {
 	return newAddressFromPublicKeyHash(scheme, ea[:])
+}
+
+func (ea EthereumAddress) MarshalJSON() ([]byte, error) {
+	hexString := ea.Hex()
+	return []byte(fmt.Sprintf("\"%s\"", hexString)), nil
+}
+
+func (ea *EthereumAddress) UnmarshalJSON(bytes []byte) error {
+	hexString := strings.Trim(string(bytes), "\"")
+	addr, err := NewEthereumAddressFromHexString(hexString)
+	if err != nil {
+		return err
+	}
+	*ea = addr
+	return nil
 }
 
 func (ea *EthereumAddress) checksumHex() []byte {

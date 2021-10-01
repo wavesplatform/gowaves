@@ -12,13 +12,16 @@ import (
 )
 
 type WrappedState struct {
-	diff            diffState
-	cle             rideAddress
-	scheme          proto.Scheme
-	invokeCount     uint64
-	act             []proto.ScriptAction
-	blackList       []proto.WavesAddress
-	totalComplexity int
+	diff             diffState
+	cle              rideAddress
+	scheme           proto.Scheme
+	act              []proto.ScriptAction
+	blackList        []proto.WavesAddress
+	invokeCount      int
+	totalComplexity  int
+	dataEntriesCount int
+	dataEntriesSize  int
+	actionsCount     int
 }
 
 func newWrappedState(env *EvaluationEnvironment) *WrappedState {
@@ -46,10 +49,7 @@ func (ws *WrappedState) appendActions(actions []proto.ScriptAction) {
 }
 
 func (ws *WrappedState) checkTotalComplexity() (int, bool) {
-	if ws.totalComplexity > MaxChainInvokeComplexity {
-		return ws.totalComplexity, false
-	}
-	return ws.totalComplexity, true
+	return ws.totalComplexity, ws.totalComplexity <= MaxChainInvokeComplexity
 }
 
 func (ws *WrappedState) callee() proto.WavesAddress {
@@ -76,9 +76,11 @@ func (ws *WrappedState) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, e
 func (ws *WrappedState) NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error) {
 	return ws.diff.state.NewestScriptPKByAddr(addr)
 }
+
 func (ws *WrappedState) NewestTransactionByID(id []byte) (proto.Transaction, error) {
 	return ws.diff.state.NewestTransactionByID(id)
 }
+
 func (ws *WrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
 	return ws.diff.state.NewestTransactionHeightByID(id)
 }
@@ -86,6 +88,7 @@ func (ws *WrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
 func (ws *WrappedState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
 	return ws.diff.state.GetByteTree(recipient)
 }
+
 func (ws *WrappedState) NewestRecipientToAddress(recipient proto.Recipient) (*proto.WavesAddress, error) {
 	return ws.diff.state.NewestRecipientToAddress(recipient)
 }
@@ -368,16 +371,10 @@ func (ws *WrappedState) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Sc
 	return ws.diff.state.NewestScriptByAsset(asset)
 }
 
-func (ws *WrappedState) newMaxScriptComplexity(scriptVersion int) int {
-	maxScriptActions := proto.NewMaxScriptActions()
-	return maxScriptActions.GetMaxScriptsComplexityInBlock(scriptVersion)
-}
-
 func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env Environment) (bool, error) {
 	if !asset.Present {
 		return true, nil
 	}
-
 	assetInfo, err := ws.NewestAssetInfo(asset.ID)
 	if err != nil {
 		return false, err
@@ -385,14 +382,12 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 	if !assetInfo.Scripted {
 		return true, nil
 	}
-
 	txID, err := crypto.NewDigestFromBytes(env.txID().(RideBytes))
 	if err != nil {
 		return false, err
 	}
 
 	timestamp := env.timestamp()
-
 	localEnv, err := NewEnvironment(env.scheme(), env.state(), env.internalPaymentsValidationHeight())
 	if err != nil {
 		return false, err
@@ -401,6 +396,21 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 	switch res := action.(type) {
 
 	case *proto.TransferScriptAction:
+		sender, err := proto.NewAddressFromPublicKey(localEnv.scheme(), *res.Sender)
+		if err != nil {
+			return false, err
+		}
+
+		fullTr := &proto.FullScriptTransfer{
+			Amount:    uint64(res.Amount),
+			Asset:     res.Asset,
+			Recipient: res.Recipient,
+			Sender:    sender,
+			Timestamp: timestamp,
+			ID:        &txID,
+		}
+		localEnv.SetTransactionFromScriptTransfer(fullTr)
+	case *proto.AttachedPaymentScriptAction:
 		sender, err := proto.NewAddressFromPublicKey(localEnv.scheme(), *res.Sender)
 		if err != nil {
 			return false, err
@@ -450,9 +460,8 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		localEnv.SetThisFromAssetInfo(assetInfo)
 	}
 
-	if err := localEnv.ChooseTakeString(true); err != nil {
-		return false, errors.Wrap(err, "failed to initialize local environment")
-	}
+	localEnv.ChooseTakeString(true)
+	localEnv.ChooseMaxDataEntriesSize(true)
 
 	r, err := CallVerifier(localEnv, tree)
 	if err != nil {
@@ -465,24 +474,13 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 	return r.Result(), nil
 }
 
-func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.WavesAddress, env Environment) error {
-	*otherActionsCount++
-
+func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAction, sender proto.WavesAddress, env Environment, restrictions proto.ActionsValidationRestrictions) error {
 	assetResult, err := ws.validateAsset(res, res.Asset, env)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate asset")
 	}
 	if !assetResult {
 		return errors.New("action is forbidden by smart asset script")
-	}
-	scriptVersion, err := ws.getLibVersion()
-	if err != nil {
-		return err
-	}
-	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
-
-	if *otherActionsCount > maxScriptAction {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
 	}
 	if res.Amount < 0 {
 		return errors.New("negative transfer amount")
@@ -505,18 +503,61 @@ func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *prot
 	if err != nil {
 		return err
 	}
-
 	if balance < uint64(res.Amount) {
-		return errors.Errorf("not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+		return errors.Errorf("attached payments: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
 			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 	}
-
 	return nil
 }
 
-func (ws *WrappedState) validateDataEntryAction(dataEntriesCount *int, dataEntriesSize *int, res *proto.DataEntryScriptAction, restrictions proto.ActionsValidationRestrictions) error {
-	*dataEntriesCount++
-	if *dataEntriesCount > proto.MaxDataEntryScriptActions {
+func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.WavesAddress, env Environment) error {
+	ws.actionsCount++
+	assetResult, err := ws.validateAsset(res, res.Asset, env)
+	if err != nil {
+		return errors.Wrapf(err, "failed to validate asset")
+	}
+	if !assetResult {
+		return errors.New("action is forbidden by smart asset script")
+	}
+	scriptVersion, err := ws.getLibVersion()
+	if err != nil {
+		return err
+	}
+	maxScriptActions := proto.GetMaxScriptActions(scriptVersion)
+	if ws.actionsCount > maxScriptActions {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
+	}
+	if res.Amount < 0 {
+		return errors.New("negative transfer amount")
+	}
+	if restrictions.DisableSelfTransfers {
+		senderAddress := restrictions.ScriptAddress
+		if res.SenderPK() != nil {
+			var err error
+			senderAddress, err = proto.NewAddressFromPublicKey(restrictions.Scheme, *res.SenderPK())
+			if err != nil {
+				return errors.Wrap(err, "failed to validate TransferScriptAction")
+			}
+		}
+		if res.Recipient.Address.Equal(senderAddress) {
+			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
+		}
+	}
+	senderRcp := proto.NewRecipientFromAddress(sender)
+	balance, err := ws.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
+	if err != nil {
+		return err
+	}
+	if balance < uint64(res.Amount) {
+		return errors.Errorf("transfer action: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
+	}
+	return nil
+}
+
+func (ws *WrappedState) validateDataEntryAction(res *proto.DataEntryScriptAction, restrictions proto.ActionsValidationRestrictions) error {
+	ws.dataEntriesCount++
+	if ws.dataEntriesCount > proto.MaxDataEntryScriptActions {
 		return errors.Errorf("number of data entries produced by script is more than allowed %d", proto.MaxDataEntryScriptActions)
 	}
 	switch restrictions.KeySizeValidationVersion {
@@ -529,24 +570,22 @@ func (ws *WrappedState) validateDataEntryAction(dataEntriesCount *int, dataEntri
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
-
-	*dataEntriesSize += res.Entry.BinarySize()
-	if *dataEntriesSize > proto.MaxDataEntryScriptActionsSizeInBytes {
-		return errors.Errorf("total size of data entries produced by script is more than %d bytes", proto.MaxDataEntryScriptActionsSizeInBytes)
+	ws.dataEntriesSize += res.Entry.BinarySize()
+	if ws.dataEntriesSize > restrictions.MaxDataEntriesSize {
+		return errors.Errorf("total size of data entries produced by script is more than %d bytes", restrictions.MaxDataEntriesSize)
 	}
 	return nil
 }
 
-func (ws *WrappedState) validateIssueAction(otherActionsCount *int, res *proto.IssueScriptAction) error {
-	*otherActionsCount++
+func (ws *WrappedState) validateIssueAction(res *proto.IssueScriptAction) error {
+	ws.actionsCount++
 	scriptVersion, err := ws.getLibVersion()
 	if err != nil {
 		return err
 	}
-	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
-
-	if *otherActionsCount > maxScriptAction {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
+	maxScriptActions := proto.GetMaxScriptActions(scriptVersion)
+	if ws.actionsCount > maxScriptActions {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 	}
 	if res.Quantity < 0 {
 		return errors.New("negative quantity")
@@ -563,9 +602,8 @@ func (ws *WrappedState) validateIssueAction(otherActionsCount *int, res *proto.I
 	return nil
 }
 
-func (ws *WrappedState) validateReissueAction(otherActionsCount *int, res *proto.ReissueScriptAction, env Environment) error {
-	*otherActionsCount++
-
+func (ws *WrappedState) validateReissueAction(res *proto.ReissueScriptAction, env Environment) error {
+	ws.actionsCount++
 	asset := proto.NewOptionalAssetFromDigest(res.AssetID)
 	assetResult, err := ws.validateAsset(res, *asset, env)
 	if err != nil {
@@ -574,35 +612,29 @@ func (ws *WrappedState) validateReissueAction(otherActionsCount *int, res *proto
 	if !assetResult {
 		return errors.New("action is forbidden by smart asset script")
 	}
-
 	scriptVersion, err := ws.getLibVersion()
 	if err != nil {
 		return err
 	}
-	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
-
-	if *otherActionsCount > maxScriptAction {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
+	maxScriptActions := proto.GetMaxScriptActions(scriptVersion)
+	if ws.actionsCount > maxScriptActions {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 	}
 	if res.Quantity < 0 {
 		return errors.New("negative quantity")
 	}
-
 	assetInfo, err := ws.NewestAssetInfo(res.AssetID)
 	if err != nil {
 		return err
 	}
-
 	if !assetInfo.Reissuable {
 		return errors.New("failed to reissue asset as it's not reissuable anymore")
 	}
-
 	return nil
 }
 
-func (ws *WrappedState) validateBurnAction(otherActionsCount *int, res *proto.BurnScriptAction, env Environment) error {
-	*otherActionsCount++
-
+func (ws *WrappedState) validateBurnAction(res *proto.BurnScriptAction, env Environment) error {
+	ws.actionsCount++
 	asset := proto.NewOptionalAssetFromDigest(res.AssetID)
 	assetResult, err := ws.validateAsset(res, *asset, env)
 	if err != nil {
@@ -611,15 +643,13 @@ func (ws *WrappedState) validateBurnAction(otherActionsCount *int, res *proto.Bu
 	if !assetResult {
 		return errors.New("action is forbidden by smart asset script")
 	}
-
 	scriptVersion, err := ws.getLibVersion()
 	if err != nil {
 		return err
 	}
-	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
-
-	if *otherActionsCount > maxScriptAction {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
+	maxScriptActions := proto.GetMaxScriptActions(scriptVersion)
+	if ws.actionsCount > maxScriptActions {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 	}
 	if res.Quantity < 0 {
 		return errors.New("negative quantity")
@@ -628,42 +658,37 @@ func (ws *WrappedState) validateBurnAction(otherActionsCount *int, res *proto.Bu
 	if err != nil {
 		return err
 	}
-
 	if assetInfo.Quantity < uint64(res.Quantity) {
 		return errors.New("quantity of asset is less than what was tried to burn")
 	}
-
 	return nil
 }
 
-func (ws *WrappedState) validateSponsorshipAction(otherActionsCount *int, res *proto.SponsorshipScriptAction) error {
-	*otherActionsCount++
+func (ws *WrappedState) validateSponsorshipAction(res *proto.SponsorshipScriptAction) error {
+	ws.actionsCount++
 	scriptVersion, err := ws.getLibVersion()
 	if err != nil {
 		return err
 	}
-	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
-
-	if *otherActionsCount > maxScriptAction {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
+	maxScriptActions := proto.GetMaxScriptActions(scriptVersion)
+	if ws.actionsCount > maxScriptActions {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 	}
 	if res.MinFee < 0 {
 		return errors.New("negative minimal fee")
 	}
-
 	return nil
 }
 
-func (ws *WrappedState) validateLeaseAction(otherActionsCount *int, res *proto.LeaseScriptAction, restrictions proto.ActionsValidationRestrictions) error {
-	*otherActionsCount++
+func (ws *WrappedState) validateLeaseAction(res *proto.LeaseScriptAction, restrictions proto.ActionsValidationRestrictions) error {
+	ws.actionsCount++
 	scriptVersion, err := ws.getLibVersion()
 	if err != nil {
 		return err
 	}
-	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
-
-	if *otherActionsCount > maxScriptAction {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
+	maxScriptActions := proto.GetMaxScriptActions(scriptVersion)
+	if ws.actionsCount > maxScriptActions {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 	}
 	if res.Amount < 0 {
 		return errors.New("negative leasing amount")
@@ -679,7 +704,6 @@ func (ws *WrappedState) validateLeaseAction(otherActionsCount *int, res *proto.L
 	if res.Recipient.Address.Equal(senderAddress) {
 		return errors.New("leasing to DApp itself is forbidden")
 	}
-
 	balance, err := ws.NewestFullWavesBalance(proto.NewRecipientFromAddress(ws.callee()))
 	if err != nil {
 		return err
@@ -690,16 +714,15 @@ func (ws *WrappedState) validateLeaseAction(otherActionsCount *int, res *proto.L
 	return nil
 }
 
-func (ws *WrappedState) validateLeaseCancelAction(otherActionsCount *int) error {
-	*otherActionsCount++
+func (ws *WrappedState) validateLeaseCancelAction() error {
+	ws.actionsCount++
 	scriptVersion, err := ws.getLibVersion()
 	if err != nil {
 		return err
 	}
-	maxScriptAction := ws.newMaxScriptComplexity(scriptVersion)
-
-	if *otherActionsCount > maxScriptAction {
-		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptAction)
+	maxScriptActions := proto.GetMaxScriptActions(scriptVersion)
+	if ws.actionsCount > maxScriptActions {
+		return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 	}
 	return nil
 }
@@ -716,7 +739,7 @@ func (ws *WrappedState) getLibVersion() (int, error) {
 	return tree.LibVersion, nil
 }
 
-func (ws *WrappedState) invCount() uint64 {
+func (ws *WrappedState) invCount() int {
 	return ws.invokeCount
 }
 
@@ -725,9 +748,6 @@ func (ws *WrappedState) incrementInvCount() {
 }
 
 func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environment) ([]proto.ScriptAction, error) {
-	dataEntriesCount := 0
-	dataEntriesSize := 0
-	otherActionsCount := 0
 	libVersion, err := ws.getLibVersion()
 	if err != nil {
 		return nil, err
@@ -741,13 +761,14 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 	restrictions := proto.ActionsValidationRestrictions{
 		DisableSelfTransfers:     disableSelfTransfers,
 		KeySizeValidationVersion: keySizeValidationVersion,
+		MaxDataEntriesSize:       env.maxDataEntriesSize(),
 	}
 
 	for _, action := range actions {
 		switch res := action.(type) {
 
 		case *proto.DataEntryScriptAction:
-			err := ws.validateDataEntryAction(&dataEntriesCount, &dataEntriesSize, res, restrictions)
+			err := ws.validateDataEntryAction(res, restrictions)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of data entry action")
 			}
@@ -816,36 +837,59 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			default:
 
 			}
+		case *proto.AttachedPaymentScriptAction:
+			var senderAddress proto.WavesAddress
+			var senderPK crypto.PublicKey
+			senderPK = *res.Sender
+			var err error
+			senderAddress, err = proto.NewAddressFromPublicKey(ws.scheme, senderPK)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get address  by public key")
+			}
+
+			if env.validateInternalPayments() {
+				err = ws.validatePaymentAction(res, senderAddress, env, restrictions)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to pass validation of attached payments")
+				}
+			}
+
+			searchBalance, searchAddr, err := ws.diff.findBalance(res.Recipient, res.Asset)
+			if err != nil {
+				return nil, err
+			}
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
+			if err != nil {
+				return nil, err
+			}
+
+			senderRecipient := proto.NewRecipientFromAddress(senderAddress)
+			senderSearchBalance, senderSearchAddr, err := ws.diff.findBalance(senderRecipient, res.Asset)
+			if err != nil {
+				return nil, err
+			}
+
+			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecipient)
+			if err != nil {
+				return nil, err
+			}
 
 		case *proto.TransferScriptAction:
 			var senderAddress proto.WavesAddress
 			var senderPK crypto.PublicKey
-			var act string
-			if res.Sender != nil {
-				act = "attached payments"
-				senderPK = *res.Sender
-				var err error
-				senderAddress, err = proto.NewAddressFromPublicKey(ws.scheme, senderPK)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get address by public key")
-				}
-			} else {
-				act = "transfer action"
-				pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get public key by address")
-				}
-				senderPK = pk
-				senderAddress = ws.callee()
 
-				res.Sender = &senderPK
+			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
+			senderPK = pk
+			senderAddress = ws.callee()
 
-			if env.validateInternalPayments() {
-				err = ws.validateTransferAction(&otherActionsCount, res, restrictions, senderAddress, env)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to pass validation of %s", act)
-				}
+			res.Sender = &senderPK
+
+			err = ws.validateTransferAction(res, restrictions, senderAddress, env)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to pass validation of transfer action")
 			}
 
 			searchBalance, searchAddr, err := ws.diff.findBalance(res.Recipient, res.Asset)
@@ -875,7 +919,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 			res.Sender = &senderPK
 
-			err = ws.validateSponsorshipAction(&otherActionsCount, res)
+			err = ws.validateSponsorshipAction(res)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
@@ -886,7 +930,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			ws.diff.sponsorships[res.AssetID.String()] = sponsorship
 
 		case *proto.IssueScriptAction:
-			err := ws.validateIssueAction(&otherActionsCount, res)
+			err := ws.validateIssueAction(res)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
@@ -921,16 +965,15 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 		case *proto.ReissueScriptAction:
-
 			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
 			res.Sender = &senderPK
 
-			err = ws.validateReissueAction(&otherActionsCount, res, env)
+			err = ws.validateReissueAction(res, env)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
+				return nil, errors.Wrapf(err, "failed to pass validation of reissue action")
 			}
 
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
@@ -974,9 +1017,9 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 			res.Sender = &senderPK
 
-			err = ws.validateBurnAction(&otherActionsCount, res, env)
+			err = ws.validateBurnAction(res, env)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
+				return nil, errors.Wrapf(err, "failed to pass validation of burn action")
 			}
 
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
@@ -1023,9 +1066,9 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 			res.Sender = &pk
 
-			err = ws.validateLeaseAction(&otherActionsCount, res, restrictions)
+			err = ws.validateLeaseAction(res, restrictions)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
+				return nil, errors.Wrapf(err, "failed to pass validation of lease action")
 			}
 
 			recipientSearchBalance, recipientSearchAddress, err := ws.diff.findBalance(res.Recipient, proto.NewOptionalAssetWaves())
@@ -1058,9 +1101,9 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 			res.Sender = &pk
 
-			err = ws.validateLeaseCancelAction(&otherActionsCount)
+			err = ws.validateLeaseCancelAction()
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
+				return nil, errors.Wrapf(err, "failed to pass validation of lease cancel action")
 			}
 
 			searchLease, err := ws.diff.findLeaseByIDForCancel(res.LeaseID)
@@ -1110,6 +1153,7 @@ type EvaluationEnvironment struct {
 	inv                   rideObject
 	ver                   int
 	validatePaymentsAfter uint64
+	mds                   int
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64) (*EvaluationEnvironment, error) {
@@ -1177,16 +1221,15 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 		takeStr:               env.takeStr,
 		inv:                   env.inv,
 		validatePaymentsAfter: env.validatePaymentsAfter,
+		mds:                   env.mds,
 	}, nil
 }
 
-func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) error {
+func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
+	e.takeStr = takeRideString
 	if !isRideV5 {
 		e.takeStr = takeRideStringWrong
-		return nil
 	}
-	e.takeStr = takeRideString
-	return nil
 }
 
 func (e *EvaluationEnvironment) ChooseSizeCheck(v int) {
@@ -1195,6 +1238,13 @@ func (e *EvaluationEnvironment) ChooseSizeCheck(v int) {
 		e.check = func(l int) bool {
 			return l <= maxMessageLength
 		}
+	}
+}
+
+func (e *EvaluationEnvironment) ChooseMaxDataEntriesSize(isRideV5 bool) {
+	e.mds = proto.MaxDataEntriesScriptActionsSizeInBytesV1
+	if isRideV5 {
+		e.mds = proto.MaxDataEntriesScriptActionsSizeInBytesV2
 	}
 }
 
@@ -1340,6 +1390,10 @@ func (e *EvaluationEnvironment) validateInternalPayments() bool {
 
 func (e *EvaluationEnvironment) internalPaymentsValidationHeight() uint64 {
 	return e.validatePaymentsAfter
+}
+
+func (e *EvaluationEnvironment) maxDataEntriesSize() int {
+	return e.mds
 }
 
 var wavesAssetBytes = crypto.Digest{}.Bytes()

@@ -17,9 +17,7 @@ type EthereumHash [EthereumHashSize]byte
 // NewKeccak256EthereumHash calculates and returns the Keccak256 hash of the input data,
 // converting it to an EthereumHash data structure.
 func NewKeccak256EthereumHash(data []byte) EthereumHash {
-	// nickeskov: can't fail
-	digest := crypto.MustKeccak256(data)
-	return EthereumHash(digest)
+	return EthereumHash(crypto.MustKeccak256(data))
 }
 
 // BytesToEthereumHash sets b to hash.
