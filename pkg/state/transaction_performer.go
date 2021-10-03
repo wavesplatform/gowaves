@@ -60,7 +60,7 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if err != nil {
 		return err
 	}
-	if err := tp.stor.scriptsStorage.setAssetScript(proto.AssetIDFromDigest(assetID), proto.Script{}, tx.SenderPK, info.blockID); err != nil {
+	if err := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, tx.SenderPK, info.blockID); err != nil {
 		return err
 	}
 	return tp.performIssue(&tx.Issue, assetID, info)
@@ -79,7 +79,7 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	if err != nil {
 		return err
 	}
-	if err := tp.stor.scriptsStorage.setAssetScript(proto.AssetIDFromDigest(assetID), tx.Script, tx.SenderPK, info.blockID); err != nil {
+	if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
 		return err
 	}
 	return tp.performIssue(&tx.Issue, assetID, info)
@@ -328,7 +328,7 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	if !ok {
 		return errors.New("failed to convert interface to SetAssetScriptWithProofs transaction")
 	}
-	if err := tp.stor.scriptsStorage.setAssetScript(proto.AssetIDFromDigest(tx.AssetID), tx.Script, tx.SenderPK, info.blockID); err != nil {
+	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to set asset script")
 	}
 	return nil
