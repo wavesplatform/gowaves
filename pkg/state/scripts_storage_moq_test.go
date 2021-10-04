@@ -101,10 +101,10 @@ var _ ScriptStorageState = &MockScriptStorageState{}
 //             setAccountScriptFunc: func(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
 // 	               panic("mock out the setAccountScript method")
 //             },
-//             setAssetScriptFunc: func(assetID proto.AssetID, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
+//             setAssetScriptFunc: func(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
 // 	               panic("mock out the setAssetScript method")
 //             },
-//             setAssetScriptUncertainFunc: func(assetID proto.AssetID, script proto.Script, pk crypto.PublicKey)  {
+//             setAssetScriptUncertainFunc: func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)  {
 // 	               panic("mock out the setAssetScriptUncertain method")
 //             },
 //             setScriptFunc: func(scriptType blockchainEntity, key []byte, record scriptRecord, blockID proto.BlockID) error {
@@ -199,10 +199,10 @@ type MockScriptStorageState struct {
 	setAccountScriptFunc func(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
 
 	// setAssetScriptFunc mocks the setAssetScript method.
-	setAssetScriptFunc func(assetID proto.AssetID, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
+	setAssetScriptFunc func(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
 
 	// setAssetScriptUncertainFunc mocks the setAssetScriptUncertain method.
-	setAssetScriptUncertainFunc func(assetID proto.AssetID, script proto.Script, pk crypto.PublicKey)
+	setAssetScriptUncertainFunc func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)
 
 	// setScriptFunc mocks the setScript method.
 	setScriptFunc func(scriptType blockchainEntity, key []byte, record scriptRecord, blockID proto.BlockID) error
@@ -377,7 +377,7 @@ type MockScriptStorageState struct {
 		// setAssetScript holds details about calls to the setAssetScript method.
 		setAssetScript []struct {
 			// AssetID is the assetID argument value.
-			AssetID proto.AssetID
+			AssetID crypto.Digest
 			// Script is the script argument value.
 			Script proto.Script
 			// Pk is the pk argument value.
@@ -387,8 +387,8 @@ type MockScriptStorageState struct {
 		}
 		// setAssetScriptUncertain holds details about calls to the setAssetScriptUncertain method.
 		setAssetScriptUncertain []struct {
-			// AssetID is the assetID argument value.
-			AssetID proto.AssetID
+			// FullAssetID is the fullAssetID argument value.
+			FullAssetID crypto.Digest
 			// Script is the script argument value.
 			Script proto.Script
 			// Pk is the pk argument value.
@@ -1330,12 +1330,12 @@ func (mock *MockScriptStorageState) setAccountScriptCalls() []struct {
 }
 
 // setAssetScript calls setAssetScriptFunc.
-func (mock *MockScriptStorageState) setAssetScript(assetID proto.AssetID, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
+func (mock *MockScriptStorageState) setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
 	if mock.setAssetScriptFunc == nil {
 		panic("MockScriptStorageState.setAssetScriptFunc: method is nil but ScriptStorageState.setAssetScript was just called")
 	}
 	callInfo := struct {
-		AssetID proto.AssetID
+		AssetID crypto.Digest
 		Script  proto.Script
 		Pk      crypto.PublicKey
 		BlockID proto.BlockID
@@ -1355,13 +1355,13 @@ func (mock *MockScriptStorageState) setAssetScript(assetID proto.AssetID, script
 // Check the length with:
 //     len(mockedScriptStorageState.setAssetScriptCalls())
 func (mock *MockScriptStorageState) setAssetScriptCalls() []struct {
-	AssetID proto.AssetID
+	AssetID crypto.Digest
 	Script  proto.Script
 	Pk      crypto.PublicKey
 	BlockID proto.BlockID
 } {
 	var calls []struct {
-		AssetID proto.AssetID
+		AssetID crypto.Digest
 		Script  proto.Script
 		Pk      crypto.PublicKey
 		BlockID proto.BlockID
@@ -1373,37 +1373,37 @@ func (mock *MockScriptStorageState) setAssetScriptCalls() []struct {
 }
 
 // setAssetScriptUncertain calls setAssetScriptUncertainFunc.
-func (mock *MockScriptStorageState) setAssetScriptUncertain(assetID proto.AssetID, script proto.Script, pk crypto.PublicKey) {
+func (mock *MockScriptStorageState) setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) {
 	if mock.setAssetScriptUncertainFunc == nil {
 		panic("MockScriptStorageState.setAssetScriptUncertainFunc: method is nil but ScriptStorageState.setAssetScriptUncertain was just called")
 	}
 	callInfo := struct {
-		AssetID proto.AssetID
-		Script  proto.Script
-		Pk      crypto.PublicKey
+		FullAssetID crypto.Digest
+		Script      proto.Script
+		Pk          crypto.PublicKey
 	}{
-		AssetID: assetID,
-		Script:  script,
-		Pk:      pk,
+		FullAssetID: fullAssetID,
+		Script:      script,
+		Pk:          pk,
 	}
 	mock.locksetAssetScriptUncertain.Lock()
 	mock.calls.setAssetScriptUncertain = append(mock.calls.setAssetScriptUncertain, callInfo)
 	mock.locksetAssetScriptUncertain.Unlock()
-	mock.setAssetScriptUncertainFunc(assetID, script, pk)
+	mock.setAssetScriptUncertainFunc(fullAssetID, script, pk)
 }
 
 // setAssetScriptUncertainCalls gets all the calls that were made to setAssetScriptUncertain.
 // Check the length with:
 //     len(mockedScriptStorageState.setAssetScriptUncertainCalls())
 func (mock *MockScriptStorageState) setAssetScriptUncertainCalls() []struct {
-	AssetID proto.AssetID
-	Script  proto.Script
-	Pk      crypto.PublicKey
+	FullAssetID crypto.Digest
+	Script      proto.Script
+	Pk          crypto.PublicKey
 } {
 	var calls []struct {
-		AssetID proto.AssetID
-		Script  proto.Script
-		Pk      crypto.PublicKey
+		FullAssetID crypto.Digest
+		Script      proto.Script
+		Pk          crypto.PublicKey
 	}
 	mock.locksetAssetScriptUncertain.RLock()
 	calls = mock.calls.setAssetScriptUncertain

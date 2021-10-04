@@ -374,7 +374,6 @@ func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appen
 
 type appendTxParams struct {
 	chans            *verifierChans
-	decodedAbiData   *ethabi.DecodedCallData
 	checkerInfo      *checkerInfo
 	blockInfo        *proto.BlockInfo
 	block            *proto.BlockHeader
@@ -387,7 +386,7 @@ type appendTxParams struct {
 
 func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransaction, params *appendTxParams) (proto.EthereumTransactionKind, error) {
 	if ethTx.Data() == nil {
-		return &proto.EthereumTransferWavesTx{}, nil
+		return proto.NewEthereumTransferWavesTx(), nil
 	}
 
 	selectorBytes := ethTx.Data()
@@ -399,19 +398,18 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 	assetID := proto.AssetID{}
 	copy(assetID[:], ethTx.To()[:proto.AssetIDSize])
 	asset, err := a.state.AssetInfoByID(assetID, true)
-	if err != nil {
+	if err != nil && !errors.Is(err, errs.UnknownAsset{}) {
 		return nil, errors.Errorf("failed to get asset info by ethereum recipient address %s, %v", ethTx.To().String(), err)
 	}
 
-	if ethabi.IsERC20Selector(selector) && asset != nil { // TODO if the error is "Not found" then we should break
+	if ethabi.IsERC20Selector(selector) && !errors.Is(err, errs.UnknownAsset{}) {
 
 		db := ethabi.NewErc20MethodsMap()
 		decodedData, err := db.ParseCallDataRide(ethTx.Data())
 		if err != nil {
 			return nil, errors.Errorf("failed to parse ethereum data")
 		}
-		params.decodedAbiData = decodedData
-		return &proto.EthereumTransferAssetsErc20Tx{Asset: *proto.NewOptionalAssetFromDigest(asset.ID)}, nil
+		return proto.NewEthereumTransferAssetsErc20Tx(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID)), nil
 	}
 
 	// TODO it'd better if we have a function tree.Meta.Contains(sel selector) bool to make the last case clear
@@ -431,9 +429,8 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 	if err != nil {
 		return nil, errors.Errorf("failed to parse ethereum data")
 	}
-	params.decodedAbiData = decodedData
 
-	return &proto.EthereumInvokeScriptTx{}, nil
+	return proto.NewEthereumInvokeScriptTx(*decodedData), nil
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*applicationResult, error) {
@@ -455,7 +452,7 @@ func (a *txAppender) handleDefaultTransaction(tx proto.Transaction, params *appe
 		return nil, err
 	}
 	// Create balance diff of this tx.
-	differInfo := &differInfo{params.initialisation, params.blockInfo, params.decodedAbiData}
+	differInfo := &differInfo{params.initialisation, params.blockInfo}
 	txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, differInfo)
 	if err != nil {
 		return nil, errs.Extend(err, "create transaction diff")

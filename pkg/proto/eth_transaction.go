@@ -2,6 +2,7 @@ package proto
 
 import (
 	"bytes"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"io"
 	"math/big"
 
@@ -81,9 +82,18 @@ type EthereumTxData interface {
 
 type EthereumTransactionKind interface {
 	Type() string
+	DecodedData() *ethabi.DecodedCallData
 }
 
 type EthereumTransferWavesTx struct {
+}
+
+func NewEthereumTransferWavesTx() *EthereumTransferWavesTx {
+	return &EthereumTransferWavesTx{}
+}
+
+func (tx *EthereumTransferWavesTx) DecodedData() *ethabi.DecodedCallData {
+	return nil
 }
 
 func (tx *EthereumTransferWavesTx) Type() string {
@@ -91,18 +101,36 @@ func (tx *EthereumTransferWavesTx) Type() string {
 }
 
 type EthereumTransferAssetsErc20Tx struct {
-	Asset OptionalAsset
+	decodedData ethabi.DecodedCallData
+	Asset       OptionalAsset
+}
+
+func NewEthereumTransferAssetsErc20Tx(decodedData ethabi.DecodedCallData, asset OptionalAsset) *EthereumTransferAssetsErc20Tx {
+	return &EthereumTransferAssetsErc20Tx{Asset: asset, decodedData: decodedData}
 }
 
 func (tx *EthereumTransferAssetsErc20Tx) Type() string {
 	return "EthereumTransferAssetsErc20Tx"
 }
 
+func (tx *EthereumTransferAssetsErc20Tx) DecodedData() *ethabi.DecodedCallData {
+	return &tx.decodedData
+}
+
 type EthereumInvokeScriptTx struct {
+	decodedData ethabi.DecodedCallData
+}
+
+func NewEthereumInvokeScriptTx(decodedData ethabi.DecodedCallData) *EthereumInvokeScriptTx {
+	return &EthereumInvokeScriptTx{decodedData: decodedData}
 }
 
 func (tx *EthereumInvokeScriptTx) Type() string {
 	return "EthereumInvokeScriptTx"
+}
+
+func (tx *EthereumInvokeScriptTx) DecodedData() *ethabi.DecodedCallData {
+	return &tx.decodedData
 }
 
 type EthereumTransaction struct {
@@ -320,7 +348,12 @@ func (tx *EthereumTransaction) Nonce() uint64 { return tx.Inner.nonce() }
 func (tx *EthereumTransaction) To() *EthereumAddress { return tx.Inner.to().copy() }
 
 func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (WavesAddress, error) {
-	to, err := tx.Inner.to().ToWavesAddress(scheme)
+	toEthAdr := tx.Inner.to()
+	if toEthAdr == nil { // contract-creation transactions, To returns nil
+		return WavesAddress{}, errors.New("recipient address is nil, but it has been called")
+	}
+
+	to, err := toEthAdr.ToWavesAddress(scheme)
 	if err != nil {
 		return WavesAddress{}, err
 	}

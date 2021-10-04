@@ -202,9 +202,8 @@ func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 }
 
 type differInfo struct {
-	initialisation  bool
-	blockInfo       *proto.BlockInfo
-	decodedCallData *ethabi.DecodedCallData
+	initialisation bool
+	blockInfo      *proto.BlockInfo
 }
 
 func (i *differInfo) hasMiner() bool {
@@ -520,7 +519,12 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 		updateMinIntermediateBalance = true
 	}
 
-	decodedData := info.decodedCallData
+	txErc20Kind, ok := tx.TxKind.(*proto.EthereumTransferAssetsErc20Tx)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20Tx")
+	}
+
+	decodedData := txErc20Kind.DecodedData()
 
 	var senderAddress proto.WavesAddress
 	var recipientAddress proto.WavesAddress
@@ -580,12 +584,8 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	}
 
 	// transfer
-	txErc20Type, ok := tx.TxKind.(*proto.EthereumTransferAssetsErc20Tx)
-	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20Tx")
-	}
 
-	senderAmountKey := byteKey(senderAddress, txErc20Type.Asset.ToID())
+	senderAmountKey := byteKey(senderAddress, txErc20Kind.Asset.ToID())
 
 	senderAmountBalanceDiff := -amount
 	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(senderAmountBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
@@ -593,7 +593,7 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	}
 	// Append receiver diff.
 
-	receiverKey := byteKey(recipientAddress, txErc20Type.Asset.ToID())
+	receiverKey := byteKey(recipientAddress, txErc20Kind.Asset.ToID())
 	receiverBalanceDiff := amount
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err

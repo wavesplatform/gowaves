@@ -269,34 +269,6 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	return true, r.ScriptActions(), err
 }
 
-func convertRideInterfaceToSpecificType(decodedArg ride.RideType) (proto.Argument, error) {
-	var arg proto.Argument
-	switch m := decodedArg.(type) {
-	case ride.RideInt:
-		arg = &proto.IntegerArgument{Value: int64(m)}
-	case ride.RideBoolean:
-		arg = &proto.BooleanArgument{Value: bool(m)}
-	case ride.RideBytes:
-		arg = &proto.BinaryArgument{Value: m}
-	case ride.RideString:
-		arg = &proto.StringArgument{Value: string(m)}
-	case ride.RideList:
-		var miniArgs proto.Arguments
-		for _, v := range m {
-			a, err := convertRideInterfaceToSpecificType(v)
-			if err != nil {
-				return nil, err
-			}
-			miniArgs = append(miniArgs, a)
-		}
-		arg = &proto.ListArgument{Items: miniArgs}
-	default:
-		return nil, errors.New("unknown argument type")
-	}
-
-	return arg, nil
-}
-
 func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) ([]proto.Argument, error) {
 	var arguments []proto.Argument
 	for _, decodedArg := range decodedArgs {
@@ -304,7 +276,7 @@ func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.Decode
 		if err != nil {
 			return nil, errors.Errorf("failed to convert data type to ride type %v", err)
 		}
-		arg, err := convertRideInterfaceToSpecificType(value)
+		arg, err := ride.ConvertRideInterfaceToSpecificType(value)
 		if err != nil {
 			return nil, err
 		}
@@ -326,7 +298,7 @@ func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.Ethereu
 	if err != nil {
 		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
 	}
-	abiPayments := info.decodedAbiData.Payments
+	abiPayments := tx.TxKind.DecodedData().Payments
 	var scriptPayments []proto.ScriptPayment
 	for _, p := range abiPayments {
 		assetID, err := a.state.AssetInfoByID(proto.AssetIDFromDigest(p.AssetID), true)
@@ -347,11 +319,7 @@ func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.Ethereu
 	env.ChooseSizeCheck(tree.LibVersion)
 
 	env.ChooseTakeString(info.rideV5Activated)
-	if err != nil {
-		return false, nil, errors.Wrap(err, "failed to choose takeString")
-	}
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
-
 	if tree.LibVersion >= 5 {
 		sender, err := tx.WavesAddressFrom(a.settings.AddressSchemeCharacter)
 		if err != nil {
@@ -362,7 +330,7 @@ func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.Ethereu
 			return false, nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 		}
 	}
-	decodedData := info.decodedAbiData
+	decodedData := tx.TxKind.DecodedData()
 
 	arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
 	if err != nil {

@@ -16,8 +16,8 @@ type ScriptStorageState interface {
 	scriptTreeByKey(key []byte, filter bool) (*ride.Tree, error)
 	commitUncertain(blockID proto.BlockID) error
 	dropUncertain()
-	setAssetScriptUncertain(assetID proto.AssetID, script proto.Script, pk crypto.PublicKey)
-	setAssetScript(assetID proto.AssetID, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
+	setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)
+	setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
 	newestIsSmartAsset(assetID proto.AssetID, filter bool) bool
 	isSmartAsset(assetID proto.AssetID, filter bool) (bool, error)
 	newestScriptByAsset(assetID proto.AssetID, filter bool) (*ride.Tree, error)

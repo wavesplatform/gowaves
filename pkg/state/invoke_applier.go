@@ -351,7 +351,6 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		txID = t.ID
 	case *proto.EthereumTransaction:
 		txID = t.ID
-		differInfo.decodedCallData = info.decodedAbiData
 	}
 	// Add feeAndPaymentChanges to stor before performing actions.
 	feeAndPaymentChanges, err := ia.blockDiffer.createTransactionDiff(tx, info.block, differInfo)
@@ -847,7 +846,8 @@ func (ia *invokeApplier) applyEthereumInvokeScript(tx *proto.EthereumTransaction
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 	}
-	decodedData := info.decodedAbiData
+
+	decodedData := tx.TxKind.DecodedData()
 
 	scriptPK, err := ia.stor.scriptsStorage.NewestScriptPKByAddr(scriptAddr, !info.initialisation)
 	if err != nil {
@@ -871,7 +871,7 @@ func (ia *invokeApplier) applyEthereumInvokeScript(tx *proto.EthereumTransaction
 	}
 	// Basic differ for InvokeScript creates only fee and payment diff.
 	// Create changes for both failed and successful scenarios.
-	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo, decodedCallData: info.decodedAbiData}
+	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
 	failedChanges, err := ia.blockDiffer.createFailedTransactionDiff(tx, info.block, differInfo)
 	if err != nil {
 		return nil, err
