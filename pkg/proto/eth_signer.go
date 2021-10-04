@@ -22,22 +22,22 @@ const (
 
 type EthereumPublicKey btcec.PublicKey
 
-func NewEthereumPublicKeyFromHexString(s string) (*EthereumPublicKey, error) {
+func NewEthereumPublicKeyFromHexString(s string) (EthereumPublicKey, error) {
 	b, err := DecodeFromHexString(s)
 	if err != nil {
-		return nil, errors.Wrapf(err,
+		return EthereumPublicKey{}, errors.Wrapf(err,
 			"failed to decode marshaled EthereumPublicKey into bytes from hex string %q", s,
 		)
 	}
 	return NewEthereumPublicKeyFromBytes(b)
 }
 
-func NewEthereumPublicKeyFromBytes(b []byte) (*EthereumPublicKey, error) {
+func NewEthereumPublicKeyFromBytes(b []byte) (EthereumPublicKey, error) {
 	var pubKey EthereumPublicKey
 	if err := pubKey.UnmarshalBinary(b); err != nil {
-		return nil, err
+		return EthereumPublicKey{}, err
 	}
-	return &pubKey, nil
+	return pubKey, nil
 }
 
 func (epk *EthereumPublicKey) String() string {

@@ -6299,3 +6299,75 @@ func TestIssue_ToProtobufWithInvalidUtf8String(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, bts)
 }
+
+func TestWavesTranactionGetSenderAndGetSenderPK(t *testing.T) {
+	emptyWavesPK := crypto.PublicKey{}
+	emptyWavesAddr, err := NewAddressFromPublicKey(TestNetScheme, emptyWavesPK)
+	require.NoError(t, err)
+
+	wavesPK, err := crypto.NewPublicKeyFromBase58("6uQfgnn18ixRGmhc31eoqWqZrac7jWpT2sNNXtvxQy4A")
+	require.NoError(t, err)
+	wavesAddr, err := NewAddressFromPublicKey(TestNetScheme, wavesPK)
+	require.NoError(t, err)
+
+	tests := []struct {
+		tx              Transaction
+		expectedPKBytes []byte
+		expectedAddr    Address
+	}{
+		{&Genesis{}, emptyWavesPK.Bytes(), emptyWavesAddr},
+		{&Payment{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&IssueWithProofs{Issue: Issue{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&IssueWithSig{Issue: Issue{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&TransferWithProofs{Transfer: Transfer{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&TransferWithSig{Transfer: Transfer{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&ReissueWithProofs{Reissue: Reissue{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&ReissueWithSig{Reissue: Reissue{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&BurnWithProofs{Burn: Burn{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&BurnWithSig{Burn: Burn{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&ExchangeWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&ExchangeWithSig{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&ExchangeWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&LeaseWithProofs{Lease: Lease{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&LeaseWithSig{Lease: Lease{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&LeaseCancelWithProofs{LeaseCancel: LeaseCancel{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&LeaseCancelWithSig{LeaseCancel: LeaseCancel{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&CreateAliasWithProofs{CreateAlias: CreateAlias{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&CreateAliasWithSig{CreateAlias: CreateAlias{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&MassTransferWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&DataWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&SetScriptWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&SponsorshipWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&SetAssetScriptWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&InvokeScriptWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&UpdateAssetInfoWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+	}
+	for _, tc := range tests {
+		addr, err := tc.tx.GetSender(TestNetScheme)
+		require.NoError(t, err)
+		require.Equal(t, tc.expectedAddr, addr)
+		type getSenderPK interface {
+			GetSenderPK() crypto.PublicKey
+		}
+		if wavesTx, ok := tc.tx.(getSenderPK); ok {
+			pk := wavesTx.GetSenderPK()
+			require.Equal(t, tc.expectedPKBytes, pk.Bytes())
+		}
+	}
+}
+
+func TestEthereumGetSenderAndFromPK(t *testing.T) {
+	ethereumPK, err := NewEthereumPublicKeyFromHexString("0xc4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
+	require.NoError(t, err)
+	ethereumAddr := ethereumPK.EthereumAddress()
+
+	tx := &EthereumTransaction{senderPK: &ethereumPK}
+
+	actualPK, err := tx.FromPK()
+	require.NoError(t, err)
+	require.Equal(t, &ethereumPK, actualPK)
+
+	actualAddr, err := tx.GetSender(TestNetScheme)
+	require.NoError(t, err)
+	require.Equal(t, ethereumAddr, actualAddr)
+}
