@@ -879,7 +879,7 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	return r, nil
 }
 
-func ConvertRideInterfaceToSpecificType(decodedArg RideType) (proto.Argument, error) {
+func ConvertEthereumRideArgumentsToSpecificArgument(decodedArg RideType) (proto.Argument, error) {
 	var arg proto.Argument
 	switch m := decodedArg.(type) {
 	case RideInt:
@@ -893,7 +893,7 @@ func ConvertRideInterfaceToSpecificType(decodedArg RideType) (proto.Argument, er
 	case RideList:
 		var miniArgs proto.Arguments
 		for _, v := range m {
-			a, err := ConvertRideInterfaceToSpecificType(v)
+			a, err := ConvertEthereumRideArgumentsToSpecificArgument(v)
 			if err != nil {
 				return nil, err
 			}
@@ -914,7 +914,7 @@ func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.Decode
 		if err != nil {
 			return nil, errors.Errorf("failed to convert data type to ride type %v", err)
 		}
-		arg, err := ConvertRideInterfaceToSpecificType(value)
+		arg, err := ConvertEthereumRideArgumentsToSpecificArgument(value)
 		if err != nil {
 			return nil, err
 		}

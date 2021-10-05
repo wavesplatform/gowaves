@@ -390,19 +390,22 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 	}
 
 	selectorBytes := ethTx.Data()
-	selector, err := ethabi.NewSelectorFromBytes(selectorBytes[:4])
+	if len(ethTx.Data()) < ethabi.SelectorSize {
+		return nil, errors.Errorf("length of data from ethereum transaction is less than %d", ethabi.SelectorSize)
+	}
+	selector, err := ethabi.NewSelectorFromBytes(selectorBytes[:ethabi.SelectorSize])
 	if err != nil {
 		return nil, errors.Errorf("failed to guess ethereum transaction kind, %v", err)
 	}
 
-	assetID := proto.AssetID{}
-	copy(assetID[:], ethTx.To()[:proto.AssetIDSize])
-	asset, err := a.state.AssetInfoByID(assetID, true)
+	assetID := (*proto.AssetID)(ethTx.To())
+
+	asset, err := a.state.AssetInfoByID(*assetID, true)
 	if err != nil && !errors.Is(err, errs.UnknownAsset{}) {
 		return nil, errors.Errorf("failed to get asset info by ethereum recipient address %s, %v", ethTx.To().String(), err)
 	}
 
-	if ethabi.IsERC20Selector(selector) && !errors.Is(err, errs.UnknownAsset{}) {
+	if ethabi.IsERC20Selector(selector) && err == nil {
 
 		db := ethabi.NewErc20MethodsMap()
 		decodedData, err := db.ParseCallDataRide(ethTx.Data())

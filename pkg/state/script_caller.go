@@ -276,7 +276,7 @@ func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.Decode
 		if err != nil {
 			return nil, errors.Errorf("failed to convert data type to ride type %v", err)
 		}
-		arg, err := ride.ConvertRideInterfaceToSpecificType(value)
+		arg, err := ride.ConvertEthereumRideArgumentsToSpecificArgument(value)
 		if err != nil {
 			return nil, err
 		}
