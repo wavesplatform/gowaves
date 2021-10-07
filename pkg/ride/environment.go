@@ -549,7 +549,7 @@ func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, 
 		return err
 	}
 	if balance < uint64(res.Amount) {
-		return errors.Errorf("transfer action: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+		return errors.Errorf("transfer action: not enough money in the DApp, balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
 			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 	}
 	return nil

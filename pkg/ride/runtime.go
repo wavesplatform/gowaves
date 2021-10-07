@@ -17,28 +17,6 @@ type rideType interface {
 	get(prop string) (rideType, error)
 }
 
-type rideThrow string
-
-func (a rideThrow) instanceOf() string {
-	return "Throw"
-}
-
-func (a rideThrow) eq(other rideType) bool {
-	if o, ok := other.(rideThrow); ok {
-		return a == o
-	}
-	return false
-}
-
-func (a rideThrow) get(prop string) (rideType, error) {
-	switch prop {
-	case "message":
-		return rideString(a), nil
-	default:
-		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
-	}
-}
-
 type rideBoolean bool
 
 func (b rideBoolean) instanceOf() string {

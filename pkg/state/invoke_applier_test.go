@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mr-tron/base58/base58"
@@ -739,52 +740,40 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 	info := to.fallibleValidationParams(t)
 	info.acceptFailed = true
 	info.blockV5Activated = true
-	to.setDApp(t, "ride4_asset.base64", testGlobal.recipientInfo)
+	info.rideV5Activated = true
+
+	to.setDApp(t, "ride5_recursive_invoke.base64", testGlobal.recipientInfo)
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
 
 	sender, dapp := invokeSenderRecipient()
-	newAsset, name := createGeneratedAsset(t)
-	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
-	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
+	//fc100 := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 100}, &proto.StringArgument{Value: strings.Repeat("0", 100)}}}
+	fc1000 := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 100}, &proto.StringArgument{Value: strings.Repeat("0", 1000)}}}
 	tests := []invokeApplierTestData{
+		//{
+		//	payments: []proto.ScriptPayment{},
+		//	fc:       fc100,
+		//	errorRes: true,
+		//	failRes:  false,
+		//	correctBalances: map[rcpAsset]uint64{
+		//		{sender, nil}: invokeFee * 2,
+		//		{dapp, nil}:   0,
+		//	},
+		//	correctAddrs: []proto.Address{
+		//		testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+		//	},
+		//},
 		{
 			payments: []proto.ScriptPayment{},
-			fc:       fc,
-			errorRes: false,
-			failRes:  false,
-			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     invokeFee * 2,
-				{dapp, &newAsset}: 100000,
-			},
-			correctAddrs: []proto.Address{
-				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
-			},
-		},
-		{
-			payments: []proto.ScriptPayment{},
-			fc:       fc1,
-			errorRes: false,
-			failRes:  false,
-			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     invokeFee,
-				{dapp, &newAsset}: 110000,
-			},
-			correctAddrs: []proto.Address{
-				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
-			},
-		},
-		{
-			payments: []proto.ScriptPayment{},
-			fc:       fc1,
+			fc:       fc1000,
 			errorRes: false,
 			failRes:  true,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     0,
-				{dapp, &newAsset}: 110000,
+				{sender, nil}: invokeFee * 2,
+				{dapp, nil}:   0,
 			},
 			correctAddrs: []proto.Address{
-				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr, // Script address should be although its balance does not change.
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 		},
 	}

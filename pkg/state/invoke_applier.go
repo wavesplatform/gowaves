@@ -789,7 +789,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if err != nil {
 		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", tx.ID.String(), err.Error())
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
-		if !info.acceptFailed {
+		if !info.acceptFailed || ia.sc.recentTxComplexity < FailFreeInvokeComplexity {
 			return nil, err
 		}
 		res = &invocationResult{

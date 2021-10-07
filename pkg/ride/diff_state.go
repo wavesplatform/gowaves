@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -110,7 +109,7 @@ func (diffSt *diffState) findMinGenerating(effectiveHistory []int64, generatingF
 func (diffSt *diffState) addEffectiveToHistory(searchAddress string, effective int64) error {
 	oldDiffBalance, ok := diffSt.balances[searchAddress]
 	if !ok {
-		return errors.Errorf("cannot find balance to add effective to history")
+		return EvaluationFailure.Errorf("cannot find balance to add effective to history")
 	}
 	oldDiffBalance.effectiveHistory = append(oldDiffBalance.effectiveHistory, effective)
 	diffSt.balances[searchAddress] = oldDiffBalance
@@ -252,7 +251,7 @@ func (diffSt *diffState) findDeleteFromDataEntryByKey(key string, address string
 func (diffSt *diffState) findBalance(recipient proto.Recipient, asset proto.OptionalAsset) (*diffBalance, string, error) {
 	address, err := diffSt.state.NewestRecipientToAddress(recipient)
 	if err != nil {
-		return nil, "", errors.Errorf("cannot get address from recipient")
+		return nil, "", EvaluationFailure.Errorf("cannot get address from recipient")
 	}
 
 	if balance, ok := diffSt.balances[address.String()+asset.String()]; ok {

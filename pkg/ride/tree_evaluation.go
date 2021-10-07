@@ -1,35 +1,13 @@
 package ride
 
 import (
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func CallVerifier(env Environment, tree *Tree) (Result, error) {
 	e, err := treeVerifierEvaluator(env, tree)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to call verifier")
-	}
-	return e.evaluate()
-}
-
-func invokeFunctionFromDApp(env Environment, recipient proto.Recipient, fnName rideString, listArgs rideList) (Result, error) {
-	newScript, err := env.state().GetByteTree(recipient)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get script by recipient")
-	}
-
-	tree, err := Parse(newScript)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get tree by script")
-	}
-	if tree.LibVersion < 5 {
-		return nil, errors.Errorf("failed to call 'invoke' for script with version %d. Scripts with version 5 are only allowed to be used in 'invoke'", tree.LibVersion)
-	}
-
-	e, err := treeFunctionEvaluatorForInvokeDAppFromDApp(env, tree, string(fnName), listArgs)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to call function '%s'", fnName)
+		return nil, RuntimeError.Wrap(err, "failed to call verifier")
 	}
 	return e.evaluate()
 }
@@ -38,36 +16,35 @@ func CallFunction(env Environment, tree *Tree, name string, args proto.Arguments
 	if name == "" {
 		name = "default"
 	}
-	e, err := treeFunctionEvaluator(env, tree, name, args)
+	arguments, err := convertProtoArguments(args)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to call function '%s'", name)
+		return nil, EvaluationFailure.Wrapf(err, "failed to call function '%s'", name)
+	}
+	e, err := treeFunctionEvaluator(env, tree, name, arguments)
+	if err != nil {
+		return nil, EvaluationFailure.Wrapf(err, "failed to call function '%s'", name)
 	}
 	rideResult, err := e.evaluate()
-
-	DAppResult, ok := rideResult.(DAppResult)
+	if err != nil {
+		return nil, err
+	}
+	dAppResult, ok := rideResult.(DAppResult)
 	if !ok {
-		return rideResult, err
+		return rideResult, EvaluationFailure.Errorf("invalid result of call function '%s'", name)
 	}
 	if tree.LibVersion < 5 {
-		return rideResult, err
+		return rideResult, nil
 	}
-
+	// Add actions and complexity from wrapped state
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
-		return nil, errors.New("wrong state")
+		return nil, EvaluationFailure.New("not a wrapped state")
 	}
-
-	complexity, ok := ws.checkTotalComplexity()
-	if !ok {
-		return nil, errors.Errorf("complexity of invocation chain %d exceeds maximum allowed complexity of %d", complexity, MaxChainInvokeComplexity)
+	dAppResult.complexity += ws.totalComplexity
+	if ws.act == nil { // No additional actions in wrapped state
+		return rideResult, nil
 	}
-
-	if ws.act == nil {
-		return rideResult, err
-	}
-
-	fullActions := ws.act
-	fullActions = append(fullActions, DAppResult.actions...)
-	DAppResult.actions = fullActions
-	return DAppResult, err
+	// Append actions of the original call to the end of actions collected in wrapped state
+	dAppResult.actions = append(ws.act, dAppResult.actions...)
+	return dAppResult, nil
 }
