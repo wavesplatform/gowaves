@@ -351,9 +351,9 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 	}
 
 	switch ethTx.TxKind.(type) {
-	case *proto.EthereumTransferWavesTx, *proto.EthereumTransferAssetsErc20Tx:
+	case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
 		return nil
-	case *proto.EthereumInvokeScriptTx:
+	case *proto.EthereumInvokeScriptTxKind:
 		if err := tp.stor.commitUncertain(info.blockID); err != nil {
 			return errors.Wrap(err, "failed to commit invoke changes")
 		}

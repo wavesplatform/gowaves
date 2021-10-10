@@ -6,11 +6,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
-	m "math"
 	"math/big"
 )
 
-var rideDiffEthWaves = m.Pow(10, 10) // in ethereum numbers are represented in 10^18. In waves it's 10^8
+const rideDiffEthWaves = 10e10 // in ethereum numbers are represented in 10^18. In waves it's 10^8
 
 func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) {
 	switch transaction := tx.(type) {
@@ -65,7 +64,6 @@ func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) 
 	case *proto.UpdateAssetInfoWithProofs:
 		return updateAssetInfoWithProofsToObject(scheme, transaction)
 	case *proto.EthereumTransaction:
-
 		return ethereumInvokeScriptWithProofsToObject(scheme, transaction)
 	default:
 		return nil, errors.Errorf("conversion to RIDE object is not implemented for %T", transaction)
@@ -941,7 +939,7 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 	}
 
 	switch kind := tx.TxKind.(type) {
-	case *proto.EthereumTransferWavesTx:
+	case *proto.EthereumTransferWavesTxKind:
 		r := make(rideObject)
 		r[instanceFieldName] = RideString("TransferTransaction")
 		r["version"] = RideInt(tx.GetVersion())
@@ -963,13 +961,15 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["bodyBytes"] = RideBytes(nil)
 		r["proofs"] = proofs(nil)
 		return r, nil
-	case *proto.EthereumTransferAssetsErc20Tx:
+	case *proto.EthereumTransferAssetsErc20TxKind:
 		r := make(rideObject)
 		r[instanceFieldName] = RideString("TransferTransaction")
 		r["version"] = RideInt(tx.GetVersion())
 		r["id"] = RideBytes(tx.ID.Bytes())
 		r["sender"] = rideAddress(sender)
 		r["senderPublicKey"] = RideBytes(common.Dup(callerPK))
+
+
 
 		// 1 get recipient
 		rideTypeValueRecipient, err := EthABIDataTypeToRideType(tx.TxKind.DecodedData().Inputs[0].Value)
@@ -1009,9 +1009,7 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["bodyBytes"] = RideBytes(nil)
 		r["proofs"] = proofs(nil)
 		return r, nil
-	case *proto.EthereumInvokeScriptTx:
-		// TODO we need to have access to decodedData of eth tx to make this, but we don't now
-
+	case *proto.EthereumInvokeScriptTxKind:
 		r := make(rideObject)
 		r[instanceFieldName] = RideString("InvokeScriptTransaction")
 		r["version"] = RideInt(tx.GetVersion())
@@ -1022,7 +1020,6 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 
 		var scriptPayments []proto.ScriptPayment
 		for _, p := range tx.TxKind.DecodedData().Payments {
-			// TODO do we need to convert asset id here
 			asset, err := proto.NewOptionalAssetFromBytes(p.AssetID.Bytes())
 			if err != nil {
 				return nil, err

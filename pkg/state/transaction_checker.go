@@ -341,13 +341,13 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 	}
 
 	switch kind := tx.TxKind.(type) {
-	case *proto.EthereumTransferWavesTx:
+	case *proto.EthereumTransferWavesTxKind:
 		assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: nil}
 		if err := tc.checkFee(transaction, assets, info); err != nil {
 			return nil, err
 		}
 		return nil, nil
-	case *proto.EthereumTransferAssetsErc20Tx:
+	case *proto.EthereumTransferAssetsErc20TxKind:
 		allAssets := []proto.OptionalAsset{kind.Asset}
 		smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
 		if err != nil {
@@ -365,7 +365,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			return nil, errors.New("SmartAccounts feature has not been activated yet")
 		}
 		return smartAssets, nil
-	case *proto.EthereumInvokeScriptTx:
+	case *proto.EthereumInvokeScriptTxKind:
 		if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
 			return nil, errs.Extend(err, "invalid timestamp")
 		}

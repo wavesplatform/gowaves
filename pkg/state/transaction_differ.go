@@ -519,9 +519,9 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 		updateMinIntermediateBalance = true
 	}
 
-	txErc20Kind, ok := tx.TxKind.(*proto.EthereumTransferAssetsErc20Tx)
+	txErc20Kind, ok := tx.TxKind.(*proto.EthereumTransferAssetsErc20TxKind)
 	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20Tx")
+		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20TxKind")
 	}
 
 	decodedData := txErc20Kind.DecodedData()
@@ -622,9 +622,9 @@ func (td *transactionDiffer) createDiffEthereumTransactionWithProofs(transaction
 	}
 
 	switch ethTx.TxKind.(type) {
-	case *proto.EthereumTransferWavesTx:
+	case *proto.EthereumTransferWavesTxKind:
 		return td.createDiffEthereumTransferWaves(ethTx, info)
-	case *proto.EthereumTransferAssetsErc20Tx:
+	case *proto.EthereumTransferAssetsErc20TxKind:
 		return td.createDiffEthereumErc20(ethTx, info)
 	default:
 		return txBalanceChanges{}, errors.New("wrong kind of ethereum transaction")

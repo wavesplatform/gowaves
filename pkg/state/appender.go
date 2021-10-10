@@ -386,7 +386,7 @@ type appendTxParams struct {
 
 func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransaction, params *appendTxParams) (proto.EthereumTransactionKind, error) {
 	if ethTx.Data() == nil {
-		return proto.NewEthereumTransferWavesTx(), nil
+		return proto.NewEthereumTransferWavesTxKind(), nil
 	}
 
 	selectorBytes := ethTx.Data()
@@ -412,7 +412,10 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 		if err != nil {
 			return nil, errors.Errorf("failed to parse ethereum data")
 		}
-		return proto.NewEthereumTransferAssetsErc20Tx(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID)), nil
+		if len(decodedData.Inputs) != ethabi.NumberOfERC20Arguments {
+			return nil, errors.Errorf("the number of arguments of erc20 function is %d, but expected it to be %d", len(decodedData.Inputs), ethabi.NumberOfERC20Arguments)
+		}
+		return proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID)), nil
 	}
 
 	// TODO it'd better if we have a function tree.Meta.Contains(sel selector) bool to make the last case clear
@@ -433,7 +436,7 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 		return nil, errors.Errorf("failed to parse ethereum data")
 	}
 
-	return proto.NewEthereumInvokeScriptTx(*decodedData), nil
+	return proto.NewEthereumInvokeScriptTxKind(*decodedData), nil
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*applicationResult, error) {
@@ -530,14 +533,14 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		}
 
 		switch ethTx.TxKind.(type) {
-		case *proto.EthereumTransferWavesTx, *proto.EthereumTransferAssetsErc20Tx:
+		case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
 			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 			if err != nil {
 				return errors.Errorf("failed to handle ethereum (transfer waves or erc20) transaction, %v", err)
 			}
 			// In UTX balances are always validated.
 			needToValidateBalanceDiff = params.validatingUtx
-		case *proto.EthereumInvokeScriptTx:
+		case *proto.EthereumInvokeScriptTxKind:
 			fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
 			applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
 			if err != nil {

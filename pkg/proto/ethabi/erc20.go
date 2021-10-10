@@ -3,6 +3,7 @@ package ethabi
 const (
 	Erc20TransferSignature Signature = "transfer(address,uint256)"
 	ethereumAddressSize    int       = 20
+	NumberOfERC20Arguments      int       = 2
 )
 
 var erc20Methods = map[Selector]Method{

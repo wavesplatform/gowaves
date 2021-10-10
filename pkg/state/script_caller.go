@@ -301,10 +301,7 @@ func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.Ethereu
 	abiPayments := tx.TxKind.DecodedData().Payments
 	var scriptPayments []proto.ScriptPayment
 	for _, p := range abiPayments {
-		asset, err := proto.NewOptionalAssetFromBytes(p.AssetID.Bytes())
-		if err != nil {
-			return false, nil, err
-		}
+		asset := proto.NewOptionalAssetFromDigest(p.AssetID)
 		payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: *asset}
 		scriptPayments = append(scriptPayments, payment)
 	}
