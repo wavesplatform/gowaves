@@ -135,7 +135,7 @@ func (wc *wavesRecordForHashes) writeTo(w io.Writer) error {
 
 type assetRecordForHashes struct {
 	addr    *proto.WavesAddress
-	asset   []byte
+	asset   crypto.Digest
 	balance uint64
 }
 
@@ -145,7 +145,7 @@ func (ac *assetRecordForHashes) less(other stateComponent) bool {
 	if val > 0 {
 		return false
 	} else if val == 0 {
-		return bytes.Compare(ac.asset, ac2.asset) == -1
+		return bytes.Compare(ac.asset[:], ac2.asset[:]) == -1
 	}
 	return true
 }
@@ -154,7 +154,7 @@ func (ac *assetRecordForHashes) writeTo(w io.Writer) error {
 	if _, err := w.Write(ac.addr[:]); err != nil {
 		return err
 	}
-	if _, err := w.Write(ac.asset); err != nil {
+	if _, err := w.Write(ac.asset[:]); err != nil {
 		return err
 	}
 	balanceBytes := make([]byte, 8)
@@ -366,7 +366,7 @@ func (s *balances) cancelLeases(changes map[proto.WavesAddress]balanceDiff, bloc
 
 type assetInfoFn func(proto.AssetID, bool) (*assetInfo, error)
 
-func (s *balances) nftList(addr proto.WavesAddress, limit uint64, after []byte, assetInfoById assetInfoFn) ([]crypto.Digest, error) {
+func (s *balances) nftList(addr proto.WavesAddress, limit uint64, afterAssetID *crypto.Digest, assetInfoById assetInfoFn) ([]crypto.Digest, error) {
 	key := assetBalanceKey{address: addr}
 	iter, err := s.hs.newTopEntryIteratorByPrefix(key.addressPrefix(), true)
 	if err != nil {
@@ -380,22 +380,14 @@ func (s *balances) nftList(addr proto.WavesAddress, limit uint64, after []byte, 
 	}()
 
 	var k assetBalanceKey
-	if after != nil {
-		// Iterate until `after_asset_id` asset is found.
-		afterID, err := crypto.NewDigestFromBytes(after)
-		if err != nil {
-			return nil, err
-		}
+	if afterAssetID != nil {
+		// Iterate until `afterAssetID` asset is found.
 		for iter.Next() {
 			keyBytes := keyvalue.SafeKey(iter)
 			if err := k.unmarshal(keyBytes); err != nil {
 				return nil, err
 			}
-			assetID, err := crypto.NewDigestFromBytes(k.asset)
-			if err != nil {
-				return nil, err
-			}
-			if assetID == afterID {
+			if k.asset == *afterAssetID {
 				break
 			}
 		}
@@ -417,17 +409,13 @@ func (s *balances) nftList(addr proto.WavesAddress, limit uint64, after []byte, 
 		if err := k.unmarshal(keyBytes); err != nil {
 			return nil, err
 		}
-		assetID, err := crypto.NewDigestFromBytes(k.asset)
-		if err != nil {
-			return nil, err
-		}
-		assetInfo, err := assetInfoById(proto.AssetIDFromDigest(assetID), true)
+		assetInfo, err := assetInfoById(proto.AssetIDFromDigest(k.asset), true)
 		if err != nil {
 			return nil, err
 		}
 		nft := assetInfo.isNFT()
 		if nft {
-			res = append(res, assetID)
+			res = append(res, k.asset)
 		}
 	}
 	return res, nil
@@ -508,7 +496,7 @@ func (s *balances) assetBalanceFromRecordBytes(recordBytes []byte) (uint64, erro
 	return record.balance, nil
 }
 
-func (s *balances) assetBalance(addr proto.WavesAddress, asset []byte, filter bool) (uint64, error) {
+func (s *balances) assetBalance(addr proto.WavesAddress, asset crypto.Digest, filter bool) (uint64, error) {
 	key := assetBalanceKey{address: addr, asset: asset}
 	recordBytes, err := s.hs.topEntryData(key.bytes(), filter)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
@@ -520,7 +508,7 @@ func (s *balances) assetBalance(addr proto.WavesAddress, asset []byte, filter bo
 	return s.assetBalanceFromRecordBytes(recordBytes)
 }
 
-func (s *balances) newestAssetBalance(addr proto.WavesAddress, asset []byte, filter bool) (uint64, error) {
+func (s *balances) newestAssetBalance(addr proto.WavesAddress, asset crypto.Digest, filter bool) (uint64, error) {
 	key := assetBalanceKey{address: addr, asset: asset}
 	recordBytes, err := s.hs.newestTopEntryData(key.bytes(), filter)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
@@ -580,7 +568,7 @@ func (s *balances) wavesBalance(addr proto.WavesAddress, filter bool) (*balanceP
 	return &r.balanceProfile, nil
 }
 
-func (s *balances) setAssetBalance(addr proto.WavesAddress, asset []byte, balance uint64, blockID proto.BlockID) error {
+func (s *balances) setAssetBalance(addr proto.WavesAddress, asset crypto.Digest, balance uint64, blockID proto.BlockID) error {
 	key := assetBalanceKey{address: addr, asset: asset}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)

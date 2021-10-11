@@ -203,7 +203,7 @@ func (k *wavesBalanceKey) unmarshal(data []byte) error {
 
 type assetBalanceKey struct {
 	address proto.WavesAddress
-	asset   []byte
+	asset   crypto.Digest
 }
 
 func (k *assetBalanceKey) addressPrefix() []byte {
@@ -217,7 +217,7 @@ func (k *assetBalanceKey) bytes() []byte {
 	buf := make([]byte, assetBalanceKeySize)
 	buf[0] = assetBalanceKeyPrefix
 	copy(buf[1:], k.address[:])
-	copy(buf[1+proto.WavesAddressSize:], k.asset)
+	copy(buf[1+proto.WavesAddressSize:], k.asset[:])
 	return buf
 }
 
@@ -232,8 +232,7 @@ func (k *assetBalanceKey) unmarshal(data []byte) error {
 	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.WavesAddressSize]); err != nil {
 		return err
 	}
-	k.asset = make([]byte, crypto.DigestSize)
-	copy(k.asset, data[1+proto.WavesAddressSize:])
+	copy(k.asset[:], data[1+proto.WavesAddressSize:])
 	return nil
 }
 

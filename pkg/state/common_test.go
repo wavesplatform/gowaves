@@ -102,7 +102,7 @@ func defaultFallibleValidationParams() *fallibleValidationParams {
 	}
 }
 
-func newTestAddrData(seedStr string, assets [][]byte) (*testAddrData, error) {
+func newTestAddrData(seedStr string, assets []crypto.Digest) (*testAddrData, error) {
 	seedBytes, err := base58.Decode(seedStr)
 	if err != nil {
 		return nil, err
@@ -127,7 +127,7 @@ func newTestAddrData(seedStr string, assets [][]byte) (*testAddrData, error) {
 
 type testAssetData struct {
 	asset   *proto.OptionalAsset
-	assetID []byte
+	assetID crypto.Digest
 }
 
 func newTestAssetData(assetStr string) (*testAssetData, error) {
@@ -139,7 +139,7 @@ func newTestAssetData(assetStr string) (*testAssetData, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &testAssetData{asset, assetID.Bytes()}, nil
+	return &testAssetData{asset, assetID}, nil
 }
 
 type testGlobalVars struct {
@@ -173,23 +173,23 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("newTestAssetData(): %v\n", err)
 	}
-	testGlobal.issuerInfo, err = newTestAddrData(issuerSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
+	testGlobal.issuerInfo, err = newTestAddrData(issuerSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.matcherInfo, err = newTestAddrData(matcherSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.matcherInfo, err = newTestAddrData(matcherSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.minerInfo, err = newTestAddrData(minerSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
+	testGlobal.minerInfo, err = newTestAddrData(minerSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.senderInfo, err = newTestAddrData(senderSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.senderInfo, err = newTestAddrData(senderSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}

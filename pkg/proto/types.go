@@ -277,6 +277,13 @@ func (a *OptionalAsset) ToID() []byte {
 	return nil
 }
 
+func (a *OptionalAsset) ToDigest() *crypto.Digest {
+	if a.Present {
+		return &a.ID
+	}
+	return nil
+}
+
 func (a OptionalAsset) Eq(b OptionalAsset) bool {
 	return a.Present == b.Present && a.ID == b.ID
 }
