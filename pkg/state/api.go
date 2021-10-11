@@ -97,7 +97,7 @@ type StateInfo interface {
 	AssetIsSponsored(assetID crypto.Digest) (bool, error)
 	AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
 	FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
-	NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error)
+	NFTList(account proto.Recipient, limit uint64, afterAssetID *crypto.Digest) ([]*proto.FullAssetInfo, error)
 
 	// Script information.
 	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)

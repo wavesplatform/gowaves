@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"bytes"
 	"unicode/utf16"
 
 	"github.com/pkg/errors"
@@ -94,21 +93,18 @@ func (ws *WrappedState) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress
 	return ws.diff.state.NewestAddrByAlias(alias)
 }
 
-func (ws *WrappedState) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
+func (ws *WrappedState) NewestAccountBalance(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
 	balance, err := ws.diff.state.NewestAccountBalance(account, assetID)
 	if err != nil {
 		return 0, err
 	}
 	var asset *proto.OptionalAsset
 
-	if isAssetWaves(assetID) {
+	if isWavesAsset(assetID) {
 		waves := proto.NewOptionalAssetWaves()
 		asset = &waves
 	} else {
-		asset, err = proto.NewOptionalAssetFromBytes(assetID)
-		if err != nil {
-			return 0, err
-		}
+		asset = proto.NewOptionalAssetFromDigest(*assetID)
 	}
 
 	balanceDiff, _, err := ws.diff.findBalance(account, *asset)
@@ -500,7 +496,7 @@ func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *prot
 		}
 	}
 	senderRcp := proto.NewRecipientFromAddress(sender)
-	balance, err := ws.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
+	balance, err := ws.NewestAccountBalance(senderRcp, res.Asset.ToDigest())
 	if err != nil {
 		return err
 	}
@@ -1136,7 +1132,7 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 
 	st := newWrappedState(env)
 	for _, payment := range payments {
-		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
+		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ToDigest())
 		if err != nil {
 			return nil, err
 		}
@@ -1352,8 +1348,6 @@ func (e *EvaluationEnvironment) maxDataEntriesSize() int {
 	return e.mds
 }
 
-var wavesAssetBytes = crypto.Digest{}.Bytes()
-
-func isAssetWaves(assetID []byte) bool {
-	return bytes.Equal(wavesAssetBytes, assetID)
+func isWavesAsset(assetID *crypto.Digest) bool {
+	return assetID == nil || *assetID == proto.WavesDigest
 }

@@ -259,7 +259,7 @@ func (a *ThreadSafeReadWrapper) FullAssetInfo(assetID crypto.Digest) (*proto.Ful
 	return a.s.FullAssetInfo(assetID)
 }
 
-func (a *ThreadSafeReadWrapper) NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error) {
+func (a *ThreadSafeReadWrapper) NFTList(account proto.Recipient, limit uint64, afterAssetID *crypto.Digest) ([]*proto.FullAssetInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.NFTList(account, limit, afterAssetID)

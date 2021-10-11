@@ -187,7 +187,7 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 
 	// Check newest result state here.
 	for aa, correct := range id.correctBalances {
-		balance, err := to.state.NewestAccountBalance(aa.rcp, aa.asset())
+		balance, err := to.state.NewestAccountBalance(aa.rcp, aa.assetId)
 		assert.NoError(t, err)
 		assert.Equal(t, int(correct), int(balance))
 	}

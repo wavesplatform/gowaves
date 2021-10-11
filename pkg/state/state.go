@@ -863,38 +863,24 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	}, nil
 }
 
-func isWaves(assetID []byte) bool {
-	wavesAsset := crypto.Digest{}
-	if len(wavesAsset) != len(assetID) {
-		return false
-	}
-	for i := range assetID {
-		if assetID[i] != wavesAsset[i] {
-			return false
-		}
-	}
-	return true
+func isWaves(assetID *crypto.Digest) bool {
+	return assetID == nil || *assetID == proto.WavesDigest
 }
 
-func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
+func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
 
-	if assetID == nil || isWaves(assetID) {
+	if isWaves(assetID) {
 		profile, err := s.newestWavesBalanceProfile(*addr)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
 		}
 		return profile.balance, nil
 	}
-	// TODO(nickeskov): change interface arg to crypto.Digest
-	fullAssetID, err := crypto.NewDigestFromBytes(assetID)
-	if err != nil {
-		return 0, wrapErr(InvalidInputError, errors.Wrap(err, "invalid assetID len"))
-	}
-	balance, err := s.newestAssetBalance(*addr, fullAssetID)
+	balance, err := s.newestAssetBalance(*addr, *assetID)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -2149,21 +2135,13 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 	return res, nil
 }
 
-func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error) {
+func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAssetID *crypto.Digest) ([]*proto.FullAssetInfo, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	var afterAssetFullID *crypto.Digest
-	if len(afterAssetID) != 0 {
-		assetID, err := crypto.NewDigestFromBytes(afterAssetID)
-		if err != nil {
-			return nil, wrapErr(InvalidInputError, errors.Wrap(err, "invalid afterAssetID size"))
-		}
-		afterAssetFullID = &assetID
-	}
 	fn := s.stor.assets.assetInfo
-	nfts, err := s.stor.balances.nftList(*addr, limit, afterAssetFullID, fn)
+	nfts, err := s.stor.balances.nftList(*addr, limit, afterAssetID, fn)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
