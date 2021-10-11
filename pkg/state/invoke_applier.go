@@ -988,6 +988,7 @@ func (ia *invokeApplier) checkFullFee(tx proto.Transaction, scriptRuns, issuedAs
 
 	wavesFee := tx.GetFee()
 
+	var feeAssetStr string
 	switch t := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
 		if t.FeeAsset.Present {
@@ -996,20 +997,17 @@ func (ia *invokeApplier) checkFullFee(tx proto.Transaction, scriptRuns, issuedAs
 				return errs.Extend(err, "failed to convert fee asset to waves")
 			}
 		}
-		if wavesFee < minWavesFee {
-			feeAssetStr := t.FeeAsset.String()
-			return errs.NewFeeValidation(fmt.Sprintf(
-				"Fee in %s for InvokeScriptTransaction (%d in %s) with %d total scripts invoked does not exceed minimal value of %d WAVES",
-				feeAssetStr, t.Fee, feeAssetStr, scriptRuns, minWavesFee))
-		}
+		feeAssetStr = t.FeeAsset.String()
 	case *proto.EthereumTransaction:
 		wavesAsset := proto.NewOptionalAssetWaves()
-		if wavesFee < minWavesFee {
-			feeAssetStr := wavesAsset.String()
-			return errs.NewFeeValidation(fmt.Sprintf(
-				"Fee in %s for InvokeScriptTransaction (%d in %s) with %d total scripts invoked does not exceed minimal value of %d WAVES",
-				feeAssetStr, t.GetFee(), feeAssetStr, scriptRuns, minWavesFee))
-		}
+		feeAssetStr = wavesAsset.String()
+
+	}
+
+	if wavesFee < minWavesFee {
+		return errs.NewFeeValidation(fmt.Sprintf(
+			"Fee in %s for InvokeScriptTransaction (%d in %s) with %d total scripts invoked does not exceed minimal value of %d WAVES",
+			feeAssetStr, tx.GetFee(), feeAssetStr, scriptRuns, minWavesFee))
 	}
 
 	return nil

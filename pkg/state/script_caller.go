@@ -6,7 +6,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -269,23 +268,6 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 	return true, r.ScriptActions(), err
 }
 
-func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) ([]proto.Argument, error) {
-	var arguments []proto.Argument
-	for _, decodedArg := range decodedArgs {
-		value, err := ride.EthABIDataTypeToRideType(decodedArg.Value)
-		if err != nil {
-			return nil, errors.Errorf("failed to convert data type to ride type %v", err)
-		}
-		arg, err := ride.ConvertEthereumRideArgumentsToSpecificArgument(value)
-		if err != nil {
-			return nil, err
-		}
-		arguments = append(arguments, arg)
-
-	}
-	return arguments, nil
-}
-
 func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.EthereumTransaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (bool, []proto.ScriptAction, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
@@ -325,7 +307,7 @@ func (a *scriptCaller) ethereumInvokeFunction(tree *ride.Tree, tx *proto.Ethereu
 	}
 	decodedData := tx.TxKind.DecodedData()
 
-	arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
+	arguments, err := ride.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
 	if err != nil {
 		return false, nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
 	}

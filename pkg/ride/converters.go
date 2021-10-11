@@ -9,7 +9,7 @@ import (
 	"math/big"
 )
 
-const rideDiffEthWaves = 10e10 // in ethereum numbers are represented in 10^18. In waves it's 10^8
+const rideDiffEthWaves = 1e10 // in ethereum numbers are represented in 10^18. In waves it's 10^8
 
 func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) {
 	switch transaction := tx.(type) {
@@ -968,8 +968,6 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["id"] = RideBytes(tx.ID.Bytes())
 		r["sender"] = rideAddress(sender)
 		r["senderPublicKey"] = RideBytes(common.Dup(callerPK))
-
-
 
 		// 1 get recipient
 		rideTypeValueRecipient, err := EthABIDataTypeToRideType(tx.TxKind.DecodedData().Inputs[0].Value)
