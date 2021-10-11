@@ -85,7 +85,7 @@ func (a *ThreadSafeReadWrapper) EffectiveBalance(account proto.Recipient, startH
 	return a.s.EffectiveBalance(account, startHeight, endHeight)
 }
 
-func (a *ThreadSafeReadWrapper) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (a *ThreadSafeReadWrapper) AccountBalance(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.AccountBalance(account, asset)

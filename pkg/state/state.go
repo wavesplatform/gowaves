@@ -863,7 +863,7 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	}, nil
 }
 
-func isWaves(assetID *crypto.Digest) bool {
+func isWavesAsset(assetID *crypto.Digest) bool {
 	return assetID == nil || *assetID == proto.WavesDigest
 }
 
@@ -873,7 +873,7 @@ func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID *cr
 		return 0, wrapErr(RetrievalError, err)
 	}
 
-	if isWaves(assetID) {
+	if isWavesAsset(assetID) {
 		profile, err := s.newestWavesBalanceProfile(*addr)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
@@ -887,24 +887,19 @@ func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID *cr
 	return balance, nil
 }
 
-func (s *stateManager) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (s *stateManager) AccountBalance(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	if asset == nil {
+	if isWavesAsset(asset) {
 		profile, err := s.stor.balances.wavesBalance(*addr, true)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
 		}
 		return profile.balance, nil
 	}
-	// TODO(nickeskov): change interface arg to crypto.Digest
-	fullAssetID, err := crypto.NewDigestFromBytes(asset)
-	if err != nil {
-		return 0, wrapErr(InvalidInputError, errors.Wrap(err, "invalid assetID len"))
-	}
-	balance, err := s.stor.balances.assetBalance(*addr, fullAssetID, true)
+	balance, err := s.stor.balances.assetBalance(*addr, *asset, true)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}

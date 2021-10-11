@@ -118,7 +118,7 @@ func (m *MockStateInfo) EXPECT() *MockStateInfoMockRecorder {
 }
 
 // AccountBalance mocks base method.
-func (m *MockStateInfo) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (m *MockStateInfo) AccountBalance(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AccountBalance", account, asset)
 	ret0, _ := ret[0].(uint64)
@@ -1162,7 +1162,7 @@ func (m *MockState) EXPECT() *MockStateMockRecorder {
 }
 
 // AccountBalance mocks base method.
-func (m *MockState) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (m *MockState) AccountBalance(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AccountBalance", account, asset)
 	ret0, _ := ret[0].(uint64)
