@@ -166,8 +166,7 @@ func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
 }
 
 func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {
-	waves := crypto.Digest{}
-	if d == waves {
+	if d == WavesDigest {
 		return &OptionalAsset{Present: false}
 	}
 	return &OptionalAsset{Present: true, ID: d}

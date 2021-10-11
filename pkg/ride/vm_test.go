@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"testing"
@@ -174,11 +173,11 @@ func TestFunctions(t *testing.T) {
 					}
 					return nil, errors.New("not found")
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					if len(asset) == 0 {
+				NewestAccountBalanceFunc: func(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
+					if isWavesAsset(asset) {
 						return 5, nil
 					} else {
-						if bytes.Equal(asset, d.Bytes()) {
+						if *asset == d {
 							return 5, nil
 						}
 						return 0, nil

@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -32,7 +31,15 @@ func (s *Server) GetNFTList(req *g.NFTRequest, srv g.AssetsApi_GetNFTListServer)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	nfts, err := s.state.NFTList(proto.NewRecipientFromAddress(addr), uint64(req.Limit), req.AfterAssetId)
+	var afterAssetID *crypto.Digest
+	if len(req.AfterAssetId) != 0 {
+		assetID, err := crypto.NewDigestFromBytes(req.AfterAssetId)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument, err.Error())
+		}
+		afterAssetID = &assetID
+	}
+	nfts, err := s.state.NFTList(proto.NewRecipientFromAddress(addr), uint64(req.Limit), afterAssetID)
 	if err != nil {
 		return status.Errorf(codes.Internal, err.Error())
 	}

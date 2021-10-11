@@ -1583,10 +1583,14 @@ func extractRecipient(v rideType) (proto.Recipient, error) {
 	return r, nil
 }
 
-func extractAsset(v rideType) ([]byte, error) {
+func extractAsset(v rideType) (*crypto.Digest, error) {
 	switch a := v.(type) {
 	case rideBytes:
-		return a, nil
+		asset, err := crypto.NewDigestFromBytes(a)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid asset ID size")
+		}
+		return &asset, nil
 	case rideUnit:
 		return nil, nil
 	default:
