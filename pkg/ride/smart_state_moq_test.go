@@ -38,7 +38,7 @@ var _ types.SmartState = &MockSmartState{}
 // 			IsStateUntouchedFunc: func(account proto.Recipient) (bool, error) {
 // 				panic("mock out the IsStateUntouched method")
 // 			},
-// 			NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
+// 			NewestAccountBalanceFunc: func(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
 // 				panic("mock out the NewestAccountBalance method")
 // 			},
 // 			NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
@@ -115,7 +115,7 @@ type MockSmartState struct {
 	IsStateUntouchedFunc func(account proto.Recipient) (bool, error)
 
 	// NewestAccountBalanceFunc mocks the NewestAccountBalance method.
-	NewestAccountBalanceFunc func(account proto.Recipient, assetID *crypto.Digest) (uint64, error)
+	NewestAccountBalanceFunc func(account proto.Recipient, assetID *proto.AssetID) (uint64, error)
 
 	// NewestAddrByAliasFunc mocks the NewestAddrByAlias method.
 	NewestAddrByAliasFunc func(alias proto.Alias) (proto.WavesAddress, error)
@@ -200,7 +200,7 @@ type MockSmartState struct {
 			// Account is the account argument value.
 			Account proto.Recipient
 			// AssetID is the assetID argument value.
-			AssetID *crypto.Digest
+			AssetID *proto.AssetID
 		}
 		// NewestAddrByAlias holds details about calls to the NewestAddrByAlias method.
 		NewestAddrByAlias []struct {
@@ -497,13 +497,13 @@ func (mock *MockSmartState) IsStateUntouchedCalls() []struct {
 }
 
 // NewestAccountBalance calls NewestAccountBalanceFunc.
-func (mock *MockSmartState) NewestAccountBalance(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
+func (mock *MockSmartState) NewestAccountBalance(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
 	if mock.NewestAccountBalanceFunc == nil {
 		panic("MockSmartState.NewestAccountBalanceFunc: method is nil but SmartState.NewestAccountBalance was just called")
 	}
 	callInfo := struct {
 		Account proto.Recipient
-		AssetID *crypto.Digest
+		AssetID *proto.AssetID
 	}{
 		Account: account,
 		AssetID: assetID,
@@ -519,11 +519,11 @@ func (mock *MockSmartState) NewestAccountBalance(account proto.Recipient, assetI
 //     len(mockedSmartState.NewestAccountBalanceCalls())
 func (mock *MockSmartState) NewestAccountBalanceCalls() []struct {
 	Account proto.Recipient
-	AssetID *crypto.Digest
+	AssetID *proto.AssetID
 } {
 	var calls []struct {
 		Account proto.Recipient
-		AssetID *crypto.Digest
+		AssetID *proto.AssetID
 	}
 	mock.lockNewestAccountBalance.RLock()
 	calls = mock.calls.NewestAccountBalance

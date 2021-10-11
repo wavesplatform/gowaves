@@ -63,7 +63,8 @@ type blockchainEntitiesStorage struct {
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter, calcHashes bool) (*blockchainEntitiesStorage, error) {
-	balances, err := newBalances(hs.db, hs, calcHashes)
+	assets := newAssets(hs.db, hs.dbBatch, hs)
+	balances, err := newBalances(hs.db, hs, assets, calcHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	return &blockchainEntitiesStorage{
 		hs,
 		newAliases(hs.db, hs.dbBatch, hs, calcHashes),
-		newAssets(hs.db, hs.dbBatch, hs),
+		assets,
 		newLeases(hs, calcHashes),
 		newScores(hs),
 		newBlocksInfo(hs),
@@ -743,7 +744,7 @@ func (s *stateManager) HeightToBlockID(height uint64) (proto.BlockID, error) {
 	return blockID, nil
 }
 
-func (s *stateManager) newestAssetBalance(addr proto.WavesAddress, asset crypto.Digest) (uint64, error) {
+func (s *stateManager) newestAssetBalance(addr proto.WavesAddress, asset proto.AssetID) (uint64, error) {
 	// Retrieve old balance from historyStorage.
 	balance, err := s.stor.balances.newestAssetBalance(addr, asset, true)
 	if err != nil {
@@ -863,17 +864,17 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	}, nil
 }
 
-func isWavesAsset(assetID *crypto.Digest) bool {
-	return assetID == nil || *assetID == proto.WavesDigest
+func isWavesAssetID(assetID *proto.AssetID) bool {
+	return assetID == nil || *assetID == proto.WavesAssetID
 }
 
-func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
+func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
 
-	if isWavesAsset(assetID) {
+	if isWavesAssetID(assetID) {
 		profile, err := s.newestWavesBalanceProfile(*addr)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
@@ -887,19 +888,19 @@ func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID *cr
 	return balance, nil
 }
 
-func (s *stateManager) AccountBalance(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
+func (s *stateManager) AccountBalance(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	if isWavesAsset(asset) {
+	if isWavesAssetID(assetID) {
 		profile, err := s.stor.balances.wavesBalance(*addr, true)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
 		}
 		return profile.balance, nil
 	}
-	balance, err := s.stor.balances.assetBalance(*addr, *asset, true)
+	balance, err := s.stor.balances.assetBalance(*addr, *assetID, true)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -2135,8 +2136,12 @@ func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAsset
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	fn := s.stor.assets.assetInfo
-	nfts, err := s.stor.balances.nftList(*addr, limit, afterAssetID, fn)
+	var afterShortAssetID *proto.AssetID
+	if afterAssetID != nil {
+		id := proto.AssetIDFromDigest(*afterAssetID)
+		afterShortAssetID = &id
+	}
+	nfts, err := s.stor.balances.nftList(*addr, limit, afterShortAssetID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

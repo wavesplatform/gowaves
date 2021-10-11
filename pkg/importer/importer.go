@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
@@ -29,7 +28,7 @@ type State interface {
 	AddNewBlocks(blocks [][]byte) error
 	AddOldBlocks(blocks [][]byte) error
 	WavesAddressesNumber() (uint64, error)
-	AccountBalance(account proto.Recipient, asset *crypto.Digest) (uint64, error)
+	AccountBalance(account proto.Recipient, assetID *proto.AssetID) (uint64, error)
 	ShouldPersistAddressTransactions() (bool, error)
 	PersistAddressTransactions() error
 }

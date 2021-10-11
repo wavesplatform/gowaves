@@ -283,6 +283,14 @@ func (a *OptionalAsset) ToDigest() *crypto.Digest {
 	return nil
 }
 
+func (a *OptionalAsset) ToAssetID() *AssetID {
+	if a.Present {
+		id := AssetIDFromDigest(a.ID)
+		return &id
+	}
+	return nil
+}
+
 func (a OptionalAsset) Eq(b OptionalAsset) bool {
 	return a.Present == b.Present && a.ID == b.ID
 }
