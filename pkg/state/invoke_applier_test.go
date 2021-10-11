@@ -129,13 +129,6 @@ type rcpAsset struct {
 	assetId *crypto.Digest
 }
 
-func (r *rcpAsset) asset() []byte {
-	if r.assetId == nil {
-		return nil
-	}
-	return r.assetId[:]
-}
-
 type rcpKey struct {
 	rcp proto.Recipient
 	key string
@@ -214,7 +207,7 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 
 	// Check state after flushing.
 	for aa, correct := range id.correctBalances {
-		balance, err := to.state.AccountBalance(aa.rcp, aa.asset())
+		balance, err := to.state.AccountBalance(aa.rcp, aa.assetId)
 		assert.NoError(t, err)
 		assert.Equal(t, int(correct), int(balance))
 	}
