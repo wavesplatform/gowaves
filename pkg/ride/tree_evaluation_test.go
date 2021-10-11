@@ -145,7 +145,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 					return nil, errors.New("not found")
 				},
 				NewestAccountBalanceFunc: func(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
-					if isWavesAsset(asset) {
+					if isWavesAssetID(asset) {
 						return 5, nil
 					} else {
 						if *asset == d {
@@ -869,7 +869,7 @@ func initWrappedState(state types.SmartState, env *MockRideEnvironment) *Wrapped
 	dataEntries.diffBool = map[string]proto.BooleanDataEntry{}
 	dataEntries.diffString = map[string]proto.StringDataEntry{}
 	dataEntries.diffBinary = map[string]proto.BinaryDataEntry{}
-	dataEntries.diffDDelete = map[string]proto.DeleteDataEntry{}
+	dataEntries.diffDelete = map[string]proto.DeleteDataEntry{}
 
 	balances := map[string]diffBalance{}
 	sponsorships := map[string]diffSponsorship{}
@@ -1404,7 +1404,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	expectedDiffResult.dataEntries.diffBinary["bin"+addressCallable.String()] = binaryEntry
 
 	deleteEntry := proto.DeleteDataEntry{Key: "str"}
-	expectedDiffResult.dataEntries.diffDDelete["str"+addressCallable.String()] = deleteEntry
+	expectedDiffResult.dataEntries.diffDelete["str"+addressCallable.String()] = deleteEntry
 
 	newAsset := diffNewAssetInfo{dAppIssuer: addressCallable, name: "CatCoin", description: "", quantity: 6, decimals: 0, reissuable: false, script: nil, nonce: 0}
 	expectedDiffResult.newAssetsInfo[assetIDIssue.String()] = newAsset
@@ -4768,7 +4768,7 @@ func TestLigaDApp1(t *testing.T) {
 				},
 				NewestAccountBalanceFunc: func(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
 					var assetStr string
-					if !isWavesAsset(asset) {
+					if !isWavesAssetID(asset) {
 						assetStr = asset.String()
 					}
 					switch assetStr {
@@ -4927,7 +4927,7 @@ func TestLigaDApp1(t *testing.T) {
 				},
 				NewestAccountBalanceFunc: func(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
 					var assetStr string
-					if !isWavesAsset(asset) {
+					if !isWavesAssetID(asset) {
 						assetStr = asset.String()
 					}
 					switch assetStr {
@@ -7118,7 +7118,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 			return nil, errors.New("unexpected asset")
 		},
 		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
-			if !isWavesAsset(assetID) && *assetID == asset {
+			if !isWavesAssetID(assetID) && *assetID == asset {
 				switch account.String() {
 				case "3PH75p2rmMKCV2nyW4TsAdFgFtmc61mJaqA":
 					return 0, nil
@@ -7298,7 +7298,7 @@ func TestAliasesInInvokes(t *testing.T) {
 			}
 		},
 		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
-			if isWavesAsset(assetID) {
+			if isWavesAssetID(assetID) {
 				switch account.String() {
 				case dApp1.String():
 					return 0, nil
@@ -7525,7 +7525,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		},
 		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
 			switch {
-			case isWavesAsset(assetID):
+			case isWavesAssetID(assetID):
 				return 0, nil
 			case *assetID == nft:
 				return 0, nil
@@ -7707,7 +7707,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 		},
 		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
 			switch {
-			case isWavesAsset(assetID):
+			case isWavesAssetID(assetID):
 				return 0, nil
 			case account.Address.Eq(dApp1) && *assetID == asset:
 				return 1, nil
@@ -7886,7 +7886,7 @@ func TestReissueInInvoke(t *testing.T) {
 		},
 		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
 			switch {
-			case isWavesAsset(assetID):
+			case isWavesAssetID(assetID):
 				return 0, nil
 			case account.Address.Eq(dApp1) && *assetID == asset:
 				return 0, nil

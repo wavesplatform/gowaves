@@ -118,18 +118,18 @@ func (m *MockStateInfo) EXPECT() *MockStateInfoMockRecorder {
 }
 
 // AccountBalance mocks base method.
-func (m *MockStateInfo) AccountBalance(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
+func (m *MockStateInfo) AccountBalance(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AccountBalance", account, asset)
+	ret := m.ctrl.Call(m, "AccountBalance", account, assetID)
 	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AccountBalance indicates an expected call of AccountBalance.
-func (mr *MockStateInfoMockRecorder) AccountBalance(account, asset interface{}) *gomock.Call {
+func (mr *MockStateInfoMockRecorder) AccountBalance(account, assetID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccountBalance", reflect.TypeOf((*MockStateInfo)(nil).AccountBalance), account, asset)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccountBalance", reflect.TypeOf((*MockStateInfo)(nil).AccountBalance), account, assetID)
 }
 
 // ActivationHeight mocks base method.
@@ -1162,18 +1162,18 @@ func (m *MockState) EXPECT() *MockStateMockRecorder {
 }
 
 // AccountBalance mocks base method.
-func (m *MockState) AccountBalance(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
+func (m *MockState) AccountBalance(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AccountBalance", account, asset)
+	ret := m.ctrl.Call(m, "AccountBalance", account, assetID)
 	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AccountBalance indicates an expected call of AccountBalance.
-func (mr *MockStateMockRecorder) AccountBalance(account, asset interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) AccountBalance(account, assetID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccountBalance", reflect.TypeOf((*MockState)(nil).AccountBalance), account, asset)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccountBalance", reflect.TypeOf((*MockState)(nil).AccountBalance), account, assetID)
 }
 
 // ActivationHeight mocks base method.

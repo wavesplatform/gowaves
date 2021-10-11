@@ -165,9 +165,16 @@ func (ac *assetRecordForHashes) writeTo(w io.Writer) error {
 	return nil
 }
 
+type assetInfoGetter interface {
+	assetInfo(assetID proto.AssetID, filer bool) (*assetInfo, error)
+	newestAssetInfo(assetID proto.AssetID, filer bool) (*assetInfo, error)
+}
+
 type balances struct {
 	db keyvalue.IterableKeyVal
 	hs *historyStorage
+
+	assets assetInfoGetter
 
 	emptyHash         crypto.Digest
 	wavesHashesState  map[proto.BlockID]*stateForHashes
@@ -180,7 +187,7 @@ type balances struct {
 	calculateHashes bool
 }
 
-func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, calcHashes bool) (*balances, error) {
+func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, assets assetInfoGetter, calcHashes bool) (*balances, error) {
 	emptyHash, err := crypto.FastHash(nil)
 	if err != nil {
 		return nil, err
@@ -188,6 +195,7 @@ func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, calcHashes bool
 	return &balances{
 		db:                db,
 		hs:                hs,
+		assets:            assets,
 		calculateHashes:   calcHashes,
 		emptyHash:         emptyHash,
 		wavesHashesState:  make(map[proto.BlockID]*stateForHashes),
@@ -364,9 +372,7 @@ func (s *balances) cancelLeases(changes map[proto.WavesAddress]balanceDiff, bloc
 	return nil
 }
 
-type assetInfoFn func(proto.AssetID, bool) (*assetInfo, error)
-
-func (s *balances) nftList(addr proto.WavesAddress, limit uint64, afterAssetID *crypto.Digest, assetInfoById assetInfoFn) ([]crypto.Digest, error) {
+func (s *balances) nftList(addr proto.WavesAddress, limit uint64, afterAssetID *proto.AssetID) ([]crypto.Digest, error) {
 	key := assetBalanceKey{address: addr}
 	iter, err := s.hs.newTopEntryIteratorByPrefix(key.addressPrefix(), true)
 	if err != nil {
@@ -409,13 +415,13 @@ func (s *balances) nftList(addr proto.WavesAddress, limit uint64, afterAssetID *
 		if err := k.unmarshal(keyBytes); err != nil {
 			return nil, err
 		}
-		assetInfo, err := assetInfoById(proto.AssetIDFromDigest(k.asset), true)
+		assetInfo, err := s.assets.assetInfo(k.asset, true)
 		if err != nil {
 			return nil, err
 		}
 		nft := assetInfo.isNFT()
 		if nft {
-			res = append(res, k.asset)
+			res = append(res, proto.ReconstructDigest(k.asset, assetInfo.tail))
 		}
 	}
 	return res, nil
@@ -496,8 +502,8 @@ func (s *balances) assetBalanceFromRecordBytes(recordBytes []byte) (uint64, erro
 	return record.balance, nil
 }
 
-func (s *balances) assetBalance(addr proto.WavesAddress, asset crypto.Digest, filter bool) (uint64, error) {
-	key := assetBalanceKey{address: addr, asset: asset}
+func (s *balances) assetBalance(addr proto.WavesAddress, assetID proto.AssetID, filter bool) (uint64, error) {
+	key := assetBalanceKey{address: addr, asset: assetID}
 	recordBytes, err := s.hs.topEntryData(key.bytes(), filter)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// Unknown address, expected behavior is to return 0 and no errors in this case.
@@ -508,7 +514,7 @@ func (s *balances) assetBalance(addr proto.WavesAddress, asset crypto.Digest, fi
 	return s.assetBalanceFromRecordBytes(recordBytes)
 }
 
-func (s *balances) newestAssetBalance(addr proto.WavesAddress, asset crypto.Digest, filter bool) (uint64, error) {
+func (s *balances) newestAssetBalance(addr proto.WavesAddress, asset proto.AssetID, filter bool) (uint64, error) {
 	key := assetBalanceKey{address: addr, asset: asset}
 	recordBytes, err := s.hs.newestTopEntryData(key.bytes(), filter)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
@@ -568,8 +574,8 @@ func (s *balances) wavesBalance(addr proto.WavesAddress, filter bool) (*balanceP
 	return &r.balanceProfile, nil
 }
 
-func (s *balances) setAssetBalance(addr proto.WavesAddress, asset crypto.Digest, balance uint64, blockID proto.BlockID) error {
-	key := assetBalanceKey{address: addr, asset: asset}
+func (s *balances) setAssetBalance(addr proto.WavesAddress, assetID proto.AssetID, balance uint64, blockID proto.BlockID) error {
+	key := assetBalanceKey{address: addr, asset: assetID}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
 	record := &assetBalanceRecord{balance}
@@ -578,9 +584,14 @@ func (s *balances) setAssetBalance(addr proto.WavesAddress, asset crypto.Digest,
 		return err
 	}
 	if s.calculateHashes {
+		info, err := s.assets.newestAssetInfo(assetID, true)
+		if err != nil {
+			return err
+		}
+		fullAssetID := proto.ReconstructDigest(assetID, info.tail)
 		ac := &assetRecordForHashes{
 			addr:    &addr,
-			asset:   asset,
+			asset:   fullAssetID,
 			balance: balance,
 		}
 		if _, ok := s.assetsHashesState[blockID]; !ok {

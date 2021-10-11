@@ -28,7 +28,7 @@ func createBalances() (*balancesTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	balances, err := newBalances(stor.db, stor.hs, true)
+	balances, err := newBalances(stor.db, stor.hs, stor.entities.assets, true)
 	if err != nil {
 		return nil, path, err
 	}
@@ -311,8 +311,7 @@ func TestNftList(t *testing.T) {
 	err = to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), asset, blockID0)
 	assert.NoError(t, err)
 	to.stor.flush(t)
-	fn := to.stor.entities.assets.assetInfo
-	nfts, err := to.balances.nftList(addr, 1, nil, fn)
+	nfts, err := to.balances.nftList(addr, 1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, []crypto.Digest{assetID}, nfts)
 }

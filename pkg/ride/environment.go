@@ -22,11 +22,11 @@ type WrappedState struct {
 
 func newWrappedState(env *EvaluationEnvironment) *WrappedState {
 	dataEntries := diffDataEntries{
-		diffInteger: map[string]proto.IntegerDataEntry{},
-		diffBool:    map[string]proto.BooleanDataEntry{},
-		diffString:  map[string]proto.StringDataEntry{},
-		diffBinary:  map[string]proto.BinaryDataEntry{},
-		diffDDelete: map[string]proto.DeleteDataEntry{},
+		diffInteger: map[integerDataEntryKey]proto.IntegerDataEntry{},
+		diffBool:    map[booleanDataEntryKey]proto.BooleanDataEntry{},
+		diffString:  map[stringDataEntryKey]proto.StringDataEntry{},
+		diffBinary:  map[binaryDataEntryKey]proto.BinaryDataEntry{},
+		diffDelete:  map[deleteDataEntryKey]proto.DeleteDataEntry{},
 	}
 	diffSt := diffState{
 		state:         env.st,
@@ -93,14 +93,14 @@ func (ws *WrappedState) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress
 	return ws.diff.state.NewestAddrByAlias(alias)
 }
 
-func (ws *WrappedState) NewestAccountBalance(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
+func (ws *WrappedState) NewestAccountBalance(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
 	balance, err := ws.diff.state.NewestAccountBalance(account, assetID)
 	if err != nil {
 		return 0, err
 	}
 	var asset *proto.OptionalAsset
 
-	if isWavesAsset(assetID) {
+	if isWavesAssetID(assetID) {
 		waves := proto.NewOptionalAssetWaves()
 		asset = &waves
 	} else {
@@ -168,12 +168,11 @@ func (ws *WrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key 
 	if err != nil {
 		return nil, err
 	}
-
-	if deletedDataEntry := ws.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+	if ws.isNewestDataEntryDeleted(key, *address) {
 		return nil, nil
 	}
 
-	if intDataEntry := ws.diff.findIntFromDataEntryByKey(key, address.String()); intDataEntry != nil {
+	if intDataEntry := ws.diff.findIntFromDataEntryByKey(key, *address); intDataEntry != nil {
 		return intDataEntry, nil
 	}
 
@@ -185,12 +184,11 @@ func (ws *WrappedState) RetrieveNewestBooleanEntry(account proto.Recipient, key 
 	if err != nil {
 		return nil, err
 	}
-
-	if deletedDataEntry := ws.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+	if ws.isNewestDataEntryDeleted(key, *address) {
 		return nil, nil
 	}
 
-	if boolDataEntry := ws.diff.findBoolFromDataEntryByKey(key, address.String()); boolDataEntry != nil {
+	if boolDataEntry := ws.diff.findBoolFromDataEntryByKey(key, *address); boolDataEntry != nil {
 		return boolDataEntry, nil
 	}
 	return ws.diff.state.RetrieveNewestBooleanEntry(account, key)
@@ -201,12 +199,11 @@ func (ws *WrappedState) RetrieveNewestStringEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, err
 	}
-
-	if deletedDataEntry := ws.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+	if ws.isNewestDataEntryDeleted(key, *address) {
 		return nil, nil
 	}
 
-	if stringDataEntry := ws.diff.findStringFromDataEntryByKey(key, address.String()); stringDataEntry != nil {
+	if stringDataEntry := ws.diff.findStringFromDataEntryByKey(key, *address); stringDataEntry != nil {
 		return stringDataEntry, nil
 	}
 	return ws.diff.state.RetrieveNewestStringEntry(account, key)
@@ -217,15 +214,19 @@ func (ws *WrappedState) RetrieveNewestBinaryEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, err
 	}
-
-	if deletedDataEntry := ws.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+	if ws.isNewestDataEntryDeleted(key, *address) {
 		return nil, nil
 	}
 
-	if binaryDataEntry := ws.diff.findBinaryFromDataEntryByKey(key, address.String()); binaryDataEntry != nil {
+	if binaryDataEntry := ws.diff.findBinaryFromDataEntryByKey(key, *address); binaryDataEntry != nil {
 		return binaryDataEntry, nil
 	}
 	return ws.diff.state.RetrieveNewestBinaryEntry(account, key)
+}
+
+func (ws *WrappedState) isNewestDataEntryDeleted(key string, address proto.WavesAddress) bool {
+	deletedDataEntry := ws.diff.findDeleteFromDataEntryByKey(key, address)
+	return deletedDataEntry != nil
 }
 
 func (ws *WrappedState) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
@@ -496,7 +497,7 @@ func (ws *WrappedState) validateTransferAction(otherActionsCount *int, res *prot
 		}
 	}
 	senderRcp := proto.NewRecipientFromAddress(sender)
-	balance, err := ws.NewestAccountBalance(senderRcp, res.Asset.ToDigest())
+	balance, err := ws.NewestAccountBalance(senderRcp, res.Asset.ToAssetID())
 	if err != nil {
 		return err
 	}
@@ -747,70 +748,15 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of data entry action")
 			}
+			addr := ws.callee()
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get public key by address")
+			}
+			res.Sender = &senderPK
 
-			switch dataEntry := res.Entry.(type) {
-
-			case *proto.IntegerDataEntry:
-				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get public key by address")
-				}
-				res.Sender = &senderPK
-
-				intEntry := *dataEntry
-
-				ws.diff.dataEntries.diffInteger[dataEntry.Key+addr.String()] = intEntry
-
-			case *proto.StringDataEntry:
-				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get public key by address")
-				}
-				res.Sender = &senderPK
-
-				stringEntry := *dataEntry
-
-				ws.diff.dataEntries.diffString[dataEntry.Key+addr.String()] = stringEntry
-
-			case *proto.BooleanDataEntry:
-				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get public key by address")
-				}
-				res.Sender = &senderPK
-
-				boolEntry := *dataEntry
-
-				ws.diff.dataEntries.diffBool[dataEntry.Key+addr.String()] = boolEntry
-
-			case *proto.BinaryDataEntry:
-				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get public key by address")
-				}
-				res.Sender = &senderPK
-
-				binaryEntry := *dataEntry
-
-				ws.diff.dataEntries.diffBinary[dataEntry.Key+addr.String()] = binaryEntry
-
-			case *proto.DeleteDataEntry:
-				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get public key by address")
-				}
-				res.Sender = &senderPK
-				deleteEntry := *dataEntry
-
-				ws.diff.dataEntries.diffDDelete[dataEntry.Key+addr.String()] = deleteEntry
-
-			default:
-
+			if err := ws.diff.putDataEntry(res.Entry, addr); err != nil {
+				return nil, err
 			}
 
 		case *proto.TransferScriptAction:
@@ -1133,7 +1079,7 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 
 	st := newWrappedState(env)
 	for _, payment := range payments {
-		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ToDigest())
+		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ToAssetID())
 		if err != nil {
 			return nil, err
 		}
@@ -1349,6 +1295,6 @@ func (e *EvaluationEnvironment) maxDataEntriesSize() int {
 	return e.mds
 }
 
-func isWavesAsset(assetID *crypto.Digest) bool {
-	return assetID == nil || *assetID == proto.WavesDigest
+func isWavesAssetID(assetID *proto.AssetID) bool {
+	return assetID == nil || *assetID == proto.WavesAssetID
 }

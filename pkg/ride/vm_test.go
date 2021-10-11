@@ -174,7 +174,7 @@ func TestFunctions(t *testing.T) {
 					return nil, errors.New("not found")
 				},
 				NewestAccountBalanceFunc: func(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
-					if isWavesAsset(asset) {
+					if isWavesAssetID(asset) {
 						return 5, nil
 					} else {
 						if *asset == d {

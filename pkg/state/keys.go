@@ -16,7 +16,7 @@ const (
 	minAccountsDataStorKeySize = 1 + 8 + 2 + 1
 
 	wavesBalanceKeySize     = 1 + proto.WavesAddressSize
-	assetBalanceKeySize     = 1 + proto.WavesAddressSize + crypto.DigestSize
+	assetBalanceKeySize     = 1 + proto.WavesAddressSize + proto.AssetIDSize
 	leaseKeySize            = 1 + crypto.DigestSize
 	aliasKeySize            = 1 + 2 + proto.AliasMaxLength
 	disabledAliasKeySize    = 1 + 2 + proto.AliasMaxLength
@@ -203,7 +203,7 @@ func (k *wavesBalanceKey) unmarshal(data []byte) error {
 
 type assetBalanceKey struct {
 	address proto.WavesAddress
-	asset   crypto.Digest
+	asset   proto.AssetID
 }
 
 func (k *assetBalanceKey) addressPrefix() []byte {
