@@ -35,9 +35,9 @@ func createBalances() (*balancesTestObjects, []string, error) {
 	return &balancesTestObjects{stor, balances}, path, nil
 }
 
-func genAsset(fillWith byte) []byte {
-	asset := make([]byte, crypto.DigestSize)
-	for i := 0; i < crypto.DigestSize; i++ {
+func genAsset(fillWith byte) crypto.Digest {
+	var asset crypto.Digest
+	for i := range asset {
 		asset[i] = fillWith
 	}
 	return asset
@@ -264,7 +264,7 @@ func TestBalances(t *testing.T) {
 
 	assetTests := []struct {
 		addr    string
-		assetID []byte
+		assetID crypto.Digest
 		balance uint64
 		blockID proto.BlockID
 	}{
