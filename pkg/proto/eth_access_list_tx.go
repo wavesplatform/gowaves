@@ -241,7 +241,7 @@ func (altx *EthereumAccessListTx) copy() EthereumTxData {
 }
 
 // accessors for innerTx.
-func (altx *EthereumAccessListTx) ethereumTxType() EthereumTxType { return EthereumAccessListTxType }
+func (altx *EthereumAccessListTx) EthereumTxType() EthereumTxType { return EthereumAccessListTxType }
 func (altx *EthereumAccessListTx) chainID() *big.Int              { return altx.ChainID }
 func (altx *EthereumAccessListTx) accessList() EthereumAccessList { return altx.AccessList }
 func (altx *EthereumAccessListTx) data() []byte                   { return altx.Data }

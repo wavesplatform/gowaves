@@ -340,6 +340,20 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		return nil, errors.New("failed to convert interface to TransferWithSig transaction")
 	}
 
+	if tx.Inner.EthereumTxType() != proto.EthereumLegacyTxType {
+		return nil, errors.New("the ethereum transaction's type is not legacy tx")
+	}
+	// cancel transaction
+	// value == 0 && data == 0x
+	if tx.Value().Cmp(big.NewInt(0)) == 0 && len(tx.Data()) == 0 {
+		return nil, errors.New("canceling a transaction is forbidden")
+	}
+
+	// gasPrice == 10
+	if tx.GasPrice().Cmp(big.NewInt(int64(proto.EthereumGasPrice))) == 0 {
+		return nil, errors.New("Gas price should be 10")
+	}
+
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
 		assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: nil}
