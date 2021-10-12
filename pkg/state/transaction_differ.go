@@ -532,11 +532,11 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 		return txBalanceChanges{}, errors.New("unexpected type of eth selector")
 	}
 
-	rideTypeValue, err := ride.EthABIDataTypeToRideType(decodedData.Inputs[1].Value)
+	rideTypeValueAmount, err := ride.EthABIDataTypeToRideType(decodedData.Inputs[1].Value)
 	if err != nil {
 		return txBalanceChanges{}, errors.Errorf("failed to convert data type to ride type, %v", err)
 	}
-	v, ok := rideTypeValue.(ride.RideBigInt)
+	v, ok := rideTypeValueAmount.(ride.RideBigInt)
 	if !ok {
 		return txBalanceChanges{}, errors.Errorf("failed to convert big int value from transfer argument to rideBigInt, %v", err)
 
@@ -556,11 +556,11 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 		return txBalanceChanges{}, err
 	}
 
-	rideTypeValue, err = ride.EthABIDataTypeToRideType(decodedData.Inputs[0].Value)
+	rideTypeValueRecipient, err := ride.EthABIDataTypeToRideType(decodedData.Inputs[0].Value)
 	if err != nil {
 		return txBalanceChanges{}, errors.Errorf("failed to convert data type to ride type, %v", err)
 	}
-	rideEthRecipientAddress, ok := rideTypeValue.(ride.RideBytes)
+	rideEthRecipientAddress, ok := rideTypeValueRecipient.(ride.RideBytes)
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert address from argument of transfer erc20 function to rideBytes")
 	}
