@@ -376,7 +376,8 @@ func (td *transactionDiffer) handleSponsorship(ch *txBalanceChanges, fee uint64,
 	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
-	assetInfo, err := td.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(feeAsset.ID), !info.initialisation)
+	shortAssetID := proto.AssetIDFromDigest(feeAsset.ID)
+	assetInfo, err := td.stor.assets.newestAssetInfo(shortAssetID, !info.initialisation)
 	if err != nil {
 		return err
 	}
@@ -391,7 +392,7 @@ func (td *transactionDiffer) handleSponsorship(ch *txBalanceChanges, fee uint64,
 		return err
 	}
 	// Append issuer Waves balance diff.
-	feeInWaves, err := td.stor.sponsoredAssets.sponsoredAssetToWaves(feeAsset.ID, fee)
+	feeInWaves, err := td.stor.sponsoredAssets.sponsoredAssetToWaves(shortAssetID, fee)
 	if err != nil {
 		return err
 	}

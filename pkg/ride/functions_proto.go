@@ -751,7 +751,7 @@ func assetInfoV3(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	info, err := env.state().NewestAssetInfo(asset)
+	info, err := env.state().NewestAssetInfo(proto.AssetIDFromDigest(asset))
 	if err != nil {
 		return rideUnit{}, nil
 	}
@@ -767,7 +767,7 @@ func assetInfoV4(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	info, err := env.state().NewestFullAssetInfo(asset)
+	info, err := env.state().NewestFullAssetInfo(proto.AssetIDFromDigest(asset))
 	if err != nil {
 		return rideUnit{}, nil
 	}

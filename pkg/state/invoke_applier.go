@@ -803,7 +803,7 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 	minWavesFee := scriptExtraFee*scriptRuns + feeConstants[proto.InvokeScriptTransaction]*FeeUnit + minIssueFee
 	wavesFee := tx.Fee
 	if tx.FeeAsset.Present {
-		wavesFee, err = ia.stor.sponsoredAssets.sponsoredAssetToWaves(tx.FeeAsset.ID, tx.Fee)
+		wavesFee, err = ia.stor.sponsoredAssets.sponsoredAssetToWaves(proto.AssetIDFromDigest(tx.FeeAsset.ID), tx.Fee)
 		if err != nil {
 			return errs.Extend(err, "failed to convert fee asset to waves")
 		}

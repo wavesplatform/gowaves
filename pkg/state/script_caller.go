@@ -141,15 +141,16 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 	env.ChooseSizeCheck(tree.LibVersion)
 	env.ChooseTakeString(params.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
+	shortAssetID := proto.AssetIDFromDigest(assetID)
 	switch tree.LibVersion {
 	case 4, 5:
-		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
+		assetInfo, err := a.state.NewestFullAssetInfo(shortAssetID)
 		if err != nil {
 			return nil, err
 		}
 		env.SetThisFromFullAssetInfo(assetInfo)
 	default:
-		assetInfo, err := a.state.NewestAssetInfo(assetID)
+		assetInfo, err := a.state.NewestAssetInfo(shortAssetID)
 		if err != nil {
 			return nil, err
 		}
@@ -168,7 +169,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For asset script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, !params.initialisation)
+		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(shortAssetID, !params.initialisation)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 		}

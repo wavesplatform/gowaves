@@ -44,13 +44,13 @@ var _ types.SmartState = &MockSmartState{}
 // 			NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
 // 				panic("mock out the NewestAddrByAlias method")
 // 			},
-// 			NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+// 			NewestAssetInfoFunc: func(assetID proto.AssetID) (*proto.AssetInfo, error) {
 // 				panic("mock out the NewestAssetInfo method")
 // 			},
-// 			NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+// 			NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
 // 				panic("mock out the NewestAssetIsSponsored method")
 // 			},
-// 			NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+// 			NewestFullAssetInfoFunc: func(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
 // 				panic("mock out the NewestFullAssetInfo method")
 // 			},
 // 			NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -65,7 +65,7 @@ var _ types.SmartState = &MockSmartState{}
 // 			NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 // 				panic("mock out the NewestRecipientToAddress method")
 // 			},
-// 			NewestScriptByAssetFunc: func(asset proto.OptionalAsset) (proto.Script, error) {
+// 			NewestScriptByAssetFunc: func(assetID proto.AssetID) (proto.Script, error) {
 // 				panic("mock out the NewestScriptByAsset method")
 // 			},
 // 			NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
@@ -121,13 +121,13 @@ type MockSmartState struct {
 	NewestAddrByAliasFunc func(alias proto.Alias) (proto.WavesAddress, error)
 
 	// NewestAssetInfoFunc mocks the NewestAssetInfo method.
-	NewestAssetInfoFunc func(assetID crypto.Digest) (*proto.AssetInfo, error)
+	NewestAssetInfoFunc func(assetID proto.AssetID) (*proto.AssetInfo, error)
 
 	// NewestAssetIsSponsoredFunc mocks the NewestAssetIsSponsored method.
-	NewestAssetIsSponsoredFunc func(assetID crypto.Digest) (bool, error)
+	NewestAssetIsSponsoredFunc func(assetID proto.AssetID) (bool, error)
 
 	// NewestFullAssetInfoFunc mocks the NewestFullAssetInfo method.
-	NewestFullAssetInfoFunc func(assetID crypto.Digest) (*proto.FullAssetInfo, error)
+	NewestFullAssetInfoFunc func(assetID proto.AssetID) (*proto.FullAssetInfo, error)
 
 	// NewestFullWavesBalanceFunc mocks the NewestFullWavesBalance method.
 	NewestFullWavesBalanceFunc func(account proto.Recipient) (*proto.FullWavesBalance, error)
@@ -142,7 +142,7 @@ type MockSmartState struct {
 	NewestRecipientToAddressFunc func(recipient proto.Recipient) (*proto.WavesAddress, error)
 
 	// NewestScriptByAssetFunc mocks the NewestScriptByAsset method.
-	NewestScriptByAssetFunc func(asset proto.OptionalAsset) (proto.Script, error)
+	NewestScriptByAssetFunc func(assetID proto.AssetID) (proto.Script, error)
 
 	// NewestScriptPKByAddrFunc mocks the NewestScriptPKByAddr method.
 	NewestScriptPKByAddrFunc func(addr proto.WavesAddress) (crypto.PublicKey, error)
@@ -210,17 +210,17 @@ type MockSmartState struct {
 		// NewestAssetInfo holds details about calls to the NewestAssetInfo method.
 		NewestAssetInfo []struct {
 			// AssetID is the assetID argument value.
-			AssetID crypto.Digest
+			AssetID proto.AssetID
 		}
 		// NewestAssetIsSponsored holds details about calls to the NewestAssetIsSponsored method.
 		NewestAssetIsSponsored []struct {
 			// AssetID is the assetID argument value.
-			AssetID crypto.Digest
+			AssetID proto.AssetID
 		}
 		// NewestFullAssetInfo holds details about calls to the NewestFullAssetInfo method.
 		NewestFullAssetInfo []struct {
 			// AssetID is the assetID argument value.
-			AssetID crypto.Digest
+			AssetID proto.AssetID
 		}
 		// NewestFullWavesBalance holds details about calls to the NewestFullWavesBalance method.
 		NewestFullWavesBalance []struct {
@@ -244,8 +244,8 @@ type MockSmartState struct {
 		}
 		// NewestScriptByAsset holds details about calls to the NewestScriptByAsset method.
 		NewestScriptByAsset []struct {
-			// Asset is the asset argument value.
-			Asset proto.OptionalAsset
+			// AssetID is the assetID argument value.
+			AssetID proto.AssetID
 		}
 		// NewestScriptPKByAddr holds details about calls to the NewestScriptPKByAddr method.
 		NewestScriptPKByAddr []struct {
@@ -563,12 +563,12 @@ func (mock *MockSmartState) NewestAddrByAliasCalls() []struct {
 }
 
 // NewestAssetInfo calls NewestAssetInfoFunc.
-func (mock *MockSmartState) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+func (mock *MockSmartState) NewestAssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
 	if mock.NewestAssetInfoFunc == nil {
 		panic("MockSmartState.NewestAssetInfoFunc: method is nil but SmartState.NewestAssetInfo was just called")
 	}
 	callInfo := struct {
-		AssetID crypto.Digest
+		AssetID proto.AssetID
 	}{
 		AssetID: assetID,
 	}
@@ -582,10 +582,10 @@ func (mock *MockSmartState) NewestAssetInfo(assetID crypto.Digest) (*proto.Asset
 // Check the length with:
 //     len(mockedSmartState.NewestAssetInfoCalls())
 func (mock *MockSmartState) NewestAssetInfoCalls() []struct {
-	AssetID crypto.Digest
+	AssetID proto.AssetID
 } {
 	var calls []struct {
-		AssetID crypto.Digest
+		AssetID proto.AssetID
 	}
 	mock.lockNewestAssetInfo.RLock()
 	calls = mock.calls.NewestAssetInfo
@@ -594,12 +594,12 @@ func (mock *MockSmartState) NewestAssetInfoCalls() []struct {
 }
 
 // NewestAssetIsSponsored calls NewestAssetIsSponsoredFunc.
-func (mock *MockSmartState) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
+func (mock *MockSmartState) NewestAssetIsSponsored(assetID proto.AssetID) (bool, error) {
 	if mock.NewestAssetIsSponsoredFunc == nil {
 		panic("MockSmartState.NewestAssetIsSponsoredFunc: method is nil but SmartState.NewestAssetIsSponsored was just called")
 	}
 	callInfo := struct {
-		AssetID crypto.Digest
+		AssetID proto.AssetID
 	}{
 		AssetID: assetID,
 	}
@@ -613,10 +613,10 @@ func (mock *MockSmartState) NewestAssetIsSponsored(assetID crypto.Digest) (bool,
 // Check the length with:
 //     len(mockedSmartState.NewestAssetIsSponsoredCalls())
 func (mock *MockSmartState) NewestAssetIsSponsoredCalls() []struct {
-	AssetID crypto.Digest
+	AssetID proto.AssetID
 } {
 	var calls []struct {
-		AssetID crypto.Digest
+		AssetID proto.AssetID
 	}
 	mock.lockNewestAssetIsSponsored.RLock()
 	calls = mock.calls.NewestAssetIsSponsored
@@ -625,12 +625,12 @@ func (mock *MockSmartState) NewestAssetIsSponsoredCalls() []struct {
 }
 
 // NewestFullAssetInfo calls NewestFullAssetInfoFunc.
-func (mock *MockSmartState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+func (mock *MockSmartState) NewestFullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
 	if mock.NewestFullAssetInfoFunc == nil {
 		panic("MockSmartState.NewestFullAssetInfoFunc: method is nil but SmartState.NewestFullAssetInfo was just called")
 	}
 	callInfo := struct {
-		AssetID crypto.Digest
+		AssetID proto.AssetID
 	}{
 		AssetID: assetID,
 	}
@@ -644,10 +644,10 @@ func (mock *MockSmartState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.F
 // Check the length with:
 //     len(mockedSmartState.NewestFullAssetInfoCalls())
 func (mock *MockSmartState) NewestFullAssetInfoCalls() []struct {
-	AssetID crypto.Digest
+	AssetID proto.AssetID
 } {
 	var calls []struct {
-		AssetID crypto.Digest
+		AssetID proto.AssetID
 	}
 	mock.lockNewestFullAssetInfo.RLock()
 	calls = mock.calls.NewestFullAssetInfo
@@ -780,29 +780,29 @@ func (mock *MockSmartState) NewestRecipientToAddressCalls() []struct {
 }
 
 // NewestScriptByAsset calls NewestScriptByAssetFunc.
-func (mock *MockSmartState) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
+func (mock *MockSmartState) NewestScriptByAsset(assetID proto.AssetID) (proto.Script, error) {
 	if mock.NewestScriptByAssetFunc == nil {
 		panic("MockSmartState.NewestScriptByAssetFunc: method is nil but SmartState.NewestScriptByAsset was just called")
 	}
 	callInfo := struct {
-		Asset proto.OptionalAsset
+		AssetID proto.AssetID
 	}{
-		Asset: asset,
+		AssetID: assetID,
 	}
 	mock.lockNewestScriptByAsset.Lock()
 	mock.calls.NewestScriptByAsset = append(mock.calls.NewestScriptByAsset, callInfo)
 	mock.lockNewestScriptByAsset.Unlock()
-	return mock.NewestScriptByAssetFunc(asset)
+	return mock.NewestScriptByAssetFunc(assetID)
 }
 
 // NewestScriptByAssetCalls gets all the calls that were made to NewestScriptByAsset.
 // Check the length with:
 //     len(mockedSmartState.NewestScriptByAssetCalls())
 func (mock *MockSmartState) NewestScriptByAssetCalls() []struct {
-	Asset proto.OptionalAsset
+	AssetID proto.AssetID
 } {
 	var calls []struct {
-		Asset proto.OptionalAsset
+		AssetID proto.AssetID
 	}
 	mock.lockNewestScriptByAsset.RLock()
 	calls = mock.calls.NewestScriptByAsset
