@@ -5,7 +5,6 @@ import (
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 )
@@ -56,7 +55,7 @@ func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.Wav
 	return sc.newestScriptComplexityByAddr(addr, ev, filter)
 }
 
-func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset crypto.Digest, filter bool) (*ride.TreeEstimation, error) {
+func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset proto.AssetID, filter bool) (*ride.TreeEstimation, error) {
 	key := assetScriptComplexityKey{asset}
 	recordBytes, err := sc.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
@@ -69,7 +68,7 @@ func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset crypto.Digest, 
 	return record, nil
 }
 
-func (sc *scriptsComplexity) scriptComplexityByAsset(asset crypto.Digest, filter bool) (*ride.TreeEstimation, error) {
+func (sc *scriptsComplexity) scriptComplexityByAsset(asset proto.AssetID, filter bool) (*ride.TreeEstimation, error) {
 	key := assetScriptComplexityKey{asset}
 	recordBytes, err := sc.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
@@ -124,15 +123,15 @@ func (sc *scriptsComplexity) saveComplexitiesForAddr(addr proto.Address, estimat
 	return nil
 }
 
-func (sc *scriptsComplexity) saveComplexitiesForAsset(asset crypto.Digest, estimation ride.TreeEstimation, blockID proto.BlockID) error {
+func (sc *scriptsComplexity) saveComplexitiesForAsset(asset proto.AssetID, estimation ride.TreeEstimation, blockID proto.BlockID) error {
 	recordBytes, err := cbor.Marshal(estimation)
 	if err != nil {
-		return errors.Wrapf(err, "failed to save complexity record for asset '%s' in block '%s'", asset.String(), blockID.String())
+		return errors.Wrapf(err, "failed to save complexity record for shortAssetID '%s' in block '%s'", asset.String(), blockID.String())
 	}
 	key := assetScriptComplexityKey{asset}
 	err = sc.hs.addNewEntry(assetScriptComplexity, key.bytes(), recordBytes, blockID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to save complexity record for asset '%s' in block '%s'", asset.String(), blockID.String())
+		return errors.Wrapf(err, "failed to save complexity record for shortAssetID '%s' in block '%s'", asset.String(), blockID.String())
 	}
 	return nil
 }

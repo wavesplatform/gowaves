@@ -177,7 +177,7 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 }
 
 type wavesBalanceKey struct {
-	address proto.WavesAddress
+	address proto.WavesAddress // TODO(nickeskov): replace to proto.AddressID
 }
 
 func (k *wavesBalanceKey) bytes() []byte {
@@ -202,7 +202,7 @@ func (k *wavesBalanceKey) unmarshal(data []byte) error {
 }
 
 type assetBalanceKey struct {
-	address proto.WavesAddress
+	address proto.WavesAddress // TODO(nickeskov): replace to proto.AddressID
 	asset   proto.AssetID
 }
 
@@ -548,18 +548,18 @@ func (k *accountsDataStorKey) unmarshal(data []byte) error {
 }
 
 type sponsorshipKey struct {
-	assetID crypto.Digest
+	assetID proto.AssetID
 }
 
 func (k *sponsorshipKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
+	buf := make([]byte, 1+proto.AssetIDSize)
 	buf[0] = sponsorshipKeyPrefix
 	copy(buf[1:], k.assetID[:])
 	return buf
 }
 
 type accountScriptKey struct {
-	addr proto.WavesAddress
+	addr proto.WavesAddress // TODO(nickeskov): replace to proto.AddressID
 }
 
 func (k *accountScriptKey) bytes() []byte {
@@ -594,11 +594,11 @@ func (k *accountScriptComplexityKey) bytes() []byte {
 }
 
 type assetScriptComplexityKey struct {
-	asset crypto.Digest
+	asset proto.AssetID
 }
 
 func (k *assetScriptComplexityKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
+	buf := make([]byte, 1+proto.AssetIDSize)
 	buf[0] = assetScriptComplexityKeyPrefix
 	copy(buf[1:], k.asset[:])
 	return buf

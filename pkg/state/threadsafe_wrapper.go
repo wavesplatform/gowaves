@@ -241,25 +241,25 @@ func (a *ThreadSafeReadWrapper) NewAddrTransactionsIterator(addr proto.Address) 
 	return a.s.NewAddrTransactionsIterator(addr)
 }
 
-func (a *ThreadSafeReadWrapper) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
+func (a *ThreadSafeReadWrapper) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.AssetIsSponsored(assetID)
 }
 
-func (a *ThreadSafeReadWrapper) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+func (a *ThreadSafeReadWrapper) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.AssetInfo(assetID)
 }
 
-func (a *ThreadSafeReadWrapper) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+func (a *ThreadSafeReadWrapper) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.FullAssetInfo(assetID)
 }
 
-func (a *ThreadSafeReadWrapper) NFTList(account proto.Recipient, limit uint64, afterAssetID *crypto.Digest) ([]*proto.FullAssetInfo, error) {
+func (a *ThreadSafeReadWrapper) NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.NFTList(account, limit, afterAssetID)
@@ -271,7 +271,7 @@ func (a *ThreadSafeReadWrapper) ScriptInfoByAccount(account proto.Recipient) (*p
 	return a.s.ScriptInfoByAccount(account)
 }
 
-func (a *ThreadSafeReadWrapper) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error) {
+func (a *ThreadSafeReadWrapper) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.ScriptInfoByAsset(assetID)
