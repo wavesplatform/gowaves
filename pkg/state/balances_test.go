@@ -223,6 +223,13 @@ func TestMinBalanceInRange(t *testing.T) {
 	}
 }
 
+func addTailInfoToAssetsState(a *assets, fullAssetID crypto.Digest) {
+	// see to.balances.setAssetBalance function details for more info
+	shortAssetID := proto.AssetIDFromDigest(fullAssetID)
+	// add digest tail info for correct state hash calculation
+	a.uncertainAssetInfo[shortAssetID] = assetInfo{assetConstInfo: assetConstInfo{tail: proto.DigestTail(fullAssetID)}}
+}
+
 func TestBalances(t *testing.T) {
 	to, path, err := createBalances()
 	assert.NoError(t, err, "createBalances() failed")
@@ -275,11 +282,12 @@ func TestBalances(t *testing.T) {
 	for _, tc := range assetTests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		if err := to.balances.setAssetBalance(addr, tc.assetID, tc.balance, tc.blockID); err != nil {
+		addTailInfoToAssetsState(to.stor.entities.assets, tc.assetID)
+		if err := to.balances.setAssetBalance(addr, proto.AssetIDFromDigest(tc.assetID), tc.balance, tc.blockID); err != nil {
 			t.Fatalf("Faied to set asset balance: %v\n", err)
 		}
 		to.stor.flush(t)
-		balance, err := to.balances.assetBalance(addr, tc.assetID, true)
+		balance, err := to.balances.assetBalance(addr, proto.AssetIDFromDigest(tc.assetID), true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve asset balance: %v\n", err)
 		}
@@ -293,6 +301,10 @@ func TestNftList(t *testing.T) {
 	to, path, err := createBalances()
 	assert.NoError(t, err, "createBalances() failed")
 
+	// see to.balances.setAssetBalance function details for more info
+	assetIDBytes := testGlobal.asset1.assetID
+	addTailInfoToAssetsState(to.stor.entities.assets, assetIDBytes)
+
 	defer func() {
 		to.stor.close(t)
 
@@ -304,8 +316,7 @@ func TestNftList(t *testing.T) {
 
 	addr := testGlobal.senderInfo.addr
 	assetID := testGlobal.asset1.asset.ID
-	assetIDBytes := testGlobal.asset1.assetID
-	err = to.balances.setAssetBalance(addr, assetIDBytes, 123, blockID0)
+	err = to.balances.setAssetBalance(addr, proto.AssetIDFromDigest(assetIDBytes), 123, blockID0)
 	assert.NoError(t, err)
 	asset := defaultNFT(proto.DigestTail(assetID))
 	err = to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), asset, blockID0)

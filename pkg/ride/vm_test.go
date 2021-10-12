@@ -173,11 +173,11 @@ func TestFunctions(t *testing.T) {
 					}
 					return nil, errors.New("not found")
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
+				NewestAccountBalanceFunc: func(account proto.Recipient, asset *proto.AssetID) (uint64, error) {
 					if isWavesAssetID(asset) {
 						return 5, nil
 					} else {
-						if *asset == d {
+						if *asset == proto.AssetIDFromDigest(d) {
 							return 5, nil
 						}
 						return 0, nil

@@ -1583,13 +1583,13 @@ func extractRecipient(v rideType) (proto.Recipient, error) {
 	return r, nil
 }
 
-func extractAsset(v rideType) (*crypto.Digest, error) {
+func extractAsset(v rideType) (*proto.AssetID, error) {
 	switch a := v.(type) {
 	case rideBytes:
 		// we shouldn't check the length of asset bytes
-		var uncheckedAsset crypto.Digest
-		copy(uncheckedAsset[:], a)
-		return &uncheckedAsset, nil
+		var uncheckedAssetID proto.AssetID
+		copy(uncheckedAssetID[:], a)
+		return &uncheckedAssetID, nil
 	case rideUnit:
 		return nil, nil
 	default:
