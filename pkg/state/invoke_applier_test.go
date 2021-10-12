@@ -126,7 +126,7 @@ func createGeneratedAsset(t *testing.T) (crypto.Digest, string) {
 
 type rcpAsset struct {
 	rcp     proto.Recipient
-	assetId *crypto.Digest
+	assetId *proto.AssetID
 }
 
 type rcpKey struct {
@@ -397,6 +397,7 @@ func TestApplyInvokeScriptWithIssues(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipient()
 	newAsset, name := createGeneratedAsset(t)
+	newAssetID := proto.AssetIDFromDigest(newAsset)
 	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
 	tests := []invokeApplierTestData{
 		{
@@ -405,8 +406,8 @@ func TestApplyInvokeScriptWithIssues(t *testing.T) {
 			errorRes: false,
 			failRes:  false,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     0,
-				{dapp, &newAsset}: 100000,
+				{sender, nil}:       0,
+				{dapp, &newAssetID}: 100000,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
@@ -435,6 +436,7 @@ func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipient()
 	newAsset, name := createGeneratedAsset(t)
+	newAssetID := proto.AssetIDFromDigest(newAsset)
 	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
 	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tests := []invokeApplierTestData{
@@ -444,8 +446,8 @@ func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 			errorRes: false,
 			failRes:  false,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     invokeFee,
-				{dapp, &newAsset}: 100000,
+				{sender, nil}:       invokeFee,
+				{dapp, &newAssetID}: 100000,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
@@ -457,8 +459,8 @@ func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 			errorRes: false,
 			failRes:  false,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     0,
-				{dapp, &newAsset}: 110000,
+				{sender, nil}:       0,
+				{dapp, &newAssetID}: 110000,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
@@ -487,6 +489,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipient()
 	newAsset, name := createGeneratedAsset(t)
+	newAssetID := proto.AssetIDFromDigest(newAsset)
 	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
 	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	fc2 := proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
@@ -497,8 +500,8 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 			errorRes: false,
 			failRes:  false,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     invokeFee * 2,
-				{dapp, &newAsset}: 100000,
+				{sender, nil}:       invokeFee * 2,
+				{dapp, &newAssetID}: 100000,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
@@ -510,8 +513,8 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 			errorRes: false,
 			failRes:  false,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     invokeFee,
-				{dapp, &newAsset}: 110000,
+				{sender, nil}:       invokeFee,
+				{dapp, &newAssetID}: 110000,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
@@ -523,8 +526,8 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 			errorRes: false,
 			failRes:  false,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     0,
-				{dapp, &newAsset}: 105000,
+				{sender, nil}:       0,
+				{dapp, &newAssetID}: 105000,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
@@ -553,6 +556,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipient()
 	newAsset, name := createGeneratedAsset(t)
+	newAssetID := proto.AssetIDFromDigest(newAsset)
 	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
 	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tests := []invokeApplierTestData{
@@ -562,8 +566,8 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 			errorRes: false,
 			failRes:  false,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     invokeFee * 2,
-				{dapp, &newAsset}: 100000,
+				{sender, nil}:       invokeFee * 2,
+				{dapp, &newAssetID}: 100000,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
@@ -575,8 +579,8 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 			errorRes: false,
 			failRes:  false,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     invokeFee,
-				{dapp, &newAsset}: 110000,
+				{sender, nil}:       invokeFee,
+				{dapp, &newAssetID}: 110000,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
@@ -610,6 +614,7 @@ func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipient()
 	newAsset, name := createGeneratedAsset(t)
+	newAssetID := proto.AssetIDFromDigest(newAsset)
 	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
 	fc1 := proto.FunctionCall{Name: "burn", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tests := []invokeApplierTestData{
@@ -619,8 +624,8 @@ func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 			errorRes: false,
 			failRes:  false,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     invokeFee * 99,
-				{dapp, &newAsset}: 100000,
+				{sender, nil}:       invokeFee * 99,
+				{dapp, &newAssetID}: 100000,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
@@ -634,8 +639,8 @@ func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 			errorRes:            false,
 			failRes:             false,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     invokeFee * 79,
-				{dapp, &newAsset}: 0,
+				{sender, nil}:       invokeFee * 79,
+				{dapp, &newAssetID}: 0,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
@@ -671,6 +676,7 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 
 	sender, dapp := invokeSenderRecipient()
 	newAsset, name := createGeneratedAsset(t)
+	newAssetID := proto.AssetIDFromDigest(newAsset)
 	fc := proto.FunctionCall{Name: "issue", Arguments: []proto.Argument{&proto.StringArgument{Value: name}}}
 	fc1 := proto.FunctionCall{Name: "reissue", Arguments: []proto.Argument{&proto.BinaryArgument{Value: newAsset.Bytes()}}}
 	tests := []invokeApplierTestData{
@@ -680,8 +686,8 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 			errorRes: false,
 			failRes:  false,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     invokeFee * 2,
-				{dapp, &newAsset}: 100000,
+				{sender, nil}:       invokeFee * 2,
+				{dapp, &newAssetID}: 100000,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
@@ -693,8 +699,8 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 			errorRes: false,
 			failRes:  false,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     invokeFee,
-				{dapp, &newAsset}: 110000,
+				{sender, nil}:       invokeFee,
+				{dapp, &newAssetID}: 110000,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
@@ -706,8 +712,8 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 			errorRes: false,
 			failRes:  true,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}:     0,
-				{dapp, &newAsset}: 110000,
+				{sender, nil}:       0,
+				{dapp, &newAssetID}: 110000,
 			},
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr, // Script address should be although its balance does not change.

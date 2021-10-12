@@ -12,12 +12,12 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-func byteKey(addr proto.WavesAddress, assetID *crypto.Digest) []byte {
-	if assetID == nil {
+func byteKey(addr proto.WavesAddress, fullAssetID *crypto.Digest) []byte {
+	if isWavesDigest(fullAssetID) {
 		k := wavesBalanceKey{addr}
 		return k.bytes()
 	}
-	k := assetBalanceKey{addr, *assetID}
+	k := assetBalanceKey{addr, proto.AssetIDFromDigest(*fullAssetID)}
 	return k.bytes()
 }
 
@@ -482,7 +482,7 @@ func (td *transactionDiffer) createDiffIssue(tx *proto.Issue, id []byte, info *d
 	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	senderAssetKey := assetBalanceKey{address: senderAddr, asset: assetID}
+	senderAssetKey := assetBalanceKey{address: senderAddr, asset: proto.AssetIDFromDigest(assetID)}
 	senderAssetBalanceDiff := int64(tx.Quantity)
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
@@ -533,7 +533,7 @@ func (td *transactionDiffer) createDiffReissue(tx *proto.Reissue, info *differIn
 	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	senderAssetKey := assetBalanceKey{address: senderAddr, asset: tx.AssetID}
+	senderAssetKey := assetBalanceKey{address: senderAddr, asset: proto.AssetIDFromDigest(tx.AssetID)}
 	senderAssetBalanceDiff := int64(tx.Quantity)
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
@@ -576,7 +576,7 @@ func (td *transactionDiffer) createDiffBurn(tx *proto.Burn, info *differInfo) (t
 	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	senderAssetKey := assetBalanceKey{address: senderAddr, asset: tx.AssetID}
+	senderAssetKey := assetBalanceKey{address: senderAddr, asset: proto.AssetIDFromDigest(tx.AssetID)}
 	senderAssetBalanceDiff := -int64(tx.Amount)
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err

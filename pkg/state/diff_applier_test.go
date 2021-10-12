@@ -107,7 +107,7 @@ func TestDiffApplierWithAssets(t *testing.T) {
 	err := to.applier.applyBalancesChanges(changes, true)
 	assert.NoError(t, err, "applyBalancesChanges() failed")
 	to.stor.flush(t)
-	balance, err := to.stor.entities.balances.assetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, true)
+	balance, err := to.stor.entities.balances.assetBalance(testGlobal.senderInfo.addr, proto.AssetIDFromDigest(testGlobal.asset0.assetID), true)
 	assert.NoError(t, err, "assetBalance() failed")
 	assert.Equal(t, diff.balance, int64(balance))
 	// Test applying invalid balance change.
@@ -138,7 +138,7 @@ func TestTransferOverspend(t *testing.T) {
 	tx.Timestamp = info.blockInfo.Timestamp
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
 	// Set balance equal to tx Fee.
-	err := to.stor.entities.balances.setAssetBalance(testGlobal.senderInfo.addr, testGlobal.asset0.assetID, tx.Fee, blockID0)
+	err := to.stor.entities.balances.setAssetBalance(testGlobal.senderInfo.addr, proto.AssetIDFromDigest(testGlobal.asset0.assetID), tx.Fee, blockID0)
 	assert.NoError(t, err, "setAssetBalance() failed")
 	to.stor.flush(t)
 

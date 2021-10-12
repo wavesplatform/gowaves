@@ -104,7 +104,7 @@ func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.WavesAddre
 
 func (ia *invokeApplier) newTxDiffFromScriptIssue(senderAddress proto.WavesAddress, action *proto.IssueScriptAction) (txDiff, error) {
 	diff := newTxDiff()
-	senderAssetKey := assetBalanceKey{address: senderAddress, asset: action.ID}
+	senderAssetKey := assetBalanceKey{address: senderAddress, asset: proto.AssetIDFromDigest(action.ID)}
 	senderAssetBalanceDiff := action.Quantity
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
@@ -114,7 +114,7 @@ func (ia *invokeApplier) newTxDiffFromScriptIssue(senderAddress proto.WavesAddre
 
 func (ia *invokeApplier) newTxDiffFromScriptReissue(senderAddress proto.WavesAddress, action *proto.ReissueScriptAction) (txDiff, error) {
 	diff := newTxDiff()
-	senderAssetKey := assetBalanceKey{address: senderAddress, asset: action.AssetID}
+	senderAssetKey := assetBalanceKey{address: senderAddress, asset: proto.AssetIDFromDigest(action.AssetID)}
 	senderAssetBalanceDiff := action.Quantity
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func (ia *invokeApplier) newTxDiffFromScriptReissue(senderAddress proto.WavesAdd
 
 func (ia *invokeApplier) newTxDiffFromScriptBurn(senderAddress proto.WavesAddress, action *proto.BurnScriptAction) (txDiff, error) {
 	diff := newTxDiff()
-	senderAssetKey := assetBalanceKey{address: senderAddress, asset: action.AssetID}
+	senderAssetKey := assetBalanceKey{address: senderAddress, asset: proto.AssetIDFromDigest(action.AssetID)}
 	senderAssetBalanceDiff := -action.Quantity
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err

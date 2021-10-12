@@ -868,6 +868,10 @@ func isWavesAssetID(assetID *proto.AssetID) bool {
 	return assetID == nil || *assetID == proto.WavesAssetID
 }
 
+func isWavesDigest(assetID *crypto.Digest) bool {
+	return assetID == nil || *assetID == proto.WavesDigest
+}
+
 func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {

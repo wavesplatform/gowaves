@@ -120,7 +120,7 @@ func newTestAddrData(seedStr string, assets []crypto.Digest) (*testAddrData, err
 
 	assetKeys := make([]string, len(assets))
 	for i, a := range assets {
-		assetKeys[i] = string((&assetBalanceKey{addr, a}).bytes())
+		assetKeys[i] = string((&assetBalanceKey{addr, proto.AssetIDFromDigest(a)}).bytes())
 	}
 	return &testAddrData{sk: sk, pk: pk, addr: addr, rcp: rcp, wavesKey: wavesKey, assetKeys: assetKeys}, nil
 }
@@ -218,7 +218,7 @@ func defaultTestKeyValParams() keyvalue.KeyValParams {
 	return keyvalue.KeyValParams{CacheParams: defaultTestCacheParams(), BloomFilterParams: defaultTestBloomFilterParams()}
 }
 
-func defaultNFT(tail [12]byte) *assetInfo {
+func defaultNFT(tail [proto.AssetIDTailSize]byte) *assetInfo {
 	return &assetInfo{
 		assetConstInfo{
 			tail:     tail,
