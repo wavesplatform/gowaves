@@ -696,11 +696,46 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 // If the transaction does not fail, changes are committed (moved from uncertain to normal storage)
 // later in performInvokeScriptWithProofs().
 // If the transaction fails, performInvokeScriptWithProofs() is not called and changes are discarded later using dropUncertain().
-func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams) (*applicationResult, error) {
+func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleValidationParams) (*applicationResult, error) {
 	// In defer we should clean all the temp changes invoke does to state.
 	defer func() {
 		ia.invokeDiffStor.invokeDiffsStor.reset()
 	}()
+
+	var paymentsLength int
+	var scriptAddr *proto.WavesAddress
+	var txID crypto.Digest
+	var sender proto.Address
+	switch transaction := tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+
+		var err error
+		scriptAddr, err = recipientToAddress(transaction.ScriptRecipient, ia.stor.aliases, !info.initialisation)
+		if err != nil {
+			return nil, errors.Wrap(err, "recipientToAddress() failed")
+		}
+		paymentsLength = len(transaction.Payments)
+		txID = *transaction.ID
+		sender, err = proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to apply script invocation")
+		}
+	case *proto.EthereumTransaction:
+		var err error
+		scriptAddr, err = transaction.WavesAddressTo(ia.settings.AddressSchemeCharacter)
+		if err != nil {
+			return nil, err
+		}
+		decodedData := transaction.TxKind.DecodedData()
+		paymentsLength = len(decodedData.Payments)
+		txID = *transaction.ID
+		sender, err = transaction.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to apply script invocation")
+		}
+	default:
+		return nil, errors.New("failed to apply an invoke script: unexpected type of transaction ")
+	}
 
 	// If BlockV5 feature is not activated, we never accept failed transactions.
 	info.acceptFailed = info.blockV5Activated && info.acceptFailed
@@ -716,10 +751,6 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if err != nil {
 		return nil, err
 	}
-	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, ia.stor.aliases, !info.initialisation)
-	if err != nil {
-		return nil, errors.Wrap(err, "recipientToAddress() failed")
-	}
 	tree, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
@@ -730,16 +761,12 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we've done it before.
-	if len(tx.Payments) >= 2 && tree.LibVersion < 4 {
+	if paymentsLength >= 2 && tree.LibVersion < 4 {
 		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
 	}
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
 	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
-	if disableSelfTransfers && len(tx.Payments) > 0 {
-		sender, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, tx.SenderPK)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to apply script invocation")
-		}
+	if disableSelfTransfers && paymentsLength > 0 {
 		if sender == *scriptAddr {
 			return nil, errors.New("paying to DApp itself is forbidden since RIDE V4")
 		}
@@ -752,7 +779,8 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		return nil, err
 	}
 	// Call script function.
-	ok, scriptActions, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr)
+
+	ok, scriptActions, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr, txID)
 	if !ok {
 		// When ok is false, it means that we could not even start invocation.
 		// We just return error in such case.
@@ -764,7 +792,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 			return nil, errors.Wrap(err, "invokeFunction() failed")
 		}
 		res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), actions: scriptActions, changes: failedChanges}
-		return ia.handleInvocationResult(*tx.ID, info, res)
+		return ia.handleInvocationResult(txID, info, res)
 	}
 	var scriptRuns uint64 = 0
 	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
@@ -799,7 +827,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		libVersion:               byte(tree.LibVersion),
 	})
 	if err != nil {
-		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", tx.ID.String(), err.Error())
+		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", txID.String(), err.Error())
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
 		if !info.acceptFailed {
 			return nil, err
@@ -820,119 +848,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 			changes:    changes,
 		}
 	}
-	return ia.handleInvocationResult(*tx.ID, info, res)
-}
-
-func (ia *invokeApplier) applyEthereumInvokeScript(tx *proto.EthereumTransaction, info *fallibleValidationParams) (*applicationResult, error) {
-	// In defer we should clean all the temp changes invoke does to state.
-	defer func() {
-		ia.invokeDiffStor.invokeDiffsStor.reset()
-	}()
-
-	// If BlockV5 feature is not activated, we never accept failed transactions.
-	info.acceptFailed = info.blockV5Activated && info.acceptFailed
-	// Check sender script, if any.
-	// Basic checks against state.
-	paymentSmartAssets, err := ia.txHandler.checkTx(tx, info.checkerInfo)
-	if err != nil {
-		return nil, err
-	}
-
-	scriptAddr, err := tx.WavesAddressTo(ia.settings.AddressSchemeCharacter)
-	if err != nil {
-		return nil, err
-	}
-	tree, err := ia.stor.scriptsStorage.newestScriptByAddr(scriptAddr, !info.initialisation)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
-	}
-
-	decodedData := tx.TxKind.DecodedData()
-
-	scriptPK, err := ia.stor.scriptsStorage.NewestScriptPKByAddr(scriptAddr, !info.initialisation)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
-	}
-	// Check that the script's library supports multiple payments.
-	// We don't have to check feature activation because we done it before.
-	if len(decodedData.Payments) >= 2 && tree.LibVersion < 4 {
-		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
-	}
-	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
-	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
-	if disableSelfTransfers && len(decodedData.Payments) > 0 {
-		sender, err := tx.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to apply script invocation")
-		}
-		if sender == scriptAddr {
-			return nil, errors.New("paying to DApp itself is forbidden since RIDE V4")
-		}
-	}
-	// Basic differ for InvokeScript creates only fee and payment diff.
-	// Create changes for both failed and successful scenarios.
-	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
-	failedChanges, err := ia.blockDiffer.createFailedTransactionDiff(tx, info.block, differInfo)
-	if err != nil {
-		return nil, err
-	}
-	// Call script function.
-	ok, scriptActions, err := ia.sc.ethereumInvokeFunction(tree, tx, info, scriptAddr)
-	if !ok {
-		// When ok is false, it means that we could not even start invocation.
-		// We just return error in such case.
-		return nil, errors.Wrap(err, "invokeFunction() failed")
-	}
-	if err != nil {
-		// If ok is true, but error is not nil, it means that invocation has failed.
-		if !info.acceptFailed {
-			return nil, errors.Wrap(err, "invokeFunction() failed")
-		}
-		res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), actions: scriptActions, changes: failedChanges}
-		return ia.handleInvocationResult(*tx.ID, info, res)
-	}
-	var scriptRuns uint64 = 0
-	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
-	if !info.rideV5Activated {
-		actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
-		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
-	}
-
-	var res *invocationResult
-	code, changes, err := ia.fallibleValidation(tx, &addlInvokeInfo{
-		fallibleValidationParams: info,
-		scriptAddr:               &scriptAddr,
-		scriptPK:                 scriptPK,
-		scriptRuns:               scriptRuns,
-		failedChanges:            failedChanges,
-		actions:                  scriptActions,
-		paymentSmartAssets:       paymentSmartAssets,
-		disableSelfTransfers:     disableSelfTransfers,
-		libVersion:               byte(tree.LibVersion),
-	})
-	if err != nil {
-		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", tx.ID.String(), err.Error())
-		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
-		if !info.acceptFailed {
-			return nil, err
-		}
-		res = &invocationResult{
-			failed:     true,
-			code:       code,
-			text:       err.Error(),
-			scriptRuns: scriptRuns,
-			actions:    scriptActions,
-			changes:    changes,
-		}
-	} else {
-		res = &invocationResult{
-			failed:     false,
-			scriptRuns: scriptRuns,
-			actions:    scriptActions,
-			changes:    changes,
-		}
-	}
-	return ia.handleInvocationResult(*tx.ID, info, res)
+	return ia.handleInvocationResult(txID, info, res)
 }
 
 type invocationResult struct {

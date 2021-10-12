@@ -423,7 +423,7 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 	if err != nil {
 		return nil, err
 	}
-	tree, err := a.stor.scriptsStorage.newestScriptByAddr(scriptAddr, !params.initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !params.initialisation)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 	}
@@ -693,7 +693,7 @@ func (a *txAppender) handleEthereumInvoke(tx proto.Transaction, info *fallibleVa
 		return nil, errors.New("failed to convert transaction to type InvokeScriptWithProofs")
 	}
 
-	res, err := a.ia.applyEthereumInvokeScript(ethTx, info)
+	res, err := a.ia.applyInvokeScript(ethTx, info)
 	if err != nil {
 		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", ethTx.ID.String(), err)
 		return nil, err

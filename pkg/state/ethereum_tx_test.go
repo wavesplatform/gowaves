@@ -179,9 +179,9 @@ func defaultDecodedData(name string, arguments []ethabi.DecodedArg, payments []e
 func applyScript(t *testing.T, tx *proto.EthereumTransaction, stor ScriptStorageState, info *fallibleValidationParams) (proto.WavesAddress, *ride.Tree) {
 	scriptAddr, err := tx.WavesAddressTo(0)
 	require.NoError(t, err)
-	tree, err := stor.newestScriptByAddr(scriptAddr, !info.initialisation)
+	tree, err := stor.newestScriptByAddr(*scriptAddr, !info.initialisation)
 	require.NoError(t, err)
-	return scriptAddr, tree
+	return *scriptAddr, tree
 }
 func TestEthereumInvoke(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
@@ -235,7 +235,7 @@ func TestEthereumInvoke(t *testing.T) {
 	var txData proto.EthereumTxData = defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil)
 	tx := proto.EthereumTransaction{
 		Inner:    txData,
-		ID:       nil,
+		ID:       &crypto.Digest{},
 		SenderPK: &senderPK,
 	}
 	decodedData := defaultDecodedData("call", []ethabi.DecodedArg{{Value: ethabi.Int(10)}}, []ethabi.Payment{{Amount: 5}})
@@ -246,7 +246,7 @@ func TestEthereumInvoke(t *testing.T) {
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
-	ok, actions, err := txAppender.ia.sc.ethereumInvokeFunction(tree, &tx, fallibleInfo, scriptAddress)
+	ok, actions, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
 	assert.NoError(t, err)
 	assert.True(t, ok)
 	fmt.Println(actions)

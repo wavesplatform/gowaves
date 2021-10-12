@@ -334,17 +334,17 @@ func (tx *EthereumTransaction) Nonce() uint64 { return tx.Inner.nonce() }
 // For contract-creation transactions, To returns nil.
 func (tx *EthereumTransaction) To() *EthereumAddress { return tx.Inner.to().copy() }
 
-func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (WavesAddress, error) {
+func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (*WavesAddress, error) {
 	toEthAdr := tx.Inner.to()
 	if toEthAdr == nil { // contract-creation transactions, To returns nil
-		return WavesAddress{}, errors.New("recipient address is nil, but it has been called")
+		return nil, errors.New("recipient address is nil, but it has been called")
 	}
 
 	to, err := toEthAdr.ToWavesAddress(scheme)
 	if err != nil {
-		return WavesAddress{}, err
+		return nil, err
 	}
-	return to, nil
+	return &to, nil
 }
 
 // From returns the sender address of the transaction.

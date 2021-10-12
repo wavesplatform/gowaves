@@ -1175,16 +1175,12 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 	}, nil
 }
 
-func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, callerPK crypto.PublicKey) (*EvaluationEnvironment, error) {
-	caller, err := proto.NewAddressFromPublicKey(env.sch, callerPK)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-	}
+func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress) (*EvaluationEnvironment, error) {
 	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
 	st := newWrappedState(env)
 	for _, payment := range payments {
-		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
+		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(sender), payment.Asset.ID.Bytes())
 		if err != nil {
 			return nil, err
 		}
@@ -1201,7 +1197,7 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
 
-		callerRcp := proto.NewRecipientFromAddress(caller)
+		callerRcp := proto.NewRecipientFromAddress(sender)
 		senderSearchBalance, senderSearchAddr, err := st.diff.findBalance(callerRcp, payment.Asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")

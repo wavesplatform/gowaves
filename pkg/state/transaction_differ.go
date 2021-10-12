@@ -523,49 +523,22 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	decodedData := txErc20Kind.DecodedData()
 
 	var senderAddress proto.WavesAddress
-	var recipientAddress proto.WavesAddress
 	// Append sender diff.
-
-	var amount int64
 
 	if !ethabi.IsERC20Selector(decodedData.Signature.Selector()) {
 		return txBalanceChanges{}, errors.New("unexpected type of eth selector")
 	}
 
-	rideTypeValueAmount, err := ride.EthABIDataTypeToRideType(decodedData.Inputs[1].Value)
+	erc20arguments, err := ride.GetERC20Arguments(tx.TxKind.DecodedData(), td.settings.AddressSchemeCharacter)
 	if err != nil {
-		return txBalanceChanges{}, errors.Errorf("failed to convert data type to ride type, %v", err)
+		return txBalanceChanges{}, errors.Errorf("failed to receive erc20 arguments, %v", err)
 	}
-	v, ok := rideTypeValueAmount.(ride.RideBigInt)
-	if !ok {
-		return txBalanceChanges{}, errors.Errorf("failed to convert big int value from transfer argument to rideBigInt, %v", err)
-
-	}
-
-	if ok := v.V.IsInt64(); !ok {
-		return txBalanceChanges{}, errors.Errorf("failed to convert big int value to int64. value is %s", tx.Value().String())
-	}
-	amount = v.V.Int64()
 
 	EthSenderAddr, err := tx.From()
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
 	senderAddress, err = EthSenderAddr.ToWavesAddress(td.settings.AddressSchemeCharacter)
-	if err != nil {
-		return txBalanceChanges{}, err
-	}
-
-	rideTypeValueRecipient, err := ride.EthABIDataTypeToRideType(decodedData.Inputs[0].Value)
-	if err != nil {
-		return txBalanceChanges{}, errors.Errorf("failed to convert data type to ride type, %v", err)
-	}
-	rideEthRecipientAddress, ok := rideTypeValueRecipient.(ride.RideBytes)
-	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert address from argument of transfer erc20 function to rideBytes")
-	}
-	ethRecipientAddress := proto.BytesToEthereumAddress(rideEthRecipientAddress)
-	recipientAddress, err = ethRecipientAddress.ToWavesAddress(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -582,18 +555,18 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 
 	senderAmountKey := byteKey(senderAddress, txErc20Kind.Asset.ToID())
 
-	senderAmountBalanceDiff := -amount
+	senderAmountBalanceDiff := -erc20arguments.Amount
 	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(senderAmountBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
 	// Append receiver diff.
 
-	receiverKey := byteKey(recipientAddress, txErc20Kind.Asset.ToID())
-	receiverBalanceDiff := amount
+	receiverKey := byteKey(erc20arguments.Recipient, txErc20Kind.Asset.ToID())
+	receiverBalanceDiff := erc20arguments.Amount
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	addrs := []proto.WavesAddress{senderAddress, recipientAddress}
+	addrs := []proto.WavesAddress{senderAddress, erc20arguments.Recipient}
 	changes := newTxBalanceChanges(addrs, diff)
 	// sponsorship might be handled here
 	return changes, nil

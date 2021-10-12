@@ -408,7 +408,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		if err != nil {
 			return nil, err
 		}
-		tree, err := tc.stor.scriptsStorage.newestScriptByAddr(scriptAddr, !info.initialisation)
+		tree, err := tc.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
 		if err != nil {
 			return nil, err
 		}
