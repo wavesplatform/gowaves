@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"github.com/mr-tron/base58"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -19,10 +18,6 @@ type AssetID [AssetIDSize]byte
 
 func (a AssetID) Bytes() []byte {
 	return a[:]
-}
-
-func (a AssetID) String() string {
-	return base58.Encode(a[:])
 }
 
 func AssetIDFromDigest(digest crypto.Digest) AssetID {

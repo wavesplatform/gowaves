@@ -428,7 +428,7 @@ func (tc *transactionChecker) checkIssueWithProofs(transaction proto.Transaction
 	if !ok {
 		return nil, errors.Errorf("failed to calculate asset script complexity by estimator version %d", currentEstimatorVersion)
 	}
-	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(proto.AssetIDFromDigest(assetID), complexity, info.blockID); err != nil {
+	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, complexity, info.blockID); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -1089,7 +1089,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 	if !ok {
 		return nil, errors.Errorf("failed to calculate asset script complexity by estimator version %d", currentEstimatorVersion)
 	}
-	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(proto.AssetIDFromDigest(tx.AssetID), estimation, info.blockID); err != nil {
+	if err := tc.stor.scriptsComplexity.saveComplexitiesForAsset(tx.AssetID, estimation, info.blockID); err != nil {
 		return nil, errs.Extend(err, "saveComplexityForAsset")
 	}
 	return smartAssets, nil

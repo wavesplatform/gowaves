@@ -99,7 +99,7 @@ func TestSaveComplexityForAsset(t *testing.T) {
 	asset := testGlobal.asset0.asset.ID
 	assetID := proto.AssetIDFromDigest(asset)
 	est := ride.TreeEstimation{Estimation: 500, Verifier: 500}
-	err = to.scriptsComplexity.saveComplexitiesForAsset(assetID, est, blockID0)
+	err = to.scriptsComplexity.saveComplexitiesForAsset(asset, est, blockID0)
 	assert.NoError(t, err)
 	res1, err := to.scriptsComplexity.newestScriptComplexityByAsset(assetID, true)
 	require.NoError(t, err)
