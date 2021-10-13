@@ -144,13 +144,13 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 	shortAssetID := proto.AssetIDFromDigest(assetID)
 	switch tree.LibVersion {
 	case 4, 5:
-		assetInfo, err := a.state.NewestFullAssetInfo(shortAssetID)
+		assetInfo, err := a.state.NewestFullAssetInfo(assetID)
 		if err != nil {
 			return nil, err
 		}
 		env.SetThisFromFullAssetInfo(assetInfo)
 	default:
-		assetInfo, err := a.state.NewestAssetInfo(shortAssetID)
+		assetInfo, err := a.state.NewestAssetInfo(assetID)
 		if err != nil {
 			return nil, err
 		}

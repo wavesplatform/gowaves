@@ -491,9 +491,10 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 	return nil, errors.Errorf("address and alias from recipient are nil")
 }
 
-func (s *stateManager) NewestScriptByAsset(assetID proto.AssetID) (proto.Script, error) {
+func (s *stateManager) NewestScriptByAsset(asset crypto.Digest) (proto.Script, error) {
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
+	assetID := proto.AssetIDFromDigest(asset)
 	return s.stor.scriptsStorage.newestScriptBytesByAsset(assetID, true)
 }
 
@@ -872,20 +873,21 @@ func isWavesDigest(assetID *crypto.Digest) bool {
 	return assetID == nil || *assetID == proto.WavesDigest
 }
 
-func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
+func (s *stateManager) NewestAccountBalance(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
 
-	if isWavesAssetID(assetID) {
+	if isWavesDigest(asset) {
 		profile, err := s.newestWavesBalanceProfile(*addr)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
 		}
 		return profile.balance, nil
 	}
-	balance, err := s.newestAssetBalance(*addr, *assetID)
+	assetID := proto.AssetIDFromDigest(*asset)
+	balance, err := s.newestAssetBalance(*addr, assetID)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -1919,9 +1921,10 @@ func (s *stateManager) NewAddrTransactionsIterator(addr proto.Address) (Transact
 	return iter, nil
 }
 
-func (s *stateManager) NewestAssetIsSponsored(assetID proto.AssetID) (bool, error) {
+func (s *stateManager) NewestAssetIsSponsored(asset crypto.Digest) (bool, error) {
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
+	assetID := proto.AssetIDFromDigest(asset)
 	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID, true)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
@@ -1937,9 +1940,10 @@ func (s *stateManager) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
 	return sponsored, nil
 }
 
-func (s *stateManager) NewestAssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
+func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, error) {
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
+	assetID := proto.AssetIDFromDigest(asset)
 	info, err := s.stor.assets.newestAssetInfo(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
@@ -1970,11 +1974,12 @@ func (s *stateManager) NewestAssetInfo(assetID proto.AssetID) (*proto.AssetInfo,
 
 // NewestFullAssetInfo is used to request full asset info from RIDE,
 // because of that we don't try to get issue transaction info.
-func (s *stateManager) NewestFullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
-	ai, err := s.NewestAssetInfo(assetID)
+func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAssetInfo, error) {
+	ai, err := s.NewestAssetInfo(asset)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
+	assetID := proto.AssetIDFromDigest(asset)
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
 	info, err := s.stor.assets.newestAssetInfo(assetID, true)

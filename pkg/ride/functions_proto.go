@@ -751,7 +751,7 @@ func assetInfoV3(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	info, err := env.state().NewestAssetInfo(proto.AssetIDFromDigest(asset))
+	info, err := env.state().NewestAssetInfo(asset)
 	if err != nil {
 		return rideUnit{}, nil
 	}
@@ -767,7 +767,7 @@ func assetInfoV4(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	info, err := env.state().NewestFullAssetInfo(proto.AssetIDFromDigest(asset))
+	info, err := env.state().NewestFullAssetInfo(asset)
 	if err != nil {
 		return rideUnit{}, nil
 	}
@@ -1583,11 +1583,11 @@ func extractRecipient(v rideType) (proto.Recipient, error) {
 	return r, nil
 }
 
-func extractAsset(v rideType) (*proto.AssetID, error) {
+func extractAsset(v rideType) (*crypto.Digest, error) {
 	switch a := v.(type) {
 	case rideBytes:
 		// we shouldn't check the length of asset bytes
-		var uncheckedAssetID proto.AssetID
+		var uncheckedAssetID crypto.Digest
 		copy(uncheckedAssetID[:], a)
 		return &uncheckedAssetID, nil
 	case rideUnit:

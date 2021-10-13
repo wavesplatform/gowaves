@@ -46,16 +46,16 @@ type SmartState interface {
 	IsStateUntouched(account proto.Recipient) (bool, error)
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
-	NewestAccountBalance(account proto.Recipient, assetID *proto.AssetID) (uint64, error)
+	NewestAccountBalance(account proto.Recipient, assetID *crypto.Digest) (uint64, error)
 	NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
 	RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
 	RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
 	RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
 	RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
-	NewestAssetIsSponsored(assetID proto.AssetID) (bool, error)
-	NewestAssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error)
-	NewestFullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error)
-	NewestScriptByAsset(assetID proto.AssetID) (proto.Script, error)
+	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
+	NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
+	NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
+	NewestScriptByAsset(assetID crypto.Digest) (proto.Script, error)
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 
