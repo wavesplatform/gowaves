@@ -144,11 +144,11 @@ func TestFunctionsEvaluation(t *testing.T) {
 					}
 					return nil, errors.New("not found")
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset *proto.AssetID) (uint64, error) {
-					if isWavesAssetID(asset) {
+				NewestAccountBalanceFunc: func(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
+					if isWavesDigest(asset) {
 						return 5, nil
 					} else {
-						if *asset == proto.AssetIDFromDigest(d) {
+						if *asset == d {
 							return 5, nil
 						}
 						return 0, nil
@@ -876,11 +876,7 @@ var addressCallable proto.WavesAddress
 var addressCallablePK crypto.PublicKey
 
 func smartStateDappFromDapp() types.SmartState {
-	const assetStr = "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ"
-	var (
-		expectedAsset   = crypto.MustDigestFromBase58(assetStr)
-		expectedAssetID = proto.AssetIDFromDigest(expectedAsset)
-	)
+	expectedAsset := crypto.MustDigestFromBase58("13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ")
 
 	return &MockSmartState{
 		NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
@@ -900,8 +896,8 @@ func smartStateDappFromDapp() types.SmartState {
 			}
 			return script, nil
 		},
-		NewestScriptByAssetFunc: func(assetID proto.AssetID) (proto.Script, error) {
-			if assetID == expectedAssetID {
+		NewestScriptByAssetFunc: func(assetID crypto.Digest) (proto.Script, error) {
+			if assetID == expectedAsset {
 				script := "BQQAAAALZEFwcEFkZHJlc3MJAAQmAAAAAQIAAAAjM1A4ZVpWS1M3YTR0cm9HY2t5dHhhZWZMQWk5dzdQNWFNbmEEAAAAByRtYXRjaDAFAAAAAnR4AwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAA9CdXJuVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABJSZWlzc3VlVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABlTZXRBc3NldFNjcmlwdFRyYW5zYWN0aW9uBAAAAAJ0eAUAAAAHJG1hdGNoMAkAAAAAAAACCAUAAAACdHgAAAAGc2VuZGVyBQAAAAtkQXBwQWRkcmVzcwMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNUcmFuc2ZlclRyYW5zYWN0aW9uBAAAAAJ0eAUAAAAHJG1hdGNoMAkAAAAAAAACCAUAAAACdHgAAAAGc2VuZGVyBQAAAAtkQXBwQWRkcmVzcwf56Ssf"
 
 				src, err := base64.StdEncoding.DecodeString(script)
@@ -947,7 +943,7 @@ func smartStateDappFromDapp() types.SmartState {
 		NewestTransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
 			return nil, nil
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
+		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
 			balance := 0
 			return uint64(balance), nil
 		},
@@ -981,11 +977,11 @@ func smartStateDappFromDapp() types.SmartState {
 
 			return nil, nil
 		},
-		NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 			return false, nil
 		},
-		NewestAssetInfoFunc: func(assetID proto.AssetID) (*proto.AssetInfo, error) {
-			if assetID == expectedAssetID {
+		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+			if assetID == expectedAsset {
 				return &proto.AssetInfo{
 					ID:              expectedAsset,
 					Quantity:        1000,
@@ -999,8 +995,8 @@ func smartStateDappFromDapp() types.SmartState {
 			}
 			return nil, nil
 		},
-		NewestFullAssetInfoFunc: func(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
-			if assetID == expectedAssetID {
+		NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+			if assetID == expectedAsset {
 				assetInfo := proto.AssetInfo{
 					ID:              expectedAsset,
 					Quantity:        1000,
@@ -1110,7 +1106,7 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 	recipient := proto.NewRecipientFromAddress(wrappedSt.callee())
 
 	for _, payment := range externalPayments {
-		assetID := payment.Asset.ToAssetID()
+		assetID := payment.Asset.ToDigest()
 
 		senderBalance, err := wrappedSt.NewestAccountBalance(proto.NewRecipientFromAddress(caller), assetID)
 		if err != nil {
@@ -1145,13 +1141,12 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 
 func AddWavesToSender(senderAddress proto.WavesAddress, amount int64, asset proto.OptionalAsset) error {
 	senderRecipient := proto.NewRecipientFromAddress(senderAddress)
-	assetID := asset.ToAssetID()
 
-	searchBalance, searchAddr, err := wrappedSt.diff.findBalance(senderRecipient, assetID)
+	searchBalance, searchAddr, err := wrappedSt.diff.findBalance(senderRecipient, asset.ToDigest())
 	if err != nil {
 		return err
 	}
-	err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, amount, assetID, senderRecipient)
+	err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, amount, asset.ToDigest(), senderRecipient)
 	if err != nil {
 		return err
 	}
@@ -1328,7 +1323,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedLeaseWrites[0].ID = sr.Leases[0].ID
-	assetExp := proto.WavesAssetID
+	assetExp := proto.WavesDigest
 
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  expectedDataEntryWrites,
@@ -1369,17 +1364,17 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	assert.Equal(t, fullBalanceCallable, fullBalanceCallableExpected)
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
-	balance := diffBalance{regular: 7533, leaseIn: 10, assetID: assetExp, effectiveHistory: []int64{7543}}
+	balance := diffBalance{regular: 7533, leaseIn: 10, asset: assetExp, effectiveHistory: []int64{7543}}
 	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balance
 
-	balanceSender := diffBalance{regular: 0, leaseOut: 0, assetID: assetExp}
+	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
 	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 
-	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, assetID: assetExp, effectiveHistory: []int64{2467, 2457}}
+	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, asset: assetExp, effectiveHistory: []int64{2467, 2457}}
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 
-	assetFromIssue := proto.AssetIDFromDigest(sr.Issues[0].ID)
-	balanceCallableAsset := diffBalance{regular: 6, leaseOut: 0, assetID: assetFromIssue} // +1 after Issue. + 10 after Reissue. -5 after Burn. = 6
+	assetFromIssue := sr.Issues[0].ID
+	balanceCallableAsset := diffBalance{regular: 6, leaseOut: 0, asset: assetFromIssue} // +1 after Issue. + 10 after Reissue. -5 after Burn. = 6
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetFromIssue}] = balanceCallableAsset
 
 	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
@@ -1397,8 +1392,8 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	deleteEntry := proto.DeleteDataEntry{Key: "str"}
 	expectedDiffResult.dataEntries.diffDelete[deleteDataEntryKey{deleteEntry.Key, addressCallable}] = deleteEntry
 
-	newAsset := diffNewAssetInfo{dAppIssuer: addressCallable, id: assetIDIssue, name: "CatCoin", description: "", quantity: 6, decimals: 0, reissuable: false, script: nil, nonce: 0}
-	expectedDiffResult.newAssetsInfo[proto.AssetIDFromDigest(newAsset.id)] = newAsset
+	newAsset := diffNewAssetInfo{dAppIssuer: addressCallable, name: "CatCoin", description: "", quantity: 6, decimals: 0, reissuable: false, script: nil, nonce: 0}
+	expectedDiffResult.newAssetsInfo[assetIDIssue] = newAsset
 
 	lease := lease{Recipient: recipient, Sender: recipientCallable, leasedAmount: 10}
 	expectedDiffResult.leases[expectedLeaseWrites[0].ID] = lease
@@ -1697,14 +1692,14 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	balanceMain := diffBalance{assetID: proto.WavesAssetID, regular: 9986, effectiveHistory: []int64{10000, 9986}}
-	balanceSender := diffBalance{regular: 0, leaseOut: 0, assetID: proto.WavesAssetID}
-	balanceCallable := diffBalance{assetID: proto.WavesAssetID, regular: 14, effectiveHistory: []int64{0, 14}}
+	balanceMain := diffBalance{asset: proto.WavesDigest, regular: 9986, effectiveHistory: []int64{10000, 9986}}
+	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: proto.WavesDigest}
+	balanceCallable := diffBalance{asset: proto.WavesDigest, regular: 14, effectiveHistory: []int64{0, 14}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
-	expectedDiffResult.balances[balanceDiffKey{addressCallable, proto.WavesAssetID}] = balanceCallable
-	expectedDiffResult.balances[balanceDiffKey{senderAddress, proto.WavesAssetID}] = balanceSender
-	expectedDiffResult.balances[balanceDiffKey{addr, proto.WavesAssetID}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, proto.WavesDigest}] = balanceCallable
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, proto.WavesDigest}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addr, proto.WavesDigest}] = balanceMain
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -1886,14 +1881,14 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	balanceMain := diffBalance{assetID: proto.WavesAssetID, regular: 9971, effectiveHistory: []int64{10000, 9986, 9971}}
-	balanceSender := diffBalance{regular: 0, leaseOut: 0, assetID: proto.WavesAssetID}
-	balanceCallable := diffBalance{assetID: proto.WavesAssetID, regular: 29, effectiveHistory: []int64{0, 14, 29}}
+	balanceMain := diffBalance{asset: proto.WavesDigest, regular: 9971, effectiveHistory: []int64{10000, 9986, 9971}}
+	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: proto.WavesDigest}
+	balanceCallable := diffBalance{asset: proto.WavesDigest, regular: 29, effectiveHistory: []int64{0, 14, 29}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
-	expectedDiffResult.balances[balanceDiffKey{addr, proto.WavesAssetID}] = balanceMain
-	expectedDiffResult.balances[balanceDiffKey{senderAddress, proto.WavesAssetID}] = balanceSender
-	expectedDiffResult.balances[balanceDiffKey{addressCallable, proto.WavesAssetID}] = balanceCallable
+	expectedDiffResult.balances[balanceDiffKey{addr, proto.WavesDigest}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, proto.WavesDigest}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, proto.WavesDigest}] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -2878,10 +2873,10 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
 
-	balanceMain := diffBalance{assetID: proto.WavesAssetID, regular: 10000}
-	balanceSender := diffBalance{assetID: proto.WavesAssetID, regular: 0}
-	expectedDiffResult.balances[balanceDiffKey{addr, proto.WavesAssetID}] = balanceMain
-	expectedDiffResult.balances[balanceDiffKey{senderAddress, proto.WavesAssetID}] = balanceSender
+	balanceMain := diffBalance{asset: proto.WavesDigest, regular: 10000}
+	balanceSender := diffBalance{asset: proto.WavesDigest, regular: 0}
+	expectedDiffResult.balances[balanceDiffKey{addr, proto.WavesDigest}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, proto.WavesDigest}] = balanceSender
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -3033,12 +3028,12 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	balanceMain := diffBalance{assetID: proto.WavesAssetID, regular: 9999}
-	balanceSender := diffBalance{assetID: proto.WavesAssetID, regular: 0}
-	balanceCallable := diffBalance{assetID: proto.WavesAssetID, regular: 1}
-	expectedDiffResult.balances[balanceDiffKey{addr, proto.WavesAssetID}] = balanceMain
-	expectedDiffResult.balances[balanceDiffKey{senderAddress, proto.WavesAssetID}] = balanceSender
-	expectedDiffResult.balances[balanceDiffKey{addressCallable, proto.WavesAssetID}] = balanceCallable
+	balanceMain := diffBalance{asset: proto.WavesDigest, regular: 9999}
+	balanceSender := diffBalance{asset: proto.WavesDigest, regular: 0}
+	balanceCallable := diffBalance{asset: proto.WavesDigest, regular: 1}
+	expectedDiffResult.balances[balanceDiffKey{addr, proto.WavesDigest}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, proto.WavesDigest}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, proto.WavesDigest}] = balanceCallable
 	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
 
@@ -3211,17 +3206,17 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 
 	assert.Equal(t, expectedActionsResult, sr)
 
-	assetIDCat := *assetCat.ToAssetID()
+	assetIDCat := *assetCat.ToDigest()
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
-	balance := diffBalance{regular: 1, leaseIn: 0, assetID: assetIDCat}
+	balance := diffBalance{regular: 1, leaseIn: 0, asset: assetIDCat}
 	expectedDiffResult.balances[balanceDiffKey{addr, assetIDCat}] = balance
 
-	balanceCallable := diffBalance{regular: 10049, leaseOut: 0, assetID: assetIDCat} // the balance was 9999. reissue + 100. burn - 50. = 10049
+	balanceCallable := diffBalance{regular: 10049, leaseOut: 0, asset: assetIDCat} // the balance was 9999. reissue + 100. burn - 50. = 10049
 	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetIDCat}] = balanceCallable
 
 	oldAsset := diffOldAssetInfo{diffQuantity: 50}
-	expectedDiffResult.oldAssetsInfo[proto.AssetIDFromDigest(assetIDIssue)] = oldAsset
+	expectedDiffResult.oldAssetsInfo[assetIDIssue] = oldAsset
 
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 	assert.Equal(t, expectedDiffResult.sponsorships, wrappedSt.diff.sponsorships)
@@ -3385,16 +3380,16 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	balanceMain := diffBalance{assetID: proto.WavesAssetID, regular: 9984}
-	balanceSender := diffBalance{assetID: proto.WavesAssetID, regular: 0}
-	balanceCallable := diffBalance{assetID: proto.WavesAssetID, regular: 16}
+	balanceMain := diffBalance{asset: proto.WavesDigest, regular: 9984}
+	balanceSender := diffBalance{asset: proto.WavesDigest, regular: 0}
+	balanceCallable := diffBalance{asset: proto.WavesDigest, regular: 16}
 	intEntry1 := proto.IntegerDataEntry{Key: "key", Value: 0}
 	intEntry2 := proto.IntegerDataEntry{Key: "bar", Value: 1}
 	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry1.Key, addr}] = intEntry1
 	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry2.Key, addressCallable}] = intEntry2
-	expectedDiffResult.balances[balanceDiffKey{addr, proto.WavesAssetID}] = balanceMain
-	expectedDiffResult.balances[balanceDiffKey{senderAddress, proto.WavesAssetID}] = balanceSender
-	expectedDiffResult.balances[balanceDiffKey{addressCallable, proto.WavesAssetID}] = balanceCallable
+	expectedDiffResult.balances[balanceDiffKey{addr, proto.WavesDigest}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, proto.WavesDigest}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, proto.WavesDigest}] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -4333,7 +4328,7 @@ func TestWhaleDApp(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 1642207, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -4467,7 +4462,7 @@ func TestExchangeDApp(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 1642207, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -4632,7 +4627,7 @@ func TestBankDApp(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 1642207, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -4759,20 +4754,20 @@ func TestLigaDApp1(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 607280, nil
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset *proto.AssetID) (uint64, error) {
-					if isWavesAssetID(asset) {
-						asset = &proto.WavesAssetID
+				NewestAccountBalanceFunc: func(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
+					if isWavesDigest(asset) {
+						asset = &proto.WavesDigest
 					}
 					switch *asset {
-					case proto.AssetIDFromDigest(team1):
+					case team1:
 						return 1000 - 5, nil
-					case proto.AssetIDFromDigest(team2):
+					case team2:
 						return 1000, nil
 					default:
 						return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
 					}
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -4917,22 +4912,22 @@ func TestLigaDApp1(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 607281, nil
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset *proto.AssetID) (uint64, error) {
-					if isWavesAssetID(asset) {
-						asset = &proto.WavesAssetID
+				NewestAccountBalanceFunc: func(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
+					if isWavesDigest(asset) {
+						asset = &proto.WavesDigest
 					}
 					switch *asset {
-					case proto.AssetIDFromDigest(team1):
+					case team1:
 						return 1000 - 5, nil
-					case proto.AssetIDFromDigest(team2):
+					case team2:
 						return 1000, nil
 					default:
 						return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
 					}
 				},
-				NewestAssetInfoFunc: func(assetID proto.AssetID) (*proto.AssetInfo, error) {
-					switch assetID {
-					case proto.AssetIDFromDigest(team1):
+				NewestAssetInfoFunc: func(asset crypto.Digest) (*proto.AssetInfo, error) {
+					switch asset {
+					case team1:
 						return &proto.AssetInfo{
 							ID:              team1,
 							Quantity:        1000,
@@ -4943,7 +4938,7 @@ func TestLigaDApp1(t *testing.T) {
 							Scripted:        false,
 							Sponsored:       false,
 						}, nil
-					case proto.AssetIDFromDigest(team2):
+					case team2:
 						return &proto.AssetInfo{
 							ID:              team2,
 							Quantity:        1000,
@@ -4958,7 +4953,7 @@ func TestLigaDApp1(t *testing.T) {
 						return nil, errors.New("fail")
 					}
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -5101,7 +5096,7 @@ func TestTestingDApp(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 666972, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -5229,7 +5224,7 @@ func TestDropElementDApp(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 666972, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -5348,7 +5343,7 @@ func TestMathDApp(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 844761, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -5465,7 +5460,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 844761, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -5593,7 +5588,7 @@ func Test8Ball(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 844761, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -5719,7 +5714,7 @@ func TestIntegerEntry(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 386529, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -5770,16 +5765,16 @@ func TestAssetInfoV3V4(t *testing.T) {
 		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset *proto.AssetID) (uint64, error) {
+				NewestAccountBalanceFunc: func(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
 					return 1000, nil
 				},
-				NewestAssetInfoFunc: func(assetID proto.AssetID) (*proto.AssetInfo, error) {
+				NewestAssetInfoFunc: func(asset crypto.Digest) (*proto.AssetInfo, error) {
 					return &info, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset crypto.Digest) (bool, error) {
 					return false, nil
 				},
-				NewestFullAssetInfoFunc: func(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
+				NewestFullAssetInfoFunc: func(asset crypto.Digest) (*proto.FullAssetInfo, error) {
 					return &proto.FullAssetInfo{
 						AssetInfo:   info,
 						Name:        "ASSET1",
@@ -5958,7 +5953,7 @@ func TestBadType(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 617907, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -6108,7 +6103,7 @@ func TestNoDeclaration(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 2342971, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -6283,7 +6278,7 @@ func TestZeroReissue(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 451323, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -6521,7 +6516,7 @@ func TestStageNet2(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 451323, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -7093,8 +7088,8 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			return recipient.Address, nil
 		},
-		NewestAssetInfoFunc: func(assetID proto.AssetID) (*proto.AssetInfo, error) {
-			if assetID == proto.AssetIDFromDigest(asset) {
+		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+			if assetID == asset {
 				return &proto.AssetInfo{
 					ID:              asset,
 					Quantity:        1000000,
@@ -7106,10 +7101,10 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 					Sponsored:       false,
 				}, nil
 			}
-			return nil, errors.New("unexpected asset")
+			return nil, errors.Errorf("unexpected asset '%s'", assetID.String())
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
-			if !isWavesAssetID(assetID) && *assetID == proto.AssetIDFromDigest(asset) {
+		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
+			if !isWavesDigest(assetID) && *assetID == asset {
 				switch account.String() {
 				case "3PH75p2rmMKCV2nyW4TsAdFgFtmc61mJaqA":
 					return 0, nil
@@ -7119,7 +7114,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 					return 0, errors.New("unexpected account")
 				}
 			}
-			return 0, errors.New("unexpected asset")
+			return 0, errors.Errorf("unexpected asset '%s'", assetID.String())
 		},
 	}
 	testState := initWrappedState(mockState, env)
@@ -7288,8 +7283,8 @@ func TestAliasesInInvokes(t *testing.T) {
 				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
 			}
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
-			if isWavesAssetID(assetID) {
+		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
+			if isWavesDigest(assetID) {
 				switch account.String() {
 				case dApp1.String():
 					return 0, nil
@@ -7303,7 +7298,7 @@ func TestAliasesInInvokes(t *testing.T) {
 					return 0, errors.Errorf("unexpected account '%s'", account.String())
 				}
 			}
-			return 0, errors.New("unxepected assetID")
+			return 0, errors.Errorf("unexpected asset '%s'", assetID.String())
 		},
 	}
 	testState := initWrappedState(mockState, env)
@@ -7514,21 +7509,21 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
+		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
 			switch {
-			case isWavesAssetID(assetID):
+			case isWavesDigest(assetID):
 				return 0, nil
-			case *assetID == proto.AssetIDFromDigest(nft):
+			case *assetID == nft:
 				return 0, nil
 			}
-			return 0, errors.New("unexpected assetID")
+			return 0, errors.Errorf("unexpected asset '%s'", assetID.String())
 		},
-		NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 			switch assetID {
-			case proto.AssetIDFromDigest(nft):
+			case nft:
 				return false, nil
 			default:
-				return false, errors.New("unexpected assetID")
+				return false, errors.Errorf("unexpected asset '%s'", assetID.String())
 			}
 		},
 	}
@@ -7696,28 +7691,28 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
+		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
 			switch {
-			case isWavesAssetID(assetID):
+			case isWavesDigest(assetID):
 				return 0, nil
-			case account.Address.Eq(dApp1) && *assetID == proto.AssetIDFromDigest(asset):
+			case account.Address.Eq(dApp1) && *assetID == asset:
 				return 1, nil
-			case account.Address.Eq(dApp2) && *assetID == proto.AssetIDFromDigest(asset):
+			case account.Address.Eq(dApp2) && *assetID == asset:
 				return 0, nil
 			}
-			return 0, errors.New("unxepected assetID")
+			return 0, errors.Errorf("unexpected asset '%s'", assetID.String())
 		},
-		NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 			switch assetID {
-			case proto.AssetIDFromDigest(asset):
+			case asset:
 				return false, nil
 			default:
-				return false, errors.New("unexpected assetID")
+				return false, errors.Errorf("unexpected asset '%s'", assetID.String())
 			}
 		},
-		NewestAssetInfoFunc: func(assetID proto.AssetID) (*proto.AssetInfo, error) {
+		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
 			switch assetID {
-			case proto.AssetIDFromDigest(asset):
+			case asset:
 				return &proto.AssetInfo{
 					ID:              asset,
 					Quantity:        10,
@@ -7729,7 +7724,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 					Sponsored:       false,
 				}, nil
 			default:
-				return nil, errors.New("unexpected assetID")
+				return nil, errors.Errorf("unexpected asset '%s'", assetID.String())
 			}
 		},
 	}
@@ -7875,28 +7870,28 @@ func TestReissueInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
+		NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
 			switch {
-			case isWavesAssetID(assetID):
+			case isWavesDigest(assetID):
 				return 0, nil
-			case account.Address.Eq(dApp1) && *assetID == proto.AssetIDFromDigest(asset):
+			case account.Address.Eq(dApp1) && *assetID == asset:
 				return 0, nil
-			case account.Address.Eq(dApp2) && *assetID == proto.AssetIDFromDigest(asset):
+			case account.Address.Eq(dApp2) && *assetID == asset:
 				return 0, nil
 			}
-			return 0, errors.New("unxepected assetID")
+			return 0, errors.Errorf("unexpected asset '%s'", assetID.String())
 		},
-		NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
+		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 			switch assetID {
-			case proto.AssetIDFromDigest(asset):
+			case asset:
 				return false, nil
 			default:
-				return false, errors.New("unexpected assetID")
+				return false, errors.Errorf("unexpected asset '%s'", assetID.String())
 			}
 		},
-		NewestAssetInfoFunc: func(assetID proto.AssetID) (*proto.AssetInfo, error) {
+		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
 			switch {
-			case proto.AssetIDFromDigest(asset) == assetID:
+			case asset == assetID:
 				return &proto.AssetInfo{
 					ID:              asset,
 					Quantity:        10,
@@ -7906,7 +7901,7 @@ func TestReissueInInvoke(t *testing.T) {
 					Reissuable:      true,
 				}, nil
 			default:
-				return nil, errors.New("unexpected assetID")
+				return nil, errors.Errorf("unexpected asset '%s'", assetID.String())
 			}
 		},
 	}

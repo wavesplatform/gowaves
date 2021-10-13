@@ -3,7 +3,6 @@ package ride
 import (
 	"fmt"
 
-	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -52,7 +51,7 @@ type lease struct {
 }
 
 type diffBalance struct {
-	assetID          proto.AssetID
+	asset            crypto.Digest
 	regular          int64
 	leaseIn          int64
 	leaseOut         int64
@@ -65,7 +64,6 @@ type diffSponsorship struct {
 
 type diffNewAssetInfo struct {
 	dAppIssuer  proto.WavesAddress
-	id          crypto.Digest
 	name        string
 	description string
 	quantity    int64
@@ -81,21 +79,21 @@ type diffOldAssetInfo struct {
 
 type balanceDiffKey struct {
 	address proto.WavesAddress
-	assetID proto.AssetID
+	asset   crypto.Digest
 }
 
 func (b *balanceDiffKey) String() string {
-	return fmt.Sprintf("%s|%s", b.address.String(), base58.Encode(b.assetID[:]))
+	return fmt.Sprintf("%s|%s", b.address.String(), b.asset.String())
 }
 
 type diffState struct {
 	state         types.SmartState
 	dataEntries   diffDataEntries
-	balances      map[balanceDiffKey]diffBalance     // map[address.String() + Digest.String()] or map[address.String()]
-	sponsorships  map[proto.AssetID]diffSponsorship  // map[Digest.String()]
-	newAssetsInfo map[proto.AssetID]diffNewAssetInfo // map[asset.String()]
-	oldAssetsInfo map[proto.AssetID]diffOldAssetInfo // map[asset.String()]
-	leases        map[crypto.Digest]lease            // map[lease.String()]
+	balances      map[balanceDiffKey]diffBalance
+	sponsorships  map[crypto.Digest]diffSponsorship
+	newAssetsInfo map[crypto.Digest]diffNewAssetInfo
+	oldAssetsInfo map[crypto.Digest]diffOldAssetInfo
+	leases        map[crypto.Digest]lease
 }
 
 func newDiffState(state types.SmartState) diffState {
@@ -103,9 +101,9 @@ func newDiffState(state types.SmartState) diffState {
 		state:         state,
 		dataEntries:   newDiffDataEntries(),
 		balances:      map[balanceDiffKey]diffBalance{},
-		sponsorships:  map[proto.AssetID]diffSponsorship{},
-		newAssetsInfo: map[proto.AssetID]diffNewAssetInfo{},
-		oldAssetsInfo: map[proto.AssetID]diffOldAssetInfo{},
+		sponsorships:  map[crypto.Digest]diffSponsorship{},
+		newAssetsInfo: map[crypto.Digest]diffNewAssetInfo{},
+		oldAssetsInfo: map[crypto.Digest]diffOldAssetInfo{},
 		leases:        map[crypto.Digest]lease{},
 	}
 }
@@ -116,22 +114,22 @@ func (diffSt *diffState) addBalanceTo(balanceKey balanceDiffKey, amount int64) {
 	diffSt.balances[balanceKey] = oldDiffBalance
 }
 
-func (diffSt *diffState) reissueNewAsset(assetID proto.AssetID, quantity int64, reissuable bool) {
+func (diffSt *diffState) reissueNewAsset(assetID crypto.Digest, quantity int64, reissuable bool) {
 	assetInfo := diffSt.newAssetsInfo[assetID]
 	assetInfo.reissuable = reissuable
 	assetInfo.quantity += quantity
 	diffSt.newAssetsInfo[assetID] = assetInfo
 }
 
-func (diffSt *diffState) burnNewAsset(assetID proto.AssetID, quantity int64) {
+func (diffSt *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
 	assetInfo := diffSt.newAssetsInfo[assetID]
 	assetInfo.quantity -= quantity
 	diffSt.newAssetsInfo[assetID] = assetInfo
 }
 
 func (diffSt *diffState) createNewWavesBalance(account proto.Recipient) (*diffBalance, balanceDiffKey) {
-	balance := diffBalance{assetID: proto.WavesAssetID}
-	key := balanceDiffKey{*account.Address, proto.WavesAssetID}
+	balance := diffBalance{asset: proto.WavesDigest}
+	key := balanceDiffKey{*account.Address, proto.WavesDigest}
 	diffSt.balances[key] = balance
 	return &balance, key
 }
@@ -189,10 +187,10 @@ func (diffSt *diffState) changeLeaseIn(searchBalance *diffBalance, searchBalance
 	}
 
 	balance := diffBalance{
-		assetID: proto.WavesAssetID,
+		asset:   proto.WavesDigest,
 		leaseIn: leasedAmount,
 	}
-	key := balanceDiffKey{*address, balance.assetID}
+	key := balanceDiffKey{*address, balance.asset}
 
 	diffSt.balances[key] = balance
 	return nil
@@ -216,16 +214,16 @@ func (diffSt *diffState) changeLeaseOut(searchBalance *diffBalance, searchBalanc
 	}
 
 	balance := diffBalance{
-		assetID:  proto.WavesAssetID,
+		asset:    proto.WavesDigest,
 		leaseOut: leasedAmount,
 	}
-	key := balanceDiffKey{*address, balance.assetID}
+	key := balanceDiffKey{*address, balance.asset}
 
 	diffSt.balances[key] = balance
 	return nil
 }
 
-func (diffSt *diffState) changeBalance(searchBalance *diffBalance, balanceKey balanceDiffKey, amount int64, assetID *proto.AssetID, account proto.Recipient) error {
+func (diffSt *diffState) changeBalance(searchBalance *diffBalance, balanceKey balanceDiffKey, amount int64, assetID *crypto.Digest, account proto.Recipient) error {
 	if searchBalance != nil {
 		diffSt.addBalanceTo(balanceKey, amount)
 		return nil
@@ -235,15 +233,15 @@ func (diffSt *diffState) changeBalance(searchBalance *diffBalance, balanceKey ba
 	if err != nil {
 		return err
 	}
-	if isWavesAssetID(assetID) {
-		assetID = &proto.WavesAssetID
+	if isWavesDigest(assetID) {
+		assetID = &proto.WavesDigest
 	}
 
 	balance := diffBalance{
-		assetID: *assetID,
+		asset:   *assetID,
 		regular: amount,
 	}
-	key := balanceDiffKey{*address, balance.assetID}
+	key := balanceDiffKey{*address, balance.asset}
 
 	diffSt.balances[key] = balance
 	return nil
@@ -330,13 +328,13 @@ func (diffSt *diffState) putDataEntry(entry proto.DataEntry, address proto.Waves
 	return nil
 }
 
-func (diffSt *diffState) findBalance(recipient proto.Recipient, assetID *proto.AssetID) (*diffBalance, balanceDiffKey, error) {
+func (diffSt *diffState) findBalance(recipient proto.Recipient, assetID *crypto.Digest) (*diffBalance, balanceDiffKey, error) {
 	address, err := diffSt.state.NewestRecipientToAddress(recipient)
 	if err != nil {
 		return nil, balanceDiffKey{}, errors.Errorf("cannot get address from recipient")
 	}
-	if isWavesAssetID(assetID) {
-		assetID = &proto.WavesAssetID
+	if isWavesDigest(assetID) {
+		assetID = &proto.WavesDigest
 	}
 	key := balanceDiffKey{*address, *assetID}
 	if balance, ok := diffSt.balances[key]; ok {
@@ -345,21 +343,21 @@ func (diffSt *diffState) findBalance(recipient proto.Recipient, assetID *proto.A
 	return nil, balanceDiffKey{}, nil
 }
 
-func (diffSt *diffState) findSponsorship(assetID proto.AssetID) *int64 {
+func (diffSt *diffState) findSponsorship(assetID crypto.Digest) *int64 {
 	if sponsorship, ok := diffSt.sponsorships[assetID]; ok {
 		return &sponsorship.minFee
 	}
 	return nil
 }
 
-func (diffSt *diffState) findNewAsset(assetID proto.AssetID) *diffNewAssetInfo {
+func (diffSt *diffState) findNewAsset(assetID crypto.Digest) *diffNewAssetInfo {
 	if newAsset, ok := diffSt.newAssetsInfo[assetID]; ok {
 		return &newAsset
 	}
 	return nil
 }
 
-func (diffSt *diffState) findOldAsset(assetID proto.AssetID) *diffOldAssetInfo {
+func (diffSt *diffState) findOldAsset(assetID crypto.Digest) *diffOldAssetInfo {
 	if oldAsset, ok := diffSt.oldAssetsInfo[assetID]; ok {
 		return &oldAsset
 	}
