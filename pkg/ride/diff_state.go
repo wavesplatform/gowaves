@@ -3,6 +3,7 @@ package ride
 import (
 	"fmt"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -59,7 +60,6 @@ type diffBalance struct {
 }
 
 type diffSponsorship struct {
-	//assetID crypto.Digest
 	minFee int64
 }
 
@@ -79,15 +79,13 @@ type diffOldAssetInfo struct {
 	diffQuantity int64
 }
 
-// TODO(nickeskov): create keys for diffState
-
 type balanceDiffKey struct {
 	address proto.WavesAddress
 	assetID proto.AssetID
 }
 
 func (b *balanceDiffKey) String() string {
-	return fmt.Sprintf("%s|%s", b.address, b.assetID)
+	return fmt.Sprintf("%s|%s", b.address.String(), base58.Encode(b.assetID[:]))
 }
 
 type diffState struct {

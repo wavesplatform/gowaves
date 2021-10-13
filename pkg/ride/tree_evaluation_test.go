@@ -7303,7 +7303,7 @@ func TestAliasesInInvokes(t *testing.T) {
 					return 0, errors.Errorf("unexpected account '%s'", account.String())
 				}
 			}
-			return 0, errors.Errorf("unxepected asset '%s'", assetID.String())
+			return 0, errors.New("unxepected assetID")
 		},
 	}
 	testState := initWrappedState(mockState, env)
@@ -7521,14 +7521,14 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 			case *assetID == proto.AssetIDFromDigest(nft):
 				return 0, nil
 			}
-			return 0, errors.Errorf("unxepected asset '%s'", assetID.String())
+			return 0, errors.New("unexpected assetID")
 		},
 		NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
 			switch assetID {
 			case proto.AssetIDFromDigest(nft):
 				return false, nil
 			default:
-				return false, errors.Errorf("unexpected assetID '%s'", assetID.String())
+				return false, errors.New("unexpected assetID")
 			}
 		},
 	}
@@ -7705,14 +7705,14 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 			case account.Address.Eq(dApp2) && *assetID == proto.AssetIDFromDigest(asset):
 				return 0, nil
 			}
-			return 0, errors.Errorf("unxepected asset '%s'", assetID.String())
+			return 0, errors.New("unxepected assetID")
 		},
 		NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
 			switch assetID {
 			case proto.AssetIDFromDigest(asset):
 				return false, nil
 			default:
-				return false, errors.Errorf("unexpected assetID '%s'", assetID.String())
+				return false, errors.New("unexpected assetID")
 			}
 		},
 		NewestAssetInfoFunc: func(assetID proto.AssetID) (*proto.AssetInfo, error) {
@@ -7729,7 +7729,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 					Sponsored:       false,
 				}, nil
 			default:
-				return nil, errors.Errorf("unexpected assetID '%s'", assetID.String())
+				return nil, errors.New("unexpected assetID")
 			}
 		},
 	}
@@ -7884,14 +7884,14 @@ func TestReissueInInvoke(t *testing.T) {
 			case account.Address.Eq(dApp2) && *assetID == proto.AssetIDFromDigest(asset):
 				return 0, nil
 			}
-			return 0, errors.Errorf("unxepected asset '%s'", assetID.String())
+			return 0, errors.New("unxepected assetID")
 		},
 		NewestAssetIsSponsoredFunc: func(assetID proto.AssetID) (bool, error) {
 			switch assetID {
 			case proto.AssetIDFromDigest(asset):
 				return false, nil
 			default:
-				return false, errors.Errorf("unexpected assetID '%s'", assetID.String())
+				return false, errors.New("unexpected assetID")
 			}
 		},
 		NewestAssetInfoFunc: func(assetID proto.AssetID) (*proto.AssetInfo, error) {
@@ -7906,7 +7906,7 @@ func TestReissueInInvoke(t *testing.T) {
 					Reissuable:      true,
 				}, nil
 			default:
-				return nil, errors.Errorf("unexpected asset '%s'", assetID.String())
+				return nil, errors.New("unexpected assetID")
 			}
 		},
 	}

@@ -803,7 +803,6 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 			sponsorship := diffSponsorship{
-				//assetID: res.AssetID,
 				minFee: res.MinFee,
 			}
 			ws.diff.sponsorships[proto.AssetIDFromDigest(res.AssetID)] = sponsorship
