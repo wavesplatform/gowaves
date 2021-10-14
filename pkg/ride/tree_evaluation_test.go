@@ -102,20 +102,15 @@ func TestFunctionsEvaluation(t *testing.T) {
 	require.NoError(t, err)
 	env := &MockRideEnvironment{
 		checkMessageLengthFunc: v3check,
-		schemeFunc: func() byte {
-			return 'W'
-		},
 		heightFunc: func() rideInt {
 			return 5
 		},
-		transactionFunc: func() rideObject {
-			obj, err := transferWithProofsToObject('W', transfer)
-			if err != nil {
-				panic(err)
-			}
-			return obj
+		libVersionFunc: func() int {
+			return 3
 		},
-		takeStringFunc: v5takeString,
+		schemeFunc: func() byte {
+			return 'W'
+		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
@@ -163,8 +158,16 @@ func TestFunctionsEvaluation(t *testing.T) {
 				},
 			}
 		},
-		libVersionFunc: func() int {
-			return 3
+		takeStringFunc: v5takeString,
+		transactionFunc: func() rideObject {
+			obj, err := transferWithProofsToObject('W', transfer)
+			if err != nil {
+				panic(err)
+			}
+			return obj
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return false
 		},
 	}
 	envWithDataTX := &MockRideEnvironment{
@@ -201,8 +204,8 @@ func TestFunctionsEvaluation(t *testing.T) {
 		result bool
 		error  bool
 	}{
-		{`parseIntValue`, `parseInt("12345") == 12345`, `AwkAAAAAAAACCQAEtgAAAAECAAAABTEyMzQ1AAAAAAAAADA57cmovA==`, nil, true, false},
-		{`value`, `let c = if true then 1 else Unit(); value(c) == 1`, `AwQAAAABYwMGAAAAAAAAAAABCQEAAAAEVW5pdAAAAAAJAAAAAAAAAgkBAAAABXZhbHVlAAAAAQUAAAABYwAAAAAAAAAAARfpQ5M=`, nil, true, false},
+		{`parseIntValue`, `parseInt("12345") == 12345`, `AwkAAAAAAAACCQAEtgAAAAECAAAABTEyMzQ1AAAAAAAAADA57cmovA==`, env, true, false},
+		{`value`, `let c = if true then 1 else Unit(); value(c) == 1`, `AwQAAAABYwMGAAAAAAAAAAABCQEAAAAEVW5pdAAAAAAJAAAAAAAAAgkBAAAABXZhbHVlAAAAAQUAAAABYwAAAAAAAAAAARfpQ5M=`, env, true, false},
 		{`valueOrErrorMessage`, `let c = if true then 1 else Unit(); valueOrErrorMessage(c, "ALARM!!!") == 1`, `AwQAAAABYwMGAAAAAAAAAAABCQEAAAAEVW5pdAAAAAAJAAAAAAAAAgkBAAAAE3ZhbHVlT3JFcnJvck1lc3NhZ2UAAAACBQAAAAFjAgAAAAhBTEFSTSEhIQAAAAAAAAAAAa5tVyw=`, nil, true, false},
 		{`addressFromString`, `addressFromString("12345") == unit`, `AwkAAAAAAAACCQEAAAARYWRkcmVzc0Zyb21TdHJpbmcAAAABAgAAAAUxMjM0NQUAAAAEdW5pdJEPLPE=`, env, true, false},
 		{`addressFromString`, `addressFromString("3P9DEDP5VbyXQyKtXDUt2crRPn5B7gs6ujc") == Address(base58'3P9DEDP5VbyXQyKtXDUt2crRPn5B7gs6ujc')`, `AwkAAAAAAAACCQEAAAARYWRkcmVzc0Zyb21TdHJpbmcAAAABAgAAACMzUDlERURQNVZieVhReUt0WERVdDJjclJQbjVCN2dzNnVqYwkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0/fzRv7GRFL0qw2njIBPHDG0DpGJ4ecv6EI6ng=`, env, true, false},
@@ -5489,14 +5492,14 @@ func TestMathDApp(t *testing.T) {
 	}
 
 	env := &MockRideEnvironment{
+		blockFunc: func() rideObject {
+			return blockInfoToObject(blockInfo)
+		},
 		heightFunc: func() rideInt {
 			return 1642207
 		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
-		},
-		blockFunc: func() rideObject {
-			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
@@ -5518,6 +5521,9 @@ func TestMathDApp(t *testing.T) {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return false
 		},
 	}
 
