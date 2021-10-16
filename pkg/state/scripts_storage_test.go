@@ -18,7 +18,7 @@ func createScriptsStorageTestObjects() (*scriptsStorageTestObjects, []string, er
 	if err != nil {
 		return nil, path, err
 	}
-	scriptsStorage, err := newScriptsStorage(stor.hs, true)
+	scriptsStorage, err := newScriptsStorage(stor.hs, proto.TestNetScheme, true)
 	if err != nil {
 		return nil, path, err
 	}

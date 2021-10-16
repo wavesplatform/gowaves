@@ -116,11 +116,11 @@ func newTestAddrData(seedStr string, assets []crypto.Digest) (*testAddrData, err
 		return nil, err
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
-	wavesKey := string((&wavesBalanceKey{addr}).bytes())
+	wavesKey := string((&wavesBalanceKey{addr.ID()}).bytes())
 
 	assetKeys := make([]string, len(assets))
 	for i, a := range assets {
-		assetKeys[i] = string((&assetBalanceKey{addr, proto.AssetIDFromDigest(a)}).bytes())
+		assetKeys[i] = string((&assetBalanceKey{addr.ID(), proto.AssetIDFromDigest(a)}).bytes())
 	}
 	return &testAddrData{sk: sk, pk: pk, addr: addr, rcp: rcp, wavesKey: wavesKey, assetKeys: assetKeys}, nil
 }

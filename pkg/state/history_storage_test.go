@@ -88,9 +88,9 @@ func TestNewestDataIterator(t *testing.T) {
 
 	// Add some entries and flush.
 	to.addBlock(t, blockID0)
-	key0 := accountScriptKey{addr: testGlobal.senderInfo.addr}
+	key0 := accountScriptKey{addr: testGlobal.senderInfo.addr.ID()}
 	val0 := []byte{1, 2, 3}
-	key1 := accountScriptKey{addr: testGlobal.minerInfo.addr}
+	key1 := accountScriptKey{addr: testGlobal.minerInfo.addr.ID()}
 	val1 := []byte{100}
 	key2 := assetScriptKey{assetID: proto.AssetIDFromDigest(testGlobal.asset0.asset.ID)}
 	val2 := []byte{88}
@@ -103,7 +103,7 @@ func TestNewestDataIterator(t *testing.T) {
 	to.flush(t)
 	// Add more entries after flush() and test iterator.
 	to.addBlock(t, blockID1)
-	key3 := accountScriptKey{addr: testGlobal.issuerInfo.addr}
+	key3 := accountScriptKey{addr: testGlobal.issuerInfo.addr.ID()}
 	val3 := []byte{11, 12, 13}
 	err = to.hs.addNewEntry(accountScript, key3.bytes(), val3, blockID1)
 	assert.NoError(t, err, "addNewEntry() failed")

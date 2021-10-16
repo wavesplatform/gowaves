@@ -64,11 +64,11 @@ type blockchainEntitiesStorage struct {
 
 func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter, calcHashes bool) (*blockchainEntitiesStorage, error) {
 	assets := newAssets(hs.db, hs.dbBatch, hs)
-	balances, err := newBalances(hs.db, hs, assets, calcHashes)
+	balances, err := newBalances(hs.db, hs, assets, sets.AddressSchemeCharacter, calcHashes)
 	if err != nil {
 		return nil, err
 	}
-	scriptsStorage, err := newScriptsStorage(hs, calcHashes)
+	scriptsStorage, err := newScriptsStorage(hs, sets.AddressSchemeCharacter, calcHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -469,7 +469,7 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
 	if recipient.Address != nil {
-		key := accountScriptKey{*recipient.Address}
+		key := accountScriptKey{recipient.Address.ID()}
 		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script by address")
@@ -481,7 +481,7 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get address by alias")
 		}
-		key := accountScriptKey{address}
+		key := accountScriptKey{address.ID()}
 		script, err := s.stor.scriptsStorage.newestScriptBytesByKey(key.bytes(), true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script by address")
@@ -745,7 +745,7 @@ func (s *stateManager) HeightToBlockID(height uint64) (proto.BlockID, error) {
 	return blockID, nil
 }
 
-func (s *stateManager) newestAssetBalance(addr proto.WavesAddress, asset proto.AssetID) (uint64, error) {
+func (s *stateManager) newestAssetBalance(addr proto.AddressID, asset proto.AssetID) (uint64, error) {
 	// Retrieve old balance from historyStorage.
 	balance, err := s.stor.balances.newestAssetBalance(addr, asset, true)
 	if err != nil {
@@ -768,7 +768,7 @@ func (s *stateManager) newestAssetBalance(addr proto.WavesAddress, asset proto.A
 	return balance, nil
 }
 
-func (s *stateManager) newestWavesBalanceProfile(addr proto.WavesAddress) (*balanceProfile, error) {
+func (s *stateManager) newestWavesBalanceProfile(addr proto.AddressID) (*balanceProfile, error) {
 	// Retrieve the latest balance from historyStorage.
 	profile, err := s.stor.balances.newestWavesBalance(addr, true)
 	if err != nil {
@@ -814,7 +814,7 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 	if err != nil {
 		return nil, errs.Extend(err, "failed convert recipient to address")
 	}
-	profile, err := s.stor.balances.wavesBalance(*addr, true)
+	profile, err := s.stor.balances.wavesBalance(addr.ID(), true)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to get waves balance")
 	}
@@ -841,7 +841,7 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	profile, err := s.newestWavesBalanceProfile(*addr)
+	profile, err := s.newestWavesBalanceProfile(addr.ID())
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -878,16 +878,16 @@ func (s *stateManager) NewestAccountBalance(account proto.Recipient, asset *cryp
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-
+	addrID := addr.ID()
 	if isWavesDigest(asset) {
-		profile, err := s.newestWavesBalanceProfile(*addr)
+		profile, err := s.newestWavesBalanceProfile(addrID)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
 		}
 		return profile.balance, nil
 	}
 	assetID := proto.AssetIDFromDigest(*asset)
-	balance, err := s.newestAssetBalance(*addr, assetID)
+	balance, err := s.newestAssetBalance(addrID, assetID)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -899,14 +899,15 @@ func (s *stateManager) AccountBalance(account proto.Recipient, assetID *proto.As
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
+	addrID := addr.ID()
 	if isWavesAssetID(assetID) {
-		profile, err := s.stor.balances.wavesBalance(*addr, true)
+		profile, err := s.stor.balances.wavesBalance(addrID, true)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
 		}
 		return profile.balance, nil
 	}
-	balance, err := s.stor.balances.assetBalance(*addr, *assetID, true)
+	balance, err := s.stor.balances.assetBalance(addrID, *assetID, true)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -1560,7 +1561,7 @@ func (s *stateManager) EffectiveBalance(account proto.Recipient, startHeight, en
 	if err != nil {
 		return 0, errs.Extend(err, "failed convert recipient to address ")
 	}
-	effectiveBalance, err := s.stor.balances.minEffectiveBalanceInRange(*addr, startHeight, endHeight)
+	effectiveBalance, err := s.stor.balances.minEffectiveBalanceInRange(addr.ID(), startHeight, endHeight)
 	if err != nil {
 		return 0, errs.Extend(err, fmt.Sprintf("failed get min effective balance: startHeight: %d, endHeight: %d", startHeight, endHeight))
 	}
@@ -1572,7 +1573,7 @@ func (s *stateManager) NewestEffectiveBalance(account proto.Recipient, startHeig
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	effectiveBalance, err := s.stor.balances.newestMinEffectiveBalanceInRange(*addr, startHeight, endHeight)
+	effectiveBalance, err := s.stor.balances.newestMinEffectiveBalanceInRange(addr.ID(), startHeight, endHeight)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -2112,7 +2113,7 @@ func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAsset
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	nfts, err := s.stor.balances.nftList(*addr, limit, afterAssetID)
+	nfts, err := s.stor.balances.nftList(addr.ID(), limit, afterAssetID)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

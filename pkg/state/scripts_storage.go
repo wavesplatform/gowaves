@@ -121,11 +121,12 @@ type scriptsStorage struct {
 	accountScriptsHasher *stateHasher
 	assetScriptsHasher   *stateHasher
 	calculateHashes      bool
+	scheme               proto.Scheme
 
 	uncertainAssetScripts map[proto.AssetID]scriptRecordWithAdditionalInfo
 }
 
-func newScriptsStorage(hs *historyStorage, calcHashes bool) (*scriptsStorage, error) {
+func newScriptsStorage(hs *historyStorage, scheme proto.Scheme, calcHashes bool) (*scriptsStorage, error) {
 	cache, err := newLru(maxCacheSize, maxCacheBytes)
 	if err != nil {
 		return nil, err
@@ -136,6 +137,7 @@ func newScriptsStorage(hs *historyStorage, calcHashes bool) (*scriptsStorage, er
 		accountScriptsHasher:  newStateHasher(),
 		assetScriptsHasher:    newStateHasher(),
 		calculateHashes:       calcHashes,
+		scheme:                scheme,
 		uncertainAssetScripts: make(map[proto.AssetID]scriptRecordWithAdditionalInfo),
 	}, nil
 }
@@ -319,7 +321,7 @@ func (ss *scriptsStorage) newestScriptBytesByAsset(assetID proto.AssetID, filter
 }
 
 func (ss *scriptsStorage) setAccountScript(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
-	key := accountScriptKey{addr: addr}
+	key := accountScriptKey{addr: addr.ID()}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
 	record := scriptRecord{pk: pk, script: script}
@@ -336,7 +338,7 @@ func (ss *scriptsStorage) setAccountScript(addr proto.WavesAddress, script proto
 }
 
 func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress, filter bool) (bool, error) {
-	key := accountScriptKey{addr: addr}
+	key := accountScriptKey{addr: addr.ID()}
 	keyBytes := key.bytes()
 	if script, has := ss.cache.get(keyBytes); has {
 		return script.HasVerifier(), nil
@@ -359,7 +361,7 @@ func (ss *scriptsStorage) accountHasVerifier(addr proto.WavesAddress, filter boo
 }
 
 func (ss *scriptsStorage) newestAccountHasScript(addr proto.WavesAddress, filter bool) (bool, error) {
-	key := accountScriptKey{addr: addr}
+	key := accountScriptKey{addr: addr.ID()}
 	keyBytes := key.bytes()
 	if _, has := ss.cache.get(keyBytes); has {
 		return true, nil
@@ -372,7 +374,7 @@ func (ss *scriptsStorage) newestAccountHasScript(addr proto.WavesAddress, filter
 }
 
 func (ss *scriptsStorage) accountHasScript(addr proto.WavesAddress, filter bool) (bool, error) {
-	key := accountScriptKey{addr: addr}
+	key := accountScriptKey{addr: addr.ID()}
 	recordBytes, err := ss.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return false, nil
@@ -381,7 +383,7 @@ func (ss *scriptsStorage) accountHasScript(addr proto.WavesAddress, filter bool)
 }
 
 func (ss *scriptsStorage) newestScriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
-	key := accountScriptKey{addr: addr}
+	key := accountScriptKey{addr: addr.ID()}
 	keyBytes := key.bytes()
 	if tree, has := ss.cache.get(keyBytes); has {
 		return &tree, nil
@@ -395,7 +397,7 @@ func (ss *scriptsStorage) newestScriptByAddr(addr proto.WavesAddress, filter boo
 }
 
 func (ss *scriptsStorage) NewestScriptPKByAddr(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
-	key := accountScriptKey{addr: addr}
+	key := accountScriptKey{addr: addr.ID()}
 	recordBytes, err := ss.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return crypto.PublicKey{}, err
@@ -405,12 +407,12 @@ func (ss *scriptsStorage) NewestScriptPKByAddr(addr proto.WavesAddress, filter b
 }
 
 func (ss *scriptsStorage) scriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
-	key := accountScriptKey{addr: addr}
+	key := accountScriptKey{addr: addr.ID()}
 	return ss.scriptTreeByKey(key.bytes(), filter)
 }
 
 func (ss *scriptsStorage) scriptBytesByAddr(addr proto.WavesAddress, filter bool) (proto.Script, error) {
-	key := accountScriptKey{addr: addr}
+	key := accountScriptKey{addr: addr.ID()}
 	return ss.scriptBytesByKey(key.bytes(), filter)
 }
 

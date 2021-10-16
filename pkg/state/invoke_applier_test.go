@@ -52,7 +52,7 @@ func (to *invokeApplierTestObjects) fallibleValidationParams(t *testing.T) *fall
 
 func (to *invokeApplierTestObjects) setInitialWavesBalance(t *testing.T, addr proto.WavesAddress, balance uint64) {
 	txDiff := newTxDiff()
-	key := wavesBalanceKey{addr}
+	key := wavesBalanceKey{addr.ID()}
 	diff := newBalanceDiff(int64(balance), 0, 0, false)
 	diff.blockID = blockID0
 	err := txDiff.appendBalanceDiff(key.bytes(), diff)

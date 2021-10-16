@@ -41,14 +41,26 @@ const (
 	CustomNetScheme byte = 'E'
 )
 
+type AddressIDGetter interface {
+	ID() AddressID
+}
+
 type AddressID [AddressIDSize]byte
 
 func (a AddressID) Bytes() []byte {
 	return a[:]
 }
 
+func (a AddressID) ID() AddressID {
+	return a
+}
+
+func (a AddressID) ToWavesAddress(scheme Scheme) WavesAddress {
+	return mustRebuildAddress(scheme, a[:])
+}
+
 type Address interface {
-	ID() AddressID
+	AddressIDGetter
 	Bytes() []byte
 	String() string
 }
@@ -173,6 +185,14 @@ func RebuildAddress(scheme byte, body []byte) (WavesAddress, error) {
 	}
 	copy(a[wavesAddressHeaderSize+wavesAddressBodySize:], cs)
 	return a, nil
+}
+
+func mustRebuildAddress(scheme byte, body []byte) WavesAddress {
+	addr, err := RebuildAddress(scheme, body)
+	if err != nil {
+		panic(err.Error())
+	}
+	return addr
 }
 
 // NewAddressFromString creates an WavesAddress from its string representation. This function checks that the address is valid.

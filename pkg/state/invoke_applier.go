@@ -79,12 +79,12 @@ func (ia *invokeApplier) newPaymentFromTransferScriptAction(senderAddress proto.
 
 func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediateBalance bool) (txDiff, error) {
 	diff := newTxDiff()
-	senderKey := byteKey(pmt.sender, pmt.asset.ToDigest())
+	senderKey := byteKey(pmt.sender.ID(), pmt.asset.ToDigest())
 	senderBalanceDiff := -int64(pmt.amount)
 	if err := diff.appendBalanceDiff(senderKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err
 	}
-	receiverKey := byteKey(pmt.receiver, pmt.asset.ToDigest())
+	receiverKey := byteKey(pmt.receiver.ID(), pmt.asset.ToDigest())
 	receiverBalanceDiff := int64(pmt.amount)
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err
@@ -102,7 +102,7 @@ func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.WavesAddre
 	return ia.newTxDiffFromPayment(pmt, false)
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptIssue(senderAddress proto.WavesAddress, action *proto.IssueScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptIssue(senderAddress proto.AddressID, action *proto.IssueScriptAction) (txDiff, error) {
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: senderAddress, asset: proto.AssetIDFromDigest(action.ID)}
 	senderAssetBalanceDiff := action.Quantity
@@ -112,7 +112,7 @@ func (ia *invokeApplier) newTxDiffFromScriptIssue(senderAddress proto.WavesAddre
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptReissue(senderAddress proto.WavesAddress, action *proto.ReissueScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptReissue(senderAddress proto.AddressID, action *proto.ReissueScriptAction) (txDiff, error) {
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: senderAddress, asset: proto.AssetIDFromDigest(action.AssetID)}
 	senderAssetBalanceDiff := action.Quantity
@@ -122,7 +122,7 @@ func (ia *invokeApplier) newTxDiffFromScriptReissue(senderAddress proto.WavesAdd
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptBurn(senderAddress proto.WavesAddress, action *proto.BurnScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptBurn(senderAddress proto.AddressID, action *proto.BurnScriptAction) (txDiff, error) {
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: senderAddress, asset: proto.AssetIDFromDigest(action.AssetID)}
 	senderAssetBalanceDiff := -action.Quantity
@@ -132,7 +132,7 @@ func (ia *invokeApplier) newTxDiffFromScriptBurn(senderAddress proto.WavesAddres
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddress proto.WavesAddress, action *proto.LeaseScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddress proto.AddressID, action *proto.LeaseScriptAction) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := wavesBalanceKey{address: senderAddress}
 	receiverKey := wavesBalanceKey{address: recipientAddress}
@@ -145,14 +145,14 @@ func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddres
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(senderAddress proto.WavesAddress, leaseInfo *leasing) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(senderAddress proto.AddressID, leaseInfo *leasing) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := wavesBalanceKey{address: senderAddress}
 	senderLeaseOutDiff := -int64(leaseInfo.Amount)
 	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(0, 0, senderLeaseOutDiff, false)); err != nil {
 		return nil, err
 	}
-	receiverKey := wavesBalanceKey{address: leaseInfo.Recipient}
+	receiverKey := wavesBalanceKey{address: leaseInfo.Recipient.ID()}
 	receiverLeaseInDiff := -int64(leaseInfo.Amount)
 	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, receiverLeaseInDiff, 0, false)); err != nil {
 		return nil, err
@@ -404,7 +404,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			// TODO: if this script is ever set, don't forget to
 			// also save complexity for it here using saveComplexityForAsset().
 			ia.stor.scriptsStorage.setAssetScriptUncertain(a.ID, proto.Script{}, senderPK)
-			txDiff, err := ia.newTxDiffFromScriptIssue(senderAddress, a)
+			txDiff, err := ia.newTxDiffFromScriptIssue(senderAddress.ID(), a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -451,7 +451,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if err := ia.stor.assets.reissueAssetUncertain(id, change, !info.initialisation); err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
-			txDiff, err := ia.newTxDiffFromScriptReissue(senderAddress, a)
+			txDiff, err := ia.newTxDiffFromScriptReissue(senderAddress.ID(), a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -500,7 +500,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if err := ia.stor.assets.burnAssetUncertain(id, change, !info.initialisation); err != nil {
 				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to burn asset")
 			}
-			txDiff, err := ia.newTxDiffFromScriptBurn(senderAddress, a)
+			txDiff, err := ia.newTxDiffFromScriptBurn(senderAddress.ID(), a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -563,7 +563,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 			ia.stor.leases.addLeasingUncertain(a.ID, l)
 
-			txDiff, err := ia.newTxDiffFromScriptLease(senderAddress, recipientAddress, a)
+			txDiff, err := ia.newTxDiffFromScriptLease(senderAddress.ID(), recipientAddress.ID(), a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -591,7 +591,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 
 			totalChanges.appendAddr(li.Sender)
 			totalChanges.appendAddr(li.Recipient)
-			txDiff, err := ia.newTxDiffFromScriptLeaseCancel(senderAddress, li)
+			txDiff, err := ia.newTxDiffFromScriptLeaseCancel(senderAddress.ID(), li)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
