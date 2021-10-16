@@ -28,7 +28,7 @@ func createBalances() (*balancesTestObjects, []string, error) {
 	if err != nil {
 		return nil, path, err
 	}
-	balances, err := newBalances(stor.db, stor.hs, stor.entities.assets, true)
+	balances, err := newBalances(stor.db, stor.hs, stor.entities.assets, proto.MainNetScheme, true)
 	if err != nil {
 		return nil, path, err
 	}
@@ -69,7 +69,7 @@ func TestCancelAllLeases(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		err = to.balances.setWavesBalance(addr, newWavesValueFromProfile(tc.profile), tc.blockID)
+		err = to.balances.setWavesBalance(addr.ID(), newWavesValueFromProfile(tc.profile), tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
 	err = to.balances.cancelAllLeases(blockID1)
@@ -78,7 +78,7 @@ func TestCancelAllLeases(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		profile, err := to.balances.wavesBalance(addr, true)
+		profile, err := to.balances.wavesBalance(addr.ID(), true)
 		assert.NoError(t, err, "wavesBalance() failed")
 		assert.Equal(t, profile.balance, tc.profile.balance)
 		assert.Equal(t, profile.leaseIn, int64(0))
@@ -112,7 +112,7 @@ func TestCancelLeaseOverflows(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		err = to.balances.setWavesBalance(addr, newWavesValueFromProfile(tc.profile), tc.blockID)
+		err = to.balances.setWavesBalance(addr.ID(), newWavesValueFromProfile(tc.profile), tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
 	overflows, err := to.balances.cancelLeaseOverflows(blockID1)
@@ -122,7 +122,7 @@ func TestCancelLeaseOverflows(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		profile, err := to.balances.wavesBalance(addr, true)
+		profile, err := to.balances.wavesBalance(addr.ID(), true)
 		assert.NoError(t, err, "wavesBalance() failed")
 		assert.Equal(t, profile.balance, tc.profile.balance)
 		assert.Equal(t, profile.leaseIn, tc.profile.leaseIn)
@@ -167,7 +167,7 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		err = to.balances.setWavesBalance(addr, newWavesValueFromProfile(tc.profile), tc.blockID)
+		err = to.balances.setWavesBalance(addr.ID(), newWavesValueFromProfile(tc.profile), tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 		leaseIns[addr] = tc.validLeaseIn
 	}
@@ -177,7 +177,7 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		profile, err := to.balances.wavesBalance(addr, true)
+		profile, err := to.balances.wavesBalance(addr.ID(), true)
 		assert.NoError(t, err, "wavesBalance() failed")
 		assert.Equal(t, profile.balance, tc.profile.balance)
 		assert.Equal(t, profile.leaseIn, tc.validLeaseIn)
@@ -202,19 +202,19 @@ func TestMinBalanceInRange(t *testing.T) {
 		blockID := genBlockId(byte(i))
 		to.stor.addBlock(t, blockID)
 		p := balanceProfile{uint64(i), 0, 0}
-		if err := to.balances.setWavesBalance(addr, newWavesValueFromProfile(p), blockID); err != nil {
+		if err := to.balances.setWavesBalance(addr.ID(), newWavesValueFromProfile(p), blockID); err != nil {
 			t.Fatalf("Faied to set waves balance: %v\n", err)
 		}
 	}
 	to.stor.flush(t)
-	minBalance, err := to.balances.minEffectiveBalanceInRange(addr, 1, totalBlocksNumber)
+	minBalance, err := to.balances.minEffectiveBalanceInRange(addr.ID(), 1, totalBlocksNumber)
 	if err != nil {
 		t.Fatalf("minEffectiveBalanceInRange(): %v\n", err)
 	}
 	if minBalance != 1 {
 		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 1, minBalance)
 	}
-	minBalance, err = to.balances.minEffectiveBalanceInRange(addr, 99, 150)
+	minBalance, err = to.balances.minEffectiveBalanceInRange(addr.ID(), 99, 150)
 	if err != nil {
 		t.Fatalf("minEffectiveBalanceInRange(): %v\n", err)
 	}
@@ -256,11 +256,11 @@ func TestBalances(t *testing.T) {
 	for _, tc := range wavesTests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
-		if err := to.balances.setWavesBalance(addr, newWavesValueFromProfile(tc.profile), tc.blockID); err != nil {
+		if err := to.balances.setWavesBalance(addr.ID(), newWavesValueFromProfile(tc.profile), tc.blockID); err != nil {
 			t.Fatalf("Faied to set waves balance:%v\n", err)
 		}
 		to.stor.flush(t)
-		profile, err := to.balances.wavesBalance(addr, true)
+		profile, err := to.balances.wavesBalance(addr.ID(), true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve waves balance: %v\n", err)
 		}
@@ -283,11 +283,11 @@ func TestBalances(t *testing.T) {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
 		addTailInfoToAssetsState(to.stor.entities.assets, tc.assetID)
-		if err := to.balances.setAssetBalance(addr, proto.AssetIDFromDigest(tc.assetID), tc.balance, tc.blockID); err != nil {
+		if err := to.balances.setAssetBalance(addr.ID(), proto.AssetIDFromDigest(tc.assetID), tc.balance, tc.blockID); err != nil {
 			t.Fatalf("Faied to set asset balance: %v\n", err)
 		}
 		to.stor.flush(t)
-		balance, err := to.balances.assetBalance(addr, proto.AssetIDFromDigest(tc.assetID), true)
+		balance, err := to.balances.assetBalance(addr.ID(), proto.AssetIDFromDigest(tc.assetID), true)
 		if err != nil {
 			t.Fatalf("Failed to retrieve asset balance: %v\n", err)
 		}
@@ -316,13 +316,13 @@ func TestNftList(t *testing.T) {
 
 	addr := testGlobal.senderInfo.addr
 	assetID := testGlobal.asset1.asset.ID
-	err = to.balances.setAssetBalance(addr, proto.AssetIDFromDigest(assetIDBytes), 123, blockID0)
+	err = to.balances.setAssetBalance(addr.ID(), proto.AssetIDFromDigest(assetIDBytes), 123, blockID0)
 	assert.NoError(t, err)
 	asset := defaultNFT(proto.DigestTail(assetID))
 	err = to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), asset, blockID0)
 	assert.NoError(t, err)
 	to.stor.flush(t)
-	nfts, err := to.balances.nftList(addr, 1, nil)
+	nfts, err := to.balances.nftList(addr.ID(), 1, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, []crypto.Digest{assetID}, nfts)
 }
