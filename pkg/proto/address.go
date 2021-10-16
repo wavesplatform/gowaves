@@ -41,18 +41,10 @@ const (
 	CustomNetScheme byte = 'E'
 )
 
-type AddressIDGetter interface {
-	ID() AddressID
-}
-
 type AddressID [AddressIDSize]byte
 
 func (a AddressID) Bytes() []byte {
 	return a[:]
-}
-
-func (a AddressID) ID() AddressID {
-	return a
 }
 
 func (a AddressID) ToWavesAddress(scheme Scheme) WavesAddress {
@@ -60,7 +52,7 @@ func (a AddressID) ToWavesAddress(scheme Scheme) WavesAddress {
 }
 
 type Address interface {
-	AddressIDGetter
+	ID() AddressID
 	Bytes() []byte
 	String() string
 }
