@@ -7,9 +7,17 @@ import (
 	"math/big"
 	"testing"
 
+	rideMath "github.com/wavesplatform/gowaves/pkg/ride/math"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var env Environment = &MockRideEnvironment{
+	validateInternalPaymentsFunc: func() bool {
+		return false
+	},
+}
 
 func TestPowBigInt(t *testing.T) {
 	for _, test := range []struct {
@@ -36,7 +44,7 @@ func TestPowBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := powBigInt(nil, test.args...)
+		r, err := powBigInt(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -119,7 +127,7 @@ func TestSumBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(0), toRideBigInt(0)}, false, toRideBigInt(0)},
 		{[]rideType{toRideBigInt(math.MaxInt64), toRideBigInt(math.MinInt64)}, false, toRideBigInt(-1)},
 		{[]rideType{toRideBigInt(math.MaxInt64), toRideBigInt(math.MaxInt64)}, false, rideBigInt{v: doubleMaxInt64}},
-		{[]rideType{rideBigInt{v: maxBigInt}, toRideBigInt(1)}, true, nil},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, toRideBigInt(1)}, true, nil},
 		{[]rideType{toRideBigInt(1), toRideBigInt(1), toRideBigInt(1)}, true, nil},
 		{[]rideType{toRideBigInt(1), rideInt(1)}, true, nil},
 		{[]rideType{toRideBigInt(1), rideUnit{}}, true, nil},
@@ -148,7 +156,7 @@ func TestSubtractBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(-5), toRideBigInt(5)}, false, toRideBigInt(-10)},
 		{[]rideType{toRideBigInt(0), toRideBigInt(0)}, false, toRideBigInt(0)},
 		{[]rideType{toRideBigInt(math.MaxInt64), toRideBigInt(math.MaxInt64)}, false, toRideBigInt(0)},
-		{[]rideType{rideBigInt{v: minBigInt}, toRideBigInt(1)}, true, nil},
+		{[]rideType{rideBigInt{v: rideMath.MinBigInt}, toRideBigInt(1)}, true, nil},
 		{[]rideType{toRideBigInt(1), rideUnit{}}, true, nil},
 		{[]rideType{toRideBigInt(1), rideString("x")}, true, nil},
 		{[]rideType{toRideBigInt(1)}, true, nil},
@@ -177,7 +185,7 @@ func TestMultiplyBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(-5), toRideBigInt(5)}, false, toRideBigInt(-25)},
 		{[]rideType{toRideBigInt(0), toRideBigInt(0)}, false, toRideBigInt(0)},
 		{[]rideType{toRideBigInt(math.MaxInt64), toRideBigInt(math.MaxInt64)}, false, rideBigInt{v: n}},
-		{[]rideType{rideBigInt{v: maxBigInt}, toRideBigInt(2)}, true, nil},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, toRideBigInt(2)}, true, nil},
 		{[]rideType{toRideBigInt(1), rideUnit{}}, true, nil},
 		{[]rideType{toRideBigInt(1), rideString("x")}, true, nil},
 		{[]rideType{toRideBigInt(1)}, true, nil},
@@ -203,9 +211,9 @@ func TestDivideBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(25), toRideBigInt(5)}, false, toRideBigInt(5)},
 		{[]rideType{toRideBigInt(-25), toRideBigInt(5)}, false, toRideBigInt(-5)},
 		{[]rideType{toRideBigInt(math.MaxInt64), toRideBigInt(math.MaxInt64)}, false, toRideBigInt(1)},
-		{[]rideType{rideBigInt{v: maxBigInt}, rideBigInt{v: maxBigInt}}, false, toRideBigInt(1)},
-		{[]rideType{rideBigInt{v: minBigInt}, rideBigInt{v: minBigInt}}, false, toRideBigInt(1)},
-		{[]rideType{rideBigInt{v: maxBigInt}, rideBigInt{v: minBigInt}}, false, toRideBigInt(0)},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}}, false, toRideBigInt(1)},
+		{[]rideType{rideBigInt{v: rideMath.MinBigInt}, rideBigInt{v: rideMath.MinBigInt}}, false, toRideBigInt(1)},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MinBigInt}}, false, toRideBigInt(0)},
 		{[]rideType{toRideBigInt(10), toRideBigInt(0)}, true, nil},
 		{[]rideType{toRideBigInt(1), rideUnit{}}, true, nil},
 		{[]rideType{toRideBigInt(1), rideString("x")}, true, nil},
@@ -250,7 +258,7 @@ func TestModuloBigInt(t *testing.T) {
 }
 
 func TestFractionBigInt(t *testing.T) {
-	r1 := big.NewInt(0).Set(maxBigInt)
+	r1 := big.NewInt(0).Set(rideMath.MaxBigInt)
 	r1 = r1.Mul(r1, big.NewInt(2))
 	r1 = r1.Div(r1, big.NewInt(3))
 	for _, test := range []struct {
@@ -261,11 +269,11 @@ func TestFractionBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(math.MaxInt64), toRideBigInt(4), toRideBigInt(6)}, false, toRideBigInt(6148914691236517204)},
 		{[]rideType{toRideBigInt(8), toRideBigInt(4), toRideBigInt(2)}, false, toRideBigInt(16)},
 		{[]rideType{toRideBigInt(8), toRideBigInt(-2), toRideBigInt(-3)}, false, toRideBigInt(5)},
-		{[]rideType{rideBigInt{v: maxBigInt}, toRideBigInt(-2), toRideBigInt(-3)}, false, rideBigInt{v: r1}},
-		{[]rideType{rideBigInt{v: maxBigInt}, rideBigInt{v: maxBigInt}, rideBigInt{v: maxBigInt}}, false, rideBigInt{v: maxBigInt}},
-		{[]rideType{rideBigInt{v: minBigInt}, rideBigInt{v: minBigInt}, rideBigInt{v: minBigInt}}, false, rideBigInt{v: minBigInt}},
-		{[]rideType{rideBigInt{v: maxBigInt}, toRideBigInt(4), toRideBigInt(1)}, true, nil},
-		{[]rideType{rideBigInt{v: maxBigInt}, toRideBigInt(4), toRideBigInt(0)}, true, nil},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, toRideBigInt(-2), toRideBigInt(-3)}, false, rideBigInt{v: r1}},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}}, false, rideBigInt{v: rideMath.MaxBigInt}},
+		{[]rideType{rideBigInt{v: rideMath.MinBigInt}, rideBigInt{v: rideMath.MinBigInt}, rideBigInt{v: rideMath.MinBigInt}}, false, rideBigInt{v: rideMath.MinBigInt}},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, toRideBigInt(4), toRideBigInt(1)}, true, nil},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, toRideBigInt(4), toRideBigInt(0)}, true, nil},
 		{[]rideType{toRideBigInt(2), toRideBigInt(2)}, true, nil},
 		{[]rideType{toRideBigInt(1), toRideBigInt(2), rideUnit{}}, true, nil},
 		{[]rideType{toRideBigInt(1), toRideBigInt(2), rideString("x")}, true, nil},
@@ -311,10 +319,10 @@ func TestFractionBigIntRounds(t *testing.T) {
 		{[]rideType{toRideBigInt(-9), toRideBigInt(1), toRideBigInt(2), newHalfEven(nil)}, false, toRideBigInt(-4)},
 		{[]rideType{toRideBigInt(9), toRideBigInt(1), toRideBigInt(-2), newHalfEven(nil)}, false, toRideBigInt(-4)},
 		{[]rideType{toRideBigInt(-9), toRideBigInt(1), toRideBigInt(-2), newHalfEven(nil)}, false, toRideBigInt(4)},
-		{[]rideType{rideBigInt{v: maxBigInt}, rideBigInt{v: maxBigInt}, rideBigInt{v: maxBigInt}, newCeiling(nil)}, false, rideBigInt{v: maxBigInt}},
-		{[]rideType{rideBigInt{v: minBigInt}, rideBigInt{v: minBigInt}, rideBigInt{v: minBigInt}, newCeiling(nil)}, false, rideBigInt{v: minBigInt}},
-		{[]rideType{rideBigInt{v: maxBigInt}, toRideBigInt(4), toRideBigInt(1), newFloor(nil)}, true, nil},
-		{[]rideType{rideBigInt{v: maxBigInt}, toRideBigInt(4), toRideBigInt(0), newFloor(nil)}, true, nil},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}, newCeiling(nil)}, false, rideBigInt{v: rideMath.MaxBigInt}},
+		{[]rideType{rideBigInt{v: rideMath.MinBigInt}, rideBigInt{v: rideMath.MinBigInt}, rideBigInt{v: rideMath.MinBigInt}, newCeiling(nil)}, false, rideBigInt{v: rideMath.MinBigInt}},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, toRideBigInt(4), toRideBigInt(1), newFloor(nil)}, true, nil},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}, toRideBigInt(4), toRideBigInt(0), newFloor(nil)}, true, nil},
 		{[]rideType{toRideBigInt(2), toRideBigInt(2), toRideBigInt(3)}, true, nil},
 		{[]rideType{toRideBigInt(1), toRideBigInt(2), rideUnit{}}, true, nil},
 		{[]rideType{toRideBigInt(1), toRideBigInt(2), rideString("x")}, true, nil},
@@ -342,7 +350,7 @@ func TestUnaryMinusBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(0)}, false, toRideBigInt(0)},
 		{[]rideType{toRideBigInt(-5)}, false, toRideBigInt(5)},
 		{[]rideType{toRideBigInt(math.MinInt64)}, false, rideBigInt{v: big.NewInt(0).Neg(big.NewInt(math.MinInt64))}},
-		{[]rideType{rideBigInt{v: minBigInt}}, true, nil},
+		{[]rideType{rideBigInt{v: rideMath.MinBigInt}}, true, nil},
 		{[]rideType{toRideBigInt(1), toRideBigInt(5)}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{}, true, nil},
@@ -421,7 +429,7 @@ func TestMaxListBigInt(t *testing.T) {
 		{[]rideType{toRideList(toRideBigInt(-1), toRideBigInt(-2), toRideBigInt(-3))}, false, toRideBigInt(-1)},
 		{[]rideType{toRideList(toRideBigInt(0), toRideBigInt(0), toRideBigInt(0))}, false, toRideBigInt(0)},
 		{[]rideType{toRideList(toRideBigInt(0))}, false, toRideBigInt(0)},
-		{[]rideType{toRideList(rideBigInt{v: maxBigInt}, rideBigInt{v: minBigInt}, toRideBigInt(0), toRideBigInt(-10), toRideBigInt(10))}, false, rideBigInt{v: maxBigInt}},
+		{[]rideType{toRideList(rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MinBigInt}, toRideBigInt(0), toRideBigInt(-10), toRideBigInt(10))}, false, rideBigInt{v: rideMath.MaxBigInt}},
 		{[]rideType{toRideList(toRideBigInt(0)), rideInt(1)}, true, nil},
 		{[]rideType{toRideList()}, true, nil},
 		{[]rideType{toRideBigInt(0)}, true, nil},
@@ -447,7 +455,7 @@ func TestMinListBigInt(t *testing.T) {
 		{[]rideType{toRideList(toRideBigInt(-1), toRideBigInt(-2), toRideBigInt(-3))}, false, toRideBigInt(-3)},
 		{[]rideType{toRideList(toRideBigInt(0), toRideBigInt(0), toRideBigInt(0))}, false, toRideBigInt(0)},
 		{[]rideType{toRideList(toRideBigInt(0))}, false, toRideBigInt(0)},
-		{[]rideType{toRideList(rideBigInt{v: maxBigInt}, rideBigInt{v: minBigInt}, toRideBigInt(0), toRideBigInt(-10), toRideBigInt(10))}, false, rideBigInt{v: minBigInt}},
+		{[]rideType{toRideList(rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MinBigInt}, toRideBigInt(0), toRideBigInt(-10), toRideBigInt(10))}, false, rideBigInt{v: rideMath.MinBigInt}},
 		{[]rideType{toRideList(toRideBigInt(0)), rideInt(1)}, true, nil},
 		{[]rideType{toRideList()}, true, nil},
 		{[]rideType{toRideBigInt(0)}, true, nil},
@@ -476,8 +484,8 @@ func TestBigIntToBytes(t *testing.T) {
 		{[]rideType{toRideBigInt(1)}, false, toRideBytes("01")},
 		{[]rideType{toRideBigInt(1234567890)}, false, toRideBytes("499602d2")},
 		{[]rideType{toRideBigInt(-1234567890)}, false, toRideBytes("b669fd2e")},
-		{[]rideType{rideBigInt{v: maxBigInt}}, false, toRideBytes("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")},
-		{[]rideType{rideBigInt{v: minBigInt}}, false, toRideBytes("80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}}, false, toRideBytes("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")},
+		{[]rideType{rideBigInt{v: rideMath.MinBigInt}}, false, toRideBytes("80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")},
 		{[]rideType{toRideBigInt(math.MaxInt64)}, false, toRideBytes("7fffffffffffffff")},
 		{[]rideType{toRideBigInt(math.MinInt64)}, false, toRideBytes("8000000000000000")},
 		{[]rideType{rideBigInt{v: v}}, false, toRideBytes("0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F202122232425262728292A2B2C2D2E2F303132333435363738393A3B3C3D3E3F40")},
@@ -508,8 +516,8 @@ func TestBytesToBigInt(t *testing.T) {
 		{[]rideType{toRideBytes("01")}, false, toRideBigInt(1)},
 		{[]rideType{toRideBytes("499602d2")}, false, toRideBigInt(1234567890)},
 		{[]rideType{toRideBytes("b669fd2e")}, false, toRideBigInt(-1234567890)},
-		{[]rideType{toRideBytes("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")}, false, rideBigInt{v: maxBigInt}},
-		{[]rideType{toRideBytes("80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")}, false, rideBigInt{v: minBigInt}},
+		{[]rideType{toRideBytes("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")}, false, rideBigInt{v: rideMath.MaxBigInt}},
+		{[]rideType{toRideBytes("80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")}, false, rideBigInt{v: rideMath.MinBigInt}},
 		{[]rideType{toRideBytes("7fffffffffffffff")}, false, toRideBigInt(math.MaxInt64)},
 		{[]rideType{toRideBytes("8000000000000000")}, false, toRideBigInt(math.MinInt64)},
 		{[]rideType{toRideBytes("0102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F202122232425262728292A2B2C2D2E2F303132333435363738393A3B3C3D3E3F40")}, false, rideBigInt{v: v}},
@@ -573,8 +581,8 @@ func TestBigIntToInt(t *testing.T) {
 		{[]rideType{toRideBigInt(-1234567890)}, false, rideInt(-1234567890)},
 		{[]rideType{toRideBigInt(math.MaxInt64)}, false, rideInt(math.MaxInt64)},
 		{[]rideType{toRideBigInt(math.MinInt64)}, false, rideInt(math.MinInt64)},
-		{[]rideType{rideBigInt{v: maxBigInt}}, true, nil},
-		{[]rideType{rideBigInt{v: minBigInt}}, true, nil},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}}, true, nil},
+		{[]rideType{rideBigInt{v: rideMath.MinBigInt}}, true, nil},
 		{[]rideType{toRideBigInt(0), rideInt(4)}, true, nil},
 		{[]rideType{rideString("0")}, true, nil},
 		{[]rideType{}, true, nil},
@@ -602,8 +610,8 @@ func TestBigIntToString(t *testing.T) {
 		{[]rideType{toRideBigInt(1)}, false, rideString("1")},
 		{[]rideType{toRideBigInt(1234567890)}, false, rideString("1234567890")},
 		{[]rideType{toRideBigInt(-1234567890)}, false, rideString("-1234567890")},
-		{[]rideType{rideBigInt{v: maxBigInt}}, false, rideString("6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042047")},
-		{[]rideType{rideBigInt{v: minBigInt}}, false, rideString("-6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042048")},
+		{[]rideType{rideBigInt{v: rideMath.MaxBigInt}}, false, rideString("6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042047")},
+		{[]rideType{rideBigInt{v: rideMath.MinBigInt}}, false, rideString("-6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042048")},
 		{[]rideType{toRideBigInt(math.MaxInt64)}, false, rideString("9223372036854775807")},
 		{[]rideType{toRideBigInt(math.MinInt64)}, false, rideString("-9223372036854775808")},
 		{[]rideType{rideBigInt{v: v}}, false, rideString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480")},
@@ -634,8 +642,8 @@ func TestStringToBigInt(t *testing.T) {
 		{[]rideType{rideString("1")}, false, toRideBigInt(1)},
 		{[]rideType{rideString("1234567890")}, false, toRideBigInt(1234567890)},
 		{[]rideType{rideString("-1234567890")}, false, toRideBigInt(-1234567890)},
-		{[]rideType{rideString("6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042047")}, false, rideBigInt{v: maxBigInt}},
-		{[]rideType{rideString("-6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042048")}, false, rideBigInt{v: minBigInt}},
+		{[]rideType{rideString("6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042047")}, false, rideBigInt{v: rideMath.MaxBigInt}},
+		{[]rideType{rideString("-6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042048")}, false, rideBigInt{v: rideMath.MinBigInt}},
 		{[]rideType{rideString("9223372036854775807")}, false, toRideBigInt(math.MaxInt64)},
 		{[]rideType{rideString("-9223372036854775808")}, false, toRideBigInt(math.MinInt64)},
 		{[]rideType{rideString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480")}, false, rideBigInt{v: v}},
@@ -666,8 +674,8 @@ func TestStringToBigIntOpt(t *testing.T) {
 		{[]rideType{rideString("1")}, false, toRideBigInt(1)},
 		{[]rideType{rideString("1234567890")}, false, toRideBigInt(1234567890)},
 		{[]rideType{rideString("-1234567890")}, false, toRideBigInt(-1234567890)},
-		{[]rideType{rideString("6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042047")}, false, rideBigInt{v: maxBigInt}},
-		{[]rideType{rideString("-6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042048")}, false, rideBigInt{v: minBigInt}},
+		{[]rideType{rideString("6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042047")}, false, rideBigInt{v: rideMath.MaxBigInt}},
+		{[]rideType{rideString("-6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042048")}, false, rideBigInt{v: rideMath.MinBigInt}},
 		{[]rideType{rideString("9223372036854775807")}, false, toRideBigInt(math.MaxInt64)},
 		{[]rideType{rideString("-9223372036854775808")}, false, toRideBigInt(math.MinInt64)},
 		{[]rideType{rideString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480")}, false, rideBigInt{v: v}},
@@ -696,7 +704,7 @@ func TestMedianListBigInt(t *testing.T) {
 		{[]rideType{toRideList(toRideBigInt(-1), toRideBigInt(-2), toRideBigInt(-3))}, false, toRideBigInt(-2)},
 		{[]rideType{toRideList(toRideBigInt(0), toRideBigInt(0), toRideBigInt(0))}, false, toRideBigInt(0)},
 		{[]rideType{toRideList(toRideBigInt(0), toRideBigInt(1), toRideBigInt(1), toRideBigInt(1), toRideBigInt(1), toRideBigInt(2), toRideBigInt(3))}, false, toRideBigInt(1)},
-		{[]rideType{toRideList(rideBigInt{v: maxBigInt}, rideBigInt{v: minBigInt}, toRideBigInt(0), toRideBigInt(-10), toRideBigInt(10))}, false, toRideBigInt(0)},
+		{[]rideType{toRideList(rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MinBigInt}, toRideBigInt(0), toRideBigInt(-10), toRideBigInt(10))}, false, toRideBigInt(0)},
 		{[]rideType{toRideList(toRideBigInt(0))}, true, nil},
 		{[]rideType{toRideList(toRideBigInt(0)), rideInt(1)}, true, nil},
 		{[]rideType{toRideList()}, true, nil},

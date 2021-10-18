@@ -1,6 +1,7 @@
 package math
 
 import (
+	math0 "math"
 	"math/big"
 
 	"github.com/ericlagergren/decimal"
@@ -9,10 +10,41 @@ import (
 )
 
 var (
-	zero = decimal.New(0, 0)
-	one  = decimal.New(1, 0)
-	ten  = decimal.New(10, 0)
+	longContext = decimal.Context{
+		Precision:     19,
+		RoundingMode:  decimal.ToNearestEven,
+		OperatingMode: decimal.GDA,
+		MaxScale:      6144,
+		MinScale:      -6143,
+	}
+	bigIntContext = decimal.Context{
+		Precision:     154,
+		RoundingMode:  decimal.ToNearestEven,
+		OperatingMode: decimal.GDA,
+		MaxScale:      6144,
+		MinScale:      -6143,
+	}
+
+	zero      = decimal.New(0, 0)
+	one       = decimal.New(1, 0)
+	OneBigInt = big.NewInt(1)
+	MinBigInt = minBigInt()
+	MaxBigInt = maxBigInt()
 )
+
+func maxBigInt() *big.Int {
+	max := big.NewInt(0)
+	max = max.Exp(big.NewInt(2), big.NewInt(511), nil)
+	max = max.Sub(max, OneBigInt)
+	return max
+}
+
+func minBigInt() *big.Int {
+	min := big.NewInt(0)
+	min = min.Neg(maxBigInt())
+	min = min.Sub(min, OneBigInt)
+	return min
+}
 
 func checkScales(baseScale, exponentScale, resultScale int) bool {
 	// 8 is the maximum scale for RIDE Int values
@@ -24,14 +56,51 @@ func checkScalesBigInt(baseScale, exponentScale, resultScale int) bool {
 	return baseScale >= 0 && baseScale <= 18 && exponentScale >= 0 && exponentScale <= 18 && resultScale >= 0 && resultScale <= 18
 }
 
+func pow10(a int, context decimal.Context) *decimal.Big {
+	ten := decimal.WithContext(context).SetMantScale(10, 0)
+	return math.Pow(decimal.WithContext(context), ten, decimal.WithContext(context).SetMantScale(int64(a), 0))
+}
+
+// checkScale function performs check of BigDecimal's scale as in Java implementation
+func checkScale(v int) error {
+	if v > math0.MaxInt32 {
+		return errors.New("scale underflow")
+	}
+	if v < math0.MinInt32 {
+		return errors.New("scale overflow")
+	}
+	return nil
+}
+
+// rescale performs pre-rounding conversion of BigDecimal result to exclude unnecessary but heavy calculations
+func rescale(value *decimal.Big, scale, precision int, context decimal.Context) (*decimal.Big, error) {
+	s := value.Scale()
+	if err := checkScale(s); err != nil {
+		return nil, err
+	}
+	v := decimal.WithContext(context)
+	v.Copy(value)
+	v.SetScale(0)
+	if s > scale {
+		if s-scale > precision-1 {
+			return zero, nil
+		} else {
+			return v.Quo(v, pow10(s-scale, context)), nil
+		}
+	} else {
+		if scale-s > precision-1 {
+			return nil, errors.New("value overflow")
+		} else {
+			return v.Mul(v, pow10(scale-s, context)), nil
+		}
+	}
+}
+
 func convertToIntResult(v *decimal.Big, scale int, mode decimal.RoundingMode) (int64, error) {
 	context := decimal.Context128
 	context.RoundingMode = mode
 	r := decimal.WithContext(context).Set(v)
-	s := decimal.WithContext(decimal.Context128).SetMantScale(int64(scale), 0)
-	m := decimal.WithContext(decimal.Context128)
-	math.Pow(m, ten, s)
-	r.Mul(r, m)
+	r.Mul(r, pow10(scale, decimal.Context128))
 	res, ok := r.RoundToInt().Int64()
 	if !ok {
 		return 0, errors.New("result out of int64 range")
@@ -43,22 +112,18 @@ func convertToBigIntResult(v *decimal.Big, scale int, mode decimal.RoundingMode)
 	if v.IsNaN(0) || v.IsInf(0) {
 		return nil, errors.New("result is NaN or Infinity")
 	}
-	context := decimal.Context128
+	context := bigIntContext
 	context.RoundingMode = mode
-	// r = v * 10^s
 	r := decimal.WithContext(context).Set(v)
-	s := decimal.WithContext(decimal.Context128).SetMantScale(int64(scale), 0)
-	m := decimal.WithContext(decimal.Context128)
-	math.Pow(m, ten, s)
-	r.Mul(r, m)
+	r.Mul(r, pow10(scale, bigIntContext)) // r = v * 10^s
 	return r.RoundToInt().Int(nil), nil
 }
 
-func pow(base, exponent *decimal.Big) (*decimal.Big, error) {
+func pow(base, exponent *decimal.Big, context decimal.Context) (*decimal.Big, error) {
 	if base.IsInt() && exponent.Cmp(zero) == 0 {
 		return one, nil
 	}
-	r := decimal.WithContext(decimal.Context128)
+	r := decimal.WithContext(context)
 	r = math.Pow(r, base, exponent)
 	if r.Context.Err() != nil {
 		return nil, errors.New(r.Context.Conditions.Error())
@@ -66,30 +131,64 @@ func pow(base, exponent *decimal.Big) (*decimal.Big, error) {
 	return r, nil
 }
 
-func Pow(base, exponent int64, baseScale, exponentScale, resultScale int, mode decimal.RoundingMode) (int64, error) {
+func PowV1(base, exponent int64, baseScale, exponentScale, resultScale int, mode decimal.RoundingMode) (int64, error) {
 	if !checkScales(baseScale, exponentScale, resultScale) {
 		return 0, errors.New("invalid scale")
 	}
 	b := decimal.WithContext(decimal.Context128).SetMantScale(base, baseScale)
 	e := decimal.WithContext(decimal.Context128).SetMantScale(exponent, exponentScale)
-	r, err := pow(b, e)
+	r, err := pow(b, e, decimal.Context128)
 	if err != nil {
 		return 0, err
 	}
 	return convertToIntResult(r, resultScale, mode)
 }
 
+func PowV2(base, exponent int64, baseScale, exponentScale, resultScale int, mode decimal.RoundingMode) (int64, error) {
+	if !checkScales(baseScale, exponentScale, resultScale) {
+		return 0, errors.New("invalid scale")
+	}
+	b := decimal.WithContext(longContext).SetMantScale(base, baseScale)
+	e := decimal.WithContext(longContext).SetMantScale(exponent, exponentScale)
+	r, err := pow(b, e, longContext)
+	if err != nil {
+		return 0, err
+	}
+	r, err = rescale(r, resultScale, longContext.Precision, longContext)
+	if err != nil {
+		return 0, err
+	}
+	context := longContext
+	context.RoundingMode = mode
+	r = decimal.WithContext(context).Set(r)
+	res, ok := r.RoundToInt().Int64()
+	if !ok {
+		return 0, errors.New("result out of int64 range")
+	}
+	return res, nil
+}
+
 func PowBigInt(base, exponent *big.Int, baseScale, exponentScale, resultScale int, mode decimal.RoundingMode) (*big.Int, error) {
 	if !checkScalesBigInt(baseScale, exponentScale, resultScale) {
 		return nil, errors.New("invalid scale")
 	}
-	b := decimal.WithContext(decimal.Context128).SetBigMantScale(base, baseScale)
-	e := decimal.WithContext(decimal.Context128).SetBigMantScale(exponent, exponentScale)
-	r, err := pow(b, e)
+	b := decimal.WithContext(bigIntContext).SetBigMantScale(base, baseScale)
+	e := decimal.WithContext(bigIntContext).SetBigMantScale(exponent, exponentScale)
+	r, err := pow(b, e, bigIntContext)
 	if err != nil {
 		return nil, err
 	}
-	return convertToBigIntResult(r, resultScale, mode)
+	r, err = rescale(r, resultScale, bigIntContext.Precision, bigIntContext)
+	if err != nil {
+		return nil, err
+	}
+	if !r.IsNormal() {
+		return nil, errors.New("not normal")
+	}
+	context := bigIntContext
+	context.RoundingMode = mode
+	r = decimal.WithContext(context).Set(r)
+	return r.RoundToInt().Int(nil), nil
 }
 
 func Fraction(value, numerator, denominator int64) (int64, error) {
