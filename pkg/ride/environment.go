@@ -376,11 +376,6 @@ func (ws *WrappedState) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Sc
 	return ws.diff.state.NewestScriptByAsset(asset)
 }
 
-func (ws *WrappedState) newMaxScriptActions(scriptVersion int) int {
-	maxScriptActions := proto.NewMaxScriptActions()
-	return maxScriptActions.GetMaxScriptActions(scriptVersion)
-}
-
 func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env Environment) (bool, error) {
 	if !asset.Present {
 		return true, nil
