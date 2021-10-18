@@ -154,7 +154,7 @@ func PowV2(base, exponent int64, baseScale, exponentScale, resultScale int, mode
 	if err != nil {
 		return 0, err
 	}
-	r, err = rescale(r, resultScale, 19, longContext)
+	r, err = rescale(r, resultScale, longContext.Precision, longContext)
 	if err != nil {
 		return 0, err
 	}
@@ -178,7 +178,7 @@ func PowBigInt(base, exponent *big.Int, baseScale, exponentScale, resultScale in
 	if err != nil {
 		return nil, err
 	}
-	r, err = rescale(r, resultScale, 154, bigIntContext)
+	r, err = rescale(r, resultScale, bigIntContext.Precision, bigIntContext)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,6 @@ func PowBigInt(base, exponent *big.Int, baseScale, exponentScale, resultScale in
 	context.RoundingMode = mode
 	r = decimal.WithContext(context).Set(r)
 	return r.RoundToInt().Int(nil), nil
-	//return convertToBigIntResult(r, resultScale, mode)
 }
 
 func Fraction(value, numerator, denominator int64) (int64, error) {
