@@ -49,7 +49,12 @@ func (ws *WrappedState) appendActions(actions []proto.ScriptAction) {
 }
 
 func (ws *WrappedState) checkTotalComplexity() (int, bool) {
-	return ws.totalComplexity, ws.totalComplexity <= MaxChainInvokeComplexity
+	return ws.totalComplexity, ws.totalComplexity > MaxChainInvokeComplexity
+}
+
+func (ws *WrappedState) checkScriptActions() (int, bool) {
+	// We always compare script actions count with `proto.MaxScriptActionsV2` because this value activated with dApp-to-dApp calls
+	return ws.actionsCount, ws.actionsCount > proto.MaxScriptActionsV2
 }
 
 func (ws *WrappedState) callee() proto.Address {
@@ -369,6 +374,11 @@ func (ws *WrappedState) IsNotFound(err error) bool {
 
 func (ws *WrappedState) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
 	return ws.diff.state.NewestScriptByAsset(asset)
+}
+
+func (ws *WrappedState) newMaxScriptActions(scriptVersion int) int {
+	maxScriptActions := proto.NewMaxScriptActions()
+	return maxScriptActions.GetMaxScriptActions(scriptVersion)
 }
 
 func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env Environment) (bool, error) {

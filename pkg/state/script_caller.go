@@ -235,7 +235,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 		return false, nil, errors.Errorf("unexpected ScriptResult: %v", sr)
 	}
 	// Increase recent complexity
-	if !info.rideV5Activated {
+	if info.rideV5Activated {
 		// After activation of RideV5 we have to add actual execution complexity
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
