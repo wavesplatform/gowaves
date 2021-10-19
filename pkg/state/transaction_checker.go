@@ -340,7 +340,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		return nil, errors.New("failed to convert interface to TransferWithSig transaction")
 	}
 
-	if tx.Inner.EthereumTxType() != proto.EthereumLegacyTxType {
+	if tx.EthereumTxType() != proto.EthereumLegacyTxType {
 		return nil, errors.New("the ethereum transaction's type is not legacy tx")
 	}
 	// a cancel transaction

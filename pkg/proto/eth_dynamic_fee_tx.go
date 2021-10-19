@@ -162,7 +162,7 @@ func (dftx *EthereumDynamicFeeTx) copy() EthereumTxData {
 }
 
 // accessors for innerTx.
-func (dftx *EthereumDynamicFeeTx) EthereumTxType() EthereumTxType { return EthereumDynamicFeeTxType }
+func (dftx *EthereumDynamicFeeTx) ethereumTxType() EthereumTxType { return EthereumDynamicFeeTxType }
 func (dftx *EthereumDynamicFeeTx) chainID() *big.Int              { return dftx.ChainID }
 func (dftx *EthereumDynamicFeeTx) accessList() EthereumAccessList { return dftx.AccessList }
 func (dftx *EthereumDynamicFeeTx) data() []byte                   { return dftx.Data }

@@ -59,7 +59,7 @@ type fastRLPMarshaler interface {
 }
 
 type EthereumTxData interface {
-	EthereumTxType() EthereumTxType
+	ethereumTxType() EthereumTxType
 	copy() EthereumTxData // creates a deep copy and initializes all fields
 
 	chainID() *big.Int
@@ -296,7 +296,7 @@ func (tx *EthereumTransaction) ToProtobufSigned(_ Scheme) (*g.SignedTransaction,
 
 // EthereumTxType returns the transaction type.
 func (tx *EthereumTransaction) EthereumTxType() EthereumTxType {
-	return tx.Inner.EthereumTxType()
+	return tx.Inner.ethereumTxType()
 }
 
 // ChainId returns the EIP155 chain ID of the transaction. The return value will always be
@@ -399,7 +399,7 @@ func (tx *EthereumTransaction) DecodeCanonical(canonicalData []byte) error {
 		var inner EthereumLegacyTx
 		if err := inner.unmarshalFromFastRLP(value); err != nil {
 			return errors.Wrapf(err,
-				"failed to unmarshal from RLP ethereum legacy transaction, EthereumTxType %q",
+				"failed to unmarshal from RLP ethereum legacy transaction, ethereumTxType %q",
 				EthereumLegacyTxType.String(),
 			)
 		}
@@ -448,7 +448,7 @@ func (tx *EthereumTransaction) decodeTypedCanonical(canonicalData []byte) (Ether
 		var inner EthereumAccessListTx
 		if err := inner.DecodeRLP(rlpData); err != nil {
 			return nil, errors.Wrapf(err,
-				"failed to unmarshal ethereum tx from RLP, EthereumTxType %q",
+				"failed to unmarshal ethereum tx from RLP, ethereumTxType %q",
 				EthereumAccessListTxType.String(),
 			)
 		}
@@ -457,7 +457,7 @@ func (tx *EthereumTransaction) decodeTypedCanonical(canonicalData []byte) (Ether
 		var inner EthereumDynamicFeeTx
 		if err := inner.DecodeRLP(rlpData); err != nil {
 			return nil, errors.Wrapf(err,
-				"failed to unmarshal ethereum tx from RLP, EthereumTxType %q",
+				"failed to unmarshal ethereum tx from RLP, ethereumTxType %q",
 				EthereumDynamicFeeTxType.String(),
 			)
 		}
