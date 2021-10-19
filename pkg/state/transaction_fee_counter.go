@@ -83,6 +83,15 @@ func (tf *transactionFeeCounter) minerFeeTransferWithProofs(transaction proto.Tr
 	return tf.minerFee(distr, tx.Fee, tx.FeeAsset)
 }
 
+func (tf *transactionFeeCounter) minerFeeEthereumTxWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.EthereumTransaction)
+	if !ok {
+		return errors.New("failed to convert interface to EthereumTransaction transaction")
+	}
+
+	return tf.minerFee(distr, tx.GetFee(), proto.NewOptionalAssetWaves())
+}
+
 func (tf *transactionFeeCounter) minerFeeIssueWithSig(transaction proto.Transaction, distr *feeDistribution) error {
 	tx, ok := transaction.(*proto.IssueWithSig)
 	if !ok {

@@ -110,7 +110,7 @@ func buildHandles(tc *transactionChecker, tp *transactionPerformer, td *transact
 			tc.checkUpdateAssetInfoWithProofs, tp.performUpdateAssetInfoWithProofs, td.createDiffUpdateAssetInfoWithProofs, tf.minerFeeUpdateAssetInfoWithProofs,
 		},
 		proto.TransactionTypeInfo{Type: proto.EthereumMetamaskTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
-			tc.checkEthereumTransactionWithProofs, tp.performEthereumTransactionWithProofs, td.createDiffEthereumTransactionWithProofs, tf.minerFeeTransferWithProofs,
+			tc.checkEthereumTransactionWithProofs, tp.performEthereumTransactionWithProofs, td.createDiffEthereumTransactionWithProofs, tf.minerFeeEthereumTxWithProofs,
 		},
 	}
 }

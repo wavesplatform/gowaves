@@ -349,24 +349,50 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		return nil, errors.New("canceling a transaction is forbidden")
 	}
 
+	// TODO check min fee
+
 	// gasPrice == 10
 	if tx.GasPrice().Cmp(big.NewInt(int64(proto.EthereumGasPrice))) == 0 {
 		return nil, errors.New("Gas price should be 10")
 	}
 
-	// TODO change the type of ChainID
-	//if tx.ChainId() != tc.settings.AddressSchemeCharacter {
-	//
-	//}
+	if tx.ChainId().Cmp(big.NewInt(int64(tc.settings.AddressSchemeCharacter))) != 0 {
+		return nil, errors.Errorf("Chain ID doesn't correlate with Net's byte. Net's byte is %d, ChainID is %d", int64(tc.settings.AddressSchemeCharacter), tx.ChainId().Int64())
+	}
 
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
+		// check if the amount is 0
+		if tx.Value() == nil {
+			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
+		}
+		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(diffEthWaves)))
+		if ok := res.IsInt64(); !ok {
+			return nil, errors.Errorf("failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
+		}
+		if res.Int64() == 0 {
+			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
+		}
+
 		assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: nil}
 		if err := tc.checkFee(transaction, assets, info); err != nil {
 			return nil, err
 		}
 		return nil, nil
 	case *proto.EthereumTransferAssetsErc20TxKind:
+		// check if the amount is 0
+		if tx.Value() == nil {
+			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
+		}
+
+		erc20arguments, err := ride.GetERC20Arguments(tx.TxKind.DecodedData(), tc.settings.AddressSchemeCharacter)
+		if err != nil {
+			return nil, errors.Errorf("failed to receive erc20 arguments, %v", err)
+		}
+		if erc20arguments.Amount == 0 {
+			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
+		}
+
 		allAssets := []proto.OptionalAsset{kind.Asset}
 		smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
 		if err != nil {
