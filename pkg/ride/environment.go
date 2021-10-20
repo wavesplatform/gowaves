@@ -461,13 +461,13 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	r, err := CallVerifier(localEnv, tree)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to call script on asset '%s'", asset.String())
+		return false, errs.NewTransactionNotAllowedByScript(err.Error(), asset.ID.Bytes())
 	}
 	if !r.Result() {
-		return false, errs.NewTransactionNotAllowedByScript(r.UserError(), asset.ID.Bytes())
+		return false, errs.NewTransactionNotAllowedByScript("Script returned False", asset.ID.Bytes())
 	}
 
-	return r.Result(), nil
+	return true, nil
 }
 
 func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAction, sender proto.Address, env Environment, restrictions proto.ActionsValidationRestrictions) error {

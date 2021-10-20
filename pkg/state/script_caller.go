@@ -61,12 +61,9 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	}
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
-		return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
+		return errors.Errorf("account script on order '%s' thrown error with message: %s", base58.Encode(id), err.Error())
 	}
 	if !r.Result() {
-		if r.UserError() != "" {
-			return errors.Errorf("account script on order '%s' thrown error with message: %s", base58.Encode(id), r.UserError())
-		}
 		return errors.Errorf("account script on order '%s' returned false result", base58.Encode(id))
 	}
 	// Increase complexity.
@@ -111,12 +108,9 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	}
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
-		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
+		return errors.Errorf("account script on transaction '%s' failed with error: %v", base58.Encode(id), err.Error())
 	}
 	if !r.Result() {
-		if r.UserError() != "" {
-			return errors.Errorf("account script on transaction '%s' failed with error: %v", base58.Encode(id), r.UserError())
-		}
 		return errs.NewTransactionNotAllowedByScript("script failed", id)
 	}
 	// Increase complexity.
@@ -158,10 +152,10 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 	env.SetLastBlock(params.blockInfo)
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
+		return nil, errs.NewTransactionNotAllowedByScript(err.Error(), assetID.Bytes())
 	}
 	if !r.Result() && !params.acceptFailed {
-		return nil, errs.NewTransactionNotAllowedByScript(r.UserError(), assetID.Bytes())
+		return nil, errs.NewTransactionNotAllowedByScript("", assetID.Bytes())
 	}
 	// Increase complexity.
 	if params.rideV5Activated { // After activation of RideV5 add actual execution complexity
@@ -258,10 +252,6 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 			return false, nil, errors.Errorf("no estimation for function '%s' on invocation of transaction '%s'", fn, tx.ID.String())
 		}
 		a.recentTxComplexity += uint64(c)
-	}
-	err = nil
-	if !r.Result() { // Replace failure status with an error
-		err = errors.Errorf("call failed: %s", r.UserError())
 	}
 	return true, r.ScriptActions(), err
 }

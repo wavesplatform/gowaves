@@ -27,7 +27,7 @@ func (e EvaluationError) New(msg string) error {
 }
 
 func (e EvaluationError) Errorf(msg string, args ...interface{}) error {
-	return evaluationError{errorType: e, originalError: errors.Errorf(msg, args)}
+	return evaluationError{errorType: e, originalError: errors.Errorf(msg, args...)}
 }
 
 func (e EvaluationError) Wrap(err error, msg string) error {
@@ -35,5 +35,5 @@ func (e EvaluationError) Wrap(err error, msg string) error {
 }
 
 func (e EvaluationError) Wrapf(err error, msg string, args ...interface{}) error {
-	return evaluationError{errorType: e, originalError: errors.Wrapf(err, msg, args)}
+	return evaluationError{errorType: e, originalError: errors.Wrapf(err, msg, args...)}
 }
