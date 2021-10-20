@@ -2,13 +2,14 @@ package metamask
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 
+	"github.com/pkg/errors"
 	"github.com/semrush/zenrpc/v2"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"go.uber.org/zap"
 )
 
@@ -39,9 +40,8 @@ func (s RPCService) Eth_blockNumber() (string, error) {
 }
 
 /* Returns the current network id */
-func (s RPCService) Net_version() int {
-	// TODO(nickeskov): change it
-	return 1
+func (s RPCService) Net_version() string {
+	return s.Eth_chainId()
 }
 
 /* Returns the chain id */
@@ -204,7 +204,7 @@ func (s RPCService) Eth_getCode(address, blockOrTag string) (string, error) {
    - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */
 func (s RPCService) Eth_getTransactionCount(address, blockOrTag string) string {
 	zap.S().Infof("Eth_getTransactionCount was called: address %q, blockOrTag %q", address, blockOrTag)
-	return "0x1"
+	return fmt.Sprintf("0x%x", common.UnixMillisFromTime(s.services.Time.Now()))
 }
 
 /* Creates new message call transaction or a contract creation for signed transactions.
@@ -231,4 +231,22 @@ func (s RPCService) Eth_sendrawtransaction(signedTxData string) string {
 	zap.S().Infof("Sender is %s\n", sender.Hex())
 
 	return ""
+}
+
+func (s RPCService) Eth_getTransactionReceipt(id proto.EthereumHash) map[string]interface{} { // TODO(nickeksov): create struct
+	// TODO(nickeskov): implement me
+	return map[string]interface{}{
+		"transactionHash":   id,
+		"transactionIndex":  "0x01", // TODO(nickeskov): is it ok?
+		"blockHash":         "",
+		"blockNumber":       "",
+		"from":              "",
+		"to":                "",
+		"cumulativeGasUsed": "", // tx.fee
+		"gasUsed":           "", // tx.fee
+		"contractAddress":   nil,
+		"logs":              []byte(nil),
+		"logsBloom":         proto.EthereumHash{},
+		"status":            "",
+	}
 }

@@ -8,21 +8,26 @@ import (
 
 	"github.com/semrush/zenrpc/v2"
 	"github.com/semrush/zenrpc/v2/smd"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 var RPC = struct {
-	RPCService struct{ Eth_blockNumber, Net_version, Eth_chainId, Eth_getBalance, Eth_getBlockByNumber, Eth_gasPrice, Eth_getCode, Eth_getTransactionCount, Eth_sendrawtransaction string }
+	RPCService struct{ Eth_blockNumber, Net_version, Eth_chainId, Eth_getBalance, Eth_getBlockByNumber, Eth_gasPrice, Eth_estimateGas, Eth_call, Eth_getCode, Eth_getTransactionCount, Eth_sendrawtransaction, Eth_getTransactionReceipt string }
 }{
-	RPCService: struct{ Eth_blockNumber, Net_version, Eth_chainId, Eth_getBalance, Eth_getBlockByNumber, Eth_gasPrice, Eth_getCode, Eth_getTransactionCount, Eth_sendrawtransaction string }{
-		Eth_blockNumber:         "eth_blocknumber",
-		Net_version:             "net_version",
-		Eth_chainId:             "eth_chainid",
-		Eth_getBalance:          "eth_getbalance",
-		Eth_getBlockByNumber:    "eth_getblockbynumber",
-		Eth_gasPrice:            "eth_gasprice",
-		Eth_getCode:             "eth_getcode",
-		Eth_getTransactionCount: "eth_gettransactioncount",
-		Eth_sendrawtransaction:  "eth_sendrawtransaction",
+	RPCService: struct{ Eth_blockNumber, Net_version, Eth_chainId, Eth_getBalance, Eth_getBlockByNumber, Eth_gasPrice, Eth_estimateGas, Eth_call, Eth_getCode, Eth_getTransactionCount, Eth_sendrawtransaction, Eth_getTransactionReceipt string }{
+		Eth_blockNumber:           "eth_blocknumber",
+		Net_version:               "net_version",
+		Eth_chainId:               "eth_chainid",
+		Eth_getBalance:            "eth_getbalance",
+		Eth_getBlockByNumber:      "eth_getblockbynumber",
+		Eth_gasPrice:              "eth_gasprice",
+		Eth_estimateGas:           "eth_estimategas",
+		Eth_call:                  "eth_call",
+		Eth_getCode:               "eth_getcode",
+		Eth_getTransactionCount:   "eth_gettransactioncount",
+		Eth_sendrawtransaction:    "eth_sendrawtransaction",
+		Eth_getTransactionReceipt: "eth_gettransactionreceipt",
 	},
 }
 
@@ -45,7 +50,7 @@ func (RPCService) SMD() smd.ServiceInfo {
 				Returns: smd.JSONSchema{
 					Description: ``,
 					Optional:    false,
-					Type:        smd.Integer,
+					Type:        smd.String,
 				},
 			},
 			"Eth_chainId": {
@@ -108,6 +113,50 @@ func (RPCService) SMD() smd.ServiceInfo {
 			"Eth_gasPrice": {
 				Description: `/* Returns the current price per gas in wei */`,
 				Parameters:  []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: ``,
+					Optional:    false,
+					Type:        smd.String,
+				},
+			},
+			"Eth_estimateGas": {
+				Description: ``,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "gas",
+						Optional:    false,
+						Description: ``,
+						Type:        smd.String,
+					},
+				},
+			},
+			"Eth_call": {
+				Description: ``,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "params",
+						Optional:    false,
+						Description: ``,
+						Type:        smd.Object,
+						Properties: map[string]smd.Property{
+							"to": {
+								Description: ``,
+								Ref:         "#/definitions/proto.EthereumAddress",
+								Type:        smd.Object,
+							},
+							"data": {
+								Description: ``,
+								Type:        smd.String,
+							},
+						},
+						Definitions: map[string]smd.Definition{
+							"proto.EthereumAddress": {
+								Type:       "object",
+								Properties: map[string]smd.Property{},
+							},
+						},
+					},
+				},
 				Returns: smd.JSONSchema{
 					Description: ``,
 					Optional:    false,
@@ -179,6 +228,23 @@ func (RPCService) SMD() smd.ServiceInfo {
 					Type:        smd.String,
 				},
 			},
+			"Eth_getTransactionReceipt": {
+				Description: ``,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "id",
+						Optional:    false,
+						Description: ``,
+						Type:        smd.Object,
+						Properties:  map[string]smd.Property{},
+					},
+				},
+				Returns: smd.JSONSchema{
+					Description: ``,
+					Optional:    false,
+					Type:        smd.Object,
+				},
+			},
 		},
 	}
 }
@@ -241,6 +307,44 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 	case RPC.RPCService.Eth_gasPrice:
 		resp.Set(s.Eth_gasPrice())
 
+	case RPC.RPCService.Eth_estimateGas:
+		var args = struct {
+			Gas string `json:"gas"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"gas"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		s.Eth_estimateGas(args.Gas)
+
+	case RPC.RPCService.Eth_call:
+		var args = struct {
+			Params callParams `json:"params"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"params"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.Eth_call(args.Params))
+
 	case RPC.RPCService.Eth_getCode:
 		var args = struct {
 			Address    string `json:"address"`
@@ -299,6 +403,25 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 		}
 
 		resp.Set(s.Eth_sendrawtransaction(args.SignedTxData))
+
+	case RPC.RPCService.Eth_getTransactionReceipt:
+		var args = struct {
+			Id proto.EthereumHash `json:"id"`
+		}{}
+
+		if zenrpc.IsArray(params) {
+			if params, err = zenrpc.ConvertToObject([]string{"id"}, params); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &args); err != nil {
+				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
+			}
+		}
+
+		resp.Set(s.Eth_getTransactionReceipt(args.Id))
 
 	default:
 		resp = zenrpc.NewResponseError(nil, zenrpc.MethodNotFound, "", nil)
