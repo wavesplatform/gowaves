@@ -2,7 +2,10 @@
 package common
 
 import (
+	"bytes"
 	"encoding/base64"
+	"encoding/hex"
+	"fmt"
 	"os"
 	"os/user"
 	"path"
@@ -141,11 +144,11 @@ func FromBase64JSONUnsized(value []byte, name string) ([]byte, error) {
 
 func ToBase58JSON(b []byte) []byte {
 	s := base58.Encode(b)
-	var sb strings.Builder
+	var sb bytes.Buffer
 	sb.WriteRune('"')
 	sb.WriteString(s)
 	sb.WriteRune('"')
-	return []byte(sb.String())
+	return sb.Bytes()
 }
 
 func FromBase58JSONUnsized(value []byte, name string) ([]byte, error) {
@@ -166,6 +169,37 @@ func FromBase58JSONUnsized(value []byte, name string) ([]byte, error) {
 
 func FromBase58JSON(value []byte, size int, name string) ([]byte, error) {
 	v, err := FromBase58JSONUnsized(value, name)
+	if err != nil {
+		return nil, err
+	}
+	if l := len(v); l != size {
+		return nil, errors.Errorf("incorrect length %d of %s value, expected %d", l, name, size)
+	}
+	return v[:size], nil
+}
+
+func ToHexJSON(b []byte) []byte {
+	return []byte(fmt.Sprintf("\"0x%x\"", b))
+}
+
+func FromHexJSONUnsized(value []byte, name string) ([]byte, error) {
+	s := string(value)
+	if s == "null" {
+		return nil, nil
+	}
+	s, err := strconv.Unquote(s)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal %s from JSON", name)
+	}
+	v, err := hex.DecodeString(strings.TrimPrefix(s, "0x"))
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to decode %s from hex string", name)
+	}
+	return v, nil
+}
+
+func FromHexJSON(value []byte, size int, name string) ([]byte, error) {
+	v, err := FromHexJSONUnsized(value, name)
 	if err != nil {
 		return nil, err
 	}

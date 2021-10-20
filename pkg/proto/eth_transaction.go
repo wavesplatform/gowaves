@@ -140,11 +140,8 @@ func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
 	if err != nil {
 		return err
 	}
-	id, err := crypto.Keccak256(body)
-	if err != nil {
-		return err
-	}
-	tx.id = &id
+	id := Keccak256EthereumHash(body)
+	tx.id = (*crypto.Digest)(&id)
 	return nil
 }
 
