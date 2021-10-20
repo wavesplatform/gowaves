@@ -196,7 +196,7 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 	}
 
 	zap.S().Debugf("Scheduling generation on top of block (%d) '%s'", confirmedBlockHeight, confirmedBlock.BlockID().String())
-	zap.S().Debugf("  block timestamp: %d (%s)", confirmedBlock.Timestamp, common.TimestampMillisToTime(confirmedBlock.Timestamp).String())
+	zap.S().Debugf("  block timestamp: %d (%s)", confirmedBlock.Timestamp, common.UnixMillisToTime(int64(confirmedBlock.Timestamp)).String())
 	zap.S().Debugf("  block base target: %d", confirmedBlock.BaseTarget)
 	zap.S().Debug("Generation accounts:")
 	var out []Emit
@@ -250,7 +250,7 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 		zap.S().Debugf("    Hit: %s (%s)", hit.String(), base58.Encode(source))
 		zap.S().Debugf("    Generation Balance: %d", int(effectiveBalance))
 		zap.S().Debugf("    Delay: %d", int(delay))
-		zap.S().Debugf("    Timestamp: %d (%s)", int(ts), common.TimestampMillisToTime(ts).String())
+		zap.S().Debugf("    Timestamp: %d (%s)", int(ts), common.UnixMillisToTime(int64(ts)).String())
 		out = append(out, Emit{
 			Timestamp:    ts,
 			KeyPair:      keyPair,
