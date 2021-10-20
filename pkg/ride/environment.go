@@ -48,15 +48,6 @@ func (ws *WrappedState) appendActions(actions []proto.ScriptAction) {
 	ws.act = append(ws.act, actions...)
 }
 
-func (ws *WrappedState) checkTotalComplexity() (int, bool) {
-	return ws.totalComplexity, ws.totalComplexity > MaxChainInvokeComplexity
-}
-
-func (ws *WrappedState) checkScriptActions() (int, bool) {
-	// We always compare script actions count with `proto.MaxScriptActionsV2` because this value activated with dApp-to-dApp calls
-	return ws.actionsCount, ws.actionsCount > proto.MaxScriptActionsV2
-}
-
 func (ws *WrappedState) callee() proto.Address {
 	return proto.Address(ws.cle)
 }
@@ -509,7 +500,7 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 		return err
 	}
 	if balance < uint64(res.Amount) {
-		return errors.Errorf("attached payments: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+		return errors.Errorf("not enough money in the DApp, balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
 			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 	}
 	return nil
@@ -554,7 +545,7 @@ func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, 
 		return err
 	}
 	if balance < uint64(res.Amount) {
-		return errors.Errorf("transfer action: not enough money in the DApp, balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+		return errors.Errorf("not enough money in the DApp, balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
 			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 	}
 	return nil
