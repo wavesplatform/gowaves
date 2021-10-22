@@ -44,13 +44,14 @@ type FunctionalitySettings struct {
 	AllowMultipleLeaseCancelUntilTime   uint64 `json:"allow_multiple_lease_cancel_until_time"`
 	AllowLeasedBalanceTransferUntilTime uint64 `json:"allow_leased_balance_transfer_until_time"`
 	// Timestamps when different kinds of checks become relevant.
-	CheckTempNegativeAfterTime                  uint64 `json:"check_temp_negative_after_time"`
-	TxChangesSortedCheckAfterTime               uint64 `json:"tx_changes_sorted_check_after_time"`
-	TxFromFutureCheckAfterTime                  uint64 `json:"tx_from_future_check_after_time"`
-	UnissuedAssetUntilTime                      uint64 `json:"unissued_asset_until_time"`
-	InvalidReissueInSameBlockUntilTime          uint64 `json:"invalid_reissue_in_same_block_until_time"`
-	MinimalGeneratingBalanceCheckAfterTime      uint64 `json:"minimal_generating_balance_check_after_time"`
-	InternalInvokePaymentsValidationAfterHeight uint64 `json:"internal_invoke_payments_validation_after_height"`
+	CheckTempNegativeAfterTime                          uint64 `json:"check_temp_negative_after_time"`
+	TxChangesSortedCheckAfterTime                       uint64 `json:"tx_changes_sorted_check_after_time"`
+	TxFromFutureCheckAfterTime                          uint64 `json:"tx_from_future_check_after_time"`
+	UnissuedAssetUntilTime                              uint64 `json:"unissued_asset_until_time"`
+	InvalidReissueInSameBlockUntilTime                  uint64 `json:"invalid_reissue_in_same_block_until_time"`
+	MinimalGeneratingBalanceCheckAfterTime              uint64 `json:"minimal_generating_balance_check_after_time"`
+	InternalInvokePaymentsValidationAfterHeight         uint64 `json:"internal_invoke_payments_validation_after_height"`
+	InternalInvokeCorrectFailRejectBehaviourAfterHeight uint64 `json:"internal_invoke_correct_fail_reject_behaviour_after_height"`
 
 	// Diff in milliseconds.
 	MaxTxTimeBackOffset    uint64 `json:"max_tx_time_back_offset"`
