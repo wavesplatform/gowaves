@@ -2051,10 +2051,9 @@ func TestNegativeCycleNewInvokeDAppFromDAppScript4(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-	require.Error(t, err)
-
-	_, ok := res.(DAppResult)
-	require.False(t, ok)
+	require.NoError(t, err)
+	require.Error(t, res.EvaluationError())
+	require.IsType(t, DAppResult{}, res)
 
 	tearDownDappFromDapp()
 }
@@ -3443,15 +3442,11 @@ func TestPaymentsDifferentScriptVersion4(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-	require.Error(t, err)
-
-	_, ok := res.(DAppResult)
-	require.False(t, ok)
-
-	tearDownDappFromDapp()
+	require.NoError(t, err)
+	require.Error(t, res.EvaluationError())
+	require.IsType(t, DAppResult{}, res)
 
 	tearDownDappFromDapp()
-
 }
 
 func TestPaymentsDifferentScriptVersion3(t *testing.T) {
@@ -3566,13 +3561,11 @@ func TestPaymentsDifferentScriptVersion3(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-
-	require.Error(t, err)
-	_, ok := res.(DAppResult)
-	require.False(t, ok)
+	require.NoError(t, err)
+	require.Error(t, res.EvaluationError())
+	require.IsType(t, DAppResult{}, res)
 
 	tearDownDappFromDapp()
-
 }
 
 func TestActionsLimitInOneInvoke(t *testing.T) {
@@ -3762,8 +3755,10 @@ func TestActionsLimitInOneInvoke(t *testing.T) {
 	*/
 	secondScript = "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"
 
-	_, err = CallFunction(env, tree, "bar", proto.Arguments{})
-	require.Error(t, err)
+	res, err = CallFunction(env, tree, "bar", proto.Arguments{})
+	require.NoError(t, err)
+	require.Error(t, res.EvaluationError())
+	require.IsType(t, DAppResult{}, res)
 
 	tearDownDappFromDapp()
 }
@@ -3893,9 +3888,12 @@ func TestActionsLimitInvoke(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	_, err = CallFunction(env, tree, "bar", proto.Arguments{})
+	res, err := CallFunction(env, tree, "bar", proto.Arguments{})
 
-	require.Error(t, err)
+	require.NoError(t, err)
+	require.Error(t, res.EvaluationError())
+	require.IsType(t, DAppResult{}, res)
+
 	tearDownDappFromDapp()
 }
 
@@ -7258,9 +7256,11 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	tree, err := Parse(src1)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	_, err = CallFunction(env, tree, "call", arguments)
+	res, err := CallFunction(env, tree, "call", arguments)
 	// Expecting validation error for the switched on internal payments validation
-	require.Error(t, err)
+	require.NoError(t, err)
+	require.Error(t, res.EvaluationError())
+	require.IsType(t, DAppResult{}, res)
 
 	// Turning off internal payments validation
 	env.validateInternalPaymentsFunc = func() bool {
@@ -7274,9 +7274,11 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	tree, err = Parse(src1)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	_, err = CallFunction(env, tree, "call", arguments)
+	res, err = CallFunction(env, tree, "call", arguments)
 	// No error is expected in this case
 	require.NoError(t, err)
+	require.NoError(t, res.EvaluationError())
+	require.IsType(t, DAppResult{}, res)
 }
 
 func TestAliasesInInvokes(t *testing.T) {
@@ -7851,8 +7853,10 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 	tree, err := Parse(src1)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	_, err = CallFunction(env, tree, "call", arguments)
-	assert.EqualError(t, err, "failed to evaluate block after declaration of variable 'r1': failed to estimate the condition of if: failed to materialize argument 1 of system function '0': failed to evaluate expression of scope value 'r1': failed to call system function '1020': failed to pass validation of transfer action: not enough money in the DApp, balance of DApp with address 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1 is 0 and it tried to transfer asset WAVES to 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz, amount of 100")
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.NoError(t, err)
+	require.IsType(t, DAppResult{}, res)
+	assert.EqualError(t, res.EvaluationError(), "failed to evaluate block after declaration of variable 'r1': failed to estimate the condition of if: failed to materialize argument 1 of system function '0': failed to evaluate expression of scope value 'r1': failed to call system function '1020': failed to pass validation of transfer action: not enough money in the DApp, balance of DApp with address 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1 is 0 and it tried to transfer asset WAVES to 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz, amount of 100")
 }
 
 func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
@@ -8033,8 +8037,10 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 	tree, err := Parse(src1)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	_, err = CallFunction(env, tree, "call", arguments)
-	require.Error(t, err)
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.NoError(t, err)
+	require.Error(t, res.EvaluationError())
+	require.IsType(t, DAppResult{}, res)
 }
 
 func TestReissueInInvoke(t *testing.T) {

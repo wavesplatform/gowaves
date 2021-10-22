@@ -235,7 +235,7 @@ type treeEvaluator struct {
 func (e *treeEvaluator) evaluate() (Result, error) {
 	r, err := e.walk(e.f)
 	if err != nil {
-		return nil, err // Evaluation failed somehow, then now result just an error
+		return nil, err // Evaluation failed somehow, then result just an error
 	}
 
 	switch res := r.(type) {

@@ -742,25 +742,25 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		return nil, err
 	}
 	// Call script function.
-	ok, scriptActions, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr)
-	if !ok {
-		// When ok is false, it means that we could not even start invocation.
+	r, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr)
+	if err != nil {
+		// This error means that function invocation failed by itself. This is not a script failure.
 		// We just return error in such case.
 		return nil, errors.Wrap(err, "invokeFunction() failed")
 	}
-	if err != nil {
-		// If ok is true, but error is not nil, it means that invocation has failed.
+	if r.EvaluationError() != nil {
+		// Script returned error, it's OK, but we have to decide is it failed or rejected transaction.
 		if !info.acceptFailed || ia.sc.recentTxComplexity < FailFreeInvokeComplexity {
 			// We don't accept failed transactions or failed transaction spent less than 1000 complexity
-			return nil, errors.Wrap(err, "invokeFunction() failed")
+			return nil, errors.Wrap(r.EvaluationError(), "invokeFunction() failed")
 		}
-		res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), actions: scriptActions, changes: failedChanges}
+		res := &invocationResult{failed: true, code: proto.DAppError, text: r.EvaluationError().Error(), actions: r.ScriptActions(), changes: failedChanges}
 		return ia.handleInvocationResult(tx, info, res)
 	}
 	var scriptRuns uint64 = 0
 	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
 	if !info.rideV5Activated {
-		actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
+		actionScriptRuns := ia.countActionScriptRuns(r.ScriptActions(), info.initialisation)
 		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
 	}
 	if info.senderScripted {
@@ -784,7 +784,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		scriptPK:                 scriptPK,
 		scriptRuns:               scriptRuns,
 		failedChanges:            failedChanges,
-		actions:                  scriptActions,
+		actions:                  r.ScriptActions(),
 		paymentSmartAssets:       paymentSmartAssets,
 		disableSelfTransfers:     disableSelfTransfers,
 		libVersion:               byte(tree.LibVersion),
@@ -800,14 +800,14 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 			code:       code,
 			text:       err.Error(),
 			scriptRuns: scriptRuns,
-			actions:    scriptActions,
+			actions:    r.ScriptActions(),
 			changes:    changes,
 		}
 	} else {
 		res = &invocationResult{
 			failed:     false,
 			scriptRuns: scriptRuns,
-			actions:    scriptActions,
+			actions:    r.ScriptActions(),
 			changes:    changes,
 		}
 	}

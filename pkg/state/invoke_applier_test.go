@@ -660,6 +660,7 @@ func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 	}
 }
 
+// TestFailedApplyInvokeScript in this test we
 func TestFailedApplyInvokeScript(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
 
@@ -711,8 +712,8 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 		{
 			payments: []proto.ScriptPayment{},
 			fc:       fc1,
-			errorRes: false,
-			failRes:  true,
+			errorRes: true,
+			failRes:  false, // Spent complexity is less than 1000, so this transaction will be rejected
 			correctBalances: map[rcpAsset]uint64{
 				{sender, nil}:     0,
 				{dapp, &newAsset}: 110000,
@@ -747,29 +748,46 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
 
 	sender, dapp := invokeSenderRecipient()
-	//fc100 := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 100}, &proto.StringArgument{Value: strings.Repeat("0", 100)}}}
-	fc1000 := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 100}, &proto.StringArgument{Value: strings.Repeat("0", 1000)}}}
+	// This transaction produces 10889 bytes of data in 100 entries spending 11093 of complexity
+	fcEverythingFine := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 100)}}}
+	// This transaction reaches data entries size limit (16 KB) after reaching 1000 complexity limit
+	fcSizeLimitAfterComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 150)}}}
+	// This transaction reaches data entries size limit (16 KB) before reaching 1000 complexity limit
+	fcSizeLimitBeforeComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 2000)}}}
 	tests := []invokeApplierTestData{
-		//{
-		//	payments: []proto.ScriptPayment{},
-		//	fc:       fc100,
-		//	errorRes: true,
-		//	failRes:  false,
-		//	correctBalances: map[rcpAsset]uint64{
-		//		{sender, nil}: invokeFee * 2,
-		//		{dapp, nil}:   0,
-		//	},
-		//	correctAddrs: []proto.Address{
-		//		testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
-		//	},
-		//},
 		{
 			payments: []proto.ScriptPayment{},
-			fc:       fc1000,
+			fc:       fcEverythingFine,
+			errorRes: false,
+			failRes:  false,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}: invokeFee * 2,
+				{dapp, nil}:   0,
+			},
+			correctAddrs: []proto.Address{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+		},
+		{
+			payments: []proto.ScriptPayment{},
+			fc:       fcSizeLimitAfterComplexityLimit,
 			errorRes: false,
 			failRes:  true,
 			correctBalances: map[rcpAsset]uint64{
-				{sender, nil}: invokeFee * 2,
+				{sender, nil}: invokeFee,
+				{dapp, nil}:   0,
+			},
+			correctAddrs: []proto.Address{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+		},
+		{
+			payments: []proto.ScriptPayment{},
+			fc:       fcSizeLimitBeforeComplexityLimit,
+			errorRes: true,
+			failRes:  false,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}: 0,
 				{dapp, nil}:   0,
 			},
 			correctAddrs: []proto.Address{
