@@ -24,6 +24,11 @@ const (
 	EthereumDynamicFeeTxType
 )
 
+const (
+	EthereumTransferMinFee uint64 = 100000
+	EthereumInvokeMinFee   uint64 = 500000
+)
+
 func (e EthereumTxType) String() string {
 	switch e {
 	case EthereumLegacyTxType:

@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"math"
 	"math/big"
@@ -349,8 +348,6 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		return nil, errors.New("canceling a transaction is forbidden")
 	}
 
-	// TODO check min fee
-
 	// gasPrice == 10
 	if tx.GasPrice().Cmp(big.NewInt(int64(proto.EthereumGasPrice))) == 0 {
 		return nil, errors.New("Gas price should be 10")
@@ -362,6 +359,11 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
+		// check fee
+		if tx.GetFee() < proto.EthereumTransferMinFee {
+			return nil, errors.Errorf("the fee for ethereum transfer waves tx is not enough, min fee is %d, got %d", proto.EthereumTransferMinFee, tx.GetFee())
+		}
+
 		// check if the amount is 0
 		if tx.Value() == nil {
 			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
@@ -380,9 +382,9 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		}
 		return nil, nil
 	case *proto.EthereumTransferAssetsErc20TxKind:
-		// check if the amount is 0
-		if tx.Value() == nil {
-			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
+		// check fee
+		if tx.GetFee() < proto.EthereumTransferMinFee {
+			return nil, errors.Errorf("the fee for ethereum transfer assets tx is not enough, min fee is %d, got %d", proto.EthereumTransferMinFee, tx.GetFee())
 		}
 
 		erc20arguments, err := ride.GetERC20Arguments(tx.TxKind.DecodedData(), tc.settings.AddressSchemeCharacter)
@@ -390,7 +392,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			return nil, errors.Errorf("failed to receive erc20 arguments, %v", err)
 		}
 		if erc20arguments.Amount == 0 {
-			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
+			return nil, errors.New("the amount of ethereum transfer assets is 0, which is forbidden")
 		}
 
 		allAssets := []proto.OptionalAsset{kind.Asset}
@@ -411,6 +413,10 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		}
 		return smartAssets, nil
 	case *proto.EthereumInvokeScriptTxKind:
+		// check fee
+		if tx.GetFee() < proto.EthereumInvokeMinFee {
+			return nil, errors.Errorf("the fee for ethereum invoke tx is not enough, min fee is %d, got %d", proto.EthereumInvokeMinFee, tx.GetFee())
+		}
 		if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
 			return nil, errs.Extend(err, "invalid timestamp")
 		}
@@ -419,7 +425,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			return nil, err
 		}
 		if !ride4DAppsActivated {
-			return nil, errors.New("can not use InvokeScript before Ride4DApps activation")
+			return nil, errors.New("can't use InvokeScript before Ride4DApps activation")
 		}
 
 		multiPaymentActivated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
@@ -430,22 +436,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		if err != nil {
 			return nil, err
 		}
-		scriptAddr, err := tx.WavesAddressTo(tc.settings.AddressSchemeCharacter)
-		if err != nil {
-			return nil, err
-		}
-		tree, err := tc.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
-		if err != nil {
-			return nil, err
-		}
-		db, err := ethabi.NewMethodsMapFromRideDAppMeta(tree.Meta)
-		if err != nil {
-			return nil, err
-		}
-		decodedData, err := db.ParseCallDataRide(tx.Data())
-		if err != nil {
-			return nil, err
-		}
+		decodedData := tx.TxKind.DecodedData()
 		abiPayments := decodedData.Payments
 
 		l := len(abiPayments)
