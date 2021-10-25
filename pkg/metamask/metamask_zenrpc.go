@@ -108,6 +108,12 @@ func (RPCService) SMD() smd.ServiceInfo {
 					Description: ``,
 					Optional:    false,
 					Type:        smd.Object,
+					Properties: map[string]smd.Property{
+						"number": {
+							Description: ``,
+							Type:        smd.String,
+						},
+					},
 				},
 			},
 			"Eth_gasPrice": {
@@ -225,14 +231,15 @@ func (RPCService) SMD() smd.ServiceInfo {
 				Returns: smd.JSONSchema{
 					Description: ``,
 					Optional:    false,
-					Type:        smd.String,
+					Type:        smd.Object,
+					Properties:  map[string]smd.Property{},
 				},
 			},
 			"Eth_getTransactionReceipt": {
 				Description: ``,
 				Parameters: []smd.JSONSchema{
 					{
-						Name:        "id",
+						Name:        "ethTxID",
 						Optional:    false,
 						Description: ``,
 						Type:        smd.Object,
@@ -243,6 +250,74 @@ func (RPCService) SMD() smd.ServiceInfo {
 					Description: ``,
 					Optional:    false,
 					Type:        smd.Object,
+					Properties: map[string]smd.Property{
+						"transactionHash": {
+							Description: ``,
+							Ref:         "#/definitions/proto.EthereumHash",
+							Type:        smd.Object,
+						},
+						"transactionIndex": {
+							Description: ``,
+							Type:        smd.String,
+						},
+						"blockHash": {
+							Description: ``,
+							Type:        smd.String,
+						},
+						"blockNumber": {
+							Description: ``,
+							Type:        smd.String,
+						},
+						"from": {
+							Description: ``,
+							Ref:         "#/definitions/proto.EthereumAddress",
+							Type:        smd.Object,
+						},
+						"to": {
+							Description: ``,
+							Ref:         "#/definitions/proto.EthereumAddress",
+							Type:        smd.Object,
+						},
+						"cumulativeGasUsed": {
+							Description: ``,
+							Type:        smd.String,
+						},
+						"gasUsed": {
+							Description: ``,
+							Type:        smd.String,
+						},
+						"contractAddress": {
+							Description: ``,
+							Ref:         "#/definitions/proto.EthereumAddress",
+							Type:        smd.Object,
+						},
+						"logs": {
+							Description: ``,
+							Type:        smd.Array,
+							Items: map[string]string{
+								"type": smd.String,
+							},
+						},
+						"logsBloom": {
+							Description: ``,
+							Ref:         "#/definitions/proto.EthereumHash",
+							Type:        smd.Object,
+						},
+						"status": {
+							Description: ``,
+							Type:        smd.String,
+						},
+					},
+					Definitions: map[string]smd.Definition{
+						"proto.EthereumHash": {
+							Type:       "object",
+							Properties: map[string]smd.Property{},
+						},
+						"proto.EthereumAddress": {
+							Type:       "object",
+							Properties: map[string]smd.Property{},
+						},
+					},
 				},
 			},
 		},
@@ -328,7 +403,7 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 
 	case RPC.RPCService.Eth_call:
 		var args = struct {
-			Params callParams `json:"params"`
+			Params ethCallParams `json:"params"`
 		}{}
 
 		if zenrpc.IsArray(params) {
@@ -406,11 +481,11 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 
 	case RPC.RPCService.Eth_getTransactionReceipt:
 		var args = struct {
-			Id proto.EthereumHash `json:"id"`
+			EthTxID proto.EthereumHash `json:"ethTxID"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"id"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"ethTxID"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -421,7 +496,7 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 			}
 		}
 
-		resp.Set(s.Eth_getTransactionReceipt(args.Id))
+		resp.Set(s.Eth_getTransactionReceipt(args.EthTxID))
 
 	default:
 		resp = zenrpc.NewResponseError(nil, zenrpc.MethodNotFound, "", nil)

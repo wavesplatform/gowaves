@@ -2,18 +2,41 @@ package metamask
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/semrush/zenrpc/v2"
 	"go.uber.org/zap"
-	"log"
-	"net/http"
-	"os"
 )
 
-func RunMetaMaskService(ctx context.Context, address string, service RPCService) error {
+func zenrpcZapLoggerMiddleware(handler zenrpc.InvokeFunc) zenrpc.InvokeFunc {
+	return func(ctx context.Context, method string, params json.RawMessage) zenrpc.Response {
+		var (
+			start = time.Now()
+			ip    = "<nil>"
+		)
+		if req, ok := zenrpc.RequestFromContext(ctx); ok && req != nil {
+			ip = req.RemoteAddr
+		}
+		response := handler(ctx, method, params)
+		zap.S().Debugf(
+			"MetaMaskRPC: ip=%s method=%s.%s duration=%v params=%s err=%v",
+			ip, zenrpc.NamespaceFromContext(ctx), method, time.Since(start), params, response.Error,
+		)
+		return response
+	}
+}
+
+func RunMetaMaskService(ctx context.Context, address string, service RPCService, enableRpcServiceLog bool) error {
+	// TODO(nickeskov): what about `BatchMaxLen` option?
 	rpc := zenrpc.NewServer(zenrpc.Options{ExposeSMD: true, AllowCORS: true})
 	rpc.Register("", service) // public
-	rpc.Use(zenrpc.Logger(log.New(os.Stderr, "", log.LstdFlags)))
+
+	if enableRpcServiceLog {
+		rpc.Use(zenrpcZapLoggerMiddleware)
+	}
 
 	http.Handle("/eth", rpc)
 

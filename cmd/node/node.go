@@ -428,16 +428,20 @@ func main() {
 		}()
 	}
 
-	// TODO(nickeskov): add into a next release
 	if *enableMetaMaskService {
-		service := metamask.NewRPCService(&svs)
-		go func() {
-			zap.S().Infof("Starting metamask service on %s...", *metaMaskServiceAddr)
-			err := metamask.RunMetaMaskService(ctx, *metaMaskServiceAddr, service)
-			if err != nil {
-				zap.S().Errorf("metamask service: %v", err)
-			}
-		}()
+		if *buildExtendedApi {
+			service := metamask.NewRPCService(&svs)
+			go func() {
+				zap.S().Infof("Starting metamask service on %s...", *metaMaskServiceAddr)
+				// TODO(nickeskov): add parameter for `enableRpcServiceLog`
+				err := metamask.RunMetaMaskService(ctx, *metaMaskServiceAddr, service, true)
+				if err != nil {
+					zap.S().Errorf("metamask service: %v", err)
+				}
+			}()
+		} else {
+			zap.S().Warn("'enable-grpc-api' flag requires activated 'build-extended-api' flag")
+		}
 	}
 
 	var gracefulStop = make(chan os.Signal, 1)

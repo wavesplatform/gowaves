@@ -2,9 +2,12 @@ package metamask
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/semrush/zenrpc/v2"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -17,26 +20,26 @@ import (
 
 type RPCService struct {
 	zenrpc.Service
-	services *services.Services
+	nodeServices *services.Services
 }
 
 // TODO(nickeskov): create error type
 
-func NewRPCService(state *services.Services) RPCService {
+func NewRPCService(nodeServices *services.Services) RPCService {
 	return RPCService{
-		services: state,
+		nodeServices: nodeServices,
 	}
 }
 
 /* Returns the number of most recent block */
 func (s RPCService) Eth_blockNumber() (string, error) {
 	// returns integer of the current block number the client is on
-	height, err := s.services.State.Height()
+	height, err := s.nodeServices.State.Height()
 	if err != nil {
 		// todo(nickeskov): convert to RPC API error with corresponding code
 		return "", err
 	}
-	return fmt.Sprintf("0x%x", height), nil
+	return uint64ToHexString(height), nil
 }
 
 /* Returns the current network id */
@@ -46,7 +49,7 @@ func (s RPCService) Net_version() string {
 
 /* Returns the chain id */
 func (s RPCService) Eth_chainId() string {
-	return fmt.Sprintf("0x%x", s.services.Scheme)
+	return uint64ToHexString(uint64(s.nodeServices.Scheme))
 	//return "0x1" - show real currency price
 }
 
@@ -54,7 +57,7 @@ func (s RPCService) Eth_chainId() string {
    - address: 20 Bytes - address to check for balance
    - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */
 func (s RPCService) Eth_getBalance(address, blockOrTag string) (string, error) {
-	zap.S().Infof("Eth_getBalance was called: address %q, blockOrTag %q", address, blockOrTag)
+	zap.S().Debugf("Eth_getBalance was called: address %q, blockOrTag %q", address, blockOrTag)
 
 	// return balance in wei. 1 ether is equivalent to 1 x 10^18 wei (
 	ethAddr, err := proto.NewEthereumAddressFromHexString(address)
@@ -62,42 +65,50 @@ func (s RPCService) Eth_getBalance(address, blockOrTag string) (string, error) {
 		// todo
 		return "", err
 	}
-	wavesAddr, err := ethAddr.ToWavesAddress(s.services.Scheme)
+	wavesAddr, err := ethAddr.ToWavesAddress(s.nodeServices.Scheme)
 	if err != nil {
 		// todo
 		return "", err
 	}
-	amount, err := s.services.State.AccountBalance(proto.Recipient{Address: &wavesAddr}, nil)
+	amount, err := s.nodeServices.State.AccountBalance(proto.Recipient{Address: &wavesAddr}, nil)
 	if err != nil {
 		// todo
 		return "", err
 	}
-	return fmt.Sprintf("0x%x", proto.WaveletToEthereumWei(amount)), nil // 0.159
+	return bigIntToHexString(proto.WaveletToEthereumWei(amount)), nil // 0.159
+}
+
+type GetBlockByNumberResponse struct {
+	Number string `json:"number"`
 }
 
 /* Returns information about a block by block number.
    - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
    - filter: if true it returns the full transaction objects, if false only the hashes of the transactions */
-func (s RPCService) Eth_getBlockByNumber(blockOrTag string, filter bool) map[string]string {
-	zap.S().Infof("Eth_getBlockByNumber was called: blockOrTag %q, filter \"%t\"", blockOrTag, filter)
+func (s RPCService) Eth_getBlockByNumber(blockOrTag string, filter bool) GetBlockByNumberResponse {
+	zap.S().Debugf("Eth_getBlockByNumber was called: blockOrTag %q, filter \"%t\"", blockOrTag, filter)
 	// TODO(nickeskov): scala crunch...
-	return map[string]string{
-		"number": blockOrTag,
+	return GetBlockByNumberResponse{
+		Number: blockOrTag,
 	}
 }
 
 /* Returns the current price per gas in wei */
 func (s RPCService) Eth_gasPrice() string {
-	return fmt.Sprintf("0x%x", proto.EthereumGasPrice)
+	return uint64ToHexString(proto.EthereumGasPrice)
 }
 
 func (s RPCService) Eth_estimateGas(gas string) {
 	// TODO(nickeskov):
 }
 
-type callParams struct {
+type ethCallParams struct {
 	To   proto.EthereumAddress `json:"to"`
 	Data string                `json:"data"`
+}
+
+func (c ethCallParams) String() string {
+	return fmt.Sprintf("Eth_callParams(to=%s,data=%s)", c.To, c.Data)
 }
 
 var (
@@ -106,8 +117,9 @@ var (
 	erc20BalanceSelector  = ethabi.Signature("balanceOf(address)").Selector() // "0x70a08231"
 )
 
-func (s RPCService) Eth_call(params callParams) (string, error) {
-	zap.S().Infof("Eth_call was called: params %+v", params)
+func (s RPCService) Eth_call(params ethCallParams) (string, error) {
+	// TODO(nickeskov): what this method should send in case of error?
+	zap.S().Debugf("Eth_call was called with %s", params.String())
 
 	callData, err := proto.DecodeFromHexString(params.Data)
 	if err != nil {
@@ -120,53 +132,52 @@ func (s RPCService) Eth_call(params callParams) (string, error) {
 
 	switch selector {
 	case erc20SymbolSelector:
-		fullInfo, err := s.services.State.FullAssetInfo(shortAssetID)
+		fullInfo, err := s.nodeServices.State.FullAssetInfo(shortAssetID)
 		if err != nil {
-			// todo
+			zap.S().Errorf("Eth_call: failed to fetch full asset info, %s: %v", params.String(), err)
 			return "", err
 		}
 		return fullInfo.Name, nil
 	case erc20DecimalsSelector:
-		info, err := s.services.State.AssetInfo(shortAssetID)
+		info, err := s.nodeServices.State.AssetInfo(shortAssetID)
 		if err != nil {
-			// todo
+			zap.S().Errorf("Eth_call: failed to fetch asset info, %s: %v", params.String(), err)
 			return "", err
 		}
-		// TODO(nickeskov): decimal or hex?
 		return fmt.Sprintf("%d", info.Decimals), nil
 
 	case erc20BalanceSelector:
 		if len(callData) != ethabi.SelectorSize+proto.EthereumAddressSize {
-			return "", errors.Errorf(
-				"invalid call data for \"balanceOf(address)\" ERC20 function, call data %q", params.Data,
+			err := errors.Errorf(
+				"invalid call data for %q ERC20 method, call data %q",
+				erc20BalanceSelector.String(), params.Data,
 			)
+			zap.S().Debugf("Eth_call: %v", err)
+			return "", err
 		}
 		ethAddr, err := proto.NewEthereumAddressFromBytes(callData[ethabi.SelectorSize:])
 		if err != nil {
-			// todo
 			return "", err
 		}
-		wavesAddr, err := ethAddr.ToWavesAddress(s.services.Scheme)
+		wavesAddr, err := ethAddr.ToWavesAddress(s.nodeServices.Scheme)
 		if err != nil {
-			// todo
 			return "", err
 		}
-		info, err := s.services.State.AssetInfo(shortAssetID)
+		info, err := s.nodeServices.State.AssetInfo(shortAssetID)
 		if err != nil {
-			// todo
+			zap.S().Errorf("Eth_call: failed to fetch asset info, %s: %v", params.String(), err)
 			return "", err
 		}
-		accountBalance, err := s.services.State.AccountBalance(proto.Recipient{Address: &wavesAddr}, info.ID.Bytes())
+		accountBalance, err := s.nodeServices.State.AccountBalance(proto.Recipient{Address: &wavesAddr}, info.ID.Bytes())
 		if err != nil {
-			// todo
+			zap.S().Errorf("Eth_call: failed to fetch account balance for addr=%q, %s: %v",
+				wavesAddr.String(), params.String(), err,
+			)
 			return "", err
 		}
-		return fmt.Sprintf("0x%x", proto.WaveletToEthereumWei(accountBalance)), nil // 0.159
+		return bigIntToHexString(proto.WaveletToEthereumWei(accountBalance)), nil
 	default:
-		return "", errors.Errorf(
-			"unexpected call (selector %q) for %q at %q",
-			selector.String(), params.Data, shortAssetID.String(),
-		)
+		return "", errors.Errorf("unexpected call, %s", params.String())
 	}
 }
 
@@ -174,79 +185,186 @@ func (s RPCService) Eth_call(params callParams) (string, error) {
    - address: 20 Bytes - address to check for balance
    - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */
 func (s RPCService) Eth_getCode(address, blockOrTag string) (string, error) {
-	zap.S().Infof("Eth_getCode was called: address %q, blockOrTag %q", address, blockOrTag)
+	// TODO(nickeskov): what this method should send in case of error?
+
+	zap.S().Debugf("Eth_getCode was called: address %q, blockOrTag %q", address, blockOrTag)
 
 	ethAddr, err := proto.NewEthereumAddressFromHexString(address)
 	if err != nil {
-		// todo
 		return "", err
 	}
-	wavesAddr, err := ethAddr.ToWavesAddress(s.services.Scheme)
+	wavesAddr, err := ethAddr.ToWavesAddress(s.nodeServices.Scheme)
 	if err != nil {
-		// todo
 		return "", err
 	}
-	_, err = s.services.State.ScriptInfoByAccount(proto.Recipient{Address: &wavesAddr})
+	_, err = s.nodeServices.State.ScriptInfoByAccount(proto.Recipient{Address: &wavesAddr})
 	switch {
 	case state.IsNotFound(err):
 		// it's not a DApp
 		return "0x", nil
 	case err != nil:
-		// todo
+		zap.S().Errorf("Eth_getCode: failed to get script info by account, addr=%q: %v", wavesAddr.String(), err)
 		return "", err
+	default:
+		// it's a DApp
+		return "0xff", nil
 	}
-	// it's a DApp
-	return "0xff", nil
 }
 
 /* Returns the number of transactions sent from an address.
    - address: 20 Bytes - address to check for balance
    - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */
 func (s RPCService) Eth_getTransactionCount(address, blockOrTag string) string {
-	zap.S().Infof("Eth_getTransactionCount was called: address %q, blockOrTag %q", address, blockOrTag)
-	return fmt.Sprintf("0x%x", common.UnixMillisFromTime(s.services.Time.Now()))
+	zap.S().Debugf("Eth_getTransactionCount was called: address %q, blockOrTag %q", address, blockOrTag)
+	return int64ToHexString(common.UnixMillisFromTime(s.nodeServices.Time.Now()))
 }
 
 /* Creates new message call transaction or a contract creation for signed transactions.
    - signedTxData: The signed transaction data. */
-func (s RPCService) Eth_sendrawtransaction(signedTxData string) string {
+func (s RPCService) Eth_sendrawtransaction(signedTxData string) (proto.EthereumHash, error) {
+	// TODO(nickeskov): what this method should send in case of error?
 
 	data, err := proto.DecodeFromHexString(signedTxData)
 	if err != nil {
-		zap.S().Errorf("failed to decode tx: %v", err)
+		zap.S().Errorf("Eth_sendrawtransaction: failed to decode ethereum transaction: %v", err)
+		return proto.EthereumHash{}, err
 	}
+
+	// TODO(nickeskov): check max payload size
 
 	var tx proto.EthereumTransaction
 	err = tx.DecodeCanonical(data)
 	if err != nil {
-		zap.S().Errorf("failed to unmarshal rlp encoded ethereum transaction: %v", err)
+		zap.S().Errorf("Eth_sendrawtransaction: failed to unmarshal rlp encoded ethereum transaction: %v", err)
+		return proto.EthereumHash{}, err
 	}
 
-	signer := proto.MakeEthereumSigner(tx.ChainId())
-	sender, err := proto.ExtractEthereumSender(signer, &tx)
+	txID, err := tx.GetID(s.nodeServices.Scheme)
 	if err != nil {
-		zap.S().Errorf("failed to get sender")
+		zap.S().Errorf("Eth_sendrawtransaction: failed to get ID of ethereum transaction: %v", err)
+		return proto.EthereumHash{}, err
 	}
-	zap.S().Infof("Receiver is %s\n", tx.To().String())
-	zap.S().Infof("Sender is %s\n", sender.Hex())
+	ethTxID := proto.BytesToEthereumHash(txID)
+	to := tx.To()
+	from, err := tx.From()
+	if err != nil {
+		zap.S().Errorf(
+			"Eth_sendrawtransaction: failed to get sender of ethereum transaction (ethTxID=%q, to=%q): %v",
+			ethTxID.String(), to.String(), err,
+		)
+		return proto.EthereumHash{}, err
+	}
 
-	return ""
+	if err := s.nodeServices.UtxPool.Add(&tx); err != nil {
+		zap.S().Warnf(
+			"Eth_sendrawtransaction: failed to add ethereum transaction (ethTxID=%q, to=%q, from=%q) to UTXPool: %v",
+			ethTxID.String(), to.String(), from.String(), err,
+		)
+		// TODO(nickeskov): what is correct response?
+		return proto.EthereumHash{}, err
+	}
+
+	respCh := make(chan error, 1)
+	// TODO(nickeskov): add context?
+	s.nodeServices.InternalChannel <- messages.NewBroadcastTransaction(respCh, &tx)
+
+	select {
+	case <-time.After(5 * time.Second):
+		zap.S().Errorf(
+			"Eth_sendrawtransaction: timeout waiting response from internal FSM for ethereum tx (ethTxID=%q, to=%q, from=%q)",
+			ethTxID.String(), to.String(), from.String(),
+		)
+		return proto.EthereumHash{}, errors.New("timeout waiting response from internal FSM")
+	case err := <-respCh:
+		if err != nil {
+			zap.S().Errorf("Eth_sendrawtransaction: error from internal FSM for ethereum tx (ethTxID=%q, to=%q, from=%q): %v",
+				ethTxID.String(), to.String(), from.String(), err,
+			)
+			return proto.EthereumHash{}, err
+		}
+		return ethTxID, nil
+	}
 }
 
-func (s RPCService) Eth_getTransactionReceipt(id proto.EthereumHash) map[string]interface{} { // TODO(nickeksov): create struct
-	// TODO(nickeskov): implement me
-	return map[string]interface{}{
-		"transactionHash":   id,
-		"transactionIndex":  "0x01", // TODO(nickeskov): is it ok?
-		"blockHash":         "",
-		"blockNumber":       "",
-		"from":              "",
-		"to":                "",
-		"cumulativeGasUsed": "", // tx.fee
-		"gasUsed":           "", // tx.fee
-		"contractAddress":   nil,
-		"logs":              []byte(nil),
-		"logsBloom":         proto.EthereumHash{},
-		"status":            "",
+type GetTransactionReceiptResponse struct {
+	TransactionHash   proto.EthereumHash     `json:"transactionHash"`
+	TransactionIndex  string                 `json:"transactionIndex"`
+	BlockHash         string                 `json:"blockHash"`
+	BlockNumber       string                 `json:"blockNumber"`
+	From              proto.EthereumAddress  `json:"from"`
+	To                *proto.EthereumAddress `json:"to"`
+	CumulativeGasUsed string                 `json:"cumulativeGasUsed"`
+	GasUsed           string                 `json:"gasUsed"`
+	ContractAddress   *proto.EthereumAddress `json:"contractAddress"`
+	Logs              []string               `json:"logs"`
+	LogsBloom         proto.EthereumHash     `json:"logsBloom"`
+	Status            string                 `json:"status"`
+}
+
+func (s RPCService) Eth_getTransactionReceipt(ethTxID proto.EthereumHash) (GetTransactionReceiptResponse, error) {
+	txID := crypto.Digest(ethTxID)
+	tx, txIsFailed, err := s.nodeServices.State.TransactionByIDWithStatus(txID.Bytes())
+	if state.IsNotFound(err) {
+		zap.S().Debugf("Eth_getTransactionReceipt: transaction with ID=%q or ethID=%q cannot be found",
+			txID, ethTxID,
+		)
+		return GetTransactionReceiptResponse{}, errors.Errorf("transaction with ethID=%q not found", ethTxID)
 	}
+	ethTx, ok := tx.(*proto.EthereumTransaction)
+	if !ok {
+		zap.S().Debugf(
+			"Eth_getTransactionReceipt: transaction with ID=%q or ethID=%q is not 'EthereumTransaction'",
+			txID, ethTxID,
+		)
+		// according to the scala node implementation
+		return GetTransactionReceiptResponse{}, nil
+	}
+
+	to := ethTx.To()
+	from, err := ethTx.From()
+	if err != nil {
+		zap.S().Errorf(
+			"Eth_getTransactionReceipt: failed to get sender (from) for tx with ID=%q or ethID=%q: %v",
+			txID, ethTxID, err,
+		)
+		return GetTransactionReceiptResponse{}, errors.New("failed to get sender from tx")
+	}
+
+	blockHeight, err := s.nodeServices.State.TransactionHeightByID(txID.Bytes())
+	if err != nil {
+		zap.S().Errorf(
+			"Eth_getTransactionReceipt: failed to get block height for tx with ID=%q or ethID=%q: %v",
+			txID, ethTxID, err,
+		)
+		return GetTransactionReceiptResponse{}, errors.New("failed to get blockNumber for transaction")
+	}
+
+	blockHeader, err := s.nodeServices.State.HeaderByHeight(blockHeight)
+	if err != nil {
+		zap.S().Errorf(
+			"Eth_getTransactionReceipt: failed to get block header for tx with ID=%q or ethID=%q: %v",
+			txID, ethTxID, err,
+		)
+		return GetTransactionReceiptResponse{}, errors.New("failed to get blockHeader for transaction")
+	}
+	txStatus := "0x1"
+	if txIsFailed {
+		txStatus = "0x0"
+	}
+	gasLimit := uint64ToHexString(tx.GetFee())
+
+	return GetTransactionReceiptResponse{
+		TransactionHash:   ethTxID,
+		TransactionIndex:  "0x01",                                          // according to the scala node implementation
+		BlockHash:         proto.EncodeToHexString(blockHeader.ID.Bytes()), // should be always 32bytes
+		BlockNumber:       uint64ToHexString(blockHeight),
+		From:              from,
+		To:                to,
+		CumulativeGasUsed: gasLimit,
+		GasUsed:           gasLimit,
+		ContractAddress:   nil,
+		Logs:              []string{},
+		LogsBloom:         proto.EthereumHash{},
+		Status:            txStatus,
+	}, nil
 }
