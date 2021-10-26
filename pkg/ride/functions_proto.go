@@ -450,11 +450,20 @@ func assetBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
-	asset, err := extractAsset(args[1])
+	assetBytes, err := extractAssetBytes(args[1])
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, asset)
+	var asset crypto.Digest
+	switch len(assetBytes) {
+	case 0:
+		asset = crypto.Digest{}
+	case crypto.DigestSize:
+		copy(asset[:], assetBytes)
+	default:
+		return rideInt(0), nil // according to the scala node implementation
+	}
+	balance, err := env.state().NewestAccountBalance(recipient, asset.Bytes())
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
@@ -469,14 +478,25 @@ func assetBalanceV4(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	asset, err := extractAsset(args[1])
+	assetBytes, err := extractAssetBytes(args[1])
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	if len(asset) == 0 { // Additional check, empty asset's ID is not allowed any more
+	var asset crypto.Digest
+	switch len(assetBytes) {
+	case 0: // Additional check, empty asset's ID is not allowed anymore
+		// TODO(nickeskov): ask scala node about this case
 		return nil, errors.New("assetBalanceV4: empty asset ID")
+	case crypto.DigestSize:
+		copy(asset[:], assetBytes)
+	default:
+		return rideInt(0), nil // according to the scala node implementation
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, asset)
+	// TODO(nickeskov): ask scala node about this case
+	//if isWavesDigest(&asset) {
+	//	return rideInt(0), nil // according to the scala node implementation
+	//}
+	balance, err := env.state().NewestAccountBalance(recipient, asset.Bytes())
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
@@ -1583,7 +1603,7 @@ func extractRecipient(v rideType) (proto.Recipient, error) {
 	return r, nil
 }
 
-func extractAsset(v rideType) ([]byte, error) {
+func extractAssetBytes(v rideType) ([]byte, error) {
 	switch a := v.(type) {
 	case rideBytes:
 		return a, nil

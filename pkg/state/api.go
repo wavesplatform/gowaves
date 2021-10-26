@@ -43,6 +43,7 @@ type StateInfo interface {
 	// Height <---> blockID converters.
 	BlockIDToHeight(blockID proto.BlockID) (proto.Height, error)
 	HeightToBlockID(height proto.Height) (proto.BlockID, error)
+	WavesBalance(account proto.Recipient) (uint64, error)
 	// FullWavesBalance returns complete Waves balance record.
 	FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
 	EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)

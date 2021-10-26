@@ -97,6 +97,24 @@ func (ws *WrappedState) NewestAddrByAlias(alias proto.Alias) (proto.Address, err
 	return ws.diff.state.NewestAddrByAlias(alias)
 }
 
+func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, error) {
+	balance, err := ws.diff.state.NewestWavesBalance(account)
+	if err != nil {
+		return 0, err
+	}
+	waves := proto.NewOptionalAssetWaves()
+	balanceDiff, _, err := ws.diff.findBalance(account, waves)
+	if err != nil {
+		return 0, err
+	}
+	if balanceDiff != nil {
+		resBalance := int64(balance) + balanceDiff.regular
+		return uint64(resBalance), nil
+
+	}
+	return balance, nil
+}
+
 func (ws *WrappedState) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
 	balance, err := ws.diff.state.NewestAccountBalance(account, assetID)
 	if err != nil {

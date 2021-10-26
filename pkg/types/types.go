@@ -47,6 +47,7 @@ type SmartState interface {
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error)
+	NewestWavesBalance(account proto.Recipient) (uint64, error)
 	NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
 	RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
 	RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)

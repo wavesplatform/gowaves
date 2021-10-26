@@ -876,6 +876,18 @@ func isWaves(assetID []byte) bool {
 	return true
 }
 
+func (s *stateManager) NewestWavesBalance(account proto.Recipient) (uint64, error) {
+	addr, err := s.NewestRecipientToAddress(account)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	profile, err := s.newestWavesBalanceProfile(*addr)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return profile.balance, nil
+}
+
 func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
@@ -894,6 +906,17 @@ func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID []b
 		return 0, wrapErr(RetrievalError, err)
 	}
 	return balance, nil
+}
+func (s *stateManager) WavesBalance(account proto.Recipient) (uint64, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	profile, err := s.stor.balances.wavesBalance(*addr, true)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return profile.balance, nil
 }
 
 func (s *stateManager) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
