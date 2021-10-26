@@ -93,11 +93,68 @@ func TestTransactionHeightByID(t *testing.T) {
 }
 
 func TestAssetBalanceV3(t *testing.T) {
-	t.SkipNow()
+	te := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
+					return 42, nil
+				},
+				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+					return 21, nil
+				},
+			}
+		},
+	}
+	testCases := []struct {
+		expectedBalance rideInt
+		assetID         rideBytes
+	}{
+		{expectedBalance: 21, assetID: nil},
+		{expectedBalance: 21, assetID: []byte{}},
+		{expectedBalance: 42, assetID: make([]byte, crypto.DigestSize)},
+		{expectedBalance: 0, assetID: make([]byte, 7)},
+		{expectedBalance: 0, assetID: make([]byte, 33)},
+	}
+	for _, tc := range testCases {
+		balance, err := assetBalanceV3(te, rideRecipient{}, tc.assetID)
+		require.NoError(t, err)
+		require.Equal(t, tc.expectedBalance, balance)
+	}
 }
 
 func TestAssetBalanceV4(t *testing.T) {
-	t.SkipNow()
+	te := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
+					return 42, nil
+				},
+				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+					return 21, nil
+				},
+			}
+		},
+	}
+	testCases := []struct {
+		expectedBalance rideType
+		assetID         rideBytes
+		expectErr       bool
+	}{
+		{expectedBalance: nil, assetID: nil, expectErr: true},
+		{expectedBalance: nil, assetID: []byte{}, expectErr: true},
+		{expectedBalance: rideInt(42), assetID: make([]byte, crypto.DigestSize), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: make([]byte, 7), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: make([]byte, 33), expectErr: false},
+	}
+	for _, tc := range testCases {
+		balance, err := assetBalanceV4(te, rideRecipient{}, tc.assetID)
+		if tc.expectErr {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+		require.Equal(t, tc.expectedBalance, balance)
+	}
 }
 
 func TestIntFromState(t *testing.T) {

@@ -454,16 +454,15 @@ func assetBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
-	var asset crypto.Digest
+	var balance uint64
 	switch len(assetBytes) {
 	case 0:
-		asset = crypto.Digest{}
+		balance, err = env.state().NewestWavesBalance(recipient)
 	case crypto.DigestSize:
-		copy(asset[:], assetBytes)
+		balance, err = env.state().NewestAccountBalance(recipient, assetBytes)
 	default:
 		return rideInt(0), nil // according to the scala node implementation
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, asset.Bytes())
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
@@ -482,25 +481,18 @@ func assetBalanceV4(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	var asset crypto.Digest
 	switch len(assetBytes) {
 	case 0: // Additional check, empty asset's ID is not allowed anymore
-		// TODO(nickeskov): ask scala node about this case
 		return nil, errors.New("assetBalanceV4: empty asset ID")
 	case crypto.DigestSize:
-		copy(asset[:], assetBytes)
+		balance, err := env.state().NewestAccountBalance(recipient, assetBytes)
+		if err != nil {
+			return nil, errors.Wrap(err, "assetBalanceV4")
+		}
+		return rideInt(balance), nil
 	default:
 		return rideInt(0), nil // according to the scala node implementation
 	}
-	// TODO(nickeskov): ask scala node about this case
-	//if isWavesDigest(&asset) {
-	//	return rideInt(0), nil // according to the scala node implementation
-	//}
-	balance, err := env.state().NewestAccountBalance(recipient, asset.Bytes())
-	if err != nil {
-		return nil, errors.Wrap(err, "assetBalanceV4")
-	}
-	return rideInt(balance), nil
 }
 
 func intFromState(env Environment, args ...rideType) (rideType, error) {

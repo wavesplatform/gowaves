@@ -863,19 +863,6 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	}, nil
 }
 
-func isWaves(assetID []byte) bool {
-	wavesAsset := crypto.Digest{}
-	if len(wavesAsset) != len(assetID) {
-		return false
-	}
-	for i := range assetID {
-		if assetID[i] != wavesAsset[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func (s *stateManager) NewestWavesBalance(account proto.Recipient) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
@@ -894,7 +881,7 @@ func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID []b
 		return 0, wrapErr(RetrievalError, err)
 	}
 
-	if assetID == nil || isWaves(assetID) {
+	if assetID == nil {
 		profile, err := s.newestWavesBalanceProfile(*addr)
 		if err != nil {
 			return 0, wrapErr(RetrievalError, err)
