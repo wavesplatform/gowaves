@@ -137,15 +137,14 @@ func TestFunctionsEvaluation(t *testing.T) {
 					}
 					return nil, errors.New("not found")
 				},
+				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+					return 5, nil
+				},
 				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					if len(asset) == 0 {
+					if bytes.Equal(asset, d.Bytes()) {
 						return 5, nil
-					} else {
-						if bytes.Equal(asset, d.Bytes()) {
-							return 5, nil
-						}
-						return 0, nil
 					}
+					return 0, nil
 				},
 				NewestTransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
 					return transfer, nil
@@ -962,9 +961,11 @@ func smartStateDappFromDapp() types.SmartState {
 		NewestTransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
 			return nil, nil
 		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 0, nil
+		},
 		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
-			balance := 0
-			return uint64(balance), nil
+			return 0, nil
 		},
 		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.Address, error) {
 			if alias.Alias == "alias" {
@@ -973,14 +974,14 @@ func smartStateDappFromDapp() types.SmartState {
 			return proto.Address{}, errors.New("unexpected alias")
 		},
 		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
-
 			return &proto.FullWavesBalance{
 				Regular:    0,
 				Generating: 0,
 				Available:  0,
 				Effective:  0,
 				LeaseIn:    0,
-				LeaseOut:   0}, nil
+				LeaseOut:   0,
+			}, nil
 		},
 		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 			return nil, nil
@@ -1127,7 +1128,16 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 	recipient := proto.NewRecipientFromAddress(wrappedSt.callee())
 
 	for _, payment := range externalPayments {
-		senderBalance, err := wrappedSt.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
+		var (
+			senderBalance uint64
+			err           error
+			callerRcp     = proto.NewRecipientFromAddress(caller)
+		)
+		if payment.Asset.Present {
+			senderBalance, err = wrappedSt.NewestAccountBalance(callerRcp, payment.Asset.ID.Bytes())
+		} else {
+			senderBalance, err = wrappedSt.NewestWavesBalance(callerRcp)
+		}
 		if err != nil {
 			return err
 		}
@@ -1144,7 +1154,6 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 			return err
 		}
 
-		callerRcp := proto.NewRecipientFromAddress(caller)
 		senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(callerRcp, payment.Asset)
 		if err != nil {
 			return err
@@ -4921,6 +4930,9 @@ func TestLigaDApp1(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 607280, nil
 				},
+				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+					return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
+				},
 				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
 					a := base58.Encode(asset)
 					switch a {
@@ -4929,7 +4941,7 @@ func TestLigaDApp1(t *testing.T) {
 					case "FAysFm8ejh8dqDLooe83V7agUNc9CyC2bomy3NDUxGXv":
 						return 1000, nil
 					default:
-						return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
+						return 0, errors.Errorf("unexpected asset %q", a)
 					}
 				},
 				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
@@ -5077,6 +5089,9 @@ func TestLigaDApp1(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 607281, nil
 				},
+				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+					return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
+				},
 				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
 					a := base58.Encode(asset)
 					switch a {
@@ -5085,7 +5100,7 @@ func TestLigaDApp1(t *testing.T) {
 					case "FAysFm8ejh8dqDLooe83V7agUNc9CyC2bomy3NDUxGXv":
 						return 1000, nil
 					default:
-						return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
+						return 0, errors.Errorf("unexpected asset %q", a)
 					}
 				},
 				NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
@@ -7458,22 +7473,19 @@ func TestAliasesInInvokes(t *testing.T) {
 				return proto.Address{}, errors.Errorf("unexpected alias '%s'", alias.String())
 			}
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
-			if len(assetID) == 0 || isAssetWaves(assetID) {
-				switch account.String() {
-				case dApp1.String():
-					return 0, nil
-				case caller.String():
-					return 0, nil
-				case dApp2.String():
-					return 100_000_000_000, nil
-				case callee.String():
-					return 100_000_000_000, nil
-				default:
-					return 0, errors.Errorf("unexpected account '%s'", account.String())
-				}
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			switch account.String() {
+			case dApp1.String():
+				return 0, nil
+			case caller.String():
+				return 0, nil
+			case dApp2.String():
+				return 100_000_000_000, nil
+			case callee.String():
+				return 100_000_000_000, nil
+			default:
+				return 0, errors.Errorf("unexpected account '%s'", account.String())
 			}
-			return 0, errors.Errorf("unxepected asset '%s'", base58.Encode(assetID))
 		},
 	}
 	testState := initWrappedState(mockState, env)
@@ -7685,11 +7697,11 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 0, nil
+		},
 		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
-			switch {
-			case isAssetWaves(assetID):
-				return 0, nil
-			case bytes.Equal(assetID, nft.Bytes()):
+			if bytes.Equal(assetID, nft.Bytes()) {
 				return 0, nil
 			}
 			return 0, errors.Errorf("unxepected asset '%s'", base58.Encode(assetID))
@@ -7868,10 +7880,11 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 0, nil
+		},
 		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
 			switch {
-			case isAssetWaves(assetID):
-				return 0, nil
 			case account.Address.Eq(dApp1) && bytes.Equal(assetID, asset.Bytes()):
 				return 1, nil
 			case account.Address.Eq(dApp2) && bytes.Equal(assetID, asset.Bytes()):
@@ -8047,10 +8060,11 @@ func TestReissueInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 0, nil
+		},
 		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
 			switch {
-			case isAssetWaves(assetID):
-				return 0, nil
 			case account.Address.Eq(dApp1) && bytes.Equal(assetID, asset.Bytes()):
 				return 0, nil
 			case account.Address.Eq(dApp2) && bytes.Equal(assetID, asset.Bytes()):

@@ -732,7 +732,7 @@ func wavesBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, nil)
+	balance, err := env.state().NewestWavesBalance(recipient)
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
 	}

@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"bytes"
 	"unicode/utf16"
 
 	"github.com/pkg/errors"
@@ -120,18 +119,10 @@ func (ws *WrappedState) NewestAccountBalance(account proto.Recipient, assetID []
 	if err != nil {
 		return 0, err
 	}
-	var asset *proto.OptionalAsset
-
-	if isAssetWaves(assetID) {
-		waves := proto.NewOptionalAssetWaves()
-		asset = &waves
-	} else {
-		asset, err = proto.NewOptionalAssetFromBytes(assetID)
-		if err != nil {
-			return 0, err
-		}
+	asset, err := proto.NewOptionalAssetFromBytes(assetID)
+	if err != nil {
+		return 0, err
 	}
-
 	balanceDiff, _, err := ws.diff.findBalance(account, *asset)
 	if err != nil {
 		return 0, err
@@ -517,7 +508,12 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 		}
 	}
 	senderRcp := proto.NewRecipientFromAddress(sender)
-	balance, err := ws.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
+	var balance uint64
+	if res.Asset.Present {
+		balance, err = ws.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
+	} else {
+		balance, err = ws.NewestWavesBalance(senderRcp)
+	}
 	if err != nil {
 		return err
 	}
@@ -561,8 +557,15 @@ func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, 
 			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
 		}
 	}
-	senderRcp := proto.NewRecipientFromAddress(sender)
-	balance, err := ws.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
+	var (
+		balance   uint64
+		senderRcp = proto.NewRecipientFromAddress(sender)
+	)
+	if res.Asset.Present {
+		balance, err = ws.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
+	} else {
+		balance, err = ws.NewestWavesBalance(senderRcp)
+	}
 	if err != nil {
 		return err
 	}
@@ -1199,7 +1202,16 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 
 	st := newWrappedState(env)
 	for _, payment := range payments {
-		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
+		var (
+			senderBalance uint64
+			err           error
+			callerRcp     = proto.NewRecipientFromAddress(caller)
+		)
+		if payment.Asset.Present {
+			senderBalance, err = st.NewestAccountBalance(callerRcp, payment.Asset.ID.Bytes())
+		} else {
+			senderBalance, err = st.NewestWavesBalance(callerRcp)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1216,7 +1228,6 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
 
-		callerRcp := proto.NewRecipientFromAddress(caller)
 		senderSearchBalance, senderSearchAddr, err := st.diff.findBalance(callerRcp, payment.Asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
@@ -1413,10 +1424,4 @@ func (e *EvaluationEnvironment) internalPaymentsValidationHeight() uint64 {
 
 func (e *EvaluationEnvironment) maxDataEntriesSize() int {
 	return e.mds
-}
-
-var wavesAssetBytes = crypto.Digest{}.Bytes()
-
-func isAssetWaves(assetID []byte) bool {
-	return bytes.Equal(wavesAssetBytes, assetID)
 }
