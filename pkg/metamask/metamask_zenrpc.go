@@ -129,18 +129,7 @@ func (RPCService) SMD() smd.ServiceInfo {
 				Description: ``,
 				Parameters: []smd.JSONSchema{
 					{
-						Name:        "gas",
-						Optional:    false,
-						Description: ``,
-						Type:        smd.String,
-					},
-				},
-			},
-			"Eth_call": {
-				Description: ``,
-				Parameters: []smd.JSONSchema{
-					{
-						Name:        "params",
+						Name:        "req",
 						Optional:    false,
 						Description: ``,
 						Type:        smd.Object,
@@ -149,6 +138,10 @@ func (RPCService) SMD() smd.ServiceInfo {
 								Description: ``,
 								Ref:         "#/definitions/proto.EthereumAddress",
 								Type:        smd.Object,
+							},
+							"value": {
+								Description: ``,
+								Type:        smd.String,
 							},
 							"data": {
 								Description: ``,
@@ -161,6 +154,23 @@ func (RPCService) SMD() smd.ServiceInfo {
 								Properties: map[string]smd.Property{},
 							},
 						},
+					},
+				},
+				Returns: smd.JSONSchema{
+					Description: ``,
+					Optional:    false,
+					Type:        smd.String,
+				},
+			},
+			"Eth_call": {
+				Description: ``,
+				Parameters: []smd.JSONSchema{
+					{
+						Name:        "params",
+						Optional:    false,
+						Description: ``,
+						Type:        smd.Object,
+						Properties:  map[string]smd.Property{},
 					},
 				},
 				Returns: smd.JSONSchema{
@@ -384,11 +394,11 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 
 	case RPC.RPCService.Eth_estimateGas:
 		var args = struct {
-			Gas string `json:"gas"`
+			Req EstimateGasRequest `json:"req"`
 		}{}
 
 		if zenrpc.IsArray(params) {
-			if params, err = zenrpc.ConvertToObject([]string{"gas"}, params); err != nil {
+			if params, err = zenrpc.ConvertToObject([]string{"req"}, params); err != nil {
 				return zenrpc.NewResponseError(nil, zenrpc.InvalidParams, "", err.Error())
 			}
 		}
@@ -399,7 +409,7 @@ func (s RPCService) Invoke(ctx context.Context, method string, params json.RawMe
 			}
 		}
 
-		s.Eth_estimateGas(args.Gas)
+		resp.Set(s.Eth_estimateGas(args.Req))
 
 	case RPC.RPCService.Eth_call:
 		var args = struct {
