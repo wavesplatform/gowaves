@@ -880,14 +880,6 @@ func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID []b
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-
-	if assetID == nil {
-		profile, err := s.newestWavesBalanceProfile(*addr)
-		if err != nil {
-			return 0, wrapErr(RetrievalError, err)
-		}
-		return profile.balance, nil
-	}
 	balance, err := s.newestAssetBalance(*addr, assetID)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -2010,7 +2002,7 @@ func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAs
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
-		sponsorBalance, err := s.NewestAccountBalance(proto.NewRecipientFromAddress(ai.Issuer), nil)
+		sponsorBalance, err := s.NewestWavesBalance(proto.NewRecipientFromAddress(ai.Issuer))
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
