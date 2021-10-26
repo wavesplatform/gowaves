@@ -903,13 +903,6 @@ func (s *stateManager) AccountBalance(account proto.Recipient, asset []byte) (ui
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	if asset == nil {
-		profile, err := s.stor.balances.wavesBalance(*addr, true)
-		if err != nil {
-			return 0, wrapErr(RetrievalError, err)
-		}
-		return profile.balance, nil
-	}
 	balance, err := s.stor.balances.assetBalance(*addr, asset, true)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -2077,7 +2070,7 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
-		sponsorBalance, err := s.AccountBalance(proto.NewRecipientFromAddress(ai.Issuer), nil)
+		sponsorBalance, err := s.WavesBalance(proto.NewRecipientFromAddress(ai.Issuer))
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}

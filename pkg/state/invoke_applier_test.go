@@ -223,7 +223,16 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 
 	// Check state after flushing.
 	for aa, correct := range id.correctBalances {
-		balance, err := to.state.AccountBalance(aa.rcp, aa.asset())
+		var (
+			balance uint64
+			err     error
+			asset   = aa.asset()
+		)
+		if asset != nil {
+			balance, err = to.state.AccountBalance(aa.rcp, asset)
+		} else {
+			balance, err = to.state.WavesBalance(aa.rcp)
+		}
 		assert.NoError(t, err)
 		assert.Equal(t, int(correct), int(balance))
 	}
