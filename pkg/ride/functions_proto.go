@@ -457,7 +457,7 @@ func assetBalanceV4(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	if len(asset) == 0 { // Additional check, empty asset's ID is not allowed any more
+	if len(asset) == 0 { // Additional check, empty asset's ID is not allowed anymore
 		return nil, errors.New("assetBalanceV4: empty asset ID")
 	}
 	balance, err := env.state().NewestAccountBalance(recipient, asset)
