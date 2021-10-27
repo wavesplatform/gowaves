@@ -490,10 +490,10 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 	return nil, errors.Errorf("address and alias from recipient are nil")
 }
 
-func (s *stateManager) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
+func (s *stateManager) NewestScriptByAsset(assetID crypto.Digest) (proto.Script, error) {
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
-	return s.stor.scriptsStorage.newestScriptBytesByAsset(asset.ID, true)
+	return s.stor.scriptsStorage.newestScriptBytesByAsset(assetID, true)
 }
 
 func (s *stateManager) Mutex() *lock.RwMutex {

@@ -376,7 +376,7 @@ func (ws *WrappedState) IsNotFound(err error) bool {
 	return ws.diff.state.IsNotFound(err)
 }
 
-func (ws *WrappedState) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
+func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (proto.Script, error) {
 	return ws.diff.state.NewestScriptByAsset(asset)
 }
 
@@ -443,7 +443,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	}
 
-	script, err := ws.NewestScriptByAsset(asset)
+	script, err := ws.NewestScriptByAsset(asset.ID)
 	if err != nil {
 		return false, err
 	}
