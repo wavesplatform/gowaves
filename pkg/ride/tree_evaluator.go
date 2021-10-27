@@ -296,13 +296,13 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []Node) (r
 	for i, arg := range arguments {
 		a, err := e.walk(arg) // materialize argument
 		if err != nil {
-			return nil, RuntimeError.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, name)
+			return nil, EvaluationErrorPush(err, "failed to materialize argument %d of system function '%s'", i+1, name)
 		}
 		args[i] = a
 	}
 	r, err := f(e.env, args...)
 	if err != nil {
-		return nil, RuntimeError.Wrapf(err, "failed to call system function '%s'", name)
+		return nil, EvaluationErrorPush(err, "failed to call system function '%s'", name)
 	}
 	return r, nil
 }
@@ -324,7 +324,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 	case *ConditionalNode:
 		ce, err := e.walk(n.Condition)
 		if err != nil {
-			return nil, RuntimeError.Wrap(err, "failed to estimate the condition of if")
+			return nil, EvaluationErrorPush(err, "failed to estimate the condition of if")
 		}
 		cr, ok := ce.(rideBoolean)
 		if !ok {
@@ -342,7 +342,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		e.s.pushExpression(id, n.Expression)
 		r, err := e.walk(n.Block)
 		if err != nil {
-			return nil, RuntimeError.Wrapf(err, "failed to evaluate block after declaration of variable '%s'", id)
+			return nil, EvaluationErrorPush(err, "failed to evaluate block after declaration of variable '%s'", id)
 		}
 		e.s.popValue()
 		return r, nil
@@ -362,7 +362,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 			}
 			r, err := e.walk(v.expression)
 			if err != nil {
-				return nil, RuntimeError.Wrapf(err, "failed to evaluate expression of scope value '%s'", id)
+				return nil, EvaluationErrorPush(err, "failed to evaluate expression of scope value '%s'", id)
 			}
 			e.s.updateValue(f, p, id, r)
 			e.complexity++
@@ -376,11 +376,11 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		e.s.pushUserFunction(n)
 		r, err := e.walk(n.Block)
 		if err != nil {
-			return nil, RuntimeError.Wrapf(err, "failed to evaluate block after declaration of function '%s'", id)
+			return nil, EvaluationErrorPush(err, "failed to evaluate block after declaration of function '%s'", id)
 		}
 		err = e.s.popUserFunction()
 		if err != nil {
-			return nil, RuntimeError.Wrapf(err, "failed to evaluate declaration of function '%s'", id)
+			return nil, EvaluationErrorPush(err, "failed to evaluate declaration of function '%s'", id)
 		}
 		return r, nil
 
@@ -406,7 +406,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 				an := uf.Arguments[i]
 				av, err := e.walk(arg) // materialize argument
 				if err != nil {
-					return nil, RuntimeError.Wrapf(err, "failed to materialize argument '%s' of user function '%s", an, name)
+					return nil, EvaluationErrorPush(err, "failed to materialize argument '%s' of user function '%s", an, name)
 				}
 				args[i] = esValue{id: an, value: av}
 			}
@@ -419,7 +419,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 
 			r, err := e.walk(uf.Body)
 			if err != nil {
-				return nil, RuntimeError.Wrapf(err, "failed to evaluate function '%s' body", name)
+				return nil, EvaluationErrorPush(err, "failed to evaluate function '%s' body", name)
 			}
 			e.s.cs = e.s.cs[:len(e.s.cs)-1]
 			e.s.cl = tmp
@@ -432,13 +432,13 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		name := n.Name
 		obj, err := e.walk(n.Object)
 		if err != nil {
-			return nil, RuntimeError.Wrapf(err, "failed to evaluate an object to get property '%s' on it", name)
+			return nil, EvaluationErrorPush(err, "failed to evaluate an object to get property '%s' on it", name)
 		}
 		e.complexity++
 		v, err := obj.get(name)
 
 		if err != nil {
-			return nil, RuntimeError.Wrapf(err, "failed to get property '%s'", name)
+			return nil, EvaluationErrorPush(err, "failed to get property '%s'", name)
 		}
 		return v, nil
 

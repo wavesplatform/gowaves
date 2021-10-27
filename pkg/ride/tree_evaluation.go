@@ -34,7 +34,7 @@ func CallFunction(env Environment, tree *Tree, name string, args proto.Arguments
 		switch et := err.(type) {
 		case evaluationError:
 			switch et.errorType {
-			case UserError, RuntimeError:
+			case UserError, RuntimeError, InternalInvocationError:
 				return DAppResult{complexity: e.complexity + wrappedStateComplexity(env.state()), err: err}, nil
 			default:
 				return DAppResult{complexity: e.complexity + wrappedStateComplexity(env.state())}, err

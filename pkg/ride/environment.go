@@ -16,7 +16,7 @@ type WrappedState struct {
 	cle              rideAddress
 	scheme           proto.Scheme
 	act              []proto.ScriptAction
-	blackList        []proto.Address
+	blocklist        []proto.Address
 	invokeCount      int
 	totalComplexity  int
 	dataEntriesCount int

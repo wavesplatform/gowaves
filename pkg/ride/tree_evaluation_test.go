@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"math/rand"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/mr-tron/base58"
@@ -7856,7 +7857,8 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 	res, err := CallFunction(env, tree, "call", arguments)
 	require.NoError(t, err)
 	require.IsType(t, DAppResult{}, res)
-	assert.EqualError(t, res.EvaluationError(), "failed to evaluate block after declaration of variable 'r1': failed to estimate the condition of if: failed to materialize argument 1 of system function '0': failed to evaluate expression of scope value 'r1': failed to call system function '1020': failed to pass validation of transfer action: not enough money in the DApp, balance of DApp with address 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1 is 0 and it tried to transfer asset WAVES to 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz, amount of 100")
+	assert.EqualError(t, res.EvaluationError(), "invoke: failed to apply actions: failed to pass validation of transfer action: not enough money in the DApp, balance of DApp with address 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1 is 0 and it tried to transfer asset WAVES to 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz, amount of 100")
+	assert.Equal(t, strings.Join(EvaluationErrorCallStack(res.EvaluationError()), ";"), "failed to evaluate block after declaration of variable 'r1';failed to estimate the condition of if;failed to materialize argument 1 of system function '0';failed to evaluate expression of scope value 'r1';failed to call system function '1020'")
 }
 
 func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
