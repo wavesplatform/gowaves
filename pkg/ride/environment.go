@@ -114,8 +114,8 @@ func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, err
 	return balance, nil
 }
 
-func (ws *WrappedState) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
-	balance, err := ws.diff.state.NewestAccountBalance(account, assetID)
+func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID []byte) (uint64, error) {
+	balance, err := ws.diff.state.NewestAssetBalance(account, assetID)
 	if err != nil {
 		return 0, err
 	}
@@ -510,7 +510,7 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	senderRcp := proto.NewRecipientFromAddress(sender)
 	var balance uint64
 	if res.Asset.Present {
-		balance, err = ws.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
+		balance, err = ws.NewestAssetBalance(senderRcp, res.Asset.ID.Bytes())
 	} else {
 		balance, err = ws.NewestWavesBalance(senderRcp)
 	}
@@ -562,7 +562,7 @@ func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, 
 		senderRcp = proto.NewRecipientFromAddress(sender)
 	)
 	if res.Asset.Present {
-		balance, err = ws.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
+		balance, err = ws.NewestAssetBalance(senderRcp, res.Asset.ID.Bytes())
 	} else {
 		balance, err = ws.NewestWavesBalance(senderRcp)
 	}
@@ -1208,7 +1208,7 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 			callerRcp     = proto.NewRecipientFromAddress(caller)
 		)
 		if payment.Asset.Present {
-			senderBalance, err = st.NewestAccountBalance(callerRcp, payment.Asset.ID.Bytes())
+			senderBalance, err = st.NewestAssetBalance(callerRcp, payment.Asset.ID.Bytes())
 		} else {
 			senderBalance, err = st.NewestWavesBalance(callerRcp)
 		}

@@ -117,21 +117,6 @@ func (m *MockStateInfo) EXPECT() *MockStateInfoMockRecorder {
 	return m.recorder
 }
 
-// AccountBalance mocks base method.
-func (m *MockStateInfo) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AccountBalance", account, asset)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AccountBalance indicates an expected call of AccountBalance.
-func (mr *MockStateInfoMockRecorder) AccountBalance(account, asset interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccountBalance", reflect.TypeOf((*MockStateInfo)(nil).AccountBalance), account, asset)
-}
-
 // ActivationHeight mocks base method.
 func (m *MockStateInfo) ActivationHeight(featureID int16) (proto.Height, error) {
 	m.ctrl.T.Helper()
@@ -190,6 +175,21 @@ func (m *MockStateInfo) ApprovalHeight(featureID int16) (proto.Height, error) {
 func (mr *MockStateInfoMockRecorder) ApprovalHeight(featureID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApprovalHeight", reflect.TypeOf((*MockStateInfo)(nil).ApprovalHeight), featureID)
+}
+
+// AssetBalance mocks base method.
+func (m *MockStateInfo) AssetBalance(account proto.Recipient, asset []byte) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AssetBalance", account, asset)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AssetBalance indicates an expected call of AssetBalance.
+func (mr *MockStateInfoMockRecorder) AssetBalance(account, asset interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetBalance", reflect.TypeOf((*MockStateInfo)(nil).AssetBalance), account, asset)
 }
 
 // AssetInfo mocks base method.
@@ -1176,21 +1176,6 @@ func (m *MockState) EXPECT() *MockStateMockRecorder {
 	return m.recorder
 }
 
-// AccountBalance mocks base method.
-func (m *MockState) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AccountBalance", account, asset)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AccountBalance indicates an expected call of AccountBalance.
-func (mr *MockStateMockRecorder) AccountBalance(account, asset interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AccountBalance", reflect.TypeOf((*MockState)(nil).AccountBalance), account, asset)
-}
-
 // ActivationHeight mocks base method.
 func (m *MockState) ActivationHeight(featureID int16) (proto.Height, error) {
 	m.ctrl.T.Helper()
@@ -1336,6 +1321,21 @@ func (m *MockState) ApprovalHeight(featureID int16) (proto.Height, error) {
 func (mr *MockStateMockRecorder) ApprovalHeight(featureID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApprovalHeight", reflect.TypeOf((*MockState)(nil).ApprovalHeight), featureID)
+}
+
+// AssetBalance mocks base method.
+func (m *MockState) AssetBalance(account proto.Recipient, asset []byte) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AssetBalance", account, asset)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AssetBalance indicates an expected call of AssetBalance.
+func (mr *MockStateMockRecorder) AssetBalance(account, asset interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetBalance", reflect.TypeOf((*MockState)(nil).AssetBalance), account, asset)
 }
 
 // AssetInfo mocks base method.

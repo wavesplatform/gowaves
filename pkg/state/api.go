@@ -47,8 +47,8 @@ type StateInfo interface {
 	// FullWavesBalance returns complete Waves balance record.
 	FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
 	EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
-	// AccountBalance retrieves balance of account in specific currency, asset is asset's ID.
-	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)
+	// AssetBalance retrieves balance of account in specific currency, asset is asset's ID.
+	AssetBalance(account proto.Recipient, asset []byte) (uint64, error)
 	// WavesAddressesNumber returns total number of Waves addresses in state.
 	// It is extremely slow, so it is recommended to only use for testing purposes.
 	WavesAddressesNumber() (uint64, error)

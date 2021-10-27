@@ -140,7 +140,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 					return 5, nil
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
+				NewestAssetBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
 					if bytes.Equal(asset, d.Bytes()) {
 						return 5, nil
 					}
@@ -964,7 +964,7 @@ func smartStateDappFromDapp() types.SmartState {
 		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 			return 0, nil
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
 			return 0, nil
 		},
 		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.Address, error) {
@@ -1134,7 +1134,7 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 			callerRcp     = proto.NewRecipientFromAddress(caller)
 		)
 		if payment.Asset.Present {
-			senderBalance, err = wrappedSt.NewestAccountBalance(callerRcp, payment.Asset.ID.Bytes())
+			senderBalance, err = wrappedSt.NewestAssetBalance(callerRcp, payment.Asset.ID.Bytes())
 		} else {
 			senderBalance, err = wrappedSt.NewestWavesBalance(callerRcp)
 		}
@@ -4933,7 +4933,7 @@ func TestLigaDApp1(t *testing.T) {
 				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 					return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
+				NewestAssetBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
 					a := base58.Encode(asset)
 					switch a {
 					case "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye":
@@ -5092,7 +5092,7 @@ func TestLigaDApp1(t *testing.T) {
 				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 					return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
+				NewestAssetBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
 					a := base58.Encode(asset)
 					switch a {
 					case "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye":
@@ -5949,7 +5949,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
+				NewestAssetBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
 					return 1000, nil
 				},
 				NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
@@ -7293,7 +7293,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 			}
 			return nil, errors.New("unexpected asset")
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
 			if bytes.Equal(assetID, asset.Bytes()) {
 				switch account.String() {
 				case "3PH75p2rmMKCV2nyW4TsAdFgFtmc61mJaqA":
@@ -7700,7 +7700,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 			return 0, nil
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
 			if bytes.Equal(assetID, nft.Bytes()) {
 				return 0, nil
 			}
@@ -7883,7 +7883,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 			return 0, nil
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
 			switch {
 			case account.Address.Eq(dApp1) && bytes.Equal(assetID, asset.Bytes()):
 				return 1, nil
@@ -8063,7 +8063,7 @@ func TestReissueInInvoke(t *testing.T) {
 		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 			return 0, nil
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
 			switch {
 			case account.Address.Eq(dApp1) && bytes.Equal(assetID, asset.Bytes()):
 				return 0, nil

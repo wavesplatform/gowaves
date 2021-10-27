@@ -459,7 +459,7 @@ func assetBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	case 0:
 		balance, err = env.state().NewestWavesBalance(recipient)
 	case crypto.DigestSize:
-		balance, err = env.state().NewestAccountBalance(recipient, assetBytes)
+		balance, err = env.state().NewestAssetBalance(recipient, assetBytes)
 	default:
 		return rideInt(0), nil // according to the scala node implementation
 	}
@@ -485,7 +485,7 @@ func assetBalanceV4(env Environment, args ...rideType) (rideType, error) {
 	case 0: // Additional check, empty asset's ID is not allowed anymore
 		return nil, errors.New("assetBalanceV4: empty asset ID")
 	case crypto.DigestSize:
-		balance, err := env.state().NewestAccountBalance(recipient, assetBytes)
+		balance, err := env.state().NewestAssetBalance(recipient, assetBytes)
 		if err != nil {
 			return nil, errors.Wrap(err, "assetBalanceV4")
 		}

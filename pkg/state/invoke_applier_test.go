@@ -193,7 +193,7 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 			asset   = aa.asset()
 		)
 		if asset != nil {
-			balance, err = to.state.NewestAccountBalance(aa.rcp, asset)
+			balance, err = to.state.NewestAssetBalance(aa.rcp, asset)
 		} else {
 			balance, err = to.state.NewestWavesBalance(aa.rcp)
 		}
@@ -229,7 +229,7 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 			asset   = aa.asset()
 		)
 		if asset != nil {
-			balance, err = to.state.AccountBalance(aa.rcp, asset)
+			balance, err = to.state.AssetBalance(aa.rcp, asset)
 		} else {
 			balance, err = to.state.WavesBalance(aa.rcp)
 		}

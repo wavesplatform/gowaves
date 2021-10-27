@@ -875,7 +875,7 @@ func (s *stateManager) NewestWavesBalance(account proto.Recipient) (uint64, erro
 	return profile.balance, nil
 }
 
-func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
+func (s *stateManager) NewestAssetBalance(account proto.Recipient, assetID []byte) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
@@ -898,7 +898,7 @@ func (s *stateManager) WavesBalance(account proto.Recipient) (uint64, error) {
 	return profile.balance, nil
 }
 
-func (s *stateManager) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (s *stateManager) AssetBalance(account proto.Recipient, asset []byte) (uint64, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)

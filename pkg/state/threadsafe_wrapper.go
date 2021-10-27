@@ -91,10 +91,10 @@ func (a *ThreadSafeReadWrapper) WavesBalance(account proto.Recipient) (uint64, e
 	return a.s.WavesBalance(account)
 }
 
-func (a *ThreadSafeReadWrapper) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (a *ThreadSafeReadWrapper) AssetBalance(account proto.Recipient, asset []byte) (uint64, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.AccountBalance(account, asset)
+	return a.s.AssetBalance(account, asset)
 }
 
 func (a *ThreadSafeReadWrapper) WavesAddressesNumber() (uint64, error) {
