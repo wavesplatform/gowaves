@@ -389,6 +389,10 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 		return proto.NewEthereumTransferWavesTxKind(), nil
 	}
 
+	if ethTx.To() == nil {
+		return nil, errors.Errorf("'To' field in ethereum tx is empty")
+	}
+
 	selectorBytes := ethTx.Data()
 	if len(ethTx.Data()) < ethabi.SelectorSize {
 		return nil, errors.Errorf("length of data from ethereum transaction is less than %d", ethabi.SelectorSize)

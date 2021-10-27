@@ -11,7 +11,7 @@ import (
 
 const rideDiffEthWaves = 1e10 // in ethereum numbers are represented in 10^18. In waves it's 10^8
 
-func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) {
+func TransactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) {
 	switch transaction := tx.(type) {
 	case *proto.Genesis:
 		return genesisToObject(scheme, transaction)

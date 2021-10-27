@@ -478,7 +478,7 @@ func TestDataFunctions(t *testing.T) {
 		Value: "world",
 	}))
 	require.NoError(t, data.Sign(proto.MainNetScheme, secret))
-	txObj, err := transactionToObject('W', data)
+	txObj, err := TransactionToObject('W', data)
 	require.NoError(t, err)
 	env := &MockRideEnvironment{
 		transactionFunc: func() rideObject {
@@ -521,7 +521,7 @@ func TestDataFunctions(t *testing.T) {
 
 func testInvokeEnv(verifier bool) (Environment, *proto.InvokeScriptWithProofs) {
 	tx := byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
-	txo, err := transactionToObject(proto.MainNetScheme, tx)
+	txo, err := TransactionToObject(proto.MainNetScheme, tx)
 	if err != nil {
 		panic(err)
 	}
@@ -1082,7 +1082,7 @@ var envDappFromDapp = &MockRideEnvironment{
 		wrappedSt.cle = rideAddress(address)
 	},
 	transactionFunc: func() rideObject {
-		obj, _ := transactionToObject(proto.MainNetScheme, tx)
+		obj, _ := TransactionToObject(proto.MainNetScheme, tx)
 		return obj
 	},
 	invocationFunc: func() rideObject {
@@ -4016,7 +4016,7 @@ func TestHashScriptFunc(t *testing.T) {
 			return 1564703444249
 		},
 		transactionFunc: func() rideObject {
-			obj, _ := transactionToObject(proto.MainNetScheme, tx)
+			obj, _ := TransactionToObject(proto.MainNetScheme, tx)
 			return obj
 		},
 		stateFunc: func() types.SmartState {
@@ -4143,7 +4143,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 			return 1564703444249
 		},
 		transactionFunc: func() rideObject {
-			obj, _ := transactionToObject(proto.MainNetScheme, tx)
+			obj, _ := TransactionToObject(proto.MainNetScheme, tx)
 			return obj
 		},
 		stateFunc: func() types.SmartState {
@@ -4220,7 +4220,7 @@ func TestMatchOverwrite(t *testing.T) {
 	tx.Proofs = proto.NewProofs()
 	tx.Proofs.Proofs = append(tx.Proofs.Proofs, sig[:])
 
-	tv, err := transactionToObject(proto.TestNetScheme, tx)
+	tv, err := TransactionToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
 
 	env := &MockRideEnvironment{
@@ -4281,7 +4281,7 @@ func TestFailSript1(t *testing.T) {
 	tx.Proofs = proto.NewProofs()
 	tx.Proofs.Proofs = append(tx.Proofs.Proofs, sig[:])
 
-	tv, err := transactionToObject(proto.TestNetScheme, tx)
+	tv, err := TransactionToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
 
 	env := &MockRideEnvironment{
@@ -4385,7 +4385,7 @@ func TestFailSript2(t *testing.T) {
 	err := json.Unmarshal([]byte(transaction), tx)
 	require.NoError(t, err)
 
-	tv, err := transactionToObject(proto.MainNetScheme, tx)
+	tv, err := TransactionToObject(proto.MainNetScheme, tx)
 	require.NoError(t, err)
 
 	env := &MockRideEnvironment{
@@ -4524,7 +4524,7 @@ func TestWhaleDApp(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.MainNetScheme, tx)
+			obj, err := TransactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -4652,7 +4652,7 @@ func TestExchangeDApp(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.MainNetScheme, tx)
+			obj, err := TransactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -4821,7 +4821,7 @@ func TestBankDApp(t *testing.T) {
 			return rideAddress(dapp)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.MainNetScheme, tx)
+			obj, err := TransactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -4965,7 +4965,7 @@ func TestLigaDApp1(t *testing.T) {
 			return rideAddress(dapp)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx1)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx1)
 			require.NoError(t, err)
 			return obj
 		},
@@ -5159,7 +5159,7 @@ func TestLigaDApp1(t *testing.T) {
 			return rideAddress(dapp)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx2)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx2)
 			require.NoError(t, err)
 			return obj
 		},
@@ -5282,7 +5282,7 @@ func TestTestingDApp(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -5403,7 +5403,7 @@ func TestDropElementDApp(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -5519,7 +5519,7 @@ func TestMathDApp(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -5645,7 +5645,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -5776,7 +5776,7 @@ func Test8Ball(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -5893,7 +5893,7 @@ func TestIntegerEntry(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.StageNetScheme, tx)
+			obj, err := TransactionToObject(proto.StageNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -6132,7 +6132,7 @@ func TestBadType(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -6297,7 +6297,7 @@ func TestNoDeclaration(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.MainNetScheme, tx)
+			obj, err := TransactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -6487,7 +6487,7 @@ func TestZeroReissue(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.StageNetScheme, tx)
+			obj, err := TransactionToObject(proto.StageNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -6710,7 +6710,7 @@ func TestStageNet2(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.StageNetScheme, tx)
+			obj, err := TransactionToObject(proto.StageNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -6809,7 +6809,7 @@ func TestRecipientAddressToString(t *testing.T) {
 			return proto.TestNetScheme
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -6912,7 +6912,7 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.MainNetScheme, tx)
+			obj, err := TransactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -7039,7 +7039,7 @@ func TestOriginCaller(t *testing.T) {
 			return rideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.MainNetScheme, tx)
+			obj, err := TransactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -7214,7 +7214,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 			return rideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.MainNetScheme, tx)
+			obj, err := TransactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -7390,7 +7390,7 @@ func TestAliasesInInvokes(t *testing.T) {
 			return rideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -7622,7 +7622,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 			return rideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -7814,7 +7814,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 			return rideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},
@@ -7993,7 +7993,7 @@ func TestReissueInInvoke(t *testing.T) {
 			return rideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
-			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			obj, err := TransactionToObject(proto.TestNetScheme, tx)
 			require.NoError(t, err)
 			return obj
 		},

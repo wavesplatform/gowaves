@@ -24,7 +24,7 @@ type TransferWithSigTestSuite struct {
 
 func (a *TransferWithSigTestSuite) SetupTest() {
 	a.tx = byte_helpers.TransferWithSig.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *TransferWithSigTestSuite) Test_feeAssetId_Presence() {
@@ -243,7 +243,7 @@ func (a *GenesisTestSuite) SetupTest() {
 	tx := &proto.Genesis{}
 	_ = copier.Copy(tx, byte_helpers.Genesis.Transaction)
 	a.tx = tx
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *GenesisTestSuite) Test_amount() {
@@ -294,7 +294,7 @@ func (a *PaymentTestSuite) SetupTest() {
 	tx := &proto.Payment{}
 	_ = copier.Copy(tx, byte_helpers.Payment.Transaction)
 	a.tx = tx
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *PaymentTestSuite) Test_amount() {
@@ -371,7 +371,7 @@ type ReissueWithSigTestSuite struct {
 
 func (a *ReissueWithSigTestSuite) SetupTest() {
 	a.tx = byte_helpers.ReissueWithSig.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *ReissueWithSigTestSuite) Test_quantity() {
@@ -452,7 +452,7 @@ type ReissueWithProofsTestSuite struct {
 
 func (a *ReissueWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.ReissueWithProofs.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *ReissueWithProofsTestSuite) Test_quantity() {
@@ -534,7 +534,7 @@ type BurnWithSigTestSuite struct {
 
 func (a *BurnWithSigTestSuite) SetupTest() {
 	a.tx = byte_helpers.BurnWithSig.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *BurnWithSigTestSuite) Test_quantity() {
@@ -610,7 +610,7 @@ type BurnWithProofsTestSuite struct {
 
 func (a *BurnWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.BurnWithProofs.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *BurnWithProofsTestSuite) Test_quantity() {
@@ -687,7 +687,7 @@ type MassTransferWithProofsTestSuite struct {
 
 func (a *MassTransferWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.MassTransferWithProofs.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_assetId_presence() {
@@ -796,7 +796,7 @@ type ExchangeWithSigTestSuite struct {
 
 func (a *ExchangeWithSigTestSuite) SetupTest() {
 	a.tx = byte_helpers.ExchangeWithSig.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *ExchangeWithSigTestSuite) Test_buyOrder() {
@@ -891,7 +891,7 @@ type ExchangeWithProofsTestSuite struct {
 
 func (a *ExchangeWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.ExchangeWithProofs.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_price() {
@@ -1114,7 +1114,7 @@ type SetAssetScriptWithProofsTestSuite struct {
 
 func (a *SetAssetScriptWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.SetAssetScriptWithProofs.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_script() {
@@ -1195,7 +1195,7 @@ type InvokeScriptWithProofsTestSuite struct {
 
 func (a *InvokeScriptWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_dappAddress() {
@@ -1301,7 +1301,7 @@ type IssueWithSigTestSuite struct {
 
 func (a *IssueWithSigTestSuite) SetupTest() {
 	a.tx = byte_helpers.IssueWithSig.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *IssueWithSigTestSuite) Test_quantity() {
@@ -1396,7 +1396,7 @@ type IssueWithProofsTestSuite struct {
 
 func (a *IssueWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.IssueWithProofs.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *IssueWithProofsTestSuite) Test_quantity() {
@@ -1495,7 +1495,7 @@ type LeaseWithSigTestSuite struct {
 
 func (a *LeaseWithSigTestSuite) SetupTest() {
 	a.tx = byte_helpers.LeaseWithSig.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *LeaseWithSigTestSuite) Test_amount() {
@@ -1571,7 +1571,7 @@ type LeaseWithProofsTestSuite struct {
 
 func (a *LeaseWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.LeaseWithProofs.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *LeaseWithProofsTestSuite) Test_amount() {
@@ -1648,7 +1648,7 @@ type LeaseCancelWithSigTestSuite struct {
 
 func (a *LeaseCancelWithSigTestSuite) SetupTest() {
 	a.tx = byte_helpers.LeaseCancelWithSig.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_leaseId() {
@@ -1719,7 +1719,7 @@ type LeaseCancelWithProofsTestSuite struct {
 
 func (a *LeaseCancelWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.LeaseCancelWithProofs.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_leaseId() {
@@ -1791,7 +1791,7 @@ type DataWithProofsTestSuite struct {
 
 func (a *DataWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.DataWithProofs.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *DataWithProofsTestSuite) Test_data() {
@@ -1869,7 +1869,7 @@ type SponsorshipWithProofsTestSuite struct {
 
 func (a *SponsorshipWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.SponsorshipWithProofs.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_assetId() {
@@ -1952,7 +1952,7 @@ type CreateAliasWithSigTestSuite struct {
 
 func (a *CreateAliasWithSigTestSuite) SetupTest() {
 	a.tx = byte_helpers.CreateAliasWithSig.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_alias() {
@@ -2023,7 +2023,7 @@ type CreateAliasWithProofsTestSuite struct {
 
 func (a *CreateAliasWithProofsTestSuite) SetupTest() {
 	a.tx = byte_helpers.CreateAliasWithProofs.Transaction.Clone()
-	a.f = transactionToObject
+	a.f = TransactionToObject
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_alias() {

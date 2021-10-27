@@ -1345,7 +1345,7 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 		return err
 	}
 	e.id = RideBytes(id)
-	obj, err := transactionToObject(e.sch, tx)
+	obj, err := TransactionToObject(e.sch, tx)
 	if err != nil {
 		return err
 	}
