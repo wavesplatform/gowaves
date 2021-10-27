@@ -76,7 +76,7 @@ func assetInfoToObject(info *proto.AssetInfo) rideObject {
 	obj["id"] = RideBytes(info.ID.Bytes())
 	obj["quantity"] = RideInt(info.Quantity)
 	obj["decimals"] = RideInt(info.Decimals)
-	obj["issuer"] = rideAddress(info.Issuer)
+	obj["issuer"] = RideAddress(info.Issuer)
 	obj["issuerPublicKey"] = RideBytes(common.Dup(info.IssuerPublicKey.Bytes()))
 	obj["reissuable"] = RideBoolean(info.Reissuable)
 	obj["scripted"] = RideBoolean(info.Scripted)
@@ -119,7 +119,7 @@ func blockHeaderToObject(scheme byte, header *proto.BlockHeader, vrf []byte) (ri
 	r["height"] = RideInt(header.Height)
 	r["baseTarget"] = RideInt(header.BaseTarget)
 	r["generationSignature"] = RideBytes(common.Dup(header.GenSignature.Bytes()))
-	r["generator"] = rideAddress(address)
+	r["generator"] = RideAddress(address)
 	r["generatorPublicKey"] = RideBytes(common.Dup(header.GenPublicKey.Bytes()))
 	r["vrf"] = rideUnit{}
 	if len(vrf) > 0 {
@@ -137,7 +137,7 @@ func genesisToObject(scheme byte, tx *proto.Genesis) (rideObject, error) {
 	r[instanceFieldName] = RideString("GenesisTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(tx.Recipient))
+	r["recipient"] = RideRecipient(proto.NewRecipientFromAddress(tx.Recipient))
 	r["amount"] = RideInt(tx.Amount)
 	r["fee"] = RideInt(0)
 	r["timestamp"] = RideInt(tx.Timestamp)
@@ -158,9 +158,9 @@ func paymentToObject(scheme byte, tx *proto.Payment) (rideObject, error) {
 	r[instanceFieldName] = RideString("PaymentTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
-	r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(tx.Recipient))
+	r["recipient"] = RideRecipient(proto.NewRecipientFromAddress(tx.Recipient))
 	r["amount"] = RideInt(tx.Amount)
 	r["fee"] = RideInt(tx.Fee)
 	r["timestamp"] = RideInt(tx.Timestamp)
@@ -182,7 +182,7 @@ func issueWithSigToObject(scheme byte, tx *proto.IssueWithSig) (rideObject, erro
 	r[instanceFieldName] = RideString("IssueTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["name"] = RideString(tx.Name)
 	r["description"] = RideString(tx.Description)
@@ -210,7 +210,7 @@ func issueWithProofsToObject(scheme byte, tx *proto.IssueWithProofs) (rideObject
 	r[instanceFieldName] = RideString("IssueTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["name"] = RideString(tx.Name)
 	r["description"] = RideString(tx.Description)
@@ -241,9 +241,9 @@ func transferWithSigToObject(scheme byte, tx *proto.TransferWithSig) (rideObject
 	r[instanceFieldName] = RideString("TransferTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
-	r["recipient"] = rideRecipient(tx.Recipient)
+	r["recipient"] = RideRecipient(tx.Recipient)
 	r["assetId"] = optionalAsset(tx.AmountAsset)
 	r["amount"] = RideInt(tx.Amount)
 	r["fee"] = RideInt(tx.Fee)
@@ -268,9 +268,9 @@ func transferWithProofsToObject(scheme byte, tx *proto.TransferWithProofs) (ride
 	r[instanceFieldName] = RideString("TransferTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
-	r["recipient"] = rideRecipient(tx.Recipient)
+	r["recipient"] = RideRecipient(tx.Recipient)
 	r["assetId"] = optionalAsset(tx.AmountAsset)
 	r["amount"] = RideInt(tx.Amount)
 	r["fee"] = RideInt(tx.Fee)
@@ -295,7 +295,7 @@ func reissueWithSigToObject(scheme byte, tx *proto.ReissueWithSig) (rideObject, 
 	r[instanceFieldName] = RideString("ReissueTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["assetId"] = RideBytes(tx.AssetID.Bytes())
 	r["quantity"] = RideInt(tx.Quantity)
@@ -320,7 +320,7 @@ func reissueWithProofsToObject(scheme byte, tx *proto.ReissueWithProofs) (rideOb
 	r[instanceFieldName] = RideString("ReissueTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["assetId"] = RideBytes(tx.AssetID.Bytes())
 	r["quantity"] = RideInt(tx.Quantity)
@@ -345,7 +345,7 @@ func burnWithSigToObject(scheme byte, tx *proto.BurnWithSig) (rideObject, error)
 	r[instanceFieldName] = RideString("BurnTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["assetId"] = RideBytes(tx.AssetID.Bytes())
 	r["quantity"] = RideInt(tx.Amount)
@@ -369,7 +369,7 @@ func burnWithProofsToObject(scheme byte, tx *proto.BurnWithProofs) (rideObject, 
 	r[instanceFieldName] = RideString("BurnTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["assetId"] = RideBytes(tx.AssetID.Bytes())
 	r["quantity"] = RideInt(tx.Amount)
@@ -421,7 +421,7 @@ func orderToObject(scheme proto.Scheme, o proto.Order) (rideObject, error) {
 	r := make(rideObject)
 	r[instanceFieldName] = RideString("Order")
 	r["id"] = RideBytes(id)
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(senderPK.Bytes()))
 	r["matcherPublicKey"] = RideBytes(common.Dup(matcherPk.Bytes()))
 	r["assetPair"] = assetPairToObject(pair.AmountAsset, pair.PriceAsset)
@@ -458,7 +458,7 @@ func exchangeWithSigToObject(scheme byte, tx *proto.ExchangeWithSig) (rideObject
 	r[instanceFieldName] = RideString("ExchangeTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(addr)
+	r["sender"] = RideAddress(addr)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["buyOrder"] = buy
 	r["sellOrder"] = sell
@@ -494,7 +494,7 @@ func exchangeWithProofsToObject(scheme byte, tx *proto.ExchangeWithProofs) (ride
 	r[instanceFieldName] = RideString("ExchangeTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(addr)
+	r["sender"] = RideAddress(addr)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["buyOrder"] = buy
 	r["sellOrder"] = sell
@@ -522,9 +522,9 @@ func leaseWithSigToObject(scheme byte, tx *proto.LeaseWithSig) (rideObject, erro
 	r[instanceFieldName] = RideString("LeaseTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
-	r["recipient"] = rideRecipient(tx.Recipient)
+	r["recipient"] = RideRecipient(tx.Recipient)
 	r["amount"] = RideInt(tx.Amount)
 	r["fee"] = RideInt(tx.Fee)
 	r["timestamp"] = RideInt(tx.Timestamp)
@@ -546,9 +546,9 @@ func leaseWithProofsToObject(scheme byte, tx *proto.LeaseWithProofs) (rideObject
 	r[instanceFieldName] = RideString("LeaseTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
-	r["recipient"] = rideRecipient(tx.Recipient)
+	r["recipient"] = RideRecipient(tx.Recipient)
 	r["amount"] = RideInt(tx.Amount)
 	r["fee"] = RideInt(tx.Fee)
 	r["timestamp"] = RideInt(tx.Timestamp)
@@ -570,7 +570,7 @@ func leaseCancelWithSigToObject(scheme byte, tx *proto.LeaseCancelWithSig) (ride
 	r[instanceFieldName] = RideString("LeaseCancelTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["leaseId"] = RideBytes(tx.LeaseID.Bytes())
 	r["fee"] = RideInt(tx.Fee)
@@ -593,7 +593,7 @@ func leaseCancelWithProofsToObject(scheme byte, tx *proto.LeaseCancelWithProofs)
 	r[instanceFieldName] = RideString("LeaseCancelTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["leaseId"] = RideBytes(tx.LeaseID.Bytes())
 	r["fee"] = RideInt(tx.Fee)
@@ -616,7 +616,7 @@ func createAliasWithSigToObject(scheme byte, tx *proto.CreateAliasWithSig) (ride
 	r[instanceFieldName] = RideString("CreateAliasTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["alias"] = RideString(tx.Alias.String())
 	r["fee"] = RideInt(tx.Fee)
@@ -639,7 +639,7 @@ func createAliasWithProofsToObject(scheme byte, tx *proto.CreateAliasWithProofs)
 	r[instanceFieldName] = RideString("CreateAliasTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["alias"] = RideString(tx.Alias.String())
 	r["fee"] = RideInt(tx.Fee)
@@ -663,7 +663,7 @@ func massTransferWithProofsToObject(scheme byte, tx *proto.MassTransferWithProof
 	transfers := make(RideList, count)
 	for i, transfer := range tx.Transfers {
 		m := make(rideObject)
-		m["recipient"] = rideRecipient(transfer.Recipient)
+		m["recipient"] = RideRecipient(transfer.Recipient)
 		m["amount"] = RideInt(transfer.Amount)
 		transfers[i] = m
 		total += int(transfer.Amount)
@@ -672,7 +672,7 @@ func massTransferWithProofsToObject(scheme byte, tx *proto.MassTransferWithProof
 	r[instanceFieldName] = RideString("MassTransferTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["assetId"] = optionalAsset(tx.Asset)
 	r["transfers"] = transfers
@@ -730,7 +730,7 @@ func dataWithProofsToObject(scheme byte, tx *proto.DataWithProofs) (rideObject, 
 	r[instanceFieldName] = RideString("DataTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["data"] = dataEntriesToList(tx.Entries)
 	r["fee"] = RideInt(tx.Fee)
@@ -753,7 +753,7 @@ func setScriptWithProofsToObject(scheme byte, tx *proto.SetScriptWithProofs) (ri
 	r[instanceFieldName] = RideString("SetScriptTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["script"] = rideUnit{}
 	if len(tx.Script) > 0 {
@@ -779,7 +779,7 @@ func sponsorshipWithProofsToObject(scheme byte, tx *proto.SponsorshipWithProofs)
 	r[instanceFieldName] = RideString("SponsorFeeTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["assetId"] = RideBytes(tx.AssetID.Bytes())
 	r["minSponsoredAssetFee"] = rideUnit{}
@@ -806,7 +806,7 @@ func setAssetScriptWithProofsToObject(scheme byte, tx *proto.SetAssetScriptWithP
 	r[instanceFieldName] = RideString("SetAssetScriptTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["assetId"] = RideBytes(tx.AssetID.Bytes())
 	r["script"] = rideUnit{}
@@ -849,9 +849,9 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	r[instanceFieldName] = RideString("InvokeScriptTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
-	r["dApp"] = rideRecipient(tx.ScriptRecipient)
+	r["dApp"] = RideRecipient(tx.ScriptRecipient)
 	switch {
 	case len(tx.Payments) == 1:
 		p := attachedPaymentToObject(tx.Payments[0])
@@ -968,22 +968,21 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 	if err != nil {
 		return nil, errors.Errorf("failed to get public key from ethereum transaction %v", err)
 	}
-	callerPK := RideBytes(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
+	callerPK := callerEthereumPK.SerializeXYCoordinates() // 64 bytes
 
 	to, err := tx.WavesAddressTo(scheme)
 	if err != nil {
 		return nil, err
 	}
-
+	r := make(rideObject)
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
-		r := make(rideObject)
 		r[instanceFieldName] = RideString("TransferTransaction")
 		r["version"] = RideInt(tx.GetVersion())
 		r["id"] = RideBytes(tx.ID.Bytes())
-		r["sender"] = rideAddress(sender)
+		r["sender"] = RideAddress(sender)
 		r["senderPublicKey"] = RideBytes(common.Dup(callerPK))
-		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(*to))
+		r["recipient"] = RideRecipient(proto.NewRecipientFromAddress(*to))
 		r["assetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(rideDiffEthWaves)))
 		if ok := res.IsInt64(); !ok {
@@ -999,17 +998,16 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["proofs"] = proofs(nil)
 		return r, nil
 	case *proto.EthereumTransferAssetsErc20TxKind:
-		r := make(rideObject)
 		r[instanceFieldName] = RideString("TransferTransaction")
 		r["version"] = RideInt(tx.GetVersion())
 		r["id"] = RideBytes(tx.ID.Bytes())
-		r["sender"] = rideAddress(sender)
+		r["sender"] = RideAddress(sender)
 		r["senderPublicKey"] = RideBytes(common.Dup(callerPK))
 		erc20arguments, err := GetERC20Arguments(tx.TxKind.DecodedData(), scheme)
 		if err != nil {
 			return nil, errors.Errorf("failed to receive erc20 arguments, %v", err)
 		}
-		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(erc20arguments.Recipient))
+		r["recipient"] = RideRecipient(proto.NewRecipientFromAddress(erc20arguments.Recipient))
 		r["assetId"] = optionalAsset(kind.Asset)
 		r["amount"] = RideInt(erc20arguments.Amount)
 		r["fee"] = RideInt(tx.GetFee())
@@ -1020,13 +1018,12 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["proofs"] = proofs(nil)
 		return r, nil
 	case *proto.EthereumInvokeScriptTxKind:
-		r := make(rideObject)
 		r[instanceFieldName] = RideString("InvokeScriptTransaction")
 		r["version"] = RideInt(tx.GetVersion())
 		r["id"] = RideBytes(tx.ID.Bytes())
-		r["sender"] = rideAddress(sender)
+		r["sender"] = RideAddress(sender)
 		r["senderPublicKey"] = RideBytes(common.Dup(callerPK))
-		r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(*to))
+		r["dApp"] = RideRecipient(proto.NewRecipientFromAddress(*to))
 
 		var scriptPayments []proto.ScriptPayment
 		for _, p := range tx.TxKind.DecodedData().Payments {
@@ -1077,7 +1074,7 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 	default:
 		return nil, errors.New("unknown ethereum transaction kind")
 	}
-	return nil, nil
+	return r, nil
 }
 
 func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWithProofs) (rideObject, error) {
@@ -1093,7 +1090,7 @@ func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWit
 	r[instanceFieldName] = RideString("UpdateAssetInfoTransaction")
 	r["version"] = RideInt(tx.Version)
 	r["id"] = RideBytes(tx.ID.Bytes())
-	r["sender"] = rideAddress(sender)
+	r["sender"] = RideAddress(sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["assetId"] = RideBytes(tx.AssetID.Bytes())
 	r["name"] = RideString(tx.Name)
@@ -1139,11 +1136,11 @@ func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (r
 	r := make(rideObject)
 	r[instanceFieldName] = RideString("Invocation")
 	r["transactionId"] = RideBytes(tx.ID.Bytes())
-	r["caller"] = rideAddress(sender)
+	r["caller"] = RideAddress(sender)
 	callerPK := RideBytes(common.Dup(tx.SenderPK.Bytes()))
 	r["callerPublicKey"] = callerPK
 	if v >= 5 {
-		r["originCaller"] = rideAddress(sender)
+		r["originCaller"] = RideAddress(sender)
 		r["originCallerPublicKey"] = callerPK
 	}
 	switch v {
@@ -1172,7 +1169,7 @@ func ethereumInvocationToObject(v int, scheme byte, tx *proto.EthereumTransactio
 	r := make(rideObject)
 	r[instanceFieldName] = RideString("Invocation")
 	r["transactionId"] = RideBytes(tx.ID.Bytes())
-	r["caller"] = rideAddress(sender)
+	r["caller"] = RideAddress(sender)
 	callerEthereumPK, err := tx.FromPK()
 	if err != nil {
 		return nil, errors.Errorf("failed to get public key from ethereum transaction %v", err)
@@ -1180,7 +1177,7 @@ func ethereumInvocationToObject(v int, scheme byte, tx *proto.EthereumTransactio
 	callerPK := RideBytes(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
 	r["callerPublicKey"] = callerPK
 	if v >= 5 {
-		r["originCaller"] = rideAddress(sender)
+		r["originCaller"] = RideAddress(sender)
 		r["originCallerPublicKey"] = callerPK
 	}
 
@@ -1208,9 +1205,9 @@ func scriptTransferToObject(tr *proto.FullScriptTransfer) rideObject {
 	r[instanceFieldName] = RideString("TransferTransaction")
 	r["version"] = rideUnit{}
 	r["id"] = RideBytes(tr.ID.Bytes())
-	r["sender"] = rideAddress(tr.Sender)
+	r["sender"] = RideAddress(tr.Sender)
 	r["senderPublicKey"] = RideBytes(common.Dup(tr.SenderPK.Bytes()))
-	r["recipient"] = rideRecipient(tr.Recipient)
+	r["recipient"] = RideRecipient(tr.Recipient)
 	r["assetId"] = optionalAsset(tr.Asset)
 	r["amount"] = RideInt(tr.Amount)
 	r["feeAssetId"] = rideUnit{}
@@ -1554,7 +1551,7 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 		r[instanceFieldName] = RideString("ReissueTransaction")
 		r["version"] = RideInt(0)
 		r["id"] = RideBytes(id.Bytes())
-		r["sender"] = rideAddress(address)
+		r["sender"] = RideAddress(address)
 		r["senderPublicKey"] = RideBytes(common.Dup(pk.Bytes()))
 		r["assetId"] = RideBytes(a.AssetID.Bytes())
 		r["quantity"] = RideInt(a.Quantity)
@@ -1567,7 +1564,7 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 		r[instanceFieldName] = RideString("BurnTransaction")
 		r["id"] = RideBytes(id.Bytes())
 		r["version"] = RideInt(0)
-		r["sender"] = rideAddress(address)
+		r["sender"] = RideAddress(address)
 		r["senderPublicKey"] = RideBytes(common.Dup(pk.Bytes()))
 		r["assetId"] = RideBytes(a.AssetID.Bytes())
 		r["quantity"] = RideInt(a.Quantity)

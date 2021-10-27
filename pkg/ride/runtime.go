@@ -182,26 +182,26 @@ func (o rideObject) copy() rideObject {
 	return r
 }
 
-type rideAddress proto.WavesAddress
+type RideAddress proto.WavesAddress
 
-func (a rideAddress) instanceOf() string {
+func (a RideAddress) instanceOf() string {
 	return "Address"
 }
 
-func (a rideAddress) eq(other RideType) bool {
+func (a RideAddress) eq(other RideType) bool {
 	switch o := other.(type) {
-	case rideAddress:
+	case RideAddress:
 		return bytes.Equal(a[:], o[:])
 	case RideBytes:
 		return bytes.Equal(a[:], o[:])
-	case rideRecipient:
+	case RideRecipient:
 		return o.Address != nil && bytes.Equal(a[:], o.Address[:])
 	default:
 		return false
 	}
 }
 
-func (a rideAddress) get(prop string) (RideType, error) {
+func (a RideAddress) get(prop string) (RideType, error) {
 	switch prop {
 	case "bytes":
 		return RideBytes(a[:]), nil
@@ -218,11 +218,11 @@ func (a rideAddressLike) instanceOf() string {
 
 func (a rideAddressLike) eq(other RideType) bool {
 	switch o := other.(type) {
-	case rideAddress:
+	case RideAddress:
 		return bytes.Equal(a[:], o[:])
 	case RideBytes:
 		return bytes.Equal(a[:], o[:])
-	case rideRecipient:
+	case RideRecipient:
 		return o.Address != nil && bytes.Equal(a[:], o.Address[:])
 	default:
 		return false
@@ -238,9 +238,9 @@ func (a rideAddressLike) get(prop string) (RideType, error) {
 	}
 }
 
-type rideRecipient proto.Recipient
+type RideRecipient proto.Recipient
 
-func (a rideRecipient) instanceOf() string {
+func (a RideRecipient) instanceOf() string {
 	switch {
 	case a.Address != nil:
 		return "Address"
@@ -251,11 +251,11 @@ func (a rideRecipient) instanceOf() string {
 	}
 }
 
-func (a rideRecipient) eq(other RideType) bool {
+func (a RideRecipient) eq(other RideType) bool {
 	switch o := other.(type) {
-	case rideRecipient:
+	case RideRecipient:
 		return a.Address == o.Address && a.Alias == o.Alias
-	case rideAddress:
+	case RideAddress:
 		return a.Address != nil && bytes.Equal(a.Address[:], o[:])
 	case rideAlias:
 		return a.Alias != nil && a.Alias.Alias == o.Alias
@@ -266,7 +266,7 @@ func (a rideRecipient) eq(other RideType) bool {
 	}
 }
 
-func (a rideRecipient) get(prop string) (RideType, error) {
+func (a RideRecipient) get(prop string) (RideType, error) {
 	switch prop {
 	case "bytes":
 		if a.Address != nil {
@@ -283,7 +283,7 @@ func (a rideRecipient) get(prop string) (RideType, error) {
 	}
 }
 
-func (a rideRecipient) String() string {
+func (a RideRecipient) String() string {
 	r := proto.Recipient(a)
 	return r.String()
 }
@@ -296,7 +296,7 @@ func (a rideAlias) instanceOf() string {
 
 func (a rideAlias) eq(other RideType) bool {
 	switch o := other.(type) {
-	case rideRecipient:
+	case RideRecipient:
 		return o.Alias != nil && a.Alias == o.Alias.Alias
 	case rideAlias:
 		return a.Alias == o.Alias

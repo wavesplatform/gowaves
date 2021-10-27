@@ -59,7 +59,7 @@ func (a *TransferWithSigTestSuite) Test_assetId_absence() {
 func (a *TransferWithSigTestSuite) Test_recipient() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	a.Equal(rideRecipient(a.tx.Recipient), rs["recipient"])
+	a.Equal(RideRecipient(a.tx.Recipient), rs["recipient"])
 }
 
 func (a *TransferWithSigTestSuite) Test_attachment() {
@@ -95,7 +95,7 @@ func (a *TransferWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *TransferWithSigTestSuite) Test_senderPublicKey() {
@@ -167,7 +167,7 @@ func (a *TransferWithProofsTestSuite) Test_assetId_absence() {
 func (a *TransferWithProofsTestSuite) Test_recipient() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	a.Equal(rideRecipient(a.tx.Recipient), rs["recipient"])
+	a.Equal(RideRecipient(a.tx.Recipient), rs["recipient"])
 }
 
 func (a *TransferWithProofsTestSuite) Test_attachment() {
@@ -203,7 +203,7 @@ func (a *TransferWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *TransferWithProofsTestSuite) Test_senderPublicKey() {
@@ -254,7 +254,7 @@ func (a *GenesisTestSuite) Test_amount() {
 func (a *GenesisTestSuite) Test_recipient() {
 	rs, err := a.f(proto.MainNetScheme, a.tx)
 	a.NoError(err)
-	a.Equal(rideRecipient(proto.NewRecipientFromAddress(a.tx.Recipient)), rs["recipient"])
+	a.Equal(RideRecipient(proto.NewRecipientFromAddress(a.tx.Recipient)), rs["recipient"])
 }
 
 func (a *GenesisTestSuite) Test_id() {
@@ -304,7 +304,7 @@ func (a *PaymentTestSuite) Test_amount() {
 
 func (a *PaymentTestSuite) Test_recipient() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideRecipient(proto.NewRecipientFromAddress(a.tx.Recipient)), rs["recipient"])
+	a.Equal(RideRecipient(proto.NewRecipientFromAddress(a.tx.Recipient)), rs["recipient"])
 }
 
 func (a *PaymentTestSuite) Test_id() {
@@ -334,7 +334,7 @@ func (a *PaymentTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *PaymentTestSuite) Test_senderPublicKey() {
@@ -414,7 +414,7 @@ func (a *ReissueWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *ReissueWithSigTestSuite) Test_senderPublicKey() {
@@ -495,7 +495,7 @@ func (a *ReissueWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *ReissueWithProofsTestSuite) Test_senderPublicKey() {
@@ -572,7 +572,7 @@ func (a *BurnWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *BurnWithSigTestSuite) Test_senderPublicKey() {
@@ -648,7 +648,7 @@ func (a *BurnWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *BurnWithProofsTestSuite) Test_senderPublicKey() {
@@ -714,7 +714,7 @@ func (a *MassTransferWithProofsTestSuite) Test_transfers() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 
 	m := make(rideObject)
-	m["recipient"] = rideRecipient(a.tx.Transfers[0].Recipient)
+	m["recipient"] = RideRecipient(a.tx.Transfers[0].Recipient)
 	m["amount"] = RideInt(int64(a.tx.Transfers[0].Amount))
 	a.Equal(RideList{m}, rs["transfers"])
 }
@@ -757,7 +757,7 @@ func (a *MassTransferWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_senderPublicKey() {
@@ -854,7 +854,7 @@ func (a *ExchangeWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 func (a *ExchangeWithSigTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
@@ -949,7 +949,7 @@ func (a *ExchangeWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_senderPublicKey() {
@@ -1072,7 +1072,7 @@ func (a *OrderTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.GetSenderPK())
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *OrderTestSuite) Test_senderPublicKey() {
@@ -1156,7 +1156,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_senderPublicKey() {
@@ -1200,7 +1200,7 @@ func (a *InvokeScriptWithProofsTestSuite) SetupTest() {
 
 func (a *InvokeScriptWithProofsTestSuite) Test_dappAddress() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideRecipient(a.tx.ScriptRecipient), rs["dApp"])
+	a.Equal(RideRecipient(a.tx.ScriptRecipient), rs["dApp"])
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_payment_presence() {
@@ -1262,7 +1262,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_senderPublicKey() {
@@ -1359,7 +1359,7 @@ func (a *IssueWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *IssueWithSigTestSuite) Test_senderPublicKey() {
@@ -1456,7 +1456,7 @@ func (a *IssueWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *IssueWithProofsTestSuite) Test_senderPublicKey() {
@@ -1505,7 +1505,7 @@ func (a *LeaseWithSigTestSuite) Test_amount() {
 
 func (a *LeaseWithSigTestSuite) Test_recipient() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideRecipient(a.tx.Recipient), rs["recipient"])
+	a.Equal(RideRecipient(a.tx.Recipient), rs["recipient"])
 }
 
 func (a *LeaseWithSigTestSuite) Test_id() {
@@ -1533,7 +1533,7 @@ func (a *LeaseWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *LeaseWithSigTestSuite) Test_senderPublicKey() {
@@ -1581,7 +1581,7 @@ func (a *LeaseWithProofsTestSuite) Test_amount() {
 
 func (a *LeaseWithProofsTestSuite) Test_recipient() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(rideRecipient(a.tx.Recipient), rs["recipient"])
+	a.Equal(RideRecipient(a.tx.Recipient), rs["recipient"])
 }
 
 func (a *LeaseWithProofsTestSuite) Test_id() {
@@ -1609,7 +1609,7 @@ func (a *LeaseWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *LeaseWithProofsTestSuite) Test_senderPublicKey() {
@@ -1681,7 +1681,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_senderPublicKey() {
@@ -1752,7 +1752,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_senderPublicKey() {
@@ -1830,7 +1830,7 @@ func (a *DataWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *DataWithProofsTestSuite) Test_senderPublicKey() {
@@ -1913,7 +1913,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_senderPublicKey() {
@@ -1985,7 +1985,7 @@ func (a *CreateAliasWithSigTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_senderPublicKey() {
@@ -2056,7 +2056,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.SenderPK)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	a.Equal(RideAddress(addr), rs["sender"])
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_senderPublicKey() {

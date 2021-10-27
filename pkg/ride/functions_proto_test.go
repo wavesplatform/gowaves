@@ -37,7 +37,7 @@ func TestAddressFromString(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString(ma.String())}, false, rideAddress(ma)},
+		{[]RideType{RideString(ma.String())}, false, RideAddress(ma)},
 		{[]RideType{RideString("3MpV2xvvcWUcv8FLDKJ9ZRrQpEyF8nFwRUM")}, false, rideUnit{}},
 		{[]RideType{RideString("fake address")}, false, rideUnit{}},
 		{[]RideType{rideUnit{}}, true, nil},
@@ -66,7 +66,7 @@ func TestAddressValueFromString(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString(ma.String())}, false, rideAddress(ma)},
+		{[]RideType{RideString(ma.String())}, false, RideAddress(ma)},
 		{[]RideType{RideString("3MpV2xvvcWUcv8FLDKJ9ZRrQpEyF8nFwRUM")}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{RideString("fake address")}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{rideUnit{}}, true, nil},
@@ -126,19 +126,19 @@ func TestIntFromState(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("key")}, false, RideInt(100500)},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("key")}, false, RideInt(100500)},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideUnit{}},
-		{[]RideType{rideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideUnit{}},
-		{[]RideType{rideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("key")}, false, RideInt(100500)},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("key")}, false, RideInt(100500)},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideUnit{}},
 		{[]RideType{}, false, rideUnit{}},
 		{[]RideType{rideUnit{}}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAddressRecipient)}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAliasRecipient)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAddressRecipient)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAliasRecipient)}, false, rideUnit{}},
 		{[]RideType{RideString("xxx"), RideInt(12345)}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideUnit{}},
 	} {
 		r, err := intFromState(env, test.args...)
 		if test.fail {
@@ -176,19 +176,19 @@ func TestBytesFromState(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("key")}, false, RideBytes("value")},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("key")}, false, RideBytes("value")},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideUnit{}},
-		{[]RideType{rideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideUnit{}},
-		{[]RideType{rideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("key")}, false, RideBytes("value")},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("key")}, false, RideBytes("value")},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideUnit{}},
 		{[]RideType{}, false, rideUnit{}},
 		{[]RideType{rideUnit{}}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAddressRecipient)}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAliasRecipient)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAddressRecipient)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAliasRecipient)}, false, rideUnit{}},
 		{[]RideType{RideString("xxx"), RideInt(12345)}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideUnit{}},
 	} {
 		r, err := bytesFromState(env, test.args...)
 		if test.fail {
@@ -226,19 +226,19 @@ func TestStringFromState(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("key")}, false, RideString("value")},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("key")}, false, RideString("value")},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideUnit{}},
-		{[]RideType{rideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideUnit{}},
-		{[]RideType{rideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("key")}, false, RideString("value")},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("key")}, false, RideString("value")},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideUnit{}},
 		{[]RideType{}, false, rideUnit{}},
 		{[]RideType{rideUnit{}}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAddressRecipient)}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAliasRecipient)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAddressRecipient)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAliasRecipient)}, false, rideUnit{}},
 		{[]RideType{RideString("xxx"), RideInt(12345)}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideUnit{}},
 	} {
 		r, err := stringFromState(env, test.args...)
 		if test.fail {
@@ -276,19 +276,19 @@ func TestBooleanFromState(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("key")}, false, RideBoolean(true)},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("key")}, false, RideBoolean(true)},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideUnit{}},
-		{[]RideType{rideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideUnit{}},
-		{[]RideType{rideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("key")}, false, RideBoolean(true)},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("key")}, false, RideBoolean(true)},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideUnit{}},
+		{[]RideType{RideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideUnit{}},
 		{[]RideType{}, false, rideUnit{}},
 		{[]RideType{rideUnit{}}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAddressRecipient)}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAliasRecipient)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAddressRecipient)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAliasRecipient)}, false, rideUnit{}},
 		{[]RideType{RideString("xxx"), RideInt(12345)}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideUnit{}},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideUnit{}},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideUnit{}},
 	} {
 		r, err := booleanFromState(env, test.args...)
 		if test.fail {
@@ -314,7 +314,7 @@ func TestIntFromSelfState(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(correctAddress)
+			return RideAddress(correctAddress)
 		},
 	}
 	for _, test := range []struct {
@@ -352,7 +352,7 @@ func TestBytesFromSelfState(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(correctAddress)
+			return RideAddress(correctAddress)
 		},
 	}
 	for _, test := range []struct {
@@ -390,7 +390,7 @@ func TestStringFromSelfState(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(correctAddress)
+			return RideAddress(correctAddress)
 		},
 	}
 	for _, test := range []struct {
@@ -428,7 +428,7 @@ func TestBooleanFromSelfState(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(correctAddress)
+			return RideAddress(correctAddress)
 		},
 	}
 	for _, test := range []struct {
@@ -642,8 +642,8 @@ func TestAddressToString(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{rideAddress(addr)}, false, RideString("3P2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb")},
-		{[]RideType{rideAddress(addr), RideString("xxx")}, true, nil},
+		{[]RideType{RideAddress(addr)}, false, RideString("3P2HNUd5VUPLMQkJmctTPEeeHumiPN2GkTb")},
+		{[]RideType{RideAddress(addr), RideString("xxx")}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
 		{[]RideType{}, true, nil},
 		{[]RideType{RideString("x")}, true, nil},
@@ -758,19 +758,19 @@ func TestIntValueFromState(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("key")}, false, RideInt(100500)},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("key")}, false, RideInt(100500)},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("key")}, false, RideInt(100500)},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("key")}, false, RideInt(100500)},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{rideUnit{}}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAddressRecipient)}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAliasRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAddressRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAliasRecipient)}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{RideString("xxx"), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
 	} {
 		r, err := intValueFromState(env, test.args...)
 		if test.fail {
@@ -808,19 +808,19 @@ func TestBytesValueFromState(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("key")}, false, RideBytes("value")},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("key")}, false, RideBytes("value")},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("key")}, false, RideBytes("value")},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("key")}, false, RideBytes("value")},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{rideUnit{}}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAddressRecipient)}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAliasRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAddressRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAliasRecipient)}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{RideString("xxx"), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
 	} {
 		r, err := bytesValueFromState(env, test.args...)
 		if test.fail {
@@ -858,19 +858,19 @@ func TestStringValueFromState(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("key")}, false, RideString("value")},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("key")}, false, RideString("value")},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("key")}, false, RideString("value")},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("key")}, false, RideString("value")},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{rideUnit{}}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAddressRecipient)}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAliasRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAddressRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAliasRecipient)}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{RideString("xxx"), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
 	} {
 		r, err := stringValueFromState(env, test.args...)
 		if test.fail {
@@ -908,19 +908,19 @@ func TestBooleanValueFromState(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("key")}, false, RideBoolean(true)},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("key")}, false, RideBoolean(true)},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("key")}, false, RideBoolean(true)},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("key")}, false, RideBoolean(true)},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideString("xxx")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(incorrectAddressRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(incorrectAliasRecipient), RideString("key")}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{rideUnit{}}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAddressRecipient)}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAliasRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAddressRecipient)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAliasRecipient)}, false, rideThrow("failed to extract from Unit value")},
 		{[]RideType{RideString("xxx"), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{rideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAddressRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{RideRecipient(correctAliasRecipient), RideInt(12345)}, false, rideThrow("failed to extract from Unit value")},
 	} {
 		r, err := booleanValueFromState(env, test.args...)
 		if test.fail {
@@ -945,7 +945,7 @@ func TestIntValueFromSelfState(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(correctAddress)
+			return RideAddress(correctAddress)
 		},
 	}
 	for _, test := range []struct {
@@ -983,7 +983,7 @@ func TestBytesValueFromSelfState(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(correctAddress)
+			return RideAddress(correctAddress)
 		},
 	}
 	for _, test := range []struct {
@@ -1021,7 +1021,7 @@ func TestStringValueFromSelfState(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(correctAddress)
+			return RideAddress(correctAddress)
 		},
 	}
 	for _, test := range []struct {
@@ -1059,7 +1059,7 @@ func TestBooleanValueFromSelfState(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(correctAddress)
+			return RideAddress(correctAddress)
 		},
 	}
 	for _, test := range []struct {

@@ -13,7 +13,7 @@ import (
 
 type WrappedState struct {
 	diff             diffState
-	cle              rideAddress
+	cle              RideAddress
 	scheme           proto.Scheme
 	act              []proto.ScriptAction
 	blackList        []proto.WavesAddress
@@ -41,7 +41,7 @@ func newWrappedState(env *EvaluationEnvironment) *WrappedState {
 		oldAssetsInfo: map[string]diffOldAssetInfo{},
 		leases:        map[string]lease{}}
 
-	return &WrappedState{diff: diffSt, cle: env.th.(rideAddress), scheme: env.sch}
+	return &WrappedState{diff: diffSt, cle: env.th.(RideAddress), scheme: env.sch}
 }
 
 func (ws *WrappedState) appendActions(actions []proto.ScriptAction) {
@@ -1176,7 +1176,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 }
 
 func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress) (*EvaluationEnvironment, error) {
-	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
+	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(RideAddress)))
 
 	st := newWrappedState(env)
 	for _, payment := range payments {
@@ -1226,7 +1226,7 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 }
 
 func NewEthereumEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress) (*EvaluationEnvironment, error) {
-	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
+	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(RideAddress)))
 
 	st := newWrappedState(env)
 	for _, payment := range payments {
@@ -1309,7 +1309,7 @@ func (e *EvaluationEnvironment) SetThisFromAssetInfo(info *proto.AssetInfo) {
 }
 
 func (e *EvaluationEnvironment) SetThisFromAddress(addr proto.WavesAddress) {
-	e.th = rideAddress(addr)
+	e.th = RideAddress(addr)
 }
 
 func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) {
@@ -1419,7 +1419,7 @@ func (e *EvaluationEnvironment) setNewDAppAddress(address proto.WavesAddress) {
 	if !ok {
 		panic("not a WrappedState")
 	}
-	ws.cle = rideAddress(address)
+	ws.cle = RideAddress(address)
 	e.SetThisFromAddress(address)
 }
 

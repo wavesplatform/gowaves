@@ -34,7 +34,7 @@ func reentrantInvoke(env Environment, args ...RideType) (RideType, error) {
 		return rideUnit{}, nil
 	}
 
-	callerAddress, ok := env.this().(rideAddress)
+	callerAddress, ok := env.this().(RideAddress)
 	if !ok {
 		return rideUnit{}, errors.Errorf("reentrantInvoke: this has an unexpected type '%s'", env.this().instanceOf())
 	}
@@ -185,7 +185,7 @@ func invoke(env Environment, args ...RideType) (RideType, error) {
 		return rideUnit{}, nil
 	}
 
-	callerAddress, ok := env.this().(rideAddress)
+	callerAddress, ok := env.this().(RideAddress)
 	if !ok {
 		return rideUnit{}, errors.Errorf("invoke: this has an unexpected type '%s'", env.this().instanceOf())
 	}
@@ -394,7 +394,7 @@ func addressFromString(env Environment, args ...RideType) (RideType, error) {
 	if a[1] != env.scheme() {
 		return rideUnit{}, nil
 	}
-	return rideAddress(a), nil
+	return RideAddress(a), nil
 }
 
 func addressValueFromString(env Environment, args ...RideType) (RideType, error) {
@@ -500,7 +500,7 @@ func intFromSelfState(env Environment, args ...RideType) (RideType, error) {
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	a, ok := env.this().(rideAddress)
+	a, ok := env.this().(RideAddress)
 	if !ok {
 		return rideUnit{}, nil
 	}
@@ -529,7 +529,7 @@ func bytesFromSelfState(env Environment, args ...RideType) (RideType, error) {
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	a, ok := env.this().(rideAddress)
+	a, ok := env.this().(RideAddress)
 	if !ok {
 		return rideUnit{}, nil
 	}
@@ -558,7 +558,7 @@ func stringFromSelfState(env Environment, args ...RideType) (RideType, error) {
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	a, ok := env.this().(rideAddress)
+	a, ok := env.this().(RideAddress)
 	if !ok {
 		return rideUnit{}, nil
 	}
@@ -587,7 +587,7 @@ func booleanFromSelfState(env Environment, args ...RideType) (RideType, error) {
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	a, ok := env.this().(rideAddress)
+	a, ok := env.this().(RideAddress)
 	if !ok {
 		return rideUnit{}, nil
 	}
@@ -604,19 +604,19 @@ func addressFromRecipient(env Environment, args ...RideType) (RideType, error) {
 		return nil, errors.Wrap(err, "addressFromRecipient")
 	}
 	switch r := args[0].(type) {
-	case rideRecipient:
+	case RideRecipient:
 		if r.Address != nil {
-			return rideAddress(*r.Address), nil
+			return RideAddress(*r.Address), nil
 		}
 		if r.Alias != nil {
 			addr, err := env.state().NewestAddrByAlias(*r.Alias)
 			if err != nil {
 				return nil, errors.Wrap(err, "addressFromRecipient")
 			}
-			return rideAddress(addr), nil
+			return RideAddress(addr), nil
 		}
 		return nil, errors.Errorf("addressFromRecipient: unable to get address from recipient '%s'", r)
-	case rideAddress:
+	case RideAddress:
 		return r, nil
 	default:
 		return nil, errors.Errorf("addressFromRecipient: unexpected argument type '%s'", args[0].instanceOf())
@@ -709,7 +709,7 @@ func addressFromPublicKey(env Environment, args ...RideType) (RideType, error) {
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	return rideAddress(addr), nil
+	return RideAddress(addr), nil
 }
 
 func wavesBalanceV3(env Environment, args ...RideType) (RideType, error) {
@@ -819,9 +819,9 @@ func addressToString(_ Environment, args ...RideType) (RideType, error) {
 		return nil, errors.Wrap(err, "addressToString")
 	}
 	switch a := args[0].(type) {
-	case rideAddress:
+	case RideAddress:
 		return RideString(proto.WavesAddress(a).String()), nil
-	case rideRecipient:
+	case RideRecipient:
 		if a.Address == nil {
 			return nil, errors.Errorf("addressToString: recipient is not an WavesAddress '%s'", args[0].instanceOf())
 		}
@@ -1293,7 +1293,7 @@ func address(_ Environment, args ...RideType) (RideType, error) {
 	if err != nil {
 		return rideAddressLike(b), nil
 	}
-	return rideAddress(addr), nil
+	return RideAddress(addr), nil
 }
 
 func alias(env Environment, args ...RideType) (RideType, error) {
@@ -1392,7 +1392,7 @@ func dataTransaction(_ Environment, args ...RideType) (RideType, error) {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[4].instanceOf())
 	}
 	obj["version"] = version
-	addr, ok := args[5].(rideAddress)
+	addr, ok := args[5].(RideAddress)
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[5].instanceOf())
 	}
@@ -1460,7 +1460,7 @@ func scriptTransfer(_ Environment, args ...RideType) (RideType, error) {
 	}
 	var recipient RideType
 	switch tr := args[0].(type) {
-	case rideRecipient, rideAlias, rideAddress:
+	case RideRecipient, rideAlias, RideAddress:
 		recipient = tr
 	default:
 		return nil, errors.Errorf("scriptTransfer: unexpected argument type '%s'", args[0].instanceOf())
@@ -1571,11 +1571,11 @@ func attachedPayment(_ Environment, args ...RideType) (RideType, error) {
 func extractRecipient(v RideType) (proto.Recipient, error) {
 	var r proto.Recipient
 	switch a := v.(type) {
-	case rideAddress:
+	case RideAddress:
 		r = proto.NewRecipientFromAddress(proto.WavesAddress(a))
 	case rideAlias:
 		r = proto.NewRecipientFromAlias(proto.Alias(a))
-	case rideRecipient:
+	case RideRecipient:
 		r = proto.Recipient(a)
 	default:
 		return proto.Recipient{}, errors.Errorf("unable to extract recipient from '%s'", v.instanceOf())
@@ -1738,7 +1738,7 @@ func calculateLeaseID(env Environment, args ...RideType) (RideType, error) {
 	return calcLeaseID(env, recipient, amount, nonce)
 }
 
-func newLease(recipient rideRecipient, amount, nonce RideInt) rideObject {
+func newLease(recipient RideRecipient, amount, nonce RideInt) rideObject {
 	r := make(rideObject)
 	r[instanceFieldName] = RideString("Lease")
 	r["recipient"] = recipient
@@ -1759,7 +1759,7 @@ func simplifiedLease(_ Environment, args ...RideType) (RideType, error) {
 	if !ok {
 		return nil, errors.Errorf("simplifiedLease: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	return newLease(rideRecipient(recipient), amount, 0), nil
+	return newLease(RideRecipient(recipient), amount, 0), nil
 }
 
 func fullLease(_ Environment, args ...RideType) (RideType, error) {
@@ -1778,7 +1778,7 @@ func fullLease(_ Environment, args ...RideType) (RideType, error) {
 	if !ok {
 		return nil, errors.Errorf("fullLease: unexpected argument type '%s'", args[6].instanceOf())
 	}
-	return newLease(rideRecipient(recipient), amount, nonce), nil
+	return newLease(RideRecipient(recipient), amount, nonce), nil
 }
 
 func leaseCancel(_ Environment, args ...RideType) (RideType, error) {

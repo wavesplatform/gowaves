@@ -882,7 +882,7 @@ func initWrappedState(state types.SmartState, env *MockRideEnvironment) *Wrapped
 
 	diffSt := &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo, leases: leases}
 
-	return &WrappedState{diff: *diffSt, cle: env.this().(rideAddress), scheme: env.scheme()}
+	return &WrappedState{diff: *diffSt, cle: env.this().(RideAddress), scheme: env.scheme()}
 }
 
 var wrappedSt WrappedState
@@ -1075,11 +1075,11 @@ var envDappFromDapp = &MockRideEnvironment{
 		return RideBytes(id)
 	},
 	thisFunc: func() RideType {
-		return rideAddress(thisAddress)
+		return RideAddress(thisAddress)
 	},
 	setNewDAppAddressFunc: func(address proto.WavesAddress) {
 		thisAddress = address
-		wrappedSt.cle = rideAddress(address)
+		wrappedSt.cle = RideAddress(address)
 	},
 	transactionFunc: func() rideObject {
 		obj, _ := TransactionToObject(proto.MainNetScheme, tx)
@@ -4007,7 +4007,7 @@ func TestHashScriptFunc(t *testing.T) {
 			return 368430
 		},
 		thisFunc: func() RideType {
-			return rideAddress(addr)
+			return RideAddress(addr)
 		},
 		invocationFunc: func() rideObject {
 			return inv
@@ -4137,7 +4137,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 			return 368430
 		},
 		thisFunc: func() RideType {
-			return rideAddress(addr)
+			return RideAddress(addr)
 		},
 		timestampFunc: func() uint64 {
 			return 1564703444249
@@ -4521,7 +4521,7 @@ func TestWhaleDApp(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.MainNetScheme, tx)
@@ -4649,7 +4649,7 @@ func TestExchangeDApp(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.MainNetScheme, tx)
@@ -4818,7 +4818,7 @@ func TestBankDApp(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(dapp)
+			return RideAddress(dapp)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.MainNetScheme, tx)
@@ -4962,7 +4962,7 @@ func TestLigaDApp1(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(dapp)
+			return RideAddress(dapp)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.TestNetScheme, tx1)
@@ -5156,7 +5156,7 @@ func TestLigaDApp1(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(dapp)
+			return RideAddress(dapp)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.TestNetScheme, tx2)
@@ -5279,7 +5279,7 @@ func TestTestingDApp(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.TestNetScheme, tx)
@@ -5400,7 +5400,7 @@ func TestDropElementDApp(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.TestNetScheme, tx)
@@ -5516,7 +5516,7 @@ func TestMathDApp(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.TestNetScheme, tx)
@@ -5642,7 +5642,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.TestNetScheme, tx)
@@ -5773,7 +5773,7 @@ func Test8Ball(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.TestNetScheme, tx)
@@ -5890,7 +5890,7 @@ func TestIntegerEntry(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.StageNetScheme, tx)
@@ -6129,7 +6129,7 @@ func TestBadType(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.TestNetScheme, tx)
@@ -6294,7 +6294,7 @@ func TestNoDeclaration(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.MainNetScheme, tx)
@@ -6484,7 +6484,7 @@ func TestZeroReissue(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.StageNetScheme, tx)
@@ -6707,7 +6707,7 @@ func TestStageNet2(t *testing.T) {
 			}
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.StageNetScheme, tx)
@@ -6909,7 +6909,7 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 			return proto.MainNetScheme
 		},
 		thisFunc: func() RideType {
-			return rideAddress(address)
+			return RideAddress(address)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.MainNetScheme, tx)
@@ -7036,7 +7036,7 @@ func TestOriginCaller(t *testing.T) {
 			return proto.MainNetScheme
 		},
 		thisFunc: func() RideType {
-			return rideAddress(testDAppAddress)
+			return RideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.MainNetScheme, tx)
@@ -7211,7 +7211,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 			return proto.MainNetScheme
 		},
 		thisFunc: func() RideType {
-			return rideAddress(testDAppAddress)
+			return RideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.MainNetScheme, tx)
@@ -7387,7 +7387,7 @@ func TestAliasesInInvokes(t *testing.T) {
 			return proto.TestNetScheme
 		},
 		thisFunc: func() RideType {
-			return rideAddress(testDAppAddress)
+			return RideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.TestNetScheme, tx)
@@ -7480,7 +7480,7 @@ func TestAliasesInInvokes(t *testing.T) {
 	}
 	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+		testState.cle = RideAddress(address) // We have to update wrapped state's `cle`
 	}
 
 	tree, err := Parse(src1)
@@ -7619,7 +7619,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 			return proto.TestNetScheme
 		},
 		thisFunc: func() RideType {
-			return rideAddress(testDAppAddress)
+			return RideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.TestNetScheme, tx)
@@ -7707,7 +7707,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 	}
 	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+		testState.cle = RideAddress(address) // We have to update wrapped state's `cle`
 	}
 
 	tree, err := Parse(src1)
@@ -7811,7 +7811,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 			return proto.TestNetScheme
 		},
 		thisFunc: func() RideType {
-			return rideAddress(testDAppAddress)
+			return RideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.TestNetScheme, tx)
@@ -7909,7 +7909,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 	}
 	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+		testState.cle = RideAddress(address) // We have to update wrapped state's `cle`
 	}
 
 	tree, err := Parse(src1)
@@ -7990,7 +7990,7 @@ func TestReissueInInvoke(t *testing.T) {
 			return proto.TestNetScheme
 		},
 		thisFunc: func() RideType {
-			return rideAddress(testDAppAddress)
+			return RideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
 			obj, err := TransactionToObject(proto.TestNetScheme, tx)
@@ -8086,7 +8086,7 @@ func TestReissueInInvoke(t *testing.T) {
 	}
 	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
-		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+		testState.cle = RideAddress(address) // We have to update wrapped state's `cle`
 	}
 
 	tree, err := Parse(src1)
