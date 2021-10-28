@@ -751,13 +751,13 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	}
 	if r.EvaluationError() != nil {
 		// Script returned error, it's OK, but we have to decide is it failed or rejected transaction.
-		if et := ride.GetEvaluationErrorType(r.EvaluationError()); et == ride.InternalInvocationError && rejectOnInvocationError {
-			// This is a special case of errors caused by validation of `invoke` or `reentrantInvoke` functions.
-			// After `InternalInvokeCorrectFailRejectBehaviourAfterHeight` they always lead to the rejection of transaction.
-			return nil, errors.Wrap(r.EvaluationError(), "transaction rejected")
-		}
-		if !info.acceptFailed || ia.sc.recentTxComplexity < FailFreeInvokeComplexity {
-			// We don't accept failed transactions or failed transaction spent less than 1000 complexity
+		// In the following cases the transaction is rejected:
+		// 1) Failing of transactions is not activated yet, reject everything
+		// 2) The error is ride.InternalInvocationError and correct fail/reject behaviour is activated
+		// 3) The spent complexity is less than limit
+		isInvocationError := ride.GetEvaluationErrorType(r.EvaluationError()) == ride.InternalInvocationError
+		isCheap := int(ia.sc.recentTxComplexity) < FailFreeInvokeComplexity
+		if !info.acceptFailed || isInvocationError && rejectOnInvocationError || !isInvocationError && isCheap {
 			return nil, errors.Wrap(r.EvaluationError(), "transaction rejected")
 		}
 		res := &invocationResult{failed: true, code: proto.DAppError, text: r.EvaluationError().Error(), actions: r.ScriptActions(), changes: failedChanges}
