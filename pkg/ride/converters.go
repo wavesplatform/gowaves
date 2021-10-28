@@ -403,14 +403,22 @@ func orderToObject(scheme proto.Scheme, o proto.Order) (rideObject, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "orderToObject")
 	}
-	senderPK := o.GetSenderPK()
-	sender, err := proto.NewAddressFromPublicKey(scheme, senderPK)
+	senderAddr, err := o.GetSender(scheme)
 	if err != nil {
-		return nil, errors.Wrap(err, "orderToObject")
+		return nil, errors.Wrap(err, "failed to execute 'orderToObject' func, failed to get sender of order")
 	}
-	body, err := proto.MarshalOrderBody(scheme, o)
+	// note that in ride we use only proto.WavesAddress addresses
+	senderWavesAddr, err := senderAddr.ToWavesAddress(scheme)
 	if err != nil {
-		return nil, errors.Wrap(err, "orderToObject")
+		return nil, errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
+	}
+	var body []byte
+	// we should leave bodyBytes empty only for proto.EthereumOrderV4
+	if _, ok := o.(*proto.EthereumOrderV4); !ok {
+		body, err = proto.MarshalOrderBody(scheme, o)
+		if err != nil {
+			return nil, errors.Wrap(err, "orderToObject")
+		}
 	}
 	p, err := o.GetProofs()
 	if err != nil {
@@ -421,8 +429,8 @@ func orderToObject(scheme proto.Scheme, o proto.Order) (rideObject, error) {
 	r := make(rideObject)
 	r[instanceFieldName] = RideString("Order")
 	r["id"] = RideBytes(id)
-	r["sender"] = RideAddress(sender)
-	r["senderPublicKey"] = RideBytes(common.Dup(senderPK.Bytes()))
+	r["sender"] = RideAddress(senderWavesAddr)
+	r["senderPublicKey"] = RideBytes(common.Dup(o.GetSenderPKBytes()))
 	r["matcherPublicKey"] = RideBytes(common.Dup(matcherPk.Bytes()))
 	r["assetPair"] = assetPairToObject(pair.AmountAsset, pair.PriceAsset)
 	r["orderType"] = orderType(o.GetOrderType())

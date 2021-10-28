@@ -565,7 +565,10 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	assert.Equal(t, 1, len(smartAssets))
 	assert.Equal(t, smartAsset, smartAssets[0])
 
-	txOV3 := createExchangeWithProofsWithOrdersV3(t)
+	txOV3 := createExchangeV2WithProofsWithOrdersV3(t, orderBuildInfo{
+		price:  10e8,
+		amount: 100,
+	})
 
 	// Matcher fee asset should be added to the list of smart assets when it is smart.
 	smartAsset2 := txOV3.GetOrder1().GetMatcherFeeAsset().ID

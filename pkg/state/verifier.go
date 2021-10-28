@@ -91,12 +91,12 @@ func checkTx(tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, sc
 			return errors.New("exchange tx signature verification failed")
 		}
 		if checkOrder1 {
-			if ok, _ := t.Order1.Verify(scheme, t.Order1.SenderPK); !ok {
+			if ok, _ := t.Order1.Verify(scheme); !ok {
 				return errors.New("first order signature verification failed")
 			}
 		}
 		if checkOrder2 {
-			if ok, _ := t.Order2.Verify(scheme, t.Order2.SenderPK); !ok {
+			if ok, _ := t.Order2.Verify(scheme); !ok {
 				return errors.New("second order signature verification failed")
 			}
 		}
@@ -105,12 +105,12 @@ func checkTx(tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, sc
 			return errors.New("exchange tx signature verification failed")
 		}
 		if checkOrder1 {
-			if ok, _ := t.Order1.Verify(scheme, t.Order1.GetSenderPK()); !ok {
+			if ok, _ := t.Order1.Verify(scheme); !ok {
 				return errors.New("first order signature verification failed")
 			}
 		}
 		if checkOrder2 {
-			if ok, _ := t.Order2.Verify(scheme, t.Order2.GetSenderPK()); !ok {
+			if ok, _ := t.Order2.Verify(scheme); !ok {
 				return errors.New("second order signature verification failed")
 			}
 		}
