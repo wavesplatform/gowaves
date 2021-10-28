@@ -146,8 +146,9 @@ func NewOptionalAssetFromString(s string) (*OptionalAsset, error) {
 	}
 }
 
+// NewOptionalAssetFromBytes returns WAVES if len(b) == 0 and asset in other cases.
 func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
-	if len(b) == 0 {
+	if len(b) == 0 { // return WAVES asset for ride compatibility
 		return &OptionalAsset{}, nil
 	}
 
@@ -159,10 +160,6 @@ func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
 }
 
 func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {
-	waves := crypto.Digest{}
-	if d == waves {
-		return &OptionalAsset{Present: false}
-	}
 	return &OptionalAsset{Present: true, ID: d}
 }
 
