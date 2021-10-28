@@ -1,15 +1,14 @@
 package settings
 
 import (
+	"embed"
 	"encoding/json"
 	"io"
 	"math"
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/rakyll/statik/fs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	_ "github.com/wavesplatform/gowaves/pkg/settings/embedded"
 )
 
 type BlockchainType byte
@@ -19,6 +18,11 @@ const (
 	TestNet
 	StageNet
 	Custom
+)
+
+var (
+	//go:embed embedded
+	res embed.FS
 )
 
 type FunctionalitySettings struct {
@@ -115,7 +119,7 @@ var (
 )
 
 func GetIntegrationSetting() *BlockchainSettings {
-	rs, err := loadEmbeddedSettings("/integration.json")
+	rs, err := loadEmbeddedSettings("embedded/integration.json")
 	if err != nil {
 		panic(err)
 	}
@@ -125,21 +129,21 @@ func GetIntegrationSetting() *BlockchainSettings {
 func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 	switch blockchain {
 	case MainNet:
-		s, err := loadEmbeddedSettings("/mainnet.json")
+		s, err := loadEmbeddedSettings("embedded/mainnet.json")
 		if err != nil {
 			panic(err)
 		}
 		return s
 
 	case TestNet:
-		s, err := loadEmbeddedSettings("/testnet.json")
+		s, err := loadEmbeddedSettings("embedded/testnet.json")
 		if err != nil {
 			panic(err)
 		}
 		return s
 
 	case StageNet:
-		s, err := loadEmbeddedSettings("/stagenet.json")
+		s, err := loadEmbeddedSettings("embedded/stagenet.json")
 		if err != nil {
 			panic(err)
 		}
@@ -160,11 +164,7 @@ func ReadBlockchainSettings(r io.Reader) (*BlockchainSettings, error) {
 }
 
 func loadEmbeddedSettings(name string) (*BlockchainSettings, error) {
-	root, err := fs.New()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize built-in storage")
-	}
-	file, err := root.Open(name)
+	file, err := res.Open(name)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open genesis file")
 	}
