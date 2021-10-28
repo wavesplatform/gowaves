@@ -5,7 +5,7 @@ go 1.16
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1
 	github.com/OneOfOne/xxhash v1.2.5 // indirect
-	github.com/alecthomas/kong v0.2.0
+	github.com/alecthomas/kong v0.2.17
 	github.com/beevik/ntp v0.2.0
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/cespare/xxhash v1.1.0
@@ -36,7 +36,7 @@ require (
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
 	github.com/steakknife/hamming v0.0.0-20180906055917-c99c65617cd3 // indirect
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
 	github.com/throttled/throttled/v2 v2.7.1
 	github.com/valyala/bytebufferpool v1.0.0
