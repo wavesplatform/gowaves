@@ -1149,7 +1149,7 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 		if err != nil {
 			return err
 		}
-		err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
+		err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset, recipient)
 		if err != nil {
 			return err
 		}
@@ -1159,7 +1159,7 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 			return err
 		}
 
-		err = wrappedSt.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
+		err = wrappedSt.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset, callerRcp)
 		if err != nil {
 			return err
 		}
@@ -1167,14 +1167,14 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 	return nil
 }
 
-func AddWavesToSender(senderAddress proto.Address, amount int64, asset proto.OptionalAsset) error {
+func AddAssetToSender(senderAddress proto.Address, amount int64, asset proto.OptionalAsset) error {
 	senderRecipient := proto.NewRecipientFromAddress(senderAddress)
 
 	searchBalance, searchAddr, err := wrappedSt.diff.findBalance(senderRecipient, asset)
 	if err != nil {
 		return err
 	}
-	err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, amount, asset.ID, senderRecipient)
+	err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, amount, asset, senderRecipient)
 	if err != nil {
 		return err
 	}
@@ -1322,7 +1322,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -1690,7 +1690,7 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -1882,7 +1882,7 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -2058,7 +2058,7 @@ func TestNegativeCycleNewInvokeDAppFromDAppScript4(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -2217,7 +2217,7 @@ func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -2683,7 +2683,7 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -2841,7 +2841,7 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -3023,7 +3023,7 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(addressCallable, 10000, *assetCat)
+	err = AddAssetToSender(addressCallable, 10000, *assetCat)
 	require.NoError(t, err)
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
@@ -3195,7 +3195,7 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -3344,7 +3344,7 @@ func TestExpressionScriptFailInvoke(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -3458,7 +3458,7 @@ func TestPaymentsDifferentScriptVersion4(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -3582,7 +3582,7 @@ func TestPaymentsDifferentScriptVersion3(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -3727,7 +3727,7 @@ func TestActionsLimitInOneInvoke(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -3912,7 +3912,7 @@ func TestActionsLimitInvoke(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)

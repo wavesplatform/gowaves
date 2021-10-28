@@ -879,7 +879,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			if err != nil {
 				return nil, err
 			}
-			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset, res.Recipient)
 			if err != nil {
 				return nil, err
 			}
@@ -890,7 +890,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				return nil, err
 			}
 
-			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecipient)
+			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset, senderRecipient)
 			if err != nil {
 				return nil, err
 			}
@@ -917,7 +917,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			if err != nil {
 				return nil, err
 			}
-			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset, res.Recipient)
 			if err != nil {
 				return nil, err
 			}
@@ -928,7 +928,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				return nil, err
 			}
 
-			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecipient)
+			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset, senderRecipient)
 			if err != nil {
 				return nil, err
 			}
@@ -975,12 +975,12 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			res.Sender = &senderPK
 
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
-			asset := proto.NewOptionalAssetFromDigest(res.ID)
-			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, *asset)
+			asset := *proto.NewOptionalAssetFromDigest(res.ID)
+			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, asset)
 			if err != nil {
 				return nil, err
 			}
-			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset, senderRcp)
 			if err != nil {
 				return nil, err
 			}
@@ -999,8 +999,8 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
-			asset := proto.NewOptionalAssetFromDigest(res.AssetID)
-			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, *asset)
+			asset := *proto.NewOptionalAssetFromDigest(res.AssetID)
+			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, asset)
 			if err != nil {
 				return nil, err
 			}
@@ -1011,7 +1011,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 					oldAssetFromDiff.diffQuantity += res.Quantity
 
 					ws.diff.oldAssetsInfo[res.AssetID.String()] = *oldAssetFromDiff
-					err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+					err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset, senderRcp)
 					if err != nil {
 						return nil, err
 					}
@@ -1020,7 +1020,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				var assetInfo diffOldAssetInfo
 				assetInfo.diffQuantity += res.Quantity
 				ws.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
-				err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+				err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset, senderRcp)
 				if err != nil {
 					return nil, err
 				}
@@ -1028,7 +1028,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 			ws.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
 
-			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset, senderRcp)
 			if err != nil {
 				return nil, err
 			}
@@ -1045,8 +1045,8 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
-			asset := proto.NewOptionalAssetFromDigest(res.AssetID)
-			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, *asset)
+			asset := *proto.NewOptionalAssetFromDigest(res.AssetID)
+			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, asset)
 			if err != nil {
 				return nil, err
 			}
@@ -1057,7 +1057,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 					oldAssetFromDiff.diffQuantity -= res.Quantity
 
 					ws.diff.oldAssetsInfo[res.AssetID.String()] = *oldAssetFromDiff
-					err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset.ID, senderRcp)
+					err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset, senderRcp)
 					if err != nil {
 						return nil, err
 					}
@@ -1066,7 +1066,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				var assetInfo diffOldAssetInfo
 				assetInfo.diffQuantity -= res.Quantity
 				ws.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
-				err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset.ID, senderRcp)
+				err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset, senderRcp)
 				if err != nil {
 					return nil, err
 				}
@@ -1074,7 +1074,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 			ws.diff.burnNewAsset(res.AssetID, res.Quantity)
 
-			err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset.ID, senderRcp)
+			err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset, senderRcp)
 			if err != nil {
 				return nil, err
 			}
@@ -1223,7 +1223,7 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
-		err = st.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
+		err = st.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset, recipient)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
@@ -1233,7 +1233,7 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
 
-		err = st.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
+		err = st.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset, callerRcp)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
