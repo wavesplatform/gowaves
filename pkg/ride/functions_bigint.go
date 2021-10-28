@@ -10,21 +10,8 @@ import (
 )
 
 var (
-	minBigInt, maxBigInt = initBoundaries()
-	zeroBigInt           = big.NewInt(0)
-	oneBigInt            = big.NewInt(1)
+	zeroBigInt = big.NewInt(0)
 )
-
-func initBoundaries() (*big.Int, *big.Int) {
-	max := big.NewInt(0)
-	max = max.Exp(big.NewInt(2), big.NewInt(511), nil)
-	max = max.Sub(max, oneBigInt)
-
-	min := big.NewInt(0)
-	min = min.Neg(max)
-	min = min.Sub(min, oneBigInt)
-	return min, max
-}
 
 func bigIntArg(args []rideType) (rideBigInt, error) {
 	if len(args) != 1 {
@@ -123,7 +110,7 @@ func powBigInt(_ Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "powBigInt")
 	}
-	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.New("powBigInt: result is out of range")
 	}
 	return rideBigInt{v: r}, nil
@@ -183,7 +170,7 @@ func sumBigInt(_ Environment, args ...rideType) (rideType, error) {
 	i1 := big.NewInt(0).Set(a.v)
 	i2 := big.NewInt(0).Set(b.v)
 	r := i1.Add(i1, i2)
-	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("sumBigInt: %s result is out of range", r.String())
 	}
 	return rideBigInt{v: r}, nil
@@ -197,7 +184,7 @@ func subtractBigInt(_ Environment, args ...rideType) (rideType, error) {
 	i1 := big.NewInt(0).Set(a.v)
 	i2 := big.NewInt(0).Set(b.v)
 	r := i1.Sub(i1, i2)
-	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("subtractBigInt: %s result is out of range", r.String())
 	}
 	return rideBigInt{v: r}, nil
@@ -211,7 +198,7 @@ func multiplyBigInt(_ Environment, args ...rideType) (rideType, error) {
 	i1 := big.NewInt(0).Set(a.v)
 	i2 := big.NewInt(0).Set(b.v)
 	r := i1.Mul(i1, i2)
-	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("multiplyBigInt: %s result is out of range", r.String())
 	}
 	return rideBigInt{v: r}, nil
@@ -228,7 +215,7 @@ func divideBigInt(_ Environment, args ...rideType) (rideType, error) {
 		return nil, errors.New("divideBigInt: division by zero")
 	}
 	r := i1.Div(i1, i2)
-	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("divideBigInt: %s result is out of range", r.String())
 	}
 	return rideBigInt{v: r}, nil
@@ -248,7 +235,7 @@ func moduloBigInt(_ Environment, args ...rideType) (rideType, error) {
 	r0 := i1.Rem(i1, i2)
 	r1 := r0.Add(r0, i2)
 	r := r1.Rem(r1, i2)
-	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("moduloBigInt: %s result is out of range", r.String())
 	}
 	return rideBigInt{v: r}, nil
@@ -267,7 +254,7 @@ func fractionBigInt(_ Environment, args ...rideType) (rideType, error) {
 	}
 	r := v.Mul(v, n)
 	r = r.Quo(r, d)
-	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("fractionBigInt: %s result is out of range", r.String())
 	}
 	return rideBigInt{v: r}, nil
@@ -300,7 +287,7 @@ func fractionBigIntRounds(_ Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "fractionBigIntRounds")
 	}
-	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("fractionBigIntRounds: %s result is out of range", r.String())
 	}
 	return rideBigInt{v: r}, nil
@@ -385,7 +372,7 @@ func unaryMinusBigInt(_ Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "unaryMinusBigInt")
 	}
 	i := big.NewInt(0).Set(v.v)
-	if i.Cmp(minBigInt) == 0 {
+	if i.Cmp(math.MinBigInt) == 0 {
 		return nil, errors.New("unaryMinusBigInt: positive BigInt overflow")
 	}
 	r := i.Neg(i)
@@ -466,7 +453,7 @@ func bytesToBigInt(_ Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("bytesToBigInt: bytes array is too long (%d) for a BigInt", l)
 	}
 	r := decode2CBigInt(bts)
-	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("bytesToBigInt: %s result is out of range", r.String())
 	}
 	return rideBigInt{v: r}, nil
@@ -500,7 +487,7 @@ func bytesToBigIntLim(_ Environment, args ...rideType) (rideType, error) {
 		end = l
 	}
 	r := decode2CBigInt(bts[offset:end])
-	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("bytesToBigIntLim: %s result is out of range", r.String())
 	}
 	return rideBigInt{v: r}, nil
@@ -532,14 +519,14 @@ func stringToBigInt(_ Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "stringToBigInt")
 	}
-	if l := len(s); l > 155 { // 155 symbols is the length of minBigInt value is string representation
+	if l := len(s); l > 155 { // 155 symbols is the length of math.MinBigInt value is string representation
 		return nil, errors.Errorf("stringToBigInt: string is too long (%d symbols) for a BigInt", l)
 	}
 	r, ok := big.NewInt(0).SetString(string(s), 10)
 	if !ok {
 		return nil, errors.Errorf("stringToBigInt: failed to convert string '%s' to BigInt", s)
 	}
-	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.New("stringToBigInt: value too big for a BigInt")
 	}
 	return rideBigInt{v: r}, nil
@@ -620,7 +607,7 @@ func decode2CBigInt(bytes []byte) *big.Int {
 			notBytes[i] = ^bytes[i]
 		}
 		r.SetBytes(notBytes)
-		r.Add(r, oneBigInt)
+		r.Add(r, math.OneBigInt)
 		r.Neg(r)
 		return r
 	}
@@ -635,7 +622,7 @@ func encode2CBigInt(n *big.Int) []byte {
 		// Subtract 1 and invert
 		// If the most-significant-bit isn't set then we'll need to pad the beginning with 0xff in order to keep the number negative
 		nMinus1 := new(big.Int).Neg(n)
-		nMinus1.Sub(nMinus1, oneBigInt)
+		nMinus1.Sub(nMinus1, math.OneBigInt)
 		bytes := nMinus1.Bytes()
 		for i := range bytes {
 			bytes[i] ^= 0xff
