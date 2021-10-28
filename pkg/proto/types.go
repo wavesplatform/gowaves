@@ -146,12 +146,8 @@ func NewOptionalAssetFromString(s string) (*OptionalAsset, error) {
 	}
 }
 
-// NewOptionalAssetFromBytes returns WAVES if len(b) == 0 and asset in other cases.
+// NewOptionalAssetFromBytes parses bytes as crypto.Digest and returns OptionalAsset.
 func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
-	if len(b) == 0 { // return WAVES asset for ride compatibility
-		return &OptionalAsset{}, nil
-	}
-
 	a, err := crypto.NewDigestFromBytes(b)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create OptionalAsset from bytes")
