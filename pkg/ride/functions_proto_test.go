@@ -106,18 +106,25 @@ func TestAssetBalanceV3(t *testing.T) {
 		},
 	}
 	testCases := []struct {
-		expectedBalance rideInt
-		assetID         rideBytes
+		expectedBalance rideType
+		assetID         rideType
+		expectErr       bool
 	}{
-		{expectedBalance: 21, assetID: nil},
-		{expectedBalance: 21, assetID: []byte{}},
-		{expectedBalance: 42, assetID: make([]byte, crypto.DigestSize)},
-		{expectedBalance: 0, assetID: make([]byte, 7)},
-		{expectedBalance: 0, assetID: make([]byte, 33)},
+		{expectedBalance: rideInt(21), assetID: rideUnit{}, expectErr: false},
+		{expectedBalance: rideInt(42), assetID: make(rideBytes, crypto.DigestSize), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: rideBytes(nil), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: rideBytes([]byte{}), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: make(rideBytes, 7), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: make(rideBytes, 33), expectErr: false},
+		{expectedBalance: nil, assetID: rideInt(0), expectErr: true},
 	}
 	for _, tc := range testCases {
 		balance, err := assetBalanceV3(te, rideRecipient{}, tc.assetID)
-		require.NoError(t, err)
+		if tc.expectErr {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
 		require.Equal(t, tc.expectedBalance, balance)
 	}
 }
@@ -137,14 +144,15 @@ func TestAssetBalanceV4(t *testing.T) {
 	}
 	testCases := []struct {
 		expectedBalance rideType
-		assetID         rideBytes
+		assetID         rideType
 		expectErr       bool
 	}{
-		{expectedBalance: nil, assetID: nil, expectErr: true},
-		{expectedBalance: nil, assetID: []byte{}, expectErr: true},
-		{expectedBalance: rideInt(42), assetID: make([]byte, crypto.DigestSize), expectErr: false},
-		{expectedBalance: rideInt(0), assetID: make([]byte, 7), expectErr: false},
-		{expectedBalance: rideInt(0), assetID: make([]byte, 33), expectErr: false},
+		{expectedBalance: rideInt(42), assetID: make(rideBytes, crypto.DigestSize), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: make(rideBytes, 7), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: make(rideBytes, 33), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: rideBytes(nil), expectErr: false},
+		{expectedBalance: rideInt(0), assetID: rideBytes([]byte{}), expectErr: false},
+		{expectedBalance: nil, assetID: rideInt(0), expectErr: true},
 	}
 	for _, tc := range testCases {
 		balance, err := assetBalanceV4(te, rideRecipient{}, tc.assetID)

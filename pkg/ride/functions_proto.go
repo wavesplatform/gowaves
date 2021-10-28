@@ -450,18 +450,17 @@ func assetBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
-	assetBytes, err := extractAssetBytes(args[1])
-	if err != nil {
-		return nil, errors.Wrap(err, "assetBalanceV3")
-	}
 	var balance uint64
-	switch len(assetBytes) {
-	case 0:
+	switch asset := args[1].(type) {
+	case rideUnit:
 		balance, err = env.state().NewestWavesBalance(recipient)
-	case crypto.DigestSize:
-		balance, err = env.state().NewestAssetBalance(recipient, assetBytes)
+	case rideBytes:
+		if len(asset) != crypto.DigestSize {
+			return rideInt(0), nil // according to the scala node implementation
+		}
+		balance, err = env.state().NewestAssetBalance(recipient, asset)
 	default:
-		return rideInt(0), nil // according to the scala node implementation
+		return nil, errors.Errorf("assetBalanceV3: unable to extract asset ID from '%s'", asset.instanceOf())
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
@@ -477,22 +476,18 @@ func assetBalanceV4(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	assetBytes, err := extractAssetBytes(args[1])
+	asset, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("assetBalanceV4: unable to extract asset ID from '%s'", args[1].instanceOf())
+	}
+	if len(asset) != crypto.DigestSize {
+		return rideInt(0), nil // according to the scala node implementation
+	}
+	balance, err := env.state().NewestAssetBalance(recipient, asset)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	switch len(assetBytes) {
-	case 0: // Additional check, empty asset's ID is not allowed anymore
-		return nil, errors.New("assetBalanceV4: empty asset ID")
-	case crypto.DigestSize:
-		balance, err := env.state().NewestAssetBalance(recipient, assetBytes)
-		if err != nil {
-			return nil, errors.Wrap(err, "assetBalanceV4")
-		}
-		return rideInt(balance), nil
-	default:
-		return rideInt(0), nil // according to the scala node implementation
-	}
+	return rideInt(balance), nil
 }
 
 func intFromState(env Environment, args ...rideType) (rideType, error) {
@@ -1593,17 +1588,6 @@ func extractRecipient(v rideType) (proto.Recipient, error) {
 		return proto.Recipient{}, errors.Errorf("unable to extract recipient from '%s'", v.instanceOf())
 	}
 	return r, nil
-}
-
-func extractAssetBytes(v rideType) ([]byte, error) {
-	switch a := v.(type) {
-	case rideBytes:
-		return a, nil
-	case rideUnit:
-		return nil, nil
-	default:
-		return nil, errors.Errorf("unable to extract asset ID from '%s'", v.instanceOf())
-	}
 }
 
 func extractRecipientAndKey(args []rideType) (proto.Recipient, string, error) {
