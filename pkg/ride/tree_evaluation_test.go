@@ -6539,7 +6539,7 @@ type jsonDataProvider struct {
 }
 
 func newJsonDataProvider(s string) *jsonDataProvider {
-	strings := make(map[string]string)
+	strs := make(map[string]string)
 	ints := make(map[string]int)
 	bools := make(map[string]bool)
 	binaries := make(map[string][]byte)
@@ -6562,7 +6562,7 @@ func newJsonDataProvider(s string) *jsonDataProvider {
 		case d.Entry.BoolValue != nil:
 			bools[key] = *d.Entry.BoolValue
 		case d.Entry.StringVale != nil:
-			strings[key] = *d.Entry.StringVale
+			strs[key] = *d.Entry.StringVale
 		case d.Entry.IntValue != nil:
 			ints[key] = mustIntFromString(*d.Entry.IntValue)
 		case d.Entry.BinaryValue != nil:
@@ -6570,7 +6570,7 @@ func newJsonDataProvider(s string) *jsonDataProvider {
 		}
 	}
 	return &jsonDataProvider{
-		strings:  strings,
+		strings:  strs,
 		ints:     ints,
 		bools:    bools,
 		binaries: binaries,
@@ -7845,13 +7845,8 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
-			switch {
-			case isAssetWaves(assetID):
-				return 0, nil
-			default:
-				return 0, nil
-			}
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 0, nil
 		},
 		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 			switch assetID {
