@@ -5,27 +5,27 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 )
 
-// EthABIDataTypeToRideType perform conversion of ethabi.DataType to RideType.
+// ethABIDataTypeToRideType perform conversion of ethabi.DataType to rideType.
 // Note that this function doesn't copy ethabi.Bytes and ethabi.BigInt. It only copies a pointer to type.
-func EthABIDataTypeToRideType(dataType ethabi.DataType) (rideType RideType, err error) {
+func ethABIDataTypeToRideType(dataType ethabi.DataType) (rideType rideType, err error) {
 	switch t := dataType.(type) {
 	case ethabi.Int:
-		rideType = RideInt(t)
+		rideType = rideInt(t)
 	case ethabi.BigInt:
-		rideType = RideBigInt{V: t.V}
+		rideType = rideBigInt{V: t.V}
 	case ethabi.Bool:
-		rideType = RideBoolean(t)
+		rideType = rideBoolean(t)
 	case ethabi.Bytes:
-		rideType = RideBytes(t)
+		rideType = rideBytes(t)
 	case ethabi.String:
-		rideType = RideString(t)
+		rideType = rideString(t)
 	case ethabi.List:
 		rideList := make(RideList, len(t))
 		for i, ethABIElem := range t {
-			rideElem, err := EthABIDataTypeToRideType(ethABIElem)
+			rideElem, err := ethABIDataTypeToRideType(ethABIElem)
 			if err != nil {
 				return nil, errors.Wrapf(err,
-					"failed to convert ethabi.DataType (%T) to RideType at %d list postition", ethABIElem, i,
+					"failed to convert ethabi.DataType (%T) to rideType at %d list postition", ethABIElem, i,
 				)
 			}
 			rideList[i] = rideElem
