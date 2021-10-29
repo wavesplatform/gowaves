@@ -26,90 +26,90 @@ func initBoundaries() (*big.Int, *big.Int) {
 	return min, max
 }
 
-func bigIntArg(args []RideType) (RideBigInt, error) {
+func bigIntArg(args []rideType) (rideBigInt, error) {
 	if len(args) != 1 {
-		return RideBigInt{}, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
+		return rideBigInt{}, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
 	}
 	if args[0] == nil {
-		return RideBigInt{}, errors.Errorf("argument 1 is empty")
+		return rideBigInt{}, errors.Errorf("argument 1 is empty")
 	}
-	l, ok := args[0].(RideBigInt)
+	l, ok := args[0].(rideBigInt)
 	if !ok {
-		return RideBigInt{}, errors.Errorf("argument 1 is not of type 'BigInt' but '%s'", args[0].instanceOf())
+		return rideBigInt{}, errors.Errorf("argument 1 is not of type 'BigInt' but '%s'", args[0].instanceOf())
 	}
 	return l, nil
 }
 
-func twoBigIntArgs(args []RideType) (RideBigInt, RideBigInt, error) {
+func twoBigIntArgs(args []rideType) (rideBigInt, rideBigInt, error) {
 	if len(args) != 2 {
-		return RideBigInt{}, RideBigInt{}, errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
+		return rideBigInt{}, rideBigInt{}, errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
 	}
 	if args[0] == nil {
-		return RideBigInt{}, RideBigInt{}, errors.Errorf("argument 1 is empty")
+		return rideBigInt{}, rideBigInt{}, errors.Errorf("argument 1 is empty")
 	}
 	if args[1] == nil {
-		return RideBigInt{}, RideBigInt{}, errors.Errorf("argument 2 is empty")
+		return rideBigInt{}, rideBigInt{}, errors.Errorf("argument 2 is empty")
 	}
-	v1, ok := args[0].(RideBigInt)
+	v1, ok := args[0].(rideBigInt)
 	if !ok {
-		return RideBigInt{}, RideBigInt{}, errors.Errorf("argument 1 is not of type 'BigInt' but '%s'", args[0].instanceOf())
+		return rideBigInt{}, rideBigInt{}, errors.Errorf("argument 1 is not of type 'BigInt' but '%s'", args[0].instanceOf())
 	}
-	v2, ok := args[1].(RideBigInt)
+	v2, ok := args[1].(rideBigInt)
 	if !ok {
-		return RideBigInt{}, RideBigInt{}, errors.Errorf("argument 2 is not of type 'BigInt' but '%s'", args[1].instanceOf())
+		return rideBigInt{}, rideBigInt{}, errors.Errorf("argument 2 is not of type 'BigInt' but '%s'", args[1].instanceOf())
 	}
 	return v1, v2, nil
 }
 
-func threeBigIntArgs(args []RideType) (RideBigInt, RideBigInt, RideBigInt, error) {
+func threeBigIntArgs(args []rideType) (rideBigInt, rideBigInt, rideBigInt, error) {
 	if len(args) != 3 {
-		return RideBigInt{}, RideBigInt{}, RideBigInt{}, errors.Errorf("%d is invalid number of arguments, expected 3", len(args))
+		return rideBigInt{}, rideBigInt{}, rideBigInt{}, errors.Errorf("%d is invalid number of arguments, expected 3", len(args))
 	}
 	if args[0] == nil {
-		return RideBigInt{}, RideBigInt{}, RideBigInt{}, errors.Errorf("argument 1 is empty")
+		return rideBigInt{}, rideBigInt{}, rideBigInt{}, errors.Errorf("argument 1 is empty")
 	}
 	if args[1] == nil {
-		return RideBigInt{}, RideBigInt{}, RideBigInt{}, errors.Errorf("argument 2 is empty")
+		return rideBigInt{}, rideBigInt{}, rideBigInt{}, errors.Errorf("argument 2 is empty")
 	}
 	if args[2] == nil {
-		return RideBigInt{}, RideBigInt{}, RideBigInt{}, errors.Errorf("argument 3 is empty")
+		return rideBigInt{}, rideBigInt{}, rideBigInt{}, errors.Errorf("argument 3 is empty")
 	}
-	v1, ok := args[0].(RideBigInt)
+	v1, ok := args[0].(rideBigInt)
 	if !ok {
-		return RideBigInt{}, RideBigInt{}, RideBigInt{}, errors.Errorf("argument 1 is not of type 'BigInt' but '%s'", args[0].instanceOf())
+		return rideBigInt{}, rideBigInt{}, rideBigInt{}, errors.Errorf("argument 1 is not of type 'BigInt' but '%s'", args[0].instanceOf())
 	}
-	v2, ok := args[1].(RideBigInt)
+	v2, ok := args[1].(rideBigInt)
 	if !ok {
-		return RideBigInt{}, RideBigInt{}, RideBigInt{}, errors.Errorf("argument 2 is not of type 'BigInt' but '%s'", args[1].instanceOf())
+		return rideBigInt{}, rideBigInt{}, rideBigInt{}, errors.Errorf("argument 2 is not of type 'BigInt' but '%s'", args[1].instanceOf())
 	}
-	v3, ok := args[2].(RideBigInt)
+	v3, ok := args[2].(rideBigInt)
 	if !ok {
-		return RideBigInt{}, RideBigInt{}, RideBigInt{}, errors.Errorf("argument 3 is not of type 'BigInt' but '%s'", args[2].instanceOf())
+		return rideBigInt{}, rideBigInt{}, rideBigInt{}, errors.Errorf("argument 3 is not of type 'BigInt' but '%s'", args[2].instanceOf())
 	}
 	return v1, v2, v3, nil
 }
 
-func powBigInt(_ Environment, args ...RideType) (RideType, error) {
+func powBigInt(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 6); err != nil {
 		return nil, errors.Wrap(err, "powBigInt")
 	}
-	base, ok := args[0].(RideBigInt)
+	base, ok := args[0].(rideBigInt)
 	if !ok {
 		return nil, errors.Errorf("powBigInt: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	bp, ok := args[1].(RideInt)
+	bp, ok := args[1].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("powBigInt: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	exponent, ok := args[2].(RideBigInt)
+	exponent, ok := args[2].(rideBigInt)
 	if !ok {
 		return nil, errors.Errorf("powBigInt: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	ep, ok := args[3].(RideInt)
+	ep, ok := args[3].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("powBigInt: unexpected argument type '%s'", args[3].instanceOf())
 	}
-	rp, ok := args[4].(RideInt)
+	rp, ok := args[4].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("powBigInt: unexpected argument type '%s'", args[4].instanceOf())
 	}
@@ -126,30 +126,30 @@ func powBigInt(_ Environment, args ...RideType) (RideType, error) {
 	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
 		return nil, errors.New("powBigInt: result is out of range")
 	}
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
-func logBigInt(_ Environment, args ...RideType) (RideType, error) {
+func logBigInt(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 6); err != nil {
 		return nil, errors.Wrap(err, "logBigInt")
 	}
-	base, ok := args[0].(RideBigInt)
+	base, ok := args[0].(rideBigInt)
 	if !ok {
 		return nil, errors.Errorf("logBigInt: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	bp, ok := args[1].(RideInt)
+	bp, ok := args[1].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("logBigInt: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	exponent, ok := args[2].(RideBigInt)
+	exponent, ok := args[2].(rideBigInt)
 	if !ok {
 		return nil, errors.Errorf("logBigInt: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	ep, ok := args[3].(RideInt)
+	ep, ok := args[3].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("logBigInt: unexpected argument type '%s'", args[3].instanceOf())
 	}
-	rp, ok := args[4].(RideInt)
+	rp, ok := args[4].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("logBigInt: unexpected argument type '%s'", args[4].instanceOf())
 	}
@@ -163,19 +163,19 @@ func logBigInt(_ Environment, args ...RideType) (RideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "logBigInt")
 	}
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
-func toBigInt(_ Environment, args ...RideType) (RideType, error) {
+func toBigInt(_ Environment, args ...rideType) (rideType, error) {
 	i, err := intArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBigInt")
 	}
 	v := big.NewInt(int64(i))
-	return RideBigInt{V: v}, nil
+	return rideBigInt{V: v}, nil
 }
 
-func sumBigInt(_ Environment, args ...RideType) (RideType, error) {
+func sumBigInt(_ Environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sumBigInt")
@@ -186,10 +186,10 @@ func sumBigInt(_ Environment, args ...RideType) (RideType, error) {
 	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
 		return nil, errors.Errorf("sumBigInt: %s result is out of range", r.String())
 	}
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
-func subtractBigInt(_ Environment, args ...RideType) (RideType, error) {
+func subtractBigInt(_ Environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "subtractBigInt")
@@ -200,10 +200,10 @@ func subtractBigInt(_ Environment, args ...RideType) (RideType, error) {
 	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
 		return nil, errors.Errorf("subtractBigInt: %s result is out of range", r.String())
 	}
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
-func multiplyBigInt(_ Environment, args ...RideType) (RideType, error) {
+func multiplyBigInt(_ Environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "multiplyBigInt")
@@ -214,10 +214,10 @@ func multiplyBigInt(_ Environment, args ...RideType) (RideType, error) {
 	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
 		return nil, errors.Errorf("multiplyBigInt: %s result is out of range", r.String())
 	}
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
-func divideBigInt(_ Environment, args ...RideType) (RideType, error) {
+func divideBigInt(_ Environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "divideBigInt")
@@ -231,10 +231,10 @@ func divideBigInt(_ Environment, args ...RideType) (RideType, error) {
 	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
 		return nil, errors.Errorf("divideBigInt: %s result is out of range", r.String())
 	}
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
-func moduloBigInt(_ Environment, args ...RideType) (RideType, error) {
+func moduloBigInt(_ Environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "moduloBigInt")
@@ -251,10 +251,10 @@ func moduloBigInt(_ Environment, args ...RideType) (RideType, error) {
 	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
 		return nil, errors.Errorf("moduloBigInt: %s result is out of range", r.String())
 	}
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
-func fractionBigInt(_ Environment, args ...RideType) (RideType, error) {
+func fractionBigInt(_ Environment, args ...rideType) (rideType, error) {
 	a, b, c, err := threeBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fractionBigInt")
@@ -270,24 +270,24 @@ func fractionBigInt(_ Environment, args ...RideType) (RideType, error) {
 	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
 		return nil, errors.Errorf("fractionBigInt: %s result is out of range", r.String())
 	}
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
-func fractionBigIntRounds(_ Environment, args ...RideType) (RideType, error) {
+func fractionBigIntRounds(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "fractionBigIntRounds")
 	}
-	v1, ok := args[0].(RideBigInt)
+	v1, ok := args[0].(rideBigInt)
 	if !ok {
 		return nil, errors.Errorf("fractionBigIntRounds: unexpected argument type '%s'", args[0].instanceOf())
 	}
 	v := big.NewInt(0).Set(v1.V)
-	v2, ok := args[1].(RideBigInt)
+	v2, ok := args[1].(rideBigInt)
 	if !ok {
 		return nil, errors.Errorf("fractionBigIntRounds: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	n := big.NewInt(0).Set(v2.V)
-	v3, ok := args[2].(RideBigInt)
+	v3, ok := args[2].(rideBigInt)
 	if !ok {
 		return nil, errors.Errorf("fractionBigIntRounds: unexpected argument type '%s'", args[2].instanceOf())
 	}
@@ -303,7 +303,7 @@ func fractionBigIntRounds(_ Environment, args ...RideType) (RideType, error) {
 	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
 		return nil, errors.Errorf("fractionBigIntRounds: %s result is out of range", r.String())
 	}
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
 // fractionBigIntLikeInScala the algo is fully taken from Scala implementation.
@@ -379,7 +379,7 @@ func fractionBigIntLikeInScala(v, n, d *big.Int, roundingMode decimal.RoundingMo
 	return r, nil
 }
 
-func unaryMinusBigInt(_ Environment, args ...RideType) (RideType, error) {
+func unaryMinusBigInt(_ Environment, args ...rideType) (rideType, error) {
 	v, err := bigIntArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "unaryMinusBigInt")
@@ -389,10 +389,10 @@ func unaryMinusBigInt(_ Environment, args ...RideType) (RideType, error) {
 		return nil, errors.New("unaryMinusBigInt: positive BigInt overflow")
 	}
 	r := i.Neg(i)
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
-func gtBigInt(_ Environment, args ...RideType) (RideType, error) {
+func gtBigInt(_ Environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "gtBigInt")
@@ -400,10 +400,10 @@ func gtBigInt(_ Environment, args ...RideType) (RideType, error) {
 	i1 := big.NewInt(0).Set(a.V)
 	i2 := big.NewInt(0).Set(b.V)
 	r := i1.Cmp(i2)
-	return RideBoolean(r > 0), nil
+	return rideBoolean(r > 0), nil
 }
 
-func geBigInt(_ Environment, args ...RideType) (RideType, error) {
+func geBigInt(_ Environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "geBigInt")
@@ -411,10 +411,10 @@ func geBigInt(_ Environment, args ...RideType) (RideType, error) {
 	i1 := big.NewInt(0).Set(a.V)
 	i2 := big.NewInt(0).Set(b.V)
 	r := i1.Cmp(i2)
-	return RideBoolean(r >= 0), nil
+	return rideBoolean(r >= 0), nil
 }
 
-func maxListBigInt(_ Environment, args ...RideType) (RideType, error) {
+func maxListBigInt(_ Environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "maxListBigInt")
@@ -428,10 +428,10 @@ func maxListBigInt(_ Environment, args ...RideType) (RideType, error) {
 		return nil, errors.Wrap(err, "maxListBigInt")
 	}
 	_, max := minMaxBigInt(items)
-	return RideBigInt{V: max}, nil
+	return rideBigInt{V: max}, nil
 }
 
-func minListBigInt(_ Environment, args ...RideType) (RideType, error) {
+func minListBigInt(_ Environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "minListBigInt")
@@ -445,19 +445,19 @@ func minListBigInt(_ Environment, args ...RideType) (RideType, error) {
 		return nil, errors.Wrap(err, "minListBigInt")
 	}
 	min, _ := minMaxBigInt(items)
-	return RideBigInt{V: min}, nil
+	return rideBigInt{V: min}, nil
 }
 
-func bigIntToBytes(_ Environment, args ...RideType) (RideType, error) {
+func bigIntToBytes(_ Environment, args ...rideType) (rideType, error) {
 	v, err := bigIntArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bigIntToBytes")
 	}
 	i := big.NewInt(0).Set(v.V)
-	return RideBytes(encode2CBigInt(i)), nil
+	return rideBytes(encode2CBigInt(i)), nil
 }
 
-func bytesToBigInt(_ Environment, args ...RideType) (RideType, error) {
+func bytesToBigInt(_ Environment, args ...rideType) (rideType, error) {
 	bts, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToBigInt")
@@ -469,26 +469,26 @@ func bytesToBigInt(_ Environment, args ...RideType) (RideType, error) {
 	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
 		return nil, errors.Errorf("bytesToBigInt: %s result is out of range", r.String())
 	}
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
-func bytesToBigIntLim(_ Environment, args ...RideType) (RideType, error) {
+func bytesToBigIntLim(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bytesToBigIntLim")
 	}
-	bts, ok := args[0].(RideBytes)
+	bts, ok := args[0].(rideBytes)
 	if !ok {
 		return nil, errors.Errorf("bytesToBigIntLim: argument 1 is not of type 'ByteVector' but '%s'", args[0].instanceOf())
 	}
 	l := len(bts)
-	offset, ok := args[1].(RideInt)
+	offset, ok := args[1].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("bytesToBigIntLim: argument 2 is not of type 'Int' but '%s'", args[1].instanceOf())
 	}
 	if offset < 0 || int(offset) >= l {
 		return nil, errors.Errorf("bytesToBigIntLim: offset %d is out of range [0; %d]", offset, len(bts)-1)
 	}
-	size, ok := args[2].(RideInt)
+	size, ok := args[2].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("bytesToBigIntLim: argument 3 is not of type 'Int' but '%s'", args[2].instanceOf())
 	}
@@ -503,10 +503,10 @@ func bytesToBigIntLim(_ Environment, args ...RideType) (RideType, error) {
 	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
 		return nil, errors.Errorf("bytesToBigIntLim: %s result is out of range", r.String())
 	}
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
-func bigIntToInt(_ Environment, args ...RideType) (RideType, error) {
+func bigIntToInt(_ Environment, args ...rideType) (rideType, error) {
 	v, err := bigIntArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bigIntToInt")
@@ -515,19 +515,19 @@ func bigIntToInt(_ Environment, args ...RideType) (RideType, error) {
 	if !i.IsInt64() {
 		return nil, errors.Errorf("bigIntToInt: value (%s) is too big for an Int", i.String())
 	}
-	return RideInt(i.Int64()), nil
+	return rideInt(i.Int64()), nil
 }
 
-func bigIntToString(_ Environment, args ...RideType) (RideType, error) {
+func bigIntToString(_ Environment, args ...rideType) (rideType, error) {
 	v, err := bigIntArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bigIntToString")
 	}
 	i := big.NewInt(0).Set(v.V)
-	return RideString(i.String()), nil
+	return rideString(i.String()), nil
 }
 
-func stringToBigInt(_ Environment, args ...RideType) (RideType, error) {
+func stringToBigInt(_ Environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "stringToBigInt")
@@ -542,10 +542,10 @@ func stringToBigInt(_ Environment, args ...RideType) (RideType, error) {
 	if r.Cmp(minBigInt) < 0 || r.Cmp(maxBigInt) > 0 {
 		return nil, errors.New("stringToBigInt: value too big for a BigInt")
 	}
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
-func stringToBigIntOpt(env Environment, args ...RideType) (RideType, error) {
+func stringToBigIntOpt(env Environment, args ...rideType) (rideType, error) {
 	v, err := stringToBigInt(env, args...)
 	if err != nil {
 		return newUnit(env), nil
@@ -553,7 +553,7 @@ func stringToBigIntOpt(env Environment, args ...RideType) (RideType, error) {
 	return v, nil
 }
 
-func medianListBigInt(_ Environment, args ...RideType) (RideType, error) {
+func medianListBigInt(_ Environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "medianListBigInt")
@@ -569,12 +569,12 @@ func medianListBigInt(_ Environment, args ...RideType) (RideType, error) {
 	sort.Sort(items)
 	half := size / 2
 	if size%2 == 1 {
-		return RideBigInt{V: items[half]}, nil
+		return rideBigInt{V: items[half]}, nil
 	}
 	x := items[half-1]
 	y := items[half]
 	r := math.FloorDivBigInt(x.Add(x, y), big.NewInt(2))
-	return RideBigInt{V: r}, nil
+	return rideBigInt{V: r}, nil
 }
 
 func minMaxBigInt(items []*big.Int) (*big.Int, *big.Int) {
@@ -602,7 +602,7 @@ func (x bigIntSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func toBigIntSlice(list RideList) (bigIntSlice, error) {
 	items := make([]*big.Int, len(list))
 	for i, el := range list {
-		item, ok := el.(RideBigInt)
+		item, ok := el.(rideBigInt)
 		if !ok {
 			return nil, errors.Errorf("unexpected type of list element '%s'", el.instanceOf())
 		}
