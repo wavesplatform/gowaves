@@ -77,7 +77,7 @@ func (typedData *ethereumTypedData) Hash() (EthereumHash, error) {
 	if err != nil {
 		return EthereumHash{}, nil
 	}
-	return NewKeccak256EthereumHash(rawData), nil
+	return Keccak256EthereumHash(rawData), nil
 }
 
 // HashStructMap generates a keccak256 hash of the encoding of the provided data
@@ -88,7 +88,7 @@ func (typedData *ethereumTypedData) HashStructMap(primaryType string,
 	if err != nil {
 		return EthereumHash{}, err
 	}
-	return NewKeccak256EthereumHash(encodedData), nil
+	return Keccak256EthereumHash(encodedData), nil
 }
 
 // Dependencies returns an array of custom types ordered by their hierarchical reference tree
