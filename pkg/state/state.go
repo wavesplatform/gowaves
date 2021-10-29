@@ -490,10 +490,10 @@ func (s *stateManager) GetByteTree(recipient proto.Recipient) (proto.Script, err
 	return nil, errors.Errorf("address and alias from recipient are nil")
 }
 
-func (s *stateManager) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
+func (s *stateManager) NewestScriptByAsset(assetID crypto.Digest) (proto.Script, error) {
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
-	return s.stor.scriptsStorage.newestScriptBytesByAsset(asset.ID, true)
+	return s.stor.scriptsStorage.newestScriptBytesByAsset(assetID, true)
 }
 
 func (s *stateManager) Mutex() *lock.RwMutex {
@@ -863,31 +863,22 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	}, nil
 }
 
-func isWaves(assetID []byte) bool {
-	wavesAsset := crypto.Digest{}
-	if len(wavesAsset) != len(assetID) {
-		return false
-	}
-	for i := range assetID {
-		if assetID[i] != wavesAsset[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
+func (s *stateManager) NewestWavesBalance(account proto.Recipient) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
+	profile, err := s.newestWavesBalanceProfile(*addr)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return profile.balance, nil
+}
 
-	if assetID == nil || isWaves(assetID) {
-		profile, err := s.newestWavesBalanceProfile(*addr)
-		if err != nil {
-			return 0, wrapErr(RetrievalError, err)
-		}
-		return profile.balance, nil
+func (s *stateManager) NewestAssetBalance(account proto.Recipient, assetID []byte) (uint64, error) {
+	addr, err := s.NewestRecipientToAddress(account)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
 	}
 	balance, err := s.newestAssetBalance(*addr, assetID)
 	if err != nil {
@@ -895,18 +886,22 @@ func (s *stateManager) NewestAccountBalance(account proto.Recipient, assetID []b
 	}
 	return balance, nil
 }
-
-func (s *stateManager) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (s *stateManager) WavesBalance(account proto.Recipient) (uint64, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	if asset == nil {
-		profile, err := s.stor.balances.wavesBalance(*addr, true)
-		if err != nil {
-			return 0, wrapErr(RetrievalError, err)
-		}
-		return profile.balance, nil
+	profile, err := s.stor.balances.wavesBalance(*addr, true)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return profile.balance, nil
+}
+
+func (s *stateManager) AssetBalance(account proto.Recipient, asset []byte) (uint64, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
 	}
 	balance, err := s.stor.balances.assetBalance(*addr, asset, true)
 	if err != nil {
@@ -2000,7 +1995,7 @@ func (s *stateManager) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAs
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
-		sponsorBalance, err := s.NewestAccountBalance(proto.NewRecipientFromAddress(ai.Issuer), nil)
+		sponsorBalance, err := s.NewestWavesBalance(proto.NewRecipientFromAddress(ai.Issuer))
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
@@ -2075,7 +2070,7 @@ func (s *stateManager) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInf
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
-		sponsorBalance, err := s.AccountBalance(proto.NewRecipientFromAddress(ai.Issuer), nil)
+		sponsorBalance, err := s.WavesBalance(proto.NewRecipientFromAddress(ai.Issuer))
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}

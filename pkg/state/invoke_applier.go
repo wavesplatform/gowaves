@@ -377,7 +377,10 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if !assetExists {
 				return proto.DAppError, info.failedChanges, errors.New("invalid asset in transfer")
 			}
-			isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(a.Asset.ID, !info.initialisation)
+			var isSmartAsset bool
+			if a.Asset.Present {
+				isSmartAsset = ia.stor.scriptsStorage.newestIsSmartAsset(a.Asset.ID, !info.initialisation)
+			}
 			if isSmartAsset {
 				fullTr, err := proto.NewFullScriptTransfer(a, senderAddress, info.scriptPK, tx)
 				if err != nil {
@@ -415,7 +418,10 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if !assetExists {
 				return proto.DAppError, info.failedChanges, errors.New("invalid asset in transfer")
 			}
-			isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(a.Asset.ID, !info.initialisation)
+			var isSmartAsset bool
+			if a.Asset.Present {
+				isSmartAsset = ia.stor.scriptsStorage.newestIsSmartAsset(a.Asset.ID, !info.initialisation)
+			}
 			if isSmartAsset {
 				fullTr, err := proto.NewFullScriptTransferFromPaymentAction(a, senderAddress, info.scriptPK, tx)
 				if err != nil {
@@ -590,6 +596,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if assetInfo.issuer != senderPK {
 				return proto.DAppError, info.failedChanges, errors.Errorf("asset %s was not issued by this DApp", a.AssetID.String())
 			}
+
 			isSmart := ia.stor.scriptsStorage.newestIsSmartAsset(a.AssetID, !info.initialisation)
 			if isSmart {
 				return proto.DAppError, info.failedChanges, errors.Errorf("can not sponsor smart asset %s", a.AssetID.String())
