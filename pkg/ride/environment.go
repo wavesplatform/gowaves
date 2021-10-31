@@ -15,8 +15,8 @@ type WrappedState struct {
 	cle              rideAddress
 	scheme           proto.Scheme
 	act              []proto.ScriptAction
-	blocklist        []proto.Address
-	invokeCount      int
+	blacklist        []proto.Address
+	invocationCount  int
 	totalComplexity  int
 	dataEntriesCount int
 	dataEntriesSize  int
@@ -757,11 +757,11 @@ func (ws *WrappedState) getLibVersion() (int, error) {
 }
 
 func (ws *WrappedState) invCount() int {
-	return ws.invokeCount
+	return ws.invocationCount
 }
 
 func (ws *WrappedState) incrementInvCount() {
-	ws.invokeCount++
+	ws.invocationCount++
 }
 
 func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environment) ([]proto.ScriptAction, error) {
