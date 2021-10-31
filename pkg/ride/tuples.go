@@ -10,11 +10,11 @@ import (
 )
 
 type tuple2 struct {
-	el1 RideType
-	el2 RideType
+	el1 rideType
+	el2 rideType
 }
 
-func newTuple2(_ Environment, args ...RideType) (RideType, error) {
+func newTuple2(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 2 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -24,7 +24,7 @@ func newTuple2(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple2) get(name string) (RideType, error) {
+func (a tuple2) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple2 has no element '%s'", name)
 	}
@@ -46,7 +46,7 @@ func (a tuple2) instanceOf() string {
 	return fmt.Sprintf("(%s, %s)", a.el1.instanceOf(), a.el2.instanceOf())
 }
 
-func (a tuple2) eq(other RideType) bool {
+func (a tuple2) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -58,12 +58,12 @@ func (a tuple2) eq(other RideType) bool {
 }
 
 type tuple3 struct {
-	el1 RideType
-	el2 RideType
-	el3 RideType
+	el1 rideType
+	el2 rideType
+	el3 rideType
 }
 
-func newTuple3(_ Environment, args ...RideType) (RideType, error) {
+func newTuple3(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 3 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -74,7 +74,7 @@ func newTuple3(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple3) get(name string) (RideType, error) {
+func (a tuple3) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple3 has no element '%s'", name)
 	}
@@ -98,7 +98,7 @@ func (a tuple3) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf())
 }
 
-func (a tuple3) eq(other RideType) bool {
+func (a tuple3) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -110,13 +110,13 @@ func (a tuple3) eq(other RideType) bool {
 }
 
 type tuple4 struct {
-	el1 RideType
-	el2 RideType
-	el3 RideType
-	el4 RideType
+	el1 rideType
+	el2 rideType
+	el3 rideType
+	el4 rideType
 }
 
-func newTuple4(_ Environment, args ...RideType) (RideType, error) {
+func newTuple4(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 4 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -128,7 +128,7 @@ func newTuple4(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple4) get(name string) (RideType, error) {
+func (a tuple4) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple4 has no element '%s'", name)
 	}
@@ -154,7 +154,7 @@ func (a tuple4) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf())
 }
 
-func (a tuple4) eq(other RideType) bool {
+func (a tuple4) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -166,14 +166,14 @@ func (a tuple4) eq(other RideType) bool {
 }
 
 type tuple5 struct {
-	el1 RideType
-	el2 RideType
-	el3 RideType
-	el4 RideType
-	el5 RideType
+	el1 rideType
+	el2 rideType
+	el3 rideType
+	el4 rideType
+	el5 rideType
 }
 
-func newTuple5(_ Environment, args ...RideType) (RideType, error) {
+func newTuple5(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 5 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -186,7 +186,7 @@ func newTuple5(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple5) get(name string) (RideType, error) {
+func (a tuple5) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple5 has no element '%s'", name)
 	}
@@ -214,7 +214,7 @@ func (a tuple5) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf())
 }
 
-func (a tuple5) eq(other RideType) bool {
+func (a tuple5) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -226,15 +226,15 @@ func (a tuple5) eq(other RideType) bool {
 }
 
 type tuple6 struct {
-	el1 RideType
-	el2 RideType
-	el3 RideType
-	el4 RideType
-	el5 RideType
-	el6 RideType
+	el1 rideType
+	el2 rideType
+	el3 rideType
+	el4 rideType
+	el5 rideType
+	el6 rideType
 }
 
-func newTuple6(_ Environment, args ...RideType) (RideType, error) {
+func newTuple6(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 6 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -248,7 +248,7 @@ func newTuple6(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple6) get(name string) (RideType, error) {
+func (a tuple6) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple6 has no element '%s'", name)
 	}
@@ -278,7 +278,7 @@ func (a tuple6) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf())
 }
 
-func (a tuple6) eq(other RideType) bool {
+func (a tuple6) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -290,16 +290,16 @@ func (a tuple6) eq(other RideType) bool {
 }
 
 type tuple7 struct {
-	el1 RideType
-	el2 RideType
-	el3 RideType
-	el4 RideType
-	el5 RideType
-	el6 RideType
-	el7 RideType
+	el1 rideType
+	el2 rideType
+	el3 rideType
+	el4 rideType
+	el5 rideType
+	el6 rideType
+	el7 rideType
 }
 
-func newTuple7(_ Environment, args ...RideType) (RideType, error) {
+func newTuple7(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 7 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -314,7 +314,7 @@ func newTuple7(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple7) get(name string) (RideType, error) {
+func (a tuple7) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple7 has no element '%s'", name)
 	}
@@ -346,7 +346,7 @@ func (a tuple7) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf())
 }
 
-func (a tuple7) eq(other RideType) bool {
+func (a tuple7) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -358,17 +358,17 @@ func (a tuple7) eq(other RideType) bool {
 }
 
 type tuple8 struct {
-	el1 RideType
-	el2 RideType
-	el3 RideType
-	el4 RideType
-	el5 RideType
-	el6 RideType
-	el7 RideType
-	el8 RideType
+	el1 rideType
+	el2 rideType
+	el3 rideType
+	el4 rideType
+	el5 rideType
+	el6 rideType
+	el7 rideType
+	el8 rideType
 }
 
-func newTuple8(_ Environment, args ...RideType) (RideType, error) {
+func newTuple8(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 8 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -384,7 +384,7 @@ func newTuple8(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple8) get(name string) (RideType, error) {
+func (a tuple8) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple8 has no element '%s'", name)
 	}
@@ -418,7 +418,7 @@ func (a tuple8) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf())
 }
 
-func (a tuple8) eq(other RideType) bool {
+func (a tuple8) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -430,18 +430,18 @@ func (a tuple8) eq(other RideType) bool {
 }
 
 type tuple9 struct {
-	el1 RideType
-	el2 RideType
-	el3 RideType
-	el4 RideType
-	el5 RideType
-	el6 RideType
-	el7 RideType
-	el8 RideType
-	el9 RideType
+	el1 rideType
+	el2 rideType
+	el3 rideType
+	el4 rideType
+	el5 rideType
+	el6 rideType
+	el7 rideType
+	el8 rideType
+	el9 rideType
 }
 
-func newTuple9(_ Environment, args ...RideType) (RideType, error) {
+func newTuple9(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 9 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -458,7 +458,7 @@ func newTuple9(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple9) get(name string) (RideType, error) {
+func (a tuple9) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple9 has no element '%s'", name)
 	}
@@ -494,7 +494,7 @@ func (a tuple9) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf())
 }
 
-func (a tuple9) eq(other RideType) bool {
+func (a tuple9) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -506,19 +506,19 @@ func (a tuple9) eq(other RideType) bool {
 }
 
 type tuple10 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
 }
 
-func newTuple10(_ Environment, args ...RideType) (RideType, error) {
+func newTuple10(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 10 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -536,7 +536,7 @@ func newTuple10(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple10) get(name string) (RideType, error) {
+func (a tuple10) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple10 has no element '%s'", name)
 	}
@@ -574,7 +574,7 @@ func (a tuple10) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf())
 }
 
-func (a tuple10) eq(other RideType) bool {
+func (a tuple10) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -586,20 +586,20 @@ func (a tuple10) eq(other RideType) bool {
 }
 
 type tuple11 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
-	el11 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
+	el11 rideType
 }
 
-func newTuple11(_ Environment, args ...RideType) (RideType, error) {
+func newTuple11(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 11 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -618,7 +618,7 @@ func newTuple11(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple11) get(name string) (RideType, error) {
+func (a tuple11) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple11 has no element '%s'", name)
 	}
@@ -658,7 +658,7 @@ func (a tuple11) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf())
 }
 
-func (a tuple11) eq(other RideType) bool {
+func (a tuple11) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -670,21 +670,21 @@ func (a tuple11) eq(other RideType) bool {
 }
 
 type tuple12 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
-	el11 RideType
-	el12 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
+	el11 rideType
+	el12 rideType
 }
 
-func newTuple12(_ Environment, args ...RideType) (RideType, error) {
+func newTuple12(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 12 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -704,7 +704,7 @@ func newTuple12(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple12) get(name string) (RideType, error) {
+func (a tuple12) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple12 has no element '%s'", name)
 	}
@@ -746,7 +746,7 @@ func (a tuple12) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf())
 }
 
-func (a tuple12) eq(other RideType) bool {
+func (a tuple12) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -758,22 +758,22 @@ func (a tuple12) eq(other RideType) bool {
 }
 
 type tuple13 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
-	el11 RideType
-	el12 RideType
-	el13 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
+	el11 rideType
+	el12 rideType
+	el13 rideType
 }
 
-func newTuple13(_ Environment, args ...RideType) (RideType, error) {
+func newTuple13(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 13 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -794,7 +794,7 @@ func newTuple13(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple13) get(name string) (RideType, error) {
+func (a tuple13) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple13 has no element '%s'", name)
 	}
@@ -838,7 +838,7 @@ func (a tuple13) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf())
 }
 
-func (a tuple13) eq(other RideType) bool {
+func (a tuple13) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -850,23 +850,23 @@ func (a tuple13) eq(other RideType) bool {
 }
 
 type tuple14 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
-	el11 RideType
-	el12 RideType
-	el13 RideType
-	el14 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
+	el11 rideType
+	el12 rideType
+	el13 rideType
+	el14 rideType
 }
 
-func newTuple14(_ Environment, args ...RideType) (RideType, error) {
+func newTuple14(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 14 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -888,7 +888,7 @@ func newTuple14(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple14) get(name string) (RideType, error) {
+func (a tuple14) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple14 has no element '%s'", name)
 	}
@@ -934,7 +934,7 @@ func (a tuple14) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf())
 }
 
-func (a tuple14) eq(other RideType) bool {
+func (a tuple14) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -946,24 +946,24 @@ func (a tuple14) eq(other RideType) bool {
 }
 
 type tuple15 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
-	el11 RideType
-	el12 RideType
-	el13 RideType
-	el14 RideType
-	el15 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
+	el11 rideType
+	el12 rideType
+	el13 rideType
+	el14 rideType
+	el15 rideType
 }
 
-func newTuple15(_ Environment, args ...RideType) (RideType, error) {
+func newTuple15(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 15 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -986,7 +986,7 @@ func newTuple15(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple15) get(name string) (RideType, error) {
+func (a tuple15) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple15 has no element '%s'", name)
 	}
@@ -1034,7 +1034,7 @@ func (a tuple15) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf())
 }
 
-func (a tuple15) eq(other RideType) bool {
+func (a tuple15) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -1046,25 +1046,25 @@ func (a tuple15) eq(other RideType) bool {
 }
 
 type tuple16 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
-	el11 RideType
-	el12 RideType
-	el13 RideType
-	el14 RideType
-	el15 RideType
-	el16 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
+	el11 rideType
+	el12 rideType
+	el13 rideType
+	el14 rideType
+	el15 rideType
+	el16 rideType
 }
 
-func newTuple16(_ Environment, args ...RideType) (RideType, error) {
+func newTuple16(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 16 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1088,7 +1088,7 @@ func newTuple16(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple16) get(name string) (RideType, error) {
+func (a tuple16) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple16 has no element '%s'", name)
 	}
@@ -1138,7 +1138,7 @@ func (a tuple16) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf())
 }
 
-func (a tuple16) eq(other RideType) bool {
+func (a tuple16) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -1150,26 +1150,26 @@ func (a tuple16) eq(other RideType) bool {
 }
 
 type tuple17 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
-	el11 RideType
-	el12 RideType
-	el13 RideType
-	el14 RideType
-	el15 RideType
-	el16 RideType
-	el17 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
+	el11 rideType
+	el12 rideType
+	el13 rideType
+	el14 rideType
+	el15 rideType
+	el16 rideType
+	el17 rideType
 }
 
-func newTuple17(_ Environment, args ...RideType) (RideType, error) {
+func newTuple17(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 17 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1194,7 +1194,7 @@ func newTuple17(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple17) get(name string) (RideType, error) {
+func (a tuple17) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple17 has no element '%s'", name)
 	}
@@ -1246,7 +1246,7 @@ func (a tuple17) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf(), a.el17.instanceOf())
 }
 
-func (a tuple17) eq(other RideType) bool {
+func (a tuple17) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -1258,27 +1258,27 @@ func (a tuple17) eq(other RideType) bool {
 }
 
 type tuple18 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
-	el11 RideType
-	el12 RideType
-	el13 RideType
-	el14 RideType
-	el15 RideType
-	el16 RideType
-	el17 RideType
-	el18 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
+	el11 rideType
+	el12 rideType
+	el13 rideType
+	el14 rideType
+	el15 rideType
+	el16 rideType
+	el17 rideType
+	el18 rideType
 }
 
-func newTuple18(_ Environment, args ...RideType) (RideType, error) {
+func newTuple18(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 18 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1304,7 +1304,7 @@ func newTuple18(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple18) get(name string) (RideType, error) {
+func (a tuple18) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple18 has no element '%s'", name)
 	}
@@ -1358,7 +1358,7 @@ func (a tuple18) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf(), a.el17.instanceOf(), a.el18.instanceOf())
 }
 
-func (a tuple18) eq(other RideType) bool {
+func (a tuple18) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -1370,28 +1370,28 @@ func (a tuple18) eq(other RideType) bool {
 }
 
 type tuple19 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
-	el11 RideType
-	el12 RideType
-	el13 RideType
-	el14 RideType
-	el15 RideType
-	el16 RideType
-	el17 RideType
-	el18 RideType
-	el19 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
+	el11 rideType
+	el12 rideType
+	el13 rideType
+	el14 rideType
+	el15 rideType
+	el16 rideType
+	el17 rideType
+	el18 rideType
+	el19 rideType
 }
 
-func newTuple19(_ Environment, args ...RideType) (RideType, error) {
+func newTuple19(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 19 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1418,7 +1418,7 @@ func newTuple19(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple19) get(name string) (RideType, error) {
+func (a tuple19) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple19 has no element '%s'", name)
 	}
@@ -1474,7 +1474,7 @@ func (a tuple19) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf(), a.el17.instanceOf(), a.el18.instanceOf(), a.el19.instanceOf())
 }
 
-func (a tuple19) eq(other RideType) bool {
+func (a tuple19) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -1486,29 +1486,29 @@ func (a tuple19) eq(other RideType) bool {
 }
 
 type tuple20 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
-	el11 RideType
-	el12 RideType
-	el13 RideType
-	el14 RideType
-	el15 RideType
-	el16 RideType
-	el17 RideType
-	el18 RideType
-	el19 RideType
-	el20 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
+	el11 rideType
+	el12 rideType
+	el13 rideType
+	el14 rideType
+	el15 rideType
+	el16 rideType
+	el17 rideType
+	el18 rideType
+	el19 rideType
+	el20 rideType
 }
 
-func newTuple20(_ Environment, args ...RideType) (RideType, error) {
+func newTuple20(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 20 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1536,7 +1536,7 @@ func newTuple20(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple20) get(name string) (RideType, error) {
+func (a tuple20) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple20 has no element '%s'", name)
 	}
@@ -1594,7 +1594,7 @@ func (a tuple20) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf(), a.el17.instanceOf(), a.el18.instanceOf(), a.el19.instanceOf(), a.el20.instanceOf())
 }
 
-func (a tuple20) eq(other RideType) bool {
+func (a tuple20) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -1606,30 +1606,30 @@ func (a tuple20) eq(other RideType) bool {
 }
 
 type tuple21 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
-	el11 RideType
-	el12 RideType
-	el13 RideType
-	el14 RideType
-	el15 RideType
-	el16 RideType
-	el17 RideType
-	el18 RideType
-	el19 RideType
-	el20 RideType
-	el21 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
+	el11 rideType
+	el12 rideType
+	el13 rideType
+	el14 rideType
+	el15 rideType
+	el16 rideType
+	el17 rideType
+	el18 rideType
+	el19 rideType
+	el20 rideType
+	el21 rideType
 }
 
-func newTuple21(_ Environment, args ...RideType) (RideType, error) {
+func newTuple21(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 21 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1658,7 +1658,7 @@ func newTuple21(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple21) get(name string) (RideType, error) {
+func (a tuple21) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple21 has no element '%s'", name)
 	}
@@ -1718,7 +1718,7 @@ func (a tuple21) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf(), a.el17.instanceOf(), a.el18.instanceOf(), a.el19.instanceOf(), a.el20.instanceOf(), a.el21.instanceOf())
 }
 
-func (a tuple21) eq(other RideType) bool {
+func (a tuple21) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
@@ -1730,31 +1730,31 @@ func (a tuple21) eq(other RideType) bool {
 }
 
 type tuple22 struct {
-	el1  RideType
-	el2  RideType
-	el3  RideType
-	el4  RideType
-	el5  RideType
-	el6  RideType
-	el7  RideType
-	el8  RideType
-	el9  RideType
-	el10 RideType
-	el11 RideType
-	el12 RideType
-	el13 RideType
-	el14 RideType
-	el15 RideType
-	el16 RideType
-	el17 RideType
-	el18 RideType
-	el19 RideType
-	el20 RideType
-	el21 RideType
-	el22 RideType
+	el1  rideType
+	el2  rideType
+	el3  rideType
+	el4  rideType
+	el5  rideType
+	el6  rideType
+	el7  rideType
+	el8  rideType
+	el9  rideType
+	el10 rideType
+	el11 rideType
+	el12 rideType
+	el13 rideType
+	el14 rideType
+	el15 rideType
+	el16 rideType
+	el17 rideType
+	el18 rideType
+	el19 rideType
+	el20 rideType
+	el21 rideType
+	el22 rideType
 }
 
-func newTuple22(_ Environment, args ...RideType) (RideType, error) {
+func newTuple22(_ Environment, args ...rideType) (rideType, error) {
 	if len(args) != 22 {
 		return nil, errors.New("invalid number of arguments")
 	}
@@ -1784,7 +1784,7 @@ func newTuple22(_ Environment, args ...RideType) (RideType, error) {
 	}, nil
 }
 
-func (a tuple22) get(name string) (RideType, error) {
+func (a tuple22) get(name string) (rideType, error) {
 	if !strings.HasPrefix(name, "_") {
 		return nil, errors.Errorf("tuple22 has no element '%s'", name)
 	}
@@ -1846,7 +1846,7 @@ func (a tuple22) instanceOf() string {
 	return fmt.Sprintf("(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)", a.el1.instanceOf(), a.el2.instanceOf(), a.el3.instanceOf(), a.el4.instanceOf(), a.el5.instanceOf(), a.el6.instanceOf(), a.el7.instanceOf(), a.el8.instanceOf(), a.el9.instanceOf(), a.el10.instanceOf(), a.el11.instanceOf(), a.el12.instanceOf(), a.el13.instanceOf(), a.el14.instanceOf(), a.el15.instanceOf(), a.el16.instanceOf(), a.el17.instanceOf(), a.el18.instanceOf(), a.el19.instanceOf(), a.el20.instanceOf(), a.el21.instanceOf(), a.el22.instanceOf())
 }
 
-func (a tuple22) eq(other RideType) bool {
+func (a tuple22) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}

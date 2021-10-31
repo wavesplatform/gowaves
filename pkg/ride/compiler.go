@@ -183,7 +183,7 @@ func (c *compiler) compile(bb *bytes.Buffer, node Node) error {
 }
 
 func (c *compiler) longNode(bb *bytes.Buffer, node *LongNode) error {
-	cid, err := c.constants.put(RideInt(node.Value))
+	cid, err := c.constants.put(rideInt(node.Value))
 	if err != nil {
 		return err
 	}
@@ -193,7 +193,7 @@ func (c *compiler) longNode(bb *bytes.Buffer, node *LongNode) error {
 }
 
 func (c *compiler) bytesNode(bb *bytes.Buffer, node *BytesNode) error {
-	cid, err := c.constants.put(RideBytes(node.Value))
+	cid, err := c.constants.put(rideBytes(node.Value))
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func (c *compiler) bytesNode(bb *bytes.Buffer, node *BytesNode) error {
 }
 
 func (c *compiler) stringNode(bb *bytes.Buffer, node *StringNode) error {
-	cid, err := c.constants.put(RideString(node.Value))
+	cid, err := c.constants.put(rideString(node.Value))
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func (c *compiler) propertyNode(bb *bytes.Buffer, node *PropertyNode) error {
 	if err != nil {
 		return err
 	}
-	id, err := c.constants.put(RideString(node.Name))
+	id, err := c.constants.put(rideString(node.Name))
 	if err != nil {
 		return err
 	}
@@ -484,20 +484,20 @@ type rideCallable struct {
 }
 
 type rideConstants struct {
-	items   []RideType
+	items   []rideType
 	strings map[string]uint16
 }
 
 func newRideConstants() *rideConstants {
 	return &rideConstants{
-		items:   make([]RideType, 0, 4),
+		items:   make([]rideType, 0, 4),
 		strings: make(map[string]uint16, 4),
 	}
 }
 
-func (c *rideConstants) put(value RideType) (uint16, error) {
+func (c *rideConstants) put(value rideType) (uint16, error) {
 	switch v := value.(type) {
-	case RideString:
+	case rideString:
 		s := string(v)
 		if pos, ok := c.strings[s]; ok {
 			return pos, nil
@@ -517,7 +517,7 @@ func (c *rideConstants) put(value RideType) (uint16, error) {
 	}
 }
 
-func (c *rideConstants) append(value RideType) (uint16, error) {
+func (c *rideConstants) append(value rideType) (uint16, error) {
 	if len(c.items) >= math.MaxUint16 {
 		return 0, errors.New("max number of constants reached")
 	}
