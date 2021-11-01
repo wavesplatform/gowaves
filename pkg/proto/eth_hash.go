@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -33,8 +34,17 @@ func (h EthereumHash) Bytes() []byte {
 	return h[:]
 }
 
-func (h EthereumHash) Empty() bool {
-	return h == EthereumHash{}
+func (h EthereumHash) MarshalJSON() ([]byte, error) {
+	return common.ToHexJSON(h[:]), nil
+}
+
+func (h *EthereumHash) UnmarshalJSON(bytes []byte) error {
+	hashBytes, err := common.FromHexJSON(bytes, EthereumHashSize, "EthereumHash")
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal EthereumHash from JSON")
+	}
+	*h = BytesToEthereumHash(hashBytes)
+	return err
 }
 
 // Bytes converts the fixed-length byte array of the EthereumHash to a slice of bytes.

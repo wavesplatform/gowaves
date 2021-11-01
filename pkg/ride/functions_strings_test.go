@@ -322,6 +322,7 @@ func TestSplitString(t *testing.T) {
 		{[]rideType{rideString(" "), rideString(" ")}, false, rideList{rideString(""), rideString("")}},
 		{[]rideType{rideString(""), rideString("")}, false, rideList{}},
 		{[]rideType{rideString(" "), rideString("")}, false, rideList{rideString(" ")}},
+
 		{[]rideType{rideString("abc"), rideInt(0)}, true, nil},
 		{[]rideType{rideString("abc")}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
