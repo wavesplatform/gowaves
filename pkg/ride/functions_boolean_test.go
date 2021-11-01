@@ -13,12 +13,12 @@ func TestBooleanToByte(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBoolean(true)}, false, RideBytes{1}},
-		{[]RideType{RideBoolean(false)}, false, RideBytes{0}},
-		{[]RideType{RideBoolean(true), RideBoolean(false)}, true, nil},
-		{[]RideType{RideBytes{1}}, true, nil},
+		{[]RideType{rideBoolean(true)}, false, rideBytes{1}},
+		{[]RideType{rideBoolean(false)}, false, rideBytes{0}},
+		{[]RideType{rideBoolean(true), rideBoolean(false)}, true, nil},
+		{[]RideType{rideBytes{1}}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := booleanToBytes(nil, test.args...)
@@ -37,12 +37,12 @@ func TestBooleanToString(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBoolean(true)}, false, RideString("true")},
-		{[]RideType{RideBoolean(false)}, false, RideString("false")},
-		{[]RideType{RideBoolean(true), RideBoolean(false)}, true, nil},
-		{[]RideType{RideBytes{1}}, true, nil},
+		{[]RideType{rideBoolean(true)}, false, rideString("true")},
+		{[]RideType{rideBoolean(false)}, false, rideString("false")},
+		{[]RideType{rideBoolean(true), rideBoolean(false)}, true, nil},
+		{[]RideType{rideBytes{1}}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := booleanToString(nil, test.args...)
@@ -61,12 +61,12 @@ func TestUnaryNot(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBoolean(true)}, false, RideBoolean(false)},
-		{[]RideType{RideBoolean(false)}, false, RideBoolean(true)},
-		{[]RideType{RideBoolean(true), RideBoolean(false)}, true, nil},
-		{[]RideType{RideBytes{1}}, true, nil},
+		{[]RideType{rideBoolean(true)}, false, rideBoolean(false)},
+		{[]RideType{rideBoolean(false)}, false, rideBoolean(true)},
+		{[]RideType{rideBoolean(true), rideBoolean(false)}, true, nil},
+		{[]RideType{rideBytes{1}}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := unaryNot(nil, test.args...)

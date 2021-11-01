@@ -15,15 +15,15 @@ func TestConcatStrings(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("abc"), RideString("def")}, false, RideString("abcdef")},
-		{[]RideType{RideString("abc"), RideString("")}, false, RideString("abc")},
-		{[]RideType{RideString(""), RideString("def")}, false, RideString("def")},
-		{[]RideType{RideString(""), RideString("")}, false, RideString("")},
-		{[]RideType{RideString("abc")}, true, nil},
-		{[]RideType{RideString("abc"), RideInt(0)}, true, nil},
-		{[]RideType{RideString("abc"), RideString("def"), RideString("ghi")}, true, nil},
+		{[]RideType{rideString("abc"), rideString("def")}, false, rideString("abcdef")},
+		{[]RideType{rideString("abc"), rideString("")}, false, rideString("abc")},
+		{[]RideType{rideString(""), rideString("def")}, false, rideString("def")},
+		{[]RideType{rideString(""), rideString("")}, false, rideString("")},
+		{[]RideType{rideString("abc")}, true, nil},
+		{[]RideType{rideString("abc"), rideInt(0)}, true, nil},
+		{[]RideType{rideString("abc"), rideString("def"), rideString("ghi")}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := concatStrings(nil, test.args...)
@@ -45,20 +45,20 @@ func TestTakeString(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("abc"), RideInt(2)}, false, RideString("ab")},
-		{[]RideType{RideString("abc"), RideInt(4)}, false, RideString("abc")},
-		{[]RideType{RideString("abc"), RideInt(0)}, false, RideString("")},
-		{[]RideType{RideString("abc"), RideInt(-4)}, false, RideString("")},
-		{[]RideType{RideString(""), RideInt(0)}, false, RideString("")},
-		{[]RideType{RideString(""), RideInt(3)}, false, RideString("")},
-		{[]RideType{RideString("abc")}, true, nil},
+		{[]RideType{rideString("abc"), rideInt(2)}, false, rideString("ab")},
+		{[]RideType{rideString("abc"), rideInt(4)}, false, rideString("abc")},
+		{[]RideType{rideString("abc"), rideInt(0)}, false, rideString("")},
+		{[]RideType{rideString("abc"), rideInt(-4)}, false, rideString("")},
+		{[]RideType{rideString(""), rideInt(0)}, false, rideString("")},
+		{[]RideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]RideType{rideString("abc")}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
-		{[]RideType{RideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\nCeli, child of the first light. One of the main characters of the story, she is the first to see the vision of Cloudscape and its inhabitants from the Earth's dimension after the great destruction.\n\nDragorion - avatars sung into being by Eneria to bring sleep to the people of Cloudscape. They speak in dreams as lullabies, symphonies, hymns, arias and melodies. ~Legendarium\n\n©️Art of Monztre\n"), RideInt(50)}, false, RideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\n")},
+		{[]RideType{rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\nCeli, child of the first light. One of the main characters of the story, she is the first to see the vision of Cloudscape and its inhabitants from the Earth's dimension after the great destruction.\n\nDragorion - avatars sung into being by Eneria to bring sleep to the people of Cloudscape. They speak in dreams as lullabies, symphonies, hymns, arias and melodies. ~Legendarium\n\n©️Art of Monztre\n"), rideInt(50)}, false, rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\n")},
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
-		{[]RideType{RideString("x冬x"), RideInt(2)}, false, RideString("x冬")}, // the result is `x?` but it should be `x冬`
+		{[]RideType{rideString("x冬x"), rideInt(2)}, false, rideString("x冬")}, // the result is `x?` but it should be `x冬`
 	} {
 		r, err := takeString(env, test.args...)
 		if test.fail {
@@ -79,18 +79,18 @@ func TestIncorrectTakeString(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("abc"), RideInt(2)}, false, RideString("ab")},
-		{[]RideType{RideString("abc"), RideInt(4)}, false, RideString("abc")},
-		{[]RideType{RideString("abc"), RideInt(0)}, false, RideString("")},
-		{[]RideType{RideString("abc"), RideInt(-4)}, false, RideString("")},
-		{[]RideType{RideString(""), RideInt(0)}, false, RideString("")},
-		{[]RideType{RideString(""), RideInt(3)}, false, RideString("")},
-		{[]RideType{RideString("abc")}, true, nil},
+		{[]RideType{rideString("abc"), rideInt(2)}, false, rideString("ab")},
+		{[]RideType{rideString("abc"), rideInt(4)}, false, rideString("abc")},
+		{[]RideType{rideString("abc"), rideInt(0)}, false, rideString("")},
+		{[]RideType{rideString("abc"), rideInt(-4)}, false, rideString("")},
+		{[]RideType{rideString(""), rideInt(0)}, false, rideString("")},
+		{[]RideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]RideType{rideString("abc")}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
-		{[]RideType{RideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\nCeli, child of the first light. One of the main characters of the story, she is the first to see the vision of Cloudscape and its inhabitants from the Earth's dimension after the great destruction.\n\nDragorion - avatars sung into being by Eneria to bring sleep to the people of Cloudscape. They speak in dreams as lullabies, symphonies, hymns, arias and melodies. ~Legendarium\n\n©️Art of Monztre\n"), RideInt(50)}, false, RideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶?")},
+		{[]RideType{rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\nCeli, child of the first light. One of the main characters of the story, she is the first to see the vision of Cloudscape and its inhabitants from the Earth's dimension after the great destruction.\n\nDragorion - avatars sung into being by Eneria to bring sleep to the people of Cloudscape. They speak in dreams as lullabies, symphonies, hymns, arias and melodies. ~Legendarium\n\n©️Art of Monztre\n"), rideInt(50)}, false, rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶?")},
 	} {
 		r, err := takeString(env, test.args...)
 		if test.fail {
@@ -108,19 +108,19 @@ func TestDropString(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("abcde"), RideInt(2)}, false, RideString("cde")},
-		{[]RideType{RideString("abcde"), RideInt(4)}, false, RideString("e")},
-		{[]RideType{RideString("abc"), RideInt(0)}, false, RideString("abc")},
-		{[]RideType{RideString("abc"), RideInt(-4)}, false, RideString("abc")},
-		{[]RideType{RideString(""), RideInt(0)}, false, RideString("")},
-		{[]RideType{RideString(""), RideInt(3)}, false, RideString("")},
-		{[]RideType{RideString("abc")}, true, nil},
+		{[]RideType{rideString("abcde"), rideInt(2)}, false, rideString("cde")},
+		{[]RideType{rideString("abcde"), rideInt(4)}, false, rideString("e")},
+		{[]RideType{rideString("abc"), rideInt(0)}, false, rideString("abc")},
+		{[]RideType{rideString("abc"), rideInt(-4)}, false, rideString("abc")},
+		{[]RideType{rideString(""), rideInt(0)}, false, rideString("")},
+		{[]RideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]RideType{rideString("abc")}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
-		{[]RideType{RideString("x冬x"), RideInt(2)}, false, RideString("x")},
+		{[]RideType{rideString("x冬x"), rideInt(2)}, false, rideString("x")},
 	} {
 		r, err := dropString(nil, test.args...)
 		if test.fail {
@@ -138,17 +138,17 @@ func TestSizeString(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("Hello")}, false, RideInt(5)},
-		{[]RideType{RideString("Привет")}, false, RideInt(6)},
-		{[]RideType{RideString("世界")}, false, RideInt(2)},
-		{[]RideType{RideString("")}, false, RideInt(0)},
-		{[]RideType{RideString(""), RideInt(3)}, true, nil},
+		{[]RideType{rideString("Hello")}, false, rideInt(5)},
+		{[]RideType{rideString("Привет")}, false, rideInt(6)},
+		{[]RideType{rideString("世界")}, false, rideInt(2)},
+		{[]RideType{rideString("")}, false, rideInt(0)},
+		{[]RideType{rideString(""), rideInt(3)}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
-		{[]RideType{RideString("x冬x")}, false, RideInt(3)},
+		{[]RideType{rideString("x冬x")}, false, rideInt(3)},
 	} {
 		r, err := sizeString(nil, test.args...)
 		if test.fail {
@@ -166,19 +166,19 @@ func TestIndexOfSubstring(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("quick brown fox jumps over the lazy dog"), RideString("brown")}, false, RideInt(6)},
-		{[]RideType{RideString("quick brown fox jumps over the lazy dog"), RideString("cafe")}, false, rideUnit{}},
-		{[]RideType{RideString("")}, true, nil},
-		{[]RideType{RideString(""), RideInt(3)}, true, nil},
+		{[]RideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown")}, false, rideInt(6)},
+		{[]RideType{rideString("quick brown fox jumps over the lazy dog"), rideString("cafe")}, false, rideUnit{}},
+		{[]RideType{rideString("")}, true, nil},
+		{[]RideType{rideString(""), rideInt(3)}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
-		{[]RideType{RideString("x冬xqweqwe"), RideString("we")}, false, RideInt(4)},          // unicode indexOf
-		{[]RideType{takeRideString("世界x冬x", 4), takeRideString("冬", 1)}, false, RideInt(3)}, // unicode indexOf
-		{[]RideType{RideString("x冬xqweqwe"), RideString("ww")}, false, rideUnit{}},          // unicode indexOf (not present)
-		{[]RideType{RideString(""), RideString("x冬x")}, false, rideUnit{}},                  // unicode indexOf from empty string
+		{[]RideType{rideString("x冬xqweqwe"), rideString("we")}, false, rideInt(4)},          // unicode indexOf
+		{[]RideType{takeRideString("世界x冬x", 4), takeRideString("冬", 1)}, false, rideInt(3)}, // unicode indexOf
+		{[]RideType{rideString("x冬xqweqwe"), rideString("ww")}, false, rideUnit{}},          // unicode indexOf (not present)
+		{[]RideType{rideString(""), rideString("x冬x")}, false, rideUnit{}},                  // unicode indexOf from empty string
 	} {
 		r, err := indexOfSubstring(nil, test.args...)
 		if test.fail {
@@ -196,21 +196,21 @@ func TestIndexOfSubstringWithOffset(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("quick brown fox jumps over the lazy dog"), RideString("brown"), RideInt(0)}, false, RideInt(6)},
-		{[]RideType{RideString("cafe bebe dead beef cafe bebe"), RideString("bebe"), RideInt(10)}, false, RideInt(25)},
-		{[]RideType{RideString("quick brown fox jumps over the lazy dog"), RideString("brown"), RideInt(10)}, false, rideUnit{}},
-		{[]RideType{RideString("quick brown fox jumps over the lazy dog"), RideString("fox"), RideInt(1000)}, false, rideUnit{}},
-		{[]RideType{RideString("")}, true, nil},
-		{[]RideType{RideString(""), RideInt(3)}, true, nil},
-		{[]RideType{RideString(""), RideString(""), RideInt(3), RideInt(0)}, true, nil},
+		{[]RideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown"), rideInt(0)}, false, rideInt(6)},
+		{[]RideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(10)}, false, rideInt(25)},
+		{[]RideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown"), rideInt(10)}, false, rideUnit{}},
+		{[]RideType{rideString("quick brown fox jumps over the lazy dog"), rideString("fox"), rideInt(1000)}, false, rideUnit{}},
+		{[]RideType{rideString("")}, true, nil},
+		{[]RideType{rideString(""), rideInt(3)}, true, nil},
+		{[]RideType{rideString(""), rideString(""), rideInt(3), rideInt(0)}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
-		{[]RideType{RideString("x冬xqweqwe"), RideString("x冬xqw"), RideInt(0)}, false, RideInt(0)}, // unicode indexOf with zero offset
-		{[]RideType{RideString("冬weqwe"), RideString("we"), RideInt(2)}, false, RideInt(4)},       // unicode indexOf with start offset
-		{[]RideType{RideString(""), RideString("x冬x"), RideInt(1)}, false, rideUnit{}},            // unicode indexOf from empty string with offset
+		{[]RideType{rideString("x冬xqweqwe"), rideString("x冬xqw"), rideInt(0)}, false, rideInt(0)}, // unicode indexOf with zero offset
+		{[]RideType{rideString("冬weqwe"), rideString("we"), rideInt(2)}, false, rideInt(4)},       // unicode indexOf with start offset
+		{[]RideType{rideString(""), rideString("x冬x"), rideInt(1)}, false, rideUnit{}},            // unicode indexOf from empty string with offset
 	} {
 		r, err := indexOfSubstringWithOffset(nil, test.args...)
 		if test.fail {
@@ -228,14 +228,14 @@ func TestStringToBytes(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("Hello")}, false, RideBytes("Hello")},
-		{[]RideType{RideString("Привет")}, false, RideBytes("Привет")},
-		{[]RideType{RideString("世界")}, false, RideBytes("世界")},
-		{[]RideType{RideString("")}, false, RideBytes{}},
-		{[]RideType{RideString(""), RideInt(3)}, true, nil},
+		{[]RideType{rideString("Hello")}, false, rideBytes("Hello")},
+		{[]RideType{rideString("Привет")}, false, rideBytes("Привет")},
+		{[]RideType{rideString("世界")}, false, rideBytes("世界")},
+		{[]RideType{rideString("")}, false, rideBytes{}},
+		{[]RideType{rideString(""), rideInt(3)}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := stringToBytes(nil, test.args...)
@@ -254,20 +254,20 @@ func TestDropRightString(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("abcde"), RideInt(2)}, false, RideString("abc")},
-		{[]RideType{RideString("abcde"), RideInt(4)}, false, RideString("a")},
-		{[]RideType{RideString("abcde"), RideInt(6)}, false, RideString("")},
-		{[]RideType{RideString("abc"), RideInt(0)}, false, RideString("abc")},
-		{[]RideType{RideString("abc"), RideInt(-4)}, false, RideString("abc")},
-		{[]RideType{RideString(""), RideInt(0)}, false, RideString("")},
-		{[]RideType{RideString(""), RideInt(3)}, false, RideString("")},
-		{[]RideType{RideString("abc")}, true, nil},
+		{[]RideType{rideString("abcde"), rideInt(2)}, false, rideString("abc")},
+		{[]RideType{rideString("abcde"), rideInt(4)}, false, rideString("a")},
+		{[]RideType{rideString("abcde"), rideInt(6)}, false, rideString("")},
+		{[]RideType{rideString("abc"), rideInt(0)}, false, rideString("abc")},
+		{[]RideType{rideString("abc"), rideInt(-4)}, false, rideString("abc")},
+		{[]RideType{rideString(""), rideInt(0)}, false, rideString("")},
+		{[]RideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]RideType{rideString("abc")}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
-		{[]RideType{RideString("x冬x"), RideInt(2)}, false, RideString("x")},
+		{[]RideType{rideString("x冬x"), rideInt(2)}, false, rideString("x")},
 	} {
 		r, err := dropRightString(nil, test.args...)
 		if test.fail {
@@ -285,20 +285,20 @@ func TestTakeRightString(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("abcde"), RideInt(2)}, false, RideString("de")},
-		{[]RideType{RideString("abcde"), RideInt(4)}, false, RideString("bcde")},
-		{[]RideType{RideString("abcde"), RideInt(6)}, false, RideString("abcde")},
-		{[]RideType{RideString("abc"), RideInt(0)}, false, RideString("")},
-		{[]RideType{RideString("abc"), RideInt(-4)}, false, RideString("")},
-		{[]RideType{RideString(""), RideInt(0)}, false, RideString("")},
-		{[]RideType{RideString(""), RideInt(3)}, false, RideString("")},
-		{[]RideType{RideString("abc")}, true, nil},
+		{[]RideType{rideString("abcde"), rideInt(2)}, false, rideString("de")},
+		{[]RideType{rideString("abcde"), rideInt(4)}, false, rideString("bcde")},
+		{[]RideType{rideString("abcde"), rideInt(6)}, false, rideString("abcde")},
+		{[]RideType{rideString("abc"), rideInt(0)}, false, rideString("")},
+		{[]RideType{rideString("abc"), rideInt(-4)}, false, rideString("")},
+		{[]RideType{rideString(""), rideInt(0)}, false, rideString("")},
+		{[]RideType{rideString(""), rideInt(3)}, false, rideString("")},
+		{[]RideType{rideString("abc")}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
-		{[]RideType{RideString("x冬x"), RideInt(2)}, false, RideString("冬x")},
+		{[]RideType{rideString("x冬x"), rideInt(2)}, false, rideString("冬x")},
 	} {
 		r, err := takeRightString(nil, test.args...)
 		if test.fail {
@@ -316,20 +316,20 @@ func TestSplitString(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("abcdefg"), RideString("")}, false, RideList{RideString("a"), RideString("b"), RideString("c"), RideString("d"), RideString("e"), RideString("f"), RideString("g")}},
-		{[]RideType{RideString("one two three four"), RideString(" ")}, false, RideList{RideString("one"), RideString("two"), RideString("three"), RideString("four")}},
-		{[]RideType{RideString(""), RideString(" ")}, false, RideList{RideString("")}},
-		{[]RideType{RideString(" "), RideString(" ")}, false, RideList{RideString(""), RideString("")}},
-		{[]RideType{RideString(""), RideString("")}, false, RideList{}},
-		{[]RideType{RideString(" "), RideString("")}, false, RideList{RideString(" ")}},
-		{[]RideType{RideString("abc"), RideInt(0)}, true, nil},
-		{[]RideType{RideString("abc")}, true, nil},
+		{[]RideType{rideString("abcdefg"), rideString("")}, false, rideList{rideString("a"), rideString("b"), rideString("c"), rideString("d"), rideString("e"), rideString("f"), rideString("g")}},
+		{[]RideType{rideString("one two three four"), rideString(" ")}, false, rideList{rideString("one"), rideString("two"), rideString("three"), rideString("four")}},
+		{[]RideType{rideString(""), rideString(" ")}, false, rideList{rideString("")}},
+		{[]RideType{rideString(" "), rideString(" ")}, false, rideList{rideString(""), rideString("")}},
+		{[]RideType{rideString(""), rideString("")}, false, rideList{}},
+		{[]RideType{rideString(" "), rideString("")}, false, rideList{rideString(" ")}},
+		{[]RideType{rideString("abc"), rideInt(0)}, true, nil},
+		{[]RideType{rideString("abc")}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
-		{[]RideType{RideString("strx冬x1;🤦;🤦strx冬x2;🤦strx冬x3"), RideString(";🤦")}, false, RideList{RideString("strx冬x1"), RideString(""), RideString("strx冬x2"), RideString("strx冬x3")}},
+		{[]RideType{rideString("strx冬x1;🤦;🤦strx冬x2;🤦strx冬x3"), rideString(";🤦")}, false, rideList{rideString("strx冬x1"), rideString(""), rideString("strx冬x2"), rideString("strx冬x3")}},
 	} {
 		r, err := splitString(nil, test.args...)
 		if test.fail {
@@ -347,17 +347,17 @@ func TestParseInt(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("123345")}, false, RideInt(123345)},
-		{[]RideType{RideString("0")}, false, RideInt(0)},
-		{[]RideType{RideString(fmt.Sprint(math.MaxInt64))}, false, RideInt(math.MaxInt64)},
-		{[]RideType{RideString(fmt.Sprint(math.MinInt64))}, false, RideInt(math.MinInt64)},
-		{[]RideType{RideString("")}, false, rideUnit{}},
-		{[]RideType{RideString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")}, false, rideUnit{}},
-		{[]RideType{RideString("abc")}, false, rideUnit{}},
-		{[]RideType{RideString("abc"), RideInt(0)}, true, nil},
+		{[]RideType{rideString("123345")}, false, rideInt(123345)},
+		{[]RideType{rideString("0")}, false, rideInt(0)},
+		{[]RideType{rideString(fmt.Sprint(math.MaxInt64))}, false, rideInt(math.MaxInt64)},
+		{[]RideType{rideString(fmt.Sprint(math.MinInt64))}, false, rideInt(math.MinInt64)},
+		{[]RideType{rideString("")}, false, rideUnit{}},
+		{[]RideType{rideString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")}, false, rideUnit{}},
+		{[]RideType{rideString("abc")}, false, rideUnit{}},
+		{[]RideType{rideString("abc"), rideInt(0)}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := parseInt(nil, test.args...)
@@ -376,17 +376,17 @@ func TestParseIntValue(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("123345")}, false, RideInt(123345)},
-		{[]RideType{RideString("0")}, false, RideInt(0)},
-		{[]RideType{RideString(fmt.Sprint(math.MaxInt64))}, false, RideInt(math.MaxInt64)},
-		{[]RideType{RideString(fmt.Sprint(math.MinInt64))}, false, RideInt(math.MinInt64)},
-		{[]RideType{RideString("")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{RideString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{RideString("abc")}, false, rideThrow("failed to extract from Unit value")},
-		{[]RideType{RideString("abc"), RideInt(0)}, true, nil},
+		{[]RideType{rideString("123345")}, false, rideInt(123345)},
+		{[]RideType{rideString("0")}, false, rideInt(0)},
+		{[]RideType{rideString(fmt.Sprint(math.MaxInt64))}, false, rideInt(math.MaxInt64)},
+		{[]RideType{rideString(fmt.Sprint(math.MinInt64))}, false, rideInt(math.MinInt64)},
+		{[]RideType{rideString("")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{rideString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{rideString("abc")}, false, rideThrow("failed to extract from Unit value")},
+		{[]RideType{rideString("abc"), rideInt(0)}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := parseIntValue(nil, test.args...)
@@ -405,13 +405,13 @@ func TestLastIndexOfSubstring(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("cafe bebe dead beef cafe bebe"), RideString("bebe")}, false, RideInt(25)},
-		{[]RideType{RideString("quick brown fox jumps over the lazy dog"), RideString("cafe")}, false, rideUnit{}},
-		{[]RideType{RideString("")}, true, nil},
-		{[]RideType{RideString(""), RideInt(3)}, true, nil},
+		{[]RideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe")}, false, rideInt(25)},
+		{[]RideType{rideString("quick brown fox jumps over the lazy dog"), rideString("cafe")}, false, rideUnit{}},
+		{[]RideType{rideString("")}, true, nil},
+		{[]RideType{rideString(""), rideInt(3)}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := lastIndexOfSubstring(nil, test.args...)
@@ -430,27 +430,27 @@ func TestLastIndexOfSubstringWithOffset(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("cafe bebe dead beef cafe bebe"), RideString("bebe"), RideInt(30)}, false, RideInt(25)},
-		{[]RideType{RideString("cafe bebe dead beef cafe bebe"), RideString("bebe"), RideInt(25)}, false, RideInt(25)},
-		{[]RideType{RideString("cafe bebe dead beef cafe bebe"), RideString("bebe"), RideInt(10)}, false, RideInt(5)},
-		{[]RideType{RideString("cafe bebe dead beef cafe bebe"), RideString("bebe"), RideInt(5)}, false, RideInt(5)},
-		{[]RideType{RideString("cafe bebe dead beef cafe bebe"), RideString("bebe"), RideInt(4)}, false, rideUnit{}},
-		{[]RideType{RideString("cafe bebe dead beef cafe bebe"), RideString("bebe"), RideInt(0)}, false, rideUnit{}},
-		{[]RideType{RideString("cafe bebe dead beef cafe bebe"), RideString("bebe"), RideInt(-2)}, false, rideUnit{}},
-		{[]RideType{RideString("aaa"), RideString("a"), RideInt(0)}, false, RideInt(0)},
-		{[]RideType{RideString("aaa"), RideString("b"), RideInt(0)}, false, rideUnit{}},
-		{[]RideType{RideString("cafe bebe dead beef cafe bebe"), RideString("dead"), RideInt(11)}, false, RideInt(10)},
-		{[]RideType{RideString("cafe bebe dead beef cafe bebe"), RideString("dead"), RideInt(10)}, false, RideInt(10)},
-		{[]RideType{RideString("cafe bebe dead beef cafe bebe"), RideString("dead"), RideInt(9)}, false, rideUnit{}},
-		{[]RideType{RideString("quick brown fox jumps over the lazy dog"), RideString("brown"), RideInt(12)}, false, RideInt(6)},
-		{[]RideType{RideString("quick brown fox jumps over the lazy dog"), RideString("fox"), RideInt(14)}, false, RideInt(12)},
-		{[]RideType{RideString("quick brown fox jumps over the lazy dog"), RideString("fox"), RideInt(13)}, false, RideInt(12)},
-		{[]RideType{RideString("")}, true, nil},
-		{[]RideType{RideString(""), RideInt(3)}, true, nil},
-		{[]RideType{RideString(""), RideString(""), RideInt(3), RideInt(0)}, true, nil},
+		{[]RideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(30)}, false, rideInt(25)},
+		{[]RideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(25)}, false, rideInt(25)},
+		{[]RideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(10)}, false, rideInt(5)},
+		{[]RideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(5)}, false, rideInt(5)},
+		{[]RideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(4)}, false, rideUnit{}},
+		{[]RideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(0)}, false, rideUnit{}},
+		{[]RideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideInt(-2)}, false, rideUnit{}},
+		{[]RideType{rideString("aaa"), rideString("a"), rideInt(0)}, false, rideInt(0)},
+		{[]RideType{rideString("aaa"), rideString("b"), rideInt(0)}, false, rideUnit{}},
+		{[]RideType{rideString("cafe bebe dead beef cafe bebe"), rideString("dead"), rideInt(11)}, false, rideInt(10)},
+		{[]RideType{rideString("cafe bebe dead beef cafe bebe"), rideString("dead"), rideInt(10)}, false, rideInt(10)},
+		{[]RideType{rideString("cafe bebe dead beef cafe bebe"), rideString("dead"), rideInt(9)}, false, rideUnit{}},
+		{[]RideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown"), rideInt(12)}, false, rideInt(6)},
+		{[]RideType{rideString("quick brown fox jumps over the lazy dog"), rideString("fox"), rideInt(14)}, false, rideInt(12)},
+		{[]RideType{rideString("quick brown fox jumps over the lazy dog"), rideString("fox"), rideInt(13)}, false, rideInt(12)},
+		{[]RideType{rideString("")}, true, nil},
+		{[]RideType{rideString(""), rideInt(3)}, true, nil},
+		{[]RideType{rideString(""), rideString(""), rideInt(3), rideInt(0)}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := lastIndexOfSubstringWithOffset(nil, test.args...)
@@ -469,17 +469,17 @@ func TestMakeString(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideList{RideString("1"), RideString("2"), RideString("3")}, RideString(" ")}, false, RideString("1 2 3")},
-		{[]RideType{RideList{RideString("one"), RideString("two"), RideString("three")}, RideString(", ")}, false, RideString("one, two, three")},
-		{[]RideType{RideList{RideString("")}, RideString("")}, false, RideString("")},
-		{[]RideType{RideList{}, RideString(",")}, false, RideString("")},
-		{[]RideType{RideList{RideString("one"), RideInt(2), RideString("tree")}, RideString(", ")}, true, nil},
-		{[]RideType{RideString("")}, true, nil},
-		{[]RideType{RideString(""), RideInt(3)}, true, nil},
-		{[]RideType{RideString("1"), RideString("2"), RideString("3")}, true, nil},
+		{[]RideType{rideList{rideString("1"), rideString("2"), rideString("3")}, rideString(" ")}, false, rideString("1 2 3")},
+		{[]RideType{rideList{rideString("one"), rideString("two"), rideString("three")}, rideString(", ")}, false, rideString("one, two, three")},
+		{[]RideType{rideList{rideString("")}, rideString("")}, false, rideString("")},
+		{[]RideType{rideList{}, rideString(",")}, false, rideString("")},
+		{[]RideType{rideList{rideString("one"), rideInt(2), rideString("tree")}, rideString(", ")}, true, nil},
+		{[]RideType{rideString("")}, true, nil},
+		{[]RideType{rideString(""), rideInt(3)}, true, nil},
+		{[]RideType{rideString("1"), rideString("2"), rideString("3")}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := makeString(nil, test.args...)
@@ -498,16 +498,16 @@ func TestContains(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("ride"), RideString("ide")}, false, RideBoolean(true)},
-		{[]RideType{RideString("string"), RideString("substring")}, false, RideBoolean(false)},
-		{[]RideType{RideString(""), RideString("")}, false, RideBoolean(true)},
-		{[]RideType{RideString("ride"), RideString("")}, false, RideBoolean(true)},
-		{[]RideType{RideString(""), RideString("ride")}, false, RideBoolean(false)},
-		{[]RideType{RideString(""), RideInt(3)}, true, nil},
-		{[]RideType{RideString(""), RideString(""), RideInt(3), RideInt(0)}, true, nil},
+		{[]RideType{rideString("ride"), rideString("ide")}, false, rideBoolean(true)},
+		{[]RideType{rideString("string"), rideString("substring")}, false, rideBoolean(false)},
+		{[]RideType{rideString(""), rideString("")}, false, rideBoolean(true)},
+		{[]RideType{rideString("ride"), rideString("")}, false, rideBoolean(true)},
+		{[]RideType{rideString(""), rideString("ride")}, false, rideBoolean(false)},
+		{[]RideType{rideString(""), rideInt(3)}, true, nil},
+		{[]RideType{rideString(""), rideString(""), rideInt(3), rideInt(0)}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := contains(nil, test.args...)

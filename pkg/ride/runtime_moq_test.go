@@ -25,7 +25,7 @@ var _ Environment = &MockRideEnvironment{}
 //             checkMessageLengthFunc: func(in1 int) bool {
 // 	               panic("mock out the checkMessageLength method")
 //             },
-//             heightFunc: func() RideInt {
+//             heightFunc: func() rideInt {
 // 	               panic("mock out the height method")
 //             },
 //             internalPaymentsValidationHeightFunc: func() uint64 {
@@ -52,7 +52,7 @@ var _ Environment = &MockRideEnvironment{}
 //             stateFunc: func() types.SmartState {
 // 	               panic("mock out the state method")
 //             },
-//             takeStringFunc: func(s string, n int) RideString {
+//             takeStringFunc: func(s string, n int) rideString {
 // 	               panic("mock out the takeString method")
 //             },
 //             thisFunc: func() RideType {
@@ -84,7 +84,7 @@ type MockRideEnvironment struct {
 	checkMessageLengthFunc func(in1 int) bool
 
 	// heightFunc mocks the height method.
-	heightFunc func() RideInt
+	heightFunc func() rideInt
 
 	// internalPaymentsValidationHeightFunc mocks the internalPaymentsValidationHeight method.
 	internalPaymentsValidationHeightFunc func() uint64
@@ -111,7 +111,7 @@ type MockRideEnvironment struct {
 	stateFunc func() types.SmartState
 
 	// takeStringFunc mocks the takeString method.
-	takeStringFunc func(s string, n int) RideString
+	takeStringFunc func(s string, n int) rideString
 
 	// thisFunc mocks the this method.
 	thisFunc func() RideType
@@ -269,7 +269,7 @@ func (mock *MockRideEnvironment) checkMessageLengthCalls() []struct {
 }
 
 // height calls heightFunc.
-func (mock *MockRideEnvironment) height() RideInt {
+func (mock *MockRideEnvironment) height() rideInt {
 	if mock.heightFunc == nil {
 		panic("MockRideEnvironment.heightFunc: method is nil but Environment.height was just called")
 	}
@@ -513,7 +513,7 @@ func (mock *MockRideEnvironment) stateCalls() []struct {
 }
 
 // takeString calls takeStringFunc.
-func (mock *MockRideEnvironment) takeString(s string, n int) RideString {
+func (mock *MockRideEnvironment) takeString(s string, n int) rideString {
 	if mock.takeStringFunc == nil {
 		panic("MockRideEnvironment.takeStringFunc: method is nil but Environment.takeString was just called")
 	}

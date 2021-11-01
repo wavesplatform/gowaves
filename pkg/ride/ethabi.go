@@ -10,17 +10,17 @@ import (
 func EthABIDataTypeToRideType(dataType ethabi.DataType) (rideType RideType, err error) {
 	switch t := dataType.(type) {
 	case ethabi.Int:
-		rideType = RideInt(t)
+		rideType = rideInt(t)
 	case ethabi.BigInt:
-		rideType = RideBigInt{V: t.V}
+		rideType = rideBigInt{V: t.V}
 	case ethabi.Bool:
-		rideType = RideBoolean(t)
+		rideType = rideBoolean(t)
 	case ethabi.Bytes:
-		rideType = RideBytes(t)
+		rideType = rideBytes(t)
 	case ethabi.String:
-		rideType = RideString(t)
+		rideType = rideString(t)
 	case ethabi.List:
-		rideList := make(RideList, len(t))
+		rideList := make(rideList, len(t))
 		for i, ethABIElem := range t {
 			rideElem, err := EthABIDataTypeToRideType(ethABIElem)
 			if err != nil {

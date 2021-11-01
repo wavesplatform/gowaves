@@ -13,7 +13,7 @@ import (
 
 type WrappedState struct {
 	diff             diffState
-	cle              RideAddress
+	cle              rideAddress
 	scheme           proto.Scheme
 	act              []proto.ScriptAction
 	blackList        []proto.WavesAddress
@@ -41,7 +41,7 @@ func newWrappedState(env *EvaluationEnvironment) *WrappedState {
 		oldAssetsInfo: map[string]diffOldAssetInfo{},
 		leases:        map[string]lease{}}
 
-	return &WrappedState{diff: diffSt, cle: env.th.(RideAddress), scheme: env.sch}
+	return &WrappedState{diff: diffSt, cle: env.th.(rideAddress), scheme: env.sch}
 }
 
 func (ws *WrappedState) appendActions(actions []proto.ScriptAction) {
@@ -386,7 +386,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 	if !assetInfo.Scripted {
 		return true, nil
 	}
-	txID, err := crypto.NewDigestFromBytes(env.txID().(RideBytes))
+	txID, err := crypto.NewDigestFromBytes(env.txID().(rideBytes))
 	if err != nil {
 		return false, err
 	}
@@ -1146,14 +1146,14 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 type EvaluationEnvironment struct {
 	sch                   proto.Scheme
 	st                    types.SmartState
-	h                     RideInt
+	h                     rideInt
 	tx                    rideObject
 	id                    RideType
 	th                    RideType
 	time                  uint64
 	b                     rideObject
 	check                 func(int) bool
-	takeStr               func(s string, n int) RideString
+	takeStr               func(s string, n int) rideString
 	inv                   rideObject
 	ver                   int
 	validatePaymentsAfter uint64
@@ -1168,15 +1168,15 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 	return &EvaluationEnvironment{
 		sch:                   scheme,
 		st:                    state,
-		h:                     RideInt(height),
+		h:                     rideInt(height),
 		check:                 func(int) bool { return true }, // By default, for versions below 2 there was no check, always ok.
-		takeStr:               func(s string, n int) RideString { panic("function 'takeStr' was not initialized") },
+		takeStr:               func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
 		validatePaymentsAfter: internalPaymentsValidationHeight,
 	}, nil
 }
 
 func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress) (*EvaluationEnvironment, error) {
-	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(RideAddress)))
+	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
 	st := newWrappedState(env)
 	for _, payment := range payments {
@@ -1226,7 +1226,7 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 }
 
 func NewEthereumEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress) (*EvaluationEnvironment, error) {
-	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(RideAddress)))
+	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
 	st := newWrappedState(env)
 	for _, payment := range payments {
@@ -1309,7 +1309,7 @@ func (e *EvaluationEnvironment) SetThisFromAssetInfo(info *proto.AssetInfo) {
 }
 
 func (e *EvaluationEnvironment) SetThisFromAddress(addr proto.WavesAddress) {
-	e.th = RideAddress(addr)
+	e.th = rideAddress(addr)
 }
 
 func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) {
@@ -1317,7 +1317,7 @@ func (e *EvaluationEnvironment) SetLastBlock(info *proto.BlockInfo) {
 }
 
 func (e *EvaluationEnvironment) SetTransactionFromScriptTransfer(transfer *proto.FullScriptTransfer) {
-	e.id = RideBytes(transfer.ID.Bytes())
+	e.id = rideBytes(transfer.ID.Bytes())
 	e.tx = scriptTransferToObject(transfer)
 }
 
@@ -1344,8 +1344,8 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 	if err != nil {
 		return err
 	}
-	e.id = RideBytes(id)
-	obj, err := TransactionToObject(e.sch, tx)
+	e.id = rideBytes(id)
+	obj, err := transactionToObject(e.sch, tx)
 	if err != nil {
 		return err
 	}
@@ -1390,7 +1390,7 @@ func (e *EvaluationEnvironment) scheme() byte {
 	return e.sch
 }
 
-func (e *EvaluationEnvironment) height() RideInt {
+func (e *EvaluationEnvironment) height() rideInt {
 	return e.h
 }
 
@@ -1419,7 +1419,7 @@ func (e *EvaluationEnvironment) setNewDAppAddress(address proto.WavesAddress) {
 	if !ok {
 		panic("not a WrappedState")
 	}
-	ws.cle = RideAddress(address)
+	ws.cle = rideAddress(address)
 	e.SetThisFromAddress(address)
 }
 
@@ -1427,7 +1427,7 @@ func (e *EvaluationEnvironment) checkMessageLength(l int) bool {
 	return e.check(l)
 }
 
-func (e *EvaluationEnvironment) takeString(s string, n int) RideString {
+func (e *EvaluationEnvironment) takeString(s string, n int) rideString {
 	return e.takeStr(s, n)
 }
 

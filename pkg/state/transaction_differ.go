@@ -15,8 +15,6 @@ import (
 	"math/big"
 )
 
-const diffEthWaves = 1e10 // in ethereum numbers are represented in 10^18. In waves it's 10^8
-
 func byteKey(addr proto.WavesAddress, assetID []byte) []byte {
 	if assetID == nil {
 		k := wavesBalanceKey{addr}
@@ -479,7 +477,7 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 		return txBalanceChanges{}, err
 	}
 
-	res := new(big.Int).Div(tx.Value(), big.NewInt(int64(diffEthWaves)))
+	res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
 	if ok := res.IsInt64(); !ok {
 		return txBalanceChanges{}, errors.Errorf("failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
 	}

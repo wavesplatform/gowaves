@@ -56,5 +56,5 @@ func newUnit(Environment) RideType {
 }
 
 func newNil(Environment) RideType {
-	return RideList(nil)
+	return rideList(nil)
 }

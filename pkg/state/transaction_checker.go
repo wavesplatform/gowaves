@@ -368,7 +368,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		if tx.Value() == nil {
 			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
 		}
-		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(diffEthWaves)))
+		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
 		if ok := res.IsInt64(); !ok {
 			return nil, errors.Errorf("failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
 		}

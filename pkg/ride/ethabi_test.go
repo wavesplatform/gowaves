@@ -15,12 +15,12 @@ func TestEthABIDataTypeToRideType(t *testing.T) {
 		inputDataType    ethabi.DataType
 		expectedRideType RideType
 	}{
-		{ethabi.Int(5345345), RideInt(5345345)},
-		{ethabi.BigInt{V: hugeInt}, RideBigInt{V: hugeInt}},
-		{ethabi.Bool(true), RideBoolean(true)},
-		{ethabi.Bool(false), RideBoolean(false)},
-		{ethabi.Bytes("#This is Test bytes!"), RideBytes("#This is Test bytes!")},
-		{ethabi.String("This is @ Test string!"), RideString("This is @ Test string!")},
+		{ethabi.Int(5345345), rideInt(5345345)},
+		{ethabi.BigInt{V: hugeInt}, rideBigInt{V: hugeInt}},
+		{ethabi.Bool(true), rideBoolean(true)},
+		{ethabi.Bool(false), rideBoolean(false)},
+		{ethabi.Bytes("#This is Test bytes!"), rideBytes("#This is Test bytes!")},
+		{ethabi.String("This is @ Test string!"), rideString("This is @ Test string!")},
 		{
 			inputDataType: ethabi.List{
 				ethabi.Int(453),
@@ -33,15 +33,15 @@ func TestEthABIDataTypeToRideType(t *testing.T) {
 					ethabi.Bool(false),
 				},
 			},
-			expectedRideType: RideList{
-				RideInt(453),
-				RideBoolean(true),
-				RideString("the best test string ever!"),
-				RideBytes("command and conquer!"),
-				RideBigInt{V: big.NewInt(1232347)},
-				RideList{
-					RideBytes("one more"),
-					RideBoolean(false),
+			expectedRideType: rideList{
+				rideInt(453),
+				rideBoolean(true),
+				rideString("the best test string ever!"),
+				rideBytes("command and conquer!"),
+				rideBigInt{V: big.NewInt(1232347)},
+				rideList{
+					rideBytes("one more"),
+					rideBoolean(false),
 				},
 			},
 		},

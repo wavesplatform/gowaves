@@ -15,13 +15,13 @@ func TestSizeBytes(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBytes{0, 0, 0, 0, 0, 0, 0, 0}}, false, RideInt(8)},
-		{[]RideType{RideBytes{0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}}, false, RideInt(8)},
-		{[]RideType{RideBytes{0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5}}, false, RideInt(12)},
-		{[]RideType{RideBytes{}}, false, RideInt(0)},
+		{[]RideType{rideBytes{0, 0, 0, 0, 0, 0, 0, 0}}, false, rideInt(8)},
+		{[]RideType{rideBytes{0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}}, false, rideInt(8)},
+		{[]RideType{rideBytes{0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5}}, false, rideInt(12)},
+		{[]RideType{rideBytes{}}, false, rideInt(0)},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := sizeBytes(nil, test.args...)
@@ -40,16 +40,16 @@ func TestTakeBytes(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBytes{1, 2, 3}, RideInt(2)}, false, RideBytes{1, 2}},
-		{[]RideType{RideBytes{1, 2, 3}, RideInt(4)}, false, RideBytes{1, 2, 3}},
-		{[]RideType{RideBytes{1, 2, 3}, RideInt(0)}, false, RideBytes{}},
-		{[]RideType{RideBytes{1, 2, 3}, RideInt(-4)}, false, RideBytes{}},
-		{[]RideType{RideBytes{}, RideInt(0)}, false, RideBytes{}},
-		{[]RideType{RideBytes{}, RideInt(3)}, false, RideBytes{}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}}, true, nil},
+		{[]RideType{rideBytes{1, 2, 3}, rideInt(2)}, false, rideBytes{1, 2}},
+		{[]RideType{rideBytes{1, 2, 3}, rideInt(4)}, false, rideBytes{1, 2, 3}},
+		{[]RideType{rideBytes{1, 2, 3}, rideInt(0)}, false, rideBytes{}},
+		{[]RideType{rideBytes{1, 2, 3}, rideInt(-4)}, false, rideBytes{}},
+		{[]RideType{rideBytes{}, rideInt(0)}, false, rideBytes{}},
+		{[]RideType{rideBytes{}, rideInt(3)}, false, rideBytes{}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := takeBytes(nil, test.args...)
@@ -68,18 +68,18 @@ func TestDropBytes(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(2)}, false, RideBytes{3, 4, 5}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(4)}, false, RideBytes{5}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(5)}, false, RideBytes{}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(8)}, false, RideBytes{}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(0)}, false, RideBytes{1, 2, 3, 4, 5}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(-4)}, false, RideBytes{1, 2, 3, 4, 5}},
-		{[]RideType{RideBytes{}, RideInt(0)}, false, RideBytes{}},
-		{[]RideType{RideBytes{}, RideInt(3)}, false, RideBytes{}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}}, true, nil},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(2)}, false, rideBytes{3, 4, 5}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(4)}, false, rideBytes{5}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(5)}, false, rideBytes{}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(8)}, false, rideBytes{}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(0)}, false, rideBytes{1, 2, 3, 4, 5}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(-4)}, false, rideBytes{1, 2, 3, 4, 5}},
+		{[]RideType{rideBytes{}, rideInt(0)}, false, rideBytes{}},
+		{[]RideType{rideBytes{}, rideInt(3)}, false, rideBytes{}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := dropBytes(nil, test.args...)
@@ -98,16 +98,16 @@ func TestConcatBytes(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBytes{1, 2, 3}, RideBytes{4, 5}}, false, RideBytes{1, 2, 3, 4, 5}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideBytes{6}}, false, RideBytes{1, 2, 3, 4, 5, 6}},
-		{[]RideType{RideBytes{1, 2, 3}, RideBytes{}}, false, RideBytes{1, 2, 3}},
-		{[]RideType{RideBytes{}, RideBytes{1, 2, 3}}, false, RideBytes{1, 2, 3}},
-		{[]RideType{RideBytes{}, RideBytes{}}, false, RideBytes{}},
-		{[]RideType{RideBytes{1, 2, 3}}, true, nil},
-		{[]RideType{RideBytes{1, 2, 4}, RideInt(0)}, true, nil},
-		{[]RideType{RideBytes{1, 2, 3}, RideBytes{1, 2, 3}, RideBytes{1, 2, 3}}, true, nil},
+		{[]RideType{rideBytes{1, 2, 3}, rideBytes{4, 5}}, false, rideBytes{1, 2, 3, 4, 5}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideBytes{6}}, false, rideBytes{1, 2, 3, 4, 5, 6}},
+		{[]RideType{rideBytes{1, 2, 3}, rideBytes{}}, false, rideBytes{1, 2, 3}},
+		{[]RideType{rideBytes{}, rideBytes{1, 2, 3}}, false, rideBytes{1, 2, 3}},
+		{[]RideType{rideBytes{}, rideBytes{}}, false, rideBytes{}},
+		{[]RideType{rideBytes{1, 2, 3}}, true, nil},
+		{[]RideType{rideBytes{1, 2, 4}, rideInt(0)}, true, nil},
+		{[]RideType{rideBytes{1, 2, 3}, rideBytes{1, 2, 3}, rideBytes{1, 2, 3}}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := concatBytes(nil, test.args...)
@@ -126,14 +126,14 @@ func TestToBase58(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, false, RideString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM")},
-		{[]RideType{RideBytes{0, 0, 0, 0, 0}}, false, RideString("11111")},
-		{[]RideType{RideBytes{}}, false, RideString("")},
-		{[]RideType{rideUnit{}}, false, RideString("")},
-		{[]RideType{RideBytes{}, RideBytes{}}, true, nil},
-		{[]RideType{RideBytes{1, 2, 4}, RideInt(0)}, true, nil},
-		{[]RideType{RideBytes{1, 2, 3}, RideBytes{1, 2, 3}, RideBytes{1, 2, 3}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
+		{[]RideType{rideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, false, rideString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM")},
+		{[]RideType{rideBytes{0, 0, 0, 0, 0}}, false, rideString("11111")},
+		{[]RideType{rideBytes{}}, false, rideString("")},
+		{[]RideType{rideUnit{}}, false, rideString("")},
+		{[]RideType{rideBytes{}, rideBytes{}}, true, nil},
+		{[]RideType{rideBytes{1, 2, 4}, rideInt(0)}, true, nil},
+		{[]RideType{rideBytes{1, 2, 3}, rideBytes{1, 2, 3}, rideBytes{1, 2, 3}}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := toBase58(nil, test.args...)
@@ -152,13 +152,13 @@ func TestFromBase58(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM")}, false, RideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},
-		{[]RideType{RideString("11111")}, false, RideBytes{0, 0, 0, 0, 0}},
-		{[]RideType{RideString("")}, false, RideBytes{}},
-		{[]RideType{RideString(""), RideString("")}, true, nil},
-		{[]RideType{RideBytes{1, 2, 4}}, true, nil},
-		{[]RideType{RideBytes{1, 2, 3}, RideBytes{1, 2, 3}, RideBytes{1, 2, 3}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
+		{[]RideType{rideString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM")}, false, rideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},
+		{[]RideType{rideString("11111")}, false, rideBytes{0, 0, 0, 0, 0}},
+		{[]RideType{rideString("")}, false, rideBytes{}},
+		{[]RideType{rideString(""), rideString("")}, true, nil},
+		{[]RideType{rideBytes{1, 2, 4}}, true, nil},
+		{[]RideType{rideBytes{1, 2, 3}, rideBytes{1, 2, 3}, rideBytes{1, 2, 3}}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := fromBase58(nil, test.args...)
@@ -177,14 +177,14 @@ func TestToBase64(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, false, RideString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q=")},
-		{[]RideType{RideBytes{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}}, false, RideString("AQa3b8tH")},
-		{[]RideType{RideBytes{}}, false, RideString("")},
-		{[]RideType{rideUnit{}}, false, RideString("")},
-		{[]RideType{RideBytes{}, RideBytes{}}, true, nil},
-		{[]RideType{RideBytes{1, 2, 4}, RideInt(0)}, true, nil},
-		{[]RideType{RideBytes{1, 2, 3}, RideBytes{1, 2, 3}, RideBytes{1, 2, 3}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
+		{[]RideType{rideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, false, rideString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q=")},
+		{[]RideType{rideBytes{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}}, false, rideString("AQa3b8tH")},
+		{[]RideType{rideBytes{}}, false, rideString("")},
+		{[]RideType{rideUnit{}}, false, rideString("")},
+		{[]RideType{rideBytes{}, rideBytes{}}, true, nil},
+		{[]RideType{rideBytes{1, 2, 4}, rideInt(0)}, true, nil},
+		{[]RideType{rideBytes{1, 2, 3}, rideBytes{1, 2, 3}, rideBytes{1, 2, 3}}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := toBase64(nil, test.args...)
@@ -203,17 +203,17 @@ func TestFromBase64(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q=")}, false, RideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},
-		{[]RideType{RideString("base64:VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q=")}, false, RideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},
-		{[]RideType{RideString("AQa3b8tH")}, false, RideBytes{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}},
-		{[]RideType{RideString("base64:AQa3b8tH")}, false, RideBytes{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}},
-		{[]RideType{RideString("")}, false, RideBytes{}},
-		{[]RideType{RideString("base64:")}, false, RideBytes{}},
-		{[]RideType{RideString("base64")}, false, RideBytes{0x6d, 0xab, 0x1e, 0xeb}},
-		{[]RideType{RideString("base64:"), RideString("")}, true, nil},
-		{[]RideType{RideBytes{1, 2, 4}}, true, nil},
-		{[]RideType{RideBytes{1, 2, 3}, RideBytes{1, 2, 3}, RideBytes{1, 2, 3}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
+		{[]RideType{rideString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q=")}, false, rideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},
+		{[]RideType{rideString("base64:VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q=")}, false, rideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},
+		{[]RideType{rideString("AQa3b8tH")}, false, rideBytes{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}},
+		{[]RideType{rideString("base64:AQa3b8tH")}, false, rideBytes{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}},
+		{[]RideType{rideString("")}, false, rideBytes{}},
+		{[]RideType{rideString("base64:")}, false, rideBytes{}},
+		{[]RideType{rideString("base64")}, false, rideBytes{0x6d, 0xab, 0x1e, 0xeb}},
+		{[]RideType{rideString("base64:"), rideString("")}, true, nil},
+		{[]RideType{rideBytes{1, 2, 4}}, true, nil},
+		{[]RideType{rideBytes{1, 2, 3}, rideBytes{1, 2, 3}, rideBytes{1, 2, 3}}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := fromBase64(nil, test.args...)
@@ -232,13 +232,13 @@ func TestToBase16(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, false, RideString("5468697320697320612073696d706c6520737472696e6720666f722074657374")},
-		{[]RideType{RideBytes{}}, false, RideString("")},
-		{[]RideType{rideUnit{}}, false, RideString("")},
-		{[]RideType{RideBytes{}, RideBytes{}}, true, nil},
-		{[]RideType{RideBytes{1, 2, 4}, RideInt(0)}, true, nil},
-		{[]RideType{RideBytes{1, 2, 3}, RideBytes{1, 2, 3}, RideBytes{1, 2, 3}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
+		{[]RideType{rideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, false, rideString("5468697320697320612073696d706c6520737472696e6720666f722074657374")},
+		{[]RideType{rideBytes{}}, false, rideString("")},
+		{[]RideType{rideUnit{}}, false, rideString("")},
+		{[]RideType{rideBytes{}, rideBytes{}}, true, nil},
+		{[]RideType{rideBytes{1, 2, 4}, rideInt(0)}, true, nil},
+		{[]RideType{rideBytes{1, 2, 3}, rideBytes{1, 2, 3}, rideBytes{1, 2, 3}}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := toBase16(nil, test.args...)
@@ -257,15 +257,15 @@ func TestFromBase16(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideString("5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, RideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},
-		{[]RideType{RideString("base16:5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, RideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},
-		{[]RideType{RideString("")}, false, RideBytes{}},
-		{[]RideType{RideString("base16:")}, false, RideBytes{}},
-		{[]RideType{RideString("base16")}, true, nil},
-		{[]RideType{RideString("base16:"), RideString("")}, true, nil},
-		{[]RideType{RideBytes{1, 2, 4}}, true, nil},
-		{[]RideType{RideBytes{1, 2, 3}, RideBytes{1, 2, 3}, RideBytes{1, 2, 3}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
+		{[]RideType{rideString("5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, rideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},
+		{[]RideType{rideString("base16:5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, rideBytes{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},
+		{[]RideType{rideString("")}, false, rideBytes{}},
+		{[]RideType{rideString("base16:")}, false, rideBytes{}},
+		{[]RideType{rideString("base16")}, true, nil},
+		{[]RideType{rideString("base16:"), rideString("")}, true, nil},
+		{[]RideType{rideBytes{1, 2, 4}}, true, nil},
+		{[]RideType{rideBytes{1, 2, 3}, rideBytes{1, 2, 3}, rideBytes{1, 2, 3}}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := fromBase16(nil, test.args...)
@@ -284,18 +284,18 @@ func TestDropRightBytes(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(2)}, false, RideBytes{1, 2, 3}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(4)}, false, RideBytes{1}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(5)}, false, RideBytes{}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(8)}, false, RideBytes{}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(0)}, false, RideBytes{1, 2, 3, 4, 5}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(-4)}, false, RideBytes{1, 2, 3, 4, 5}},
-		{[]RideType{RideBytes{}, RideInt(0)}, false, RideBytes{}},
-		{[]RideType{RideBytes{}, RideInt(3)}, false, RideBytes{}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}}, true, nil},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(2)}, false, rideBytes{1, 2, 3}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(4)}, false, rideBytes{1}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(5)}, false, rideBytes{}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(8)}, false, rideBytes{}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(0)}, false, rideBytes{1, 2, 3, 4, 5}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(-4)}, false, rideBytes{1, 2, 3, 4, 5}},
+		{[]RideType{rideBytes{}, rideInt(0)}, false, rideBytes{}},
+		{[]RideType{rideBytes{}, rideInt(3)}, false, rideBytes{}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := dropRightBytes(nil, test.args...)
@@ -314,18 +314,18 @@ func TestTakeRightBytes(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(2)}, false, RideBytes{4, 5}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(4)}, false, RideBytes{2, 3, 4, 5}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(5)}, false, RideBytes{1, 2, 3, 4, 5}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(8)}, false, RideBytes{1, 2, 3, 4, 5}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(0)}, false, RideBytes{}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}, RideInt(-4)}, false, RideBytes{}},
-		{[]RideType{RideBytes{}, RideInt(0)}, false, RideBytes{}},
-		{[]RideType{RideBytes{}, RideInt(3)}, false, RideBytes{}},
-		{[]RideType{RideBytes{1, 2, 3, 4, 5}}, true, nil},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(2)}, false, rideBytes{4, 5}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(4)}, false, rideBytes{2, 3, 4, 5}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(5)}, false, rideBytes{1, 2, 3, 4, 5}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(8)}, false, rideBytes{1, 2, 3, 4, 5}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(0)}, false, rideBytes{}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}, rideInt(-4)}, false, rideBytes{}},
+		{[]RideType{rideBytes{}, rideInt(0)}, false, rideBytes{}},
+		{[]RideType{rideBytes{}, rideInt(3)}, false, rideBytes{}},
+		{[]RideType{rideBytes{1, 2, 3, 4, 5}}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := takeRightBytes(nil, test.args...)
@@ -346,12 +346,12 @@ func TestBytesToUTF8String(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBytes("blah-blah-blah")}, false, RideString("blah-blah-blah")},
-		{[]RideType{RideBytes("")}, false, RideString("")},
-		{[]RideType{RideBytes{}}, false, RideString("")},
-		{[]RideType{RideBytes(broken)}, true, nil},
-		{[]RideType{RideString("blah-blah-blah")}, true, nil},
-		{[]RideType{RideBytes{0, 0, 0, 0, 0, 0, 0, 1}, RideInt(1)}, true, nil},
+		{[]RideType{rideBytes("blah-blah-blah")}, false, rideString("blah-blah-blah")},
+		{[]RideType{rideBytes("")}, false, rideString("")},
+		{[]RideType{rideBytes{}}, false, rideString("")},
+		{[]RideType{rideBytes(broken)}, true, nil},
+		{[]RideType{rideString("blah-blah-blah")}, true, nil},
+		{[]RideType{rideBytes{0, 0, 0, 0, 0, 0, 0, 1}, rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := bytesToUTF8String(nil, test.args...)
@@ -370,14 +370,14 @@ func TestBytesToInt(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBytes{0, 0, 0, 0, 0, 0, 0, 0}}, false, RideInt(0)},
-		{[]RideType{RideBytes{0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}}, false, RideInt(math.MaxInt64)},
-		{[]RideType{RideBytes{0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5}}, false, RideInt(1)},
-		{[]RideType{RideBytes{}}, true, nil},
-		{[]RideType{RideBytes{0, 0, 0, 0}}, true, nil},
+		{[]RideType{rideBytes{0, 0, 0, 0, 0, 0, 0, 0}}, false, rideInt(0)},
+		{[]RideType{rideBytes{0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}}, false, rideInt(math.MaxInt64)},
+		{[]RideType{rideBytes{0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5}}, false, rideInt(1)},
+		{[]RideType{rideBytes{}}, true, nil},
+		{[]RideType{rideBytes{0, 0, 0, 0}}, true, nil},
 		{[]RideType{rideUnit{}}, true, nil},
-		{[]RideType{RideInt(1), RideString("x")}, true, nil},
-		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{rideInt(1), rideString("x")}, true, nil},
+		{[]RideType{rideInt(1)}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := bytesToInt(nil, test.args...)
@@ -396,14 +396,14 @@ func TestBytesToIntWithOffset(t *testing.T) {
 		fail bool
 		r    RideType
 	}{
-		{[]RideType{RideBytes{0, 0, 0, 0, 0, 0, 0, 0}, RideInt(0)}, false, RideInt(0)},
-		{[]RideType{RideBytes{0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, RideInt(0)}, false, RideInt(math.MaxInt64)},
-		{[]RideType{RideBytes{0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0}, RideInt(2)}, false, RideInt(0)},
-		{[]RideType{RideBytes{0xff, 0xff, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, RideInt(2)}, false, RideInt(math.MaxInt64)},
-		{[]RideType{RideBytes{}, RideInt(0)}, true, nil},
-		{[]RideType{RideBytes{0, 0, 0, 0, 0, 0, 0, 1}, RideInt(1)}, true, nil},
-		{[]RideType{RideBytes{0, 0, 0, 0, 0, 0, 0, 0}}, true, nil},
-		{[]RideType{RideBytes{0, 0, 0, 0, 0, 0, 0, 0}, RideString("x")}, true, nil},
+		{[]RideType{rideBytes{0, 0, 0, 0, 0, 0, 0, 0}, rideInt(0)}, false, rideInt(0)},
+		{[]RideType{rideBytes{0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, rideInt(0)}, false, rideInt(math.MaxInt64)},
+		{[]RideType{rideBytes{0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0}, rideInt(2)}, false, rideInt(0)},
+		{[]RideType{rideBytes{0xff, 0xff, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, rideInt(2)}, false, rideInt(math.MaxInt64)},
+		{[]RideType{rideBytes{}, rideInt(0)}, true, nil},
+		{[]RideType{rideBytes{0, 0, 0, 0, 0, 0, 0, 1}, rideInt(1)}, true, nil},
+		{[]RideType{rideBytes{0, 0, 0, 0, 0, 0, 0, 0}}, true, nil},
+		{[]RideType{rideBytes{0, 0, 0, 0, 0, 0, 0, 0}, rideString("x")}, true, nil},
 		{[]RideType{}, true, nil},
 	} {
 		r, err := bytesToIntWithOffset(nil, test.args...)

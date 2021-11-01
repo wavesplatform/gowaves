@@ -245,7 +245,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 			return DAppResult{res: false, msg: string(res), complexity: e.complexity}, nil
 		}
 		return ScriptResult{res: false, msg: string(res), complexity: e.complexity}, nil
-	case RideBoolean:
+	case rideBoolean:
 		return ScriptResult{res: bool(res), complexity: e.complexity}, nil
 	case rideObject:
 		a, err := objectToActions(e.env, res)
@@ -253,7 +253,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
 		return DAppResult{res: true, actions: a, msg: "", complexity: e.complexity}, nil
-	case RideList:
+	case rideList:
 		var actions []proto.ScriptAction
 		for _, item := range res {
 			a, err := convertToAction(e.env, item)
@@ -266,7 +266,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 	case tuple2:
 		var actions []proto.ScriptAction
 		switch resAct := res.el1.(type) {
-		case RideList:
+		case rideList:
 			for _, item := range resAct {
 				a, err := convertToAction(e.env, item)
 				if err != nil {
@@ -321,16 +321,16 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []Node) (R
 func (e *treeEvaluator) walk(node Node) (RideType, error) {
 	switch n := node.(type) {
 	case *LongNode:
-		return RideInt(n.Value), nil
+		return rideInt(n.Value), nil
 
 	case *BytesNode:
-		return RideBytes(n.Value), nil
+		return rideBytes(n.Value), nil
 
 	case *BooleanNode:
-		return RideBoolean(n.Value), nil
+		return rideBoolean(n.Value), nil
 
 	case *StringNode:
-		return RideString(n.Value), nil
+		return rideString(n.Value), nil
 
 	case *ConditionalNode:
 		ce, err := e.walk(n.Condition)
@@ -340,7 +340,7 @@ func (e *treeEvaluator) walk(node Node) (RideType, error) {
 		if isThrow(ce) {
 			return ce, nil
 		}
-		cr, ok := ce.(RideBoolean)
+		cr, ok := ce.(rideBoolean)
 		if !ok {
 			return nil, errors.Errorf("not a boolean")
 		}

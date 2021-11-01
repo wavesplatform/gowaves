@@ -14,7 +14,7 @@ import (
 
 // EthereumGasPrice is a constant GasPrice which equals 10GWei according to the specification
 const EthereumGasPrice = 10 * EthereumGWei
-
+const DiffEthWaves = 1e10 // in ethereum numbers are represented in 10^18. In waves it's 10^8
 // EthereumTxType is an ethereum transaction type.
 type EthereumTxType byte
 

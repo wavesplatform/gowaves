@@ -96,11 +96,9 @@ func TestEthereumTransferWaves(t *testing.T) {
 
 }
 func lessenDecodedDataAmount(t *testing.T, decodedData *ethabi.DecodedCallData) {
-	rideValue, err := ride.EthABIDataTypeToRideType(decodedData.Inputs[1].Value)
-	assert.NoError(t, err)
-	v, ok := rideValue.(ride.RideBigInt)
+	v, ok := decodedData.Inputs[1].Value.(ethabi.BigInt)
 	assert.True(t, ok)
-	res := new(big.Int).Div(v.V, big.NewInt(int64(diffEthWaves)))
+	res := new(big.Int).Div(v.V, big.NewInt(int64(proto.DiffEthWaves)))
 	decodedData.Inputs[1].Value = ethabi.BigInt{V: res}
 }
 
@@ -164,9 +162,10 @@ func TestEthereumTransferAssets(t *testing.T) {
 	senderWavesKey := byteKey(sender, wavesAsset.ToID())
 	senderKey := byteKey(sender, txKindTransferAssets.Asset.ToID())
 
-	rideValue, err := ride.EthABIDataTypeToRideType(decodedData.Inputs[0].Value)
-	assert.NoError(t, err)
-	rideEthRecipientAddress, ok := rideValue.(ride.RideBytes)
+	//rideValue, err := ride.EthABIDataTypeToRideType(decodedData.Inputs[0].Value)
+	//assert.NoError(t, err)
+	//rideEthRecipientAddress, ok := rideValue.(ride.rideBytes)
+	rideEthRecipientAddress, ok := decodedData.Inputs[0].Value.(ethabi.Bytes)
 	assert.True(t, ok)
 	ethRecipientAddress := proto.BytesToEthereumAddress(rideEthRecipientAddress)
 	recipient, err := ethRecipientAddress.ToWavesAddress(proto.MainNetScheme)
@@ -500,101 +499,4 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 		{Entry: &proto.IntegerDataEntry{Key: "int", Value: 1}},
 	}
 	assert.Equal(t, expectedDataEntryWrites[0], actions[0])
-}
-
-func TestEthereumTransferTransformTxToRideObj(t *testing.T) {
-	txAppender := defaultTxAppender(t, nil, nil, proto.MainNetScheme)
-	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
-	assert.NoError(t, err)
-	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
-	assert.NoError(t, err)
-	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
-
-	tx := proto.EthereumTransaction{
-		Inner:    defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 100000),
-		ID:       &crypto.Digest{},
-		SenderPK: &senderPK,
-	}
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
-	assert.NoError(t, err)
-
-	rideObj, err := ride.TransactionToObject(txAppender.ia.settings.AddressSchemeCharacter, &tx)
-	assert.NoError(t, err)
-
-	sender, err := tx.WavesAddressFrom(txAppender.ia.settings.AddressSchemeCharacter)
-	assert.NoError(t, err)
-	recipient, err := tx.WavesAddressTo(txAppender.ia.settings.AddressSchemeCharacter)
-	assert.NoError(t, err)
-	assert.Equal(t, ride.RideBytes(senderPK.SerializeXYCoordinates()), rideObj["senderPublicKey"])
-	assert.Equal(t, ride.RideAddress(sender), rideObj["sender"])
-	assert.Equal(t, ride.RideRecipient(proto.NewRecipientFromAddress(*recipient)), rideObj["recipient"])
-	assert.Equal(t, ride.RideInt(100000), rideObj["amount"])
-	assert.Equal(t, ride.RideInt(100000), rideObj["fee"])
-}
-
-func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
-	storage := &MockScriptStorageState{
-		NewestScriptPKByAddrFunc: func(address proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
-			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
-		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) bool {
-			return false
-		},
-	}
-
-	appendTxParams := defaultAppendTxParams()
-	state := &AnotherMockSmartState{
-		AssetInfoByIDFunc: func(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
-			var r crypto.Digest
-			copy(r[:20], id[:])
-			return &proto.AssetInfo{ID: r}, nil
-		},
-	}
-	txAppender := defaultTxAppender(t, storage, state, proto.MainNetScheme)
-
-	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
-	assert.NoError(t, err)
-	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
-	assert.NoError(t, err)
-	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
-	//var TxSeveralData []proto.EthereumTxData
-	//TxSeveralData = append(TxSeveralData, defaultEthereumLegacyTxData(1000000000000000, &recipientEth), defaultEthereumDynamicFeeTx(1000000000000000, &recipientEth), defaultEthereumAccessListTx(1000000000000000, &recipientEth))
-	/*
-		from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
-		transfer(address,uint256)
-		1 = 0x9a1989946ae4249AAC19ac7a038d24Aab03c3D8c
-		2 = 209470300000000000000000
-	*/
-	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
-	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
-	require.NoError(t, err)
-	var txData proto.EthereumTxData = defaultEthereumLegacyTxData(1000000000000000, &recipientEth, data, 100000)
-	tx := proto.EthereumTransaction{
-		Inner:    txData,
-		ID:       &crypto.Digest{},
-		SenderPK: &senderPK,
-	}
-	db := ethabi.NewErc20MethodsMap()
-	assert.NotNil(t, tx.Data())
-	decodedData, err := db.ParseCallDataRide(tx.Data())
-	assert.NoError(t, err)
-	lessenDecodedDataAmount(t, decodedData)
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, appendTxParams)
-	assert.NoError(t, err)
-	txKindTransferAssets := tx.TxKind.(*proto.EthereumTransferAssetsErc20TxKind)
-	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, txKindTransferAssets.Asset)
-
-	rideObj, err := ride.TransactionToObject(txAppender.ia.settings.AddressSchemeCharacter, &tx)
-	assert.NoError(t, err)
-
-	sender, err := tx.WavesAddressFrom(txAppender.ia.settings.AddressSchemeCharacter)
-	assert.NoError(t, err)
-
-	assert.Equal(t, ride.RideBytes(senderPK.SerializeXYCoordinates()), rideObj["senderPublicKey"])
-	assert.Equal(t, ride.RideAddress(sender), rideObj["sender"])
-	erc20arguments, err := ride.GetERC20Arguments(tx.TxKind.DecodedData(), txAppender.ia.settings.AddressSchemeCharacter)
-	assert.NoError(t, err)
-	assert.Equal(t, ride.RideRecipient(proto.NewRecipientFromAddress(erc20arguments.Recipient)), rideObj["recipient"])
-	assert.Equal(t, ride.RideInt(20947030000000), rideObj["amount"])
-	assert.Equal(t, ride.RideInt(100000), rideObj["fee"])
 }

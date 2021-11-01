@@ -58,15 +58,15 @@ func (m *vm) run() (Result, error) {
 				return nil, errors.Wrap(err, "failed to pop value")
 			}
 		case OpTrue:
-			m.push(RideBoolean(true))
+			m.push(rideBoolean(true))
 		case OpFalse:
-			m.push(RideBoolean(false))
+			m.push(rideBoolean(false))
 		case OpJump:
 			pos := m.arg16()
 			m.ip = pos
 		case OpJumpIfFalse:
 			pos := m.arg16()
-			v, ok := m.current().(RideBoolean)
+			v, ok := m.current().(rideBoolean)
 			if !ok {
 				return nil, errors.Errorf("not a boolean value '%v' of type '%T'", m.current(), m.current())
 			}
@@ -79,7 +79,7 @@ func (m *vm) run() (Result, error) {
 				return nil, errors.Wrap(err, "failed to get object")
 			}
 			prop := m.constant()
-			p, ok := prop.(RideString)
+			p, ok := prop.(rideString)
 			if !ok {
 				return nil, errors.Errorf("invalid property name type '%s'", prop.instanceOf())
 			}
@@ -154,7 +154,7 @@ func (m *vm) run() (Result, error) {
 					return nil, errors.Wrap(err, "failed to get result value")
 				}
 				switch tv := v.(type) {
-				case RideBoolean:
+				case rideBoolean:
 					return ScriptResult{res: bool(tv)}, nil
 				default:
 					return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)

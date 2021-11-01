@@ -9,7 +9,7 @@ import (
 
 const maxListSize = 1000
 
-func listAndStringArgs(args []RideType) (RideList, RideString, error) {
+func listAndStringArgs(args []RideType) (rideList, rideString, error) {
 	if len(args) != 2 {
 		return nil, "", errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
 	}
@@ -19,18 +19,18 @@ func listAndStringArgs(args []RideType) (RideList, RideString, error) {
 	if args[1] == nil {
 		return nil, "", errors.Errorf("argument 2 is empty")
 	}
-	l, ok := args[0].(RideList)
+	l, ok := args[0].(rideList)
 	if !ok {
 		return nil, "", errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
 	}
-	s, ok := args[1].(RideString)
+	s, ok := args[1].(rideString)
 	if !ok {
 		return nil, "", errors.Errorf("unexpected type of argument 2 '%s'", args[1].instanceOf())
 	}
 	return l, s, nil
 }
 
-func listAndIntArgs(args []RideType) (RideList, int, error) {
+func listAndIntArgs(args []RideType) (rideList, int, error) {
 	if len(args) != 2 {
 		return nil, 0, errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
 	}
@@ -40,11 +40,11 @@ func listAndIntArgs(args []RideType) (RideList, int, error) {
 	if args[1] == nil {
 		return nil, 0, errors.Errorf("argument 2 is empty")
 	}
-	l, ok := args[0].(RideList)
+	l, ok := args[0].(rideList)
 	if !ok {
 		return nil, 0, errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
 	}
-	ri, ok := args[1].(RideInt)
+	ri, ok := args[1].(rideInt)
 	if !ok {
 		return nil, 0, errors.Errorf("unexpected type of argument 2 '%s'", args[1].instanceOf())
 	}
@@ -55,21 +55,21 @@ func listAndIntArgs(args []RideType) (RideList, int, error) {
 	return l, i, nil
 }
 
-func listArg(args []RideType) (RideList, error) {
+func listArg(args []RideType) (rideList, error) {
 	if len(args) != 1 {
 		return nil, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
 	}
 	if args[0] == nil {
 		return nil, errors.Errorf("argument is empty")
 	}
-	l, ok := args[0].(RideList)
+	l, ok := args[0].(rideList)
 	if !ok {
 		return nil, errors.Errorf("unexpected type of argument '%s'", args[0].instanceOf())
 	}
 	return l, nil
 }
 
-func listAndElementArgs(args []RideType) (RideList, RideType, error) {
+func listAndElementArgs(args []RideType) (rideList, RideType, error) {
 	if len(args) != 2 {
 		return nil, nil, errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
 	}
@@ -79,7 +79,7 @@ func listAndElementArgs(args []RideType) (RideList, RideType, error) {
 	if args[1] == nil {
 		return nil, nil, errors.Errorf("argument 2 is empty")
 	}
-	l, ok := args[0].(RideList)
+	l, ok := args[0].(rideList)
 	if !ok {
 		return nil, nil, errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
 	}
@@ -219,7 +219,7 @@ func sizeList(_ Environment, args ...RideType) (RideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "sizeList")
 	}
-	return RideInt(len(l)), nil
+	return rideInt(len(l)), nil
 }
 
 func getList(_ Environment, args ...RideType) (RideType, error) {
@@ -238,16 +238,16 @@ func createList(_ Environment, args ...RideType) (RideType, error) {
 		return nil, errors.Errorf("createList: empty head")
 	}
 	if args[1] == nil {
-		return RideList{args[0]}, nil
+		return rideList{args[0]}, nil
 	}
-	tail, ok := args[1].(RideList)
+	tail, ok := args[1].(rideList)
 	if !ok {
 		return nil, errors.Errorf("createList: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	if len(tail) == 0 {
-		return RideList{args[0]}, nil
+		return rideList{args[0]}, nil
 	}
-	return append(RideList{args[0]}, tail...), nil
+	return append(rideList{args[0]}, tail...), nil
 }
 
 func intValueFromArray(env Environment, args ...RideType) (RideType, error) {
@@ -318,7 +318,7 @@ func limitedCreateList(_ Environment, args ...RideType) (RideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "limitedCreateList")
 	}
-	tail, ok := args[1].(RideList)
+	tail, ok := args[1].(rideList)
 	if !ok {
 		return nil, errors.Errorf("limitedCreateList: unexpected argument type '%s'", args[1].instanceOf())
 	}
@@ -326,9 +326,9 @@ func limitedCreateList(_ Environment, args ...RideType) (RideType, error) {
 		return nil, errors.Errorf("limitedCreateList: resulting list size exceeds %d elements", maxListSize)
 	}
 	if len(tail) == 0 {
-		return RideList{args[0]}, nil
+		return rideList{args[0]}, nil
 	}
-	return append(RideList{args[0]}, tail...), nil
+	return append(rideList{args[0]}, tail...), nil
 }
 
 func appendToList(_ Environment, args ...RideType) (RideType, error) {
@@ -340,7 +340,7 @@ func appendToList(_ Environment, args ...RideType) (RideType, error) {
 		return nil, errors.Errorf("appendToList: resulting list size exceeds %d elements", maxListSize)
 	}
 	if len(list) == 0 {
-		return RideList{e}, nil
+		return rideList{e}, nil
 	}
 	return append(list, e), nil
 }
@@ -350,7 +350,7 @@ func concatList(_ Environment, args ...RideType) (RideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "concatList")
 	}
-	list2, ok := e.(RideList)
+	list2, ok := e.(rideList)
 	if !ok {
 		return nil, errors.Errorf("concatList: unexpected argument type '%s'", args[1])
 	}
@@ -359,7 +359,7 @@ func concatList(_ Environment, args ...RideType) (RideType, error) {
 	if l1+l2 > maxListSize {
 		return nil, errors.Errorf("concatList: resulting list size exceeds %d elements", maxListSize)
 	}
-	r := make(RideList, l1+l2)
+	r := make(rideList, l1+l2)
 	copy(r, list1)
 	copy(r[l1:], list2)
 	return r, nil
@@ -375,7 +375,7 @@ func indexOfList(_ Environment, args ...RideType) (RideType, error) {
 	}
 	for i := 0; i < len(list); i++ {
 		if e.eq(list[i]) {
-			return RideInt(i), nil
+			return rideInt(i), nil
 		}
 	}
 	return rideUnit{}, nil // not found returns Unit
@@ -391,7 +391,7 @@ func lastIndexOfList(_ Environment, args ...RideType) (RideType, error) {
 	}
 	for i := len(list) - 1; i >= 0; i-- {
 		if e.eq(list[i]) {
-			return RideInt(i), nil
+			return rideInt(i), nil
 		}
 	}
 	return rideUnit{}, nil // not found returns Unit
@@ -413,9 +413,9 @@ func median(_ Environment, args ...RideType) (RideType, error) {
 	sort.Ints(items)
 	half := size / 2
 	if size%2 == 1 {
-		return RideInt(items[half]), nil
+		return rideInt(items[half]), nil
 	} else {
-		return RideInt(math.FloorDiv(int64(items[half-1])+int64(items[half]), 2)), nil
+		return rideInt(math.FloorDiv(int64(items[half-1])+int64(items[half]), 2)), nil
 	}
 }
 
@@ -433,7 +433,7 @@ func max(_ Environment, args ...RideType) (RideType, error) {
 		return nil, errors.Wrap(err, "max")
 	}
 	_, max := minMax(items)
-	return RideInt(max), nil
+	return rideInt(max), nil
 }
 
 func min(_ Environment, args ...RideType) (RideType, error) {
@@ -450,7 +450,7 @@ func min(_ Environment, args ...RideType) (RideType, error) {
 		return nil, errors.Wrap(err, "min")
 	}
 	min, _ := minMax(items)
-	return RideInt(min), nil
+	return rideInt(min), nil
 }
 
 func containsElement(_ Environment, args ...RideType) (RideType, error) {
@@ -460,10 +460,10 @@ func containsElement(_ Environment, args ...RideType) (RideType, error) {
 	}
 	for i := 0; i < len(list); i++ {
 		if e.eq(list[i]) {
-			return RideBoolean(true), nil
+			return rideBoolean(true), nil
 		}
 	}
-	return RideBoolean(false), nil
+	return rideBoolean(false), nil
 }
 
 func listRemoveByIndex(_ Environment, args ...RideType) (RideType, error) {
@@ -481,13 +481,13 @@ func listRemoveByIndex(_ Environment, args ...RideType) (RideType, error) {
 	if i >= l {
 		return nil, errors.Errorf("listRemoveByIndex: index out of bounds")
 	}
-	r := make(RideList, l-1)
+	r := make(rideList, l-1)
 	copy(r, list[:i])
 	copy(r[i:], list[i+1:])
 	return r, nil
 }
 
-func findItem(list RideList, key RideString, entryType, valueType string) (RideType, error) {
+func findItem(list rideList, key rideString, entryType, valueType string) (RideType, error) {
 	for _, item := range list {
 		o, ok := item.(rideObject)
 		if !ok {
@@ -510,10 +510,10 @@ func findItem(list RideList, key RideString, entryType, valueType string) (RideT
 	return rideUnit{}, nil
 }
 
-func intSlice(list RideList) ([]int, error) {
+func intSlice(list rideList) ([]int, error) {
 	items := make([]int, len(list))
 	for i, el := range list {
-		item, ok := el.(RideInt)
+		item, ok := el.(rideInt)
 		if !ok {
 			return nil, errors.Errorf("unexpected type of list element '%s'", el.instanceOf())
 		}
