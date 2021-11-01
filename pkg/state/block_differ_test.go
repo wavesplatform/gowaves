@@ -164,7 +164,7 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 }
 
 func genTransferWithWavesFee(t *testing.T) *proto.TransferWithProofs {
-	waves := proto.OptionalAsset{Present: false}
+	waves := proto.NewOptionalAssetWaves()
 	tx := proto.NewUnsignedTransferWithProofs(2, testGlobal.senderInfo.pk, waves, waves, defaultTimestamp, defaultAmount, defaultFee, proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), []byte("attachment"))
 	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
 	require.NoError(t, err)

@@ -31,7 +31,7 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 			}
 		} else {
 			// Asset.
-			balance, err := s.state.AccountBalance(rcp, asset)
+			balance, err := s.state.AssetBalance(rcp, asset)
 			if err != nil {
 				return status.Errorf(codes.NotFound, err.Error())
 			}

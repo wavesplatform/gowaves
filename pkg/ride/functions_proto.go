@@ -450,11 +450,18 @@ func assetBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
-	asset, err := extractAsset(args[1])
-	if err != nil {
-		return nil, errors.Wrap(err, "assetBalanceV3")
+	var balance uint64
+	switch asset := args[1].(type) {
+	case rideUnit:
+		balance, err = env.state().NewestWavesBalance(recipient)
+	case rideBytes:
+		if len(asset) != crypto.DigestSize {
+			return rideInt(0), nil // according to the scala node implementation
+		}
+		balance, err = env.state().NewestAssetBalance(recipient, asset)
+	default:
+		return nil, errors.Errorf("assetBalanceV3: unable to extract asset ID from '%s'", asset.instanceOf())
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, asset)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
@@ -469,14 +476,14 @@ func assetBalanceV4(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	asset, err := extractAsset(args[1])
-	if err != nil {
-		return nil, errors.Wrap(err, "assetBalanceV4")
+	asset, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("assetBalanceV4: unable to extract asset ID from '%s'", args[1].instanceOf())
 	}
-	if len(asset) == 0 { // Additional check, empty asset's ID is not allowed any more
-		return nil, errors.New("assetBalanceV4: empty asset ID")
+	if len(asset) != crypto.DigestSize {
+		return rideInt(0), nil // according to the scala node implementation
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, asset)
+	balance, err := env.state().NewestAssetBalance(recipient, asset)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
@@ -720,7 +727,7 @@ func wavesBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, nil)
+	balance, err := env.state().NewestWavesBalance(recipient)
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
 	}
@@ -1581,17 +1588,6 @@ func extractRecipient(v rideType) (proto.Recipient, error) {
 		return proto.Recipient{}, errors.Errorf("unable to extract recipient from '%s'", v.instanceOf())
 	}
 	return r, nil
-}
-
-func extractAsset(v rideType) ([]byte, error) {
-	switch a := v.(type) {
-	case rideBytes:
-		return a, nil
-	case rideUnit:
-		return nil, nil
-	default:
-		return nil, errors.Errorf("unable to extract asset ID from '%s'", v.instanceOf())
-	}
 }
 
 func extractRecipientAndKey(args []rideType) (proto.Recipient, string, error) {

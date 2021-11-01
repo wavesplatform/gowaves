@@ -63,7 +63,7 @@ func (to *invokeApplierTestObjects) setInitialWavesBalance(t *testing.T, addr pr
 
 func (to *invokeApplierTestObjects) setAndCheckInitialWavesBalance(t *testing.T, addr proto.Address, balance uint64) {
 	to.setInitialWavesBalance(t, addr, balance)
-	senderBalance, err := to.state.NewestAccountBalance(proto.NewRecipientFromAddress(addr), nil)
+	senderBalance, err := to.state.NewestWavesBalance(proto.NewRecipientFromAddress(addr))
 	assert.NoError(t, err)
 	assert.Equal(t, balance, senderBalance)
 }
@@ -187,7 +187,16 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 
 	// Check newest result state here.
 	for aa, correct := range id.correctBalances {
-		balance, err := to.state.NewestAccountBalance(aa.rcp, aa.asset())
+		var (
+			balance uint64
+			err     error
+			asset   = aa.asset()
+		)
+		if asset != nil {
+			balance, err = to.state.NewestAssetBalance(aa.rcp, asset)
+		} else {
+			balance, err = to.state.NewestWavesBalance(aa.rcp)
+		}
 		assert.NoError(t, err)
 		assert.Equal(t, int(correct), int(balance))
 	}
@@ -214,7 +223,16 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 
 	// Check state after flushing.
 	for aa, correct := range id.correctBalances {
-		balance, err := to.state.AccountBalance(aa.rcp, aa.asset())
+		var (
+			balance uint64
+			err     error
+			asset   = aa.asset()
+		)
+		if asset != nil {
+			balance, err = to.state.AssetBalance(aa.rcp, asset)
+		} else {
+			balance, err = to.state.WavesBalance(aa.rcp)
+		}
 		assert.NoError(t, err)
 		assert.Equal(t, int(correct), int(balance))
 	}
