@@ -599,7 +599,7 @@ func (x bigIntSlice) Len() int           { return len(x) }
 func (x bigIntSlice) Less(i, j int) bool { return x[i].Cmp(x[j]) < 0 }
 func (x bigIntSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
-func toBigIntSlice(list RideList) (bigIntSlice, error) {
+func toBigIntSlice(list rideList) (bigIntSlice, error) {
 	items := make([]*big.Int, len(list))
 	for i, el := range list {
 		item, ok := el.(rideBigInt)

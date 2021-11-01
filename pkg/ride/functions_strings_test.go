@@ -316,12 +316,12 @@ func TestSplitString(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideString("abcdefg"), rideString("")}, false, RideList{rideString("a"), rideString("b"), rideString("c"), rideString("d"), rideString("e"), rideString("f"), rideString("g")}},
-		{[]rideType{rideString("one two three four"), rideString(" ")}, false, RideList{rideString("one"), rideString("two"), rideString("three"), rideString("four")}},
-		{[]rideType{rideString(""), rideString(" ")}, false, RideList{rideString("")}},
-		{[]rideType{rideString(" "), rideString(" ")}, false, RideList{rideString(""), rideString("")}},
-		{[]rideType{rideString(""), rideString("")}, false, RideList{}},
-		{[]rideType{rideString(" "), rideString("")}, false, RideList{rideString(" ")}},
+		{[]rideType{rideString("abcdefg"), rideString("")}, false, rideList{rideString("a"), rideString("b"), rideString("c"), rideString("d"), rideString("e"), rideString("f"), rideString("g")}},
+		{[]rideType{rideString("one two three four"), rideString(" ")}, false, rideList{rideString("one"), rideString("two"), rideString("three"), rideString("four")}},
+		{[]rideType{rideString(""), rideString(" ")}, false, rideList{rideString("")}},
+		{[]rideType{rideString(" "), rideString(" ")}, false, rideList{rideString(""), rideString("")}},
+		{[]rideType{rideString(""), rideString("")}, false, rideList{}},
+		{[]rideType{rideString(" "), rideString("")}, false, rideList{rideString(" ")}},
 		{[]rideType{rideString("abc"), rideInt(0)}, true, nil},
 		{[]rideType{rideString("abc")}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
@@ -329,7 +329,7 @@ func TestSplitString(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
-		{[]rideType{rideString("strx冬x1;🤦;🤦strx冬x2;🤦strx冬x3"), rideString(";🤦")}, false, RideList{rideString("strx冬x1"), rideString(""), rideString("strx冬x2"), rideString("strx冬x3")}},
+		{[]rideType{rideString("strx冬x1;🤦;🤦strx冬x2;🤦strx冬x3"), rideString(";🤦")}, false, rideList{rideString("strx冬x1"), rideString(""), rideString("strx冬x2"), rideString("strx冬x3")}},
 	} {
 		r, err := splitString(nil, test.args...)
 		if test.fail {
@@ -469,11 +469,11 @@ func TestMakeString(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{RideList{rideString("1"), rideString("2"), rideString("3")}, rideString(" ")}, false, rideString("1 2 3")},
-		{[]rideType{RideList{rideString("one"), rideString("two"), rideString("three")}, rideString(", ")}, false, rideString("one, two, three")},
-		{[]rideType{RideList{rideString("")}, rideString("")}, false, rideString("")},
-		{[]rideType{RideList{}, rideString(",")}, false, rideString("")},
-		{[]rideType{RideList{rideString("one"), rideInt(2), rideString("tree")}, rideString(", ")}, true, nil},
+		{[]rideType{rideList{rideString("1"), rideString("2"), rideString("3")}, rideString(" ")}, false, rideString("1 2 3")},
+		{[]rideType{rideList{rideString("one"), rideString("two"), rideString("three")}, rideString(", ")}, false, rideString("one, two, three")},
+		{[]rideType{rideList{rideString("")}, rideString("")}, false, rideString("")},
+		{[]rideType{rideList{}, rideString(",")}, false, rideString("")},
+		{[]rideType{rideList{rideString("one"), rideInt(2), rideString("tree")}, rideString(", ")}, true, nil},
 		{[]rideType{rideString("")}, true, nil},
 		{[]rideType{rideString(""), rideInt(3)}, true, nil},
 		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, true, nil},

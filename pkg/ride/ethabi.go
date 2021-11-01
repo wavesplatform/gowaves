@@ -20,7 +20,7 @@ func ethABIDataTypeToRideType(dataType ethabi.DataType) (rideType rideType, err 
 	case ethabi.String:
 		rideType = rideString(t)
 	case ethabi.List:
-		rideList := make(RideList, len(t))
+		rideList := make(rideList, len(t))
 		for i, ethABIElem := range t {
 			rideElem, err := ethABIDataTypeToRideType(ethABIElem)
 			if err != nil {
