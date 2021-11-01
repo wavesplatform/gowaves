@@ -24,7 +24,7 @@ func isAddressInBL(dAppAddress proto.WavesAddress, blackList []proto.WavesAddres
 	return false
 }
 
-func reentrantInvoke(env Environment, args ...RideType) (RideType, error) {
+func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
 		return nil, errors.Wrap(errors.New("wrong state"), "reentrantInvoke")
@@ -175,7 +175,7 @@ func reentrantInvoke(env Environment, args ...RideType) (RideType, error) {
 	return rideThrow("result of reentrantInvoke function is false"), nil
 }
 
-func invoke(env Environment, args ...RideType) (RideType, error) {
+func invoke(env Environment, args ...rideType) (rideType, error) {
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
 		return nil, errors.Wrapf(errors.New("wrong state"), "invoke")
@@ -348,7 +348,7 @@ func ensureRecipientAddress(env Environment, recipient proto.Recipient) (proto.R
 	return recipient, nil
 }
 
-func hashScriptAtAddress(env Environment, args ...RideType) (RideType, error) {
+func hashScriptAtAddress(env Environment, args ...rideType) (rideType, error) {
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
 		return nil, errors.Errorf("hashScriptAtAddress: unexpected argument type '%s'", args[0].instanceOf())
@@ -370,7 +370,7 @@ func hashScriptAtAddress(env Environment, args ...RideType) (RideType, error) {
 	return rideUnit{}, nil
 }
 
-func isDataStorageUntouched(env Environment, args ...RideType) (RideType, error) {
+func isDataStorageUntouched(env Environment, args ...rideType) (rideType, error) {
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
 		return nil, errors.Errorf("isDataStorageUntouched: unexpected argument type '%s'", args[0].instanceOf())
@@ -382,7 +382,7 @@ func isDataStorageUntouched(env Environment, args ...RideType) (RideType, error)
 	return rideBoolean(isUntouched), nil
 }
 
-func addressFromString(env Environment, args ...RideType) (RideType, error) {
+func addressFromString(env Environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "addressFromString")
@@ -397,7 +397,7 @@ func addressFromString(env Environment, args ...RideType) (RideType, error) {
 	return rideAddress(a), nil
 }
 
-func addressValueFromString(env Environment, args ...RideType) (RideType, error) {
+func addressValueFromString(env Environment, args ...rideType) (rideType, error) {
 	r, err := addressFromString(env, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "addressValueFromString")
@@ -408,7 +408,7 @@ func addressValueFromString(env Environment, args ...RideType) (RideType, error)
 	return r, nil
 }
 
-func transactionByID(env Environment, args ...RideType) (RideType, error) {
+func transactionByID(env Environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "transactionByID")
@@ -427,7 +427,7 @@ func transactionByID(env Environment, args ...RideType) (RideType, error) {
 	return obj, nil
 }
 
-func transactionHeightByID(env Environment, args ...RideType) (RideType, error) {
+func transactionHeightByID(env Environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "transactionHeightByID")
@@ -442,7 +442,7 @@ func transactionHeightByID(env Environment, args ...RideType) (RideType, error) 
 	return rideInt(h), nil
 }
 
-func assetBalanceV3(env Environment, args ...RideType) (RideType, error) {
+func assetBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
@@ -461,7 +461,7 @@ func assetBalanceV3(env Environment, args ...RideType) (RideType, error) {
 	return rideInt(balance), nil
 }
 
-func assetBalanceV4(env Environment, args ...RideType) (RideType, error) {
+func assetBalanceV4(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
@@ -483,7 +483,7 @@ func assetBalanceV4(env Environment, args ...RideType) (RideType, error) {
 	return rideInt(balance), nil
 }
 
-func intFromState(env Environment, args ...RideType) (RideType, error) {
+func intFromState(env Environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -495,7 +495,7 @@ func intFromState(env Environment, args ...RideType) (RideType, error) {
 	return rideInt(entry.Value), nil
 }
 
-func intFromSelfState(env Environment, args ...RideType) (RideType, error) {
+func intFromSelfState(env Environment, args ...rideType) (rideType, error) {
 	k, err := extractKey(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -512,7 +512,7 @@ func intFromSelfState(env Environment, args ...RideType) (RideType, error) {
 	return rideInt(entry.Value), nil
 }
 
-func bytesFromState(env Environment, args ...RideType) (RideType, error) {
+func bytesFromState(env Environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -524,7 +524,7 @@ func bytesFromState(env Environment, args ...RideType) (RideType, error) {
 	return rideBytes(entry.Value), nil
 }
 
-func bytesFromSelfState(env Environment, args ...RideType) (RideType, error) {
+func bytesFromSelfState(env Environment, args ...rideType) (rideType, error) {
 	k, err := extractKey(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -541,7 +541,7 @@ func bytesFromSelfState(env Environment, args ...RideType) (RideType, error) {
 	return rideBytes(entry.Value), nil
 }
 
-func stringFromState(env Environment, args ...RideType) (RideType, error) {
+func stringFromState(env Environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -553,7 +553,7 @@ func stringFromState(env Environment, args ...RideType) (RideType, error) {
 	return rideString(entry.Value), nil
 }
 
-func stringFromSelfState(env Environment, args ...RideType) (RideType, error) {
+func stringFromSelfState(env Environment, args ...rideType) (rideType, error) {
 	k, err := extractKey(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -570,7 +570,7 @@ func stringFromSelfState(env Environment, args ...RideType) (RideType, error) {
 	return rideString(entry.Value), nil
 }
 
-func booleanFromState(env Environment, args ...RideType) (RideType, error) {
+func booleanFromState(env Environment, args ...rideType) (rideType, error) {
 	r, k, err := extractRecipientAndKey(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -582,7 +582,7 @@ func booleanFromState(env Environment, args ...RideType) (RideType, error) {
 	return rideBoolean(entry.Value), nil
 }
 
-func booleanFromSelfState(env Environment, args ...RideType) (RideType, error) {
+func booleanFromSelfState(env Environment, args ...rideType) (rideType, error) {
 	k, err := extractKey(args)
 	if err != nil {
 		return rideUnit{}, nil
@@ -599,7 +599,7 @@ func booleanFromSelfState(env Environment, args ...RideType) (RideType, error) {
 	return rideBoolean(entry.Value), nil
 }
 
-func addressFromRecipient(env Environment, args ...RideType) (RideType, error) {
+func addressFromRecipient(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "addressFromRecipient")
 	}
@@ -623,7 +623,7 @@ func addressFromRecipient(env Environment, args ...RideType) (RideType, error) {
 	}
 }
 
-func sigVerify(env Environment, args ...RideType) (RideType, error) {
+func sigVerify(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "sigVerify")
 	}
@@ -654,7 +654,7 @@ func sigVerify(env Environment, args ...RideType) (RideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func keccak256(env Environment, args ...RideType) (RideType, error) {
+func keccak256(env Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "keccak256")
@@ -669,7 +669,7 @@ func keccak256(env Environment, args ...RideType) (RideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func blake2b256(env Environment, args ...RideType) (RideType, error) {
+func blake2b256(env Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blake2b256")
@@ -684,7 +684,7 @@ func blake2b256(env Environment, args ...RideType) (RideType, error) {
 	return rideBytes(d.Bytes()), nil
 }
 
-func sha256(env Environment, args ...RideType) (RideType, error) {
+func sha256(env Environment, args ...rideType) (rideType, error) {
 	data, err := bytesOrStringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sha256")
@@ -700,7 +700,7 @@ func sha256(env Environment, args ...RideType) (RideType, error) {
 	return rideBytes(d), nil
 }
 
-func addressFromPublicKey(env Environment, args ...RideType) (RideType, error) {
+func addressFromPublicKey(env Environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "addressFromPublicKey")
@@ -712,7 +712,7 @@ func addressFromPublicKey(env Environment, args ...RideType) (RideType, error) {
 	return rideAddress(addr), nil
 }
 
-func wavesBalanceV3(env Environment, args ...RideType) (RideType, error) {
+func wavesBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
 	}
@@ -727,7 +727,7 @@ func wavesBalanceV3(env Environment, args ...RideType) (RideType, error) {
 	return rideInt(balance), nil
 }
 
-func wavesBalanceV4(env Environment, args ...RideType) (RideType, error) {
+func wavesBalanceV4(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV4")
 	}
@@ -742,7 +742,7 @@ func wavesBalanceV4(env Environment, args ...RideType) (RideType, error) {
 	return balanceDetailsToObject(balance), nil
 }
 
-func assetInfoV3(env Environment, args ...RideType) (RideType, error) {
+func assetInfoV3(env Environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetInfoV3")
@@ -758,7 +758,7 @@ func assetInfoV3(env Environment, args ...RideType) (RideType, error) {
 	return assetInfoToObject(info), nil
 }
 
-func assetInfoV4(env Environment, args ...RideType) (RideType, error) {
+func assetInfoV4(env Environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetInfoV4")
@@ -774,7 +774,7 @@ func assetInfoV4(env Environment, args ...RideType) (RideType, error) {
 	return fullAssetInfoToObject(info), nil
 }
 
-func blockInfoByHeight(env Environment, args ...RideType) (RideType, error) {
+func blockInfoByHeight(env Environment, args ...rideType) (rideType, error) {
 	i, err := intArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
@@ -795,7 +795,7 @@ func blockInfoByHeight(env Environment, args ...RideType) (RideType, error) {
 	return obj, nil
 }
 
-func transferByID(env Environment, args ...RideType) (RideType, error) {
+func transferByID(env Environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
@@ -814,7 +814,7 @@ func transferByID(env Environment, args ...RideType) (RideType, error) {
 	return obj, nil
 }
 
-func addressToString(_ Environment, args ...RideType) (RideType, error) {
+func addressToString(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "addressToString")
 	}
@@ -833,7 +833,7 @@ func addressToString(_ Environment, args ...RideType) (RideType, error) {
 	}
 }
 
-func rsaVerify(env Environment, args ...RideType) (RideType, error) {
+func rsaVerify(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "rsaVerify")
 	}
@@ -877,7 +877,7 @@ func rsaVerify(env Environment, args ...RideType) (RideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func checkMerkleProof(_ Environment, args ...RideType) (RideType, error) {
+func checkMerkleProof(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "checkMerkleProof")
 	}
@@ -900,7 +900,7 @@ func checkMerkleProof(_ Environment, args ...RideType) (RideType, error) {
 	return rideBoolean(bytes.Equal(root, r)), nil
 }
 
-func intValueFromState(env Environment, args ...RideType) (RideType, error) {
+func intValueFromState(env Environment, args ...rideType) (rideType, error) {
 	v, err := intFromState(env, args...)
 	if err != nil {
 		return nil, err
@@ -908,7 +908,7 @@ func intValueFromState(env Environment, args ...RideType) (RideType, error) {
 	return extractValue(v)
 }
 
-func intValueFromSelfState(env Environment, args ...RideType) (RideType, error) {
+func intValueFromSelfState(env Environment, args ...rideType) (rideType, error) {
 	v, err := intFromSelfState(env, args...)
 	if err != nil {
 		return nil, err
@@ -916,7 +916,7 @@ func intValueFromSelfState(env Environment, args ...RideType) (RideType, error) 
 	return extractValue(v)
 }
 
-func booleanValueFromState(env Environment, args ...RideType) (RideType, error) {
+func booleanValueFromState(env Environment, args ...rideType) (rideType, error) {
 	v, err := booleanFromState(env, args...)
 	if err != nil {
 		return nil, err
@@ -924,7 +924,7 @@ func booleanValueFromState(env Environment, args ...RideType) (RideType, error) 
 	return extractValue(v)
 }
 
-func booleanValueFromSelfState(env Environment, args ...RideType) (RideType, error) {
+func booleanValueFromSelfState(env Environment, args ...rideType) (rideType, error) {
 	v, err := booleanFromSelfState(env, args...)
 	if err != nil {
 		return nil, err
@@ -932,7 +932,7 @@ func booleanValueFromSelfState(env Environment, args ...RideType) (RideType, err
 	return extractValue(v)
 }
 
-func bytesValueFromState(env Environment, args ...RideType) (RideType, error) {
+func bytesValueFromState(env Environment, args ...rideType) (rideType, error) {
 	v, err := bytesFromState(env, args...)
 	if err != nil {
 		return nil, err
@@ -940,7 +940,7 @@ func bytesValueFromState(env Environment, args ...RideType) (RideType, error) {
 	return extractValue(v)
 }
 
-func bytesValueFromSelfState(env Environment, args ...RideType) (RideType, error) {
+func bytesValueFromSelfState(env Environment, args ...rideType) (rideType, error) {
 	v, err := bytesFromSelfState(env, args...)
 	if err != nil {
 		return nil, err
@@ -948,7 +948,7 @@ func bytesValueFromSelfState(env Environment, args ...RideType) (RideType, error
 	return extractValue(v)
 }
 
-func stringValueFromState(env Environment, args ...RideType) (RideType, error) {
+func stringValueFromState(env Environment, args ...rideType) (rideType, error) {
 	v, err := stringFromState(env, args...)
 	if err != nil {
 		return nil, err
@@ -956,7 +956,7 @@ func stringValueFromState(env Environment, args ...RideType) (RideType, error) {
 	return extractValue(v)
 }
 
-func stringValueFromSelfState(env Environment, args ...RideType) (RideType, error) {
+func stringValueFromSelfState(env Environment, args ...rideType) (rideType, error) {
 	v, err := stringFromSelfState(env, args...)
 	if err != nil {
 		return nil, err
@@ -964,7 +964,7 @@ func stringValueFromSelfState(env Environment, args ...RideType) (RideType, erro
 	return extractValue(v)
 }
 
-func transferFromProtobuf(env Environment, args ...RideType) (RideType, error) {
+func transferFromProtobuf(env Environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferFromProtobuf")
@@ -999,7 +999,7 @@ func calcAssetID(env Environment, name, description rideString, decimals, quanti
 	return id.Bytes(), nil
 }
 
-func calculateAssetID(env Environment, args ...RideType) (RideType, error) {
+func calculateAssetID(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "calculateAssetID")
 	}
@@ -1037,7 +1037,7 @@ func calculateAssetID(env Environment, args ...RideType) (RideType, error) {
 	return calcAssetID(env, name, description, decimals, quantity, reissuable, nonce)
 }
 
-func simplifiedIssue(_ Environment, args ...RideType) (RideType, error) {
+func simplifiedIssue(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 5); err != nil {
 		return nil, errors.Wrap(err, "simplifiedIssue")
 	}
@@ -1064,7 +1064,7 @@ func simplifiedIssue(_ Environment, args ...RideType) (RideType, error) {
 	return newIssue(name, description, quantity, decimals, reissuable, rideUnit{}, 0), nil
 }
 
-func fullIssue(_ Environment, args ...RideType) (RideType, error) {
+func fullIssue(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 7); err != nil {
 		return nil, errors.Wrap(err, "fullIssue")
 	}
@@ -1088,7 +1088,7 @@ func fullIssue(_ Environment, args ...RideType) (RideType, error) {
 	if !ok {
 		return nil, errors.Errorf("fullIssue: unexpected argument type '%s'", args[4].instanceOf())
 	}
-	var script RideType
+	var script rideType
 	switch s := args[5].(type) {
 	case rideBytes:
 		script = s
@@ -1104,7 +1104,7 @@ func fullIssue(_ Environment, args ...RideType) (RideType, error) {
 	return newIssue(name, description, quantity, decimals, reissuable, script, nonce), nil
 }
 
-func rebuildMerkleRoot(_ Environment, args ...RideType) (RideType, error) {
+func rebuildMerkleRoot(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "rebuildMerkleRoot")
 	}
@@ -1148,7 +1148,7 @@ func rebuildMerkleRoot(_ Environment, args ...RideType) (RideType, error) {
 	return rideBytes(root[:]), nil
 }
 
-func bls12Groth16Verify(_ Environment, args ...RideType) (RideType, error) {
+func bls12Groth16Verify(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify")
 	}
@@ -1171,7 +1171,7 @@ func bls12Groth16Verify(_ Environment, args ...RideType) (RideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func bn256Groth16Verify(_ Environment, args ...RideType) (RideType, error) {
+func bn256Groth16Verify(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bn256Groth16Verify")
 	}
@@ -1194,7 +1194,7 @@ func bn256Groth16Verify(_ Environment, args ...RideType) (RideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func ecRecover(_ Environment, args ...RideType) (RideType, error) {
+func ecRecover(_ Environment, args ...rideType) (rideType, error) {
 	digest, signature, err := bytesArgs2(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "ecRecover")
@@ -1214,7 +1214,7 @@ func ecRecover(_ Environment, args ...RideType) (RideType, error) {
 	return rideBytes(pkb[1:]), nil
 }
 
-func checkedBytesDataEntry(_ Environment, args ...RideType) (RideType, error) {
+func checkedBytesDataEntry(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "checkedBytesDataEntry")
 	}
@@ -1229,7 +1229,7 @@ func checkedBytesDataEntry(_ Environment, args ...RideType) (RideType, error) {
 	return newDataEntry("BinaryEntry", key, value), nil
 }
 
-func checkedBooleanDataEntry(_ Environment, args ...RideType) (RideType, error) {
+func checkedBooleanDataEntry(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "checkedBooleanDataEntry")
 	}
@@ -1244,7 +1244,7 @@ func checkedBooleanDataEntry(_ Environment, args ...RideType) (RideType, error) 
 	return newDataEntry("BooleanEntry", key, value), nil
 }
 
-func checkedDeleteEntry(_ Environment, args ...RideType) (RideType, error) {
+func checkedDeleteEntry(_ Environment, args ...rideType) (rideType, error) {
 	key, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "checkedDeleteEntry")
@@ -1252,7 +1252,7 @@ func checkedDeleteEntry(_ Environment, args ...RideType) (RideType, error) {
 	return newDataEntry("DeleteEntry", key, rideUnit{}), nil
 }
 
-func checkedIntDataEntry(_ Environment, args ...RideType) (RideType, error) {
+func checkedIntDataEntry(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "checkedIntDataEntry")
 	}
@@ -1267,7 +1267,7 @@ func checkedIntDataEntry(_ Environment, args ...RideType) (RideType, error) {
 	return newDataEntry("IntegerEntry", key, value), nil
 }
 
-func checkedStringDataEntry(_ Environment, args ...RideType) (RideType, error) {
+func checkedStringDataEntry(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "checkedStringDataEntry")
 	}
@@ -1284,7 +1284,7 @@ func checkedStringDataEntry(_ Environment, args ...RideType) (RideType, error) {
 
 // Constructors
 
-func address(_ Environment, args ...RideType) (RideType, error) {
+func address(_ Environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "address")
@@ -1296,7 +1296,7 @@ func address(_ Environment, args ...RideType) (RideType, error) {
 	return rideAddress(addr), nil
 }
 
-func alias(env Environment, args ...RideType) (RideType, error) {
+func alias(env Environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "alias")
@@ -1305,7 +1305,7 @@ func alias(env Environment, args ...RideType) (RideType, error) {
 	return rideAlias(*alias), nil
 }
 
-func assetPair(_ Environment, args ...RideType) (RideType, error) {
+func assetPair(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "assetPair")
 	}
@@ -1324,7 +1324,7 @@ func assetPair(_ Environment, args ...RideType) (RideType, error) {
 	return obj, nil
 }
 
-func burn(_ Environment, args ...RideType) (RideType, error) {
+func burn(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "burn")
 	}
@@ -1343,7 +1343,7 @@ func burn(_ Environment, args ...RideType) (RideType, error) {
 	return obj, nil
 }
 
-func dataEntry(_ Environment, args ...RideType) (RideType, error) {
+func dataEntry(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "dataEntry")
 	}
@@ -1351,7 +1351,7 @@ func dataEntry(_ Environment, args ...RideType) (RideType, error) {
 	if !ok {
 		return nil, errors.Errorf("dataEntry: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	var value RideType
+	var value rideType
 	switch v := args[1].(type) {
 	case rideInt, rideBytes, rideBoolean, rideString:
 		value = v
@@ -1361,7 +1361,7 @@ func dataEntry(_ Environment, args ...RideType) (RideType, error) {
 	return newDataEntry("DataEntry", key, value), nil
 }
 
-func dataTransaction(_ Environment, args ...RideType) (RideType, error) {
+func dataTransaction(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 9); err != nil {
 		return nil, errors.Wrap(err, "dataTransaction")
 	}
@@ -1415,7 +1415,7 @@ func dataTransaction(_ Environment, args ...RideType) (RideType, error) {
 	return obj, nil
 }
 
-func scriptResult(_ Environment, args ...RideType) (RideType, error) {
+func scriptResult(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "scriptResult")
 	}
@@ -1432,7 +1432,7 @@ func scriptResult(_ Environment, args ...RideType) (RideType, error) {
 	return obj, nil
 }
 
-func writeSet(_ Environment, args ...RideType) (RideType, error) {
+func writeSet(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "writeSet")
 	}
@@ -1454,11 +1454,11 @@ func writeSet(_ Environment, args ...RideType) (RideType, error) {
 	return obj, nil
 }
 
-func scriptTransfer(_ Environment, args ...RideType) (RideType, error) {
+func scriptTransfer(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "scriptTransfer")
 	}
-	var recipient RideType
+	var recipient rideType
 	switch tr := args[0].(type) {
 	case rideRecipient, rideAlias, rideAddress:
 		recipient = tr
@@ -1481,7 +1481,7 @@ func scriptTransfer(_ Environment, args ...RideType) (RideType, error) {
 	return obj, nil
 }
 
-func transferSet(_ Environment, args ...RideType) (RideType, error) {
+func transferSet(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "transferSet")
 	}
@@ -1503,11 +1503,11 @@ func transferSet(_ Environment, args ...RideType) (RideType, error) {
 	return obj, nil
 }
 
-func unit(_ Environment, _ ...RideType) (RideType, error) {
+func unit(_ Environment, _ ...rideType) (rideType, error) {
 	return rideUnit{}, nil
 }
 
-func reissue(_ Environment, args ...RideType) (RideType, error) {
+func reissue(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "reissue")
 	}
@@ -1531,7 +1531,7 @@ func reissue(_ Environment, args ...RideType) (RideType, error) {
 	return obj, nil
 }
 
-func sponsorship(_ Environment, args ...RideType) (RideType, error) {
+func sponsorship(_ Environment, args ...rideType) (rideType, error) {
 	asset, fee, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sponsorship")
@@ -1543,7 +1543,7 @@ func sponsorship(_ Environment, args ...RideType) (RideType, error) {
 	return obj, nil
 }
 
-func attachedPayment(_ Environment, args ...RideType) (RideType, error) {
+func attachedPayment(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "attachedPayment")
 	}
@@ -1551,7 +1551,7 @@ func attachedPayment(_ Environment, args ...RideType) (RideType, error) {
 	r := make(rideObject)
 	r[instanceFieldName] = rideString("AttachedPayment")
 
-	var assetID RideType
+	var assetID rideType
 	switch assID := args[0].(type) {
 	case rideBytes, rideUnit:
 		assetID = assID
@@ -1568,7 +1568,7 @@ func attachedPayment(_ Environment, args ...RideType) (RideType, error) {
 	return r, nil
 }
 
-func extractRecipient(v RideType) (proto.Recipient, error) {
+func extractRecipient(v rideType) (proto.Recipient, error) {
 	var r proto.Recipient
 	switch a := v.(type) {
 	case rideAddress:
@@ -1583,7 +1583,7 @@ func extractRecipient(v RideType) (proto.Recipient, error) {
 	return r, nil
 }
 
-func extractAsset(v RideType) ([]byte, error) {
+func extractAsset(v rideType) ([]byte, error) {
 	switch a := v.(type) {
 	case rideBytes:
 		return a, nil
@@ -1594,7 +1594,7 @@ func extractAsset(v RideType) ([]byte, error) {
 	}
 }
 
-func extractRecipientAndKey(args []RideType) (proto.Recipient, string, error) {
+func extractRecipientAndKey(args []rideType) (proto.Recipient, string, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return proto.Recipient{}, "", err
 	}
@@ -1609,7 +1609,7 @@ func extractRecipientAndKey(args []RideType) (proto.Recipient, string, error) {
 	return r, string(key), nil
 }
 
-func extractKey(args []RideType) (string, error) {
+func extractKey(args []rideType) (string, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return "", err
 	}
@@ -1620,7 +1620,7 @@ func extractKey(args []RideType) (string, error) {
 	return string(key), nil
 }
 
-func bytesOrStringArg(args []RideType) (rideBytes, error) {
+func bytesOrStringArg(args []rideType) (rideBytes, error) {
 	if len(args) != 1 {
 		return nil, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
 	}
@@ -1637,7 +1637,7 @@ func bytesOrStringArg(args []RideType) (rideBytes, error) {
 	}
 }
 
-func digest(v RideType) (c1.Hash, error) {
+func digest(v rideType) (c1.Hash, error) {
 	switch v.instanceOf() {
 	case "NoAlg":
 		return 0, nil
@@ -1666,7 +1666,7 @@ func digest(v RideType) (c1.Hash, error) {
 	}
 }
 
-func newIssue(name, description rideString, quantity, decimals rideInt, reissuable rideBoolean, script RideType, nonce rideInt) rideObject {
+func newIssue(name, description rideString, quantity, decimals rideInt, reissuable rideBoolean, script rideType, nonce rideInt) rideObject {
 	r := make(rideObject)
 	r[instanceFieldName] = rideString("Issue")
 	r["name"] = name
@@ -1679,7 +1679,7 @@ func newIssue(name, description rideString, quantity, decimals rideInt, reissuab
 	return r
 }
 
-func newDataEntry(name, key rideString, value RideType) rideObject {
+func newDataEntry(name, key rideString, value rideType) rideObject {
 	r := make(rideObject)
 	r[instanceFieldName] = name
 	r["key"] = key
@@ -1687,7 +1687,7 @@ func newDataEntry(name, key rideString, value RideType) rideObject {
 	return r
 }
 
-func checkAsset(v RideType) (RideType, bool) {
+func checkAsset(v rideType) (rideType, bool) {
 	switch v.(type) {
 	case rideUnit, rideBytes:
 		return v, true
@@ -1709,7 +1709,7 @@ func calcLeaseID(env Environment, recipient proto.Recipient, amount, nonce rideI
 	return id.Bytes(), nil
 }
 
-func calculateLeaseID(env Environment, args ...RideType) (RideType, error) {
+func calculateLeaseID(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "calculateLeaseID")
 	}
@@ -1747,7 +1747,7 @@ func newLease(recipient rideRecipient, amount, nonce rideInt) rideObject {
 	return r
 }
 
-func simplifiedLease(_ Environment, args ...RideType) (RideType, error) {
+func simplifiedLease(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "simplifiedLease")
 	}
@@ -1762,7 +1762,7 @@ func simplifiedLease(_ Environment, args ...RideType) (RideType, error) {
 	return newLease(rideRecipient(recipient), amount, 0), nil
 }
 
-func fullLease(_ Environment, args ...RideType) (RideType, error) {
+func fullLease(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "fullLease")
 	}
@@ -1781,7 +1781,7 @@ func fullLease(_ Environment, args ...RideType) (RideType, error) {
 	return newLease(rideRecipient(recipient), amount, nonce), nil
 }
 
-func leaseCancel(_ Environment, args ...RideType) (RideType, error) {
+func leaseCancel(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "leaseCancel")
 	}

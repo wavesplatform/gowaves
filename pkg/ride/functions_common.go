@@ -8,7 +8,7 @@ import (
 
 const defaultThrowMessage = "Explicit script termination"
 
-func checkArgs(args []RideType, count int) error {
+func checkArgs(args []rideType, count int) error {
 	if len(args) != count {
 		return errors.Errorf("%d is invalid number of arguments, expected %d", len(args), count)
 	}
@@ -20,21 +20,21 @@ func checkArgs(args []RideType, count int) error {
 	return nil
 }
 
-func eq(_ Environment, args ...RideType) (RideType, error) {
+func eq(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "eq")
 	}
 	return rideBoolean(args[0].eq(args[1])), nil
 }
 
-func neq(_ Environment, args ...RideType) (RideType, error) {
+func neq(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "neq")
 	}
 	return rideBoolean(!args[0].eq(args[1])), nil
 }
 
-func instanceOf(_ Environment, args ...RideType) (RideType, error) {
+func instanceOf(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "instanceOf")
 	}
@@ -45,7 +45,7 @@ func instanceOf(_ Environment, args ...RideType) (RideType, error) {
 	return rideBoolean(args[0].instanceOf() == string(t)), nil
 }
 
-func extract(_ Environment, args ...RideType) (RideType, error) {
+func extract(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "extract")
 	}
@@ -55,7 +55,7 @@ func extract(_ Environment, args ...RideType) (RideType, error) {
 	return args[0], nil
 }
 
-func isDefined(_ Environment, args ...RideType) (RideType, error) {
+func isDefined(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "isDefined")
 	}
@@ -65,7 +65,7 @@ func isDefined(_ Environment, args ...RideType) (RideType, error) {
 	return rideBoolean(true), nil
 }
 
-func throw(_ Environment, args ...RideType) (RideType, error) {
+func throw(_ Environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "throw")
@@ -73,11 +73,11 @@ func throw(_ Environment, args ...RideType) (RideType, error) {
 	return rideThrow(s), nil
 }
 
-func throw0(_ Environment, _ ...RideType) (RideType, error) {
+func throw0(_ Environment, _ ...rideType) (rideType, error) {
 	return rideThrow(defaultThrowMessage), nil
 }
 
-func value(_ Environment, args ...RideType) (RideType, error) {
+func value(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "value")
 	}
@@ -87,7 +87,7 @@ func value(_ Environment, args ...RideType) (RideType, error) {
 	return args[0], nil
 }
 
-func valueOrErrorMessage(_ Environment, args ...RideType) (RideType, error) {
+func valueOrErrorMessage(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "valueOrErrorMessage")
 	}
@@ -101,7 +101,7 @@ func valueOrErrorMessage(_ Environment, args ...RideType) (RideType, error) {
 	return args[0], nil
 }
 
-func valueOrElse(_ Environment, args ...RideType) (RideType, error) {
+func valueOrElse(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "valueOrErrorMessage")
 	}
@@ -111,7 +111,7 @@ func valueOrElse(_ Environment, args ...RideType) (RideType, error) {
 	return args[0], nil
 }
 
-func bytesProperty(obj RideType, key string) (rideBytes, error) {
+func bytesProperty(obj rideType, key string) (rideBytes, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func bytesProperty(obj RideType, key string) (rideBytes, error) {
 	return r, nil
 }
 
-func digestProperty(obj RideType, key string) (crypto.Digest, error) {
+func digestProperty(obj rideType, key string) (crypto.Digest, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return crypto.Digest{}, err
@@ -139,7 +139,7 @@ func digestProperty(obj RideType, key string) (crypto.Digest, error) {
 	return r, nil
 }
 
-func stringProperty(obj RideType, key string) (rideString, error) {
+func stringProperty(obj rideType, key string) (rideString, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return "", err
@@ -151,7 +151,7 @@ func stringProperty(obj RideType, key string) (rideString, error) {
 	return r, nil
 }
 
-func intProperty(obj RideType, key string) (rideInt, error) {
+func intProperty(obj rideType, key string) (rideInt, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return 0, err
@@ -163,7 +163,7 @@ func intProperty(obj RideType, key string) (rideInt, error) {
 	return r, nil
 }
 
-func booleanProperty(obj RideType, key string) (rideBoolean, error) {
+func booleanProperty(obj rideType, key string) (rideBoolean, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return false, err
@@ -175,7 +175,7 @@ func booleanProperty(obj RideType, key string) (rideBoolean, error) {
 	return r, nil
 }
 
-func optionalAssetProperty(obj RideType, key string) (proto.OptionalAsset, error) {
+func optionalAssetProperty(obj rideType, key string) (proto.OptionalAsset, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return proto.OptionalAsset{}, err
@@ -194,7 +194,7 @@ func optionalAssetProperty(obj RideType, key string) (proto.OptionalAsset, error
 	}
 }
 
-func recipientProperty(obj RideType, key string) (proto.Recipient, error) {
+func recipientProperty(obj rideType, key string) (proto.Recipient, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return proto.Recipient{}, err
@@ -213,7 +213,7 @@ func recipientProperty(obj RideType, key string) (proto.Recipient, error) {
 	return recipient, nil
 }
 
-func extractValue(v RideType) (RideType, error) {
+func extractValue(v rideType) (rideType, error) {
 	if _, ok := v.(rideUnit); ok {
 		return rideThrow("failed to extract from Unit value"), nil
 	}

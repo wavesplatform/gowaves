@@ -386,7 +386,7 @@ func assetPairToObject(aa, pa proto.OptionalAsset) rideObject {
 	return r
 }
 
-func orderType(orderType proto.OrderType) RideType {
+func orderType(orderType proto.OrderType) rideType {
 	if orderType == proto.Buy {
 		return newBuy(nil)
 	}
@@ -684,7 +684,7 @@ func massTransferWithProofsToObject(scheme byte, tx *proto.MassTransferWithProof
 	return r, nil
 }
 
-func dataEntryToObject(entry proto.DataEntry) RideType {
+func dataEntryToObject(entry proto.DataEntry) rideType {
 	r := make(rideObject)
 	r[instanceFieldName] = rideString("DataEntry")
 	r["key"] = rideString(entry.GetKey())
@@ -875,7 +875,7 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	return r, nil
 }
 
-func ConvertEthereumRideArgumentsToSpecificArgument(decodedArg RideType) (proto.Argument, error) {
+func ConvertEthereumRideArgumentsToSpecificArgument(decodedArg rideType) (proto.Argument, error) {
 	var arg proto.Argument
 	switch m := decodedArg.(type) {
 	case rideInt:
@@ -1101,7 +1101,7 @@ func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWit
 	return r, nil
 }
 
-func convertArgument(arg proto.Argument) (RideType, error) {
+func convertArgument(arg proto.Argument) (rideType, error) {
 	switch a := arg.(type) {
 	case *proto.IntegerArgument:
 		return rideInt(a.Value), nil
@@ -1227,7 +1227,7 @@ func balanceDetailsToObject(fwb *proto.FullWavesBalance) rideObject {
 	return r
 }
 
-func objectToActions(env Environment, obj RideType) ([]proto.ScriptAction, error) {
+func objectToActions(env Environment, obj rideType) ([]proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "WriteSet":
 		data, err := obj.get("data")
@@ -1293,7 +1293,7 @@ func objectToActions(env Environment, obj RideType) ([]proto.ScriptAction, error
 	}
 }
 
-func getKeyProperty(v RideType) (string, error) {
+func getKeyProperty(v rideType) (string, error) {
 	k, err := v.get("key")
 	if err != nil {
 		return "", err
@@ -1305,7 +1305,7 @@ func getKeyProperty(v RideType) (string, error) {
 	return string(key), nil
 }
 
-func convertToAction(env Environment, obj RideType) (proto.ScriptAction, error) {
+func convertToAction(env Environment, obj rideType) (proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "Burn":
 		id, err := digestProperty(obj, "assetId")
@@ -1576,7 +1576,7 @@ func scriptActionToObject(scheme byte, action proto.ScriptAction, pk crypto.Publ
 	return r, nil
 }
 
-func optionalAsset(o proto.OptionalAsset) RideType {
+func optionalAsset(o proto.OptionalAsset) rideType {
 	if o.Present {
 		return rideBytes(o.ID.Bytes())
 	}

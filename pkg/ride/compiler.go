@@ -484,18 +484,18 @@ type rideCallable struct {
 }
 
 type rideConstants struct {
-	items   []RideType
+	items   []rideType
 	strings map[string]uint16
 }
 
 func newRideConstants() *rideConstants {
 	return &rideConstants{
-		items:   make([]RideType, 0, 4),
+		items:   make([]rideType, 0, 4),
 		strings: make(map[string]uint16, 4),
 	}
 }
 
-func (c *rideConstants) put(value RideType) (uint16, error) {
+func (c *rideConstants) put(value rideType) (uint16, error) {
 	switch v := value.(type) {
 	case rideString:
 		s := string(v)
@@ -517,7 +517,7 @@ func (c *rideConstants) put(value RideType) (uint16, error) {
 	}
 }
 
-func (c *rideConstants) append(value RideType) (uint16, error) {
+func (c *rideConstants) append(value rideType) (uint16, error) {
 	if len(c.items) >= math.MaxUint16 {
 		return 0, errors.New("max number of constants reached")
 	}

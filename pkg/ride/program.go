@@ -16,7 +16,7 @@ type SimpleScript struct {
 	LibVersion int
 	EntryPoint int
 	Code       []byte
-	Constants  []RideType
+	Constants  []rideType
 }
 
 func (s *SimpleScript) Run(env Environment) (Result, error) {
@@ -39,7 +39,7 @@ func (s *SimpleScript) Run(env Environment) (Result, error) {
 		constants:    s.Constants,
 		functions:    fs,
 		globals:      gcs,
-		stack:        make([]RideType, 0, 2),
+		stack:        make([]rideType, 0, 2),
 		calls:        make([]frame, 0, 2),
 		functionName: np,
 	}
@@ -57,7 +57,7 @@ func (s *SimpleScript) code() []byte {
 type DAppScript struct {
 	LibVersion  int
 	Code        []byte
-	Constants   []RideType
+	Constants   []rideType
 	EntryPoints map[string]callable
 }
 
@@ -84,7 +84,7 @@ func (s *DAppScript) Run(env Environment) (Result, error) {
 		constants:    s.Constants,
 		functions:    fs,
 		globals:      gcs,
-		stack:        make([]RideType, 0, 2),
+		stack:        make([]rideType, 0, 2),
 		calls:        make([]frame, 0, 2),
 		functionName: np,
 	}

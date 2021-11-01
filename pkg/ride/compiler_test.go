@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func c(values ...RideType) []RideType {
+func c(values ...rideType) []rideType {
 	return values
 }
 
@@ -18,7 +18,7 @@ func TestSimpleScriptsCompilation(t *testing.T) {
 		comment   string
 		source    string
 		code      string
-		constants []RideType
+		constants []rideType
 	}{
 		{`V1: true`, "AQa3b8tH", "0400", nil},
 		{`V3: let x = 1; true`, "AwQAAAABeAAAAAAAAAAAAQbtAkXn", "040002000001", c(rideInt(1))},
@@ -101,7 +101,7 @@ func TestDAppScriptsCompilation(t *testing.T) {
 		comment   string
 		source    string
 		code      string
-		constants []RideType
+		constants []rideType
 		entries   map[string]callable
 	}{
 		{`@Verifier(tx) func verify() = false`, "AAIDAAAAAAAAAAIIAQAAAAAAAAAAAAAAAQAAAAJ0eAEAAAAGdmVyaWZ5AAAAAAcysh6J",

@@ -1148,8 +1148,8 @@ type EvaluationEnvironment struct {
 	st                    types.SmartState
 	h                     rideInt
 	tx                    rideObject
-	id                    RideType
-	th                    RideType
+	id                    rideType
+	th                    rideType
 	time                  uint64
 	b                     rideObject
 	check                 func(int) bool
@@ -1398,7 +1398,7 @@ func (e *EvaluationEnvironment) transaction() rideObject {
 	return e.tx
 }
 
-func (e *EvaluationEnvironment) this() RideType {
+func (e *EvaluationEnvironment) this() rideType {
 	return e.th
 }
 
@@ -1406,7 +1406,7 @@ func (e *EvaluationEnvironment) block() rideObject {
 	return e.b
 }
 
-func (e *EvaluationEnvironment) txID() RideType {
+func (e *EvaluationEnvironment) txID() rideType {
 	return e.id
 }
 

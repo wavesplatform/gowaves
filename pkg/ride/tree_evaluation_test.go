@@ -540,7 +540,7 @@ func testInvokeEnv(verifier bool) (Environment, *proto.InvokeScriptWithProofs) {
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
-		txIDFunc: func() RideType {
+		txIDFunc: func() rideType {
 			return rideBytes(tx.ID.Bytes())
 		},
 		transactionFunc: func() rideObject {
@@ -1071,10 +1071,10 @@ var envDappFromDapp = &MockRideEnvironment{
 		return proto.MainNetScheme
 	},
 	stateFunc: WrappedStateFunc,
-	txIDFunc: func() RideType {
+	txIDFunc: func() rideType {
 		return rideBytes(id)
 	},
-	thisFunc: func() RideType {
+	thisFunc: func() rideType {
 		return rideAddress(thisAddress)
 	},
 	setNewDAppAddressFunc: func(address proto.WavesAddress) {
@@ -4006,7 +4006,7 @@ func TestHashScriptFunc(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 368430
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(addr)
 		},
 		invocationFunc: func() rideObject {
@@ -4136,7 +4136,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 		heightFunc: func() rideInt {
 			return 368430
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(addr)
 		},
 		timestampFunc: func() uint64 {
@@ -4520,7 +4520,7 @@ func TestWhaleDApp(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -4648,7 +4648,7 @@ func TestExchangeDApp(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -4817,7 +4817,7 @@ func TestBankDApp(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(dapp)
 		},
 		transactionFunc: func() rideObject {
@@ -4961,7 +4961,7 @@ func TestLigaDApp1(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(dapp)
 		},
 		transactionFunc: func() rideObject {
@@ -5155,7 +5155,7 @@ func TestLigaDApp1(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(dapp)
 		},
 		transactionFunc: func() rideObject {
@@ -5278,7 +5278,7 @@ func TestTestingDApp(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -5399,7 +5399,7 @@ func TestDropElementDApp(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -5515,7 +5515,7 @@ func TestMathDApp(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -5641,7 +5641,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -5772,7 +5772,7 @@ func Test8Ball(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -5889,7 +5889,7 @@ func TestIntegerEntry(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -6018,7 +6018,7 @@ func TestDAppWithFullIssue(t *testing.T) {
 
 	id := bytes.Repeat([]byte{0}, 32)
 	env := &MockRideEnvironment{
-		txIDFunc: func() RideType {
+		txIDFunc: func() rideType {
 			return rideBytes(id)
 		},
 	}
@@ -6044,7 +6044,7 @@ func TestDAppWithSimpleIssue(t *testing.T) {
 
 	id := bytes.Repeat([]byte{0}, 32)
 	env := &MockRideEnvironment{
-		txIDFunc: func() RideType {
+		txIDFunc: func() rideType {
 			return rideBytes(id)
 		},
 	}
@@ -6128,7 +6128,7 @@ func TestBadType(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -6293,7 +6293,7 @@ func TestNoDeclaration(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -6483,7 +6483,7 @@ func TestZeroReissue(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -6706,7 +6706,7 @@ func TestStageNet2(t *testing.T) {
 				},
 			}
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -6908,7 +6908,7 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(address)
 		},
 		transactionFunc: func() rideObject {
@@ -7035,7 +7035,7 @@ func TestOriginCaller(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
@@ -7210,7 +7210,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
@@ -7386,7 +7386,7 @@ func TestAliasesInInvokes(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
@@ -7618,7 +7618,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
@@ -7636,7 +7636,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		validateInternalPaymentsFunc: func() bool {
 			return true
 		},
-		txIDFunc: func() RideType {
+		txIDFunc: func() rideType {
 			return rideBytes(tx.ID.Bytes())
 		},
 		maxDataEntriesSizeFunc: func() int {
@@ -7810,7 +7810,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {
@@ -7989,7 +7989,7 @@ func TestReissueInInvoke(t *testing.T) {
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
-		thisFunc: func() RideType {
+		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
 		transactionFunc: func() rideObject {

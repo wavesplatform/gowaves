@@ -2,7 +2,7 @@ package ride
 
 import "github.com/pkg/errors"
 
-func booleanArg(args []RideType) (rideBoolean, error) {
+func booleanArg(args []rideType) (rideBoolean, error) {
 	if len(args) != 1 {
 		return false, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
 	}
@@ -16,7 +16,7 @@ func booleanArg(args []RideType) (rideBoolean, error) {
 	return b, nil
 }
 
-func booleanToBytes(_ Environment, args ...RideType) (RideType, error) {
+func booleanToBytes(_ Environment, args ...rideType) (rideType, error) {
 	b, err := booleanArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "booleanToBytes")
@@ -28,7 +28,7 @@ func booleanToBytes(_ Environment, args ...RideType) (RideType, error) {
 	}
 }
 
-func booleanToString(_ Environment, args ...RideType) (RideType, error) {
+func booleanToString(_ Environment, args ...rideType) (rideType, error) {
 	b, err := booleanArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "booleanToString")
@@ -40,7 +40,7 @@ func booleanToString(_ Environment, args ...RideType) (RideType, error) {
 	}
 }
 
-func unaryNot(_ Environment, args ...RideType) (RideType, error) {
+func unaryNot(_ Environment, args ...rideType) (rideType, error) {
 	b, err := booleanArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "unaryNot")

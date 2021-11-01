@@ -10,7 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/math"
 )
 
-func intArg(args []RideType) (rideInt, error) {
+func intArg(args []rideType) (rideInt, error) {
 	if len(args) != 1 {
 		return 0, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
 	}
@@ -24,7 +24,7 @@ func intArg(args []RideType) (rideInt, error) {
 	return l, nil
 }
 
-func twoIntArgs(args []RideType) (rideInt, rideInt, error) {
+func twoIntArgs(args []rideType) (rideInt, rideInt, error) {
 	if len(args) != 2 {
 		return 0, 0, errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
 	}
@@ -45,7 +45,7 @@ func twoIntArgs(args []RideType) (rideInt, rideInt, error) {
 	return l1, l2, nil
 }
 
-func intArgs(args []RideType, count int) ([]rideInt, error) {
+func intArgs(args []rideType, count int) ([]rideInt, error) {
 	if len(args) != count {
 		return nil, errors.Errorf("%d is invalid number of arguments, expected %d", len(args), count)
 	}
@@ -63,7 +63,7 @@ func intArgs(args []RideType, count int) ([]rideInt, error) {
 	return r, nil
 }
 
-func ge(_ Environment, args ...RideType) (RideType, error) {
+func ge(_ Environment, args ...rideType) (rideType, error) {
 	l1, l2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "ge")
@@ -71,7 +71,7 @@ func ge(_ Environment, args ...RideType) (RideType, error) {
 	return rideBoolean(l1 >= l2), nil
 }
 
-func gt(_ Environment, args ...RideType) (RideType, error) {
+func gt(_ Environment, args ...rideType) (rideType, error) {
 	l1, l2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "gt")
@@ -79,7 +79,7 @@ func gt(_ Environment, args ...RideType) (RideType, error) {
 	return rideBoolean(l1 > l2), nil
 }
 
-func intToString(_ Environment, args ...RideType) (RideType, error) {
+func intToString(_ Environment, args ...rideType) (rideType, error) {
 	l, err := intArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "intToString")
@@ -87,7 +87,7 @@ func intToString(_ Environment, args ...RideType) (RideType, error) {
 	return rideString(strconv.Itoa(int(l))), nil
 }
 
-func unaryMinus(_ Environment, args ...RideType) (RideType, error) {
+func unaryMinus(_ Environment, args ...rideType) (rideType, error) {
 	l, err := intArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "unaryMinus")
@@ -95,7 +95,7 @@ func unaryMinus(_ Environment, args ...RideType) (RideType, error) {
 	return -l, nil
 }
 
-func sum(_ Environment, args ...RideType) (RideType, error) {
+func sum(_ Environment, args ...rideType) (rideType, error) {
 	l1, l2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sum")
@@ -103,7 +103,7 @@ func sum(_ Environment, args ...RideType) (RideType, error) {
 	return l1 + l2, nil
 }
 
-func sub(_ Environment, args ...RideType) (RideType, error) {
+func sub(_ Environment, args ...rideType) (rideType, error) {
 	l1, l2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sub")
@@ -111,7 +111,7 @@ func sub(_ Environment, args ...RideType) (RideType, error) {
 	return l1 - l2, nil
 }
 
-func mul(_ Environment, args ...RideType) (RideType, error) {
+func mul(_ Environment, args ...rideType) (rideType, error) {
 	l1, l2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "mul")
@@ -119,7 +119,7 @@ func mul(_ Environment, args ...RideType) (RideType, error) {
 	return l1 * l2, nil
 }
 
-func div(_ Environment, args ...RideType) (RideType, error) {
+func div(_ Environment, args ...rideType) (rideType, error) {
 	l1, l2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "div")
@@ -130,7 +130,7 @@ func div(_ Environment, args ...RideType) (RideType, error) {
 	return rideInt(math.FloorDiv(int64(l1), int64(l2))), nil
 }
 
-func mod(_ Environment, args ...RideType) (RideType, error) {
+func mod(_ Environment, args ...rideType) (rideType, error) {
 	i1, i2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "mod")
@@ -141,7 +141,7 @@ func mod(_ Environment, args ...RideType) (RideType, error) {
 	return rideInt(math.ModDivision(int64(i1), int64(i2))), nil
 }
 
-func fraction(_ Environment, args ...RideType) (RideType, error) {
+func fraction(_ Environment, args ...rideType) (rideType, error) {
 	values, err := intArgs(args, 3)
 	if err != nil {
 		return nil, errors.Wrap(err, "fraction")
@@ -153,7 +153,7 @@ func fraction(_ Environment, args ...RideType) (RideType, error) {
 	return rideInt(res), nil
 }
 
-func fractionIntRounds(_ Environment, args ...RideType) (RideType, error) {
+func fractionIntRounds(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "fraction")
 	}
@@ -186,7 +186,7 @@ func fractionIntRounds(_ Environment, args ...RideType) (RideType, error) {
 	return rideInt(r.Int64()), nil
 }
 
-func intToBytes(_ Environment, args ...RideType) (RideType, error) {
+func intToBytes(_ Environment, args ...rideType) (rideType, error) {
 	i, err := intArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "intToBytes")
@@ -197,7 +197,7 @@ func intToBytes(_ Environment, args ...RideType) (RideType, error) {
 	return rideBytes(out), nil
 }
 
-func pow(_ Environment, args ...RideType) (RideType, error) {
+func pow(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 6); err != nil {
 		return nil, errors.Wrap(err, "pow")
 	}
@@ -232,7 +232,7 @@ func pow(_ Environment, args ...RideType) (RideType, error) {
 	return rideInt(r), nil
 }
 
-func log(_ Environment, args ...RideType) (RideType, error) {
+func log(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 6); err != nil {
 		return nil, errors.Wrap(err, "log")
 	}
@@ -267,7 +267,7 @@ func log(_ Environment, args ...RideType) (RideType, error) {
 	return rideInt(r), nil
 }
 
-func roundingMode(v RideType) (decimal.RoundingMode, error) {
+func roundingMode(v rideType) (decimal.RoundingMode, error) {
 	switch v.instanceOf() {
 	case "Ceiling":
 		return decimal.ToPositiveInf, nil

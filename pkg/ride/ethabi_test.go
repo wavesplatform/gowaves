@@ -13,7 +13,7 @@ func TestEthABIDataTypeToRideType(t *testing.T) {
 
 	tests := []struct {
 		inputDataType    ethabi.DataType
-		expectedRideType RideType
+		expectedRideType rideType
 	}{
 		{ethabi.Int(5345345), rideInt(5345345)},
 		{ethabi.BigInt{V: hugeInt}, rideBigInt{V: hugeInt}},

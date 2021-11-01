@@ -55,7 +55,7 @@ var _ Environment = &MockRideEnvironment{}
 //             takeStringFunc: func(s string, n int) rideString {
 // 	               panic("mock out the takeString method")
 //             },
-//             thisFunc: func() RideType {
+//             thisFunc: func() rideType {
 // 	               panic("mock out the this method")
 //             },
 //             timestampFunc: func() uint64 {
@@ -64,7 +64,7 @@ var _ Environment = &MockRideEnvironment{}
 //             transactionFunc: func() rideObject {
 // 	               panic("mock out the transaction method")
 //             },
-//             txIDFunc: func() RideType {
+//             txIDFunc: func() rideType {
 // 	               panic("mock out the txID method")
 //             },
 //             validateInternalPaymentsFunc: func() bool {
@@ -114,7 +114,7 @@ type MockRideEnvironment struct {
 	takeStringFunc func(s string, n int) rideString
 
 	// thisFunc mocks the this method.
-	thisFunc func() RideType
+	thisFunc func() rideType
 
 	// timestampFunc mocks the timestamp method.
 	timestampFunc func() uint64
@@ -123,7 +123,7 @@ type MockRideEnvironment struct {
 	transactionFunc func() rideObject
 
 	// txIDFunc mocks the txID method.
-	txIDFunc func() RideType
+	txIDFunc func() rideType
 
 	// validateInternalPaymentsFunc mocks the validateInternalPayments method.
 	validateInternalPaymentsFunc func() bool
@@ -548,7 +548,7 @@ func (mock *MockRideEnvironment) takeStringCalls() []struct {
 }
 
 // this calls thisFunc.
-func (mock *MockRideEnvironment) this() RideType {
+func (mock *MockRideEnvironment) this() rideType {
 	if mock.thisFunc == nil {
 		panic("MockRideEnvironment.thisFunc: method is nil but Environment.this was just called")
 	}
@@ -626,7 +626,7 @@ func (mock *MockRideEnvironment) transactionCalls() []struct {
 }
 
 // txID calls txIDFunc.
-func (mock *MockRideEnvironment) txID() RideType {
+func (mock *MockRideEnvironment) txID() rideType {
 	if mock.txIDFunc == nil {
 		panic("MockRideEnvironment.txIDFunc: method is nil but Environment.txID was just called")
 	}
