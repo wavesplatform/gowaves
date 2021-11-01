@@ -172,7 +172,7 @@ func (diffSt *diffState) changeLeaseOut(searchBalance *diffBalance, searchAddres
 	return nil
 }
 
-func (diffSt *diffState) changeBalance(searchBalance *diffBalance, searchAddress string, amount int64, assetID crypto.Digest, account proto.Recipient) error {
+func (diffSt *diffState) changeBalance(searchBalance *diffBalance, searchAddress string, amount int64, asset proto.OptionalAsset, account proto.Recipient) error {
 	if searchBalance != nil {
 		diffSt.addBalanceTo(searchAddress, amount)
 		return nil
@@ -183,11 +183,10 @@ func (diffSt *diffState) changeBalance(searchBalance *diffBalance, searchAddress
 		return err
 	}
 
-	var balance diffBalance
-	asset := *proto.NewOptionalAssetFromDigest(assetID)
-	balance.asset = asset
-	balance.regular = amount
-
+	balance := diffBalance{
+		asset:   asset,
+		regular: amount,
+	}
 	diffSt.balances[address.String()+asset.String()] = balance
 	return nil
 }
