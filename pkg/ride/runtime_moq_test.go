@@ -15,73 +15,73 @@ var _ Environment = &MockRideEnvironment{}
 
 // MockRideEnvironment is a mock implementation of Environment.
 //
-//     func TestSomethingThatUsesEnvironment(t *testing.T) {
+// 	func TestSomethingThatUsesEnvironment(t *testing.T) {
 //
-//         // make and configure a mocked Environment
-//         mockedEnvironment := &MockRideEnvironment{
-//             blockFunc: func() rideObject {
-// 	               panic("mock out the block method")
-//             },
-//             checkMessageLengthFunc: func(in1 int) bool {
-// 	               panic("mock out the checkMessageLength method")
-//             },
-//             heightFunc: func() rideInt {
-// 	               panic("mock out the height method")
-//             },
-//             internalPaymentsValidationHeightFunc: func() uint64 {
-// 	               panic("mock out the internalPaymentsValidationHeight method")
-//             },
-//             invocationFunc: func() rideObject {
-// 	               panic("mock out the invocation method")
-//             },
-//             libVersionFunc: func() int {
-// 	               panic("mock out the libVersion method")
-//             },
-//             maxDataEntriesSizeFunc: func() int {
-// 	               panic("mock out the maxDataEntriesSize method")
-//             },
-//             schemeFunc: func() byte {
-// 	               panic("mock out the scheme method")
-//             },
-//             setInvocationFunc: func(inv rideObject)  {
-// 	               panic("mock out the setInvocation method")
-//             },
-//             setNewDAppAddressFunc: func(address proto.Address)  {
-// 	               panic("mock out the setNewDAppAddress method")
-//             },
-//             stateFunc: func() types.SmartState {
-// 	               panic("mock out the state method")
-//             },
-//             takeStringFunc: func(s string, n int) rideString {
-// 	               panic("mock out the takeString method")
-//             },
-//             thisFunc: func() rideType {
-// 	               panic("mock out the this method")
-//             },
-//             timestampFunc: func() uint64 {
-// 	               panic("mock out the timestamp method")
-//             },
-//             transactionFunc: func() rideObject {
-// 	               panic("mock out the transaction method")
-//             },
-//             txIDFunc: func() rideType {
-// 	               panic("mock out the txID method")
-//             },
-//             validateInternalPaymentsFunc: func() bool {
-// 	               panic("mock out the validateInternalPayments method")
-//             },
-//         }
+// 		// make and configure a mocked Environment
+// 		mockedEnvironment := &MockRideEnvironment{
+// 			blockFunc: func() rideObject {
+// 				panic("mock out the block method")
+// 			},
+// 			checkMessageLengthFunc: func(n int) bool {
+// 				panic("mock out the checkMessageLength method")
+// 			},
+// 			heightFunc: func() rideInt {
+// 				panic("mock out the height method")
+// 			},
+// 			internalPaymentsValidationHeightFunc: func() uint64 {
+// 				panic("mock out the internalPaymentsValidationHeight method")
+// 			},
+// 			invocationFunc: func() rideObject {
+// 				panic("mock out the invocation method")
+// 			},
+// 			libVersionFunc: func() int {
+// 				panic("mock out the libVersion method")
+// 			},
+// 			maxDataEntriesSizeFunc: func() int {
+// 				panic("mock out the maxDataEntriesSize method")
+// 			},
+// 			schemeFunc: func() byte {
+// 				panic("mock out the scheme method")
+// 			},
+// 			setInvocationFunc: func(inv rideObject)  {
+// 				panic("mock out the setInvocation method")
+// 			},
+// 			setNewDAppAddressFunc: func(address proto.Address)  {
+// 				panic("mock out the setNewDAppAddress method")
+// 			},
+// 			stateFunc: func() types.SmartState {
+// 				panic("mock out the state method")
+// 			},
+// 			takeStringFunc: func(s string, n int) rideString {
+// 				panic("mock out the takeString method")
+// 			},
+// 			thisFunc: func() rideType {
+// 				panic("mock out the this method")
+// 			},
+// 			timestampFunc: func() uint64 {
+// 				panic("mock out the timestamp method")
+// 			},
+// 			transactionFunc: func() rideObject {
+// 				panic("mock out the transaction method")
+// 			},
+// 			txIDFunc: func() rideType {
+// 				panic("mock out the txID method")
+// 			},
+// 			validateInternalPaymentsFunc: func() bool {
+// 				panic("mock out the validateInternalPayments method")
+// 			},
+// 		}
 //
-//         // use mockedEnvironment in code that requires Environment
-//         // and then make assertions.
+// 		// use mockedEnvironment in code that requires Environment
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type MockRideEnvironment struct {
 	// blockFunc mocks the block method.
 	blockFunc func() rideObject
 
 	// checkMessageLengthFunc mocks the checkMessageLength method.
-	checkMessageLengthFunc func(in1 int) bool
+	checkMessageLengthFunc func(n int) bool
 
 	// heightFunc mocks the height method.
 	heightFunc func() rideInt
@@ -135,8 +135,8 @@ type MockRideEnvironment struct {
 		}
 		// checkMessageLength holds details about calls to the checkMessageLength method.
 		checkMessageLength []struct {
-			// In1 is the in1 argument value.
-			In1 int
+			// N is the n argument value.
+			N int
 		}
 		// height holds details about calls to the height method.
 		height []struct {
@@ -238,29 +238,29 @@ func (mock *MockRideEnvironment) blockCalls() []struct {
 }
 
 // checkMessageLength calls checkMessageLengthFunc.
-func (mock *MockRideEnvironment) checkMessageLength(in1 int) bool {
+func (mock *MockRideEnvironment) checkMessageLength(n int) bool {
 	if mock.checkMessageLengthFunc == nil {
 		panic("MockRideEnvironment.checkMessageLengthFunc: method is nil but Environment.checkMessageLength was just called")
 	}
 	callInfo := struct {
-		In1 int
+		N int
 	}{
-		In1: in1,
+		N: n,
 	}
 	mock.lockcheckMessageLength.Lock()
 	mock.calls.checkMessageLength = append(mock.calls.checkMessageLength, callInfo)
 	mock.lockcheckMessageLength.Unlock()
-	return mock.checkMessageLengthFunc(in1)
+	return mock.checkMessageLengthFunc(n)
 }
 
 // checkMessageLengthCalls gets all the calls that were made to checkMessageLength.
 // Check the length with:
 //     len(mockedEnvironment.checkMessageLengthCalls())
 func (mock *MockRideEnvironment) checkMessageLengthCalls() []struct {
-	In1 int
+	N int
 } {
 	var calls []struct {
-		In1 int
+		N int
 	}
 	mock.lockcheckMessageLength.RLock()
 	calls = mock.calls.checkMessageLength
