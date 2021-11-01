@@ -334,17 +334,17 @@ func (a rideNamedType) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
-type RideList []rideType
+type rideList []rideType
 
-func (a RideList) instanceOf() string {
+func (a rideList) instanceOf() string {
 	return "List[Any]"
 }
 
-func (a RideList) eq(other rideType) bool {
+func (a rideList) eq(other rideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
-	o, ok := other.(RideList)
+	o, ok := other.(rideList)
 	if !ok {
 		return false
 	}
@@ -359,7 +359,7 @@ func (a RideList) eq(other rideType) bool {
 	return true
 }
 
-func (a RideList) get(prop string) (rideType, error) {
+func (a rideList) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
