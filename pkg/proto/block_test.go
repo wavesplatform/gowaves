@@ -373,7 +373,7 @@ func TestEmptyBlockMarshall(t *testing.T) {
 
 func TestBlockVerifyRootHash(t *testing.T) {
 	// Waves
-	waves := OptionalAsset{}
+	waves := NewOptionalAssetWaves()
 
 	// Key pair
 	secret, public, err := crypto.GenerateKeyPair([]byte("test"))
