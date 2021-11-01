@@ -723,6 +723,6 @@ func toRideBytes(s string) rideBytes {
 	return r
 }
 
-func toRideList(args ...rideType) RideList {
+func toRideList(args ...rideType) rideList {
 	return args
 }

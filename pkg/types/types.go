@@ -33,7 +33,10 @@ type TransactionWithBytes struct {
 	B []byte
 }
 
+//go:generate moq -out ../state/smart_state_moq_test.go -pkg state . SmartState:AnotherMockSmartState
+
 // SmartState is a part of state used by smart contracts.
+
 type SmartState interface {
 	NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error)
 	AddingBlockHeight() (uint64, error)
@@ -44,6 +47,7 @@ type SmartState interface {
 	NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error)
 	NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, error)
 	IsStateUntouched(account proto.Recipient) (bool, error)
+	AssetInfoByID(id proto.AssetID, filter bool) (*proto.AssetInfo, error)
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
 	NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error)

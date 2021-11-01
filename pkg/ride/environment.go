@@ -170,6 +170,10 @@ func (ws *WrappedState) IsStateUntouched(account proto.Recipient) (bool, error) 
 	return ws.diff.state.IsStateUntouched(account)
 }
 
+func (ws *WrappedState) AssetInfoByID(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+	return ws.diff.state.AssetInfoByID(id, filter)
+}
+
 func (ws *WrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 	address, err := ws.diff.state.NewestRecipientToAddress(account)
 	if err != nil {
@@ -1171,16 +1175,12 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 	}, nil
 }
 
-func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, callerPK crypto.PublicKey) (*EvaluationEnvironment, error) {
-	caller, err := proto.NewAddressFromPublicKey(env.sch, callerPK)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-	}
+func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress) (*EvaluationEnvironment, error) {
 	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
 	st := newWrappedState(env)
 	for _, payment := range payments {
-		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
+		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(sender), payment.Asset.ID.Bytes())
 		if err != nil {
 			return nil, err
 		}
@@ -1197,7 +1197,7 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
 
-		callerRcp := proto.NewRecipientFromAddress(caller)
+		callerRcp := proto.NewRecipientFromAddress(sender)
 		senderSearchBalance, senderSearchAddr, err := st.diff.findBalance(callerRcp, payment.Asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
@@ -1222,6 +1222,54 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 		inv:                   env.inv,
 		validatePaymentsAfter: env.validatePaymentsAfter,
 		mds:                   env.mds,
+	}, nil
+}
+
+func NewEthereumEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress) (*EvaluationEnvironment, error) {
+	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
+
+	st := newWrappedState(env)
+	for _, payment := range payments {
+		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(sender), payment.Asset.ID.Bytes())
+		if err != nil {
+			return nil, err
+		}
+		if senderBalance < payment.Amount {
+			return nil, errors.New("not enough money for tx attached payments")
+		}
+
+		searchBalance, searchAddr, err := st.diff.findBalance(recipient, payment.Asset)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+		}
+		err = st.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+		}
+
+		callerRcp := proto.NewRecipientFromAddress(sender)
+		senderSearchBalance, senderSearchAddr, err := st.diff.findBalance(callerRcp, payment.Asset)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+		}
+
+		err = st.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
+		}
+	}
+
+	return &EvaluationEnvironment{
+		sch:     env.sch,
+		st:      st,
+		h:       env.h,
+		tx:      env.tx,
+		id:      env.id,
+		th:      env.th,
+		b:       env.b,
+		check:   env.check,
+		takeStr: env.takeStr,
+		inv:     env.inv,
 	}, nil
 }
 
@@ -1320,6 +1368,17 @@ func (e *EvaluationEnvironment) SetInvoke(tx *proto.InvokeScriptWithProofs, v in
 		return err
 	}
 	e.inv = obj
+
+	return nil
+}
+
+func (e *EvaluationEnvironment) SetEthereumInvoke(tx *proto.EthereumTransaction, v int, payments []proto.ScriptPayment) error {
+	obj, err := ethereumInvocationToObject(v, e.sch, tx, payments)
+	if err != nil {
+		return err
+	}
+	e.inv = obj
+
 	return nil
 }
 

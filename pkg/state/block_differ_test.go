@@ -22,7 +22,7 @@ func createBlockDiffer(t *testing.T) (*blockDifferTestObjects, []string) {
 	sets := settings.MainNetSettings
 	stor, path, err := createStorageObjects()
 	require.NoError(t, err, "createStorageObjects() failed")
-	handler, err := newTransactionHandler(sets.Genesis.BlockID(), stor.entities, sets)
+	handler, err := newTransactionHandler(sets.Genesis.BlockID(), stor.entities, sets, nil)
 	require.NoError(t, err, "newTransactionHandler() failed")
 	blockDiffer, err := newBlockDiffer(handler, stor.entities, sets)
 	require.NoError(t, err, "newBlockDiffer() failed")

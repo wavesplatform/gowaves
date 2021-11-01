@@ -1,13 +1,19 @@
 package ride
 
 import (
-	"testing"
-
+	"encoding/hex"
 	"github.com/jinzhu/copier"
+	"github.com/mr-tron/base58"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
+	"math/big"
+	"strings"
+	"testing"
 )
 
 var (
@@ -112,7 +118,7 @@ func (a *TransferWithSigTestSuite) Test_bodyBytes() {
 
 func (a *TransferWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *TransferWithSigTestSuite) Test_instanceFieldName() {
@@ -221,7 +227,7 @@ func (a *TransferWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *TransferWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *TransferWithProofsTestSuite) Test_instanceFieldName() {
@@ -351,7 +357,7 @@ func (a *PaymentTestSuite) Test_bodyBytes() {
 
 func (a *PaymentTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *PaymentTestSuite) Test_instanceFieldName() {
@@ -431,7 +437,7 @@ func (a *ReissueWithSigTestSuite) Test_bodyBytes() {
 
 func (a *ReissueWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *ReissueWithSigTestSuite) Test_instanceFieldName() {
@@ -513,7 +519,7 @@ func (a *ReissueWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *ReissueWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *ReissueWithProofsTestSuite) Test_instanceFieldName() {
@@ -589,7 +595,7 @@ func (a *BurnWithSigTestSuite) Test_bodyBytes() {
 
 func (a *BurnWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *BurnWithSigTestSuite) Test_instanceFieldName() {
@@ -666,7 +672,7 @@ func (a *BurnWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *BurnWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *BurnWithProofsTestSuite) Test_instanceFieldName() {
@@ -716,7 +722,7 @@ func (a *MassTransferWithProofsTestSuite) Test_transfers() {
 	m := make(rideObject)
 	m["recipient"] = rideRecipient(a.tx.Transfers[0].Recipient)
 	m["amount"] = rideInt(int64(a.tx.Transfers[0].Amount))
-	a.Equal(RideList{m}, rs["transfers"])
+	a.Equal(rideList{m}, rs["transfers"])
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_transferCount() {
@@ -775,7 +781,7 @@ func (a *MassTransferWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *MassTransferWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_instanceFieldName() {
@@ -870,7 +876,7 @@ func (a *ExchangeWithSigTestSuite) Test_bodyBytes() {
 
 func (a *ExchangeWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *ExchangeWithSigTestSuite) Test_instanceFieldName() {
@@ -967,7 +973,7 @@ func (a *ExchangeWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *ExchangeWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_instanceFieldName() {
@@ -1093,7 +1099,7 @@ func (a *OrderTestSuite) Test_bodyBytes() {
 func (a *OrderTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	p, _ := a.tx.GetProofs()
-	a.Equal(RideList{rideBytes(p.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(p.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *OrderTestSuite) Test_instanceFieldName() {
@@ -1174,7 +1180,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_instanceFieldName() {
@@ -1234,7 +1240,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_function() {
 
 func (a *InvokeScriptWithProofsTestSuite) Test_args() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideString("StringArgument")}, rs["args"])
+	a.Equal(rideList{rideString("StringArgument")}, rs["args"])
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_id() {
@@ -1280,7 +1286,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *InvokeScriptWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_instanceFieldName() {
@@ -1376,7 +1382,7 @@ func (a *IssueWithSigTestSuite) Test_bodyBytes() {
 
 func (a *IssueWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *IssueWithSigTestSuite) Test_instanceFieldName() {
@@ -1474,7 +1480,7 @@ func (a *IssueWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *IssueWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *IssueWithProofsTestSuite) Test_instanceFieldName() {
@@ -1550,7 +1556,7 @@ func (a *LeaseWithSigTestSuite) Test_bodyBytes() {
 
 func (a *LeaseWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *LeaseWithSigTestSuite) Test_instanceFieldName() {
@@ -1627,7 +1633,7 @@ func (a *LeaseWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *LeaseWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *LeaseWithProofsTestSuite) Test_instanceFieldName() {
@@ -1698,7 +1704,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_bodyBytes() {
 
 func (a *LeaseCancelWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_instanceFieldName() {
@@ -1770,7 +1776,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *LeaseCancelWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_instanceFieldName() {
@@ -1796,7 +1802,7 @@ func (a *DataWithProofsTestSuite) SetupTest() {
 
 func (a *DataWithProofsTestSuite) Test_data() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	list, ok := rs["data"].(RideList)
+	list, ok := rs["data"].(rideList)
 	a.Assert().True(ok)
 	o, ok := list[0].(rideObject)
 	a.Assert().True(ok)
@@ -1848,7 +1854,7 @@ func (a *DataWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *DataWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *DataWithProofsTestSuite) Test_instanceFieldName() {
@@ -1931,7 +1937,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *SponsorshipWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_instanceFieldName() {
@@ -2002,7 +2008,7 @@ func (a *CreateAliasWithSigTestSuite) Test_bodyBytes() {
 
 func (a *CreateAliasWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_instanceFieldName() {
@@ -2074,7 +2080,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *CreateAliasWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_instanceFieldName() {
@@ -2084,4 +2090,106 @@ func (a *CreateAliasWithProofsTestSuite) Test_instanceFieldName() {
 
 func TestNewVariablesFromCreateAliasWithProofsTestSuite(t *testing.T) {
 	suite.Run(t, new(CreateAliasWithProofsTestSuite))
+}
+
+func defaultEthLegacyTxData(value int64, to *proto.EthereumAddress, data []byte, gas uint64) *proto.EthereumLegacyTx {
+	v := big.NewInt(87) // MainNet byte
+	v.Mul(v, big.NewInt(2))
+	v.Add(v, big.NewInt(35))
+
+	return &proto.EthereumLegacyTx{
+		Value:    big.NewInt(value),
+		To:       to,
+		Data:     data,
+		GasPrice: big.NewInt(1),
+		Nonce:    1479168000000,
+		Gas:      gas,
+		V:        v,
+	}
+}
+
+func TestEthereumTransferWavesTransformTxToRideObj(t *testing.T) {
+	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
+	assert.NoError(t, err)
+	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
+	assert.NoError(t, err)
+	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
+
+	tx := proto.EthereumTransaction{
+		Inner:    defaultEthLegacyTxData(1000000000000000, &recipientEth, nil, 100000),
+		ID:       &crypto.Digest{},
+		SenderPK: &senderPK,
+	}
+	tx.TxKind = proto.NewEthereumTransferWavesTxKind()
+
+	rideObj, err := transactionToObject(proto.MainNetScheme, &tx)
+	assert.NoError(t, err)
+
+	sender, err := tx.WavesAddressFrom(proto.MainNetScheme)
+	assert.NoError(t, err)
+	recipient, err := tx.WavesAddressTo(proto.MainNetScheme)
+	assert.NoError(t, err)
+	assert.Equal(t, rideBytes(senderPK.SerializeXYCoordinates()), rideObj["senderPublicKey"])
+	assert.Equal(t, rideAddress(sender), rideObj["sender"])
+	assert.Equal(t, rideRecipient(proto.NewRecipientFromAddress(*recipient)), rideObj["recipient"])
+	assert.Equal(t, rideInt(100000), rideObj["amount"])
+	assert.Equal(t, rideInt(100000), rideObj["fee"])
+}
+
+func makeLessDataAmount(t *testing.T, decodedData *ethabi.DecodedCallData) {
+	v, ok := decodedData.Inputs[1].Value.(ethabi.BigInt)
+	assert.True(t, ok)
+	res := new(big.Int).Div(v.V, big.NewInt(int64(proto.DiffEthWaves)))
+	decodedData.Inputs[1].Value = ethabi.BigInt{V: res}
+}
+
+func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
+	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
+	assert.NoError(t, err)
+	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
+	assert.NoError(t, err)
+	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
+	//var TxSeveralData []proto.EthereumTxData
+	//TxSeveralData = append(TxSeveralData, defaultEthereumLegacyTxData(1000000000000000, &recipientEth), defaultEthereumDynamicFeeTx(1000000000000000, &recipientEth), defaultEthereumAccessListTx(1000000000000000, &recipientEth))
+	/*
+		from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
+		transfer(address,uint256)
+		1 = 0x9a1989946ae4249AAC19ac7a038d24Aab03c3D8c
+		2 = 209470300000000000000000
+	*/
+	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
+	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
+	require.NoError(t, err)
+	var txData proto.EthereumTxData = defaultEthLegacyTxData(1000000000000000, &recipientEth, data, 100000)
+	tx := proto.EthereumTransaction{
+		Inner:    txData,
+		ID:       &crypto.Digest{},
+		SenderPK: &senderPK,
+	}
+	db := ethabi.NewErc20MethodsMap()
+	assert.NotNil(t, tx.Data())
+	decodedData, err := db.ParseCallDataRide(tx.Data())
+	assert.NoError(t, err)
+	makeLessDataAmount(t, decodedData)
+
+	assetID := (*proto.AssetID)(tx.To())
+	var r crypto.Digest
+	copy(r[:20], assetID[:])
+	asset := &proto.AssetInfo{ID: r}
+
+	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID))
+
+	rideObj, err := transactionToObject(proto.MainNetScheme, &tx)
+	assert.NoError(t, err)
+
+	sender, err := tx.WavesAddressFrom(proto.MainNetScheme)
+	assert.NoError(t, err)
+
+	assert.Equal(t, rideBytes(senderPK.SerializeXYCoordinates()), rideObj["senderPublicKey"])
+	assert.Equal(t, rideAddress(sender), rideObj["sender"])
+	erc20arguments, err := GetERC20Arguments(tx.TxKind.DecodedData(), proto.MainNetScheme)
+	assert.NoError(t, err)
+	assert.Equal(t, rideRecipient(proto.NewRecipientFromAddress(erc20arguments.Recipient)), rideObj["recipient"])
+	assert.Equal(t, rideInt(20947030000000), rideObj["amount"])
+	assert.Equal(t, rideInt(100000), rideObj["fee"])
 }

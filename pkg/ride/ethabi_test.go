@@ -33,13 +33,13 @@ func TestEthABIDataTypeToRideType(t *testing.T) {
 					ethabi.Bool(false),
 				},
 			},
-			expectedRideType: RideList{
+			expectedRideType: rideList{
 				rideInt(453),
 				rideBoolean(true),
 				rideString("the best test string ever!"),
 				rideBytes("command and conquer!"),
 				rideBigInt{V: big.NewInt(1232347)},
-				RideList{
+				rideList{
 					rideBytes("one more"),
 					rideBoolean(false),
 				},
@@ -47,7 +47,7 @@ func TestEthABIDataTypeToRideType(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		actualRideType, err := ethABIDataTypeToRideType(tc.inputDataType)
+		actualRideType, err := EthABIDataTypeToRideType(tc.inputDataType)
 		require.NoError(t, err)
 		require.Equal(t, tc.expectedRideType, actualRideType)
 	}

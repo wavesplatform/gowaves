@@ -1152,7 +1152,7 @@ func TestRebuildMerkleRoot(t *testing.T) {
 	require.NoError(t, err)
 	p3, err := base58.Decode("GemGCop1arCvTY447FLH8tDQF7knvzNCocNTHqKQBus9")
 	require.NoError(t, err)
-	r, err := rebuildMerkleRoot(nil, RideList{rideBytes(p1), rideBytes(p2), rideBytes(p3)}, rideBytes(leaf), rideInt(3))
+	r, err := rebuildMerkleRoot(nil, rideList{rideBytes(p1), rideBytes(p2), rideBytes(p3)}, rideBytes(leaf), rideInt(3))
 	assert.NoError(t, err)
 	assert.Equal(t, "ByteVector", r.instanceOf())
 	assert.ElementsMatch(t, root, r)

@@ -6,14 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"io"
-	"math/big"
-	"reflect"
-	"strconv"
-	"strings"
-	"time"
-	"unicode/utf16"
-
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -21,6 +13,13 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"io"
+	"math/big"
+	"reflect"
+	"strconv"
+	"strings"
+	"time"
+	"unicode/utf16"
 )
 
 const (
@@ -3228,27 +3227,27 @@ type FullScriptTransfer struct {
 	ID        *crypto.Digest
 }
 
-func NewFullScriptTransfer(action *TransferScriptAction, sender WavesAddress, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+func NewFullScriptTransfer(action *TransferScriptAction, sender WavesAddress, senderPK crypto.PublicKey, txID *crypto.Digest, timestamp uint64) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,
 		Recipient: action.Recipient,
 		Sender:    sender,
 		SenderPK:  senderPK,
-		Timestamp: tx.Timestamp,
-		ID:        tx.ID,
+		Timestamp: timestamp,
+		ID:        txID,
 	}, nil
 }
 
-func NewFullScriptTransferFromPaymentAction(action *AttachedPaymentScriptAction, sender WavesAddress, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+func NewFullScriptTransferFromPaymentAction(action *AttachedPaymentScriptAction, sender WavesAddress, senderPK crypto.PublicKey, txID *crypto.Digest, timestamp uint64) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,
 		Recipient: action.Recipient,
 		Sender:    sender,
 		SenderPK:  senderPK,
-		Timestamp: tx.Timestamp,
-		ID:        tx.ID,
+		Timestamp: timestamp,
+		ID:        txID,
 	}, nil
 }
 

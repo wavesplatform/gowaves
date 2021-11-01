@@ -1,12 +1,13 @@
 package ethabi
 
 const (
-	erc20TransferSignature Signature = "transfer(address,uint256)"
+	Erc20TransferSignature Signature = "transfer(address,uint256)"
 	ethereumAddressSize    int       = 20
+	NumberOfERC20Arguments int       = 2
 )
 
 var erc20Methods = map[Selector]Method{
-	erc20TransferSignature.Selector(): {
+	Erc20TransferSignature.Selector(): {
 		RawName: "transfer",
 		Inputs: Arguments{
 			Argument{
@@ -27,6 +28,6 @@ var erc20Methods = map[Selector]Method{
 			},
 		},
 		Payments: nil,
-		Sig:      erc20TransferSignature,
+		Sig:      Erc20TransferSignature,
 	},
 }

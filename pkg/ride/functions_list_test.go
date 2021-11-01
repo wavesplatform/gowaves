@@ -13,14 +13,14 @@ func TestListRemoveByIndex(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{RideList{rideInt(1), rideInt(2), rideInt(3)}, rideInt(0)}, false, RideList{rideInt(2), rideInt(3)}},
-		{[]rideType{RideList{rideInt(1), rideInt(2), rideInt(3)}, rideInt(1)}, false, RideList{rideInt(1), rideInt(3)}},
-		{[]rideType{RideList{rideInt(1), rideInt(2), rideInt(3)}, rideInt(2)}, false, RideList{rideInt(1), rideInt(2)}},
-		{[]rideType{RideList{rideInt(1), rideString("two"), rideBoolean(true)}, rideInt(2)}, false, RideList{rideInt(1), rideString("two")}},
+		{[]rideType{rideList{rideInt(1), rideInt(2), rideInt(3)}, rideInt(0)}, false, rideList{rideInt(2), rideInt(3)}},
+		{[]rideType{rideList{rideInt(1), rideInt(2), rideInt(3)}, rideInt(1)}, false, rideList{rideInt(1), rideInt(3)}},
+		{[]rideType{rideList{rideInt(1), rideInt(2), rideInt(3)}, rideInt(2)}, false, rideList{rideInt(1), rideInt(2)}},
+		{[]rideType{rideList{rideInt(1), rideString("two"), rideBoolean(true)}, rideInt(2)}, false, rideList{rideInt(1), rideString("two")}},
 		{[]rideType{rideString("abc"), rideInt(0)}, true, nil},
-		{[]rideType{RideList{}, rideInt(0)}, true, nil},
-		{[]rideType{RideList{rideString("a")}, rideInt(-1)}, true, nil},
-		{[]rideType{RideList{rideString("a")}, rideInt(1)}, true, nil},
+		{[]rideType{rideList{}, rideInt(0)}, true, nil},
+		{[]rideType{rideList{rideString("a")}, rideInt(-1)}, true, nil},
+		{[]rideType{rideList{rideString("a")}, rideInt(1)}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{rideInt(1)}, true, nil},

@@ -49,12 +49,12 @@ type blockchainEntitiesStorage struct {
 	scores            *scores
 	blocksInfo        *blocksInfo
 	balances          *balances
-	features          *features
+	features          FeaturesState
 	monetaryPolicy    *monetaryPolicy
 	ordersVolumes     *ordersVolumes
 	accountsDataStor  *accountsDataStorage
 	sponsoredAssets   *sponsoredAssets
-	scriptsStorage    *scriptsStorage
+	scriptsStorage    ScriptStorageState
 	scriptsComplexity *scriptsComplexity
 	invokeResults     *invokeResults
 	stateHashes       *stateHashes
@@ -101,8 +101,8 @@ func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64,
 			WavesBalanceHash:  s.balances.wavesHashAt(blockID),
 			AssetBalanceHash:  s.balances.assetsHashAt(blockID),
 			DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
-			AccountScriptHash: s.scriptsStorage.accountScriptsHasher.stateHashAt(blockID),
-			AssetScriptHash:   s.scriptsStorage.assetScriptsHasher.stateHashAt(blockID),
+			AccountScriptHash: s.scriptsStorage.AccountScriptsHasher().stateHashAt(blockID),
+			AssetScriptHash:   s.scriptsStorage.AssetScriptsHasher().stateHashAt(blockID),
 			LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
 			LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
 			SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),

@@ -2,6 +2,7 @@ package proto
 
 import (
 	"bytes"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"io"
 	"math/big"
 
@@ -13,7 +14,7 @@ import (
 
 // EthereumGasPrice is a constant GasPrice which equals 10GWei according to the specification
 const EthereumGasPrice = 10 * EthereumGWei
-
+const DiffEthWaves = 1e10 // in ethereum numbers are represented in 10^18. In waves it's 10^8
 // EthereumTxType is an ethereum transaction type.
 type EthereumTxType byte
 
@@ -21,6 +22,11 @@ const (
 	EthereumLegacyTxType EthereumTxType = iota
 	EthereumAccessListTxType
 	EthereumDynamicFeeTxType
+)
+
+const (
+	EthereumTransferMinFee uint64 = 100000
+	EthereumInvokeMinFee   uint64 = 500000
 )
 
 func (e EthereumTxType) String() string {
@@ -79,11 +85,52 @@ type EthereumTxData interface {
 	fastRLPSignerHasher
 }
 
+type EthereumTransactionKind interface {
+	DecodedData() *ethabi.DecodedCallData
+}
+
+type EthereumTransferWavesTxKind struct {
+}
+
+func NewEthereumTransferWavesTxKind() *EthereumTransferWavesTxKind {
+	return &EthereumTransferWavesTxKind{}
+}
+
+func (tx *EthereumTransferWavesTxKind) DecodedData() *ethabi.DecodedCallData {
+	return nil
+}
+
+type EthereumTransferAssetsErc20TxKind struct {
+	decodedData ethabi.DecodedCallData
+	Asset       OptionalAsset
+}
+
+func NewEthereumTransferAssetsErc20TxKind(decodedData ethabi.DecodedCallData, asset OptionalAsset) *EthereumTransferAssetsErc20TxKind {
+	return &EthereumTransferAssetsErc20TxKind{Asset: asset, decodedData: decodedData}
+}
+
+func (tx *EthereumTransferAssetsErc20TxKind) DecodedData() *ethabi.DecodedCallData {
+	return &tx.decodedData
+}
+
+type EthereumInvokeScriptTxKind struct {
+	decodedData ethabi.DecodedCallData
+}
+
+func NewEthereumInvokeScriptTxKind(decodedData ethabi.DecodedCallData) *EthereumInvokeScriptTxKind {
+	return &EthereumInvokeScriptTxKind{decodedData: decodedData}
+}
+
+func (tx *EthereumInvokeScriptTxKind) DecodedData() *ethabi.DecodedCallData {
+	return &tx.decodedData
+}
+
 type EthereumTransaction struct {
-	inner           EthereumTxData
+	Inner           EthereumTxData
 	innerBinarySize int
-	id              *crypto.Digest
-	senderPK        *EthereumPublicKey
+	TxKind          EthereumTransactionKind
+	ID              *crypto.Digest
+	SenderPK        *EthereumPublicKey
 }
 
 func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
@@ -98,12 +145,12 @@ func (tx *EthereumTransaction) GetVersion() byte {
 }
 
 func (tx *EthereumTransaction) GetID(scheme Scheme) ([]byte, error) {
-	if tx.id == nil {
+	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
 		}
 	}
-	return tx.id.Bytes(), nil
+	return tx.ID.Bytes(), nil
 }
 
 func (tx *EthereumTransaction) GetSender(scheme Scheme) (Address, error) {
@@ -120,7 +167,7 @@ func (tx *EthereumTransaction) GetTimestamp() uint64 {
 }
 
 func (tx *EthereumTransaction) Validate() (Transaction, error) {
-	if tx.senderPK != nil {
+	if tx.SenderPK != nil {
 		return tx, nil
 	}
 	signer := MakeEthereumSigner(tx.ChainId())
@@ -128,20 +175,21 @@ func (tx *EthereumTransaction) Validate() (Transaction, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to validate EthereumTransaction")
 	}
-	tx.senderPK = senderPK
+	tx.SenderPK = senderPK
 	return tx, nil
 }
 
 func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
-	if tx.id != nil {
+	if tx.ID != nil {
 		return nil
 	}
 	body, err := MarshalTxBody(scheme, tx)
 	if err != nil {
 		return err
 	}
+
 	id := Keccak256EthereumHash(body)
-	tx.id = (*crypto.Digest)(&id)
+	tx.ID = (*crypto.Digest)(&id)
 	return nil
 }
 
@@ -251,51 +299,65 @@ func (tx *EthereumTransaction) ToProtobufSigned(_ Scheme) (*g.SignedTransaction,
 
 // EthereumTxType returns the transaction type.
 func (tx *EthereumTransaction) EthereumTxType() EthereumTxType {
-	return tx.inner.ethereumTxType()
+	return tx.Inner.ethereumTxType()
 }
 
 // ChainId returns the EIP155 chain ID of the transaction. The return value will always be
 // non-nil. For legacy transactions which are not replay-protected, the return value is
 // zero.
 func (tx *EthereumTransaction) ChainId() *big.Int {
-	return tx.inner.chainID()
+	return tx.Inner.chainID()
 }
 
 // Data returns the input data of the transaction.
-func (tx *EthereumTransaction) Data() []byte { return tx.inner.data() }
+func (tx *EthereumTransaction) Data() []byte { return tx.Inner.data() }
 
 // AccessList returns the access list of the transaction.
-func (tx *EthereumTransaction) AccessList() EthereumAccessList { return tx.inner.accessList() }
+func (tx *EthereumTransaction) AccessList() EthereumAccessList { return tx.Inner.accessList() }
 
 // Gas returns the gas limit of the transaction.
-func (tx *EthereumTransaction) Gas() uint64 { return tx.inner.gas() }
+func (tx *EthereumTransaction) Gas() uint64 { return tx.Inner.gas() }
 
 // GasPrice returns the gas price of the transaction.
-func (tx *EthereumTransaction) GasPrice() *big.Int { return copyBigInt(tx.inner.gasPrice()) }
+func (tx *EthereumTransaction) GasPrice() *big.Int { return copyBigInt(tx.Inner.gasPrice()) }
 
 // GasTipCap returns the gasTipCap per gas of the transaction.
-func (tx *EthereumTransaction) GasTipCap() *big.Int { return copyBigInt(tx.inner.gasTipCap()) }
+func (tx *EthereumTransaction) GasTipCap() *big.Int { return copyBigInt(tx.Inner.gasTipCap()) }
 
 // GasFeeCap returns the fee cap per gas of the transaction.
-func (tx *EthereumTransaction) GasFeeCap() *big.Int { return copyBigInt(tx.inner.gasFeeCap()) }
+func (tx *EthereumTransaction) GasFeeCap() *big.Int { return copyBigInt(tx.Inner.gasFeeCap()) }
 
 // Value returns the ether amount of the transaction.
-func (tx *EthereumTransaction) Value() *big.Int { return copyBigInt(tx.inner.value()) }
+func (tx *EthereumTransaction) Value() *big.Int { return copyBigInt(tx.Inner.value()) }
 
 // Nonce returns the sender account nonce of the transaction.
-func (tx *EthereumTransaction) Nonce() uint64 { return tx.inner.nonce() }
+func (tx *EthereumTransaction) Nonce() uint64 { return tx.Inner.nonce() }
 
 // To returns the recipient address of the transaction.
 // For contract-creation transactions, To returns nil.
-func (tx *EthereumTransaction) To() *EthereumAddress { return tx.inner.to().copy() }
+func (tx *EthereumTransaction) To() *EthereumAddress { return tx.Inner.to().copy() }
+
+func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (*WavesAddress, error) {
+	toEthAdr := tx.Inner.to()
+	if toEthAdr == nil { // contract-creation transactions, To returns nil
+		return nil, errors.New("recipient address is nil, but it has been called")
+	}
+
+	to, err := toEthAdr.ToWavesAddress(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &to, nil
+}
 
 // From returns the sender address of the transaction.
 // Returns error if transaction doesn't pass validation.
+
 func (tx *EthereumTransaction) From() (EthereumAddress, error) {
 	if _, err := tx.Validate(); err != nil {
 		return EthereumAddress{}, err
 	}
-	addr := tx.senderPK.EthereumAddress()
+	addr := tx.SenderPK.EthereumAddress()
 	return addr, nil
 }
 
@@ -305,13 +367,25 @@ func (tx *EthereumTransaction) FromPK() (*EthereumPublicKey, error) {
 	if _, err := tx.Validate(); err != nil {
 		return nil, err
 	}
-	return tx.senderPK.copy(), nil
+	return tx.SenderPK.copy(), nil
+}
+
+func (tx *EthereumTransaction) WavesAddressFrom(scheme byte) (WavesAddress, error) {
+	ethSender, err := tx.From()
+	if err != nil {
+		return WavesAddress{}, err
+	}
+	sender, err := ethSender.ToWavesAddress(scheme)
+	if err != nil {
+		return WavesAddress{}, err
+	}
+	return sender, nil
 }
 
 // RawSignatureValues returns the V, R, S signature values of the transaction.
 // The return values should not be modified by the caller.
 func (tx *EthereumTransaction) RawSignatureValues() (v, r, s *big.Int) {
-	return tx.inner.rawSignatureValues()
+	return tx.Inner.rawSignatureValues()
 }
 
 // DecodeCanonical decodes the canonical binary encoding of transactions.
@@ -332,7 +406,7 @@ func (tx *EthereumTransaction) DecodeCanonical(canonicalData []byte) error {
 				EthereumLegacyTxType.String(),
 			)
 		}
-		tx.inner = &inner
+		tx.Inner = &inner
 	} else {
 		// It's an EIP2718 typed transaction envelope.
 		inner, err := tx.decodeTypedCanonical(canonicalData)
@@ -341,7 +415,7 @@ func (tx *EthereumTransaction) DecodeCanonical(canonicalData []byte) error {
 				"failed to unmarshal from canonical representation ethereum typed transaction",
 			)
 		}
-		tx.inner = inner
+		tx.Inner = inner
 	}
 	tx.innerBinarySize = len(canonicalData)
 	return nil
@@ -356,7 +430,7 @@ func (tx *EthereumTransaction) EncodeCanonical(w io.Writer) error {
 		arena     fastrlp.Arena
 	)
 	if tx.EthereumTxType() == EthereumLegacyTxType {
-		fastrlpTx := tx.inner.marshalToFastRLP(&arena)
+		fastrlpTx := tx.Inner.marshalToFastRLP(&arena)
 		canonical = fastrlpTx.MarshalTo(nil)
 	} else {
 		canonical = tx.encodeTypedCanonical(&arena)
@@ -398,7 +472,7 @@ func (tx *EthereumTransaction) decodeTypedCanonical(canonicalData []byte) (Ether
 
 // encodeTypedCanonical returns the canonical encoding of a typed transaction.
 func (tx *EthereumTransaction) encodeTypedCanonical(arena *fastrlp.Arena) []byte {
-	typedTxVal := tx.inner.marshalToFastRLP(arena)
+	typedTxVal := tx.Inner.marshalToFastRLP(arena)
 	canonicalMarshaled := make([]byte, 0, 1+typedTxVal.Len())
 	canonicalMarshaled = append(canonicalMarshaled, byte(tx.EthereumTxType()))
 	canonicalMarshaled = typedTxVal.MarshalTo(canonicalMarshaled)
@@ -416,7 +490,7 @@ func isProtectedV(V *big.Int) bool {
 
 // Protected says whether the transaction is replay-protected.
 func (tx *EthereumTransaction) Protected() bool {
-	switch tx := tx.inner.(type) {
+	switch tx := tx.Inner.(type) {
 	case *EthereumLegacyTx:
 		return tx.V != nil && isProtectedV(tx.V)
 	default:

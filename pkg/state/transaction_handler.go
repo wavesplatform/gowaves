@@ -5,6 +5,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type txCheckFunc func(proto.Transaction, *checkerInfo) ([]crypto.Digest, error)
@@ -108,6 +109,9 @@ func buildHandles(tc *transactionChecker, tp *transactionPerformer, td *transact
 		proto.TransactionTypeInfo{Type: proto.UpdateAssetInfoTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
 			tc.checkUpdateAssetInfoWithProofs, tp.performUpdateAssetInfoWithProofs, td.createDiffUpdateAssetInfoWithProofs, tf.minerFeeUpdateAssetInfoWithProofs,
 		},
+		proto.TransactionTypeInfo{Type: proto.EthereumMetamaskTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkEthereumTransactionWithProofs, tp.performEthereumTransactionWithProofs, td.createDiffEthereumTransactionWithProofs, tf.minerFeeEthereumTxWithProofs,
+		},
 	}
 }
 
@@ -115,8 +119,9 @@ func newTransactionHandler(
 	genesis proto.BlockID,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
+	state types.SmartState,
 ) (*transactionHandler, error) {
-	tc, err := newTransactionChecker(genesis, stor, settings)
+	tc, err := newTransactionChecker(genesis, stor, settings, state)
 	if err != nil {
 		return nil, err
 	}

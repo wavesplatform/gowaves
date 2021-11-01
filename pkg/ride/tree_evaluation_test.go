@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -1309,6 +1310,9 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
+
+	lolwrapedSt := wrappedSt
+	fmt.Println(lolwrapedSt)
 
 	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
@@ -6844,7 +6848,7 @@ func TestScriptPaymentPublicKey(t *testing.T) {
 		Timestamp:       1599565088614,
 	}
 
-	tr, _ := proto.NewFullScriptTransfer(action, addr, pk, tx)
+	tr, _ := proto.NewFullScriptTransfer(action, addr, pk, tx.ID, tx.Timestamp)
 	env := &MockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
