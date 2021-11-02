@@ -1147,7 +1147,7 @@ func (a *EthereumOrderV4TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	p, _ := a.tx.GetProofs()
 	a.Nil(p)
-	a.Equal(RideList{_empty, _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{_empty, _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *EthereumOrderV4TestSuite) Test_bodyBytes() {
