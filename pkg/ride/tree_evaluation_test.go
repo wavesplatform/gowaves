@@ -7174,13 +7174,11 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	{-# STDLIB_VERSION 5 #-}
 	{-# CONTENT_TYPE DAPP #-}
 	{-# SCRIPT_TYPE ACCOUNT #-}
-
 	let asset = base58'2fCdmsn6maErwtLuzxoUrCBkh2vx5SvXtMKAJtN4YBgd'
-
 	@Callable(i)
-	func call() = ([IntegerEntry("int", 1)], true)
+	func call() = ([ScriptTransfer(i.caller, 50, asset)], true)
 	*/
-	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAFYXNzZXQBAAAAIBik6Y0sQVWjpHFHkXuac+oNVrjohHPSl3mTMou+GnrKAAAAAQAAAAFpAQAAAARjYWxsAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANpbnQAAAAAAAAAAAEFAAAAA25pbAYAAAAAC4haXQ=="
+	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAFYXNzZXQBAAAAIBik6Y0sQVWjpHFHkXuac+oNVrjohHPSl3mTMou+GnrKAAAAAQAAAAFpAQAAAARjYWxsAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAMgUAAAAFYXNzZXQFAAAAA25pbAYAAAAAHQNJXQ=="
 	src2, err := base64.StdEncoding.DecodeString(code2)
 	require.NoError(t, err)
 
@@ -7220,6 +7218,8 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		Fee:             500000,
 		Timestamp:       1624967106278,
 	}
+	var testState *WrappedState
+
 	testInv, err := invocationToObject(5, proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
@@ -7244,6 +7244,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		},
 		setNewDAppAddressFunc: func(address proto.Address) {
 			testDAppAddress = address
+			testState.cle = rideAddress(address)
 		},
 		validateInternalPaymentsFunc: func() bool {
 			return true
@@ -7307,7 +7308,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 			return 0, errors.New("unexpected asset")
 		},
 	}
-	testState := initWrappedState(mockState, env)
+	testState = initWrappedState(mockState, env)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
@@ -7323,6 +7324,9 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	env.validateInternalPaymentsFunc = func() bool {
 		return false
 	}
+	testInv, err = invocationToObject(5, proto.MainNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress = dApp1
 	testState = initWrappedState(mockState, env)
 	env.stateFunc = func() types.SmartState {
 		return testState
