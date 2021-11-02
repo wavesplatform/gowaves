@@ -192,7 +192,7 @@ func splitString(_ Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "splitString")
 	}
-	r := make(RideList, 0)
+	r := make(rideList, 0)
 	for _, p := range strings.Split(s1, s2) {
 		r = append(r, rideString(p))
 	}
@@ -253,7 +253,7 @@ func makeString(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}
-	list, ok := args[0].(RideList)
+	list, ok := args[0].(rideList)
 	if !ok {
 		return nil, errors.Errorf("makeString: unexpected argument type '%s'", args[0].instanceOf())
 	}

@@ -63,13 +63,13 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("reentrantInvoke: unexpected argument type '%s'", args[1].instanceOf())
 	}
 
-	listArg, ok := args[2].(RideList)
+	listArg, ok := args[2].(rideList)
 	if !ok {
 		return nil, errors.Errorf("reentrantInvoke: unexpected argument type '%s'", args[2].instanceOf())
 	}
 
 	var attachedPayments proto.ScriptPayments
-	payments := args[3].(RideList)
+	payments := args[3].(rideList)
 
 	oldInvocationParam := env.invocation()
 
@@ -214,13 +214,13 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[1].instanceOf())
 	}
 
-	listArg, ok := args[2].(RideList)
+	listArg, ok := args[2].(rideList)
 	if !ok {
 		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[2].instanceOf())
 	}
 
 	var attachedPayments proto.ScriptPayments
-	payments := args[3].(RideList)
+	payments := args[3].(rideList)
 
 	oldInvocationParam := env.invocation()
 
@@ -1108,7 +1108,7 @@ func rebuildMerkleRoot(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "rebuildMerkleRoot")
 	}
-	proofs, ok := args[0].(RideList)
+	proofs, ok := args[0].(rideList)
 	if !ok {
 		return nil, errors.Errorf("rebuildMerkleRoot: unexpected argument type '%s'", args[0].instanceOf())
 	}
@@ -1367,7 +1367,7 @@ func dataTransaction(_ Environment, args ...rideType) (rideType, error) {
 	}
 	obj := make(rideObject)
 	obj[instanceFieldName] = rideString("DataTransaction")
-	entries, ok := args[0].(RideList)
+	entries, ok := args[0].(rideList)
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[0].instanceOf())
 	}
@@ -1407,7 +1407,7 @@ func dataTransaction(_ Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[7].instanceOf())
 	}
 	obj["bodyBytes"] = body
-	proofs, ok := args[8].(RideList)
+	proofs, ok := args[8].(rideList)
 	if !ok {
 		return nil, errors.Errorf("dataTransaction: unexpected argument type '%s'", args[8].instanceOf())
 	}
@@ -1436,11 +1436,11 @@ func writeSet(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "writeSet")
 	}
-	list, ok := args[0].(RideList)
+	list, ok := args[0].(rideList)
 	if !ok {
 		return nil, errors.Errorf("writeSet: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	var entries RideList
+	var entries rideList
 	for _, item := range list {
 		e, ok := item.(rideObject)
 		if !ok || e.instanceOf() != "DataEntry" {
@@ -1485,11 +1485,11 @@ func transferSet(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "transferSet")
 	}
-	list, ok := args[0].(RideList)
+	list, ok := args[0].(rideList)
 	if !ok {
 		return nil, errors.Errorf("transferSet: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	var transfers RideList
+	var transfers rideList
 	for _, item := range list {
 		t, ok := item.(rideObject)
 		if !ok || t.instanceOf() != "ScriptTransfer" {

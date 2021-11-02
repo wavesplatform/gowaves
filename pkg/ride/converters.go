@@ -662,7 +662,7 @@ func massTransferWithProofsToObject(scheme byte, tx *proto.MassTransferWithProof
 	}
 	total := 0
 	count := len(tx.Transfers)
-	transfers := make(RideList, count)
+	transfers := make(rideList, count)
 	for i, transfer := range tx.Transfers {
 		m := make(rideObject)
 		m["recipient"] = rideRecipient(transfer.Recipient)
@@ -711,8 +711,8 @@ func dataEntryToObject(entry proto.DataEntry) rideType {
 	return r
 }
 
-func dataEntriesToList(entries []proto.DataEntry) RideList {
-	r := make(RideList, len(entries))
+func dataEntriesToList(entries []proto.DataEntry) rideList {
+	r := make(rideList, len(entries))
 	for i, entry := range entries {
 		r[i] = dataEntryToObject(entry)
 	}
@@ -839,7 +839,7 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	if err != nil {
 		return nil, errors.Wrap(err, "invokeScriptWithProofsToObject")
 	}
-	args := make(RideList, len(tx.FunctionCall.Arguments))
+	args := make(rideList, len(tx.FunctionCall.Arguments))
 	for i, arg := range tx.FunctionCall.Arguments {
 		a, err := convertArgument(arg)
 		if err != nil {
@@ -858,16 +858,16 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	case len(tx.Payments) == 1:
 		p := attachedPaymentToObject(tx.Payments[0])
 		r["payment"] = p
-		r["payments"] = RideList{p}
+		r["payments"] = rideList{p}
 	case len(tx.Payments) > 1:
-		pl := make(RideList, len(tx.Payments))
+		pl := make(rideList, len(tx.Payments))
 		for i, p := range tx.Payments {
 			pl[i] = attachedPaymentToObject(p)
 		}
 		r["payments"] = pl
 	default:
 		r["payment"] = rideUnit{}
-		r["payments"] = make(RideList, 0)
+		r["payments"] = make(rideList, 0)
 	}
 	r["feeAssetId"] = optionalAsset(tx.FeeAsset)
 	r["function"] = rideString(tx.FunctionCall.Name)
@@ -916,7 +916,7 @@ func convertArgument(arg proto.Argument) (rideType, error) {
 	case *proto.BinaryArgument:
 		return rideBytes(a.Value), nil
 	case *proto.ListArgument:
-		r := make(RideList, len(a.Items))
+		r := make(rideList, len(a.Items))
 		for i, item := range a.Items {
 			var err error
 			r[i], err = convertArgument(item)
@@ -947,7 +947,7 @@ func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (r
 	}
 	switch v {
 	case 4, 5:
-		payments := make(RideList, len(tx.Payments))
+		payments := make(rideList, len(tx.Payments))
 		for i, p := range tx.Payments {
 			payments[i] = attachedPaymentToObject(p)
 		}
@@ -999,7 +999,7 @@ func objectToActions(env Environment, obj rideType) ([]proto.ScriptAction, error
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert WriteSet to actions")
 		}
-		list, ok := data.(RideList)
+		list, ok := data.(rideList)
 		if !ok {
 			return nil, errors.Errorf("data is not a list")
 		}
@@ -1018,7 +1018,7 @@ func objectToActions(env Environment, obj rideType) ([]proto.ScriptAction, error
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert TransferSet to actions")
 		}
-		list, ok := transfers.(RideList)
+		list, ok := transfers.(rideList)
 		if !ok {
 			return nil, errors.Errorf("transfers is not a list")
 		}
@@ -1348,8 +1348,8 @@ func optionalAsset(o proto.OptionalAsset) rideType {
 	return rideUnit{}
 }
 
-func signatureToProofs(sig *crypto.Signature) RideList {
-	r := make(RideList, 8)
+func signatureToProofs(sig *crypto.Signature) rideList {
+	r := make(rideList, 8)
 	if sig != nil {
 		r[0] = rideBytes(sig.Bytes())
 	} else {
@@ -1361,8 +1361,8 @@ func signatureToProofs(sig *crypto.Signature) RideList {
 	return r
 }
 
-func proofs(proofs *proto.ProofsV1) RideList {
-	r := make(RideList, 8)
+func proofs(proofs *proto.ProofsV1) rideList {
+	r := make(rideList, 8)
 	if proofs != nil {
 		proofsLen := len(proofs.Proofs)
 		for i := range r {

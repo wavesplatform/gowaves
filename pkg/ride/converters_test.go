@@ -112,7 +112,7 @@ func (a *TransferWithSigTestSuite) Test_bodyBytes() {
 
 func (a *TransferWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *TransferWithSigTestSuite) Test_instanceFieldName() {
@@ -221,7 +221,7 @@ func (a *TransferWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *TransferWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *TransferWithProofsTestSuite) Test_instanceFieldName() {
@@ -351,7 +351,7 @@ func (a *PaymentTestSuite) Test_bodyBytes() {
 
 func (a *PaymentTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *PaymentTestSuite) Test_instanceFieldName() {
@@ -431,7 +431,7 @@ func (a *ReissueWithSigTestSuite) Test_bodyBytes() {
 
 func (a *ReissueWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *ReissueWithSigTestSuite) Test_instanceFieldName() {
@@ -513,7 +513,7 @@ func (a *ReissueWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *ReissueWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *ReissueWithProofsTestSuite) Test_instanceFieldName() {
@@ -589,7 +589,7 @@ func (a *BurnWithSigTestSuite) Test_bodyBytes() {
 
 func (a *BurnWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *BurnWithSigTestSuite) Test_instanceFieldName() {
@@ -666,7 +666,7 @@ func (a *BurnWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *BurnWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *BurnWithProofsTestSuite) Test_instanceFieldName() {
@@ -716,7 +716,7 @@ func (a *MassTransferWithProofsTestSuite) Test_transfers() {
 	m := make(rideObject)
 	m["recipient"] = rideRecipient(a.tx.Transfers[0].Recipient)
 	m["amount"] = rideInt(int64(a.tx.Transfers[0].Amount))
-	a.Equal(RideList{m}, rs["transfers"])
+	a.Equal(rideList{m}, rs["transfers"])
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_transferCount() {
@@ -775,7 +775,7 @@ func (a *MassTransferWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *MassTransferWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *MassTransferWithProofsTestSuite) Test_instanceFieldName() {
@@ -870,7 +870,7 @@ func (a *ExchangeWithSigTestSuite) Test_bodyBytes() {
 
 func (a *ExchangeWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *ExchangeWithSigTestSuite) Test_instanceFieldName() {
@@ -967,7 +967,7 @@ func (a *ExchangeWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *ExchangeWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *ExchangeWithProofsTestSuite) Test_instanceFieldName() {
@@ -1095,7 +1095,7 @@ func (a *OrderTestSuite) Test_bodyBytes() {
 func (a *OrderTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	p, _ := a.tx.GetProofs()
-	a.Equal(RideList{rideBytes(p.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(p.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *OrderTestSuite) Test_instanceFieldName() {
@@ -1234,7 +1234,7 @@ func (a *SetAssetScriptWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *SetAssetScriptWithProofsTestSuite) Test_instanceFieldName() {
@@ -1294,7 +1294,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_function() {
 
 func (a *InvokeScriptWithProofsTestSuite) Test_args() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideString("StringArgument")}, rs["args"])
+	a.Equal(rideList{rideString("StringArgument")}, rs["args"])
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_id() {
@@ -1340,7 +1340,7 @@ func (a *InvokeScriptWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *InvokeScriptWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *InvokeScriptWithProofsTestSuite) Test_instanceFieldName() {
@@ -1436,7 +1436,7 @@ func (a *IssueWithSigTestSuite) Test_bodyBytes() {
 
 func (a *IssueWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *IssueWithSigTestSuite) Test_instanceFieldName() {
@@ -1534,7 +1534,7 @@ func (a *IssueWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *IssueWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *IssueWithProofsTestSuite) Test_instanceFieldName() {
@@ -1610,7 +1610,7 @@ func (a *LeaseWithSigTestSuite) Test_bodyBytes() {
 
 func (a *LeaseWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *LeaseWithSigTestSuite) Test_instanceFieldName() {
@@ -1687,7 +1687,7 @@ func (a *LeaseWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *LeaseWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *LeaseWithProofsTestSuite) Test_instanceFieldName() {
@@ -1758,7 +1758,7 @@ func (a *LeaseCancelWithSigTestSuite) Test_bodyBytes() {
 
 func (a *LeaseCancelWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *LeaseCancelWithSigTestSuite) Test_instanceFieldName() {
@@ -1830,7 +1830,7 @@ func (a *LeaseCancelWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *LeaseCancelWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *LeaseCancelWithProofsTestSuite) Test_instanceFieldName() {
@@ -1856,7 +1856,7 @@ func (a *DataWithProofsTestSuite) SetupTest() {
 
 func (a *DataWithProofsTestSuite) Test_data() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	list, ok := rs["data"].(RideList)
+	list, ok := rs["data"].(rideList)
 	a.Assert().True(ok)
 	o, ok := list[0].(rideObject)
 	a.Assert().True(ok)
@@ -1908,7 +1908,7 @@ func (a *DataWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *DataWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *DataWithProofsTestSuite) Test_instanceFieldName() {
@@ -1991,7 +1991,7 @@ func (a *SponsorshipWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *SponsorshipWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *SponsorshipWithProofsTestSuite) Test_instanceFieldName() {
@@ -2062,7 +2062,7 @@ func (a *CreateAliasWithSigTestSuite) Test_bodyBytes() {
 
 func (a *CreateAliasWithSigTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Signature.Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *CreateAliasWithSigTestSuite) Test_instanceFieldName() {
@@ -2134,7 +2134,7 @@ func (a *CreateAliasWithProofsTestSuite) Test_bodyBytes() {
 
 func (a *CreateAliasWithProofsTestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	a.Equal(RideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+	a.Equal(rideList{rideBytes(a.tx.Proofs.Proofs[0].Bytes()), _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
 func (a *CreateAliasWithProofsTestSuite) Test_instanceFieldName() {

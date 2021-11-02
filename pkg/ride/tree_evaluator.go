@@ -253,7 +253,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
 		return DAppResult{res: true, actions: a, msg: "", complexity: e.complexity}, nil
-	case RideList:
+	case rideList:
 		var actions []proto.ScriptAction
 		for _, item := range res {
 			a, err := convertToAction(e.env, item)
@@ -266,7 +266,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 	case tuple2:
 		var actions []proto.ScriptAction
 		switch resAct := res.el1.(type) {
-		case RideList:
+		case rideList:
 			for _, item := range resAct {
 				a, err := convertToAction(e.env, item)
 				if err != nil {
