@@ -94,12 +94,12 @@ func (ia *invokeApplier) newPaymentFromAttachedPaymentAction(senderAddress proto
 
 func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediateBalance bool) (txDiff, error) {
 	diff := newTxDiff()
-	senderKey := byteKey(pmt.sender.ID(), pmt.asset.ToDigest())
+	senderKey := byteKey(pmt.sender.ID(), pmt.asset)
 	senderBalanceDiff := -int64(pmt.amount)
 	if err := diff.appendBalanceDiff(senderKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err
 	}
-	receiverKey := byteKey(pmt.receiver.ID(), pmt.asset.ToDigest())
+	receiverKey := byteKey(pmt.receiver.ID(), pmt.asset)
 	receiverBalanceDiff := int64(pmt.amount)
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err

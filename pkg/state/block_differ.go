@@ -85,7 +85,7 @@ func (d *blockDiffer) txDiffFromFees(addr proto.AddressID, distr *feeDistributio
 		if !ok {
 			return txDiff{}, errors.New("current fee for asset is not found")
 		}
-		assetKey := byteKey(addr, &asset)
+		assetKey := byteKey(addr, *proto.NewOptionalAssetFromDigest(asset))
 		assetDiff := totalFee - curFee
 		if err := diff.appendBalanceDiff(assetKey, balanceDiff{balance: int64(assetDiff)}); err != nil {
 			return txDiff{}, err

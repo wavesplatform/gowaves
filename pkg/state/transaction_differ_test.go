@@ -256,10 +256,11 @@ func TestCreateDiffIssueWithSig(t *testing.T) {
 	ch, err := to.td.createDiffIssueWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffIssueWithSig() failed")
 
+	issuedKey := byteKey(testGlobal.senderInfo.addr.ID(), *proto.NewOptionalAssetFromDigest(*tx.ID))
 	correctDiff := txDiff{
-		string(byteKey(testGlobal.senderInfo.addr.ID(), tx.ID)): newBalanceDiff(int64(tx.Quantity), 0, 0, false),
-		testGlobal.senderInfo.wavesKey:                          newBalanceDiff(-int64(tx.Fee), 0, 0, false),
-		testGlobal.minerInfo.wavesKey:                           newBalanceDiff(int64(tx.Fee), 0, 0, false),
+		string(issuedKey):              newBalanceDiff(int64(tx.Quantity), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
@@ -296,10 +297,11 @@ func TestCreateDiffIssueWithProofs(t *testing.T) {
 	ch, err := to.td.createDiffIssueWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffIssueWithProofs() failed")
 
+	issuedKey := byteKey(testGlobal.senderInfo.addr.ID(), *proto.NewOptionalAssetFromDigest(*tx.ID))
 	correctDiff := txDiff{
-		string(byteKey(testGlobal.senderInfo.addr.ID(), tx.ID)): newBalanceDiff(int64(tx.Quantity), 0, 0, false),
-		testGlobal.senderInfo.wavesKey:                          newBalanceDiff(-int64(tx.Fee), 0, 0, false),
-		testGlobal.minerInfo.wavesKey:                           newBalanceDiff(int64(tx.Fee), 0, 0, false),
+		string(issuedKey):              newBalanceDiff(int64(tx.Quantity), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
@@ -1007,9 +1009,9 @@ func TestCreateDiffMassTransferWithProofs(t *testing.T) {
 	for _, entry := range entries {
 		recipientAddr, err := recipientToAddress(entry.Recipient, to.stor.entities.aliases, true)
 		assert.NoError(t, err, "recipientToAddress() failed")
-		err = correctDiff.appendBalanceDiff(byteKey(recipientAddr.ID(), tx.Asset.ToDigest()), newBalanceDiff(int64(entry.Amount), 0, 0, true))
+		err = correctDiff.appendBalanceDiff(byteKey(recipientAddr.ID(), tx.Asset), newBalanceDiff(int64(entry.Amount), 0, 0, true))
 		assert.NoError(t, err, "appendBalanceDiff() failed")
-		err = correctDiff.appendBalanceDiff(byteKey(testGlobal.senderInfo.addr.ID(), tx.Asset.ToDigest()), newBalanceDiff(-int64(entry.Amount), 0, 0, true))
+		err = correctDiff.appendBalanceDiff(byteKey(testGlobal.senderInfo.addr.ID(), tx.Asset), newBalanceDiff(-int64(entry.Amount), 0, 0, true))
 		assert.NoError(t, err, "appendBalanceDiff() failed")
 		correctAddrs[*recipientAddr] = empty
 	}
