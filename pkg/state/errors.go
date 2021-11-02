@@ -69,3 +69,11 @@ func IsNotFound(err error) bool {
 	}
 	return (se.errorType == NotFoundError) || (se.errorType == RetrievalError)
 }
+
+func IsInvalidInput(err error) bool {
+	se, ok := err.(StateError)
+	if !ok {
+		return false
+	}
+	return se.errorType == InvalidInputError
+}

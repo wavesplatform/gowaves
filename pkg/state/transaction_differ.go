@@ -13,7 +13,7 @@ import (
 )
 
 func byteKey(addrID proto.AddressID, fullAssetID *crypto.Digest) []byte {
-	if isWavesDigest(fullAssetID) {
+	if fullAssetID == nil {
 		k := wavesBalanceKey{addrID}
 		return k.bytes()
 	}

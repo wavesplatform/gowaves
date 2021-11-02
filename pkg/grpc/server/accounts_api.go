@@ -36,8 +36,7 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 			if err != nil {
 				return status.Errorf(codes.InvalidArgument, err.Error())
 			}
-			assetID := proto.AssetIDFromDigest(fullAssetID)
-			balance, err := s.state.AccountBalance(rcp, &assetID)
+			balance, err := s.state.AssetBalance(rcp, proto.AssetIDFromDigest(fullAssetID))
 			if err != nil {
 				return status.Errorf(codes.NotFound, err.Error())
 			}

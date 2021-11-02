@@ -77,6 +77,21 @@ func (ia *invokeApplier) newPaymentFromTransferScriptAction(senderAddress proto.
 	}, nil
 }
 
+func (ia *invokeApplier) newPaymentFromAttachedPaymentAction(senderAddress proto.WavesAddress, action *proto.AttachedPaymentScriptAction) (*payment, error) {
+	if action.Recipient.Address == nil {
+		return nil, errors.New("transfer has unresolved aliases")
+	}
+	if action.Amount < 0 {
+		return nil, errors.New("negative transfer amount")
+	}
+	return &payment{
+		sender:   senderAddress,
+		receiver: *action.Recipient.Address,
+		amount:   uint64(action.Amount),
+		asset:    action.Asset,
+	}, nil
+}
+
 func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediateBalance bool) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := byteKey(pmt.sender.ID(), pmt.asset.ToDigest())
@@ -94,6 +109,16 @@ func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediat
 
 func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.WavesAddress, action *proto.TransferScriptAction) (txDiff, error) {
 	pmt, err := ia.newPaymentFromTransferScriptAction(scriptAddr, action)
+	if err != nil {
+		return txDiff{}, err
+	}
+	// updateMinIntermediateBalance is set to false here, because in Scala implementation
+	// only fee and payments are checked for temporary negative balance.
+	return ia.newTxDiffFromPayment(pmt, false)
+}
+
+func (ia *invokeApplier) newTxDiffFromAttachedPaymentAction(scriptAddr proto.WavesAddress, action *proto.AttachedPaymentScriptAction) (txDiff, error) {
+	pmt, err := ia.newPaymentFromAttachedPaymentAction(scriptAddr, action)
 	if err != nil {
 		return txDiff{}, err
 	}
@@ -352,7 +377,10 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if !assetExists {
 				return proto.DAppError, info.failedChanges, errors.New("invalid asset in transfer")
 			}
-			isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
+			var isSmartAsset bool
+			if a.Asset.Present {
+				isSmartAsset = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
+			}
 			if isSmartAsset {
 				fullTr, err := proto.NewFullScriptTransfer(a, senderAddress, info.scriptPK, tx)
 				if err != nil {
@@ -368,6 +396,47 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				}
 			}
 			txDiff, err := ia.newTxDiffFromScriptTransfer(senderAddress, a)
+			if err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			// diff must be saved to storage, because further asset scripts must take
+			// recent balance changes into account.
+			if err := ia.saveIntermediateDiff(txDiff); err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			// Append intermediate diff to common diff.
+			for key, balanceDiff := range txDiff {
+				if err := totalChanges.diff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+					return proto.DAppError, info.failedChanges, err
+				}
+			}
+		case *proto.AttachedPaymentScriptAction:
+			// Perform transfers.
+			recipientAddress := a.Recipient.Address
+			totalChanges.appendAddr(*recipientAddress)
+			assetExists := ia.stor.assets.newestAssetExists(a.Asset, !info.initialisation)
+			if !assetExists {
+				return proto.DAppError, info.failedChanges, errors.New("invalid asset in transfer")
+			}
+			var isSmartAsset bool
+			if a.Asset.Present {
+				isSmartAsset = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
+			}
+			if isSmartAsset {
+				fullTr, err := proto.NewFullScriptTransferFromPaymentAction(a, senderAddress, info.scriptPK, tx)
+				if err != nil {
+					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to convert transfer to full script transfer")
+				}
+				// Call asset script if transferring smart asset.
+				res, err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, info.appendTxParams)
+				if err != nil {
+					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to call asset script on transfer set")
+				}
+				if !res.Result() {
+					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(res, a.Asset.ID)
+				}
+			}
+			txDiff, err := ia.newTxDiffFromAttachedPaymentAction(senderAddress, a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -517,8 +586,8 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 
 		case *proto.SponsorshipScriptAction:
-			id := proto.AssetIDFromDigest(a.AssetID)
-			assetInfo, err := ia.stor.assets.newestAssetInfo(id, !info.initialisation)
+			assetID := proto.AssetIDFromDigest(a.AssetID)
+			assetInfo, err := ia.stor.assets.newestAssetInfo(assetID, !info.initialisation)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -532,8 +601,8 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if assetInfo.issuer != senderPK {
 				return proto.DAppError, info.failedChanges, errors.Errorf("asset %s was not issued by this DApp", a.AssetID.String())
 			}
-			isSmart := ia.stor.scriptsStorage.newestIsSmartAsset(id, !info.initialisation)
-			if isSmart {
+			isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(assetID, !info.initialisation)
+			if isSmartAsset {
 				return proto.DAppError, info.failedChanges, errors.Errorf("can not sponsor smart asset %s", a.AssetID.String())
 			}
 			ia.stor.sponsoredAssets.sponsorAssetUncertain(a.AssetID, uint64(a.MinFee))
@@ -767,7 +836,8 @@ func toScriptResult(ir *invocationResult) (*proto.ScriptResult, error) {
 	if ir.failed {
 		errorMsg = proto.ScriptErrorMessage{Code: ir.code, Text: ir.text}
 	}
-	return proto.NewScriptResult(ir.actions, errorMsg)
+	sr, _, err := proto.NewScriptResult(ir.actions, errorMsg)
+	return sr, err
 }
 
 func (ia *invokeApplier) handleInvocationResult(tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, res *invocationResult) (*applicationResult, error) {

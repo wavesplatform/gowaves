@@ -51,7 +51,7 @@ type lease struct {
 }
 
 type diffBalance struct {
-	asset            crypto.Digest
+	asset            proto.OptionalAsset
 	regular          int64
 	leaseIn          int64
 	leaseOut         int64
@@ -79,7 +79,7 @@ type diffOldAssetInfo struct {
 
 type balanceDiffKey struct {
 	address proto.WavesAddress
-	asset   crypto.Digest
+	asset   proto.OptionalAsset
 }
 
 func (b *balanceDiffKey) String() string {
@@ -128,8 +128,8 @@ func (diffSt *diffState) burnNewAsset(assetID crypto.Digest, quantity int64) {
 }
 
 func (diffSt *diffState) createNewWavesBalance(account proto.Recipient) (*diffBalance, balanceDiffKey) {
-	balance := diffBalance{asset: proto.WavesDigest}
-	key := balanceDiffKey{*account.Address, proto.WavesDigest}
+	balance := diffBalance{asset: proto.NewOptionalAssetWaves()}
+	key := balanceDiffKey{*account.Address, balance.asset}
 	diffSt.balances[key] = balance
 	return &balance, key
 }
@@ -187,7 +187,7 @@ func (diffSt *diffState) changeLeaseIn(searchBalance *diffBalance, searchBalance
 	}
 
 	balance := diffBalance{
-		asset:   proto.WavesDigest,
+		asset:   proto.NewOptionalAssetWaves(),
 		leaseIn: leasedAmount,
 	}
 	key := balanceDiffKey{*address, balance.asset}
@@ -214,7 +214,7 @@ func (diffSt *diffState) changeLeaseOut(searchBalance *diffBalance, searchBalanc
 	}
 
 	balance := diffBalance{
-		asset:    proto.WavesDigest,
+		asset:    proto.NewOptionalAssetWaves(),
 		leaseOut: leasedAmount,
 	}
 	key := balanceDiffKey{*address, balance.asset}
@@ -223,7 +223,7 @@ func (diffSt *diffState) changeLeaseOut(searchBalance *diffBalance, searchBalanc
 	return nil
 }
 
-func (diffSt *diffState) changeBalance(searchBalance *diffBalance, balanceKey balanceDiffKey, amount int64, assetID *crypto.Digest, account proto.Recipient) error {
+func (diffSt *diffState) changeBalance(searchBalance *diffBalance, balanceKey balanceDiffKey, amount int64, asset proto.OptionalAsset, account proto.Recipient) error {
 	if searchBalance != nil {
 		diffSt.addBalanceTo(balanceKey, amount)
 		return nil
@@ -233,12 +233,9 @@ func (diffSt *diffState) changeBalance(searchBalance *diffBalance, balanceKey ba
 	if err != nil {
 		return err
 	}
-	if isWavesDigest(assetID) {
-		assetID = &proto.WavesDigest
-	}
 
 	balance := diffBalance{
-		asset:   *assetID,
+		asset:   asset,
 		regular: amount,
 	}
 	key := balanceDiffKey{*address, balance.asset}
@@ -328,15 +325,12 @@ func (diffSt *diffState) putDataEntry(entry proto.DataEntry, address proto.Waves
 	return nil
 }
 
-func (diffSt *diffState) findBalance(recipient proto.Recipient, assetID *crypto.Digest) (*diffBalance, balanceDiffKey, error) {
+func (diffSt *diffState) findBalance(recipient proto.Recipient, asset proto.OptionalAsset) (*diffBalance, balanceDiffKey, error) {
 	address, err := diffSt.state.NewestRecipientToAddress(recipient)
 	if err != nil {
 		return nil, balanceDiffKey{}, errors.Errorf("cannot get address from recipient")
 	}
-	if isWavesDigest(assetID) {
-		assetID = &proto.WavesDigest
-	}
-	key := balanceDiffKey{*address, *assetID}
+	key := balanceDiffKey{*address, asset}
 	if balance, ok := diffSt.balances[key]; ok {
 		return &balance, key, nil
 	}

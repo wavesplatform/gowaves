@@ -865,49 +865,48 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	}, nil
 }
 
-func isWavesAssetID(assetID *proto.AssetID) bool {
-	return assetID == nil || *assetID == proto.WavesAssetID
-}
-
-func isWavesDigest(assetID *crypto.Digest) bool {
-	return assetID == nil || *assetID == proto.WavesDigest
-}
-
-func (s *stateManager) NewestAccountBalance(account proto.Recipient, asset *crypto.Digest) (uint64, error) {
+func (s *stateManager) NewestWavesBalance(account proto.Recipient) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	addrID := addr.ID()
-	if isWavesDigest(asset) {
-		profile, err := s.newestWavesBalanceProfile(addrID)
-		if err != nil {
-			return 0, wrapErr(RetrievalError, err)
-		}
-		return profile.balance, nil
+	profile, err := s.newestWavesBalanceProfile(addr.ID())
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
 	}
-	assetID := proto.AssetIDFromDigest(*asset)
-	balance, err := s.newestAssetBalance(addrID, assetID)
+	return profile.balance, nil
+}
+
+func (s *stateManager) NewestAssetBalance(account proto.Recipient, asset crypto.Digest) (uint64, error) {
+	addr, err := s.NewestRecipientToAddress(account)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	balance, err := s.newestAssetBalance(addr.ID(), proto.AssetIDFromDigest(asset))
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
 	return balance, nil
 }
 
-func (s *stateManager) AccountBalance(account proto.Recipient, assetID *proto.AssetID) (uint64, error) {
+func (s *stateManager) WavesBalance(account proto.Recipient) (uint64, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	addrID := addr.ID()
-	if isWavesAssetID(assetID) {
-		profile, err := s.stor.balances.wavesBalance(addrID, true)
-		if err != nil {
-			return 0, wrapErr(RetrievalError, err)
-		}
-		return profile.balance, nil
+	profile, err := s.stor.balances.wavesBalance(addr.ID(), true)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
 	}
-	balance, err := s.stor.balances.assetBalance(addrID, *assetID, true)
+	return profile.balance, nil
+}
+
+func (s *stateManager) AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	balance, err := s.stor.balances.assetBalance(addr.ID(), assetID, true)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
@@ -2002,7 +2001,7 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
-		sponsorBalance, err := s.NewestAccountBalance(proto.NewRecipientFromAddress(ai.Issuer), nil)
+		sponsorBalance, err := s.NewestWavesBalance(proto.NewRecipientFromAddress(ai.Issuer))
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
@@ -2087,7 +2086,7 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}
-		sponsorBalance, err := s.AccountBalance(proto.NewRecipientFromAddress(ai.Issuer), nil)
+		sponsorBalance, err := s.WavesBalance(proto.NewRecipientFromAddress(ai.Issuer))
 		if err != nil {
 			return nil, wrapErr(RetrievalError, err)
 		}

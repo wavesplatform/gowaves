@@ -48,22 +48,15 @@ const (
 	MaxDataEntryScriptActions                = 100
 	MaxDataEntriesScriptActionsSizeInBytesV1 = 5 * 1024
 	MaxDataEntriesScriptActionsSizeInBytesV2 = 15 * 1024
+	MaxScriptActionsV1                       = 10
+	MaxScriptActionsV2                       = 30
 )
 
-type MaxScriptActions struct {
-	BeforeRideScriptV5 int
-	AfterRideScriptV5  int
-}
-
-func NewMaxScriptActions() MaxScriptActions {
-	return MaxScriptActions{BeforeRideScriptV5: 10, AfterRideScriptV5: 30}
-}
-
-func (a MaxScriptActions) GetMaxScriptsComplexityInBlock(scriptVersion int) int {
+func GetMaxScriptActions(scriptVersion int) int {
 	if scriptVersion >= 5 {
-		return a.AfterRideScriptV5
+		return MaxScriptActionsV2
 	}
-	return a.BeforeRideScriptV5
+	return MaxScriptActionsV1
 }
 
 type Timestamp = uint64
@@ -153,11 +146,8 @@ func NewOptionalAssetFromString(s string) (*OptionalAsset, error) {
 	}
 }
 
+// NewOptionalAssetFromBytes parses bytes as crypto.Digest and returns OptionalAsset.
 func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
-	if len(b) == 0 {
-		return &OptionalAsset{}, nil
-	}
-
 	a, err := crypto.NewDigestFromBytes(b)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create OptionalAsset from bytes")
@@ -166,9 +156,6 @@ func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
 }
 
 func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {
-	if d == WavesDigest {
-		return &OptionalAsset{Present: false}
-	}
 	return &OptionalAsset{Present: true, ID: d}
 }
 
@@ -3242,6 +3229,18 @@ type FullScriptTransfer struct {
 }
 
 func NewFullScriptTransfer(action *TransferScriptAction, sender WavesAddress, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+	return &FullScriptTransfer{
+		Amount:    uint64(action.Amount),
+		Asset:     action.Asset,
+		Recipient: action.Recipient,
+		Sender:    sender,
+		SenderPK:  senderPK,
+		Timestamp: tx.Timestamp,
+		ID:        tx.ID,
+	}, nil
+}
+
+func NewFullScriptTransferFromPaymentAction(action *AttachedPaymentScriptAction, sender WavesAddress, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,

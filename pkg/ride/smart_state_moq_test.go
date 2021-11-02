@@ -38,11 +38,11 @@ var _ types.SmartState = &MockSmartState{}
 // 			IsStateUntouchedFunc: func(account proto.Recipient) (bool, error) {
 // 				panic("mock out the IsStateUntouched method")
 // 			},
-// 			NewestAccountBalanceFunc: func(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
-// 				panic("mock out the NewestAccountBalance method")
-// 			},
 // 			NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
 // 				panic("mock out the NewestAddrByAlias method")
+// 			},
+// 			NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+// 				panic("mock out the NewestAssetBalance method")
 // 			},
 // 			NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
 // 				panic("mock out the NewestAssetInfo method")
@@ -76,6 +76,9 @@ var _ types.SmartState = &MockSmartState{}
 // 			},
 // 			NewestTransactionHeightByIDFunc: func(bytes []byte) (uint64, error) {
 // 				panic("mock out the NewestTransactionHeightByID method")
+// 			},
+// 			NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+// 				panic("mock out the NewestWavesBalance method")
 // 			},
 // 			RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 // 				panic("mock out the RetrieveNewestBinaryEntry method")
@@ -114,11 +117,11 @@ type MockSmartState struct {
 	// IsStateUntouchedFunc mocks the IsStateUntouched method.
 	IsStateUntouchedFunc func(account proto.Recipient) (bool, error)
 
-	// NewestAccountBalanceFunc mocks the NewestAccountBalance method.
-	NewestAccountBalanceFunc func(account proto.Recipient, assetID *crypto.Digest) (uint64, error)
-
 	// NewestAddrByAliasFunc mocks the NewestAddrByAlias method.
 	NewestAddrByAliasFunc func(alias proto.Alias) (proto.WavesAddress, error)
+
+	// NewestAssetBalanceFunc mocks the NewestAssetBalance method.
+	NewestAssetBalanceFunc func(account proto.Recipient, assetID crypto.Digest) (uint64, error)
 
 	// NewestAssetInfoFunc mocks the NewestAssetInfo method.
 	NewestAssetInfoFunc func(assetID crypto.Digest) (*proto.AssetInfo, error)
@@ -152,6 +155,9 @@ type MockSmartState struct {
 
 	// NewestTransactionHeightByIDFunc mocks the NewestTransactionHeightByID method.
 	NewestTransactionHeightByIDFunc func(bytes []byte) (uint64, error)
+
+	// NewestWavesBalanceFunc mocks the NewestWavesBalance method.
+	NewestWavesBalanceFunc func(account proto.Recipient) (uint64, error)
 
 	// RetrieveNewestBinaryEntryFunc mocks the RetrieveNewestBinaryEntry method.
 	RetrieveNewestBinaryEntryFunc func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
@@ -195,17 +201,17 @@ type MockSmartState struct {
 			// Account is the account argument value.
 			Account proto.Recipient
 		}
-		// NewestAccountBalance holds details about calls to the NewestAccountBalance method.
-		NewestAccountBalance []struct {
-			// Account is the account argument value.
-			Account proto.Recipient
-			// AssetID is the assetID argument value.
-			AssetID *crypto.Digest
-		}
 		// NewestAddrByAlias holds details about calls to the NewestAddrByAlias method.
 		NewestAddrByAlias []struct {
 			// Alias is the alias argument value.
 			Alias proto.Alias
+		}
+		// NewestAssetBalance holds details about calls to the NewestAssetBalance method.
+		NewestAssetBalance []struct {
+			// Account is the account argument value.
+			Account proto.Recipient
+			// AssetID is the assetID argument value.
+			AssetID crypto.Digest
 		}
 		// NewestAssetInfo holds details about calls to the NewestAssetInfo method.
 		NewestAssetInfo []struct {
@@ -262,6 +268,11 @@ type MockSmartState struct {
 			// Bytes is the bytes argument value.
 			Bytes []byte
 		}
+		// NewestWavesBalance holds details about calls to the NewestWavesBalance method.
+		NewestWavesBalance []struct {
+			// Account is the account argument value.
+			Account proto.Recipient
+		}
 		// RetrieveNewestBinaryEntry holds details about calls to the RetrieveNewestBinaryEntry method.
 		RetrieveNewestBinaryEntry []struct {
 			// Account is the account argument value.
@@ -297,8 +308,8 @@ type MockSmartState struct {
 	lockGetByteTree                 sync.RWMutex
 	lockIsNotFound                  sync.RWMutex
 	lockIsStateUntouched            sync.RWMutex
-	lockNewestAccountBalance        sync.RWMutex
 	lockNewestAddrByAlias           sync.RWMutex
+	lockNewestAssetBalance          sync.RWMutex
 	lockNewestAssetInfo             sync.RWMutex
 	lockNewestAssetIsSponsored      sync.RWMutex
 	lockNewestFullAssetInfo         sync.RWMutex
@@ -310,6 +321,7 @@ type MockSmartState struct {
 	lockNewestScriptPKByAddr        sync.RWMutex
 	lockNewestTransactionByID       sync.RWMutex
 	lockNewestTransactionHeightByID sync.RWMutex
+	lockNewestWavesBalance          sync.RWMutex
 	lockRetrieveNewestBinaryEntry   sync.RWMutex
 	lockRetrieveNewestBooleanEntry  sync.RWMutex
 	lockRetrieveNewestIntegerEntry  sync.RWMutex
@@ -496,41 +508,6 @@ func (mock *MockSmartState) IsStateUntouchedCalls() []struct {
 	return calls
 }
 
-// NewestAccountBalance calls NewestAccountBalanceFunc.
-func (mock *MockSmartState) NewestAccountBalance(account proto.Recipient, assetID *crypto.Digest) (uint64, error) {
-	if mock.NewestAccountBalanceFunc == nil {
-		panic("MockSmartState.NewestAccountBalanceFunc: method is nil but SmartState.NewestAccountBalance was just called")
-	}
-	callInfo := struct {
-		Account proto.Recipient
-		AssetID *crypto.Digest
-	}{
-		Account: account,
-		AssetID: assetID,
-	}
-	mock.lockNewestAccountBalance.Lock()
-	mock.calls.NewestAccountBalance = append(mock.calls.NewestAccountBalance, callInfo)
-	mock.lockNewestAccountBalance.Unlock()
-	return mock.NewestAccountBalanceFunc(account, assetID)
-}
-
-// NewestAccountBalanceCalls gets all the calls that were made to NewestAccountBalance.
-// Check the length with:
-//     len(mockedSmartState.NewestAccountBalanceCalls())
-func (mock *MockSmartState) NewestAccountBalanceCalls() []struct {
-	Account proto.Recipient
-	AssetID *crypto.Digest
-} {
-	var calls []struct {
-		Account proto.Recipient
-		AssetID *crypto.Digest
-	}
-	mock.lockNewestAccountBalance.RLock()
-	calls = mock.calls.NewestAccountBalance
-	mock.lockNewestAccountBalance.RUnlock()
-	return calls
-}
-
 // NewestAddrByAlias calls NewestAddrByAliasFunc.
 func (mock *MockSmartState) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 	if mock.NewestAddrByAliasFunc == nil {
@@ -559,6 +536,41 @@ func (mock *MockSmartState) NewestAddrByAliasCalls() []struct {
 	mock.lockNewestAddrByAlias.RLock()
 	calls = mock.calls.NewestAddrByAlias
 	mock.lockNewestAddrByAlias.RUnlock()
+	return calls
+}
+
+// NewestAssetBalance calls NewestAssetBalanceFunc.
+func (mock *MockSmartState) NewestAssetBalance(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+	if mock.NewestAssetBalanceFunc == nil {
+		panic("MockSmartState.NewestAssetBalanceFunc: method is nil but SmartState.NewestAssetBalance was just called")
+	}
+	callInfo := struct {
+		Account proto.Recipient
+		AssetID crypto.Digest
+	}{
+		Account: account,
+		AssetID: assetID,
+	}
+	mock.lockNewestAssetBalance.Lock()
+	mock.calls.NewestAssetBalance = append(mock.calls.NewestAssetBalance, callInfo)
+	mock.lockNewestAssetBalance.Unlock()
+	return mock.NewestAssetBalanceFunc(account, assetID)
+}
+
+// NewestAssetBalanceCalls gets all the calls that were made to NewestAssetBalance.
+// Check the length with:
+//     len(mockedSmartState.NewestAssetBalanceCalls())
+func (mock *MockSmartState) NewestAssetBalanceCalls() []struct {
+	Account proto.Recipient
+	AssetID crypto.Digest
+} {
+	var calls []struct {
+		Account proto.Recipient
+		AssetID crypto.Digest
+	}
+	mock.lockNewestAssetBalance.RLock()
+	calls = mock.calls.NewestAssetBalance
+	mock.lockNewestAssetBalance.RUnlock()
 	return calls
 }
 
@@ -900,6 +912,37 @@ func (mock *MockSmartState) NewestTransactionHeightByIDCalls() []struct {
 	mock.lockNewestTransactionHeightByID.RLock()
 	calls = mock.calls.NewestTransactionHeightByID
 	mock.lockNewestTransactionHeightByID.RUnlock()
+	return calls
+}
+
+// NewestWavesBalance calls NewestWavesBalanceFunc.
+func (mock *MockSmartState) NewestWavesBalance(account proto.Recipient) (uint64, error) {
+	if mock.NewestWavesBalanceFunc == nil {
+		panic("MockSmartState.NewestWavesBalanceFunc: method is nil but SmartState.NewestWavesBalance was just called")
+	}
+	callInfo := struct {
+		Account proto.Recipient
+	}{
+		Account: account,
+	}
+	mock.lockNewestWavesBalance.Lock()
+	mock.calls.NewestWavesBalance = append(mock.calls.NewestWavesBalance, callInfo)
+	mock.lockNewestWavesBalance.Unlock()
+	return mock.NewestWavesBalanceFunc(account)
+}
+
+// NewestWavesBalanceCalls gets all the calls that were made to NewestWavesBalance.
+// Check the length with:
+//     len(mockedSmartState.NewestWavesBalanceCalls())
+func (mock *MockSmartState) NewestWavesBalanceCalls() []struct {
+	Account proto.Recipient
+} {
+	var calls []struct {
+		Account proto.Recipient
+	}
+	mock.lockNewestWavesBalance.RLock()
+	calls = mock.calls.NewestWavesBalance
+	mock.lockNewestWavesBalance.RUnlock()
 	return calls
 }
 

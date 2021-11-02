@@ -124,10 +124,10 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.New("reentrantInvoke: no more than ten payments is allowed since RideV5 activation")
 	}
 
-	var paymentActions []proto.ScriptAction
+	var attachedPaymentActions []proto.ScriptAction
 	for _, payment := range attachedPayments {
-		action := &proto.TransferScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
-		paymentActions = append(paymentActions, action)
+		payment := &proto.AttachedPaymentScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
+		attachedPaymentActions = append(attachedPaymentActions, payment)
 	}
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
@@ -135,7 +135,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("reentrantInvoke: failed to get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
-	err = ws.smartAppendActions(paymentActions, env)
+	err = ws.smartAppendActions(attachedPaymentActions, env)
 	if err != nil {
 		return nil, errors.Wrapf(err, "reentrantInvoke: failed to apply attached payments")
 	}
@@ -276,10 +276,10 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.New("invoke: no more than ten payments is allowed since RideV5 activation")
 	}
 
-	var paymentActions []proto.ScriptAction
+	var attachedPaymentActions []proto.ScriptAction
 	for _, payment := range attachedPayments {
-		action := &proto.TransferScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
-		paymentActions = append(paymentActions, action)
+		payment := &proto.AttachedPaymentScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
+		attachedPaymentActions = append(attachedPaymentActions, payment)
 	}
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
@@ -287,7 +287,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("invoke: failed get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
-	err = ws.smartAppendActions(paymentActions, env)
+	err = ws.smartAppendActions(attachedPaymentActions, env)
 	if err != nil {
 		return nil, errors.Wrapf(err, "invoke: failed to apply attached payments")
 	}
@@ -450,11 +450,19 @@ func assetBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
-	asset, err := extractAsset(args[1])
-	if err != nil {
-		return nil, errors.Wrap(err, "assetBalanceV3")
+	var balance uint64
+	switch assetBytes := args[1].(type) {
+	case rideUnit:
+		balance, err = env.state().NewestWavesBalance(recipient)
+	case rideBytes:
+		asset, digestErr := crypto.NewDigestFromBytes(assetBytes)
+		if digestErr != nil {
+			return rideInt(0), nil // according to the scala node implementation
+		}
+		balance, err = env.state().NewestAssetBalance(recipient, asset)
+	default:
+		return nil, errors.Errorf("assetBalanceV3: unable to extract asset ID from '%s'", assetBytes.instanceOf())
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, asset)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
@@ -469,14 +477,15 @@ func assetBalanceV4(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	asset, err := extractAsset(args[1])
-	if err != nil {
-		return nil, errors.Wrap(err, "assetBalanceV4")
+	assetBytes, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("assetBalanceV4: unable to extract asset ID from '%s'", args[1].instanceOf())
 	}
-	if len(asset) == 0 { // Additional check, empty asset's ID is not allowed any more
-		return nil, errors.New("assetBalanceV4: empty asset ID")
+	asset, digestErr := crypto.NewDigestFromBytes(assetBytes)
+	if digestErr != nil {
+		return rideInt(0), nil // according to the scala node implementation
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, asset)
+	balance, err := env.state().NewestAssetBalance(recipient, asset)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
@@ -720,7 +729,7 @@ func wavesBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, nil)
+	balance, err := env.state().NewestWavesBalance(recipient)
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
 	}
@@ -1581,20 +1590,6 @@ func extractRecipient(v rideType) (proto.Recipient, error) {
 		return proto.Recipient{}, errors.Errorf("unable to extract recipient from '%s'", v.instanceOf())
 	}
 	return r, nil
-}
-
-func extractAsset(v rideType) (*crypto.Digest, error) {
-	switch a := v.(type) {
-	case rideBytes:
-		// we shouldn't check the length of asset bytes
-		var uncheckedAssetID crypto.Digest
-		copy(uncheckedAssetID[:], a)
-		return &uncheckedAssetID, nil
-	case rideUnit:
-		return nil, nil
-	default:
-		return nil, errors.Errorf("unable to extract asset ID from '%s'", v.instanceOf())
-	}
 }
 
 func extractRecipientAndKey(args []rideType) (proto.Recipient, string, error) {

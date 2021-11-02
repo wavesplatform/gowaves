@@ -9,11 +9,6 @@ const (
 	AssetIDTailSize = crypto.DigestSize - AssetIDSize
 )
 
-var (
-	WavesDigest  = crypto.Digest{}
-	WavesAssetID = AssetID{}
-)
-
 type AssetID [AssetIDSize]byte
 
 func (a AssetID) Bytes() []byte {
