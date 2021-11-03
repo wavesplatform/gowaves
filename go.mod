@@ -23,7 +23,6 @@ require (
 	github.com/jinzhu/copier v0.0.0-20190625015134-976e0346caa8
 	github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391
 	github.com/kilic/bn254 v0.0.0-20201116081810-790649bc68fe
-	github.com/magiconair/properties v1.8.1
 	github.com/mr-tron/base58 v1.2.0
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.9.1
