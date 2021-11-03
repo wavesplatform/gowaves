@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -143,14 +144,13 @@ func (s RPCService) Eth_estimateGas(req EstimateGasRequest) (string, error) {
 		value = new(big.Int)
 		data  []byte
 	)
-	// TODO(nickeskov): should we handle this case?
 	if req.To == nil {
 		zap.S().Debug("Eth_estimateGas: trying estimate gas for set dApp transaction")
 		return "", errors.New("gas estimation for set dApp transaction is not permitted")
 	}
 	if req.Value != nil {
 		var ok bool
-		value, ok = value.SetString(strings.TrimPrefix(*req.Value, "0x"), 16)
+		_, ok = value.SetString(strings.TrimPrefix(*req.Value, "0x"), 16)
 		if !ok {
 			zap.S().Debugf("Eth_estimateGas: failed decode from hex 'value'=%q as big.Int", *req.Value)
 			return "", errors.New("invalid 'value' field")
@@ -161,11 +161,52 @@ func (s RPCService) Eth_estimateGas(req EstimateGasRequest) (string, error) {
 		data, err = proto.DecodeFromHexString(*req.Data)
 		if err != nil {
 			zap.S().Debugf("Eth_estimateGas: failed to decode from hex 'data'=%q as bytes", *req.Data)
-			return "", errors.New("invalid 'data' field")
+			return "", errors.Errorf("invalid 'data' field, %v", err)
 		}
 	}
-	_, _ = value, data // TODO(nickeskov):
-	return "", nil
+
+	txKind, err := state.GuessEthereumTransactionKind(data, req.To, s.nodeRPCApp.State.AssetInfoByID)
+	if err != nil {
+		return "", errors.Errorf("failed to guess ethereum tx kind, %v", err)
+	}
+	switch txKind {
+	case state.EthereumTransferWavesKind:
+		return strconv.Itoa(proto.MinFee), nil
+	case state.EthereumTransferAssetsKind:
+		fee := proto.MinFee
+		assetID := (*proto.AssetID)(req.To)
+
+		asset, err := s.nodeRPCApp.State.AssetInfoByID(*assetID, true)
+		if err != nil {
+			return "", errors.Errorf("failed to get asset info, %v", err)
+		}
+		if asset.Scripted {
+			fee += proto.MinFeeScriptedAsset
+		}
+		return strconv.Itoa(fee), nil
+	case state.EthereumInvokeKind:
+		//fee := proto.MinFeeInvokeScript
+		//
+		//scriptAddr, err := req.To.ToWavesAddress(s.nodeRPCApp.Scheme)
+		//if err != nil {
+		//	return "", err
+		//}
+		//tree, err := s.nodeRPCApp..scriptsStorage.newestScriptByAddr(scriptAddr, !params.initialisation)
+		//if err != nil {
+		//	return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
+		//}
+		//db, err := ethabi.NewMethodsMapFromRideDAppMeta(tree.Meta)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//decodedData, err := db.ParseCallDataRide(ethTx.Data())
+		//if err != nil {
+		//	return nil, errors.Errorf("failed to parse ethereum data, %v", err)
+		//}
+		return "", nil
+	default:
+		return "", errors.Errorf("unexpected ethereum tx kind")
+	}
 }
 
 type ethCallParams struct {

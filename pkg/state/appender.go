@@ -12,6 +12,12 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	EthereumTransferWavesKind  int64 = 1
+	EthereumTransferAssetsKind int64 = 2
+	EthereumInvokeKind         int64 = 3
+)
+
 type txAppender struct {
 	state types.SmartState
 	sc    *scriptCaller
@@ -384,33 +390,56 @@ type appendTxParams struct {
 	initialisation   bool
 }
 
-func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransaction, params *appendTxParams) (proto.EthereumTransactionKind, error) {
-	if ethTx.Data() == nil {
-		return proto.NewEthereumTransferWavesTxKind(), nil
+func GuessEthereumTransactionKind(
+	data []byte,
+	to *proto.EthereumAddress,
+	assetInfoByID func(id proto.AssetID, filter bool) (*proto.AssetInfo, error)) (int64, error) {
+
+	if data == nil {
+		return EthereumTransferWavesKind, nil
 	}
 
-	if ethTx.To() == nil {
-		return nil, errors.Errorf("'To' field in ethereum tx is empty")
-	}
-
-	selectorBytes := ethTx.Data()
-	if len(ethTx.Data()) < ethabi.SelectorSize {
-		return nil, errors.Errorf("length of data from ethereum transaction is less than %d", ethabi.SelectorSize)
+	selectorBytes := data
+	if len(data) < ethabi.SelectorSize {
+		return 0, errors.Errorf("length of data from ethereum transaction is less than %d", ethabi.SelectorSize)
 	}
 	selector, err := ethabi.NewSelectorFromBytes(selectorBytes[:ethabi.SelectorSize])
 	if err != nil {
-		return nil, errors.Errorf("failed to guess ethereum transaction kind, %v", err)
+		return 0, errors.Errorf("failed to guess ethereum transaction kind, %v", err)
 	}
 
-	assetID := (*proto.AssetID)(ethTx.To())
+	assetID := (*proto.AssetID)(to)
 
-	asset, err := a.state.AssetInfoByID(*assetID, true)
+	_, err = assetInfoByID(*assetID, true)
 	if err != nil && !errors.Is(err, errs.UnknownAsset{}) {
-		return nil, errors.Errorf("failed to get asset info by ethereum recipient address %s, %v", ethTx.To().String(), err)
+		return 0, errors.Errorf("failed to get asset info by ethereum recipient address %s, %v", to.String(), err)
 	}
 
 	if ethabi.IsERC20Selector(selector) && err == nil {
+		return EthereumTransferAssetsKind, nil
+	}
 
+	return EthereumInvokeKind, nil
+}
+
+func (a *txAppender) ethereumTransactionKind(ethTx *proto.EthereumTransaction, params *appendTxParams) (proto.EthereumTransactionKind, error) {
+	if ethTx.To() == nil {
+		return nil, errors.Errorf("'To' field in ethereum tx is empty")
+	}
+	txKind, err := GuessEthereumTransactionKind(ethTx.Data(), ethTx.To(), a.state.AssetInfoByID)
+	if err != nil {
+		return nil, errors.Errorf("failed to guess ethereum tx kind, %v", err)
+	}
+	switch txKind {
+	case EthereumTransferWavesKind:
+		return proto.NewEthereumTransferWavesTxKind(), nil
+	case EthereumTransferAssetsKind:
+		assetID := (*proto.AssetID)(ethTx.To())
+
+		asset, err := a.state.AssetInfoByID(*assetID, true)
+		if err != nil {
+			return nil, errors.Errorf("failed to get asset info %v", err)
+		}
 		db := ethabi.NewErc20MethodsMap()
 		decodedData, err := db.ParseCallDataRide(ethTx.Data())
 		if err != nil {
@@ -420,27 +449,29 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 			return nil, errors.Errorf("the number of arguments of erc20 function is %d, but expected it to be %d", len(decodedData.Inputs), ethabi.NumberOfERC20Arguments)
 		}
 		return proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID)), nil
-	}
+	case EthereumInvokeKind:
+		scriptAddr, err := ethTx.WavesAddressTo(a.settings.AddressSchemeCharacter)
+		if err != nil {
+			return nil, err
+		}
+		tree, err := a.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !params.initialisation)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
+		}
+		db, err := ethabi.NewMethodsMapFromRideDAppMeta(tree.Meta)
+		if err != nil {
+			return nil, err
+		}
+		decodedData, err := db.ParseCallDataRide(ethTx.Data())
+		if err != nil {
+			return nil, errors.Errorf("failed to parse ethereum data, %v", err)
+		}
 
-	// TODO it'd better if we have a function tree.Meta.Contains(sel selector) bool to make the last case clear
-	scriptAddr, err := ethTx.WavesAddressTo(a.settings.AddressSchemeCharacter)
-	if err != nil {
-		return nil, err
-	}
-	tree, err := a.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !params.initialisation)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
-	}
-	db, err := ethabi.NewMethodsMapFromRideDAppMeta(tree.Meta)
-	if err != nil {
-		return nil, err
-	}
-	decodedData, err := db.ParseCallDataRide(ethTx.Data())
-	if err != nil {
-		return nil, errors.Errorf("failed to parse ethereum data")
-	}
+		return proto.NewEthereumInvokeScriptTxKind(*decodedData), nil
 
-	return proto.NewEthereumInvokeScriptTxKind(*decodedData), nil
+	default:
+		return nil, errors.Errorf("unexpected ethereum tx kind")
+	}
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*applicationResult, error) {
@@ -531,7 +562,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		if err != nil {
 			return errors.Errorf("failed to generate transaction id for ethereum transaction, %v", err)
 		}
-		ethTx.TxKind, err = a.guessEthereumTransactionKind(ethTx, params)
+		ethTx.TxKind, err = a.ethereumTransactionKind(ethTx, params)
 		if err != nil {
 			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
 		}

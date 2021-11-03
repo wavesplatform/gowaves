@@ -65,7 +65,14 @@ func defaultEthereumLegacyTxData(value int64, to *proto.EthereumAddress, data []
 }
 func TestEthereumTransferWaves(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	txAppender := defaultTxAppender(t, nil, nil, proto.MainNetScheme)
+	state := &AnotherMockSmartState{
+		AssetInfoByIDFunc: func(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+			var r crypto.Digest
+			copy(r[:20], id[:])
+			return &proto.AssetInfo{ID: r}, nil
+		},
+	}
+	txAppender := defaultTxAppender(t, nil, state, proto.MainNetScheme)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
@@ -77,7 +84,7 @@ func TestEthereumTransferWaves(t *testing.T) {
 		ID:       nil,
 		SenderPK: &senderPK,
 	}
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
+	tx.TxKind, err = txAppender.ethereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
 	applRes, err := txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	assert.NoError(t, err)
@@ -149,7 +156,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 	decodedData, err := db.ParseCallDataRide(tx.Data())
 	assert.NoError(t, err)
 	lessenDecodedDataAmount(t, decodedData)
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, appendTxParams)
+	tx.TxKind, err = txAppender.ethereumTransactionKind(&tx, appendTxParams)
 	assert.NoError(t, err)
 	txKindTransferAssets := tx.TxKind.(*proto.EthereumTransferAssetsErc20TxKind)
 	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, txKindTransferAssets.Asset)
@@ -251,7 +258,7 @@ func TestEthereumInvoke(t *testing.T) {
 		SenderPK: &senderPK,
 	}
 	decodedData := defaultDecodedData("call", []ethabi.DecodedArg{{Value: ethabi.Int(10)}}, []ethabi.Payment{{Amount: 5, AssetID: proto.NewOptionalAssetWaves().ID}})
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, appendTxParams)
+	tx.TxKind, err = txAppender.ethereumTransactionKind(&tx, appendTxParams)
 	tx.TxKind = proto.NewEthereumInvokeScriptTxKind(decodedData)
 
 	assert.NoError(t, err)
@@ -278,7 +285,14 @@ func TestEthereumInvoke(t *testing.T) {
 
 func TestTransferZeroAmount(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	txAppender := defaultTxAppender(t, nil, nil, proto.MainNetScheme)
+	state := &AnotherMockSmartState{
+		AssetInfoByIDFunc: func(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+			var r crypto.Digest
+			copy(r[:20], id[:])
+			return &proto.AssetInfo{ID: r}, nil
+		},
+	}
+	txAppender := defaultTxAppender(t, nil, state, proto.MainNetScheme)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
@@ -290,7 +304,7 @@ func TestTransferZeroAmount(t *testing.T) {
 		ID:       nil,
 		SenderPK: &senderPK,
 	}
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
+	tx.TxKind, err = txAppender.ethereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	require.Error(t, err)
@@ -298,7 +312,14 @@ func TestTransferZeroAmount(t *testing.T) {
 
 func TestTransferMainNetTestnet(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	txAppender := defaultTxAppender(t, nil, nil, proto.TestNetScheme)
+	state := &AnotherMockSmartState{
+		AssetInfoByIDFunc: func(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+			var r crypto.Digest
+			copy(r[:20], id[:])
+			return &proto.AssetInfo{ID: r}, nil
+		},
+	}
+	txAppender := defaultTxAppender(t, nil, state, proto.MainNetScheme)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
@@ -310,7 +331,7 @@ func TestTransferMainNetTestnet(t *testing.T) {
 		ID:       nil,
 		SenderPK: &senderPK,
 	}
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
+	tx.TxKind, err = txAppender.ethereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	require.Error(t, err)
@@ -318,7 +339,14 @@ func TestTransferMainNetTestnet(t *testing.T) {
 
 func TestTransferCheckFee(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	txAppender := defaultTxAppender(t, nil, nil, proto.TestNetScheme)
+	state := &AnotherMockSmartState{
+		AssetInfoByIDFunc: func(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+			var r crypto.Digest
+			copy(r[:20], id[:])
+			return &proto.AssetInfo{ID: r}, nil
+		},
+	}
+	txAppender := defaultTxAppender(t, nil, state, proto.MainNetScheme)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
@@ -330,7 +358,7 @@ func TestTransferCheckFee(t *testing.T) {
 		ID:       nil,
 		SenderPK: &senderPK,
 	}
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
+	tx.TxKind, err = txAppender.ethereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	require.Error(t, err)
@@ -395,7 +423,7 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 		SenderPK: &senderPK,
 	}
 	decodedData := defaultDecodedData("call", nil, nil)
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, appendTxParams)
+	tx.TxKind, err = txAppender.ethereumTransactionKind(&tx, appendTxParams)
 	tx.TxKind = proto.NewEthereumInvokeScriptTxKind(decodedData)
 
 	assert.NoError(t, err)
@@ -482,7 +510,7 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 		{Value: ethabi.List{ethabi.Int(4)}},
 	}, nil)
 
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, appendTxParams)
+	tx.TxKind, err = txAppender.ethereumTransactionKind(&tx, appendTxParams)
 	tx.TxKind = proto.NewEthereumInvokeScriptTxKind(decodedData)
 
 	assert.NoError(t, err)

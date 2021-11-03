@@ -91,7 +91,9 @@ const (
 	MaxInvokeScriptTransactionVersion    = 127
 	MaxUpdateAssetInfoTransactionVersion = 1
 
-	MinFee = 100_000
+	MinFee              = 100_000
+	MinFeeScriptedAsset = 400_000
+	MinFeeInvokeScript  = 500_000
 )
 
 var (
