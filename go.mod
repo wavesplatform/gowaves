@@ -15,7 +15,7 @@ require (
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
 	github.com/fxamacker/cbor/v2 v2.3.0
 	github.com/go-chi/chi v4.0.3+incompatible
-	github.com/golang/mock v1.4.3
+	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.4.2
 	github.com/gorilla/mux v1.7.3
 	github.com/howeyc/gopass v0.0.0-20190910152052-7cb4b85ec19c
@@ -45,8 +45,7 @@ require (
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/net v0.0.0-20201006153459-a7d1128ccaa0 // indirect
-	golang.org/x/sys v0.0.0-20201101102859-da207088b7d1
+	golang.org/x/sys v0.0.0-20210510120138-977fb7262007
 	google.golang.org/genproto v0.0.0-20201007142714-5c0e72c5e71e // indirect
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.25.0
