@@ -128,8 +128,7 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 	scriptBasicInfo: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   scriptBasicInfoRecordSize + 4,
+		fixedSize:    false,
 	},
 	accountScriptComplexity: {
 		needToFilter: true,

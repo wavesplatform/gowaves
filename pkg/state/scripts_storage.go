@@ -2,10 +2,9 @@ package state
 
 import (
 	"bytes"
-	"encoding/binary"
-	"errors"
 	"io"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
@@ -71,61 +70,43 @@ func (as *assetScripRecordForHashes) less(other stateComponent) bool {
 }
 
 type scriptRecord struct {
-	data proto.Script
+	Data proto.Script `cbor:"0,keyasint,omitemtpy"`
 }
 
 func (r *scriptRecord) isEmpty() bool {
-	return len(r.data) == 0
+	return len(r.Data) == 0
 }
 
 func (r *scriptRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, len(r.data))
-	copy(res, r.data)
-	return res, nil
+	return cbor.Marshal(r)
 }
 
 func (r *scriptRecord) unmarshalBinary(data []byte) error {
-	r.data = make([]byte, len(data))
-	copy(r.data, data)
-	return nil
+	return cbor.Unmarshal(data, r)
 }
 
-const scriptBasicInfoRecordSize = crypto.PublicKeySize + 4 // sizeOf(scriptLen) == 4 bytes
-
 type scriptBasicInfoRecord struct {
-	pk        crypto.PublicKey
-	scriptLen uint32
+	PK        crypto.PublicKey `cbor:"0,keyasint,omitemtpy"`
+	ScriptLen uint32           `cbor:"1,keyasint,omitemtpy"`
 }
 
 func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) scriptBasicInfoRecord {
 	return scriptBasicInfoRecord{
-		pk:        pk,
-		scriptLen: uint32(len(script)),
+		PK:        pk,
+		ScriptLen: uint32(len(script)),
 	}
 }
 
 func (r *scriptBasicInfoRecord) scriptExists() bool {
-	return r.scriptLen != 0
+	return r.ScriptLen != 0
 }
 
 func (r *scriptBasicInfoRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, scriptBasicInfoRecordSize)
-	copy(res, r.pk[:])
-	binary.BigEndian.PutUint32(res[crypto.PublicKeySize:], r.scriptLen)
-	return res, nil
+	return cbor.Marshal(r)
 }
 
 func (r *scriptBasicInfoRecord) unmarshalBinary(data []byte) error {
-	if len(data) < scriptBasicInfoRecordSize {
-		return errors.New("insufficient data for scriptBasicInfoRecord")
-	}
-	pk, err := crypto.NewPublicKeyFromBytes(data[:crypto.PublicKeySize])
-	if err != nil {
-		return err
-	}
-	r.pk = pk
-	r.scriptLen = binary.BigEndian.Uint32(data[crypto.PublicKeySize:])
-	return nil
+	return cbor.Unmarshal(data, r)
 }
 
 type scriptDBItem struct {
@@ -135,7 +116,7 @@ type scriptDBItem struct {
 
 func newScriptDBItem(pk crypto.PublicKey, script proto.Script) scriptDBItem {
 	return scriptDBItem{
-		script: scriptRecord{data: script},
+		script: scriptRecord{Data: script},
 		info:   newScriptBasicInfoRecord(pk, script),
 	}
 }
@@ -192,7 +173,7 @@ func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key scriptKey, 
 		ss.cache.deleteIfExists(scriptKeyBytes)
 		return nil
 	}
-	tree, err := scriptBytesToTree(dbItem.script.data)
+	tree, err := scriptBytesToTree(dbItem.script.Data)
 	if err != nil {
 		return err
 	}
@@ -209,7 +190,7 @@ func (ss *scriptsStorage) scriptBytesByKey(key []byte, filter bool) (proto.Scrip
 	if err := record.unmarshalBinary(recordBytes); err != nil {
 		return proto.Script{}, err
 	}
-	return record.data, nil
+	return record.Data, nil
 }
 
 func (ss *scriptsStorage) newestScriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
@@ -221,7 +202,7 @@ func (ss *scriptsStorage) newestScriptBytesByKey(key []byte, filter bool) (proto
 	if err := record.unmarshalBinary(recordBytes); err != nil {
 		return proto.Script{}, err
 	}
-	return record.data, nil
+	return record.Data, nil
 }
 
 func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (*ride.Tree, error) {
@@ -233,7 +214,7 @@ func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (*ride.Tr
 		// Empty script = no script.
 		return nil, proto.ErrNotFound
 	}
-	return scriptBytesToTree(record.data)
+	return scriptBytesToTree(record.Data)
 }
 
 func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (*ride.Tree, error) {
@@ -254,7 +235,7 @@ func (ss *scriptsStorage) scriptTreeByKey(key []byte, filter bool) (*ride.Tree, 
 
 func (ss *scriptsStorage) commitUncertain(blockID proto.BlockID) error {
 	for assetID, r := range ss.uncertainAssetScripts {
-		if err := ss.setAssetScript(assetID, r.script.data, r.info.pk, blockID); err != nil {
+		if err := ss.setAssetScript(assetID, r.script.Data, r.info.PK, blockID); err != nil {
 			return err
 		}
 	}
@@ -323,7 +304,7 @@ func (ss *scriptsStorage) newestScriptByAsset(assetID crypto.Digest, filter bool
 		if r.script.isEmpty() {
 			return nil, proto.ErrNotFound
 		}
-		return scriptBytesToTree(r.script.data)
+		return scriptBytesToTree(r.script.Data)
 	}
 	key := assetScriptKey{assetID}
 	keyBytes := key.bytes()
@@ -446,7 +427,7 @@ func (ss *scriptsStorage) newestScriptPKByAddr(addr proto.Address, filter bool) 
 	if err := info.unmarshalBinary(recordBytes); err != nil {
 		return crypto.PublicKey{}, err
 	}
-	return info.pk, err
+	return info.PK, err
 }
 
 func (ss *scriptsStorage) scriptByAddr(addr proto.Address, filter bool) (*ride.Tree, error) {
