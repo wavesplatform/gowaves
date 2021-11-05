@@ -17,6 +17,7 @@ require (
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/golang/mock v1.4.3
 	github.com/golang/protobuf v1.4.2
+	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/howeyc/gopass v0.0.0-20190910152052-7cb4b85ec19c
 	github.com/influxdata/influxdb1-client v0.0.0-20200515024757-02f0bf5dbca3
@@ -38,7 +39,7 @@ require (
 	github.com/steakknife/hamming v0.0.0-20180906055917-c99c65617cd3 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
-	github.com/throttled/throttled/v2 v2.7.1
+	github.com/throttled/throttled/v2 v2.9.0
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/xenolf/lego v2.7.2+incompatible
 	go.uber.org/atomic v1.4.0
