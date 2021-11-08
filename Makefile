@@ -9,7 +9,7 @@ DEB_HASH=$(shell git rev-parse HEAD)
 
 export GO111MODULE=on
 
-.PHONY: vendor vetcheck fmtcheck clean build gotest
+.PHONY: vendor vetcheck fmtcheck clean build gotest update-go-deps
 
 all: vendor vetcheck fmtcheck build gotest mod-clean
 
@@ -38,6 +38,16 @@ fmtcheck:
 
 mod-clean:
 	go mod tidy
+
+update-go-deps: mod-clean
+	@echo ">> updating Go dependencies"
+	@for m in $$(go list -mod=readonly -m -f '{{ if and (not .Indirect) (not .Main)}}{{.Path}}{{end}}' all); do \
+		go get $$m; \
+	done
+	go mod tidy
+ifneq (,$(wildcard vendor))
+	go mod vendor
+endif
 
 clean:
 	@rm -rf build
@@ -205,7 +215,7 @@ build-wmd-deb-package: release-wmd
 
 	@mkdir -p ./build/wmd/var/lib/wmd/
 	@mkdir -p ./build/wmd/var/log/wmd/
-	
+
 	@dpkg-deb --build ./build/wmd
 	@mv ./build/wmd.deb ./build/dist/wmd_${VERSION}.deb
 	@rm -rf ./build/wmd
@@ -231,7 +241,7 @@ build-node-mainnet-deb-package: release-node
 
 	@mkdir -p ./build/gowaves-mainnet/var/lib/gowaves-mainnet/
 	@mkdir -p ./build/gowaves-mainnet/var/log/gowaves-mainnet/
-	
+
 	@dpkg-deb --build ./build/gowaves-mainnet
 	@mv ./build/gowaves-mainnet.deb ./build/dist/gowaves-mainnet_${VERSION}.deb
 	@rm -rf ./build/gowaves-mainnet
@@ -257,7 +267,7 @@ build-node-testnet-deb-package: release-node
 
 	@mkdir -p ./build/gowaves-testnet/var/lib/gowaves-testnet/
 	@mkdir -p ./build/gowaves-testnet/var/log/gowaves-testnet/
-	
+
 	@dpkg-deb --build ./build/gowaves-testnet
 	@mv ./build/gowaves-testnet.deb ./build/dist/gowaves-testnet_${VERSION}.deb
 	@rm -rf ./build/gowaves-testnet
