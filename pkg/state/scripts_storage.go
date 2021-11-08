@@ -69,22 +69,6 @@ func (as *assetScripRecordForHashes) less(other stateComponent) bool {
 	return bytes.Compare(as.asset, as2.asset) == -1
 }
 
-type scriptRecord struct {
-	Data proto.Script `cbor:"0,keyasint,omitemtpy"`
-}
-
-func (r *scriptRecord) isEmpty() bool {
-	return len(r.Data) == 0
-}
-
-func (r *scriptRecord) marshalBinary() ([]byte, error) {
-	return cbor.Marshal(r)
-}
-
-func (r *scriptRecord) unmarshalBinary(data []byte) error {
-	return cbor.Unmarshal(data, r)
-}
-
 type scriptBasicInfoRecord struct {
 	PK        crypto.PublicKey `cbor:"0,keyasint,omitemtpy"`
 	ScriptLen uint32           `cbor:"1,keyasint,omitemtpy"`
@@ -110,13 +94,13 @@ func (r *scriptBasicInfoRecord) unmarshalBinary(data []byte) error {
 }
 
 type scriptDBItem struct {
-	script scriptRecord
+	script proto.Script
 	info   scriptBasicInfoRecord
 }
 
 func newScriptDBItem(pk crypto.PublicKey, script proto.Script) scriptDBItem {
 	return scriptDBItem{
-		script: scriptRecord{Data: script},
+		script: script,
 		info:   newScriptBasicInfoRecord(pk, script),
 	}
 }
@@ -152,28 +136,24 @@ func newScriptsStorage(hs *historyStorage, calcHashes bool) (*scriptsStorage, er
 }
 
 func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key scriptKey, dbItem scriptDBItem, blockID proto.BlockID) error {
-	scriptRecordBytes, err := dbItem.script.marshalBinary()
-	if err != nil {
-		return err
-	}
 	scriptBasicInfoRecordBytes, err := dbItem.info.marshalBinary()
 	if err != nil {
 		return err
 	}
 	scriptKeyBytes := key.bytes()
-	if err := ss.hs.addNewEntry(scriptType, scriptKeyBytes, scriptRecordBytes, blockID); err != nil {
+	if err := ss.hs.addNewEntry(scriptType, scriptKeyBytes, dbItem.script, blockID); err != nil {
 		return err
 	}
 	scriptBasicInfoKeyBytes := (&scriptBasicInfoKey{scriptKey: key}).bytes()
 	if err := ss.hs.addNewEntry(scriptBasicInfo, scriptBasicInfoKeyBytes, scriptBasicInfoRecordBytes, blockID); err != nil {
 		return err
 	}
-	if dbItem.script.isEmpty() {
+	if dbItem.script.IsEmpty() {
 		// There is no AST for empty script.
 		ss.cache.deleteIfExists(scriptKeyBytes)
 		return nil
 	}
-	tree, err := scriptBytesToTree(dbItem.script.Data)
+	tree, err := scriptBytesToTree(dbItem.script)
 	if err != nil {
 		return err
 	}
@@ -182,60 +162,48 @@ func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key scriptKey, 
 }
 
 func (ss *scriptsStorage) scriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
-	recordBytes, err := ss.hs.topEntryData(key, filter)
+	script, err := ss.hs.topEntryData(key, filter)
 	if err != nil {
 		return proto.Script{}, err
 	}
-	var record scriptRecord
-	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return proto.Script{}, err
-	}
-	return record.Data, nil
+	return script, nil
 }
 
 func (ss *scriptsStorage) newestScriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
-	recordBytes, err := ss.hs.newestTopEntryData(key, filter)
+	script, err := ss.hs.newestTopEntryData(key, filter)
 	if err != nil {
 		return proto.Script{}, err
 	}
-	var record scriptRecord
-	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return proto.Script{}, err
-	}
-	return record.Data, nil
+	return script, nil
 }
 
-func (ss *scriptsStorage) scriptAstFromRecordBytes(recordBytes []byte) (*ride.Tree, error) {
-	var record scriptRecord
-	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return nil, err
-	}
-	if record.isEmpty() {
+func (ss *scriptsStorage) scriptAstFromRecordBytes(script proto.Script) (*ride.Tree, error) {
+	if script.IsEmpty() {
 		// Empty script = no script.
 		return nil, proto.ErrNotFound
 	}
-	return scriptBytesToTree(record.Data)
+	return scriptBytesToTree(script)
 }
 
 func (ss *scriptsStorage) newestScriptAstByKey(key []byte, filter bool) (*ride.Tree, error) {
-	recordBytes, err := ss.hs.newestTopEntryData(key, filter)
+	script, err := ss.hs.newestTopEntryData(key, filter)
 	if err != nil {
 		return nil, err
 	}
-	return ss.scriptAstFromRecordBytes(recordBytes)
+	return ss.scriptAstFromRecordBytes(script)
 }
 
 func (ss *scriptsStorage) scriptTreeByKey(key []byte, filter bool) (*ride.Tree, error) {
-	recordBytes, err := ss.hs.topEntryData(key, filter)
+	script, err := ss.hs.topEntryData(key, filter)
 	if err != nil {
 		return nil, err
 	}
-	return ss.scriptAstFromRecordBytes(recordBytes)
+	return ss.scriptAstFromRecordBytes(script)
 }
 
 func (ss *scriptsStorage) commitUncertain(blockID proto.BlockID) error {
 	for assetID, r := range ss.uncertainAssetScripts {
-		if err := ss.setAssetScript(assetID, r.script.Data, r.info.PK, blockID); err != nil {
+		if err := ss.setAssetScript(assetID, r.script, r.info.PK, blockID); err != nil {
 			return err
 		}
 	}
@@ -268,7 +236,7 @@ func (ss *scriptsStorage) setAssetScript(assetID crypto.Digest, script proto.Scr
 
 func (ss *scriptsStorage) newestIsSmartAsset(assetID crypto.Digest, filter bool) (bool, error) {
 	if r, ok := ss.uncertainAssetScripts[assetID]; ok {
-		return !r.script.isEmpty(), nil
+		return !r.script.IsEmpty(), nil
 	}
 	key := assetScriptKey{assetID}
 	if _, has := ss.cache.get(key.bytes()); has {
@@ -301,10 +269,10 @@ func (ss *scriptsStorage) isSmartAsset(assetID crypto.Digest, filter bool) (bool
 
 func (ss *scriptsStorage) newestScriptByAsset(assetID crypto.Digest, filter bool) (*ride.Tree, error) {
 	if r, ok := ss.uncertainAssetScripts[assetID]; ok {
-		if r.script.isEmpty() {
+		if r.script.IsEmpty() {
 			return nil, proto.ErrNotFound
 		}
-		return scriptBytesToTree(r.script.Data)
+		return scriptBytesToTree(r.script)
 	}
 	key := assetScriptKey{assetID}
 	keyBytes := key.bytes()

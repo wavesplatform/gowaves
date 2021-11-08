@@ -563,7 +563,7 @@ func (k *sponsorshipKey) bytes() []byte {
 }
 
 type scriptKey interface {
-	_scriptKeyMarker()
+	scriptKeyMarker()
 	bytes() []byte
 }
 
@@ -571,7 +571,7 @@ type accountScriptKey struct {
 	addr proto.Address
 }
 
-func (accountScriptKey) _scriptKeyMarker() {}
+func (accountScriptKey) scriptKeyMarker() {}
 
 func (k *accountScriptKey) bytes() []byte {
 	buf := make([]byte, 1+proto.AddressSize)
@@ -584,7 +584,7 @@ type assetScriptKey struct {
 	asset crypto.Digest
 }
 
-func (assetScriptKey) _scriptKeyMarker() {}
+func (assetScriptKey) scriptKeyMarker() {}
 
 func (k *assetScriptKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
