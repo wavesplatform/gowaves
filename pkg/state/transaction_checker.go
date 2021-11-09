@@ -257,7 +257,10 @@ func (tc *transactionChecker) smartAssets(assets []proto.OptionalAsset, initiali
 			// Waves can not be scripted.
 			continue
 		}
-		hasScript := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(asset.ID), !initialisation)
+		hasScript, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(asset.ID), !initialisation)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to check newestIsSmartAsset for asset %q", asset.String())
+		}
 		if hasScript {
 			smartAssets = append(smartAssets, asset.ID)
 		}
@@ -1003,7 +1006,10 @@ func (tc *transactionChecker) checkSponsorshipWithProofs(transaction proto.Trans
 	if assetInfo.issuer != tx.SenderPK {
 		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
-	isSmart := tc.stor.scriptsStorage.newestIsSmartAsset(id, !info.initialisation)
+	isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(id, !info.initialisation)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to check newestIsSmartAsset for asset %q", tx.AssetID.String())
+	}
 	if isSmart {
 		return nil, errors.Errorf("can not sponsor smart asset %s", tx.AssetID.String())
 	}
@@ -1071,7 +1077,10 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 
-	isSmartAsset := tc.stor.scriptsStorage.newestIsSmartAsset(id, !info.initialisation)
+	isSmartAsset, err := tc.stor.scriptsStorage.newestIsSmartAsset(id, !info.initialisation)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to check newestIsSmartAsset for asset %q", tx.AssetID.String())
+	}
 	if len(tx.Script) == 0 {
 		return nil, errs.NewTxValidationError("Cannot set empty script")
 	}

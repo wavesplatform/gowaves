@@ -589,7 +589,8 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	shortAssetID := proto.AssetIDFromDigest(fullAssetID)
 
 	// Test newest before flushing.
-	isSmartAsset := to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err := to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	assert.NoError(t, err)
 	assert.Equal(t, true, isSmartAsset)
 	scriptAst, err := to.stor.entities.scriptsStorage.newestScriptByAsset(shortAssetID, true)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
@@ -605,7 +606,8 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	isSmartAsset = to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	assert.NoError(t, err)
 	assert.Equal(t, true, isSmartAsset)
 	scriptAst, err = to.stor.entities.scriptsStorage.newestScriptByAsset(shortAssetID, true)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
@@ -624,7 +626,8 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
-	isSmartAsset = to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	assert.NoError(t, err)
 	assert.Equal(t, false, isSmartAsset)
 	_, err = to.stor.entities.scriptsStorage.newestScriptByAsset(shortAssetID, true)
 	assert.Error(t, err)
@@ -640,7 +643,8 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	isSmartAsset = to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(shortAssetID, true)
+	assert.NoError(t, err)
 	assert.Equal(t, false, isSmartAsset)
 	_, err = to.stor.entities.scriptsStorage.newestScriptByAsset(shortAssetID, true)
 	assert.Error(t, err)

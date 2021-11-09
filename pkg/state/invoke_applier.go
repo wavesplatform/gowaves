@@ -242,26 +242,29 @@ func (ia *invokeApplier) countEmptyDataEntryKeys(actions []proto.ScriptAction) u
 	return out
 }
 
-func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, initialisation bool) uint64 {
+func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, initialisation bool) (uint64, error) {
 	scriptRuns := uint64(0)
 	for _, action := range actions {
-		var id proto.AssetID
+		var assetID proto.AssetID
 		switch a := action.(type) {
 		case *proto.TransferScriptAction:
-			id = proto.AssetIDFromDigest(a.Asset.ID)
+			assetID = proto.AssetIDFromDigest(a.Asset.ID)
 		case *proto.ReissueScriptAction:
-			id = proto.AssetIDFromDigest(a.AssetID)
+			assetID = proto.AssetIDFromDigest(a.AssetID)
 		case *proto.BurnScriptAction:
-			id = proto.AssetIDFromDigest(a.AssetID)
+			assetID = proto.AssetIDFromDigest(a.AssetID)
 		default:
 			continue
 		}
-		isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(id, initialisation)
+		isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(assetID, initialisation)
+		if err != nil {
+			return 0, errors.Wrap(err, "something wrong with state")
+		}
 		if isSmartAsset {
 			scriptRuns++
 		}
 	}
-	return scriptRuns
+	return scriptRuns, nil
 }
 
 func errorForSmartAsset(res ride.Result, asset crypto.Digest) error {
@@ -379,7 +382,10 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 			var isSmartAsset bool
 			if a.Asset.Present {
-				isSmartAsset = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
+				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
+				if err != nil {
+					return proto.DAppError, info.failedChanges, errors.Wrap(err, "something wrong with state")
+				}
 			}
 			if isSmartAsset {
 				fullTr, err := proto.NewFullScriptTransfer(a, senderAddress, info.scriptPK, tx)
@@ -420,7 +426,10 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 			var isSmartAsset bool
 			if a.Asset.Present {
-				isSmartAsset = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
+				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
+				if err != nil {
+					return proto.DAppError, info.failedChanges, errors.Wrap(err, "something wrong with state")
+				}
 			}
 			if isSmartAsset {
 				fullTr, err := proto.NewFullScriptTransferFromPaymentAction(a, senderAddress, info.scriptPK, tx)
@@ -601,8 +610,12 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if assetInfo.issuer != senderPK {
 				return proto.DAppError, info.failedChanges, errors.Errorf("asset %s was not issued by this DApp", a.AssetID.String())
 			}
-			isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(assetID, !info.initialisation)
-			if isSmartAsset {
+
+			isSmart, err := ia.stor.scriptsStorage.newestIsSmartAsset(assetID, !info.initialisation)
+			if err != nil {
+				return proto.DAppError, info.failedChanges, errors.Wrap(err, "something wrong with state")
+			}
+			if isSmart {
 				return proto.DAppError, info.failedChanges, errors.Errorf("can not sponsor smart asset %s", a.AssetID.String())
 			}
 			ia.stor.sponsoredAssets.sponsorAssetUncertain(a.AssetID, uint64(a.MinFee))
@@ -722,7 +735,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 	}
-	scriptPK, err := ia.stor.scriptsStorage.NewestScriptPKByAddr(*scriptAddr, !info.initialisation)
+	scriptPK, err := ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 	}
@@ -767,7 +780,10 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	var scriptRuns uint64 = 0
 	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
 	if !info.rideV5Activated {
-		actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
+		actionScriptRuns, err := ia.countActionScriptRuns(scriptActions, info.initialisation)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to countActionScriptRuns")
+		}
 		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
 	}
 	if info.senderScripted {
@@ -887,9 +903,12 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 	return nil
 }
 
-func (ia *invokeApplier) validateActionSmartAsset(assetID crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
+func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
 	txID crypto.Digest, txTimestamp uint64, params *appendTxParams) (bool, ride.Result, error) {
-	isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(assetID), !params.initialisation)
+	isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(asset), !params.initialisation)
+	if err != nil {
+		return false, nil, err
+	}
 	if !isSmartAsset {
 		return true, nil, nil
 	}
@@ -901,7 +920,7 @@ func (ia *invokeApplier) validateActionSmartAsset(assetID crypto.Digest, action 
 	if err != nil {
 		return false, nil, err
 	}
-	res, err := ia.sc.callAssetScriptCommon(env, assetID, params)
+	res, err := ia.sc.callAssetScriptCommon(env, asset, params)
 	if err != nil {
 		return false, nil, err
 	}

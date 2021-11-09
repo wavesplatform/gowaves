@@ -703,7 +703,7 @@ func (s *stateManager) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, er
 func (s *stateManager) NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error) {
 	// This function is used only from SmartState interface, so for now we set filter to true.
 	// TODO: Pass actual filter value after support in RIDE environment
-	return s.stor.scriptsStorage.NewestScriptPKByAddr(addr, true)
+	return s.stor.scriptsStorage.newestScriptPKByAddr(addr, true)
 }
 
 func (s *stateManager) AddingBlockHeight() (uint64, error) {
@@ -1959,7 +1959,10 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	scripted := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
+	scripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
 	return &proto.AssetInfo{
 		ID:              proto.ReconstructDigest(assetID, info.tail),
 		Quantity:        info.quantity.Uint64(),
@@ -2008,7 +2011,10 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
 	}
-	isScripted := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
+	isScripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID, true)
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
 	if isScripted {
 		scriptInfo, err := s.NewestScriptInfoByAsset(assetID)
 		if err != nil {
