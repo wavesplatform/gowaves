@@ -248,6 +248,9 @@ func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, ini
 		var assetID proto.AssetID
 		switch a := action.(type) {
 		case *proto.TransferScriptAction:
+			if !a.Asset.Present {
+				continue // This is waves asset and it can't be scripted
+			}
 			assetID = proto.AssetIDFromDigest(a.Asset.ID)
 		case *proto.ReissueScriptAction:
 			assetID = proto.AssetIDFromDigest(a.AssetID)
