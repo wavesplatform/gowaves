@@ -28,6 +28,7 @@ const (
 	dataEntry
 	accountScript
 	assetScript
+	scriptBasicInfo
 	accountScriptComplexity
 	assetScriptComplexity
 	rewardVotes
@@ -49,6 +50,7 @@ type blockchainEntityProperties struct {
 }
 
 // + 4 bytes for blockNum at the end of each record.
+// TODO(nickeskov): Is it really necessary to add 4 bytes? See historyRecord CountToSize method and historyEntry size method
 var properties = map[blockchainEntity]blockchainEntityProperties{
 	alias: {
 		needToFilter: true,
@@ -119,6 +121,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	assetScript: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	scriptBasicInfo: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

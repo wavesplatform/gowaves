@@ -583,7 +583,8 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	assetID := tx.AssetID
 
 	// Test newest before flushing.
-	isSmartAsset := to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
+	isSmartAsset, err := to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
+	assert.NoError(t, err)
 	assert.Equal(t, true, isSmartAsset)
 	scriptAst, err := to.stor.entities.scriptsStorage.newestScriptByAsset(assetID, true)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
@@ -599,7 +600,8 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	isSmartAsset = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
+	assert.NoError(t, err)
 	assert.Equal(t, true, isSmartAsset)
 	scriptAst, err = to.stor.entities.scriptsStorage.newestScriptByAsset(assetID, true)
 	assert.NoError(t, err, "newestScriptByAsset() failed")
@@ -618,7 +620,8 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
-	isSmartAsset = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
+	assert.NoError(t, err)
 	assert.Equal(t, false, isSmartAsset)
 	_, err = to.stor.entities.scriptsStorage.newestScriptByAsset(assetID, true)
 	assert.Error(t, err)
@@ -634,7 +637,8 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	to.stor.flush(t)
 
 	// Test newest after flushing.
-	isSmartAsset = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
+	isSmartAsset, err = to.stor.entities.scriptsStorage.newestIsSmartAsset(assetID, true)
+	assert.NoError(t, err)
 	assert.Equal(t, false, isSmartAsset)
 	_, err = to.stor.entities.scriptsStorage.newestScriptByAsset(assetID, true)
 	assert.Error(t, err)

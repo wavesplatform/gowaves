@@ -86,6 +86,7 @@ const (
 	// Scripts.
 	accountScriptKeyPrefix
 	assetScriptKeyPrefix
+	scriptBasicInfoKeyPrefix
 	accountScriptComplexityKeyPrefix
 	assetScriptComplexityKeyPrefix
 	accountOriginalEstimatorVersionKeyPrefix
@@ -151,6 +152,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{accountScriptKeyPrefix}, nil
 	case assetScript:
 		return []byte{assetScriptKeyPrefix}, nil
+	case scriptBasicInfo:
+		return []byte{scriptBasicInfoKeyPrefix}, nil
 	case accountScriptComplexity:
 		return []byte{accountScriptComplexityKeyPrefix}, nil
 	case assetScriptComplexity:
@@ -559,9 +562,16 @@ func (k *sponsorshipKey) bytes() []byte {
 	return buf
 }
 
+type scriptKey interface {
+	scriptKeyMarker()
+	bytes() []byte
+}
+
 type accountScriptKey struct {
 	addr proto.Address
 }
+
+func (accountScriptKey) scriptKeyMarker() {}
 
 func (k *accountScriptKey) bytes() []byte {
 	buf := make([]byte, 1+proto.AddressSize)
@@ -574,10 +584,24 @@ type assetScriptKey struct {
 	asset crypto.Digest
 }
 
+func (assetScriptKey) scriptKeyMarker() {}
+
 func (k *assetScriptKey) bytes() []byte {
 	buf := make([]byte, 1+crypto.DigestSize)
 	buf[0] = assetScriptKeyPrefix
 	copy(buf[1:], k.asset[:])
+	return buf
+}
+
+type scriptBasicInfoKey struct {
+	scriptKey scriptKey
+}
+
+func (k *scriptBasicInfoKey) bytes() []byte {
+	scriptKeyBytes := k.scriptKey.bytes()
+	buf := make([]byte, 1+len(scriptKeyBytes))
+	buf[0] = scriptBasicInfoKeyPrefix
+	copy(buf[1:], scriptKeyBytes)
 	return buf
 }
 

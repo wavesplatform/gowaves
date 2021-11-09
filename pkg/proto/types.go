@@ -2532,6 +2532,11 @@ func VersionFromScriptBytes(scriptBytes []byte) (int32, error) {
 
 type Script []byte
 
+// IsEmpty checks that script bytes slice is nil or slice length equals zero
+func (s Script) IsEmpty() bool {
+	return len(s) == 0
+}
+
 // String gives a string representation of Script bytes, script bytes encoded as BASE64 with prefix
 func (s Script) String() string {
 	sb := strings.Builder{}
