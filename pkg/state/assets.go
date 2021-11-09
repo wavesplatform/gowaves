@@ -329,8 +329,8 @@ func (a *assets) newestAssetExists(asset proto.OptionalAsset, filter bool) bool 
 		// Waves.
 		return true
 	}
-	id := proto.AssetIDFromDigest(asset.ID)
-	if _, err := a.newestAssetInfo(id, filter); err != nil {
+	assetID := proto.AssetIDFromDigest(asset.ID)
+	if _, err := a.newestAssetInfo(assetID, filter); err != nil { // TODO: check error type
 		return false
 	}
 	return true

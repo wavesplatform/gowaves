@@ -791,7 +791,7 @@ func TestTransferSet(t *testing.T) {
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100,
-		Asset:     proto.OptionalAsset{Present: false},
+		Asset:     proto.NewOptionalAssetWaves(),
 	}
 	require.NoError(t, err)
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
@@ -849,7 +849,7 @@ func TestScriptResult(t *testing.T) {
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100500,
-		Asset:     proto.OptionalAsset{Present: false},
+		Asset:     proto.NewOptionalAssetWaves(),
 	}
 	require.Equal(t,
 		&proto.ScriptResult{
@@ -4737,10 +4737,7 @@ func TestBankDApp(t *testing.T) {
 		FunctionCall:    call,
 		Payments: proto.ScriptPayments{proto.ScriptPayment{
 			Amount: 213,
-			Asset: proto.OptionalAsset{
-				Present: true,
-				ID:      paymentAsset,
-			},
+			Asset:  *proto.NewOptionalAssetFromDigest(paymentAsset),
 		}},
 		FeeAsset:  proto.OptionalAsset{},
 		Fee:       5000000,
@@ -6338,10 +6335,7 @@ func TestNoDeclaration(t *testing.T) {
 		{
 			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3PJCXW3XZWr2tTpT5u52cPXcMWVP9AHBC9h")),
 			Amount:    19000000,
-			Asset: proto.OptionalAsset{
-				Present: true,
-				ID:      crypto.MustDigestFromBase58("4VDwPimjMR31ofr8qoRZ6nvhTJq7Rf21cZp1c425dUAR"),
-			},
+			Asset:     *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("4VDwPimjMR31ofr8qoRZ6nvhTJq7Rf21cZp1c425dUAR")),
 		},
 	}
 	expectedResult := &proto.ScriptResult{
@@ -6526,10 +6520,7 @@ func TestZeroReissue(t *testing.T) {
 		{
 			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3MSNMcqyweiM9cWpvf4Fn8GAWeuPstxj2hK")),
 			Amount:    0,
-			Asset: proto.OptionalAsset{
-				Present: true,
-				ID:      crypto.MustDigestFromBase58("5YKvHw6nEbVckCje1khnM5XZPRufzSxU29kV2hZXc9co"),
-			},
+			Asset:     *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("5YKvHw6nEbVckCje1khnM5XZPRufzSxU29kV2hZXc9co")),
 		},
 	}
 	expectedReissues := []*proto.ReissueScriptAction{
@@ -6749,10 +6740,7 @@ func TestStageNet2(t *testing.T) {
 		{
 			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT")),
 			Amount:    500000,
-			Asset: proto.OptionalAsset{
-				Present: true,
-				ID:      crypto.MustDigestFromBase58("3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2"),
-			},
+			Asset:     *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2")),
 		},
 	}
 	expectedResult := &proto.ScriptResult{
@@ -6948,7 +6936,7 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 		{
 			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3P8FF73N7ZvvNJ34vnJ3h9Tfmh7oQCnRz8E")),
 			Amount:    0,
-			Asset:     proto.OptionalAsset{Present: false},
+			Asset:     proto.NewOptionalAssetWaves(),
 		},
 	}
 	expectedResult := &proto.ScriptResult{

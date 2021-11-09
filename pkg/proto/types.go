@@ -138,21 +138,21 @@ func NewOptionalAssetFromString(s string) (*OptionalAsset, error) {
 	case WavesAssetName, "":
 		return &OptionalAsset{Present: false}, nil
 	default:
-		a, err := crypto.NewDigestFromBase58(s)
+		d, err := crypto.NewDigestFromBase58(s)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create OptionalAsset from Base58 string")
 		}
-		return &OptionalAsset{Present: true, ID: a}, nil
+		return NewOptionalAssetFromDigest(d), nil
 	}
 }
 
 // NewOptionalAssetFromBytes parses bytes as crypto.Digest and returns OptionalAsset.
 func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
-	a, err := crypto.NewDigestFromBytes(b)
+	d, err := crypto.NewDigestFromBytes(b)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create OptionalAsset from bytes")
 	}
-	return &OptionalAsset{Present: true, ID: a}, nil
+	return NewOptionalAssetFromDigest(d), nil
 }
 
 func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {
@@ -184,14 +184,14 @@ func (a *OptionalAsset) UnmarshalJSON(value []byte) error {
 	s := strings.ToUpper(string(value))
 	switch s {
 	case "NULL", quotedWavesAssetName:
-		*a = OptionalAsset{Present: false}
+		*a = NewOptionalAssetWaves()
 	default:
 		var d crypto.Digest
 		err := d.UnmarshalJSON(value)
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal OptionalAsset")
 		}
-		*a = OptionalAsset{Present: true, ID: d}
+		*a = *NewOptionalAssetFromDigest(d)
 	}
 	return nil
 }
