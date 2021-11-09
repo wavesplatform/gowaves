@@ -995,7 +995,7 @@ func (tc *transactionChecker) checkSponsorshipWithProofs(transaction proto.Trans
 	if !activated {
 		return nil, errors.New("sponsorship has not been activated yet")
 	}
-	if err := tc.checkAsset(&proto.OptionalAsset{Present: false, ID: tx.AssetID}, info.initialisation); err != nil {
+	if err := tc.checkAsset(proto.NewOptionalAssetFromDigest(tx.AssetID), info.initialisation); err != nil {
 		return nil, err
 	}
 	id := proto.AssetIDFromDigest(tx.AssetID)
