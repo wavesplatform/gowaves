@@ -2,13 +2,14 @@ package state
 
 import (
 	"encoding/binary"
+	"math"
+
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"math"
 )
 
 type tradeKey struct {
@@ -342,22 +343,22 @@ func trades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, f
 type addressTradesKey struct {
 	amountAsset crypto.Digest
 	priceAsset  crypto.Digest
-	address     proto.Address
+	address     proto.WavesAddress
 	trade       crypto.Digest
 }
 
 func (k addressTradesKey) bytes() []byte {
-	buf := make([]byte, 1+2*crypto.DigestSize+proto.AddressSize+crypto.DigestSize)
+	buf := make([]byte, 1+2*crypto.DigestSize+proto.WavesAddressSize+crypto.DigestSize)
 	buf[0] = addressTradesKeyPrefix
 	copy(buf[1:], k.amountAsset[:])
 	copy(buf[1+crypto.DigestSize:], k.priceAsset[:])
 	copy(buf[1+2*crypto.DigestSize:], k.address[:])
-	copy(buf[1+2*crypto.DigestSize+proto.AddressSize:], k.trade[:])
+	copy(buf[1+2*crypto.DigestSize+proto.WavesAddressSize:], k.trade[:])
 	return buf
 }
 
 func (k *addressTradesKey) fromBytes(data []byte) error {
-	if l := len(data); l < 1+3*crypto.DigestSize+proto.AddressSize {
+	if l := len(data); l < 1+3*crypto.DigestSize+proto.WavesAddressSize {
 		return errors.Errorf("%d is not enough bytes for addressTradesKey", l)
 	}
 	if data[0] != addressTradesKeyPrefix {
@@ -365,12 +366,12 @@ func (k *addressTradesKey) fromBytes(data []byte) error {
 	}
 	copy(k.amountAsset[:], data[1:1+crypto.DigestSize])
 	copy(k.priceAsset[:], data[1+crypto.DigestSize:1+2*crypto.DigestSize])
-	copy(k.address[:], data[1+2*crypto.DigestSize:1+2*crypto.DigestSize+proto.AddressSize])
-	copy(k.trade[:], data[1+2*crypto.DigestSize+proto.AddressSize:1+3*crypto.DigestSize+proto.AddressSize])
+	copy(k.address[:], data[1+2*crypto.DigestSize:1+2*crypto.DigestSize+proto.WavesAddressSize])
+	copy(k.trade[:], data[1+2*crypto.DigestSize+proto.WavesAddressSize:1+3*crypto.DigestSize+proto.WavesAddressSize])
 	return nil
 }
 
-func addressTrades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, address proto.Address, limit int) ([]data.Trade, error) {
+func addressTrades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, address proto.WavesAddress, limit int) ([]data.Trade, error) {
 	wrapError := func(err error) error {
 		return errors.Wrapf(err, "failed to collect trades for address '%s'", address.String())
 	}

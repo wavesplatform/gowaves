@@ -35,7 +35,7 @@ func createCheckerTestObjects(t *testing.T) (*checkerTestObjects, []string) {
 	return &checkerTestObjects{stor, tc, tp}, path
 }
 
-func defaultCheckerInfo(t *testing.T) *checkerInfo {
+func defaultCheckerInfo() *checkerInfo {
 	return &checkerInfo{false, defaultTimestamp, defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2, blockID0, 1, 100500}
 }
 
@@ -50,7 +50,7 @@ func TestCheckGenesis(t *testing.T) {
 	}()
 
 	tx := createGenesis()
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	_, err := to.tc.checkGenesis(tx, info)
 	info.blockID = proto.NewBlockIDFromSignature(genSig)
 	assert.Error(t, err, "checkGenesis accepted genesis tx in non-initialisation mode")
@@ -73,7 +73,7 @@ func TestCheckPayment(t *testing.T) {
 	}()
 
 	tx := createPayment(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	info.height = settings.MainNetSettings.BlockVersion3AfterHeight
 	_, err := to.tc.checkPayment(tx, info)
 	assert.Error(t, err, "checkPayment accepted payment tx after Block v3 height")
@@ -97,7 +97,7 @@ func TestCheckTransferWithSig(t *testing.T) {
 	}()
 
 	tx := createTransferWithSig(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
 	assetId := tx.FeeAsset.ID
 
@@ -118,7 +118,7 @@ func TestCheckTransferWithSig(t *testing.T) {
 	// Sponsorship checks.
 	to.stor.activateSponsorship(t)
 	_, err = to.tc.checkTransferWithSig(tx, info)
-	assert.Error(t, err, "checkTransferWithSig did not fail with unsponsored asset")
+	assert.Error(t, err, "checkTransferWithSig did not fail with non-sponsored asset")
 	assert.EqualError(t, err, fmt.Sprintf("Asset %s is not sponsored, cannot be used to pay fees", assetId.String()))
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, info.blockID)
 	assert.NoError(t, err, "sponsorAsset() failed")
@@ -141,7 +141,7 @@ func TestCheckTransferWithProofs(t *testing.T) {
 	}()
 
 	tx := createTransferWithProofs(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
 	assetId := tx.FeeAsset.ID
 
@@ -169,7 +169,7 @@ func TestCheckTransferWithProofs(t *testing.T) {
 	// Sponsorship checks.
 	to.stor.activateSponsorship(t)
 	_, err = to.tc.checkTransferWithProofs(tx, info)
-	assert.Error(t, err, "checkTransferWithProofs did not fail with unsponsored asset")
+	assert.Error(t, err, "checkTransferWithProofs did not fail with non-sponsored asset")
 	assert.EqualError(t, err, fmt.Sprintf("Asset %s is not sponsored, cannot be used to pay fees", assetId.String()))
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, info.blockID)
 	assert.NoError(t, err, "sponsorAsset() failed")
@@ -217,7 +217,7 @@ func TestCheckIssueWithSig(t *testing.T) {
 	}()
 
 	tx := createIssueWithSig(t, 1000)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	_, err := to.tc.checkIssueWithSig(tx, info)
 	assert.NoError(t, err, "checkIssueWithSig failed with valid issue tx")
 
@@ -237,7 +237,7 @@ func TestCheckIssueWithProofs(t *testing.T) {
 	}()
 
 	tx := createIssueWithProofs(t, 1000)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	to.stor.addBlock(t, blockID0)
 
 	_, err := to.tc.checkIssueWithProofs(tx, info)
@@ -262,7 +262,7 @@ func TestCheckReissueWithSig(t *testing.T) {
 
 	tx := createReissueWithSig(t, 1000)
 	tx.SenderPK = assetInfo.issuer
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 	_, err := to.tc.checkReissueWithSig(tx, info)
 	assert.NoError(t, err, "checkReissueWithSig failed with valid reissue tx")
@@ -292,7 +292,7 @@ func TestCheckReissueWithSig(t *testing.T) {
 	to.stor.flush(t)
 
 	_, err = to.tc.checkReissueWithSig(tx, info)
-	assert.Error(t, err, "checkReissueWithSig did not fail when trying to reissue unreissueable asset")
+	assert.Error(t, err, "checkReissueWithSig did not fail when trying to reissue non-reissuable asset")
 	assert.EqualError(t, err, "attempt to reissue asset which is not reissuable")
 }
 
@@ -310,7 +310,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 
 	tx := createReissueWithProofs(t, 1000)
 	tx.SenderPK = assetInfo.issuer
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 
 	_, err := to.tc.checkReissueWithProofs(tx, info)
@@ -346,7 +346,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 	to.stor.flush(t)
 
 	_, err = to.tc.checkReissueWithProofs(tx, info)
-	assert.Error(t, err, "checkReissueWithProofs did not fail when trying to reissue unreissueable asset")
+	assert.Error(t, err, "checkReissueWithProofs did not fail when trying to reissue non-reissuable asset")
 	assert.EqualError(t, err, "attempt to reissue asset which is not reissuable")
 }
 
@@ -363,7 +363,7 @@ func TestCheckBurnWithSig(t *testing.T) {
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithSig(t)
 	tx.SenderPK = assetInfo.issuer
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkBurnWithSig(tx, info)
 	assert.NoError(t, err, "checkBurnWithSig failed with valid burn tx")
@@ -403,7 +403,7 @@ func TestCheckBurnWithProofs(t *testing.T) {
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithProofs(t)
 	tx.SenderPK = assetInfo.issuer
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkBurnWithProofs(tx, info)
 	assert.Error(t, err, "checkBurnWithProofs did not fail prior to SmartAccounts activation")
@@ -446,7 +446,7 @@ func TestCheckExchangeWithSig(t *testing.T) {
 	}()
 
 	tx := createExchangeWithSig(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	_, err := to.tc.checkExchangeWithSig(tx, info)
 	assert.Error(t, err, "checkExchangeWithSig did not fail with exchange with unknown assets")
 
@@ -518,7 +518,7 @@ func TestCheckExchangeWithProofs(t *testing.T) {
 	}()
 
 	txOV2 := createExchangeWithProofs(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	_, err := to.tc.checkExchangeWithProofs(txOV2, info)
 	assert.Error(t, err, "checkExchangeWithProofs did not fail with exchange with unknown assets")
 
@@ -614,7 +614,7 @@ func TestCheckUnorderedExchangeV2WithProofs(t *testing.T) {
 	}()
 
 	tx := createUnorderedExchangeWithProofs(t, 2)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
@@ -640,7 +640,7 @@ func TestCheckUnorderedExchangeV3WithProofs(t *testing.T) {
 	}()
 
 	tx := createUnorderedExchangeWithProofs(t, 3)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
 	to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	to.stor.createAsset(t, testGlobal.asset1.asset.ID)
@@ -666,7 +666,7 @@ func TestCheckLeaseWithSig(t *testing.T) {
 	}()
 
 	tx := createLeaseWithSig(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
 	_, err := to.tc.checkLeaseWithSig(tx, info)
 	assert.Error(t, err, "checkLeaseWithSig did not fail when leasing to self")
@@ -687,7 +687,7 @@ func TestCheckLeaseWithProofs(t *testing.T) {
 	}()
 
 	tx := createLeaseWithProofs(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
 	_, err := to.tc.checkLeaseWithProofs(tx, info)
 	assert.Error(t, err, "checkLeaseWithProofs did not fail when leasing to self")
@@ -714,7 +714,7 @@ func TestCheckLeaseCancelWithSig(t *testing.T) {
 	}()
 
 	leaseTx := createLeaseWithSig(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	info.currentTimestamp = settings.MainNetSettings.AllowMultipleLeaseCancelUntilTime + 1
 	tx := createLeaseCancelWithSig(t, *leaseTx.ID)
 
@@ -749,7 +749,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 	}()
 
 	leaseTx := createLeaseWithProofs(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	info.currentTimestamp = settings.MainNetSettings.AllowMultipleLeaseCancelUntilTime + 1
 	tx := createLeaseCancelWithProofs(t, *leaseTx.ID)
 
@@ -791,7 +791,7 @@ func TestCheckCreateAliasWithSig(t *testing.T) {
 	}()
 
 	tx := createCreateAliasWithSig(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkCreateAliasWithSig(tx, info)
 	assert.NoError(t, err, "checkCreateAliasWithSig failed with valid createAlias tx")
@@ -802,7 +802,7 @@ func TestCheckCreateAliasWithSig(t *testing.T) {
 	to.stor.flush(t)
 
 	_, err = to.tc.checkCreateAliasWithSig(tx, info)
-	assert.Error(t, err, "checkCreateAliasWithSig did not fail when using alias which is alredy taken")
+	assert.Error(t, err, "checkCreateAliasWithSig did not fail when using alias which is already taken")
 
 	// Check that checker allows to steal aliases at specified timestamp window on MainNet.
 	info.currentTimestamp = settings.MainNetSettings.StolenAliasesWindowTimeStart
@@ -821,7 +821,7 @@ func TestCheckCreateAliasWithProofs(t *testing.T) {
 	}()
 
 	tx := createCreateAliasWithProofs(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkCreateAliasWithProofs(tx, info)
 	assert.Error(t, err, "checkCreateAliasWithProofs did not fail prior to SmartAccounts activation")
@@ -837,7 +837,7 @@ func TestCheckCreateAliasWithProofs(t *testing.T) {
 	to.stor.flush(t)
 
 	_, err = to.tc.checkCreateAliasWithProofs(tx, info)
-	assert.Error(t, err, "checkCreateAliasWithProofs did not fail when using alias which is alredy taken")
+	assert.Error(t, err, "checkCreateAliasWithProofs did not fail when using alias which is already taken")
 
 	// Check that checker allows to steal aliases at specified timestamp window on MainNet.
 	info.currentTimestamp = settings.MainNetSettings.StolenAliasesWindowTimeStart
@@ -858,7 +858,7 @@ func TestCheckMassTransferWithProofs(t *testing.T) {
 	entriesNum := 50
 	entries := generateMassTransferEntries(t, entriesNum)
 	tx := createMassTransferWithProofs(t, entries)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkMassTransferWithProofs(tx, info)
 	assert.Error(t, err, "checkMassTransferWithProofs did not fail prior to feature activation")
@@ -893,7 +893,7 @@ func TestCheckDataWithProofs(t *testing.T) {
 	}()
 
 	tx := createDataWithProofs(t, 1)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkDataWithProofs(tx, info)
 	assert.Error(t, err, "checkDataWithProofs did not fail prior to feature activation")
@@ -923,7 +923,7 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 	tx := createSponsorshipWithProofs(t, 1000)
 	assetInfo := to.stor.createAsset(t, tx.AssetID)
 	tx.SenderPK = assetInfo.issuer
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
 	_, err := to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.Error(t, err, "checkSponsorshipWithProofs did not fail prior to feature activation")
@@ -971,7 +971,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	}()
 
 	tx := createSetScriptWithProofs(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
 	// Activate sponsorship.
 	to.stor.activateSponsorship(t)
@@ -1041,9 +1041,9 @@ func TestCheckSetAssetScriptWithProofs(t *testing.T) {
 	}()
 
 	tx := createSetAssetScriptWithProofs(t)
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 
-	assetInfo := defaultAssetInfo(true)
+	assetInfo := defaultAssetInfo(proto.DigestTail(tx.AssetID), true)
 	assetInfo.issuer = tx.SenderPK
 	to.stor.createAssetUsingInfo(t, tx.AssetID, assetInfo)
 
@@ -1082,11 +1082,11 @@ func TestCheckInvokeScriptWithProofs(t *testing.T) {
 		assert.NoError(t, err, "failed to clean test data dirs")
 	}()
 
-	pmts := []proto.ScriptPayment{
+	payments := []proto.ScriptPayment{
 		{Amount: 1, Asset: *testGlobal.asset0.asset},
 	}
-	tx := createInvokeScriptWithProofs(t, pmts, proto.FunctionCall{}, proto.OptionalAsset{}, 1)
-	info := defaultCheckerInfo(t)
+	tx := createInvokeScriptWithProofs(t, payments, proto.FunctionCall{}, proto.OptionalAsset{}, 1)
+	info := defaultCheckerInfo()
 	to.stor.addBlock(t, blockID0)
 	assetId := tx.Payments[0].Asset.ID
 	to.stor.createAsset(t, assetId)
@@ -1134,7 +1134,7 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	to.stor.createAsset(t, tx.FeeAsset.ID)
 	tx.SenderPK = assetInfo.issuer
 
-	info := defaultCheckerInfo(t)
+	info := defaultCheckerInfo()
 	info.height = 100001
 
 	// Check fail prior to activation.

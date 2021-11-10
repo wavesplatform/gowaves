@@ -159,7 +159,7 @@ func TestGenesisValidations(t *testing.T) {
 		err     string
 	}{
 		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", 0, "amount should be positive"},
-		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV", 1000, "invalid recipient address '3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV': invalid Address checksum"},
+		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV", 1000, "invalid recipient address '3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV': invalid WavesAddress checksum"},
 		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", maxLongValue + 100, "amount is too big"},
 	}
 	for _, tc := range tests {
@@ -360,7 +360,7 @@ func TestPaymentValidations(t *testing.T) {
 	}{
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 10, "amount should be positive"},
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 10, 0, "fee should be positive"},
-		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 10, 10, "invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 10, 10, "invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid WavesAddress checksum"},
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64 + 100, 10, "amount is too big"},
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 10, math.MaxInt64 + 100, "fee is too big"},
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
@@ -842,7 +842,7 @@ func TestTransferWithSigValidations(t *testing.T) {
 		{"alias:W:nickname", 1000, math.MaxInt64 + 100, "The attachment", "fee is too big"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
 		{"alias:W:nickname", 1000, 10, strings.Repeat("The attachment", 100), "attachment is too long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid WavesAddress checksum"},
 		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
 	}
 	spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -1138,7 +1138,7 @@ func TestTransferWithProofsValidations(t *testing.T) {
 		{"alias:W:nickname", 1000, math.MaxInt64 + 1, "The attachment", "fee is too big"},
 		{"alias:W:nickname", 1000, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1000, 10, strings.Repeat("The attachment", 100), "attachment is too long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid WavesAddress checksum"},
 		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
 	}
 	spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -3298,7 +3298,7 @@ func TestLeaseWithSigValidations(t *testing.T) {
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "fee should be positive"},
 		{"alias:T:nickname", 100000, math.MaxInt64 + 1, "fee is too big"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned Lease transaction: invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned Lease transaction: invalid WavesAddress checksum"},
 		{"alias:T:прозвище", 100000, 100000, "failed to create new unsigned Lease transaction: Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
 		//TODO: add test on leasing to oneself
 	}
@@ -3505,7 +3505,7 @@ func TestLeaseWithProofsValidations(t *testing.T) {
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "fee should be positive"},
 		{"alias:T:nickname", 100000, math.MaxInt64 + 1, "fee is too big"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned Lease transaction: invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned Lease transaction: invalid WavesAddress checksum"},
 		{"alias:T:прозвище", 100000, 100000, "failed to create new unsigned Lease transaction: Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
 		//TODO: add test on leasing to oneself
 	}
@@ -6256,12 +6256,12 @@ func getTransaction(txb []byte, scheme Scheme) (Transaction, error) {
 }
 
 // This function is for tests only! Could produce invalid address.
-func addressFromString(s string) (Address, error) {
+func addressFromString(s string) (WavesAddress, error) {
 	ab, err := base58.Decode(s)
 	if err != nil {
-		return Address{}, err
+		return WavesAddress{}, err
 	}
-	a := Address{}
+	a := WavesAddress{}
 	copy(a[:], ab)
 	return a, nil
 }

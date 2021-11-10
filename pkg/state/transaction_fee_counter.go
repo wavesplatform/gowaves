@@ -36,7 +36,7 @@ func (tf *transactionFeeCounter) minerFee(distr *feeDistribution, fee uint64, as
 	}
 	if sponsorshipActivated && asset.Present {
 		// If sponsorship is activated and there is fee asset, we must convert it to Waves.
-		amount, err = tf.stor.sponsoredAssets.sponsoredAssetToWaves(asset.ID, fee)
+		amount, err = tf.stor.sponsoredAssets.sponsoredAssetToWaves(proto.AssetIDFromDigest(asset.ID), fee)
 		if err != nil {
 			return err
 		}

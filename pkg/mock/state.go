@@ -133,10 +133,10 @@ func (mr *MockStateInfoMockRecorder) ActivationHeight(featureID interface{}) *go
 }
 
 // AddrByAlias mocks base method.
-func (m *MockStateInfo) AddrByAlias(alias proto.Alias) (proto.Address, error) {
+func (m *MockStateInfo) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddrByAlias", alias)
-	ret0, _ := ret[0].(proto.Address)
+	ret0, _ := ret[0].(proto.WavesAddress)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -178,22 +178,22 @@ func (mr *MockStateInfoMockRecorder) ApprovalHeight(featureID interface{}) *gomo
 }
 
 // AssetBalance mocks base method.
-func (m *MockStateInfo) AssetBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (m *MockStateInfo) AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AssetBalance", account, asset)
+	ret := m.ctrl.Call(m, "AssetBalance", account, assetID)
 	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AssetBalance indicates an expected call of AssetBalance.
-func (mr *MockStateInfoMockRecorder) AssetBalance(account, asset interface{}) *gomock.Call {
+func (mr *MockStateInfoMockRecorder) AssetBalance(account, assetID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetBalance", reflect.TypeOf((*MockStateInfo)(nil).AssetBalance), account, asset)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetBalance", reflect.TypeOf((*MockStateInfo)(nil).AssetBalance), account, assetID)
 }
 
 // AssetInfo mocks base method.
-func (m *MockStateInfo) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+func (m *MockStateInfo) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AssetInfo", assetID)
 	ret0, _ := ret[0].(*proto.AssetInfo)
@@ -208,7 +208,7 @@ func (mr *MockStateInfoMockRecorder) AssetInfo(assetID interface{}) *gomock.Call
 }
 
 // AssetIsSponsored mocks base method.
-func (m *MockStateInfo) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
+func (m *MockStateInfo) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AssetIsSponsored", assetID)
 	ret0, _ := ret[0].(bool)
@@ -328,7 +328,7 @@ func (mr *MockStateInfoMockRecorder) EstimatorVersion() *gomock.Call {
 }
 
 // FullAssetInfo mocks base method.
-func (m *MockStateInfo) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+func (m *MockStateInfo) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FullAssetInfo", assetID)
 	ret0, _ := ret[0].(*proto.FullAssetInfo)
@@ -538,7 +538,7 @@ func (mr *MockStateInfoMockRecorder) MapR(arg0 interface{}) *gomock.Call {
 }
 
 // NFTList mocks base method.
-func (m *MockStateInfo) NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error) {
+func (m *MockStateInfo) NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NFTList", account, limit, afterAssetID)
 	ret0, _ := ret[0].([]*proto.FullAssetInfo)
@@ -718,7 +718,7 @@ func (mr *MockStateInfoMockRecorder) ScriptInfoByAccount(account interface{}) *g
 }
 
 // ScriptInfoByAsset mocks base method.
-func (m *MockStateInfo) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error) {
+func (m *MockStateInfo) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ScriptInfoByAsset", assetID)
 	ret0, _ := ret[0].(*proto.ScriptInfo)
@@ -1279,10 +1279,10 @@ func (mr *MockStateMockRecorder) AddOldDeserializedBlocks(blocks interface{}) *g
 }
 
 // AddrByAlias mocks base method.
-func (m *MockState) AddrByAlias(alias proto.Alias) (proto.Address, error) {
+func (m *MockState) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddrByAlias", alias)
-	ret0, _ := ret[0].(proto.Address)
+	ret0, _ := ret[0].(proto.WavesAddress)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1324,22 +1324,22 @@ func (mr *MockStateMockRecorder) ApprovalHeight(featureID interface{}) *gomock.C
 }
 
 // AssetBalance mocks base method.
-func (m *MockState) AssetBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (m *MockState) AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AssetBalance", account, asset)
+	ret := m.ctrl.Call(m, "AssetBalance", account, assetID)
 	ret0, _ := ret[0].(uint64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AssetBalance indicates an expected call of AssetBalance.
-func (mr *MockStateMockRecorder) AssetBalance(account, asset interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) AssetBalance(account, assetID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetBalance", reflect.TypeOf((*MockState)(nil).AssetBalance), account, asset)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetBalance", reflect.TypeOf((*MockState)(nil).AssetBalance), account, assetID)
 }
 
 // AssetInfo mocks base method.
-func (m *MockState) AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
+func (m *MockState) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AssetInfo", assetID)
 	ret0, _ := ret[0].(*proto.AssetInfo)
@@ -1354,7 +1354,7 @@ func (mr *MockStateMockRecorder) AssetInfo(assetID interface{}) *gomock.Call {
 }
 
 // AssetIsSponsored mocks base method.
-func (m *MockState) AssetIsSponsored(assetID crypto.Digest) (bool, error) {
+func (m *MockState) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AssetIsSponsored", assetID)
 	ret0, _ := ret[0].(bool)
@@ -1488,7 +1488,7 @@ func (mr *MockStateMockRecorder) EstimatorVersion() *gomock.Call {
 }
 
 // FullAssetInfo mocks base method.
-func (m *MockState) FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+func (m *MockState) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FullAssetInfo", assetID)
 	ret0, _ := ret[0].(*proto.FullAssetInfo)
@@ -1712,7 +1712,7 @@ func (mr *MockStateMockRecorder) MapR(arg0 interface{}) *gomock.Call {
 }
 
 // NFTList mocks base method.
-func (m *MockState) NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error) {
+func (m *MockState) NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NFTList", account, limit, afterAssetID)
 	ret0, _ := ret[0].([]*proto.FullAssetInfo)
@@ -1946,7 +1946,7 @@ func (mr *MockStateMockRecorder) ScriptInfoByAccount(account interface{}) *gomoc
 }
 
 // ScriptInfoByAsset mocks base method.
-func (m *MockState) ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error) {
+func (m *MockState) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ScriptInfoByAsset", assetID)
 	ret0, _ := ret[0].(*proto.ScriptInfo)

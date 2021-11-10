@@ -32,20 +32,27 @@ func (ai *assetInfo) equal(ai1 *assetInfo) bool {
 
 // assetConstInfo is part of asset info which is constant.
 type assetConstInfo struct {
+	tail     [12]byte
 	issuer   crypto.PublicKey
 	decimals int8
 }
 
 func (ai *assetConstInfo) marshalBinary() ([]byte, error) {
-	res := make([]byte, crypto.PublicKeySize+1)
-	if err := ai.issuer.WriteTo(res); err != nil {
+	res := make([]byte, 12+crypto.PublicKeySize+1)
+	copy(res, ai.tail[:])
+	if err := ai.issuer.WriteTo(res[12:]); err != nil {
 		return nil, err
 	}
-	res[crypto.PublicKeySize] = byte(ai.decimals)
+	res[12+crypto.PublicKeySize] = byte(ai.decimals)
 	return res, nil
 }
 
 func (ai *assetConstInfo) unmarshalBinary(data []byte) error {
+	if len(data) < 12+crypto.PublicKeySize+1 {
+		return errors.New("invalid data size")
+	}
+	copy(ai.tail[:], data[:12])
+	data = data[12:]
 	err := ai.issuer.UnmarshalBinary(data[:crypto.PublicKeySize])
 	if err != nil {
 		return err
@@ -134,9 +141,9 @@ type assets struct {
 	dbBatch keyvalue.Batch
 	hs      *historyStorage
 
-	freshConstInfo map[crypto.Digest]assetConstInfo
+	freshConstInfo map[proto.AssetID]assetConstInfo
 
-	uncertainAssetInfo map[crypto.Digest]assetInfo
+	uncertainAssetInfo map[proto.AssetID]assetInfo
 }
 
 func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage) *assets {
@@ -144,12 +151,12 @@ func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage)
 		db:                 db,
 		dbBatch:            dbBatch,
 		hs:                 hs,
-		freshConstInfo:     make(map[crypto.Digest]assetConstInfo),
-		uncertainAssetInfo: make(map[crypto.Digest]assetInfo),
+		freshConstInfo:     make(map[proto.AssetID]assetConstInfo),
+		uncertainAssetInfo: make(map[proto.AssetID]assetInfo),
 	}
 }
 
-func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord, blockID proto.BlockID) error {
+func (a *assets) addNewRecord(assetID proto.AssetID, record *assetHistoryRecord, blockID proto.BlockID) error {
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal record: %v\n", err)
@@ -159,7 +166,7 @@ func (a *assets) addNewRecord(assetID crypto.Digest, record *assetHistoryRecord,
 	return a.hs.addNewEntry(asset, histKey.bytes(), recordBytes, blockID)
 }
 
-func (a *assets) storeAssetInfo(assetID crypto.Digest, asset *assetInfo, blockID proto.BlockID) error {
+func (a *assets) storeAssetInfo(assetID proto.AssetID, asset *assetInfo, blockID proto.BlockID) error {
 	assetConstBytes, err := asset.assetConstInfo.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal asset const info: %v\n", err)
@@ -171,14 +178,14 @@ func (a *assets) storeAssetInfo(assetID crypto.Digest, asset *assetInfo, blockID
 	return a.addNewRecord(assetID, r, blockID)
 }
 
-func (a *assets) issueAsset(assetID crypto.Digest, asset *assetInfo, blockID proto.BlockID) error {
+func (a *assets) issueAsset(assetID proto.AssetID, asset *assetInfo, blockID proto.BlockID) error {
 	return a.storeAssetInfo(assetID, asset, blockID)
 }
 
 // issueAssetUncertain() is similar to issueAsset() but the changes can be
-// dropped later using dropUncertain() or commited using commitUncertain().
+// dropped later using dropUncertain() or committed using commitUncertain().
 // newest*() functions will take changes into account even before commitUncertain().
-func (a *assets) issueAssetUncertain(assetID crypto.Digest, asset *assetInfo) {
+func (a *assets) issueAssetUncertain(assetID proto.AssetID, asset *assetInfo) {
 	a.uncertainAssetInfo[assetID] = *asset
 }
 
@@ -187,7 +194,7 @@ type assetReissueChange struct {
 	diff       int64
 }
 
-func (a *assets) applyReissue(assetID crypto.Digest, ch *assetReissueChange, filter bool) (*assetInfo, error) {
+func (a *assets) applyReissue(assetID proto.AssetID, ch *assetReissueChange, filter bool) (*assetInfo, error) {
 	info, err := a.newestAssetInfo(assetID, filter)
 	if err != nil {
 		return nil, errors.Errorf("failed to get asset info: %v\n", err)
@@ -198,7 +205,7 @@ func (a *assets) applyReissue(assetID crypto.Digest, ch *assetReissueChange, fil
 	return info, nil
 }
 
-func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, blockID proto.BlockID, filter bool) error {
+func (a *assets) reissueAsset(assetID proto.AssetID, ch *assetReissueChange, blockID proto.BlockID, filter bool) error {
 	info, err := a.applyReissue(assetID, ch, filter)
 	if err != nil {
 		return err
@@ -207,9 +214,9 @@ func (a *assets) reissueAsset(assetID crypto.Digest, ch *assetReissueChange, blo
 }
 
 // reissueAssetUncertain() is similar to reissueAsset() but the changes can be
-// dropped later using dropUncertain() or commited using commitUncertain().
+// dropped later using dropUncertain() or committed using commitUncertain().
 // newest*() functions will take changes into account even before commitUncertain().
-func (a *assets) reissueAssetUncertain(assetID crypto.Digest, ch *assetReissueChange, filter bool) error {
+func (a *assets) reissueAssetUncertain(assetID proto.AssetID, ch *assetReissueChange, filter bool) error {
 	info, err := a.applyReissue(assetID, ch, filter)
 	if err != nil {
 		return err
@@ -222,7 +229,7 @@ type assetBurnChange struct {
 	diff int64
 }
 
-func (a *assets) applyBurn(assetID crypto.Digest, ch *assetBurnChange, filter bool) (*assetInfo, error) {
+func (a *assets) applyBurn(assetID proto.AssetID, ch *assetBurnChange, filter bool) (*assetInfo, error) {
 	info, err := a.newestAssetInfo(assetID, filter)
 	if err != nil {
 		return nil, errors.Errorf("failed to get asset info: %v\n", err)
@@ -232,7 +239,7 @@ func (a *assets) applyBurn(assetID crypto.Digest, ch *assetBurnChange, filter bo
 	return info, nil
 }
 
-func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange, blockID proto.BlockID, filter bool) error {
+func (a *assets) burnAsset(assetID proto.AssetID, ch *assetBurnChange, blockID proto.BlockID, filter bool) error {
 	info, err := a.applyBurn(assetID, ch, filter)
 	if err != nil {
 		return err
@@ -241,9 +248,9 @@ func (a *assets) burnAsset(assetID crypto.Digest, ch *assetBurnChange, blockID p
 }
 
 // burnAssetUncertain() is similar to burnAsset() but the changes can be
-// dropped later using dropUncertain() or commited using commitUncertain().
+// dropped later using dropUncertain() or committed using commitUncertain().
 // newest*() functions will take changes into account even before commitUncertain().
-func (a *assets) burnAssetUncertain(assetID crypto.Digest, ch *assetBurnChange, filter bool) error {
+func (a *assets) burnAssetUncertain(assetID proto.AssetID, ch *assetBurnChange, filter bool) error {
 	info, err := a.applyBurn(assetID, ch, filter)
 	if err != nil {
 		return err
@@ -258,7 +265,7 @@ type assetInfoChange struct {
 	newHeight      uint64
 }
 
-func (a *assets) updateAssetInfo(assetID crypto.Digest, ch *assetInfoChange, blockID proto.BlockID, filter bool) error {
+func (a *assets) updateAssetInfo(assetID proto.AssetID, ch *assetInfoChange, blockID proto.BlockID, filter bool) error {
 	info, err := a.newestChangeableInfo(assetID, filter)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
@@ -270,7 +277,7 @@ func (a *assets) updateAssetInfo(assetID crypto.Digest, ch *assetInfoChange, blo
 	return a.addNewRecord(assetID, record, blockID)
 }
 
-func (a *assets) newestLastUpdateHeight(assetID crypto.Digest, filter bool) (uint64, error) {
+func (a *assets) newestLastUpdateHeight(assetID proto.AssetID, filter bool) (uint64, error) {
 	assetInfo, err := a.newestAssetInfo(assetID, filter)
 	if err != nil {
 		return 0, err
@@ -278,7 +285,7 @@ func (a *assets) newestLastUpdateHeight(assetID crypto.Digest, filter bool) (uin
 	return assetInfo.lastNameDescChangeHeight, nil
 }
 
-func (a *assets) constInfo(assetID crypto.Digest) (*assetConstInfo, error) {
+func (a *assets) constInfo(assetID proto.AssetID) (*assetConstInfo, error) {
 	constKey := assetConstKey{assetID: assetID}
 	constInfoBytes, err := a.db.Get(constKey.bytes())
 	if err != nil {
@@ -291,7 +298,7 @@ func (a *assets) constInfo(assetID crypto.Digest) (*assetConstInfo, error) {
 	return &constInfo, nil
 }
 
-func (a *assets) newestConstInfo(assetID crypto.Digest) (*assetConstInfo, error) {
+func (a *assets) newestConstInfo(assetID proto.AssetID) (*assetConstInfo, error) {
 	if info, ok := a.uncertainAssetInfo[assetID]; ok {
 		return &info.assetConstInfo, nil
 	}
@@ -301,7 +308,7 @@ func (a *assets) newestConstInfo(assetID crypto.Digest) (*assetConstInfo, error)
 	return a.constInfo(assetID)
 }
 
-func (a *assets) newestChangeableInfo(assetID crypto.Digest, filter bool) (*assetChangeableInfo, error) {
+func (a *assets) newestChangeableInfo(assetID proto.AssetID, filter bool) (*assetChangeableInfo, error) {
 	if info, ok := a.uncertainAssetInfo[assetID]; ok {
 		return &info.assetChangeableInfo, nil
 	}
@@ -322,7 +329,8 @@ func (a *assets) newestAssetExists(asset proto.OptionalAsset, filter bool) bool 
 		// Waves.
 		return true
 	}
-	if _, err := a.newestAssetInfo(asset.ID, filter); err != nil {
+	id := proto.AssetIDFromDigest(asset.ID)
+	if _, err := a.newestAssetInfo(id, filter); err != nil {
 		return false
 	}
 	return true
@@ -330,7 +338,7 @@ func (a *assets) newestAssetExists(asset proto.OptionalAsset, filter bool) bool 
 
 // Newest asset info (from local storage, or from DB if given asset has not been changed).
 // This is needed for transactions validation.
-func (a *assets) newestAssetInfo(assetID crypto.Digest, filter bool) (*assetInfo, error) {
+func (a *assets) newestAssetInfo(assetID proto.AssetID, filter bool) (*assetInfo, error) {
 	constInfo, err := a.newestConstInfo(assetID)
 	if err != nil {
 		return nil, err
@@ -344,15 +352,15 @@ func (a *assets) newestAssetInfo(assetID crypto.Digest, filter bool) (*assetInfo
 
 // "Stable" asset info from database.
 // This should be used by external APIs.
-func (a *assets) assetInfo(assetID crypto.Digest, filter bool) (*assetInfo, error) {
-	constInfo, err := a.constInfo(assetID)
+func (a *assets) assetInfo(assetID proto.AssetID, filter bool) (*assetInfo, error) {
+	constInfo, err := a.constInfo(assetID) // `errs.UnknownAsset` error here
 	if err != nil {
 		return nil, err
 	}
 	histKey := assetHistKey{assetID: assetID}
 	recordBytes, err := a.hs.topEntryData(histKey.bytes(), filter)
 	if err != nil {
-		return nil, err
+		return nil, err // `keyvalue.ErrNotFound` or "empty history" errors here
 	}
 	var record assetHistoryRecord
 	if err := record.unmarshalBinary(recordBytes); err != nil {
@@ -373,9 +381,9 @@ func (a *assets) commitUncertain(blockID proto.BlockID) error {
 
 // dropUncertain() removes all uncertain changes.
 func (a *assets) dropUncertain() {
-	a.uncertainAssetInfo = make(map[crypto.Digest]assetInfo)
+	a.uncertainAssetInfo = make(map[proto.AssetID]assetInfo)
 }
 
 func (a *assets) reset() {
-	a.freshConstInfo = make(map[crypto.Digest]assetConstInfo)
+	a.freshConstInfo = make(map[proto.AssetID]assetConstInfo)
 }

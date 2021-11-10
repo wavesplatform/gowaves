@@ -12,10 +12,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-const (
-	defaultHeight = 100500
-)
-
 type blockDifferTestObjects struct {
 	stor        *testStorageObjects
 	blockDiffer *blockDiffer
@@ -65,7 +61,7 @@ func TestCreateBlockDiffWithoutNg(t *testing.T) {
 	}()
 
 	block, _ := genBlocks(t, to)
-	minerDiff, err := to.blockDiffer.createMinerDiff(&block.BlockHeader, true, defaultHeight, false)
+	minerDiff, err := to.blockDiffer.createMinerDiff(&block.BlockHeader, true, false)
 	require.NoError(t, err, "createMinerDiff() failed")
 	// Empty miner diff before NG activation.
 	assert.Equal(t, txDiff{}, minerDiff)
@@ -100,7 +96,7 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
 
 	// Create diff from child block.
-	minerDiff, err := to.blockDiffer.createMinerDiff(&child.BlockHeader, true, defaultHeight, false)
+	minerDiff, err := to.blockDiffer.createMinerDiff(&child.BlockHeader, true, false)
 	require.NoError(t, err, "createMinerDiff() failed")
 	// Verify child block miner's diff.
 	correctMinerAssetBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
@@ -145,14 +141,14 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	}
 	err = to.blockDiffer.saveCurFeeDistr(&parent.BlockHeader)
 	require.NoError(t, err, "saveCurFeeDistr() failed")
-	_, err = to.blockDiffer.createMinerDiff(&parent.BlockHeader, false, defaultHeight, false)
+	_, err = to.blockDiffer.createMinerDiff(&parent.BlockHeader, false, false)
 	require.NoError(t, err, "createMinerDiff() failed")
 	parentFeeTotal := int64(txs[0].GetFee() * FeeUnit / assetCost)
 	parentFeePrevBlock := parentFeeTotal / 5 * 2
 	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
 
 	// Create diff from child block.
-	minerDiff, err := to.blockDiffer.createMinerDiff(&child.BlockHeader, true, defaultHeight, false)
+	minerDiff, err := to.blockDiffer.createMinerDiff(&child.BlockHeader, true, false)
 	require.NoError(t, err, "createMinerDiff() failed")
 	// Verify child block miner's diff.
 	correctMinerWavesBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
@@ -213,7 +209,7 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 	// Second block
 	block2 := genBlockWithSingleTransaction(t, block1.BlockID(), block1.GenSignature, to)
 	to.stor.addBlock(t, block2.BlockID())
-	minerDiff, err := to.blockDiffer.createMinerDiff(&block2.BlockHeader, true, defaultHeight, false)
+	minerDiff, err := to.blockDiffer.createMinerDiff(&block2.BlockHeader, true, false)
 	require.NoError(t, err)
 
 	fee := defaultFee - defaultFee/5*2

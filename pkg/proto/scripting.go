@@ -227,7 +227,7 @@ func (a *LeaseScriptAction) ToProtobuf() (*g.InvokeScriptResult_Lease, error) {
 
 // GenerateLeaseScriptActionID implements ID generation used in RIDE to create new ID for a Lease action.
 func GenerateLeaseScriptActionID(recipient Recipient, amount int64, nonce int64, txID crypto.Digest) crypto.Digest {
-	rl := AddressSize
+	rl := WavesAddressSize
 	if recipient.Alias != nil {
 		rl = 4 + len(recipient.Alias.Alias)
 	}
@@ -444,7 +444,7 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 
 type ActionsValidationRestrictions struct {
 	DisableSelfTransfers     bool
-	ScriptAddress            Address
+	ScriptAddress            WavesAddress
 	KeySizeValidationVersion byte
 	MaxDataEntriesSize       int
 	Scheme                   byte

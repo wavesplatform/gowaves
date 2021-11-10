@@ -57,7 +57,7 @@ var (
 type testAddrData struct {
 	sk        crypto.SecretKey
 	pk        crypto.PublicKey
-	addr      proto.Address
+	addr      proto.WavesAddress
 	rcp       proto.Recipient
 	wavesKey  string
 	assetKeys []string
@@ -83,9 +83,9 @@ func defaultDifferInfo() *differInfo {
 	return &differInfo{false, defaultBlockInfo()}
 }
 
-func defaultAppendTxParams(t *testing.T) *appendTxParams {
+func defaultAppendTxParams() *appendTxParams {
 	return &appendTxParams{
-		checkerInfo:    defaultCheckerInfo(t),
+		checkerInfo:    defaultCheckerInfo(),
 		blockInfo:      defaultBlockInfo(),
 		block:          defaultBlock(),
 		acceptFailed:   false,
@@ -94,15 +94,15 @@ func defaultAppendTxParams(t *testing.T) *appendTxParams {
 	}
 }
 
-func defaultFallibleValidationParams(t *testing.T) *fallibleValidationParams {
-	appendTxPrms := defaultAppendTxParams(t)
+func defaultFallibleValidationParams() *fallibleValidationParams {
+	appendTxPrms := defaultAppendTxParams()
 	return &fallibleValidationParams{
 		appendTxParams: appendTxPrms,
 		senderScripted: false,
 	}
 }
 
-func newTestAddrData(seedStr string, assets [][]byte) (*testAddrData, error) {
+func newTestAddrData(seedStr string, assets []crypto.Digest) (*testAddrData, error) {
 	seedBytes, err := base58.Decode(seedStr)
 	if err != nil {
 		return nil, err
@@ -116,18 +116,18 @@ func newTestAddrData(seedStr string, assets [][]byte) (*testAddrData, error) {
 		return nil, err
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
-	wavesKey := string((&wavesBalanceKey{addr}).bytes())
+	wavesKey := string((&wavesBalanceKey{addr.ID()}).bytes())
 
 	assetKeys := make([]string, len(assets))
 	for i, a := range assets {
-		assetKeys[i] = string((&assetBalanceKey{addr, a}).bytes())
+		assetKeys[i] = string((&assetBalanceKey{addr.ID(), proto.AssetIDFromDigest(a)}).bytes())
 	}
 	return &testAddrData{sk: sk, pk: pk, addr: addr, rcp: rcp, wavesKey: wavesKey, assetKeys: assetKeys}, nil
 }
 
 type testAssetData struct {
 	asset   *proto.OptionalAsset
-	assetID []byte
+	assetID crypto.Digest
 }
 
 func newTestAssetData(assetStr string) (*testAssetData, error) {
@@ -139,7 +139,7 @@ func newTestAssetData(assetStr string) (*testAssetData, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &testAssetData{asset, assetID.Bytes()}, nil
+	return &testAssetData{asset, assetID}, nil
 }
 
 type testGlobalVars struct {
@@ -173,23 +173,23 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("newTestAssetData(): %v\n", err)
 	}
-	testGlobal.issuerInfo, err = newTestAddrData(issuerSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
+	testGlobal.issuerInfo, err = newTestAddrData(issuerSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.matcherInfo, err = newTestAddrData(matcherSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.matcherInfo, err = newTestAddrData(matcherSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.minerInfo, err = newTestAddrData(minerSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
+	testGlobal.minerInfo, err = newTestAddrData(minerSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.senderInfo, err = newTestAddrData(senderSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.senderInfo, err = newTestAddrData(senderSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
@@ -218,9 +218,10 @@ func defaultTestKeyValParams() keyvalue.KeyValParams {
 	return keyvalue.KeyValParams{CacheParams: defaultTestCacheParams(), BloomFilterParams: defaultTestBloomFilterParams()}
 }
 
-func defaultNFT() *assetInfo {
+func defaultNFT(tail [proto.AssetIDTailSize]byte) *assetInfo {
 	return &assetInfo{
 		assetConstInfo{
+			tail:     tail,
 			issuer:   testGlobal.issuerInfo.pk,
 			decimals: 0,
 		},
@@ -234,9 +235,10 @@ func defaultNFT() *assetInfo {
 	}
 }
 
-func defaultAssetInfo(reissuable bool) *assetInfo {
+func defaultAssetInfo(tail [12]byte, reissuable bool) *assetInfo {
 	return &assetInfo{
 		assetConstInfo: assetConstInfo{
+			tail:     tail,
 			issuer:   testGlobal.issuerInfo.pk,
 			decimals: 2,
 		},
@@ -342,15 +344,15 @@ func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
 
 func (s *testStorageObjects) createAssetUsingInfo(t *testing.T, assetID crypto.Digest, info *assetInfo) {
 	s.addBlock(t, blockID0)
-	err := s.entities.assets.issueAsset(assetID, info, blockID0)
+	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), info, blockID0)
 	assert.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
 }
 
 func (s *testStorageObjects) createAssetAtBlock(t *testing.T, assetID crypto.Digest, blockID proto.BlockID) *assetInfo {
 	s.addBlock(t, blockID)
-	assetInfo := defaultAssetInfo(true)
-	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID)
+	assetInfo := defaultAssetInfo(proto.DigestTail(assetID), true)
+	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, blockID)
 	assert.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
 	return assetInfo
@@ -358,10 +360,10 @@ func (s *testStorageObjects) createAssetAtBlock(t *testing.T, assetID crypto.Dig
 
 func (s *testStorageObjects) createAssetWithDecimals(t *testing.T, assetID crypto.Digest, decimals int) *assetInfo {
 	s.addBlock(t, blockID0)
-	assetInfo := defaultAssetInfo(true)
+	assetInfo := defaultAssetInfo(proto.DigestTail(assetID), true)
 	require.True(t, decimals >= 0)
 	assetInfo.decimals = int8(decimals)
-	err := s.entities.assets.issueAsset(assetID, assetInfo, blockID0)
+	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, blockID0)
 	assert.NoError(t, err, "issueAsset() failed")
 	s.flush(t)
 	return assetInfo

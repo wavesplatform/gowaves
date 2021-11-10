@@ -71,7 +71,7 @@ func (d *blockDiffer) appendBlockInfoToTxDiff(diff txDiff, block *proto.BlockHea
 	}
 }
 
-func (d *blockDiffer) txDiffFromFees(addr proto.Address, distr *feeDistribution) (txDiff, error) {
+func (d *blockDiffer) txDiffFromFees(addr proto.AddressID, distr *feeDistribution) (txDiff, error) {
 	diff := newTxDiff()
 	wavesKey := wavesBalanceKey{addr}
 	wavesDiff := distr.totalWavesFees - distr.currentWavesBlockFees
@@ -85,7 +85,7 @@ func (d *blockDiffer) txDiffFromFees(addr proto.Address, distr *feeDistribution)
 		if !ok {
 			return txDiff{}, errors.New("current fee for asset is not found")
 		}
-		assetKey := byteKey(addr, asset[:])
+		assetKey := byteKey(addr, *proto.NewOptionalAssetFromDigest(asset))
 		assetDiff := totalFee - curFee
 		if err := diff.appendBalanceDiff(assetKey, balanceDiff{balance: int64(assetDiff)}); err != nil {
 			return txDiff{}, err
@@ -94,16 +94,16 @@ func (d *blockDiffer) txDiffFromFees(addr proto.Address, distr *feeDistribution)
 	return diff, nil
 }
 
-func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID proto.BlockID, minerPK crypto.PublicKey, initialisation bool) (txDiff, proto.Address, error) {
+func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID proto.BlockID, minerPK crypto.PublicKey, initialisation bool) (txDiff, proto.WavesAddress, error) {
 	feeDistr, err := d.prevBlockFeeDistr(prevBlockID, initialisation)
 	if err != nil {
-		return txDiff{}, proto.Address{}, err
+		return txDiff{}, proto.WavesAddress{}, err
 	}
 	minerAddr, err := proto.NewAddressFromPublicKey(d.settings.AddressSchemeCharacter, minerPK)
 	if err != nil {
-		return txDiff{}, proto.Address{}, err
+		return txDiff{}, proto.WavesAddress{}, err
 	}
-	diff, err := d.txDiffFromFees(minerAddr, feeDistr)
+	diff, err := d.txDiffFromFees(minerAddr.ID(), feeDistr)
 	if err != nil {
 		return txDiff{}, minerAddr, err
 	}
@@ -159,10 +159,10 @@ func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
 	return nil
 }
 
-func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool, height uint64, initialisation bool) (txDiff, error) {
+func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool, initialisation bool) (txDiff, error) {
 	var err error
 	var minerDiff txDiff
-	var minerAddr proto.Address
+	var minerAddr proto.WavesAddress
 	if hasParent {
 		minerDiff, minerAddr, err = d.createPrevBlockMinerFeeDiff(block.Parent, block.GenPublicKey, initialisation)
 		if err != nil {
@@ -170,14 +170,14 @@ func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool, 
 		}
 		d.appendBlockInfoToTxDiff(minerDiff, block)
 	}
-	err = d.addBlockReward(minerDiff, minerAddr, block, height)
+	err = d.addBlockReward(minerDiff, minerAddr.ID(), block)
 	if err != nil {
 		return txDiff{}, err
 	}
 	return minerDiff, nil
 }
 
-func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.Address, block *proto.BlockHeader, blockchainHeight uint64) error {
+func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.AddressID, block *proto.BlockHeader) error {
 	activated, err := d.stor.features.newestIsActivated(int16(settings.BlockReward))
 	if err != nil {
 		return err

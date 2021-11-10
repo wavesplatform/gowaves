@@ -10,11 +10,11 @@ import (
 
 type AliasBind struct {
 	Alias   proto.Alias
-	Address proto.Address
+	Address proto.WavesAddress
 }
 
 type Account struct {
-	Address proto.Address
+	Address proto.WavesAddress
 	Alias   proto.Alias
 }
 

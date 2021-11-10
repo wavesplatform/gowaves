@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"testing"
@@ -16,7 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-//go:generate moq -pkg ride -out types_moq_test.go ../types SmartState:MockSmartState
+//go:generate moq -pkg ride -out smart_state_moq_test.go ../types SmartState:MockSmartState
 
 func TestExecution(t *testing.T) {
 	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
@@ -174,15 +173,14 @@ func TestFunctions(t *testing.T) {
 					}
 					return nil, errors.New("not found")
 				},
-				NewestAssetBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					if len(asset) == 0 {
+				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+					return 5, nil
+				},
+				NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+					if assetID == d {
 						return 5, nil
-					} else {
-						if bytes.Equal(asset, d.Bytes()) {
-							return 5, nil
-						}
-						return 0, nil
 					}
+					return 0, nil
 				},
 				NewestTransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
 					return transfer, nil

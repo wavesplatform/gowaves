@@ -134,7 +134,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 }
 
 func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
-	tree, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !params.initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAsset(proto.AssetIDFromDigest(assetID), !params.initialisation)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,10 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For asset script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, !params.initialisation)
+		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(
+			proto.AssetIDFromDigest(assetID),
+			!params.initialisation,
+		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 		}
@@ -198,7 +201,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	return a.callAssetScriptCommon(env, assetID, params)
 }
 
-func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, scriptAddress proto.Address) (bool, []proto.ScriptAction, error) {
+func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (bool, []proto.ScriptAction, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "failed to create RIDE environment")

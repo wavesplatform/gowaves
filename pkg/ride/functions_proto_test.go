@@ -96,7 +96,7 @@ func TestAssetBalanceV3(t *testing.T) {
 	te := &MockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
-				NewestAssetBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
+				NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
 					return 42, nil
 				},
 				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
@@ -133,7 +133,7 @@ func TestAssetBalanceV4(t *testing.T) {
 	te := &MockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
-				NewestAssetBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
+				NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
 					return 42, nil
 				},
 				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {

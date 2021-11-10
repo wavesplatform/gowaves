@@ -15,7 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-func isAddressInBL(dAppAddress proto.Address, blackList []proto.Address) bool {
+func isAddressInBL(dAppAddress proto.WavesAddress, blackList []proto.WavesAddress) bool {
 	for _, v := range blackList {
 		if v == dAppAddress {
 			return true
@@ -75,7 +75,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 
 	invocationParam := oldInvocationParam.copy()
 	invocationParam["caller"] = callerAddress
-	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(callerAddress))
+	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.WavesAddress(callerAddress))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get caller public key by address")
 	}
@@ -141,7 +141,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	}
 
 	if ws.invCount() > 1 {
-		if isAddressInBL(*recipient.Address, ws.blackList) && proto.Address(callerAddress) != *recipient.Address {
+		if isAddressInBL(*recipient.Address, ws.blackList) && proto.WavesAddress(callerAddress) != *recipient.Address {
 			return rideUnit{}, errors.Errorf("function call of %s with dApp address %s is forbiden because it had already been called once by 'invoke'", fnName, recipient.Address)
 		}
 	}
@@ -161,7 +161,7 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 			return nil, err
 		}
 
-		env.setNewDAppAddress(proto.Address(callerAddress))
+		env.setNewDAppAddress(proto.WavesAddress(callerAddress))
 		env.setInvocation(oldInvocationParam)
 
 		ws.totalComplexity += res.Complexity()
@@ -226,7 +226,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 
 	invocationParam := oldInvocationParam.copy()
 	invocationParam["caller"] = callerAddress
-	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(callerAddress))
+	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.WavesAddress(callerAddress))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get caller public key by address")
 	}
@@ -293,13 +293,13 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	}
 
 	// append a call to the stack to protect a user from the reentrancy attack
-	ws.blackList = append(ws.blackList, proto.Address(callerAddress)) // push
+	ws.blackList = append(ws.blackList, proto.WavesAddress(callerAddress)) // push
 	defer func() {
 		ws.blackList = ws.blackList[:len(ws.blackList)-1] // pop
 	}()
 
 	if ws.invCount() > 1 {
-		if isAddressInBL(*recipient.Address, ws.blackList) && proto.Address(callerAddress) != *recipient.Address {
+		if isAddressInBL(*recipient.Address, ws.blackList) && proto.WavesAddress(callerAddress) != *recipient.Address {
 			return rideUnit{}, errors.Errorf("function call of %s with dApp address %s is forbiden because it had already been called once by 'invoke'", fnName, recipient.Address)
 		}
 	}
@@ -319,7 +319,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 			return nil, err
 		}
 
-		env.setNewDAppAddress(proto.Address(callerAddress))
+		env.setNewDAppAddress(proto.WavesAddress(callerAddress))
 		env.setInvocation(oldInvocationParam)
 
 		ws.totalComplexity += res.Complexity()
@@ -451,16 +451,17 @@ func assetBalanceV3(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
 	var balance uint64
-	switch asset := args[1].(type) {
+	switch assetBytes := args[1].(type) {
 	case rideUnit:
 		balance, err = env.state().NewestWavesBalance(recipient)
 	case rideBytes:
-		if len(asset) != crypto.DigestSize {
+		asset, digestErr := crypto.NewDigestFromBytes(assetBytes)
+		if digestErr != nil {
 			return rideInt(0), nil // according to the scala node implementation
 		}
 		balance, err = env.state().NewestAssetBalance(recipient, asset)
 	default:
-		return nil, errors.Errorf("assetBalanceV3: unable to extract asset ID from '%s'", asset.instanceOf())
+		return nil, errors.Errorf("assetBalanceV3: unable to extract asset ID from '%s'", assetBytes.instanceOf())
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
@@ -476,11 +477,12 @@ func assetBalanceV4(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	asset, ok := args[1].(rideBytes)
+	assetBytes, ok := args[1].(rideBytes)
 	if !ok {
 		return nil, errors.Errorf("assetBalanceV4: unable to extract asset ID from '%s'", args[1].instanceOf())
 	}
-	if len(asset) != crypto.DigestSize {
+	asset, digestErr := crypto.NewDigestFromBytes(assetBytes)
+	if digestErr != nil {
 		return rideInt(0), nil // according to the scala node implementation
 	}
 	balance, err := env.state().NewestAssetBalance(recipient, asset)
@@ -511,7 +513,7 @@ func intFromSelfState(env Environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return rideUnit{}, nil
 	}
-	r := proto.NewRecipientFromAddress(proto.Address(a))
+	r := proto.NewRecipientFromAddress(proto.WavesAddress(a))
 	entry, err := env.state().RetrieveNewestIntegerEntry(r, k)
 	if err != nil {
 		return rideUnit{}, nil
@@ -540,7 +542,7 @@ func bytesFromSelfState(env Environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return rideUnit{}, nil
 	}
-	r := proto.NewRecipientFromAddress(proto.Address(a))
+	r := proto.NewRecipientFromAddress(proto.WavesAddress(a))
 	entry, err := env.state().RetrieveNewestBinaryEntry(r, k)
 	if err != nil {
 		return rideUnit{}, nil
@@ -569,7 +571,7 @@ func stringFromSelfState(env Environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return rideUnit{}, nil
 	}
-	r := proto.NewRecipientFromAddress(proto.Address(a))
+	r := proto.NewRecipientFromAddress(proto.WavesAddress(a))
 	entry, err := env.state().RetrieveNewestStringEntry(r, k)
 	if err != nil {
 		return rideUnit{}, nil
@@ -598,7 +600,7 @@ func booleanFromSelfState(env Environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return rideUnit{}, nil
 	}
-	r := proto.NewRecipientFromAddress(proto.Address(a))
+	r := proto.NewRecipientFromAddress(proto.WavesAddress(a))
 	entry, err := env.state().RetrieveNewestBooleanEntry(r, k)
 	if err != nil {
 		return rideUnit{}, nil
@@ -827,10 +829,10 @@ func addressToString(_ Environment, args ...rideType) (rideType, error) {
 	}
 	switch a := args[0].(type) {
 	case rideAddress:
-		return rideString(proto.Address(a).String()), nil
+		return rideString(proto.WavesAddress(a).String()), nil
 	case rideRecipient:
 		if a.Address == nil {
-			return nil, errors.Errorf("addressToString: recipient is not an Address '%s'", args[0].instanceOf())
+			return nil, errors.Errorf("addressToString: recipient is not an WavesAddress '%s'", args[0].instanceOf())
 		}
 		return rideString(a.Address.String()), nil
 	case rideAddressLike:
@@ -1579,7 +1581,7 @@ func extractRecipient(v rideType) (proto.Recipient, error) {
 	var r proto.Recipient
 	switch a := v.(type) {
 	case rideAddress:
-		r = proto.NewRecipientFromAddress(proto.Address(a))
+		r = proto.NewRecipientFromAddress(proto.WavesAddress(a))
 	case rideAlias:
 		r = proto.NewRecipientFromAlias(proto.Alias(a))
 	case rideRecipient:

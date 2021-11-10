@@ -207,7 +207,7 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams, isRideV5Acti
 	// Therefore, the extra fee for smart fee asset below is also wrong, but it must be there,
 	// again for compatibility with Scala.
 	if params.txAssets.feeAsset.Present {
-		hasScript, err := params.stor.scriptsStorage.newestIsSmartAsset(params.txAssets.feeAsset.ID, !params.initialisation)
+		hasScript, err := params.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(params.txAssets.feeAsset.ID), !params.initialisation)
 		if err != nil {
 			return nil, err
 		}
@@ -235,36 +235,43 @@ func minFeeInWaves(tx proto.Transaction, params *feeValidationParams, isRideV5Ac
 func checkMinFeeWaves(tx proto.Transaction, params *feeValidationParams, isRideV5Activated bool, estimatorVersion int) error {
 	minWaves, err := minFeeInWaves(tx, params, isRideV5Activated, estimatorVersion)
 	if err != nil {
-		return errors.Errorf("failed to calculate min fee in Waves: %v\n", err)
+		return errors.Errorf("failed to calculate min fee in Waves: %v", err)
 	}
 	fee := tx.GetFee()
 	if fee < minWaves.total {
 		feeInfoStr := minWaves.toString()
-		return errs.NewFeeValidation(fmt.Sprintf("Fee %d does not exceed minimal value of %d WAVES. %s", fee, minWaves.total, feeInfoStr))
+		return errs.NewFeeValidation(fmt.Sprintf("Fee %d does not exceed minimal value of %d WAVES. %s",
+			fee, minWaves.total, feeInfoStr,
+		))
 	}
 	return nil
 }
 
 func checkMinFeeAsset(tx proto.Transaction, feeAssetID crypto.Digest, params *feeValidationParams, isRideV5Activated bool, estimatorVersion int) error {
-	isSponsored, err := params.stor.sponsoredAssets.newestIsSponsored(feeAssetID, !params.initialisation)
+	shortFeeAssetID := proto.AssetIDFromDigest(feeAssetID)
+	isSponsored, err := params.stor.sponsoredAssets.newestIsSponsored(shortFeeAssetID, !params.initialisation)
 	if err != nil {
 		return errors.Errorf("newestIsSponsored: %v", err)
 	}
 	if !isSponsored {
-		return errs.NewTxValidationError(fmt.Sprintf("Asset %s is not sponsored, cannot be used to pay fees", feeAssetID.String()))
+		return errs.NewTxValidationError(fmt.Sprintf("Asset %s is not sponsored, cannot be used to pay fees",
+			feeAssetID.String(),
+		))
 	}
 	minWaves, err := minFeeInWaves(tx, params, isRideV5Activated, estimatorVersion)
 	if err != nil {
-		return errors.Errorf("failed to calculate min fee in Waves: %v\n", err)
+		return errors.Errorf("failed to calculate min fee in Waves: %v", err)
 	}
-	minAsset, err := params.stor.sponsoredAssets.wavesToSponsoredAsset(feeAssetID, minWaves.total)
+	minAsset, err := params.stor.sponsoredAssets.wavesToSponsoredAsset(shortFeeAssetID, minWaves.total)
 	if err != nil {
-		return errors.Errorf("wavesToSponsoredAsset() failed: %v\n", err)
+		return errors.Errorf("wavesToSponsoredAsset() failed: %v", err)
 	}
 	fee := tx.GetFee()
 	if fee < minAsset {
 		feeInfoStr := minWaves.toString()
-		return errs.NewFeeValidation(fmt.Sprintf("does not exceed minimal value of 100000 WAVES or %d %s. %s", minAsset, feeAssetID, feeInfoStr))
+		return errs.NewFeeValidation(fmt.Sprintf("does not exceed minimal value of 100000 WAVES or %d %s. %s",
+			minAsset, feeAssetID, feeInfoStr,
+		))
 	}
 	return nil
 }
