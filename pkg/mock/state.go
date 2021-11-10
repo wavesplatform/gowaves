@@ -372,6 +372,21 @@ func (mr *MockStateInfoMockRecorder) FullWavesBalance(account interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockStateInfo)(nil).FullWavesBalance), account)
 }
 
+// GetByteTree mocks base method.
+func (m *MockStateInfo) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByteTree", recipient)
+	ret0, _ := ret[0].(proto.Script)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByteTree indicates an expected call of GetByteTree.
+func (mr *MockStateInfoMockRecorder) GetByteTree(recipient interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByteTree", reflect.TypeOf((*MockStateInfo)(nil).GetByteTree), recipient)
+}
+
 // Header mocks base method.
 func (m *MockStateInfo) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	m.ctrl.T.Helper()
@@ -1530,6 +1545,21 @@ func (m *MockState) FullWavesBalance(account proto.Recipient) (*proto.FullWavesB
 func (mr *MockStateMockRecorder) FullWavesBalance(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockState)(nil).FullWavesBalance), account)
+}
+
+// GetByteTree mocks base method.
+func (m *MockState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByteTree", recipient)
+	ret0, _ := ret[0].(proto.Script)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByteTree indicates an expected call of GetByteTree.
+func (mr *MockStateMockRecorder) GetByteTree(recipient interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByteTree", reflect.TypeOf((*MockState)(nil).GetByteTree), recipient)
 }
 
 // Header mocks base method.

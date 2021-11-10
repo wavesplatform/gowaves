@@ -3,6 +3,7 @@ package metamask
 import (
 	"context"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -185,25 +186,39 @@ func (s RPCService) Eth_estimateGas(req EstimateGasRequest) (string, error) {
 		}
 		return strconv.Itoa(fee), nil
 	case state.EthereumInvokeKind:
-		//fee := proto.MinFeeInvokeScript
-		//
-		//scriptAddr, err := req.To.ToWavesAddress(s.nodeRPCApp.Scheme)
-		//if err != nil {
-		//	return "", err
-		//}
-		//tree, err := s.nodeRPCApp..scriptsStorage.newestScriptByAddr(scriptAddr, !params.initialisation)
-		//if err != nil {
-		//	return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
-		//}
-		//db, err := ethabi.NewMethodsMapFromRideDAppMeta(tree.Meta)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//decodedData, err := db.ParseCallDataRide(ethTx.Data())
-		//if err != nil {
-		//	return nil, errors.Errorf("failed to parse ethereum data, %v", err)
-		//}
-		return "", nil
+		fee := proto.MinFeeInvokeScript
+
+		scriptAddr, err := req.To.ToWavesAddress(s.nodeRPCApp.Scheme)
+		if err != nil {
+			return "", err
+		}
+		script, err := s.nodeRPCApp.State.GetByteTree(proto.NewRecipientFromAddress(scriptAddr))
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to get script by address '%s'", scriptAddr.String())
+		}
+		tree, err := ride.Parse(script)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to get tree by script")
+		}
+		db, err := ethabi.NewMethodsMapFromRideDAppMeta(tree.Meta)
+		if err != nil {
+			return "", err
+		}
+		decodedData, err := db.ParseCallDataRide(data)
+		if err != nil {
+			return "", errors.Errorf("failed to parse ethereum data, %v", err)
+		}
+		for _, payment := range decodedData.Payments {
+			assetID := proto.AssetIDFromDigest(payment.AssetID)
+			asset, err := s.nodeRPCApp.State.AssetInfoByID(assetID, true)
+			if err != nil {
+				return "", errors.Errorf("failed to get asset info, %v", err)
+			}
+			if asset.Scripted {
+				fee += proto.MinFeeScriptedAsset
+			}
+		}
+		return strconv.Itoa(fee), nil
 	default:
 		return "", errors.Errorf("unexpected ethereum tx kind")
 	}
