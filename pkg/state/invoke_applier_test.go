@@ -19,7 +19,7 @@ import (
 
 var (
 	invokeFee = FeeUnit * feeConstants[proto.InvokeScriptTransaction]
-	feeAsset  = proto.OptionalAsset{Present: false}
+	feeAsset  = proto.NewOptionalAssetWaves()
 )
 
 func invokeSenderRecipient() (proto.Recipient, proto.Recipient) {

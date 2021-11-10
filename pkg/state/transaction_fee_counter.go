@@ -41,7 +41,7 @@ func (tf *transactionFeeCounter) minerFee(distr *feeDistribution, fee uint64, as
 			return err
 		}
 		// Asset is now Waves.
-		asset.Present = false
+		asset = proto.NewOptionalAssetWaves()
 	}
 	ngActivated, err := tf.stor.features.newestIsActivatedForNBlocks(int16(settings.NG), 1)
 	if err != nil {
@@ -64,7 +64,7 @@ func (tf *transactionFeeCounter) minerFeePayment(transaction proto.Transaction, 
 	if !ok {
 		return errors.New("failed to convert interface to Payment tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeTransferWithSig(transaction proto.Transaction, distr *feeDistribution) error {
@@ -88,7 +88,7 @@ func (tf *transactionFeeCounter) minerFeeIssueWithSig(transaction proto.Transact
 	if !ok {
 		return errors.New("failed to convert interface to IssueWithSig tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeIssueWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
@@ -96,7 +96,7 @@ func (tf *transactionFeeCounter) minerFeeIssueWithProofs(transaction proto.Trans
 	if !ok {
 		return errors.New("failed to convert interface to IssueWithProofs tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeReissueWithSig(transaction proto.Transaction, distr *feeDistribution) error {
@@ -104,7 +104,7 @@ func (tf *transactionFeeCounter) minerFeeReissueWithSig(transaction proto.Transa
 	if !ok {
 		return errors.New("failed to convert interface to ReissueWithSig tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeReissueWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
@@ -112,7 +112,7 @@ func (tf *transactionFeeCounter) minerFeeReissueWithProofs(transaction proto.Tra
 	if !ok {
 		return errors.New("failed to convert interface to ReissueWithProofs tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeBurnWithSig(transaction proto.Transaction, distr *feeDistribution) error {
@@ -120,7 +120,7 @@ func (tf *transactionFeeCounter) minerFeeBurnWithSig(transaction proto.Transacti
 	if !ok {
 		return errors.New("failed to convert interface to BurnWithSig tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeBurnWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
@@ -128,7 +128,7 @@ func (tf *transactionFeeCounter) minerFeeBurnWithProofs(transaction proto.Transa
 	if !ok {
 		return errors.New("failed to convert interface to BurnWithProofs tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeExchange(transaction proto.Transaction, distr *feeDistribution) error {
@@ -136,7 +136,7 @@ func (tf *transactionFeeCounter) minerFeeExchange(transaction proto.Transaction,
 	if !ok {
 		return errors.New("failed to convert interface to Exchange tx")
 	}
-	return tf.minerFee(distr, tx.GetFee(), proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.GetFee(), proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeLeaseWithSig(transaction proto.Transaction, distr *feeDistribution) error {
@@ -144,7 +144,7 @@ func (tf *transactionFeeCounter) minerFeeLeaseWithSig(transaction proto.Transact
 	if !ok {
 		return errors.New("failed to convert interface to LeaseWithSig tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeLeaseWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
@@ -152,7 +152,7 @@ func (tf *transactionFeeCounter) minerFeeLeaseWithProofs(transaction proto.Trans
 	if !ok {
 		return errors.New("failed to convert interface to LeaseWithProofs tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeLeaseCancelWithSig(transaction proto.Transaction, distr *feeDistribution) error {
@@ -160,7 +160,7 @@ func (tf *transactionFeeCounter) minerFeeLeaseCancelWithSig(transaction proto.Tr
 	if !ok {
 		return errors.New("failed to convert interface to LeaseCancelWithSig tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeLeaseCancelWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
@@ -168,7 +168,7 @@ func (tf *transactionFeeCounter) minerFeeLeaseCancelWithProofs(transaction proto
 	if !ok {
 		return errors.New("failed to convert interface to LeaseCancelWithProofs tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeCreateAliasWithSig(transaction proto.Transaction, distr *feeDistribution) error {
@@ -176,7 +176,7 @@ func (tf *transactionFeeCounter) minerFeeCreateAliasWithSig(transaction proto.Tr
 	if !ok {
 		return errors.New("failed to convert interface to CreateAliasWithSig tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeCreateAliasWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
@@ -184,7 +184,7 @@ func (tf *transactionFeeCounter) minerFeeCreateAliasWithProofs(transaction proto
 	if !ok {
 		return errors.New("failed to convert interface to CreateAliasWithProofs tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeMassTransferWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
@@ -192,7 +192,7 @@ func (tf *transactionFeeCounter) minerFeeMassTransferWithProofs(transaction prot
 	if !ok {
 		return errors.New("failed to convert interface to MassTransferWithProofs tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeDataWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
@@ -200,7 +200,7 @@ func (tf *transactionFeeCounter) minerFeeDataWithProofs(transaction proto.Transa
 	if !ok {
 		return errors.New("failed to convert interface to DataWithProofs tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeSponsorshipWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
@@ -208,7 +208,7 @@ func (tf *transactionFeeCounter) minerFeeSponsorshipWithProofs(transaction proto
 	if !ok {
 		return errors.New("failed to convert interface to SponsorshipWithProofs tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeSetScriptWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
@@ -216,7 +216,7 @@ func (tf *transactionFeeCounter) minerFeeSetScriptWithProofs(transaction proto.T
 	if !ok {
 		return errors.New("failed to convert interface to SetScriptWithProofs tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeSetAssetScriptWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
@@ -224,7 +224,7 @@ func (tf *transactionFeeCounter) minerFeeSetAssetScriptWithProofs(transaction pr
 	if !ok {
 		return errors.New("failed to convert interface to SetAssetScriptWithProofs tx")
 	}
-	return tf.minerFee(distr, tx.Fee, proto.OptionalAsset{Present: false})
+	return tf.minerFee(distr, tx.Fee, proto.NewOptionalAssetWaves())
 }
 
 func (tf *transactionFeeCounter) minerFeeInvokeScriptWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
