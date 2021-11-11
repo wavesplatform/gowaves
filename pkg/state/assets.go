@@ -32,27 +32,28 @@ func (ai *assetInfo) equal(ai1 *assetInfo) bool {
 
 // assetConstInfo is part of asset info which is constant.
 type assetConstInfo struct {
-	tail     [12]byte
+	tail     [proto.AssetIDTailSize]byte
 	issuer   crypto.PublicKey
 	decimals int8
 }
 
 func (ai *assetConstInfo) marshalBinary() ([]byte, error) {
-	res := make([]byte, 12+crypto.PublicKeySize+1)
+	res := make([]byte, proto.AssetIDTailSize+crypto.PublicKeySize+1)
 	copy(res, ai.tail[:])
-	if err := ai.issuer.WriteTo(res[12:]); err != nil {
+	if err := ai.issuer.WriteTo(res[proto.AssetIDTailSize:]); err != nil {
 		return nil, err
 	}
-	res[12+crypto.PublicKeySize] = byte(ai.decimals)
+	res[proto.AssetIDTailSize+crypto.PublicKeySize] = byte(ai.decimals)
 	return res, nil
 }
 
 func (ai *assetConstInfo) unmarshalBinary(data []byte) error {
-	if len(data) < 12+crypto.PublicKeySize+1 {
-		return errors.New("invalid data size")
+	const assetConstInfoSize = proto.AssetIDTailSize + crypto.PublicKeySize + 1
+	if len(data) < assetConstInfoSize {
+		return errors.Errorf("invalid data size: want %d, got %d", assetConstInfoSize, len(data))
 	}
-	copy(ai.tail[:], data[:12])
-	data = data[12:]
+	copy(ai.tail[:], data[:proto.AssetIDTailSize])
+	data = data[proto.AssetIDTailSize:]
 	err := ai.issuer.UnmarshalBinary(data[:crypto.PublicKeySize])
 	if err != nil {
 		return err
