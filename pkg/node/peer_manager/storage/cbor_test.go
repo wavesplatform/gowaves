@@ -1,17 +1,18 @@
 package storage
 
 import (
-	"github.com/fxamacker/cbor/v2"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/fxamacker/cbor/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func TestMarshalUnmarshalCborFromFile(t *testing.T) {
@@ -97,7 +98,7 @@ func (s *binaryStorageCborSuite) SetupTest() {
 		}
 	}()
 	now := time.Now()
-	storage, err := newCBORStorageInDir(tmpdir, now)
+	storage, err := newCBORStorageInDir(tmpdir, now, peersStorageCurrentVersion)
 	require.NoError(s.T(), err)
 
 	s.storage = storage
@@ -134,8 +135,8 @@ func (s *binaryStorageCborSuite) TestCBORStorageKnown() {
 
 		// nickeskov: check that all data saved in cache
 		cachedKnown := make(knownPeers)
-		for _, k := range s.storage.Known() {
-			cachedKnown[k] = struct{}{}
+		for _, k := range s.storage.Known(10) {
+			cachedKnown[k] = 0
 		}
 
 		for k := range cachedKnown {
@@ -296,7 +297,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageSuspended() {
 		}()
 
 		newNow := now.Add(suspendDuration)
-		storage, err := newCBORStorageInDir(s.storage.storageDir, newNow)
+		storage, err := newCBORStorageInDir(s.storage.storageDir, newNow, peersStorageCurrentVersion)
 		require.NoError(s.T(), err)
 		s.storage = storage
 
@@ -332,7 +333,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageSuspended() {
 	})
 }
 
-func (s *binaryStorageCborSuite) TestCBORStorageDrops() {
+func (s *binaryStorageCborSuite) TestCBORStorageDropsAndVersioning() {
 	suspendDuration := time.Minute * 5
 	now := s.now.Truncate(time.Millisecond)
 	suspended := []SuspendedPeer{
@@ -384,7 +385,7 @@ func (s *binaryStorageCborSuite) TestCBORStorageDrops() {
 	checkKnownStorageFile := func() {
 		var unmarshalled knownPeers
 		require.Equal(s.T(), io.EOF, unmarshalCborFromFile(s.storage.knownFilePath, &unmarshalled))
-		require.Empty(s.T(), s.storage.Known())
+		require.Empty(s.T(), s.storage.Known(10))
 	}
 
 	s.Run("drop suspended peers", func() {
@@ -417,6 +418,33 @@ func (s *binaryStorageCborSuite) TestCBORStorageDrops() {
 
 		err := s.storage.DropStorage()
 		require.NoError(s.T(), err)
+
+		checkSuspendedStorageFile()
+		checkKnownStorageFile()
+	})
+
+	s.Run("drop peers storage in case of different version", func() {
+		versionFilePath := storageVersionFilePath(s.storage.storageDir)
+		defer func() {
+			storage, err := newCBORStorageInDir(s.storage.storageDir, s.now, peersStorageCurrentVersion)
+			require.NoError(s.T(), err)
+			s.storage = storage
+
+			version, err := getPeersStorageVersion(versionFilePath)
+			require.NoError(s.T(), err)
+			require.Equal(s.T(), peersStorageCurrentVersion, version)
+
+			require.NoError(s.T(), s.storage.AddSuspended(suspended))
+			require.NoError(s.T(), s.storage.AddKnown(known))
+		}()
+
+		storage, err := newCBORStorageInDir(s.storage.storageDir, s.now, -1)
+		require.NoError(s.T(), err)
+		s.storage = storage
+
+		version, err := getPeersStorageVersion(versionFilePath)
+		require.NoError(s.T(), err)
+		require.Equal(s.T(), -1, version)
 
 		checkSuspendedStorageFile()
 		checkKnownStorageFile()

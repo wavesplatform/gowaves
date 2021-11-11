@@ -56,13 +56,28 @@ func newInvokeApplier(
 }
 
 type payment struct {
-	sender   proto.Address
-	receiver proto.Address
+	sender   proto.WavesAddress
+	receiver proto.WavesAddress
 	amount   uint64
 	asset    proto.OptionalAsset
 }
 
-func (ia *invokeApplier) newPaymentFromTransferScriptAction(senderAddress proto.Address, action *proto.TransferScriptAction) (*payment, error) {
+func (ia *invokeApplier) newPaymentFromTransferScriptAction(senderAddress proto.WavesAddress, action *proto.TransferScriptAction) (*payment, error) {
+	if action.Recipient.Address == nil {
+		return nil, errors.New("transfer has unresolved aliases")
+	}
+	if action.Amount < 0 {
+		return nil, errors.New("negative transfer amount")
+	}
+	return &payment{
+		sender:   senderAddress,
+		receiver: *action.Recipient.Address,
+		amount:   uint64(action.Amount),
+		asset:    action.Asset,
+	}, nil
+}
+
+func (ia *invokeApplier) newPaymentFromAttachedPaymentAction(senderAddress proto.WavesAddress, action *proto.AttachedPaymentScriptAction) (*payment, error) {
 	if action.Recipient.Address == nil {
 		return nil, errors.New("transfer has unresolved aliases")
 	}
@@ -79,12 +94,12 @@ func (ia *invokeApplier) newPaymentFromTransferScriptAction(senderAddress proto.
 
 func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediateBalance bool) (txDiff, error) {
 	diff := newTxDiff()
-	senderKey := byteKey(pmt.sender, pmt.asset.ToID())
+	senderKey := byteKey(pmt.sender.ID(), pmt.asset)
 	senderBalanceDiff := -int64(pmt.amount)
 	if err := diff.appendBalanceDiff(senderKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err
 	}
-	receiverKey := byteKey(pmt.receiver, pmt.asset.ToID())
+	receiverKey := byteKey(pmt.receiver.ID(), pmt.asset)
 	receiverBalanceDiff := int64(pmt.amount)
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txDiff{}, err
@@ -92,7 +107,7 @@ func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediat
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.Address, action *proto.TransferScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.WavesAddress, action *proto.TransferScriptAction) (txDiff, error) {
 	pmt, err := ia.newPaymentFromTransferScriptAction(scriptAddr, action)
 	if err != nil {
 		return txDiff{}, err
@@ -102,9 +117,19 @@ func (ia *invokeApplier) newTxDiffFromScriptTransfer(scriptAddr proto.Address, a
 	return ia.newTxDiffFromPayment(pmt, false)
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptIssue(senderAddress proto.Address, action *proto.IssueScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromAttachedPaymentAction(scriptAddr proto.WavesAddress, action *proto.AttachedPaymentScriptAction) (txDiff, error) {
+	pmt, err := ia.newPaymentFromAttachedPaymentAction(scriptAddr, action)
+	if err != nil {
+		return txDiff{}, err
+	}
+	// updateMinIntermediateBalance is set to false here, because in Scala implementation
+	// only fee and payments are checked for temporary negative balance.
+	return ia.newTxDiffFromPayment(pmt, false)
+}
+
+func (ia *invokeApplier) newTxDiffFromScriptIssue(senderAddress proto.AddressID, action *proto.IssueScriptAction) (txDiff, error) {
 	diff := newTxDiff()
-	senderAssetKey := assetBalanceKey{address: senderAddress, asset: action.ID[:]}
+	senderAssetKey := assetBalanceKey{address: senderAddress, asset: proto.AssetIDFromDigest(action.ID)}
 	senderAssetBalanceDiff := action.Quantity
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
@@ -112,9 +137,9 @@ func (ia *invokeApplier) newTxDiffFromScriptIssue(senderAddress proto.Address, a
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptReissue(senderAddress proto.Address, action *proto.ReissueScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptReissue(senderAddress proto.AddressID, action *proto.ReissueScriptAction) (txDiff, error) {
 	diff := newTxDiff()
-	senderAssetKey := assetBalanceKey{address: senderAddress, asset: action.AssetID[:]}
+	senderAssetKey := assetBalanceKey{address: senderAddress, asset: proto.AssetIDFromDigest(action.AssetID)}
 	senderAssetBalanceDiff := action.Quantity
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
@@ -122,9 +147,9 @@ func (ia *invokeApplier) newTxDiffFromScriptReissue(senderAddress proto.Address,
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptBurn(senderAddress proto.Address, action *proto.BurnScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptBurn(senderAddress proto.AddressID, action *proto.BurnScriptAction) (txDiff, error) {
 	diff := newTxDiff()
-	senderAssetKey := assetBalanceKey{address: senderAddress, asset: action.AssetID[:]}
+	senderAssetKey := assetBalanceKey{address: senderAddress, asset: proto.AssetIDFromDigest(action.AssetID)}
 	senderAssetBalanceDiff := -action.Quantity
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return nil, err
@@ -132,7 +157,7 @@ func (ia *invokeApplier) newTxDiffFromScriptBurn(senderAddress proto.Address, ac
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddress proto.Address, action *proto.LeaseScriptAction) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddress proto.AddressID, action *proto.LeaseScriptAction) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := wavesBalanceKey{address: senderAddress}
 	receiverKey := wavesBalanceKey{address: recipientAddress}
@@ -145,14 +170,14 @@ func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddres
 	return diff, nil
 }
 
-func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(senderAddress proto.Address, leaseInfo *leasing) (txDiff, error) {
+func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(senderAddress proto.AddressID, leaseInfo *leasing) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := wavesBalanceKey{address: senderAddress}
 	senderLeaseOutDiff := -int64(leaseInfo.Amount)
 	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(0, 0, senderLeaseOutDiff, false)); err != nil {
 		return nil, err
 	}
-	receiverKey := wavesBalanceKey{address: leaseInfo.Recipient}
+	receiverKey := wavesBalanceKey{address: leaseInfo.Recipient.ID()}
 	receiverLeaseInDiff := -int64(leaseInfo.Amount)
 	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, receiverLeaseInDiff, 0, false)); err != nil {
 		return nil, err
@@ -217,26 +242,32 @@ func (ia *invokeApplier) countEmptyDataEntryKeys(actions []proto.ScriptAction) u
 	return out
 }
 
-func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, initialisation bool) uint64 {
+func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction, initialisation bool) (uint64, error) {
 	scriptRuns := uint64(0)
 	for _, action := range actions {
-		var assetID crypto.Digest
+		var assetID proto.AssetID
 		switch a := action.(type) {
 		case *proto.TransferScriptAction:
-			assetID = a.Asset.ID
+			if !a.Asset.Present {
+				continue // This is waves asset and it can't be scripted
+			}
+			assetID = proto.AssetIDFromDigest(a.Asset.ID)
 		case *proto.ReissueScriptAction:
-			assetID = a.AssetID
+			assetID = proto.AssetIDFromDigest(a.AssetID)
 		case *proto.BurnScriptAction:
-			assetID = a.AssetID
+			assetID = proto.AssetIDFromDigest(a.AssetID)
 		default:
 			continue
 		}
-		isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(assetID, initialisation)
+		isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(assetID, initialisation)
+		if err != nil {
+			return 0, errors.Wrap(err, "something wrong with state")
+		}
 		if isSmartAsset {
 			scriptRuns++
 		}
 	}
-	return scriptRuns
+	return scriptRuns, nil
 }
 
 func errorForSmartAsset(res ride.Result, asset crypto.Digest) error {
@@ -253,7 +284,7 @@ func errorForSmartAsset(res ride.Result, asset crypto.Digest) error {
 type addlInvokeInfo struct {
 	*fallibleValidationParams
 
-	scriptAddr           *proto.Address
+	scriptAddr           *proto.WavesAddress
 	scriptPK             crypto.PublicKey
 	scriptRuns           uint64
 	failedChanges        txBalanceChanges
@@ -263,7 +294,7 @@ type addlInvokeInfo struct {
 	libVersion           byte
 }
 
-func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction, info *addlInvokeInfo) (crypto.PublicKey, proto.Address, error) {
+func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction, info *addlInvokeInfo) (crypto.PublicKey, proto.WavesAddress, error) {
 	senderPK := info.scriptPK
 	senderAddress := *info.scriptAddr
 	if a.SenderPK() != nil {
@@ -271,7 +302,7 @@ func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction,
 		senderPK = *a.SenderPK()
 		senderAddress, err = proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, senderPK)
 		if err != nil {
-			return crypto.PublicKey{}, proto.Address{}, err
+			return crypto.PublicKey{}, proto.WavesAddress{}, err
 		}
 	}
 	return senderPK, senderAddress, nil
@@ -298,9 +329,14 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 	if info.libVersion >= 4 {
 		keySizeValidationVersion = 2
 	}
+	maxDataEntriesSize := proto.MaxDataEntriesScriptActionsSizeInBytesV1
+	if info.blockV5Activated {
+		maxDataEntriesSize = proto.MaxDataEntriesScriptActionsSizeInBytesV2
+	}
 	restrictions := proto.ActionsValidationRestrictions{
 		DisableSelfTransfers:     info.disableSelfTransfers,
 		KeySizeValidationVersion: keySizeValidationVersion,
+		MaxDataEntriesSize:       maxDataEntriesSize,
 	}
 
 	if err := proto.ValidateActions(info.actions, restrictions, int(info.libVersion)); err != nil {
@@ -347,7 +383,13 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if !assetExists {
 				return proto.DAppError, info.failedChanges, errors.New("invalid asset in transfer")
 			}
-			isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(a.Asset.ID, !info.initialisation)
+			var isSmartAsset bool
+			if a.Asset.Present {
+				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
+				if err != nil {
+					return proto.DAppError, info.failedChanges, errors.Wrap(err, "something wrong with state")
+				}
+			}
 			if isSmartAsset {
 				fullTr, err := proto.NewFullScriptTransfer(a, senderAddress, info.scriptPK, tx)
 				if err != nil {
@@ -377,11 +419,56 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					return proto.DAppError, info.failedChanges, err
 				}
 			}
+		case *proto.AttachedPaymentScriptAction:
+			// Perform transfers.
+			recipientAddress := a.Recipient.Address
+			totalChanges.appendAddr(*recipientAddress)
+			assetExists := ia.stor.assets.newestAssetExists(a.Asset, !info.initialisation)
+			if !assetExists {
+				return proto.DAppError, info.failedChanges, errors.New("invalid asset in transfer")
+			}
+			var isSmartAsset bool
+			if a.Asset.Present {
+				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID), !info.initialisation)
+				if err != nil {
+					return proto.DAppError, info.failedChanges, errors.Wrap(err, "something wrong with state")
+				}
+			}
+			if isSmartAsset {
+				fullTr, err := proto.NewFullScriptTransferFromPaymentAction(a, senderAddress, info.scriptPK, tx)
+				if err != nil {
+					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to convert transfer to full script transfer")
+				}
+				// Call asset script if transferring smart asset.
+				res, err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, info.appendTxParams)
+				if err != nil {
+					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to call asset script on transfer set")
+				}
+				if !res.Result() {
+					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(res, a.Asset.ID)
+				}
+			}
+			txDiff, err := ia.newTxDiffFromAttachedPaymentAction(senderAddress, a)
+			if err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			// diff must be saved to storage, because further asset scripts must take
+			// recent balance changes into account.
+			if err := ia.saveIntermediateDiff(txDiff); err != nil {
+				return proto.DAppError, info.failedChanges, err
+			}
+			// Append intermediate diff to common diff.
+			for key, balanceDiff := range txDiff {
+				if err := totalChanges.diff.appendBalanceDiffStr(key, balanceDiff); err != nil {
+					return proto.DAppError, info.failedChanges, err
+				}
+			}
 
 		case *proto.IssueScriptAction:
 			// Create asset's info.
 			assetInfo := &assetInfo{
 				assetConstInfo: assetConstInfo{
+					tail:     proto.DigestTail(a.ID),
 					issuer:   senderPK,
 					decimals: int8(a.Decimals),
 				},
@@ -392,12 +479,13 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 					reissuable:  a.Reissuable,
 				},
 			}
-			ia.stor.assets.issueAssetUncertain(a.ID, assetInfo)
+			id := proto.AssetIDFromDigest(a.ID)
+			ia.stor.assets.issueAssetUncertain(id, assetInfo)
 			// Currently asset script is always empty.
 			// TODO: if this script is ever set, don't forget to
 			// also save complexity for it here using saveComplexityForAsset().
 			ia.stor.scriptsStorage.setAssetScriptUncertain(a.ID, proto.Script{}, senderPK)
-			txDiff, err := ia.newTxDiffFromScriptIssue(senderAddress, a)
+			txDiff, err := ia.newTxDiffFromScriptIssue(senderAddress.ID(), a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -415,7 +503,8 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 
 		case *proto.ReissueScriptAction:
 			// Check validity of reissue.
-			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
+			id := proto.AssetIDFromDigest(a.AssetID)
+			assetInfo, err := ia.stor.assets.newestAssetInfo(id, !info.initialisation)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -440,10 +529,10 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				reissuable: a.Reissuable,
 				diff:       a.Quantity,
 			}
-			if err := ia.stor.assets.reissueAssetUncertain(a.AssetID, change, !info.initialisation); err != nil {
+			if err := ia.stor.assets.reissueAssetUncertain(id, change, !info.initialisation); err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
-			txDiff, err := ia.newTxDiffFromScriptReissue(senderAddress, a)
+			txDiff, err := ia.newTxDiffFromScriptReissue(senderAddress.ID(), a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -461,7 +550,8 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 
 		case *proto.BurnScriptAction:
 			// Check burn.
-			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
+			id := proto.AssetIDFromDigest(a.AssetID)
+			assetInfo, err := ia.stor.assets.newestAssetInfo(id, !info.initialisation)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -488,10 +578,10 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			change := &assetBurnChange{
 				diff: a.Quantity,
 			}
-			if err := ia.stor.assets.burnAssetUncertain(a.AssetID, change, !info.initialisation); err != nil {
+			if err := ia.stor.assets.burnAssetUncertain(id, change, !info.initialisation); err != nil {
 				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to burn asset")
 			}
-			txDiff, err := ia.newTxDiffFromScriptBurn(senderAddress, a)
+			txDiff, err := ia.newTxDiffFromScriptBurn(senderAddress.ID(), a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -508,7 +598,8 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 
 		case *proto.SponsorshipScriptAction:
-			assetInfo, err := ia.stor.assets.newestAssetInfo(a.AssetID, !info.initialisation)
+			assetID := proto.AssetIDFromDigest(a.AssetID)
+			assetInfo, err := ia.stor.assets.newestAssetInfo(assetID, !info.initialisation)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -522,7 +613,11 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			if assetInfo.issuer != senderPK {
 				return proto.DAppError, info.failedChanges, errors.Errorf("asset %s was not issued by this DApp", a.AssetID.String())
 			}
-			isSmart := ia.stor.scriptsStorage.newestIsSmartAsset(a.AssetID, !info.initialisation)
+
+			isSmart, err := ia.stor.scriptsStorage.newestIsSmartAsset(assetID, !info.initialisation)
+			if err != nil {
+				return proto.DAppError, info.failedChanges, errors.Wrap(err, "something wrong with state")
+			}
 			if isSmart {
 				return proto.DAppError, info.failedChanges, errors.Errorf("can not sponsor smart asset %s", a.AssetID.String())
 			}
@@ -553,7 +648,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 			ia.stor.leases.addLeasingUncertain(a.ID, l)
 
-			txDiff, err := ia.newTxDiffFromScriptLease(senderAddress, recipientAddress, a)
+			txDiff, err := ia.newTxDiffFromScriptLease(senderAddress.ID(), recipientAddress.ID(), a)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -581,7 +676,7 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 
 			totalChanges.appendAddr(li.Sender)
 			totalChanges.appendAddr(li.Recipient)
-			txDiff, err := ia.newTxDiffFromScriptLeaseCancel(senderAddress, li)
+			txDiff, err := ia.newTxDiffFromScriptLeaseCancel(senderAddress.ID(), li)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -643,12 +738,12 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 	}
-	scriptPK, err := ia.stor.scriptsStorage.NewestScriptPKByAddr(*scriptAddr, !info.initialisation)
+	scriptPK, err := ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 	}
 	// Check that the script's library supports multiple payments.
-	// We don't have to check feature activation because we done it before.
+	// We don't have to check feature activation because we've done it before.
 	if len(tx.Payments) >= 2 && tree.LibVersion < 4 {
 		return nil, errors.Errorf("multiple payments is not allowed for RIDE library version %d", tree.LibVersion)
 	}
@@ -688,7 +783,10 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	var scriptRuns uint64 = 0
 	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.
 	if !info.rideV5Activated {
-		actionScriptRuns := ia.countActionScriptRuns(scriptActions, info.initialisation)
+		actionScriptRuns, err := ia.countActionScriptRuns(scriptActions, info.initialisation)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to countActionScriptRuns")
+		}
 		scriptRuns += uint64(len(paymentSmartAssets)) + actionScriptRuns
 	}
 	if info.senderScripted {
@@ -757,7 +855,8 @@ func toScriptResult(ir *invocationResult) (*proto.ScriptResult, error) {
 	if ir.failed {
 		errorMsg = proto.ScriptErrorMessage{Code: ir.code, Text: ir.text}
 	}
-	return proto.NewScriptResult(ir.actions, errorMsg)
+	sr, _, err := proto.NewScriptResult(ir.actions, errorMsg)
+	return sr, err
 }
 
 func (ia *invokeApplier) handleInvocationResult(tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, res *invocationResult) (*applicationResult, error) {
@@ -793,7 +892,7 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 	minWavesFee := scriptExtraFee*scriptRuns + feeConstants[proto.InvokeScriptTransaction]*FeeUnit + minIssueFee
 	wavesFee := tx.Fee
 	if tx.FeeAsset.Present {
-		wavesFee, err = ia.stor.sponsoredAssets.sponsoredAssetToWaves(tx.FeeAsset.ID, tx.Fee)
+		wavesFee, err = ia.stor.sponsoredAssets.sponsoredAssetToWaves(proto.AssetIDFromDigest(tx.FeeAsset.ID), tx.Fee)
 		if err != nil {
 			return errs.Extend(err, "failed to convert fee asset to waves")
 		}
@@ -809,11 +908,14 @@ func (ia *invokeApplier) checkFullFee(tx *proto.InvokeScriptWithProofs, scriptRu
 
 func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action proto.ScriptAction, callerPK crypto.PublicKey,
 	txID crypto.Digest, txTimestamp uint64, params *appendTxParams) (bool, ride.Result, error) {
-	isSmartAsset := ia.stor.scriptsStorage.newestIsSmartAsset(asset, !params.initialisation)
+	isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(asset), !params.initialisation)
+	if err != nil {
+		return false, nil, err
+	}
 	if !isSmartAsset {
 		return true, nil, nil
 	}
-	env, err := ride.NewEnvironment(ia.settings.AddressSchemeCharacter, ia.state)
+	env, err := ride.NewEnvironment(ia.settings.AddressSchemeCharacter, ia.state, ia.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
 		return false, nil, err
 	}

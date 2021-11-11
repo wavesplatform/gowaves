@@ -76,7 +76,7 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	diffApplier, err := newDiffApplier(stor.balances)
+	diffApplier, err := newDiffApplier(stor.balances, settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (a *txAppender) needToCheckOrdersSignatures(transaction proto.Transaction, 
 	return !o1Scripted, !o2Scripted, nil
 }
 
-func (a *txAppender) saveTransactionIdByAddresses(addresses []proto.Address, txID []byte, blockID proto.BlockID, filter bool) error {
+func (a *txAppender) saveTransactionIdByAddresses(addresses []proto.WavesAddress, txID []byte, blockID proto.BlockID, filter bool) error {
 	for _, addr := range addresses {
 		if err := a.atx.saveTxIdByAddress(addr, txID, blockID, filter); err != nil {
 			return err
@@ -496,7 +496,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
 	// in case NG is activated, or empty diff otherwise.
-	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent, params.height, params.initialisation)
+	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent, params.initialisation)
 	if err != nil {
 		return err
 	}

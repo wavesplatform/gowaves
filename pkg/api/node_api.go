@@ -102,30 +102,28 @@ func blockIDAtInvalidCharErr(invalidChar rune, id string) *apiErrs.InvalidBlockI
 
 func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 	s := chi.URLParam(r, "height")
-	id, err := strconv.ParseUint(s, 10, 64)
+	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// nickeskov: message taken from scala node
 		// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/fdsfasdff" -H  "accept: application/json"`
 		return blockIDAtInvalidLenErr("at")
 	}
 
-	block, err := a.state.BlockByHeight(id)
+	block, err := a.state.BlockByHeight(height)
 	if err != nil {
 		origErr := errors.Cause(err)
-		if state.IsNotFound(origErr) {
+		if state.IsNotFound(origErr) || state.IsInvalidInput(origErr) {
 			// nickeskov: it's strange, but scala node sends empty response...
 			// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/0" -H  "accept: application/json"`
 			return nil
 		}
-		return errors.Wrap(err,
-			"BlockAt: expected NotFound in state error, but received other error")
+		return errors.Wrap(err, "BlockAt: expected NotFound in state error, but received other error")
 	}
 
-	block.Height = id
+	block.Height = height
 	err = json.NewEncoder(w).Encode(block)
 	if err != nil {
-		return errors.Wrap(err,
-			"BlockEncodeJson: failed to marshal block to JSON and write to ResponseWriter")
+		return errors.Wrap(err, "BlockEncodeJson: failed to marshal block to JSON and write to ResponseWriter")
 	}
 	return nil
 }

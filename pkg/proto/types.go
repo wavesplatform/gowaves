@@ -25,44 +25,38 @@ import (
 
 const (
 	//WavesAssetName is the default name for basic WAVES asset.
-	WavesAssetName                       = "WAVES"
-	quotedWavesAssetName                 = "\"" + WavesAssetName + "\""
-	orderLen                             = crypto.PublicKeySize + crypto.PublicKeySize + 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8
-	orderV2FixedBodyLen                  = 1 + orderLen
-	orderV3FixedBodyLen                  = 1 + orderLen + 1
-	orderV1MinLen                        = crypto.SignatureSize + orderLen
-	orderV2MinLen                        = orderV2FixedBodyLen + proofsMinLen
-	orderV3MinLen                        = orderV3FixedBodyLen + proofsMinLen
-	jsonNull                             = "null"
-	integerArgumentLen                   = 1 + 8
-	booleanArgumentLen                   = 1
-	binaryArgumentMinLen                 = 1 + 4
-	stringArgumentMinLen                 = 1 + 4
-	listArgumentMinLen                   = 1 + 4
-	PriceConstant                        = 100000000
-	MaxOrderAmount                       = 100 * PriceConstant * PriceConstant
-	MaxOrderTTL                          = uint64((30 * 24 * time.Hour) / time.Millisecond)
-	MaxKeySize                           = 100
-	MaxPBKeySize                         = 400
-	maxValueSize                         = 32767
-	MaxDataEntryScriptActions            = 100
-	MaxDataEntryScriptActionsSizeInBytes = 5 * 1024
+	WavesAssetName                           = "WAVES"
+	quotedWavesAssetName                     = "\"" + WavesAssetName + "\""
+	orderLen                                 = crypto.PublicKeySize + crypto.PublicKeySize + 1 + 1 + 1 + 8 + 8 + 8 + 8 + 8
+	orderV2FixedBodyLen                      = 1 + orderLen
+	orderV3FixedBodyLen                      = 1 + orderLen + 1
+	orderV1MinLen                            = crypto.SignatureSize + orderLen
+	orderV2MinLen                            = orderV2FixedBodyLen + proofsMinLen
+	orderV3MinLen                            = orderV3FixedBodyLen + proofsMinLen
+	jsonNull                                 = "null"
+	integerArgumentLen                       = 1 + 8
+	booleanArgumentLen                       = 1
+	binaryArgumentMinLen                     = 1 + 4
+	stringArgumentMinLen                     = 1 + 4
+	listArgumentMinLen                       = 1 + 4
+	PriceConstant                            = 100000000
+	MaxOrderAmount                           = 100 * PriceConstant * PriceConstant
+	MaxOrderTTL                              = uint64((30 * 24 * time.Hour) / time.Millisecond)
+	MaxKeySize                               = 100
+	MaxPBKeySize                             = 400
+	maxValueSize                             = 32767
+	MaxDataEntryScriptActions                = 100
+	MaxDataEntriesScriptActionsSizeInBytesV1 = 5 * 1024
+	MaxDataEntriesScriptActionsSizeInBytesV2 = 15 * 1024
+	MaxScriptActionsV1                       = 10
+	MaxScriptActionsV2                       = 30
 )
 
-type MaxScriptActions struct {
-	BeforeRideScriptV5 int
-	AfterRideScriptV5  int
-}
-
-func NewMaxScriptActions() MaxScriptActions {
-	return MaxScriptActions{BeforeRideScriptV5: 10, AfterRideScriptV5: 30}
-}
-
-func (a MaxScriptActions) GetMaxScriptsComplexityInBlock(scriptVersion int) int {
+func GetMaxScriptActions(scriptVersion int) int {
 	if scriptVersion >= 5 {
-		return a.AfterRideScriptV5
+		return MaxScriptActionsV2
 	}
-	return a.BeforeRideScriptV5
+	return MaxScriptActionsV1
 }
 
 type Timestamp = uint64
@@ -144,31 +138,24 @@ func NewOptionalAssetFromString(s string) (*OptionalAsset, error) {
 	case WavesAssetName, "":
 		return &OptionalAsset{Present: false}, nil
 	default:
-		a, err := crypto.NewDigestFromBase58(s)
+		d, err := crypto.NewDigestFromBase58(s)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create OptionalAsset from Base58 string")
 		}
-		return &OptionalAsset{Present: true, ID: a}, nil
+		return NewOptionalAssetFromDigest(d), nil
 	}
 }
 
+// NewOptionalAssetFromBytes parses bytes as crypto.Digest and returns OptionalAsset.
 func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
-	if len(b) == 0 {
-		return &OptionalAsset{}, nil
-	}
-
-	a, err := crypto.NewDigestFromBytes(b)
+	d, err := crypto.NewDigestFromBytes(b)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create OptionalAsset from bytes")
 	}
-	return &OptionalAsset{Present: true, ID: a}, nil
+	return NewOptionalAssetFromDigest(d), nil
 }
 
 func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {
-	waves := crypto.Digest{}
-	if d == waves {
-		return &OptionalAsset{Present: false}
-	}
 	return &OptionalAsset{Present: true, ID: d}
 }
 
@@ -197,14 +184,14 @@ func (a *OptionalAsset) UnmarshalJSON(value []byte) error {
 	s := strings.ToUpper(string(value))
 	switch s {
 	case "NULL", quotedWavesAssetName:
-		*a = OptionalAsset{Present: false}
+		*a = NewOptionalAssetWaves()
 	default:
 		var d crypto.Digest
 		err := d.UnmarshalJSON(value)
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal OptionalAsset")
 		}
-		*a = OptionalAsset{Present: true, ID: d}
+		*a = *NewOptionalAssetFromDigest(d)
 	}
 	return nil
 }
@@ -272,6 +259,13 @@ func (a *OptionalAsset) UnmarshalBinary(data []byte) error {
 func (a *OptionalAsset) ToID() []byte {
 	if a.Present {
 		return a.ID[:]
+	}
+	return nil
+}
+
+func (a *OptionalAsset) ToDigest() *crypto.Digest {
+	if a.Present {
+		return &a.ID
 	}
 	return nil
 }
@@ -448,37 +442,6 @@ func MarshalOrderBody(scheme Scheme, o Order) ([]byte, error) {
 		return ov4.BodyMarshalBinary(scheme)
 	default:
 		return nil, errors.New("invalid order version")
-	}
-}
-
-func OrderToOrderBody(o Order) (OrderBody, error) {
-	switch o.GetVersion() {
-	case 1:
-		o, ok := o.(*OrderV1)
-		if !ok {
-			return OrderBody{}, errors.New("failed to cast an order version 1 to *OrderV1")
-		}
-		return o.OrderBody, nil
-	case 2:
-		o, ok := o.(*OrderV2)
-		if !ok {
-			return OrderBody{}, errors.New("failed to cast an order version 2 to *OrderV2")
-		}
-		return o.OrderBody, nil
-	case 3:
-		o, ok := o.(*OrderV3)
-		if !ok {
-			return OrderBody{}, errors.New("failed to cast an order version 3 to *OrderV3")
-		}
-		return o.OrderBody, nil
-	case 4:
-		o, ok := o.(*OrderV4)
-		if !ok {
-			return OrderBody{}, errors.New("failed to cast an order version 4 to *OrderV4")
-		}
-		return o.OrderBody, nil
-	default:
-		return OrderBody{}, errors.New("invalid order version")
 	}
 }
 
@@ -1707,7 +1670,7 @@ func (p *ProofsV1) Valid() error {
 	return nil
 }
 
-// ValueType is an alias for byte that encodes the value type.
+// DataValueType is an alias for byte that encodes the value type.
 type DataValueType byte
 
 // String translates ValueType value to human readable name.
@@ -1861,7 +1824,7 @@ func (e IntegerDataEntry) MarshalValue() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalBinary reads binary representation of integer data entry value to the structure.
+//UnmarshalValue reads binary representation of integer data entry value to the structure.
 func (e *IntegerDataEntry) UnmarshalValue(data []byte) error {
 	const minLen = 1 + 8
 	if l := len(data); l < minLen {
@@ -2545,6 +2508,11 @@ func VersionFromScriptBytes(scriptBytes []byte) (int32, error) {
 
 type Script []byte
 
+// IsEmpty checks that script bytes slice is nil or slice length equals zero
+func (s Script) IsEmpty() bool {
+	return len(s) == 0
+}
+
 // String gives a string representation of Script bytes, script bytes encoded as BASE64 with prefix
 func (s Script) String() string {
 	sb := strings.Builder{}
@@ -2596,7 +2564,7 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-// ValueType is an alias for byte that encodes the value type.
+// ArgumentValueType is an alias for byte that encodes the value type.
 type ArgumentValueType byte
 
 // String translates ValueType value to human readable name.
@@ -2634,7 +2602,7 @@ type Argument interface {
 	Serialize(*serializer.Serializer) error
 }
 
-//DataEntryType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
+//ArgumentType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
 type ArgumentType struct {
 	Type string `json:"type"`
 }
@@ -2847,10 +2815,6 @@ type BooleanArgument struct {
 	Value bool
 }
 
-func NewBooleanArgument(b bool) *BooleanArgument {
-	return &BooleanArgument{b}
-}
-
 //GetValueType returns the data type (Boolean) of the argument.
 func (a BooleanArgument) GetValueType() ArgumentValueType {
 	return ArgumentBoolean
@@ -2922,10 +2886,6 @@ func (a *BooleanArgument) UnmarshalJSON(value []byte) error {
 //BinaryArgument represents an argument that stores binary value.
 type BinaryArgument struct {
 	Value []byte
-}
-
-func NewBinaryArgument(b []byte) *BinaryArgument {
-	return &BinaryArgument{b}
 }
 
 //GetValueType returns the type of value (Binary) stored in an argument.
@@ -3069,10 +3029,6 @@ func (a *StringArgument) UnmarshalJSON(value []byte) error {
 
 type ListArgument struct {
 	Items Arguments
-}
-
-func NewListArgument(items Arguments) *ListArgument {
-	return &ListArgument{Items: items}
 }
 
 //GetValueType returns the type of value of the argument.
@@ -3271,13 +3227,25 @@ type FullScriptTransfer struct {
 	Amount    uint64
 	Asset     OptionalAsset
 	Recipient Recipient
-	Sender    Address
+	Sender    WavesAddress
 	SenderPK  crypto.PublicKey
 	Timestamp uint64
 	ID        *crypto.Digest
 }
 
-func NewFullScriptTransfer(action *TransferScriptAction, sender Address, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+func NewFullScriptTransfer(action *TransferScriptAction, sender WavesAddress, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+	return &FullScriptTransfer{
+		Amount:    uint64(action.Amount),
+		Asset:     action.Asset,
+		Recipient: action.Recipient,
+		Sender:    sender,
+		SenderPK:  senderPK,
+		Timestamp: tx.Timestamp,
+		ID:        tx.ID,
+	}, nil
+}
+
+func NewFullScriptTransferFromPaymentAction(action *AttachedPaymentScriptAction, sender WavesAddress, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,
@@ -3600,7 +3568,7 @@ func (s *StateHash) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// Hex is required for state hashes API.
+// DigestWrapped is required for state hashes API.
 // The quickest way to use Hex for hashes in JSON in this particular case.
 type DigestWrapped crypto.Digest
 

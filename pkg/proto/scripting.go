@@ -32,6 +32,23 @@ func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
 	return a.Entry.ToProtobuf()
 }
 
+type AttachedPaymentScriptAction struct {
+	Sender    *crypto.PublicKey
+	Recipient Recipient
+	Amount    int64
+	Asset     OptionalAsset
+}
+
+func (a AttachedPaymentScriptAction) scriptAction() {}
+
+func (a AttachedPaymentScriptAction) SenderPK() *crypto.PublicKey {
+	return a.Sender
+}
+
+func (a *AttachedPaymentScriptAction) ToProtobuf() (*g.InvokeScriptResult_Payment, error) {
+	panic("Serialization of AttachedPaymentScriptAction should not be called")
+}
+
 // TransferScriptAction is an action to emit transfer of asset.
 type TransferScriptAction struct {
 	Sender    *crypto.PublicKey
@@ -210,7 +227,7 @@ func (a *LeaseScriptAction) ToProtobuf() (*g.InvokeScriptResult_Lease, error) {
 
 // GenerateLeaseScriptActionID implements ID generation used in RIDE to create new ID for a Lease action.
 func GenerateLeaseScriptActionID(recipient Recipient, amount int64, nonce int64, txID crypto.Digest) crypto.Digest {
-	rl := AddressSize
+	rl := WavesAddressSize
 	if recipient.Alias != nil {
 		rl = 4 + len(recipient.Alias.Alias)
 	}
@@ -273,21 +290,25 @@ type ScriptResult struct {
 }
 
 // NewScriptResult creates correct representation of invocation actions for storage and API.
-func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptResult, error) {
+func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptResult, []*AttachedPaymentScriptAction, error) {
 	entries := make([]*DataEntryScriptAction, 0)
 	transfers := make([]*TransferScriptAction, 0)
+	attachedPayments := make([]*AttachedPaymentScriptAction, 0)
 	issues := make([]*IssueScriptAction, 0)
 	reissues := make([]*ReissueScriptAction, 0)
 	burns := make([]*BurnScriptAction, 0)
 	sponsorships := make([]*SponsorshipScriptAction, 0)
 	leases := make([]*LeaseScriptAction, 0)
 	leaseCancels := make([]*LeaseCancelScriptAction, 0)
+
 	for _, a := range actions {
 		switch ta := a.(type) {
 		case *DataEntryScriptAction:
 			entries = append(entries, ta)
 		case *TransferScriptAction:
 			transfers = append(transfers, ta)
+		case *AttachedPaymentScriptAction:
+			attachedPayments = append(attachedPayments, ta)
 		case *IssueScriptAction:
 			issues = append(issues, ta)
 		case *ReissueScriptAction:
@@ -301,7 +322,7 @@ func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptRes
 		case *LeaseCancelScriptAction:
 			leaseCancels = append(leaseCancels, ta)
 		default:
-			return nil, errors.Errorf("unsupported action type '%T'", a)
+			return nil, nil, errors.Errorf("unsupported action type '%T'", a)
 		}
 	}
 	return &ScriptResult{
@@ -314,7 +335,7 @@ func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptRes
 		Leases:       leases,
 		LeaseCancels: leaseCancels,
 		ErrorMsg:     msg,
-	}, nil
+	}, attachedPayments, nil
 }
 
 func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
@@ -423,14 +444,10 @@ func (sr *ScriptResult) FromProtobuf(scheme byte, msg *g.InvokeScriptResult) err
 
 type ActionsValidationRestrictions struct {
 	DisableSelfTransfers     bool
-	ScriptAddress            Address
+	ScriptAddress            WavesAddress
 	KeySizeValidationVersion byte
+	MaxDataEntriesSize       int
 	Scheme                   byte
-}
-
-func getMaxScriptActions(libVersion int) int {
-	maxScriptActionInstance := NewMaxScriptActions()
-	return maxScriptActionInstance.GetMaxScriptsComplexityInBlock(libVersion)
 }
 
 func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestrictions, libVersion int) error {
@@ -455,14 +472,14 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 				}
 			}
 			dataEntriesSize += ta.Entry.BinarySize()
-			if dataEntriesSize > MaxDataEntryScriptActionsSizeInBytes {
-				return errors.Errorf("total size of data entries produced by script is more than %d bytes", MaxDataEntryScriptActionsSizeInBytes)
+			if dataEntriesSize > restrictions.MaxDataEntriesSize {
+				return errors.Errorf("total size of data entries produced by script is more than %d bytes", restrictions.MaxDataEntriesSize)
 			}
 
 		case *TransferScriptAction:
 			otherActionsCount++
 
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
@@ -482,10 +499,26 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 					return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
 				}
 			}
-
+		case *AttachedPaymentScriptAction:
+			if ta.Amount < 0 {
+				return errors.New("negative transfer amount")
+			}
+			if restrictions.DisableSelfTransfers {
+				senderAddress := restrictions.ScriptAddress
+				if ta.SenderPK() != nil {
+					var err error
+					senderAddress, err = NewAddressFromPublicKey(restrictions.Scheme, *ta.SenderPK())
+					if err != nil {
+						return errors.Wrap(err, "failed to validate TransferScriptAction")
+					}
+				}
+				if ta.Recipient.Address.Eq(senderAddress) {
+					return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
+				}
+			}
 		case *IssueScriptAction:
 			otherActionsCount++
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
@@ -504,7 +537,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *ReissueScriptAction:
 			otherActionsCount++
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
@@ -514,7 +547,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *BurnScriptAction:
 			otherActionsCount++
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
@@ -524,7 +557,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *SponsorshipScriptAction:
 			otherActionsCount++
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
@@ -534,7 +567,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *LeaseScriptAction:
 			otherActionsCount++
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}
@@ -555,7 +588,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 
 		case *LeaseCancelScriptAction:
 			otherActionsCount++
-			maxScriptActions := getMaxScriptActions(libVersion)
+			maxScriptActions := GetMaxScriptActions(libVersion)
 			if otherActionsCount > maxScriptActions {
 				return errors.Errorf("number of actions produced by script is more than allowed %d", maxScriptActions)
 			}

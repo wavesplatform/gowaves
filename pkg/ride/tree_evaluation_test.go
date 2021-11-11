@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"math/rand"
 	"strconv"
 	"testing"
 
@@ -101,20 +102,15 @@ func TestFunctionsEvaluation(t *testing.T) {
 	require.NoError(t, err)
 	env := &MockRideEnvironment{
 		checkMessageLengthFunc: v3check,
-		schemeFunc: func() byte {
-			return 'W'
-		},
 		heightFunc: func() RideInt {
 			return 5
 		},
-		transactionFunc: func() rideObject {
-			obj, err := transferWithProofsToObject('W', transfer)
-			if err != nil {
-				panic(err)
-			}
-			return obj
+		libVersionFunc: func() int {
+			return 3
 		},
-		takeStringFunc: v5takeString,
+		schemeFunc: func() byte {
+			return 'W'
+		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
@@ -141,15 +137,14 @@ func TestFunctionsEvaluation(t *testing.T) {
 					}
 					return nil, errors.New("not found")
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					if len(asset) == 0 {
+				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+					return 5, nil
+				},
+				NewestAssetBalanceFunc: func(account proto.Recipient, asset crypto.Digest) (uint64, error) {
+					if asset == d {
 						return 5, nil
-					} else {
-						if bytes.Equal(asset, d.Bytes()) {
-							return 5, nil
-						}
-						return 0, nil
 					}
+					return 0, nil
 				},
 				NewestTransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
 					return transfer, nil
@@ -162,8 +157,16 @@ func TestFunctionsEvaluation(t *testing.T) {
 				},
 			}
 		},
-		libVersionFunc: func() int {
-			return 3
+		takeStringFunc: v5takeString,
+		transactionFunc: func() rideObject {
+			obj, err := transferWithProofsToObject('W', transfer)
+			if err != nil {
+				panic(err)
+			}
+			return obj
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return false
 		},
 	}
 	envWithDataTX := &MockRideEnvironment{
@@ -200,8 +203,8 @@ func TestFunctionsEvaluation(t *testing.T) {
 		result bool
 		error  bool
 	}{
-		{`parseIntValue`, `parseInt("12345") == 12345`, `AwkAAAAAAAACCQAEtgAAAAECAAAABTEyMzQ1AAAAAAAAADA57cmovA==`, nil, true, false},
-		{`value`, `let c = if true then 1 else Unit(); value(c) == 1`, `AwQAAAABYwMGAAAAAAAAAAABCQEAAAAEVW5pdAAAAAAJAAAAAAAAAgkBAAAABXZhbHVlAAAAAQUAAAABYwAAAAAAAAAAARfpQ5M=`, nil, true, false},
+		{`parseIntValue`, `parseInt("12345") == 12345`, `AwkAAAAAAAACCQAEtgAAAAECAAAABTEyMzQ1AAAAAAAAADA57cmovA==`, env, true, false},
+		{`value`, `let c = if true then 1 else Unit(); value(c) == 1`, `AwQAAAABYwMGAAAAAAAAAAABCQEAAAAEVW5pdAAAAAAJAAAAAAAAAgkBAAAABXZhbHVlAAAAAQUAAAABYwAAAAAAAAAAARfpQ5M=`, env, true, false},
 		{`valueOrErrorMessage`, `let c = if true then 1 else Unit(); valueOrErrorMessage(c, "ALARM!!!") == 1`, `AwQAAAABYwMGAAAAAAAAAAABCQEAAAAEVW5pdAAAAAAJAAAAAAAAAgkBAAAAE3ZhbHVlT3JFcnJvck1lc3NhZ2UAAAACBQAAAAFjAgAAAAhBTEFSTSEhIQAAAAAAAAAAAa5tVyw=`, nil, true, false},
 		{`addressFromString`, `addressFromString("12345") == unit`, `AwkAAAAAAAACCQEAAAARYWRkcmVzc0Zyb21TdHJpbmcAAAABAgAAAAUxMjM0NQUAAAAEdW5pdJEPLPE=`, env, true, false},
 		{`addressFromString`, `addressFromString("3P9DEDP5VbyXQyKtXDUt2crRPn5B7gs6ujc") == Address(base58'3P9DEDP5VbyXQyKtXDUt2crRPn5B7gs6ujc')`, `AwkAAAAAAAACCQEAAAARYWRkcmVzc0Zyb21TdHJpbmcAAAABAgAAACMzUDlERURQNVZieVhReUt0WERVdDJjclJQbjVCN2dzNnVqYwkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0/fzRv7GRFL0qw2njIBPHDG0DpGJ4ecv6EI6ng=`, env, true, false},
@@ -587,8 +590,9 @@ func TestDappCallable(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 	require.EqualValues(t,
 		&proto.ScriptResult{
 			DataEntries: []*proto.DataEntryScriptAction{
@@ -656,8 +660,9 @@ func TestDappDefaultFunc(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 	require.EqualValues(t,
 		&proto.ScriptResult{
 			DataEntries: []*proto.DataEntryScriptAction{
@@ -786,11 +791,12 @@ func TestTransferSet(t *testing.T) {
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100,
-		Asset:     proto.OptionalAsset{Present: false},
+		Asset:     proto.NewOptionalAssetWaves(),
 	}
 	require.NoError(t, err)
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 	require.EqualValues(t,
 		&proto.ScriptResult{
 			DataEntries:  make([]*proto.DataEntryScriptAction, 0),
@@ -837,12 +843,13 @@ func TestScriptResult(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100500,
-		Asset:     proto.OptionalAsset{Present: false},
+		Asset:     proto.NewOptionalAssetWaves(),
 	}
 	require.Equal(t,
 		&proto.ScriptResult{
@@ -860,35 +867,21 @@ func TestScriptResult(t *testing.T) {
 }
 
 func initWrappedState(state types.SmartState, env *MockRideEnvironment) *WrappedState {
-	var dataEntries diffDataEntries
-
-	dataEntries.diffInteger = map[string]proto.IntegerDataEntry{}
-	dataEntries.diffBool = map[string]proto.BooleanDataEntry{}
-	dataEntries.diffString = map[string]proto.StringDataEntry{}
-	dataEntries.diffBinary = map[string]proto.BinaryDataEntry{}
-	dataEntries.diffDDelete = map[string]proto.DeleteDataEntry{}
-
-	balances := map[string]diffBalance{}
-	sponsorships := map[string]diffSponsorship{}
-	newAssetInfo := map[string]diffNewAssetInfo{}
-	oldAssetInfo := map[string]diffOldAssetInfo{}
-	leases := map[string]lease{}
-
-	diffSt := &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo, leases: leases}
-
-	return &WrappedState{diff: *diffSt, cle: env.this().(rideAddress), scheme: env.scheme()}
+	return &WrappedState{diff: newDiffState(state), cle: env.this().(rideAddress), scheme: env.scheme()}
 }
 
 var wrappedSt WrappedState
 var firstScript string
 var secondScript string
 var assetIDIssue crypto.Digest
-var addr proto.Address
+var addr proto.WavesAddress
 var addrPK crypto.PublicKey
-var addressCallable proto.Address
+var addressCallable proto.WavesAddress
 var addressCallablePK crypto.PublicKey
 
 func smartStateDappFromDapp() types.SmartState {
+	expectedAsset := crypto.MustDigestFromBase58("13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ")
+
 	return &MockSmartState{
 		NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
 			return nil, nil
@@ -907,8 +900,8 @@ func smartStateDappFromDapp() types.SmartState {
 			}
 			return script, nil
 		},
-		NewestScriptByAssetFunc: func(asset proto.OptionalAsset) (proto.Script, error) {
-			if asset.ID.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
+		NewestScriptByAssetFunc: func(assetID crypto.Digest) (proto.Script, error) {
+			if assetID == expectedAsset {
 				script := "BQQAAAALZEFwcEFkZHJlc3MJAAQmAAAAAQIAAAAjM1A4ZVpWS1M3YTR0cm9HY2t5dHhhZWZMQWk5dzdQNWFNbmEEAAAAByRtYXRjaDAFAAAAAnR4AwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAA9CdXJuVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABJSZWlzc3VlVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABlTZXRBc3NldFNjcmlwdFRyYW5zYWN0aW9uBAAAAAJ0eAUAAAAHJG1hdGNoMAkAAAAAAAACCAUAAAACdHgAAAAGc2VuZGVyBQAAAAtkQXBwQWRkcmVzcwMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNUcmFuc2ZlclRyYW5zYWN0aW9uBAAAAAJ0eAUAAAAHJG1hdGNoMAkAAAAAAAACCAUAAAACdHgAAAAGc2VuZGVyBQAAAAtkQXBwQWRkcmVzcwf56Ssf"
 
 				src, err := base64.StdEncoding.DecodeString(script)
@@ -919,7 +912,7 @@ func smartStateDappFromDapp() types.SmartState {
 			}
 			return nil, nil
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			if recipient.Alias != nil {
 				if recipient.Alias.Alias == "alias" {
 					addr, err := proto.NewAddressFromString("3MsCoDnBbgzjQ7BgGk9xcruM6JVZ5jF8YCV")
@@ -931,7 +924,7 @@ func smartStateDappFromDapp() types.SmartState {
 		AddingBlockHeightFunc: func() (uint64, error) {
 			return 10, nil
 		},
-		NewestScriptPKByAddrFunc: func(address proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(address proto.WavesAddress) (crypto.PublicKey, error) {
 			// payments test
 			if address.String() == "3P8eZVKS7a4troGckytxaefLAi9w7P5aMna" {
 				return crypto.NewPublicKeyFromBase58("FztxsodUc9V7iVzodkGumnZFtHnNTxYSETZfxBFAw9R3")
@@ -954,25 +947,27 @@ func smartStateDappFromDapp() types.SmartState {
 		NewestTransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
 			return nil, nil
 		},
-		NewestAccountBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
-			balance := 0
-			return uint64(balance), nil
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 0, nil
 		},
-		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.Address, error) {
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+			return 0, nil
+		},
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
 			if alias.Alias == "alias" {
 				return proto.NewAddressFromString("3MsCoDnBbgzjQ7BgGk9xcruM6JVZ5jF8YCV")
 			}
-			return proto.Address{}, errors.New("unexpected alias")
+			return proto.WavesAddress{}, errors.New("unexpected alias")
 		},
 		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
-
 			return &proto.FullWavesBalance{
 				Regular:    0,
 				Generating: 0,
 				Available:  0,
 				Effective:  0,
 				LeaseIn:    0,
-				LeaseOut:   0}, nil
+				LeaseOut:   0,
+			}, nil
 		},
 		RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 			return nil, nil
@@ -992,10 +987,9 @@ func smartStateDappFromDapp() types.SmartState {
 			return false, nil
 		},
 		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-			if assetID.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
-
+			if assetID == expectedAsset {
 				return &proto.AssetInfo{
-					ID:              assetID,
+					ID:              expectedAsset,
 					Quantity:        1000,
 					Decimals:        '8',
 					Issuer:          addressCallable,
@@ -1005,13 +999,12 @@ func smartStateDappFromDapp() types.SmartState {
 					Sponsored:       false,
 				}, nil
 			}
-
 			return nil, nil
 		},
 		NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
-			if assetID.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
+			if assetID == expectedAsset {
 				assetInfo := proto.AssetInfo{
-					ID:              assetID,
+					ID:              expectedAsset,
 					Quantity:        1000,
 					Decimals:        '8',
 					Issuer:          addressCallable,
@@ -1048,7 +1041,7 @@ func smartStateDappFromDapp() types.SmartState {
 	}
 }
 
-var thisAddress proto.Address
+var thisAddress proto.WavesAddress
 var tx *proto.InvokeScriptWithProofs
 var inv rideObject
 var id []byte
@@ -1071,7 +1064,7 @@ var envDappFromDapp = &MockRideEnvironment{
 	thisFunc: func() RideType {
 		return rideAddress(thisAddress)
 	},
-	setNewDAppAddressFunc: func(address proto.Address) {
+	setNewDAppAddressFunc: func(address proto.WavesAddress) {
 		thisAddress = address
 		wrappedSt.cle = rideAddress(address)
 	},
@@ -1085,6 +1078,15 @@ var envDappFromDapp = &MockRideEnvironment{
 	timestampFunc: func() uint64 {
 		return 1564703444249
 	},
+	validateInternalPaymentsFunc: func() bool {
+		return true
+	},
+	internalPaymentsValidationHeightFunc: func() uint64 {
+		return 0
+	},
+	maxDataEntriesSizeFunc: func() int {
+		return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+	},
 }
 
 func tearDownDappFromDapp() {
@@ -1092,12 +1094,12 @@ func tearDownDappFromDapp() {
 	firstScript = ""
 	secondScript = ""
 	assetIDIssue = crypto.Digest{}
-	addr = proto.Address{}
-	addressCallable = proto.Address{}
+	addr = proto.WavesAddress{}
+	addressCallable = proto.WavesAddress{}
 	addrPK = crypto.PublicKey{}
 	addressCallablePK = crypto.PublicKey{}
 
-	thisAddress = proto.Address{}
+	thisAddress = proto.WavesAddress{}
 	tx = nil
 	id = nil
 }
@@ -1110,7 +1112,16 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 	recipient := proto.NewRecipientFromAddress(wrappedSt.callee())
 
 	for _, payment := range externalPayments {
-		senderBalance, err := wrappedSt.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
+		var (
+			senderBalance uint64
+			err           error
+			callerRcp     = proto.NewRecipientFromAddress(caller)
+		)
+		if payment.Asset.Present {
+			senderBalance, err = wrappedSt.NewestAssetBalance(callerRcp, payment.Asset.ID)
+		} else {
+			senderBalance, err = wrappedSt.NewestWavesBalance(callerRcp)
+		}
 		if err != nil {
 			return err
 		}
@@ -1122,18 +1133,17 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 		if err != nil {
 			return err
 		}
-		err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
+		err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset, recipient)
 		if err != nil {
 			return err
 		}
 
-		callerRcp := proto.NewRecipientFromAddress(caller)
 		senderSearchBalance, senderSearchAddr, err := wrappedSt.diff.findBalance(callerRcp, payment.Asset)
 		if err != nil {
 			return err
 		}
 
-		err = wrappedSt.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
+		err = wrappedSt.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset, callerRcp)
 		if err != nil {
 			return err
 		}
@@ -1141,14 +1151,14 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 	return nil
 }
 
-func AddWavesToSender(senderAddress proto.Address, amount int64, asset proto.OptionalAsset) error {
+func AddAssetToSender(senderAddress proto.WavesAddress, amount int64, asset proto.OptionalAsset) error {
 	senderRecipient := proto.NewRecipientFromAddress(senderAddress)
 
 	searchBalance, searchAddr, err := wrappedSt.diff.findBalance(senderRecipient, asset)
 	if err != nil {
 		return err
 	}
-	err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, amount, asset.ID, senderRecipient)
+	err = wrappedSt.diff.changeBalance(searchBalance, searchAddr, amount, asset, senderRecipient)
 	if err != nil {
 		return err
 	}
@@ -1165,7 +1175,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	@Callable(i)
 	func test() = {
-		let res = Invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "testActions",[], [AttachedPayment(base58'', 1234), AttachedPayment(base58'', 1234)])
+		let res = invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "testActions",[], [AttachedPayment(unit, 1234), AttachedPayment(unit, 1234)])
 		if res == 17
 	        then
 	        [
@@ -1251,7 +1261,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	}
 	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
 
-	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEdGVzdAAAAAAEAAAAA3JlcwkAA/wAAAAECQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXSbIqC+dSm+dDCCL8KamODy9oLyPQygrLAgAAAAt0ZXN0QWN0aW9ucwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACAQAAAAAAAAAAAAAABNIJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIBAAAAAAAAAAAAAAAE0gUAAAADbmlsAwkAAAAAAAACBQAAAANyZXMAAAAAAAAAABEJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2tleQAAAAAAAAAAAQUAAAADbmlsCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQAAAABtSYQY"
+	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEdGVzdAAAAAAEAAAAA3JlcwkAA/wAAAAECQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXSbIqC+dSm+dDCCL8KamODy9oLyPQygrLAgAAAAt0ZXN0QWN0aW9ucwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAATSCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAATSBQAAAANuaWwDCQAAAAAAAAIFAAAAA3JlcwAAAAAAAAAAEQkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAAABBQAAAANuaWwJAAACAAAAAQIAAAASQmFkIHJldHVybmVkIHZhbHVlAAAAAGGSphc="
 	secondScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAALdGVzdEFjdGlvbnMAAAAABAAAAAVhc3NldAkABEMAAAAHAgAAAAdDYXRDb2luAgAAAAAAAAAAAAAAAAEAAAAAAAAAAAAGBQAAAAR1bml0AAAAAAAAAAAABAAAAAdhc3NldElkCQAEOAAAAAEFAAAABWFzc2V0CQAFFAAAAAIJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwkBAAAAB0FkZHJlc3MAAAABAQAAABoBV5hs3CAFUz6eTef/H4C7v1yCbCqvykvRuQAAAAAAAAAAAQUAAAAEdW5pdAkABEwAAAACCQAERAAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVeYbNwgBVM+nk3n/x+Au79cgmwqr8pL0bkAAAAAAAAAAAoJAARMAAAAAgkBAAAAC0JpbmFyeUVudHJ5AAAAAgIAAAADYmluAQAAAAAJAARMAAAAAgkBAAAADEJvb2xlYW5FbnRyeQAAAAICAAAABGJvb2wGCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANpbnQAAAAAAAAAAAEJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAADc3RyAgAAAAAJAARMAAAAAgkBAAAAC0RlbGV0ZUVudHJ5AAAAAQIAAAADc3RyCQAETAAAAAIFAAAABWFzc2V0CQAETAAAAAIJAQAAAAdSZWlzc3VlAAAAAwUAAAAHYXNzZXRJZAAAAAAAAAAACgcJAARMAAAAAgkBAAAABEJ1cm4AAAACBQAAAAdhc3NldElkAAAAAAAAAAAFBQAAAANuaWwAAAAAAAAAABEAAAAAeF27eQ=="
 
 	id = bytes.Repeat([]byte{0}, 32)
@@ -1276,9 +1286,12 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	}
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
-		{Sender: &addrPK, Recipient: recipientCallable, Amount: 1234, Asset: proto.OptionalAsset{}},
-		{Sender: &addrPK, Recipient: recipientCallable, Amount: 1234, Asset: proto.OptionalAsset{}},
 		{Sender: &addressCallablePK, Recipient: recipient, Amount: 1, Asset: proto.OptionalAsset{}},
+	}
+
+	expectedAttachedPaymentActions := []*proto.AttachedPaymentScriptAction{
+		{Sender: &addrPK, Recipient: recipientCallable, Amount: 1234, Asset: proto.OptionalAsset{}},
+		{Sender: &addrPK, Recipient: recipientCallable, Amount: 1234, Asset: proto.OptionalAsset{}},
 	}
 
 	expectedLeaseWrites := []*proto.LeaseScriptAction{
@@ -1293,7 +1306,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -1321,11 +1334,11 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 	expectedLeaseWrites[0].ID = sr.Leases[0].ID
-	assetExp := proto.OptionalAsset{}
+	assetExp := proto.NewOptionalAssetWaves()
 
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  expectedDataEntryWrites,
@@ -1367,38 +1380,38 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 	balance := diffBalance{regular: 7533, leaseIn: 10, asset: assetExp, effectiveHistory: []int64{7543}}
-	expectedDiffResult.balances[addr.String()+assetExp.String()] = balance
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balance
 
 	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
-	expectedDiffResult.balances[senderAddress.String()+assetExp.String()] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 
 	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, asset: assetExp, effectiveHistory: []int64{2467, 2457}}
-	expectedDiffResult.balances[addressCallable.String()+assetExp.String()] = balanceCallable
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 
 	assetFromIssue := *proto.NewOptionalAssetFromDigest(sr.Issues[0].ID)
-	balanceCallableAsset := diffBalance{regular: 1, leaseOut: 0, asset: assetFromIssue}
-	expectedDiffResult.balances[addressCallable.String()+assetFromIssue.String()] = balanceCallableAsset
+	balanceCallableAsset := diffBalance{regular: 6, leaseOut: 0, asset: assetFromIssue} // +1 after Issue. + 10 after Reissue. -5 after Burn. = 6
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetFromIssue}] = balanceCallableAsset
 
-	intEntry1 := proto.IntegerDataEntry{Key: "int", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry1
+	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
 
 	boolEntry := proto.BooleanDataEntry{Key: "bool", Value: true}
-	expectedDiffResult.dataEntries.diffBool["bool"+addressCallable.String()] = boolEntry
+	expectedDiffResult.dataEntries.diffBool[booleanDataEntryKey{boolEntry.Key, addressCallable}] = boolEntry
 
 	stringEntry := proto.StringDataEntry{Key: "str", Value: ""}
-	expectedDiffResult.dataEntries.diffString["str"+addressCallable.String()] = stringEntry
+	expectedDiffResult.dataEntries.diffString[stringDataEntryKey{stringEntry.Key, addressCallable}] = stringEntry
 
 	binaryEntry := proto.BinaryDataEntry{Key: "bin", Value: []byte("")}
-	expectedDiffResult.dataEntries.diffBinary["bin"+addressCallable.String()] = binaryEntry
+	expectedDiffResult.dataEntries.diffBinary[binaryDataEntryKey{binaryEntry.Key, addressCallable}] = binaryEntry
 
 	deleteEntry := proto.DeleteDataEntry{Key: "str"}
-	expectedDiffResult.dataEntries.diffDDelete["str"+addressCallable.String()] = deleteEntry
+	expectedDiffResult.dataEntries.diffDelete[deleteDataEntryKey{deleteEntry.Key, addressCallable}] = deleteEntry
 
 	newAsset := diffNewAssetInfo{dAppIssuer: addressCallable, name: "CatCoin", description: "", quantity: 6, decimals: 0, reissuable: false, script: nil, nonce: 0}
-	expectedDiffResult.newAssetsInfo[assetIDIssue.String()] = newAsset
+	expectedDiffResult.newAssetsInfo[assetIDIssue] = newAsset
 
 	lease := lease{Recipient: recipient, Sender: recipientCallable, leasedAmount: 10}
-	expectedDiffResult.leases[expectedLeaseWrites[0].ID.String()] = lease
+	expectedDiffResult.leases[expectedLeaseWrites[0].ID] = lease
 
 	assert.Equal(t, expectedDiffResult.newAssetsInfo, wrappedSt.diff.newAssetsInfo)
 	assert.Equal(t, expectedDiffResult.oldAssetsInfo, wrappedSt.diff.oldAssetsInfo)
@@ -1508,9 +1521,9 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  expectedDataEntryWrites,
 		Transfers:    make([]*proto.TransferScriptAction, 0),
@@ -1525,8 +1538,8 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	intEntry1 := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["bar"+addr.String()] = intEntry1
+	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addr}] = intEntry
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
@@ -1639,8 +1652,11 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	id = bytes.Repeat([]byte{0}, 32)
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
-		{Sender: &addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}},
 		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}},
+	}
+
+	expectedAttachedPaymentActions := []*proto.AttachedPaymentScriptAction{
+		{Sender: &addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}},
 	}
 
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
@@ -1658,7 +1674,7 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -1677,9 +1693,9 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  expectedDataEntryWrites,
 		Transfers:    expectedTransferWrites,
@@ -1693,15 +1709,16 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
+	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9986, effectiveHistory: []int64{10000, 9986}}
-	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: proto.OptionalAsset{}}
-	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 14, effectiveHistory: []int64{0, 14}}
+	balanceMain := diffBalance{asset: assetExp, regular: 9986, effectiveHistory: []int64{10000, 9986}}
+	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
+	balanceCallable := diffBalance{asset: assetExp, regular: 14, effectiveHistory: []int64{0, 14}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
-	expectedDiffResult.balances[addressCallable.String()+proto.NewOptionalAssetWaves().String()] = balanceCallable
-	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
-	expectedDiffResult.balances[addr.String()+proto.NewOptionalAssetWaves().String()] = balanceMain
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -1832,10 +1849,13 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	}
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
+		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}},
+		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}},
+	}
+
+	expectedAttachedPaymentActions := []*proto.AttachedPaymentScriptAction{
 		{Sender: &addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}},
-		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}},
 		{Sender: &addrPK, Recipient: recipientCallable, Amount: 18, Asset: proto.OptionalAsset{}},
-		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}},
 	}
 
 	smartState := smartStateDappFromDapp
@@ -1847,7 +1867,7 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -1866,8 +1886,9 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  expectedDataEntryWrites,
@@ -1882,211 +1903,22 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
+	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9971, effectiveHistory: []int64{10000, 9986, 9971}}
-	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: proto.OptionalAsset{}}
-	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 29, effectiveHistory: []int64{0, 14, 29}}
+	balanceMain := diffBalance{asset: assetExp, regular: 9971, effectiveHistory: []int64{10000, 9986, 9971}}
+	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
+	balanceCallable := diffBalance{asset: assetExp, regular: 29, effectiveHistory: []int64{0, 14, 29}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
-	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
-	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
-	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 
 	tearDownDappFromDapp()
 }
-
-//TODO change this test from Invoke to ReentrantInvoke
-//func TestInvokeDAppFromDAppScript4(t *testing.T) {
-//
-//	/* script 1
-//	{-# STDLIB_VERSION 5 #-}
-//	{-# CONTENT_TYPE DAPP #-}
-//	{-#SCRIPT_TYPE ACCOUNT#-}
-//
-//	 @Callable(i)
-//	 func back() = {
-//	   [IntegerEntry("key", 0), ScriptTransfer(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), 2, unit)]
-//	 }
-//
-//	 @Callable(i)
-//	 func foo() = {
-//	  let b1 = wavesBalance(this)
-//	  let ob1 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
-//	  if b1 == b1 && ob1 == ob1
-//	  then
-//	    let r = Invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar", [this.bytes], [AttachedPayment(unit, 17)])
-//	    if r == 17
-//	    then
-//	     let data = getIntegerValue(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar")
-//	     let tdata = getIntegerValue(this, "key")
-//	     let b2 = wavesBalance(this)
-//	     let ob2 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
-//	     if data == 1 && tdata == 0
-//	     then
-//	      if ob1.regular+16 == ob2.regular && b1.regular == b2.regular+16
-//	      then
-//	       [
-//	        IntegerEntry("key", 1)
-//	       ]
-//	      else
-//	       throw("Balance check failed")
-//	    else
-//	     throw("Bad state")
-//	   else
-//	    throw("Bad returned value")
-//	  else
-//	   throw("Imposible")
-//	 }
-//	*/
-//
-//	/*
-//			script2
-//		{-# STDLIB_VERSION 5 #-}
-//		{-# CONTENT_TYPE DAPP #-}
-//		{-#SCRIPT_TYPE ACCOUNT#-}
-//
-//		 @Callable(i)
-//		 func bar(a: ByteVector) = {
-//		   let r = Invoke(Address(a), "back", [], [])
-//		   if r == r
-//		   then
-//		    ([IntegerEntry("bar", 1), ScriptTransfer(Address(a), 3, unit)], 17)
-//		   else
-//		    throw("Imposible")
-//		 }
-//
-//	*/
-//	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
-//	require.NoError(t, err)
-//	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
-//	require.NoError(t, err)
-//	proofs := proto.NewProofs()
-//	proofs.Proofs = []proto.B58Bytes{proof[:]}
-//	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
-//	require.NoError(t, err)
-//	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
-//	require.NoError(t, err)
-//
-//	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
-//	require.NoError(t, err)
-//	recipient := proto.NewRecipientFromAddress(addr)
-//	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
-//	require.NoError(t, err)
-//
-//	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
-//	require.NoError(t, err)
-//	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
-//	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
-//	require.NoError(t, err)
-//
-//	arguments := proto.Arguments{}
-//	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
-//
-//	call := proto.FunctionCall{
-//		Default:   false,
-//		Name:      "cancel",
-//		Arguments: arguments,
-//	}
-//	tx = &proto.InvokeScriptWithProofs{
-//		Type:            proto.InvokeScriptTransaction,
-//		Version:         1,
-//		ID:              &txID,
-//		Proofs:          proofs,
-//		ChainID:         proto.MainNetScheme,
-//		SenderPK:        sender,
-//		ScriptRecipient: recipient,
-//		FunctionCall:    call,
-//		Payments: proto.ScriptPayments{proto.ScriptPayment{
-//			Amount: 10000,
-//			Asset:  proto.OptionalAsset{},
-//		}},
-//		FeeAsset:  proto.OptionalAsset{},
-//		Fee:       900000,
-//		Timestamp: 1564703444249,
-//	}
-//	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
-//
-//	firstScript = "AAIFAAAAAAAAAAYIAhIAEgAAAAAAAAAAAgAAAAFpAQAAAARiYWNrAAAAAAkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAAAACQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssAAAAAAAAAAAIFAAAABHVuaXQFAAAAA25pbAAAAAFpAQAAAANmb28AAAAABAAAAAJiMQkAA+8AAAABBQAAAAR0aGlzBAAAAANvYjEJAAPvAAAAAQkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywMDCQAAAAAAAAIFAAAAAmIxBQAAAAJiMQkAAAAAAAACBQAAAANvYjEFAAAAA29iMQcEAAAAAXIJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywIAAAADYmFyCQAETAAAAAIIBQAAAAR0aGlzAAAABWJ5dGVzBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAABEFAAAAA25pbAMJAAAAAAAAAgUAAAABcgAAAAAAAAAAEQQAAAAEZGF0YQkBAAAAEUBleHRyTmF0aXZlKDEwNTApAAAAAgkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywIAAAADYmFyBAAAAAV0ZGF0YQkBAAAAEUBleHRyTmF0aXZlKDEwNTApAAAAAgUAAAAEdGhpcwIAAAADa2V5BAAAAAJiMgkAA+8AAAABBQAAAAR0aGlzBAAAAANvYjIJAAPvAAAAAQkBAAAAB0FkZHJlc3MAAAABAQAAABoBV0myKgvnUpvnQwgi/Cmpjg8vaC8j0MoKywMDCQAAAAAAAAIFAAAABGRhdGEAAAAAAAAAAAEJAAAAAAAAAgUAAAAFdGRhdGEAAAAAAAAAAAAHAwMJAAAAAAAAAgkAAGQAAAACCAUAAAADb2IxAAAAB3JlZ3VsYXIAAAAAAAAAABAIBQAAAANvYjIAAAAHcmVndWxhcgkAAAAAAAACCAUAAAACYjEAAAAHcmVndWxhcgkAAGQAAAACCAUAAAACYjIAAAAHcmVndWxhcgAAAAAAAAAAEAcJAARMAAAAAgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2tleQAAAAAAAAAAAQUAAAADbmlsCQAAAgAAAAECAAAAFEJhbGFuY2UgY2hlY2sgZmFpbGVkCQAAAgAAAAECAAAACUJhZCBzdGF0ZQkAAAIAAAABAgAAABJCYWQgcmV0dXJuZWQgdmFsdWUJAAACAAAAAQIAAAAJSW1wb3NpYmxlAAAAAOgXYAY="
-//	secondScript = "AAIFAAAAAAAAAAcIAhIDCgECAAAAAAAAAAEAAAABaQEAAAADYmFyAAAAAQAAAAFhBAAAAAFyCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQUAAAABYQIAAAAEYmFjawUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIFAAAAAXIJAAUUAAAAAgkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADYmFyAAAAAAAAAAABCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMJAQAAAAdBZGRyZXNzAAAAAQUAAAABYQAAAAAAAAAAAwUAAAAEdW5pdAUAAAADbmlsAAAAAAAAAAARCQAAAgAAAAECAAAACUltcG9zaWJsZQAAAACf+Ofn"
-//
-//	id = bytes.Repeat([]byte{0}, 32)
-//
-//	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
-//		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 0}, Sender: &addrPK},
-//		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: &addressCallablePK},
-//		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 1}},
-//	}
-//
-//	expectedTransferWrites := []*proto.TransferScriptAction{
-//		{Sender: &addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}},
-//		{Sender: &addrPK, Recipient: recipientCallable, Amount: 2, Asset: proto.OptionalAsset{}},
-//		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}},
-//	}
-//
-//	smartState := smartStateDappFromDapp
-//
-//	thisAddress = addr
-//
-//	env := envDappFromDapp
-//
-//	NewWrappedSt := initWrappedState(smartState(), env)
-//	wrappedSt = *NewWrappedSt
-//
-//	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
-//	require.NoError(t, err)
-//	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-//	require.NoError(t, err)
-//
-//	src, err := base64.StdEncoding.DecodeString(firstScript)
-//	require.NoError(t, err)
-//
-//	tree, err := Parse(src)
-//	require.NoError(t, err)
-//	assert.NotNil(t, tree)
-//
-//	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-//
-//	require.NoError(t, err)
-//	r, ok := res.(DAppResult)
-//	require.True(t, ok)
-//	require.True(t, r.res)
-//
-//	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
-//	require.NoError(t, err)
-//
-//	expectedActionsResult := &proto.ScriptResult{
-//		DataEntries:  expectedDataEntryWrites,
-//		Transfers:    expectedTransferWrites,
-//		Issues:       make([]*proto.IssueScriptAction, 0),
-//		Reissues:     make([]*proto.ReissueScriptAction, 0),
-//		Burns:        make([]*proto.BurnScriptAction, 0),
-//		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
-//		Leases:       make([]*proto.LeaseScriptAction, 0),
-//		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
-//	}
-//	assert.Equal(t, expectedActionsResult, sr)
-//
-//	expectedDiffResult := initWrappedState(smartState(), env).diff
-//
-//	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9984, effectiveHistory: []int64{10000, 9984}}
-//	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
-//	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 16, effectiveHistory: []int64{0, 16}}
-//	intEntry1 := proto.IntegerDataEntry{Key: "key", Value: 0}
-//	intEntry2 := proto.IntegerDataEntry{Key: "bar", Value: 1}
-//	expectedDiffResult.dataEntries.diffInteger["key"+addr.String()] = intEntry1
-//	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry2
-//	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
-//	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
-//	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
-//
-//	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
-//	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
-//
-//	tearDownDappFromDapp()
-//}
 
 func TestNegativeCycleNewInvokeDAppFromDAppScript4(t *testing.T) {
 
@@ -2212,7 +2044,7 @@ func TestNegativeCycleNewInvokeDAppFromDAppScript4(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -2234,192 +2066,194 @@ func TestNegativeCycleNewInvokeDAppFromDAppScript4(t *testing.T) {
 	tearDownDappFromDapp()
 }
 
-//TODO change this test from Invoke to ReentrantInvoke
-//func TestInvokeDAppFromDAppScript5(t *testing.T) {
-//
-//	/* script 1
-//	{-# STDLIB_VERSION 5 #-}
-//	{-# CONTENT_TYPE DAPP #-}
-//	{-#SCRIPT_TYPE ACCOUNT#-}
-//
-//	 @Callable(i)
-//	 func back() = {
-//	   [ScriptTransfer(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), 2, unit)]
-//	 }
-//
-//	 @Callable(i)
-//	 func foo() = {
-//	  let b1 = wavesBalance(this)
-//	  let ob1 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
-//	  if b1 == b1 && ob1 == ob1
-//	  then
-//	    let r = Invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar", [this.bytes], [AttachedPayment(unit, 17)])
-//	    if r == 17
-//	    then
-//	     let data = getIntegerValue(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar")
-//	     let b2 = wavesBalance(this)
-//	     let ob2 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
-//	     if data == 1
-//	     then
-//	      if ob1.regular+13 == ob2.regular && b1.regular == b2.regular+13
-//	      then
-//	       [
-//	        IntegerEntry("key", 1)
-//	       ]
-//	      else
-//	       throw("Balance check failed")
-//	    else
-//	     throw("Bad state")
-//	   else
-//	    throw("Bad returned value")
-//	  else
-//	   throw("Imposible")
-//	 }
-//	*/
-//
-//	/*
-//			script2
-//		{-# STDLIB_VERSION 5 #-}
-//		{-# CONTENT_TYPE DAPP #-}
-//		{-#SCRIPT_TYPE ACCOUNT#-}
-//
-//		 @Callable(i)
-//		 func bar(a: ByteVector) = {
-//		   let r = Invoke(Address(a), "back", [], [AttachedPayment(unit, 3)])
-//		   if r == r
-//		   then
-//		    ([IntegerEntry("bar", 1), ScriptTransfer(Address(a), 3, unit)], 17)
-//		   else
-//		    throw("Imposible")
-//		 }
+func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 
-//	*/
-//	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
-//	require.NoError(t, err)
-//	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
-//	require.NoError(t, err)
-//	proofs := proto.NewProofs()
-//	proofs.Proofs = []proto.B58Bytes{proof[:]}
-//	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
-//	require.NoError(t, err)
-//	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
-//	require.NoError(t, err)
-//
-//	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
-//	require.NoError(t, err)
-//	recipient := proto.NewRecipientFromAddress(addr)
-//	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr, false)
-//	require.NoError(t, err)
-//
-//	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
-//	require.NoError(t, err)
-//	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
-//	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable, false)
-//	require.NoError(t, err)
-//
-//	arguments := proto.Arguments{}
-//	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
-//
-//	call := proto.FunctionCall{
-//		Default:   false,
-//		Name:      "cancel",
-//		Arguments: arguments,
-//	}
-//	tx = &proto.InvokeScriptWithProofs{
-//		Type:            proto.InvokeScriptTransaction,
-//		Version:         1,
-//		ID:              &txID,
-//		Proofs:          proofs,
-//		ChainID:         proto.MainNetScheme,
-//		SenderPK:        sender,
-//		ScriptRecipient: recipient,
-//		FunctionCall:    call,
-//		Payments: proto.ScriptPayments{proto.ScriptPayment{
-//			Amount: 10000,
-//			Asset:  proto.OptionalAsset{},
-//		}},
-//		FeeAsset:  proto.OptionalAsset{},
-//		Fee:       900000,
-//		Timestamp: 1564703444249,
-//	}
-//	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
-//
-//	firstScript = "AAIFAAAAAAAAAAYIAhIAEgAAAAAAAAAAAgAAAAFpAQAAAARiYWNrAAAAAAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXSbIqC+dSm+dDCCL8KamODy9oLyPQygrLAAAAAAAAAAACBQAAAAR1bml0BQAAAANuaWwAAAABaQEAAAADZm9vAAAAAAQAAAACYjEJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IxCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssDAwkAAAAAAAACBQAAAAJiMQUAAAACYjEJAAAAAAAAAgUAAAADb2IxBQAAAANvYjEHBAAAAAFyCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2JhcgkABEwAAAACCAUAAAAEdGhpcwAAAAVieXRlcwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAARBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIAAAAAAAAAABEEAAAABGRhdGEJAQAAABFAZXh0ck5hdGl2ZSgxMDUwKQAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2JhcgQAAAACYjIJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IyCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssDCQAAAAAAAAIFAAAABGRhdGEAAAAAAAAAAAEDAwkAAAAAAAACCQAAZAAAAAIIBQAAAANvYjEAAAAHcmVndWxhcgAAAAAAAAAADQgFAAAAA29iMgAAAAdyZWd1bGFyCQAAAAAAAAIIBQAAAAJiMQAAAAdyZWd1bGFyCQAAZAAAAAIIBQAAAAJiMgAAAAdyZWd1bGFyAAAAAAAAAAANBwkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAAABBQAAAANuaWwJAAACAAAAAQIAAAAUQmFsYW5jZSBjaGVjayBmYWlsZWQJAAACAAAAAQIAAAAJQmFkIHN0YXRlCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQkAAAIAAAABAgAAAAlJbXBvc2libGUAAAAA0WFyhQ=="
-//	secondScript = "AAIFAAAAAAAAAAcIAhIDCgECAAAAAAAAAAEAAAABaQEAAAADYmFyAAAAAQAAAAFhBAAAAAFyCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQUAAAABYQIAAAAEYmFjawUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAADBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIFAAAAAXIJAAUUAAAAAgkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADYmFyAAAAAAAAAAABCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMJAQAAAAdBZGRyZXNzAAAAAQUAAAABYQAAAAAAAAAAAwUAAAAEdW5pdAUAAAADbmlsAAAAAAAAAAARCQAAAgAAAAECAAAACUltcG9zaWJsZQAAAACzZnMp"
-//
-//	id = bytes.Repeat([]byte{0}, 32)
-//
-//	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
-//		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: &addressCallablePK},
-//		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 1}},
-//	}
-//
-//	expectedTransferWrites := []*proto.TransferScriptAction{
-//		{Sender: &addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}},
-//		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}},
-//		{Sender: &addrPK, Recipient: recipientCallable, Amount: 2, Asset: proto.OptionalAsset{}},
-//		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}},
-//	}
-//
-//	smartState := smartStateDappFromDapp
-//
-//	thisAddress = addr
-//	env := envDappFromDapp
-//
-//	NewWrappedSt := initWrappedState(smartState(), env)
-//	wrappedSt = *NewWrappedSt
-//
-//	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
-//	require.NoError(t, err)
-//	err = AddExternalPayments(tx.Payments, tx.SenderPK)
-//	require.NoError(t, err)
-//
-//	src, err := base64.StdEncoding.DecodeString(firstScript)
-//	require.NoError(t, err)
-//
-//	tree, err := Parse(src)
-//	require.NoError(t, err)
-//	assert.NotNil(t, tree)
-//
-//	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-//
-//	require.NoError(t, err)
-//	r, ok := res.(DAppResult)
-//	require.True(t, ok)
-//	require.True(t, r.res)
-//
-//	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
-//	require.NoError(t, err)
-//
-//	expectedActionsResult := &proto.ScriptResult{
-//		DataEntries:  expectedDataEntryWrites,
-//		Transfers:    expectedTransferWrites,
-//		Issues:       make([]*proto.IssueScriptAction, 0),
-//		Reissues:     make([]*proto.ReissueScriptAction, 0),
-//		Burns:        make([]*proto.BurnScriptAction, 0),
-//		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
-//		Leases:       make([]*proto.LeaseScriptAction, 0),
-//		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
-//	}
-//	assert.Equal(t, expectedActionsResult, sr)
-//
-//	expectedDiffResult := initWrappedState(smartState(), env).diff
-//
-//	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9987, effectiveHistory: []int64{10000, 9987}}
-//	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
-//	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 13, effectiveHistory: []int64{0, 13}}
-//	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
-//	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
-//	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
-//	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
-//	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
-//
-//	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
-//	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
-//
-//	tearDownDappFromDapp()
-//
-//}
+	/* script 1
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-#SCRIPT_TYPE ACCOUNT#-}
+
+	 @Callable(i)
+	 func back() = {
+	   [ScriptTransfer(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), 2, unit)]
+	 }
+
+	 @Callable(i)
+	 func foo() = {
+	  let b1 = wavesBalance(this)
+	  let ob1 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
+	  if b1 == b1 && ob1 == ob1
+	  then
+	    let r = reentrantInvoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar", [this.bytes], [AttachedPayment(unit, 17)])
+	    if r == 17
+	    then
+	     let data = getIntegerValue(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "bar")
+	     let b2 = wavesBalance(this)
+	     let ob2 = wavesBalance(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'))
+	     if data == 1
+	     then
+	      if ob1.regular+13 == ob2.regular && b1.regular == b2.regular+13
+	      then
+	       [
+	        IntegerEntry("key", 1)
+	       ]
+	      else
+	       throw("Balance check failed")
+	    else
+	     throw("Bad state")
+	   else
+	    throw("Bad returned value")
+	  else
+	   throw("Imposible")
+	 }
+	*/
+
+	/*
+			script2
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-#SCRIPT_TYPE ACCOUNT#-}
+
+		 @Callable(i)
+		 func bar(a: ByteVector) = {
+		   let r = reentrantInvoke(Address(a), "back", [], [AttachedPayment(unit, 3)])
+		   if r == r
+		   then
+		    ([IntegerEntry("bar", 1), ScriptTransfer(Address(a), 3, unit)], 17)
+		   else
+		    throw("Imposible")
+		 }
+
+	*/
+	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(addr)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
+	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	recipientCallable := proto.NewRecipientFromAddress(addressCallable)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
+	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
+
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "cancel",
+		Arguments: arguments,
+	}
+	tx = &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 10000,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       900000,
+		Timestamp: 1564703444249,
+	}
+	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+
+	firstScript = "AAIFAAAAAAAAAAYIAhIAEgAAAAAAAAAAAgAAAAFpAQAAAARiYWNrAAAAAAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFXSbIqC+dSm+dDCCL8KamODy9oLyPQygrLAAAAAAAAAAACBQAAAAR1bml0BQAAAANuaWwAAAABaQEAAAADZm9vAAAAAAQAAAACYjEJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IxCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssDAwkAAAAAAAACBQAAAAJiMQUAAAACYjEJAAAAAAAAAgUAAAADb2IxBQAAAANvYjEHBAAAAAFyCQAD/QAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2JhcgkABEwAAAACCAUAAAAEdGhpcwAAAAVieXRlcwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAARBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIAAAAAAAAAABEEAAAABGRhdGEJAQAAABFAZXh0ck5hdGl2ZSgxMDUwKQAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2JhcgQAAAACYjIJAAPvAAAAAQUAAAAEdGhpcwQAAAADb2IyCQAD7wAAAAEJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssDCQAAAAAAAAIFAAAABGRhdGEAAAAAAAAAAAEDAwkAAAAAAAACCQAAZAAAAAIIBQAAAANvYjEAAAAHcmVndWxhcgAAAAAAAAAADQgFAAAAA29iMgAAAAdyZWd1bGFyCQAAAAAAAAIIBQAAAAJiMQAAAAdyZWd1bGFyCQAAZAAAAAIIBQAAAAJiMgAAAAdyZWd1bGFyAAAAAAAAAAANBwkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADa2V5AAAAAAAAAAABBQAAAANuaWwJAAACAAAAAQIAAAAUQmFsYW5jZSBjaGVjayBmYWlsZWQJAAACAAAAAQIAAAAJQmFkIHN0YXRlCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQkAAAIAAAABAgAAAAlJbXBvc2libGUAAAAAgjbh2Q=="
+	secondScript = "AAIFAAAAAAAAAAcIAhIDCgECAAAAAAAAAAEAAAABaQEAAAADYmFyAAAAAQAAAAFhBAAAAAFyCQAD/QAAAAQJAQAAAAdBZGRyZXNzAAAAAQUAAAABYQIAAAAEYmFjawUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAADBQAAAANuaWwDCQAAAAAAAAIFAAAAAXIFAAAAAXIJAAUUAAAAAgkABEwAAAACCQEAAAAMSW50ZWdlckVudHJ5AAAAAgIAAAADYmFyAAAAAAAAAAABCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMJAQAAAAdBZGRyZXNzAAAAAQUAAAABYQAAAAAAAAAAAwUAAAAEdW5pdAUAAAADbmlsAAAAAAAAAAARCQAAAgAAAAECAAAACUltcG9zaWJsZQAAAADwDv0i"
+
+	id = bytes.Repeat([]byte{0}, 32)
+
+	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
+		{Entry: &proto.IntegerDataEntry{Key: "bar", Value: 1}, Sender: &addressCallablePK},
+		{Entry: &proto.IntegerDataEntry{Key: "key", Value: 1}},
+	}
+
+	expectedTransferWrites := []*proto.TransferScriptAction{
+		{Sender: &addrPK, Recipient: recipientCallable, Amount: 2, Asset: proto.OptionalAsset{}},
+		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}},
+	}
+
+	expectedAttachedPaymentActions := []*proto.AttachedPaymentScriptAction{
+		{Sender: &addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}},
+		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}},
+	}
+
+	smartState := smartStateDappFromDapp
+
+	thisAddress = addr
+	env := envDappFromDapp
+
+	NewWrappedSt := initWrappedState(smartState(), env)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
+
+	src, err := base64.StdEncoding.DecodeString(firstScript)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
+
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	require.True(t, r.res)
+
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
+	expectedActionsResult := &proto.ScriptResult{
+		DataEntries:  expectedDataEntryWrites,
+		Transfers:    expectedTransferWrites,
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+	}
+	assert.Equal(t, expectedActionsResult, sr)
+
+	expectedDiffResult := initWrappedState(smartState(), env).diff
+	assetExp := proto.NewOptionalAssetWaves()
+
+	balanceMain := diffBalance{asset: assetExp, regular: 9987, effectiveHistory: []int64{10000, 9987}}
+	balanceSender := diffBalance{asset: assetExp, regular: 0}
+	balanceCallable := diffBalance{asset: assetExp, regular: 13, effectiveHistory: []int64{0, 13}}
+	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{"bar", addressCallable}] = intEntry
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
+
+	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
+	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
+
+	tearDownDappFromDapp()
+}
 
 func TestInvokeDAppFromDAppScript6(t *testing.T) {
 
@@ -2509,9 +2343,9 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
 		Transfers:    make([]*proto.TransferScriptAction, 0),
@@ -2707,9 +2541,9 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
 		Transfers:    make([]*proto.TransferScriptAction, 0),
@@ -2835,7 +2669,7 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -2854,9 +2688,9 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  expectedDataEntryWrites,
 		Transfers:    expectedTransferWrites,
@@ -2871,14 +2705,15 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
+	assetExp := proto.NewOptionalAssetWaves()
 
 	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 10000}
-	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
-	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
-	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
+	balanceMain := diffBalance{asset: assetExp, regular: 10000}
+	balanceSender := diffBalance{asset: assetExp, regular: 0}
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -2981,7 +2816,7 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 		{Entry: &proto.IntegerDataEntry{Key: "int", Value: 1}, Sender: &addressCallablePK},
 	}
 
-	expectedTransferWrites := []*proto.TransferScriptAction{
+	expectedAttachedPaymentWrites := []*proto.AttachedPaymentScriptAction{
 		{Recipient: recipientCallable, Sender: &addrPK, Amount: 1, Asset: proto.OptionalAsset{}},
 	}
 
@@ -2993,7 +2828,7 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -3012,12 +2847,12 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.ElementsMatch(t, expectedAttachedPaymentWrites, ap)
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  expectedDataEntryWrites,
-		Transfers:    expectedTransferWrites,
+		Transfers:    make([]*proto.TransferScriptAction, 0),
 		Issues:       make([]*proto.IssueScriptAction, 0),
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
 		Burns:        make([]*proto.BurnScriptAction, 0),
@@ -3029,15 +2864,16 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
+	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9999}
-	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
-	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 1}
-	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
-	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
-	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
+	balanceMain := diffBalance{asset: assetExp, regular: 9999}
+	balanceSender := diffBalance{asset: assetExp, regular: 0}
+	balanceCallable := diffBalance{asset: assetExp, regular: 1}
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -3175,7 +3011,7 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(addressCallable, 10000, *assetCat)
+	err = AddAssetToSender(addressCallable, 10000, *assetCat)
 	require.NoError(t, err)
 
 	src, err := base64.StdEncoding.DecodeString(firstScript)
@@ -3192,9 +3028,9 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
 		Transfers:    expectedTransferWrites,
@@ -3210,13 +3046,13 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 	balance := diffBalance{regular: 1, leaseIn: 0, asset: *assetCat}
-	expectedDiffResult.balances[addr.String()+assetCat.String()] = balance
+	expectedDiffResult.balances[balanceDiffKey{addr, *assetCat}] = balance
 
-	balanceCallable := diffBalance{regular: 9999, leaseOut: 0, asset: *assetCat}
-	expectedDiffResult.balances[addressCallable.String()+assetCat.String()] = balanceCallable
+	balanceCallable := diffBalance{regular: 10049, leaseOut: 0, asset: *assetCat} // the balance was 9999. reissue + 100. burn - 50. = 10049
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, *assetCat}] = balanceCallable
 
 	oldAsset := diffOldAssetInfo{diffQuantity: 50}
-	expectedDiffResult.oldAssetsInfo[assetIDIssue.String()] = oldAsset
+	expectedDiffResult.oldAssetsInfo[assetIDIssue] = oldAsset
 
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 	assert.Equal(t, expectedDiffResult.sponsorships, wrappedSt.diff.sponsorships)
@@ -3330,9 +3166,12 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	}
 
 	expectedTransferWrites := []*proto.TransferScriptAction{
-		{Sender: &addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}},
 		{Sender: &addrPK, Recipient: recipientCallable, Amount: 2, Asset: proto.OptionalAsset{}},
 		{Sender: &addressCallablePK, Recipient: recipient, Amount: 3, Asset: proto.OptionalAsset{}},
+	}
+
+	expectedAttachedPaymentActions := []*proto.AttachedPaymentScriptAction{
+		{Sender: &addrPK, Recipient: recipientCallable, Amount: 17, Asset: proto.OptionalAsset{}},
 	}
 
 	smartState := smartStateDappFromDapp
@@ -3344,7 +3183,7 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -3363,9 +3202,9 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  expectedDataEntryWrites,
 		Transfers:    expectedTransferWrites,
@@ -3379,17 +3218,18 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
+	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9984}
-	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
-	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 16}
+	balanceMain := diffBalance{asset: assetExp, regular: 9984}
+	balanceSender := diffBalance{asset: assetExp, regular: 0}
+	balanceCallable := diffBalance{asset: assetExp, regular: 16}
 	intEntry1 := proto.IntegerDataEntry{Key: "key", Value: 0}
 	intEntry2 := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["key"+addr.String()] = intEntry1
-	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry2
-	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
-	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
-	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry1.Key, addr}] = intEntry1
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry2.Key, addressCallable}] = intEntry2
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -3493,7 +3333,7 @@ func TestExpressionScriptFailInvoke(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -3607,7 +3447,7 @@ func TestPaymentsDifferentScriptVersion4(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -3731,7 +3571,7 @@ func TestPaymentsDifferentScriptVersion3(t *testing.T) {
 	NewWrappedSt := initWrappedState(smartState(), env)
 	wrappedSt = *NewWrappedSt
 
-	err = AddWavesToSender(senderAddress, 10000, proto.OptionalAsset{})
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
 	require.NoError(t, err)
 	err = AddExternalPayments(tx.Payments, tx.SenderPK)
 	require.NoError(t, err)
@@ -3752,6 +3592,331 @@ func TestPaymentsDifferentScriptVersion3(t *testing.T) {
 
 	tearDownDappFromDapp()
 
+}
+
+func TestActionsLimitInOneInvoke(t *testing.T) {
+
+	/* script 1
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func bar() = {
+		let res = invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "foo",[], [AttachedPayment(unit, 500)])
+		if res == 17
+	        then
+	        [
+
+	        ]
+	        else
+	         throw("Bad returned value")
+	}
+	*/
+
+	/* script 2.1
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+		func foo() = {
+		([
+	    ScriptTransfer(i.caller, 1, unit),
+	    ScriptTransfer(i.caller, 2, unit),
+	    ScriptTransfer(i.caller, 3, unit),
+	    ScriptTransfer(i.caller, 4, unit),
+	    ScriptTransfer(i.caller, 5, unit),
+	    ScriptTransfer(i.caller, 6, unit),
+	    ScriptTransfer(i.caller, 7, unit),
+	    ScriptTransfer(i.caller, 8, unit),
+	    ScriptTransfer(i.caller, 9, unit),
+	    ScriptTransfer(i.caller, 10, unit),
+	    ScriptTransfer(i.caller, 11, unit),
+	    ScriptTransfer(i.caller, 12, unit),
+	    ScriptTransfer(i.caller, 13, unit),
+	    ScriptTransfer(i.caller, 14, unit),
+	    ScriptTransfer(i.caller, 15, unit),
+	    ScriptTransfer(i.caller, 16, unit),
+	    ScriptTransfer(i.caller, 17, unit),
+	    ScriptTransfer(i.caller, 18, unit),
+	    ScriptTransfer(i.caller, 19, unit),
+	    ScriptTransfer(i.caller, 20, unit),
+	    ScriptTransfer(i.caller, 21, unit),
+	    ScriptTransfer(i.caller, 22, unit),
+	    ScriptTransfer(i.caller, 23, unit),
+	    ScriptTransfer(i.caller, 24, unit),
+	    ScriptTransfer(i.caller, 25, unit),
+	    ScriptTransfer(i.caller, 26, unit),
+	    ScriptTransfer(i.caller, 27, unit),
+	    ScriptTransfer(i.caller, 28, unit),
+	    ScriptTransfer(i.caller, 29, unit),
+	    ScriptTransfer(i.caller, 30, unit)
+		], 17)
+		}
+	*/
+
+	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(addr)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
+	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
+	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
+
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "cancel",
+		Arguments: arguments,
+	}
+	tx = &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 10000,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       900000,
+		Timestamp: 1564703444249,
+	}
+	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+
+	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADYmFyAAAAAAQAAAADcmVzCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2ZvbwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAR1bml0AAAAAAAAAAH0BQAAAANuaWwDCQAAAAAAAAIFAAAAA3JlcwAAAAAAAAAAEQUAAAADbmlsCQAAAgAAAAECAAAAEkJhZCByZXR1cm5lZCB2YWx1ZQAAAACzb0+i"
+	secondScript = "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"
+
+	smartState := smartStateDappFromDapp
+
+	thisAddress = addr
+	env := envDappFromDapp
+
+	NewWrappedSt := initWrappedState(smartState(), env)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
+
+	src, err := base64.StdEncoding.DecodeString(firstScript)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	res, err := CallFunction(env, tree, "bar", proto.Arguments{})
+
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	require.True(t, r.res)
+
+	_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+
+	/* script 2.2
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+		func foo() = {
+		([
+	    ScriptTransfer(i.caller, 1, unit),
+	    ScriptTransfer(i.caller, 2, unit),
+	    ScriptTransfer(i.caller, 3, unit),
+	    ScriptTransfer(i.caller, 4, unit),
+	    ScriptTransfer(i.caller, 5, unit),
+	    ScriptTransfer(i.caller, 6, unit),
+	    ScriptTransfer(i.caller, 7, unit),
+	    ScriptTransfer(i.caller, 8, unit),
+	    ScriptTransfer(i.caller, 9, unit),
+	    ScriptTransfer(i.caller, 10, unit),
+	    ScriptTransfer(i.caller, 11, unit),
+	    ScriptTransfer(i.caller, 12, unit),
+	    ScriptTransfer(i.caller, 13, unit),
+	    ScriptTransfer(i.caller, 14, unit),
+	    ScriptTransfer(i.caller, 15, unit),
+	    ScriptTransfer(i.caller, 16, unit),
+	    ScriptTransfer(i.caller, 17, unit),
+	    ScriptTransfer(i.caller, 18, unit),
+	    ScriptTransfer(i.caller, 19, unit),
+	    ScriptTransfer(i.caller, 20, unit),
+	    ScriptTransfer(i.caller, 21, unit),
+	    ScriptTransfer(i.caller, 22, unit),
+	    ScriptTransfer(i.caller, 23, unit),
+	    ScriptTransfer(i.caller, 24, unit),
+	    ScriptTransfer(i.caller, 25, unit),
+	    ScriptTransfer(i.caller, 26, unit),
+	    ScriptTransfer(i.caller, 27, unit),
+	    ScriptTransfer(i.caller, 28, unit),
+	    ScriptTransfer(i.caller, 29, unit),
+	    ScriptTransfer(i.caller, 30, unit)
+		ScriptTransfer(i.caller, 31, unit)
+		], 17)
+		}
+	*/
+	secondScript = "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"
+
+	_, err = CallFunction(env, tree, "bar", proto.Arguments{})
+	require.Error(t, err)
+
+	tearDownDappFromDapp()
+}
+
+func TestActionsLimitInvoke(t *testing.T) {
+
+	/* script 1
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+		func bar() = {
+			let res = invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "foo",[], [AttachedPayment(base58'', 500)])
+			if res == 17
+		    then
+	        let res1 = invoke(Address(base58'3P8eZVKS7a4troGckytxaefLAi9w7P5aMna'), "foo",[], [AttachedPayment(base58'', 500)])
+	        if res1 == 17
+	          then
+	            [
+	            ]
+	        else
+	          throw("impossible")
+
+		  else
+		      throw("Bad returned value")
+		}
+	*/
+
+	/* script 2
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+		func foo() = {
+		([
+	    ScriptTransfer(i.caller, 1, unit),
+	    ScriptTransfer(i.caller, 2, unit),
+	    ScriptTransfer(i.caller, 3, unit),
+	    ScriptTransfer(i.caller, 4, unit),
+	    ScriptTransfer(i.caller, 5, unit),
+	    ScriptTransfer(i.caller, 6, unit),
+	    ScriptTransfer(i.caller, 7, unit),
+	    ScriptTransfer(i.caller, 8, unit),
+	    ScriptTransfer(i.caller, 9, unit),
+	    ScriptTransfer(i.caller, 10, unit),
+	    ScriptTransfer(i.caller, 11, unit),
+	    ScriptTransfer(i.caller, 12, unit),
+	    ScriptTransfer(i.caller, 13, unit),
+	    ScriptTransfer(i.caller, 14, unit),
+	    ScriptTransfer(i.caller, 15, unit),
+	    ScriptTransfer(i.caller, 16, unit)
+		], 17)
+		}
+	*/
+
+	txID, err := crypto.NewDigestFromBase58("46R51i3ATxvYbrLJVWpAG3hZuznXtgEobRW6XSZ9MP6f")
+	require.NoError(t, err)
+	proof, err := crypto.NewSignatureFromBase58("5MriXpPgobRfNHqYx3vSjrZkDdzDrRF6krgvJp1FRvo2qTyk1KB913Nk1H2hWyKPDzL6pV1y8AWREHdQMGStCBuF")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	proofs.Proofs = []proto.B58Bytes{proof[:]}
+	sender, err := crypto.NewPublicKeyFromBase58("APg7QwJSx6naBUPnGYM2vvsJxQcpYabcbzkNJoMUXLai")
+	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, sender)
+	require.NoError(t, err)
+
+	addr, err = proto.NewAddressFromString("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(addr)
+	addrPK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addr)
+	require.NoError(t, err)
+
+	addressCallable, err = proto.NewAddressFromString("3P8eZVKS7a4troGckytxaefLAi9w7P5aMna")
+	require.NoError(t, err)
+	addressCallablePK, err = smartStateDappFromDapp().NewestScriptPKByAddr(addressCallable)
+	require.NoError(t, err)
+
+	arguments := proto.Arguments{}
+	arguments.Append(&proto.StringArgument{Value: "B9spbWQ1rk7YqJUFjW8mLHw6cRcngyh7G9YgRuyFtLv6"})
+
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "cancel",
+		Arguments: arguments,
+	}
+	tx = &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        sender,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments: proto.ScriptPayments{proto.ScriptPayment{
+			Amount: 10000,
+			Asset:  proto.OptionalAsset{},
+		}},
+		FeeAsset:  proto.OptionalAsset{},
+		Fee:       900000,
+		Timestamp: 1564703444249,
+	}
+	inv, _ = invocationToObject(4, proto.MainNetScheme, tx)
+
+	firstScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADYmFyAAAAAAQAAAADcmVzCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2ZvbwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACAQAAAAAAAAAAAAAAAfQFAAAAA25pbAMJAAAAAAAAAgUAAAADcmVzAAAAAAAAAAARBAAAAARyZXMxCQAD/AAAAAQJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAVdJsioL51Kb50MIIvwpqY4PL2gvI9DKCssCAAAAA2ZvbwUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACAQAAAAAAAAAAAAAAAfQFAAAAA25pbAMJAAAAAAAAAgUAAAAEcmVzMQAAAAAAAAAAEQUAAAADbmlsCQAAAgAAAAECAAAACmltcG9zc2libGUJAAACAAAAAQIAAAASQmFkIHJldHVybmVkIHZhbHVlAAAAAKPxAAQ="
+	secondScript = "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAADZm9vAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAAQUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAIFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAADBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAABAUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAUFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAGBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAABwUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAgFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAJBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAACgUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAsFAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAMBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAADQUAAAAEdW5pdAkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAA4FAAAABHVuaXQJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyAAAAAAAAAAAPBQAAAAR1bml0CQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAEAUAAAAEdW5pdAUAAAADbmlsAAAAAAAAAAARAAAAAEnsJR0="
+
+	smartState := smartStateDappFromDapp
+
+	thisAddress = addr
+	env := envDappFromDapp
+
+	NewWrappedSt := initWrappedState(smartState(), env)
+	wrappedSt = *NewWrappedSt
+
+	err = AddAssetToSender(senderAddress, 10000, proto.OptionalAsset{})
+	require.NoError(t, err)
+	err = AddExternalPayments(tx.Payments, tx.SenderPK)
+	require.NoError(t, err)
+
+	src, err := base64.StdEncoding.DecodeString(firstScript)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	_, err = CallFunction(env, tree, "bar", proto.Arguments{})
+
+	require.Error(t, err)
+	tearDownDappFromDapp()
 }
 
 func TestHashScriptFunc(t *testing.T) {
@@ -3872,9 +4037,9 @@ func TestHashScriptFunc(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	decodedScript, err := base64.StdEncoding.DecodeString(script)
 	require.NoError(t, err)
 	hash, err := crypto.FastHash(decodedScript)
@@ -3999,9 +4164,9 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.BooleanDataEntry{Key: "virgin", Value: false}},
 	}
@@ -4381,9 +4546,9 @@ func TestWhaleDApp(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "wl_ref_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: "3P8Fvy1yDwNHvVrabe4ek5b9dAwxFjDKV7R"}},
 		{Entry: &proto.StringDataEntry{Key: "wl_bio_3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3", Value: `{"name":"James May","message":"Hello!","isWhale":false,"address":"3P9yVruoCbs4cveU8HpTdFUvzwY59ADaQm3"}`}},
@@ -4509,9 +4674,9 @@ func TestExchangeDApp(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	assert.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	ev, err := base64.StdEncoding.DecodeString("AAAAAAABhqAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWyt9GyysOW84u/u5V5Ah/SzLfef4c28UqXxowxFZS4SLiC6+XBh8D7aJDXyTTjpkPPED06ZPOzUE23V6VYCsLw==")
 	require.NoError(t, err)
 	expectedDataWrites := []*proto.DataEntryScriptAction{
@@ -4572,10 +4737,7 @@ func TestBankDApp(t *testing.T) {
 		FunctionCall:    call,
 		Payments: proto.ScriptPayments{proto.ScriptPayment{
 			Amount: 213,
-			Asset: proto.OptionalAsset{
-				Present: true,
-				ID:      paymentAsset,
-			},
+			Asset:  *proto.NewOptionalAssetFromDigest(paymentAsset),
 		}},
 		FeeAsset:  proto.OptionalAsset{},
 		Fee:       5000000,
@@ -4754,15 +4916,17 @@ func TestLigaDApp1(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 607280, nil
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					a := base58.Encode(asset)
-					switch a {
-					case "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye":
+				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+					return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
+				},
+				NewestAssetBalanceFunc: func(account proto.Recipient, asset crypto.Digest) (uint64, error) {
+					switch asset {
+					case team1:
 						return 1000 - 5, nil
-					case "FAysFm8ejh8dqDLooe83V7agUNc9CyC2bomy3NDUxGXv":
+					case team2:
 						return 1000, nil
 					default:
-						return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
+						return 0, errors.Errorf("unexpected asset %q", asset.String())
 					}
 				},
 				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
@@ -4822,9 +4986,9 @@ func TestLigaDApp1(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "STAGE", Value: 2}},
 		{Entry: &proto.IntegerDataEntry{Key: "BALANCE_SNAPSHOT", Value: 98750005}},
@@ -4910,20 +5074,22 @@ func TestLigaDApp1(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 607281, nil
 				},
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					a := base58.Encode(asset)
-					switch a {
-					case "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye":
+				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+					return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
+				},
+				NewestAssetBalanceFunc: func(account proto.Recipient, asset crypto.Digest) (uint64, error) {
+					switch asset {
+					case team1:
 						return 1000 - 5, nil
-					case "FAysFm8ejh8dqDLooe83V7agUNc9CyC2bomy3NDUxGXv":
+					case team2:
 						return 1000, nil
 					default:
-						return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
+						return 0, errors.Errorf("unexpected asset %q", asset.String())
 					}
 				},
-				NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-					switch assetID.String() {
-					case "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye":
+				NewestAssetInfoFunc: func(asset crypto.Digest) (*proto.AssetInfo, error) {
+					switch asset {
+					case team1:
 						return &proto.AssetInfo{
 							ID:              team1,
 							Quantity:        1000,
@@ -4934,7 +5100,7 @@ func TestLigaDApp1(t *testing.T) {
 							Scripted:        false,
 							Sponsored:       false,
 						}, nil
-					case "FAysFm8ejh8dqDLooe83V7agUNc9CyC2bomy3NDUxGXv":
+					case team2:
 						return &proto.AssetInfo{
 							ID:              team2,
 							Quantity:        1000,
@@ -5008,9 +5174,9 @@ func TestLigaDApp1(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedDataWrites = []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "STAGE", Value: 31}},
 		{Entry: &proto.IntegerDataEntry{Key: "PRIZE_POOL", Value: 94800004}},
@@ -5139,9 +5305,9 @@ func TestTestingDApp(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "mainLog", Value: "1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY - 3N4XM8G5WXzdkLXYDL6X229Entc5Hqgz7DM - 1FCQFaXp6A3s2po6M3iP3ECkjzjMojE5hNA1s8NyvxzgY -> 3NBQxw1ZzTfWbrLjWj2euMwizncrGG4nXJX"}},
 	}
@@ -5255,9 +5421,9 @@ func TestDropElementDApp(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
-
+	assert.Equal(t, 0, len(ap))
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "1", Value: "aaa,bbb,ccc - ccc = aaa,bbb"}},
 	}
@@ -5325,14 +5491,14 @@ func TestMathDApp(t *testing.T) {
 	}
 
 	env := &MockRideEnvironment{
+		blockFunc: func() rideObject {
+			return blockInfoToObject(blockInfo)
+		},
 		heightFunc: func() RideInt {
 			return 1642207
 		},
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
-		},
-		blockFunc: func() rideObject {
-			return blockInfoToObject(blockInfo)
 		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
@@ -5355,6 +5521,9 @@ func TestMathDApp(t *testing.T) {
 			require.NoError(t, err)
 			return obj
 		},
+		validateInternalPaymentsFunc: func() bool {
+			return false
+		},
 	}
 
 	code := "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"
@@ -5371,8 +5540,9 @@ func TestMathDApp(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "deltaT", Value: 6301369}},
@@ -5499,8 +5669,9 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "3MwT5r4YSyG4QAiqi8VNZkL9eP9e354DXfE_waves", Value: 7012000}},
@@ -5630,8 +5801,9 @@ func Test8Ball(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "3Mz67eGY4aNdBHJtgbRPVde3KwAeN3ULLHG_q", Value: "What is my purpose?"}},
@@ -5710,7 +5882,7 @@ func TestIntegerEntry(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 386529, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -5761,16 +5933,16 @@ func TestAssetInfoV3V4(t *testing.T) {
 		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
-				NewestAccountBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
+				NewestAssetBalanceFunc: func(account proto.Recipient, asset crypto.Digest) (uint64, error) {
 					return 1000, nil
 				},
-				NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+				NewestAssetInfoFunc: func(asset crypto.Digest) (*proto.AssetInfo, error) {
 					return &info, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset crypto.Digest) (bool, error) {
 					return false, nil
 				},
-				NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+				NewestFullAssetInfoFunc: func(asset crypto.Digest) (*proto.FullAssetInfo, error) {
 					return &proto.FullAssetInfo{
 						AssetInfo:   info,
 						Name:        "ASSET1",
@@ -5985,8 +6157,9 @@ func TestBadType(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "E3veSYzwJJEYEjgYAWV5vTi4TjsqbGuFDnCxSmrHmQXB", Value: "INIT_FCaP4jLhLawzEqbwAQGAVvPQBv2h3LdERCx7fckDvnzr_1_3_1_1_5_null_0_-"}},
@@ -6149,8 +6322,9 @@ func TestNoDeclaration(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.StringDataEntry{Key: "tailPointer", Value: ""}},
@@ -6161,10 +6335,7 @@ func TestNoDeclaration(t *testing.T) {
 		{
 			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3PJCXW3XZWr2tTpT5u52cPXcMWVP9AHBC9h")),
 			Amount:    19000000,
-			Asset: proto.OptionalAsset{
-				Present: true,
-				ID:      crypto.MustDigestFromBase58("4VDwPimjMR31ofr8qoRZ6nvhTJq7Rf21cZp1c425dUAR"),
-			},
+			Asset:     *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("4VDwPimjMR31ofr8qoRZ6nvhTJq7Rf21cZp1c425dUAR")),
 		},
 	}
 	expectedResult := &proto.ScriptResult{
@@ -6338,8 +6509,9 @@ func TestZeroReissue(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "share_token_supply", Value: 10000}},
@@ -6348,10 +6520,7 @@ func TestZeroReissue(t *testing.T) {
 		{
 			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3MSNMcqyweiM9cWpvf4Fn8GAWeuPstxj2hK")),
 			Amount:    0,
-			Asset: proto.OptionalAsset{
-				Present: true,
-				ID:      crypto.MustDigestFromBase58("5YKvHw6nEbVckCje1khnM5XZPRufzSxU29kV2hZXc9co"),
-			},
+			Asset:     *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("5YKvHw6nEbVckCje1khnM5XZPRufzSxU29kV2hZXc9co")),
 		},
 	}
 	expectedReissues := []*proto.ReissueScriptAction{
@@ -6560,8 +6729,9 @@ func TestStageNet2(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_amount", Value: 99500000}},
@@ -6570,10 +6740,7 @@ func TestStageNet2(t *testing.T) {
 		{
 			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT")),
 			Amount:    500000,
-			Asset: proto.OptionalAsset{
-				Present: true,
-				ID:      crypto.MustDigestFromBase58("3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2"),
-			},
+			Asset:     *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2")),
 		},
 	}
 	expectedResult := &proto.ScriptResult{
@@ -6761,14 +6928,15 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedTransfers := []*proto.TransferScriptAction{
 		{
 			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3P8FF73N7ZvvNJ34vnJ3h9Tfmh7oQCnRz8E")),
 			Amount:    0,
-			Asset:     proto.OptionalAsset{Present: false},
+			Asset:     proto.NewOptionalAssetWaves(),
 		},
 	}
 	expectedResult := &proto.ScriptResult{
@@ -6874,8 +7042,11 @@ func TestOriginCaller(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		setNewDAppAddressFunc: func(address proto.Address) {
+		setNewDAppAddressFunc: func(address proto.WavesAddress) {
 			testDAppAddress = address
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
 	}
 
@@ -6890,7 +7061,7 @@ func TestOriginCaller(t *testing.T) {
 				return nil, errors.Errorf("unexpected address %s", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case senderAddress:
 				return senderPK, nil
@@ -6899,7 +7070,7 @@ func TestOriginCaller(t *testing.T) {
 			}
 			return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			return recipient.Address, nil
 		},
 	}
@@ -6917,8 +7088,9 @@ func TestOriginCaller(t *testing.T) {
 	require.True(t, ok)
 	require.True(t, r.res)
 
-	sr, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
 
 	expectedDataWrites := []*proto.DataEntryScriptAction{
 		{
@@ -6936,6 +7108,1004 @@ func TestOriginCaller(t *testing.T) {
 		Transfers:    make([]*proto.TransferScriptAction, 0),
 		Issues:       make([]*proto.IssueScriptAction, 0),
 		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:     proto.ScriptErrorMessage{},
+	}
+	assert.Equal(t, expectedResult, sr)
+}
+
+func TestInternalPaymentsValidationFailure(t *testing.T) {
+	issuerPK, err := crypto.NewPublicKeyFromBase58("Hjd6p3ArqjnQAsejFwu7JcQciVVx9RaQhtMfGBCAi76z")
+	require.NoError(t, err)
+	issuerAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, issuerPK)
+	require.NoError(t, err)
+	asset, err := crypto.NewDigestFromBase58("2fCdmsn6maErwtLuzxoUrCBkh2vx5SvXtMKAJtN4YBgd")
+	require.NoError(t, err)
+	/*
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		let contract = base58'3PGZyyPg7Mx91yaNT8k3MWxSQzuzusMUyzX'
+		let asset = base58'2fCdmsn6maErwtLuzxoUrCBkh2vx5SvXtMKAJtN4YBgd'
+
+		@Callable(i)
+		func call() = {
+			strict res = invoke(Address(contract),  "call", [], [AttachedPayment(asset, 50)])
+			match (res) {
+				case b:Boolean => if b then ([], res) else throw("fail!!!")
+				case _ => throw("not a boolean")
+			}
+		}
+	*/
+	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAgAAAAAIY29udHJhY3QBAAAAGgFXoJWHaFIS+neTXowyvvYUIY9fLjbMmBsgAAAAAAVhc3NldAEAAAAgGKTpjSxBVaOkcUeRe5pz6g1WuOiEc9KXeZMyi74aesoAAAABAAAAAWkBAAAABGNhbGwAAAAABAAAAANyZXMJAAP8AAAABAkBAAAAB0FkZHJlc3MAAAABBQAAAAhjb250cmFjdAIAAAAEY2FsbAUAAAADbmlsCQAETAAAAAIJAQAAAA9BdHRhY2hlZFBheW1lbnQAAAACBQAAAAVhc3NldAAAAAAAAAAAMgUAAAADbmlsAwkAAAAAAAACBQAAAANyZXMFAAAAA3JlcwQAAAAHJG1hdGNoMAUAAAADcmVzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAAdCb29sZWFuBAAAAAFiBQAAAAckbWF0Y2gwAwUAAAABYgkABRQAAAACBQAAAANuaWwFAAAAA3JlcwkAAAIAAAABAgAAAAdmYWlsISEhCQAAAgAAAAECAAAADW5vdCBhIGJvb2xlYW4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAOq4bsI="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On 3PGZyyPg7Mx91yaNT8k3MWxSQzuzusMUyzX
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+	let asset = base58'2fCdmsn6maErwtLuzxoUrCBkh2vx5SvXtMKAJtN4YBgd'
+	@Callable(i)
+	func call() = ([ScriptTransfer(i.caller, 50, asset)], true)
+	*/
+	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAFYXNzZXQBAAAAIBik6Y0sQVWjpHFHkXuac+oNVrjohHPSl3mTMou+GnrKAAAAAQAAAAFpAQAAAARjYWxsAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAMgUAAAAFYXNzZXQFAAAAA25pbAYAAAAAHQNJXQ=="
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	txID, err := crypto.NewDigestFromBase58("BuCo8EEM2VbvjJbC6VyBVa64m2fNmdSoKLSxmoshnbmv")
+	require.NoError(t, err)
+	proofs := proto.NewProofs()
+	senderPK, err := crypto.NewPublicKeyFromBase58("EY3etWLNnrLg4znKsncuJFXVUHiP61PYpuZTAED98QUS")
+	require.NoError(t, err)
+	senderAddress, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, senderPK)
+	require.NoError(t, err)
+	dApp1, err := proto.NewAddressFromString("3PH75p2rmMKCV2nyW4TsAdFgFtmc61mJaqA")
+	require.NoError(t, err)
+	dApp1PK, err := crypto.NewPublicKeyFromBase58("3GtkwhnMmG1yeozW51o4dJ1x3BDToPaLBXyBWKGdAc2e")
+	require.NoError(t, err)
+	dApp2, err := proto.NewAddressFromString("3PGZyyPg7Mx91yaNT8k3MWxSQzuzusMUyzX")
+	require.NoError(t, err)
+	dApp2PK, err := crypto.NewPublicKeyFromBase58("EmRAgwaLuMrvnkeorjU9UmmGnRMXMu5ctEqkYRxnG2za")
+	require.NoError(t, err)
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &txID,
+		Proofs:          proofs,
+		ChainID:         proto.MainNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	var testState *WrappedState
+
+	testInv, err := invocationToObject(5, proto.MainNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &MockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.MainNetScheme
+		},
+		thisFunc: func() RideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.MainNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		setNewDAppAddressFunc: func(address proto.WavesAddress) {
+			testDAppAddress = address
+			testState.cle = rideAddress(address)
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.Address.String() {
+			case "3PH75p2rmMKCV2nyW4TsAdFgFtmc61mJaqA":
+				return src1, nil
+			case "3PGZyyPg7Mx91yaNT8k3MWxSQzuzusMUyzX":
+				return src2, nil
+			default:
+				return nil, errors.Errorf("unexpected address %s", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case senderAddress:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			}
+			return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			return recipient.Address, nil
+		},
+		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+			if assetID == asset {
+				return &proto.AssetInfo{
+					ID:              assetID,
+					Quantity:        1000000,
+					Decimals:        2,
+					Issuer:          issuerAddress,
+					IssuerPublicKey: issuerPK,
+					Reissuable:      false,
+					Scripted:        false,
+					Sponsored:       false,
+				}, nil
+			}
+			return nil, errors.Errorf("unexpected asset '%s'", assetID.String())
+		},
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+			if assetID == asset {
+				switch account.String() {
+				case "3PH75p2rmMKCV2nyW4TsAdFgFtmc61mJaqA":
+					return 0, nil
+				case "3PGZyyPg7Mx91yaNT8k3MWxSQzuzusMUyzX":
+					return 0, nil
+				default:
+					return 0, errors.New("unexpected account")
+				}
+			}
+			return 0, errors.Errorf("unexpected asset '%s'", assetID.String())
+		},
+	}
+	testState = initWrappedState(mockState, env)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	_, err = CallFunction(env, tree, "call", arguments)
+	// Expecting validation error for the switched on internal payments validation
+	require.Error(t, err)
+
+	// Turning off internal payments validation
+	env.validateInternalPaymentsFunc = func() bool {
+		return false
+	}
+	testInv, err = invocationToObject(5, proto.MainNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress = dApp1
+	testState = initWrappedState(mockState, env)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+
+	tree, err = Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	_, err = CallFunction(env, tree, "call", arguments)
+	// No error is expected in this case
+	require.NoError(t, err)
+}
+
+func TestAliasesInInvokes(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	caller := proto.NewAlias(proto.TestNetScheme, "caller")
+	callee := proto.NewAlias(proto.TestNetScheme, "callee")
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let callee = Alias("callee")
+
+	@Callable(i)
+	func call() = {
+		strict res = invoke(callee,  "call", [], [])
+		match (res) {
+			case b:Boolean => if b then ([], res) else throw("fail!!!")
+			case _ => throw("not a boolean")
+		}
+	}
+	*/
+	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAGY2FsbGVlCQEAAAAFQWxpYXMAAAABAgAAAAZjYWxsZWUAAAABAAAAAWkBAAAABGNhbGwAAAAABAAAAANyZXMJAAP8AAAABAUAAAAGY2FsbGVlAgAAAARjYWxsBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAADcmVzBQAAAANyZXMEAAAAByRtYXRjaDAFAAAAA3JlcwMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAHQm9vbGVhbgQAAAABYgUAAAAHJG1hdGNoMAMFAAAAAWIJAAUUAAAAAgUAAAADbmlsBQAAAANyZXMJAAACAAAAAQIAAAAHZmFpbCEhIQkAAAIAAAABAgAAAA1ub3QgYSBib29sZWFuCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgAAAAATG5XV"
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = ([ScriptTransfer(i.caller, 100000000, unit)], true)
+	*/
+	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAJAAUUAAAAAgkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAX14QAFAAAABHVuaXQFAAAAA25pbAYAAAAAvdgXFg=="
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAlias(*caller)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &MockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() RideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			case dApp2.String():
+				return src2, nil
+			case "alias:T:callee":
+				return src2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			case "alias:T:callee":
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
+			switch alias.String() {
+			case caller.String():
+				return dApp1, nil
+			case callee.String():
+				return dApp2, nil
+			default:
+				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			switch account.String() {
+			case dApp1.String():
+				return 0, nil
+			case caller.String():
+				return 0, nil
+			case dApp2.String():
+				return 100_000_000_000, nil
+			case callee.String():
+				return 100_000_000_000, nil
+			default:
+				return 0, errors.Errorf("unexpected account '%s'", account.String())
+			}
+		},
+	}
+	testState := initWrappedState(mockState, env)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	require.True(t, r.res)
+
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
+	expectedResult := &proto.ScriptResult{
+		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+		Transfers:    []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 100_000_000}},
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:     proto.ScriptErrorMessage{},
+	}
+	assert.Equal(t, expectedResult, sr)
+}
+
+// makeAddressAndPK creates keys and an address on TestNet from given string as seed
+func makeAddressAndPK(t *testing.T, s string) (crypto.SecretKey, crypto.PublicKey, proto.WavesAddress) {
+	sk, pk, err := crypto.GenerateKeyPair([]byte(s))
+	require.NoError(t, err)
+	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, pk)
+	require.NoError(t, err)
+	return sk, pk, addr
+}
+
+func makeRandomTxID(t *testing.T) *crypto.Digest {
+	b := make([]byte, crypto.DigestSize)
+	_, err := rand.Read(b)
+	require.NoError(t, err)
+	d, err := crypto.NewDigestFromBytes(b)
+	require.NoError(t, err)
+	return &d
+}
+
+func TestIssueAndTransferInInvoke(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, dApp3PK, dApp3 := makeAddressAndPK(t, "DAPP3")    // 3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let farm = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+	let callee = Address(base58'3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh')
+
+	@Callable(i)
+	func call() = {
+		strict res1 = invoke(farm, "farm", [], []) # Receiving a freashly issued NFT asset
+		match (res1) {
+			case b1: ByteVector => {
+				strict res2 = invoke(callee,  "call", [b1], [AttachedPayment(b1, 1)]) # Use the asset to pay for second call and get it back
+				match (res2) {
+					case b2: Boolean => if b2 then ([], res2) else throw("fail!!!")
+					case _ => throw("not a Boolean")
+				}
+			}
+			case _ => throw("not a ByteVector")
+		}
+	}
+	*/
+	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAgAAAAAEZmFybQkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgAAAAAGY2FsbGVlCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFUeu8lmsRjc2kucGmTq6Am5fkIjxQl3OMuAAAAAQAAAAFpAQAAAARjYWxsAAAAAAQAAAAEcmVzMQkAA/wAAAAEBQAAAARmYXJtAgAAAARmYXJtBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAAEcmVzMQUAAAAEcmVzMQQAAAAHJG1hdGNoMAUAAAAEcmVzMQMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAKQnl0ZVZlY3RvcgQAAAACYjEFAAAAByRtYXRjaDAEAAAABHJlczIJAAP8AAAABAUAAAAGY2FsbGVlAgAAAARjYWxsCQAETAAAAAIFAAAAAmIxBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAAAmIxAAAAAAAAAAABBQAAAANuaWwDCQAAAAAAAAIFAAAABHJlczIFAAAABHJlczIEAAAAByRtYXRjaDEFAAAABHJlczIDCQAAAQAAAAIFAAAAByRtYXRjaDECAAAAB0Jvb2xlYW4EAAAAAmIyBQAAAAckbWF0Y2gxAwUAAAACYjIJAAUUAAAAAgUAAAADbmlsBQAAAARyZXMyCQAAAgAAAAECAAAAB2ZhaWwhISEJAAACAAAAAQIAAAANbm90IGEgQm9vbGVhbgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAQbm90IGEgQnl0ZVZlY3RvcgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAAAAcrJ1zA=="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func farm() = {
+	    let issue = Issue("TEST_ASSET", "ASSET FOR INTEGRATION TESTING", 1, 0, false, unit, 0)
+	    let assetId = calculateAssetId(issue)
+	    ([issue, ScriptTransfer(i.caller, 1, assetId)], assetId)
+	}
+	*/
+	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEZmFybQAAAAAEAAAABWlzc3VlCQAEQwAAAAcCAAAAClRFU1RfQVNTRVQCAAAAHUFTU0VUIEZPUiBJTlRFR1JBVElPTiBURVNUSU5HAAAAAAAAAAABAAAAAAAAAAAABwUAAAAEdW5pdAAAAAAAAAAAAAQAAAAHYXNzZXRJZAkABDgAAAABBQAAAAVpc3N1ZQkABRQAAAACCQAETAAAAAIFAAAABWlzc3VlCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAAQUAAAAHYXNzZXRJZAUAAAADbmlsBQAAAAdhc3NldElkAAAAALylLbk="
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+	nft, err := crypto.NewDigestFromBase58("7tEQngNz2bMxwr2vUdP6GkcY4s25EuhNk1aWJoqZusYD")
+	require.NoError(t, err)
+
+	/* On dApp3 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call(id: ByteVector) = ([ScriptTransfer(i.caller, 1, id)], true)
+	*/
+	code3 := "AAIFAAAAAAAAAAcIAhIDCgECAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAEAAAACaWQJAAUUAAAAAgkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAEFAAAAAmlkBQAAAANuaWwGAAAAAMcyoF8="
+	src3, err := base64.StdEncoding.DecodeString(code3)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &crypto.Digest{},
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &MockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() RideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		txIDFunc: func() RideType {
+			return RideBytes(tx.ID.Bytes())
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			case dApp2.String():
+				return src2, nil
+			case dApp3.String():
+				return src3, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			case dApp3:
+				return dApp3PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			case dApp3.String():
+				return &dApp3, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 0, nil
+		},
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+			if assetID == nft {
+				return 0, nil
+			}
+			return 0, errors.Errorf("unxepected asset '%s'", assetID.String())
+		},
+		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+			switch assetID {
+			case nft:
+				return false, nil
+			default:
+				return false, errors.Errorf("unexpected asset '%s'", assetID.String())
+			}
+		},
+	}
+	testState := initWrappedState(mockState, env)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	require.True(t, r.res)
+
+	nftOA := proto.NewOptionalAssetFromDigest(nft)
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []*proto.AttachedPaymentScriptAction{{Sender: &dApp1PK, Recipient: proto.NewRecipientFromAddress(dApp3), Amount: 1, Asset: *nftOA}}, ap)
+	expectedResult := &proto.ScriptResult{
+		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+		Transfers:    []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *nftOA}, {Sender: &dApp3PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *nftOA}},
+		Issues:       []*proto.IssueScriptAction{{Sender: &dApp2PK, ID: nft, Name: "TEST_ASSET", Description: "ASSET FOR INTEGRATION TESTING", Quantity: 1, Decimals: 0, Reissuable: false}},
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:     proto.ScriptErrorMessage{},
+	}
+	assert.Equal(t, expectedResult, sr)
+}
+
+func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	asset, err := crypto.NewDigestFromBase58("HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8")
+	require.NoError(t, err)
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let callee = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+	let asset = base58'HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8'
+
+	@Callable(i)
+	func call() = {
+		strict res = invoke(callee,  "call", [], [AttachedPayment(asset, 1)]) # Send the asset for burning and not transferign back
+		match (res) {
+			case b: Boolean => if b then ([], res) else throw("fail!!!")
+			case _ => throw("not a Boolean")
+		}
+	}
+	*/
+	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAgAAAAAGY2FsbGVlCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAAAAAAVhc3NldAEAAAAg9Y/SxOzTV4ajXPwTZa80xxl1ur65XafAcNuNl2uQEiUAAAABAAAAAWkBAAAABGNhbGwAAAAABAAAAANyZXMJAAP8AAAABAUAAAAGY2FsbGVlAgAAAARjYWxsBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABWFzc2V0AAAAAAAAAAABBQAAAANuaWwDCQAAAAAAAAIFAAAAA3JlcwUAAAADcmVzBAAAAAckbWF0Y2gwBQAAAANyZXMDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAB0Jvb2xlYW4EAAAAAWIFAAAAByRtYXRjaDADBQAAAAFiCQAFFAAAAAIFAAAAA25pbAUAAAADcmVzCQAAAgAAAAECAAAAB2ZhaWwhISEJAAACAAAAAQIAAAANbm90IGEgQm9vbGVhbgkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4AAAAAX+9VkA=="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func call() = if (size(i.payments) == 1) then {
+	    let assetID = value(i.payments[0].assetId)
+	    let amount = i.payments[0].amount
+	    let burn = Burn(assetID, amount)
+	    ([burn, ScriptTransfer(i.caller, amount, assetID)], true)
+	} else throw("invalid number of payments")
+	*/
+	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAADCQAAAAAAAAIJAAGQAAAAAQgFAAAAAWkAAAAIcGF5bWVudHMAAAAAAAAAAAEEAAAAB2Fzc2V0SUQJAQAAAAV2YWx1ZQAAAAEICQABkQAAAAIIBQAAAAFpAAAACHBheW1lbnRzAAAAAAAAAAAAAAAAB2Fzc2V0SWQEAAAABmFtb3VudAgJAAGRAAAAAggFAAAAAWkAAAAIcGF5bWVudHMAAAAAAAAAAAAAAAAGYW1vdW50BAAAAARidXJuCQEAAAAEQnVybgAAAAIFAAAAB2Fzc2V0SUQFAAAABmFtb3VudAkABRQAAAACCQAETAAAAAIFAAAABGJ1cm4JAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAWkAAAAGY2FsbGVyBQAAAAZhbW91bnQFAAAAB2Fzc2V0SUQFAAAAA25pbAYJAAACAAAAAQIAAAAaaW52YWxpZCBudW1iZXIgb2YgcGF5bWVudHMAAAAAe7xLlQ=="
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &MockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() RideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			case dApp2.String():
+				return src2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 0, nil
+		},
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+			if assetID != asset {
+				return 0, errors.Errorf("unxepected asset '%s'", assetID.String())
+			}
+			switch {
+			case account.Address.Eq(dApp1):
+				return 1, nil
+			case account.Address.Eq(dApp2):
+				return 0, nil
+			default:
+				return 0, errors.Errorf("unexpected account '%s'", account.String())
+			}
+		},
+		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+			switch assetID {
+			case asset:
+				return false, nil
+			default:
+				return false, errors.Errorf("unexpected asset '%s'", assetID.String())
+			}
+		},
+		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+			if assetID != asset {
+				return nil, errors.Errorf("unexpected asset '%s'", assetID.String())
+			}
+			return &proto.AssetInfo{
+				ID:              assetID,
+				Quantity:        10,
+				Decimals:        2,
+				Issuer:          dApp1,
+				IssuerPublicKey: dApp1PK,
+				Reissuable:      false,
+				Scripted:        false,
+				Sponsored:       false,
+			}, nil
+		},
+	}
+	testState := initWrappedState(mockState, env)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	_, err = CallFunction(env, tree, "call", arguments)
+	require.Error(t, err)
+}
+
+func TestReissueInInvoke(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	asset, err := crypto.NewDigestFromBase58("HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8")
+	require.NoError(t, err)
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let callee = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+	let asset = base58'HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8'
+
+	@Callable(i)
+	func call() = {
+		strict res = invoke(callee,  "call", [], []) # Requesting transfer of a freshly issued asset
+		match (res) {
+			case b: Boolean => if b then ([ScriptTransfer(i.caller, 1, asset)], res) else throw("fail!!!")
+			case _ => throw("not a Boolean")
+		}
+	}
+	*/
+	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAgAAAAAGY2FsbGVlCQEAAAAHQWRkcmVzcwAAAAEBAAAAGgFUwHIGfTfL6MC+bgzmzz/fWbF5GHfdVq+uAAAAAAVhc3NldAEAAAAg9Y/SxOzTV4ajXPwTZa80xxl1ur65XafAcNuNl2uQEiUAAAABAAAAAWkBAAAABGNhbGwAAAAABAAAAANyZXMJAAP8AAAABAUAAAAGY2FsbGVlAgAAAARjYWxsBQAAAANuaWwFAAAAA25pbAMJAAAAAAAAAgUAAAADcmVzBQAAAANyZXMEAAAAByRtYXRjaDAFAAAAA3JlcwMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAHQm9vbGVhbgQAAAABYgUAAAAHJG1hdGNoMAMFAAAAAWIJAAUUAAAAAgkABEwAAAACCQEAAAAOU2NyaXB0VHJhbnNmZXIAAAADCAUAAAABaQAAAAZjYWxsZXIAAAAAAAAAAAEFAAAABWFzc2V0BQAAAANuaWwFAAAAA3JlcwkAAAIAAAABAgAAAAdmYWlsISEhCQAAAgAAAAECAAAADW5vdCBhIEJvb2xlYW4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAOyIF7Y="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let asset = base58'HXa5senn3qfi4sKPPLADnTaYnT2foBrhXnMymqFgpVp8'
+
+	@Callable(i)
+	func call() = ([Reissue(asset, 1, true), ScriptTransfer(i.caller, 1, asset)], true)
+	*/
+	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAFYXNzZXQBAAAAIPWP0sTs01eGo1z8E2WvNMcZdbq+uV2nwHDbjZdrkBIlAAAAAQAAAAFpAQAAAARjYWxsAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAdSZWlzc3VlAAAAAwUAAAAFYXNzZXQAAAAAAAAAAAEGCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAAQUAAAAFYXNzZXQFAAAAA25pbAYAAAAAUOFniw=="
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              makeRandomTxID(t),
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &MockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() RideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			case dApp2.String():
+				return src2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 0, nil
+		},
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+			if assetID != asset {
+				return 0, errors.Errorf("unxepected asset '%s'", assetID.String())
+			}
+			switch {
+			case account.Address.Eq(dApp1):
+				return 0, nil
+			case account.Address.Eq(dApp2):
+				return 0, nil
+			default:
+				return 0, errors.Errorf("unxepected account '%s'", account.String())
+			}
+		},
+		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+			switch assetID {
+			case asset:
+				return false, nil
+			default:
+				return false, errors.Errorf("unexpected asset '%s'", assetID.String())
+			}
+		},
+		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+			if assetID != asset {
+				return nil, errors.Errorf("unexpected asset '%s'", assetID.String())
+			}
+			return &proto.AssetInfo{
+				ID:              assetID,
+				Quantity:        10,
+				Decimals:        0,
+				Issuer:          dApp2,
+				IssuerPublicKey: dApp2PK,
+				Reissuable:      true,
+			}, nil
+		},
+	}
+	testState := initWrappedState(mockState, env)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.NoError(t, err)
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+	require.True(t, r.res)
+
+	optionalAsset := proto.NewOptionalAssetFromDigest(asset)
+	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(ap))
+	expectedResult := &proto.ScriptResult{
+		DataEntries:  make([]*proto.DataEntryScriptAction, 0),
+		Transfers:    []*proto.TransferScriptAction{{Sender: &dApp2PK, Recipient: proto.NewRecipientFromAddress(dApp1), Amount: 1, Asset: *optionalAsset}, {Recipient: proto.NewRecipientFromAddress(sender), Amount: 1, Asset: *optionalAsset}},
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     []*proto.ReissueScriptAction{{Sender: &dApp2PK, AssetID: asset, Quantity: 1, Reissuable: true}},
 		Burns:        make([]*proto.BurnScriptAction, 0),
 		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
 		Leases:       make([]*proto.LeaseScriptAction, 0),

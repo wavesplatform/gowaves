@@ -12,10 +12,10 @@ import (
 
 var errAliasDisabled = errors.New("alias was stolen and is now disabled")
 
-const aliasRecordSize = 1 + proto.AddressSize
+const aliasRecordSize = 1 + proto.WavesAddressSize
 
 type aliasRecordForStateHashes struct {
-	addr  *proto.Address
+	addr  *proto.WavesAddress
 	alias []byte
 }
 
@@ -42,7 +42,7 @@ func (ar *aliasRecordForStateHashes) less(other stateComponent) bool {
 
 type aliasInfo struct {
 	stolen bool
-	addr   proto.Address
+	addr   proto.WavesAddress
 }
 
 type aliasRecord struct {
@@ -52,7 +52,7 @@ type aliasRecord struct {
 func (r *aliasRecord) marshalBinary() ([]byte, error) {
 	res := make([]byte, aliasRecordSize)
 	proto.PutBool(res[:1], r.info.stolen)
-	copy(res[1:1+proto.AddressSize], r.info.addr[:])
+	copy(res[1:1+proto.WavesAddressSize], r.info.addr[:])
 	return res, nil
 }
 
@@ -65,7 +65,7 @@ func (r *aliasRecord) unmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	copy(r.info.addr[:], data[1:1+proto.AddressSize])
+	copy(r.info.addr[:], data[1:1+proto.WavesAddressSize])
 	return nil
 }
 
@@ -132,7 +132,7 @@ func (a *aliases) isDisabled(aliasStr string) (bool, error) {
 	return a.db.Has(key.bytes())
 }
 
-func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.Address, error) {
+func (a *aliases) newestAddrByAlias(aliasStr string, filter bool) (*proto.WavesAddress, error) {
 	disabled, err := a.newestIsDisabled(aliasStr)
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func (a *aliases) recordByAlias(key []byte, filter bool) (*aliasRecord, error) {
 	return &record, nil
 }
 
-func (a *aliases) addrByAlias(aliasStr string, filter bool) (*proto.Address, error) {
+func (a *aliases) addrByAlias(aliasStr string, filter bool) (*proto.WavesAddress, error) {
 	disabled, err := a.isDisabled(aliasStr)
 	if err != nil {
 		return nil, err

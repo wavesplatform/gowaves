@@ -93,11 +93,76 @@ func TestTransactionHeightByID(t *testing.T) {
 }
 
 func TestAssetBalanceV3(t *testing.T) {
-	t.SkipNow()
+	te := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+					return 42, nil
+				},
+				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+					return 21, nil
+				},
+			}
+		},
+	}
+	testCases := []struct {
+		expectedBalance RideType
+		assetID         RideType
+		expectErr       bool
+	}{
+		{expectedBalance: RideInt(21), assetID: rideUnit{}, expectErr: false},
+		{expectedBalance: RideInt(42), assetID: make(RideBytes, crypto.DigestSize), expectErr: false},
+		{expectedBalance: RideInt(0), assetID: RideBytes(nil), expectErr: false},
+		{expectedBalance: RideInt(0), assetID: RideBytes([]byte{}), expectErr: false},
+		{expectedBalance: RideInt(0), assetID: make(RideBytes, 7), expectErr: false},
+		{expectedBalance: RideInt(0), assetID: make(RideBytes, 33), expectErr: false},
+		{expectedBalance: nil, assetID: RideInt(0), expectErr: true},
+	}
+	for _, tc := range testCases {
+		balance, err := assetBalanceV3(te, rideRecipient{}, tc.assetID)
+		if tc.expectErr {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+		require.Equal(t, tc.expectedBalance, balance)
+	}
 }
 
 func TestAssetBalanceV4(t *testing.T) {
-	t.SkipNow()
+	te := &MockRideEnvironment{
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+					return 42, nil
+				},
+				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+					return 21, nil
+				},
+			}
+		},
+	}
+	testCases := []struct {
+		expectedBalance RideType
+		assetID         RideType
+		expectErr       bool
+	}{
+		{expectedBalance: RideInt(42), assetID: make(RideBytes, crypto.DigestSize), expectErr: false},
+		{expectedBalance: RideInt(0), assetID: make(RideBytes, 7), expectErr: false},
+		{expectedBalance: RideInt(0), assetID: make(RideBytes, 33), expectErr: false},
+		{expectedBalance: RideInt(0), assetID: RideBytes(nil), expectErr: false},
+		{expectedBalance: RideInt(0), assetID: RideBytes([]byte{}), expectErr: false},
+		{expectedBalance: nil, assetID: RideInt(0), expectErr: true},
+	}
+	for _, tc := range testCases {
+		balance, err := assetBalanceV4(te, rideRecipient{}, tc.assetID)
+		if tc.expectErr {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+		require.Equal(t, tc.expectedBalance, balance)
+	}
 }
 
 func TestIntFromState(t *testing.T) {

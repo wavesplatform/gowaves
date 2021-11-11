@@ -15,73 +15,88 @@ var _ Environment = &MockRideEnvironment{}
 
 // MockRideEnvironment is a mock implementation of Environment.
 //
-//     func TestSomethingThatUsesEnvironment(t *testing.T) {
+// 	func TestSomethingThatUsesEnvironment(t *testing.T) {
 //
-//         // make and configure a mocked Environment
-//         mockedEnvironment := &MockRideEnvironment{
-//             blockFunc: func() rideObject {
-// 	               panic("mock out the block method")
-//             },
-//             checkMessageLengthFunc: func(in1 int) bool {
-// 	               panic("mock out the checkMessageLength method")
-//             },
-//             heightFunc: func() RideInt {
-// 	               panic("mock out the height method")
-//             },
-//             invocationFunc: func() rideObject {
-// 	               panic("mock out the invocation method")
-//             },
-//             libVersionFunc: func() int {
-// 	               panic("mock out the libVersion method")
-//             },
-//             schemeFunc: func() byte {
-// 	               panic("mock out the scheme method")
-//             },
-//             setInvocationFunc: func(inv rideObject)  {
-// 	               panic("mock out the setInvocation method")
-//             },
-//             setNewDAppAddressFunc: func(address proto.Address)  {
-// 	               panic("mock out the setNewDAppAddress method")
-//             },
-//             stateFunc: func() types.SmartState {
-// 	               panic("mock out the state method")
-//             },
-//             takeStringFunc: func(s string, n int) RideString {
-// 	               panic("mock out the takeString method")
-//             },
-//             thisFunc: func() RideType {
-// 	               panic("mock out the this method")
-//             },
-//             timestampFunc: func() uint64 {
-// 	               panic("mock out the timestamp method")
-//             },
-//             transactionFunc: func() rideObject {
-// 	               panic("mock out the transaction method")
-//             },
-//             txIDFunc: func() RideType {
-// 	               panic("mock out the txID method")
-//             },
-//         }
+// 		// make and configure a mocked Environment
+// 		mockedEnvironment := &MockRideEnvironment{
+// 			blockFunc: func() rideObject {
+// 				panic("mock out the block method")
+// 			},
+// 			checkMessageLengthFunc: func(n int) bool {
+// 				panic("mock out the checkMessageLength method")
+// 			},
+// 			heightFunc: func() RideInt {
+// 				panic("mock out the height method")
+// 			},
+// 			internalPaymentsValidationHeightFunc: func() uint64 {
+// 				panic("mock out the internalPaymentsValidationHeight method")
+// 			},
+// 			invocationFunc: func() rideObject {
+// 				panic("mock out the invocation method")
+// 			},
+// 			libVersionFunc: func() int {
+// 				panic("mock out the libVersion method")
+// 			},
+// 			maxDataEntriesSizeFunc: func() int {
+// 				panic("mock out the maxDataEntriesSize method")
+// 			},
+// 			schemeFunc: func() byte {
+// 				panic("mock out the scheme method")
+// 			},
+// 			setInvocationFunc: func(inv rideObject)  {
+// 				panic("mock out the setInvocation method")
+// 			},
+// 			setNewDAppAddressFunc: func(address proto.WavesAddress)  {
+// 				panic("mock out the setNewDAppAddress method")
+// 			},
+// 			stateFunc: func() types.SmartState {
+// 				panic("mock out the state method")
+// 			},
+// 			takeStringFunc: func(s string, n int) RideString {
+// 				panic("mock out the takeString method")
+// 			},
+// 			thisFunc: func() RideType {
+// 				panic("mock out the this method")
+// 			},
+// 			timestampFunc: func() uint64 {
+// 				panic("mock out the timestamp method")
+// 			},
+// 			transactionFunc: func() rideObject {
+// 				panic("mock out the transaction method")
+// 			},
+// 			txIDFunc: func() RideType {
+// 				panic("mock out the txID method")
+// 			},
+// 			validateInternalPaymentsFunc: func() bool {
+// 				panic("mock out the validateInternalPayments method")
+// 			},
+// 		}
 //
-//         // use mockedEnvironment in code that requires Environment
-//         // and then make assertions.
+// 		// use mockedEnvironment in code that requires Environment
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type MockRideEnvironment struct {
 	// blockFunc mocks the block method.
 	blockFunc func() rideObject
 
 	// checkMessageLengthFunc mocks the checkMessageLength method.
-	checkMessageLengthFunc func(in1 int) bool
+	checkMessageLengthFunc func(n int) bool
 
 	// heightFunc mocks the height method.
 	heightFunc func() RideInt
+
+	// internalPaymentsValidationHeightFunc mocks the internalPaymentsValidationHeight method.
+	internalPaymentsValidationHeightFunc func() uint64
 
 	// invocationFunc mocks the invocation method.
 	invocationFunc func() rideObject
 
 	// libVersionFunc mocks the libVersion method.
 	libVersionFunc func() int
+
+	// maxDataEntriesSizeFunc mocks the maxDataEntriesSize method.
+	maxDataEntriesSizeFunc func() int
 
 	// schemeFunc mocks the scheme method.
 	schemeFunc func() byte
@@ -90,7 +105,7 @@ type MockRideEnvironment struct {
 	setInvocationFunc func(inv rideObject)
 
 	// setNewDAppAddressFunc mocks the setNewDAppAddress method.
-	setNewDAppAddressFunc func(address proto.Address)
+	setNewDAppAddressFunc func(address proto.WavesAddress)
 
 	// stateFunc mocks the state method.
 	stateFunc func() types.SmartState
@@ -110,6 +125,9 @@ type MockRideEnvironment struct {
 	// txIDFunc mocks the txID method.
 	txIDFunc func() RideType
 
+	// validateInternalPaymentsFunc mocks the validateInternalPayments method.
+	validateInternalPaymentsFunc func() bool
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// block holds details about calls to the block method.
@@ -117,17 +135,23 @@ type MockRideEnvironment struct {
 		}
 		// checkMessageLength holds details about calls to the checkMessageLength method.
 		checkMessageLength []struct {
-			// In1 is the in1 argument value.
-			In1 int
+			// N is the n argument value.
+			N int
 		}
 		// height holds details about calls to the height method.
 		height []struct {
+		}
+		// internalPaymentsValidationHeight holds details about calls to the internalPaymentsValidationHeight method.
+		internalPaymentsValidationHeight []struct {
 		}
 		// invocation holds details about calls to the invocation method.
 		invocation []struct {
 		}
 		// libVersion holds details about calls to the libVersion method.
 		libVersion []struct {
+		}
+		// maxDataEntriesSize holds details about calls to the maxDataEntriesSize method.
+		maxDataEntriesSize []struct {
 		}
 		// scheme holds details about calls to the scheme method.
 		scheme []struct {
@@ -140,7 +164,7 @@ type MockRideEnvironment struct {
 		// setNewDAppAddress holds details about calls to the setNewDAppAddress method.
 		setNewDAppAddress []struct {
 			// Address is the address argument value.
-			Address proto.Address
+			Address proto.WavesAddress
 		}
 		// state holds details about calls to the state method.
 		state []struct {
@@ -164,21 +188,27 @@ type MockRideEnvironment struct {
 		// txID holds details about calls to the txID method.
 		txID []struct {
 		}
+		// validateInternalPayments holds details about calls to the validateInternalPayments method.
+		validateInternalPayments []struct {
+		}
 	}
-	lockblock              sync.RWMutex
-	lockcheckMessageLength sync.RWMutex
-	lockheight             sync.RWMutex
-	lockinvocation         sync.RWMutex
-	locklibVersion         sync.RWMutex
-	lockscheme             sync.RWMutex
-	locksetInvocation      sync.RWMutex
-	locksetNewDAppAddress  sync.RWMutex
-	lockstate              sync.RWMutex
-	locktakeString         sync.RWMutex
-	lockthis               sync.RWMutex
-	locktimestamp          sync.RWMutex
-	locktransaction        sync.RWMutex
-	locktxID               sync.RWMutex
+	lockblock                            sync.RWMutex
+	lockcheckMessageLength               sync.RWMutex
+	lockheight                           sync.RWMutex
+	lockinternalPaymentsValidationHeight sync.RWMutex
+	lockinvocation                       sync.RWMutex
+	locklibVersion                       sync.RWMutex
+	lockmaxDataEntriesSize               sync.RWMutex
+	lockscheme                           sync.RWMutex
+	locksetInvocation                    sync.RWMutex
+	locksetNewDAppAddress                sync.RWMutex
+	lockstate                            sync.RWMutex
+	locktakeString                       sync.RWMutex
+	lockthis                             sync.RWMutex
+	locktimestamp                        sync.RWMutex
+	locktransaction                      sync.RWMutex
+	locktxID                             sync.RWMutex
+	lockvalidateInternalPayments         sync.RWMutex
 }
 
 // block calls blockFunc.
@@ -208,29 +238,29 @@ func (mock *MockRideEnvironment) blockCalls() []struct {
 }
 
 // checkMessageLength calls checkMessageLengthFunc.
-func (mock *MockRideEnvironment) checkMessageLength(in1 int) bool {
+func (mock *MockRideEnvironment) checkMessageLength(n int) bool {
 	if mock.checkMessageLengthFunc == nil {
 		panic("MockRideEnvironment.checkMessageLengthFunc: method is nil but Environment.checkMessageLength was just called")
 	}
 	callInfo := struct {
-		In1 int
+		N int
 	}{
-		In1: in1,
+		N: n,
 	}
 	mock.lockcheckMessageLength.Lock()
 	mock.calls.checkMessageLength = append(mock.calls.checkMessageLength, callInfo)
 	mock.lockcheckMessageLength.Unlock()
-	return mock.checkMessageLengthFunc(in1)
+	return mock.checkMessageLengthFunc(n)
 }
 
 // checkMessageLengthCalls gets all the calls that were made to checkMessageLength.
 // Check the length with:
 //     len(mockedEnvironment.checkMessageLengthCalls())
 func (mock *MockRideEnvironment) checkMessageLengthCalls() []struct {
-	In1 int
+	N int
 } {
 	var calls []struct {
-		In1 int
+		N int
 	}
 	mock.lockcheckMessageLength.RLock()
 	calls = mock.calls.checkMessageLength
@@ -261,6 +291,32 @@ func (mock *MockRideEnvironment) heightCalls() []struct {
 	mock.lockheight.RLock()
 	calls = mock.calls.height
 	mock.lockheight.RUnlock()
+	return calls
+}
+
+// internalPaymentsValidationHeight calls internalPaymentsValidationHeightFunc.
+func (mock *MockRideEnvironment) internalPaymentsValidationHeight() uint64 {
+	if mock.internalPaymentsValidationHeightFunc == nil {
+		panic("MockRideEnvironment.internalPaymentsValidationHeightFunc: method is nil but Environment.internalPaymentsValidationHeight was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockinternalPaymentsValidationHeight.Lock()
+	mock.calls.internalPaymentsValidationHeight = append(mock.calls.internalPaymentsValidationHeight, callInfo)
+	mock.lockinternalPaymentsValidationHeight.Unlock()
+	return mock.internalPaymentsValidationHeightFunc()
+}
+
+// internalPaymentsValidationHeightCalls gets all the calls that were made to internalPaymentsValidationHeight.
+// Check the length with:
+//     len(mockedEnvironment.internalPaymentsValidationHeightCalls())
+func (mock *MockRideEnvironment) internalPaymentsValidationHeightCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockinternalPaymentsValidationHeight.RLock()
+	calls = mock.calls.internalPaymentsValidationHeight
+	mock.lockinternalPaymentsValidationHeight.RUnlock()
 	return calls
 }
 
@@ -313,6 +369,32 @@ func (mock *MockRideEnvironment) libVersionCalls() []struct {
 	mock.locklibVersion.RLock()
 	calls = mock.calls.libVersion
 	mock.locklibVersion.RUnlock()
+	return calls
+}
+
+// maxDataEntriesSize calls maxDataEntriesSizeFunc.
+func (mock *MockRideEnvironment) maxDataEntriesSize() int {
+	if mock.maxDataEntriesSizeFunc == nil {
+		panic("MockRideEnvironment.maxDataEntriesSizeFunc: method is nil but Environment.maxDataEntriesSize was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockmaxDataEntriesSize.Lock()
+	mock.calls.maxDataEntriesSize = append(mock.calls.maxDataEntriesSize, callInfo)
+	mock.lockmaxDataEntriesSize.Unlock()
+	return mock.maxDataEntriesSizeFunc()
+}
+
+// maxDataEntriesSizeCalls gets all the calls that were made to maxDataEntriesSize.
+// Check the length with:
+//     len(mockedEnvironment.maxDataEntriesSizeCalls())
+func (mock *MockRideEnvironment) maxDataEntriesSizeCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockmaxDataEntriesSize.RLock()
+	calls = mock.calls.maxDataEntriesSize
+	mock.lockmaxDataEntriesSize.RUnlock()
 	return calls
 }
 
@@ -374,12 +456,12 @@ func (mock *MockRideEnvironment) setInvocationCalls() []struct {
 }
 
 // setNewDAppAddress calls setNewDAppAddressFunc.
-func (mock *MockRideEnvironment) setNewDAppAddress(address proto.Address) {
+func (mock *MockRideEnvironment) setNewDAppAddress(address proto.WavesAddress) {
 	if mock.setNewDAppAddressFunc == nil {
 		panic("MockRideEnvironment.setNewDAppAddressFunc: method is nil but Environment.setNewDAppAddress was just called")
 	}
 	callInfo := struct {
-		Address proto.Address
+		Address proto.WavesAddress
 	}{
 		Address: address,
 	}
@@ -393,10 +475,10 @@ func (mock *MockRideEnvironment) setNewDAppAddress(address proto.Address) {
 // Check the length with:
 //     len(mockedEnvironment.setNewDAppAddressCalls())
 func (mock *MockRideEnvironment) setNewDAppAddressCalls() []struct {
-	Address proto.Address
+	Address proto.WavesAddress
 } {
 	var calls []struct {
-		Address proto.Address
+		Address proto.WavesAddress
 	}
 	mock.locksetNewDAppAddress.RLock()
 	calls = mock.calls.setNewDAppAddress
@@ -566,5 +648,31 @@ func (mock *MockRideEnvironment) txIDCalls() []struct {
 	mock.locktxID.RLock()
 	calls = mock.calls.txID
 	mock.locktxID.RUnlock()
+	return calls
+}
+
+// validateInternalPayments calls validateInternalPaymentsFunc.
+func (mock *MockRideEnvironment) validateInternalPayments() bool {
+	if mock.validateInternalPaymentsFunc == nil {
+		panic("MockRideEnvironment.validateInternalPaymentsFunc: method is nil but Environment.validateInternalPayments was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockvalidateInternalPayments.Lock()
+	mock.calls.validateInternalPayments = append(mock.calls.validateInternalPayments, callInfo)
+	mock.lockvalidateInternalPayments.Unlock()
+	return mock.validateInternalPaymentsFunc()
+}
+
+// validateInternalPaymentsCalls gets all the calls that were made to validateInternalPayments.
+// Check the length with:
+//     len(mockedEnvironment.validateInternalPaymentsCalls())
+func (mock *MockRideEnvironment) validateInternalPaymentsCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockvalidateInternalPayments.RLock()
+	calls = mock.calls.validateInternalPayments
+	mock.lockvalidateInternalPayments.RUnlock()
 	return calls
 }

@@ -17,7 +17,7 @@ type LeaseStatus byte
 const (
 	LeaseActive LeaseStatus = iota
 	LeaseCanceled
-	LeaseExpired
+	//TODO: LeaseExpired (for future use)
 )
 
 type leaseRecordForStateHashes struct {
@@ -41,15 +41,15 @@ func (lr *leaseRecordForStateHashes) less(other stateComponent) bool {
 }
 
 type leasing struct {
-	Sender              proto.Address  `cbor:"0,keyasint"`
-	Recipient           proto.Address  `cbor:"1,keyasint"`
-	Amount              uint64         `cbor:"2,keyasint"`
-	Height              uint64         `cbor:"3,keyasint"`
-	Status              LeaseStatus    `cbor:"4,keyasint"`
-	OriginTransactionID *crypto.Digest `cbor:"5,keyasint,omitempty"`
-	RecipientAlias      *proto.Alias   `cbor:"6,keyasint,omitempty"`
-	CancelHeight        uint64         `cbor:"7,keyasint,omitempty"`
-	CancelTransactionID *crypto.Digest `cbor:"8,keyasint,omitempty"`
+	Sender              proto.WavesAddress `cbor:"0,keyasint"`
+	Recipient           proto.WavesAddress `cbor:"1,keyasint"`
+	Amount              uint64             `cbor:"2,keyasint"`
+	Height              uint64             `cbor:"3,keyasint"`
+	Status              LeaseStatus        `cbor:"4,keyasint"`
+	OriginTransactionID *crypto.Digest     `cbor:"5,keyasint,omitempty"`
+	RecipientAlias      *proto.Alias       `cbor:"6,keyasint,omitempty"`
+	CancelHeight        uint64             `cbor:"7,keyasint,omitempty"`
+	CancelTransactionID *crypto.Digest     `cbor:"8,keyasint,omitempty"`
 }
 
 func (l leasing) isActive() bool {
@@ -74,7 +74,7 @@ func newLeases(hs *historyStorage, calcHashes bool) *leases {
 	}
 }
 
-func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID proto.BlockID) error {
+func (l *leases) cancelLeases(bySenders map[proto.WavesAddress]struct{}, blockID proto.BlockID) error {
 	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
 	if err != nil {
 		return errors.Errorf("failed to create key iterator to cancel leases: %v", err)
@@ -116,7 +116,7 @@ func (l *leases) cancelLeases(bySenders map[proto.Address]struct{}, blockID prot
 	return nil
 }
 
-func (l *leases) cancelLeasesToAliases(aliases map[string]struct{}, blockID proto.BlockID) (map[proto.Address]balanceDiff, error) {
+func (l *leases) cancelLeasesToAliases(aliases map[string]struct{}, blockID proto.BlockID) (map[proto.WavesAddress]balanceDiff, error) {
 	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create key iterator to cancel leases to stolen aliases")
@@ -130,7 +130,7 @@ func (l *leases) cancelLeasesToAliases(aliases map[string]struct{}, blockID prot
 
 	// Iterate all the leases.
 	zap.S().Info("Started cancelling leases to disabled aliases")
-	changes := make(map[proto.Address]balanceDiff)
+	changes := make(map[proto.WavesAddress]balanceDiff)
 	for leaseIter.Next() {
 		keyBytes := keyvalue.SafeKey(leaseIter)
 		var key leaseKey
@@ -168,7 +168,7 @@ func (l *leases) cancelLeasesToAliases(aliases map[string]struct{}, blockID prot
 	return changes, nil
 }
 
-func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
+func (l *leases) validLeaseIns() (map[proto.WavesAddress]int64, error) {
 	leaseIter, err := l.hs.newNewestTopEntryIterator(lease, true)
 	if err != nil {
 		return nil, errors.Errorf("failed to create key iterator to cancel leases: %v", err)
@@ -180,7 +180,7 @@ func (l *leases) validLeaseIns() (map[proto.Address]int64, error) {
 		}
 	}()
 
-	leaseIns := make(map[proto.Address]int64)
+	leaseIns := make(map[proto.WavesAddress]int64)
 	// Iterate all the leases.
 	zap.S().Info("Started collecting leases")
 	for leaseIter.Next() {

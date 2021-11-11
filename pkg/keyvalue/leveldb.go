@@ -12,12 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	MinOpenFilesCacheCapacityRate     = 0.1
-	DefaultOpenFilesCacheCapacityRate = 0.6
-	MaxOpenFilesCacheCapacityRate     = 0.8
-)
-
 type pair struct {
 	key      []byte
 	value    []byte
@@ -139,38 +133,23 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 type KeyValParams struct {
 	CacheParams
 	BloomFilterParams
-	WriteBuffer                int
-	CompactionTableSize        int
-	CompactionTotalSize        int
-	OpenFilesCacheCapacityRate float64
-}
-
-func (kvp *KeyValParams) Validate() error {
-	if kvp.OpenFilesCacheCapacityRate < MinOpenFilesCacheCapacityRate ||
-		kvp.OpenFilesCacheCapacityRate > MaxOpenFilesCacheCapacityRate {
-		return errors.Errorf(
-			"invalid KeyValParams.OpenFilesCacheCapacityRate value %f: it shall be between %f and %f",
-			kvp.OpenFilesCacheCapacityRate,
-			MinOpenFilesCacheCapacityRate,
-			MaxOpenFilesCacheCapacityRate,
-		)
-	}
-	return nil
+	WriteBuffer            int
+	CompactionTableSize    int
+	CompactionTotalSize    int
+	OpenFilesCacheCapacity int
 }
 
 func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
-	// nickeskov: we assume that KeyValParams are valid
 	currentFDs, err := fdlimit.CurrentFDs()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get current file descriptors count")
 	}
-	openFilesCacheCapacity := int(params.OpenFilesCacheCapacityRate * float64(currentFDs))
+	openFilesCacheCapacity := params.OpenFilesCacheCapacity
 
 	zap.S().Debugf(
-		"leveldb.opt.Options.OpenFilesCacheCapacity has been evaluated to %d. CurrentFDs=%d, OpenFilesCacheCapacityRate=%f",
+		"leveldb.opt.Options.OpenFilesCacheCapacity has been evaluated to %d. CurrentFDs=%d",
 		openFilesCacheCapacity,
 		currentFDs,
-		params.OpenFilesCacheCapacityRate,
 	)
 
 	dbOptions := &opt.Options{
@@ -205,13 +184,14 @@ func (k *KeyVal) addToCache(key, val []byte) {
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
-	if val, err := k.cache.Get(key); err == nil {
+	if val, err := k.cache.Get(key); err == nil { // If `segment.NotFound` error is returned it ignored here
 		return val, nil
 	}
+	// No entry in cache, looking up in DB
 	if k.filter != nil {
 		notInTheSet, err := k.filter.notInTheSet(key)
 		if err != nil {
-			return nil, err
+			return nil, err // Hashing error here
 		}
 		if notInTheSet {
 			return nil, ErrNotFound
@@ -268,7 +248,7 @@ func (k *KeyVal) Flush(b1 Batch) error {
 	defer k.mu.Unlock()
 	b, ok := b1.(*batch)
 	if !ok {
-		return errors.New("can't convert batch interface to leveldb's batch")
+		return errors.New("can't convert Batch interface to leveldb batch")
 	}
 	if err := k.db.Write(b.leveldbBatch(), nil); err != nil {
 		return err

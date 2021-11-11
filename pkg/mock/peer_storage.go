@@ -162,17 +162,17 @@ func (mr *MockPeerStorageMockRecorder) IsSuspendedIPs(ips, now interface{}) *gom
 }
 
 // Known mocks base method.
-func (m *MockPeerStorage) Known() []storage.KnownPeer {
+func (m *MockPeerStorage) Known(limit int) []storage.KnownPeer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Known")
+	ret := m.ctrl.Call(m, "Known", limit)
 	ret0, _ := ret[0].([]storage.KnownPeer)
 	return ret0
 }
 
 // Known indicates an expected call of Known.
-func (mr *MockPeerStorageMockRecorder) Known() *gomock.Call {
+func (mr *MockPeerStorageMockRecorder) Known(limit interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Known", reflect.TypeOf((*MockPeerStorage)(nil).Known))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Known", reflect.TypeOf((*MockPeerStorage)(nil).Known), limit)
 }
 
 // RefreshSuspended mocks base method.

@@ -40,7 +40,7 @@ jobs:
         run: go mod vendor
 
       - name: Build
-        run: export PATH="$HOME/bin:$PATH"; make
+        run: export PATH="$HOME/bin:$PATH"; make ci
 
       - name: Test with race detector
         run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...

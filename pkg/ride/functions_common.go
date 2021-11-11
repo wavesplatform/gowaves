@@ -182,7 +182,7 @@ func optionalAssetProperty(obj RideType, key string) (proto.OptionalAsset, error
 	}
 	switch v := p.(type) {
 	case rideUnit:
-		return proto.OptionalAsset{Present: false}, nil
+		return proto.NewOptionalAssetWaves(), nil
 	case RideBytes:
 		a, err := proto.NewOptionalAssetFromBytes(v)
 		if err != nil {
@@ -204,7 +204,7 @@ func recipientProperty(obj RideType, key string) (proto.Recipient, error) {
 	case rideRecipient:
 		recipient = proto.Recipient(tp)
 	case rideAddress:
-		recipient = proto.NewRecipientFromAddress(proto.Address(tp))
+		recipient = proto.NewRecipientFromAddress(proto.WavesAddress(tp))
 	case rideAlias:
 		recipient = proto.NewRecipientFromAlias(proto.Alias(tp))
 	default:

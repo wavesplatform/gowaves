@@ -19,8 +19,8 @@ const (
 	// In milliseconds.
 	maxTimeDrift = 100
 
-	minimalEffectiveBalanceForGenerator1 = 1000000000000
-	minimalEffectiveBalanceForGenerator2 = 100000000000
+	minimalEffectiveBalanceForGenerator1 = uint64(1000000000000)
+	minimalEffectiveBalanceForGenerator2 = uint64(100000000000)
 )
 
 // Invalid blocks that are already in blockchain.
@@ -185,7 +185,7 @@ func (cv *Validator) validateEffectiveBalance(header *proto.BlockHeader, balance
 	return nil
 }
 
-func (cv *Validator) generatingBalance(height uint64, addr proto.Address) (uint64, error) {
+func (cv *Validator) generatingBalance(height uint64, addr proto.WavesAddress) (uint64, error) {
 	start, end := cv.RangeForGeneratingBalanceByHeight(height)
 	balance, err := cv.state.NewestEffectiveBalance(proto.NewRecipientFromAddress(addr), start, end)
 	if err != nil {

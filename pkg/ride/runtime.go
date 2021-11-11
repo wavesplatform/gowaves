@@ -182,7 +182,7 @@ func (o rideObject) copy() rideObject {
 	return r
 }
 
-type rideAddress proto.Address
+type rideAddress proto.WavesAddress
 
 func (a rideAddress) instanceOf() string {
 	return "Address"
@@ -385,12 +385,15 @@ type Environment interface {
 	txID() RideType // Invoke transaction ID
 	state() types.SmartState
 	timestamp() uint64
-	setNewDAppAddress(address proto.Address)
+	setNewDAppAddress(address proto.WavesAddress)
 	checkMessageLength(int) bool
 	takeString(s string, n int) RideString
 	invocation() rideObject // Invocation object made of invoke transaction
 	setInvocation(inv rideObject)
 	libVersion() int
+	validateInternalPayments() bool
+	internalPaymentsValidationHeight() uint64
+	maxDataEntriesSize() int
 }
 
 type rideConstructor func(Environment) RideType

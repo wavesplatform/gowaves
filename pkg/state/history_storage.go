@@ -28,6 +28,7 @@ const (
 	dataEntry
 	accountScript
 	assetScript
+	scriptBasicInfo
 	accountScriptComplexity
 	assetScriptComplexity
 	rewardVotes
@@ -49,6 +50,7 @@ type blockchainEntityProperties struct {
 }
 
 // + 4 bytes for blockNum at the end of each record.
+// TODO(nickeskov): Is it really necessary to add 4 bytes? See historyRecord CountToSize method and historyEntry size method
 var properties = map[blockchainEntity]blockchainEntityProperties{
 	alias: {
 		needToFilter: true,
@@ -119,6 +121,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	assetScript: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	scriptBasicInfo: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,
@@ -233,7 +240,7 @@ func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 		}
 		for i := 1; i <= dataSize-recordSize; i += recordSize {
 			var entry historyEntry
-			if err := entry.unmarshalBinary(data[i : i+recordSize]); err != nil {
+			if err := entry.unmarshalBinary(data[i : i+recordSize]); err != nil { // Returns only `errInvalidDataSize`
 				return nil, err
 			}
 			entries = append(entries, entry)
@@ -247,7 +254,7 @@ func newHistoryRecordFromBytes(data []byte) (*historyRecord, error) {
 				return nil, errInvalidDataSize
 			}
 			var entry historyEntry
-			if err := entry.unmarshalBinary(data[i : i+recordSize]); err != nil {
+			if err := entry.unmarshalBinary(data[i : i+recordSize]); err != nil { // Returns only `errInvalidDataSize`
 				return nil, err
 			}
 			entries = append(entries, entry)
@@ -564,9 +571,9 @@ func (hs *historyStorage) getHistory(key []byte, filter, update bool) (*historyR
 
 	historyBytes, err := hs.db.Get(key)
 	if err != nil {
-		return nil, err
+		return nil, err // `keyvalue.ErrNotFound` is possible here along with other unwrapped DB errors
 	}
-	history, err := newHistoryRecordFromBytes(historyBytes)
+	history, err := newHistoryRecordFromBytes(historyBytes) // Size check and binary errors here
 	if err != nil {
 		return nil, errs.Extend(err, "newHistoryRecordFromBytes")
 	}
@@ -588,9 +595,9 @@ func (hs *historyStorage) getHistory(key []byte, filter, update bool) (*historyR
 func (hs *historyStorage) topEntry(key []byte, filter bool) (historyEntry, error) {
 	history, err := hs.getHistory(key, filter, false)
 	if err != nil {
-		return historyEntry{}, err
+		return historyEntry{}, err // keyvalue.ErrNotFoundHere
 	}
-	return history.topEntry()
+	return history.topEntry() // untyped error "empty history" here
 }
 
 func (hs *historyStorage) newestTopEntry(key []byte, filter bool) (historyEntry, error) {
