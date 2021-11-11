@@ -43,12 +43,12 @@ type StateInfo interface {
 	// Height <---> blockID converters.
 	BlockIDToHeight(blockID proto.BlockID) (proto.Height, error)
 	HeightToBlockID(height proto.Height) (proto.BlockID, error)
+	WavesBalance(account proto.Recipient) (uint64, error)
 	// FullWavesBalance returns complete Waves balance record.
 	FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
 	EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
-	// AccountBalance retrieves balance of account in specific currency, asset is asset's ID.
-	// nil asset = Waves.
-	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)
+	// AssetBalance retrieves balance of account in specific currency, asset is asset's ID.
+	AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error)
 	// WavesAddressesNumber returns total number of Waves addresses in state.
 	// It is extremely slow, so it is recommended to only use for testing purposes.
 	WavesAddressesNumber() (uint64, error)
@@ -94,14 +94,14 @@ type StateInfo interface {
 	NewAddrTransactionsIterator(addr proto.Address) (TransactionIterator, error)
 
 	// Asset fee sponsorship.
-	AssetIsSponsored(assetID crypto.Digest) (bool, error)
-	AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
-	FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
-	NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error)
+	AssetIsSponsored(assetID proto.AssetID) (bool, error)
+	AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error)
+	FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error)
+	NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error)
 
 	// Script information.
 	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)
-	ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error)
+	ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error)
 
 	// Leases.
 	IsActiveLeasing(leaseID crypto.Digest) (bool, error)
@@ -195,9 +195,6 @@ type State interface {
 // params are state parameters (see below).
 // settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
 func NewState(dataDir string, params StateParams, settings *settings.BlockchainSettings) (State, error) {
-	if err := params.Validate(); err != nil {
-		return nil, errors.Wrap(err, "failed to create new state instance (invalid params)")
-	}
 	s, err := newStateManager(dataDir, params, settings)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
@@ -211,13 +208,6 @@ type StorageParams struct {
 	DbParams        keyvalue.KeyValParams
 }
 
-func (sp *StorageParams) Validate() error {
-	if err := sp.DbParams.Validate(); err != nil {
-		return errors.Wrap(err, "failed to validate KeyValParams")
-	}
-	return nil
-}
-
 func DefaultStorageParams() StorageParams {
 	dbParams := keyvalue.KeyValParams{
 		CacheParams: keyvalue.CacheParams{Size: DefaultCacheSize},
@@ -226,10 +216,10 @@ func DefaultStorageParams() StorageParams {
 			FalsePositiveProbability: DefaultBloomFilterFalsePositiveProbability,
 			Store:                    keyvalue.NewStore(""),
 		},
-		WriteBuffer:                DefaultWriteBuffer,
-		CompactionTableSize:        DefaultCompactionTableSize,
-		CompactionTotalSize:        DefaultCompactionTotalSize,
-		OpenFilesCacheCapacityRate: DefaultOpenFilesCacheCapacityRate,
+		WriteBuffer:            DefaultWriteBuffer,
+		CompactionTableSize:    DefaultCompactionTableSize,
+		CompactionTotalSize:    DefaultCompactionTotalSize,
+		OpenFilesCacheCapacity: DefaultOpenFilesCacheCapacity,
 	}
 	return StorageParams{
 		OffsetLen:       DefaultOffsetLen,
@@ -260,13 +250,6 @@ type StateParams struct {
 	ProvideExtendedApi bool
 	// BuildStateHashes enables building and storing state hashes by height.
 	BuildStateHashes bool
-}
-
-func (sp *StateParams) Validate() error {
-	if err := sp.StorageParams.Validate(); err != nil {
-		return errors.Wrap(err, "failed to validate StorageParams")
-	}
-	return nil
 }
 
 func DefaultStateParams() StateParams {

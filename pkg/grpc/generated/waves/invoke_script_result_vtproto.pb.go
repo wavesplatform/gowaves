@@ -441,6 +441,195 @@ func (m *InvokeScriptResult_ErrorMessage) MarshalToSizedBufferVTFlat(dAtA []byte
 	return len(dAtA) - i, nil
 }
 
+func (m *InvokeScriptResult_Call_Argument_List) MarshalVTFlat() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVTFlat(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *InvokeScriptResult_Call_Argument_List) MarshalToVTFlat(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVTFlat(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_List) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if len(m.Items) > 0 {
+		for iNdEx := len(m.Items) - 1; iNdEx >= 0; iNdEx-- {
+			size, err := m.Items[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarint(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *InvokeScriptResult_Call_Argument) MarshalVTFlat() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVTFlat(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *InvokeScriptResult_Call_Argument) MarshalToVTFlat(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVTFlat(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if msg, ok := m.Value.(*InvokeScriptResult_Call_Argument_List_); ok {
+		size := msg.SizeVT()
+		i -= size
+		if _, err := msg.MarshalToVTFlat(dAtA[i:]); err != nil {
+			return 0, err
+		}
+	}
+	if msg, ok := m.Value.(*InvokeScriptResult_Call_Argument_BooleanValue); ok {
+		size := msg.SizeVT()
+		i -= size
+		if _, err := msg.MarshalToVTFlat(dAtA[i:]); err != nil {
+			return 0, err
+		}
+	}
+	if msg, ok := m.Value.(*InvokeScriptResult_Call_Argument_StringValue); ok {
+		size := msg.SizeVT()
+		i -= size
+		if _, err := msg.MarshalToVTFlat(dAtA[i:]); err != nil {
+			return 0, err
+		}
+	}
+	if msg, ok := m.Value.(*InvokeScriptResult_Call_Argument_BinaryValue); ok {
+		size := msg.SizeVT()
+		i -= size
+		if _, err := msg.MarshalToVTFlat(dAtA[i:]); err != nil {
+			return 0, err
+		}
+	}
+	if msg, ok := m.Value.(*InvokeScriptResult_Call_Argument_IntegerValue); ok {
+		size := msg.SizeVT()
+		i -= size
+		if _, err := msg.MarshalToVTFlat(dAtA[i:]); err != nil {
+			return 0, err
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *InvokeScriptResult_Call_Argument_IntegerValue) MarshalToVTFlat(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVTFlat(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_IntegerValue) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i = encodeVarint(dAtA, i, uint64(m.IntegerValue))
+	i--
+	dAtA[i] = 0x8
+	return len(dAtA) - i, nil
+}
+func (m *InvokeScriptResult_Call_Argument_BinaryValue) MarshalToVTFlat(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVTFlat(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_BinaryValue) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.BinaryValue)
+	copy(dAtA[i:], m.BinaryValue)
+	i = encodeVarint(dAtA, i, uint64(len(m.BinaryValue)))
+	i--
+	dAtA[i] = 0x12
+	return len(dAtA) - i, nil
+}
+func (m *InvokeScriptResult_Call_Argument_StringValue) MarshalToVTFlat(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVTFlat(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_StringValue) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.StringValue)
+	copy(dAtA[i:], m.StringValue)
+	i = encodeVarint(dAtA, i, uint64(len(m.StringValue)))
+	i--
+	dAtA[i] = 0x1a
+	return len(dAtA) - i, nil
+}
+func (m *InvokeScriptResult_Call_Argument_BooleanValue) MarshalToVTFlat(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVTFlat(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_BooleanValue) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i--
+	if m.BooleanValue {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x20
+	return len(dAtA) - i, nil
+}
+func (m *InvokeScriptResult_Call_Argument_List_) MarshalToVTFlat(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVTFlat(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_List_) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.List != nil {
+		size, err := m.List.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x52
+	}
+	return len(dAtA) - i, nil
+}
 func (m *InvokeScriptResult_Call) MarshalVTFlat() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
@@ -473,9 +662,21 @@ func (m *InvokeScriptResult_Call) MarshalToSizedBufferVTFlat(dAtA []byte) (int, 
 	}
 	if len(m.Args) > 0 {
 		for iNdEx := len(m.Args) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Args[iNdEx])
-			copy(dAtA[i:], m.Args[iNdEx])
-			i = encodeVarint(dAtA, i, uint64(len(m.Args[iNdEx])))
+			size, err := m.Args[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarint(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	if len(m.ArgsBytes) > 0 {
+		for iNdEx := len(m.ArgsBytes) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.ArgsBytes[iNdEx])
+			copy(dAtA[i:], m.ArgsBytes[iNdEx])
+			i = encodeVarint(dAtA, i, uint64(len(m.ArgsBytes[iNdEx])))
 			i--
 			dAtA[i] = 0x12
 		}
@@ -1137,6 +1338,170 @@ func (m *InvokeScriptResult_ErrorMessage) MarshalToSizedBufferVT(dAtA []byte) (i
 	return len(dAtA) - i, nil
 }
 
+func (m *InvokeScriptResult_Call_Argument_List) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *InvokeScriptResult_Call_Argument_List) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_List) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if len(m.Items) > 0 {
+		for iNdEx := len(m.Items) - 1; iNdEx >= 0; iNdEx-- {
+			size, err := m.Items[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarint(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *InvokeScriptResult_Call_Argument) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *InvokeScriptResult_Call_Argument) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	if vtmsg, ok := m.Value.(interface {
+		MarshalToVT([]byte) (int, error)
+		SizeVT() int
+	}); ok {
+		size := vtmsg.SizeVT()
+		i -= size
+		if _, err := vtmsg.MarshalToVT(dAtA[i:]); err != nil {
+			return 0, err
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *InvokeScriptResult_Call_Argument_IntegerValue) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_IntegerValue) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i = encodeVarint(dAtA, i, uint64(m.IntegerValue))
+	i--
+	dAtA[i] = 0x8
+	return len(dAtA) - i, nil
+}
+func (m *InvokeScriptResult_Call_Argument_BinaryValue) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_BinaryValue) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.BinaryValue)
+	copy(dAtA[i:], m.BinaryValue)
+	i = encodeVarint(dAtA, i, uint64(len(m.BinaryValue)))
+	i--
+	dAtA[i] = 0x12
+	return len(dAtA) - i, nil
+}
+func (m *InvokeScriptResult_Call_Argument_StringValue) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_StringValue) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.StringValue)
+	copy(dAtA[i:], m.StringValue)
+	i = encodeVarint(dAtA, i, uint64(len(m.StringValue)))
+	i--
+	dAtA[i] = 0x1a
+	return len(dAtA) - i, nil
+}
+func (m *InvokeScriptResult_Call_Argument_BooleanValue) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_BooleanValue) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i--
+	if m.BooleanValue {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x20
+	return len(dAtA) - i, nil
+}
+func (m *InvokeScriptResult_Call_Argument_List_) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *InvokeScriptResult_Call_Argument_List_) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.List != nil {
+		size, err := m.List.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x52
+	}
+	return len(dAtA) - i, nil
+}
 func (m *InvokeScriptResult_Call) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
@@ -1169,9 +1534,21 @@ func (m *InvokeScriptResult_Call) MarshalToSizedBufferVT(dAtA []byte) (int, erro
 	}
 	if len(m.Args) > 0 {
 		for iNdEx := len(m.Args) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.Args[iNdEx])
-			copy(dAtA[i:], m.Args[iNdEx])
-			i = encodeVarint(dAtA, i, uint64(len(m.Args[iNdEx])))
+			size, err := m.Args[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarint(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	if len(m.ArgsBytes) > 0 {
+		for iNdEx := len(m.ArgsBytes) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.ArgsBytes[iNdEx])
+			copy(dAtA[i:], m.ArgsBytes[iNdEx])
+			i = encodeVarint(dAtA, i, uint64(len(m.ArgsBytes[iNdEx])))
 			i--
 			dAtA[i] = 0x12
 		}
@@ -1587,6 +1964,89 @@ func (m *InvokeScriptResult_ErrorMessage) SizeVT() (n int) {
 	return n
 }
 
+func (m *InvokeScriptResult_Call_Argument_List) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Items) > 0 {
+		for _, e := range m.Items {
+			l = e.SizeVT()
+			n += 1 + l + sov(uint64(l))
+		}
+	}
+	if m.unknownFields != nil {
+		n += len(m.unknownFields)
+	}
+	return n
+}
+
+func (m *InvokeScriptResult_Call_Argument) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if vtmsg, ok := m.Value.(interface{ SizeVT() int }); ok {
+		n += vtmsg.SizeVT()
+	}
+	if m.unknownFields != nil {
+		n += len(m.unknownFields)
+	}
+	return n
+}
+
+func (m *InvokeScriptResult_Call_Argument_IntegerValue) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += 1 + sov(uint64(m.IntegerValue))
+	return n
+}
+func (m *InvokeScriptResult_Call_Argument_BinaryValue) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.BinaryValue)
+	n += 1 + l + sov(uint64(l))
+	return n
+}
+func (m *InvokeScriptResult_Call_Argument_StringValue) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.StringValue)
+	n += 1 + l + sov(uint64(l))
+	return n
+}
+func (m *InvokeScriptResult_Call_Argument_BooleanValue) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += 2
+	return n
+}
+func (m *InvokeScriptResult_Call_Argument_List_) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.List != nil {
+		l = m.List.SizeVT()
+		n += 1 + l + sov(uint64(l))
+	}
+	return n
+}
 func (m *InvokeScriptResult_Call) SizeVT() (n int) {
 	if m == nil {
 		return 0
@@ -1597,9 +2057,15 @@ func (m *InvokeScriptResult_Call) SizeVT() (n int) {
 	if l > 0 {
 		n += 1 + l + sov(uint64(l))
 	}
-	if len(m.Args) > 0 {
-		for _, b := range m.Args {
+	if len(m.ArgsBytes) > 0 {
+		for _, b := range m.ArgsBytes {
 			l = len(b)
+			n += 1 + l + sov(uint64(l))
+		}
+	}
+	if len(m.Args) > 0 {
+		for _, e := range m.Args {
+			l = e.SizeVT()
 			n += 1 + l + sov(uint64(l))
 		}
 	}
@@ -2751,6 +3217,289 @@ func (m *InvokeScriptResult_ErrorMessage) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *InvokeScriptResult_Call_Argument_List) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflow
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: InvokeScriptResult_Call_Argument_List: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: InvokeScriptResult_Call_Argument_List: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Items", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Items = append(m.Items, &InvokeScriptResult_Call_Argument{})
+			if err := m.Items[len(m.Items)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *InvokeScriptResult_Call_Argument) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflow
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: InvokeScriptResult_Call_Argument: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: InvokeScriptResult_Call_Argument: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IntegerValue", wireType)
+			}
+			var v int64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Value = &InvokeScriptResult_Call_Argument_IntegerValue{v}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BinaryValue", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := make([]byte, postIndex-iNdEx)
+			copy(v, dAtA[iNdEx:postIndex])
+			m.Value = &InvokeScriptResult_Call_Argument_BinaryValue{v}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StringValue", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Value = &InvokeScriptResult_Call_Argument_StringValue{string(dAtA[iNdEx:postIndex])}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BooleanValue", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.Value = &InvokeScriptResult_Call_Argument_BooleanValue{b}
+		case 10:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field List", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if oneof, ok := m.Value.(*InvokeScriptResult_Call_Argument_List_); ok {
+				if err := oneof.List.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+					return err
+				}
+			} else {
+				v := &InvokeScriptResult_Call_Argument_List{}
+				if err := v.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+					return err
+				}
+				m.Value = &InvokeScriptResult_Call_Argument_List_{v}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *InvokeScriptResult_Call) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2814,7 +3563,7 @@ func (m *InvokeScriptResult_Call) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Args", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ArgsBytes", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -2841,8 +3590,42 @@ func (m *InvokeScriptResult_Call) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Args = append(m.Args, make([]byte, postIndex-iNdEx))
-			copy(m.Args[len(m.Args)-1], dAtA[iNdEx:postIndex])
+			m.ArgsBytes = append(m.ArgsBytes, make([]byte, postIndex-iNdEx))
+			copy(m.ArgsBytes[len(m.ArgsBytes)-1], dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Args", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Args = append(m.Args, &InvokeScriptResult_Call_Argument{})
+			if err := m.Args[len(m.Args)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

@@ -10,12 +10,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func (s *Server) GetInfo(ctx context.Context, req *g.AssetRequest) (*g.AssetInfoResponse, error) {
-	id, err := crypto.NewDigestFromBytes(req.AssetId)
+func (s *Server) GetInfo(_ context.Context, req *g.AssetRequest) (*g.AssetInfoResponse, error) {
+	// we expect full asset id (crypto.Digest)
+	fullAssetID, err := crypto.NewDigestFromBytes(req.AssetId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	ai, err := s.state.FullAssetInfo(id)
+	ai, err := s.state.FullAssetInfo(proto.AssetIDFromDigest(fullAssetID))
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, err.Error())
 	}
@@ -32,7 +33,17 @@ func (s *Server) GetNFTList(req *g.NFTRequest, srv g.AssetsApi_GetNFTListServer)
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	nfts, err := s.state.NFTList(proto.NewRecipientFromAddress(addr), uint64(req.Limit), req.AfterAssetId)
+	var afterAssetID *proto.AssetID
+	if len(req.AfterAssetId) != 0 {
+		// we expect full asset id (crypto.Digest)
+		fullAssetID, err := crypto.NewDigestFromBytes(req.AfterAssetId)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument, err.Error())
+		}
+		assetID := proto.AssetIDFromDigest(fullAssetID)
+		afterAssetID = &assetID
+	}
+	nfts, err := s.state.NFTList(proto.NewRecipientFromAddress(addr), uint64(req.Limit), afterAssetID)
 	if err != nil {
 		return status.Errorf(codes.Internal, err.Error())
 	}

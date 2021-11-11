@@ -102,7 +102,7 @@ func defaultFallibleValidationParams() *fallibleValidationParams {
 	}
 }
 
-func newTestAddrData(seedStr string, assets [][]byte) (*testAddrData, error) {
+func newTestAddrData(seedStr string, assets []crypto.Digest) (*testAddrData, error) {
 	seedBytes, err := base58.Decode(seedStr)
 	if err != nil {
 		return nil, err
@@ -116,18 +116,18 @@ func newTestAddrData(seedStr string, assets [][]byte) (*testAddrData, error) {
 		return nil, err
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
-	wavesKey := string((&wavesBalanceKey{addr}).bytes())
+	wavesKey := string((&wavesBalanceKey{addr.ID()}).bytes())
 
 	assetKeys := make([]string, len(assets))
 	for i, a := range assets {
-		assetKeys[i] = string((&assetBalanceKey{addr, a}).bytes())
+		assetKeys[i] = string((&assetBalanceKey{addr.ID(), proto.AssetIDFromDigest(a)}).bytes())
 	}
 	return &testAddrData{sk: sk, pk: pk, addr: addr, rcp: rcp, wavesKey: wavesKey, assetKeys: assetKeys}, nil
 }
 
 type testAssetData struct {
 	asset   *proto.OptionalAsset
-	assetID []byte
+	assetID crypto.Digest
 }
 
 func newTestAssetData(assetStr string) (*testAssetData, error) {
@@ -139,7 +139,7 @@ func newTestAssetData(assetStr string) (*testAssetData, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &testAssetData{asset, assetID.Bytes()}, nil
+	return &testAssetData{asset, assetID}, nil
 }
 
 type testGlobalVars struct {
@@ -173,23 +173,23 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("newTestAssetData(): %v\n", err)
 	}
-	testGlobal.issuerInfo, err = newTestAddrData(issuerSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
+	testGlobal.issuerInfo, err = newTestAddrData(issuerSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.matcherInfo, err = newTestAddrData(matcherSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.matcherInfo, err = newTestAddrData(matcherSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.minerInfo, err = newTestAddrData(minerSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
+	testGlobal.minerInfo, err = newTestAddrData(minerSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.senderInfo, err = newTestAddrData(senderSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.senderInfo, err = newTestAddrData(senderSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
-	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestAddrData(): %v\n", err)
 	}
@@ -218,7 +218,7 @@ func defaultTestKeyValParams() keyvalue.KeyValParams {
 	return keyvalue.KeyValParams{CacheParams: defaultTestCacheParams(), BloomFilterParams: defaultTestBloomFilterParams()}
 }
 
-func defaultNFT(tail [12]byte) *assetInfo {
+func defaultNFT(tail [proto.AssetIDTailSize]byte) *assetInfo {
 	return &assetInfo{
 		assetConstInfo{
 			tail:     tail,
@@ -379,7 +379,7 @@ func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *a
 
 func (s *testStorageObjects) createSmartAsset(t *testing.T, assetID crypto.Digest) {
 	s.addBlock(t, blockID0)
-	err := s.entities.scriptsStorage.setAssetScript(proto.AssetIDFromDigest(assetID), testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	err := s.entities.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
 	assert.NoError(t, err, "setAssetScript failed")
 	s.flush(t)
 }

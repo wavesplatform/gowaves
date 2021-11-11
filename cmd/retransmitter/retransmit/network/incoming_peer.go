@@ -8,7 +8,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 
-	"github.com/wavesplatform/gowaves/pkg/libs/bytespool"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
@@ -28,7 +27,6 @@ type IncomingPeerParams struct {
 	Conn         net.Conn
 	Parent       peer.Parent
 	DeclAddr     proto.TCPAddr
-	Pool         bytespool.Pool
 	Skip         conn.SkipFilter
 }
 
@@ -77,7 +75,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	}
 
 	remote := peer.NewRemote()
-	connection := conn.WrapConnection(c, params.Pool, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
+	connection := conn.WrapConnection(c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
 	ctx, cancel := context.WithCancel(ctx)
 
 	p := &IncomingPeer{
@@ -110,7 +108,6 @@ func (a *IncomingPeer) run(ctx context.Context) error {
 		Remote:     a.remote,
 		ID:         a.uniqueID,
 		Parent:     a.params.Parent,
-		Pool:       a.params.Pool,
 		Peer:       a,
 	}
 	return peer.Handle(handleParams)

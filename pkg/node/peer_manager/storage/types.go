@@ -1,9 +1,11 @@
 package storage
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"net"
+	"sort"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type IP [net.IPv6len]byte
@@ -61,7 +63,40 @@ func (sp *SuspendedPeer) IsSuspended(now time.Time) bool {
 }
 
 type suspendedPeers map[IP]SuspendedPeer
-type knownPeers map[KnownPeer]struct{}
+
+type pair struct {
+	peer KnownPeer
+	ts   int64
+}
+
+type pairs []pair
+
+func (p pairs) Len() int { return len(p) }
+
+func (p pairs) Less(i, j int) bool { return p[i].ts < p[j].ts }
+
+func (p pairs) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+
+type knownPeers map[KnownPeer]int64
+
+func (a knownPeers) OldestFirst(limit int) []KnownPeer {
+	ps := make(pairs, len(a))
+	i := 0
+	for k, v := range a {
+		ps[i] = pair{k, v}
+		i++
+	}
+	sort.Sort(ps)
+	l := len(ps)
+	if l > limit {
+		l = limit
+	}
+	r := make([]KnownPeer, l)
+	for i := 0; i < l; i++ {
+		r[i] = ps[i].peer
+	}
+	return r
+}
 
 func fromUnixMillis(timestampMillis int64) time.Time {
 	sec := timestampMillis / 1_000

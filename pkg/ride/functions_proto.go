@@ -7,13 +7,12 @@ import (
 	sh256 "crypto/sha256"
 	"crypto/x509"
 
-	"github.com/wavesplatform/gowaves/pkg/util/common"
-
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	c2 "github.com/wavesplatform/gowaves/pkg/ride/crypto"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func isAddressInBL(dAppAddress proto.WavesAddress, blackList []proto.WavesAddress) bool {
@@ -28,7 +27,7 @@ func isAddressInBL(dAppAddress proto.WavesAddress, blackList []proto.WavesAddres
 func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
-		return nil, errors.Wrapf(errors.New("wrong state"), "invoke")
+		return nil, errors.Wrap(errors.New("wrong state"), "reentrantInvoke")
 	}
 	ws.incrementInvCount()
 	if ws.invCount() > 100 {
@@ -37,23 +36,17 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 
 	callerAddress, ok := env.this().(rideAddress)
 	if !ok {
-		return rideUnit{}, errors.Errorf("invoke: this has an unexpected type '%s'", env.this().instanceOf())
+		return rideUnit{}, errors.Errorf("reentrantInvoke: this has an unexpected type '%s'", env.this().instanceOf())
 	}
 
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
-		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[0].instanceOf())
+		return nil, errors.Errorf("reentrantInvoke: unexpected argument type '%s'", args[0].instanceOf())
 	}
 
-	if recipient.Address == nil {
-		if recipient.Alias == nil {
-			return nil, errors.New("invoke: address and alias are nil")
-		}
-		addressFromAlias, err := env.state().NewestAddrByAlias(*recipient.Alias)
-		if err != nil {
-			return nil, errors.Errorf("invoke: failed to get address by alias, %v", err)
-		}
-		recipient = proto.NewRecipientFromAddress(addressFromAlias)
+	recipient, err = ensureRecipientAddress(env, recipient)
+	if err != nil {
+		return nil, errors.Wrap(err, "reentrantInvoke")
 	}
 
 	var fnName rideString
@@ -67,12 +60,12 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		}
 		fnName = fnN
 	default:
-		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[1].instanceOf())
+		return nil, errors.Errorf("reentrantInvoke: unexpected argument type '%s'", args[1].instanceOf())
 	}
 
 	listArg, ok := args[2].(rideList)
 	if !ok {
-		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[2].instanceOf())
+		return nil, errors.Errorf("reentrantInvoke: unexpected argument type '%s'", args[2].instanceOf())
 	}
 
 	var attachedPayments proto.ScriptPayments
@@ -93,21 +86,21 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	for _, value := range payments {
 		payment, ok := value.(rideObject)
 		if !ok {
-			return nil, errors.Errorf("invoke: unexpected argument type '%s'", payment.instanceOf())
+			return nil, errors.Errorf("reentrantInvoke: unexpected argument type '%s'", payment.instanceOf())
 		}
 
 		assetID, err := payment.get("assetId")
 		if err != nil {
-			return nil, errors.Wrap(err, "invoke")
+			return nil, errors.Wrap(err, "reentrantInvoke")
 		}
 		amount, err := payment.get("amount")
 		if err != nil {
-			return nil, errors.Wrap(err, "invoke")
+			return nil, errors.Wrap(err, "reentrantInvoke")
 		}
 
 		intAmount, ok := amount.(rideInt)
 		if !ok {
-			return nil, errors.Errorf("invoke: unexpected argument type '%s'", amount.instanceOf())
+			return nil, errors.Errorf("reentrantInvoke: unexpected argument type '%s'", amount.instanceOf())
 		}
 		var asset *proto.OptionalAsset
 
@@ -115,36 +108,36 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 		case rideBytes:
 			asset, err = proto.NewOptionalAssetFromBytes(asID)
 			if err != nil {
-				return nil, errors.Errorf("invoke: failed to get optional asset from ride bytes")
+				return nil, errors.Errorf("reentrantInvoke: failed to get optional asset from ride bytes")
 			}
 		case rideUnit:
 			waves := proto.NewOptionalAssetWaves()
 			asset = &waves
 		default:
-			return nil, errors.Errorf("attachedPayment: unexpected argument type '%s'", args[0].instanceOf())
+			return nil, errors.Errorf("reentrantInvoke: unexpected argument type '%s'", args[0].instanceOf())
 		}
 
 		attachedPayments = append(attachedPayments, proto.ScriptPayment{Asset: *asset, Amount: uint64(intAmount)})
 	}
 	// since RideV5 the limit of attached payments is 10
 	if len(attachedPayments) > 10 {
-		return nil, errors.New("invoke: no more than ten payments is allowed since RideV5 activation")
+		return nil, errors.New("reentrantInvoke: no more than ten payments is allowed since RideV5 activation")
 	}
 
-	var paymentActions []proto.ScriptAction
+	var attachedPaymentActions []proto.ScriptAction
 	for _, payment := range attachedPayments {
-		action := &proto.TransferScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
-		paymentActions = append(paymentActions, action)
+		payment := &proto.AttachedPaymentScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
+		attachedPaymentActions = append(attachedPaymentActions, payment)
 	}
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
 	if err != nil {
-		return nil, errors.Errorf("failed to get address from dApp, invokeFunctionFromDApp")
+		return nil, errors.Errorf("reentrantInvoke: failed to get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
-	err = ws.smartAppendActions(paymentActions, env)
+	err = ws.smartAppendActions(attachedPaymentActions, env)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to apply attachedPayments")
+		return nil, errors.Wrapf(err, "reentrantInvoke: failed to apply attached payments")
 	}
 
 	if ws.invCount() > 1 {
@@ -154,9 +147,8 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 	}
 
 	res, err := invokeFunctionFromDApp(env, recipient, fnName, listArg)
-
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get Result from invokeFunctionFromDApp")
+		return nil, errors.Wrapf(err, "reentrantInvoke")
 	}
 
 	if res.Result() {
@@ -203,15 +195,9 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[0].instanceOf())
 	}
 
-	if recipient.Address == nil {
-		if recipient.Alias == nil {
-			return nil, errors.New("invoke: address and alias are nil")
-		}
-		addressFromAlias, err := env.state().NewestAddrByAlias(*recipient.Alias)
-		if err != nil {
-			return nil, errors.Errorf("invoke: failed to get address by alias, %v", err)
-		}
-		recipient = proto.NewRecipientFromAddress(addressFromAlias)
+	recipient, err = ensureRecipientAddress(env, recipient)
+	if err != nil {
+		return nil, errors.Wrap(err, "invoke")
 	}
 
 	var fnName rideString
@@ -279,7 +265,7 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 			waves := proto.NewOptionalAssetWaves()
 			asset = &waves
 		default:
-			return nil, errors.Errorf("attachedPayment: unexpected argument type '%s'", args[0].instanceOf())
+			return nil, errors.Errorf("invoke: unexpected argument type '%s'", args[0].instanceOf())
 		}
 
 		attachedPayments = append(attachedPayments, proto.ScriptPayment{Asset: *asset, Amount: uint64(intAmount)})
@@ -290,24 +276,27 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 		return nil, errors.New("invoke: no more than ten payments is allowed since RideV5 activation")
 	}
 
-	var paymentActions []proto.ScriptAction
+	var attachedPaymentActions []proto.ScriptAction
 	for _, payment := range attachedPayments {
-		action := &proto.TransferScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
-		paymentActions = append(paymentActions, action)
+		payment := &proto.AttachedPaymentScriptAction{Sender: &callerPublicKey, Recipient: recipient, Amount: int64(payment.Amount), Asset: payment.Asset}
+		attachedPaymentActions = append(attachedPaymentActions, payment)
 	}
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
 	if err != nil {
-		return nil, errors.Errorf("failed get address from dApp, invokeFunctionFromDApp")
+		return nil, errors.Errorf("invoke: failed get address from dApp, invokeFunctionFromDApp")
 	}
 	env.setNewDAppAddress(*address)
-	err = ws.smartAppendActions(paymentActions, env)
+	err = ws.smartAppendActions(attachedPaymentActions, env)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to apply attachedPayments")
+		return nil, errors.Wrapf(err, "invoke: failed to apply attached payments")
 	}
 
 	// append a call to the stack to protect a user from the reentrancy attack
 	ws.blackList = append(ws.blackList, proto.WavesAddress(callerAddress)) // push
+	defer func() {
+		ws.blackList = ws.blackList[:len(ws.blackList)-1] // pop
+	}()
 
 	if ws.invCount() > 1 {
 		if isAddressInBL(*recipient.Address, ws.blackList) && proto.WavesAddress(callerAddress) != *recipient.Address {
@@ -316,11 +305,8 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	}
 
 	res, err := invokeFunctionFromDApp(env, recipient, fnName, listArg)
-
-	ws.blackList = ws.blackList[:len(ws.blackList)-1] // pop
-
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get Result from invokeFunctionFromDApp")
+		return nil, errors.Wrapf(err, "invoke")
 	}
 
 	if res.Result() {
@@ -345,6 +331,21 @@ func invoke(env Environment, args ...rideType) (rideType, error) {
 	}
 
 	return rideThrow("result of invoke function is false"), nil
+}
+
+func ensureRecipientAddress(env Environment, recipient proto.Recipient) (proto.Recipient, error) {
+	if recipient.Address == nil {
+		if recipient.Alias == nil {
+			return proto.Recipient{}, errors.New("empty recipient")
+		}
+		address, err := env.state().NewestAddrByAlias(*recipient.Alias)
+		if err != nil {
+			return proto.Recipient{}, errors.Errorf("failed to get address by alias, %v", err)
+		}
+		recipient.Address = &address
+		return recipient, nil
+	}
+	return recipient, nil
 }
 
 func hashScriptAtAddress(env Environment, args ...rideType) (rideType, error) {
@@ -449,11 +450,19 @@ func assetBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
-	asset, err := extractAsset(args[1])
-	if err != nil {
-		return nil, errors.Wrap(err, "assetBalanceV3")
+	var balance uint64
+	switch assetBytes := args[1].(type) {
+	case rideUnit:
+		balance, err = env.state().NewestWavesBalance(recipient)
+	case rideBytes:
+		asset, digestErr := crypto.NewDigestFromBytes(assetBytes)
+		if digestErr != nil {
+			return rideInt(0), nil // according to the scala node implementation
+		}
+		balance, err = env.state().NewestAssetBalance(recipient, asset)
+	default:
+		return nil, errors.Errorf("assetBalanceV3: unable to extract asset ID from '%s'", assetBytes.instanceOf())
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, asset)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV3")
 	}
@@ -468,14 +477,15 @@ func assetBalanceV4(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
-	asset, err := extractAsset(args[1])
-	if err != nil {
-		return nil, errors.Wrap(err, "assetBalanceV4")
+	assetBytes, ok := args[1].(rideBytes)
+	if !ok {
+		return nil, errors.Errorf("assetBalanceV4: unable to extract asset ID from '%s'", args[1].instanceOf())
 	}
-	if len(asset) == 0 { // Additional check, empty asset's ID is not allowed any more
-		return nil, errors.New("assetBalanceV4: empty asset ID")
+	asset, digestErr := crypto.NewDigestFromBytes(assetBytes)
+	if digestErr != nil {
+		return rideInt(0), nil // according to the scala node implementation
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, asset)
+	balance, err := env.state().NewestAssetBalance(recipient, asset)
 	if err != nil {
 		return nil, errors.Wrap(err, "assetBalanceV4")
 	}
@@ -719,7 +729,7 @@ func wavesBalanceV3(env Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
 	}
-	balance, err := env.state().NewestAccountBalance(recipient, nil)
+	balance, err := env.state().NewestWavesBalance(recipient)
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
 	}
@@ -1580,17 +1590,6 @@ func extractRecipient(v rideType) (proto.Recipient, error) {
 		return proto.Recipient{}, errors.Errorf("unable to extract recipient from '%s'", v.instanceOf())
 	}
 	return r, nil
-}
-
-func extractAsset(v rideType) ([]byte, error) {
-	switch a := v.(type) {
-	case rideBytes:
-		return a, nil
-	case rideUnit:
-		return nil, nil
-	default:
-		return nil, errors.Errorf("unable to extract asset ID from '%s'", v.instanceOf())
-	}
 }
 
 func extractRecipientAndKey(args []rideType) (proto.Recipient, string, error) {

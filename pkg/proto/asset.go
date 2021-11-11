@@ -1,8 +1,13 @@
 package proto
 
-import "github.com/wavesplatform/gowaves/pkg/crypto"
+import (
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+)
 
-const AssetIDSize = 20
+const (
+	AssetIDSize     = 20
+	AssetIDTailSize = crypto.DigestSize - AssetIDSize
+)
 
 type AssetID [AssetIDSize]byte
 
@@ -16,13 +21,13 @@ func AssetIDFromDigest(digest crypto.Digest) AssetID {
 	return r
 }
 
-func DigestTail(digest crypto.Digest) [12]byte {
-	var r [12]byte
+func DigestTail(digest crypto.Digest) [AssetIDTailSize]byte {
+	var r [AssetIDTailSize]byte
 	copy(r[:], digest[AssetIDSize:])
 	return r
 }
 
-func ReconstructDigest(id AssetID, tail [12]byte) crypto.Digest {
+func ReconstructDigest(id AssetID, tail [AssetIDTailSize]byte) crypto.Digest {
 	var r crypto.Digest
 	copy(r[:AssetIDSize], id[:])
 	copy(r[AssetIDSize:], tail[:])

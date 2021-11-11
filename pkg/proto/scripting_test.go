@@ -209,12 +209,12 @@ func TestActionsValidation(t *testing.T) {
 			&DataEntryScriptAction{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
 			&DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
 			&TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
-		}, restrictions: ActionsValidationRestrictions{}, valid: true},
+		}, restrictions: ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1}, valid: true},
 		{actions: []ScriptAction{
 			&DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
 			&TransferScriptAction{Recipient: rcp0, Amount: -100, Asset: OptionalAsset{}},
 			&DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
-		}, restrictions: ActionsValidationRestrictions{}, valid: false},
+		}, restrictions: ActionsValidationRestrictions{MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1}, valid: false},
 		{actions: []ScriptAction{
 			&DataEntryScriptAction{Entry: &IntegerDataEntry{"some key2", -12345}},
 			&DataEntryScriptAction{Entry: &BooleanDataEntry{"negative value2", true}},
@@ -222,7 +222,7 @@ func TestActionsValidation(t *testing.T) {
 			&DataEntryScriptAction{Entry: &BinaryDataEntry{Key: "k5", Value: []byte{0x24, 0x7f, 0x71, 0x10, 0x1d}}},
 			&DataEntryScriptAction{Entry: &DeleteDataEntry{Key: "xxx"}},
 			&TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: OptionalAsset{}},
-		}, restrictions: ActionsValidationRestrictions{DisableSelfTransfers: true, ScriptAddress: addr0}, valid: false},
+		}, restrictions: ActionsValidationRestrictions{DisableSelfTransfers: true, ScriptAddress: addr0, MaxDataEntriesSize: MaxDataEntriesScriptActionsSizeInBytesV1}, valid: false},
 		{actions: []ScriptAction{
 			&LeaseScriptAction{Recipient: rcp0, Amount: 100},
 		}, restrictions: ActionsValidationRestrictions{ScriptAddress: addr0}, valid: false},

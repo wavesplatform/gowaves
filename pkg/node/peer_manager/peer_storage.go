@@ -1,12 +1,13 @@
 package peer_manager
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/node/peer_manager/storage"
 )
 
 type PeerStorage interface {
-	Known() []storage.KnownPeer
+	Known(limit int) []storage.KnownPeer
 	AddKnown(known []storage.KnownPeer) error
 	DeleteKnown(known []storage.KnownPeer) error
 	DropKnown() error

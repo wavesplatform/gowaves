@@ -2,8 +2,9 @@ package client
 
 import (
 	"errors"
-	"github.com/magiconair/properties/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseError_Error(t *testing.T) {
