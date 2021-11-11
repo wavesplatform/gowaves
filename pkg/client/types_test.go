@@ -1,9 +1,10 @@
 package client
 
 import (
-	"github.com/magiconair/properties/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // unix: 	  1540296988

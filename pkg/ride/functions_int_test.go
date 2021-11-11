@@ -365,7 +365,7 @@ func TestPow(t *testing.T) {
 		{[]rideType{rideInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := pow(nil, test.args...)
+		r, err := pow(env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -405,19 +405,19 @@ func TestLog(t *testing.T) {
 
 // TestFailOnMainNet_TxID_6dy3f1qw6dbkitzfAjyA6jZfB2dma4NibJjDgmEXiK9D reproduces pow(x, 0.5) failure in transaction 6dy3f1qw6dbkitzfAjyA6jZfB2dma4NibJjDgmEXiK9D on MainNet
 func TestFailOnMainNet_TxID_6dy3f1qw6dbkitzfAjyA6jZfB2dma4NibJjDgmEXiK9D(t *testing.T) {
-	r3, err := fraction(nil, rideInt(50), rideInt(10_000), rideInt(50)) // (50 * 10_000) / 50 = 10_000
+	r3, err := fraction(env, rideInt(50), rideInt(10_000), rideInt(50)) // (50 * 10_000) / 50 = 10_000
 	require.NoError(t, err)
-	r4, err := mul(nil, rideInt(100_000), rideInt(10_000)) // 100_000 * 10_000 = 1_000_000_000
+	r4, err := mul(env, rideInt(100_000), rideInt(10_000)) // 100_000 * 10_000 = 1_000_000_000
 	require.NoError(t, err)
-	r5, err := sum(nil, rideInt(100_000), rideInt(100_000)) // 100_000 + 100_000 = 200_000
+	r5, err := sum(env, rideInt(100_000), rideInt(100_000)) // 100_000 + 100_000 = 200_000
 	require.NoError(t, err)
-	r2, err := div(nil, r4, r5) // 1_000_000_000 / 200_000 = 5_000
+	r2, err := div(env, r4, r5) // 1_000_000_000 / 200_000 = 5_000
 	require.NoError(t, err)
-	r1, err := pow(nil, r2, rideInt(4), r3, rideInt(4), rideInt(4), newFloor(nil)) // 0.5 ^ 1 = 0.5
+	r1, err := pow(env, r2, rideInt(4), r3, rideInt(4), rideInt(4), newFloor(nil)) // 0.5 ^ 1 = 0.5
 	require.NoError(t, err)
-	r0, err := sub(nil, rideInt(10_000), r1)
+	r0, err := sub(env, rideInt(10_000), r1)
 	require.NoError(t, err)
-	r, err := fraction(nil, rideInt(10_000), r0, rideInt(10_000))
+	r, err := fraction(env, rideInt(10_000), r0, rideInt(10_000))
 	require.NoError(t, err)
 	assert.Equal(t, rideInt(5_000), r)
 }

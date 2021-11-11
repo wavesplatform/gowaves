@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -96,16 +97,17 @@ func TestSaveComplexityForAsset(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	asset := testGlobal.asset0.asset.ID
+	assetID := proto.AssetIDFromDigest(asset)
 	est := ride.TreeEstimation{Estimation: 500, Verifier: 500}
 	err = to.scriptsComplexity.saveComplexitiesForAsset(asset, est, blockID0)
 	assert.NoError(t, err)
-	res1, err := to.scriptsComplexity.newestScriptComplexityByAsset(asset, true)
+	res1, err := to.scriptsComplexity.newestScriptComplexityByAsset(assetID, true)
 	require.NoError(t, err)
 	assert.Equal(t, est, *res1)
 
 	to.stor.flush(t)
 
-	res1, err = to.scriptsComplexity.newestScriptComplexityByAsset(asset, true)
+	res1, err = to.scriptsComplexity.newestScriptComplexityByAsset(assetID, true)
 	require.NoError(t, err)
 	assert.Equal(t, est, *res1)
 }

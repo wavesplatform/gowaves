@@ -145,7 +145,7 @@ func (c *ProtobufConverter) optionalAsset(asset []byte) OptionalAsset {
 	if len(asset) == 0 {
 		return OptionalAsset{}
 	}
-	return OptionalAsset{Present: true, ID: c.digest(asset)}
+	return *NewOptionalAssetFromDigest(c.digest(asset))
 }
 
 func (c *ProtobufConverter) convertAmount(amount *g.Amount) (OptionalAsset, uint64) {
