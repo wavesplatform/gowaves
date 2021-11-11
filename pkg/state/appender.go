@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	EthereumTransferWavesKind  int64 = 1
-	EthereumTransferAssetsKind int64 = 2
-	EthereumInvokeKind         int64 = 3
+	EthereumTransferWavesKind = iota + 1
+	EthereumTransferAssetsKind
+	EthereumInvokeKind
 )
 
 type txAppender struct {
