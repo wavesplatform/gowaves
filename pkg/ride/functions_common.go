@@ -182,7 +182,7 @@ func optionalAssetProperty(obj rideType, key string) (proto.OptionalAsset, error
 	}
 	switch v := p.(type) {
 	case rideUnit:
-		return proto.OptionalAsset{Present: false}, nil
+		return proto.NewOptionalAssetWaves(), nil
 	case rideBytes:
 		a, err := proto.NewOptionalAssetFromBytes(v)
 		if err != nil {

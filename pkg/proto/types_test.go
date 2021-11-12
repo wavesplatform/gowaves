@@ -1024,9 +1024,8 @@ func TestNewOptionalAssetFromBytes(t *testing.T) {
 	assert.Equal(t, d.String(), asset1.ID.String())
 	assert.True(t, asset1.Present)
 
-	asset2, err := NewOptionalAssetFromBytes([]byte{})
-	require.NoError(t, err)
-	assert.False(t, asset2.Present)
+	_, err = NewOptionalAssetFromBytes([]byte{})
+	require.Error(t, err)
 }
 
 func TestNewOptionalAssetFromDigest(t *testing.T) {

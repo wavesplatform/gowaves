@@ -106,7 +106,7 @@ func (s RPCService) Eth_getBalance(address, blockOrTag string) (string, error) {
 		// todo log err
 		return "", err
 	}
-	amount, err := s.nodeRPCApp.State.AccountBalance(proto.Recipient{Address: &wavesAddr}, nil)
+	amount, err := s.nodeRPCApp.State.WavesBalance(proto.Recipient{Address: &wavesAddr})
 	if err != nil {
 		// todo log err
 		return "", err
@@ -290,7 +290,8 @@ func (s RPCService) Eth_call(params ethCallParams) (string, error) {
 			zap.S().Errorf("Eth_call: failed to fetch asset info, %s: %v", params.String(), err)
 			return "", err
 		}
-		accountBalance, err := s.nodeRPCApp.State.AccountBalance(proto.Recipient{Address: &wavesAddr}, info.ID.Bytes())
+		asset := proto.AssetIDFromDigest(info.ID)
+		accountBalance, err := s.nodeRPCApp.State.AssetBalance(proto.Recipient{Address: &wavesAddr}, asset)
 		if err != nil {
 			zap.S().Errorf("Eth_call: failed to fetch account balance for addr=%q, %s: %v",
 				wavesAddr.String(), params.String(), err,

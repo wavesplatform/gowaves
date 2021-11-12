@@ -16,106 +16,106 @@ var _ ScriptStorageState = &MockScriptStorageState{}
 
 // MockScriptStorageState is a mock implementation of ScriptStorageState.
 //
-//     func TestSomethingThatUsesScriptStorageState(t *testing.T) {
+// 	func TestSomethingThatUsesScriptStorageState(t *testing.T) {
 //
-//         // make and configure a mocked ScriptStorageState
-//         mockedScriptStorageState := &MockScriptStorageState{
-//             AccountScriptsHasherFunc: func() *stateHasher {
-// 	               panic("mock out the AccountScriptsHasher method")
-//             },
-//             AssetScriptsHasherFunc: func() *stateHasher {
-// 	               panic("mock out the AssetScriptsHasher method")
-//             },
-//             NewestScriptPKByAddrFunc: func(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
-// 	               panic("mock out the NewestScriptPKByAddr method")
-//             },
-//             accountHasScriptFunc: func(addr proto.WavesAddress, filter bool) (bool, error) {
-// 	               panic("mock out the accountHasScript method")
-//             },
-//             accountHasVerifierFunc: func(addr proto.WavesAddress, filter bool) (bool, error) {
-// 	               panic("mock out the accountHasVerifier method")
-//             },
-//             clearFunc: func() error {
-// 	               panic("mock out the clear method")
-//             },
-//             commitUncertainFunc: func(blockID proto.BlockID) error {
-// 	               panic("mock out the commitUncertain method")
-//             },
-//             dropUncertainFunc: func()  {
-// 	               panic("mock out the dropUncertain method")
-//             },
-//             isSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
-// 	               panic("mock out the isSmartAsset method")
-//             },
-//             newestAccountHasScriptFunc: func(addr proto.WavesAddress, filter bool) (bool, error) {
-// 	               panic("mock out the newestAccountHasScript method")
-//             },
-//             newestAccountHasVerifierFunc: func(addr proto.WavesAddress, filter bool) (bool, error) {
-// 	               panic("mock out the newestAccountHasVerifier method")
-//             },
-//             newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) bool {
-// 	               panic("mock out the newestIsSmartAsset method")
-//             },
-//             newestScriptAstByKeyFunc: func(key []byte, filter bool) (*ride.Tree, error) {
-// 	               panic("mock out the newestScriptAstByKey method")
-//             },
-//             newestScriptByAddrFunc: func(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
-// 	               panic("mock out the newestScriptByAddr method")
-//             },
-//             newestScriptByAssetFunc: func(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
-// 	               panic("mock out the newestScriptByAsset method")
-//             },
-//             newestScriptBytesByAssetFunc: func(assetID proto.AssetID, filter bool) (proto.Script, error) {
-// 	               panic("mock out the newestScriptBytesByAsset method")
-//             },
-//             newestScriptBytesByKeyFunc: func(key []byte, filter bool) (proto.Script, error) {
-// 	               panic("mock out the newestScriptBytesByKey method")
-//             },
-//             prepareHashesFunc: func() error {
-// 	               panic("mock out the prepareHashes method")
-//             },
-//             resetFunc: func()  {
-// 	               panic("mock out the reset method")
-//             },
-//             scriptAstFromRecordBytesFunc: func(recordBytes []byte) (*ride.Tree, crypto.PublicKey, error) {
-// 	               panic("mock out the scriptAstFromRecordBytes method")
-//             },
-//             scriptByAddrFunc: func(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
-// 	               panic("mock out the scriptByAddr method")
-//             },
-//             scriptByAssetFunc: func(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
-// 	               panic("mock out the scriptByAsset method")
-//             },
-//             scriptBytesByAddrFunc: func(addr proto.WavesAddress, filter bool) (proto.Script, error) {
-// 	               panic("mock out the scriptBytesByAddr method")
-//             },
-//             scriptBytesByAssetFunc: func(assetID proto.AssetID, filter bool) (proto.Script, error) {
-// 	               panic("mock out the scriptBytesByAsset method")
-//             },
-//             scriptBytesByKeyFunc: func(key []byte, filter bool) (proto.Script, error) {
-// 	               panic("mock out the scriptBytesByKey method")
-//             },
-//             scriptTreeByKeyFunc: func(key []byte, filter bool) (*ride.Tree, error) {
-// 	               panic("mock out the scriptTreeByKey method")
-//             },
-//             setAccountScriptFunc: func(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
-// 	               panic("mock out the setAccountScript method")
-//             },
-//             setAssetScriptFunc: func(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
-// 	               panic("mock out the setAssetScript method")
-//             },
-//             setAssetScriptUncertainFunc: func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)  {
-// 	               panic("mock out the setAssetScriptUncertain method")
-//             },
-//             setScriptFunc: func(scriptType blockchainEntity, key []byte, record scriptRecord, blockID proto.BlockID) error {
-// 	               panic("mock out the setScript method")
-//             },
-//         }
+// 		// make and configure a mocked ScriptStorageState
+// 		mockedScriptStorageState := &MockScriptStorageState{
+// 			AccountScriptsHasherFunc: func() *stateHasher {
+// 				panic("mock out the AccountScriptsHasher method")
+// 			},
+// 			AssetScriptsHasherFunc: func() *stateHasher {
+// 				panic("mock out the AssetScriptsHasher method")
+// 			},
+// 			NewestScriptPKByAddrFunc: func(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
+// 				panic("mock out the NewestScriptPKByAddr method")
+// 			},
+// 			accountHasScriptFunc: func(addr proto.WavesAddress, filter bool) (bool, error) {
+// 				panic("mock out the accountHasScript method")
+// 			},
+// 			accountHasVerifierFunc: func(addr proto.WavesAddress, filter bool) (bool, error) {
+// 				panic("mock out the accountHasVerifier method")
+// 			},
+// 			clearFunc: func() error {
+// 				panic("mock out the clear method")
+// 			},
+// 			commitUncertainFunc: func(blockID proto.BlockID) error {
+// 				panic("mock out the commitUncertain method")
+// 			},
+// 			dropUncertainFunc: func()  {
+// 				panic("mock out the dropUncertain method")
+// 			},
+// 			isSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
+// 				panic("mock out the isSmartAsset method")
+// 			},
+// 			newestAccountHasScriptFunc: func(addr proto.WavesAddress, filter bool) (bool, error) {
+// 				panic("mock out the newestAccountHasScript method")
+// 			},
+// 			newestAccountHasVerifierFunc: func(addr proto.WavesAddress, filter bool) (bool, error) {
+// 				panic("mock out the newestAccountHasVerifier method")
+// 			},
+// 			newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
+// 				panic("mock out the newestIsSmartAsset method")
+// 			},
+// 			newestScriptAstByKeyFunc: func(key []byte, filter bool) (*ride.Tree, error) {
+// 				panic("mock out the newestScriptAstByKey method")
+// 			},
+// 			newestScriptByAddrFunc: func(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+// 				panic("mock out the newestScriptByAddr method")
+// 			},
+// 			newestScriptByAssetFunc: func(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
+// 				panic("mock out the newestScriptByAsset method")
+// 			},
+// 			newestScriptBytesByAssetFunc: func(assetID proto.AssetID, filter bool) (proto.Script, error) {
+// 				panic("mock out the newestScriptBytesByAsset method")
+// 			},
+// 			newestScriptBytesByKeyFunc: func(key []byte, filter bool) (proto.Script, error) {
+// 				panic("mock out the newestScriptBytesByKey method")
+// 			},
+// 			prepareHashesFunc: func() error {
+// 				panic("mock out the prepareHashes method")
+// 			},
+// 			resetFunc: func()  {
+// 				panic("mock out the reset method")
+// 			},
+// 			scriptAstFromRecordBytesFunc: func(script proto.Script) (*ride.Tree, error) {
+// 				panic("mock out the scriptAstFromRecordBytes method")
+// 			},
+// 			scriptByAddrFunc: func(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+// 				panic("mock out the scriptByAddr method")
+// 			},
+// 			scriptByAssetFunc: func(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
+// 				panic("mock out the scriptByAsset method")
+// 			},
+// 			scriptBytesByAddrFunc: func(addr proto.WavesAddress, filter bool) (proto.Script, error) {
+// 				panic("mock out the scriptBytesByAddr method")
+// 			},
+// 			scriptBytesByAssetFunc: func(assetID proto.AssetID, filter bool) (proto.Script, error) {
+// 				panic("mock out the scriptBytesByAsset method")
+// 			},
+// 			scriptBytesByKeyFunc: func(key []byte, filter bool) (proto.Script, error) {
+// 				panic("mock out the scriptBytesByKey method")
+// 			},
+// 			scriptTreeByKeyFunc: func(key []byte, filter bool) (*ride.Tree, error) {
+// 				panic("mock out the scriptTreeByKey method")
+// 			},
+// 			setAccountScriptFunc: func(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
+// 				panic("mock out the setAccountScript method")
+// 			},
+// 			setAssetScriptFunc: func(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
+// 				panic("mock out the setAssetScript method")
+// 			},
+// 			setAssetScriptUncertainFunc: func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)  {
+// 				panic("mock out the setAssetScriptUncertain method")
+// 			},
+// 			setScriptFunc: func(scriptType blockchainEntity, key scriptKey, dbItem scriptDBItem, blockID proto.BlockID) error {
+// 				panic("mock out the setScript method")
+// 			},
+// 		}
 //
-//         // use mockedScriptStorageState in code that requires ScriptStorageState
-//         // and then make assertions.
+// 		// use mockedScriptStorageState in code that requires ScriptStorageState
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type MockScriptStorageState struct {
 	// AccountScriptsHasherFunc mocks the AccountScriptsHasher method.
 	AccountScriptsHasherFunc func() *stateHasher
@@ -151,7 +151,7 @@ type MockScriptStorageState struct {
 	newestAccountHasVerifierFunc func(addr proto.WavesAddress, filter bool) (bool, error)
 
 	// newestIsSmartAssetFunc mocks the newestIsSmartAsset method.
-	newestIsSmartAssetFunc func(assetID proto.AssetID, filter bool) bool
+	newestIsSmartAssetFunc func(assetID proto.AssetID, filter bool) (bool, error)
 
 	// newestScriptAstByKeyFunc mocks the newestScriptAstByKey method.
 	newestScriptAstByKeyFunc func(key []byte, filter bool) (*ride.Tree, error)
@@ -175,7 +175,7 @@ type MockScriptStorageState struct {
 	resetFunc func()
 
 	// scriptAstFromRecordBytesFunc mocks the scriptAstFromRecordBytes method.
-	scriptAstFromRecordBytesFunc func(recordBytes []byte) (*ride.Tree, crypto.PublicKey, error)
+	scriptAstFromRecordBytesFunc func(script proto.Script) (*ride.Tree, error)
 
 	// scriptByAddrFunc mocks the scriptByAddr method.
 	scriptByAddrFunc func(addr proto.WavesAddress, filter bool) (*ride.Tree, error)
@@ -205,7 +205,7 @@ type MockScriptStorageState struct {
 	setAssetScriptUncertainFunc func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)
 
 	// setScriptFunc mocks the setScript method.
-	setScriptFunc func(scriptType blockchainEntity, key []byte, record scriptRecord, blockID proto.BlockID) error
+	setScriptFunc func(scriptType blockchainEntity, key scriptKey, dbItem scriptDBItem, blockID proto.BlockID) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -318,8 +318,8 @@ type MockScriptStorageState struct {
 		}
 		// scriptAstFromRecordBytes holds details about calls to the scriptAstFromRecordBytes method.
 		scriptAstFromRecordBytes []struct {
-			// RecordBytes is the recordBytes argument value.
-			RecordBytes []byte
+			// Script is the script argument value.
+			Script proto.Script
 		}
 		// scriptByAddr holds details about calls to the scriptByAddr method.
 		scriptByAddr []struct {
@@ -399,9 +399,9 @@ type MockScriptStorageState struct {
 			// ScriptType is the scriptType argument value.
 			ScriptType blockchainEntity
 			// Key is the key argument value.
-			Key []byte
-			// Record is the record argument value.
-			Record scriptRecord
+			Key scriptKey
+			// DbItem is the dbItem argument value.
+			DbItem scriptDBItem
 			// BlockID is the blockID argument value.
 			BlockID proto.BlockID
 		}
@@ -784,7 +784,7 @@ func (mock *MockScriptStorageState) newestAccountHasVerifierCalls() []struct {
 }
 
 // newestIsSmartAsset calls newestIsSmartAssetFunc.
-func (mock *MockScriptStorageState) newestIsSmartAsset(assetID proto.AssetID, filter bool) bool {
+func (mock *MockScriptStorageState) newestIsSmartAsset(assetID proto.AssetID, filter bool) (bool, error) {
 	if mock.newestIsSmartAssetFunc == nil {
 		panic("MockScriptStorageState.newestIsSmartAssetFunc: method is nil but ScriptStorageState.newestIsSmartAsset was just called")
 	}
@@ -1046,29 +1046,29 @@ func (mock *MockScriptStorageState) resetCalls() []struct {
 }
 
 // scriptAstFromRecordBytes calls scriptAstFromRecordBytesFunc.
-func (mock *MockScriptStorageState) scriptAstFromRecordBytes(recordBytes []byte) (*ride.Tree, crypto.PublicKey, error) {
+func (mock *MockScriptStorageState) scriptAstFromRecordBytes(script proto.Script) (*ride.Tree, error) {
 	if mock.scriptAstFromRecordBytesFunc == nil {
 		panic("MockScriptStorageState.scriptAstFromRecordBytesFunc: method is nil but ScriptStorageState.scriptAstFromRecordBytes was just called")
 	}
 	callInfo := struct {
-		RecordBytes []byte
+		Script proto.Script
 	}{
-		RecordBytes: recordBytes,
+		Script: script,
 	}
 	mock.lockscriptAstFromRecordBytes.Lock()
 	mock.calls.scriptAstFromRecordBytes = append(mock.calls.scriptAstFromRecordBytes, callInfo)
 	mock.lockscriptAstFromRecordBytes.Unlock()
-	return mock.scriptAstFromRecordBytesFunc(recordBytes)
+	return mock.scriptAstFromRecordBytesFunc(script)
 }
 
 // scriptAstFromRecordBytesCalls gets all the calls that were made to scriptAstFromRecordBytes.
 // Check the length with:
 //     len(mockedScriptStorageState.scriptAstFromRecordBytesCalls())
 func (mock *MockScriptStorageState) scriptAstFromRecordBytesCalls() []struct {
-	RecordBytes []byte
+	Script proto.Script
 } {
 	var calls []struct {
-		RecordBytes []byte
+		Script proto.Script
 	}
 	mock.lockscriptAstFromRecordBytes.RLock()
 	calls = mock.calls.scriptAstFromRecordBytes
@@ -1412,25 +1412,25 @@ func (mock *MockScriptStorageState) setAssetScriptUncertainCalls() []struct {
 }
 
 // setScript calls setScriptFunc.
-func (mock *MockScriptStorageState) setScript(scriptType blockchainEntity, key []byte, record scriptRecord, blockID proto.BlockID) error {
+func (mock *MockScriptStorageState) setScript(scriptType blockchainEntity, key scriptKey, dbItem scriptDBItem, blockID proto.BlockID) error {
 	if mock.setScriptFunc == nil {
 		panic("MockScriptStorageState.setScriptFunc: method is nil but ScriptStorageState.setScript was just called")
 	}
 	callInfo := struct {
 		ScriptType blockchainEntity
-		Key        []byte
-		Record     scriptRecord
+		Key        scriptKey
+		DbItem     scriptDBItem
 		BlockID    proto.BlockID
 	}{
 		ScriptType: scriptType,
 		Key:        key,
-		Record:     record,
+		DbItem:     dbItem,
 		BlockID:    blockID,
 	}
 	mock.locksetScript.Lock()
 	mock.calls.setScript = append(mock.calls.setScript, callInfo)
 	mock.locksetScript.Unlock()
-	return mock.setScriptFunc(scriptType, key, record, blockID)
+	return mock.setScriptFunc(scriptType, key, dbItem, blockID)
 }
 
 // setScriptCalls gets all the calls that were made to setScript.
@@ -1438,14 +1438,14 @@ func (mock *MockScriptStorageState) setScript(scriptType blockchainEntity, key [
 //     len(mockedScriptStorageState.setScriptCalls())
 func (mock *MockScriptStorageState) setScriptCalls() []struct {
 	ScriptType blockchainEntity
-	Key        []byte
-	Record     scriptRecord
+	Key        scriptKey
+	DbItem     scriptDBItem
 	BlockID    proto.BlockID
 } {
 	var calls []struct {
 		ScriptType blockchainEntity
-		Key        []byte
-		Record     scriptRecord
+		Key        scriptKey
+		DbItem     scriptDBItem
 		BlockID    proto.BlockID
 	}
 	mock.locksetScript.RLock()

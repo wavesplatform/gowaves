@@ -1,12 +1,12 @@
 package state
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"math/big"
 	"runtime"
 
 	"github.com/pkg/errors"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -43,12 +43,12 @@ type StateInfo interface {
 	// Height <---> blockID converters.
 	BlockIDToHeight(blockID proto.BlockID) (proto.Height, error)
 	HeightToBlockID(height proto.Height) (proto.BlockID, error)
+	WavesBalance(account proto.Recipient) (uint64, error)
 	// FullWavesBalance returns complete Waves balance record.
 	FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
 	EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
-	// AccountBalance retrieves balance of account in specific currency, asset is asset's ID.
-	// nil asset = Waves.
-	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)
+	// AssetBalance retrieves balance of account in specific currency, asset is asset's ID.
+	AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error)
 	// WavesAddressesNumber returns total number of Waves addresses in state.
 	// It is extremely slow, so it is recommended to only use for testing purposes.
 	WavesAddressesNumber() (uint64, error)
@@ -98,8 +98,7 @@ type StateInfo interface {
 	AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error)
 	FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error)
 	AssetInfoByID(id proto.AssetID, filter bool) (*proto.AssetInfo, error)
-	NFTList(account proto.Recipient, limit uint64, afterAsset crypto.Digest) ([]*proto.FullAssetInfo, error)
-
+	NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error)
 	// Script information.
 	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)
 	ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error)
@@ -110,10 +109,9 @@ type StateInfo interface {
 
 	// Invoke results.
 	InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error)
-
 	// True if state stores additional information in order to provide extended API.
 	ProvidesExtendedApi() (bool, error)
-
+	//
 	// True if state stores and calculates state hashes for each block height.
 	ProvidesStateHashes() (bool, error)
 

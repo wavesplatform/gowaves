@@ -2,7 +2,7 @@ package ethabi
 
 import "math/big"
 
-type DataType interface{ _dataTypeMarker() }
+type DataType interface{ ethABIDataTypeMarker() }
 
 type (
 	Int    int64
@@ -15,9 +15,9 @@ type (
 	List   []DataType
 )
 
-func (Int) _dataTypeMarker()    {}
-func (BigInt) _dataTypeMarker() {}
-func (Bool) _dataTypeMarker()   {}
-func (Bytes) _dataTypeMarker()  {}
-func (String) _dataTypeMarker() {}
-func (List) _dataTypeMarker()   {}
+func (Int) ethABIDataTypeMarker()    {}
+func (BigInt) ethABIDataTypeMarker() {}
+func (Bool) ethABIDataTypeMarker()   {}
+func (Bytes) ethABIDataTypeMarker()  {}
+func (String) ethABIDataTypeMarker() {}
+func (List) ethABIDataTypeMarker()   {}

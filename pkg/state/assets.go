@@ -48,8 +48,9 @@ func (ai *assetConstInfo) marshalBinary() ([]byte, error) {
 }
 
 func (ai *assetConstInfo) unmarshalBinary(data []byte) error {
-	if len(data) < proto.AssetIDTailSize+crypto.PublicKeySize+1 {
-		return errors.New("invalid data size")
+	const assetConstInfoSize = proto.AssetIDTailSize + crypto.PublicKeySize + 1
+	if len(data) < assetConstInfoSize {
+		return errors.Errorf("invalid data size: want %d, got %d", assetConstInfoSize, len(data))
 	}
 	copy(ai.tail[:], data[:proto.AssetIDTailSize])
 	data = data[proto.AssetIDTailSize:]
@@ -329,8 +330,8 @@ func (a *assets) newestAssetExists(asset proto.OptionalAsset, filter bool) bool 
 		// Waves.
 		return true
 	}
-	id := proto.AssetIDFromDigest(asset.ID)
-	if _, err := a.newestAssetInfo(id, filter); err != nil {
+	assetID := proto.AssetIDFromDigest(asset.ID)
+	if _, err := a.newestAssetInfo(assetID, filter); err != nil { // TODO: check error type
 		return false
 	}
 	return true

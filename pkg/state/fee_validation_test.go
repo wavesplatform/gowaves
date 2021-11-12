@@ -39,7 +39,7 @@ func TestAssetScriptExtraFee(t *testing.T) {
 		stor:           to.stor.entities,
 		settings:       settings.MainNetSettings,
 		initialisation: false,
-		txAssets:       &txAssets{feeAsset: proto.OptionalAsset{Present: false}, smartAssets: []crypto.Digest{tx.AssetID}},
+		txAssets:       &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: []crypto.Digest{tx.AssetID}},
 	}
 	err = checkMinFeeWaves(tx, params, false, maxEstimatorVersion) // it doesn't matter for these tests what version estimator is
 	assert.Error(t, err, "checkMinFeeWaves() did not fail with invalid Burn fee")
@@ -73,7 +73,7 @@ func TestAccountScriptExtraFee(t *testing.T) {
 		stor:           to.stor.entities,
 		settings:       settings.MainNetSettings,
 		initialisation: false,
-		txAssets:       &txAssets{feeAsset: proto.OptionalAsset{Present: false}},
+		txAssets:       &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 	}
 	err = checkMinFeeWaves(tx, params, false, maxEstimatorVersion)
 	assert.Error(t, err, "checkMinFeeWaves() did not fail with invalid Burn fee")
@@ -99,7 +99,7 @@ func TestCheckMinFeeWaves(t *testing.T) {
 		stor:           to.stor.entities,
 		settings:       settings.MainNetSettings,
 		initialisation: false,
-		txAssets:       &txAssets{feeAsset: proto.OptionalAsset{Present: false}},
+		txAssets:       &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 	}
 	err = checkMinFeeWaves(tx, params, false, maxEstimatorVersion)
 	assert.NoError(t, err, "checkMinFeeWaves() failed with valid Burn fee")
@@ -147,7 +147,7 @@ func TestCheckMinFeeAsset(t *testing.T) {
 		stor:           to.stor.entities,
 		settings:       settings.MainNetSettings,
 		initialisation: false,
-		txAssets:       &txAssets{feeAsset: proto.OptionalAsset{Present: false}},
+		txAssets:       &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 	}
 
 	to.stor.addBlock(t, blockID0)
@@ -179,7 +179,7 @@ func TestNFTMinFee(t *testing.T) {
 		stor:           storage.entities,
 		settings:       settings.MainNetSettings,
 		initialisation: false,
-		txAssets:       &txAssets{feeAsset: proto.OptionalAsset{Present: false}},
+		txAssets:       &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 	}
 
 	issueA1 := createIssueWithSig(t, 500)
@@ -222,7 +222,7 @@ func TestReissueFeeReduction(t *testing.T) {
 		stor:           storage.entities,
 		settings:       settings.MainNetSettings,
 		initialisation: false,
-		txAssets:       &txAssets{feeAsset: proto.OptionalAsset{Present: false}},
+		txAssets:       &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 	}
 
 	reissueA1 := createReissueWithSig(t, 1)
@@ -257,7 +257,7 @@ func TestSponsorshipFeeReduction(t *testing.T) {
 		stor:           storage.entities,
 		settings:       settings.MainNetSettings,
 		initialisation: false,
-		txAssets:       &txAssets{feeAsset: proto.OptionalAsset{Present: false}},
+		txAssets:       &txAssets{feeAsset: proto.NewOptionalAssetWaves()},
 	}
 
 	sponsorshipA := createSponsorshipWithProofs(t, 1)

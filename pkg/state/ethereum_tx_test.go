@@ -92,10 +92,10 @@ func TestEthereumTransferWaves(t *testing.T) {
 	sender, err := tx.SenderPK.EthereumAddress().ToWavesAddress(proto.MainNetScheme)
 	assert.NoError(t, err)
 	wavesAsset := proto.NewOptionalAssetWaves()
-	senderKey := byteKey(sender, wavesAsset.ToID())
+	senderKey := byteKey(sender.ID(), wavesAsset)
 	recipient, err := recipientEth.ToWavesAddress(proto.MainNetScheme)
 	assert.NoError(t, err)
-	recipientKey := byteKey(recipient, wavesAsset.ToID())
+	recipientKey := byteKey(recipient.ID(), wavesAsset)
 	senderBalance := applRes.changes.diff[string(senderKey)].balance
 	recipientBalance := applRes.changes.diff[string(recipientKey)].balance
 	assert.Equal(t, senderBalance, int64(-200000))
@@ -114,8 +114,8 @@ func TestEthereumTransferAssets(t *testing.T) {
 		NewestScriptPKByAddrFunc: func(address proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
 			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
 		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) bool {
-			return false
+		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
+			return false, nil
 		},
 	}
 
@@ -166,8 +166,8 @@ func TestEthereumTransferAssets(t *testing.T) {
 	sender, err := tx.SenderPK.EthereumAddress().ToWavesAddress(proto.MainNetScheme)
 	assert.NoError(t, err)
 	wavesAsset := proto.NewOptionalAssetWaves()
-	senderWavesKey := byteKey(sender, wavesAsset.ToID())
-	senderKey := byteKey(sender, txKindTransferAssets.Asset.ToID())
+	senderWavesKey := byteKey(sender.ID(), wavesAsset)
+	senderKey := byteKey(sender.ID(), txKindTransferAssets.Asset)
 
 	//rideValue, err := ride.EthABIDataTypeToRideType(decodedData.Inputs[0].Value)
 	//assert.NoError(t, err)
@@ -177,7 +177,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 	ethRecipientAddress := proto.BytesToEthereumAddress(rideEthRecipientAddress)
 	recipient, err := ethRecipientAddress.ToWavesAddress(proto.MainNetScheme)
 	assert.NoError(t, err)
-	recipientKey := byteKey(recipient, txKindTransferAssets.Asset.ToID())
+	recipientKey := byteKey(recipient.ID(), txKindTransferAssets.Asset)
 	senderWavesBalance := applRes.changes.diff[string(senderWavesKey)].balance
 	senderBalance := applRes.changes.diff[string(senderKey)].balance
 	recipientBalance := applRes.changes.diff[string(recipientKey)].balance
@@ -226,8 +226,8 @@ func TestEthereumInvoke(t *testing.T) {
 		NewestScriptPKByAddrFunc: func(address proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
 			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
 		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) bool {
-			return false
+		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
+			return false, nil
 		},
 	}
 	state := &AnotherMockSmartState{
@@ -391,8 +391,8 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 		NewestScriptPKByAddrFunc: func(address proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
 			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
 		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) bool {
-			return false
+		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
+			return false, nil
 		},
 	}
 	state := &AnotherMockSmartState{
@@ -470,8 +470,8 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 		NewestScriptPKByAddrFunc: func(address proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
 			return crypto.NewPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")
 		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) bool {
-			return false
+		newestIsSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
+			return false, nil
 		},
 	}
 	state := &AnotherMockSmartState{

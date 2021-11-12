@@ -14,73 +14,73 @@ var _ FeaturesState = &MockFeaturesState{}
 
 // MockFeaturesState is a mock implementation of FeaturesState.
 //
-//     func TestSomethingThatUsesFeaturesState(t *testing.T) {
+// 	func TestSomethingThatUsesFeaturesState(t *testing.T) {
 //
-//         // make and configure a mocked FeaturesState
-//         mockedFeaturesState := &MockFeaturesState{
-//             activateFeatureFunc: func(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
-// 	               panic("mock out the activateFeature method")
-//             },
-//             activationHeightFunc: func(featureID int16) (uint64, error) {
-// 	               panic("mock out the activationHeight method")
-//             },
-//             addVoteFunc: func(featureID int16, blockID proto.BlockID) error {
-// 	               panic("mock out the addVote method")
-//             },
-//             allFeaturesFunc: func() ([]int16, error) {
-// 	               panic("mock out the allFeatures method")
-//             },
-//             approvalHeightFunc: func(featureID int16) (uint64, error) {
-// 	               panic("mock out the approvalHeight method")
-//             },
-//             approveFeatureFunc: func(featureID int16, r *approvedFeaturesRecord, blockID proto.BlockID) error {
-// 	               panic("mock out the approveFeature method")
-//             },
-//             featureVotesFunc: func(featureID int16) (uint64, error) {
-// 	               panic("mock out the featureVotes method")
-//             },
-//             featureVotesAtHeightFunc: func(featureID int16, height uint64) (uint64, error) {
-// 	               panic("mock out the featureVotesAtHeight method")
-//             },
-//             finishVotingFunc: func(curHeight uint64, blockID proto.BlockID) error {
-// 	               panic("mock out the finishVoting method")
-//             },
-//             isActivatedAtHeightFunc: func(featureID int16, height uint64) bool {
-// 	               panic("mock out the isActivatedAtHeight method")
-//             },
-//             isApprovedFunc: func(featureID int16) (bool, error) {
-// 	               panic("mock out the isApproved method")
-//             },
-//             isApprovedAtHeightFunc: func(featureID int16, height uint64) bool {
-// 	               panic("mock out the isApprovedAtHeight method")
-//             },
-//             newestActivationHeightFunc: func(featureID int16) (uint64, error) {
-// 	               panic("mock out the newestActivationHeight method")
-//             },
-//             newestApprovalHeightFunc: func(featureID int16) (uint64, error) {
-// 	               panic("mock out the newestApprovalHeight method")
-//             },
-//             newestIsActivatedFunc: func(featureID int16) (bool, error) {
-// 	               panic("mock out the newestIsActivated method")
-//             },
-//             newestIsActivatedAtHeightFunc: func(featureID int16, height uint64) bool {
-// 	               panic("mock out the newestIsActivatedAtHeight method")
-//             },
-//             newestIsActivatedForNBlocksFunc: func(featureID int16, n int) (bool, error) {
-// 	               panic("mock out the newestIsActivatedForNBlocks method")
-//             },
-//             newestIsApprovedFunc: func(featureID int16) (bool, error) {
-// 	               panic("mock out the newestIsApproved method")
-//             },
-//             resetVotesFunc: func(blockID proto.BlockID) error {
-// 	               panic("mock out the resetVotes method")
-//             },
-//         }
+// 		// make and configure a mocked FeaturesState
+// 		mockedFeaturesState := &MockFeaturesState{
+// 			activateFeatureFunc: func(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
+// 				panic("mock out the activateFeature method")
+// 			},
+// 			activationHeightFunc: func(featureID int16) (uint64, error) {
+// 				panic("mock out the activationHeight method")
+// 			},
+// 			addVoteFunc: func(featureID int16, blockID proto.BlockID) error {
+// 				panic("mock out the addVote method")
+// 			},
+// 			allFeaturesFunc: func() ([]int16, error) {
+// 				panic("mock out the allFeatures method")
+// 			},
+// 			approvalHeightFunc: func(featureID int16) (uint64, error) {
+// 				panic("mock out the approvalHeight method")
+// 			},
+// 			approveFeatureFunc: func(featureID int16, r *approvedFeaturesRecord, blockID proto.BlockID) error {
+// 				panic("mock out the approveFeature method")
+// 			},
+// 			featureVotesFunc: func(featureID int16) (uint64, error) {
+// 				panic("mock out the featureVotes method")
+// 			},
+// 			featureVotesAtHeightFunc: func(featureID int16, height uint64) (uint64, error) {
+// 				panic("mock out the featureVotesAtHeight method")
+// 			},
+// 			finishVotingFunc: func(curHeight uint64, blockID proto.BlockID) error {
+// 				panic("mock out the finishVoting method")
+// 			},
+// 			isActivatedAtHeightFunc: func(featureID int16, height uint64) bool {
+// 				panic("mock out the isActivatedAtHeight method")
+// 			},
+// 			isApprovedFunc: func(featureID int16) (bool, error) {
+// 				panic("mock out the isApproved method")
+// 			},
+// 			isApprovedAtHeightFunc: func(featureID int16, height uint64) bool {
+// 				panic("mock out the isApprovedAtHeight method")
+// 			},
+// 			newestActivationHeightFunc: func(featureID int16) (uint64, error) {
+// 				panic("mock out the newestActivationHeight method")
+// 			},
+// 			newestApprovalHeightFunc: func(featureID int16) (uint64, error) {
+// 				panic("mock out the newestApprovalHeight method")
+// 			},
+// 			newestIsActivatedFunc: func(featureID int16) (bool, error) {
+// 				panic("mock out the newestIsActivated method")
+// 			},
+// 			newestIsActivatedAtHeightFunc: func(featureID int16, height uint64) bool {
+// 				panic("mock out the newestIsActivatedAtHeight method")
+// 			},
+// 			newestIsActivatedForNBlocksFunc: func(featureID int16, n int) (bool, error) {
+// 				panic("mock out the newestIsActivatedForNBlocks method")
+// 			},
+// 			newestIsApprovedFunc: func(featureID int16) (bool, error) {
+// 				panic("mock out the newestIsApproved method")
+// 			},
+// 			resetVotesFunc: func(blockID proto.BlockID) error {
+// 				panic("mock out the resetVotes method")
+// 			},
+// 		}
 //
-//         // use mockedFeaturesState in code that requires FeaturesState
-//         // and then make assertions.
+// 		// use mockedFeaturesState in code that requires FeaturesState
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type MockFeaturesState struct {
 	// activateFeatureFunc mocks the activateFeature method.
 	activateFeatureFunc func(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error

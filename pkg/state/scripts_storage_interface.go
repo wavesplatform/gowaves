@@ -8,17 +8,17 @@ import (
 
 //go:generate moq -out scripts_storage_moq_test.go . ScriptStorageState:MockScriptStorageState
 type ScriptStorageState interface {
-	setScript(scriptType blockchainEntity, key []byte, record scriptRecord, blockID proto.BlockID) error
+	setScript(scriptType blockchainEntity, key scriptKey, dbItem scriptDBItem, blockID proto.BlockID) error
 	scriptBytesByKey(key []byte, filter bool) (proto.Script, error)
 	newestScriptBytesByKey(key []byte, filter bool) (proto.Script, error)
-	scriptAstFromRecordBytes(recordBytes []byte) (*ride.Tree, crypto.PublicKey, error)
+	scriptAstFromRecordBytes(script proto.Script) (*ride.Tree, error)
 	newestScriptAstByKey(key []byte, filter bool) (*ride.Tree, error)
 	scriptTreeByKey(key []byte, filter bool) (*ride.Tree, error)
 	commitUncertain(blockID proto.BlockID) error
 	dropUncertain()
 	setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey)
 	setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
-	newestIsSmartAsset(assetID proto.AssetID, filter bool) bool
+	newestIsSmartAsset(assetID proto.AssetID, filter bool) (bool, error)
 	isSmartAsset(assetID proto.AssetID, filter bool) (bool, error)
 	newestScriptByAsset(assetID proto.AssetID, filter bool) (*ride.Tree, error)
 	scriptByAsset(assetID proto.AssetID, filter bool) (*ride.Tree, error)

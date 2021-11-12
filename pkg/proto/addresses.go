@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"golang.org/x/crypto/sha3"
 	"io"
 	"strconv"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -46,6 +46,10 @@ type AddressID [AddressIDSize]byte
 
 func (a AddressID) Bytes() []byte {
 	return a[:]
+}
+
+func (a AddressID) ToWavesAddress(scheme Scheme) (WavesAddress, error) {
+	return newAddressFromPublicKeyHash(scheme, a[:])
 }
 
 type Address interface {

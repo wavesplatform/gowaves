@@ -85,10 +85,16 @@ func (a *ThreadSafeReadWrapper) EffectiveBalance(account proto.Recipient, startH
 	return a.s.EffectiveBalance(account, startHeight, endHeight)
 }
 
-func (a *ThreadSafeReadWrapper) AccountBalance(account proto.Recipient, asset []byte) (uint64, error) {
+func (a *ThreadSafeReadWrapper) WavesBalance(account proto.Recipient) (uint64, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.AccountBalance(account, asset)
+	return a.s.WavesBalance(account)
+}
+
+func (a *ThreadSafeReadWrapper) AssetBalance(account proto.Recipient, asset proto.AssetID) (uint64, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.AssetBalance(account, asset)
 }
 
 func (a *ThreadSafeReadWrapper) WavesAddressesNumber() (uint64, error) {
@@ -265,10 +271,10 @@ func (a *ThreadSafeReadWrapper) AssetInfoByID(id proto.AssetID, filter bool) (*p
 	return a.s.AssetInfoByID(id, filter)
 }
 
-func (a *ThreadSafeReadWrapper) NFTList(account proto.Recipient, limit uint64, afterAsset crypto.Digest) ([]*proto.FullAssetInfo, error) {
+func (a *ThreadSafeReadWrapper) NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.NFTList(account, limit, afterAsset)
+	return a.s.NFTList(account, limit, afterAssetID)
 }
 
 func (a *ThreadSafeReadWrapper) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {

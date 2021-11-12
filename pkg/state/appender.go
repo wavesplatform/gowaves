@@ -82,7 +82,7 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	diffApplier, err := newDiffApplier(stor.balances)
+	diffApplier, err := newDiffApplier(stor.balances, settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, err
 	}

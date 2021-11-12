@@ -50,7 +50,9 @@ type SmartState interface {
 	AssetInfoByID(id proto.AssetID, filter bool) (*proto.AssetInfo, error)
 	// NewestAccountBalance retrieves balance of address in specific currency, asset is asset's ID.
 	// nil asset = Waves.
-	NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error)
+	// NewestAssetBalance retrieves balance of address in specific currency, asset is asset's ID.
+	NewestAssetBalance(account proto.Recipient, assetID crypto.Digest) (uint64, error)
+	NewestWavesBalance(account proto.Recipient) (uint64, error)
 	NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
 	RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
 	RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
@@ -59,7 +61,7 @@ type SmartState interface {
 	NewestAssetIsSponsored(assetID crypto.Digest) (bool, error)
 	NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
 	NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
-	NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error)
+	NewestScriptByAsset(assetID crypto.Digest) (proto.Script, error)
 	NewestHeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 

@@ -56,8 +56,8 @@ func (sc *scriptsComplexity) newestOriginalScriptComplexityByAddr(addr proto.Wav
 	return sc.newestScriptComplexityByAddr(addr, ev, filter)
 }
 
-func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset crypto.Digest, filter bool) (*ride.TreeEstimation, error) {
-	key := assetScriptComplexityKey{proto.AssetIDFromDigest(asset)}
+func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset proto.AssetID, filter bool) (*ride.TreeEstimation, error) {
+	key := assetScriptComplexityKey{asset}
 	recordBytes, err := sc.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
@@ -69,8 +69,8 @@ func (sc *scriptsComplexity) newestScriptComplexityByAsset(asset crypto.Digest, 
 	return record, nil
 }
 
-func (sc *scriptsComplexity) scriptComplexityByAsset(assetID proto.AssetID, filter bool) (*ride.TreeEstimation, error) {
-	key := assetScriptComplexityKey{assetID}
+func (sc *scriptsComplexity) scriptComplexityByAsset(asset proto.AssetID, filter bool) (*ride.TreeEstimation, error) {
+	key := assetScriptComplexityKey{asset}
 	recordBytes, err := sc.hs.topEntryData(key.bytes(), filter)
 	if err != nil {
 		return nil, err
@@ -97,6 +97,7 @@ func (sc *scriptsComplexity) scriptComplexityByAddress(addr proto.Address, ev in
 
 func (sc *scriptsComplexity) saveComplexitiesForAddr(addr proto.Address, estimations map[int]ride.TreeEstimation, blockID proto.BlockID) error {
 	min := math.MaxUint8
+	addrID := addr.ID()
 	for v, e := range estimations {
 		if v < min {
 			min = v
@@ -105,13 +106,13 @@ func (sc *scriptsComplexity) saveComplexitiesForAddr(addr proto.Address, estimat
 		if err != nil {
 			return errors.Wrapf(err, "failed to save complexities record for address '%s' in block '%s'", addr.String(), blockID.String())
 		}
-		key := accountScriptComplexityKey{v, addr.ID()}
+		key := accountScriptComplexityKey{v, addrID}
 		err = sc.hs.addNewEntry(accountScriptComplexity, key.bytes(), recordBytes, blockID)
 		if err != nil {
 			return errors.Wrapf(err, "failed to save complexities record for address '%s' in block '%s'", addr.String(), blockID.String())
 		}
 	}
-	key := accountOriginalEstimatorVersionKey{addr.ID()}
+	key := accountOriginalEstimatorVersionKey{addrID}
 	record := estimatorVersionRecord{uint8(min)}
 	recordBytes, err := cbor.Marshal(record)
 	if err != nil {
