@@ -19,7 +19,7 @@ const (
 	BlockReward // 14
 	BlockV5     // 15
 	RideV5      // 16
-	RideV6
+	RideV6      // 17
 )
 
 type FeatureInfo struct {
