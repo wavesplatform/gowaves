@@ -15,8 +15,8 @@ const (
 	// Key sizes.
 	minAccountsDataStorKeySize = 1 + 8 + 2 + 1
 
-	wavesBalanceKeySize     = 1 + proto.WavesAddressSize
-	assetBalanceKeySize     = 1 + proto.WavesAddressSize + crypto.DigestSize
+	wavesBalanceKeySize     = 1 + proto.AddressIDSize
+	assetBalanceKeySize     = 1 + proto.AddressIDSize + proto.AssetIDSize
 	leaseKeySize            = 1 + crypto.DigestSize
 	aliasKeySize            = 1 + 2 + proto.AliasMaxLength
 	disabledAliasKeySize    = 1 + 2 + proto.AliasMaxLength
@@ -86,6 +86,7 @@ const (
 	// Scripts.
 	accountScriptKeyPrefix
 	assetScriptKeyPrefix
+	scriptBasicInfoKeyPrefix
 	accountScriptComplexityKeyPrefix
 	assetScriptComplexityKeyPrefix
 	accountOriginalEstimatorVersionKeyPrefix
@@ -151,6 +152,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{accountScriptKeyPrefix}, nil
 	case assetScript:
 		return []byte{assetScriptKeyPrefix}, nil
+	case scriptBasicInfo:
+		return []byte{scriptBasicInfoKeyPrefix}, nil
 	case accountScriptComplexity:
 		return []byte{accountScriptComplexityKeyPrefix}, nil
 	case assetScriptComplexity:
@@ -177,7 +180,7 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 }
 
 type wavesBalanceKey struct {
-	address proto.WavesAddress
+	address proto.AddressID
 }
 
 func (k *wavesBalanceKey) bytes() []byte {
@@ -194,20 +197,17 @@ func (k *wavesBalanceKey) unmarshal(data []byte) error {
 	if data[0] != wavesBalanceKeyPrefix {
 		return errInvalidPrefix
 	}
-	var err error
-	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.WavesAddressSize]); err != nil {
-		return err
-	}
+	copy(k.address[:], data[1:1+proto.AddressIDSize])
 	return nil
 }
 
 type assetBalanceKey struct {
-	address proto.WavesAddress
-	asset   []byte
+	address proto.AddressID
+	asset   proto.AssetID
 }
 
 func (k *assetBalanceKey) addressPrefix() []byte {
-	buf := make([]byte, 1+proto.WavesAddressSize)
+	buf := make([]byte, 1+proto.AddressIDSize)
 	buf[0] = assetBalanceKeyPrefix
 	copy(buf[1:], k.address[:])
 	return buf
@@ -217,7 +217,7 @@ func (k *assetBalanceKey) bytes() []byte {
 	buf := make([]byte, assetBalanceKeySize)
 	buf[0] = assetBalanceKeyPrefix
 	copy(buf[1:], k.address[:])
-	copy(buf[1+proto.WavesAddressSize:], k.asset)
+	copy(buf[1+proto.AddressIDSize:], k.asset[:])
 	return buf
 }
 
@@ -228,12 +228,8 @@ func (k *assetBalanceKey) unmarshal(data []byte) error {
 	if data[0] != assetBalanceKeyPrefix {
 		return errInvalidPrefix
 	}
-	var err error
-	if k.address, err = proto.NewAddressFromBytes(data[1 : 1+proto.WavesAddressSize]); err != nil {
-		return err
-	}
-	k.asset = make([]byte, crypto.DigestSize)
-	copy(k.asset, data[1+proto.WavesAddressSize:])
+	copy(k.address[:], data[1:1+proto.AddressIDSize])
+	copy(k.asset[:], data[1+proto.AddressIDSize:])
 	return nil
 }
 
@@ -321,7 +317,7 @@ type assetHistKey struct {
 }
 
 func (k *assetHistKey) bytes() []byte {
-	buf := make([]byte, 1+proto.AddressIDSize)
+	buf := make([]byte, 1+proto.AssetIDSize)
 	buf[0] = assetHistKeyPrefix
 	copy(buf[1:], k.assetID[:])
 	return buf
@@ -549,22 +545,29 @@ func (k *accountsDataStorKey) unmarshal(data []byte) error {
 }
 
 type sponsorshipKey struct {
-	assetID crypto.Digest
+	assetID proto.AssetID
 }
 
 func (k *sponsorshipKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
+	buf := make([]byte, 1+proto.AssetIDSize)
 	buf[0] = sponsorshipKeyPrefix
 	copy(buf[1:], k.assetID[:])
 	return buf
 }
 
-type accountScriptKey struct {
-	addr proto.WavesAddress
+type scriptKey interface {
+	scriptKeyMarker()
+	bytes() []byte
 }
 
+type accountScriptKey struct {
+	addr proto.AddressID
+}
+
+func (accountScriptKey) scriptKeyMarker() {}
+
 func (k *accountScriptKey) bytes() []byte {
-	buf := make([]byte, 1+proto.WavesAddressSize)
+	buf := make([]byte, 1+proto.AddressIDSize)
 	buf[0] = accountScriptKeyPrefix
 	copy(buf[1:], k.addr[:])
 	return buf
@@ -574,10 +577,24 @@ type assetScriptKey struct {
 	assetID proto.AssetID
 }
 
+func (assetScriptKey) scriptKeyMarker() {}
+
 func (k *assetScriptKey) bytes() []byte {
 	buf := make([]byte, 1+proto.AssetIDSize)
 	buf[0] = assetScriptKeyPrefix
 	copy(buf[1:], k.assetID[:])
+	return buf
+}
+
+type scriptBasicInfoKey struct {
+	scriptKey scriptKey
+}
+
+func (k *scriptBasicInfoKey) bytes() []byte {
+	scriptKeyBytes := k.scriptKey.bytes()
+	buf := make([]byte, 1+len(scriptKeyBytes))
+	buf[0] = scriptBasicInfoKeyPrefix
+	copy(buf[1:], scriptKeyBytes)
 	return buf
 }
 
@@ -587,7 +604,7 @@ type accountScriptComplexityKey struct {
 }
 
 func (k *accountScriptComplexityKey) bytes() []byte {
-	buf := make([]byte, 2+proto.WavesAddressSize)
+	buf := make([]byte, 2+proto.AddressIDSize)
 	buf[0] = accountScriptComplexityKeyPrefix
 	buf[1] = byte(k.ver)
 	copy(buf[2:], k.addressID[:])
@@ -595,11 +612,11 @@ func (k *accountScriptComplexityKey) bytes() []byte {
 }
 
 type assetScriptComplexityKey struct {
-	asset crypto.Digest
+	asset proto.AssetID
 }
 
 func (k *assetScriptComplexityKey) bytes() []byte {
-	buf := make([]byte, 1+crypto.DigestSize)
+	buf := make([]byte, 1+proto.AssetIDSize)
 	buf[0] = assetScriptComplexityKeyPrefix
 	copy(buf[1:], k.asset[:])
 	return buf

@@ -7,13 +7,13 @@ import (
 
 // Type interface represents all type descriptors that can be encoded in Meta.
 type Type interface {
-	_type()
+	metaTypeMarker()
 }
 
 // SimpleType is one of a four basic types of Meta.
 type SimpleType byte
 
-func (t SimpleType) _type() {}
+func (SimpleType) metaTypeMarker() {}
 
 const (
 	Int SimpleType = 1 << iota
@@ -32,14 +32,14 @@ const (
 // UnionType represents a composition of basic types.
 type UnionType []SimpleType
 
-func (t UnionType) _type() {}
+func (UnionType) metaTypeMarker() {}
 
 // ListType is a list of items of Inner type.
 type ListType struct {
 	Inner Type
 }
 
-func (t ListType) _type() {}
+func (ListType) metaTypeMarker() {}
 
 // Function is a function signature descriptor. Functions has Name and list of argument's types.
 type Function struct {

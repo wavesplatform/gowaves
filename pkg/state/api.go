@@ -43,12 +43,12 @@ type StateInfo interface {
 	// Height <---> blockID converters.
 	BlockIDToHeight(blockID proto.BlockID) (proto.Height, error)
 	HeightToBlockID(height proto.Height) (proto.BlockID, error)
+	WavesBalance(account proto.Recipient) (uint64, error)
 	// FullWavesBalance returns complete Waves balance record.
 	FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
 	EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error)
-	// AccountBalance retrieves balance of account in specific currency, asset is asset's ID.
-	// nil asset = Waves.
-	AccountBalance(account proto.Recipient, asset []byte) (uint64, error)
+	// AssetBalance retrieves balance of account in specific currency, asset is asset's ID.
+	AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error)
 	// WavesAddressesNumber returns total number of Waves addresses in state.
 	// It is extremely slow, so it is recommended to only use for testing purposes.
 	WavesAddressesNumber() (uint64, error)
@@ -94,14 +94,14 @@ type StateInfo interface {
 	NewAddrTransactionsIterator(addr proto.Address) (TransactionIterator, error)
 
 	// Asset fee sponsorship.
-	AssetIsSponsored(assetID crypto.Digest) (bool, error)
-	AssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error)
-	FullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error)
-	NFTList(account proto.Recipient, limit uint64, afterAssetID []byte) ([]*proto.FullAssetInfo, error)
+	AssetIsSponsored(assetID proto.AssetID) (bool, error)
+	AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error)
+	FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error)
+	NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error)
 
 	// Script information.
 	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)
-	ScriptInfoByAsset(assetID crypto.Digest) (*proto.ScriptInfo, error)
+	ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error)
 
 	// Leases.
 	IsActiveLeasing(leaseID crypto.Digest) (bool, error)

@@ -118,8 +118,10 @@ func TestCreateDiffTransferWithSig(t *testing.T) {
 	}()
 
 	tx := createTransferWithSig(t)
-	assetId := tx.FeeAsset.ID
-	to.stor.createAsset(t, assetId)
+	feeFullAssetID := tx.FeeAsset.ID
+	feeShortAssetID := proto.AssetIDFromDigest(feeFullAssetID)
+
+	to.stor.createAsset(t, feeFullAssetID)
 
 	ch, err := to.td.createDiffTransferWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffTransferWithSig() failed")
@@ -139,12 +141,12 @@ func TestCreateDiffTransferWithSig(t *testing.T) {
 	to.stor.activateSponsorship(t)
 	_, err = to.td.createDiffTransferWithSig(tx, defaultDifferInfo())
 	assert.Error(t, err, "createDiffTransferWithSig() did not fail with unsponsored asset")
-	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	err = to.stor.entities.sponsoredAssets.sponsorAsset(feeFullAssetID, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	ch, err = to.td.createDiffTransferWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffTransferWithSig() failed with valid sponsored asset")
 
-	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(assetId, tx.Fee)
+	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(feeShortAssetID, tx.Fee)
 	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
 	correctDiff = txDiff{
 		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
@@ -180,8 +182,10 @@ func TestCreateDiffTransferWithProofs(t *testing.T) {
 	}()
 
 	tx := createTransferWithProofs(t)
-	assetId := tx.FeeAsset.ID
-	to.stor.createAsset(t, assetId)
+	feeFullAssetID := tx.FeeAsset.ID
+	feeShortAssetID := proto.AssetIDFromDigest(feeFullAssetID)
+
+	to.stor.createAsset(t, feeFullAssetID)
 
 	ch, err := to.td.createDiffTransferWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffTransferWithProofs() failed")
@@ -201,12 +205,12 @@ func TestCreateDiffTransferWithProofs(t *testing.T) {
 	to.stor.activateSponsorship(t)
 	_, err = to.td.createDiffTransferWithProofs(tx, defaultDifferInfo())
 	assert.Error(t, err, "createDiffTransferWithProofs() did not fail with unsponsored asset")
-	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	err = to.stor.entities.sponsoredAssets.sponsorAsset(feeFullAssetID, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	ch, err = to.td.createDiffTransferWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffTransferWithProofs() failed with valid sponsored asset")
 
-	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(assetId, tx.Fee)
+	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(feeShortAssetID, tx.Fee)
 	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
 	correctDiff = txDiff{
 		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
@@ -252,10 +256,11 @@ func TestCreateDiffIssueWithSig(t *testing.T) {
 	ch, err := to.td.createDiffIssueWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffIssueWithSig() failed")
 
+	issuedKey := byteKey(testGlobal.senderInfo.addr.ID(), *proto.NewOptionalAssetFromDigest(*tx.ID))
 	correctDiff := txDiff{
-		stringKey(testGlobal.senderInfo.addr, tx.ID.Bytes()): newBalanceDiff(int64(tx.Quantity), 0, 0, false),
-		testGlobal.senderInfo.wavesKey:                       newBalanceDiff(-int64(tx.Fee), 0, 0, false),
-		testGlobal.minerInfo.wavesKey:                        newBalanceDiff(int64(tx.Fee), 0, 0, false),
+		string(issuedKey):              newBalanceDiff(int64(tx.Quantity), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
@@ -292,10 +297,11 @@ func TestCreateDiffIssueWithProofs(t *testing.T) {
 	ch, err := to.td.createDiffIssueWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffIssueWithProofs() failed")
 
+	issuedKey := byteKey(testGlobal.senderInfo.addr.ID(), *proto.NewOptionalAssetFromDigest(*tx.ID))
 	correctDiff := txDiff{
-		stringKey(testGlobal.senderInfo.addr, tx.ID.Bytes()): newBalanceDiff(int64(tx.Quantity), 0, 0, false),
-		testGlobal.senderInfo.wavesKey:                       newBalanceDiff(-int64(tx.Fee), 0, 0, false),
-		testGlobal.minerInfo.wavesKey:                        newBalanceDiff(int64(tx.Fee), 0, 0, false),
+		string(issuedKey):              newBalanceDiff(int64(tx.Quantity), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
@@ -1003,9 +1009,9 @@ func TestCreateDiffMassTransferWithProofs(t *testing.T) {
 	for _, entry := range entries {
 		recipientAddr, err := recipientToAddress(entry.Recipient, to.stor.entities.aliases, true)
 		assert.NoError(t, err, "recipientToAddress() failed")
-		err = correctDiff.appendBalanceDiff(byteKey(*recipientAddr, tx.Asset.ToID()), newBalanceDiff(int64(entry.Amount), 0, 0, true))
+		err = correctDiff.appendBalanceDiff(byteKey(recipientAddr.ID(), tx.Asset), newBalanceDiff(int64(entry.Amount), 0, 0, true))
 		assert.NoError(t, err, "appendBalanceDiff() failed")
-		err = correctDiff.appendBalanceDiff(byteKey(testGlobal.senderInfo.addr, tx.Asset.ToID()), newBalanceDiff(-int64(entry.Amount), 0, 0, true))
+		err = correctDiff.appendBalanceDiff(byteKey(testGlobal.senderInfo.addr.ID(), tx.Asset), newBalanceDiff(-int64(entry.Amount), 0, 0, true))
 		assert.NoError(t, err, "appendBalanceDiff() failed")
 		correctAddrs[*recipientAddr] = empty
 	}
@@ -1182,25 +1188,27 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 	paymentAmount2 := uint64(42)
 	pmts := []proto.ScriptPayment{
 		{Amount: paymentAmount0, Asset: *testGlobal.asset0.asset},
-		{Amount: paymentAmount1, Asset: proto.OptionalAsset{Present: false}},
+		{Amount: paymentAmount1, Asset: proto.NewOptionalAssetWaves()},
 		{Amount: paymentAmount2, Asset: *testGlobal.asset0.asset},
 	}
 	totalAssetAmount := paymentAmount0 + paymentAmount2
 	totalWavesAmount := paymentAmount1
 	tx := createInvokeScriptWithProofs(t, pmts, proto.FunctionCall{}, *testGlobal.asset0.asset, feeConst*FeeUnit)
 
-	assetId := tx.FeeAsset.ID
-	to.stor.createAsset(t, assetId)
+	feeFullAssetID := tx.FeeAsset.ID
+	feeShortAssetID := proto.AssetIDFromDigest(feeFullAssetID)
+
+	to.stor.createAsset(t, feeFullAssetID)
 
 	to.stor.activateSponsorship(t)
 	_, err := to.td.createDiffInvokeScriptWithProofs(tx, defaultDifferInfo())
 	assert.Error(t, err, "createDiffInvokeScriptWithProofs() did not fail with unsponsored asset")
-	err = to.stor.entities.sponsoredAssets.sponsorAsset(assetId, 10, blockID0)
+	err = to.stor.entities.sponsoredAssets.sponsorAsset(feeFullAssetID, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
 	ch, err := to.td.createDiffInvokeScriptWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffInvokeScriptWithProofs() failed with valid sponsored asset")
 
-	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(assetId, tx.Fee)
+	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(feeShortAssetID, tx.Fee)
 	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
 	recipientAssetDiff := balanceDiff{
 		balance:                      int64(totalAssetAmount),

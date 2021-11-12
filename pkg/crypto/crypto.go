@@ -87,10 +87,10 @@ func NewDigestFromBase58(s string) (Digest, error) {
 }
 
 func NewDigestFromBytes(b []byte) (Digest, error) {
-	if len(b) != 32 {
+	if len(b) != DigestSize {
 		return Digest{}, errors.New("invalid digest len")
 	}
-	var r [32]byte
+	var r Digest
 	copy(r[:], b)
 	return r, nil
 }

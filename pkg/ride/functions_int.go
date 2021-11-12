@@ -197,7 +197,7 @@ func intToBytes(_ Environment, args ...rideType) (rideType, error) {
 	return rideBytes(out), nil
 }
 
-func pow(_ Environment, args ...rideType) (rideType, error) {
+func pow(env Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 6); err != nil {
 		return nil, errors.Wrap(err, "pow")
 	}
@@ -225,7 +225,11 @@ func pow(_ Environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "pow")
 	}
-	r, err := math.Pow(int64(base), int64(exponent), int(bp), int(ep), int(rp), round)
+	f := math.PowV1
+	if env.validateInternalPayments() {
+		f = math.PowV2
+	}
+	r, err := f(int64(base), int64(exponent), int(bp), int(ep), int(rp), round)
 	if err != nil {
 		return nil, errors.Wrap(err, "pow")
 	}
