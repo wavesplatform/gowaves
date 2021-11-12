@@ -337,6 +337,14 @@ func (tc *transactionChecker) checkTransferWithSig(transaction proto.Transaction
 }
 
 func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
+	metamaskActivated, err := tc.stor.features.newestIsActivated(int16(settings.LeaseExpiration))
+	if err != nil {
+		return nil, errors.Errorf("failed to check whether feature %d was activated: %v", settings.LeaseExpiration, err)
+	}
+	if !metamaskActivated {
+		return nil, errors.Errorf("failed to handle ethereum transaction: feature %d has not been activated yet", settings.LeaseExpiration)
+	}
+
 	tx, ok := transaction.(*proto.EthereumTransaction)
 	if !ok {
 		return nil, errors.New("failed to convert interface to TransferWithSig transaction")
