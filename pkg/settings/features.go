@@ -19,7 +19,7 @@ const (
 	BlockReward // 14
 	BlockV5     // 15
 	RideV5      // 16
-	LeaseExpiration
+	RideV6      // 17
 )
 
 type FeatureInfo struct {
@@ -44,5 +44,5 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	BlockReward:                     {true, "Block Reward and Community Driven Monetary Policy"},
 	BlockV5:                         {true, "Ride V4, VRF, Protobuf, Failed transactions"},
 	RideV5:                          {true, "Ride V5, dApp-to-dApp invocations"},
-	LeaseExpiration:                 {false, "Lease Expiration"},
+	RideV6:                          {false, "Ride V6"},
 }
