@@ -1225,54 +1225,6 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 	}, nil
 }
 
-func NewEthereumEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress) (*EvaluationEnvironment, error) {
-	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
-
-	st := newWrappedState(env)
-	for _, payment := range payments {
-		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(sender), payment.Asset.ID.Bytes())
-		if err != nil {
-			return nil, err
-		}
-		if senderBalance < payment.Amount {
-			return nil, errors.New("not enough money for tx attached payments")
-		}
-
-		searchBalance, searchAddr, err := st.diff.findBalance(recipient, payment.Asset)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-		}
-		err = st.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-		}
-
-		callerRcp := proto.NewRecipientFromAddress(sender)
-		senderSearchBalance, senderSearchAddr, err := st.diff.findBalance(callerRcp, payment.Asset)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-		}
-
-		err = st.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-		}
-	}
-
-	return &EvaluationEnvironment{
-		sch:     env.sch,
-		st:      st,
-		h:       env.h,
-		tx:      env.tx,
-		id:      env.id,
-		th:      env.th,
-		b:       env.b,
-		check:   env.check,
-		takeStr: env.takeStr,
-		inv:     env.inv,
-	}, nil
-}
-
 func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
 	e.takeStr = takeRideString
 	if !isRideV5 {
