@@ -1235,7 +1235,7 @@ func convertToAction(env Environment, obj rideType) (proto.ScriptAction, error) 
 			return &proto.TransferScriptAction{
 				Recipient: recipient,
 				Amount:    0,
-				Asset:     proto.OptionalAsset{Present: false},
+				Asset:     proto.NewOptionalAssetWaves(),
 			}, nil
 		}
 		return &proto.TransferScriptAction{

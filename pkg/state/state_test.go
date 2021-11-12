@@ -117,7 +117,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	err = manager.stateDB.addBlock(blockID0)
 	assert.NoError(t, err, "addBlock() failed")
 	waves := newWavesValueFromProfile(balanceProfile{validTx.Amount + validTx.Fee, 0, 0})
-	err = manager.stor.balances.setWavesBalance(testGlobal.senderInfo.addr, waves, blockID0)
+	err = manager.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), waves, blockID0)
 	assert.NoError(t, err, "setWavesBalance() failed")
 	err = manager.flush(false)
 	assert.NoError(t, err, "manager.flush() failed")
@@ -126,10 +126,10 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	assert.NoError(t, err, "ValidateNextTx failed with valid tx")
 
 	// Check NewestBalance() results after applying `validTx` from above.
-	recipientBalance, err := manager.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), nil)
+	recipientBalance, err := manager.NewestWavesBalance(proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr))
 	assert.NoError(t, err, "manager.NewestAccountBalance() failed")
 	assert.Equal(t, validTx.Amount, recipientBalance)
-	senderBalance, err := manager.NewestAccountBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr), nil)
+	senderBalance, err := manager.NewestWavesBalance(proto.NewRecipientFromAddress(testGlobal.senderInfo.addr))
 	assert.NoError(t, err, "manager.NewestAccountBalance() failed")
 	assert.Equal(t, uint64(0), senderBalance)
 }

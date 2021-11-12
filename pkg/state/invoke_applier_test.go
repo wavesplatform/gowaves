@@ -19,7 +19,7 @@ import (
 
 var (
 	invokeFee = FeeUnit * feeConstants[proto.InvokeScriptTransaction]
-	feeAsset  = proto.OptionalAsset{Present: false}
+	feeAsset  = proto.NewOptionalAssetWaves()
 )
 
 func invokeSenderRecipient() (proto.Recipient, proto.Recipient) {
@@ -52,7 +52,7 @@ func (to *invokeApplierTestObjects) fallibleValidationParams(t *testing.T) *fall
 
 func (to *invokeApplierTestObjects) setInitialWavesBalance(t *testing.T, addr proto.WavesAddress, balance uint64) {
 	txDiff := newTxDiff()
-	key := wavesBalanceKey{addr}
+	key := wavesBalanceKey{addr.ID()}
 	diff := newBalanceDiff(int64(balance), 0, 0, false)
 	diff.blockID = blockID0
 	err := txDiff.appendBalanceDiff(key.bytes(), diff)
@@ -63,7 +63,7 @@ func (to *invokeApplierTestObjects) setInitialWavesBalance(t *testing.T, addr pr
 
 func (to *invokeApplierTestObjects) setAndCheckInitialWavesBalance(t *testing.T, addr proto.WavesAddress, balance uint64) {
 	to.setInitialWavesBalance(t, addr, balance)
-	senderBalance, err := to.state.NewestAccountBalance(proto.NewRecipientFromAddress(addr), nil)
+	senderBalance, err := to.state.NewestWavesBalance(proto.NewRecipientFromAddress(addr))
 	assert.NoError(t, err)
 	assert.Equal(t, balance, senderBalance)
 }
@@ -125,15 +125,8 @@ func createGeneratedAsset(t *testing.T) (crypto.Digest, string) {
 }
 
 type rcpAsset struct {
-	rcp     proto.Recipient
-	assetId *crypto.Digest
-}
-
-func (r *rcpAsset) asset() []byte {
-	if r.assetId == nil {
-		return nil
-	}
-	return r.assetId[:]
+	rcp   proto.Recipient
+	asset *crypto.Digest
 }
 
 type rcpKey struct {
@@ -187,7 +180,15 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 
 	// Check newest result state here.
 	for aa, correct := range id.correctBalances {
-		balance, err := to.state.NewestAccountBalance(aa.rcp, aa.asset())
+		var (
+			balance uint64
+			err     error
+		)
+		if aa.asset != nil {
+			balance, err = to.state.NewestAssetBalance(aa.rcp, *aa.asset)
+		} else {
+			balance, err = to.state.NewestWavesBalance(aa.rcp)
+		}
 		assert.NoError(t, err)
 		assert.Equal(t, int(correct), int(balance))
 	}
@@ -214,7 +215,15 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 
 	// Check state after flushing.
 	for aa, correct := range id.correctBalances {
-		balance, err := to.state.AccountBalance(aa.rcp, aa.asset())
+		var (
+			balance uint64
+			err     error
+		)
+		if aa.asset != nil {
+			balance, err = to.state.AssetBalance(aa.rcp, proto.AssetIDFromDigest(*aa.asset))
+		} else {
+			balance, err = to.state.WavesBalance(aa.rcp)
+		}
 		assert.NoError(t, err)
 		assert.Equal(t, int(correct), int(balance))
 	}

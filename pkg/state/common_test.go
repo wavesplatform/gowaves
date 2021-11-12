@@ -152,7 +152,7 @@ func defaultFallibleValidationParams() *fallibleValidationParams {
 	}
 }
 
-func newTestWavesAddrData(seedStr string, assets [][]byte) (*testWavesAddrData, error) {
+func newTestWavesAddrData(seedStr string, assets []crypto.Digest) (*testWavesAddrData, error) {
 	seedBytes, err := base58.Decode(seedStr)
 	if err != nil {
 		return nil, err
@@ -166,16 +166,16 @@ func newTestWavesAddrData(seedStr string, assets [][]byte) (*testWavesAddrData, 
 		return nil, err
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
-	wavesKey := string((&wavesBalanceKey{addr}).bytes())
+	wavesKey := string((&wavesBalanceKey{addr.ID()}).bytes())
 
 	assetKeys := make([]string, len(assets))
 	for i, a := range assets {
-		assetKeys[i] = string((&assetBalanceKey{addr, a}).bytes())
+		assetKeys[i] = string((&assetBalanceKey{addr.ID(), proto.AssetIDFromDigest(a)}).bytes())
 	}
 	return &testWavesAddrData{sk: sk, pk: pk, addr: addr, rcp: rcp, wavesKey: wavesKey, assetKeys: assetKeys}, nil
 }
 
-func newTestEthAkaWavesAddrData(ethSecretKeyHex string, assets [][]byte) (*testEthAkaWavesAddrData, error) {
+func newTestEthAkaWavesAddrData(ethSecretKeyHex string, assets []crypto.Digest) (*testEthAkaWavesAddrData, error) {
 	sk, err := crypto.ECDSAPrivateKeyFromHexString(ethSecretKeyHex)
 	if err != nil {
 		return nil, err
@@ -189,18 +189,18 @@ func newTestEthAkaWavesAddrData(ethSecretKeyHex string, assets [][]byte) (*testE
 		return nil, err
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
-	wavesKey := string((&wavesBalanceKey{addr}).bytes())
+	wavesKey := string((&wavesBalanceKey{addr.ID()}).bytes())
 
 	assetKeys := make([]string, len(assets))
 	for i, a := range assets {
-		assetKeys[i] = string((&assetBalanceKey{addr, a}).bytes())
+		assetKeys[i] = string((&assetBalanceKey{addr.ID(), proto.AssetIDFromDigest(a)}).bytes())
 	}
 	return &testEthAkaWavesAddrData{sk: ethSK, pk: ethPK, addr: addr, rcp: rcp, wavesKey: wavesKey, assetKeys: assetKeys}, nil
 }
 
 type testAssetData struct {
 	asset   *proto.OptionalAsset
-	assetID []byte
+	assetID crypto.Digest
 }
 
 func newTestAssetData(assetStr string) (*testAssetData, error) {
@@ -212,7 +212,7 @@ func newTestAssetData(assetStr string) (*testAssetData, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &testAssetData{asset, assetID.Bytes()}, nil
+	return &testAssetData{asset, assetID}, nil
 }
 
 type testGlobalVars struct {
@@ -252,33 +252,33 @@ func TestMain(m *testing.M) {
 		log.Fatalf("newTestAssetData(): %v\n", err)
 	}
 
-	testGlobal.issuerInfo, err = newTestWavesAddrData(issuerSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
+	testGlobal.issuerInfo, err = newTestWavesAddrData(issuerSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
 	if err != nil {
 		log.Fatalf("newTestWavesAddrData(): %v\n", err)
 	}
-	testGlobal.matcherInfo, err = newTestWavesAddrData(matcherSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.matcherInfo, err = newTestWavesAddrData(matcherSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestWavesAddrData(): %v\n", err)
 	}
-	testGlobal.minerInfo, err = newTestWavesAddrData(minerSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
-	if err != nil {
-		log.Fatalf("newTestWavesAddrData(): %v\n", err)
-	}
-
-	testGlobal.senderInfo, err = newTestWavesAddrData(senderSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
-	if err != nil {
-		log.Fatalf("newTestWavesAddrData(): %v\n", err)
-	}
-	testGlobal.recipientInfo, err = newTestWavesAddrData(recipientSeed, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.minerInfo, err = newTestWavesAddrData(minerSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
 	if err != nil {
 		log.Fatalf("newTestWavesAddrData(): %v\n", err)
 	}
 
-	testGlobal.senderEthInfo, err = newTestEthAkaWavesAddrData(senderSKHex, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.senderInfo, err = newTestWavesAddrData(senderSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	if err != nil {
+		log.Fatalf("newTestWavesAddrData(): %v\n", err)
+	}
+	testGlobal.recipientInfo, err = newTestWavesAddrData(recipientSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	if err != nil {
+		log.Fatalf("newTestWavesAddrData(): %v\n", err)
+	}
+
+	testGlobal.senderEthInfo, err = newTestEthAkaWavesAddrData(senderSKHex, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestEthAkaWavesAddrData(): %v\n", err)
 	}
-	testGlobal.recipientEthInfo, err = newTestEthAkaWavesAddrData(recipientSKHex, [][]byte{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.recipientEthInfo, err = newTestEthAkaWavesAddrData(recipientSKHex, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestEthAkaWavesAddrData(): %v\n", err)
 	}
@@ -309,7 +309,7 @@ func defaultTestKeyValParams() keyvalue.KeyValParams {
 	return keyvalue.KeyValParams{CacheParams: defaultTestCacheParams(), BloomFilterParams: defaultTestBloomFilterParams()}
 }
 
-func defaultNFT(tail [12]byte) *assetInfo {
+func defaultNFT(tail [proto.AssetIDTailSize]byte) *assetInfo {
 	return &assetInfo{
 		assetConstInfo{
 			tail:     tail,

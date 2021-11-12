@@ -178,7 +178,10 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For asset script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, !params.initialisation)
+		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(
+			proto.AssetIDFromDigest(assetID),
+			!params.initialisation,
+		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 		}

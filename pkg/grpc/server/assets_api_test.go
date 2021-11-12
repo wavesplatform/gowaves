@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	protobuf "google.golang.org/protobuf/proto"
 )
 
@@ -31,7 +32,7 @@ func TestGetInfo(t *testing.T) {
 	cl := g.NewAssetsApiClient(conn)
 
 	assetId := crypto.MustDigestFromBase58("DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J")
-	correctInfo, err := st.FullAssetInfo(assetId)
+	correctInfo, err := st.FullAssetInfo(proto.AssetIDFromDigest(assetId))
 	assert.NoError(t, err)
 	correctInfoProto, err := correctInfo.ToProtobuf(sets.AddressSchemeCharacter)
 	assert.NoError(t, err)
