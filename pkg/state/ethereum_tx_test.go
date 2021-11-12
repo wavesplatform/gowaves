@@ -26,6 +26,9 @@ func defaultTxAppender(t *testing.T, storage ScriptStorageState, state types.Sma
 			if featureID == int16(settings.Ride4DApps) {
 				return true, nil
 			}
+			if featureID == int16(settings.LeaseExpiration) {
+				return true, nil
+			}
 			return false, nil
 		},
 	}
