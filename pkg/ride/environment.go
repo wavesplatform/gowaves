@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"bytes"
 	"unicode/utf16"
 
 	"github.com/pkg/errors"
@@ -25,23 +24,11 @@ type WrappedState struct {
 }
 
 func newWrappedState(env *EvaluationEnvironment) *WrappedState {
-	dataEntries := diffDataEntries{
-		diffInteger: map[string]proto.IntegerDataEntry{},
-		diffBool:    map[string]proto.BooleanDataEntry{},
-		diffString:  map[string]proto.StringDataEntry{},
-		diffBinary:  map[string]proto.BinaryDataEntry{},
-		diffDDelete: map[string]proto.DeleteDataEntry{},
+	return &WrappedState{
+		diff:   newDiffState(env.st),
+		cle:    env.th.(rideAddress),
+		scheme: env.sch,
 	}
-	diffSt := diffState{
-		state:         env.st,
-		dataEntries:   dataEntries,
-		balances:      map[string]diffBalance{},
-		sponsorships:  map[string]diffSponsorship{},
-		newAssetsInfo: map[string]diffNewAssetInfo{},
-		oldAssetsInfo: map[string]diffOldAssetInfo{},
-		leases:        map[string]lease{}}
-
-	return &WrappedState{diff: diffSt, cle: env.th.(rideAddress), scheme: env.sch}
 }
 
 func (ws *WrappedState) appendActions(actions []proto.ScriptAction) {
@@ -97,24 +84,29 @@ func (ws *WrappedState) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress
 	return ws.diff.state.NewestAddrByAlias(alias)
 }
 
-func (ws *WrappedState) NewestAccountBalance(account proto.Recipient, assetID []byte) (uint64, error) {
-	balance, err := ws.diff.state.NewestAccountBalance(account, assetID)
+func (ws *WrappedState) NewestWavesBalance(account proto.Recipient) (uint64, error) {
+	balance, err := ws.diff.state.NewestWavesBalance(account)
 	if err != nil {
 		return 0, err
 	}
-	var asset *proto.OptionalAsset
-
-	if isAssetWaves(assetID) {
-		waves := proto.NewOptionalAssetWaves()
-		asset = &waves
-	} else {
-		asset, err = proto.NewOptionalAssetFromBytes(assetID)
-		if err != nil {
-			return 0, err
-		}
+	balanceDiff, _, err := ws.diff.findBalance(account, proto.NewOptionalAssetWaves())
+	if err != nil {
+		return 0, err
 	}
+	if balanceDiff != nil {
+		resBalance := int64(balance) + balanceDiff.regular
+		return uint64(resBalance), nil
 
-	balanceDiff, _, err := ws.diff.findBalance(account, *asset)
+	}
+	return balance, nil
+}
+
+func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+	balance, err := ws.diff.state.NewestAssetBalance(account, assetID)
+	if err != nil {
+		return 0, err
+	}
+	balanceDiff, _, err := ws.diff.findBalance(account, *proto.NewOptionalAssetFromDigest(assetID))
 	if err != nil {
 		return 0, err
 	}
@@ -175,12 +167,11 @@ func (ws *WrappedState) RetrieveNewestIntegerEntry(account proto.Recipient, key 
 	if err != nil {
 		return nil, err
 	}
-
-	if deletedDataEntry := ws.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+	if ws.isNewestDataEntryDeleted(key, *address) {
 		return nil, nil
 	}
 
-	if intDataEntry := ws.diff.findIntFromDataEntryByKey(key, address.String()); intDataEntry != nil {
+	if intDataEntry := ws.diff.findIntFromDataEntryByKey(key, *address); intDataEntry != nil {
 		return intDataEntry, nil
 	}
 
@@ -192,12 +183,11 @@ func (ws *WrappedState) RetrieveNewestBooleanEntry(account proto.Recipient, key 
 	if err != nil {
 		return nil, err
 	}
-
-	if deletedDataEntry := ws.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+	if ws.isNewestDataEntryDeleted(key, *address) {
 		return nil, nil
 	}
 
-	if boolDataEntry := ws.diff.findBoolFromDataEntryByKey(key, address.String()); boolDataEntry != nil {
+	if boolDataEntry := ws.diff.findBoolFromDataEntryByKey(key, *address); boolDataEntry != nil {
 		return boolDataEntry, nil
 	}
 	return ws.diff.state.RetrieveNewestBooleanEntry(account, key)
@@ -208,12 +198,11 @@ func (ws *WrappedState) RetrieveNewestStringEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, err
 	}
-
-	if deletedDataEntry := ws.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+	if ws.isNewestDataEntryDeleted(key, *address) {
 		return nil, nil
 	}
 
-	if stringDataEntry := ws.diff.findStringFromDataEntryByKey(key, address.String()); stringDataEntry != nil {
+	if stringDataEntry := ws.diff.findStringFromDataEntryByKey(key, *address); stringDataEntry != nil {
 		return stringDataEntry, nil
 	}
 	return ws.diff.state.RetrieveNewestStringEntry(account, key)
@@ -224,35 +213,39 @@ func (ws *WrappedState) RetrieveNewestBinaryEntry(account proto.Recipient, key s
 	if err != nil {
 		return nil, err
 	}
-
-	if deletedDataEntry := ws.diff.findDeleteFromDataEntryByKey(key, address.String()); deletedDataEntry != nil {
+	if ws.isNewestDataEntryDeleted(key, *address) {
 		return nil, nil
 	}
 
-	if binaryDataEntry := ws.diff.findBinaryFromDataEntryByKey(key, address.String()); binaryDataEntry != nil {
+	if binaryDataEntry := ws.diff.findBinaryFromDataEntryByKey(key, *address); binaryDataEntry != nil {
 		return binaryDataEntry, nil
 	}
 	return ws.diff.state.RetrieveNewestBinaryEntry(account, key)
 }
 
-func (ws *WrappedState) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
-	if cost := ws.diff.findSponsorship(assetID); cost != nil {
+func (ws *WrappedState) isNewestDataEntryDeleted(key string, address proto.WavesAddress) bool {
+	deletedDataEntry := ws.diff.findDeleteFromDataEntryByKey(key, address)
+	return deletedDataEntry != nil
+}
+
+func (ws *WrappedState) NewestAssetIsSponsored(asset crypto.Digest) (bool, error) {
+	if cost := ws.diff.findSponsorship(asset); cost != nil {
 		if *cost == 0 {
 			return false, nil
 		}
 		return true, nil
 	}
-	return ws.diff.state.NewestAssetIsSponsored(assetID)
+	return ws.diff.state.NewestAssetIsSponsored(asset)
 }
 
-func (ws *WrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
-	searchNewAsset := ws.diff.findNewAsset(assetID)
+func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, error) {
+	searchNewAsset := ws.diff.findNewAsset(asset)
 	if searchNewAsset == nil {
-		assetFromStore, err := ws.diff.state.NewestAssetInfo(assetID)
+		assetFromStore, err := ws.diff.state.NewestAssetInfo(asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get asset's info from store")
 		}
-		if oldAssetFromDiff := ws.diff.findOldAsset(assetID); oldAssetFromDiff != nil {
+		if oldAssetFromDiff := ws.diff.findOldAsset(asset); oldAssetFromDiff != nil {
 			quantity := int64(assetFromStore.Quantity) + oldAssetFromDiff.diffQuantity
 
 			assetFromStore.Quantity = uint64(quantity)
@@ -268,12 +261,12 @@ func (ws *WrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo
 	if searchNewAsset.script != nil {
 		scripted = true
 	}
-	sponsored, err := ws.NewestAssetIsSponsored(assetID)
+	sponsored, err := ws.NewestAssetIsSponsored(asset)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find out sponsoring of the asset")
 	}
 	return &proto.AssetInfo{
-		ID:              assetID,
+		ID:              asset,
 		Quantity:        uint64(searchNewAsset.quantity),
 		Decimals:        uint8(searchNewAsset.decimals),
 		Issuer:          searchNewAsset.dAppIssuer,
@@ -284,17 +277,15 @@ func (ws *WrappedState) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo
 	}, nil
 }
 
-func (ws *WrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
-	searchNewAsset := ws.diff.findNewAsset(assetID)
+func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAssetInfo, error) {
+	searchNewAsset := ws.diff.findNewAsset(asset)
 
 	if searchNewAsset == nil {
-
-		assetFromStore, err := ws.diff.state.NewestFullAssetInfo(assetID)
+		assetFromStore, err := ws.diff.state.NewestFullAssetInfo(asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get asset's info from store")
 		}
-
-		if oldAssetFromDiff := ws.diff.findOldAsset(assetID); oldAssetFromDiff != nil {
+		if oldAssetFromDiff := ws.diff.findOldAsset(asset); oldAssetFromDiff != nil {
 			quantity := int64(assetFromStore.Quantity) + oldAssetFromDiff.diffQuantity
 
 			if quantity >= 0 {
@@ -304,7 +295,6 @@ func (ws *WrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullA
 
 			return nil, errors.Errorf("quantity of the asset is negative")
 		}
-
 		return assetFromStore, nil
 	}
 
@@ -318,13 +308,13 @@ func (ws *WrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullA
 		scripted = true
 	}
 
-	sponsored, err := ws.NewestAssetIsSponsored(assetID)
+	sponsored, err := ws.NewestAssetIsSponsored(asset)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find out sponsoring of the asset")
 	}
 
 	assetInfo := proto.AssetInfo{
-		ID:              assetID,
+		ID:              asset,
 		Quantity:        uint64(searchNewAsset.quantity),
 		Decimals:        uint8(searchNewAsset.decimals),
 		Issuer:          searchNewAsset.dAppIssuer,
@@ -338,7 +328,7 @@ func (ws *WrappedState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullA
 	}
 
 	sponsorshipCost := int64(0)
-	if sponsorship := ws.diff.findSponsorship(assetID); sponsorship != nil {
+	if sponsorship := ws.diff.findSponsorship(asset); sponsorship != nil {
 		sponsorshipCost = *sponsorship
 	}
 
@@ -367,7 +357,7 @@ func (ws *WrappedState) IsNotFound(err error) bool {
 	return ws.diff.state.IsNotFound(err)
 }
 
-func (ws *WrappedState) NewestScriptByAsset(asset proto.OptionalAsset) (proto.Script, error) {
+func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (proto.Script, error) {
 	return ws.diff.state.NewestScriptByAsset(asset)
 }
 
@@ -388,6 +378,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 	}
 
 	timestamp := env.timestamp()
+
 	localEnv, err := NewEnvironment(env.scheme(), env.state(), env.internalPaymentsValidationHeight())
 	if err != nil {
 		return false, err
@@ -434,7 +425,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	}
 
-	script, err := ws.NewestScriptByAsset(asset)
+	script, err := ws.NewestScriptByAsset(asset.ID)
 	if err != nil {
 		return false, err
 	}
@@ -499,7 +490,12 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 		}
 	}
 	senderRcp := proto.NewRecipientFromAddress(sender)
-	balance, err := ws.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
+	var balance uint64
+	if res.Asset.Present {
+		balance, err = ws.NewestAssetBalance(senderRcp, res.Asset.ID)
+	} else {
+		balance, err = ws.NewestWavesBalance(senderRcp)
+	}
 	if err != nil {
 		return err
 	}
@@ -543,8 +539,15 @@ func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, 
 			return errors.New("transfers to DApp itself are forbidden since activation of RIDE V4")
 		}
 	}
-	senderRcp := proto.NewRecipientFromAddress(sender)
-	balance, err := ws.NewestAccountBalance(senderRcp, res.Asset.ID.Bytes())
+	var (
+		balance   uint64
+		senderRcp = proto.NewRecipientFromAddress(sender)
+	)
+	if res.Asset.Present {
+		balance, err = ws.NewestAssetBalance(senderRcp, res.Asset.ID)
+	} else {
+		balance, err = ws.NewestWavesBalance(senderRcp)
+	}
 	if err != nil {
 		return err
 	}
@@ -570,6 +573,7 @@ func (ws *WrappedState) validateDataEntryAction(res *proto.DataEntryScriptAction
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
+
 	ws.dataEntriesSize += res.Entry.BinarySize()
 	if ws.dataEntriesSize > restrictions.MaxDataEntriesSize {
 		return errors.Errorf("total size of data entries produced by script is more than %d bytes", restrictions.MaxDataEntriesSize)
@@ -772,71 +776,17 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of data entry action")
 			}
-
-			switch dataEntry := res.Entry.(type) {
-
-			case *proto.IntegerDataEntry:
-				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get public key by address")
-				}
-				res.Sender = &senderPK
-
-				intEntry := *dataEntry
-
-				ws.diff.dataEntries.diffInteger[dataEntry.Key+addr.String()] = intEntry
-
-			case *proto.StringDataEntry:
-				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get public key by address")
-				}
-				res.Sender = &senderPK
-
-				stringEntry := *dataEntry
-
-				ws.diff.dataEntries.diffString[dataEntry.Key+addr.String()] = stringEntry
-
-			case *proto.BooleanDataEntry:
-				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get public key by address")
-				}
-				res.Sender = &senderPK
-
-				boolEntry := *dataEntry
-
-				ws.diff.dataEntries.diffBool[dataEntry.Key+addr.String()] = boolEntry
-
-			case *proto.BinaryDataEntry:
-				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get public key by address")
-				}
-				res.Sender = &senderPK
-
-				binaryEntry := *dataEntry
-
-				ws.diff.dataEntries.diffBinary[dataEntry.Key+addr.String()] = binaryEntry
-
-			case *proto.DeleteDataEntry:
-				addr := ws.callee()
-				senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to get public key by address")
-				}
-				res.Sender = &senderPK
-				deleteEntry := *dataEntry
-
-				ws.diff.dataEntries.diffDDelete[dataEntry.Key+addr.String()] = deleteEntry
-
-			default:
-
+			addr := ws.callee()
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to get public key by address")
 			}
+			res.Sender = &senderPK
+
+			if err := ws.diff.putDataEntry(res.Entry, addr); err != nil {
+				return nil, err
+			}
+
 		case *proto.AttachedPaymentScriptAction:
 			var senderAddress proto.WavesAddress
 			var senderPK crypto.PublicKey
@@ -858,7 +808,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			if err != nil {
 				return nil, err
 			}
-			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset, res.Recipient)
 			if err != nil {
 				return nil, err
 			}
@@ -869,7 +819,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				return nil, err
 			}
 
-			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecipient)
+			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset, senderRecipient)
 			if err != nil {
 				return nil, err
 			}
@@ -896,7 +846,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			if err != nil {
 				return nil, err
 			}
-			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset.ID, res.Recipient)
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Amount, res.Asset, res.Recipient)
 			if err != nil {
 				return nil, err
 			}
@@ -906,8 +856,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			if err != nil {
 				return nil, err
 			}
-
-			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset.ID, senderRecipient)
+			err = ws.diff.changeBalance(senderSearchBalance, senderSearchAddr, -res.Amount, res.Asset, senderRecipient)
 			if err != nil {
 				return nil, err
 			}
@@ -924,10 +873,10 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
 
-			var sponsorship diffSponsorship
-			sponsorship.MinFee = res.MinFee
-
-			ws.diff.sponsorships[res.AssetID.String()] = sponsorship
+			sponsorship := diffSponsorship{
+				minFee: res.MinFee,
+			}
+			ws.diff.sponsorships[res.AssetID] = sponsorship
 
 		case *proto.IssueScriptAction:
 			err := ws.validateIssueAction(res)
@@ -935,17 +884,17 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
 			}
 
-			var assetInfo diffNewAssetInfo
-			assetInfo.dAppIssuer = ws.callee()
-			assetInfo.name = res.Name
-			assetInfo.description = res.Description
-			assetInfo.quantity = res.Quantity
-			assetInfo.decimals = res.Decimals
-			assetInfo.reissuable = res.Reissuable
-			assetInfo.script = res.Script
-			assetInfo.nonce = res.Nonce
-
-			ws.diff.newAssetsInfo[res.ID.String()] = assetInfo
+			assetInfo := diffNewAssetInfo{
+				dAppIssuer:  ws.callee(),
+				name:        res.Name,
+				description: res.Description,
+				quantity:    res.Quantity,
+				decimals:    res.Decimals,
+				reissuable:  res.Reissuable,
+				script:      res.Script,
+				nonce:       res.Nonce,
+			}
+			ws.diff.newAssetsInfo[res.ID] = assetInfo
 
 			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
@@ -954,12 +903,12 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			res.Sender = &senderPK
 
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
-			asset := proto.NewOptionalAssetFromDigest(res.ID)
-			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, *asset)
+			asset := *proto.NewOptionalAssetFromDigest(res.ID)
+			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, asset)
 			if err != nil {
 				return nil, err
 			}
-			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset, senderRcp)
 			if err != nil {
 				return nil, err
 			}
@@ -977,19 +926,19 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
-			asset := proto.NewOptionalAssetFromDigest(res.AssetID)
-			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, *asset)
+			asset := *proto.NewOptionalAssetFromDigest(res.AssetID)
+			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, asset)
 			if err != nil {
 				return nil, err
 			}
 
-			searchNewAsset := ws.diff.findNewAsset(res.AssetID)
+			searchNewAsset := ws.diff.findNewAsset(asset.ID)
 			if searchNewAsset == nil {
-				if oldAssetFromDiff := ws.diff.findOldAsset(res.AssetID); oldAssetFromDiff != nil {
+				if oldAssetFromDiff := ws.diff.findOldAsset(asset.ID); oldAssetFromDiff != nil {
 					oldAssetFromDiff.diffQuantity += res.Quantity
 
-					ws.diff.oldAssetsInfo[res.AssetID.String()] = *oldAssetFromDiff
-					err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+					ws.diff.oldAssetsInfo[asset.ID] = *oldAssetFromDiff
+					err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset, senderRcp)
 					if err != nil {
 						return nil, err
 					}
@@ -997,16 +946,16 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				}
 				var assetInfo diffOldAssetInfo
 				assetInfo.diffQuantity += res.Quantity
-				ws.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
-				err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+				ws.diff.oldAssetsInfo[asset.ID] = assetInfo
+				err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset, senderRcp)
 				if err != nil {
 					return nil, err
 				}
 				break
 			}
-			ws.diff.reissueNewAsset(res.AssetID, res.Quantity, res.Reissuable)
+			ws.diff.reissueNewAsset(asset.ID, res.Quantity, res.Reissuable)
 
-			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset.ID, senderRcp)
+			err = ws.diff.changeBalance(searchBalance, searchAddr, res.Quantity, asset, senderRcp)
 			if err != nil {
 				return nil, err
 			}
@@ -1023,8 +972,8 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
-			asset := proto.NewOptionalAssetFromDigest(res.AssetID)
-			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, *asset)
+			asset := *proto.NewOptionalAssetFromDigest(res.AssetID)
+			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, asset)
 			if err != nil {
 				return nil, err
 			}
@@ -1034,8 +983,8 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				if oldAssetFromDiff := ws.diff.findOldAsset(res.AssetID); oldAssetFromDiff != nil {
 					oldAssetFromDiff.diffQuantity -= res.Quantity
 
-					ws.diff.oldAssetsInfo[res.AssetID.String()] = *oldAssetFromDiff
-					err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset.ID, senderRcp)
+					ws.diff.oldAssetsInfo[asset.ID] = *oldAssetFromDiff
+					err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset, senderRcp)
 					if err != nil {
 						return nil, err
 					}
@@ -1043,8 +992,8 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				}
 				var assetInfo diffOldAssetInfo
 				assetInfo.diffQuantity -= res.Quantity
-				ws.diff.oldAssetsInfo[res.AssetID.String()] = assetInfo
-				err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset.ID, senderRcp)
+				ws.diff.oldAssetsInfo[asset.ID] = assetInfo
+				err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset, senderRcp)
 				if err != nil {
 					return nil, err
 				}
@@ -1052,7 +1001,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 			ws.diff.burnNewAsset(res.AssetID, res.Quantity)
 
-			err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset.ID, senderRcp)
+			err = ws.diff.changeBalance(searchBalance, searchAddr, -res.Quantity, asset, senderRcp)
 			if err != nil {
 				return nil, err
 			}
@@ -1071,7 +1020,9 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				return nil, errors.Wrapf(err, "failed to pass validation of lease action")
 			}
 
-			recipientSearchBalance, recipientSearchAddress, err := ws.diff.findBalance(res.Recipient, proto.NewOptionalAssetWaves())
+			waves := proto.NewOptionalAssetWaves()
+
+			recipientSearchBalance, recipientSearchAddress, err := ws.diff.findBalance(res.Recipient, waves)
 			if err != nil {
 				return nil, err
 			}
@@ -1081,7 +1032,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 			senderAccount := proto.NewRecipientFromAddress(senderAddress)
-			senderSearchBalance, senderSearchAddr, err := ws.diff.findBalance(senderAccount, proto.NewOptionalAssetWaves())
+			senderSearchBalance, senderSearchAddr, err := ws.diff.findBalance(senderAccount, waves)
 			if err != nil {
 				return nil, err
 			}
@@ -1114,7 +1065,9 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				return nil, errors.Errorf("there is no lease to cancel")
 			}
 
-			recipientBalance, recipientSearchAddress, err := ws.diff.findBalance(searchLease.Recipient, proto.NewOptionalAssetWaves())
+			waves := proto.NewOptionalAssetWaves()
+
+			recipientBalance, recipientSearchAddress, err := ws.diff.findBalance(searchLease.Recipient, waves)
 			if err != nil {
 				return nil, err
 			}
@@ -1122,7 +1075,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 				_, recipientSearchAddress = ws.diff.createNewWavesBalance(searchLease.Recipient)
 			}
 
-			senderBalance, senderSearchAddress, err := ws.diff.findBalance(searchLease.Sender, proto.NewOptionalAssetWaves())
+			senderBalance, senderSearchAddress, err := ws.diff.findBalance(searchLease.Sender, waves)
 			if err != nil {
 				return nil, err
 			}
@@ -1180,7 +1133,16 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 
 	st := newWrappedState(env)
 	for _, payment := range payments {
-		senderBalance, err := st.NewestAccountBalance(proto.NewRecipientFromAddress(caller), payment.Asset.ID.Bytes())
+		var (
+			senderBalance uint64
+			err           error
+			callerRcp     = proto.NewRecipientFromAddress(caller)
+		)
+		if payment.Asset.Present {
+			senderBalance, err = st.NewestAssetBalance(callerRcp, payment.Asset.ID)
+		} else {
+			senderBalance, err = st.NewestWavesBalance(callerRcp)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1192,18 +1154,17 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
-		err = st.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset.ID, recipient)
+		err = st.diff.changeBalance(searchBalance, searchAddr, int64(payment.Amount), payment.Asset, recipient)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
 
-		callerRcp := proto.NewRecipientFromAddress(caller)
 		senderSearchBalance, senderSearchAddr, err := st.diff.findBalance(callerRcp, payment.Asset)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
 
-		err = st.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset.ID, callerRcp)
+		err = st.diff.changeBalance(senderSearchBalance, senderSearchAddr, -int64(payment.Amount), payment.Asset, callerRcp)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
@@ -1394,10 +1355,4 @@ func (e *EvaluationEnvironment) internalPaymentsValidationHeight() uint64 {
 
 func (e *EvaluationEnvironment) maxDataEntriesSize() int {
 	return e.mds
-}
-
-var wavesAssetBytes = crypto.Digest{}.Bytes()
-
-func isAssetWaves(assetID []byte) bool {
-	return bytes.Equal(wavesAssetBytes, assetID)
 }

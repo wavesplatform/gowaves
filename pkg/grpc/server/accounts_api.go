@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/pkg/errors"
@@ -31,12 +32,21 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 			}
 		} else {
 			// Asset.
-			balance, err := s.state.AccountBalance(rcp, asset)
+			fullAssetID, err := crypto.NewDigestFromBytes(asset)
+			if err != nil {
+				return status.Errorf(codes.InvalidArgument, err.Error())
+			}
+			balance, err := s.state.AssetBalance(rcp, proto.AssetIDFromDigest(fullAssetID))
 			if err != nil {
 				return status.Errorf(codes.NotFound, err.Error())
 			}
 			var res g.BalanceResponse
-			res.Balance = &g.BalanceResponse_Asset{Asset: &pb.Amount{AssetId: asset, Amount: int64(balance)}}
+			res.Balance = &g.BalanceResponse_Asset{
+				Asset: &pb.Amount{
+					AssetId: fullAssetID.Bytes(),
+					Amount:  int64(balance),
+				},
+			}
 			if err := srv.Send(&res); err != nil {
 				return status.Errorf(codes.Internal, err.Error())
 			}

@@ -135,7 +135,7 @@ func (wc *wavesRecordForHashes) writeTo(w io.Writer) error {
 
 type assetRecordForHashes struct {
 	addr    *proto.WavesAddress
-	asset   []byte
+	asset   crypto.Digest
 	balance uint64
 }
 
@@ -145,7 +145,7 @@ func (ac *assetRecordForHashes) less(other stateComponent) bool {
 	if val > 0 {
 		return false
 	} else if val == 0 {
-		return bytes.Compare(ac.asset, ac2.asset) == -1
+		return bytes.Compare(ac.asset[:], ac2.asset[:]) == -1
 	}
 	return true
 }
@@ -154,7 +154,7 @@ func (ac *assetRecordForHashes) writeTo(w io.Writer) error {
 	if _, err := w.Write(ac.addr[:]); err != nil {
 		return err
 	}
-	if _, err := w.Write(ac.asset); err != nil {
+	if _, err := w.Write(ac.asset[:]); err != nil {
 		return err
 	}
 	balanceBytes := make([]byte, 8)
@@ -165,9 +165,16 @@ func (ac *assetRecordForHashes) writeTo(w io.Writer) error {
 	return nil
 }
 
+type assetInfoGetter interface {
+	assetInfo(assetID proto.AssetID, filer bool) (*assetInfo, error)
+	newestAssetInfo(assetID proto.AssetID, filer bool) (*assetInfo, error)
+}
+
 type balances struct {
 	db keyvalue.IterableKeyVal
 	hs *historyStorage
+
+	assets assetInfoGetter
 
 	emptyHash         crypto.Digest
 	wavesHashesState  map[proto.BlockID]*stateForHashes
@@ -178,9 +185,10 @@ type balances struct {
 	leaseHashes       map[proto.BlockID]crypto.Digest
 
 	calculateHashes bool
+	scheme          proto.Scheme
 }
 
-func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, calcHashes bool) (*balances, error) {
+func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, assets assetInfoGetter, scheme proto.Scheme, calcHashes bool) (*balances, error) {
 	emptyHash, err := crypto.FastHash(nil)
 	if err != nil {
 		return nil, err
@@ -188,7 +196,9 @@ func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, calcHashes bool
 	return &balances{
 		db:                db,
 		hs:                hs,
+		assets:            assets,
 		calculateHashes:   calcHashes,
+		scheme:            scheme,
 		emptyHash:         emptyHash,
 		wavesHashesState:  make(map[proto.BlockID]*stateForHashes),
 		wavesHashes:       make(map[proto.BlockID]crypto.Digest),
@@ -250,7 +260,11 @@ func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
 		if err := k.unmarshal(key); err != nil {
 			return err
 		}
-		zap.S().Infof("Resetting lease balance for %s", k.address.String())
+		addr, err := k.address.ToWavesAddress(s.scheme)
+		if err != nil {
+			return err
+		}
+		zap.S().Infof("Resetting lease balance for %s", addr.String())
 		r.leaseOut = 0
 		r.leaseIn = 0
 		val := &wavesValue{leaseChange: true, profile: r.balanceProfile}
@@ -286,8 +300,14 @@ func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.WavesA
 			if err := k.unmarshal(key); err != nil {
 				return nil, err
 			}
-			zap.S().Infof("Resolving lease overflow for address %s: %d ---> %d", k.address.String(), r.leaseOut, 0)
-			overflowedAddresses[k.address] = empty
+			wavesAddr, err := k.address.ToWavesAddress(s.scheme)
+			if err != nil {
+				return nil, err
+			}
+			zap.S().Infof("Resolving lease overflow for address %s: %d ---> %d",
+				wavesAddr.String(), r.leaseOut, 0,
+			)
+			overflowedAddresses[wavesAddr] = empty
 			r.leaseOut = 0
 			val := &wavesValue{leaseChange: true, profile: r.balanceProfile}
 			if err := s.setWavesBalance(k.address, val, blockID); err != nil {
@@ -323,11 +343,17 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.WavesAddress]
 			return err
 		}
 		correctLeaseIn := int64(0)
-		if leaseIn, ok := correctLeaseIns[k.address]; ok {
+		wavesAddress, err := k.address.ToWavesAddress(s.scheme)
+		if err != nil {
+			return err
+		}
+		if leaseIn, ok := correctLeaseIns[wavesAddress]; ok {
 			correctLeaseIn = leaseIn
 		}
 		if r.leaseIn != correctLeaseIn {
-			zap.S().Infof("Invalid leaseIn for address %s detected; fixing it: %d ---> %d.", k.address.String(), r.leaseIn, correctLeaseIn)
+			zap.S().Infof("Invalid leaseIn for address %s detected; fixing it: %d ---> %d.",
+				wavesAddress.String(), r.leaseIn, correctLeaseIn,
+			)
 			r.leaseIn = correctLeaseIn
 			val := &wavesValue{leaseChange: true, profile: r.balanceProfile}
 			if err := s.setWavesBalance(k.address, val, blockID); err != nil {
@@ -342,7 +368,7 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.WavesAddress]
 func (s *balances) cancelLeases(changes map[proto.WavesAddress]balanceDiff, blockID proto.BlockID) error {
 	zap.S().Infof("Updating balances for cancelled leases")
 	for a, bd := range changes {
-		k := wavesBalanceKey{address: a}
+		k := wavesBalanceKey{address: a.ID()}
 		r, err := s.newestWavesRecord(k.bytes(), true)
 		if err != nil {
 			return err
@@ -353,7 +379,7 @@ func (s *balances) cancelLeases(changes map[proto.WavesAddress]balanceDiff, bloc
 			return err
 		}
 		val := &wavesValue{leaseChange: true, profile: *newProfile}
-		if err := s.setWavesBalance(a, val, blockID); err != nil {
+		if err := s.setWavesBalance(a.ID(), val, blockID); err != nil {
 			return err
 		}
 		zap.S().Infof("Balance of %s changed from (B: %d, LIn: %d, LOut: %d) to (B: %d, lIn: %d, lOut: %d)",
@@ -364,9 +390,7 @@ func (s *balances) cancelLeases(changes map[proto.WavesAddress]balanceDiff, bloc
 	return nil
 }
 
-type assetInfoFn func(proto.AssetID, bool) (*assetInfo, error)
-
-func (s *balances) nftList(addr proto.WavesAddress, limit uint64, after []byte, assetInfoById assetInfoFn) ([]crypto.Digest, error) {
+func (s *balances) nftList(addr proto.AddressID, limit uint64, afterAssetID *proto.AssetID) ([]crypto.Digest, error) {
 	key := assetBalanceKey{address: addr}
 	iter, err := s.hs.newTopEntryIteratorByPrefix(key.addressPrefix(), true)
 	if err != nil {
@@ -380,22 +404,14 @@ func (s *balances) nftList(addr proto.WavesAddress, limit uint64, after []byte, 
 	}()
 
 	var k assetBalanceKey
-	if after != nil {
-		// Iterate until `after_asset_id` asset is found.
-		afterID, err := crypto.NewDigestFromBytes(after)
-		if err != nil {
-			return nil, err
-		}
+	if afterAssetID != nil {
+		// Iterate until `afterAssetID` asset is found.
 		for iter.Next() {
 			keyBytes := keyvalue.SafeKey(iter)
 			if err := k.unmarshal(keyBytes); err != nil {
 				return nil, err
 			}
-			assetID, err := crypto.NewDigestFromBytes(k.asset)
-			if err != nil {
-				return nil, err
-			}
-			if assetID == afterID {
+			if k.asset == *afterAssetID {
 				break
 			}
 		}
@@ -417,17 +433,13 @@ func (s *balances) nftList(addr proto.WavesAddress, limit uint64, after []byte, 
 		if err := k.unmarshal(keyBytes); err != nil {
 			return nil, err
 		}
-		assetID, err := crypto.NewDigestFromBytes(k.asset)
-		if err != nil {
-			return nil, err
-		}
-		assetInfo, err := assetInfoById(proto.AssetIDFromDigest(assetID), true)
+		assetInfo, err := s.assets.assetInfo(k.asset, true)
 		if err != nil {
 			return nil, err
 		}
 		nft := assetInfo.isNFT()
 		if nft {
-			res = append(res, assetID)
+			res = append(res, proto.ReconstructDigest(k.asset, assetInfo.tail))
 		}
 	}
 	return res, nil
@@ -482,7 +494,7 @@ func (s *balances) minEffectiveBalanceInRangeCommon(records [][]byte) (uint64, e
 	return minBalance, nil
 }
 
-func (s *balances) minEffectiveBalanceInRange(addr proto.WavesAddress, startHeight, endHeight uint64) (uint64, error) {
+func (s *balances) minEffectiveBalanceInRange(addr proto.AddressID, startHeight, endHeight uint64) (uint64, error) {
 	key := wavesBalanceKey{address: addr}
 	records, err := s.hs.entriesDataInHeightRange(key.bytes(), startHeight, endHeight, true)
 	if err != nil {
@@ -491,7 +503,7 @@ func (s *balances) minEffectiveBalanceInRange(addr proto.WavesAddress, startHeig
 	return s.minEffectiveBalanceInRangeCommon(records)
 }
 
-func (s *balances) newestMinEffectiveBalanceInRange(addr proto.WavesAddress, startHeight, endHeight uint64) (uint64, error) {
+func (s *balances) newestMinEffectiveBalanceInRange(addr proto.AddressID, startHeight, endHeight uint64) (uint64, error) {
 	key := wavesBalanceKey{address: addr}
 	records, err := s.hs.newestEntriesDataInHeightRange(key.bytes(), startHeight, endHeight, true)
 	if err != nil {
@@ -508,8 +520,8 @@ func (s *balances) assetBalanceFromRecordBytes(recordBytes []byte) (uint64, erro
 	return record.balance, nil
 }
 
-func (s *balances) assetBalance(addr proto.WavesAddress, asset []byte, filter bool) (uint64, error) {
-	key := assetBalanceKey{address: addr, asset: asset}
+func (s *balances) assetBalance(addr proto.AddressID, assetID proto.AssetID, filter bool) (uint64, error) {
+	key := assetBalanceKey{address: addr, asset: assetID}
 	recordBytes, err := s.hs.topEntryData(key.bytes(), filter)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
 		// Unknown address, expected behavior is to return 0 and no errors in this case.
@@ -520,7 +532,7 @@ func (s *balances) assetBalance(addr proto.WavesAddress, asset []byte, filter bo
 	return s.assetBalanceFromRecordBytes(recordBytes)
 }
 
-func (s *balances) newestAssetBalance(addr proto.WavesAddress, asset []byte, filter bool) (uint64, error) {
+func (s *balances) newestAssetBalance(addr proto.AddressID, asset proto.AssetID, filter bool) (uint64, error) {
 	key := assetBalanceKey{address: addr, asset: asset}
 	recordBytes, err := s.hs.newestTopEntryData(key.bytes(), filter)
 	if err == keyvalue.ErrNotFound || err == errEmptyHist {
@@ -547,7 +559,7 @@ func (s *balances) newestWavesRecord(key []byte, filter bool) (*wavesBalanceReco
 	return &record, nil
 }
 
-func (s *balances) newestWavesBalance(addr proto.WavesAddress, filter bool) (*balanceProfile, error) {
+func (s *balances) newestWavesBalance(addr proto.AddressID, filter bool) (*balanceProfile, error) {
 	key := wavesBalanceKey{address: addr}
 	r, err := s.newestWavesRecord(key.bytes(), filter)
 	if err != nil {
@@ -571,7 +583,7 @@ func (s *balances) wavesRecord(key []byte, filter bool) (*wavesBalanceRecord, er
 	return &record, nil
 }
 
-func (s *balances) wavesBalance(addr proto.WavesAddress, filter bool) (*balanceProfile, error) {
+func (s *balances) wavesBalance(addr proto.AddressID, filter bool) (*balanceProfile, error) {
 	key := wavesBalanceKey{address: addr}
 	r, err := s.wavesRecord(key.bytes(), filter)
 	if err != nil {
@@ -580,8 +592,8 @@ func (s *balances) wavesBalance(addr proto.WavesAddress, filter bool) (*balanceP
 	return &r.balanceProfile, nil
 }
 
-func (s *balances) setAssetBalance(addr proto.WavesAddress, asset []byte, balance uint64, blockID proto.BlockID) error {
-	key := assetBalanceKey{address: addr, asset: asset}
+func (s *balances) setAssetBalance(addr proto.AddressID, assetID proto.AssetID, balance uint64, blockID proto.BlockID) error {
+	key := assetBalanceKey{address: addr, asset: assetID}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
 	record := &assetBalanceRecord{balance}
@@ -590,9 +602,18 @@ func (s *balances) setAssetBalance(addr proto.WavesAddress, asset []byte, balanc
 		return err
 	}
 	if s.calculateHashes {
+		info, err := s.assets.newestAssetInfo(assetID, true)
+		if err != nil {
+			return err
+		}
+		wavesAddress, err := addr.ToWavesAddress(s.scheme)
+		if err != nil {
+			return err
+		}
+		fullAssetID := proto.ReconstructDigest(assetID, info.tail)
 		ac := &assetRecordForHashes{
-			addr:    &addr,
-			asset:   asset,
+			addr:    &wavesAddress,
+			asset:   fullAssetID,
 			balance: balance,
 		}
 		if _, ok := s.assetsHashesState[blockID]; !ok {
@@ -603,7 +624,7 @@ func (s *balances) setAssetBalance(addr proto.WavesAddress, asset []byte, balanc
 	return s.hs.addNewEntry(assetBalance, keyBytes, recordBytes, blockID)
 }
 
-func (s *balances) setWavesBalance(addr proto.WavesAddress, balance *wavesValue, blockID proto.BlockID) error {
+func (s *balances) setWavesBalance(addr proto.AddressID, balance *wavesValue, blockID proto.BlockID) error {
 	key := wavesBalanceKey{address: addr}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
@@ -613,9 +634,13 @@ func (s *balances) setWavesBalance(addr proto.WavesAddress, balance *wavesValue,
 		return err
 	}
 	if s.calculateHashes {
+		wavesAddress, err := addr.ToWavesAddress(s.scheme)
+		if err != nil {
+			return err
+		}
 		if balance.balanceChange {
 			wc := &wavesRecordForHashes{
-				addr:    &addr,
+				addr:    &wavesAddress,
 				balance: record.balance,
 			}
 			if _, ok := s.wavesHashesState[blockID]; !ok {
@@ -625,7 +650,7 @@ func (s *balances) setWavesBalance(addr proto.WavesAddress, balance *wavesValue,
 		}
 		if balance.leaseChange {
 			lc := &leaseBalanceRecordForHashes{
-				addr:     &addr,
+				addr:     &wavesAddress,
 				leaseIn:  record.leaseIn,
 				leaseOut: record.leaseOut,
 			}

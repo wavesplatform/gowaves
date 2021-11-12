@@ -138,31 +138,24 @@ func NewOptionalAssetFromString(s string) (*OptionalAsset, error) {
 	case WavesAssetName, "":
 		return &OptionalAsset{Present: false}, nil
 	default:
-		a, err := crypto.NewDigestFromBase58(s)
+		d, err := crypto.NewDigestFromBase58(s)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create OptionalAsset from Base58 string")
 		}
-		return &OptionalAsset{Present: true, ID: a}, nil
+		return NewOptionalAssetFromDigest(d), nil
 	}
 }
 
+// NewOptionalAssetFromBytes parses bytes as crypto.Digest and returns OptionalAsset.
 func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
-	if len(b) == 0 {
-		return &OptionalAsset{}, nil
-	}
-
-	a, err := crypto.NewDigestFromBytes(b)
+	d, err := crypto.NewDigestFromBytes(b)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create OptionalAsset from bytes")
 	}
-	return &OptionalAsset{Present: true, ID: a}, nil
+	return NewOptionalAssetFromDigest(d), nil
 }
 
 func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {
-	waves := crypto.Digest{}
-	if d == waves {
-		return &OptionalAsset{Present: false}
-	}
 	return &OptionalAsset{Present: true, ID: d}
 }
 
@@ -191,14 +184,14 @@ func (a *OptionalAsset) UnmarshalJSON(value []byte) error {
 	s := strings.ToUpper(string(value))
 	switch s {
 	case "NULL", quotedWavesAssetName:
-		*a = OptionalAsset{Present: false}
+		*a = NewOptionalAssetWaves()
 	default:
 		var d crypto.Digest
 		err := d.UnmarshalJSON(value)
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal OptionalAsset")
 		}
-		*a = OptionalAsset{Present: true, ID: d}
+		*a = *NewOptionalAssetFromDigest(d)
 	}
 	return nil
 }
@@ -266,6 +259,13 @@ func (a *OptionalAsset) UnmarshalBinary(data []byte) error {
 func (a *OptionalAsset) ToID() []byte {
 	if a.Present {
 		return a.ID[:]
+	}
+	return nil
+}
+
+func (a *OptionalAsset) ToDigest() *crypto.Digest {
+	if a.Present {
+		return &a.ID
 	}
 	return nil
 }
@@ -2507,6 +2507,11 @@ func VersionFromScriptBytes(scriptBytes []byte) (int32, error) {
 }
 
 type Script []byte
+
+// IsEmpty checks that script bytes slice is nil or slice length equals zero
+func (s Script) IsEmpty() bool {
+	return len(s) == 0
+}
 
 // String gives a string representation of Script bytes, script bytes encoded as BASE64 with prefix
 func (s Script) String() string {

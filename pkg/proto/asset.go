@@ -1,6 +1,8 @@
 package proto
 
-import "github.com/wavesplatform/gowaves/pkg/crypto"
+import (
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+)
 
 const (
 	AssetIDSize     = 20
