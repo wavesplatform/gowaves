@@ -178,7 +178,10 @@ func performInvoke(prefix string, blocklist bool, env Environment, args ...rideT
 
 	res, err := invokeFunctionFromDApp(env, recipient, fn, arguments)
 	if err != nil {
-		return nil, EvaluationErrorPush(err, prefix)
+		if res != nil {
+			ws.totalComplexity += res.Complexity()
+		}
+		return nil, EvaluationErrorPush(err, "%s at '%s' function '%s' with arguments %v", prefix, recipient.Address.String(), fn, arguments)
 	}
 
 	err = ws.smartAppendActions(res.ScriptActions(), env)

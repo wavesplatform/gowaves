@@ -101,7 +101,7 @@ func (r *scriptRecord) unmarshalBinary(data []byte) error {
 	r.pk = pk
 	scriptBytes := make([]byte, len(data)-crypto.KeySize)
 	copy(scriptBytes, data[crypto.KeySize:])
-	r.script = proto.Script(scriptBytes)
+	r.script = scriptBytes
 	return nil
 }
 

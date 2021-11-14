@@ -30,18 +30,18 @@ func selectFunctionChecker(v int) (func(name string) (uint16, bool), error) {
 	}
 }
 
-func selectEvaluationCostsProvider(v int) (map[string]int, map[string]struct{}, error) {
+func selectEvaluationCostsProvider(v int) (map[string]int, error) {
 	switch v {
 	case 1, 2:
-		return CatalogueV2, FreeFunctionsV2, nil
+		return EvaluationCatalogueV2, nil
 	case 3:
-		return CatalogueV3, FreeFunctionsV3, nil
+		return EvaluationCatalogueV3, nil
 	case 4:
-		return CatalogueV4, FreeFunctionsV4, nil
+		return EvaluationCatalogueV4, nil
 	case 5:
-		return CatalogueV5, FreeFunctionsV5, nil
+		return EvaluationCatalogueV5, nil
 	default:
-		return nil, nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
+		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
 }
 

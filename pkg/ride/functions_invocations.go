@@ -24,5 +24,10 @@ func invokeFunctionFromDApp(env Environment, recipient proto.Recipient, fnName r
 	if err != nil {
 		return nil, EvaluationFailure.Wrapf(err, "failed to call function '%s'", fnName)
 	}
-	return e.evaluate()
+	res, err := e.evaluate()
+	if err != nil {
+		// Evaluation failed we have to return a DAppResult that contains spent execution complexity
+		return DAppResult{complexity: e.complexity}, err
+	}
+	return res, nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -305,7 +306,6 @@ func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction,
 func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, info *addlInvokeInfo) (proto.TxFailureReason, txBalanceChanges, error) {
 	// Check smart asset scripts on payments.
 	for _, smartAsset := range info.paymentSmartAssets {
-		//TODO: Append complexity of smart asset scripts execution to total invoke execution complexity
 		r, err := ia.sc.callAssetScript(tx, smartAsset, info.fallibleValidationParams.appendTxParams)
 		if err != nil {
 			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset(err.Error(), smartAsset)
@@ -389,7 +389,6 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 				}
 				// Call asset script if transferring smart asset.
 				res, err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, info.appendTxParams)
-				//TODO: Append script execution complexity to total invoke execution complexity
 				if err != nil {
 					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err.Error(), a.Asset.ID)
 				}
@@ -426,7 +425,6 @@ func (ia *invokeApplier) fallibleValidation(tx *proto.InvokeScriptWithProofs, in
 			}
 			if isSmartAsset {
 				fullTr, err := proto.NewFullScriptTransferFromPaymentAction(a, senderAddress, info.scriptPK, tx)
-				//TODO: Append execution complexity to total invoke execution complexity
 				if err != nil {
 					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to convert transfer to full script transfer")
 				}
@@ -763,9 +761,10 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 		// 2) The error is ride.InternalInvocationError and correct fail/reject behaviour is activated
 		// 3) The spent complexity is less than limit
 		isInvocationError := ride.GetEvaluationErrorType(r.EvaluationError()) == ride.InternalInvocationError
-		isCheap := int(ia.sc.recentTxComplexity) < FailFreeInvokeComplexity
+		isCheap := int(ia.sc.recentTxComplexity) <= FailFreeInvokeComplexity
 		if !info.acceptFailed || isInvocationError && rejectOnInvocationError || !isInvocationError && isCheap {
-			return nil, errors.Wrap(r.EvaluationError(), "transaction rejected")
+			return nil, errors.Wrapf(r.EvaluationError(), "transaction rejected with spent complexity %d and following call stack:\n%s",
+				r.Complexity(), strings.Join(ride.EvaluationErrorCallStack(r.EvaluationError()), "\n"))
 		}
 		res := &invocationResult{failed: true, code: proto.DAppError, text: r.EvaluationError().Error(), actions: r.ScriptActions(), changes: failedChanges}
 		return ia.handleInvocationResult(tx, info, res)
@@ -805,7 +804,7 @@ func (ia *invokeApplier) applyInvokeScript(tx *proto.InvokeScriptWithProofs, inf
 	if err != nil {
 		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", tx.ID.String(), err.Error())
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
-		if !info.acceptFailed || ia.sc.recentTxComplexity < FailFreeInvokeComplexity {
+		if !info.acceptFailed || ia.sc.recentTxComplexity <= FailFreeInvokeComplexity {
 			return nil, err
 		}
 		res = &invocationResult{

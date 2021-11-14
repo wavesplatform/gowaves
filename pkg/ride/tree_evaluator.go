@@ -28,7 +28,6 @@ type evaluationScope struct {
 	user      []esFunction
 	cl        int
 	costs     map[string]int
-	free      map[string]struct{}
 }
 
 func (s *evaluationScope) declare(n Node) error {
@@ -163,7 +162,7 @@ func newEvaluationScope(v int, env Environment, enableInvocation bool) (evaluati
 		}
 		fs[fn] = functionProvider(int(id))
 	}
-	costs, free, err := selectEvaluationCostsProvider(v)
+	costs, err := selectEvaluationCostsProvider(v)
 	if err != nil {
 		return evaluationScope{}, err
 	}
@@ -173,7 +172,6 @@ func newEvaluationScope(v int, env Environment, enableInvocation bool) (evaluati
 		cs:        [][]esValue{make([]esValue, 0)},
 		env:       env,
 		costs:     costs,
-		free:      free,
 	}, nil
 }
 
@@ -286,9 +284,6 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []Node) (r
 	if !ok {
 		return nil, EvaluationFailure.Errorf("failed to get cost of system function '%s'", name)
 	}
-	if _, ok := e.s.free[name]; ok { //
-		cost = 0
-	}
 	defer func() {
 		e.complexity += cost
 	}()
@@ -322,6 +317,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		return rideString(n.Value), nil
 
 	case *ConditionalNode:
+		defer func() {
+			e.complexity++
+		}()
 		ce, err := e.walk(n.Condition)
 		if err != nil {
 			return nil, EvaluationErrorPush(err, "failed to estimate the condition of if")
@@ -330,7 +328,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		if !ok {
 			return nil, RuntimeError.New("conditional is not a boolean")
 		}
-		e.complexity++
 		if cr {
 			return e.walk(n.TrueExpression)
 		} else {
@@ -348,6 +345,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		return r, nil
 
 	case *ReferenceNode:
+		defer func() {
+			e.complexity++
+		}()
 		id := n.Name
 		v, ok, f, p := e.s.value(id)
 		if !ok {
@@ -365,10 +365,8 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 				return nil, EvaluationErrorPush(err, "failed to evaluate expression of scope value '%s'", id)
 			}
 			e.s.updateValue(f, p, id, r)
-			e.complexity++
 			return r, nil
 		}
-		e.complexity++
 		return v.value, nil
 
 	case *FunctionDeclarationNode:
@@ -429,12 +427,14 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		}
 
 	case *PropertyNode:
+		defer func() {
+			e.complexity++
+		}()
 		name := n.Name
 		obj, err := e.walk(n.Object)
 		if err != nil {
 			return nil, EvaluationErrorPush(err, "failed to evaluate an object to get property '%s' on it", name)
 		}
-		e.complexity++
 		v, err := obj.get(name)
 
 		if err != nil {
