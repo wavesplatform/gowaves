@@ -15,9 +15,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-func isAddressInBL(dAppAddress proto.Address, blackList []proto.Address) bool {
-	for _, v := range blackList {
-		if v == dAppAddress {
+func containsAddress(addr proto.Address, list []proto.Address) bool {
+	for _, v := range list {
+		if v == addr {
 			return true
 		}
 	}
@@ -84,10 +84,35 @@ func extractFunctionName(v rideType) (rideString, error) {
 	}
 }
 
-func performInvoke(prefix string, blocklist bool, env Environment, args ...rideType) (rideType, error) {
+type invocation interface {
+	name() string
+	blocklist() bool
+}
+
+type nonReentrantInvocation struct{}
+
+func (i *nonReentrantInvocation) name() string {
+	return "invoke"
+}
+
+func (i *nonReentrantInvocation) blocklist() bool {
+	return true
+}
+
+type reentrantInvocation struct{}
+
+func (i *reentrantInvocation) name() string {
+	return "reentrantInvoke"
+}
+
+func (i *reentrantInvocation) blocklist() bool {
+	return false
+}
+
+func performInvoke(invocation invocation, env Environment, args ...rideType) (rideType, error) {
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
-		return nil, EvaluationFailure.Errorf("%s: wrong state", prefix)
+		return nil, EvaluationFailure.Errorf("%s: wrong state", invocation.name())
 	}
 	ws.incrementInvCount()
 	if ws.invCount() > 100 {
@@ -96,26 +121,26 @@ func performInvoke(prefix string, blocklist bool, env Environment, args ...rideT
 
 	callerAddress, ok := env.this().(rideAddress)
 	if !ok {
-		return rideUnit{}, RuntimeError.Errorf("%s: this has an unexpected type '%s'", prefix, env.this().instanceOf())
+		return rideUnit{}, RuntimeError.Errorf("%s: this has an unexpected type '%s'", invocation.name(), env.this().instanceOf())
 	}
 
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
-		return nil, RuntimeError.Wrapf(err, "%s: failed to extract first argument", prefix)
+		return nil, RuntimeError.Wrapf(err, "%s: failed to extract first argument", invocation.name())
 	}
 	recipient, err = ensureRecipientAddress(env, recipient)
 	if err != nil {
-		return nil, RuntimeError.Wrap(err, prefix)
+		return nil, RuntimeError.Wrap(err, invocation.name())
 	}
 
 	fn, err := extractFunctionName(args[1])
 	if err != nil {
-		return nil, RuntimeError.Wrapf(err, "%s: failed to extract second argument", prefix)
+		return nil, RuntimeError.Wrapf(err, "%s: failed to extract second argument", invocation.name())
 	}
 
 	arguments, ok := args[2].(rideList)
 	if !ok {
-		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of third argument", prefix, args[2].instanceOf())
+		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of third argument", invocation.name(), args[2].instanceOf())
 	}
 
 	oldInvocationParam := env.invocation()
@@ -123,23 +148,23 @@ func performInvoke(prefix string, blocklist bool, env Environment, args ...rideT
 	invocationParam["caller"] = callerAddress
 	callerPublicKey, err := env.state().NewestScriptPKByAddr(proto.Address(callerAddress))
 	if err != nil {
-		return nil, errors.Wrapf(err, "%s: failed to get caller public key by address", prefix)
+		return nil, errors.Wrapf(err, "%s: failed to get caller public key by address", invocation.name())
 	}
 	invocationParam["callerPublicKey"] = rideBytes(common.Dup(callerPublicKey.Bytes()))
 	payments, ok := args[3].(rideList)
 	if !ok {
-		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of forth argument", prefix, args[3].instanceOf())
+		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of forth argument", invocation.name(), args[3].instanceOf())
 	}
 	invocationParam["payments"] = payments
 	env.setInvocation(invocationParam)
 
 	attachedPayments, err := convertAttachedPayments(payments)
 	if err != nil {
-		return nil, RuntimeError.Wrap(err, prefix)
+		return nil, RuntimeError.Wrap(err, invocation.name())
 	}
 	// since RideV5 the limit of attached payments is 10
 	if len(attachedPayments) > 10 {
-		return nil, InternalInvocationError.Errorf("%s: no more than ten payments is allowed since RideV5 activation", prefix)
+		return nil, InternalInvocationError.Errorf("%s: no more than ten payments is allowed since RideV5 activation", invocation.name())
 	}
 	attachedPaymentActions := make([]proto.ScriptAction, len(attachedPayments))
 	for i, payment := range attachedPayments {
@@ -152,15 +177,15 @@ func performInvoke(prefix string, blocklist bool, env Environment, args ...rideT
 	}
 	address, err := env.state().NewestRecipientToAddress(recipient)
 	if err != nil {
-		return nil, RuntimeError.Errorf("%s: failed to get address from dApp, invokeFunctionFromDApp", prefix)
+		return nil, RuntimeError.Errorf("%s: failed to get address from dApp, invokeFunctionFromDApp", invocation.name())
 	}
 	env.setNewDAppAddress(*address)
 	err = ws.smartAppendActions(attachedPaymentActions, env)
 	if err != nil {
-		return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", prefix)
+		return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
 	}
 
-	if blocklist {
+	if invocation.blocklist() {
 		// append a call to the stack to protect a user from the reentrancy attack
 		ws.blocklist = append(ws.blocklist, proto.Address(callerAddress)) // push
 		defer func() {
@@ -169,10 +194,10 @@ func performInvoke(prefix string, blocklist bool, env Environment, args ...rideT
 	}
 
 	if ws.invCount() > 1 {
-		if isAddressInBL(*recipient.Address, ws.blocklist) && proto.Address(callerAddress) != *recipient.Address {
+		if containsAddress(*recipient.Address, ws.blocklist) && proto.Address(callerAddress) != *recipient.Address {
 			return rideUnit{}, InternalInvocationError.Errorf(
 				"%s: function call of %s with dApp address %s is forbidden because it had already been called once by 'invoke'",
-				prefix, fn, recipient.Address)
+				invocation.name(), fn, recipient.Address)
 		}
 	}
 
@@ -181,12 +206,12 @@ func performInvoke(prefix string, blocklist bool, env Environment, args ...rideT
 		if res != nil {
 			ws.totalComplexity += res.Complexity()
 		}
-		return nil, EvaluationErrorPush(err, "%s at '%s' function '%s' with arguments %v", prefix, recipient.Address.String(), fn, arguments)
+		return nil, EvaluationErrorPush(err, "%s at '%s' function '%s' with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
 	}
 
 	err = ws.smartAppendActions(res.ScriptActions(), env)
 	if err != nil {
-		return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply actions", prefix)
+		return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply actions", invocation.name())
 	}
 
 	env.setNewDAppAddress(proto.Address(callerAddress))
@@ -201,11 +226,11 @@ func performInvoke(prefix string, blocklist bool, env Environment, args ...rideT
 }
 
 func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
-	return performInvoke("reentrantInvoke", false, env, args...)
+	return performInvoke(&reentrantInvocation{}, env, args...)
 }
 
 func invoke(env Environment, args ...rideType) (rideType, error) {
-	return performInvoke("invoke", true, env, args...)
+	return performInvoke(&nonReentrantInvocation{}, env, args...)
 }
 
 func ensureRecipientAddress(env Environment, recipient proto.Recipient) (proto.Recipient, error) {

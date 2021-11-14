@@ -16,7 +16,7 @@ type WrappedState struct {
 	scheme           proto.Scheme
 	act              []proto.ScriptAction
 	blocklist        []proto.Address
-	invokeCount      int
+	invocationCount  int
 	totalComplexity  int
 	dataEntriesCount int
 	dataEntriesSize  int
@@ -757,11 +757,11 @@ func (ws *WrappedState) getLibVersion() (int, error) {
 }
 
 func (ws *WrappedState) invCount() int {
-	return ws.invokeCount
+	return ws.invocationCount
 }
 
 func (ws *WrappedState) incrementInvCount() {
-	ws.invokeCount++
+	ws.invocationCount++
 }
 
 func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environment) ([]proto.ScriptAction, error) {
