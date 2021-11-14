@@ -7849,10 +7849,7 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 			return 0, nil
 		},
 		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
-			switch assetID {
-			default:
-				return false, errors.Errorf("unexpected asset '%s'", assetID.String())
-			}
+			return false, errors.Errorf("unexpected asset '%s'", assetID.String())
 		},
 	}
 	testState := initWrappedState(mockState, env)
