@@ -28,6 +28,7 @@ require (
 	github.com/prometheus/client_golang v1.11.0
 	github.com/rakyll/statik v0.1.7
 	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c
+	github.com/semrush/zenrpc/v2 v2.1.0
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.6.0
 	github.com/spf13/pflag v1.0.5
@@ -37,6 +38,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
 	github.com/throttled/throttled/v2 v2.9.0
+	github.com/umbracle/fastrlp v0.0.0-20210128110402-41364ca56ca8
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/xenolf/lego v2.7.2+incompatible
 	go.uber.org/atomic v1.9.0

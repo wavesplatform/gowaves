@@ -9,22 +9,22 @@ import (
 
 func TestListRemoveByIndex(t *testing.T) {
 	for _, test := range []struct {
-		args []rideType
+		args []RideType
 		fail bool
-		r    rideType
+		r    RideType
 	}{
-		{[]rideType{rideList{rideInt(1), rideInt(2), rideInt(3)}, rideInt(0)}, false, rideList{rideInt(2), rideInt(3)}},
-		{[]rideType{rideList{rideInt(1), rideInt(2), rideInt(3)}, rideInt(1)}, false, rideList{rideInt(1), rideInt(3)}},
-		{[]rideType{rideList{rideInt(1), rideInt(2), rideInt(3)}, rideInt(2)}, false, rideList{rideInt(1), rideInt(2)}},
-		{[]rideType{rideList{rideInt(1), rideString("two"), rideBoolean(true)}, rideInt(2)}, false, rideList{rideInt(1), rideString("two")}},
-		{[]rideType{rideString("abc"), rideInt(0)}, true, nil},
-		{[]rideType{rideList{}, rideInt(0)}, true, nil},
-		{[]rideType{rideList{rideString("a")}, rideInt(-1)}, true, nil},
-		{[]rideType{rideList{rideString("a")}, rideInt(1)}, true, nil},
-		{[]rideType{rideUnit{}}, true, nil},
-		{[]rideType{rideInt(1), rideString("x")}, true, nil},
-		{[]rideType{rideInt(1)}, true, nil},
-		{[]rideType{}, true, nil},
+		{[]RideType{RideList{RideInt(1), RideInt(2), RideInt(3)}, RideInt(0)}, false, RideList{RideInt(2), RideInt(3)}},
+		{[]RideType{RideList{RideInt(1), RideInt(2), RideInt(3)}, RideInt(1)}, false, RideList{RideInt(1), RideInt(3)}},
+		{[]RideType{RideList{RideInt(1), RideInt(2), RideInt(3)}, RideInt(2)}, false, RideList{RideInt(1), RideInt(2)}},
+		{[]RideType{RideList{RideInt(1), RideString("two"), RideBoolean(true)}, RideInt(2)}, false, RideList{RideInt(1), RideString("two")}},
+		{[]RideType{RideString("abc"), RideInt(0)}, true, nil},
+		{[]RideType{RideList{}, RideInt(0)}, true, nil},
+		{[]RideType{RideList{RideString("a")}, RideInt(-1)}, true, nil},
+		{[]RideType{RideList{RideString("a")}, RideInt(1)}, true, nil},
+		{[]RideType{rideUnit{}}, true, nil},
+		{[]RideType{RideInt(1), RideString("x")}, true, nil},
+		{[]RideType{RideInt(1)}, true, nil},
+		{[]RideType{}, true, nil},
 	} {
 		r, err := listRemoveByIndex(nil, test.args...)
 		if test.fail {

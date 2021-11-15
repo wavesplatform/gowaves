@@ -1,13 +1,13 @@
 package ride
 
-func newHeight(env Environment) rideType {
+func newHeight(env Environment) RideType {
 	if env == nil {
 		return rideUnit{}
 	}
 	return env.height()
 }
 
-func newTx(env Environment) rideType {
+func newTx(env Environment) RideType {
 	if env == nil {
 		return rideUnit{}
 	}
@@ -18,7 +18,7 @@ func newTx(env Environment) rideType {
 	return tx
 }
 
-func newLastBlock(env Environment) rideType {
+func newLastBlock(env Environment) RideType {
 	if env == nil {
 		return rideUnit{}
 	}
@@ -29,7 +29,7 @@ func newLastBlock(env Environment) rideType {
 	return b
 }
 
-func newThis(env Environment) rideType {
+func newThis(env Environment) RideType {
 	if env == nil {
 		return rideUnit{}
 	}
@@ -40,7 +40,7 @@ func newThis(env Environment) rideType {
 	return this
 }
 
-func newInvocation(env Environment) rideType {
+func newInvocation(env Environment) RideType {
 	if env == nil {
 		return rideUnit{}
 	}
@@ -51,10 +51,10 @@ func newInvocation(env Environment) rideType {
 	return inv
 }
 
-func newUnit(Environment) rideType {
+func newUnit(Environment) RideType {
 	return rideUnit{}
 }
 
-func newNil(Environment) rideType {
-	return rideList(nil)
+func newNil(Environment) RideType {
+	return RideList(nil)
 }
