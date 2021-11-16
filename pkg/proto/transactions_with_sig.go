@@ -88,7 +88,9 @@ func (tx *IssueWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *IssueWithSig) Clone() *IssueWithSig {
 	out := &IssueWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -319,7 +321,9 @@ func (tx *TransferWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *TransferWithSig) Clone() *TransferWithSig {
 	out := &TransferWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -609,7 +613,9 @@ func (tx *ReissueWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *ReissueWithSig) Clone() *ReissueWithSig {
 	out := &ReissueWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -838,7 +844,9 @@ func (tx *BurnWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *BurnWithSig) Clone() *BurnWithSig {
 	out := &BurnWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1054,7 +1062,9 @@ func (tx *ExchangeWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *ExchangeWithSig) Clone() *ExchangeWithSig {
 	out := &ExchangeWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1520,7 +1530,9 @@ func (tx *LeaseWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *LeaseWithSig) Clone() *LeaseWithSig {
 	out := &LeaseWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1749,7 +1761,9 @@ func (tx *LeaseCancelWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *LeaseCancelWithSig) Clone() *LeaseCancelWithSig {
 	out := &LeaseCancelWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1979,7 +1993,9 @@ func (tx *CreateAliasWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *CreateAliasWithSig) Clone() *CreateAliasWithSig {
 	out := &CreateAliasWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 

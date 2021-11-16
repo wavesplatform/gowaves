@@ -433,7 +433,9 @@ func (b *Block) Marshal(scheme Scheme) ([]byte, error) {
 
 func (b *Block) Clone() *Block {
 	out := &Block{}
-	_ = copier.Copy(out, b)
+	if err := copier.Copy(out, b); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
