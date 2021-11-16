@@ -724,7 +724,7 @@ func (b *Block) transactionsRoot(scheme Scheme) ([]byte, error) {
 		return nil, err
 	}
 	for _, tx := range b.Transactions {
-		b, err := tx.MarshalSignedToProtobuf(scheme)
+		b, err := tx.MerkleBytes(scheme)
 		if err != nil {
 			return nil, err
 		}

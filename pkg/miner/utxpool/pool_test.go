@@ -79,6 +79,10 @@ func (transaction) GenerateID(_ proto.Scheme) error {
 	return nil
 }
 
+func (transaction) MerkleBytes(_ proto.Scheme) ([]byte, error) {
+	panic("not implemented")
+}
+
 func (transaction) GetTypeInfo() proto.TransactionTypeInfo {
 	panic("not implemented")
 }

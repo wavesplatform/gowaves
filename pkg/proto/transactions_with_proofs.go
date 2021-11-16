@@ -152,6 +152,10 @@ func (tx *IssueWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *IssueWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx IssueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -497,6 +501,10 @@ func (tx *TransferWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *TransferWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx TransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -803,6 +811,10 @@ func (tx *ReissueWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *ReissueWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx ReissueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -1044,6 +1056,10 @@ func (tx *BurnWithProofs) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *BurnWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx BurnWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -1310,6 +1326,10 @@ func (tx *ExchangeWithProofs) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *ExchangeWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx ExchangeWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -1903,6 +1923,10 @@ func (tx *LeaseWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *LeaseWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx LeaseWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -2129,6 +2153,10 @@ func (tx *LeaseCancelWithProofs) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *LeaseCancelWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx LeaseCancelWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -2389,6 +2417,10 @@ func (tx *CreateAliasWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *CreateAliasWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx CreateAliasWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -2642,6 +2674,10 @@ func (tx *MassTransferWithProofs) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *MassTransferWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx MassTransferWithProofs) GetSenderPK() crypto.PublicKey {
@@ -3019,6 +3055,10 @@ func (tx *DataWithProofs) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *DataWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx DataWithProofs) GetSenderPK() crypto.PublicKey {
@@ -3408,6 +3448,10 @@ func (tx *SetScriptWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *SetScriptWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx SetScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
@@ -3692,6 +3736,10 @@ func (tx *SponsorshipWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *SponsorshipWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx SponsorshipWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
@@ -3972,6 +4020,10 @@ func (tx *SetAssetScriptWithProofs) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *SetAssetScriptWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx SetAssetScriptWithProofs) GetSenderPK() crypto.PublicKey {
@@ -4262,6 +4314,10 @@ func (tx *InvokeScriptWithProofs) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *InvokeScriptWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx InvokeScriptWithProofs) GetTypeInfo() TransactionTypeInfo {
@@ -4733,6 +4789,10 @@ func (tx *UpdateAssetInfoWithProofs) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *UpdateAssetInfoWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx *UpdateAssetInfoWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error {

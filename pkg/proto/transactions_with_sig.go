@@ -77,6 +77,10 @@ func (tx *IssueWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *IssueWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx IssueWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -306,6 +310,10 @@ func (tx *TransferWithSig) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *TransferWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx TransferWithSig) GetID(scheme Scheme) ([]byte, error) {
@@ -598,6 +606,10 @@ func (tx *ReissueWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *ReissueWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx ReissueWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -829,6 +841,10 @@ func (tx *BurnWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *BurnWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx BurnWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -1043,6 +1059,10 @@ func (tx *ExchangeWithSig) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *ExchangeWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx ExchangeWithSig) GetID(scheme Scheme) ([]byte, error) {
@@ -1515,6 +1535,10 @@ func (tx *LeaseWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *LeaseWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx LeaseWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -1742,6 +1766,10 @@ func (tx *LeaseCancelWithSig) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *LeaseCancelWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx LeaseCancelWithSig) GetID(scheme Scheme) ([]byte, error) {
@@ -1972,6 +2000,10 @@ func (tx *CreateAliasWithSig) GenerateID(scheme Scheme) error {
 	}
 	tx.ID = id
 	return nil
+}
+
+func (tx *CreateAliasWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx CreateAliasWithSig) GetID(scheme Scheme) ([]byte, error) {

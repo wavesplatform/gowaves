@@ -202,6 +202,9 @@ type Transaction interface {
 	// It also sets transaction ID.
 	Sign(scheme Scheme, sk crypto.SecretKey) error
 
+	// MerkleBytes returns array of bytes for block's merle root calculation
+	MerkleBytes(scheme Scheme) ([]byte, error)
+
 	// MarshalBinary functions for custom binary format serialization.
 	// MarshalBinary() is analogous to MarshalSignedToProtobuf() for Protobuf.
 	MarshalBinary() ([]byte, error)
@@ -440,6 +443,10 @@ func (tx Genesis) GetVersion() byte {
 
 func (tx *Genesis) GenerateID(scheme Scheme) error {
 	return tx.generateID(scheme)
+}
+
+func (tx Genesis) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx *Genesis) Sign(scheme Scheme, _ crypto.SecretKey) error {
@@ -704,6 +711,10 @@ func (tx *Payment) GenerateID(_ Scheme) error {
 		tx.ID = tx.Signature
 	}
 	return nil
+}
+
+func (tx Payment) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx Payment) GetSenderPK() crypto.PublicKey {

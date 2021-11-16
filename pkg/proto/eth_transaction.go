@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"bytes"
 	"io"
 	"math/big"
 
@@ -106,7 +105,7 @@ func (tx *EthereumTransaction) GetID(scheme Scheme) ([]byte, error) {
 	return tx.id.Bytes(), nil
 }
 
-func (tx *EthereumTransaction) GetSender(scheme Scheme) (Address, error) {
+func (tx *EthereumTransaction) GetSender(_ Scheme) (Address, error) {
 	return tx.From()
 }
 
@@ -145,6 +144,10 @@ func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *EthereumTransaction) MerkleBytes(_ Scheme) ([]byte, error) {
+	return tx.BodyMarshalBinary()
+}
+
 func (tx *EthereumTransaction) Sign(_ Scheme, _ crypto.SecretKey) error {
 	return errors.New("Sign method for EthereumTransaction isn't implemented")
 }
@@ -179,15 +182,14 @@ func (tx *EthereumTransaction) UnmarshalBinary(bytes []byte, scheme Scheme) erro
 }
 
 func (tx *EthereumTransaction) BodyMarshalBinary() ([]byte, error) {
-	var b bytes.Buffer
-	b.Grow(tx.innerBinarySize)
-	if err := tx.EncodeCanonical(&b); err != nil {
+	bts, err := tx.EncodeCanonical()
+	if err != nil {
 		return nil, errors.Wrapf(err,
 			"failed to marshal ethereum transaction to canonical representation, ehtTxType %q",
 			tx.EthereumTxType().String(),
 		)
 	}
-	return b.Bytes(), nil
+	return bts, nil
 }
 
 func (tx *EthereumTransaction) bodyUnmarshalBinary(canonical []byte) error {
@@ -347,10 +349,10 @@ func (tx *EthereumTransaction) DecodeCanonical(canonicalData []byte) error {
 	return nil
 }
 
-// EncodeCanonical writes the canonical binary encoding of a transaction to w.
+// EncodeCanonical returns the canonical binary encoding of a transaction.
 // For legacy transactions, it returns the RLP encoding. For EIP-2718 typed
 // transactions, it returns the type and payload.
-func (tx *EthereumTransaction) EncodeCanonical(w io.Writer) error {
+func (tx *EthereumTransaction) EncodeCanonical() ([]byte, error) {
 	var (
 		canonical []byte
 		arena     fastrlp.Arena
@@ -361,10 +363,7 @@ func (tx *EthereumTransaction) EncodeCanonical(w io.Writer) error {
 	} else {
 		canonical = tx.encodeTypedCanonical(&arena)
 	}
-	if _, err := w.Write(canonical); err != nil {
-		return errors.Wrapf(err, "failed to write canonical encoded ethereum transaction to %T", w)
-	}
-	return nil
+	return canonical, nil
 }
 
 // decodeTypedCanonical decodes a typed transaction from the canonical format.
