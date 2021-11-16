@@ -25,8 +25,9 @@ const (
 )
 
 const (
-	EthereumTransferMinFee uint64 = 100000
-	EthereumInvokeMinFee   uint64 = 500000
+	EthereumTransferMinFee      uint64 = 100_000
+	EthereumScriptedAssetMinFee uint64 = 400_000
+	EthereumInvokeMinFee        uint64 = 500_000
 )
 
 func (e EthereumTxType) String() string {
@@ -87,6 +88,7 @@ type EthereumTxData interface {
 
 type EthereumTransactionKind interface {
 	DecodedData() *ethabi.DecodedCallData
+	Kind() string
 }
 
 type EthereumTransferWavesTxKind struct {
@@ -98,6 +100,10 @@ func NewEthereumTransferWavesTxKind() *EthereumTransferWavesTxKind {
 
 func (tx *EthereumTransferWavesTxKind) DecodedData() *ethabi.DecodedCallData {
 	return nil
+}
+
+func (tx *EthereumTransferWavesTxKind) Kind() string {
+	return "EthereumTransferWavesTxKind"
 }
 
 type EthereumTransferAssetsErc20TxKind struct {
@@ -113,6 +119,10 @@ func (tx *EthereumTransferAssetsErc20TxKind) DecodedData() *ethabi.DecodedCallDa
 	return &tx.decodedData
 }
 
+func (tx *EthereumTransferAssetsErc20TxKind) Kind() string {
+	return "EthereumTransferAssetsErc20TxKind"
+}
+
 type EthereumInvokeScriptTxKind struct {
 	decodedData ethabi.DecodedCallData
 }
@@ -123,6 +133,10 @@ func NewEthereumInvokeScriptTxKind(decodedData ethabi.DecodedCallData) *Ethereum
 
 func (tx *EthereumInvokeScriptTxKind) DecodedData() *ethabi.DecodedCallData {
 	return &tx.decodedData
+}
+
+func (tx *EthereumInvokeScriptTxKind) Kind() string {
+	return "EthereumInvokeScriptTxKind"
 }
 
 type EthereumTransaction struct {

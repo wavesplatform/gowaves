@@ -385,11 +385,11 @@ type appendTxParams struct {
 }
 
 func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransaction, params *appendTxParams) (proto.EthereumTransactionKind, error) {
-	if ethTx.Data() == nil {
+	if len(ethTx.Data()) == 0 {
 		return proto.NewEthereumTransferWavesTxKind(), nil
 	}
 
-	if ethTx.To() == nil {
+	if len(ethTx.To()) == 0 {
 		return nil, errors.Errorf("'To' field in ethereum tx is empty")
 	}
 
@@ -536,11 +536,15 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
 		}
 
+		height, err := a.state.AddingBlockHeight()
+		if err != nil {
+			return errors.Errorf("failed to get height while adding block, %v", err)
+		}
 		switch ethTx.TxKind.(type) {
 		case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
 			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 			if err != nil {
-				return errors.Errorf("failed to handle ethereum (transfer waves or erc20) transaction, %v", err)
+				return errors.Errorf("failed to handle ethereum transaction (type %s) with id %s, on height %d: %v", ethTx.TxKind.Kind(), ethTx.ID.String(), height, err)
 			}
 			// In UTX balances are always validated.
 			needToValidateBalanceDiff = params.validatingUtx
@@ -548,7 +552,8 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 			fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
 			applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
 			if err != nil {
-				return errors.Errorf("failed to handle ethereum invoke script transaction, %v", err)
+				return errors.Errorf("failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d: %v", ethTx.TxKind.Kind(), ethTx.ID.String(), height, err)
+
 			}
 		}
 

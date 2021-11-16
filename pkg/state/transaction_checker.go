@@ -355,7 +355,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 	}
 	// a cancel transaction
 	// value == 0 && data == 0x
-	if tx.Value().Cmp(big.NewInt(0)) == 0 && len(tx.Data()) == 0 {
+	if tx.Value().Cmp(big.NewInt(0)) != 0 && len(tx.Data()) == 0 {
 		return nil, errors.New("canceling a transaction is forbidden")
 	}
 
@@ -387,16 +387,10 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
 		}
 
-		assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: nil}
-		if err := tc.checkFee(transaction, assets, info); err != nil {
-			return nil, err
-		}
 		return nil, nil
 	case *proto.EthereumTransferAssetsErc20TxKind:
 		// check fee
-		if tx.GetFee() < proto.EthereumTransferMinFee {
-			return nil, errors.Errorf("the fee for ethereum transfer assets tx is not enough, min fee is %d, got %d", proto.EthereumTransferMinFee, tx.GetFee())
-		}
+		minFee := proto.EthereumTransferMinFee
 
 		erc20arguments, err := ride.GetERC20Arguments(tx.TxKind.DecodedData(), tc.settings.AddressSchemeCharacter)
 		if err != nil {
@@ -406,57 +400,36 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			return nil, errors.New("the amount of ethereum transfer assets is 0, which is forbidden")
 		}
 
+		asset, err := tc.state.AssetInfoByID(proto.AssetIDFromDigest(kind.Asset.ID), true)
+		if err != nil {
+			return nil, errors.Errorf("failed to get asset info, %v", err)
+		}
+		if asset.Scripted {
+			minFee += proto.EthereumScriptedAssetMinFee
+		}
+
+		if tx.GetFee() < minFee {
+			return nil, errors.Errorf("the fee for ethereum transfer assets tx is not enough, min fee is %d, got %d", proto.EthereumTransferMinFee, tx.GetFee())
+		}
+
 		allAssets := []proto.OptionalAsset{kind.Asset}
 		smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
 		if err != nil {
 			return nil, err
 		}
-		assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: smartAssets}
-		if err := tc.checkFee(transaction, assets, info); err != nil {
-			return nil, err
-		}
-		activated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAccounts))
-		if err != nil {
-			return nil, err
-		}
-		if !activated {
-			return nil, errors.New("SmartAccounts feature has not been activated yet")
-		}
+
 		return smartAssets, nil
 	case *proto.EthereumInvokeScriptTxKind:
 		// check fee
-		if tx.GetFee() < proto.EthereumInvokeMinFee {
-			return nil, errors.Errorf("the fee for ethereum invoke tx is not enough, min fee is %d, got %d", proto.EthereumInvokeMinFee, tx.GetFee())
-		}
+		minFee := proto.EthereumInvokeMinFee
+
 		if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
 			return nil, errs.Extend(err, "invalid timestamp")
-		}
-		ride4DAppsActivated, err := tc.stor.features.newestIsActivated(int16(settings.Ride4DApps))
-		if err != nil {
-			return nil, err
-		}
-		if !ride4DAppsActivated {
-			return nil, errors.New("can't use InvokeScript before Ride4DApps activation")
-		}
-
-		multiPaymentActivated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
-		if err != nil {
-			return nil, err
-		}
-		rideV5activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
-		if err != nil {
-			return nil, err
 		}
 		decodedData := tx.TxKind.DecodedData()
 		abiPayments := decodedData.Payments
 
-		l := len(abiPayments)
-		switch {
-		case l > 1 && !multiPaymentActivated && !rideV5activated:
-			return nil, errors.New("no more than one payment is allowed")
-		case l > 2 && multiPaymentActivated && !rideV5activated:
-			return nil, errors.New("no more than two payments is allowed")
-		case l > 10 && rideV5activated:
+		if len(abiPayments) > 10 {
 			return nil, errors.New("no more than ten payments is allowed since RideV5 activation")
 		}
 		var paymentAssets []proto.OptionalAsset
@@ -465,23 +438,29 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			if err != nil {
 				return nil, err
 			}
+			if assetID.Scripted {
+				minFee += proto.EthereumScriptedAssetMinFee
+			}
 			asset, err := proto.NewOptionalAssetFromBytes(assetID.ID.Bytes())
 			if err != nil {
 				return nil, err
 			}
+
 			if err := tc.checkAsset(asset, info.initialisation); err != nil {
 				return nil, errs.Extend(err, "bad payment asset")
 			}
 			paymentAssets = append(paymentAssets, *asset)
 		}
+
+		if tx.GetFee() < minFee {
+			return nil, errors.Errorf("the fee for ethereum invoke tx is not enough, min fee is %d, got %d", proto.EthereumInvokeMinFee, tx.GetFee())
+		}
+
 		smartAssets, err := tc.smartAssets(paymentAssets, info.initialisation)
 		if err != nil {
 			return nil, err
 		}
-		assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: smartAssets}
-		if err := tc.checkFee(transaction, assets, info); err != nil {
-			return nil, err
-		}
+
 		return smartAssets, nil
 
 	default:
