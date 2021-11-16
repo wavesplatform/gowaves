@@ -60,7 +60,7 @@ func defaultEthereumLegacyTxData(value int64, to *proto.EthereumAddress, data []
 		Value:    big.NewInt(value),
 		To:       to,
 		Data:     data,
-		GasPrice: big.NewInt(1),
+		GasPrice: big.NewInt(int64(proto.EthereumGasPrice)),
 		Nonce:    1479168000000,
 		Gas:      gas,
 		V:        v,
