@@ -77,7 +77,7 @@ func (tx *IssueWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx IssueWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *IssueWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -308,7 +308,7 @@ func (tx *TransferWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx TransferWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *TransferWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -598,7 +598,7 @@ func (tx *ReissueWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx ReissueWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *ReissueWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -827,7 +827,7 @@ func (tx *BurnWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx BurnWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *BurnWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1043,7 +1043,7 @@ func (tx *ExchangeWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx ExchangeWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *ExchangeWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1509,7 +1509,7 @@ func (tx *LeaseWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx LeaseWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *LeaseWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1738,7 +1738,7 @@ func (tx *LeaseCancelWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx LeaseCancelWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *LeaseCancelWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1968,7 +1968,7 @@ func (tx *CreateAliasWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx CreateAliasWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *CreateAliasWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
