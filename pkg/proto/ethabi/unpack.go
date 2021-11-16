@@ -40,7 +40,7 @@ func readBool(word []byte) (bool, error) {
 
 // readInteger reads the integer based on its kind and returns the appropriate value.
 func readInteger(typ Type, b []byte) DataType {
-	if typ.T == UintTy {
+	if typ.T == UintType {
 		switch typ.Size {
 		case 8:
 			return Int(b[len(b)-1])
@@ -106,7 +106,7 @@ func forEachUnpackRideList(t Type, output []byte, start, size int) (List, error)
 			len(output), start+32*size,
 		)
 	}
-	if t.T != SliceTy {
+	if t.T != SliceType {
 		return nil, errors.Errorf("abi: invalid type in slice unpacking stage")
 
 	}
@@ -133,7 +133,7 @@ func forEachUnpackRideList(t Type, output []byte, start, size int) (List, error)
 }
 
 func extractIndexFromFirstElemOfTuple(index int, t Type, output []byte) (int64, error) {
-	if t.T != IntTy && t.T != UintTy {
+	if t.T != IntType && t.T != UintType {
 		return 0, errors.New(
 			"abi: failed to convert eth tuple to ride union, first element of eth tuple must be a number",
 		)
@@ -147,7 +147,7 @@ func extractIndexFromFirstElemOfTuple(index int, t Type, output []byte) (int64, 
 }
 
 func forUnionTupleUnpackToDataType(t Type, output []byte) (DataType, error) {
-	if t.T != TupleTy {
+	if t.T != TupleType {
 		return nil, errors.New("abi: type in forTupleUnpack must be TupleTy")
 	}
 	if len(t.TupleFields) < 2 {
@@ -174,7 +174,7 @@ func forUnionTupleUnpackToDataType(t Type, output []byte) (DataType, error) {
 		if err != nil {
 			return nil, err
 		}
-		if field.Type.T == TupleTy && !isDynamicType(field.Type) {
+		if field.Type.T == TupleType && !isDynamicType(field.Type) {
 
 			virtualArgs += getTypeSize(field.Type)/32 - 1
 		}
@@ -186,7 +186,7 @@ func forUnionTupleUnpackToDataType(t Type, output []byte) (DataType, error) {
 // readFixedBytes creates a Bytes with length 1..32 to be read from.
 func readFixedBytes(t Type, word []byte) (Bytes, error) {
 	// type check
-	if t.T != FixedBytesTy {
+	if t.T != FixedBytesType {
 		return nil, errors.Errorf("abi: invalid type in call to make fixed byte array")
 	}
 	// size check
@@ -207,15 +207,15 @@ type Payment struct {
 
 var (
 	paymentType = Type{
-		T: TupleTy,
+		T: TupleType,
 		TupleFields: Arguments{
-			{Name: "id", Type: Type{T: FixedBytesTy, Size: 32}},
-			{Name: "value", Type: Type{T: IntTy, Size: 64}},
+			{Name: "id", Type: Type{T: FixedBytesType, Size: 32}},
+			{Name: "value", Type: Type{T: IntType, Size: 64}},
 		},
 	}
 	paymentsType = Type{
 		Elem: &paymentType,
-		T:    SliceTy,
+		T:    SliceType,
 	}
 	paymentsArgument = Argument{
 		Name: "payments",
@@ -372,7 +372,7 @@ func toDataType(index int, t Type, output []byte) (DataType, error) {
 	}
 
 	switch t.T {
-	case TupleTy:
+	case TupleType:
 		if isDynamicType(t) {
 			begin, err := tuplePointsTo(index, output)
 			if err != nil {
@@ -381,19 +381,19 @@ func toDataType(index int, t Type, output []byte) (DataType, error) {
 			return forUnionTupleUnpackToDataType(t, output[begin:])
 		}
 		return forUnionTupleUnpackToDataType(t, output[index:])
-	case SliceTy:
+	case SliceType:
 		return forEachUnpackRideList(t, output[begin:], 0, length)
-	case StringTy: // variable arrays are written at the end of the return bytes
+	case StringType: // variable arrays are written at the end of the return bytes
 		return String(output[begin : begin+length]), nil
-	case IntTy, UintTy:
+	case IntType, UintType:
 		return readInteger(t, returnOutput), nil
-	case BoolTy:
+	case BoolType:
 		boolean, err := readBool(returnOutput)
 		if err != nil {
 			return nil, err
 		}
 		return Bool(boolean), nil
-	case AddressTy:
+	case AddressType:
 		if len(returnOutput) == 0 {
 			return nil, errors.Errorf(
 				"invalid etherum address size, expected %d, actual %d",
@@ -401,9 +401,9 @@ func toDataType(index int, t Type, output []byte) (DataType, error) {
 			)
 		}
 		return Bytes(returnOutput[len(returnOutput)-ethereumAddressSize:]), nil
-	case BytesTy:
+	case BytesType:
 		return Bytes(output[begin : begin+length]), nil
-	case FixedBytesTy:
+	case FixedBytesType:
 		fixedBytes, err := readFixedBytes(t, returnOutput)
 		if err != nil {
 			return nil, err

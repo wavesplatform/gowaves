@@ -35,7 +35,7 @@ func (arguments Arguments) UnpackRideValues(data []byte) ([]DataType, []byte, er
 	readArgsTotal := 0
 	for index, arg := range arguments {
 		marshalledValue, err := toDataType((index+virtualArgs)*32, arg.Type, data)
-		if arg.Type.T == TupleTy && !isDynamicType(arg.Type) {
+		if arg.Type.T == TupleType && !isDynamicType(arg.Type) {
 			// If we have a static tuple, like (uint256, bool, uint256), these are
 			// coded as just like uint256,bool,uint256
 			tupleSize := getTypeSize(arg.Type)/32 - 1

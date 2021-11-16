@@ -5,28 +5,28 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
 
-type ArgT byte
+type ArgType byte
 
 // Type enumerator
 const (
-	IntTy ArgT = iota
-	UintTy
-	BytesTy
-	BoolTy
-	StringTy
+	IntType ArgType = iota
+	UintType
+	BytesType
+	BoolType
+	StringType
 
-	SliceTy
-	TupleTy
+	SliceType
+	TupleType
 
-	AddressTy    // we use this type only for erc20 transfers
-	FixedBytesTy // we use this type only for payment asset
+	AddressType    // we use this type only for erc20 transfers
+	FixedBytesType // we use this type only for payment asset
 )
 
 // Type is the reflection of the supported argument type.
 type Type struct {
-	Elem *Type // nested types for SliceTy
+	Elem *Type // nested types for SliceType
 	Size int
-	T    ArgT // Our own type checking
+	T    ArgType // Our own type checking
 
 	stringKind string // holds the unparsed string for deriving signatures
 
@@ -41,7 +41,7 @@ func (t *Type) String() string {
 
 // requiresLengthPrefix returns whether the type requires any sort of length prefixing.
 func requiresLengthPrefix(t Type) bool {
-	return t.T == StringTy || t.T == BytesTy || t.T == SliceTy
+	return t.T == StringType || t.T == BytesType || t.T == SliceType
 }
 
 // getTypeSize returns the size that this type needs to occupy.
@@ -53,7 +53,7 @@ func requiresLengthPrefix(t Type) bool {
 // For a dynamic variable, the returned size is fixed 32 bytes, which is used
 // to store the location reference for actual value storage.
 func getTypeSize(t Type) int {
-	if t.T == TupleTy && !isDynamicType(t) {
+	if t.T == TupleType && !isDynamicType(t) {
 		// Recursively calculate type size if it is a nested tuple
 		total := 0
 		for _, elem := range t.TupleFields {
@@ -72,7 +72,7 @@ func getTypeSize(t Type) int {
 // * T[k] for any dynamic T and any k >= 0
 // * (T1,...,Tk) if Ti is dynamic for some 1 <= i <= k
 func isDynamicType(t Type) bool {
-	if t.T == TupleTy {
+	if t.T == TupleType {
 		for _, elem := range t.TupleFields {
 			if isDynamicType(elem.Type) {
 				return true
@@ -80,7 +80,7 @@ func isDynamicType(t Type) bool {
 		}
 		return false
 	}
-	return t.T == StringTy || t.T == BytesTy || t.T == SliceTy
+	return t.T == StringType || t.T == BytesType || t.T == SliceType
 }
 
 func AbiTypeFromRideTypeMeta(metaT meta.Type) (abiT Type, err error) {
@@ -88,13 +88,13 @@ func AbiTypeFromRideTypeMeta(metaT meta.Type) (abiT Type, err error) {
 	case meta.SimpleType:
 		switch t {
 		case meta.Int:
-			abiT = Type{T: IntTy, Size: 64}
+			abiT = Type{T: IntType, Size: 64}
 		case meta.Bytes:
-			abiT = Type{T: BytesTy}
+			abiT = Type{T: BytesType}
 		case meta.Boolean:
-			abiT = Type{T: BoolTy}
+			abiT = Type{T: BoolType}
 		case meta.String:
-			abiT = Type{T: StringTy}
+			abiT = Type{T: StringType}
 		default:
 			return Type{}, errors.Errorf("invalid ride simple type (%d)", t)
 		}
@@ -105,7 +105,7 @@ func AbiTypeFromRideTypeMeta(metaT meta.Type) (abiT Type, err error) {
 				"failed to create abi type for ride meta list type, inner type %T", t.Inner,
 			)
 		}
-		abiT = Type{Elem: &inner, T: SliceTy}
+		abiT = Type{Elem: &inner, T: SliceType}
 	case meta.UnionType:
 		indexElemStrKindMarshaler := intTextBuilder{
 			size:     8,
@@ -120,7 +120,7 @@ func AbiTypeFromRideTypeMeta(metaT meta.Type) (abiT Type, err error) {
 				Name: "union_index",
 				Type: Type{
 					Size:       indexElemStrKindMarshaler.size,
-					T:          UintTy,
+					T:          UintType,
 					stringKind: string(indexElemStringKind),
 				},
 			},
@@ -138,7 +138,7 @@ func AbiTypeFromRideTypeMeta(metaT meta.Type) (abiT Type, err error) {
 			})
 		}
 		abiT = Type{
-			T:           TupleTy,
+			T:           TupleType,
 			TupleFields: tupleFields,
 		}
 	default:
