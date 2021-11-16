@@ -48,11 +48,11 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 		testSignature.Selector(): {
 			RawName: "minta",
 			Inputs: Arguments{
-				{Name: "_token", Type: Type{T: AddressTy}},
-				{Name: "_id", Type: Type{T: UintTy, Size: 256}},
-				{Name: "_supply", Type: Type{T: UintTy, Size: 256}},
-				{Name: "_listPrice", Type: Type{T: UintTy, Size: 256}},
-				{Name: "_fee", Type: Type{T: UintTy, Size: 256}},
+				{Name: "_token", Type: Type{T: AddressType}},
+				{Name: "_id", Type: Type{T: UintType, Size: 256}},
+				{Name: "_supply", Type: Type{T: UintType, Size: 256}},
+				{Name: "_listPrice", Type: Type{T: UintType, Size: 256}},
+				{Name: "_fee", Type: Type{T: UintType, Size: 256}},
 			},
 			Payments: nil,
 			Sig:      testSignature,
@@ -124,27 +124,27 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
 		{
 			RawName: "testFunction",
 			Inputs: Arguments{
-				{Name: "stringVar", Type: Type{T: StringTy}},
-				{Name: "intVar", Type: Type{T: IntTy, Size: 64}},
-				{Name: "bytesVar", Type: Type{T: BytesTy}},
-				{Name: "boolVar", Type: Type{T: BoolTy}},
+				{Name: "stringVar", Type: Type{T: StringType}},
+				{Name: "intVar", Type: Type{T: IntType, Size: 64}},
+				{Name: "bytesVar", Type: Type{T: BytesType}},
+				{Name: "boolVar", Type: Type{T: BoolType}},
 				{
 					Name: "sliceVar",
 					Type: Type{
-						T:    SliceTy,
-						Elem: &Type{T: IntTy, Size: 64}},
+						T:    SliceType,
+						Elem: &Type{T: IntType, Size: 64}},
 				},
 				{
 					Name: "tupleSliceVar",
 					Type: Type{
-						T: TupleTy,
+						T: TupleType,
 						TupleFields: Arguments{
-							{Name: "union_index", Type: Type{T: UintTy, Size: 8}},
-							{Name: "stringVar", Type: Type{T: StringTy}},
-							{Name: "boolVar", Type: Type{T: BoolTy}},
-							{Name: "intVar", Type: Type{T: IntTy, Size: 64}},
-							{Name: "bytesVar", Type: Type{T: BytesTy}},
-							{Name: "addrVar", Type: Type{T: AddressTy}},
+							{Name: "union_index", Type: Type{T: UintType, Size: 8}},
+							{Name: "stringVar", Type: Type{T: StringType}},
+							{Name: "boolVar", Type: Type{T: BoolType}},
+							{Name: "intVar", Type: Type{T: IntType, Size: 64}},
+							{Name: "bytesVar", Type: Type{T: BytesType}},
+							{Name: "addrVar", Type: Type{T: AddressType}},
 						},
 					},
 				},
