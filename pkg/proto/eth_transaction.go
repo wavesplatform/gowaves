@@ -8,6 +8,7 @@ import (
 	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	"go.uber.org/atomic"
 )
 
 // EthereumGasPrice is a constant GasPrice which equals 10GWei according to the specification
@@ -82,7 +83,7 @@ type EthereumTransaction struct {
 	inner           EthereumTxData
 	innerBinarySize int
 	id              *crypto.Digest
-	senderPK        *EthereumPublicKey
+	senderPK        atomic.Value // *EthereumPublicKey
 }
 
 func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
@@ -118,8 +119,20 @@ func (tx *EthereumTransaction) GetTimestamp() uint64 {
 	return tx.Nonce()
 }
 
+func (tx *EthereumTransaction) threadSafeGetSenderPK() *EthereumPublicKey {
+	senderPK := tx.senderPK.Load()
+	if senderPK != nil {
+		return senderPK.(*EthereumPublicKey)
+	}
+	return nil
+}
+
+func (tx *EthereumTransaction) threadSafeSetSenderPK(senderPK *EthereumPublicKey) {
+	tx.senderPK.Store(senderPK)
+}
+
 func (tx *EthereumTransaction) Validate() (Transaction, error) {
-	if tx.senderPK != nil {
+	if tx.threadSafeGetSenderPK() != nil {
 		return tx, nil
 	}
 	signer := MakeEthereumSigner(tx.ChainId())
@@ -127,7 +140,7 @@ func (tx *EthereumTransaction) Validate() (Transaction, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to validate EthereumTransaction")
 	}
-	tx.senderPK = senderPK
+	tx.threadSafeSetSenderPK(senderPK)
 	return tx, nil
 }
 
@@ -297,7 +310,7 @@ func (tx *EthereumTransaction) From() (EthereumAddress, error) {
 	if _, err := tx.Validate(); err != nil {
 		return EthereumAddress{}, err
 	}
-	addr := tx.senderPK.EthereumAddress()
+	addr := tx.threadSafeGetSenderPK().EthereumAddress()
 	return addr, nil
 }
 
@@ -307,7 +320,7 @@ func (tx *EthereumTransaction) FromPK() (*EthereumPublicKey, error) {
 	if _, err := tx.Validate(); err != nil {
 		return nil, err
 	}
-	return tx.senderPK.copy(), nil
+	return tx.threadSafeGetSenderPK().copy(), nil
 }
 
 // RawSignatureValues returns the V, R, S signature values of the transaction.
