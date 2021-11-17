@@ -1,6 +1,8 @@
 package proto
 
 import (
+	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"io"
 	"math/big"
 
@@ -131,6 +133,8 @@ func (tx *EthereumTransaction) threadSafeSetSenderPK(senderPK *EthereumPublicKey
 	tx.senderPK.Store(senderPK)
 }
 
+// Verify performs ONLY transaction signature verification and calculates EthereumPublicKey of transaction
+// For basic transaction checks use Validate method
 func (tx *EthereumTransaction) Verify() (*EthereumPublicKey, error) {
 	if senderPK := tx.threadSafeGetSenderPK(); senderPK != nil {
 		return senderPK, nil
@@ -144,11 +148,60 @@ func (tx *EthereumTransaction) Verify() (*EthereumPublicKey, error) {
 	return senderPK, nil
 }
 
+// Validate performs basic checks for EthereumTransaction according to the specification
+// This method doesn't include signature verification. Use Verify method for signature verification
 func (tx *EthereumTransaction) Validate(scheme Scheme) (Transaction, error) {
-	if _, err := tx.Verify(); err != nil {
-		return nil, err
+	// same chainID
+	if tx.ChainId().Cmp(big.NewInt(int64(scheme))) != 0 {
+		// TODO: introduce new error type for scheme validation
+		txChainID := tx.ChainId().Uint64()
+		return nil, errs.NewTxValidationError(fmt.Sprintf(
+			"Address belongs to another network: expected: %d(%c), actual: %d(%c)",
+			scheme, scheme,
+			txChainID, txChainID,
+		))
 	}
-	// TODO(nickeskov): add basic check according to the specification (scheme, GasPrice, etc.)g
+	// accept only EthereumLegacyTxType (this check doesn't exist in scala)
+	if tx.EthereumTxType() != EthereumLegacyTxType {
+		return nil, errs.NewTxValidationError("the ethereum transaction's type is not legacy tx")
+	}
+	// max size of EthereumTransaction is 1Mb (this check doesn't exist in scala)
+	if tx.innerBinarySize > 1024*1024 {
+		return nil, errs.NewTxValidationError("too big size of transaction")
+	}
+	// insufficient fee
+	if tx.Gas() <= 0 {
+		return nil, errs.NewFeeValidation("insufficient fee")
+	}
+	// too many waves (this check doesn't exist in scala)
+	wavelets, err := EthereumWeiToWavelet(tx.Value())
+	if err != nil {
+		return nil, errs.NewFeeValidation(err.Error())
+	}
+	// non positive amount
+	if wavelets < 0 {
+		return nil, errs.NewNonPositiveAmount(wavelets, "waves")
+	}
+	// a cancel transaction: value == 0 && data == 0x
+	if tx.Value().Cmp(big0) == 0 && len(tx.Data()) == 0 {
+		return nil, errs.NewTxValidationError("Transaction cancellation is not supported")
+	}
+	// either data or value field is set
+	if tx.Value().Cmp(big0) != 0 && len(tx.Data()) != 0 {
+		return nil, errs.NewTxValidationError("Transaction should have either data or value")
+	}
+	// gasPrice == 10GWei
+	if tx.GasPrice().Cmp(new(big.Int).SetUint64(EthereumGasPrice)) != 0 {
+		return nil, errs.NewTxValidationError("Gas price must be 10 Gwei")
+	}
+	// deny a contract creation transaction (this check doesn't exist in scala)
+	if tx.To() == nil {
+		return nil, errs.NewTxValidationError("Contract creation transaction is not supported")
+	}
+	// positive timestamp (this check doesn't exist in scala)
+	if tx.Nonce() <= 0 {
+		return nil, errs.NewTxValidationError("invalid timestamp")
+	}
 	return tx, nil
 }
 
