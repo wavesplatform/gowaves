@@ -255,7 +255,7 @@ func (tx *IssueWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, e
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      proofs.Bytes(),
 	}, nil
 }
@@ -529,7 +529,7 @@ func (tx *TransferWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      proofs.Bytes(),
 	}, nil
 }
@@ -778,8 +778,10 @@ func (tx *ReissueWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction,
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
-		Transaction: unsigned,
-		Proofs:      proofs.Bytes(),
+		Transaction: &g.SignedTransaction_WavesTransaction{
+			WavesTransaction: unsigned,
+		},
+		Proofs: proofs.Bytes(),
 	}, nil
 }
 
@@ -997,7 +999,7 @@ func (tx *BurnWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, er
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      proofs.Bytes(),
 	}, nil
 }
@@ -1332,7 +1334,7 @@ func (tx *ExchangeWithSig) bodyUnmarshalBinary(data []byte) (int, error) {
 	return n, nil
 }
 
-//Sing calculates ID and Signature of the transaction.
+// Sign calculates ID and Signature of the transaction
 func (tx *ExchangeWithSig) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 	b, err := MarshalTxBody(scheme, tx)
 	if err != nil {
@@ -1460,7 +1462,7 @@ func (tx *ExchangeWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      proofs.Bytes(),
 	}, nil
 }
@@ -1689,7 +1691,7 @@ func (tx *LeaseWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, e
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      proofs.Bytes(),
 	}, nil
 }
@@ -1911,7 +1913,7 @@ func (tx *LeaseCancelWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransact
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      proofs.Bytes(),
 	}, nil
 }
@@ -2162,7 +2164,7 @@ func (tx *CreateAliasWithSig) ToProtobufSigned(scheme Scheme) (*g.SignedTransact
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      proofs.Bytes(),
 	}, nil
 }

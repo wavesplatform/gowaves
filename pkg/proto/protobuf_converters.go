@@ -24,7 +24,7 @@ func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error)
 	if err != nil {
 		return nil, err
 	}
-	return MarshalToProtobufDeterministic(pbTx)
+	return pbTx.MarshalVTFlat()
 }
 
 func TxFromProtobuf(data []byte) (Transaction, error) {
@@ -392,7 +392,7 @@ func (c *ProtobufConverter) transfers(scheme byte, transfers []*g.MassTransferTr
 }
 
 func (c *ProtobufConverter) attachment(att []byte) Attachment {
-	// this cast is required, tests fill fall if remove!
+	// this cast is required, tests fill fall if removed!
 	if len(att) == 0 {
 		return Attachment{}
 	}
@@ -1039,119 +1039,138 @@ func (c *ProtobufConverter) SignedTransaction(stx *g.SignedTransaction) (Transac
 }
 
 func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transaction, error) {
-	tx, err := c.Transaction(stx.Transaction)
-	if err != nil {
-		return nil, err
-	}
-	proofs := c.proofs(stx.Proofs)
-	if c.err != nil {
-		err := c.err
-		c.reset()
-		return nil, err
-	}
-	switch t := tx.(type) {
-	case *Genesis:
-		sig := c.extractFirstSignature(proofs)
-		t.Signature = sig
-		t.ID = sig
-		err := c.err
-		c.reset()
-		return t, err
-	case *Payment:
-		sig := c.extractFirstSignature(proofs)
-		t.Signature = sig
-		t.ID = sig
-		err := c.err
-		c.reset()
-		return t, err
-	case *IssueWithSig:
-		t.Signature = c.extractFirstSignature(proofs)
-		err := c.err
-		c.reset()
-		return t, err
-	case *IssueWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *TransferWithSig:
-		t.Signature = c.extractFirstSignature(proofs)
-		err := c.err
-		c.reset()
-		return t, err
-	case *TransferWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *ReissueWithSig:
-		t.Signature = c.extractFirstSignature(proofs)
-		err := c.err
-		c.reset()
-		return t, err
-	case *ReissueWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *BurnWithSig:
-		t.Signature = c.extractFirstSignature(proofs)
-		err := c.err
-		c.reset()
-		return t, err
-	case *BurnWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *ExchangeWithSig:
-		t.Signature = c.extractFirstSignature(proofs)
-		err := c.err
-		c.reset()
-		return t, err
-	case *ExchangeWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *LeaseWithSig:
-		t.Signature = c.extractFirstSignature(proofs)
-		err := c.err
-		c.reset()
-		return t, err
-	case *LeaseWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *LeaseCancelWithSig:
-		t.Signature = c.extractFirstSignature(proofs)
-		err := c.err
-		c.reset()
-		return t, err
-	case *LeaseCancelWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *CreateAliasWithSig:
-		t.Signature = c.extractFirstSignature(proofs)
-		err := c.err
-		c.reset()
-		return t, err
-	case *CreateAliasWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *MassTransferWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *DataWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *SetScriptWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *SponsorshipWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *SetAssetScriptWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *InvokeScriptWithProofs:
-		t.Proofs = proofs
-		return t, nil
-	case *UpdateAssetInfoWithProofs:
-		t.Proofs = proofs
-		return t, nil
+	switch wrappedTx := stx.Transaction.(type) {
+	case *g.SignedTransaction_WavesTransaction:
+		tx, err := c.Transaction(wrappedTx.WavesTransaction)
+		if err != nil {
+			return nil, err
+		}
+		proofs := c.proofs(stx.Proofs)
+		if c.err != nil {
+			err := c.err
+			c.reset()
+			return nil, err
+		}
+		switch t := tx.(type) {
+		case *Genesis:
+			sig := c.extractFirstSignature(proofs)
+			t.Signature = sig
+			t.ID = sig
+			err := c.err
+			c.reset()
+			return t, err
+		case *Payment:
+			sig := c.extractFirstSignature(proofs)
+			t.Signature = sig
+			t.ID = sig
+			err := c.err
+			c.reset()
+			return t, err
+		case *IssueWithSig:
+			t.Signature = c.extractFirstSignature(proofs)
+			err := c.err
+			c.reset()
+			return t, err
+		case *IssueWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *TransferWithSig:
+			t.Signature = c.extractFirstSignature(proofs)
+			err := c.err
+			c.reset()
+			return t, err
+		case *TransferWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *ReissueWithSig:
+			t.Signature = c.extractFirstSignature(proofs)
+			err := c.err
+			c.reset()
+			return t, err
+		case *ReissueWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *BurnWithSig:
+			t.Signature = c.extractFirstSignature(proofs)
+			err := c.err
+			c.reset()
+			return t, err
+		case *BurnWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *ExchangeWithSig:
+			t.Signature = c.extractFirstSignature(proofs)
+			err := c.err
+			c.reset()
+			return t, err
+		case *ExchangeWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *LeaseWithSig:
+			t.Signature = c.extractFirstSignature(proofs)
+			err := c.err
+			c.reset()
+			return t, err
+		case *LeaseWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *LeaseCancelWithSig:
+			t.Signature = c.extractFirstSignature(proofs)
+			err := c.err
+			c.reset()
+			return t, err
+		case *LeaseCancelWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *CreateAliasWithSig:
+			t.Signature = c.extractFirstSignature(proofs)
+			err := c.err
+			c.reset()
+			return t, err
+		case *CreateAliasWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *MassTransferWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *DataWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *SetScriptWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *SponsorshipWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *SetAssetScriptWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *InvokeScriptWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *UpdateAssetInfoWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		default:
+			panic("unsupported transaction")
+		}
+	case *g.SignedTransaction_EthereumTransaction:
+		tx, err := c.ethereumTransaction(wrappedTx.EthereumTransaction)
+		if err != nil {
+			return nil, err
+		}
+		return tx, nil
 	default:
-		panic("unsupported transaction")
+		panic(errors.Errorf(
+			"BUG, CREATE REPORT: unsupported protobuf signed transaction variant type %T.",
+			stx.Transaction,
+		))
 	}
+}
+
+func (c *ProtobufConverter) ethereumTransaction(etx []byte) (Transaction, error) {
+	//TODO: Here we have to deserialize etx bytes into EthereumTransaction (or whatever it named) business object
+	return nil, errors.New("not implemented")
 }
 
 func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, error) {
@@ -1179,11 +1198,11 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 }
 
 func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
-	txs, err := c.BlockTransactions(block)
+	header, err := c.BlockHeader(block)
 	if err != nil {
 		return Block{}, err
 	}
-	header, err := c.BlockHeader(block)
+	txs, err := c.BlockTransactions(block)
 	if err != nil {
 		return Block{}, err
 	}
