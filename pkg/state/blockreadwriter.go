@@ -654,7 +654,7 @@ func (rw *blockReadWriter) readBlock(blockID proto.BlockID) (*proto.Block, error
 	}
 	var res proto.Transactions
 	if rw.isProtobufTxOffset(blockStart) {
-		if err := res.UnmarshalFromProtobuf(blockBytes); err != nil {
+		if err := res.UnmarshalFromProtobuf(blockBytes, header.Version); err != nil {
 			return nil, err
 		}
 	} else {

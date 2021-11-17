@@ -631,7 +631,7 @@ func (tx *Genesis) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      proofs.Bytes(),
 	}, nil
 }
@@ -940,7 +940,7 @@ func (tx *Payment) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction, error)
 	}
 	proofs := NewProofsFromSignature(tx.Signature)
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      proofs.Bytes(),
 	}, nil
 }

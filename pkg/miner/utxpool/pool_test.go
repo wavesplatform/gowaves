@@ -23,68 +23,68 @@ func (a transaction) BinarySize() int {
 	panic("not implemented")
 }
 
-func (a transaction) MarshalToProtobuf(scheme proto.Scheme) ([]byte, error) {
-	panic("implement me")
+func (a transaction) MarshalToProtobuf(_ proto.Scheme) ([]byte, error) {
+	panic("not implemented")
 }
 
-func (a transaction) UnmarshalFromProtobuf(data []byte) error {
-	panic("implement me")
+func (a transaction) UnmarshalFromProtobuf(_ []byte) error {
+	panic("not implemented")
 }
 
-func (a transaction) MarshalSignedToProtobuf(scheme proto.Scheme) ([]byte, error) {
-	panic("implement me")
+func (a transaction) MarshalSignedToProtobuf(_ proto.Scheme) ([]byte, error) {
+	panic("not implemented")
 }
 
-func (a transaction) UnmarshalSignedFromProtobuf(data []byte) error {
-	panic("implement me")
+func (a transaction) UnmarshalSignedFromProtobuf(_ []byte) error {
+	panic("not implemented")
 }
 
-func (a transaction) ToProtobuf(scheme proto.Scheme) (*g.Transaction, error) {
-	panic("implement me")
+func (a transaction) ToProtobuf(_ proto.Scheme) (*g.Transaction, error) {
+	panic("not implemented")
 }
 
-func (a transaction) ToProtobufSigned(scheme proto.Scheme) (*g.SignedTransaction, error) {
-	panic("implement me")
+func (a transaction) ToProtobufSigned(_ proto.Scheme) (*g.SignedTransaction, error) {
+	panic("not implemented")
 }
 
-func (a transaction) Sign(scheme proto.Scheme, sk crypto.SecretKey) error {
-	panic("implement me")
+func (a transaction) Sign(_ proto.Scheme, _ crypto.SecretKey) error {
+	panic("not implemented")
 }
 
-func (a transaction) GetID(scheme proto.Scheme) ([]byte, error) {
+func (a transaction) GetID(_ proto.Scheme) ([]byte, error) {
 	return a.id, nil
 }
 
 func (transaction) Validate() (proto.Transaction, error) {
-	panic("implement me")
+	panic("not implemented")
 }
 
 func (transaction) BodyMarshalBinary() ([]byte, error) {
-	panic("implement me")
+	panic("not implemented")
 }
 
 func (transaction) MarshalBinary() ([]byte, error) {
-	panic("implement me")
+	panic("not implemented")
 }
 
 func (transaction) UnmarshalBinary([]byte, proto.Scheme) error {
-	panic("implement me")
+	panic("not implemented")
 }
 
 func (transaction) GetTimestamp() uint64 {
 	return 0
 }
 
-func (transaction) GenerateID(scheme proto.Scheme) error {
+func (transaction) GenerateID(_ proto.Scheme) error {
 	return nil
 }
 
 func (transaction) GetTypeInfo() proto.TransactionTypeInfo {
-	panic("implement me")
+	panic("not implemented")
 }
 
 func (transaction) GetVersion() byte {
-	panic("implement me")
+	panic("not implemented")
 }
 
 func (a transaction) GetFee() uint64 {
@@ -92,7 +92,7 @@ func (a transaction) GetFee() uint64 {
 }
 
 func (a transaction) GetSenderPK() crypto.PublicKey {
-	panic("implement me")
+	panic("not implemented")
 }
 
 func tr(fee uint64) *transaction {

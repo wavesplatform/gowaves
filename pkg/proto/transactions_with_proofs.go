@@ -127,7 +127,7 @@ func (tx *IssueWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -474,7 +474,7 @@ func (tx *TransferWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransact
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -782,7 +782,7 @@ func (tx *ReissueWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransacti
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -1027,7 +1027,7 @@ func (tx *BurnWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction,
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -1295,7 +1295,7 @@ func (tx *ExchangeWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransact
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -1884,7 +1884,7 @@ func (tx *LeaseWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -2114,7 +2114,7 @@ func (tx *LeaseCancelWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTrans
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -2365,7 +2365,7 @@ func (tx *CreateAliasWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTrans
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -2955,7 +2955,7 @@ func (tx *MassTransferWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTran
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -3370,7 +3370,7 @@ func (tx *DataWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction,
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -3654,7 +3654,7 @@ func (tx *SetScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransac
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -3929,7 +3929,7 @@ func (tx *SponsorshipWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTrans
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -4228,7 +4228,7 @@ func (tx *SetAssetScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTr
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -4649,7 +4649,7 @@ func (tx *InvokeScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTran
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
@@ -4842,7 +4842,7 @@ func (tx *UpdateAssetInfoWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedT
 		return nil, errors.New("no proofs provided")
 	}
 	return &g.SignedTransaction{
-		Transaction: unsigned,
+		Transaction: &g.SignedTransaction_WavesTransaction{WavesTransaction: unsigned},
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
