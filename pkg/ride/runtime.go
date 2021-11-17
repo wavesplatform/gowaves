@@ -11,10 +11,10 @@ import (
 
 const instanceFieldName = "$instance"
 
-type rideType interface {
+type RideType interface {
 	instanceOf() string
-	eq(other rideType) bool
-	get(prop string) (rideType, error)
+	eq(other RideType) bool
+	get(prop string) (RideType, error)
 }
 
 type rideThrow string
@@ -23,124 +23,134 @@ func (a rideThrow) instanceOf() string {
 	return "Throw"
 }
 
-func (a rideThrow) eq(other rideType) bool {
+func (a rideThrow) eq(other RideType) bool {
 	if o, ok := other.(rideThrow); ok {
 		return a == o
 	}
 	return false
 }
 
-func (a rideThrow) get(prop string) (rideType, error) {
+func (a rideThrow) get(prop string) (RideType, error) {
 	switch prop {
 	case "message":
-		return rideString(a), nil
+		return RideString(a), nil
 	default:
 		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 	}
 }
 
-type rideBoolean bool
+type RideBoolean bool
 
-func (b rideBoolean) instanceOf() string {
+func (b RideBoolean) instanceOf() string {
 	return "Boolean"
 }
 
-func (b rideBoolean) eq(other rideType) bool {
-	if o, ok := other.(rideBoolean); ok {
+func (b RideBoolean) eq(other RideType) bool {
+	if o, ok := other.(RideBoolean); ok {
 		return b == o
 	}
 	return false
 }
 
-func (b rideBoolean) get(prop string) (rideType, error) {
+func (b RideBoolean) get(prop string) (RideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", b.instanceOf(), prop)
 }
 
-type rideInt int64
+type RideInt int64
 
-func (l rideInt) instanceOf() string {
+func (l RideInt) instanceOf() string {
 	return "Int"
 }
 
-func (l rideInt) eq(other rideType) bool {
-	if o, ok := other.(rideInt); ok {
+func (l RideInt) eq(other RideType) bool {
+	if o, ok := other.(RideInt); ok {
 		return l == o
 	}
 	return false
 }
 
-func (l rideInt) get(prop string) (rideType, error) {
+func (l RideInt) get(prop string) (RideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
 }
 
-type rideBigInt struct {
-	v *big.Int
+type RideBigInt struct {
+	V *big.Int
 }
 
-func (l rideBigInt) instanceOf() string {
+func (l RideBigInt) instanceOf() string {
 	return "BigInt"
 }
 
-func (l rideBigInt) eq(other rideType) bool {
-	if o, ok := other.(rideBigInt); ok {
-		return l.v.Cmp(o.v) == 0
+func (l RideBigInt) eq(other RideType) bool {
+	if o, ok := other.(RideBigInt); ok {
+		return l.V.Cmp(o.V) == 0
 	}
 	return false
 }
 
-func (l rideBigInt) get(prop string) (rideType, error) {
+func (l RideBigInt) get(prop string) (RideType, error) {
 	//TODO: there is possibility of few properties like 'bytes', 'int' and so on
 	return nil, errors.Errorf("type '%s' has no property '%s'", l.instanceOf(), prop)
 }
 
-func (l rideBigInt) String() string {
-	return l.v.String()
+func (l RideBigInt) String() string {
+	return l.V.String()
 }
 
-type rideString string
+type RideString string
 
-func (s rideString) instanceOf() string {
+func (s RideString) instanceOf() string {
 	return "String"
 }
 
-func (s rideString) eq(other rideType) bool {
-	if o, ok := other.(rideString); ok {
+func (s RideString) eq(other RideType) bool {
+	if o, ok := other.(RideString); ok {
 		return s == o
 	}
 	return false
 }
 
-func (s rideString) get(prop string) (rideType, error) {
+func (s RideString) get(prop string) (RideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", s.instanceOf(), prop)
 }
 
-type rideBytes []byte
+type RideBytes []byte
 
-func (b rideBytes) instanceOf() string {
+func NewRideBytes(b []byte) (RideBytes, error) {
+	if len(b) > maxBytesLength {
+		return nil, errors.Errorf(
+			"NewRideBytes: length of bytes (%d) is greater than allowed (%d)",
+			len(b), maxBytesLength,
+		)
+	}
+	return RideBytes(b), nil
+}
+
+func (b RideBytes) instanceOf() string {
 	return "ByteVector"
 }
 
-func (b rideBytes) eq(other rideType) bool {
-	if o, ok := other.(rideBytes); ok {
+func (b RideBytes) eq(other RideType) bool {
+	if o, ok := other.(RideBytes); ok {
 		return bytes.Equal(b, o)
 	}
 	return false
 }
 
-func (b rideBytes) get(prop string) (rideType, error) {
+func (b RideBytes) get(prop string) (RideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", b.instanceOf(), prop)
 }
 
-type rideObject map[string]rideType
+type rideObject map[string]RideType
 
 func (o rideObject) instanceOf() string {
-	if s, ok := o[instanceFieldName].(rideString); ok {
+	if s, ok := o[instanceFieldName].(RideString); ok {
 		return string(s)
 	}
 	return ""
 }
 
-func (o rideObject) eq(other rideType) bool {
+func (o rideObject) eq(other RideType) bool {
 	if oo, ok := other.(rideObject); ok {
 		for k, v := range o {
 			if ov, ok := oo[k]; ok {
@@ -156,7 +166,7 @@ func (o rideObject) eq(other rideType) bool {
 	return false
 }
 
-func (o rideObject) get(prop string) (rideType, error) {
+func (o rideObject) get(prop string) (RideType, error) {
 	v, ok := o[prop]
 	if !ok {
 		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
@@ -178,11 +188,11 @@ func (a rideAddress) instanceOf() string {
 	return "Address"
 }
 
-func (a rideAddress) eq(other rideType) bool {
+func (a rideAddress) eq(other RideType) bool {
 	switch o := other.(type) {
 	case rideAddress:
 		return bytes.Equal(a[:], o[:])
-	case rideBytes:
+	case RideBytes:
 		return bytes.Equal(a[:], o[:])
 	case rideRecipient:
 		return o.Address != nil && bytes.Equal(a[:], o.Address[:])
@@ -191,10 +201,10 @@ func (a rideAddress) eq(other rideType) bool {
 	}
 }
 
-func (a rideAddress) get(prop string) (rideType, error) {
+func (a rideAddress) get(prop string) (RideType, error) {
 	switch prop {
 	case "bytes":
-		return rideBytes(a[:]), nil
+		return RideBytes(a[:]), nil
 	default:
 		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 	}
@@ -206,11 +216,11 @@ func (a rideAddressLike) instanceOf() string {
 	return "Address"
 }
 
-func (a rideAddressLike) eq(other rideType) bool {
+func (a rideAddressLike) eq(other RideType) bool {
 	switch o := other.(type) {
 	case rideAddress:
 		return bytes.Equal(a[:], o[:])
-	case rideBytes:
+	case RideBytes:
 		return bytes.Equal(a[:], o[:])
 	case rideRecipient:
 		return o.Address != nil && bytes.Equal(a[:], o.Address[:])
@@ -219,10 +229,10 @@ func (a rideAddressLike) eq(other rideType) bool {
 	}
 }
 
-func (a rideAddressLike) get(prop string) (rideType, error) {
+func (a rideAddressLike) get(prop string) (RideType, error) {
 	switch prop {
 	case "bytes":
-		return rideBytes(a[:]), nil
+		return RideBytes(a[:]), nil
 	default:
 		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 	}
@@ -241,7 +251,7 @@ func (a rideRecipient) instanceOf() string {
 	}
 }
 
-func (a rideRecipient) eq(other rideType) bool {
+func (a rideRecipient) eq(other RideType) bool {
 	switch o := other.(type) {
 	case rideRecipient:
 		return a.Address == o.Address && a.Alias == o.Alias
@@ -249,18 +259,18 @@ func (a rideRecipient) eq(other rideType) bool {
 		return a.Address != nil && bytes.Equal(a.Address[:], o[:])
 	case rideAlias:
 		return a.Alias != nil && a.Alias.Alias == o.Alias
-	case rideBytes:
+	case RideBytes:
 		return a.Address != nil && bytes.Equal(a.Address[:], o[:])
 	default:
 		return false
 	}
 }
 
-func (a rideRecipient) get(prop string) (rideType, error) {
+func (a rideRecipient) get(prop string) (RideType, error) {
 	switch prop {
 	case "bytes":
 		if a.Address != nil {
-			return rideBytes(a.Address[:]), nil
+			return RideBytes(a.Address[:]), nil
 		}
 		return rideUnit{}, nil
 	case "alias":
@@ -284,7 +294,7 @@ func (a rideAlias) instanceOf() string {
 	return "Alias"
 }
 
-func (a rideAlias) eq(other rideType) bool {
+func (a rideAlias) eq(other RideType) bool {
 	switch o := other.(type) {
 	case rideRecipient:
 		return o.Alias != nil && a.Alias == o.Alias.Alias
@@ -295,10 +305,10 @@ func (a rideAlias) eq(other rideType) bool {
 	}
 }
 
-func (a rideAlias) get(prop string) (rideType, error) {
+func (a rideAlias) get(prop string) (RideType, error) {
 	switch prop {
 	case "alias":
-		return rideString(a.Alias), nil
+		return RideString(a.Alias), nil
 	default:
 		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 	}
@@ -310,11 +320,11 @@ func (a rideUnit) instanceOf() string {
 	return "Unit"
 }
 
-func (a rideUnit) eq(other rideType) bool {
+func (a rideUnit) eq(other RideType) bool {
 	return a.instanceOf() == other.instanceOf()
 }
 
-func (a rideUnit) get(prop string) (rideType, error) {
+func (a rideUnit) get(prop string) (RideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
@@ -326,25 +336,25 @@ func (a rideNamedType) instanceOf() string {
 	return a.name
 }
 
-func (a rideNamedType) eq(other rideType) bool {
+func (a rideNamedType) eq(other RideType) bool {
 	return a.instanceOf() == other.instanceOf()
 }
 
-func (a rideNamedType) get(prop string) (rideType, error) {
+func (a rideNamedType) get(prop string) (RideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
-type rideList []rideType
+type RideList []RideType
 
-func (a rideList) instanceOf() string {
+func (a RideList) instanceOf() string {
 	return "List[Any]"
 }
 
-func (a rideList) eq(other rideType) bool {
+func (a RideList) eq(other RideType) bool {
 	if a.instanceOf() != other.instanceOf() {
 		return false
 	}
-	o, ok := other.(rideList)
+	o, ok := other.(RideList)
 	if !ok {
 		return false
 	}
@@ -359,25 +369,25 @@ func (a rideList) eq(other rideType) bool {
 	return true
 }
 
-func (a rideList) get(prop string) (rideType, error) {
+func (a RideList) get(prop string) (RideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
-type rideFunction func(env Environment, args ...rideType) (rideType, error)
+type rideFunction func(env Environment, args ...RideType) (RideType, error)
 
 //go:generate moq -out runtime_moq_test.go . Environment:MockRideEnvironment
 type Environment interface {
 	scheme() byte
-	height() rideInt
+	height() RideInt
 	transaction() rideObject
-	this() rideType
+	this() RideType
 	block() rideObject
-	txID() rideType // Invoke transaction ID
+	txID() RideType // Invoke transaction ID
 	state() types.SmartState
 	timestamp() uint64
 	setNewDAppAddress(address proto.WavesAddress)
 	checkMessageLength(int) bool
-	takeString(s string, n int) rideString
+	takeString(s string, n int) RideString
 	invocation() rideObject // Invocation object made of invoke transaction
 	setInvocation(inv rideObject)
 	libVersion() int
@@ -386,4 +396,4 @@ type Environment interface {
 	maxDataEntriesSize() int
 }
 
-type rideConstructor func(Environment) rideType
+type rideConstructor func(Environment) RideType
