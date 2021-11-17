@@ -42,7 +42,7 @@ type IssueWithSig struct {
 	Issue
 }
 
-func (tx *IssueWithSig) Validate() (Transaction, error) {
+func (tx *IssueWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for IssueWithSig", tx.Version)
 	}
@@ -277,7 +277,7 @@ func (tx TransferWithSig) GetProofs() *ProofsV1 {
 	return NewProofsFromSignature(tx.Signature)
 }
 
-func (tx *TransferWithSig) Validate() (Transaction, error) {
+func (tx *TransferWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for TransferWithSig", tx.Version)
 	}
@@ -571,7 +571,7 @@ type ReissueWithSig struct {
 	Reissue
 }
 
-func (tx *ReissueWithSig) Validate() (Transaction, error) {
+func (tx *ReissueWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for ReissueWithSig", tx.Version)
 	}
@@ -806,7 +806,7 @@ type BurnWithSig struct {
 	Burn
 }
 
-func (tx *BurnWithSig) Validate() (Transaction, error) {
+func (tx *BurnWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for BurnWithSig", tx.Version)
 	}
@@ -1143,7 +1143,7 @@ func NewUnsignedExchangeWithSig(buy, sell *OrderV1, price, amount, buyMatcherFee
 	}
 }
 
-func (tx *ExchangeWithSig) Validate() (Transaction, error) {
+func (tx *ExchangeWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for ExchangeWithSig", tx.Version)
 	}
@@ -1500,7 +1500,7 @@ type LeaseWithSig struct {
 	Lease
 }
 
-func (tx *LeaseWithSig) Validate() (Transaction, error) {
+func (tx *LeaseWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for LeaseWithSig", tx.Version)
 	}
@@ -1733,7 +1733,7 @@ type LeaseCancelWithSig struct {
 	LeaseCancel
 }
 
-func (tx *LeaseCancelWithSig) Validate() (Transaction, error) {
+func (tx *LeaseCancelWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for LeaseCancelWithSig", tx.Version)
 	}
@@ -1958,7 +1958,7 @@ type CreateAliasWithSig struct {
 	CreateAlias
 }
 
-func (tx *CreateAliasWithSig) Validate() (Transaction, error) {
+func (tx *CreateAliasWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for CreateAliasWithSig", tx.Version)
 	}

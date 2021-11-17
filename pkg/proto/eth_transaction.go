@@ -131,16 +131,24 @@ func (tx *EthereumTransaction) threadSafeSetSenderPK(senderPK *EthereumPublicKey
 	tx.senderPK.Store(senderPK)
 }
 
-func (tx *EthereumTransaction) Validate() (Transaction, error) {
-	if tx.threadSafeGetSenderPK() != nil {
-		return tx, nil
+func (tx *EthereumTransaction) Verify() (*EthereumPublicKey, error) {
+	if senderPK := tx.threadSafeGetSenderPK(); senderPK != nil {
+		return senderPK, nil
 	}
 	signer := MakeEthereumSigner(tx.ChainId())
 	senderPK, err := signer.SenderPK(tx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to validate EthereumTransaction")
+		return nil, errors.Wrap(err, "failed to verify EthereumTransaction")
 	}
 	tx.threadSafeSetSenderPK(senderPK)
+	return senderPK, nil
+}
+
+func (tx *EthereumTransaction) Validate(scheme Scheme) (Transaction, error) {
+	if _, err := tx.Verify(); err != nil {
+		return nil, err
+	}
+	// TODO(nickeskov): add basic check according to the specification (scheme, GasPrice, etc.)g
 	return tx, nil
 }
 
@@ -307,20 +315,21 @@ func (tx *EthereumTransaction) To() *EthereumAddress { return tx.inner.to().copy
 // From returns the sender address of the transaction.
 // Returns error if transaction doesn't pass validation.
 func (tx *EthereumTransaction) From() (EthereumAddress, error) {
-	if _, err := tx.Validate(); err != nil {
+	senderPK, err := tx.Verify()
+	if err != nil {
 		return EthereumAddress{}, err
 	}
-	addr := tx.threadSafeGetSenderPK().EthereumAddress()
-	return addr, nil
+	return senderPK.EthereumAddress(), nil
 }
 
 // FromPK returns the sender public key of the transaction.
 // Returns error if transaction doesn't pass validation.
 func (tx *EthereumTransaction) FromPK() (*EthereumPublicKey, error) {
-	if _, err := tx.Validate(); err != nil {
+	senderPK, err := tx.Verify()
+	if err != nil {
 		return nil, err
 	}
-	return tx.threadSafeGetSenderPK().copy(), nil
+	return senderPK.copy(), nil
 }
 
 // RawSignatureValues returns the V, R, S signature values of the transaction.

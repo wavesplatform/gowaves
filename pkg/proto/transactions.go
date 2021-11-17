@@ -192,7 +192,7 @@ type Transaction interface {
 	// Validate checks that all transaction fields are valid.
 	// This includes ranges checks, and sanity checks specific for each transaction type:
 	// for example, negative amounts for transfers.
-	Validate() (Transaction, error)
+	Validate(scheme Scheme) (Transaction, error)
 
 	// GenerateID sets transaction ID.
 	// For most transactions ID is hash of transaction body.
@@ -498,7 +498,7 @@ func NewUnsignedGenesis(recipient WavesAddress, amount, timestamp uint64) *Genes
 }
 
 //Validate checks the validity of transaction parameters and it's signature.
-func (tx *Genesis) Validate() (Transaction, error) {
+func (tx *Genesis) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxGenesisTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Genesis transaction", tx.Version)
 	}
@@ -747,7 +747,7 @@ func NewUnsignedPayment(senderPK crypto.PublicKey, recipient WavesAddress, amoun
 	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *Payment) Validate() (Transaction, error) {
+func (tx *Payment) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxPaymentTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Payment transaction", tx.Version)
 	}

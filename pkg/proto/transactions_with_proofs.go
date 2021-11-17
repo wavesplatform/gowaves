@@ -194,7 +194,7 @@ func validScriptVersion(v byte) bool {
 	return v <= topRideVersion
 }
 
-func (tx *IssueWithProofs) Validate() (Transaction, error) {
+func (tx *IssueWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxIssueTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for IssueWithProofs", tx.Version)
 	}
@@ -535,7 +535,7 @@ func NewUnsignedTransferWithProofs(v byte, senderPK crypto.PublicKey, amountAsse
 	return &TransferWithProofs{Type: TransferTransaction, Version: v, Transfer: t}
 }
 
-func (tx *TransferWithProofs) Validate() (Transaction, error) {
+func (tx *TransferWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxTransferTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for TransferWithProofs", tx.Version)
 	}
@@ -843,7 +843,7 @@ func NewUnsignedReissueWithProofs(v, chainID byte, senderPK crypto.PublicKey, as
 	return &ReissueWithProofs{Type: ReissueTransaction, Version: v, ChainID: chainID, Reissue: r}
 }
 
-func (tx *ReissueWithProofs) Validate() (Transaction, error) {
+func (tx *ReissueWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxReissueTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for ReissueWithProofs", tx.Version)
 	}
@@ -1089,7 +1089,7 @@ func NewUnsignedBurnWithProofs(v, chainID byte, senderPK crypto.PublicKey, asset
 	return &BurnWithProofs{Type: BurnTransaction, Version: v, ChainID: chainID, Burn: b}
 }
 
-func (tx *BurnWithProofs) Validate() (Transaction, error) {
+func (tx *BurnWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxBurnTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for BurnWithProofs", tx.Version)
 	}
@@ -1422,7 +1422,7 @@ func NewUnsignedExchangeWithProofs(v byte, buy, sell Order, price, amount, buyMa
 	}
 }
 
-func (tx *ExchangeWithProofs) Validate() (Transaction, error) {
+func (tx *ExchangeWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxExchangeTransactionVersion {
 		return tx, errors.Errorf("unexpected transaction version %d for ExchangeWithProofs transaction", tx.Version)
 	}
@@ -1827,7 +1827,7 @@ type LeaseWithProofs struct {
 	Lease
 }
 
-func (tx *LeaseWithProofs) Validate() (Transaction, error) {
+func (tx *LeaseWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxLeaseTransactionVersion {
 		return tx, errors.Errorf("unexpected transaction version %d for LeaseWithProofs transaction", tx.Version)
 	}
@@ -2185,7 +2185,7 @@ func NewUnsignedLeaseCancelWithProofs(v, chainID byte, senderPK crypto.PublicKey
 	return &LeaseCancelWithProofs{Type: LeaseCancelTransaction, Version: v, ChainID: chainID, LeaseCancel: lc}
 }
 
-func (tx *LeaseCancelWithProofs) Validate() (Transaction, error) {
+func (tx *LeaseCancelWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxLeaseCancelTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for LeaseCancelWithProofs", tx.Version)
 	}
@@ -2315,7 +2315,7 @@ type CreateAliasWithProofs struct {
 	CreateAlias
 }
 
-func (tx *CreateAliasWithProofs) Validate() (Transaction, error) {
+func (tx *CreateAliasWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxCreateAliasTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for CreateAliasWithProofs", tx.Version)
 	}
@@ -2710,7 +2710,7 @@ func NewUnsignedMassTransferWithProofs(v byte, senderPK crypto.PublicKey, asset 
 	return &MassTransferWithProofs{Type: MassTransferTransaction, Version: v, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: attachment}
 }
 
-func (tx *MassTransferWithProofs) Validate() (Transaction, error) {
+func (tx *MassTransferWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxMassTransferTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for MassTransferWithProofs", tx.Version)
 	}
@@ -3096,7 +3096,7 @@ func NewUnsignedData(v byte, senderPK crypto.PublicKey, fee, timestamp uint64) *
 	return &DataWithProofs{Type: DataTransaction, Version: v, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *DataWithProofs) Validate() (Transaction, error) {
+func (tx *DataWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxDataTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for DataWithProofs", tx.Version)
 	}
@@ -3482,7 +3482,7 @@ func NewUnsignedSetScriptWithProofs(v byte, chain byte, senderPK crypto.PublicKe
 	return &SetScriptWithProofs{Type: SetScriptTransaction, Version: v, ChainID: chain, SenderPK: senderPK, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *SetScriptWithProofs) Validate() (Transaction, error) {
+func (tx *SetScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxSetScriptTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for SetScriptWithProofs", tx.Version)
 	}
@@ -3776,7 +3776,7 @@ func NewUnsignedSponsorshipWithProofs(v byte, senderPK crypto.PublicKey, assetID
 	return &SponsorshipWithProofs{Type: SponsorshipTransaction, Version: v, SenderPK: senderPK, AssetID: assetID, MinAssetFee: minAssetFee, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *SponsorshipWithProofs) Validate() (Transaction, error) {
+func (tx *SponsorshipWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxSponsorshipTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for SponsorshipWithProofs", tx.Version)
 	}
@@ -4062,7 +4062,7 @@ func NewUnsignedSetAssetScriptWithProofs(v, chain byte, senderPK crypto.PublicKe
 	return &SetAssetScriptWithProofs{Type: SetAssetScriptTransaction, Version: v, ChainID: chain, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *SetAssetScriptWithProofs) Validate() (Transaction, error) {
+func (tx *SetAssetScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxSetAssetScriptTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for SetAssetScriptWithProofs", tx.Version)
 	}
@@ -4375,7 +4375,7 @@ func NewUnsignedInvokeScriptWithProofs(v, chain byte, senderPK crypto.PublicKey,
 	}
 }
 
-func (tx *InvokeScriptWithProofs) Validate() (Transaction, error) {
+func (tx *InvokeScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxInvokeScriptTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for InvokeScriptWithProofs", tx.Version)
 	}
@@ -4760,7 +4760,7 @@ func (tx UpdateAssetInfoWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func (tx *UpdateAssetInfoWithProofs) Validate() (Transaction, error) {
+func (tx *UpdateAssetInfoWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxUpdateAssetInfoTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for UpdateAssetInfoWithProofs", tx.Version)
 	}
