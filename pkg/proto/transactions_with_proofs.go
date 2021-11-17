@@ -152,7 +152,7 @@ func (tx *IssueWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx IssueWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *IssueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -163,7 +163,9 @@ func (tx IssueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *IssueWithProofs) Clone() *IssueWithProofs {
 	out := &IssueWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -497,7 +499,7 @@ func (tx *TransferWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx TransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *TransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -508,7 +510,9 @@ func (tx TransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *TransferWithProofs) Clone() *TransferWithProofs {
 	out := &TransferWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -803,7 +807,7 @@ func (tx *ReissueWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx ReissueWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *ReissueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -814,7 +818,9 @@ func (tx ReissueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *ReissueWithProofs) Clone() *ReissueWithProofs {
 	out := &ReissueWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1046,7 +1052,7 @@ func (tx *BurnWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx BurnWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *BurnWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1057,7 +1063,9 @@ func (tx BurnWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *BurnWithProofs) Clone() *BurnWithProofs {
 	out := &BurnWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1312,7 +1320,7 @@ func (tx *ExchangeWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx ExchangeWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *ExchangeWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1323,7 +1331,9 @@ func (tx ExchangeWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *ExchangeWithProofs) Clone() *ExchangeWithProofs {
 	out := &ExchangeWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1899,7 +1909,7 @@ func (tx *LeaseWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx LeaseWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *LeaseWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1910,7 +1920,9 @@ func (tx LeaseWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *LeaseWithProofs) Clone() *LeaseWithProofs {
 	out := &LeaseWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -2127,7 +2139,7 @@ func (tx *LeaseCancelWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx LeaseCancelWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *LeaseCancelWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -2138,7 +2150,9 @@ func (tx LeaseCancelWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *LeaseCancelWithProofs) Clone() *LeaseCancelWithProofs {
 	out := &LeaseCancelWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -2385,7 +2399,7 @@ func (tx *CreateAliasWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx CreateAliasWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *CreateAliasWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -2396,7 +2410,9 @@ func (tx CreateAliasWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *CreateAliasWithProofs) Clone() *CreateAliasWithProofs {
 	out := &CreateAliasWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -2624,7 +2640,9 @@ func (tx MassTransferWithProofs) GetVersion() byte {
 
 func (tx *MassTransferWithProofs) Clone() *MassTransferWithProofs {
 	out := &MassTransferWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -2644,7 +2662,7 @@ func (tx MassTransferWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx MassTransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *MassTransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -3017,7 +3035,7 @@ func (tx DataWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx DataWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *DataWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -3036,7 +3054,9 @@ func (tx DataWithProofs) GetTimestamp() uint64 {
 
 func (tx *DataWithProofs) Clone() *DataWithProofs {
 	out := &DataWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -3400,7 +3420,7 @@ func (tx SetScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx SetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *SetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -3680,7 +3700,7 @@ func (tx SponsorshipWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx SponsorshipWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *SponsorshipWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -3699,7 +3719,9 @@ func (tx SponsorshipWithProofs) GetTimestamp() uint64 {
 
 func (tx *SponsorshipWithProofs) Clone() *SponsorshipWithProofs {
 	out := &SponsorshipWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -3958,7 +3980,7 @@ func (tx SetAssetScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx SetAssetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *SetAssetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -3977,7 +3999,9 @@ func (tx SetAssetScriptWithProofs) GetTimestamp() uint64 {
 
 func (tx *SetAssetScriptWithProofs) Clone() *SetAssetScriptWithProofs {
 	out := &SetAssetScriptWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -4252,7 +4276,7 @@ func (tx InvokeScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
-func (tx InvokeScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *InvokeScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -4271,7 +4295,9 @@ func (tx InvokeScriptWithProofs) GetTimestamp() uint64 {
 
 func (tx *InvokeScriptWithProofs) Clone() *InvokeScriptWithProofs {
 	out := &InvokeScriptWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -4651,7 +4677,7 @@ func (tx UpdateAssetInfoWithProofs) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx UpdateAssetInfoWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *UpdateAssetInfoWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
