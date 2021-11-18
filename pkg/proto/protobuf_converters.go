@@ -1162,7 +1162,7 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 		return tx, nil
 	default:
 		panic(errors.Errorf(
-			"BUG, CREATE REPORT: unsupported protobuf signed transaction variant type (%T).",
+			"BUG, CREATE REPORT: unsupported protobuf signed transaction variant type %T.",
 			stx.Transaction,
 		))
 	}

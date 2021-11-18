@@ -471,7 +471,7 @@ func (tx *Genesis) generateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx Genesis) GetID(scheme Scheme) ([]byte, error) {
+func (tx *Genesis) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -721,7 +721,7 @@ func (tx Payment) GetSender(scheme Scheme) (Address, error) {
 	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
-func (tx Payment) GetID(scheme Scheme) ([]byte, error) {
+func (tx *Payment) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err

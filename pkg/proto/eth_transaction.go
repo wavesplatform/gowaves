@@ -2,13 +2,13 @@ package proto
 
 import (
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/errs"
 	"io"
 	"math/big"
 
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"go.uber.org/atomic"
 )

@@ -81,7 +81,7 @@ func (tx *IssueWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
 	return tx.MarshalSignedToProtobuf(scheme)
 }
 
-func (tx IssueWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *IssueWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -316,7 +316,7 @@ func (tx *TransferWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
 	return tx.MarshalSignedToProtobuf(scheme)
 }
 
-func (tx TransferWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *TransferWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -327,7 +327,9 @@ func (tx TransferWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *TransferWithSig) Clone() *TransferWithSig {
 	out := &TransferWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -610,7 +612,7 @@ func (tx *ReissueWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
 	return tx.MarshalSignedToProtobuf(scheme)
 }
 
-func (tx ReissueWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *ReissueWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -621,7 +623,9 @@ func (tx ReissueWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *ReissueWithSig) Clone() *ReissueWithSig {
 	out := &ReissueWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -845,7 +849,7 @@ func (tx *BurnWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
 	return tx.MarshalSignedToProtobuf(scheme)
 }
 
-func (tx BurnWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *BurnWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -856,7 +860,9 @@ func (tx BurnWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *BurnWithSig) Clone() *BurnWithSig {
 	out := &BurnWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1065,7 +1071,7 @@ func (tx *ExchangeWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
 	return tx.MarshalSignedToProtobuf(scheme)
 }
 
-func (tx ExchangeWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *ExchangeWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1076,7 +1082,9 @@ func (tx ExchangeWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *ExchangeWithSig) Clone() *ExchangeWithSig {
 	out := &ExchangeWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1539,7 +1547,7 @@ func (tx *LeaseWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
 	return tx.MarshalSignedToProtobuf(scheme)
 }
 
-func (tx LeaseWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *LeaseWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1550,7 +1558,9 @@ func (tx LeaseWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *LeaseWithSig) Clone() *LeaseWithSig {
 	out := &LeaseWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1772,7 +1782,7 @@ func (tx *LeaseCancelWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
 	return tx.MarshalSignedToProtobuf(scheme)
 }
 
-func (tx LeaseCancelWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *LeaseCancelWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1783,7 +1793,9 @@ func (tx LeaseCancelWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *LeaseCancelWithSig) Clone() *LeaseCancelWithSig {
 	out := &LeaseCancelWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -2006,7 +2018,7 @@ func (tx *CreateAliasWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
 	return tx.MarshalSignedToProtobuf(scheme)
 }
 
-func (tx CreateAliasWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *CreateAliasWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -2017,7 +2029,9 @@ func (tx CreateAliasWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *CreateAliasWithSig) Clone() *CreateAliasWithSig {
 	out := &CreateAliasWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
