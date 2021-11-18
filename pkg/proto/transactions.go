@@ -37,12 +37,9 @@ const (
 	SetAssetScriptTransaction                              // 15 - SetAssetScript transaction
 	InvokeScriptTransaction                                // 16 - InvokeScript transaction
 	UpdateAssetInfoTransaction                             // 17 - UpdateAssetInfoTransaction
-	EthereumMetamaskTransaction                            // 18 - EthereumMetamaskTransaction is a transaction which received from metamask
+	_                                                      // 18 - reserved
+	EthereumMetamaskTransaction                            // 19 - EthereumMetamaskTransaction is a transaction which received from metamask
 )
-
-func (tt TransactionType) BinarySize() int {
-	return 1
-}
 
 // TxFailureReason indicates Transactions failure reasons.
 type TxFailureReason byte
@@ -112,18 +109,17 @@ var (
 	}
 
 	bytesToTransactionsV1 = map[TransactionType]reflect.Type{
-		GenesisTransaction:          reflect.TypeOf(Genesis{}),
-		PaymentTransaction:          reflect.TypeOf(Payment{}),
-		IssueTransaction:            reflect.TypeOf(IssueWithSig{}),
-		TransferTransaction:         reflect.TypeOf(TransferWithSig{}),
-		ReissueTransaction:          reflect.TypeOf(ReissueWithSig{}),
-		BurnTransaction:             reflect.TypeOf(BurnWithSig{}),
-		ExchangeTransaction:         reflect.TypeOf(ExchangeWithSig{}),
-		LeaseTransaction:            reflect.TypeOf(LeaseWithSig{}),
-		LeaseCancelTransaction:      reflect.TypeOf(LeaseCancelWithSig{}),
-		CreateAliasTransaction:      reflect.TypeOf(CreateAliasWithSig{}),
-		MassTransferTransaction:     reflect.TypeOf(MassTransferWithProofs{}),
-		EthereumMetamaskTransaction: reflect.TypeOf(EthereumTransaction{}), // TODO(nickeskov): Is it correct?
+		GenesisTransaction:      reflect.TypeOf(Genesis{}),
+		PaymentTransaction:      reflect.TypeOf(Payment{}),
+		IssueTransaction:        reflect.TypeOf(IssueWithSig{}),
+		TransferTransaction:     reflect.TypeOf(TransferWithSig{}),
+		ReissueTransaction:      reflect.TypeOf(ReissueWithSig{}),
+		BurnTransaction:         reflect.TypeOf(BurnWithSig{}),
+		ExchangeTransaction:     reflect.TypeOf(ExchangeWithSig{}),
+		LeaseTransaction:        reflect.TypeOf(LeaseWithSig{}),
+		LeaseCancelTransaction:  reflect.TypeOf(LeaseCancelWithSig{}),
+		CreateAliasTransaction:  reflect.TypeOf(CreateAliasWithSig{}),
+		MassTransferTransaction: reflect.TypeOf(MassTransferWithProofs{}),
 	}
 
 	ProtobufTransactionsVersions = map[TransactionType]byte{
@@ -144,7 +140,7 @@ var (
 		SetAssetScriptTransaction:  2,
 		InvokeScriptTransaction:    2,
 		UpdateAssetInfoTransaction: 1,
-		// TODO(nickeskov): How to add ethereum tx?
+		// EthereumMetamaskTransaction should not be added because it doesn't exist as protobuf transaction
 	}
 )
 

@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	EthereumWei            uint64 = 1
-	EthereumGWei                  = 1e9 * EthereumWei
-	EthereumEther                 = 1e9 * EthereumGWei
-	waveletToWeiMultiplier        = EthereumEther / PriceConstant
+	ethereumWei            uint64 = 1
+	ethereumGWei                  = 1e9 * ethereumWei
+	ethereumEther                 = 1e9 * ethereumGWei
+	waveletToWeiMultiplier        = ethereumEther / PriceConstant
 )
 
 func WaveletToEthereumWei(waveletAmount uint64) *big.Int {

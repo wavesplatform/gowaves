@@ -1170,7 +1170,7 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 
 func (c *ProtobufConverter) ethereumTransaction(canonicalEthTx []byte) (Transaction, error) {
 	var tx EthereumTransaction
-	if err := tx.bodyUnmarshalBinary(canonicalEthTx); err != nil {
+	if err := tx.DecodeCanonical(canonicalEthTx); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal ethereum transaction")
 	}
 	return &tx, nil

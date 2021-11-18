@@ -18,7 +18,7 @@ type EthereumLegacyTx struct {
 	V, R, S  *big.Int         // signature values
 }
 
-func (ltx *EthereumLegacyTx) unmarshalFromFastRLP(value *fastrlp.Value) error {
+func (tx *EthereumLegacyTx) unmarshalFromFastRLP(value *fastrlp.Value) error {
 	const legacyTxFieldsCount = 9
 
 	elems, err := value.GetElems()
@@ -65,7 +65,7 @@ func (ltx *EthereumLegacyTx) unmarshalFromFastRLP(value *fastrlp.Value) error {
 		return errors.Wrap(err, "failed to parse signature value")
 	}
 
-	*ltx = EthereumLegacyTx{
+	*tx = EthereumLegacyTx{
 		Nonce:    nonce,
 		GasPrice: &gasPrice,
 		Gas:      gasLimit,
@@ -79,17 +79,17 @@ func (ltx *EthereumLegacyTx) unmarshalFromFastRLP(value *fastrlp.Value) error {
 	return nil
 }
 
-func (ltx *EthereumLegacyTx) marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Value {
+func (tx *EthereumLegacyTx) marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Value {
 	values := [...]*fastrlp.Value{
-		arena.NewUint(ltx.Nonce),
-		arena.NewBigInt(ltx.GasPrice),
-		arena.NewUint(ltx.Gas),
-		arena.NewBytes(ltx.To.tryToBytes()),
-		arena.NewBigInt(ltx.Value),
-		arena.NewBytes(ltx.Data),
-		arena.NewBigInt(ltx.V),
-		arena.NewBigInt(ltx.R),
-		arena.NewBigInt(ltx.S),
+		arena.NewUint(tx.Nonce),
+		arena.NewBigInt(tx.GasPrice),
+		arena.NewUint(tx.Gas),
+		arena.NewBytes(tx.To.tryToBytes()),
+		arena.NewBigInt(tx.Value),
+		arena.NewBytes(tx.Data),
+		arena.NewBigInt(tx.V),
+		arena.NewBigInt(tx.R),
+		arena.NewBigInt(tx.S),
 	}
 
 	array := arena.NewArray()
@@ -99,21 +99,21 @@ func (ltx *EthereumLegacyTx) marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Val
 	return array
 }
 
-func (ltx *EthereumLegacyTx) DecodeRLP(rlpData []byte) error {
+func (tx *EthereumLegacyTx) DecodeRLP(rlpData []byte) error {
 	parser := fastrlp.Parser{}
 	rlpVal, err := parser.Parse(rlpData)
 	if err != nil {
 		return err
 	}
-	if err := ltx.unmarshalFromFastRLP(rlpVal); err != nil {
+	if err := tx.unmarshalFromFastRLP(rlpVal); err != nil {
 		return errors.Wrap(err, "failed to parse EthereumLegacyTx from RLP encoded data")
 	}
 	return nil
 }
 
-func (ltx *EthereumLegacyTx) EncodeRLP(w io.Writer) error {
+func (tx *EthereumLegacyTx) EncodeRLP(w io.Writer) error {
 	arena := fastrlp.Arena{}
-	rlpVal := ltx.marshalToFastRLP(&arena)
+	rlpVal := tx.marshalToFastRLP(&arena)
 	rlpData := rlpVal.MarshalTo(nil)
 	if _, err := w.Write(rlpData); err != nil {
 		return err
@@ -122,49 +122,49 @@ func (ltx *EthereumLegacyTx) EncodeRLP(w io.Writer) error {
 }
 
 // copy creates a deep copy of the transaction data and initializes all fields.
-func (ltx *EthereumLegacyTx) copy() EthereumTxData {
+func (tx *EthereumLegacyTx) copy() EthereumTxData {
 	return &EthereumLegacyTx{
-		Nonce:    ltx.Nonce,
-		GasPrice: copyBigInt(ltx.GasPrice),
-		Gas:      ltx.Gas,
-		To:       ltx.To.copy(),
-		Value:    copyBigInt(ltx.Value),
-		Data:     copyBytes(ltx.Data),
-		V:        copyBigInt(ltx.V),
-		R:        copyBigInt(ltx.R),
-		S:        copyBigInt(ltx.S),
+		Nonce:    tx.Nonce,
+		GasPrice: copyBigInt(tx.GasPrice),
+		Gas:      tx.Gas,
+		To:       tx.To.copy(),
+		Value:    copyBigInt(tx.Value),
+		Data:     copyBytes(tx.Data),
+		V:        copyBigInt(tx.V),
+		R:        copyBigInt(tx.R),
+		S:        copyBigInt(tx.S),
 	}
 }
 
 // accessors for innerTx.
-func (ltx *EthereumLegacyTx) ethereumTxType() EthereumTxType { return EthereumLegacyTxType }
-func (ltx *EthereumLegacyTx) chainID() *big.Int              { return deriveChainId(ltx.V) }
-func (ltx *EthereumLegacyTx) accessList() EthereumAccessList { return nil }
-func (ltx *EthereumLegacyTx) data() []byte                   { return ltx.Data }
-func (ltx *EthereumLegacyTx) gas() uint64                    { return ltx.Gas }
-func (ltx *EthereumLegacyTx) gasPrice() *big.Int             { return ltx.GasPrice }
-func (ltx *EthereumLegacyTx) gasTipCap() *big.Int            { return ltx.GasPrice }
-func (ltx *EthereumLegacyTx) gasFeeCap() *big.Int            { return ltx.GasPrice }
-func (ltx *EthereumLegacyTx) value() *big.Int                { return ltx.Value }
-func (ltx *EthereumLegacyTx) nonce() uint64                  { return ltx.Nonce }
-func (ltx *EthereumLegacyTx) to() *EthereumAddress           { return ltx.To }
+func (tx *EthereumLegacyTx) ethereumTxType() EthereumTxType { return EthereumLegacyTxType }
+func (tx *EthereumLegacyTx) chainID() *big.Int              { return deriveChainId(tx.V) }
+func (tx *EthereumLegacyTx) accessList() EthereumAccessList { return nil }
+func (tx *EthereumLegacyTx) data() []byte                   { return tx.Data }
+func (tx *EthereumLegacyTx) gas() uint64                    { return tx.Gas }
+func (tx *EthereumLegacyTx) gasPrice() *big.Int             { return tx.GasPrice }
+func (tx *EthereumLegacyTx) gasTipCap() *big.Int            { return tx.GasPrice }
+func (tx *EthereumLegacyTx) gasFeeCap() *big.Int            { return tx.GasPrice }
+func (tx *EthereumLegacyTx) value() *big.Int                { return tx.Value }
+func (tx *EthereumLegacyTx) nonce() uint64                  { return tx.Nonce }
+func (tx *EthereumLegacyTx) to() *EthereumAddress           { return tx.To }
 
-func (ltx *EthereumLegacyTx) rawSignatureValues() (v, r, s *big.Int) {
-	return ltx.V, ltx.R, ltx.S
+func (tx *EthereumLegacyTx) rawSignatureValues() (v, r, s *big.Int) {
+	return tx.V, tx.R, tx.S
 }
 
-func (ltx *EthereumLegacyTx) setSignatureValues(chainID, v, r, s *big.Int) {
-	ltx.V, ltx.R, ltx.S = v, r, s
+func (tx *EthereumLegacyTx) setSignatureValues(chainID, v, r, s *big.Int) {
+	tx.V, tx.R, tx.S = v, r, s
 }
 
-func (ltx *EthereumLegacyTx) signerHashFastRLP(chainID *big.Int, arena *fastrlp.Arena) *fastrlp.Value {
+func (tx *EthereumLegacyTx) signerHashFastRLP(chainID *big.Int, arena *fastrlp.Arena) *fastrlp.Value {
 	values := [...]*fastrlp.Value{
-		arena.NewUint(ltx.Nonce),
-		arena.NewBigInt(ltx.GasPrice),
-		arena.NewUint(ltx.Gas),
-		arena.NewBytes(ltx.To.tryToBytes()),
-		arena.NewBigInt(ltx.Value),
-		arena.NewBytes(ltx.Data),
+		arena.NewUint(tx.Nonce),
+		arena.NewBigInt(tx.GasPrice),
+		arena.NewUint(tx.Gas),
+		arena.NewBytes(tx.To.tryToBytes()),
+		arena.NewBigInt(tx.Value),
+		arena.NewBytes(tx.Data),
 		arena.NewBigInt(chainID),
 		arena.NewUint(0),
 		arena.NewUint(0),

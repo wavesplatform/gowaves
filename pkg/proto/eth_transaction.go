@@ -14,7 +14,7 @@ import (
 )
 
 // EthereumGasPrice is a constant GasPrice which equals 10GWei according to the specification
-const EthereumGasPrice = 10 * EthereumGWei
+const EthereumGasPrice = 10 * ethereumGWei
 
 // EthereumTxType is an ethereum transaction type.
 type EthereumTxType byte
@@ -96,6 +96,7 @@ func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
 }
 
 func (tx *EthereumTransaction) GetVersion() byte {
+	// EthereumTransaction version always should be zero
 	return 0
 }
 
@@ -205,11 +206,11 @@ func (tx *EthereumTransaction) Validate(scheme Scheme) (Transaction, error) {
 	return tx, nil
 }
 
-func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
+func (tx *EthereumTransaction) GenerateID(_ Scheme) error {
 	if tx.id != nil {
 		return nil
 	}
-	body, err := MarshalTxBody(scheme, tx)
+	body, err := tx.EncodeCanonical()
 	if err != nil {
 		return err
 	}
@@ -219,7 +220,7 @@ func (tx *EthereumTransaction) GenerateID(scheme Scheme) error {
 }
 
 func (tx *EthereumTransaction) MerkleBytes(_ Scheme) ([]byte, error) {
-	return tx.BodyMarshalBinary()
+	return tx.EncodeCanonical()
 }
 
 func (tx *EthereumTransaction) Sign(_ Scheme, _ crypto.SecretKey) error {
@@ -227,54 +228,19 @@ func (tx *EthereumTransaction) Sign(_ Scheme, _ crypto.SecretKey) error {
 }
 
 func (tx *EthereumTransaction) MarshalBinary() ([]byte, error) {
-	rlpData, err := tx.BodyMarshalBinary()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal binary ethereum transaction")
-	}
-	data := make([]byte, 1+len(rlpData))
-	data[0] = byte(tx.GetTypeInfo().Type)
-	copy(data[1:], rlpData)
-	return data, nil
+	return nil, errors.New("EthereumTransaction does not support 'MarshalBinary' method.")
 }
 
-func (tx *EthereumTransaction) UnmarshalBinary(bytes []byte, scheme Scheme) error {
-	if l := len(bytes); l < 1 {
-		return errors.New("failed to UnmarshalBinary ethereum transaction, received empty data")
-	}
-	if bytes[0] != byte(tx.GetTypeInfo().Type) {
-		return errors.Errorf("incorrect transaction type %d for EthereumTransaction transaction", bytes[0])
-	}
-
-	ethereumTxCanonicalBytes := bytes[1:]
-	if err := tx.DecodeCanonical(ethereumTxCanonicalBytes); err != nil {
-		return errors.Wrap(err, "failed to UnmarshalBinary ethereum transaction from canonical representation")
-	}
-	if err := tx.GenerateID(scheme); err != nil {
-		return errors.Wrap(err, "failed to generate ID for ethereum transaction")
-	}
-	return nil
+func (tx *EthereumTransaction) UnmarshalBinary(_ []byte, _ Scheme) error {
+	return errors.New("EthereumTransaction does not support 'UnmarshalBinary' method.")
 }
 
 func (tx *EthereumTransaction) BodyMarshalBinary() ([]byte, error) {
-	bts, err := tx.EncodeCanonical()
-	if err != nil {
-		return nil, errors.Wrapf(err,
-			"failed to marshal ethereum transaction to canonical representation, ehtTxType %q",
-			tx.EthereumTxType().String(),
-		)
-	}
-	return bts, nil
-}
-
-func (tx *EthereumTransaction) bodyUnmarshalBinary(canonical []byte) error {
-	if err := tx.DecodeCanonical(canonical); err != nil {
-		return errors.Wrapf(err, "failed to unmarshal ethereum transaction from canonical representation")
-	}
-	return nil
+	return nil, errors.New("EthereumTransaction does not support 'BodyMarshalBinary' method.")
 }
 
 func (tx *EthereumTransaction) BinarySize() int {
-	return tx.GetTypeInfo().Type.BinarySize() + tx.innerBinarySize
+	return 0
 }
 
 func (tx *EthereumTransaction) MarshalToProtobuf(_ Scheme) ([]byte, error) {
@@ -310,7 +276,7 @@ func (tx *EthereumTransaction) ToProtobuf(_ Scheme) (*g.Transaction, error) {
 }
 
 func (tx *EthereumTransaction) ToProtobufSigned(_ Scheme) (*g.SignedTransaction, error) {
-	canonical, err := tx.BodyMarshalBinary()
+	canonical, err := tx.EncodeCanonical()
 	if err != nil {
 		return nil, errors.Wrapf(err,
 			"failed to marshal binary EthereumTransaction, type %q",
