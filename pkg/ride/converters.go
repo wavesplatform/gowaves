@@ -973,13 +973,18 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		return nil, err
 	}
 	r := make(rideObject)
+
+	// we have to fill it according to the spec
+	r["bodyBytes"] = rideBytes(nil)
+	r["proofs"] = proofs(proto.NewProofs())
+
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
 		r[instanceFieldName] = rideString("TransferTransaction")
 		r["version"] = rideInt(tx.GetVersion())
 		r["id"] = rideBytes(tx.ID.Bytes())
 		r["sender"] = rideAddress(sender)
-		r["senderPublicKey"] = rideBytes(common.Dup(callerPK))
+		r["senderPublicKey"] = rideBytes(callerPK)
 		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(*to))
 		r["assetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
@@ -992,15 +997,13 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		r["attachment"] = rideBytes(nil)
 		r["timestamp"] = rideInt(tx.GetTimestamp())
-		r["bodyBytes"] = rideBytes(nil)
-		r["proofs"] = proofs(nil)
-		return r, nil
+
 	case *proto.EthereumTransferAssetsErc20TxKind:
 		r[instanceFieldName] = rideString("TransferTransaction")
 		r["version"] = rideInt(tx.GetVersion())
 		r["id"] = rideBytes(tx.ID.Bytes())
 		r["sender"] = rideAddress(sender)
-		r["senderPublicKey"] = rideBytes(common.Dup(callerPK))
+		r["senderPublicKey"] = rideBytes(callerPK)
 		erc20arguments, err := GetERC20Arguments(tx.TxKind.DecodedData(), scheme)
 		if err != nil {
 			return nil, errors.Errorf("failed to receive erc20 arguments, %v", err)
@@ -1012,15 +1015,13 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		r["attachment"] = rideBytes(nil)
 		r["timestamp"] = rideInt(tx.GetTimestamp())
-		r["bodyBytes"] = rideBytes(nil)
-		r["proofs"] = proofs(nil)
-		return r, nil
+
 	case *proto.EthereumInvokeScriptTxKind:
 		r[instanceFieldName] = rideString("InvokeScriptTransaction")
 		r["version"] = rideInt(tx.GetVersion())
 		r["id"] = rideBytes(tx.ID.Bytes())
 		r["sender"] = rideAddress(sender)
-		r["senderPublicKey"] = rideBytes(common.Dup(callerPK))
+		r["senderPublicKey"] = rideBytes(callerPK)
 		r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(*to))
 
 		var scriptPayments []proto.ScriptPayment
@@ -1066,8 +1067,6 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["args"] = args
 		r["fee"] = rideInt(tx.GetFee())
 		r["timestamp"] = rideInt(tx.GetTimestamp())
-		r["bodyBytes"] = rideBytes(nil)
-		r["proofs"] = proofs(nil)
 
 	default:
 		return nil, errors.New("unknown ethereum transaction kind")
