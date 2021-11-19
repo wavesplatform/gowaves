@@ -1168,9 +1168,12 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 	}
 }
 
-func (c *ProtobufConverter) ethereumTransaction(etx []byte) (Transaction, error) {
-	//TODO: Here we have to deserialize etx bytes into EthereumTransaction (or whatever it named) business object
-	return nil, errors.New("not implemented")
+func (c *ProtobufConverter) ethereumTransaction(canonicalEthTx []byte) (Transaction, error) {
+	var tx EthereumTransaction
+	if err := tx.DecodeCanonical(canonicalEthTx); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal ethereum transaction")
+	}
+	return &tx, nil
 }
 
 func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, error) {

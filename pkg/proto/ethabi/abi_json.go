@@ -1,10 +1,10 @@
-package abi
+package ethabi
 
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/metamask/abi/fourbyte"
 )
 
 type argABI struct {
@@ -19,7 +19,7 @@ type abi struct {
 	Inputs []argABI `json:"inputs"`
 }
 
-func getArgumentABI(argType *fourbyte.Type) (argABI, error) {
+func getArgumentABI(argType *Type) (argABI, error) {
 	a := argABI{}
 	if argType == nil {
 		return a, nil
@@ -27,37 +27,60 @@ func getArgumentABI(argType *fourbyte.Type) (argABI, error) {
 
 	// this is the types that correspond with Ride
 	switch argType.T {
-	case fourbyte.TupleTy:
+	case TupleType:
 		a.Type = "tuple"
-		for i, tupleElem := range argType.TupleElems {
-			internalElem, err := getArgumentABI(&tupleElem)
+		for _, tupleElem := range argType.TupleFields {
+			internalElem, err := getArgumentABI(&tupleElem.Type)
 			if err != nil {
 				return a, errors.Errorf("failed to parse slice type, %v", err)
 			}
-			internalElem.Name = argType.TupleRawNames[i]
+			internalElem.Name = tupleElem.Name
 			a.Components = append(a.Components, internalElem)
 		}
-
-	case fourbyte.SliceTy:
+	case SliceType:
 		internalElem, err := getArgumentABI(argType.Elem)
 		if err != nil {
 			return a, errors.Errorf("failed to parse slice type, %v", err)
 		}
 		a.Type = fmt.Sprintf("%s[]", internalElem.Type)
 		a.Components = internalElem.Components
-
-	case fourbyte.StringTy: // variable arrays are written at the end of the return bytes
-		a.Type = "string"
-	case fourbyte.IntTy:
-		a.Type = "int64"
-	case fourbyte.UintTy:
-		a.Type = "uint8"
-	case fourbyte.BoolTy:
+	case IntType:
+		builder := intTextBuilder{
+			size:     argType.Size,
+			unsigned: false,
+		}
+		t, err := builder.MarshalText()
+		if err != nil {
+			return argABI{}, errors.Wrapf(err, "failed to create JSON argABI for type %q", argType.String())
+		}
+		a.Type = string(t)
+	case UintType:
+		builder := intTextBuilder{
+			size:     argType.Size,
+			unsigned: true,
+		}
+		t, err := builder.MarshalText()
+		if err != nil {
+			return argABI{}, errors.Wrapf(err, "failed to create JSON argABI for type %q", argType.String())
+		}
+		a.Type = string(t)
+	case FixedBytesType:
+		builder := fixedBytesTextBuilder{
+			size: argType.Size,
+		}
+		t, err := builder.MarshalText()
+		if err != nil {
+			return argABI{}, errors.Wrapf(err, "failed to create JSON argABI for type %q", argType.String())
+		}
+		a.Type = string(t)
+	case BoolType:
 		a.Type = "bool"
-	case fourbyte.AddressTy:
+	case AddressType:
+		a.Type = "address"
+	case BytesType:
 		a.Type = "bytes"
-	case fourbyte.BytesTy:
-		a.Type = "bytes"
+	case StringType:
+		a.Type = "string"
 	default:
 		return a, errors.Errorf("abi: unknown type %s", a.Type)
 	}
@@ -65,7 +88,7 @@ func getArgumentABI(argType *fourbyte.Type) (argABI, error) {
 	return a, nil
 }
 
-func getJsonAbi(metaDApp []fourbyte.Method) ([]byte, error) {
+func getJsonAbi(metaDApp []Method) ([]byte, error) {
 	var abiResult []abi
 
 	for _, method := range metaDApp {

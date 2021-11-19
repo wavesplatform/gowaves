@@ -341,7 +341,7 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 	return nil
 }
 
-func (a *txAppender) verifyTxSigAndData(tx proto.Transaction, params *appendTxParams, accountHasVerifierScript bool) error {
+func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appendTxParams, accountHasVerifierScript bool) error {
 	// Detect what signatures must be checked for this transaction.
 	// For transaction with SmartAccount we don't check signature.
 	checkTxSig := !accountHasVerifierScript
@@ -400,17 +400,27 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		return errs.Extend(err, "check duplicate tx ids")
 	}
 	// Verify tx signature and internal data correctness.
-	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	senderAddr, err := tx.GetSender(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return errs.Extend(err, "failed to get sender addr by pk")
 	}
-	accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !params.initialisation)
+
+	// senderWavesAddr needs only for newestAccountHasVerifier check
+	senderWavesAddr, err := senderAddr.ToWavesAddress(a.settings.AddressSchemeCharacter)
+	if err != nil {
+		return errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
+	}
+	accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr, !params.initialisation)
 	if err != nil {
 		return errs.Extend(err, "account has verifier")
 	}
-	if err := a.verifyTxSigAndData(tx, params, accountHasVerifierScript); err != nil {
-		return errs.Extend(err, "tx signature or data verification failed")
+
+	if _, ok := senderAddr.(proto.WavesAddress); ok {
+		if err := a.verifyWavesTxSigAndData(tx, params, accountHasVerifierScript); err != nil {
+			return errs.Extend(err, "tx signature or data verification failed")
+		}
 	}
+
 	// Check tx against state, check tx scripts, calculate balance changes.
 	var applicationRes *applicationResult
 	needToValidateBalanceDiff := false

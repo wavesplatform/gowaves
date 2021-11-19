@@ -42,7 +42,7 @@ type IssueWithSig struct {
 	Issue
 }
 
-func (tx *IssueWithSig) Validate() (Transaction, error) {
+func (tx *IssueWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for IssueWithSig", tx.Version)
 	}
@@ -77,6 +77,10 @@ func (tx *IssueWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *IssueWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx *IssueWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -88,9 +92,7 @@ func (tx *IssueWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *IssueWithSig) Clone() *IssueWithSig {
 	out := &IssueWithSig{}
-	if err := copier.Copy(out, tx); err != nil {
-		panic(err.Error())
-	}
+	_ = copier.Copy(out, tx)
 	return out
 }
 
@@ -239,7 +241,7 @@ func (tx *IssueWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *IssueWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.Issue.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -275,7 +277,7 @@ func (tx TransferWithSig) GetProofs() *ProofsV1 {
 	return NewProofsFromSignature(tx.Signature)
 }
 
-func (tx *TransferWithSig) Validate() (Transaction, error) {
+func (tx *TransferWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for TransferWithSig", tx.Version)
 	}
@@ -308,6 +310,10 @@ func (tx *TransferWithSig) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *TransferWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx *TransferWithSig) GetID(scheme Scheme) ([]byte, error) {
@@ -512,7 +518,7 @@ func (tx *TransferWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *TransferWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData, err := tx.Transfer.ToProtobuf()
 	if err != nil {
 		return nil, err
@@ -567,7 +573,7 @@ type ReissueWithSig struct {
 	Reissue
 }
 
-func (tx *ReissueWithSig) Validate() (Transaction, error) {
+func (tx *ReissueWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for ReissueWithSig", tx.Version)
 	}
@@ -600,6 +606,10 @@ func (tx *ReissueWithSig) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *ReissueWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx *ReissueWithSig) GetID(scheme Scheme) ([]byte, error) {
@@ -766,7 +776,7 @@ func (tx *ReissueWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *ReissueWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.Reissue.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -800,7 +810,7 @@ type BurnWithSig struct {
 	Burn
 }
 
-func (tx *BurnWithSig) Validate() (Transaction, error) {
+func (tx *BurnWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for BurnWithSig", tx.Version)
 	}
@@ -833,6 +843,10 @@ func (tx *BurnWithSig) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *BurnWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx *BurnWithSig) GetID(scheme Scheme) ([]byte, error) {
@@ -989,7 +1003,7 @@ func (tx *BurnWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *BurnWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.Burn.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -1053,6 +1067,10 @@ func (tx *ExchangeWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *ExchangeWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx *ExchangeWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -1072,6 +1090,10 @@ func (tx *ExchangeWithSig) Clone() *ExchangeWithSig {
 
 func (tx ExchangeWithSig) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx ExchangeWithSig) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx ExchangeWithSig) GetBuyOrder() (Order, error) {
@@ -1129,7 +1151,7 @@ func NewUnsignedExchangeWithSig(buy, sell *OrderV1, price, amount, buyMatcherFee
 	}
 }
 
-func (tx *ExchangeWithSig) Validate() (Transaction, error) {
+func (tx *ExchangeWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for ExchangeWithSig", tx.Version)
 	}
@@ -1456,7 +1478,7 @@ func (tx *ExchangeWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 		Orders:         orders,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -1486,7 +1508,7 @@ type LeaseWithSig struct {
 	Lease
 }
 
-func (tx *LeaseWithSig) Validate() (Transaction, error) {
+func (tx *LeaseWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for LeaseWithSig", tx.Version)
 	}
@@ -1519,6 +1541,10 @@ func (tx *LeaseWithSig) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *LeaseWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx *LeaseWithSig) GetID(scheme Scheme) ([]byte, error) {
@@ -1682,7 +1708,7 @@ func (tx *LeaseWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *LeaseWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData, err := tx.Lease.ToProtobuf()
 	if err != nil {
 		return nil, err
@@ -1717,7 +1743,7 @@ type LeaseCancelWithSig struct {
 	LeaseCancel
 }
 
-func (tx *LeaseCancelWithSig) Validate() (Transaction, error) {
+func (tx *LeaseCancelWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for LeaseCancelWithSig", tx.Version)
 	}
@@ -1750,6 +1776,10 @@ func (tx *LeaseCancelWithSig) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *LeaseCancelWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx *LeaseCancelWithSig) GetID(scheme Scheme) ([]byte, error) {
@@ -1909,7 +1939,7 @@ func (tx *LeaseCancelWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *LeaseCancelWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.LeaseCancel.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -1940,7 +1970,7 @@ type CreateAliasWithSig struct {
 	CreateAlias
 }
 
-func (tx *CreateAliasWithSig) Validate() (Transaction, error) {
+func (tx *CreateAliasWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for CreateAliasWithSig", tx.Version)
 	}
@@ -1982,6 +2012,10 @@ func (tx *CreateAliasWithSig) GenerateID(scheme Scheme) error {
 	}
 	tx.ID = id
 	return nil
+}
+
+func (tx *CreateAliasWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx *CreateAliasWithSig) GetID(scheme Scheme) ([]byte, error) {
@@ -2162,7 +2196,7 @@ func (tx *CreateAliasWithSig) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *CreateAliasWithSig) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.CreateAlias.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee

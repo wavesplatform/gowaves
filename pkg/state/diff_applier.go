@@ -55,8 +55,14 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, filter, v
 		// Check for negative balance.
 		newProfile, err := diff.applyTo(profile)
 		if err != nil {
-			return errs.NewAccountBalanceError(fmt.Sprintf("failed to apply waves balance change for addr %s: %v\n",
-				k.address.ToWavesAddress(a.scheme).String(), err,
+			addr, convertErr := k.address.ToWavesAddress(a.scheme)
+			if convertErr != nil {
+				return errs.NewAccountBalanceError(fmt.Sprintf(
+					"failed to convert AddressID to WavesAddress (%v) and apply waves balance change: %v", convertErr, err,
+				))
+			}
+			return errs.NewAccountBalanceError(fmt.Sprintf(
+				"failed to apply waves balance change for addr %s: %v", addr.String(), err,
 			))
 		}
 		if validateOnly {

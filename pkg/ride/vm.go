@@ -9,7 +9,7 @@ import (
 type frame struct {
 	function bool
 	back     int
-	args     []RideType
+	args     []rideType
 }
 
 func newExpressionFrame(pos int) frame {
@@ -18,7 +18,7 @@ func newExpressionFrame(pos int) frame {
 	}
 }
 
-func newFunctionFrame(pos int, args []RideType) frame {
+func newFunctionFrame(pos int, args []rideType) frame {
 	return frame{
 		function: true,
 		back:     pos,
@@ -30,10 +30,10 @@ type vm struct {
 	env          Environment
 	code         []byte
 	ip           int
-	constants    []RideType
+	constants    []rideType
 	functions    func(int) rideFunction
 	globals      func(int) rideConstructor
-	stack        []RideType
+	stack        []rideType
 	calls        []frame
 	functionName func(int) string
 }
@@ -58,15 +58,15 @@ func (m *vm) run() (Result, error) {
 				return nil, errors.Wrap(err, "failed to pop value")
 			}
 		case OpTrue:
-			m.push(RideBoolean(true))
+			m.push(rideBoolean(true))
 		case OpFalse:
-			m.push(RideBoolean(false))
+			m.push(rideBoolean(false))
 		case OpJump:
 			pos := m.arg16()
 			m.ip = pos
 		case OpJumpIfFalse:
 			pos := m.arg16()
-			v, ok := m.current().(RideBoolean)
+			v, ok := m.current().(rideBoolean)
 			if !ok {
 				return nil, errors.Errorf("not a boolean value '%v' of type '%T'", m.current(), m.current())
 			}
@@ -79,7 +79,7 @@ func (m *vm) run() (Result, error) {
 				return nil, errors.Wrap(err, "failed to get object")
 			}
 			prop := m.constant()
-			p, ok := prop.(RideString)
+			p, ok := prop.(rideString)
 			if !ok {
 				return nil, errors.Errorf("invalid property name type '%s'", prop.instanceOf())
 			}
@@ -91,7 +91,7 @@ func (m *vm) run() (Result, error) {
 		case OpCall:
 			pos := m.arg16()
 			cnt := m.arg16()
-			in := make([]RideType, cnt)
+			in := make([]rideType, cnt)
 			for i := cnt - 1; i >= 0; i-- {
 				v, err := m.pop()
 				if err != nil {
@@ -106,7 +106,7 @@ func (m *vm) run() (Result, error) {
 			// Before calling external function all parameters must be evaluated and placed on stack
 			id := m.arg16()
 			cnt := m.arg16()
-			in := make([]RideType, cnt) // Prepare input parameters for external call
+			in := make([]rideType, cnt) // Prepare input parameters for external call
 			for i := cnt - 1; i >= 0; i-- {
 				v, err := m.pop()
 				if err != nil {
@@ -154,7 +154,7 @@ func (m *vm) run() (Result, error) {
 					return nil, errors.Wrap(err, "failed to get result value")
 				}
 				switch tv := v.(type) {
-				case RideBoolean:
+				case rideBoolean:
 					return ScriptResult{res: bool(tv)}, nil
 				default:
 					return nil, errors.Errorf("unexpected result value '%v' of type '%T'", v, v)
@@ -173,11 +173,11 @@ func (m *vm) run() (Result, error) {
 	return nil, errors.New("broken code")
 }
 
-func (m *vm) push(v RideType) {
+func (m *vm) push(v rideType) {
 	m.stack = append(m.stack, v)
 }
 
-func (m *vm) pop() (RideType, error) {
+func (m *vm) pop() (rideType, error) {
 	if len(m.stack) == 0 {
 		return nil, errors.New("empty callStack")
 	}
@@ -186,7 +186,7 @@ func (m *vm) pop() (RideType, error) {
 	return value, nil
 }
 
-func (m *vm) current() RideType {
+func (m *vm) current() rideType {
 	return m.stack[len(m.stack)-1]
 }
 
@@ -197,7 +197,7 @@ func (m *vm) arg16() int {
 	return int(res)
 }
 
-func (m *vm) constant() RideType {
+func (m *vm) constant() rideType {
 	//TODO: add check
 	return m.constants[m.arg16()]
 }

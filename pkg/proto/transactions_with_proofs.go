@@ -109,7 +109,7 @@ func (tx *IssueWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *IssueWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.Issue.ToProtobuf()
 	txData.Issue.Script = tx.Script
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
@@ -152,6 +152,10 @@ func (tx *IssueWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *IssueWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx *IssueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -192,7 +196,7 @@ func validScriptVersion(v byte) bool {
 	return v <= topRideVersion
 }
 
-func (tx *IssueWithProofs) Validate() (Transaction, error) {
+func (tx *IssueWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxIssueTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for IssueWithProofs", tx.Version)
 	}
@@ -454,7 +458,7 @@ func (tx *TransferWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *TransferWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData, err := tx.Transfer.ToProtobuf()
 	if err != nil {
 		return nil, err
@@ -499,6 +503,10 @@ func (tx *TransferWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *TransferWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx *TransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -531,7 +539,7 @@ func NewUnsignedTransferWithProofs(v byte, senderPK crypto.PublicKey, amountAsse
 	return &TransferWithProofs{Type: TransferTransaction, Version: v, Transfer: t}
 }
 
-func (tx *TransferWithProofs) Validate() (Transaction, error) {
+func (tx *TransferWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxTransferTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for TransferWithProofs", tx.Version)
 	}
@@ -765,7 +773,7 @@ func (tx *ReissueWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *ReissueWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.Reissue.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -807,6 +815,10 @@ func (tx *ReissueWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *ReissueWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx *ReissueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -837,7 +849,7 @@ func NewUnsignedReissueWithProofs(v, chainID byte, senderPK crypto.PublicKey, as
 	return &ReissueWithProofs{Type: ReissueTransaction, Version: v, ChainID: chainID, Reissue: r}
 }
 
-func (tx *ReissueWithProofs) Validate() (Transaction, error) {
+func (tx *ReissueWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxReissueTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for ReissueWithProofs", tx.Version)
 	}
@@ -1010,7 +1022,7 @@ func (tx *BurnWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *BurnWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.Burn.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -1052,6 +1064,10 @@ func (tx *BurnWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *BurnWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx *BurnWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -1081,7 +1097,7 @@ func NewUnsignedBurnWithProofs(v, chainID byte, senderPK crypto.PublicKey, asset
 	return &BurnWithProofs{Type: BurnTransaction, Version: v, ChainID: chainID, Burn: b}
 }
 
-func (tx *BurnWithProofs) Validate() (Transaction, error) {
+func (tx *BurnWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxBurnTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for BurnWithProofs", tx.Version)
 	}
@@ -1280,7 +1296,7 @@ func (tx *ExchangeWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) 
 		Orders:         orders,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -1320,6 +1336,10 @@ func (tx *ExchangeWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *ExchangeWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx *ExchangeWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -1339,6 +1359,10 @@ func (tx *ExchangeWithProofs) Clone() *ExchangeWithProofs {
 
 func (tx ExchangeWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx ExchangeWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx ExchangeWithProofs) GetBuyOrder() (Order, error) {
@@ -1408,7 +1432,7 @@ func NewUnsignedExchangeWithProofs(v byte, buy, sell Order, price, amount, buyMa
 	}
 }
 
-func (tx *ExchangeWithProofs) Validate() (Transaction, error) {
+func (tx *ExchangeWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxExchangeTransactionVersion {
 		return tx, errors.Errorf("unexpected transaction version %d for ExchangeWithProofs transaction", tx.Version)
 	}
@@ -1813,7 +1837,7 @@ type LeaseWithProofs struct {
 	Lease
 }
 
-func (tx *LeaseWithProofs) Validate() (Transaction, error) {
+func (tx *LeaseWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxLeaseTransactionVersion {
 		return tx, errors.Errorf("unexpected transaction version %d for LeaseWithProofs transaction", tx.Version)
 	}
@@ -1864,7 +1888,7 @@ func (tx *LeaseWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *LeaseWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData, err := tx.Lease.ToProtobuf()
 	if err != nil {
 		return nil, err
@@ -1907,6 +1931,10 @@ func (tx *LeaseWithProofs) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *LeaseWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx *LeaseWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -2097,7 +2125,7 @@ func (tx *LeaseCancelWithProofs) UnmarshalSignedFromProtobuf(data []byte) error 
 }
 
 func (tx *LeaseCancelWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.LeaseCancel.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -2139,6 +2167,10 @@ func (tx *LeaseCancelWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *LeaseCancelWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx *LeaseCancelWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
@@ -2167,7 +2199,7 @@ func NewUnsignedLeaseCancelWithProofs(v, chainID byte, senderPK crypto.PublicKey
 	return &LeaseCancelWithProofs{Type: LeaseCancelTransaction, Version: v, ChainID: chainID, LeaseCancel: lc}
 }
 
-func (tx *LeaseCancelWithProofs) Validate() (Transaction, error) {
+func (tx *LeaseCancelWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxLeaseCancelTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for LeaseCancelWithProofs", tx.Version)
 	}
@@ -2297,7 +2329,7 @@ type CreateAliasWithProofs struct {
 	CreateAlias
 }
 
-func (tx *CreateAliasWithProofs) Validate() (Transaction, error) {
+func (tx *CreateAliasWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxCreateAliasTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for CreateAliasWithProofs", tx.Version)
 	}
@@ -2348,7 +2380,7 @@ func (tx *CreateAliasWithProofs) UnmarshalSignedFromProtobuf(data []byte) error 
 }
 
 func (tx *CreateAliasWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := tx.CreateAlias.ToProtobuf()
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
 	res.Fee = fee
@@ -2397,6 +2429,10 @@ func (tx *CreateAliasWithProofs) GenerateID(scheme Scheme) error {
 	}
 	tx.ID = id
 	return nil
+}
+
+func (tx *CreateAliasWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx *CreateAliasWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -2658,8 +2694,16 @@ func (tx *MassTransferWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *MassTransferWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx MassTransferWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx MassTransferWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx *MassTransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -2684,7 +2728,7 @@ func NewUnsignedMassTransferWithProofs(v byte, senderPK crypto.PublicKey, asset 
 	return &MassTransferWithProofs{Type: MassTransferTransaction, Version: v, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: attachment}
 }
 
-func (tx *MassTransferWithProofs) Validate() (Transaction, error) {
+func (tx *MassTransferWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxMassTransferTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for MassTransferWithProofs", tx.Version)
 	}
@@ -2940,7 +2984,7 @@ func (tx *MassTransferWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, err
 		Attachment: tx.Attachment,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -3031,8 +3075,16 @@ func (tx *DataWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *DataWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx DataWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx DataWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx *DataWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -3064,7 +3116,7 @@ func NewUnsignedData(v byte, senderPK crypto.PublicKey, fee, timestamp uint64) *
 	return &DataWithProofs{Type: DataTransaction, Version: v, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *DataWithProofs) Validate() (Transaction, error) {
+func (tx *DataWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxDataTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for DataWithProofs", tx.Version)
 	}
@@ -3346,7 +3398,7 @@ func (tx *DataWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 		Data: entries,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -3416,8 +3468,16 @@ func (tx *SetScriptWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *SetScriptWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx SetScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx SetScriptWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx *SetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -3442,7 +3502,7 @@ func NewUnsignedSetScriptWithProofs(v byte, chain byte, senderPK crypto.PublicKe
 	return &SetScriptWithProofs{Type: SetScriptTransaction, Version: v, ChainID: chain, SenderPK: senderPK, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *SetScriptWithProofs) Validate() (Transaction, error) {
+func (tx *SetScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxSetScriptTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for SetScriptWithProofs", tx.Version)
 	}
@@ -3639,7 +3699,7 @@ func (tx *SetScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error)
 		Script: tx.Script,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -3696,8 +3756,16 @@ func (tx *SponsorshipWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *SponsorshipWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx SponsorshipWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx SponsorshipWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx *SponsorshipWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -3730,7 +3798,7 @@ func NewUnsignedSponsorshipWithProofs(v byte, senderPK crypto.PublicKey, assetID
 	return &SponsorshipWithProofs{Type: SponsorshipTransaction, Version: v, SenderPK: senderPK, AssetID: assetID, MinAssetFee: minAssetFee, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *SponsorshipWithProofs) Validate() (Transaction, error) {
+func (tx *SponsorshipWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxSponsorshipTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for SponsorshipWithProofs", tx.Version)
 	}
@@ -3914,7 +3982,7 @@ func (tx *SponsorshipWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, erro
 		MinFee: &g.Amount{AssetId: tx.AssetID.Bytes(), Amount: int64(tx.MinAssetFee)},
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -3976,8 +4044,16 @@ func (tx *SetAssetScriptWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *SetAssetScriptWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx SetAssetScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx SetAssetScriptWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx *SetAssetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -4010,7 +4086,7 @@ func NewUnsignedSetAssetScriptWithProofs(v, chain byte, senderPK crypto.PublicKe
 	return &SetAssetScriptWithProofs{Type: SetAssetScriptTransaction, Version: v, ChainID: chain, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *SetAssetScriptWithProofs) Validate() (Transaction, error) {
+func (tx *SetAssetScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxSetAssetScriptTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for SetAssetScriptWithProofs", tx.Version)
 	}
@@ -4213,7 +4289,7 @@ func (tx *SetAssetScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, e
 		Script:  tx.Script,
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -4264,6 +4340,10 @@ func (tx *InvokeScriptWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *InvokeScriptWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx InvokeScriptWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
 }
@@ -4274,6 +4354,10 @@ func (tx InvokeScriptWithProofs) GetVersion() byte {
 
 func (tx InvokeScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx InvokeScriptWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx *InvokeScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
@@ -4317,7 +4401,7 @@ func NewUnsignedInvokeScriptWithProofs(v, chain byte, senderPK crypto.PublicKey,
 	}
 }
 
-func (tx *InvokeScriptWithProofs) Validate() (Transaction, error) {
+func (tx *InvokeScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxInvokeScriptTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for InvokeScriptWithProofs", tx.Version)
 	}
@@ -4634,7 +4718,7 @@ func (tx *InvokeScriptWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, err
 		Payments:     payments,
 	}}
 	fee := &g.Amount{AssetId: tx.FeeAsset.ToID(), Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -4690,6 +4774,10 @@ func (tx UpdateAssetInfoWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
 
+func (tx UpdateAssetInfoWithProofs) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
+}
+
 func (tx UpdateAssetInfoWithProofs) GetFee() uint64 {
 	return tx.Fee
 }
@@ -4698,7 +4786,7 @@ func (tx UpdateAssetInfoWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func (tx *UpdateAssetInfoWithProofs) Validate() (Transaction, error) {
+func (tx *UpdateAssetInfoWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxUpdateAssetInfoTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for UpdateAssetInfoWithProofs", tx.Version)
 	}
@@ -4727,6 +4815,10 @@ func (tx *UpdateAssetInfoWithProofs) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *UpdateAssetInfoWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx *UpdateAssetInfoWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
@@ -4823,7 +4915,7 @@ func (tx *UpdateAssetInfoWithProofs) UnmarshalSignedFromProtobuf(data []byte) er
 }
 
 func (tx *UpdateAssetInfoWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	txData := &g.Transaction_UpdateAssetInfo{
 		UpdateAssetInfo: &g.UpdateAssetInfoTransactionData{AssetId: tx.AssetID.Bytes(), Name: tx.Name, Description: tx.Description},
 	}

@@ -11,21 +11,21 @@ import (
 
 const maxMessageLength = 32 * 1024
 
-func stringArg(args []RideType) (RideString, error) {
+func stringArg(args []rideType) (rideString, error) {
 	if len(args) != 1 {
 		return "", errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
 	}
 	if args[0] == nil {
 		return "", errors.Errorf("argument 1 is empty")
 	}
-	s, ok := args[0].(RideString)
+	s, ok := args[0].(rideString)
 	if !ok {
 		return "", errors.Errorf("argument 1 is not of type 'String' but '%s'", args[0].instanceOf())
 	}
 	return s, nil
 }
 
-func stringAndIntArgs(args []RideType) (string, int, error) {
+func stringAndIntArgs(args []rideType) (string, int, error) {
 	if len(args) != 2 {
 		return "", 0, errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
 	}
@@ -35,18 +35,18 @@ func stringAndIntArgs(args []RideType) (string, int, error) {
 	if args[1] == nil {
 		return "", 0, errors.Errorf("argument 2 is empty")
 	}
-	s, ok := args[0].(RideString)
+	s, ok := args[0].(rideString)
 	if !ok {
 		return "", 0, errors.Errorf("argument 1 is not of type 'String' but '%s'", args[0].instanceOf())
 	}
-	i, ok := args[1].(RideInt)
+	i, ok := args[1].(rideInt)
 	if !ok {
 		return "", 0, errors.Errorf("argument 2 is not of type 'Int' but '%s'", args[1].instanceOf())
 	}
 	return string(s), int(i), nil
 }
 
-func twoStringsAndIntArgs(args []RideType) (string, string, int, error) {
+func twoStringsAndIntArgs(args []rideType) (string, string, int, error) {
 	if len(args) != 3 {
 		return "", "", 0, errors.Errorf("invalid number of arguments %d, expected 3", len(args))
 	}
@@ -59,22 +59,22 @@ func twoStringsAndIntArgs(args []RideType) (string, string, int, error) {
 	if args[2] == nil {
 		return "", "", 0, errors.Errorf("argument 3 is empty")
 	}
-	s1, ok := args[0].(RideString)
+	s1, ok := args[0].(rideString)
 	if !ok {
 		return "", "", 0, errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
 	}
-	s2, ok := args[1].(RideString)
+	s2, ok := args[1].(rideString)
 	if !ok {
 		return "", "", 0, errors.Errorf("unexpected type of argument 2 '%s'", args[1].instanceOf())
 	}
-	i, ok := args[2].(RideInt)
+	i, ok := args[2].(rideInt)
 	if !ok {
 		return "", "", 0, errors.Errorf("unexpected type of argument 3 '%s'", args[2].instanceOf())
 	}
 	return string(s1), string(s2), int(i), nil
 }
 
-func twoStringsArgs(args []RideType) (string, string, error) {
+func twoStringsArgs(args []rideType) (string, string, error) {
 	if len(args) != 2 {
 		return "", "", errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
 	}
@@ -84,18 +84,18 @@ func twoStringsArgs(args []RideType) (string, string, error) {
 	if args[1] == nil {
 		return "", "", errors.Errorf("argument 2 is empty")
 	}
-	s1, ok := args[0].(RideString)
+	s1, ok := args[0].(rideString)
 	if !ok {
 		return "", "", errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
 	}
-	s2, ok := args[1].(RideString)
+	s2, ok := args[1].(rideString)
 	if !ok {
 		return "", "", errors.Errorf("unexpected type of argument 2 '%s'", args[1].instanceOf())
 	}
 	return string(s1), string(s2), nil
 }
 
-func concatStrings(_ Environment, args ...RideType) (RideType, error) {
+func concatStrings(_ Environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "concatStrings")
@@ -109,10 +109,10 @@ func concatStrings(_ Environment, args ...RideType) (RideType, error) {
 	if lengthInRunes > maxMessageLength {
 		return nil, errors.Errorf("concatStrings: length of result (%d) is greater than allowed (%d)", lengthInRunes, maxMessageLength)
 	}
-	return RideString(out), nil
+	return rideString(out), nil
 }
 
-func takeString(env Environment, args ...RideType) (RideType, error) {
+func takeString(env Environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeString")
@@ -120,7 +120,7 @@ func takeString(env Environment, args ...RideType) (RideType, error) {
 	return env.takeString(s, n), nil
 }
 
-func dropString(_ Environment, args ...RideType) (RideType, error) {
+func dropString(_ Environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropString")
@@ -128,15 +128,15 @@ func dropString(_ Environment, args ...RideType) (RideType, error) {
 	return dropRideString(s, n), nil
 }
 
-func sizeString(_ Environment, args ...RideType) (RideType, error) {
+func sizeString(_ Environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sizeString")
 	}
-	return RideInt(utf8.RuneCountInString(string(s))), nil
+	return rideInt(utf8.RuneCountInString(string(s))), nil
 }
 
-func indexOfSubstring(_ Environment, args ...RideType) (RideType, error) {
+func indexOfSubstring(_ Environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "indexOfSubstring")
@@ -145,10 +145,10 @@ func indexOfSubstring(_ Environment, args ...RideType) (RideType, error) {
 	if i == -1 {
 		return rideUnit{}, nil
 	}
-	return RideInt(i), nil
+	return rideInt(i), nil
 }
 
-func indexOfSubstringWithOffset(_ Environment, args ...RideType) (RideType, error) {
+func indexOfSubstringWithOffset(_ Environment, args ...rideType) (rideType, error) {
 	s1, s2, n, err := twoStringsAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "lastIndexOfSubstringWithOffset")
@@ -160,18 +160,18 @@ func indexOfSubstringWithOffset(_ Environment, args ...RideType) (RideType, erro
 	if i == -1 {
 		return rideUnit{}, nil
 	}
-	return RideInt(i + n), nil
+	return rideInt(i + n), nil
 }
 
-func stringToBytes(_ Environment, args ...RideType) (RideType, error) {
+func stringToBytes(_ Environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "stringToBytes")
 	}
-	return RideBytes(s), nil
+	return rideBytes(s), nil
 }
 
-func dropRightString(_ Environment, args ...RideType) (RideType, error) {
+func dropRightString(_ Environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropRightString")
@@ -179,7 +179,7 @@ func dropRightString(_ Environment, args ...RideType) (RideType, error) {
 	return takeRideString(s, utf8.RuneCountInString(s)-n), nil
 }
 
-func takeRightString(_ Environment, args ...RideType) (RideType, error) {
+func takeRightString(_ Environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeRightString")
@@ -187,19 +187,19 @@ func takeRightString(_ Environment, args ...RideType) (RideType, error) {
 	return dropRideString(s, utf8.RuneCountInString(s)-n), nil
 }
 
-func splitString(_ Environment, args ...RideType) (RideType, error) {
+func splitString(_ Environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "splitString")
 	}
-	r := make(RideList, 0)
+	r := make(rideList, 0)
 	for _, p := range strings.Split(s1, s2) {
-		r = append(r, RideString(p))
+		r = append(r, rideString(p))
 	}
 	return r, nil
 }
 
-func parseInt(_ Environment, args ...RideType) (RideType, error) {
+func parseInt(_ Environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "parseInt")
@@ -208,10 +208,10 @@ func parseInt(_ Environment, args ...RideType) (RideType, error) {
 	if err != nil {
 		return rideUnit{}, nil
 	}
-	return RideInt(i), nil
+	return rideInt(i), nil
 }
 
-func parseIntValue(env Environment, args ...RideType) (RideType, error) {
+func parseIntValue(env Environment, args ...rideType) (rideType, error) {
 	maybeInt, err := parseInt(env, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "parseIntValue")
@@ -219,7 +219,7 @@ func parseIntValue(env Environment, args ...RideType) (RideType, error) {
 	return extractValue(maybeInt)
 }
 
-func lastIndexOfSubstring(_ Environment, args ...RideType) (RideType, error) {
+func lastIndexOfSubstring(_ Environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "lastIndexOfSubstring")
@@ -228,10 +228,10 @@ func lastIndexOfSubstring(_ Environment, args ...RideType) (RideType, error) {
 	if i == -1 {
 		return rideUnit{}, nil
 	}
-	return RideInt(i), nil
+	return rideInt(i), nil
 }
 
-func lastIndexOfSubstringWithOffset(_ Environment, args ...RideType) (RideType, error) {
+func lastIndexOfSubstringWithOffset(_ Environment, args ...rideType) (rideType, error) {
 	s1, s2, n, err := twoStringsAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "lastIndexOfSubstringWithOffset")
@@ -246,14 +246,14 @@ func lastIndexOfSubstringWithOffset(_ Environment, args ...RideType) (RideType, 
 	if i == -1 {
 		return rideUnit{}, nil
 	}
-	return RideInt(i), nil
+	return rideInt(i), nil
 }
 
-func makeString(_ Environment, args ...RideType) (RideType, error) {
+func makeString(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}
-	list, ok := args[0].(RideList)
+	list, ok := args[0].(rideList)
 	if !ok {
 		return nil, errors.Errorf("makeString: unexpected argument type '%s'", args[0].instanceOf())
 	}
@@ -261,7 +261,7 @@ func makeString(_ Environment, args ...RideType) (RideType, error) {
 	pl := 0
 	pc := 0
 	for i, item := range list {
-		s, ok := item.(RideString)
+		s, ok := item.(rideString)
 		if !ok {
 			return nil, errors.Errorf("makeString: unexpected list item type '%s'", item.instanceOf())
 		}
@@ -270,7 +270,7 @@ func makeString(_ Environment, args ...RideType) (RideType, error) {
 		pl += len(str)
 		pc++
 	}
-	s, ok := args[1].(RideString)
+	s, ok := args[1].(rideString)
 	if !ok {
 		return nil, errors.Errorf("makeString: unexpected argument type '%s'", args[1].instanceOf())
 	}
@@ -282,15 +282,15 @@ func makeString(_ Environment, args ...RideType) (RideType, error) {
 	if expectedLength > maxMessageLength {
 		return nil, errors.Errorf("makeString: resulting length %d exceeds maximum allowed %d", expectedLength, maxMessageLength)
 	}
-	return RideString(strings.Join(parts, sep)), nil
+	return rideString(strings.Join(parts, sep)), nil
 }
 
-func contains(_ Environment, args ...RideType) (RideType, error) {
+func contains(_ Environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "contains")
 	}
-	return RideBoolean(strings.Contains(s1, s2)), nil
+	return rideBoolean(strings.Contains(s1, s2)), nil
 }
 
 func runesIndex(s, sub string) int {
@@ -315,7 +315,7 @@ func runesTake(s string, n int) string {
 	return string(out)
 }
 
-func takeRideString(s string, n int) RideString {
+func takeRideString(s string, n int) rideString {
 	l := utf8.RuneCountInString(s)
 	t := n
 	if t > l {
@@ -324,11 +324,11 @@ func takeRideString(s string, n int) RideString {
 	if t < 0 {
 		t = 0
 	}
-	return RideString(runesTake(s, t))
+	return rideString(runesTake(s, t))
 }
 
 // This is the WRONG implementation of takeString function that handles runes in UTF-8 string INCORRECT
-func takeRideStringWrong(s string, n int) RideString {
+func takeRideStringWrong(s string, n int) rideString {
 	b := utf16.Encode([]rune(s))
 	l := len(b)
 	t := n
@@ -338,10 +338,10 @@ func takeRideStringWrong(s string, n int) RideString {
 	if t < 0 {
 		t = 0
 	}
-	return RideString(strings.ReplaceAll(string(utf16.Decode(b[:t])), "�", "?"))
+	return rideString(strings.ReplaceAll(string(utf16.Decode(b[:t])), "�", "?"))
 }
 
-func dropRideString(s string, n int) RideString {
+func dropRideString(s string, n int) rideString {
 	l := utf8.RuneCountInString(s)
 	d := n
 	if d > l {
@@ -350,5 +350,5 @@ func dropRideString(s string, n int) RideString {
 	if d < 0 {
 		d = 0
 	}
-	return RideString(runesDrop(s, d))
+	return rideString(runesDrop(s, d))
 }

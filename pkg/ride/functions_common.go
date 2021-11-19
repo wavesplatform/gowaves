@@ -8,7 +8,7 @@ import (
 
 const defaultThrowMessage = "Explicit script termination"
 
-func checkArgs(args []RideType, count int) error {
+func checkArgs(args []rideType, count int) error {
 	if len(args) != count {
 		return errors.Errorf("%d is invalid number of arguments, expected %d", len(args), count)
 	}
@@ -20,32 +20,32 @@ func checkArgs(args []RideType, count int) error {
 	return nil
 }
 
-func eq(_ Environment, args ...RideType) (RideType, error) {
+func eq(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "eq")
 	}
-	return RideBoolean(args[0].eq(args[1])), nil
+	return rideBoolean(args[0].eq(args[1])), nil
 }
 
-func neq(_ Environment, args ...RideType) (RideType, error) {
+func neq(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "neq")
 	}
-	return RideBoolean(!args[0].eq(args[1])), nil
+	return rideBoolean(!args[0].eq(args[1])), nil
 }
 
-func instanceOf(_ Environment, args ...RideType) (RideType, error) {
+func instanceOf(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "instanceOf")
 	}
-	t, ok := args[1].(RideString)
+	t, ok := args[1].(rideString)
 	if !ok {
 		return nil, errors.Errorf("instanceOf: second argument is not a String value but '%s'", args[1].instanceOf())
 	}
-	return RideBoolean(args[0].instanceOf() == string(t)), nil
+	return rideBoolean(args[0].instanceOf() == string(t)), nil
 }
 
-func extract(_ Environment, args ...RideType) (RideType, error) {
+func extract(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "extract")
 	}
@@ -55,17 +55,17 @@ func extract(_ Environment, args ...RideType) (RideType, error) {
 	return args[0], nil
 }
 
-func isDefined(_ Environment, args ...RideType) (RideType, error) {
+func isDefined(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "isDefined")
 	}
 	if args[0].instanceOf() == "Unit" {
-		return RideBoolean(false), nil
+		return rideBoolean(false), nil
 	}
-	return RideBoolean(true), nil
+	return rideBoolean(true), nil
 }
 
-func throw(_ Environment, args ...RideType) (RideType, error) {
+func throw(_ Environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "throw")
@@ -73,11 +73,11 @@ func throw(_ Environment, args ...RideType) (RideType, error) {
 	return rideThrow(s), nil
 }
 
-func throw0(_ Environment, _ ...RideType) (RideType, error) {
+func throw0(_ Environment, _ ...rideType) (rideType, error) {
 	return rideThrow(defaultThrowMessage), nil
 }
 
-func value(_ Environment, args ...RideType) (RideType, error) {
+func value(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "value")
 	}
@@ -87,11 +87,11 @@ func value(_ Environment, args ...RideType) (RideType, error) {
 	return args[0], nil
 }
 
-func valueOrErrorMessage(_ Environment, args ...RideType) (RideType, error) {
+func valueOrErrorMessage(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "valueOrErrorMessage")
 	}
-	msg, ok := args[1].(RideString)
+	msg, ok := args[1].(rideString)
 	if !ok {
 		return nil, errors.Errorf("valueOrErrorMessage: unexpected argument type '%s'", args[1])
 	}
@@ -101,7 +101,7 @@ func valueOrErrorMessage(_ Environment, args ...RideType) (RideType, error) {
 	return args[0], nil
 }
 
-func valueOrElse(_ Environment, args ...RideType) (RideType, error) {
+func valueOrElse(_ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "valueOrErrorMessage")
 	}
@@ -111,24 +111,24 @@ func valueOrElse(_ Environment, args ...RideType) (RideType, error) {
 	return args[0], nil
 }
 
-func bytesProperty(obj RideType, key string) (RideBytes, error) {
+func bytesProperty(obj rideType, key string) (rideBytes, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return nil, err
 	}
-	r, ok := p.(RideBytes)
+	r, ok := p.(rideBytes)
 	if !ok {
 		return nil, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
 	}
 	return r, nil
 }
 
-func digestProperty(obj RideType, key string) (crypto.Digest, error) {
+func digestProperty(obj rideType, key string) (crypto.Digest, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return crypto.Digest{}, err
 	}
-	b, ok := p.(RideBytes)
+	b, ok := p.(rideBytes)
 	if !ok {
 		return crypto.Digest{}, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
 	}
@@ -139,43 +139,43 @@ func digestProperty(obj RideType, key string) (crypto.Digest, error) {
 	return r, nil
 }
 
-func stringProperty(obj RideType, key string) (RideString, error) {
+func stringProperty(obj rideType, key string) (rideString, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return "", err
 	}
-	r, ok := p.(RideString)
+	r, ok := p.(rideString)
 	if !ok {
 		return "", errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
 	}
 	return r, nil
 }
 
-func intProperty(obj RideType, key string) (RideInt, error) {
+func intProperty(obj rideType, key string) (rideInt, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return 0, err
 	}
-	r, ok := p.(RideInt)
+	r, ok := p.(rideInt)
 	if !ok {
 		return 0, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
 	}
 	return r, nil
 }
 
-func booleanProperty(obj RideType, key string) (RideBoolean, error) {
+func booleanProperty(obj rideType, key string) (rideBoolean, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return false, err
 	}
-	r, ok := p.(RideBoolean)
+	r, ok := p.(rideBoolean)
 	if !ok {
 		return false, errors.Errorf("unexpected type '%s' of property '%s'", p.instanceOf(), key)
 	}
 	return r, nil
 }
 
-func optionalAssetProperty(obj RideType, key string) (proto.OptionalAsset, error) {
+func optionalAssetProperty(obj rideType, key string) (proto.OptionalAsset, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return proto.OptionalAsset{}, err
@@ -183,7 +183,7 @@ func optionalAssetProperty(obj RideType, key string) (proto.OptionalAsset, error
 	switch v := p.(type) {
 	case rideUnit:
 		return proto.NewOptionalAssetWaves(), nil
-	case RideBytes:
+	case rideBytes:
 		a, err := proto.NewOptionalAssetFromBytes(v)
 		if err != nil {
 			return proto.OptionalAsset{}, err
@@ -194,7 +194,7 @@ func optionalAssetProperty(obj RideType, key string) (proto.OptionalAsset, error
 	}
 }
 
-func recipientProperty(obj RideType, key string) (proto.Recipient, error) {
+func recipientProperty(obj rideType, key string) (proto.Recipient, error) {
 	p, err := obj.get(key)
 	if err != nil {
 		return proto.Recipient{}, err
@@ -213,7 +213,7 @@ func recipientProperty(obj RideType, key string) (proto.Recipient, error) {
 	return recipient, nil
 }
 
-func extractValue(v RideType) (RideType, error) {
+func extractValue(v rideType) (rideType, error) {
 	if _, ok := v.(rideUnit); ok {
 		return rideThrow("failed to extract from Unit value"), nil
 	}

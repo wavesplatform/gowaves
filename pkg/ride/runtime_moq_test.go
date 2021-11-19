@@ -25,7 +25,7 @@ var _ Environment = &MockRideEnvironment{}
 // 			checkMessageLengthFunc: func(n int) bool {
 // 				panic("mock out the checkMessageLength method")
 // 			},
-// 			heightFunc: func() RideInt {
+// 			heightFunc: func() rideInt {
 // 				panic("mock out the height method")
 // 			},
 // 			internalPaymentsValidationHeightFunc: func() uint64 {
@@ -52,10 +52,10 @@ var _ Environment = &MockRideEnvironment{}
 // 			stateFunc: func() types.SmartState {
 // 				panic("mock out the state method")
 // 			},
-// 			takeStringFunc: func(s string, n int) RideString {
+// 			takeStringFunc: func(s string, n int) rideString {
 // 				panic("mock out the takeString method")
 // 			},
-// 			thisFunc: func() RideType {
+// 			thisFunc: func() rideType {
 // 				panic("mock out the this method")
 // 			},
 // 			timestampFunc: func() uint64 {
@@ -64,7 +64,7 @@ var _ Environment = &MockRideEnvironment{}
 // 			transactionFunc: func() rideObject {
 // 				panic("mock out the transaction method")
 // 			},
-// 			txIDFunc: func() RideType {
+// 			txIDFunc: func() rideType {
 // 				panic("mock out the txID method")
 // 			},
 // 			validateInternalPaymentsFunc: func() bool {
@@ -84,7 +84,7 @@ type MockRideEnvironment struct {
 	checkMessageLengthFunc func(n int) bool
 
 	// heightFunc mocks the height method.
-	heightFunc func() RideInt
+	heightFunc func() rideInt
 
 	// internalPaymentsValidationHeightFunc mocks the internalPaymentsValidationHeight method.
 	internalPaymentsValidationHeightFunc func() uint64
@@ -111,10 +111,10 @@ type MockRideEnvironment struct {
 	stateFunc func() types.SmartState
 
 	// takeStringFunc mocks the takeString method.
-	takeStringFunc func(s string, n int) RideString
+	takeStringFunc func(s string, n int) rideString
 
 	// thisFunc mocks the this method.
-	thisFunc func() RideType
+	thisFunc func() rideType
 
 	// timestampFunc mocks the timestamp method.
 	timestampFunc func() uint64
@@ -123,7 +123,7 @@ type MockRideEnvironment struct {
 	transactionFunc func() rideObject
 
 	// txIDFunc mocks the txID method.
-	txIDFunc func() RideType
+	txIDFunc func() rideType
 
 	// validateInternalPaymentsFunc mocks the validateInternalPayments method.
 	validateInternalPaymentsFunc func() bool
@@ -269,7 +269,7 @@ func (mock *MockRideEnvironment) checkMessageLengthCalls() []struct {
 }
 
 // height calls heightFunc.
-func (mock *MockRideEnvironment) height() RideInt {
+func (mock *MockRideEnvironment) height() rideInt {
 	if mock.heightFunc == nil {
 		panic("MockRideEnvironment.heightFunc: method is nil but Environment.height was just called")
 	}
@@ -513,7 +513,7 @@ func (mock *MockRideEnvironment) stateCalls() []struct {
 }
 
 // takeString calls takeStringFunc.
-func (mock *MockRideEnvironment) takeString(s string, n int) RideString {
+func (mock *MockRideEnvironment) takeString(s string, n int) rideString {
 	if mock.takeStringFunc == nil {
 		panic("MockRideEnvironment.takeStringFunc: method is nil but Environment.takeString was just called")
 	}
@@ -548,7 +548,7 @@ func (mock *MockRideEnvironment) takeStringCalls() []struct {
 }
 
 // this calls thisFunc.
-func (mock *MockRideEnvironment) this() RideType {
+func (mock *MockRideEnvironment) this() rideType {
 	if mock.thisFunc == nil {
 		panic("MockRideEnvironment.thisFunc: method is nil but Environment.this was just called")
 	}
@@ -626,7 +626,7 @@ func (mock *MockRideEnvironment) transactionCalls() []struct {
 }
 
 // txID calls txIDFunc.
-func (mock *MockRideEnvironment) txID() RideType {
+func (mock *MockRideEnvironment) txID() rideType {
 	if mock.txIDFunc == nil {
 		panic("MockRideEnvironment.txIDFunc: method is nil but Environment.txID was just called")
 	}

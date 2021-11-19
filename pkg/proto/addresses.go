@@ -3,7 +3,6 @@ package proto
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"strconv"
@@ -11,10 +10,12 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -47,35 +48,159 @@ func (a AddressID) Bytes() []byte {
 	return a[:]
 }
 
-func (a AddressID) ToWavesAddress(scheme Scheme) WavesAddress {
-	return mustRebuildAddress(scheme, a[:])
+func (a AddressID) ToWavesAddress(scheme Scheme) (WavesAddress, error) {
+	return newAddressFromPublicKeyHash(scheme, a[:])
 }
 
 type Address interface {
 	ID() AddressID
 	Bytes() []byte
 	String() string
+	Equal(address Address) bool
+	ToWavesAddress(scheme Scheme) (WavesAddress, error)
 }
 
 // EthereumAddress is the first 20 bytes of Public Key's hash for the Waves address, or the 20 bytes of an Ethereum address.
 type EthereumAddress [EthereumAddressSize]byte
 
-// Bytes converts the fixed-length byte array of the EthereumAddress to a slice of bytes.
-func (b EthereumAddress) Bytes() []byte {
-	return b[:]
+func NewEthereumAddressFromHexString(s string) (EthereumAddress, error) {
+	b, err := DecodeFromHexString(s)
+	if err != nil {
+		return EthereumAddress{}, err
+	}
+	return NewEthereumAddressFromBytes(b)
 }
 
-func (b EthereumAddress) ID() AddressID {
+func NewEthereumAddressFromBytes(b []byte) (EthereumAddress, error) {
+	if len(b) != EthereumAddressSize {
+		return EthereumAddress{},
+			errors.Errorf("invalid EthereumAddress size: got %d, want %d", len(b), EthereumAddressSize)
+	}
+	var addr EthereumAddress
+	copy(addr[:], b)
+	return addr, nil
+}
+
+// BytesToEthereumAddress returns EthereumAddress with value b.
+// If b is larger than len(h), b will be cropped from the left.
+func BytesToEthereumAddress(b []byte) EthereumAddress {
+	var a EthereumAddress
+	a.setBytes(b)
+	return a
+}
+
+// Bytes converts the fixed-length byte array of the EthereumAddress to a slice of bytes.
+func (ea EthereumAddress) Bytes() []byte {
+	return ea[:]
+}
+
+// Bytes converts the fixed-length byte array of the EthereumAddress to a slice of bytes.
+// If *EthereumAddress == nil copy returns nil.
+func (ea *EthereumAddress) tryToBytes() []byte {
+	if ea == nil {
+		return nil
+	}
+	return ea.Bytes()
+}
+
+// setBytes sets bytes to EthereumAddress with right side priority.
+func (ea *EthereumAddress) setBytes(b []byte) {
+	if len(b) > len(ea) {
+		b = b[len(b)-EthereumAddressSize:]
+	}
+	copy(ea[EthereumAddressSize-len(b):], b)
+}
+
+func (ea EthereumAddress) ID() AddressID {
 	var id AddressID
-	copy(id[:], b[:])
+	copy(id[:], ea[:])
 	return id
 }
 
-func (b EthereumAddress) String() string {
-	sb := new(strings.Builder)
-	sb.WriteString("0x")
-	sb.WriteString(hex.EncodeToString(b[:]))
-	return sb.String()
+// Hash converts an address to a EthereumHash by left-padding it with zeros.
+func (ea EthereumAddress) Hash() EthereumHash {
+	return BytesToEthereumHash(ea[:])
+}
+
+func (ea EthereumAddress) Hex() string {
+	return string(ea.checksumHex())
+}
+
+func (ea EthereumAddress) String() string {
+	return ea.Hex()
+}
+
+func (ea EthereumAddress) Equal(address Address) bool {
+	switch other := address.(type) {
+	case EthereumAddress, *EthereumAddress:
+		return bytes.Equal(ea.Bytes(), other.Bytes())
+	case WavesAddress, *WavesAddress:
+		return false
+	default:
+		panic(errors.Errorf("BUG, CREATE REPORT: unknown address type %T", address))
+	}
+}
+
+func (ea EthereumAddress) ToWavesAddress(scheme Scheme) (WavesAddress, error) {
+	return newAddressFromPublicKeyHash(scheme, ea[:])
+}
+
+func (ea EthereumAddress) MarshalJSON() ([]byte, error) {
+	hexString := ea.Hex()
+	return []byte(fmt.Sprintf("\"%s\"", hexString)), nil
+}
+
+func (ea *EthereumAddress) UnmarshalJSON(bytes []byte) error {
+	hexString := strings.Trim(string(bytes), "\"")
+	addr, err := NewEthereumAddressFromHexString(hexString)
+	if err != nil {
+		return err
+	}
+	*ea = addr
+	return nil
+}
+
+func (ea *EthereumAddress) checksumHex() []byte {
+	buf := []byte(EncodeToHexString(ea[:]))
+
+	// compute checksum
+	sha := sha3.NewLegacyKeccak256()
+	// nickeskov: can't fail
+	_, _ = sha.Write(buf[2:])
+	hash := sha.Sum(nil)
+	for i := 2; i < len(buf); i++ {
+		hashByte := hash[(i-2)/2]
+		if i%2 == 0 {
+			hashByte = hashByte >> 4
+		} else {
+			hashByte &= 0xf
+		}
+		if buf[i] > '9' && hashByte > 7 {
+			buf[i] -= 32
+		}
+	}
+	return buf[:]
+}
+
+// copy returns an exact copy of the provided EthereumAddress.
+// If *EthereumAddress == nil copy returns nil.
+func (ea *EthereumAddress) copy() *EthereumAddress {
+	if ea == nil {
+		return nil
+	}
+	cpy := *ea
+	return &cpy
+}
+
+func (ea *EthereumAddress) unmarshalFromFastRLP(val *fastrlp.Value) error {
+	if err := val.GetAddr(ea[:]); err != nil {
+		return errors.Wrap(err, "failed to unmarshal EthereumAddress from fastRLP value")
+	}
+	return nil
+}
+
+func (ea *EthereumAddress) marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Value {
+	return arena.NewBytes(ea.Bytes())
 }
 
 // WavesAddress is the transformed Public Key with additional bytes of the version, a blockchain scheme and a checksum.
@@ -94,6 +219,21 @@ func (a WavesAddress) ID() AddressID {
 // String produces the BASE58 string representation of the WavesAddress.
 func (a WavesAddress) String() string {
 	return base58.Encode(a[:])
+}
+
+func (a WavesAddress) Equal(address Address) bool {
+	switch other := address.(type) {
+	case WavesAddress, *WavesAddress:
+		return bytes.Equal(a.Bytes(), other.Bytes())
+	case EthereumAddress, *EthereumAddress:
+		return false
+	default:
+		panic(errors.Errorf("BUG, CREATE REPORT: unknown address type %T", address))
+	}
+}
+
+func (a WavesAddress) ToWavesAddress(_ Scheme) (WavesAddress, error) {
+	return a, nil
 }
 
 // MarshalJSON is the custom JSON marshal function for the WavesAddress.
@@ -116,22 +256,31 @@ func (a *WavesAddress) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+func (a *WavesAddress) EthereumAddress() EthereumAddress {
+	return EthereumAddress(a.ID())
+}
+
 // NewAddressFromPublicKey produces an WavesAddress from given scheme and Public Key bytes.
 func NewAddressFromPublicKey(scheme byte, publicKey crypto.PublicKey) (WavesAddress, error) {
-	var a WavesAddress
-	a[0] = wavesAddressVersion
-	a[1] = scheme
 	h, err := crypto.SecureHash(publicKey[:])
 	if err != nil {
-		return a, errors.Wrap(err, "failed to produce Digest from PublicKey")
+		return WavesAddress{}, errors.Wrap(err, "failed to produce Digest from PublicKey")
 	}
-	copy(a[wavesAddressHeaderSize:], h[:wavesAddressBodySize])
-	cs, err := addressChecksum(a[:wavesAddressHeaderSize+wavesAddressBodySize])
+	return newAddressFromPublicKeyHash(scheme, h[:])
+}
+
+// newAddressFromPublicKeyHash produces an WavesAddress from given public key hash (AddressID).
+func newAddressFromPublicKeyHash(scheme byte, pubKeyHash []byte) (WavesAddress, error) {
+	var addr WavesAddress
+	addr[0] = wavesAddressVersion
+	addr[1] = scheme
+	copy(addr[wavesAddressHeaderSize:], pubKeyHash[:wavesAddressBodySize])
+	checksum, err := addressChecksum(addr[:wavesAddressHeaderSize+wavesAddressBodySize])
 	if err != nil {
-		return a, errors.Wrap(err, "failed to calculate WavesAddress checksum")
+		return addr, errors.Wrap(err, "failed to calculate WavesAddress checksum")
 	}
-	copy(a[wavesAddressHeaderSize+wavesAddressBodySize:], cs)
-	return a, nil
+	copy(addr[wavesAddressHeaderSize+wavesAddressBodySize:], checksum)
+	return addr, nil
 }
 
 // NewAddressLikeFromAnyBytes produces an WavesAddress from given scheme and bytes.
@@ -177,14 +326,6 @@ func RebuildAddress(scheme byte, body []byte) (WavesAddress, error) {
 	}
 	copy(a[wavesAddressHeaderSize+wavesAddressBodySize:], cs)
 	return a, nil
-}
-
-func mustRebuildAddress(scheme byte, body []byte) WavesAddress {
-	addr, err := RebuildAddress(scheme, body)
-	if err != nil {
-		panic(err.Error())
-	}
-	return addr
 }
 
 // NewAddressFromString creates an WavesAddress from its string representation. This function checks that the address is valid.
@@ -242,10 +383,6 @@ func (a *WavesAddress) Valid() (bool, error) {
 // Bytes converts the fixed-length byte array of the WavesAddress to a slice of bytes.
 func (a WavesAddress) Bytes() []byte {
 	return a[:]
-}
-
-func (a *WavesAddress) Eq(b WavesAddress) bool {
-	return bytes.Equal(a.Bytes(), b.Bytes())
 }
 
 func addressChecksum(b []byte) ([]byte, error) {

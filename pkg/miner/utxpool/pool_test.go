@@ -55,7 +55,7 @@ func (a transaction) GetID(_ proto.Scheme) ([]byte, error) {
 	return a.id, nil
 }
 
-func (transaction) Validate() (proto.Transaction, error) {
+func (transaction) Validate(_ proto.Scheme) (proto.Transaction, error) {
 	panic("not implemented")
 }
 
@@ -79,6 +79,10 @@ func (transaction) GenerateID(_ proto.Scheme) error {
 	return nil
 }
 
+func (transaction) MerkleBytes(_ proto.Scheme) ([]byte, error) {
+	panic("not implemented")
+}
+
 func (transaction) GetTypeInfo() proto.TransactionTypeInfo {
 	panic("not implemented")
 }
@@ -92,6 +96,10 @@ func (a transaction) GetFee() uint64 {
 }
 
 func (a transaction) GetSenderPK() crypto.PublicKey {
+	panic("not implemented")
+}
+
+func (a transaction) GetSender(scheme proto.Scheme) (proto.Address, error) {
 	panic("not implemented")
 }
 

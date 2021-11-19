@@ -1,8 +1,6 @@
 package server
 
 import (
-	"bytes"
-
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -50,11 +48,11 @@ func (f *txFilter) filterSender(tx proto.Transaction) bool {
 	if !f.hasSender {
 		return true
 	}
-	senderAddr, err := proto.NewAddressFromPublicKey(f.scheme, tx.GetSenderPK())
+	senderAddr, err := tx.GetSender(f.scheme)
 	if err != nil {
 		return false
 	}
-	return f.sender == senderAddr
+	return f.sender.Equal(senderAddr)
 }
 
 func (f *txFilter) filterRecipient(tx proto.Transaction) bool {
@@ -76,11 +74,11 @@ func (f *txFilter) filterRecipient(tx proto.Transaction) bool {
 		if f.recipient.Address == nil {
 			return false
 		}
-		senderAddr, err := proto.NewAddressFromPublicKey(f.scheme, tx.GetSenderPK())
+		senderAddr, err := tx.GetSender(f.scheme)
 		if err != nil {
 			return false
 		}
-		return bytes.Equal(f.recipient.Address[:], senderAddr[:])
+		return f.recipient.Address.Equal(senderAddr)
 	}
 }
 

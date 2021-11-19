@@ -137,7 +137,7 @@ func TestFunctions(t *testing.T) {
 		schemeFunc: func() byte {
 			return 'W'
 		},
-		heightFunc: func() RideInt {
+		heightFunc: func() rideInt {
 			return 5
 		},
 		transactionFunc: func() rideObject {

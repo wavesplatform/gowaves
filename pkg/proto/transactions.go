@@ -20,23 +20,25 @@ type TransactionType byte
 
 //All transaction types supported.
 const (
-	GenesisTransaction         TransactionType = iota + 1 // 1 - Genesis transaction
-	PaymentTransaction                                    // 2 - Payment transaction
-	IssueTransaction                                      // 3 - Issue transaction
-	TransferTransaction                                   // 4 - Transfer transaction
-	ReissueTransaction                                    // 5 - Reissue transaction
-	BurnTransaction                                       // 6 - Burn transaction
-	ExchangeTransaction                                   // 7 - Exchange transaction
-	LeaseTransaction                                      // 8 - Lease transaction
-	LeaseCancelTransaction                                // 9 - LeaseCancel transaction
-	CreateAliasTransaction                                // 10 - CreateAlias transaction
-	MassTransferTransaction                               // 11 - MassTransfer transaction
-	DataTransaction                                       // 12 - Data transaction
-	SetScriptTransaction                                  // 13 - SetScript transaction
-	SponsorshipTransaction                                // 14 - Sponsorship transaction
-	SetAssetScriptTransaction                             // 15 - SetAssetScript transaction
-	InvokeScriptTransaction                               // 16 - InvokeScript transaction
-	UpdateAssetInfoTransaction                            // 17 - UpdateAssetInfoTransaction
+	GenesisTransaction          TransactionType = iota + 1 // 1 - Genesis transaction
+	PaymentTransaction                                     // 2 - Payment transaction
+	IssueTransaction                                       // 3 - Issue transaction
+	TransferTransaction                                    // 4 - Transfer transaction
+	ReissueTransaction                                     // 5 - Reissue transaction
+	BurnTransaction                                        // 6 - Burn transaction
+	ExchangeTransaction                                    // 7 - Exchange transaction
+	LeaseTransaction                                       // 8 - Lease transaction
+	LeaseCancelTransaction                                 // 9 - LeaseCancel transaction
+	CreateAliasTransaction                                 // 10 - CreateAlias transaction
+	MassTransferTransaction                                // 11 - MassTransfer transaction
+	DataTransaction                                        // 12 - Data transaction
+	SetScriptTransaction                                   // 13 - SetScript transaction
+	SponsorshipTransaction                                 // 14 - Sponsorship transaction
+	SetAssetScriptTransaction                              // 15 - SetAssetScript transaction
+	InvokeScriptTransaction                                // 16 - InvokeScript transaction
+	UpdateAssetInfoTransaction                             // 17 - UpdateAssetInfoTransaction
+	_                                                      // 18 - reserved
+	EthereumMetamaskTransaction                            // 19 - EthereumMetamaskTransaction is a transaction which received from metamask
 )
 
 // TxFailureReason indicates Transactions failure reasons.
@@ -138,6 +140,7 @@ var (
 		SetAssetScriptTransaction:  2,
 		InvokeScriptTransaction:    2,
 		UpdateAssetInfoTransaction: 1,
+		// EthereumMetamaskTransaction should not be added because it doesn't exist as protobuf transaction
 	}
 )
 
@@ -178,14 +181,14 @@ type Transaction interface {
 	GetTypeInfo() TransactionTypeInfo
 	GetVersion() byte
 	GetID(scheme Scheme) ([]byte, error)
-	GetSenderPK() crypto.PublicKey
+	GetSender(scheme Scheme) (Address, error)
 	GetFee() uint64
 	GetTimestamp() uint64
 
 	// Validate checks that all transaction fields are valid.
 	// This includes ranges checks, and sanity checks specific for each transaction type:
 	// for example, negative amounts for transfers.
-	Validate() (Transaction, error)
+	Validate(scheme Scheme) (Transaction, error)
 
 	// GenerateID sets transaction ID.
 	// For most transactions ID is hash of transaction body.
@@ -194,6 +197,9 @@ type Transaction interface {
 	// Sign transaction with given secret key.
 	// It also sets transaction ID.
 	Sign(scheme Scheme, sk crypto.SecretKey) error
+
+	// MerkleBytes returns array of bytes for block's merle root calculation
+	MerkleBytes(scheme Scheme) ([]byte, error)
 
 	// MarshalBinary functions for custom binary format serialization.
 	// MarshalBinary() is analogous to MarshalSignedToProtobuf() for Protobuf.
@@ -243,11 +249,10 @@ func MarshalTxBody(scheme Scheme, tx Transaction) ([]byte, error) {
 
 // TransactionToProtobufCommon converts to protobuf structure with fields
 // that are common for all of the transaction types.
-func TransactionToProtobufCommon(scheme Scheme, tx Transaction) *g.Transaction {
-	pk := tx.GetSenderPK()
+func TransactionToProtobufCommon(scheme Scheme, senderPublicKey []byte, tx Transaction) *g.Transaction {
 	return &g.Transaction{
 		ChainId:         int32(scheme),
-		SenderPublicKey: pk.Bytes(),
+		SenderPublicKey: senderPublicKey,
 		Timestamp:       int64(tx.GetTimestamp()),
 		Version:         int32(tx.GetVersion()),
 	}
@@ -436,6 +441,10 @@ func (tx *Genesis) GenerateID(scheme Scheme) error {
 	return tx.generateID(scheme)
 }
 
+func (tx Genesis) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx *Genesis) Sign(scheme Scheme, _ crypto.SecretKey) error {
 	if err := tx.generateID(scheme); err != nil {
 		return err
@@ -446,6 +455,10 @@ func (tx *Genesis) Sign(scheme Scheme, _ crypto.SecretKey) error {
 
 func (tx Genesis) GetSenderPK() crypto.PublicKey {
 	return crypto.PublicKey{}
+}
+
+func (tx Genesis) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, crypto.PublicKey{})
 }
 
 func (tx *Genesis) generateID(scheme Scheme) error {
@@ -481,7 +494,7 @@ func NewUnsignedGenesis(recipient WavesAddress, amount, timestamp uint64) *Genes
 }
 
 //Validate checks the validity of transaction parameters and it's signature.
-func (tx *Genesis) Validate() (Transaction, error) {
+func (tx *Genesis) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxGenesisTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Genesis transaction", tx.Version)
 	}
@@ -619,7 +632,8 @@ func (tx *Genesis) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 		RecipientAddress: addrBody,
 		Amount:           int64(tx.Amount),
 	}}
-	res := TransactionToProtobufCommon(scheme, tx)
+	pk := tx.GetSenderPK()
+	res := TransactionToProtobufCommon(scheme, pk.Bytes(), tx)
 	res.Data = txData
 	return res, nil
 }
@@ -695,8 +709,16 @@ func (tx *Payment) GenerateID(_ Scheme) error {
 	return nil
 }
 
+func (tx Payment) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx Payment) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
+}
+
+func (tx Payment) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
 func (tx *Payment) GetID(scheme Scheme) ([]byte, error) {
@@ -721,7 +743,7 @@ func NewUnsignedPayment(senderPK crypto.PublicKey, recipient WavesAddress, amoun
 	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *Payment) Validate() (Transaction, error) {
+func (tx *Payment) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxPaymentTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Payment transaction", tx.Version)
 	}
@@ -927,7 +949,7 @@ func (tx *Payment) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 		Amount:           int64(tx.Amount),
 	}}
 	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
-	res := TransactionToProtobufCommon(scheme, tx)
+	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
 	return res, nil
@@ -962,6 +984,10 @@ func (i Issue) BinarySize() int {
 
 func (i Issue) GetSenderPK() crypto.PublicKey {
 	return i.SenderPK
+}
+
+func (i Issue) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, i.SenderPK)
 }
 
 func (i Issue) GetFee() uint64 {
@@ -1085,6 +1111,10 @@ func (tr Transfer) BinarySize() int {
 
 func (tr Transfer) GetSenderPK() crypto.PublicKey {
 	return tr.SenderPK
+}
+
+func (tr Transfer) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, tr.SenderPK)
 }
 
 func (tr Transfer) GetFee() uint64 {
@@ -1288,6 +1318,10 @@ func (r Reissue) GetSenderPK() crypto.PublicKey {
 	return r.SenderPK
 }
 
+func (r Reissue) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, r.SenderPK)
+}
+
 func (r Reissue) GetFee() uint64 {
 	return r.Fee
 }
@@ -1371,6 +1405,10 @@ func (b Burn) ToProtobuf() *g.Transaction_Burn {
 
 func (b Burn) GetSenderPK() crypto.PublicKey {
 	return b.SenderPK
+}
+
+func (b Burn) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, b.SenderPK)
 }
 
 func (b Burn) GetFee() uint64 {
@@ -1467,6 +1505,10 @@ func (l Lease) GetSenderPK() crypto.PublicKey {
 	return l.SenderPK
 }
 
+func (l Lease) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, l.SenderPK)
+}
+
 func (l Lease) GetFee() uint64 {
 	return l.Fee
 }
@@ -1558,6 +1600,10 @@ func (lc LeaseCancel) GetSenderPK() crypto.PublicKey {
 	return lc.SenderPK
 }
 
+func (lc LeaseCancel) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, lc.SenderPK)
+}
+
 func (lc LeaseCancel) GetFee() uint64 {
 	return lc.Fee
 }
@@ -1622,6 +1668,10 @@ func (ca CreateAlias) ToProtobuf() *g.Transaction_CreateAlias {
 
 func (ca CreateAlias) GetSenderPK() crypto.PublicKey {
 	return ca.SenderPK
+}
+
+func (ca CreateAlias) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, ca.SenderPK)
 }
 
 func (ca CreateAlias) GetFee() uint64 {

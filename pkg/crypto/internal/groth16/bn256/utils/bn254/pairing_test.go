@@ -1,4 +1,5 @@
-//+build groth16
+//go:build groth16
+// +build groth16
 
 package bn254
 

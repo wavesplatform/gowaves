@@ -62,7 +62,7 @@ func TestGenesisBinarySize(t *testing.T) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
 			err = tx.Sign(MainNetScheme, sk)
 			assert.Nil(t, err)
-			_, err := tx.Validate()
+			_, err := tx.Validate(MainNetScheme)
 			assert.Nil(t, err)
 			txBytes, err := tx.MarshalBinary()
 			assert.Nil(t, err)
@@ -89,7 +89,7 @@ func TestGenesisFromMainNet(t *testing.T) {
 		id, _ := base58.Decode(tc.sig)
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
-			_, err := tx.Validate()
+			_, err := tx.Validate(MainNetScheme)
 			assert.Nil(t, err)
 			if err := tx.GenerateSigID(MainNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, id, tx.ID[:])
@@ -126,7 +126,7 @@ func TestGenesisProtobufRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
-			_, err := tx.Validate()
+			_, err := tx.Validate(MainNetScheme)
 			assert.Nil(t, err)
 			err = tx.GenerateID(MainNetScheme)
 			assert.Nil(t, err)
@@ -167,7 +167,7 @@ func TestGenesisValidations(t *testing.T) {
 		require.NoError(t, err)
 		tx := NewUnsignedGenesis(addr, tc.amount, 0)
 		assert.NotNil(t, tx)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -371,7 +371,7 @@ func TestPaymentValidations(t *testing.T) {
 		addr, err := addressFromString(tc.address)
 		require.NoError(t, err)
 		tx := NewUnsignedPayment(spk, addr, tc.amount, tc.fee, 0)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -440,7 +440,7 @@ func TestIssueWithSigValidations(t *testing.T) {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		if assert.NoError(t, err) {
 			tx := NewUnsignedIssueWithSig(spk, tc.name, tc.desc, tc.quantity, tc.decimals, false, 0, tc.fee)
-			_, err := tx.Validate()
+			_, err := tx.Validate(MainNetScheme)
 			assert.EqualError(t, err, tc.err)
 		}
 	}
@@ -618,7 +618,7 @@ func TestIssueWithProofsValidations(t *testing.T) {
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedIssueWithProofs(2, 'T', spk, tc.name, tc.desc, tc.quantity, tc.decimals, false, []byte{}, 0, tc.fee)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -853,7 +853,7 @@ func TestTransferWithSigValidations(t *testing.T) {
 		require.NoError(t, err)
 		att := []byte(tc.att)
 		tx := NewUnsignedTransferWithSig(spk, *a, *a, 0, tc.amount, tc.fee, rcp, att)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
 	}
 }
@@ -1149,7 +1149,7 @@ func TestTransferWithProofsValidations(t *testing.T) {
 		require.NoError(t, err)
 		att := []byte(tc.att)
 		tx := NewUnsignedTransferWithProofs(2, spk, *a, *a, 0, tc.amount, tc.fee, rcp, att)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
 	}
 }
@@ -1545,7 +1545,7 @@ func TestReissueWithSigValidations(t *testing.T) {
 		aid, err := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		require.NoError(t, err)
 		tx := NewUnsignedReissueWithSig(spk, aid, tc.quantity, false, 0, tc.fee)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -1745,7 +1745,7 @@ func TestReissueWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedReissueWithProofs(2, 'T', spk, aid, tc.quantity, false, 0, tc.fee)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -1953,7 +1953,7 @@ func TestBurnWithSigValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedBurnWithSig(spk, aid, tc.amount, 0, tc.fee)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -2133,7 +2133,7 @@ func TestBurnWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedBurnWithProofs(2, tc.chain, spk, aid, tc.amount, 0, tc.fee)
-		_, err := tx.Validate()
+		_, err := tx.Validate(tc.chain)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -2360,7 +2360,7 @@ func TestExchangeWithSigValidations(t *testing.T) {
 	}
 	for _, tc := range tests {
 		tx := NewUnsignedExchangeWithSig(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.Error(t, err)
 		assert.Regexp(t, tc.err, err.Error(), fmt.Sprintf("expected: %s", tc.err))
 	}
@@ -2725,7 +2725,7 @@ func TestExchangeWithProofsValidations(t *testing.T) {
 	}
 	for _, tc := range tests {
 		tx := NewUnsignedExchangeWithProofs(2, &tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.Error(t, err)
 		assert.Regexp(t, tc.err, err, fmt.Sprintf("expected error: %s", tc.err))
 	}
@@ -2740,7 +2740,7 @@ func TestExchangeV3PriceValidation(t *testing.T) {
 	sbo := newSignedOrderV4(t, buySender, mpk, *aa, *pa, Buy, 1000000, 800000000, 1624445095222, 1626950695222, 300000, "3fdNTCQ7o2TvN8eDV3m7J9aSLxcUitwN2SMZpn1irSXX", "3aKUz8boZingH8r18grL8Rst5RyGVnESaQtuEoV5piUnvJKNf67xFwFpPpmfiuAuud1AAzj94xYNw1MKkmJaBicR")
 	sso := newSignedOrderV4(t, sellSender, mpk, *aa, *pa, Sell, 1000000, 800000000, 1624445095267, 1626950695267, 300000, "81Xc8YP1Ev2bqvSLgN5k3ent6Fr7rnEdCg8x2DH5twqX", "4VQmM6QB8yaQ1AChNNkVH5EvVKenS8YG7YqXK9SsjWAnjJm5xvd48kW2akwcEbhgzqqGMDtS2AmeGSfpEcHEMYGU")
 	tx := NewUnsignedExchangeWithProofs(3, &sbo, &sso, 100000000, 800000000, 100, 100, 300000, 1624445095293)
-	_, err := tx.Validate()
+	_, err := tx.Validate(MainNetScheme)
 	assert.NoError(t, err)
 }
 
@@ -3308,7 +3308,7 @@ func TestLeaseWithSigValidations(t *testing.T) {
 		rcp, err := recipientFromString(tc.recipient)
 		require.NoError(t, err)
 		tx := NewUnsignedLeaseWithSig(spk, rcp, tc.amount, tc.fee, 0)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -3515,7 +3515,7 @@ func TestLeaseWithProofsValidations(t *testing.T) {
 		rcp, err := recipientFromString(tc.recipient)
 		require.NoError(t, err)
 		tx := NewUnsignedLeaseWithProofs(2, spk, rcp, tc.amount, tc.fee, 0)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -3715,7 +3715,7 @@ func TestLeaseCancelWithSigValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		tx := NewUnsignedLeaseCancelWithSig(spk, l, tc.fee, 0)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -3894,7 +3894,7 @@ func TestLeaseCancelWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		tx := NewUnsignedLeaseCancelWithProofs(2, 'T', spk, l, tc.fee, 0)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4074,7 +4074,7 @@ func TestCreateAliasWithSigValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		a := NewAlias('W', tc.alias)
 		tx := NewUnsignedCreateAliasWithSig(spk, *a, tc.fee, 0)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4257,9 +4257,9 @@ func TestCreateAliasWithProofsValidations(t *testing.T) {
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
-		a := NewAlias('W', tc.alias)
+		a := NewAlias(MainNetScheme, tc.alias)
 		tx := NewUnsignedCreateAliasWithProofs(2, spk, *a, tc.fee, 0)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4472,7 +4472,7 @@ func TestMassTransferWithProofsValidations(t *testing.T) {
 		a, _ := NewOptionalAssetFromString(tc.asset)
 		att := []byte(tc.attachment)
 		tx := NewUnsignedMassTransferWithProofs(1, spk, *a, tc.transfers, tc.fee, 0, att)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4726,7 +4726,7 @@ func TestDataWithProofsValidations(t *testing.T) {
 		require.NoError(t, err)
 		tx := NewUnsignedData(1, spk, tc.fee, 0)
 		tx.Entries = tc.entries
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.Error(t, err) //, tc.err, fmt.Sprintf("expected: %s", tc.err))
 		//assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
 		assert.Regexp(t, tc.err, err.Error())
@@ -4739,13 +4739,13 @@ func TestDataWithProofsDeleteValidation(t *testing.T) {
 	de := &DeleteDataEntry{Key: "key"}
 	tx1 := NewUnsignedData(1, spk, MinFee, 67890)
 	tx1.Entries = DataEntries{de}
-	_, err = tx1.Validate()
+	_, err = tx1.Validate(MainNetScheme)
 	msg := "delete supported only for protobuf transaction"
 	assert.EqualError(t, err, msg, fmt.Sprintf("expected: %s", msg))
 
 	tx2 := NewUnsignedData(2, spk, MinFee, 67890)
 	tx2.Entries = DataEntries{de}
-	_, err = tx2.Validate()
+	_, err = tx2.Validate(MainNetScheme)
 	assert.NoError(t, err)
 }
 
@@ -5126,8 +5126,8 @@ func TestSetScriptWithProofsValidations(t *testing.T) {
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		s, _ := base58.Decode(tc.script)
-		tx := NewUnsignedSetScriptWithProofs(1, 'W', spk, s, tc.fee, 0)
-		_, err := tx.Validate()
+		tx := NewUnsignedSetScriptWithProofs(1, MainNetScheme, spk, s, tc.fee, 0)
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -5318,7 +5318,7 @@ func TestSponsorshipWithProofsValidations(t *testing.T) {
 		a, err := crypto.NewDigestFromBase58("8Nwjd2tcQWff3S9WAhBa7vLRNpNnigWqrTbahvyfMVrU")
 		require.NoError(t, err)
 		tx := NewUnsignedSponsorshipWithProofs(1, spk, a, tc.minAssetFee, tc.fee, 0)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -5506,7 +5506,7 @@ func TestSetAssetScriptWithProofsValidations(t *testing.T) {
 		a, _ := crypto.NewDigestFromBase58("J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR")
 		s, _ := base58.Decode(tc.script)
 		tx := NewUnsignedSetAssetScriptWithProofs(1, 'W', spk, a, s, tc.fee, 0)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -5730,7 +5730,7 @@ func TestInvokeScriptWithProofsValidations(t *testing.T) {
 		ad, _ := NewAddressFromString("3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu")
 		fc := FunctionCall{Name: tc.name, Arguments: tc.args}
 		tx := NewUnsignedInvokeScriptWithProofs(tc.version, 'T', spk, NewRecipientFromAddress(ad), fc, tc.sps, *a2, tc.fee, 12345)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -6019,7 +6019,7 @@ func TestUpdateAssetInfoWithProofsValidations(t *testing.T) {
 		require.NoError(t, err)
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedUpdateAssetInfoWithProofs(tc.version, tc.chain, aid, spk, tc.name, tc.description, 12345, *tc.feeAsset, tc.fee)
-		_, err = tx.Validate()
+		_, err = tx.Validate(tc.chain)
 		if !tc.valid {
 			assert.Equal(t, tc.err.Error(), err.Error())
 		}
@@ -6298,4 +6298,77 @@ func TestIssue_ToProtobufWithInvalidUtf8String(t *testing.T) {
 	bts, err := is.MarshalSignedToProtobuf(MainNetScheme)
 	require.NoError(t, err)
 	require.NotEmpty(t, bts)
+}
+
+func TestWavesTranactionGetSenderAndGetSenderPK(t *testing.T) {
+	emptyWavesPK := crypto.PublicKey{}
+	emptyWavesAddr, err := NewAddressFromPublicKey(TestNetScheme, emptyWavesPK)
+	require.NoError(t, err)
+
+	wavesPK, err := crypto.NewPublicKeyFromBase58("6uQfgnn18ixRGmhc31eoqWqZrac7jWpT2sNNXtvxQy4A")
+	require.NoError(t, err)
+	wavesAddr, err := NewAddressFromPublicKey(TestNetScheme, wavesPK)
+	require.NoError(t, err)
+
+	tests := []struct {
+		tx              Transaction
+		expectedPKBytes []byte
+		expectedAddr    Address
+	}{
+		{&Genesis{}, emptyWavesPK.Bytes(), emptyWavesAddr},
+		{&Payment{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&IssueWithProofs{Issue: Issue{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&IssueWithSig{Issue: Issue{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&TransferWithProofs{Transfer: Transfer{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&TransferWithSig{Transfer: Transfer{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&ReissueWithProofs{Reissue: Reissue{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&ReissueWithSig{Reissue: Reissue{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&BurnWithProofs{Burn: Burn{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&BurnWithSig{Burn: Burn{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&ExchangeWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&ExchangeWithSig{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&ExchangeWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&LeaseWithProofs{Lease: Lease{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&LeaseWithSig{Lease: Lease{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&LeaseCancelWithProofs{LeaseCancel: LeaseCancel{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&LeaseCancelWithSig{LeaseCancel: LeaseCancel{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&CreateAliasWithProofs{CreateAlias: CreateAlias{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&CreateAliasWithSig{CreateAlias: CreateAlias{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&MassTransferWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&DataWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&SetScriptWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&SponsorshipWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&SetAssetScriptWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&InvokeScriptWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&UpdateAssetInfoWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+	}
+	for _, tc := range tests {
+		addr, err := tc.tx.GetSender(TestNetScheme)
+		require.NoError(t, err)
+		require.Equal(t, tc.expectedAddr, addr)
+		type getSenderPK interface {
+			GetSenderPK() crypto.PublicKey
+		}
+		if wavesTx, ok := tc.tx.(getSenderPK); ok {
+			pk := wavesTx.GetSenderPK()
+			require.Equal(t, tc.expectedPKBytes, pk.Bytes())
+		}
+	}
+}
+
+func TestEthereumGetSenderAndFromPK(t *testing.T) {
+	ethereumPK, err := NewEthereumPublicKeyFromHexString("0xc4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
+	require.NoError(t, err)
+	ethereumAddr := ethereumPK.EthereumAddress()
+
+	tx := &EthereumTransaction{}
+	tx.threadSafeSetSenderPK(&ethereumPK)
+
+	actualPK, err := tx.FromPK()
+	require.NoError(t, err)
+	require.Equal(t, &ethereumPK, actualPK)
+
+	actualAddr, err := tx.GetSender(TestNetScheme)
+	require.NoError(t, err)
+	require.Equal(t, ethereumAddr, actualAddr)
 }

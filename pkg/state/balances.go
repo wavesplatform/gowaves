@@ -260,7 +260,11 @@ func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
 		if err := k.unmarshal(key); err != nil {
 			return err
 		}
-		zap.S().Infof("Resetting lease balance for %s", k.address.ToWavesAddress(s.scheme).String())
+		addr, err := k.address.ToWavesAddress(s.scheme)
+		if err != nil {
+			return err
+		}
+		zap.S().Infof("Resetting lease balance for %s", addr.String())
 		r.leaseOut = 0
 		r.leaseIn = 0
 		val := &wavesValue{leaseChange: true, profile: r.balanceProfile}
@@ -296,7 +300,10 @@ func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.WavesA
 			if err := k.unmarshal(key); err != nil {
 				return nil, err
 			}
-			wavesAddr := k.address.ToWavesAddress(s.scheme)
+			wavesAddr, err := k.address.ToWavesAddress(s.scheme)
+			if err != nil {
+				return nil, err
+			}
 			zap.S().Infof("Resolving lease overflow for address %s: %d ---> %d",
 				wavesAddr.String(), r.leaseOut, 0,
 			)
@@ -336,7 +343,10 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.WavesAddress]
 			return err
 		}
 		correctLeaseIn := int64(0)
-		wavesAddress := k.address.ToWavesAddress(s.scheme)
+		wavesAddress, err := k.address.ToWavesAddress(s.scheme)
+		if err != nil {
+			return err
+		}
 		if leaseIn, ok := correctLeaseIns[wavesAddress]; ok {
 			correctLeaseIn = leaseIn
 		}
@@ -596,7 +606,10 @@ func (s *balances) setAssetBalance(addr proto.AddressID, assetID proto.AssetID, 
 		if err != nil {
 			return err
 		}
-		wavesAddress := addr.ToWavesAddress(s.scheme)
+		wavesAddress, err := addr.ToWavesAddress(s.scheme)
+		if err != nil {
+			return err
+		}
 		fullAssetID := proto.ReconstructDigest(assetID, info.tail)
 		ac := &assetRecordForHashes{
 			addr:    &wavesAddress,
@@ -621,7 +634,10 @@ func (s *balances) setWavesBalance(addr proto.AddressID, balance *wavesValue, bl
 		return err
 	}
 	if s.calculateHashes {
-		wavesAddress := addr.ToWavesAddress(s.scheme)
+		wavesAddress, err := addr.ToWavesAddress(s.scheme)
+		if err != nil {
+			return err
+		}
 		if balance.balanceChange {
 			wc := &wavesRecordForHashes{
 				addr:    &wavesAddress,

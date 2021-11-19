@@ -178,11 +178,17 @@ func (tc *txCosts) toString() string {
 
 func scriptsCost(tx proto.Transaction, params *feeValidationParams, isRideV5Activated bool, estimatorVersion int) (*txCosts, error) {
 	smartAssets := uint64(len(params.txAssets.smartAssets))
-	senderAddr, err := proto.NewAddressFromPublicKey(params.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	senderAddr, err := tx.GetSender(params.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, err
 	}
-	accountScripted, err := params.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !params.initialisation)
+
+	// senderWavesAddr needs only for newestAccountHasVerifier check
+	senderWavesAddr, err := senderAddr.ToWavesAddress(params.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
+	}
+	accountScripted, err := params.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr, !params.initialisation)
 	if err != nil {
 		return nil, err
 	}

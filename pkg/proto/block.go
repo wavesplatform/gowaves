@@ -726,7 +726,7 @@ func (b *Block) transactionsRoot(scheme Scheme) ([]byte, error) {
 		return nil, err
 	}
 	for _, tx := range b.Transactions {
-		b, err := tx.MarshalSignedToProtobuf(scheme)
+		b, err := tx.MerkleBytes(scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -884,7 +884,7 @@ func (a Transactions) ToProtobuf(scheme Scheme) ([]*g.SignedTransaction, error) 
 	return protoTransactions, nil
 }
 
-func (a *Transactions) UnmarshalFromProtobuf(data []byte, blockVersion BlockVersion) error {
+func (a *Transactions) UnmarshalFromProtobuf(data []byte) error {
 	transactions := Transactions{}
 	for len(data) > 0 {
 		txSize := int(binary.BigEndian.Uint32(data[0:4]))

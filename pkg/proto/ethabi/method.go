@@ -1,4 +1,4 @@
-package fourbyte
+package ethabi
 
 import (
 	"github.com/pkg/errors"
@@ -49,9 +49,4 @@ func NewMethodFromRideFunctionMeta(rideF meta.Function, addPayments bool) (Metho
 
 func (m *Method) String() string {
 	return m.Sig.String()
-}
-
-func (m *Method) IsERC20() bool {
-	_, isERC20 := Erc20Methods[m.Sig.Selector()]
-	return isERC20
 }
