@@ -50,15 +50,11 @@ func (d Digest) ShortString() string {
 }
 
 func (d Digest) Bytes() []byte {
-	out := make([]byte, len(d))
-	copy(out, d[:])
-	return out
+	return d[:]
 }
 
 func (d Digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, DigestSize)
-	copy(b, d[:])
-	return b, nil
+	return d[:], nil
 }
 
 func (d *Digest) UnmarshalBinary(data []byte) error {

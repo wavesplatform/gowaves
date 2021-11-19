@@ -957,7 +957,7 @@ func GetERC20Arguments(decodedData *ethabi.DecodedCallData, scheme proto.Scheme)
 	return &ERC20Arguments{Recipient: recipient, Amount: amount}, nil
 }
 
-func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTransaction) (rideObject, error) {
+func ethereumInvokeScriptWithProofsToObject(scheme proto.Scheme, tx *proto.EthereumTransaction) (rideObject, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err
@@ -1158,7 +1158,7 @@ func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (r
 	return r, nil
 }
 
-func ethereumInvocationToObject(v int, scheme byte, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
+func ethereumInvocationToObject(v int, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err

@@ -2115,12 +2115,8 @@ func TestEthereumTransferWavesTransformTxToRideObj(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	tx := proto.EthereumTransaction{
-		Inner:    defaultEthLegacyTxData(1000000000000000, &recipientEth, nil, 100000),
-		ID:       &crypto.Digest{},
-		SenderPK: &senderPK,
-	}
-	tx.TxKind = proto.NewEthereumTransferWavesTxKind()
+	txData := defaultEthLegacyTxData(1000000000000000, &recipientEth, nil, 100000)
+	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumTransferWavesTxKind(), &crypto.Digest{}, &senderPK, 0)
 
 	rideObj, err := transactionToObject(proto.MainNetScheme, &tx)
 	assert.NoError(t, err)
@@ -2161,11 +2157,7 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
 	var txData proto.EthereumTxData = defaultEthLegacyTxData(1000000000000000, &recipientEth, data, 100000)
-	tx := proto.EthereumTransaction{
-		Inner:    txData,
-		ID:       &crypto.Digest{},
-		SenderPK: &senderPK,
-	}
+	tx := proto.NewEthereumTransaction(txData, nil, &crypto.Digest{}, &senderPK, 0)
 	db := ethabi.NewErc20MethodsMap()
 	assert.NotNil(t, tx.Data())
 	decodedData, err := db.ParseCallDataRide(tx.Data())

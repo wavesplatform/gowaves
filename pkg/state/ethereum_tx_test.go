@@ -75,18 +75,18 @@ func TestEthereumTransferWaves(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	tx := proto.EthereumTransaction{
-		Inner:    defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 100000),
-		ID:       nil,
-		SenderPK: &senderPK,
-	}
+	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 100000)
+	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
 	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
+
 	assert.NoError(t, err)
 	applRes, err := txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	assert.NoError(t, err)
 	assert.True(t, applRes.status)
-	sender, err := tx.SenderPK.EthereumAddress().ToWavesAddress(proto.MainNetScheme)
+
+	sender, err := senderPK.EthereumAddress().ToWavesAddress(proto.MainNetScheme)
 	assert.NoError(t, err)
+
 	wavesAsset := proto.NewOptionalAssetWaves()
 	senderKey := byteKey(sender.ID(), wavesAsset)
 	recipient, err := recipientEth.ToWavesAddress(proto.MainNetScheme)
@@ -141,12 +141,10 @@ func TestEthereumTransferAssets(t *testing.T) {
 	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
-	var txData proto.EthereumTxData = defaultEthereumLegacyTxData(1000000000000000, &recipientEth, data, 100000)
-	tx := proto.EthereumTransaction{
-		Inner:    txData,
-		ID:       nil,
-		SenderPK: &senderPK,
-	}
+
+	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, data, 100000)
+	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
+
 	db := ethabi.NewErc20MethodsMap()
 	assert.NotNil(t, tx.Data())
 	decodedData, err := db.ParseCallDataRide(tx.Data())
@@ -159,8 +157,10 @@ func TestEthereumTransferAssets(t *testing.T) {
 	applRes, err := txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	assert.NoError(t, err)
 	assert.True(t, applRes.status)
-	sender, err := tx.SenderPK.EthereumAddress().ToWavesAddress(proto.MainNetScheme)
+
+	sender, err := senderPK.EthereumAddress().ToWavesAddress(proto.MainNetScheme)
 	assert.NoError(t, err)
+
 	wavesAsset := proto.NewOptionalAssetWaves()
 	senderWavesKey := byteKey(sender.ID(), wavesAsset)
 	senderKey := byteKey(sender.ID(), txKindTransferAssets.Asset)
@@ -247,17 +247,12 @@ func TestEthereumInvoke(t *testing.T) {
 	recipientBytes, err := base58.Decode("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
-	var txData proto.EthereumTxData = defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000)
-	tx := proto.EthereumTransaction{
-		Inner:    txData,
-		ID:       &crypto.Digest{},
-		SenderPK: &senderPK,
-	}
-	decodedData := defaultDecodedData("call", []ethabi.DecodedArg{{Value: ethabi.Int(10)}}, []ethabi.Payment{{Amount: 5, AssetID: proto.NewOptionalAssetWaves().ID}})
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, appendTxParams)
-	tx.TxKind = proto.NewEthereumInvokeScriptTxKind(decodedData)
 
-	assert.NoError(t, err)
+	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000)
+	decodedData := defaultDecodedData("call", []ethabi.DecodedArg{{Value: ethabi.Int(10)}}, []ethabi.Payment{{Amount: 5, AssetID: proto.NewOptionalAssetWaves().ID}})
+	txKind := proto.NewEthereumInvokeScriptTxKind(decodedData)
+	tx := proto.NewEthereumTransaction(txData, txKind, &crypto.Digest{}, &senderPK, 0)
+
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
@@ -273,8 +268,9 @@ func TestEthereumInvoke(t *testing.T) {
 	assert.Equal(t, expectedDataEntryWrites[0], actions[0])
 
 	// fee test
-	var txDataForFeeCheck proto.EthereumTxData = defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 499999)
-	tx.Inner = txDataForFeeCheck
+	txDataForFeeCheck := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 499999)
+	tx = proto.NewEthereumTransaction(txDataForFeeCheck, txKind, &crypto.Digest{}, &senderPK, 0)
+
 	_, err = txAppender.ia.txHandler.checkTx(&tx, fallibleInfo.checkerInfo)
 	require.Error(t, err)
 }
@@ -288,13 +284,11 @@ func TestTransferZeroAmount(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	tx := proto.EthereumTransaction{
-		Inner:    defaultEthereumLegacyTxData(0, &recipientEth, nil, 100000),
-		ID:       nil,
-		SenderPK: &senderPK,
-	}
+	txData := defaultEthereumLegacyTxData(0, &recipientEth, nil, 100000)
+	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
 	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
+
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	require.Error(t, err)
 }
@@ -308,13 +302,11 @@ func TestTransferMainNetTestnet(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	tx := proto.EthereumTransaction{
-		Inner:    defaultEthereumLegacyTxData(100, &recipientEth, nil, 100000),
-		ID:       nil,
-		SenderPK: &senderPK,
-	}
+	txData := defaultEthereumLegacyTxData(100, &recipientEth, nil, 100000)
+	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
 	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
+
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	require.Error(t, err)
 }
@@ -328,13 +320,11 @@ func TestTransferCheckFee(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	tx := proto.EthereumTransaction{
-		Inner:    defaultEthereumLegacyTxData(100, &recipientEth, nil, 100),
-		ID:       nil,
-		SenderPK: &senderPK,
-	}
+	txData := defaultEthereumLegacyTxData(100, &recipientEth, nil, 100)
+	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
 	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
+
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	require.Error(t, err)
 }
@@ -391,17 +381,11 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 	recipientBytes, err := base58.Decode("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
-	var txData proto.EthereumTxData = defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000)
-	tx := proto.EthereumTransaction{
-		Inner:    txData,
-		ID:       &crypto.Digest{},
-		SenderPK: &senderPK,
-	}
-	decodedData := defaultDecodedData("call", nil, nil)
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, appendTxParams)
-	tx.TxKind = proto.NewEthereumInvokeScriptTxKind(decodedData)
 
-	assert.NoError(t, err)
+	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000)
+	decodedData := defaultDecodedData("call", nil, nil)
+	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumInvokeScriptTxKind(decodedData), &crypto.Digest{}, &senderPK, 0)
+
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
@@ -470,13 +454,8 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 	recipientBytes, err := base58.Decode("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
-	var txData proto.EthereumTxData = defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000)
-	tx := proto.EthereumTransaction{
-		Inner:    txData,
-		ID:       &crypto.Digest{},
-		SenderPK: &senderPK,
-	}
 
+	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000)
 	decodedData := defaultDecodedData("call", []ethabi.DecodedArg{
 		{Value: ethabi.Int(1)},
 		{Value: ethabi.Bool(true)},
@@ -484,11 +463,8 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 		{Value: ethabi.Bool(true)}, // will leave it here
 		{Value: ethabi.List{ethabi.Int(4)}},
 	}, nil)
+	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumInvokeScriptTxKind(decodedData), &crypto.Digest{}, &senderPK, 0)
 
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, appendTxParams)
-	tx.TxKind = proto.NewEthereumInvokeScriptTxKind(decodedData)
-
-	assert.NoError(t, err)
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
