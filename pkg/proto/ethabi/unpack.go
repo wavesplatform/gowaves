@@ -2,9 +2,10 @@ package ethabi
 
 import (
 	"encoding/binary"
+	"math/big"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"math/big"
 )
 
 var (
@@ -235,7 +236,7 @@ func unpackPayment(output []byte) (Payment, error) {
 		panic("BUG, CREATE REPORT: failed to parse payment, assetRideValue type must be RideBytes type")
 	}
 
-	amountRideValue, err := toDataType(1, amountType, output)
+	amountRideValue, err := toDataType(getTypeSize(assetIDType), amountType, output)
 	if err != nil {
 		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse amount")
 	}
