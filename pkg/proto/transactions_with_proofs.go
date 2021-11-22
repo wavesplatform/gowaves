@@ -1786,7 +1786,9 @@ func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) (err error) {
 			order = new(OrderV3)
 		case 4:
 			if orderInfo.Eip712Signature != nil {
-				order = new(EthereumOrderV4)
+				ethOrder := new(EthereumOrderV4)
+				ethOrder.Proofs = NewProofs()
+				order = ethOrder
 			} else {
 				order = new(OrderV4)
 			}
@@ -1816,11 +1818,13 @@ func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) (err error) {
 		return errors.Wrap(err, "failed to unmarshal orders versions of ExchangeWithProofs transaction from JSON")
 	}
 
+	// TODO: check that Order1.GetProofs() != nil
 	orderUnmarshalHelper.Order1, err = guessOrderVersionAndType(orderVersions.Order1Recognizer)
 	if err != nil {
 		return errors.Wrap(err, "failed to guess order1 version and type from JSON")
 	}
 
+	// TODO: check that Order1.GetProofs() != nil
 	orderUnmarshalHelper.Order2, err = guessOrderVersionAndType(orderVersions.Order2Recognizer)
 	if err != nil {
 		return errors.Wrap(err, "failed to guess order2 version and type from JSON")
@@ -1834,6 +1838,7 @@ func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) (err error) {
 	tx.Type = orderUnmarshalHelper.Type
 	tx.Version = orderUnmarshalHelper.Version
 	tx.ID = orderUnmarshalHelper.ID
+	// TODO: check that orderUnmarshalHelper.Proofs != nil
 	tx.Proofs = orderUnmarshalHelper.Proofs
 	tx.SenderPK = orderUnmarshalHelper.SenderPK
 	tx.Order1 = orderUnmarshalHelper.Order1

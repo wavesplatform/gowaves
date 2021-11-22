@@ -1140,6 +1140,7 @@ func (a *EthereumOrderV4TestSuite) SetupTest() {
 		10000,
 		a.matcherFeeAssetID,
 	)
+	sellOrder.Proofs = proto.NewProofs()
 
 	a.NoError(sellOrder.EthereumSign(proto.MainNetScheme, (*proto.EthereumPrivateKey)(sk)))
 
@@ -1150,7 +1151,7 @@ func (a *EthereumOrderV4TestSuite) SetupTest() {
 func (a *EthereumOrderV4TestSuite) Test_proofs() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
 	p, _ := a.tx.GetProofs()
-	a.Nil(p)
+	a.NotNil(p)
 	a.Equal(rideList{_empty, _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
 }
 
