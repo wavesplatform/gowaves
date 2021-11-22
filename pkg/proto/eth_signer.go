@@ -304,8 +304,6 @@ func (s eip155Signer) Equal(s2 EthereumSigner) bool {
 	return ok && eip155.chainId.Cmp(s.chainId) == 0
 }
 
-var big8 = big.NewInt(8)
-
 func (s eip155Signer) Sender(tx *EthereumTransaction) (EthereumAddress, error) {
 	pk, err := s.SenderPK(tx)
 	if err != nil {
@@ -321,13 +319,12 @@ func (s eip155Signer) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, err
 	if !tx.Protected() {
 		return HomesteadSigner{}.SenderPK(tx)
 	}
-	// TODO
 	if tx.ChainId().Cmp(s.chainId) != 0 {
 		return nil, ErrInvalidChainId
 	}
 	V, R, S := tx.RawSignatureValues()
 	V = new(big.Int).Sub(V, s.chainIdMul)
-	V.Sub(V, big8)
+	V.Sub(V, big.NewInt(8))
 	return recoverEthereumPubKey(s.Hash(tx), R, S, V, true)
 }
 

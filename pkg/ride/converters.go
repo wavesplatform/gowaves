@@ -1,12 +1,13 @@
 package ride
 
 import (
+	"math/big"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
-	"math/big"
 )
 
 func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) {
@@ -949,10 +950,10 @@ func GetERC20Arguments(decodedData *ethabi.DecodedCallData, scheme proto.Scheme)
 		return nil, errors.Errorf("failed to convert big int value from transfer argument to rideBigInt, %v", err)
 
 	}
-	if ok := v.V.IsInt64(); !ok {
-		return nil, errors.Errorf("failed to convert big int value to int64. value is %s", v.V.String())
+	if ok := v.v.IsInt64(); !ok {
+		return nil, errors.Errorf("failed to convert big int value to int64. value is %s", v.String())
 	}
-	amount := v.V.Int64()
+	amount := v.v.Int64()
 
 	return &ERC20Arguments{Recipient: recipient, Amount: amount}, nil
 }
@@ -1597,18 +1598,11 @@ func signatureToProofs(sig *crypto.Signature) rideList {
 
 func proofs(proofs *proto.ProofsV1) rideList {
 	r := make(rideList, 8)
-	if proofs != nil {
-		proofsLen := len(proofs.Proofs)
-		for i := range r {
-			if i < proofsLen {
-				r[i] = rideBytes(common.Dup(proofs.Proofs[i].Bytes()))
-			} else {
-				r[i] = rideBytes(nil)
-			}
-		}
-	} else {
-		// special case for ethereum stuff
-		for i := range r {
+	proofsLen := len(proofs.Proofs)
+	for i := range r {
+		if i < proofsLen {
+			r[i] = rideBytes(common.Dup(proofs.Proofs[i].Bytes()))
+		} else {
 			r[i] = rideBytes(nil)
 		}
 	}

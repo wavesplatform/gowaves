@@ -12,7 +12,7 @@ func ethABIDataTypeToRideType(dataType ethabi.DataType) (rideType rideType, err 
 	case ethabi.Int:
 		rideType = rideInt(t)
 	case ethabi.BigInt:
-		rideType = rideBigInt{V: t.V}
+		rideType = rideBigInt{v: t.V}
 	case ethabi.Bool:
 		rideType = rideBoolean(t)
 	case ethabi.Bytes:

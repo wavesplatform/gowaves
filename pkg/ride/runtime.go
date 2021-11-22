@@ -74,7 +74,7 @@ func (l rideInt) get(prop string) (rideType, error) {
 }
 
 type rideBigInt struct {
-	V *big.Int
+	v *big.Int
 }
 
 func (l rideBigInt) instanceOf() string {
@@ -83,7 +83,7 @@ func (l rideBigInt) instanceOf() string {
 
 func (l rideBigInt) eq(other rideType) bool {
 	if o, ok := other.(rideBigInt); ok {
-		return l.V.Cmp(o.V) == 0
+		return l.v.Cmp(o.v) == 0
 	}
 	return false
 }
@@ -94,7 +94,7 @@ func (l rideBigInt) get(prop string) (rideType, error) {
 }
 
 func (l rideBigInt) String() string {
-	return l.V.String()
+	return l.v.String()
 }
 
 type rideString string

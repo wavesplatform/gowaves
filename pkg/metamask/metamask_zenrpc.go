@@ -11,17 +11,18 @@ import (
 )
 
 var RPC = struct {
-	MetaMask struct{ Eth_blockNumber, Net_version, Eth_getBalance, Eth_getBlockByNumber, Eth_gasPrice, Eth_getCode, Eth_getTransactionCount, Eth_sendrawtransaction string }
+	MetaMask struct{ Eth_BlockNumber, Net_Version, Eth_ChainId, Eth_GetBalance, Eth_GetBlockByNumber, Eth_GasPrice, Eth_GetCode, Eth_GetTransactionCount, Eth_SendRawTransaction string }
 }{
-	MetaMask: struct{ Eth_blockNumber, Net_version, Eth_getBalance, Eth_getBlockByNumber, Eth_gasPrice, Eth_getCode, Eth_getTransactionCount, Eth_sendrawtransaction string }{
-		Eth_blockNumber:         "eth_blocknumber",
-		Net_version:             "net_version",
-		Eth_getBalance:          "eth_getbalance",
-		Eth_getBlockByNumber:    "eth_getblockbynumber",
-		Eth_gasPrice:            "eth_gasprice",
-		Eth_getCode:             "eth_getcode",
-		Eth_getTransactionCount: "eth_gettransactioncount",
-		Eth_sendrawtransaction:  "eth_sendrawtransaction",
+	MetaMask: struct{ Eth_BlockNumber, Net_Version, Eth_ChainId, Eth_GetBalance, Eth_GetBlockByNumber, Eth_GasPrice, Eth_GetCode, Eth_GetTransactionCount, Eth_SendRawTransaction string }{
+		Eth_BlockNumber:         "eth_blocknumber",
+		Net_Version:             "net_version",
+		Eth_ChainId:             "eth_chainid",
+		Eth_GetBalance:          "eth_getbalance",
+		Eth_GetBlockByNumber:    "eth_getblockbynumber",
+		Eth_GasPrice:            "eth_gasprice",
+		Eth_GetCode:             "eth_getcode",
+		Eth_GetTransactionCount: "eth_gettransactioncount",
+		Eth_SendRawTransaction:  "eth_sendrawtransaction",
 	},
 }
 
@@ -29,8 +30,8 @@ func (MetaMask) SMD() smd.ServiceInfo {
 	return smd.ServiceInfo{
 		Description: ``,
 		Methods: map[string]smd.Service{
-			"Eth_blockNumber": {
-				Description: `/* Returns the number of most recent block */`,
+			"Eth_BlockNumber": {
+				Description: `Eth_BlockNumber returns the number of most recent block`,
 				Parameters:  []smd.JSONSchema{},
 				Returns: smd.JSONSchema{
 					Description: ``,
@@ -38,8 +39,8 @@ func (MetaMask) SMD() smd.ServiceInfo {
 					Type:        smd.Integer,
 				},
 			},
-			"Net_version": {
-				Description: `/* Returns the current network id */`,
+			"Net_Version": {
+				Description: `Net_Version returns the current network id`,
 				Parameters:  []smd.JSONSchema{},
 				Returns: smd.JSONSchema{
 					Description: ``,
@@ -47,10 +48,19 @@ func (MetaMask) SMD() smd.ServiceInfo {
 					Type:        smd.Integer,
 				},
 			},
-			"Eth_getBalance": {
-				Description: `/* Returns the balance of the account of given address
-   - address: 20 Bytes - address to check for balance
-   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */`,
+			"Eth_ChainId": {
+				Description: `Eth_ChainId returns the chain id`,
+				Parameters:  []smd.JSONSchema{},
+				Returns: smd.JSONSchema{
+					Description: ``,
+					Optional:    false,
+					Type:        smd.String,
+				},
+			},
+			"Eth_GetBalance": {
+				Description: `Eth_GetBalance returns the balance of the account of given address
+- address: 20 Bytes - address to check for balance
+- block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */`,
 				Parameters: []smd.JSONSchema{
 					{
 						Name:        "address",
@@ -71,10 +81,10 @@ func (MetaMask) SMD() smd.ServiceInfo {
 					Type:        smd.String,
 				},
 			},
-			"Eth_getBlockByNumber": {
-				Description: `/* Returns information about a block by block number.
-   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
-   - filter: if true it returns the full transaction objects, if false only the hashes of the transactions */`,
+			"Eth_GetBlockByNumber": {
+				Description: `Eth_GetBlockByNumber returns information about a block by block number.
+- block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
+- filter: if true it returns the full transaction objects, if false only the hashes of the transactions */`,
 				Parameters: []smd.JSONSchema{
 					{
 						Name:        "block",
@@ -95,8 +105,8 @@ func (MetaMask) SMD() smd.ServiceInfo {
 					Type:        smd.String,
 				},
 			},
-			"Eth_gasPrice": {
-				Description: `/* Returns the current price per gas in wei */`,
+			"Eth_GasPrice": {
+				Description: `Eth_GasPrice returns the current price per gas in wei`,
 				Parameters:  []smd.JSONSchema{},
 				Returns: smd.JSONSchema{
 					Description: ``,
@@ -104,10 +114,10 @@ func (MetaMask) SMD() smd.ServiceInfo {
 					Type:        smd.Integer,
 				},
 			},
-			"Eth_getCode": {
-				Description: `/* Returns the compiled smart contract code, if any, at a given address.
-   - address: 20 Bytes - address to check for balance
-   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */`,
+			"Eth_GetCode": {
+				Description: `Eth_GetCode returns the compiled smart contract code, if any, at a given address.
+- address: 20 Bytes - address to check for balance
+- block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"`,
 				Parameters: []smd.JSONSchema{
 					{
 						Name:        "address",
@@ -128,10 +138,10 @@ func (MetaMask) SMD() smd.ServiceInfo {
 					Type:        smd.String,
 				},
 			},
-			"Eth_getTransactionCount": {
-				Description: `/* Returns the number of transactions sent from an address.
-   - address: 20 Bytes - address to check for balance
-   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */`,
+			"Eth_GetTransactionCount": {
+				Description: `Eth_GetTransactionCount returns the number of transactions sent from an address.
+- address: 20 Bytes - address to check for balance
+- block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"`,
 				Parameters: []smd.JSONSchema{
 					{
 						Name:        "address",
@@ -152,9 +162,9 @@ func (MetaMask) SMD() smd.ServiceInfo {
 					Type:        smd.String,
 				},
 			},
-			"Eth_sendrawtransaction": {
-				Description: `/* Creates new message call transaction or a contract creation for signed transactions.
-   - signedTxData: The signed transaction data. */`,
+			"Eth_SendRawTransaction": {
+				Description: `Eth_SendRawTransaction creates new message call transaction or a contract creation for signed transactions.
+- signedTxData: The signed transaction data.`,
 				Parameters: []smd.JSONSchema{
 					{
 						Name:        "signedTxData",
@@ -179,13 +189,16 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 	var err error
 
 	switch method {
-	case RPC.MetaMask.Eth_blockNumber:
-		resp.Set(s.Eth_blockNumber())
+	case RPC.MetaMask.Eth_BlockNumber:
+		resp.Set(s.Eth_BlockNumber())
 
-	case RPC.MetaMask.Net_version:
-		resp.Set(s.Net_version())
+	case RPC.MetaMask.Net_Version:
+		resp.Set(s.Net_Version())
 
-	case RPC.MetaMask.Eth_getBalance:
+	case RPC.MetaMask.Eth_ChainId:
+		resp.Set(s.Eth_ChainId())
+
+	case RPC.MetaMask.Eth_GetBalance:
 		var args = struct {
 			Address     string `json:"address"`
 			BlockNumber int    `json:"blockNumber"`
@@ -203,9 +216,9 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 			}
 		}
 
-		resp.Set(s.Eth_getBalance(args.Address, args.BlockNumber))
+		resp.Set(s.Eth_GetBalance(args.Address, args.BlockNumber))
 
-	case RPC.MetaMask.Eth_getBlockByNumber:
+	case RPC.MetaMask.Eth_GetBlockByNumber:
 		var args = struct {
 			Block  int  `json:"block"`
 			Filter bool `json:"filter"`
@@ -223,12 +236,12 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 			}
 		}
 
-		resp.Set(s.Eth_getBlockByNumber(args.Block, args.Filter))
+		resp.Set(s.Eth_GetBlockByNumber(args.Block, args.Filter))
 
-	case RPC.MetaMask.Eth_gasPrice:
-		resp.Set(s.Eth_gasPrice())
+	case RPC.MetaMask.Eth_GasPrice:
+		resp.Set(s.Eth_GasPrice())
 
-	case RPC.MetaMask.Eth_getCode:
+	case RPC.MetaMask.Eth_GetCode:
 		var args = struct {
 			Address string `json:"address"`
 			Block   int    `json:"block"`
@@ -246,9 +259,9 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 			}
 		}
 
-		resp.Set(s.Eth_getCode(args.Address, args.Block))
+		resp.Set(s.Eth_GetCode(args.Address, args.Block))
 
-	case RPC.MetaMask.Eth_getTransactionCount:
+	case RPC.MetaMask.Eth_GetTransactionCount:
 		var args = struct {
 			Address string `json:"address"`
 			Block   string `json:"block"`
@@ -266,9 +279,9 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 			}
 		}
 
-		resp.Set(s.Eth_getTransactionCount(args.Address, args.Block))
+		resp.Set(s.Eth_GetTransactionCount(args.Address, args.Block))
 
-	case RPC.MetaMask.Eth_sendrawtransaction:
+	case RPC.MetaMask.Eth_SendRawTransaction:
 		var args = struct {
 			SignedTxData string `json:"signedTxData"`
 		}{}
@@ -285,7 +298,7 @@ func (s MetaMask) Invoke(ctx context.Context, method string, params json.RawMess
 			}
 		}
 
-		resp.Set(s.Eth_sendrawtransaction(args.SignedTxData))
+		resp.Set(s.Eth_SendRawTransaction(args.SignedTxData))
 
 	default:
 		resp = zenrpc.NewResponseError(nil, zenrpc.MethodNotFound, "", nil)

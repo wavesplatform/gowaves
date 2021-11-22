@@ -152,7 +152,11 @@ func (tx *IssueWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx IssueWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *IssueWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *IssueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -163,7 +167,9 @@ func (tx IssueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *IssueWithProofs) Clone() *IssueWithProofs {
 	out := &IssueWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -190,7 +196,7 @@ func validScriptVersion(v byte) bool {
 	return v <= topRideVersion
 }
 
-func (tx *IssueWithProofs) Validate() (Transaction, error) {
+func (tx *IssueWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxIssueTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for IssueWithProofs", tx.Version)
 	}
@@ -497,7 +503,11 @@ func (tx *TransferWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx TransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *TransferWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *TransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -508,7 +518,9 @@ func (tx TransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *TransferWithProofs) Clone() *TransferWithProofs {
 	out := &TransferWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -527,7 +539,7 @@ func NewUnsignedTransferWithProofs(v byte, senderPK crypto.PublicKey, amountAsse
 	return &TransferWithProofs{Type: TransferTransaction, Version: v, Transfer: t}
 }
 
-func (tx *TransferWithProofs) Validate() (Transaction, error) {
+func (tx *TransferWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxTransferTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for TransferWithProofs", tx.Version)
 	}
@@ -803,7 +815,11 @@ func (tx *ReissueWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx ReissueWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *ReissueWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *ReissueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -814,7 +830,9 @@ func (tx ReissueWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *ReissueWithProofs) Clone() *ReissueWithProofs {
 	out := &ReissueWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -831,7 +849,7 @@ func NewUnsignedReissueWithProofs(v, chainID byte, senderPK crypto.PublicKey, as
 	return &ReissueWithProofs{Type: ReissueTransaction, Version: v, ChainID: chainID, Reissue: r}
 }
 
-func (tx *ReissueWithProofs) Validate() (Transaction, error) {
+func (tx *ReissueWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxReissueTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for ReissueWithProofs", tx.Version)
 	}
@@ -1046,7 +1064,11 @@ func (tx *BurnWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx BurnWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *BurnWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *BurnWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1057,7 +1079,9 @@ func (tx BurnWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *BurnWithProofs) Clone() *BurnWithProofs {
 	out := &BurnWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1073,7 +1097,7 @@ func NewUnsignedBurnWithProofs(v, chainID byte, senderPK crypto.PublicKey, asset
 	return &BurnWithProofs{Type: BurnTransaction, Version: v, ChainID: chainID, Burn: b}
 }
 
-func (tx *BurnWithProofs) Validate() (Transaction, error) {
+func (tx *BurnWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxBurnTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for BurnWithProofs", tx.Version)
 	}
@@ -1312,7 +1336,11 @@ func (tx *ExchangeWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx ExchangeWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *ExchangeWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *ExchangeWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1323,7 +1351,9 @@ func (tx ExchangeWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *ExchangeWithProofs) Clone() *ExchangeWithProofs {
 	out := &ExchangeWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1402,7 +1432,7 @@ func NewUnsignedExchangeWithProofs(v byte, buy, sell Order, price, amount, buyMa
 	}
 }
 
-func (tx *ExchangeWithProofs) Validate() (Transaction, error) {
+func (tx *ExchangeWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxExchangeTransactionVersion {
 		return tx, errors.Errorf("unexpected transaction version %d for ExchangeWithProofs transaction", tx.Version)
 	}
@@ -1807,7 +1837,7 @@ type LeaseWithProofs struct {
 	Lease
 }
 
-func (tx *LeaseWithProofs) Validate() (Transaction, error) {
+func (tx *LeaseWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxLeaseTransactionVersion {
 		return tx, errors.Errorf("unexpected transaction version %d for LeaseWithProofs transaction", tx.Version)
 	}
@@ -1903,7 +1933,11 @@ func (tx *LeaseWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx LeaseWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *LeaseWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *LeaseWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1914,7 +1948,9 @@ func (tx LeaseWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *LeaseWithProofs) Clone() *LeaseWithProofs {
 	out := &LeaseWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -2131,7 +2167,11 @@ func (tx *LeaseCancelWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx LeaseCancelWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *LeaseCancelWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *LeaseCancelWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -2142,7 +2182,9 @@ func (tx LeaseCancelWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *LeaseCancelWithProofs) Clone() *LeaseCancelWithProofs {
 	out := &LeaseCancelWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -2157,7 +2199,7 @@ func NewUnsignedLeaseCancelWithProofs(v, chainID byte, senderPK crypto.PublicKey
 	return &LeaseCancelWithProofs{Type: LeaseCancelTransaction, Version: v, ChainID: chainID, LeaseCancel: lc}
 }
 
-func (tx *LeaseCancelWithProofs) Validate() (Transaction, error) {
+func (tx *LeaseCancelWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxLeaseCancelTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for LeaseCancelWithProofs", tx.Version)
 	}
@@ -2287,7 +2329,7 @@ type CreateAliasWithProofs struct {
 	CreateAlias
 }
 
-func (tx *CreateAliasWithProofs) Validate() (Transaction, error) {
+func (tx *CreateAliasWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 2 || tx.Version > MaxCreateAliasTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for CreateAliasWithProofs", tx.Version)
 	}
@@ -2389,7 +2431,11 @@ func (tx *CreateAliasWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx CreateAliasWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *CreateAliasWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *CreateAliasWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -2400,7 +2446,9 @@ func (tx CreateAliasWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *CreateAliasWithProofs) Clone() *CreateAliasWithProofs {
 	out := &CreateAliasWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -2628,7 +2676,9 @@ func (tx MassTransferWithProofs) GetVersion() byte {
 
 func (tx *MassTransferWithProofs) Clone() *MassTransferWithProofs {
 	out := &MassTransferWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -2644,6 +2694,10 @@ func (tx *MassTransferWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *MassTransferWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx MassTransferWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
@@ -2652,7 +2706,7 @@ func (tx MassTransferWithProofs) GetSender(scheme Scheme) (Address, error) {
 	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
-func (tx MassTransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *MassTransferWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -2674,7 +2728,7 @@ func NewUnsignedMassTransferWithProofs(v byte, senderPK crypto.PublicKey, asset 
 	return &MassTransferWithProofs{Type: MassTransferTransaction, Version: v, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: attachment}
 }
 
-func (tx *MassTransferWithProofs) Validate() (Transaction, error) {
+func (tx *MassTransferWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxMassTransferTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for MassTransferWithProofs", tx.Version)
 	}
@@ -3021,6 +3075,10 @@ func (tx *DataWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *DataWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx DataWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
@@ -3029,7 +3087,7 @@ func (tx DataWithProofs) GetSender(scheme Scheme) (Address, error) {
 	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
-func (tx DataWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *DataWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -3048,7 +3106,9 @@ func (tx DataWithProofs) GetTimestamp() uint64 {
 
 func (tx *DataWithProofs) Clone() *DataWithProofs {
 	out := &DataWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -3056,7 +3116,7 @@ func NewUnsignedData(v byte, senderPK crypto.PublicKey, fee, timestamp uint64) *
 	return &DataWithProofs{Type: DataTransaction, Version: v, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *DataWithProofs) Validate() (Transaction, error) {
+func (tx *DataWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxDataTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for DataWithProofs", tx.Version)
 	}
@@ -3408,6 +3468,10 @@ func (tx *SetScriptWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *SetScriptWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx SetScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
@@ -3416,7 +3480,7 @@ func (tx SetScriptWithProofs) GetSender(scheme Scheme) (Address, error) {
 	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
-func (tx SetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *SetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -3438,7 +3502,7 @@ func NewUnsignedSetScriptWithProofs(v byte, chain byte, senderPK crypto.PublicKe
 	return &SetScriptWithProofs{Type: SetScriptTransaction, Version: v, ChainID: chain, SenderPK: senderPK, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *SetScriptWithProofs) Validate() (Transaction, error) {
+func (tx *SetScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxSetScriptTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for SetScriptWithProofs", tx.Version)
 	}
@@ -3692,6 +3756,10 @@ func (tx *SponsorshipWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *SponsorshipWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx SponsorshipWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
@@ -3700,7 +3768,7 @@ func (tx SponsorshipWithProofs) GetSender(scheme Scheme) (Address, error) {
 	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
-func (tx SponsorshipWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *SponsorshipWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -3719,7 +3787,9 @@ func (tx SponsorshipWithProofs) GetTimestamp() uint64 {
 
 func (tx *SponsorshipWithProofs) Clone() *SponsorshipWithProofs {
 	out := &SponsorshipWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -3728,7 +3798,7 @@ func NewUnsignedSponsorshipWithProofs(v byte, senderPK crypto.PublicKey, assetID
 	return &SponsorshipWithProofs{Type: SponsorshipTransaction, Version: v, SenderPK: senderPK, AssetID: assetID, MinAssetFee: minAssetFee, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *SponsorshipWithProofs) Validate() (Transaction, error) {
+func (tx *SponsorshipWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxSponsorshipTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for SponsorshipWithProofs", tx.Version)
 	}
@@ -3974,6 +4044,10 @@ func (tx *SetAssetScriptWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *SetAssetScriptWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx SetAssetScriptWithProofs) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
@@ -3982,7 +4056,7 @@ func (tx SetAssetScriptWithProofs) GetSender(scheme Scheme) (Address, error) {
 	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
-func (tx SetAssetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *SetAssetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -4001,7 +4075,9 @@ func (tx SetAssetScriptWithProofs) GetTimestamp() uint64 {
 
 func (tx *SetAssetScriptWithProofs) Clone() *SetAssetScriptWithProofs {
 	out := &SetAssetScriptWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -4010,7 +4086,7 @@ func NewUnsignedSetAssetScriptWithProofs(v, chain byte, senderPK crypto.PublicKe
 	return &SetAssetScriptWithProofs{Type: SetAssetScriptTransaction, Version: v, ChainID: chain, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *SetAssetScriptWithProofs) Validate() (Transaction, error) {
+func (tx *SetAssetScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxSetAssetScriptTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for SetAssetScriptWithProofs", tx.Version)
 	}
@@ -4264,6 +4340,10 @@ func (tx *InvokeScriptWithProofs) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (tx *InvokeScriptWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx InvokeScriptWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
 }
@@ -4280,7 +4360,7 @@ func (tx InvokeScriptWithProofs) GetSender(scheme Scheme) (Address, error) {
 	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
-func (tx InvokeScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *InvokeScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -4299,7 +4379,9 @@ func (tx InvokeScriptWithProofs) GetTimestamp() uint64 {
 
 func (tx *InvokeScriptWithProofs) Clone() *InvokeScriptWithProofs {
 	out := &InvokeScriptWithProofs{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -4319,7 +4401,7 @@ func NewUnsignedInvokeScriptWithProofs(v, chain byte, senderPK crypto.PublicKey,
 	}
 }
 
-func (tx *InvokeScriptWithProofs) Validate() (Transaction, error) {
+func (tx *InvokeScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxInvokeScriptTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for InvokeScriptWithProofs", tx.Version)
 	}
@@ -4679,7 +4761,7 @@ func (tx UpdateAssetInfoWithProofs) GetVersion() byte {
 	return tx.Version
 }
 
-func (tx UpdateAssetInfoWithProofs) GetID(scheme Scheme) ([]byte, error) {
+func (tx *UpdateAssetInfoWithProofs) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -4704,7 +4786,7 @@ func (tx UpdateAssetInfoWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func (tx *UpdateAssetInfoWithProofs) Validate() (Transaction, error) {
+func (tx *UpdateAssetInfoWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxUpdateAssetInfoTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for UpdateAssetInfoWithProofs", tx.Version)
 	}
@@ -4733,6 +4815,10 @@ func (tx *UpdateAssetInfoWithProofs) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 	}
 	return nil
+}
+
+func (tx *UpdateAssetInfoWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
 }
 
 func (tx *UpdateAssetInfoWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error {

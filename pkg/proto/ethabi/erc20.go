@@ -14,7 +14,7 @@ var erc20Methods = map[Selector]Method{
 				Name: "_to",
 				Type: Type{
 					Size:       ethereumAddressSize,
-					T:          AddressTy,
+					T:          AddressType,
 					stringKind: "address",
 				},
 			},
@@ -22,7 +22,7 @@ var erc20Methods = map[Selector]Method{
 				Name: "_value",
 				Type: Type{
 					Size:       256,
-					T:          UintTy,
+					T:          UintType,
 					stringKind: "uint256",
 				},
 			},

@@ -247,7 +247,9 @@ type GenesisTestSuite struct {
 
 func (a *GenesisTestSuite) SetupTest() {
 	tx := &proto.Genesis{}
-	_ = copier.Copy(tx, byte_helpers.Genesis.Transaction)
+	if err := copier.Copy(tx, byte_helpers.Genesis.Transaction); err != nil {
+		panic(err.Error())
+	}
 	a.tx = tx
 	a.f = transactionToObject
 }
@@ -298,7 +300,9 @@ type PaymentTestSuite struct {
 
 func (a *PaymentTestSuite) SetupTest() {
 	tx := &proto.Payment{}
-	_ = copier.Copy(tx, byte_helpers.Payment.Transaction)
+	if err := copier.Copy(tx, byte_helpers.Payment.Transaction); err != nil {
+		panic(err.Error())
+	}
 	a.tx = tx
 	a.f = transactionToObject
 }
