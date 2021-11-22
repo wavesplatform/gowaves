@@ -2,22 +2,16 @@ package ethabi
 
 import (
 	"encoding/binary"
+	"math/big"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"math/big"
-)
-
-var (
-	Big1  = big.NewInt(1)
-	Big32 = big.NewInt(32)
-	// MaxUint256 is the maximum value that can be represented by a uint256.
-	MaxUint256 = new(big.Int).Sub(new(big.Int).Lsh(Big1, 256), Big1)
 )
 
 var (
 	big1  = big.NewInt(1)
 	big32 = big.NewInt(32)
-	// maxUint256 is the maximum value that can be represented by a uint256.
+	// maxUint256 is the maximum value that can be represented by an uint256.
 	maxUint256 = new(big.Int).Sub(new(big.Int).Lsh(big1, 256), big1)
 )
 

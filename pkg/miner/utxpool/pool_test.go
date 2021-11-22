@@ -55,7 +55,7 @@ func (a transaction) GetID(_ proto.Scheme) ([]byte, error) {
 	return a.id, nil
 }
 
-func (transaction) Validate() (proto.Transaction, error) {
+func (transaction) Validate(_ proto.Scheme) (proto.Transaction, error) {
 	panic("not implemented")
 }
 
@@ -77,6 +77,10 @@ func (transaction) GetTimestamp() uint64 {
 
 func (transaction) GenerateID(_ proto.Scheme) error {
 	return nil
+}
+
+func (transaction) MerkleBytes(_ proto.Scheme) ([]byte, error) {
+	panic("not implemented")
 }
 
 func (transaction) GetTypeInfo() proto.TransactionTypeInfo {

@@ -130,6 +130,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("drop-peers: %v", *dropPeers)
 	zap.S().Debugf("db-file-descriptors: %v", *dbFileDescriptors)
 	zap.S().Debugf("new-connections-limit: %v", *newConnectionsLimit)
+	//zap.S().Debugf("enableMetaMaskService: %v", *enableMetaMaskService)
 }
 
 func main() {

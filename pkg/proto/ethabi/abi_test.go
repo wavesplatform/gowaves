@@ -1,9 +1,10 @@
 package ethabi
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
-	"testing"
 )
 
 func TestSignature_Selector(t *testing.T) {

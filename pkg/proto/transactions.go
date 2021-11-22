@@ -37,12 +37,9 @@ const (
 	SetAssetScriptTransaction                              // 15 - SetAssetScript transaction
 	InvokeScriptTransaction                                // 16 - InvokeScript transaction
 	UpdateAssetInfoTransaction                             // 17 - UpdateAssetInfoTransaction
-	EthereumMetamaskTransaction                            // 18 - EthereumMetamaskTransaction is a transaction which received from metamask
+	_                                                      // 18 - reserved
+	EthereumMetamaskTransaction                            // 19 - EthereumMetamaskTransaction is a transaction which received from metamask
 )
-
-func (tt TransactionType) BinarySize() int {
-	return 1
-}
 
 // TxFailureReason indicates Transactions failure reasons.
 type TxFailureReason byte
@@ -112,18 +109,17 @@ var (
 	}
 
 	bytesToTransactionsV1 = map[TransactionType]reflect.Type{
-		GenesisTransaction:          reflect.TypeOf(Genesis{}),
-		PaymentTransaction:          reflect.TypeOf(Payment{}),
-		IssueTransaction:            reflect.TypeOf(IssueWithSig{}),
-		TransferTransaction:         reflect.TypeOf(TransferWithSig{}),
-		ReissueTransaction:          reflect.TypeOf(ReissueWithSig{}),
-		BurnTransaction:             reflect.TypeOf(BurnWithSig{}),
-		ExchangeTransaction:         reflect.TypeOf(ExchangeWithSig{}),
-		LeaseTransaction:            reflect.TypeOf(LeaseWithSig{}),
-		LeaseCancelTransaction:      reflect.TypeOf(LeaseCancelWithSig{}),
-		CreateAliasTransaction:      reflect.TypeOf(CreateAliasWithSig{}),
-		MassTransferTransaction:     reflect.TypeOf(MassTransferWithProofs{}),
-		EthereumMetamaskTransaction: reflect.TypeOf(EthereumTransaction{}), // TODO(nickeskov): Is it correct?
+		GenesisTransaction:      reflect.TypeOf(Genesis{}),
+		PaymentTransaction:      reflect.TypeOf(Payment{}),
+		IssueTransaction:        reflect.TypeOf(IssueWithSig{}),
+		TransferTransaction:     reflect.TypeOf(TransferWithSig{}),
+		ReissueTransaction:      reflect.TypeOf(ReissueWithSig{}),
+		BurnTransaction:         reflect.TypeOf(BurnWithSig{}),
+		ExchangeTransaction:     reflect.TypeOf(ExchangeWithSig{}),
+		LeaseTransaction:        reflect.TypeOf(LeaseWithSig{}),
+		LeaseCancelTransaction:  reflect.TypeOf(LeaseCancelWithSig{}),
+		CreateAliasTransaction:  reflect.TypeOf(CreateAliasWithSig{}),
+		MassTransferTransaction: reflect.TypeOf(MassTransferWithProofs{}),
 	}
 
 	ProtobufTransactionsVersions = map[TransactionType]byte{
@@ -144,7 +140,7 @@ var (
 		SetAssetScriptTransaction:  2,
 		InvokeScriptTransaction:    2,
 		UpdateAssetInfoTransaction: 1,
-		// TODO(nickeskov): How to add ethereum tx?
+		// EthereumMetamaskTransaction should not be added because it doesn't exist as protobuf transaction
 	}
 )
 
@@ -192,7 +188,7 @@ type Transaction interface {
 	// Validate checks that all transaction fields are valid.
 	// This includes ranges checks, and sanity checks specific for each transaction type:
 	// for example, negative amounts for transfers.
-	Validate() (Transaction, error)
+	Validate(scheme Scheme) (Transaction, error)
 
 	// GenerateID sets transaction ID.
 	// For most transactions ID is hash of transaction body.
@@ -201,6 +197,9 @@ type Transaction interface {
 	// Sign transaction with given secret key.
 	// It also sets transaction ID.
 	Sign(scheme Scheme, sk crypto.SecretKey) error
+
+	// MerkleBytes returns array of bytes for block's merle root calculation
+	MerkleBytes(scheme Scheme) ([]byte, error)
 
 	// MarshalBinary functions for custom binary format serialization.
 	// MarshalBinary() is analogous to MarshalSignedToProtobuf() for Protobuf.
@@ -442,6 +441,10 @@ func (tx *Genesis) GenerateID(scheme Scheme) error {
 	return tx.generateID(scheme)
 }
 
+func (tx Genesis) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx *Genesis) Sign(scheme Scheme, _ crypto.SecretKey) error {
 	if err := tx.generateID(scheme); err != nil {
 		return err
@@ -468,7 +471,7 @@ func (tx *Genesis) generateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx Genesis) GetID(scheme Scheme) ([]byte, error) {
+func (tx *Genesis) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -491,7 +494,7 @@ func NewUnsignedGenesis(recipient WavesAddress, amount, timestamp uint64) *Genes
 }
 
 //Validate checks the validity of transaction parameters and it's signature.
-func (tx *Genesis) Validate() (Transaction, error) {
+func (tx *Genesis) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxGenesisTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Genesis transaction", tx.Version)
 	}
@@ -706,6 +709,10 @@ func (tx *Payment) GenerateID(_ Scheme) error {
 	return nil
 }
 
+func (tx Payment) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
 func (tx Payment) GetSenderPK() crypto.PublicKey {
 	return tx.SenderPK
 }
@@ -714,7 +721,7 @@ func (tx Payment) GetSender(scheme Scheme) (Address, error) {
 	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
 
-func (tx Payment) GetID(scheme Scheme) ([]byte, error) {
+func (tx *Payment) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -736,7 +743,7 @@ func NewUnsignedPayment(senderPK crypto.PublicKey, recipient WavesAddress, amoun
 	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *Payment) Validate() (Transaction, error) {
+func (tx *Payment) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxPaymentTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Payment transaction", tx.Version)
 	}

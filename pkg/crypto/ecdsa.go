@@ -15,14 +15,14 @@ var (
 	secp256k1N, _ = new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
 )
 
-func ECDSARecoverPublicKey(hash, signature []byte) (*btcec.PublicKey, error) {
+func ECDSARecoverPublicKey(digest, signature []byte) (*btcec.PublicKey, error) {
 	s := [65]byte{}
 	if signature[64] < 27 {
 		signature[64] += 27
 	}
 	s[0] = signature[64]
 	copy(s[1:], signature)
-	pub, _, err := btcec.RecoverCompact(curve, s[:], hash)
+	pub, _, err := btcec.RecoverCompact(curve, s[:], digest)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to recover public key")
 	}
@@ -37,14 +37,14 @@ func ECDSARecoverPublicKey(hash, signature []byte) (*btcec.PublicKey, error) {
 // solution is to hash any input before calculating the signature.
 //
 // The produced signature is in the [R || S || V] format where V is 0 or 1.
-func ECDSASign(hash []byte, prv *btcec.PrivateKey) ([]byte, error) {
-	if len(hash) != 32 {
-		return nil, errors.Errorf("hash is required to be exactly 32 bytes (%d)", len(hash))
+func ECDSASign(digest []byte, sk *btcec.PrivateKey) ([]byte, error) {
+	if len(digest) != 32 {
+		return nil, errors.Errorf("hash is required to be exactly 32 bytes (%d)", len(digest))
 	}
-	if prv.Curve != curve {
+	if sk.Curve != curve {
 		return nil, errors.Errorf("private key curve is not secp256k1")
 	}
-	sig, err := btcec.SignCompact(curve, prv, hash, false)
+	sig, err := btcec.SignCompact(curve, sk, digest, false)
 	if err != nil {
 		return nil, err
 	}
@@ -82,27 +82,27 @@ func ECDSAPrivateKeyFromHexString(hexString string) (*btcec.PrivateKey, error) {
 
 // ECDSAPrivateKeyFromBytes creates btcec.PrivateKey from 'd' PrivateKey parameter with appropriate checks.
 func ECDSAPrivateKeyFromBytes(d []byte) (*btcec.PrivateKey, error) {
-	priv := new(btcec.PrivateKey)
-	priv.PublicKey.Curve = curve
+	sk := new(btcec.PrivateKey)
+	sk.PublicKey.Curve = curve
 
 	// strictly checking bit size
-	if 8*len(d) != priv.Params().BitSize {
-		return nil, fmt.Errorf("invalid length, need %d bits", priv.Params().BitSize)
+	if 8*len(d) != sk.Params().BitSize {
+		return nil, fmt.Errorf("invalid length, need %d bits", sk.Params().BitSize)
 	}
-	priv.D = new(big.Int).SetBytes(d)
+	sk.D = new(big.Int).SetBytes(d)
 
-	// The priv.D must < N
-	if priv.D.Cmp(secp256k1N) >= 0 {
+	// The sk.D must < N
+	if sk.D.Cmp(secp256k1N) >= 0 {
 		return nil, fmt.Errorf("invalid private key, >=N")
 	}
-	// The priv.D must not be zero or negative.
-	if priv.D.Sign() <= 0 {
+	// The sk.D must not be zero or negative.
+	if sk.D.Sign() <= 0 {
 		return nil, fmt.Errorf("invalid private key, zero or negative")
 	}
 
-	priv.PublicKey.X, priv.PublicKey.Y = priv.PublicKey.Curve.ScalarBaseMult(d)
-	if priv.PublicKey.X == nil {
+	sk.PublicKey.X, sk.PublicKey.Y = sk.PublicKey.Curve.ScalarBaseMult(d)
+	if sk.PublicKey.X == nil {
 		return nil, errors.New("invalid private key")
 	}
-	return priv, nil
+	return sk, nil
 }
