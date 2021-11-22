@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -12,12 +13,17 @@ import (
 	"go.uber.org/zap"
 )
 
+type vrfGetter interface {
+	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
+}
+
 type txAppender struct {
-	state types.SmartState
-	sc    *scriptCaller
-	ia    *invokeApplier
+	sc *scriptCaller
+	ia *invokeApplier
 
 	rw *blockReadWriter
+
+	vrf vrfGetter
 
 	atx      *addressTransactions
 	stor     *blockchainEntitiesStorage
@@ -60,7 +66,7 @@ func newTxAppender(
 		return nil, err
 	}
 	genesis := settings.Genesis
-	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, state)
+	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings)
 	if err != nil {
 		return nil, err
 	}
@@ -86,10 +92,10 @@ func newTxAppender(
 	}
 	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData)
 	return &txAppender{
-		state:          state,
 		sc:             sc,
 		ia:             ia,
 		rw:             rw,
+		vrf:            state,
 		atx:            atx,
 		stor:           stor,
 		settings:       settings,
@@ -153,11 +159,8 @@ func (a *txAppender) orderIsScripted(order proto.Order, initialisation bool) (bo
 
 // For UTX validation, this returns the last stable block, which is in fact current block.
 func (a *txAppender) currentBlock() (*proto.BlockHeader, error) {
-	curBlockHeight, err := a.state.AddingBlockHeight()
-	if err != nil {
-		return nil, err
-	}
-	curHeader, err := a.state.NewestHeaderByHeight(curBlockHeight)
+	curBlockHeight := a.rw.addingBlockHeight()
+	curHeader, err := a.rw.readNewestBlockHeaderByHeight(curBlockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -165,19 +168,16 @@ func (a *txAppender) currentBlock() (*proto.BlockHeader, error) {
 }
 
 func (a *txAppender) currentBlockInfo() (*proto.BlockInfo, error) {
-	height, err := a.state.AddingBlockHeight()
-	if err != nil {
-		return nil, err
-	}
+	curBlockHeight := a.rw.addingBlockHeight()
 	curHeader, err := a.currentBlock()
 	if err != nil {
 		return nil, err
 	}
-	hs, err := a.state.BlockVRF(curHeader, height-1)
+	vrf, err := a.vrf.BlockVRF(curHeader, curBlockHeight-1)
 	if err != nil {
 		return nil, err
 	}
-	return proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, height, hs)
+	return proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, curBlockHeight, vrf)
 }
 
 func (a *txAppender) checkProtobufVersion(tx proto.Transaction, blockV5Activated bool) error {
@@ -404,13 +404,12 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 
 	assetID := (*proto.AssetID)(ethTx.To())
 
-	asset, err := a.state.AssetInfoByID(*assetID, true)
+	assetInfo, err := a.stor.assets.newestAssetInfo(*assetID, true)
 	if err != nil && !errors.Is(err, errs.UnknownAsset{}) {
 		return nil, errors.Errorf("failed to get asset info by ethereum recipient address %s, %v", ethTx.To().String(), err)
 	}
 
 	if ethabi.IsERC20Selector(selector) && err == nil {
-
 		db := ethabi.NewErc20MethodsMap()
 		decodedData, err := db.ParseCallDataRide(ethTx.Data())
 		if err != nil {
@@ -419,7 +418,8 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 		if len(decodedData.Inputs) != ethabi.NumberOfERC20Arguments {
 			return nil, errors.Errorf("the number of arguments of erc20 function is %d, but expected it to be %d", len(decodedData.Inputs), ethabi.NumberOfERC20Arguments)
 		}
-		return proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID)), nil
+		fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.tail)
+		return proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(fullAssetID)), nil
 	}
 
 	// TODO it'd better if we have a function tree.Meta.Contains(sel selector) bool to make the last case clear
@@ -527,36 +527,34 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		if !ok {
 			return errors.New("failed to cast interface transaction to ethereum transaction structure")
 		}
-		err = ethTx.GenerateID(a.settings.AddressSchemeCharacter)
-		if err != nil {
-			return errors.Errorf("failed to generate transaction id for ethereum transaction, %v", err)
-		}
 		ethTx.TxKind, err = a.guessEthereumTransactionKind(ethTx, params)
 		if err != nil {
 			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
-		}
-
-		height, err := a.state.AddingBlockHeight()
-		if err != nil {
-			return errors.Errorf("failed to get height while adding block, %v", err)
 		}
 		switch ethTx.TxKind.(type) {
 		case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
 			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 			if err != nil {
-				return errors.Errorf("failed to handle ethereum transaction (type %s) with id %s, on height %d: %v", ethTx.TxKind.Kind(), ethTx.ID.String(), height, err)
+				return errors.Errorf("failed to handle ethereum transaction (type %s) with id %s, on height %d: %v",
+					ethTx.TxKind.String(), ethTx.ID.String(), params.block.Height, err,
+				)
 			}
 			// In UTX balances are always validated.
 			needToValidateBalanceDiff = params.validatingUtx
 		case *proto.EthereumInvokeScriptTxKind:
-			fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
+			fallibleInfo := &fallibleValidationParams{
+				appendTxParams: params,
+				senderScripted: accountHasVerifierScript,
+				senderAddress:  senderAddr,
+			}
 			applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
 			if err != nil {
-				return errors.Errorf("failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d: %v", ethTx.TxKind.Kind(), ethTx.ID.String(), height, err)
-
+				return errors.Errorf(
+					"failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d: %v",
+					ethTx.TxKind.String(), ethTx.ID.String(), params.block.Height, err,
+				)
 			}
 		}
-
 	default:
 		applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 		if err != nil {
@@ -581,7 +579,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		return errs.Extend(err, "get transaction id")
 	}
 	if err := a.commitTxApplication(tx, params, applicationRes); err != nil {
-		zap.S().Warnf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
+		zap.S().Errorf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
 		return err
 	}
 	// Store additional data for API: transaction by address.
@@ -699,12 +697,12 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 func (a *txAppender) handleEthereumInvoke(tx proto.Transaction, info *fallibleValidationParams) (*applicationResult, error) {
 	ethTx, ok := tx.(*proto.EthereumTransaction)
 	if !ok {
-		return nil, errors.New("failed to convert transaction to type InvokeScriptWithProofs")
+		return nil, errors.New("failed to convert transaction to type EthereumTransaction")
 	}
 
 	res, err := a.ia.applyInvokeScript(ethTx, info)
 	if err != nil {
-		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", ethTx.ID.String(), err)
+		zap.S().Debugf("failed to apply Ethereum invoke transaction %s to state: %v", ethTx.ID.String(), err)
 		return nil, err
 	}
 	return res, nil

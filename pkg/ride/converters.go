@@ -63,7 +63,7 @@ func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) 
 	case *proto.UpdateAssetInfoWithProofs:
 		return updateAssetInfoWithProofsToObject(scheme, transaction)
 	case *proto.EthereumTransaction:
-		return ethereumInvokeScriptWithProofsToObject(scheme, transaction)
+		return ethereumTransactionToObject(scheme, transaction)
 	default:
 		return nil, errors.Errorf("conversion to RIDE object is not implemented for %T", transaction)
 	}
@@ -926,7 +926,7 @@ type ERC20Arguments struct {
 	Amount    int64
 }
 
-func GetERC20Arguments(decodedData *ethabi.DecodedCallData, scheme proto.Scheme) (*ERC20Arguments, error) {
+func GetERC20TransferArguments(decodedData *ethabi.DecodedCallData, scheme proto.Scheme) (*ERC20Arguments, error) {
 	rideTypeValueRecipient, err := ethABIDataTypeToRideType(decodedData.Inputs[0].Value)
 	if err != nil {
 		return nil, errors.Errorf("failed to convert data type to ride type, %v", err)
@@ -958,7 +958,7 @@ func GetERC20Arguments(decodedData *ethabi.DecodedCallData, scheme proto.Scheme)
 	return &ERC20Arguments{Recipient: recipient, Amount: amount}, nil
 }
 
-func ethereumInvokeScriptWithProofsToObject(scheme proto.Scheme, tx *proto.EthereumTransaction) (rideObject, error) {
+func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransaction) (rideObject, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err
@@ -1005,7 +1005,7 @@ func ethereumInvokeScriptWithProofsToObject(scheme proto.Scheme, tx *proto.Ether
 		r["id"] = rideBytes(tx.ID.Bytes())
 		r["sender"] = rideAddress(sender)
 		r["senderPublicKey"] = rideBytes(callerPK)
-		erc20arguments, err := GetERC20Arguments(tx.TxKind.DecodedData(), scheme)
+		erc20arguments, err := GetERC20TransferArguments(tx.TxKind.DecodedData(), scheme)
 		if err != nil {
 			return nil, errors.Errorf("failed to receive erc20 arguments, %v", err)
 		}
@@ -1027,11 +1027,13 @@ func ethereumInvokeScriptWithProofsToObject(scheme proto.Scheme, tx *proto.Ether
 
 		var scriptPayments []proto.ScriptPayment
 		for _, p := range tx.TxKind.DecodedData().Payments {
-			asset, err := proto.NewOptionalAssetFromBytes(p.AssetID.Bytes())
-			if err != nil {
-				return nil, err
+			var optAsset proto.OptionalAsset
+			if p.PresentAssetID {
+				optAsset = *proto.NewOptionalAssetFromDigest(p.AssetID)
+			} else {
+				optAsset = proto.NewOptionalAssetWaves()
 			}
-			payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: *asset}
+			payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
 			scriptPayments = append(scriptPayments, payment)
 		}
 
@@ -1227,7 +1229,7 @@ func balanceDetailsToObject(fwb *proto.FullWavesBalance) rideObject {
 	return r
 }
 
-func objectToActions(env Environment, obj rideType) ([]proto.ScriptAction, error) {
+func objectToActions(env environment, obj rideType) ([]proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "WriteSet":
 		data, err := obj.get("data")
@@ -1305,7 +1307,7 @@ func getKeyProperty(v rideType) (string, error) {
 	return string(key), nil
 }
 
-func convertToAction(env Environment, obj rideType) (proto.ScriptAction, error) {
+func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "Burn":
 		id, err := digestProperty(obj, "assetId")

@@ -2183,7 +2183,7 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 
 	assert.Equal(t, rideBytes(senderPK.SerializeXYCoordinates()), rideObj["senderPublicKey"])
 	assert.Equal(t, rideAddress(sender), rideObj["sender"])
-	erc20arguments, err := GetERC20Arguments(tx.TxKind.DecodedData(), proto.MainNetScheme)
+	erc20arguments, err := GetERC20TransferArguments(tx.TxKind.DecodedData(), proto.MainNetScheme)
 	assert.NoError(t, err)
 	assert.Equal(t, rideRecipient(proto.NewRecipientFromAddress(erc20arguments.Recipient)), rideObj["recipient"])
 	assert.Equal(t, rideInt(20947030000000), rideObj["amount"])

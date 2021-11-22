@@ -532,7 +532,7 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 		return txBalanceChanges{}, errors.New("unexpected type of eth selector")
 	}
 
-	erc20arguments, err := ride.GetERC20Arguments(tx.TxKind.DecodedData(), td.settings.AddressSchemeCharacter)
+	erc20arguments, err := ride.GetERC20TransferArguments(tx.TxKind.DecodedData(), td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, errors.Errorf("failed to receive erc20 arguments, %v", err)
 	}

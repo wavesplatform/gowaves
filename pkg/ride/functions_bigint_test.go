@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var env Environment = &MockRideEnvironment{
+var env environment = &mockRideEnvironment{
 	validateInternalPaymentsFunc: func() bool {
 		return false
 	},

@@ -240,11 +240,16 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 
 	case *proto.EthereumTransaction:
 		abiPayments := transaction.TxKind.DecodedData().Payments
-		var scriptPayments []proto.ScriptPayment
+		scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))
 		for _, p := range abiPayments {
-			asset := proto.NewOptionalAssetFromDigest(p.AssetID)
-			payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: *asset}
-			scriptPayments = append(scriptPayments, payment)
+			var optAsset proto.OptionalAsset
+			if p.PresentAssetID {
+				optAsset = *proto.NewOptionalAssetFromDigest(p.AssetID)
+			} else {
+				optAsset = proto.NewOptionalAssetWaves()
+			}
+			scriptPayment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
+			scriptPayments = append(scriptPayments, scriptPayment)
 		}
 		payments = scriptPayments
 

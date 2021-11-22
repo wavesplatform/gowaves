@@ -90,8 +90,8 @@ type EthereumTxData interface {
 }
 
 type EthereumTransactionKind interface {
+	String() string
 	DecodedData() *ethabi.DecodedCallData
-	Kind() string
 }
 
 type EthereumTransferWavesTxKind struct {
@@ -105,7 +105,7 @@ func (tx *EthereumTransferWavesTxKind) DecodedData() *ethabi.DecodedCallData {
 	return nil
 }
 
-func (tx *EthereumTransferWavesTxKind) Kind() string {
+func (tx *EthereumTransferWavesTxKind) String() string {
 	return "EthereumTransferWavesTxKind"
 }
 
@@ -122,7 +122,7 @@ func (tx *EthereumTransferAssetsErc20TxKind) DecodedData() *ethabi.DecodedCallDa
 	return &tx.decodedData
 }
 
-func (tx *EthereumTransferAssetsErc20TxKind) Kind() string {
+func (tx *EthereumTransferAssetsErc20TxKind) String() string {
 	return "EthereumTransferAssetsErc20TxKind"
 }
 
@@ -138,7 +138,7 @@ func (tx *EthereumInvokeScriptTxKind) DecodedData() *ethabi.DecodedCallData {
 	return &tx.decodedData
 }
 
-func (tx *EthereumInvokeScriptTxKind) Kind() string {
+func (tx *EthereumInvokeScriptTxKind) String() string {
 	return "EthereumInvokeScriptTxKind"
 }
 

@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/types"
 	"math"
 	"math/big"
 	"unicode/utf8"
@@ -50,16 +49,14 @@ type transactionChecker struct {
 	genesis  proto.BlockID
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
-	state    types.SmartState
 }
 
 func newTransactionChecker(
 	genesis proto.BlockID,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
-	state types.SmartState,
 ) (*transactionChecker, error) {
-	return &transactionChecker{genesis, stor, settings, state}, nil
+	return &transactionChecker{genesis, stor, settings}, nil
 }
 
 func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) error {
@@ -347,27 +344,8 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 
 	tx, ok := transaction.(*proto.EthereumTransaction)
 	if !ok {
-		return nil, errors.New("failed to convert interface to TransferWithSig transaction")
+		return nil, errors.New("failed to cast 'Transaction' interface to 'EthereumTransaction' type")
 	}
-
-	if tx.EthereumTxType() != proto.EthereumLegacyTxType {
-		return nil, errors.New("the ethereum transaction's type is not legacy tx")
-	}
-	// a cancel transaction
-	// value == 0 && data == 0x
-	if tx.Value().Cmp(big.NewInt(0)) == 0 && len(tx.Data()) == 0 {
-		return nil, errors.New("canceling a transaction is forbidden")
-	}
-
-	// gasPrice == 10
-	if tx.GasPrice().Cmp(big.NewInt(int64(proto.EthereumGasPrice))) != 0 {
-		return nil, errors.Errorf("Gas price should be %d, got %d", int64(proto.EthereumGasPrice), tx.GasPrice().Int64())
-	}
-
-	if tx.ChainId().Cmp(big.NewInt(int64(tc.settings.AddressSchemeCharacter))) != 0 {
-		return nil, errors.Errorf("Chain ID doesn't correlate with Net's byte. Net's byte is %d, ChainID is %d", int64(tc.settings.AddressSchemeCharacter), tx.ChainId().Int64())
-	}
-
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
 		// check fee
@@ -392,7 +370,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		// check fee
 		minFee := proto.EthereumTransferMinFee
 
-		erc20arguments, err := ride.GetERC20Arguments(tx.TxKind.DecodedData(), tc.settings.AddressSchemeCharacter)
+		erc20arguments, err := ride.GetERC20TransferArguments(tx.TxKind.DecodedData(), tc.settings.AddressSchemeCharacter)
 		if err != nil {
 			return nil, errors.Errorf("failed to receive erc20 arguments, %v", err)
 		}
@@ -400,11 +378,11 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			return nil, errors.New("the amount of ethereum transfer assets is 0, which is forbidden")
 		}
 
-		asset, err := tc.state.AssetInfoByID(proto.AssetIDFromDigest(kind.Asset.ID), true)
+		isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(kind.Asset.ID), true)
 		if err != nil {
 			return nil, errors.Errorf("failed to get asset info, %v", err)
 		}
-		if asset.Scripted {
+		if isSmart {
 			minFee += proto.EthereumScriptedAssetMinFee
 		}
 
@@ -432,24 +410,27 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		if len(abiPayments) > 10 {
 			return nil, errors.New("no more than ten payments is allowed since RideV5 activation")
 		}
-		var paymentAssets []proto.OptionalAsset
+		paymentAssets := make([]proto.OptionalAsset, 0, len(abiPayments))
 		for _, payment := range abiPayments {
-			assetID, err := tc.state.AssetInfoByID(proto.AssetIDFromDigest(payment.AssetID), true)
-			if err != nil {
-				return nil, err
-			}
-			if assetID.Scripted {
-				minFee += proto.EthereumScriptedAssetMinFee
-			}
-			asset, err := proto.NewOptionalAssetFromBytes(assetID.ID.Bytes())
-			if err != nil {
-				return nil, err
-			}
+			var optionalAsset proto.OptionalAsset
+			if payment.PresentAssetID {
+				isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(payment.AssetID), true)
+				if err != nil {
+					return nil, err
+				}
+				if isSmart {
+					minFee += proto.EthereumScriptedAssetMinFee
+				}
 
-			if err := tc.checkAsset(asset, info.initialisation); err != nil {
-				return nil, errs.Extend(err, "bad payment asset")
+				optionalAsset = *proto.NewOptionalAssetFromDigest(payment.AssetID)
+				if err := tc.checkAsset(&optionalAsset, info.initialisation); err != nil {
+					return nil, errs.Extend(err, "bad payment asset")
+				}
+			} else {
+				// we don't have to check WAVES asset because it can't be scripted and always exists
+				optionalAsset = proto.NewOptionalAssetWaves()
 			}
-			paymentAssets = append(paymentAssets, *asset)
+			paymentAssets = append(paymentAssets, optionalAsset)
 		}
 
 		if tx.GetFee() < minFee {
@@ -1212,14 +1193,14 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 		return nil, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 
-	isSmartAsset, err := tc.stor.scriptsStorage.newestIsSmartAsset(id, !info.initialisation)
+	isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(id, !info.initialisation)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to check newestIsSmartAsset for asset %q", tx.AssetID.String())
 	}
 	if len(tx.Script) == 0 {
 		return nil, errs.NewTxValidationError("Cannot set empty script")
 	}
-	if !isSmartAsset {
+	if !isSmart {
 		return nil, errs.NewTxValidationError("Reason: Cannot set script on an asset issued without a script. Referenced assetId not found")
 	}
 	currentEstimatorVersion := info.estimatorVersion()

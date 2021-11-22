@@ -76,7 +76,7 @@ func threeBigIntArgs(args []rideType) (rideBigInt, rideBigInt, rideBigInt, error
 	return v1, v2, v3, nil
 }
 
-func powBigInt(_ Environment, args ...rideType) (rideType, error) {
+func powBigInt(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 6); err != nil {
 		return nil, errors.Wrap(err, "powBigInt")
 	}
@@ -116,7 +116,7 @@ func powBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func logBigInt(_ Environment, args ...rideType) (rideType, error) {
+func logBigInt(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 6); err != nil {
 		return nil, errors.Wrap(err, "logBigInt")
 	}
@@ -153,7 +153,7 @@ func logBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func toBigInt(_ Environment, args ...rideType) (rideType, error) {
+func toBigInt(_ environment, args ...rideType) (rideType, error) {
 	i, err := intArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBigInt")
@@ -162,7 +162,7 @@ func toBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: v}, nil
 }
 
-func sumBigInt(_ Environment, args ...rideType) (rideType, error) {
+func sumBigInt(_ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sumBigInt")
@@ -176,7 +176,7 @@ func sumBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func subtractBigInt(_ Environment, args ...rideType) (rideType, error) {
+func subtractBigInt(_ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "subtractBigInt")
@@ -190,7 +190,7 @@ func subtractBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func multiplyBigInt(_ Environment, args ...rideType) (rideType, error) {
+func multiplyBigInt(_ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "multiplyBigInt")
@@ -204,7 +204,7 @@ func multiplyBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func divideBigInt(_ Environment, args ...rideType) (rideType, error) {
+func divideBigInt(_ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "divideBigInt")
@@ -221,7 +221,7 @@ func divideBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func moduloBigInt(_ Environment, args ...rideType) (rideType, error) {
+func moduloBigInt(_ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "moduloBigInt")
@@ -241,7 +241,7 @@ func moduloBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func fractionBigInt(_ Environment, args ...rideType) (rideType, error) {
+func fractionBigInt(_ environment, args ...rideType) (rideType, error) {
 	a, b, c, err := threeBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fractionBigInt")
@@ -260,7 +260,7 @@ func fractionBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func fractionBigIntRounds(_ Environment, args ...rideType) (rideType, error) {
+func fractionBigIntRounds(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "fractionBigIntRounds")
 	}
@@ -366,7 +366,7 @@ func fractionBigIntLikeInScala(v, n, d *big.Int, roundingMode decimal.RoundingMo
 	return r, nil
 }
 
-func unaryMinusBigInt(_ Environment, args ...rideType) (rideType, error) {
+func unaryMinusBigInt(_ environment, args ...rideType) (rideType, error) {
 	v, err := bigIntArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "unaryMinusBigInt")
@@ -379,7 +379,7 @@ func unaryMinusBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func gtBigInt(_ Environment, args ...rideType) (rideType, error) {
+func gtBigInt(_ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "gtBigInt")
@@ -390,7 +390,7 @@ func gtBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBoolean(r > 0), nil
 }
 
-func geBigInt(_ Environment, args ...rideType) (rideType, error) {
+func geBigInt(_ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "geBigInt")
@@ -401,7 +401,7 @@ func geBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBoolean(r >= 0), nil
 }
 
-func maxListBigInt(_ Environment, args ...rideType) (rideType, error) {
+func maxListBigInt(_ environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "maxListBigInt")
@@ -418,7 +418,7 @@ func maxListBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: max}, nil
 }
 
-func minListBigInt(_ Environment, args ...rideType) (rideType, error) {
+func minListBigInt(_ environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "minListBigInt")
@@ -435,7 +435,7 @@ func minListBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: min}, nil
 }
 
-func bigIntToBytes(_ Environment, args ...rideType) (rideType, error) {
+func bigIntToBytes(_ environment, args ...rideType) (rideType, error) {
 	v, err := bigIntArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bigIntToBytes")
@@ -444,7 +444,7 @@ func bigIntToBytes(_ Environment, args ...rideType) (rideType, error) {
 	return rideBytes(encode2CBigInt(i)), nil
 }
 
-func bytesToBigInt(_ Environment, args ...rideType) (rideType, error) {
+func bytesToBigInt(_ environment, args ...rideType) (rideType, error) {
 	bts, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToBigInt")
@@ -459,7 +459,7 @@ func bytesToBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func bytesToBigIntLim(_ Environment, args ...rideType) (rideType, error) {
+func bytesToBigIntLim(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bytesToBigIntLim")
 	}
@@ -493,7 +493,7 @@ func bytesToBigIntLim(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func bigIntToInt(_ Environment, args ...rideType) (rideType, error) {
+func bigIntToInt(_ environment, args ...rideType) (rideType, error) {
 	v, err := bigIntArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bigIntToInt")
@@ -505,7 +505,7 @@ func bigIntToInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideInt(i.Int64()), nil
 }
 
-func bigIntToString(_ Environment, args ...rideType) (rideType, error) {
+func bigIntToString(_ environment, args ...rideType) (rideType, error) {
 	v, err := bigIntArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bigIntToString")
@@ -514,7 +514,7 @@ func bigIntToString(_ Environment, args ...rideType) (rideType, error) {
 	return rideString(i.String()), nil
 }
 
-func stringToBigInt(_ Environment, args ...rideType) (rideType, error) {
+func stringToBigInt(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "stringToBigInt")
@@ -532,7 +532,7 @@ func stringToBigInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func stringToBigIntOpt(env Environment, args ...rideType) (rideType, error) {
+func stringToBigIntOpt(env environment, args ...rideType) (rideType, error) {
 	v, err := stringToBigInt(env, args...)
 	if err != nil {
 		return newUnit(env), nil
@@ -540,7 +540,7 @@ func stringToBigIntOpt(env Environment, args ...rideType) (rideType, error) {
 	return v, nil
 }
 
-func medianListBigInt(_ Environment, args ...rideType) (rideType, error) {
+func medianListBigInt(_ environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "medianListBigInt")

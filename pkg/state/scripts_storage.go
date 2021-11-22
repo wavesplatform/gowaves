@@ -400,7 +400,7 @@ func (ss *scriptsStorage) newestScriptByAddr(addr proto.WavesAddress, filter boo
 	return tree, nil
 }
 
-func (ss *scriptsStorage) NewestScriptPKByAddr(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
+func (ss *scriptsStorage) newestScriptPKByAddr(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
 	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
 	recordBytes, err := ss.hs.newestTopEntryData(key.bytes(), filter)
 	if err != nil {
@@ -450,10 +450,10 @@ func (ss *scriptsStorage) reset() {
 	ss.accountScriptsHasher.reset()
 }
 
-func (ss *scriptsStorage) AccountScriptsHasher() *stateHasher {
+func (ss *scriptsStorage) getAccountScriptsHasher() *stateHasher {
 	return ss.accountScriptsHasher
 }
 
-func (ss *scriptsStorage) AssetScriptsHasher() *stateHasher {
+func (ss *scriptsStorage) getAssetScriptsHasher() *stateHasher {
 	return ss.assetScriptsHasher
 }

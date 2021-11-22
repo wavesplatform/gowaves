@@ -49,7 +49,7 @@ func NewSelector(sig Signature) Selector {
 
 func NewSelectorFromBytes(a []byte) (Selector, error) {
 	if len(a) != SelectorSize {
-		return Selector{}, errors.Errorf("failed to create new selector, expected size of input is %d , but got %d", SelectorSize, len(a))
+		return Selector{}, errors.Errorf("failed to create new selector, invalid selector size: want %d, got %d", SelectorSize, len(a))
 	}
 	var selector Selector
 	copy(selector[:], a[:])

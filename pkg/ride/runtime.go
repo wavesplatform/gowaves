@@ -116,16 +116,6 @@ func (s rideString) get(prop string) (rideType, error) {
 
 type rideBytes []byte
 
-func NewRideBytes(b []byte) (rideBytes, error) {
-	if len(b) > maxBytesLength {
-		return nil, errors.Errorf(
-			"NewRideBytes: length of bytes (%d) is greater than allowed (%d)",
-			len(b), maxBytesLength,
-		)
-	}
-	return rideBytes(b), nil
-}
-
 func (b rideBytes) instanceOf() string {
 	return "ByteVector"
 }
@@ -373,10 +363,13 @@ func (a rideList) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
-type rideFunction func(env Environment, args ...rideType) (rideType, error)
+type (
+	rideFunction    func(env environment, args ...rideType) (rideType, error)
+	rideConstructor func(environment) rideType
+)
 
-//go:generate moq -out runtime_moq_test.go . Environment:MockRideEnvironment
-type Environment interface {
+//go:generate moq -out runtime_moq_test.go . environment:mockRideEnvironment
+type environment interface {
 	scheme() byte
 	height() rideInt
 	transaction() rideObject
@@ -395,5 +388,3 @@ type Environment interface {
 	internalPaymentsValidationHeight() uint64
 	maxDataEntriesSize() int
 }
-
-type rideConstructor func(Environment) rideType

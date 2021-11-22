@@ -8,16 +8,16 @@ import (
 	"sync"
 )
 
-// Ensure, that MockFeaturesState does implement FeaturesState.
+// Ensure, that mockFeaturesState does implement featuresState.
 // If this is not the case, regenerate this file with moq.
-var _ FeaturesState = &MockFeaturesState{}
+var _ featuresState = &mockFeaturesState{}
 
-// MockFeaturesState is a mock implementation of FeaturesState.
+// mockFeaturesState is a mock implementation of featuresState.
 //
-// 	func TestSomethingThatUsesFeaturesState(t *testing.T) {
+// 	func TestSomethingThatUsesfeaturesState(t *testing.T) {
 //
-// 		// make and configure a mocked FeaturesState
-// 		mockedFeaturesState := &MockFeaturesState{
+// 		// make and configure a mocked featuresState
+// 		mockedfeaturesState := &mockFeaturesState{
 // 			activateFeatureFunc: func(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
 // 				panic("mock out the activateFeature method")
 // 			},
@@ -77,11 +77,11 @@ var _ FeaturesState = &MockFeaturesState{}
 // 			},
 // 		}
 //
-// 		// use mockedFeaturesState in code that requires FeaturesState
+// 		// use mockedfeaturesState in code that requires featuresState
 // 		// and then make assertions.
 //
 // 	}
-type MockFeaturesState struct {
+type mockFeaturesState struct {
 	// activateFeatureFunc mocks the activateFeature method.
 	activateFeatureFunc func(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error
 
@@ -279,9 +279,9 @@ type MockFeaturesState struct {
 }
 
 // activateFeature calls activateFeatureFunc.
-func (mock *MockFeaturesState) activateFeature(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
+func (mock *mockFeaturesState) activateFeature(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error {
 	if mock.activateFeatureFunc == nil {
-		panic("MockFeaturesState.activateFeatureFunc: method is nil but FeaturesState.activateFeature was just called")
+		panic("mockFeaturesState.activateFeatureFunc: method is nil but featuresState.activateFeature was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -300,8 +300,8 @@ func (mock *MockFeaturesState) activateFeature(featureID int16, r *activatedFeat
 
 // activateFeatureCalls gets all the calls that were made to activateFeature.
 // Check the length with:
-//     len(mockedFeaturesState.activateFeatureCalls())
-func (mock *MockFeaturesState) activateFeatureCalls() []struct {
+//     len(mockedfeaturesState.activateFeatureCalls())
+func (mock *mockFeaturesState) activateFeatureCalls() []struct {
 	FeatureID int16
 	R         *activatedFeaturesRecord
 	BlockID   proto.BlockID
@@ -318,9 +318,9 @@ func (mock *MockFeaturesState) activateFeatureCalls() []struct {
 }
 
 // activationHeight calls activationHeightFunc.
-func (mock *MockFeaturesState) activationHeight(featureID int16) (uint64, error) {
+func (mock *mockFeaturesState) activationHeight(featureID int16) (uint64, error) {
 	if mock.activationHeightFunc == nil {
-		panic("MockFeaturesState.activationHeightFunc: method is nil but FeaturesState.activationHeight was just called")
+		panic("mockFeaturesState.activationHeightFunc: method is nil but featuresState.activationHeight was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -335,8 +335,8 @@ func (mock *MockFeaturesState) activationHeight(featureID int16) (uint64, error)
 
 // activationHeightCalls gets all the calls that were made to activationHeight.
 // Check the length with:
-//     len(mockedFeaturesState.activationHeightCalls())
-func (mock *MockFeaturesState) activationHeightCalls() []struct {
+//     len(mockedfeaturesState.activationHeightCalls())
+func (mock *mockFeaturesState) activationHeightCalls() []struct {
 	FeatureID int16
 } {
 	var calls []struct {
@@ -349,9 +349,9 @@ func (mock *MockFeaturesState) activationHeightCalls() []struct {
 }
 
 // addVote calls addVoteFunc.
-func (mock *MockFeaturesState) addVote(featureID int16, blockID proto.BlockID) error {
+func (mock *mockFeaturesState) addVote(featureID int16, blockID proto.BlockID) error {
 	if mock.addVoteFunc == nil {
-		panic("MockFeaturesState.addVoteFunc: method is nil but FeaturesState.addVote was just called")
+		panic("mockFeaturesState.addVoteFunc: method is nil but featuresState.addVote was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -368,8 +368,8 @@ func (mock *MockFeaturesState) addVote(featureID int16, blockID proto.BlockID) e
 
 // addVoteCalls gets all the calls that were made to addVote.
 // Check the length with:
-//     len(mockedFeaturesState.addVoteCalls())
-func (mock *MockFeaturesState) addVoteCalls() []struct {
+//     len(mockedfeaturesState.addVoteCalls())
+func (mock *mockFeaturesState) addVoteCalls() []struct {
 	FeatureID int16
 	BlockID   proto.BlockID
 } {
@@ -384,9 +384,9 @@ func (mock *MockFeaturesState) addVoteCalls() []struct {
 }
 
 // allFeatures calls allFeaturesFunc.
-func (mock *MockFeaturesState) allFeatures() ([]int16, error) {
+func (mock *mockFeaturesState) allFeatures() ([]int16, error) {
 	if mock.allFeaturesFunc == nil {
-		panic("MockFeaturesState.allFeaturesFunc: method is nil but FeaturesState.allFeatures was just called")
+		panic("mockFeaturesState.allFeaturesFunc: method is nil but featuresState.allFeatures was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -398,8 +398,8 @@ func (mock *MockFeaturesState) allFeatures() ([]int16, error) {
 
 // allFeaturesCalls gets all the calls that were made to allFeatures.
 // Check the length with:
-//     len(mockedFeaturesState.allFeaturesCalls())
-func (mock *MockFeaturesState) allFeaturesCalls() []struct {
+//     len(mockedfeaturesState.allFeaturesCalls())
+func (mock *mockFeaturesState) allFeaturesCalls() []struct {
 } {
 	var calls []struct {
 	}
@@ -410,9 +410,9 @@ func (mock *MockFeaturesState) allFeaturesCalls() []struct {
 }
 
 // approvalHeight calls approvalHeightFunc.
-func (mock *MockFeaturesState) approvalHeight(featureID int16) (uint64, error) {
+func (mock *mockFeaturesState) approvalHeight(featureID int16) (uint64, error) {
 	if mock.approvalHeightFunc == nil {
-		panic("MockFeaturesState.approvalHeightFunc: method is nil but FeaturesState.approvalHeight was just called")
+		panic("mockFeaturesState.approvalHeightFunc: method is nil but featuresState.approvalHeight was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -427,8 +427,8 @@ func (mock *MockFeaturesState) approvalHeight(featureID int16) (uint64, error) {
 
 // approvalHeightCalls gets all the calls that were made to approvalHeight.
 // Check the length with:
-//     len(mockedFeaturesState.approvalHeightCalls())
-func (mock *MockFeaturesState) approvalHeightCalls() []struct {
+//     len(mockedfeaturesState.approvalHeightCalls())
+func (mock *mockFeaturesState) approvalHeightCalls() []struct {
 	FeatureID int16
 } {
 	var calls []struct {
@@ -441,9 +441,9 @@ func (mock *MockFeaturesState) approvalHeightCalls() []struct {
 }
 
 // approveFeature calls approveFeatureFunc.
-func (mock *MockFeaturesState) approveFeature(featureID int16, r *approvedFeaturesRecord, blockID proto.BlockID) error {
+func (mock *mockFeaturesState) approveFeature(featureID int16, r *approvedFeaturesRecord, blockID proto.BlockID) error {
 	if mock.approveFeatureFunc == nil {
-		panic("MockFeaturesState.approveFeatureFunc: method is nil but FeaturesState.approveFeature was just called")
+		panic("mockFeaturesState.approveFeatureFunc: method is nil but featuresState.approveFeature was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -462,8 +462,8 @@ func (mock *MockFeaturesState) approveFeature(featureID int16, r *approvedFeatur
 
 // approveFeatureCalls gets all the calls that were made to approveFeature.
 // Check the length with:
-//     len(mockedFeaturesState.approveFeatureCalls())
-func (mock *MockFeaturesState) approveFeatureCalls() []struct {
+//     len(mockedfeaturesState.approveFeatureCalls())
+func (mock *mockFeaturesState) approveFeatureCalls() []struct {
 	FeatureID int16
 	R         *approvedFeaturesRecord
 	BlockID   proto.BlockID
@@ -480,9 +480,9 @@ func (mock *MockFeaturesState) approveFeatureCalls() []struct {
 }
 
 // featureVotes calls featureVotesFunc.
-func (mock *MockFeaturesState) featureVotes(featureID int16) (uint64, error) {
+func (mock *mockFeaturesState) featureVotes(featureID int16) (uint64, error) {
 	if mock.featureVotesFunc == nil {
-		panic("MockFeaturesState.featureVotesFunc: method is nil but FeaturesState.featureVotes was just called")
+		panic("mockFeaturesState.featureVotesFunc: method is nil but featuresState.featureVotes was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -497,8 +497,8 @@ func (mock *MockFeaturesState) featureVotes(featureID int16) (uint64, error) {
 
 // featureVotesCalls gets all the calls that were made to featureVotes.
 // Check the length with:
-//     len(mockedFeaturesState.featureVotesCalls())
-func (mock *MockFeaturesState) featureVotesCalls() []struct {
+//     len(mockedfeaturesState.featureVotesCalls())
+func (mock *mockFeaturesState) featureVotesCalls() []struct {
 	FeatureID int16
 } {
 	var calls []struct {
@@ -511,9 +511,9 @@ func (mock *MockFeaturesState) featureVotesCalls() []struct {
 }
 
 // featureVotesAtHeight calls featureVotesAtHeightFunc.
-func (mock *MockFeaturesState) featureVotesAtHeight(featureID int16, height uint64) (uint64, error) {
+func (mock *mockFeaturesState) featureVotesAtHeight(featureID int16, height uint64) (uint64, error) {
 	if mock.featureVotesAtHeightFunc == nil {
-		panic("MockFeaturesState.featureVotesAtHeightFunc: method is nil but FeaturesState.featureVotesAtHeight was just called")
+		panic("mockFeaturesState.featureVotesAtHeightFunc: method is nil but featuresState.featureVotesAtHeight was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -530,8 +530,8 @@ func (mock *MockFeaturesState) featureVotesAtHeight(featureID int16, height uint
 
 // featureVotesAtHeightCalls gets all the calls that were made to featureVotesAtHeight.
 // Check the length with:
-//     len(mockedFeaturesState.featureVotesAtHeightCalls())
-func (mock *MockFeaturesState) featureVotesAtHeightCalls() []struct {
+//     len(mockedfeaturesState.featureVotesAtHeightCalls())
+func (mock *mockFeaturesState) featureVotesAtHeightCalls() []struct {
 	FeatureID int16
 	Height    uint64
 } {
@@ -546,9 +546,9 @@ func (mock *MockFeaturesState) featureVotesAtHeightCalls() []struct {
 }
 
 // finishVoting calls finishVotingFunc.
-func (mock *MockFeaturesState) finishVoting(curHeight uint64, blockID proto.BlockID) error {
+func (mock *mockFeaturesState) finishVoting(curHeight uint64, blockID proto.BlockID) error {
 	if mock.finishVotingFunc == nil {
-		panic("MockFeaturesState.finishVotingFunc: method is nil but FeaturesState.finishVoting was just called")
+		panic("mockFeaturesState.finishVotingFunc: method is nil but featuresState.finishVoting was just called")
 	}
 	callInfo := struct {
 		CurHeight uint64
@@ -565,8 +565,8 @@ func (mock *MockFeaturesState) finishVoting(curHeight uint64, blockID proto.Bloc
 
 // finishVotingCalls gets all the calls that were made to finishVoting.
 // Check the length with:
-//     len(mockedFeaturesState.finishVotingCalls())
-func (mock *MockFeaturesState) finishVotingCalls() []struct {
+//     len(mockedfeaturesState.finishVotingCalls())
+func (mock *mockFeaturesState) finishVotingCalls() []struct {
 	CurHeight uint64
 	BlockID   proto.BlockID
 } {
@@ -581,9 +581,9 @@ func (mock *MockFeaturesState) finishVotingCalls() []struct {
 }
 
 // isActivatedAtHeight calls isActivatedAtHeightFunc.
-func (mock *MockFeaturesState) isActivatedAtHeight(featureID int16, height uint64) bool {
+func (mock *mockFeaturesState) isActivatedAtHeight(featureID int16, height uint64) bool {
 	if mock.isActivatedAtHeightFunc == nil {
-		panic("MockFeaturesState.isActivatedAtHeightFunc: method is nil but FeaturesState.isActivatedAtHeight was just called")
+		panic("mockFeaturesState.isActivatedAtHeightFunc: method is nil but featuresState.isActivatedAtHeight was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -600,8 +600,8 @@ func (mock *MockFeaturesState) isActivatedAtHeight(featureID int16, height uint6
 
 // isActivatedAtHeightCalls gets all the calls that were made to isActivatedAtHeight.
 // Check the length with:
-//     len(mockedFeaturesState.isActivatedAtHeightCalls())
-func (mock *MockFeaturesState) isActivatedAtHeightCalls() []struct {
+//     len(mockedfeaturesState.isActivatedAtHeightCalls())
+func (mock *mockFeaturesState) isActivatedAtHeightCalls() []struct {
 	FeatureID int16
 	Height    uint64
 } {
@@ -616,9 +616,9 @@ func (mock *MockFeaturesState) isActivatedAtHeightCalls() []struct {
 }
 
 // isApproved calls isApprovedFunc.
-func (mock *MockFeaturesState) isApproved(featureID int16) (bool, error) {
+func (mock *mockFeaturesState) isApproved(featureID int16) (bool, error) {
 	if mock.isApprovedFunc == nil {
-		panic("MockFeaturesState.isApprovedFunc: method is nil but FeaturesState.isApproved was just called")
+		panic("mockFeaturesState.isApprovedFunc: method is nil but featuresState.isApproved was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -633,8 +633,8 @@ func (mock *MockFeaturesState) isApproved(featureID int16) (bool, error) {
 
 // isApprovedCalls gets all the calls that were made to isApproved.
 // Check the length with:
-//     len(mockedFeaturesState.isApprovedCalls())
-func (mock *MockFeaturesState) isApprovedCalls() []struct {
+//     len(mockedfeaturesState.isApprovedCalls())
+func (mock *mockFeaturesState) isApprovedCalls() []struct {
 	FeatureID int16
 } {
 	var calls []struct {
@@ -647,9 +647,9 @@ func (mock *MockFeaturesState) isApprovedCalls() []struct {
 }
 
 // isApprovedAtHeight calls isApprovedAtHeightFunc.
-func (mock *MockFeaturesState) isApprovedAtHeight(featureID int16, height uint64) bool {
+func (mock *mockFeaturesState) isApprovedAtHeight(featureID int16, height uint64) bool {
 	if mock.isApprovedAtHeightFunc == nil {
-		panic("MockFeaturesState.isApprovedAtHeightFunc: method is nil but FeaturesState.isApprovedAtHeight was just called")
+		panic("mockFeaturesState.isApprovedAtHeightFunc: method is nil but featuresState.isApprovedAtHeight was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -666,8 +666,8 @@ func (mock *MockFeaturesState) isApprovedAtHeight(featureID int16, height uint64
 
 // isApprovedAtHeightCalls gets all the calls that were made to isApprovedAtHeight.
 // Check the length with:
-//     len(mockedFeaturesState.isApprovedAtHeightCalls())
-func (mock *MockFeaturesState) isApprovedAtHeightCalls() []struct {
+//     len(mockedfeaturesState.isApprovedAtHeightCalls())
+func (mock *mockFeaturesState) isApprovedAtHeightCalls() []struct {
 	FeatureID int16
 	Height    uint64
 } {
@@ -682,9 +682,9 @@ func (mock *MockFeaturesState) isApprovedAtHeightCalls() []struct {
 }
 
 // newestActivationHeight calls newestActivationHeightFunc.
-func (mock *MockFeaturesState) newestActivationHeight(featureID int16) (uint64, error) {
+func (mock *mockFeaturesState) newestActivationHeight(featureID int16) (uint64, error) {
 	if mock.newestActivationHeightFunc == nil {
-		panic("MockFeaturesState.newestActivationHeightFunc: method is nil but FeaturesState.newestActivationHeight was just called")
+		panic("mockFeaturesState.newestActivationHeightFunc: method is nil but featuresState.newestActivationHeight was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -699,8 +699,8 @@ func (mock *MockFeaturesState) newestActivationHeight(featureID int16) (uint64, 
 
 // newestActivationHeightCalls gets all the calls that were made to newestActivationHeight.
 // Check the length with:
-//     len(mockedFeaturesState.newestActivationHeightCalls())
-func (mock *MockFeaturesState) newestActivationHeightCalls() []struct {
+//     len(mockedfeaturesState.newestActivationHeightCalls())
+func (mock *mockFeaturesState) newestActivationHeightCalls() []struct {
 	FeatureID int16
 } {
 	var calls []struct {
@@ -713,9 +713,9 @@ func (mock *MockFeaturesState) newestActivationHeightCalls() []struct {
 }
 
 // newestApprovalHeight calls newestApprovalHeightFunc.
-func (mock *MockFeaturesState) newestApprovalHeight(featureID int16) (uint64, error) {
+func (mock *mockFeaturesState) newestApprovalHeight(featureID int16) (uint64, error) {
 	if mock.newestApprovalHeightFunc == nil {
-		panic("MockFeaturesState.newestApprovalHeightFunc: method is nil but FeaturesState.newestApprovalHeight was just called")
+		panic("mockFeaturesState.newestApprovalHeightFunc: method is nil but featuresState.newestApprovalHeight was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -730,8 +730,8 @@ func (mock *MockFeaturesState) newestApprovalHeight(featureID int16) (uint64, er
 
 // newestApprovalHeightCalls gets all the calls that were made to newestApprovalHeight.
 // Check the length with:
-//     len(mockedFeaturesState.newestApprovalHeightCalls())
-func (mock *MockFeaturesState) newestApprovalHeightCalls() []struct {
+//     len(mockedfeaturesState.newestApprovalHeightCalls())
+func (mock *mockFeaturesState) newestApprovalHeightCalls() []struct {
 	FeatureID int16
 } {
 	var calls []struct {
@@ -744,9 +744,9 @@ func (mock *MockFeaturesState) newestApprovalHeightCalls() []struct {
 }
 
 // newestIsActivated calls newestIsActivatedFunc.
-func (mock *MockFeaturesState) newestIsActivated(featureID int16) (bool, error) {
+func (mock *mockFeaturesState) newestIsActivated(featureID int16) (bool, error) {
 	if mock.newestIsActivatedFunc == nil {
-		panic("MockFeaturesState.newestIsActivatedFunc: method is nil but FeaturesState.newestIsActivated was just called")
+		panic("mockFeaturesState.newestIsActivatedFunc: method is nil but featuresState.newestIsActivated was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -761,8 +761,8 @@ func (mock *MockFeaturesState) newestIsActivated(featureID int16) (bool, error) 
 
 // newestIsActivatedCalls gets all the calls that were made to newestIsActivated.
 // Check the length with:
-//     len(mockedFeaturesState.newestIsActivatedCalls())
-func (mock *MockFeaturesState) newestIsActivatedCalls() []struct {
+//     len(mockedfeaturesState.newestIsActivatedCalls())
+func (mock *mockFeaturesState) newestIsActivatedCalls() []struct {
 	FeatureID int16
 } {
 	var calls []struct {
@@ -775,9 +775,9 @@ func (mock *MockFeaturesState) newestIsActivatedCalls() []struct {
 }
 
 // newestIsActivatedAtHeight calls newestIsActivatedAtHeightFunc.
-func (mock *MockFeaturesState) newestIsActivatedAtHeight(featureID int16, height uint64) bool {
+func (mock *mockFeaturesState) newestIsActivatedAtHeight(featureID int16, height uint64) bool {
 	if mock.newestIsActivatedAtHeightFunc == nil {
-		panic("MockFeaturesState.newestIsActivatedAtHeightFunc: method is nil but FeaturesState.newestIsActivatedAtHeight was just called")
+		panic("mockFeaturesState.newestIsActivatedAtHeightFunc: method is nil but featuresState.newestIsActivatedAtHeight was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -794,8 +794,8 @@ func (mock *MockFeaturesState) newestIsActivatedAtHeight(featureID int16, height
 
 // newestIsActivatedAtHeightCalls gets all the calls that were made to newestIsActivatedAtHeight.
 // Check the length with:
-//     len(mockedFeaturesState.newestIsActivatedAtHeightCalls())
-func (mock *MockFeaturesState) newestIsActivatedAtHeightCalls() []struct {
+//     len(mockedfeaturesState.newestIsActivatedAtHeightCalls())
+func (mock *mockFeaturesState) newestIsActivatedAtHeightCalls() []struct {
 	FeatureID int16
 	Height    uint64
 } {
@@ -810,9 +810,9 @@ func (mock *MockFeaturesState) newestIsActivatedAtHeightCalls() []struct {
 }
 
 // newestIsActivatedForNBlocks calls newestIsActivatedForNBlocksFunc.
-func (mock *MockFeaturesState) newestIsActivatedForNBlocks(featureID int16, n int) (bool, error) {
+func (mock *mockFeaturesState) newestIsActivatedForNBlocks(featureID int16, n int) (bool, error) {
 	if mock.newestIsActivatedForNBlocksFunc == nil {
-		panic("MockFeaturesState.newestIsActivatedForNBlocksFunc: method is nil but FeaturesState.newestIsActivatedForNBlocks was just called")
+		panic("mockFeaturesState.newestIsActivatedForNBlocksFunc: method is nil but featuresState.newestIsActivatedForNBlocks was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -829,8 +829,8 @@ func (mock *MockFeaturesState) newestIsActivatedForNBlocks(featureID int16, n in
 
 // newestIsActivatedForNBlocksCalls gets all the calls that were made to newestIsActivatedForNBlocks.
 // Check the length with:
-//     len(mockedFeaturesState.newestIsActivatedForNBlocksCalls())
-func (mock *MockFeaturesState) newestIsActivatedForNBlocksCalls() []struct {
+//     len(mockedfeaturesState.newestIsActivatedForNBlocksCalls())
+func (mock *mockFeaturesState) newestIsActivatedForNBlocksCalls() []struct {
 	FeatureID int16
 	N         int
 } {
@@ -845,9 +845,9 @@ func (mock *MockFeaturesState) newestIsActivatedForNBlocksCalls() []struct {
 }
 
 // newestIsApproved calls newestIsApprovedFunc.
-func (mock *MockFeaturesState) newestIsApproved(featureID int16) (bool, error) {
+func (mock *mockFeaturesState) newestIsApproved(featureID int16) (bool, error) {
 	if mock.newestIsApprovedFunc == nil {
-		panic("MockFeaturesState.newestIsApprovedFunc: method is nil but FeaturesState.newestIsApproved was just called")
+		panic("mockFeaturesState.newestIsApprovedFunc: method is nil but featuresState.newestIsApproved was just called")
 	}
 	callInfo := struct {
 		FeatureID int16
@@ -862,8 +862,8 @@ func (mock *MockFeaturesState) newestIsApproved(featureID int16) (bool, error) {
 
 // newestIsApprovedCalls gets all the calls that were made to newestIsApproved.
 // Check the length with:
-//     len(mockedFeaturesState.newestIsApprovedCalls())
-func (mock *MockFeaturesState) newestIsApprovedCalls() []struct {
+//     len(mockedfeaturesState.newestIsApprovedCalls())
+func (mock *mockFeaturesState) newestIsApprovedCalls() []struct {
 	FeatureID int16
 } {
 	var calls []struct {
@@ -876,9 +876,9 @@ func (mock *MockFeaturesState) newestIsApprovedCalls() []struct {
 }
 
 // resetVotes calls resetVotesFunc.
-func (mock *MockFeaturesState) resetVotes(blockID proto.BlockID) error {
+func (mock *mockFeaturesState) resetVotes(blockID proto.BlockID) error {
 	if mock.resetVotesFunc == nil {
-		panic("MockFeaturesState.resetVotesFunc: method is nil but FeaturesState.resetVotes was just called")
+		panic("mockFeaturesState.resetVotesFunc: method is nil but featuresState.resetVotes was just called")
 	}
 	callInfo := struct {
 		BlockID proto.BlockID
@@ -893,8 +893,8 @@ func (mock *MockFeaturesState) resetVotes(blockID proto.BlockID) error {
 
 // resetVotesCalls gets all the calls that were made to resetVotes.
 // Check the length with:
-//     len(mockedFeaturesState.resetVotesCalls())
-func (mock *MockFeaturesState) resetVotesCalls() []struct {
+//     len(mockedfeaturesState.resetVotesCalls())
+func (mock *mockFeaturesState) resetVotesCalls() []struct {
 	BlockID proto.BlockID
 } {
 	var calls []struct {
