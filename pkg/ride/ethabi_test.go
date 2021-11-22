@@ -1,10 +1,11 @@
 package ride
 
 import (
-	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 )
 
 func TestEthABIDataTypeToRideType(t *testing.T) {
@@ -47,7 +48,7 @@ func TestEthABIDataTypeToRideType(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		actualRideType, err := EthABIDataTypeToRideType(tc.inputDataType)
+		actualRideType, err := ethABIDataTypeToRideType(tc.inputDataType)
 		require.NoError(t, err)
 		require.Equal(t, tc.expectedRideType, actualRideType)
 	}

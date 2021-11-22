@@ -3,6 +3,10 @@ package state
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"math/big"
+	"strings"
+	"testing"
+
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,9 +16,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"math/big"
-	"strings"
-	"testing"
 )
 
 func defaultTxAppender(t *testing.T, storage ScriptStorageState, state types.SmartState, scheme proto.Scheme) txAppender {
@@ -165,9 +166,6 @@ func TestEthereumTransferAssets(t *testing.T) {
 	senderWavesKey := byteKey(sender.ID(), wavesAsset)
 	senderKey := byteKey(sender.ID(), txKindTransferAssets.Asset)
 
-	//rideValue, err := ride.EthABIDataTypeToRideType(decodedData.Inputs[0].Value)
-	//assert.NoError(t, err)
-	//rideEthRecipientAddress, ok := rideValue.(ride.rideBytes)
 	rideEthRecipientAddress, ok := decodedData.Inputs[0].Value.(ethabi.Bytes)
 	assert.True(t, ok)
 	ethRecipientAddress := proto.BytesToEthereumAddress(rideEthRecipientAddress)

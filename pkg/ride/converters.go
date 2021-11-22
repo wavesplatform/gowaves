@@ -906,7 +906,7 @@ func ConvertEthereumRideArgumentsToSpecificArgument(decodedArg rideType) (proto.
 func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) ([]proto.Argument, error) {
 	var arguments []proto.Argument
 	for _, decodedArg := range decodedArgs {
-		value, err := EthABIDataTypeToRideType(decodedArg.Value)
+		value, err := ethABIDataTypeToRideType(decodedArg.Value)
 		if err != nil {
 			return nil, errors.Errorf("failed to convert data type to ride type %v", err)
 		}
@@ -926,7 +926,7 @@ type ERC20Arguments struct {
 }
 
 func GetERC20Arguments(decodedData *ethabi.DecodedCallData, scheme proto.Scheme) (*ERC20Arguments, error) {
-	rideTypeValueRecipient, err := EthABIDataTypeToRideType(decodedData.Inputs[0].Value)
+	rideTypeValueRecipient, err := ethABIDataTypeToRideType(decodedData.Inputs[0].Value)
 	if err != nil {
 		return nil, errors.Errorf("failed to convert data type to ride type, %v", err)
 	}
@@ -940,7 +940,7 @@ func GetERC20Arguments(decodedData *ethabi.DecodedCallData, scheme proto.Scheme)
 		return nil, errors.Errorf("failed to get recipient address from tx, %v", err)
 	}
 	// 2 get amount
-	rideTypeValueAmount, err := EthABIDataTypeToRideType(decodedData.Inputs[1].Value)
+	rideTypeValueAmount, err := ethABIDataTypeToRideType(decodedData.Inputs[1].Value)
 	if err != nil {
 		return nil, errors.Errorf("failed to convert data type to ride type, %v", err)
 	}
