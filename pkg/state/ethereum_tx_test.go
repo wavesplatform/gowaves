@@ -31,11 +31,15 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 			return false, nil
 		},
 	}
-
+	stor, _, err := createStorageObjects()
+	require.NoError(t, err)
+	newAssets := newAssets(stor.db, stor.dbBatch, stor.hs)
 	if assetsUncertain == nil {
 		assetsUncertain = make(map[proto.AssetID]assetInfo)
 	}
-	store := blockchainEntitiesStorage{features: feautures, scriptsStorage: storage, sponsoredAssets: &sponsoredAssets{features: feautures, settings: &settings.BlockchainSettings{}}, assets: &assets{uncertainAssetInfo: assetsUncertain}}
+	newAssets.uncertainAssetInfo = assetsUncertain
+
+	store := blockchainEntitiesStorage{features: feautures, scriptsStorage: storage, sponsoredAssets: &sponsoredAssets{features: feautures, settings: &settings.BlockchainSettings{}}, assets: newAssets}
 	blockchainSettings := &settings.BlockchainSettings{FunctionalitySettings: settings.FunctionalitySettings{CheckTempNegativeAfterTime: 1, AllowLeasedBalanceTransferUntilTime: 1, AddressSchemeCharacter: scheme}}
 	txHandler, err := newTransactionHandler(genBlockId('1'), &store, blockchainSettings)
 	assert.NoError(t, err)
@@ -43,6 +47,7 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 	txAppender := txAppender{
 		txHandler:   txHandler,
 		stor:        &store,
+		ethInfo:     newEthInfo(&store, blockchainSettings),
 		blockDiffer: &blockDiffer{handler: txHandler, settings: &settings.BlockchainSettings{}},
 		ia:          &invokeApplier{sc: &scriptCaller{stor: &store, state: state, settings: blockchainSettings}, blockDiffer: &blockDiffer{stor: &store, handler: txHandler, settings: blockchainSettings}, state: state, txHandler: txHandler, settings: blockchainSettings, stor: &blockchainEntitiesStor, invokeDiffStor: &diffStorageWrapped{invokeDiffsStor: &diffStorage{changes: []balanceChanges{}}}},
 	}
@@ -65,6 +70,7 @@ func defaultEthereumLegacyTxData(value int64, to *proto.EthereumAddress, data []
 }
 func TestEthereumTransferWaves(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
+	//assetsUncertain := newAssets
 	txAppender := defaultTxAppender(t, nil, nil, nil, proto.MainNetScheme)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
@@ -74,7 +80,7 @@ func TestEthereumTransferWaves(t *testing.T) {
 
 	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 100000)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
+	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
 
 	assert.NoError(t, err)
 	applRes, err := txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
@@ -140,7 +146,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 	decodedData, err := db.ParseCallDataRide(tx.Data())
 	assert.NoError(t, err)
 	lessenDecodedDataAmount(t, decodedData)
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, appendTxParams)
+	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, appendTxParams)
 	assert.NoError(t, err)
 	txKindTransferAssets := tx.TxKind.(*proto.EthereumTransferAssetsErc20TxKind)
 	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, txKindTransferAssets.Asset)
@@ -274,7 +280,7 @@ func TestTransferZeroAmount(t *testing.T) {
 
 	txData := defaultEthereumLegacyTxData(0, &recipientEth, nil, 100000)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
+	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
 
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
@@ -292,7 +298,7 @@ func TestTransferMainNetTestnet(t *testing.T) {
 
 	txData := defaultEthereumLegacyTxData(100, &recipientEth, nil, 100000)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
+	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
 
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
@@ -310,7 +316,7 @@ func TestTransferCheckFee(t *testing.T) {
 
 	txData := defaultEthereumLegacyTxData(100, &recipientEth, nil, 100)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
-	tx.TxKind, err = txAppender.guessEthereumTransactionKind(&tx, nil)
+	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
 
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)

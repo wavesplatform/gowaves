@@ -7,10 +7,15 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"go.uber.org/zap"
+)
+
+const (
+	EthereumTransferWavesKind = iota + 1
+	EthereumTransferAssetsKind
+	EthereumInvokeKind
 )
 
 type vrfGetter interface {
@@ -18,10 +23,10 @@ type vrfGetter interface {
 }
 
 type txAppender struct {
-	sc *scriptCaller
-	ia *invokeApplier
-
-	rw *blockReadWriter
+	sc      *scriptCaller
+	ia      *invokeApplier
+	ethInfo *ethInfo
+	rw      *blockReadWriter
 
 	vrf vrfGetter
 
@@ -91,6 +96,7 @@ func newTxAppender(
 		return nil, err
 	}
 	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData)
+	ethereumInfo := newEthInfo(stor, settings)
 	return &txAppender{
 		sc:             sc,
 		ia:             ia,
@@ -106,6 +112,7 @@ func newTxAppender(
 		diffStorInvoke: diffStorInvoke,
 		diffApplier:    diffApplier,
 		buildApiData:   buildApiData,
+		ethInfo:        ethereumInfo,
 	}, nil
 }
 
@@ -384,65 +391,6 @@ type appendTxParams struct {
 	initialisation   bool
 }
 
-func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransaction, params *appendTxParams) (proto.EthereumTransactionKind, error) {
-	if len(ethTx.Data()) == 0 {
-		return proto.NewEthereumTransferWavesTxKind(), nil
-	}
-
-	if len(ethTx.To()) == 0 {
-		return nil, errors.Errorf("'To' field in ethereum tx is empty")
-	}
-
-	selectorBytes := ethTx.Data()
-	if len(ethTx.Data()) < ethabi.SelectorSize {
-		return nil, errors.Errorf("length of data from ethereum transaction is less than %d", ethabi.SelectorSize)
-	}
-	selector, err := ethabi.NewSelectorFromBytes(selectorBytes[:ethabi.SelectorSize])
-	if err != nil {
-		return nil, errors.Errorf("failed to guess ethereum transaction kind, %v", err)
-	}
-
-	assetID := (*proto.AssetID)(ethTx.To())
-
-	assetInfo, err := a.stor.assets.newestAssetInfo(*assetID, true)
-	if err != nil && !errors.Is(err, errs.UnknownAsset{}) {
-		return nil, errors.Errorf("failed to get asset info by ethereum recipient address %s, %v", ethTx.To().String(), err)
-	}
-
-	if ethabi.IsERC20TransferSelector(selector) && err == nil {
-		db := ethabi.NewErc20MethodsMap()
-		decodedData, err := db.ParseCallDataRide(ethTx.Data())
-		if err != nil {
-			return nil, errors.Errorf("failed to parse ethereum data")
-		}
-		if len(decodedData.Inputs) != ethabi.NumberOfERC20TransferArguments {
-			return nil, errors.Errorf("the number of arguments of erc20 function is %d, but expected it to be %d", len(decodedData.Inputs), ethabi.NumberOfERC20TransferArguments)
-		}
-		fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.tail)
-		return proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(fullAssetID)), nil
-	}
-
-	// TODO it'd better if we have a function tree.Meta.Contains(sel selector) bool to make the last case clear
-	scriptAddr, err := ethTx.WavesAddressTo(a.settings.AddressSchemeCharacter)
-	if err != nil {
-		return nil, err
-	}
-	tree, err := a.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !params.initialisation)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
-	}
-	db, err := ethabi.NewMethodsMapFromRideDAppMeta(tree.Meta)
-	if err != nil {
-		return nil, err
-	}
-	decodedData, err := db.ParseCallDataRide(ethTx.Data())
-	if err != nil {
-		return nil, errors.Errorf("failed to parse ethereum data")
-	}
-
-	return proto.NewEthereumInvokeScriptTxKind(*decodedData), nil
-}
-
 func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*applicationResult, error) {
 	applicationRes, err := a.handleFallible(tx, fallibleInfo)
 	if err != nil {
@@ -527,7 +475,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		if !ok {
 			return errors.New("failed to cast interface transaction to ethereum transaction structure")
 		}
-		ethTx.TxKind, err = a.guessEthereumTransactionKind(ethTx, params)
+		ethTx.TxKind, err = a.ethInfo.ethereumTransactionKind(ethTx, params)
 		if err != nil {
 			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
 		}
