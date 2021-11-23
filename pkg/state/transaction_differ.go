@@ -528,7 +528,7 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	var senderAddress proto.WavesAddress
 	// Append sender diff.
 
-	if !ethabi.IsERC20Selector(decodedData.Signature.Selector()) {
+	if !ethabi.IsERC20TransferSelector(decodedData.Signature.Selector()) {
 		return txBalanceChanges{}, errors.New("unexpected type of eth selector")
 	}
 

@@ -10,31 +10,35 @@ const (
 	NumberOfERC20TransferArguments int       = 2
 )
 
-var erc20Methods = map[Selector]Method{
-	erc20TransferSignature.Selector(): {
-		RawName: "transfer",
-		Inputs: Arguments{
-			Argument{
-				Name: "_to",
-				Type: Type{
-					Size:       EthereumAddressSize,
-					T:          AddressType,
-					stringKind: "address",
+var (
+	erc20TransferSelector = erc20TransferSignature.Selector()
+
+	erc20Methods = map[Selector]Method{
+		erc20TransferSelector: {
+			RawName: "transfer",
+			Inputs: Arguments{
+				Argument{
+					Name: "_to",
+					Type: Type{
+						Size:       EthereumAddressSize,
+						T:          AddressType,
+						stringKind: "address",
+					},
+				},
+				Argument{
+					Name: "_value",
+					Type: Type{
+						Size:       256,
+						T:          UintType,
+						stringKind: "uint256",
+					},
 				},
 			},
-			Argument{
-				Name: "_value",
-				Type: Type{
-					Size:       256,
-					T:          UintType,
-					stringKind: "uint256",
-				},
-			},
+			Payments: nil,
+			Sig:      erc20TransferSignature,
 		},
-		Payments: nil,
-		Sig:      erc20TransferSignature,
-	},
-}
+	}
+)
 
 type ERC20TransferArguments struct {
 	Recipient [EthereumAddressSize]byte

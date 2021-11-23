@@ -409,7 +409,7 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 		return nil, errors.Errorf("failed to get asset info by ethereum recipient address %s, %v", ethTx.To().String(), err)
 	}
 
-	if ethabi.IsERC20Selector(selector) && err == nil {
+	if ethabi.IsERC20TransferSelector(selector) && err == nil {
 		db := ethabi.NewErc20MethodsMap()
 		decodedData, err := db.ParseCallDataRide(ethTx.Data())
 		if err != nil {
