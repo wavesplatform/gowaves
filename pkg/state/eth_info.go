@@ -8,6 +8,12 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
+const (
+	EthereumTransferWavesKind = iota + 1
+	EthereumTransferAssetsKind
+	EthereumInvokeKind
+)
+
 type ethInfo struct {
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings

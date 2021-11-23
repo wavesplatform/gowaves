@@ -12,12 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	EthereumTransferWavesKind = iota + 1
-	EthereumTransferAssetsKind
-	EthereumInvokeKind
-)
-
 type vrfGetter interface {
 	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
 }
