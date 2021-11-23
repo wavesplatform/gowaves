@@ -266,8 +266,8 @@ type assetInfoChange struct {
 	newHeight      uint64
 }
 
-func (a *assets) updateAssetInfo(assetID proto.AssetID, ch *assetInfoChange, blockID proto.BlockID, filter bool) error {
-	info, err := a.newestChangeableInfo(assetID, filter)
+func (a *assets) updateAssetInfo(asset crypto.Digest, ch *assetInfoChange, blockID proto.BlockID, filter bool) error {
+	info, err := a.newestChangeableInfo(asset, filter)
 	if err != nil {
 		return errors.Errorf("failed to get asset info: %v\n", err)
 	}
@@ -275,7 +275,7 @@ func (a *assets) updateAssetInfo(assetID proto.AssetID, ch *assetInfoChange, blo
 	info.description = ch.newDescription
 	info.lastNameDescChangeHeight = ch.newHeight
 	record := &assetHistoryRecord{assetChangeableInfo: *info}
-	return a.addNewRecord(assetID, record, blockID)
+	return a.addNewRecord(proto.AssetIDFromDigest(asset), record, blockID)
 }
 
 func (a *assets) newestLastUpdateHeight(assetID proto.AssetID, filter bool) (uint64, error) {
@@ -309,7 +309,8 @@ func (a *assets) newestConstInfo(assetID proto.AssetID) (*assetConstInfo, error)
 	return a.constInfo(assetID)
 }
 
-func (a *assets) newestChangeableInfo(assetID proto.AssetID, filter bool) (*assetChangeableInfo, error) {
+func (a *assets) newestChangeableInfo(asset crypto.Digest, filter bool) (*assetChangeableInfo, error) {
+	assetID := proto.AssetIDFromDigest(asset)
 	if info, ok := a.uncertainAssetInfo[assetID]; ok {
 		return &info.assetChangeableInfo, nil
 	}
@@ -344,7 +345,7 @@ func (a *assets) newestAssetInfo(assetID proto.AssetID, filter bool) (*assetInfo
 	if err != nil {
 		return nil, err
 	}
-	changeableInfo, err := a.newestChangeableInfo(assetID, filter)
+	changeableInfo, err := a.newestChangeableInfo(proto.ReconstructDigest(assetID, constInfo.tail), filter)
 	if err != nil {
 		return nil, err
 	}
