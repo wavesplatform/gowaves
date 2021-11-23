@@ -80,7 +80,7 @@ func (p *parser) parse() (*Tree, error) {
 	switch v := int(vb); v {
 	case 0:
 		return p.parseDApp()
-	case 1, 2, 3, 4, 5:
+	case 1, 2, 3, 4, 5, 6:
 		return p.parseScript(v)
 	default:
 		return nil, errors.Errorf("unsupported script version %d", v)

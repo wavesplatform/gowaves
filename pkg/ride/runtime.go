@@ -363,7 +363,7 @@ func (a rideList) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
-type rideFunction func(env Environment, args ...rideType) (rideType, error)
+type rideFunction func(ev *treeEvaluator, env Environment, args ...rideType) (rideType, error)
 
 //go:generate moq -out runtime_moq_test.go . Environment:MockRideEnvironment
 type Environment interface {

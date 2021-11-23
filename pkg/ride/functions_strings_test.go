@@ -26,7 +26,7 @@ func TestConcatStrings(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := concatStrings(nil, test.args...)
+		r, err := concatStrings(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -60,7 +60,7 @@ func TestTakeString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x冬")}, // the result is `x?` but it should be `x冬`
 	} {
-		r, err := takeString(env, test.args...)
+		r, err := takeString(nil, env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -92,7 +92,7 @@ func TestIncorrectTakeString(t *testing.T) {
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\nCeli, child of the first light. One of the main characters of the story, she is the first to see the vision of Cloudscape and its inhabitants from the Earth's dimension after the great destruction.\n\nDragorion - avatars sung into being by Eneria to bring sleep to the people of Cloudscape. They speak in dreams as lullabies, symphonies, hymns, arias and melodies. ~Legendarium\n\n©️Art of Monztre\n"), rideInt(50)}, false, rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶?")},
 	} {
-		r, err := takeString(env, test.args...)
+		r, err := takeString(nil, env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -122,7 +122,7 @@ func TestDropString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x")},
 	} {
-		r, err := dropString(nil, test.args...)
+		r, err := dropString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -150,7 +150,7 @@ func TestSizeString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x")}, false, rideInt(3)},
 	} {
-		r, err := sizeString(nil, test.args...)
+		r, err := sizeString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -180,7 +180,7 @@ func TestIndexOfSubstring(t *testing.T) {
 		{[]rideType{rideString("x冬xqweqwe"), rideString("ww")}, false, rideUnit{}},          // unicode indexOf (not present)
 		{[]rideType{rideString(""), rideString("x冬x")}, false, rideUnit{}},                  // unicode indexOf from empty string
 	} {
-		r, err := indexOfSubstring(nil, test.args...)
+		r, err := indexOfSubstring(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -212,7 +212,7 @@ func TestIndexOfSubstringWithOffset(t *testing.T) {
 		{[]rideType{rideString("冬weqwe"), rideString("we"), rideInt(2)}, false, rideInt(4)},       // unicode indexOf with start offset
 		{[]rideType{rideString(""), rideString("x冬x"), rideInt(1)}, false, rideUnit{}},            // unicode indexOf from empty string with offset
 	} {
-		r, err := indexOfSubstringWithOffset(nil, test.args...)
+		r, err := indexOfSubstringWithOffset(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -238,7 +238,7 @@ func TestStringToBytes(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := stringToBytes(nil, test.args...)
+		r, err := stringToBytes(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -269,7 +269,7 @@ func TestDropRightString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x")},
 	} {
-		r, err := dropRightString(nil, test.args...)
+		r, err := dropRightString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -300,7 +300,7 @@ func TestTakeRightString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("冬x")},
 	} {
-		r, err := takeRightString(nil, test.args...)
+		r, err := takeRightString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -331,7 +331,7 @@ func TestSplitString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("strx冬x1;🤦;🤦strx冬x2;🤦strx冬x3"), rideString(";🤦")}, false, rideList{rideString("strx冬x1"), rideString(""), rideString("strx冬x2"), rideString("strx冬x3")}},
 	} {
-		r, err := splitString(nil, test.args...)
+		r, err := splitString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -360,7 +360,7 @@ func TestParseInt(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := parseInt(nil, test.args...)
+		r, err := parseInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -389,7 +389,7 @@ func TestParseIntValue(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := parseIntValue(nil, test.args...)
+		r, err := parseIntValue(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -414,7 +414,7 @@ func TestLastIndexOfSubstring(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := lastIndexOfSubstring(nil, test.args...)
+		r, err := lastIndexOfSubstring(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -453,7 +453,7 @@ func TestLastIndexOfSubstringWithOffset(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := lastIndexOfSubstringWithOffset(nil, test.args...)
+		r, err := lastIndexOfSubstringWithOffset(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -482,7 +482,7 @@ func TestMakeString(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := makeString(nil, test.args...)
+		r, err := makeString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -510,7 +510,7 @@ func TestContains(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := contains(nil, test.args...)
+		r, err := contains(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {

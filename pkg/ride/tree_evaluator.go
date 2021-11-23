@@ -190,6 +190,8 @@ func selectConstantNames(v int) ([]string, error) {
 		return ConstantsV4, nil
 	case 5:
 		return ConstantsV5, nil
+	case 6:
+		return ConstantsV6, nil
 	default:
 		return nil, errors.Errorf("unsupported library version %d", v)
 	}
@@ -220,6 +222,8 @@ func selectFunctionNames(v int, enableInvocation bool) ([]string, error) {
 		return keys(CatalogueV4, false), nil
 	case 5:
 		return keys(CatalogueV5, enableInvocation), nil
+	case 6:
+		return keys(CatalogueV6, enableInvocation), nil
 	default:
 		return nil, errors.Errorf("unsupported library version %d", v)
 	}
@@ -248,7 +252,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 	case rideBoolean:
 		return ScriptResult{res: bool(res), complexity: e.complexity}, nil
 	case rideObject:
-		a, err := objectToActions(e.env, res)
+		a, err := objectToActions(e, e.env, res)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert evaluation result")
 		}
@@ -256,7 +260,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 	case rideList:
 		var actions []proto.ScriptAction
 		for _, item := range res {
-			a, err := convertToAction(e.env, item)
+			a, err := convertToAction(e, e.env, item)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to convert evaluation result")
 			}
@@ -268,7 +272,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 		switch resAct := res.el1.(type) {
 		case rideList:
 			for _, item := range resAct {
-				a, err := convertToAction(e.env, item)
+				a, err := convertToAction(e, e.env, item)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to convert evaluation result")
 				}
@@ -287,6 +291,21 @@ func isThrow(r rideType) bool {
 	return r.instanceOf() == "Throw"
 }
 
+func (e *treeEvaluator) materializeArguments(arguments []Node) ([]rideType, rideType, error) {
+	args := make([]rideType, len(arguments))
+	for i, arg := range arguments {
+		a, err := e.walk(arg)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to materialize argument %d", i+1)
+		}
+		if isThrow(a) {
+			return nil, a, nil
+		}
+		args[i] = a
+	}
+	return args, nil, nil
+}
+
 func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []Node) (rideType, error) {
 	f, ok := e.s.system[name]
 	if !ok {
@@ -299,22 +318,47 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []Node) (r
 	if _, ok := e.s.free[name]; ok { //
 		cost = 0
 	}
-	args := make([]rideType, len(arguments))
-	for i, arg := range arguments {
-		a, err := e.walk(arg) // materialize argument
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to materialize argument %d of system function '%s'", i+1, name)
-		}
-		if isThrow(a) {
-			return a, nil
-		}
-		args[i] = a
+	args, thr, err := e.materializeArguments(arguments)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to call system function '%s'", name)
 	}
-	r, err := f(e.env, args...)
+	if thr != nil {
+		return thr, nil
+	}
+	r, err := f(e, e.env, args...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to call system function '%s'", name)
 	}
 	e.complexity += cost
+	return r, nil
+}
+
+func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (rideType, error) {
+	uf, cl, found := e.s.userFunction(name)
+	if !found {
+		return nil, errors.Errorf("user function '%s' not found", name)
+	}
+	if len(args) != len(uf.Arguments) {
+		return nil, errors.Errorf("mismatched arguments number of user function '%s'", name)
+	}
+	avs := make([]esValue, len(args))
+	for i, arg := range args {
+		an := uf.Arguments[i]
+		avs[i] = esValue{id: an, value: arg}
+	}
+	e.s.cs = append(e.s.cs, make([]esValue, len(args)))
+	for i, av := range avs {
+		e.s.cs[len(e.s.cs)-1][i] = av
+	}
+	var tmp int
+	tmp, e.s.cl = e.s.cl, cl
+
+	r, err := e.walk(uf.Body)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", name)
+	}
+	e.s.cs = e.s.cs[:len(e.s.cs)-1]
+	e.s.cl = tmp
 	return r, nil
 }
 
@@ -409,47 +453,22 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 
 	case *FunctionCallNode:
 		name := n.Function.Name()
-
 		switch n.Function.(type) {
 		case nativeFunction:
 			return e.evaluateNativeFunction(name, n.Arguments)
-
 		case userFunction:
-			uf, cl, found := e.s.userFunction(name)
+			_, _, found := e.s.userFunction(name)
 			if !found {
 				return e.evaluateNativeFunction(name, n.Arguments)
 			}
-
-			if len(n.Arguments) != len(uf.Arguments) {
-				return nil, errors.Errorf("mismatched arguments number of user function '%s'", name)
-			}
-
-			args := make([]esValue, len(n.Arguments))
-			for i, arg := range n.Arguments {
-				an := uf.Arguments[i]
-				av, err := e.walk(arg) // materialize argument
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to materialize argument '%s' of user function '%s", an, name)
-				}
-				if isThrow(av) {
-					return av, nil
-				}
-				args[i] = esValue{id: an, value: av}
-			}
-			e.s.cs = append(e.s.cs, make([]esValue, len(args)))
-			for i, arg := range args {
-				e.s.cs[len(e.s.cs)-1][i] = arg
-			}
-			var tmp int
-			tmp, e.s.cl = e.s.cl, cl
-
-			r, err := e.walk(uf.Body)
+			args, thr, err := e.materializeArguments(n.Arguments)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", name)
+				return nil, errors.Wrapf(err, "failed to evaluate user function '%s'", name)
 			}
-			e.s.cs = e.s.cs[:len(e.s.cs)-1]
-			e.s.cl = tmp
-			return r, nil
+			if thr != nil {
+				return thr, nil
+			}
+			return e.evaluateUserFunction(name, args)
 		default:
 			return nil, errors.Errorf("unknown function type: %s", n.Function.Type())
 		}
@@ -505,7 +524,7 @@ func treeVerifierEvaluator(env Environment, tree *Tree) (*treeEvaluator, error) 
 	}
 	return &treeEvaluator{
 		dapp: tree.IsDApp(),
-		f:    tree.Verifier, // In simple scripts verifier is an expression itself
+		f:    tree.Verifier, // In simple script verifier is an expression itself
 		s:    s,
 		env:  env,
 	}, nil
