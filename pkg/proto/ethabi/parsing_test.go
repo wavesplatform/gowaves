@@ -235,7 +235,9 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
 
 	resJsonABI, err := getJsonAbi(testMethodWithAllTypes)
 	require.NoError(t, err)
-	fmt.Println(string(resJsonABI))
+
+	require.JSONEq(t, expectedJson, string(resJsonABI))
+
 	var abiRes []abi
 	err = json.Unmarshal(resJsonABI, &abiRes)
 	require.NoError(t, err)
