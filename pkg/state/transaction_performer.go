@@ -355,7 +355,7 @@ func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction pro
 		newDescription: tx.Description,
 		newHeight:      blockHeight,
 	}
-	if err := tp.stor.assets.updateAssetInfo(proto.AssetIDFromDigest(tx.AssetID), ch, info.blockID, !info.initialisation); err != nil {
+	if err := tp.stor.assets.updateAssetInfo(tx.AssetID, ch, info.blockID, !info.initialisation); err != nil {
 		return errors.Wrap(err, "failed to update asset info")
 	}
 	return nil
