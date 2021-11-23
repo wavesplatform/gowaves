@@ -415,8 +415,8 @@ func (a *txAppender) guessEthereumTransactionKind(ethTx *proto.EthereumTransacti
 		if err != nil {
 			return nil, errors.Errorf("failed to parse ethereum data")
 		}
-		if len(decodedData.Inputs) != ethabi.NumberOfERC20Arguments {
-			return nil, errors.Errorf("the number of arguments of erc20 function is %d, but expected it to be %d", len(decodedData.Inputs), ethabi.NumberOfERC20Arguments)
+		if len(decodedData.Inputs) != ethabi.NumberOfERC20TransferArguments {
+			return nil, errors.Errorf("the number of arguments of erc20 function is %d, but expected it to be %d", len(decodedData.Inputs), ethabi.NumberOfERC20TransferArguments)
 		}
 		fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.tail)
 		return proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(fullAssetID)), nil
