@@ -1,9 +1,12 @@
 package ethabi
 
 import (
+	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
 
@@ -181,5 +184,37 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 		actualFunc, err := db.MethodBySelector(expectedFunc.Sig.Selector())
 		require.NoError(t, err, "failed while looking function %q", expectedFunc.String())
 		require.Equal(t, expectedFunc, actualFunc)
+	}
+}
+
+func TestUnpackPayment(t *testing.T) {
+	tests := []struct {
+		hexInput        string
+		expectedPayment Payment
+	}{
+		{
+			"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
+			Payment{PresentAssetID: false, AssetID: crypto.Digest{}, Amount: 1},
+		},
+		{
+			"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a",
+			Payment{PresentAssetID: false, AssetID: crypto.Digest{}, Amount: 10},
+		},
+		{
+			"0x06000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001",
+			Payment{PresentAssetID: true, AssetID: crypto.Digest{0x6, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x1}, Amount: 1},
+		},
+		{
+			"0x01000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000009",
+			Payment{PresentAssetID: true, AssetID: crypto.Digest{0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x5}, Amount: 9},
+		},
+	}
+	for _, tc := range tests {
+		bts, err := hex.DecodeString(strings.TrimPrefix(tc.hexInput, "0x"))
+		require.NoError(t, err)
+		actualPayment, err := unpackPayment(bts)
+		require.NoError(t, err)
+
+		require.Equal(t, tc.expectedPayment, actualPayment)
 	}
 }

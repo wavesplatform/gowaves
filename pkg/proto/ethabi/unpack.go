@@ -2,9 +2,10 @@ package ethabi
 
 import (
 	"encoding/binary"
+	"math/big"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"math/big"
 )
 
 var (
@@ -78,9 +79,7 @@ func tryAsInt64(dataT DataType) (int64, error) {
 		return int64(i), nil
 	case BigInt:
 		if !i.V.IsInt64() {
-			return 0, errors.New(
-				"abi: failed to convert BigInt as int64, value too big",
-			)
+			return 0, errors.New("abi: failed to convert BigInt as int64, value too big")
 		}
 		return i.V.Int64(), nil
 	default:
@@ -105,7 +104,7 @@ func forEachUnpackRideList(t Type, output []byte, start, size int) (List, error)
 	}
 
 	// this value will become our slice or our array, depending on the type
-	refSlice := make(List, 0, size)
+	slice := make(List, 0, size)
 
 	// Arrays have packed elements, resulting in longer unpack steps.
 	// Slices have just 32 bytes per element (pointing to the contents).
@@ -116,13 +115,9 @@ func forEachUnpackRideList(t Type, output []byte, start, size int) (List, error)
 		if err != nil {
 			return nil, err
 		}
-
-		// append the item to our reflect slice
-		refSlice = append(refSlice, inter)
+		slice = append(slice, inter)
 	}
-
-	// return the interface
-	return refSlice, nil
+	return slice, nil
 }
 
 func extractIndexFromFirstElemOfTuple(index int, t Type, output []byte) (int64, error) {
@@ -194,8 +189,9 @@ func readFixedBytes(t Type, word []byte) (Bytes, error) {
 }
 
 type Payment struct {
-	AssetID crypto.Digest
-	Amount  int64
+	PresentAssetID bool
+	AssetID        crypto.Digest
+	Amount         int64
 }
 
 var (
@@ -220,32 +216,33 @@ func unpackPayment(output []byte) (Payment, error) {
 	assetIDType := paymentType.TupleFields[0].Type
 	amountType := paymentType.TupleFields[1].Type
 
-	var (
-		fullAssetID crypto.Digest
-		amount      int64
-	)
-
 	assetRideValue, err := toDataType(0, assetIDType, output)
 	if err != nil {
-		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse fullAssetID")
-	}
-	if fullAssetIDBytes, ok := assetRideValue.(Bytes); ok {
-		copy(fullAssetID[:], fullAssetIDBytes)
-	} else {
-		panic("BUG, CREATE REPORT: failed to parse payment, assetRideValue type must be RideBytes type")
+		return Payment{}, errors.Wrap(err, "failed to decode payment, failed to parse fullAssetID")
 	}
 
-	amountRideValue, err := toDataType(1, amountType, output)
-	if err != nil {
-		return Payment{}, errors.Wrap(err, "abi: failed to decode payment, failed to parse amount")
+	fullAssetIDBytes, ok := assetRideValue.(Bytes)
+	if !ok {
+		panic("BUG, CREATE REPORT: failed to parse payment, assetRideValue type must be RideBytes type")
 	}
-	if amount, err = tryAsInt64(amountRideValue); err != nil {
-		panic("BUG, CREATE REPORT: failed to parse payment, amountRideValue type must be representable as int64")
+	fullAssetID, err := crypto.NewDigestFromBytes(fullAssetIDBytes)
+	if err != nil {
+		return Payment{}, errors.Wrapf(err, "abi: failed extract asset from bytes")
+	}
+
+	amountRideValue, err := toDataType(getTypeSize(assetIDType), amountType, output)
+	if err != nil {
+		return Payment{}, errors.Wrap(err, "failed to decode payment, failed to parse amount")
+	}
+	amount, err := tryAsInt64(amountRideValue)
+	if err != nil {
+		return Payment{}, errors.Wrapf(err, "failed to parse payment, amountRideValue type MUST be representable as int64")
 	}
 
 	payment := Payment{
-		AssetID: fullAssetID,
-		Amount:  amount,
+		PresentAssetID: fullAssetID != crypto.Digest{}, // empty digest (32 zeroes) == WAVES asset
+		AssetID:        fullAssetID,
+		Amount:         amount,
 	}
 	return payment, nil
 }
@@ -259,7 +256,7 @@ func unpackPayments(output []byte) ([]Payment, error) {
 	if err != nil {
 		return nil, err
 	}
-	// nickeskov: jumping to the data section
+	// jumping to the data section
 	output = output[begin:]
 
 	if size < 0 {
@@ -286,8 +283,6 @@ func unpackPayments(output []byte) ([]Payment, error) {
 
 // lengthPrefixPointsTo interprets a 32 byte slice as an offset and then determines which indices to look to decode the type.
 func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err error) {
-	// nickeskov: I have no idea how it works, but we should...
-
 	bigOffsetEnd := big.NewInt(0).SetBytes(output[index : index+32])
 	bigOffsetEnd.Add(bigOffsetEnd, big32)
 	outputLength := big.NewInt(int64(len(output)))
