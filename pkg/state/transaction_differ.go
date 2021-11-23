@@ -1,6 +1,8 @@
 package state
 
 import (
+	"math/big"
+
 	"github.com/ericlagergren/decimal"
 	"github.com/ericlagergren/decimal/math"
 	"github.com/mr-tron/base58"
@@ -9,10 +11,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
-	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
-	"math/big"
 )
 
 func byteKey(addrID proto.AddressID, asset proto.OptionalAsset) []byte {
@@ -532,9 +532,9 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 		return txBalanceChanges{}, errors.New("unexpected type of eth selector")
 	}
 
-	erc20arguments, err := ride.GetERC20TransferArguments(tx.TxKind.DecodedData(), td.settings.AddressSchemeCharacter)
+	erc20arguments, err := ethabi.GetERC20TransferArguments(tx.TxKind.DecodedData())
 	if err != nil {
-		return txBalanceChanges{}, errors.Errorf("failed to receive erc20 arguments, %v", err)
+		return txBalanceChanges{}, errors.Wrap(err, "failed to receive erc20 arguments")
 	}
 
 	EthSenderAddr, err := tx.From()
@@ -562,14 +562,19 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(senderAmountBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	// Append receiver diff.
 
-	receiverKey := byteKey(erc20arguments.Recipient.ID(), txErc20Kind.Asset)
+	etc20TransferRecipient, err := proto.EthereumAddress(erc20arguments.Recipient).ToWavesAddress(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+
+	// Append receiver diff.
+	receiverKey := byteKey(etc20TransferRecipient.ID(), txErc20Kind.Asset)
 	receiverBalanceDiff := erc20arguments.Amount
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	addrs := []proto.WavesAddress{senderAddress, erc20arguments.Recipient}
+	addrs := []proto.WavesAddress{senderAddress, etc20TransferRecipient}
 	changes := newTxBalanceChanges(addrs, diff)
 	// sponsorship might be handled here
 	return changes, nil

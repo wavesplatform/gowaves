@@ -2,6 +2,10 @@ package ride
 
 import (
 	"encoding/hex"
+	"math/big"
+	"strings"
+	"testing"
+
 	"github.com/jinzhu/copier"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
@@ -11,9 +15,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
-	"math/big"
-	"strings"
-	"testing"
 )
 
 var (
@@ -2183,9 +2184,13 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 
 	assert.Equal(t, rideBytes(senderPK.SerializeXYCoordinates()), rideObj["senderPublicKey"])
 	assert.Equal(t, rideAddress(sender), rideObj["sender"])
-	erc20arguments, err := GetERC20TransferArguments(tx.TxKind.DecodedData(), proto.MainNetScheme)
+
+	erc20arguments, err := ethabi.GetERC20TransferArguments(tx.TxKind.DecodedData())
 	assert.NoError(t, err)
-	assert.Equal(t, rideRecipient(proto.NewRecipientFromAddress(erc20arguments.Recipient)), rideObj["recipient"])
+	erc20TransferRecipient, err := proto.EthereumAddress(erc20arguments.Recipient).ToWavesAddress(proto.MainNetScheme)
+	assert.NoError(t, err)
+
+	assert.Equal(t, rideRecipient(proto.NewRecipientFromAddress(erc20TransferRecipient)), rideObj["recipient"])
 	assert.Equal(t, rideInt(20947030000000), rideObj["amount"])
 	assert.Equal(t, rideInt(100000), rideObj["fee"])
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -370,7 +371,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		// check fee
 		minFee := proto.EthereumTransferMinFee
 
-		erc20arguments, err := ride.GetERC20TransferArguments(tx.TxKind.DecodedData(), tc.settings.AddressSchemeCharacter)
+		erc20arguments, err := ethabi.GetERC20TransferArguments(tx.TxKind.DecodedData())
 		if err != nil {
 			return nil, errors.Errorf("failed to receive erc20 arguments, %v", err)
 		}

@@ -921,43 +921,6 @@ func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.Decode
 	return arguments, nil
 }
 
-type ERC20Arguments struct {
-	Recipient proto.WavesAddress
-	Amount    int64
-}
-
-func GetERC20TransferArguments(decodedData *ethabi.DecodedCallData, scheme proto.Scheme) (*ERC20Arguments, error) {
-	rideTypeValueRecipient, err := ethABIDataTypeToRideType(decodedData.Inputs[0].Value)
-	if err != nil {
-		return nil, errors.Errorf("failed to convert data type to ride type, %v", err)
-	}
-	rideEthRecipientAddress, ok := rideTypeValueRecipient.(rideBytes)
-	if !ok {
-		return nil, errors.New("failed to convert address from argument of transfer erc20 function to rideBytes")
-	}
-	ethRecipient := proto.BytesToEthereumAddress(rideEthRecipientAddress)
-	recipient, err := ethRecipient.ToWavesAddress(scheme)
-	if err != nil {
-		return nil, errors.Errorf("failed to get recipient address from tx, %v", err)
-	}
-	// 2 get amount
-	rideTypeValueAmount, err := ethABIDataTypeToRideType(decodedData.Inputs[1].Value)
-	if err != nil {
-		return nil, errors.Errorf("failed to convert data type to ride type, %v", err)
-	}
-	v, ok := rideTypeValueAmount.(rideBigInt)
-	if !ok {
-		return nil, errors.Errorf("failed to convert big int value from transfer argument to rideBigInt, %v", err)
-
-	}
-	if ok := v.v.IsInt64(); !ok {
-		return nil, errors.Errorf("failed to convert big int value to int64. value is %s", v.String())
-	}
-	amount := v.v.Int64()
-
-	return &ERC20Arguments{Recipient: recipient, Amount: amount}, nil
-}
-
 func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransaction) (rideObject, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
@@ -1005,11 +968,15 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		r["id"] = rideBytes(tx.ID.Bytes())
 		r["sender"] = rideAddress(sender)
 		r["senderPublicKey"] = rideBytes(callerPK)
-		erc20arguments, err := GetERC20TransferArguments(tx.TxKind.DecodedData(), scheme)
+		erc20arguments, err := ethabi.GetERC20TransferArguments(tx.TxKind.DecodedData())
 		if err != nil {
-			return nil, errors.Errorf("failed to receive erc20 arguments, %v", err)
+			return nil, errors.Wrap(err, "failed to receive erc20 arguments")
 		}
-		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(erc20arguments.Recipient))
+		recipientAddr, err := proto.EthereumAddress(erc20arguments.Recipient).ToWavesAddress(scheme)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert ethereum ERC20 transfer recipient to WavesAddress")
+		}
+		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(recipientAddr))
 		r["assetId"] = optionalAsset(kind.Asset)
 		r["amount"] = rideInt(erc20arguments.Amount)
 		r["fee"] = rideInt(tx.GetFee())
