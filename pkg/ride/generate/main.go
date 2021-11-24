@@ -577,7 +577,9 @@ func freeConstructorsV5() []string {
 
 func functionsV6() map[string]string {
 	m := functionsV5()
+	delete(m, "fraction")
 	m["3"] = "getType"
+	m["110"] = "fractionIntRounds"
 	for i, l := range []int{20, 50, 100, 200, 500, 1000} {
 		m[strconv.Itoa(450+i)] = fmt.Sprintf("fold_%d", l)
 	}
@@ -586,7 +588,9 @@ func functionsV6() map[string]string {
 
 func catalogueV6() map[string]int {
 	m := catalogueV5()
+	m["fraction"] = 4
 	m["3"] = 1
+	m["110"] = 1
 	for i, c := range []int{3, 7, 9, 20, 56, 115} {
 		m[strconv.Itoa(450+i)] = c
 	}
