@@ -111,11 +111,12 @@ func (tx *EthereumTransferWavesTxKind) String() string {
 
 type EthereumTransferAssetsErc20TxKind struct {
 	decodedData ethabi.DecodedCallData
+	Arguments   ethabi.ERC20TransferArguments
 	Asset       OptionalAsset
 }
 
-func NewEthereumTransferAssetsErc20TxKind(decodedData ethabi.DecodedCallData, asset OptionalAsset) *EthereumTransferAssetsErc20TxKind {
-	return &EthereumTransferAssetsErc20TxKind{Asset: asset, decodedData: decodedData}
+func NewEthereumTransferAssetsErc20TxKind(decodedData ethabi.DecodedCallData, asset OptionalAsset, arguments ethabi.ERC20TransferArguments) *EthereumTransferAssetsErc20TxKind {
+	return &EthereumTransferAssetsErc20TxKind{Asset: asset, decodedData: decodedData, Arguments: arguments}
 }
 
 func (tx *EthereumTransferAssetsErc20TxKind) DecodedData() *ethabi.DecodedCallData {

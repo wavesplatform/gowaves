@@ -938,6 +938,7 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 	}
 	r := make(rideObject)
 
+	// TODO check whether we should resolve eth tx kind first
 	// we have to fill it according to the spec
 	r["bodyBytes"] = rideBytes(nil)
 	r["proofs"] = proofs(proto.NewProofs())
@@ -968,17 +969,14 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		r["id"] = rideBytes(tx.ID.Bytes())
 		r["sender"] = rideAddress(sender)
 		r["senderPublicKey"] = rideBytes(callerPK)
-		erc20arguments, err := ethabi.GetERC20TransferArguments(tx.TxKind.DecodedData())
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to receive erc20 arguments")
-		}
-		recipientAddr, err := proto.EthereumAddress(erc20arguments.Recipient).ToWavesAddress(scheme)
+
+		recipientAddr, err := proto.EthereumAddress(kind.Arguments.Recipient).ToWavesAddress(scheme)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to convert ethereum ERC20 transfer recipient to WavesAddress")
 		}
 		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(recipientAddr))
 		r["assetId"] = optionalAsset(kind.Asset)
-		r["amount"] = rideInt(erc20arguments.Amount)
+		r["amount"] = rideInt(kind.Arguments.Amount)
 		r["fee"] = rideInt(tx.GetFee())
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		r["attachment"] = rideBytes(nil)

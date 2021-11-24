@@ -80,7 +80,11 @@ func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, para
 			return nil, errors.Wrap(err, "failed to get asset info")
 		}
 		fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.tail)
-		return proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(fullAssetID)), nil
+		erc20Arguments, err := ethabi.GetERC20TransferArguments(decodedData)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get erc20 arguments from decoded data")
+		}
+		return proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(fullAssetID), erc20Arguments), nil
 	case EthereumInvokeKind:
 		scriptAddr, err := ethTx.WavesAddressTo(e.settings.AddressSchemeCharacter)
 		if err != nil {

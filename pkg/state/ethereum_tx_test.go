@@ -137,6 +137,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
 	data, err := proto.DecodeFromHexString(hexdata)
 	require.NoError(t, err)
+
 	//0x989393922c92e07c209f67636731bf1f04871d8b
 	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, data, 100000)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
@@ -146,10 +147,16 @@ func TestEthereumTransferAssets(t *testing.T) {
 	decodedData, err := db.ParseCallDataRide(tx.Data())
 	assert.NoError(t, err)
 	lessenDecodedDataAmount(t, decodedData)
-	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, appendTxParams)
+
+	erc20arguments, err := ethabi.GetERC20TransferArguments(decodedData)
 	assert.NoError(t, err)
-	txKindTransferAssets := tx.TxKind.(*proto.EthereumTransferAssetsErc20TxKind)
-	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, txKindTransferAssets.Asset)
+
+	assetID := (*proto.AssetID)(tx.To())
+
+	assetInfo, err := txAppender.ethInfo.stor.assets.newestAssetInfo(*assetID, true)
+	require.NoError(t, err)
+	fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.tail)
+	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(fullAssetID), erc20arguments)
 	applRes, err := txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	assert.NoError(t, err)
 	assert.True(t, applRes.status)
@@ -159,14 +166,14 @@ func TestEthereumTransferAssets(t *testing.T) {
 
 	wavesAsset := proto.NewOptionalAssetWaves()
 	senderWavesKey := byteKey(sender.ID(), wavesAsset)
-	senderKey := byteKey(sender.ID(), txKindTransferAssets.Asset)
+	senderKey := byteKey(sender.ID(), *proto.NewOptionalAssetFromDigest(fullAssetID))
 
 	rideEthRecipientAddress, ok := decodedData.Inputs[0].Value.(ethabi.Bytes)
 	assert.True(t, ok)
 	ethRecipientAddress := proto.BytesToEthereumAddress(rideEthRecipientAddress)
 	recipient, err := ethRecipientAddress.ToWavesAddress(proto.MainNetScheme)
 	assert.NoError(t, err)
-	recipientKey := byteKey(recipient.ID(), txKindTransferAssets.Asset)
+	recipientKey := byteKey(recipient.ID(), *proto.NewOptionalAssetFromDigest(fullAssetID))
 	senderWavesBalance := applRes.changes.diff[string(senderWavesKey)].balance
 	senderBalance := applRes.changes.diff[string(senderKey)].balance
 	recipientBalance := applRes.changes.diff[string(recipientKey)].balance

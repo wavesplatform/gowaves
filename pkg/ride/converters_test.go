@@ -2174,7 +2174,10 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	copy(r[:20], assetID[:])
 	asset := &proto.AssetInfo{ID: r}
 
-	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID))
+	erc20arguments, err := ethabi.GetERC20TransferArguments(decodedData)
+	assert.NoError(t, err)
+
+	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID), erc20arguments)
 
 	rideObj, err := transactionToObject(proto.MainNetScheme, &tx)
 	assert.NoError(t, err)
@@ -2185,8 +2188,6 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	assert.Equal(t, rideBytes(senderPK.SerializeXYCoordinates()), rideObj["senderPublicKey"])
 	assert.Equal(t, rideAddress(sender), rideObj["sender"])
 
-	erc20arguments, err := ethabi.GetERC20TransferArguments(tx.TxKind.DecodedData())
-	assert.NoError(t, err)
 	erc20TransferRecipient, err := proto.EthereumAddress(erc20arguments.Recipient).ToWavesAddress(proto.MainNetScheme)
 	assert.NoError(t, err)
 

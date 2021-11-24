@@ -532,11 +532,6 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 		return txBalanceChanges{}, errors.New("unexpected type of eth selector")
 	}
 
-	erc20arguments, err := ethabi.GetERC20TransferArguments(tx.TxKind.DecodedData())
-	if err != nil {
-		return txBalanceChanges{}, errors.Wrap(err, "failed to receive erc20 arguments")
-	}
-
 	EthSenderAddr, err := tx.From()
 	if err != nil {
 		return txBalanceChanges{}, err
@@ -558,19 +553,19 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 
 	senderAmountKey := byteKey(senderAddress.ID(), txErc20Kind.Asset)
 
-	senderAmountBalanceDiff := -erc20arguments.Amount
+	senderAmountBalanceDiff := -txErc20Kind.Arguments.Amount
 	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(senderAmountBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
 
-	etc20TransferRecipient, err := proto.EthereumAddress(erc20arguments.Recipient).ToWavesAddress(td.settings.AddressSchemeCharacter)
+	etc20TransferRecipient, err := proto.EthereumAddress(txErc20Kind.Arguments.Recipient).ToWavesAddress(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
 
 	// Append receiver diff.
 	receiverKey := byteKey(etc20TransferRecipient.ID(), txErc20Kind.Asset)
-	receiverBalanceDiff := erc20arguments.Amount
+	receiverBalanceDiff := txErc20Kind.Arguments.Amount
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
