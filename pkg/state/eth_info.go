@@ -37,14 +37,14 @@ func GuessEthereumTransactionKind(
 	}
 	selector, err := ethabi.NewSelectorFromBytes(selectorBytes[:ethabi.SelectorSize])
 	if err != nil {
-		return 0, errors.Errorf("failed to guess ethereum transaction kind, %v", err)
+		return 0, errors.Wrap(err, "failed to guess ethereum transaction kind")
 	}
 
 	assetID := (*proto.AssetID)(to)
 
 	_, err = newestAssetInfo(*assetID, true)
 	if err != nil && !errors.Is(err, errs.UnknownAsset{}) {
-		return 0, errors.Errorf("failed to get asset info by ethereum recipient address %s, %v", to.String(), err)
+		return 0, errors.Wrapf(err, "failed to get asset info by ethereum recipient address %s", to.String())
 	}
 
 	if ethabi.IsERC20TransferSelector(selector) && err == nil {
@@ -57,7 +57,7 @@ func GuessEthereumTransactionKind(
 func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, params *appendTxParams) (proto.EthereumTransactionKind, error) {
 	txKind, err := GuessEthereumTransactionKind(ethTx.Data(), ethTx.To(), e.stor.assets.newestAssetInfo)
 	if err != nil {
-		return nil, errors.Errorf("failed to guess ethereum tx kind, %v", err)
+		return nil, errors.Wrap(err, "failed to guess ethereum tx kind")
 	}
 
 	switch txKind {
@@ -77,7 +77,7 @@ func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, para
 
 		assetInfo, err := e.stor.assets.newestAssetInfo(*assetID, true)
 		if err != nil {
-			return nil, errors.Errorf("failed to get asset info %v", err)
+			return nil, errors.Wrap(err, "failed to get asset info")
 		}
 		fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.tail)
 		return proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(fullAssetID)), nil
@@ -96,12 +96,12 @@ func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, para
 		}
 		decodedData, err := db.ParseCallDataRide(ethTx.Data())
 		if err != nil {
-			return nil, errors.Errorf("failed to parse ethereum data, %v", err)
+			return nil, errors.Wrap(err, "failed to parse ethereum data")
 		}
 
 		return proto.NewEthereumInvokeScriptTxKind(*decodedData), nil
 
 	default:
-		return nil, errors.Errorf("unexpected ethereum tx kind")
+		return nil, errors.New("unexpected ethereum tx kind")
 	}
 }
