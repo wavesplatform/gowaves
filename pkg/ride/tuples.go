@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+type rideTuple interface {
+	get(name string) (rideType, error)
+	size() int
+}
+
 type tuple2 struct {
 	el1 rideType
 	el2 rideType
@@ -55,6 +60,10 @@ func (a tuple2) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2)
+}
+
+func (a tuple2) size() int {
+	return 2
 }
 
 type tuple3 struct {
@@ -107,6 +116,10 @@ func (a tuple3) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3)
+}
+
+func (a tuple3) size() int {
+	return 3
 }
 
 type tuple4 struct {
@@ -163,6 +176,10 @@ func (a tuple4) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4)
+}
+
+func (a tuple4) size() int {
+	return 4
 }
 
 type tuple5 struct {
@@ -223,6 +240,10 @@ func (a tuple5) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5)
+}
+
+func (a tuple5) size() int {
+	return 5
 }
 
 type tuple6 struct {
@@ -287,6 +308,10 @@ func (a tuple6) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6)
+}
+
+func (a tuple6) size() int {
+	return 6
 }
 
 type tuple7 struct {
@@ -355,6 +380,10 @@ func (a tuple7) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7)
+}
+
+func (a tuple7) size() int {
+	return 7
 }
 
 type tuple8 struct {
@@ -427,6 +456,10 @@ func (a tuple8) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8)
+}
+
+func (a tuple8) size() int {
+	return 8
 }
 
 type tuple9 struct {
@@ -503,6 +536,10 @@ func (a tuple9) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9)
+}
+
+func (a tuple9) size() int {
+	return 9
 }
 
 type tuple10 struct {
@@ -583,6 +620,10 @@ func (a tuple10) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10)
+}
+
+func (a tuple10) size() int {
+	return 10
 }
 
 type tuple11 struct {
@@ -667,6 +708,10 @@ func (a tuple11) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11)
+}
+
+func (a tuple11) size() int {
+	return 11
 }
 
 type tuple12 struct {
@@ -755,6 +800,10 @@ func (a tuple12) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12)
+}
+
+func (a tuple12) size() int {
+	return 12
 }
 
 type tuple13 struct {
@@ -847,6 +896,10 @@ func (a tuple13) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13)
+}
+
+func (a tuple13) size() int {
+	return 13
 }
 
 type tuple14 struct {
@@ -943,6 +996,10 @@ func (a tuple14) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14)
+}
+
+func (a tuple14) size() int {
+	return 14
 }
 
 type tuple15 struct {
@@ -1043,6 +1100,10 @@ func (a tuple15) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15)
+}
+
+func (a tuple15) size() int {
+	return 15
 }
 
 type tuple16 struct {
@@ -1147,6 +1208,10 @@ func (a tuple16) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16)
+}
+
+func (a tuple16) size() int {
+	return 16
 }
 
 type tuple17 struct {
@@ -1255,6 +1320,10 @@ func (a tuple17) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17)
+}
+
+func (a tuple17) size() int {
+	return 17
 }
 
 type tuple18 struct {
@@ -1367,6 +1436,10 @@ func (a tuple18) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18)
+}
+
+func (a tuple18) size() int {
+	return 18
 }
 
 type tuple19 struct {
@@ -1483,6 +1556,10 @@ func (a tuple19) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18) && a.el19.eq(o.el19)
+}
+
+func (a tuple19) size() int {
+	return 19
 }
 
 type tuple20 struct {
@@ -1603,6 +1680,10 @@ func (a tuple20) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18) && a.el19.eq(o.el19) && a.el20.eq(o.el20)
+}
+
+func (a tuple20) size() int {
+	return 20
 }
 
 type tuple21 struct {
@@ -1727,6 +1808,10 @@ func (a tuple21) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18) && a.el19.eq(o.el19) && a.el20.eq(o.el20) && a.el21.eq(o.el21)
+}
+
+func (a tuple21) size() int {
+	return 21
 }
 
 type tuple22 struct {
@@ -1855,4 +1940,8 @@ func (a tuple22) eq(other rideType) bool {
 		return false
 	}
 	return a.el1.eq(o.el1) && a.el2.eq(o.el2) && a.el3.eq(o.el3) && a.el4.eq(o.el4) && a.el5.eq(o.el5) && a.el6.eq(o.el6) && a.el7.eq(o.el7) && a.el8.eq(o.el8) && a.el9.eq(o.el9) && a.el10.eq(o.el10) && a.el11.eq(o.el11) && a.el12.eq(o.el12) && a.el13.eq(o.el13) && a.el14.eq(o.el14) && a.el15.eq(o.el15) && a.el16.eq(o.el16) && a.el17.eq(o.el17) && a.el18.eq(o.el18) && a.el19.eq(o.el19) && a.el20.eq(o.el20) && a.el21.eq(o.el21) && a.el22.eq(o.el22)
+}
+
+func (a tuple22) size() int {
+	return 22
 }

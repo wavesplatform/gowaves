@@ -580,6 +580,7 @@ func functionsV6() map[string]string {
 	delete(m, "fraction")
 	m["3"] = "getType"
 	m["110"] = "fractionIntRounds"
+	m["1350"] = "sizeTuple"
 	for i, l := range []int{20, 50, 100, 200, 500, 1000} {
 		m[strconv.Itoa(450+i)] = fmt.Sprintf("fold_%d", l)
 	}
@@ -591,6 +592,7 @@ func catalogueV6() map[string]int {
 	m["fraction"] = 4
 	m["3"] = 1
 	m["110"] = 1
+	m["1350"] = 1
 	for i, c := range []int{3, 7, 9, 20, 56, 115} {
 		m[strconv.Itoa(450+i)] = c
 	}
@@ -898,6 +900,9 @@ func createTuples(sb *strings.Builder) {
 		sb.WriteString("}\n")
 		sb.WriteString(fmt.Sprintf("return %s\n", strings.Join(comparisons, " && ")))
 		sb.WriteString("}\n\n")
+		sb.WriteString(fmt.Sprintf("func (a %s) size() int {\n", name))
+		sb.WriteString(fmt.Sprintf("return %d\n", n))
+		sb.WriteString("}\n\n")
 	}
 }
 
@@ -1195,6 +1200,12 @@ func main() {
 	sb.WriteString("\"strings\"\n")
 	sb.WriteString("\"github.com/pkg/errors\"\n")
 	sb.WriteString(")\n")
+	sb.WriteString("\n")
+	sb.WriteString("type rideTuple interface {\n")
+	sb.WriteString("get(name string) (rideType, error)\n")
+	sb.WriteString("size() int\n")
+	sb.WriteString("}\n")
+	sb.WriteString("\n")
 	createTuples(sb)
 	code = sb.String()
 	b, err = format.Source([]byte(code))

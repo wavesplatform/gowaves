@@ -118,6 +118,16 @@ func valueOrElse(_ *treeEvaluator, _ Environment, args ...rideType) (rideType, e
 	return args[0], nil
 }
 
+func sizeTuple(_ *treeEvaluator, _ Environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 1); err != nil {
+		return nil, errors.Wrap(err, "sizeTuple")
+	}
+	if t, ok := args[0].(rideTuple); ok {
+		return rideInt(t.size()), nil
+	}
+	return nil, errors.Errorf("sizeTuple: unexpected argument type '%s'", args[0].instanceOf())
+}
+
 func bytesProperty(obj rideType, key string) (rideBytes, error) {
 	p, err := obj.get(key)
 	if err != nil {
