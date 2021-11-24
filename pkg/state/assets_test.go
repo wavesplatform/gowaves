@@ -137,7 +137,7 @@ func TestUpdateAssetInfo(t *testing.T) {
 
 	to.stor.addBlock(t, blockID1)
 	ch := &assetInfoChange{newName: "newName", newDescription: "newDescription", newHeight: 1}
-	err = to.assets.updateAssetInfo(id, ch, blockID1, true)
+	err = to.assets.updateAssetInfo(assetID, ch, blockID1, true)
 	assert.NoError(t, err, "failed to update asset info")
 
 	asset.name = ch.newName
@@ -182,7 +182,7 @@ func TestNewestLastUpdateHeight(t *testing.T) {
 
 	to.stor.addBlock(t, blockID1)
 	ch := &assetInfoChange{newName: "newName", newDescription: "newDescription", newHeight: 2}
-	err = to.assets.updateAssetInfo(id, ch, blockID1, true)
+	err = to.assets.updateAssetInfo(assetID, ch, blockID1, true)
 	assert.NoError(t, err, "failed to update asset info")
 
 	lastUpdateHeight, err = to.assets.newestLastUpdateHeight(id, true)
