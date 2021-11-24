@@ -45,6 +45,13 @@ func instanceOf(_ *treeEvaluator, _ Environment, args ...rideType) (rideType, er
 	return rideBoolean(args[0].instanceOf() == string(t)), nil
 }
 
+func getType(_ *treeEvaluator, _ Environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 1); err != nil {
+		return nil, errors.Wrap(err, "getType")
+	}
+	return rideString(args[0].instanceOf()), nil
+}
+
 func extract(_ *treeEvaluator, _ Environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "extract")

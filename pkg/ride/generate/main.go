@@ -577,6 +577,7 @@ func freeConstructorsV5() []string {
 
 func functionsV6() map[string]string {
 	m := functionsV5()
+	m["3"] = "getType"
 	for i, l := range []int{20, 50, 100, 200, 500, 1000} {
 		m[strconv.Itoa(450+i)] = fmt.Sprintf("fold_%d", l)
 	}
@@ -585,6 +586,7 @@ func functionsV6() map[string]string {
 
 func catalogueV6() map[string]int {
 	m := catalogueV5()
+	m["3"] = 1
 	for i, c := range []int{3, 7, 9, 20, 56, 115} {
 		m[strconv.Itoa(450+i)] = c
 	}
@@ -1143,17 +1145,8 @@ func main() {
 		sb.WriteString("if ev == nil {\n")
 		sb.WriteString("return nil, errors.New(\"empty evaluator\")\n")
 		sb.WriteString("}\n")
-		sb.WriteString("if len(args) != 3 {\n")
-		sb.WriteString("return nil, errors.Errorf(\"%d is invalid number of arguments, expected 3\", len(args))\n")
-		sb.WriteString("}\n")
-		sb.WriteString("if args[0] == nil {\n")
-		sb.WriteString("return nil, errors.Errorf(\"argument 1 is empty\")\n")
-		sb.WriteString("}\n")
-		sb.WriteString("if args[1] == nil {\n")
-		sb.WriteString("return nil, errors.Errorf(\"argument 2 is empty\")\n")
-		sb.WriteString("}\n")
-		sb.WriteString("if args[2] == nil {\n")
-		sb.WriteString("return nil, errors.Errorf(\"argument 3 is empty\")\n")
+		sb.WriteString("if err := checkArgs(args, 3); err != nil {\n")
+		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
 		sb.WriteString("l, ok := args[0].(rideList)\n")
 		sb.WriteString("if !ok {\n")

@@ -1310,17 +1310,8 @@ func fold_20(ev *treeEvaluator, _ Environment, args ...rideType) (rideType, erro
 	if ev == nil {
 		return nil, errors.New("empty evaluator")
 	}
-	if len(args) != 3 {
-		return nil, errors.Errorf("%d is invalid number of arguments, expected 3", len(args))
-	}
-	if args[0] == nil {
-		return nil, errors.Errorf("argument 1 is empty")
-	}
-	if args[1] == nil {
-		return nil, errors.Errorf("argument 2 is empty")
-	}
-	if args[2] == nil {
-		return nil, errors.Errorf("argument 3 is empty")
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fold_20")
 	}
 	l, ok := args[0].(rideList)
 	if !ok {
@@ -1348,17 +1339,8 @@ func fold_50(ev *treeEvaluator, _ Environment, args ...rideType) (rideType, erro
 	if ev == nil {
 		return nil, errors.New("empty evaluator")
 	}
-	if len(args) != 3 {
-		return nil, errors.Errorf("%d is invalid number of arguments, expected 3", len(args))
-	}
-	if args[0] == nil {
-		return nil, errors.Errorf("argument 1 is empty")
-	}
-	if args[1] == nil {
-		return nil, errors.Errorf("argument 2 is empty")
-	}
-	if args[2] == nil {
-		return nil, errors.Errorf("argument 3 is empty")
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fold_50")
 	}
 	l, ok := args[0].(rideList)
 	if !ok {
@@ -1386,17 +1368,8 @@ func fold_100(ev *treeEvaluator, _ Environment, args ...rideType) (rideType, err
 	if ev == nil {
 		return nil, errors.New("empty evaluator")
 	}
-	if len(args) != 3 {
-		return nil, errors.Errorf("%d is invalid number of arguments, expected 3", len(args))
-	}
-	if args[0] == nil {
-		return nil, errors.Errorf("argument 1 is empty")
-	}
-	if args[1] == nil {
-		return nil, errors.Errorf("argument 2 is empty")
-	}
-	if args[2] == nil {
-		return nil, errors.Errorf("argument 3 is empty")
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fold_100")
 	}
 	l, ok := args[0].(rideList)
 	if !ok {
@@ -1424,17 +1397,8 @@ func fold_200(ev *treeEvaluator, _ Environment, args ...rideType) (rideType, err
 	if ev == nil {
 		return nil, errors.New("empty evaluator")
 	}
-	if len(args) != 3 {
-		return nil, errors.Errorf("%d is invalid number of arguments, expected 3", len(args))
-	}
-	if args[0] == nil {
-		return nil, errors.Errorf("argument 1 is empty")
-	}
-	if args[1] == nil {
-		return nil, errors.Errorf("argument 2 is empty")
-	}
-	if args[2] == nil {
-		return nil, errors.Errorf("argument 3 is empty")
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fold_200")
 	}
 	l, ok := args[0].(rideList)
 	if !ok {
@@ -1462,17 +1426,8 @@ func fold_500(ev *treeEvaluator, _ Environment, args ...rideType) (rideType, err
 	if ev == nil {
 		return nil, errors.New("empty evaluator")
 	}
-	if len(args) != 3 {
-		return nil, errors.Errorf("%d is invalid number of arguments, expected 3", len(args))
-	}
-	if args[0] == nil {
-		return nil, errors.Errorf("argument 1 is empty")
-	}
-	if args[1] == nil {
-		return nil, errors.Errorf("argument 2 is empty")
-	}
-	if args[2] == nil {
-		return nil, errors.Errorf("argument 3 is empty")
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fold_500")
 	}
 	l, ok := args[0].(rideList)
 	if !ok {
@@ -1500,17 +1455,8 @@ func fold_1000(ev *treeEvaluator, _ Environment, args ...rideType) (rideType, er
 	if ev == nil {
 		return nil, errors.New("empty evaluator")
 	}
-	if len(args) != 3 {
-		return nil, errors.Errorf("%d is invalid number of arguments, expected 3", len(args))
-	}
-	if args[0] == nil {
-		return nil, errors.Errorf("argument 1 is empty")
-	}
-	if args[1] == nil {
-		return nil, errors.Errorf("argument 2 is empty")
-	}
-	if args[2] == nil {
-		return nil, errors.Errorf("argument 3 is empty")
+	if err := checkArgs(args, 3); err != nil {
+		return nil, errors.Wrap(err, "fold_1000")
 	}
 	l, ok := args[0].(rideList)
 	if !ok {
