@@ -33,16 +33,21 @@ func newScriptCaller(
 	}, nil
 }
 
+// callAccountScriptWithOrder calls account script. This method must not be called for proto.EthereumAddress.
 func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockInfo *proto.BlockInfo, isRideV5 bool, initialisation bool) error {
-	sender, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, order.GetSenderPK())
+	senderAddr, err := order.GetSender(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return err
+	}
+	senderWavesAddr, ok := senderAddr.(proto.WavesAddress)
+	if !ok {
+		return errors.Errorf("address %q must be a waves address, not %T", senderAddr.String(), senderAddr)
 	}
 	id, err := order.GetID()
 	if err != nil {
 		return err
 	}
-	tree, err := a.stor.scriptsStorage.newestScriptByAddr(sender, !initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderWavesAddr, !initialisation)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve account script")
 	}
@@ -50,7 +55,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	if err != nil {
 		return errors.Wrap(err, "failed to create RIDE environment")
 	}
-	env.SetThisFromAddress(sender)
+	env.SetThisFromAddress(senderWavesAddr)
 	env.SetLastBlock(lastBlockInfo)
 	env.ChooseSizeCheck(tree.LibVersion)
 	env.ChooseTakeString(isRideV5)
@@ -74,7 +79,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For account script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(sender, !initialisation)
+		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr, !initialisation)
 		if err != nil {
 			return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
 		}
@@ -83,6 +88,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	return nil
 }
 
+// callAccountScriptWithTx calls account script. This method must not be called for proto.EthereumAddress.
 func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *appendTxParams) error {
 	senderAddr, err := tx.GetSender(a.settings.AddressSchemeCharacter)
 	if err != nil {

@@ -1081,15 +1081,17 @@ func (a *OrderTestSuite) Test_matcherFeeAssetId() {
 
 func (a *OrderTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.GetSenderPK())
+	addr, err := a.tx.GetSender(proto.MainNetScheme)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	wavesAddr, err := addr.ToWavesAddress(proto.MainNetScheme)
+	a.NoError(err)
+	a.Equal(rideAddress(wavesAddr), rs["sender"])
 }
 
 func (a *OrderTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	pk := a.tx.GetSenderPK()
-	a.Equal(rideBytes(pk.Bytes()), rs["senderPublicKey"])
+	pkBytes := a.tx.GetSenderPKBytes()
+	a.Equal(rideBytes(pkBytes), rs["senderPublicKey"])
 }
 
 func (a *OrderTestSuite) Test_bodyBytes() {
@@ -1112,9 +1114,68 @@ func (a *OrderTestSuite) Test_instanceFieldName() {
 	a.Equal("Order", rs.instanceOf())
 }
 
-//Order
+//OrderV1
 func TestNewVariablesFromOrderV1(t *testing.T) {
 	suite.Run(t, new(OrderTestSuite))
+}
+
+type EthereumOrderV4TestSuite struct {
+	OrderTestSuite
+	matcherFeeAssetID proto.OptionalAsset
+}
+
+func (a *EthereumOrderV4TestSuite) SetupTest() {
+	sk, err := crypto.ECDSAPrivateKeyFromHexString("0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4")
+	a.NoError(err)
+
+	a.d, _ = crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
+	a.aa = *proto.NewOptionalAssetFromDigest(a.d)
+	a.pa = *proto.NewOptionalAssetFromDigest(a.d)
+	a.matcherFeeAssetID = *proto.NewOptionalAssetFromDigest(a.d)
+	_, matcherPk, _ := crypto.GenerateKeyPair([]byte("test1"))
+
+	sellOrder := proto.NewUnsignedEthereumOrderV4(
+		proto.EthereumPublicKey(sk.PublicKey),
+		matcherPk,
+		a.aa,
+		a.pa,
+		proto.Sell,
+		100000,
+		10000,
+		proto.Timestamp(1544715621),
+		proto.Timestamp(1544715621),
+		10000,
+		a.matcherFeeAssetID,
+	)
+	sellOrder.Proofs = proto.NewProofs()
+
+	a.NoError(sellOrder.EthereumSign(proto.MainNetScheme, (*proto.EthereumPrivateKey)(sk)))
+
+	a.tx = sellOrder
+	a.f = orderToObject
+}
+
+func (a *EthereumOrderV4TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	p, _ := a.tx.GetProofs()
+	a.NotNil(p)
+	a.Equal(rideList{_empty, _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+}
+
+func (a *EthereumOrderV4TestSuite) Test_bodyBytes() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(rideBytes{}, rs["bodyBytes"])
+	a.Nil(rs["bodyBytes"])
+}
+
+func (a *EthereumOrderV4TestSuite) Test_matcherFeeAssetId() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(rideBytes(a.matcherFeeAssetID.ID.Bytes()), rs["matcherFeeAssetId"])
+}
+
+//EthereumOrderV4
+func TestNewVariablesFromEthereumOrderV4(t *testing.T) {
+	suite.Run(t, new(EthereumOrderV4TestSuite))
 }
 
 type SetAssetScriptWithProofsTestSuite struct {

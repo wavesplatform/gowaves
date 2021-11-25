@@ -29,11 +29,13 @@ const (
 	testPK   = "AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa8"
 	testAddr = "3PDdGex1meSUf4Yq5bjPBpyAbx6us9PaLfo"
 
-	issuerSeed    = "5TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk5bc"
-	matcherSeed   = "4TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk4bc"
-	minerSeed     = "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
-	senderSeed    = "2TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk2bc"
-	recipientSeed = "1TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk1bc"
+	issuerSeed     = "5TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk5bc"
+	matcherSeed    = "4TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk4bc"
+	minerSeed      = "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
+	senderSeed     = "2TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk2bc"
+	recipientSeed  = "1TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk1bc"
+	senderSKHex    = "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4"
+	recipientSKHex = "0x837cd5bde5402623b2d09c9779bc585cafe5bb1a3d94b369b0b2264f7e1ef45c"
 
 	assetStr  = "B2u2TBpTYHWCuMuKLnbQfLvdLJ3zjgPiy3iMS2TSYugZ"
 	assetStr1 = "3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N"
@@ -54,13 +56,61 @@ var (
 	blockID2 = genBlockId(3)
 )
 
-type testAddrData struct {
+type testWavesAddr interface {
+	Address() proto.WavesAddress
+	Recipient() proto.Recipient
+	WavesKey() string
+	AssetKeys() []string
+}
+
+type testWavesAddrData struct {
 	sk        crypto.SecretKey
 	pk        crypto.PublicKey
 	addr      proto.WavesAddress
 	rcp       proto.Recipient
 	wavesKey  string
 	assetKeys []string
+}
+
+func (t testWavesAddrData) Address() proto.WavesAddress {
+	return t.addr
+}
+
+func (t testWavesAddrData) Recipient() proto.Recipient {
+	return t.rcp
+}
+
+func (t testWavesAddrData) WavesKey() string {
+	return t.wavesKey
+}
+
+func (t testWavesAddrData) AssetKeys() []string {
+	return t.assetKeys
+}
+
+type testEthAkaWavesAddrData struct {
+	sk        proto.EthereumPrivateKey
+	pk        proto.EthereumPublicKey
+	addr      proto.WavesAddress
+	rcp       proto.Recipient
+	wavesKey  string
+	assetKeys []string
+}
+
+func (t testEthAkaWavesAddrData) Address() proto.WavesAddress {
+	return t.addr
+}
+
+func (t testEthAkaWavesAddrData) Recipient() proto.Recipient {
+	return t.rcp
+}
+
+func (t testEthAkaWavesAddrData) WavesKey() string {
+	return t.wavesKey
+}
+
+func (t testEthAkaWavesAddrData) AssetKeys() []string {
+	return t.assetKeys
 }
 
 func defaultBlock() *proto.BlockHeader {
@@ -102,7 +152,7 @@ func defaultFallibleValidationParams() *fallibleValidationParams {
 	}
 }
 
-func newTestAddrData(seedStr string, assets []crypto.Digest) (*testAddrData, error) {
+func newTestWavesAddrData(seedStr string, assets []crypto.Digest) (*testWavesAddrData, error) {
 	seedBytes, err := base58.Decode(seedStr)
 	if err != nil {
 		return nil, err
@@ -122,7 +172,30 @@ func newTestAddrData(seedStr string, assets []crypto.Digest) (*testAddrData, err
 	for i, a := range assets {
 		assetKeys[i] = string((&assetBalanceKey{addr.ID(), proto.AssetIDFromDigest(a)}).bytes())
 	}
-	return &testAddrData{sk: sk, pk: pk, addr: addr, rcp: rcp, wavesKey: wavesKey, assetKeys: assetKeys}, nil
+	return &testWavesAddrData{sk: sk, pk: pk, addr: addr, rcp: rcp, wavesKey: wavesKey, assetKeys: assetKeys}, nil
+}
+
+func newTestEthAkaWavesAddrData(ethSecretKeyHex string, assets []crypto.Digest) (*testEthAkaWavesAddrData, error) {
+	sk, err := crypto.ECDSAPrivateKeyFromHexString(ethSecretKeyHex)
+	if err != nil {
+		return nil, err
+	}
+
+	ethSK := proto.EthereumPrivateKey(*sk)
+	ethPK := proto.EthereumPublicKey(ethSK.PublicKey)
+
+	addr, err := ethPK.EthereumAddress().ToWavesAddress('W')
+	if err != nil {
+		return nil, err
+	}
+	rcp := proto.NewRecipientFromAddress(addr)
+	wavesKey := string((&wavesBalanceKey{addr.ID()}).bytes())
+
+	assetKeys := make([]string, len(assets))
+	for i, a := range assets {
+		assetKeys[i] = string((&assetBalanceKey{addr.ID(), proto.AssetIDFromDigest(a)}).bytes())
+	}
+	return &testEthAkaWavesAddrData{sk: ethSK, pk: ethPK, addr: addr, rcp: rcp, wavesKey: wavesKey, assetKeys: assetKeys}, nil
 }
 
 type testAssetData struct {
@@ -147,11 +220,15 @@ type testGlobalVars struct {
 	asset1 *testAssetData
 	asset2 *testAssetData
 
-	issuerInfo    *testAddrData
-	matcherInfo   *testAddrData
-	minerInfo     *testAddrData
-	senderInfo    *testAddrData
-	recipientInfo *testAddrData
+	issuerInfo  *testWavesAddrData
+	matcherInfo *testWavesAddrData
+	minerInfo   *testWavesAddrData
+
+	senderInfo    *testWavesAddrData
+	recipientInfo *testWavesAddrData
+
+	senderEthInfo    *testEthAkaWavesAddrData
+	recipientEthInfo *testEthAkaWavesAddrData
 
 	scriptBytes []byte
 	scriptAst   *ride.Tree
@@ -161,6 +238,7 @@ var testGlobal testGlobalVars
 
 func TestMain(m *testing.M) {
 	var err error
+
 	testGlobal.asset0, err = newTestAssetData(assetStr)
 	if err != nil {
 		log.Fatalf("newTestAssetData(): %v\n", err)
@@ -173,26 +251,38 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("newTestAssetData(): %v\n", err)
 	}
-	testGlobal.issuerInfo, err = newTestAddrData(issuerSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
+
+	testGlobal.issuerInfo, err = newTestWavesAddrData(issuerSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
 	if err != nil {
-		log.Fatalf("newTestAddrData(): %v\n", err)
+		log.Fatalf("newTestWavesAddrData(): %v\n", err)
 	}
-	testGlobal.matcherInfo, err = newTestAddrData(matcherSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.matcherInfo, err = newTestWavesAddrData(matcherSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
-		log.Fatalf("newTestAddrData(): %v\n", err)
+		log.Fatalf("newTestWavesAddrData(): %v\n", err)
 	}
-	testGlobal.minerInfo, err = newTestAddrData(minerSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
+	testGlobal.minerInfo, err = newTestWavesAddrData(minerSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID})
 	if err != nil {
-		log.Fatalf("newTestAddrData(): %v\n", err)
+		log.Fatalf("newTestWavesAddrData(): %v\n", err)
 	}
-	testGlobal.senderInfo, err = newTestAddrData(senderSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+
+	testGlobal.senderInfo, err = newTestWavesAddrData(senderSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
-		log.Fatalf("newTestAddrData(): %v\n", err)
+		log.Fatalf("newTestWavesAddrData(): %v\n", err)
 	}
-	testGlobal.recipientInfo, err = newTestAddrData(recipientSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	testGlobal.recipientInfo, err = newTestWavesAddrData(recipientSeed, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
-		log.Fatalf("newTestAddrData(): %v\n", err)
+		log.Fatalf("newTestWavesAddrData(): %v\n", err)
 	}
+
+	testGlobal.senderEthInfo, err = newTestEthAkaWavesAddrData(senderSKHex, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	if err != nil {
+		log.Fatalf("newTestEthAkaWavesAddrData(): %v\n", err)
+	}
+	testGlobal.recipientEthInfo, err = newTestEthAkaWavesAddrData(recipientSKHex, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
+	if err != nil {
+		log.Fatalf("newTestEthAkaWavesAddrData(): %v\n", err)
+	}
+
 	scriptBytes, err := base64.StdEncoding.DecodeString(scriptBase64)
 	if err != nil {
 		log.Fatalf("Failed to decode script from base64: %v\n", err)
@@ -203,6 +293,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("BuildAst: %v\n", err)
 	}
 	testGlobal.scriptAst = scriptAst
+
 	os.Exit(m.Run())
 }
 

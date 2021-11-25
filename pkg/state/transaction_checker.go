@@ -697,12 +697,20 @@ func (tc *transactionChecker) checkBurnWithProofs(transaction proto.Transaction,
 	return smartAssets, nil
 }
 
+// orderScriptedAccount checks that sender account is a scripted account.
+// This method works for both proto.EthereumAddress and proto.WavesAddress.
+// Note that only real proto.WavesAddress account can have a verifier.
 func (tc *transactionChecker) orderScriptedAccount(order proto.Order, initialisation bool) (bool, error) {
-	sender, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, order.GetSenderPK())
+	senderAddr, err := order.GetSender(tc.settings.AddressSchemeCharacter)
 	if err != nil {
-		return false, err
+		return false, errors.Wrapf(err, "failed to get sender for order")
 	}
-	return tc.stor.scriptsStorage.newestAccountHasVerifier(sender, !initialisation)
+	// senderWavesAddr needs only for newestAccountHasVerifier check
+	senderWavesAddr, err := senderAddr.ToWavesAddress(tc.settings.AddressSchemeCharacter)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
+	}
+	return tc.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr, !initialisation)
 }
 
 func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAmount uint64, info *checkerInfo) error {
