@@ -754,10 +754,9 @@ func (td *transactionDiffer) createDiffBurnWithProofs(transaction proto.Transact
 
 func (td *transactionDiffer) orderFeeKey(address proto.AddressID, order proto.Order) []byte {
 	switch o := order.(type) {
-	case *proto.OrderV4:
-		return byteKey(address, o.MatcherFeeAsset)
-	case *proto.OrderV3:
-		return byteKey(address, o.MatcherFeeAsset)
+	case *proto.EthereumOrderV4, *proto.OrderV4, *proto.OrderV3:
+		matcherFeeAsset := o.GetMatcherFeeAsset()
+		return byteKey(address, matcherFeeAsset)
 	default:
 		k := wavesBalanceKey{address}
 		return k.bytes()
@@ -886,7 +885,8 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	}
 	amountDiff := int64(tx.GetAmount())
 
-	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, sellOrder.GetSenderPK())
+	// because sender can be either of EthereumAddress or WavesAddress we have to convert both of them to WavesAddress
+	senderAddr, err := sellOrder.GetSender(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -900,7 +900,9 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(-amountDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	receiverAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.GetSenderPK())
+
+	// because sender can be either of EthereumAddress or WavesAddress we have to convert both of them to WavesAddress
+	receiverAddr, err := buyOrder.GetSender(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -914,6 +916,7 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	if err := diff.appendBalanceDiff(receiverAmountKey, newBalanceDiff(amountDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
+
 	// Fees.
 	matcherAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.GetMatcherPK())
 	if err != nil {
@@ -922,7 +925,7 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	matcherAddrID := matcherAddr.ID()
 
 	senderFee := int64(tx.GetSellMatcherFee())
-	senderFeeKey := td.orderFeeKey(senderAddr.ID(), sellOrder)
+	senderFeeKey := td.orderFeeKey(senderAddrID, sellOrder)
 	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(-senderFee, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -949,11 +952,21 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
 		}
 	}
+
 	txSenderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
-	addresses := []proto.WavesAddress{txSenderAddr, senderAddr, receiverAddr, matcherAddr}
+	senderWavesAddr, err := senderAddr.ToWavesAddress(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	receiverWavesAddr, err := receiverAddr.ToWavesAddress(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+
+	addresses := []proto.WavesAddress{txSenderAddr, senderWavesAddr, receiverWavesAddr, matcherAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 	return changes, nil
 }
@@ -972,14 +985,19 @@ func (td *transactionDiffer) createDiffForExchangeFeeValidation(transaction prot
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
-	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, sellOrder.GetSenderPK())
+
+	// because sender can be either of EthereumAddress or WavesAddress we have to convert both of them to WavesAddress
+	senderAddr, err := sellOrder.GetSender(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
-	receiverAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.GetSenderPK())
+
+	// because sender can be either of EthereumAddress or WavesAddress we have to convert both of them to WavesAddress
+	receiverAddr, err := buyOrder.GetSender(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
+
 	matcherAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, buyOrder.GetMatcherPK())
 	if err != nil {
 		return txBalanceChanges{}, err

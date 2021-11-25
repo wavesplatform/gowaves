@@ -27,6 +27,16 @@ func (a *Account) SetFromPublicKey(scheme byte, pk crypto.PublicKey) error {
 	return nil
 }
 
+// SetFromAddress set address to Account trying to convert proto.Address interface to proto.WavesAddress structure.
+func (a *Account) SetFromAddress(scheme byte, address proto.Address) error {
+	wavesAddress, err := address.ToWavesAddress(scheme)
+	if err != nil {
+		return errors.Wrapf(err, "failed to convert address (%T) to (%T)", address, wavesAddress)
+	}
+	a.Address = wavesAddress
+	return nil
+}
+
 func (a *Account) SetFromRecipient(r proto.Recipient) error {
 	if r.Alias != nil {
 		a.Alias = *r.Alias
@@ -190,48 +200,55 @@ func FromTransferWithProofs(scheme byte, tx *proto.TransferWithProofs, miner cry
 
 func FromExchangeWithSig(scheme byte, tx *proto.ExchangeWithSig) ([]AccountChange, error) {
 	wrapError := func(err error) error { return errors.Wrapf(err, "failed to convert ExchangeWithSig to Change") }
-	r := make([]AccountChange, 0, 4)
-	bo, err := tx.GetBuyOrder()
+	accountChanges := make([]AccountChange, 0, 4)
+
+	buyOrder, err := tx.GetBuyOrder()
 	if err != nil {
 		return nil, wrapError(err)
 	}
-	so, err := tx.GetSellOrder()
+	sellOrder, err := tx.GetSellOrder()
 	if err != nil {
 		return nil, wrapError(err)
 	}
-	buyer := bo.GetSenderPK()
-	seller := so.GetSenderPK()
-	ap := so.GetAssetPair()
-	if ap.AmountAsset.Present {
-		ch1 := AccountChange{Asset: ap.AmountAsset.ID, In: tx.Amount}
-		err := ch1.Account.SetFromPublicKey(scheme, buyer)
-		if err != nil {
-			return nil, wrapError(err)
-		}
-		ch2 := AccountChange{Asset: ap.AmountAsset.ID, Out: tx.Amount}
-		err = ch2.Account.SetFromPublicKey(scheme, seller)
-		if err != nil {
-			return nil, wrapError(err)
-		}
-		r = append(r, ch1)
-		r = append(r, ch2)
+
+	buyer, err := buyOrder.GetSender(scheme)
+	if err != nil {
+		return nil, wrapError(err)
 	}
-	if ap.PriceAsset.Present {
+	seller, err := sellOrder.GetSender(scheme)
+	if err != nil {
+		return nil, wrapError(err)
+	}
+
+	assetPair := sellOrder.GetAssetPair()
+	if assetPair.AmountAsset.Present {
+		ch1 := AccountChange{Asset: assetPair.AmountAsset.ID, In: tx.Amount}
+		err := ch1.Account.SetFromAddress(scheme, buyer)
+		if err != nil {
+			return nil, wrapError(err)
+		}
+		ch2 := AccountChange{Asset: assetPair.AmountAsset.ID, Out: tx.Amount}
+		err = ch2.Account.SetFromAddress(scheme, seller)
+		if err != nil {
+			return nil, wrapError(err)
+		}
+		accountChanges = append(accountChanges, ch1, ch2)
+	}
+	if assetPair.PriceAsset.Present {
 		priceAssetAmount := adjustAmount(tx.Amount, tx.Price)
-		ch1 := AccountChange{Asset: ap.PriceAsset.ID, Out: priceAssetAmount}
-		err := ch1.Account.SetFromPublicKey(scheme, buyer)
+		ch1 := AccountChange{Asset: assetPair.PriceAsset.ID, Out: priceAssetAmount}
+		err := ch1.Account.SetFromAddress(scheme, buyer)
 		if err != nil {
 			return nil, wrapError(err)
 		}
-		ch2 := AccountChange{Asset: ap.PriceAsset.ID, In: priceAssetAmount}
-		err = ch2.Account.SetFromPublicKey(scheme, seller)
+		ch2 := AccountChange{Asset: assetPair.PriceAsset.ID, In: priceAssetAmount}
+		err = ch2.Account.SetFromAddress(scheme, seller)
 		if err != nil {
 			return nil, wrapError(err)
 		}
-		r = append(r, ch1)
-		r = append(r, ch2)
+		accountChanges = append(accountChanges, ch1, ch2)
 	}
-	return r, nil
+	return accountChanges, nil
 }
 
 func FromExchangeWithProofs(scheme byte, tx *proto.ExchangeWithProofs) ([]AccountChange, error) {
