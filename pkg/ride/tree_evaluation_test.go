@@ -1078,6 +1078,9 @@ var envDappFromDapp = &MockRideEnvironment{
 	timestampFunc: func() uint64 {
 		return 1564703444249
 	},
+	rideV6ActivatedFunc: func() bool {
+		return false
+	},
 	validateInternalPaymentsFunc: func() bool {
 		return true
 	},
@@ -7030,6 +7033,9 @@ func TestOriginCaller(t *testing.T) {
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
 		},
+		rideV6ActivatedFunc: func() bool {
+			return false
+		},
 		transactionFunc: func() rideObject {
 			obj, err := transactionToObject(proto.MainNetScheme, tx)
 			require.NoError(t, err)
@@ -7217,6 +7223,9 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
+		rideV6ActivatedFunc: func() bool {
+			return false
+		},
 		setNewDAppAddressFunc: func(address proto.WavesAddress) {
 			testDAppAddress = address
 			testState.cle = rideAddress(address)
@@ -7392,6 +7401,9 @@ func TestAliasesInInvokes(t *testing.T) {
 		},
 		invocationFunc: func() rideObject {
 			return testInv
+		},
+		rideV6ActivatedFunc: func() bool {
+			return false
 		},
 		checkMessageLengthFunc: v3check,
 		setInvocationFunc: func(inv rideObject) {
@@ -7626,6 +7638,9 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
+		rideV6ActivatedFunc: func() bool {
+			return false
+		},
 		validateInternalPaymentsFunc: func() bool {
 			return true
 		},
@@ -7805,6 +7820,9 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 		},
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
+		},
+		rideV6ActivatedFunc: func() bool {
+			return false
 		},
 		transactionFunc: func() rideObject {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
@@ -8005,6 +8023,9 @@ func TestReissueInInvoke(t *testing.T) {
 		},
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		rideV6ActivatedFunc: func() bool {
+			return false
 		},
 	}
 

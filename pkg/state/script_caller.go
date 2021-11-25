@@ -228,7 +228,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
 	if tree.LibVersion >= 5 {
-		env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)
+		env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK, info.rideV6Activated)
 		if err != nil {
 			return false, nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 		}

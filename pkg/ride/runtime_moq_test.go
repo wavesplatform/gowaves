@@ -40,6 +40,9 @@ var _ Environment = &MockRideEnvironment{}
 // 			maxDataEntriesSizeFunc: func() int {
 // 				panic("mock out the maxDataEntriesSize method")
 // 			},
+// 			rideV6ActivatedFunc: func() bool {
+// 				panic("mock out the rideV6Activated method")
+// 			},
 // 			schemeFunc: func() byte {
 // 				panic("mock out the scheme method")
 // 			},
@@ -98,6 +101,9 @@ type MockRideEnvironment struct {
 	// maxDataEntriesSizeFunc mocks the maxDataEntriesSize method.
 	maxDataEntriesSizeFunc func() int
 
+	// rideV6ActivatedFunc mocks the rideV6Activated method.
+	rideV6ActivatedFunc func() bool
+
 	// schemeFunc mocks the scheme method.
 	schemeFunc func() byte
 
@@ -153,6 +159,9 @@ type MockRideEnvironment struct {
 		// maxDataEntriesSize holds details about calls to the maxDataEntriesSize method.
 		maxDataEntriesSize []struct {
 		}
+		// rideV6Activated holds details about calls to the rideV6Activated method.
+		rideV6Activated []struct {
+		}
 		// scheme holds details about calls to the scheme method.
 		scheme []struct {
 		}
@@ -199,6 +208,7 @@ type MockRideEnvironment struct {
 	lockinvocation                       sync.RWMutex
 	locklibVersion                       sync.RWMutex
 	lockmaxDataEntriesSize               sync.RWMutex
+	lockrideV6Activated                  sync.RWMutex
 	lockscheme                           sync.RWMutex
 	locksetInvocation                    sync.RWMutex
 	locksetNewDAppAddress                sync.RWMutex
@@ -395,6 +405,32 @@ func (mock *MockRideEnvironment) maxDataEntriesSizeCalls() []struct {
 	mock.lockmaxDataEntriesSize.RLock()
 	calls = mock.calls.maxDataEntriesSize
 	mock.lockmaxDataEntriesSize.RUnlock()
+	return calls
+}
+
+// rideV6Activated calls rideV6ActivatedFunc.
+func (mock *MockRideEnvironment) rideV6Activated() bool {
+	if mock.rideV6ActivatedFunc == nil {
+		panic("MockRideEnvironment.rideV6ActivatedFunc: method is nil but Environment.rideV6Activated was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockrideV6Activated.Lock()
+	mock.calls.rideV6Activated = append(mock.calls.rideV6Activated, callInfo)
+	mock.lockrideV6Activated.Unlock()
+	return mock.rideV6ActivatedFunc()
+}
+
+// rideV6ActivatedCalls gets all the calls that were made to rideV6Activated.
+// Check the length with:
+//     len(mockedEnvironment.rideV6ActivatedCalls())
+func (mock *MockRideEnvironment) rideV6ActivatedCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockrideV6Activated.RLock()
+	calls = mock.calls.rideV6Activated
+	mock.lockrideV6Activated.RUnlock()
 	return calls
 }
 

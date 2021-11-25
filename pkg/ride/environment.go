@@ -751,6 +751,121 @@ func (ws *WrappedState) incrementInvCount() {
 	ws.invokeCount++
 }
 
+func (ws *WrappedState) validateAllActions(env Environment, actions []proto.ScriptAction, restrictions proto.ActionsValidationRestrictions) error {
+	for _, action := range actions {
+		switch res := action.(type) {
+
+		case *proto.DataEntryScriptAction:
+			err := ws.validateDataEntryAction(res, restrictions)
+			if err != nil {
+				return errors.Wrapf(err, "failed to pass validation of data entry action")
+			}
+		case *proto.AttachedPaymentScriptAction:
+			senderPK := *res.Sender
+			var err error
+			senderAddress, err := proto.NewAddressFromPublicKey(ws.scheme, senderPK)
+			if err != nil {
+				return errors.Wrap(err, "failed to get address  by public key")
+			}
+
+			if env.validateInternalPayments() {
+				err = ws.validatePaymentAction(res, senderAddress, env, restrictions)
+				if err != nil {
+					return errors.Wrapf(err, "failed to pass validation of attached payments")
+				}
+			}
+		case *proto.TransferScriptAction:
+			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
+			if err != nil {
+				return errors.Wrap(err, "failed to get public key by address")
+			}
+			senderPK := pk
+			senderAddress := ws.callee()
+
+			res.Sender = &senderPK
+
+			err = ws.validateTransferAction(res, restrictions, senderAddress, env)
+			if err != nil {
+				return errors.Wrapf(err, "failed to pass validation of transfer action")
+			}
+
+		case *proto.SponsorshipScriptAction:
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
+			if err != nil {
+				return errors.Wrap(err, "failed to get public key by address")
+			}
+			res.Sender = &senderPK
+
+			err = ws.validateSponsorshipAction(res)
+			if err != nil {
+				return errors.Wrapf(err, "failed to pass validation of issue action")
+			}
+
+		case *proto.IssueScriptAction:
+			if !env.rideV6Activated() {
+				err := ws.validateIssueAction(res)
+				if err != nil {
+					return errors.Wrapf(err, "failed to pass validation of issue action")
+				}
+			}
+		case *proto.ReissueScriptAction:
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
+			if err != nil {
+				return errors.Wrap(err, "failed to get public key by address")
+			}
+			res.Sender = &senderPK
+
+			err = ws.validateReissueAction(res, env)
+			if err != nil {
+				return errors.Wrapf(err, "failed to pass validation of reissue action")
+			}
+
+		case *proto.BurnScriptAction:
+			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
+			if err != nil {
+				return errors.Wrap(err, "failed to get public key by address")
+			}
+			res.Sender = &senderPK
+
+			err = ws.validateBurnAction(res, env)
+			if err != nil {
+				return errors.Wrapf(err, "failed to pass validation of burn action")
+			}
+
+		case *proto.LeaseScriptAction:
+			senderAddress := ws.callee()
+			pk, err := ws.diff.state.NewestScriptPKByAddr(senderAddress)
+			if err != nil {
+				return errors.Wrap(err, "failed to get public key by address")
+			}
+
+			res.Sender = &pk
+
+			if !env.rideV6Activated() {
+				err = ws.validateLeaseAction(res, restrictions)
+				if err != nil {
+					return errors.Wrapf(err, "failed to pass validation of lease action")
+				}
+			}
+
+		case *proto.LeaseCancelScriptAction:
+			pk, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
+			if err != nil {
+				return errors.Wrap(err, "failed to get public key by address")
+			}
+
+			res.Sender = &pk
+			err = ws.validateLeaseCancelAction()
+			if err != nil {
+				return errors.Wrapf(err, "failed to pass validation of lease cancel action")
+			}
+
+		default:
+		}
+	}
+	return nil
+}
+
 func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environment) ([]proto.ScriptAction, error) {
 	libVersion, err := ws.getLibVersion()
 	if err != nil {
@@ -772,9 +887,11 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 		switch res := action.(type) {
 
 		case *proto.DataEntryScriptAction:
-			err := ws.validateDataEntryAction(res, restrictions)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of data entry action")
+			if !env.rideV6Activated() {
+				err := ws.validateDataEntryAction(res, restrictions)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to pass validation of data entry action")
+				}
 			}
 			addr := ws.callee()
 			senderPK, err := ws.diff.state.NewestScriptPKByAddr(addr)
@@ -837,9 +954,11 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 			res.Sender = &senderPK
 
-			err = ws.validateTransferAction(res, restrictions, senderAddress, env)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of transfer action")
+			if !env.rideV6Activated() {
+				err = ws.validateTransferAction(res, restrictions, senderAddress, env)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to pass validation of transfer action")
+				}
 			}
 
 			searchBalance, searchAddr, err := ws.diff.findBalance(res.Recipient, res.Asset)
@@ -868,9 +987,12 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 			res.Sender = &senderPK
 
-			err = ws.validateSponsorshipAction(res)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
+			if !env.rideV6Activated() {
+				err = ws.validateSponsorshipAction(res)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to pass validation of issue action")
+				}
+
 			}
 
 			sponsorship := diffSponsorship{
@@ -879,9 +1001,11 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			ws.diff.sponsorships[res.AssetID] = sponsorship
 
 		case *proto.IssueScriptAction:
-			err := ws.validateIssueAction(res)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of issue action")
+			if !env.rideV6Activated() {
+				err := ws.validateIssueAction(res)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to pass validation of issue action")
+				}
 			}
 
 			assetInfo := diffNewAssetInfo{
@@ -920,9 +1044,11 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 			res.Sender = &senderPK
 
-			err = ws.validateReissueAction(res, env)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of reissue action")
+			if !env.rideV6Activated() {
+				err = ws.validateReissueAction(res, env)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to pass validation of reissue action")
+				}
 			}
 
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
@@ -966,11 +1092,13 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 			res.Sender = &senderPK
 
-			err = ws.validateBurnAction(res, env)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of burn action")
-			}
+			if !env.rideV6Activated() {
+				err = ws.validateBurnAction(res, env)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to pass validation of burn action")
+				}
 
+			}
 			senderRcp := proto.NewRecipientFromAddress(ws.callee())
 			asset := *proto.NewOptionalAssetFromDigest(res.AssetID)
 			searchBalance, searchAddr, err := ws.diff.findBalance(senderRcp, asset)
@@ -1015,9 +1143,11 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 			res.Sender = &pk
 
-			err = ws.validateLeaseAction(res, restrictions)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of lease action")
+			if !env.rideV6Activated() {
+				err = ws.validateLeaseAction(res, restrictions)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to pass validation of lease action")
+				}
 			}
 
 			waves := proto.NewOptionalAssetWaves()
@@ -1051,10 +1181,11 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 			res.Sender = &pk
-
-			err = ws.validateLeaseCancelAction()
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to pass validation of lease cancel action")
+			if !env.rideV6Activated() {
+				err = ws.validateLeaseCancelAction()
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to pass validation of lease cancel action")
+				}
 			}
 
 			searchLease, err := ws.diff.findLeaseByIDForCancel(res.LeaseID)
@@ -1089,6 +1220,14 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 		}
 	}
 
+	if env.rideV6Activated() {
+		err = ws.validateAllActions(env, actions, restrictions)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
 	return actions, nil
 }
 
@@ -1106,6 +1245,7 @@ type EvaluationEnvironment struct {
 	inv                   rideObject
 	ver                   int
 	validatePaymentsAfter uint64
+	isRiveV6Activated     bool
 	mds                   int
 }
 
@@ -1124,7 +1264,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 	}, nil
 }
 
-func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, callerPK crypto.PublicKey) (*EvaluationEnvironment, error) {
+func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, callerPK crypto.PublicKey, isRideV6Activated bool) (*EvaluationEnvironment, error) {
 	caller, err := proto.NewAddressFromPublicKey(env.sch, callerPK)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
@@ -1183,7 +1323,12 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 		inv:                   env.inv,
 		validatePaymentsAfter: env.validatePaymentsAfter,
 		mds:                   env.mds,
+		isRiveV6Activated:     isRideV6Activated,
 	}, nil
+}
+
+func (e *EvaluationEnvironment) rideV6Activated() bool {
+	return e.isRiveV6Activated
 }
 
 func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
