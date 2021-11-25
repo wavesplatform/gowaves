@@ -3,7 +3,6 @@ package metamask
 import (
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/ride"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -16,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -67,8 +67,8 @@ func NewRPCService(nodeServices *services.Services) RPCService {
 	}
 }
 
-/* Returns the number of most recent block */
-func (s RPCService) Eth_blockNumber() (string, error) {
+// Eth_BlockNumber returns the number of most recent block
+func (s RPCService) Eth_BlockNumber() (string, error) {
 	// returns integer of the current block number the client is on
 	height, err := s.nodeRPCApp.State.Height()
 	if err != nil {
@@ -78,22 +78,21 @@ func (s RPCService) Eth_blockNumber() (string, error) {
 	return uint64ToHexString(height), nil
 }
 
-/* Returns the current network id */
-func (s RPCService) Net_version() string {
-	return s.Eth_chainId()
+// Net_Version returns the current network id
+func (s RPCService) Net_Version() string {
+	return s.Eth_ChainId()
 }
 
-/* Returns the chain id */
-func (s RPCService) Eth_chainId() string {
+// Eth_ChainId returns the chain id
+func (s RPCService) Eth_ChainId() string {
 	return uint64ToHexString(uint64(s.nodeRPCApp.Scheme))
-	//return "0x1" - show real currency price
 }
 
-/* Returns the balance of the account of given address
-   - address: 20 Bytes - address to check for balance
-   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */
-func (s RPCService) Eth_getBalance(address, blockOrTag string) (string, error) {
-	zap.S().Debugf("Eth_getBalance was called: address %q, blockOrTag %q", address, blockOrTag)
+// Eth_GetBalance returns the balance of the account of given address
+//   - address: 20 Bytes - address to check for balance
+//   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */
+func (s RPCService) Eth_GetBalance(address, blockOrTag string) (string, error) {
+	zap.S().Debugf("Eth_GetBalance was called: address %q, blockOrTag %q", address, blockOrTag)
 
 	// return balance in wei. 1 ether is equivalent to 1 x 10^18 wei (
 	ethAddr, err := proto.NewEthereumAddressFromHexString(address)
@@ -118,42 +117,41 @@ type GetBlockByNumberResponse struct {
 	Number string `json:"number"`
 }
 
-/* Returns information about a block by block number.
-   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
-   - filter: if true it returns the full transaction objects, if false only the hashes of the transactions */
-func (s RPCService) Eth_getBlockByNumber(blockOrTag string, filter bool) GetBlockByNumberResponse {
-	zap.S().Debugf("Eth_getBlockByNumber was called: blockOrTag %q, filter \"%t\"", blockOrTag, filter)
-	// TODO(nickeskov): scala crunch...
+// Eth_GetBlockByNumber returns information about a block by block number.
+//   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
+//   - filter: if true it returns the full transaction objects, if false only the hashes of the transactions */
+func (s RPCService) Eth_GetBlockByNumber(blockOrTag string, filter bool) GetBlockByNumberResponse {
+	zap.S().Debugf("Eth_GetBlockByNumber was called: blockOrTag %q, filter \"%t\"", blockOrTag, filter)
+	// scala's node crunch
 	return GetBlockByNumberResponse{
 		Number: blockOrTag,
 	}
 }
 
-/* Returns the current price per gas in wei */
-func (s RPCService) Eth_gasPrice() string {
+// Eth_GasPrice returns the current price per gas in wei
+func (s RPCService) Eth_GasPrice() string {
 	return uint64ToHexString(proto.EthereumGasPrice)
 }
 
-type EstimateGasRequest struct {
+type estimateGasRequest struct {
 	To    *proto.EthereumAddress `json:"to"`
 	Value *string                `json:"value"`
 	Data  *string                `json:"data"`
 }
 
-func (s RPCService) Eth_estimateGas(req EstimateGasRequest) (string, error) {
+func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 	var (
 		value = new(big.Int)
 		data  []byte
 	)
 	if req.To == nil {
-		zap.S().Debug("Eth_estimateGas: trying estimate gas for set dApp transaction")
+		zap.S().Debug("Eth_EstimateGas: trying estimate gas for set dApp transaction")
 		return "", errors.New("gas estimation for set dApp transaction is not permitted")
 	}
 	if req.Value != nil {
-		var ok bool
-		_, ok = value.SetString(strings.TrimPrefix(*req.Value, "0x"), 16)
+		var _, ok = value.SetString(strings.TrimPrefix(*req.Value, "0x"), 16)
 		if !ok {
-			zap.S().Debugf("Eth_estimateGas: failed decode from hex 'value'=%q as big.Int", *req.Value)
+			zap.S().Debugf("Eth_EstimateGas: failed decode from hex 'value'=%q as big.Int", *req.Value)
 			return "", errors.New("invalid 'value' field")
 		}
 	}
@@ -161,7 +159,7 @@ func (s RPCService) Eth_estimateGas(req EstimateGasRequest) (string, error) {
 		var err error
 		data, err = proto.DecodeFromHexString(*req.Data)
 		if err != nil {
-			zap.S().Debugf("Eth_estimateGas: failed to decode from hex 'data'=%q as bytes", *req.Data)
+			zap.S().Debugf("Eth_EstimateGas: failed to decode from hex 'data'=%q as bytes", *req.Data)
 			return "", errors.Errorf("invalid 'data' field, %v", err)
 		}
 	}
@@ -239,9 +237,9 @@ var (
 	erc20BalanceSelector  = ethabi.Signature("balanceOf(address)").Selector() // "0x70a08231"
 )
 
-func (s RPCService) Eth_call(params ethCallParams) (string, error) {
+func (s RPCService) Eth_Call(params ethCallParams) (string, error) {
 	// TODO(nickeskov): what this method should send in case of error?
-	zap.S().Debugf("Eth_call was called with %s", params.String())
+	zap.S().Debugf("Eth_Call was called with %s", params.String())
 
 	callData, err := proto.DecodeFromHexString(params.Data)
 	if err != nil {
@@ -256,14 +254,14 @@ func (s RPCService) Eth_call(params ethCallParams) (string, error) {
 	case erc20SymbolSelector:
 		fullInfo, err := s.nodeRPCApp.State.FullAssetInfo(shortAssetID)
 		if err != nil {
-			zap.S().Errorf("Eth_call: failed to fetch full asset info, %s: %v", params.String(), err)
+			zap.S().Errorf("Eth_Call: failed to fetch full asset info, %s: %v", params.String(), err)
 			return "", err
 		}
 		return fullInfo.Name, nil
 	case erc20DecimalsSelector:
 		info, err := s.nodeRPCApp.State.AssetInfo(shortAssetID)
 		if err != nil {
-			zap.S().Errorf("Eth_call: failed to fetch asset info, %s: %v", params.String(), err)
+			zap.S().Errorf("Eth_Call: failed to fetch asset info, %s: %v", params.String(), err)
 			return "", err
 		}
 		return fmt.Sprintf("%d", info.Decimals), nil
@@ -274,7 +272,7 @@ func (s RPCService) Eth_call(params ethCallParams) (string, error) {
 				"invalid call data for %q ERC20 method, call data %q",
 				erc20BalanceSelector.String(), params.Data,
 			)
-			zap.S().Debugf("Eth_call: %v", err)
+			zap.S().Debugf("Eth_Call: %v", err)
 			return "", err
 		}
 		ethAddr, err := proto.NewEthereumAddressFromBytes(callData[ethabi.SelectorSize:])
@@ -287,13 +285,13 @@ func (s RPCService) Eth_call(params ethCallParams) (string, error) {
 		}
 		info, err := s.nodeRPCApp.State.AssetInfo(shortAssetID)
 		if err != nil {
-			zap.S().Errorf("Eth_call: failed to fetch asset info, %s: %v", params.String(), err)
+			zap.S().Errorf("Eth_Call: failed to fetch asset info, %s: %v", params.String(), err)
 			return "", err
 		}
 		asset := proto.AssetIDFromDigest(info.ID)
 		accountBalance, err := s.nodeRPCApp.State.AssetBalance(proto.Recipient{Address: &wavesAddr}, asset)
 		if err != nil {
-			zap.S().Errorf("Eth_call: failed to fetch account balance for addr=%q, %s: %v",
+			zap.S().Errorf("Eth_Call: failed to fetch account balance for addr=%q, %s: %v",
 				wavesAddr.String(), params.String(), err,
 			)
 			return "", err
@@ -304,13 +302,13 @@ func (s RPCService) Eth_call(params ethCallParams) (string, error) {
 	}
 }
 
-/* Returns the compiled smart contract code, if any, at a given address.
-   - address: 20 Bytes - address to check for balance
-   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */
-func (s RPCService) Eth_getCode(address, blockOrTag string) (string, error) {
+// Eth_GetCode returns the compiled smart contract code, if any, at a given address.
+//   - address: 20 Bytes - address to check for balance
+//   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
+func (s RPCService) Eth_GetCode(address, blockOrTag string) (string, error) {
 	// TODO(nickeskov): what this method should send in case of error?
 
-	zap.S().Debugf("Eth_getCode was called: address %q, blockOrTag %q", address, blockOrTag)
+	zap.S().Debugf("Eth_GetCode was called: address %q, blockOrTag %q", address, blockOrTag)
 
 	ethAddr, err := proto.NewEthereumAddressFromHexString(address)
 	if err != nil {
@@ -326,7 +324,7 @@ func (s RPCService) Eth_getCode(address, blockOrTag string) (string, error) {
 		// it's not a DApp
 		return "0x", nil
 	case err != nil:
-		zap.S().Errorf("Eth_getCode: failed to get script info by account, addr=%q: %v", wavesAddr.String(), err)
+		zap.S().Errorf("Eth_GetCode: failed to get script info by account, addr=%q: %v", wavesAddr.String(), err)
 		return "", err
 	default:
 		// it's a DApp
@@ -334,22 +332,22 @@ func (s RPCService) Eth_getCode(address, blockOrTag string) (string, error) {
 	}
 }
 
-/* Returns the number of transactions sent from an address.
-   - address: 20 Bytes - address to check for balance
-   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending" */
-func (s RPCService) Eth_getTransactionCount(address, blockOrTag string) string {
-	zap.S().Debugf("Eth_getTransactionCount was called: address %q, blockOrTag %q", address, blockOrTag)
+// Eth_GetTransactionCount returns the number of transactions sent from an address.
+//   - address: 20 Bytes - address to check for balance
+//   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
+func (s RPCService) Eth_GetTransactionCount(address, blockOrTag string) string {
+	zap.S().Debugf("Eth_GetTransactionCount was called: address %q, blockOrTag %q", address, blockOrTag)
 	return int64ToHexString(common.UnixMillisFromTime(s.nodeRPCApp.Time.Now()))
 }
 
-/* Creates new message call transaction or a contract creation for signed transactions.
-   - signedTxData: The signed transaction data. */
-func (s RPCService) Eth_sendrawtransaction(signedTxData string) (proto.EthereumHash, error) {
-	// TODO(nickeskov): what this method should send in case of error?
+// Eth_SendRawTransaction creates new message call transaction or a contract creation for signed transactions.
+//   - signedTxData: The signed transaction data.
+func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumHash, error) {
+	// TODO(nickeskov): what this method should return in case of error?
 
 	data, err := proto.DecodeFromHexString(signedTxData)
 	if err != nil {
-		zap.S().Errorf("Eth_sendrawtransaction: failed to decode ethereum transaction: %v", err)
+		zap.S().Errorf("Eth_SendRawTransaction: failed to decode ethereum transaction: %v", err)
 		return proto.EthereumHash{}, err
 	}
 
@@ -358,13 +356,13 @@ func (s RPCService) Eth_sendrawtransaction(signedTxData string) (proto.EthereumH
 	var tx proto.EthereumTransaction
 	err = tx.DecodeCanonical(data)
 	if err != nil {
-		zap.S().Errorf("Eth_sendrawtransaction: failed to unmarshal rlp encoded ethereum transaction: %v", err)
+		zap.S().Errorf("Eth_SendRawTransaction: failed to unmarshal rlp encoded ethereum transaction: %v", err)
 		return proto.EthereumHash{}, err
 	}
 
 	txID, err := tx.GetID(s.nodeRPCApp.Scheme)
 	if err != nil {
-		zap.S().Errorf("Eth_sendrawtransaction: failed to get ID of ethereum transaction: %v", err)
+		zap.S().Errorf("Eth_SendRawTransaction: failed to get ID of ethereum transaction: %v", err)
 		return proto.EthereumHash{}, err
 	}
 	ethTxID := proto.BytesToEthereumHash(txID)
@@ -372,7 +370,7 @@ func (s RPCService) Eth_sendrawtransaction(signedTxData string) (proto.EthereumH
 	from, err := tx.From()
 	if err != nil {
 		zap.S().Errorf(
-			"Eth_sendrawtransaction: failed to get sender of ethereum transaction (ethTxID=%q, to=%q): %v",
+			"Eth_SendRawTransaction: failed to get sender of ethereum transaction (ethTxID=%q, to=%q): %v",
 			ethTxID.String(), to.String(), err,
 		)
 		return proto.EthereumHash{}, err
@@ -380,7 +378,7 @@ func (s RPCService) Eth_sendrawtransaction(signedTxData string) (proto.EthereumH
 
 	if err := s.nodeRPCApp.UtxPool.Add(&tx); err != nil {
 		zap.S().Warnf(
-			"Eth_sendrawtransaction: failed to add ethereum transaction (ethTxID=%q, to=%q, from=%q) to UTXPool: %v",
+			"Eth_SendRawTransaction: failed to add ethereum transaction (ethTxID=%q, to=%q, from=%q) to UTXPool: %v",
 			ethTxID.String(), to.String(), from.String(), err,
 		)
 		// TODO(nickeskov): what is correct response?
@@ -394,13 +392,13 @@ func (s RPCService) Eth_sendrawtransaction(signedTxData string) (proto.EthereumH
 	select {
 	case <-time.After(5 * time.Second):
 		zap.S().Errorf(
-			"Eth_sendrawtransaction: timeout waiting response from internal FSM for ethereum tx (ethTxID=%q, to=%q, from=%q)",
+			"Eth_SendRawTransaction: timeout waiting response from internal FSM for ethereum tx (ethTxID=%q, to=%q, from=%q)",
 			ethTxID.String(), to.String(), from.String(),
 		)
 		return proto.EthereumHash{}, errors.New("timeout waiting response from internal FSM")
 	case err := <-respCh:
 		if err != nil {
-			zap.S().Errorf("Eth_sendrawtransaction: error from internal FSM for ethereum tx (ethTxID=%q, to=%q, from=%q): %v",
+			zap.S().Errorf("Eth_SendRawTransaction: error from internal FSM for ethereum tx (ethTxID=%q, to=%q, from=%q): %v",
 				ethTxID.String(), to.String(), from.String(), err,
 			)
 			return proto.EthereumHash{}, err
@@ -424,11 +422,11 @@ type GetTransactionReceiptResponse struct {
 	Status            string                 `json:"status"`
 }
 
-func (s RPCService) Eth_getTransactionReceipt(ethTxID proto.EthereumHash) (GetTransactionReceiptResponse, error) {
+func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (GetTransactionReceiptResponse, error) {
 	txID := crypto.Digest(ethTxID)
 	tx, txIsFailed, err := s.nodeRPCApp.State.TransactionByIDWithStatus(txID.Bytes())
 	if state.IsNotFound(err) {
-		zap.S().Debugf("Eth_getTransactionReceipt: transaction with ID=%q or ethID=%q cannot be found",
+		zap.S().Debugf("Eth_GetTransactionReceipt: transaction with ID=%q or ethID=%q cannot be found",
 			txID, ethTxID,
 		)
 		return GetTransactionReceiptResponse{}, errors.Errorf("transaction with ethID=%q not found", ethTxID)
@@ -436,7 +434,7 @@ func (s RPCService) Eth_getTransactionReceipt(ethTxID proto.EthereumHash) (GetTr
 	ethTx, ok := tx.(*proto.EthereumTransaction)
 	if !ok {
 		zap.S().Debugf(
-			"Eth_getTransactionReceipt: transaction with ID=%q or ethID=%q is not 'EthereumTransaction'",
+			"Eth_GetTransactionReceipt: transaction with ID=%q or ethID=%q is not 'EthereumTransaction'",
 			txID, ethTxID,
 		)
 		// according to the scala node implementation
@@ -447,7 +445,7 @@ func (s RPCService) Eth_getTransactionReceipt(ethTxID proto.EthereumHash) (GetTr
 	from, err := ethTx.From()
 	if err != nil {
 		zap.S().Errorf(
-			"Eth_getTransactionReceipt: failed to get sender (from) for tx with ID=%q or ethID=%q: %v",
+			"Eth_GetTransactionReceipt: failed to get sender (from) for tx with ID=%q or ethID=%q: %v",
 			txID, ethTxID, err,
 		)
 		return GetTransactionReceiptResponse{}, errors.New("failed to get sender from tx")
@@ -456,7 +454,7 @@ func (s RPCService) Eth_getTransactionReceipt(ethTxID proto.EthereumHash) (GetTr
 	blockHeight, err := s.nodeRPCApp.State.TransactionHeightByID(txID.Bytes())
 	if err != nil {
 		zap.S().Errorf(
-			"Eth_getTransactionReceipt: failed to get block height for tx with ID=%q or ethID=%q: %v",
+			"Eth_GetTransactionReceipt: failed to get block height for tx with ID=%q or ethID=%q: %v",
 			txID, ethTxID, err,
 		)
 		return GetTransactionReceiptResponse{}, errors.New("failed to get blockNumber for transaction")
@@ -465,7 +463,7 @@ func (s RPCService) Eth_getTransactionReceipt(ethTxID proto.EthereumHash) (GetTr
 	blockHeader, err := s.nodeRPCApp.State.HeaderByHeight(blockHeight)
 	if err != nil {
 		zap.S().Errorf(
-			"Eth_getTransactionReceipt: failed to get block header for tx with ID=%q or ethID=%q: %v",
+			"Eth_GetTransactionReceipt: failed to get block header for tx with ID=%q or ethID=%q: %v",
 			txID, ethTxID, err,
 		)
 		return GetTransactionReceiptResponse{}, errors.New("failed to get blockHeader for transaction")

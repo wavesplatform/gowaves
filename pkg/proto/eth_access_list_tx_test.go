@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"bytes"
 	"math/big"
 	"testing"
 
@@ -42,13 +41,12 @@ func TestEthereumAccessListTxCanonical(t *testing.T) {
 	}
 
 	t.Run("EncodeCanonical", func(t *testing.T) {
-		ethTx := EthereumTransaction{Inner: inner}
+		ethTx := EthereumTransaction{inner: inner}
 
-		var bb bytes.Buffer
-		err := ethTx.EncodeCanonical(&bb)
+		bts, err := ethTx.EncodeCanonical()
 		require.NoError(t, err)
 
-		actualCanonicalBytes := EncodeToHexString(bb.Bytes())
+		actualCanonicalBytes := EncodeToHexString(bts)
 		require.Equal(t, expectedCanonical, actualCanonicalBytes)
 	})
 
@@ -56,6 +54,6 @@ func TestEthereumAccessListTxCanonical(t *testing.T) {
 		var ethTx EthereumTransaction
 		err := ethTx.DecodeCanonical(expectedCanonicalBytes)
 		require.NoError(t, err)
-		require.Equal(t, inner, ethTx.Inner)
+		require.Equal(t, inner, ethTx.inner)
 	})
 }

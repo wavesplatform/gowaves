@@ -1,10 +1,11 @@
 package ride
 
 import (
-	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 )
 
 func TestEthABIDataTypeToRideType(t *testing.T) {
@@ -16,7 +17,7 @@ func TestEthABIDataTypeToRideType(t *testing.T) {
 		expectedRideType rideType
 	}{
 		{ethabi.Int(5345345), rideInt(5345345)},
-		{ethabi.BigInt{V: hugeInt}, rideBigInt{V: hugeInt}},
+		{ethabi.BigInt{V: hugeInt}, rideBigInt{v: hugeInt}},
 		{ethabi.Bool(true), rideBoolean(true)},
 		{ethabi.Bool(false), rideBoolean(false)},
 		{ethabi.Bytes("#This is Test bytes!"), rideBytes("#This is Test bytes!")},
@@ -38,7 +39,7 @@ func TestEthABIDataTypeToRideType(t *testing.T) {
 				rideBoolean(true),
 				rideString("the best test string ever!"),
 				rideBytes("command and conquer!"),
-				rideBigInt{V: big.NewInt(1232347)},
+				rideBigInt{v: big.NewInt(1232347)},
 				rideList{
 					rideBytes("one more"),
 					rideBoolean(false),
@@ -47,7 +48,7 @@ func TestEthABIDataTypeToRideType(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		actualRideType, err := EthABIDataTypeToRideType(tc.inputDataType)
+		actualRideType, err := ethABIDataTypeToRideType(tc.inputDataType)
 		require.NoError(t, err)
 		require.Equal(t, tc.expectedRideType, actualRideType)
 	}

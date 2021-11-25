@@ -350,13 +350,15 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 	if err := ia.checkFullFee(tx, info.scriptRuns, issuedAssetsCount); err != nil {
 		return proto.InsufficientActionsFee, info.failedChanges, err
 	}
+
 	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
-	var txID *crypto.Digest
-	switch t := tx.(type) {
-	case *proto.InvokeScriptWithProofs:
-		txID = t.ID
-	case *proto.EthereumTransaction:
-		txID = t.ID
+	txIDBytes, err := tx.GetID(ia.settings.AddressSchemeCharacter)
+	if err != nil {
+		return proto.DAppError, info.failedChanges, err
+	}
+	txID, err := crypto.NewDigestFromBytes(txIDBytes)
+	if err != nil {
+		return proto.DAppError, info.failedChanges, err
 	}
 	// Add feeAndPaymentChanges to stor before performing actions.
 	feeAndPaymentChanges, err := ia.blockDiffer.createTransactionDiff(tx, info.block, differInfo)
@@ -399,7 +401,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				}
 			}
 			if isSmartAsset {
-				fullTr, err := proto.NewFullScriptTransfer(a, senderAddress, info.scriptPK, txID, tx.GetTimestamp())
+				fullTr, err := proto.NewFullScriptTransfer(a, senderAddress, info.scriptPK, &txID, tx.GetTimestamp())
 				if err != nil {
 					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to convert transfer to full script transfer")
 				}
@@ -443,7 +445,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				}
 			}
 			if isSmartAsset {
-				fullTr, err := proto.NewFullScriptTransferFromPaymentAction(a, senderAddress, info.scriptPK, txID, tx.GetTimestamp())
+				fullTr, err := proto.NewFullScriptTransferFromPaymentAction(a, senderAddress, info.scriptPK, &txID, tx.GetTimestamp())
 				if err != nil {
 					return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to convert transfer to full script transfer")
 				}
@@ -525,7 +527,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			if math.MaxInt64-a.Quantity < assetInfo.quantity.Int64() && info.block.Timestamp >= ia.settings.ReissueBugWindowTimeEnd {
 				return proto.DAppError, info.failedChanges, errors.New("asset total value overflow")
 			}
-			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, *txID, tx.GetTimestamp(), info.appendTxParams)
+			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, txID, tx.GetTimestamp(), info.appendTxParams)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -574,7 +576,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			if assetInfo.quantity.Cmp(quantityDiff) == -1 {
 				return proto.DAppError, info.failedChanges, errs.NewAccountBalanceError("trying to burn more assets than exist at all")
 			}
-			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, *txID, tx.GetTimestamp(), info.appendTxParams)
+			ok, res, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, txID, tx.GetTimestamp(), info.appendTxParams)
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
@@ -646,7 +648,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 
 			// Add new leasing info
 			l := &leasing{
-				OriginTransactionID: txID,
+				OriginTransactionID: &txID,
 				Sender:              senderAddress,
 				Recipient:           recipientAddress,
 				Amount:              uint64(a.Amount),
@@ -678,7 +680,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				return proto.DAppError, info.failedChanges, errors.Errorf("attempt to cancel leasing that was created by other account; leaser '%s'; canceller '%s'; leasing: %s", li.Sender.String(), senderAddress.String(), a.LeaseID.String()) //TODO: Create a scala compatible error in errs package and use it here
 			}
 			// Update leasing info
-			if err := ia.stor.leases.cancelLeasingUncertain(a.LeaseID, info.blockInfo.Height, txID, !info.initialisation); err != nil {
+			if err := ia.stor.leases.cancelLeasingUncertain(a.LeaseID, info.blockInfo.Height, &txID, !info.initialisation); err != nil {
 				return proto.DAppError, info.failedChanges, errors.Wrap(err, "failed to cancel leasing")
 			}
 
@@ -777,7 +779,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
 	}
-	scriptPK, err := ia.stor.scriptsStorage.NewestScriptPKByAddr(*scriptAddr, !info.initialisation)
+	scriptPK, err := ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 	}

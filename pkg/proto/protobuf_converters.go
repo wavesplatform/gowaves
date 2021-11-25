@@ -1162,7 +1162,7 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 		return tx, nil
 	default:
 		panic(errors.Errorf(
-			"BUG, CREATE REPORT: unsupported protobuf signed transaction variant type (%T).",
+			"BUG, CREATE REPORT: unsupported protobuf signed transaction variant type %T.",
 			stx.Transaction,
 		))
 	}
@@ -1170,7 +1170,7 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 
 func (c *ProtobufConverter) ethereumTransaction(canonicalEthTx []byte) (Transaction, error) {
 	var tx EthereumTransaction
-	if err := tx.bodyUnmarshalBinary(canonicalEthTx); err != nil {
+	if err := tx.DecodeCanonical(canonicalEthTx); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal ethereum transaction")
 	}
 	return &tx, nil

@@ -126,16 +126,16 @@ func TestECDSASign(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		privateKey, err := ECDSAPrivateKeyFromHexString(tc.privateKeyHex)
+		sk, err := ECDSAPrivateKeyFromHexString(tc.privateKeyHex)
 		require.NoError(t, err)
 		publicKey, err := ECDSAParsePublicKeyFromHex(tc.publicKeyHex)
 		require.NoError(t, err)
 
-		require.Equal(t, publicKey.ToECDSA(), &privateKey.PublicKey)
+		require.Equal(t, publicKey.ToECDSA(), &sk.PublicKey)
 
 		message, err := Keccak256([]byte(tc.message))
 		require.NoError(t, err)
-		signature, err := ECDSASign(message[:], privateKey)
+		signature, err := ECDSASign(message[:], sk)
 		require.NoError(t, err, "Sign error:", err)
 		if tc.isValidSignature {
 			require.Equal(t, tc.signatureHex, hex.EncodeToString(signature))

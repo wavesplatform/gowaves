@@ -27,7 +27,7 @@ func getArgumentABI(argType *Type) (argABI, error) {
 
 	// this is the types that correspond with Ride
 	switch argType.T {
-	case TupleTy:
+	case TupleType:
 		a.Type = "tuple"
 		for _, tupleElem := range argType.TupleFields {
 			internalElem, err := getArgumentABI(&tupleElem.Type)
@@ -37,14 +37,14 @@ func getArgumentABI(argType *Type) (argABI, error) {
 			internalElem.Name = tupleElem.Name
 			a.Components = append(a.Components, internalElem)
 		}
-	case SliceTy:
+	case SliceType:
 		internalElem, err := getArgumentABI(argType.Elem)
 		if err != nil {
 			return a, errors.Errorf("failed to parse slice type, %v", err)
 		}
 		a.Type = fmt.Sprintf("%s[]", internalElem.Type)
 		a.Components = internalElem.Components
-	case IntTy:
+	case IntType:
 		builder := intTextBuilder{
 			size:     argType.Size,
 			unsigned: false,
@@ -54,7 +54,7 @@ func getArgumentABI(argType *Type) (argABI, error) {
 			return argABI{}, errors.Wrapf(err, "failed to create JSON argABI for type %q", argType.String())
 		}
 		a.Type = string(t)
-	case UintTy:
+	case UintType:
 		builder := intTextBuilder{
 			size:     argType.Size,
 			unsigned: true,
@@ -64,7 +64,7 @@ func getArgumentABI(argType *Type) (argABI, error) {
 			return argABI{}, errors.Wrapf(err, "failed to create JSON argABI for type %q", argType.String())
 		}
 		a.Type = string(t)
-	case FixedBytesTy:
+	case FixedBytesType:
 		builder := fixedBytesTextBuilder{
 			size: argType.Size,
 		}
@@ -73,13 +73,13 @@ func getArgumentABI(argType *Type) (argABI, error) {
 			return argABI{}, errors.Wrapf(err, "failed to create JSON argABI for type %q", argType.String())
 		}
 		a.Type = string(t)
-	case BoolTy:
+	case BoolType:
 		a.Type = "bool"
-	case AddressTy:
+	case AddressType:
 		a.Type = "address"
-	case BytesTy:
+	case BytesType:
 		a.Type = "bytes"
-	case StringTy:
+	case StringType:
 		a.Type = "string"
 	default:
 		return a, errors.Errorf("abi: unknown type %s", a.Type)

@@ -10,25 +10,16 @@ import (
 	"sync"
 )
 
-// Ensure, that MockScriptStorageState does implement ScriptStorageState.
+// Ensure, that mockScriptStorageState does implement scriptStorageState.
 // If this is not the case, regenerate this file with moq.
-var _ ScriptStorageState = &MockScriptStorageState{}
+var _ scriptStorageState = &mockScriptStorageState{}
 
-// MockScriptStorageState is a mock implementation of ScriptStorageState.
+// mockScriptStorageState is a mock implementation of scriptStorageState.
 //
-// 	func TestSomethingThatUsesScriptStorageState(t *testing.T) {
+// 	func TestSomethingThatUsesscriptStorageState(t *testing.T) {
 //
-// 		// make and configure a mocked ScriptStorageState
-// 		mockedScriptStorageState := &MockScriptStorageState{
-// 			AccountScriptsHasherFunc: func() *stateHasher {
-// 				panic("mock out the AccountScriptsHasher method")
-// 			},
-// 			AssetScriptsHasherFunc: func() *stateHasher {
-// 				panic("mock out the AssetScriptsHasher method")
-// 			},
-// 			NewestScriptPKByAddrFunc: func(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
-// 				panic("mock out the NewestScriptPKByAddr method")
-// 			},
+// 		// make and configure a mocked scriptStorageState
+// 		mockedscriptStorageState := &mockScriptStorageState{
 // 			accountHasScriptFunc: func(addr proto.WavesAddress, filter bool) (bool, error) {
 // 				panic("mock out the accountHasScript method")
 // 			},
@@ -43,6 +34,12 @@ var _ ScriptStorageState = &MockScriptStorageState{}
 // 			},
 // 			dropUncertainFunc: func()  {
 // 				panic("mock out the dropUncertain method")
+// 			},
+// 			getAccountScriptsHasherFunc: func() *stateHasher {
+// 				panic("mock out the getAccountScriptsHasher method")
+// 			},
+// 			getAssetScriptsHasherFunc: func() *stateHasher {
+// 				panic("mock out the getAssetScriptsHasher method")
 // 			},
 // 			isSmartAssetFunc: func(assetID proto.AssetID, filter bool) (bool, error) {
 // 				panic("mock out the isSmartAsset method")
@@ -70,6 +67,9 @@ var _ ScriptStorageState = &MockScriptStorageState{}
 // 			},
 // 			newestScriptBytesByKeyFunc: func(key []byte, filter bool) (proto.Script, error) {
 // 				panic("mock out the newestScriptBytesByKey method")
+// 			},
+// 			newestScriptPKByAddrFunc: func(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
+// 				panic("mock out the newestScriptPKByAddr method")
 // 			},
 // 			prepareHashesFunc: func() error {
 // 				panic("mock out the prepareHashes method")
@@ -112,20 +112,11 @@ var _ ScriptStorageState = &MockScriptStorageState{}
 // 			},
 // 		}
 //
-// 		// use mockedScriptStorageState in code that requires ScriptStorageState
+// 		// use mockedscriptStorageState in code that requires scriptStorageState
 // 		// and then make assertions.
 //
 // 	}
-type MockScriptStorageState struct {
-	// AccountScriptsHasherFunc mocks the AccountScriptsHasher method.
-	AccountScriptsHasherFunc func() *stateHasher
-
-	// AssetScriptsHasherFunc mocks the AssetScriptsHasher method.
-	AssetScriptsHasherFunc func() *stateHasher
-
-	// NewestScriptPKByAddrFunc mocks the NewestScriptPKByAddr method.
-	NewestScriptPKByAddrFunc func(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error)
-
+type mockScriptStorageState struct {
 	// accountHasScriptFunc mocks the accountHasScript method.
 	accountHasScriptFunc func(addr proto.WavesAddress, filter bool) (bool, error)
 
@@ -140,6 +131,12 @@ type MockScriptStorageState struct {
 
 	// dropUncertainFunc mocks the dropUncertain method.
 	dropUncertainFunc func()
+
+	// getAccountScriptsHasherFunc mocks the getAccountScriptsHasher method.
+	getAccountScriptsHasherFunc func() *stateHasher
+
+	// getAssetScriptsHasherFunc mocks the getAssetScriptsHasher method.
+	getAssetScriptsHasherFunc func() *stateHasher
 
 	// isSmartAssetFunc mocks the isSmartAsset method.
 	isSmartAssetFunc func(assetID proto.AssetID, filter bool) (bool, error)
@@ -167,6 +164,9 @@ type MockScriptStorageState struct {
 
 	// newestScriptBytesByKeyFunc mocks the newestScriptBytesByKey method.
 	newestScriptBytesByKeyFunc func(key []byte, filter bool) (proto.Script, error)
+
+	// newestScriptPKByAddrFunc mocks the newestScriptPKByAddr method.
+	newestScriptPKByAddrFunc func(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error)
 
 	// prepareHashesFunc mocks the prepareHashes method.
 	prepareHashesFunc func() error
@@ -209,19 +209,6 @@ type MockScriptStorageState struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
-		// AccountScriptsHasher holds details about calls to the AccountScriptsHasher method.
-		AccountScriptsHasher []struct {
-		}
-		// AssetScriptsHasher holds details about calls to the AssetScriptsHasher method.
-		AssetScriptsHasher []struct {
-		}
-		// NewestScriptPKByAddr holds details about calls to the NewestScriptPKByAddr method.
-		NewestScriptPKByAddr []struct {
-			// Addr is the addr argument value.
-			Addr proto.WavesAddress
-			// Filter is the filter argument value.
-			Filter bool
-		}
 		// accountHasScript holds details about calls to the accountHasScript method.
 		accountHasScript []struct {
 			// Addr is the addr argument value.
@@ -246,6 +233,12 @@ type MockScriptStorageState struct {
 		}
 		// dropUncertain holds details about calls to the dropUncertain method.
 		dropUncertain []struct {
+		}
+		// getAccountScriptsHasher holds details about calls to the getAccountScriptsHasher method.
+		getAccountScriptsHasher []struct {
+		}
+		// getAssetScriptsHasher holds details about calls to the getAssetScriptsHasher method.
+		getAssetScriptsHasher []struct {
 		}
 		// isSmartAsset holds details about calls to the isSmartAsset method.
 		isSmartAsset []struct {
@@ -307,6 +300,13 @@ type MockScriptStorageState struct {
 		newestScriptBytesByKey []struct {
 			// Key is the key argument value.
 			Key []byte
+			// Filter is the filter argument value.
+			Filter bool
+		}
+		// newestScriptPKByAddr holds details about calls to the newestScriptPKByAddr method.
+		newestScriptPKByAddr []struct {
+			// Addr is the addr argument value.
+			Addr proto.WavesAddress
 			// Filter is the filter argument value.
 			Filter bool
 		}
@@ -406,14 +406,13 @@ type MockScriptStorageState struct {
 			BlockID proto.BlockID
 		}
 	}
-	lockAccountScriptsHasher     sync.RWMutex
-	lockAssetScriptsHasher       sync.RWMutex
-	lockNewestScriptPKByAddr     sync.RWMutex
 	lockaccountHasScript         sync.RWMutex
 	lockaccountHasVerifier       sync.RWMutex
 	lockclear                    sync.RWMutex
 	lockcommitUncertain          sync.RWMutex
 	lockdropUncertain            sync.RWMutex
+	lockgetAccountScriptsHasher  sync.RWMutex
+	lockgetAssetScriptsHasher    sync.RWMutex
 	lockisSmartAsset             sync.RWMutex
 	locknewestAccountHasScript   sync.RWMutex
 	locknewestAccountHasVerifier sync.RWMutex
@@ -423,6 +422,7 @@ type MockScriptStorageState struct {
 	locknewestScriptByAsset      sync.RWMutex
 	locknewestScriptBytesByAsset sync.RWMutex
 	locknewestScriptBytesByKey   sync.RWMutex
+	locknewestScriptPKByAddr     sync.RWMutex
 	lockprepareHashes            sync.RWMutex
 	lockreset                    sync.RWMutex
 	lockscriptAstFromRecordBytes sync.RWMutex
@@ -438,97 +438,10 @@ type MockScriptStorageState struct {
 	locksetScript                sync.RWMutex
 }
 
-// AccountScriptsHasher calls AccountScriptsHasherFunc.
-func (mock *MockScriptStorageState) AccountScriptsHasher() *stateHasher {
-	if mock.AccountScriptsHasherFunc == nil {
-		panic("MockScriptStorageState.AccountScriptsHasherFunc: method is nil but ScriptStorageState.AccountScriptsHasher was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockAccountScriptsHasher.Lock()
-	mock.calls.AccountScriptsHasher = append(mock.calls.AccountScriptsHasher, callInfo)
-	mock.lockAccountScriptsHasher.Unlock()
-	return mock.AccountScriptsHasherFunc()
-}
-
-// AccountScriptsHasherCalls gets all the calls that were made to AccountScriptsHasher.
-// Check the length with:
-//     len(mockedScriptStorageState.AccountScriptsHasherCalls())
-func (mock *MockScriptStorageState) AccountScriptsHasherCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockAccountScriptsHasher.RLock()
-	calls = mock.calls.AccountScriptsHasher
-	mock.lockAccountScriptsHasher.RUnlock()
-	return calls
-}
-
-// AssetScriptsHasher calls AssetScriptsHasherFunc.
-func (mock *MockScriptStorageState) AssetScriptsHasher() *stateHasher {
-	if mock.AssetScriptsHasherFunc == nil {
-		panic("MockScriptStorageState.AssetScriptsHasherFunc: method is nil but ScriptStorageState.AssetScriptsHasher was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockAssetScriptsHasher.Lock()
-	mock.calls.AssetScriptsHasher = append(mock.calls.AssetScriptsHasher, callInfo)
-	mock.lockAssetScriptsHasher.Unlock()
-	return mock.AssetScriptsHasherFunc()
-}
-
-// AssetScriptsHasherCalls gets all the calls that were made to AssetScriptsHasher.
-// Check the length with:
-//     len(mockedScriptStorageState.AssetScriptsHasherCalls())
-func (mock *MockScriptStorageState) AssetScriptsHasherCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockAssetScriptsHasher.RLock()
-	calls = mock.calls.AssetScriptsHasher
-	mock.lockAssetScriptsHasher.RUnlock()
-	return calls
-}
-
-// NewestScriptPKByAddr calls NewestScriptPKByAddrFunc.
-func (mock *MockScriptStorageState) NewestScriptPKByAddr(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
-	if mock.NewestScriptPKByAddrFunc == nil {
-		panic("MockScriptStorageState.NewestScriptPKByAddrFunc: method is nil but ScriptStorageState.NewestScriptPKByAddr was just called")
-	}
-	callInfo := struct {
-		Addr   proto.WavesAddress
-		Filter bool
-	}{
-		Addr:   addr,
-		Filter: filter,
-	}
-	mock.lockNewestScriptPKByAddr.Lock()
-	mock.calls.NewestScriptPKByAddr = append(mock.calls.NewestScriptPKByAddr, callInfo)
-	mock.lockNewestScriptPKByAddr.Unlock()
-	return mock.NewestScriptPKByAddrFunc(addr, filter)
-}
-
-// NewestScriptPKByAddrCalls gets all the calls that were made to NewestScriptPKByAddr.
-// Check the length with:
-//     len(mockedScriptStorageState.NewestScriptPKByAddrCalls())
-func (mock *MockScriptStorageState) NewestScriptPKByAddrCalls() []struct {
-	Addr   proto.WavesAddress
-	Filter bool
-} {
-	var calls []struct {
-		Addr   proto.WavesAddress
-		Filter bool
-	}
-	mock.lockNewestScriptPKByAddr.RLock()
-	calls = mock.calls.NewestScriptPKByAddr
-	mock.lockNewestScriptPKByAddr.RUnlock()
-	return calls
-}
-
 // accountHasScript calls accountHasScriptFunc.
-func (mock *MockScriptStorageState) accountHasScript(addr proto.WavesAddress, filter bool) (bool, error) {
+func (mock *mockScriptStorageState) accountHasScript(addr proto.WavesAddress, filter bool) (bool, error) {
 	if mock.accountHasScriptFunc == nil {
-		panic("MockScriptStorageState.accountHasScriptFunc: method is nil but ScriptStorageState.accountHasScript was just called")
+		panic("mockScriptStorageState.accountHasScriptFunc: method is nil but scriptStorageState.accountHasScript was just called")
 	}
 	callInfo := struct {
 		Addr   proto.WavesAddress
@@ -545,8 +458,8 @@ func (mock *MockScriptStorageState) accountHasScript(addr proto.WavesAddress, fi
 
 // accountHasScriptCalls gets all the calls that were made to accountHasScript.
 // Check the length with:
-//     len(mockedScriptStorageState.accountHasScriptCalls())
-func (mock *MockScriptStorageState) accountHasScriptCalls() []struct {
+//     len(mockedscriptStorageState.accountHasScriptCalls())
+func (mock *mockScriptStorageState) accountHasScriptCalls() []struct {
 	Addr   proto.WavesAddress
 	Filter bool
 } {
@@ -561,9 +474,9 @@ func (mock *MockScriptStorageState) accountHasScriptCalls() []struct {
 }
 
 // accountHasVerifier calls accountHasVerifierFunc.
-func (mock *MockScriptStorageState) accountHasVerifier(addr proto.WavesAddress, filter bool) (bool, error) {
+func (mock *mockScriptStorageState) accountHasVerifier(addr proto.WavesAddress, filter bool) (bool, error) {
 	if mock.accountHasVerifierFunc == nil {
-		panic("MockScriptStorageState.accountHasVerifierFunc: method is nil but ScriptStorageState.accountHasVerifier was just called")
+		panic("mockScriptStorageState.accountHasVerifierFunc: method is nil but scriptStorageState.accountHasVerifier was just called")
 	}
 	callInfo := struct {
 		Addr   proto.WavesAddress
@@ -580,8 +493,8 @@ func (mock *MockScriptStorageState) accountHasVerifier(addr proto.WavesAddress, 
 
 // accountHasVerifierCalls gets all the calls that were made to accountHasVerifier.
 // Check the length with:
-//     len(mockedScriptStorageState.accountHasVerifierCalls())
-func (mock *MockScriptStorageState) accountHasVerifierCalls() []struct {
+//     len(mockedscriptStorageState.accountHasVerifierCalls())
+func (mock *mockScriptStorageState) accountHasVerifierCalls() []struct {
 	Addr   proto.WavesAddress
 	Filter bool
 } {
@@ -596,9 +509,9 @@ func (mock *MockScriptStorageState) accountHasVerifierCalls() []struct {
 }
 
 // clear calls clearFunc.
-func (mock *MockScriptStorageState) clear() error {
+func (mock *mockScriptStorageState) clear() error {
 	if mock.clearFunc == nil {
-		panic("MockScriptStorageState.clearFunc: method is nil but ScriptStorageState.clear was just called")
+		panic("mockScriptStorageState.clearFunc: method is nil but scriptStorageState.clear was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -610,8 +523,8 @@ func (mock *MockScriptStorageState) clear() error {
 
 // clearCalls gets all the calls that were made to clear.
 // Check the length with:
-//     len(mockedScriptStorageState.clearCalls())
-func (mock *MockScriptStorageState) clearCalls() []struct {
+//     len(mockedscriptStorageState.clearCalls())
+func (mock *mockScriptStorageState) clearCalls() []struct {
 } {
 	var calls []struct {
 	}
@@ -622,9 +535,9 @@ func (mock *MockScriptStorageState) clearCalls() []struct {
 }
 
 // commitUncertain calls commitUncertainFunc.
-func (mock *MockScriptStorageState) commitUncertain(blockID proto.BlockID) error {
+func (mock *mockScriptStorageState) commitUncertain(blockID proto.BlockID) error {
 	if mock.commitUncertainFunc == nil {
-		panic("MockScriptStorageState.commitUncertainFunc: method is nil but ScriptStorageState.commitUncertain was just called")
+		panic("mockScriptStorageState.commitUncertainFunc: method is nil but scriptStorageState.commitUncertain was just called")
 	}
 	callInfo := struct {
 		BlockID proto.BlockID
@@ -639,8 +552,8 @@ func (mock *MockScriptStorageState) commitUncertain(blockID proto.BlockID) error
 
 // commitUncertainCalls gets all the calls that were made to commitUncertain.
 // Check the length with:
-//     len(mockedScriptStorageState.commitUncertainCalls())
-func (mock *MockScriptStorageState) commitUncertainCalls() []struct {
+//     len(mockedscriptStorageState.commitUncertainCalls())
+func (mock *mockScriptStorageState) commitUncertainCalls() []struct {
 	BlockID proto.BlockID
 } {
 	var calls []struct {
@@ -653,9 +566,9 @@ func (mock *MockScriptStorageState) commitUncertainCalls() []struct {
 }
 
 // dropUncertain calls dropUncertainFunc.
-func (mock *MockScriptStorageState) dropUncertain() {
+func (mock *mockScriptStorageState) dropUncertain() {
 	if mock.dropUncertainFunc == nil {
-		panic("MockScriptStorageState.dropUncertainFunc: method is nil but ScriptStorageState.dropUncertain was just called")
+		panic("mockScriptStorageState.dropUncertainFunc: method is nil but scriptStorageState.dropUncertain was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -667,8 +580,8 @@ func (mock *MockScriptStorageState) dropUncertain() {
 
 // dropUncertainCalls gets all the calls that were made to dropUncertain.
 // Check the length with:
-//     len(mockedScriptStorageState.dropUncertainCalls())
-func (mock *MockScriptStorageState) dropUncertainCalls() []struct {
+//     len(mockedscriptStorageState.dropUncertainCalls())
+func (mock *mockScriptStorageState) dropUncertainCalls() []struct {
 } {
 	var calls []struct {
 	}
@@ -678,10 +591,62 @@ func (mock *MockScriptStorageState) dropUncertainCalls() []struct {
 	return calls
 }
 
+// getAccountScriptsHasher calls getAccountScriptsHasherFunc.
+func (mock *mockScriptStorageState) getAccountScriptsHasher() *stateHasher {
+	if mock.getAccountScriptsHasherFunc == nil {
+		panic("mockScriptStorageState.getAccountScriptsHasherFunc: method is nil but scriptStorageState.getAccountScriptsHasher was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockgetAccountScriptsHasher.Lock()
+	mock.calls.getAccountScriptsHasher = append(mock.calls.getAccountScriptsHasher, callInfo)
+	mock.lockgetAccountScriptsHasher.Unlock()
+	return mock.getAccountScriptsHasherFunc()
+}
+
+// getAccountScriptsHasherCalls gets all the calls that were made to getAccountScriptsHasher.
+// Check the length with:
+//     len(mockedscriptStorageState.getAccountScriptsHasherCalls())
+func (mock *mockScriptStorageState) getAccountScriptsHasherCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockgetAccountScriptsHasher.RLock()
+	calls = mock.calls.getAccountScriptsHasher
+	mock.lockgetAccountScriptsHasher.RUnlock()
+	return calls
+}
+
+// getAssetScriptsHasher calls getAssetScriptsHasherFunc.
+func (mock *mockScriptStorageState) getAssetScriptsHasher() *stateHasher {
+	if mock.getAssetScriptsHasherFunc == nil {
+		panic("mockScriptStorageState.getAssetScriptsHasherFunc: method is nil but scriptStorageState.getAssetScriptsHasher was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockgetAssetScriptsHasher.Lock()
+	mock.calls.getAssetScriptsHasher = append(mock.calls.getAssetScriptsHasher, callInfo)
+	mock.lockgetAssetScriptsHasher.Unlock()
+	return mock.getAssetScriptsHasherFunc()
+}
+
+// getAssetScriptsHasherCalls gets all the calls that were made to getAssetScriptsHasher.
+// Check the length with:
+//     len(mockedscriptStorageState.getAssetScriptsHasherCalls())
+func (mock *mockScriptStorageState) getAssetScriptsHasherCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockgetAssetScriptsHasher.RLock()
+	calls = mock.calls.getAssetScriptsHasher
+	mock.lockgetAssetScriptsHasher.RUnlock()
+	return calls
+}
+
 // isSmartAsset calls isSmartAssetFunc.
-func (mock *MockScriptStorageState) isSmartAsset(assetID proto.AssetID, filter bool) (bool, error) {
+func (mock *mockScriptStorageState) isSmartAsset(assetID proto.AssetID, filter bool) (bool, error) {
 	if mock.isSmartAssetFunc == nil {
-		panic("MockScriptStorageState.isSmartAssetFunc: method is nil but ScriptStorageState.isSmartAsset was just called")
+		panic("mockScriptStorageState.isSmartAssetFunc: method is nil but scriptStorageState.isSmartAsset was just called")
 	}
 	callInfo := struct {
 		AssetID proto.AssetID
@@ -698,8 +663,8 @@ func (mock *MockScriptStorageState) isSmartAsset(assetID proto.AssetID, filter b
 
 // isSmartAssetCalls gets all the calls that were made to isSmartAsset.
 // Check the length with:
-//     len(mockedScriptStorageState.isSmartAssetCalls())
-func (mock *MockScriptStorageState) isSmartAssetCalls() []struct {
+//     len(mockedscriptStorageState.isSmartAssetCalls())
+func (mock *mockScriptStorageState) isSmartAssetCalls() []struct {
 	AssetID proto.AssetID
 	Filter  bool
 } {
@@ -714,9 +679,9 @@ func (mock *MockScriptStorageState) isSmartAssetCalls() []struct {
 }
 
 // newestAccountHasScript calls newestAccountHasScriptFunc.
-func (mock *MockScriptStorageState) newestAccountHasScript(addr proto.WavesAddress, filter bool) (bool, error) {
+func (mock *mockScriptStorageState) newestAccountHasScript(addr proto.WavesAddress, filter bool) (bool, error) {
 	if mock.newestAccountHasScriptFunc == nil {
-		panic("MockScriptStorageState.newestAccountHasScriptFunc: method is nil but ScriptStorageState.newestAccountHasScript was just called")
+		panic("mockScriptStorageState.newestAccountHasScriptFunc: method is nil but scriptStorageState.newestAccountHasScript was just called")
 	}
 	callInfo := struct {
 		Addr   proto.WavesAddress
@@ -733,8 +698,8 @@ func (mock *MockScriptStorageState) newestAccountHasScript(addr proto.WavesAddre
 
 // newestAccountHasScriptCalls gets all the calls that were made to newestAccountHasScript.
 // Check the length with:
-//     len(mockedScriptStorageState.newestAccountHasScriptCalls())
-func (mock *MockScriptStorageState) newestAccountHasScriptCalls() []struct {
+//     len(mockedscriptStorageState.newestAccountHasScriptCalls())
+func (mock *mockScriptStorageState) newestAccountHasScriptCalls() []struct {
 	Addr   proto.WavesAddress
 	Filter bool
 } {
@@ -749,9 +714,9 @@ func (mock *MockScriptStorageState) newestAccountHasScriptCalls() []struct {
 }
 
 // newestAccountHasVerifier calls newestAccountHasVerifierFunc.
-func (mock *MockScriptStorageState) newestAccountHasVerifier(addr proto.WavesAddress, filter bool) (bool, error) {
+func (mock *mockScriptStorageState) newestAccountHasVerifier(addr proto.WavesAddress, filter bool) (bool, error) {
 	if mock.newestAccountHasVerifierFunc == nil {
-		panic("MockScriptStorageState.newestAccountHasVerifierFunc: method is nil but ScriptStorageState.newestAccountHasVerifier was just called")
+		panic("mockScriptStorageState.newestAccountHasVerifierFunc: method is nil but scriptStorageState.newestAccountHasVerifier was just called")
 	}
 	callInfo := struct {
 		Addr   proto.WavesAddress
@@ -768,8 +733,8 @@ func (mock *MockScriptStorageState) newestAccountHasVerifier(addr proto.WavesAdd
 
 // newestAccountHasVerifierCalls gets all the calls that were made to newestAccountHasVerifier.
 // Check the length with:
-//     len(mockedScriptStorageState.newestAccountHasVerifierCalls())
-func (mock *MockScriptStorageState) newestAccountHasVerifierCalls() []struct {
+//     len(mockedscriptStorageState.newestAccountHasVerifierCalls())
+func (mock *mockScriptStorageState) newestAccountHasVerifierCalls() []struct {
 	Addr   proto.WavesAddress
 	Filter bool
 } {
@@ -784,9 +749,9 @@ func (mock *MockScriptStorageState) newestAccountHasVerifierCalls() []struct {
 }
 
 // newestIsSmartAsset calls newestIsSmartAssetFunc.
-func (mock *MockScriptStorageState) newestIsSmartAsset(assetID proto.AssetID, filter bool) (bool, error) {
+func (mock *mockScriptStorageState) newestIsSmartAsset(assetID proto.AssetID, filter bool) (bool, error) {
 	if mock.newestIsSmartAssetFunc == nil {
-		panic("MockScriptStorageState.newestIsSmartAssetFunc: method is nil but ScriptStorageState.newestIsSmartAsset was just called")
+		panic("mockScriptStorageState.newestIsSmartAssetFunc: method is nil but scriptStorageState.newestIsSmartAsset was just called")
 	}
 	callInfo := struct {
 		AssetID proto.AssetID
@@ -803,8 +768,8 @@ func (mock *MockScriptStorageState) newestIsSmartAsset(assetID proto.AssetID, fi
 
 // newestIsSmartAssetCalls gets all the calls that were made to newestIsSmartAsset.
 // Check the length with:
-//     len(mockedScriptStorageState.newestIsSmartAssetCalls())
-func (mock *MockScriptStorageState) newestIsSmartAssetCalls() []struct {
+//     len(mockedscriptStorageState.newestIsSmartAssetCalls())
+func (mock *mockScriptStorageState) newestIsSmartAssetCalls() []struct {
 	AssetID proto.AssetID
 	Filter  bool
 } {
@@ -819,9 +784,9 @@ func (mock *MockScriptStorageState) newestIsSmartAssetCalls() []struct {
 }
 
 // newestScriptAstByKey calls newestScriptAstByKeyFunc.
-func (mock *MockScriptStorageState) newestScriptAstByKey(key []byte, filter bool) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) newestScriptAstByKey(key []byte, filter bool) (*ride.Tree, error) {
 	if mock.newestScriptAstByKeyFunc == nil {
-		panic("MockScriptStorageState.newestScriptAstByKeyFunc: method is nil but ScriptStorageState.newestScriptAstByKey was just called")
+		panic("mockScriptStorageState.newestScriptAstByKeyFunc: method is nil but scriptStorageState.newestScriptAstByKey was just called")
 	}
 	callInfo := struct {
 		Key    []byte
@@ -838,8 +803,8 @@ func (mock *MockScriptStorageState) newestScriptAstByKey(key []byte, filter bool
 
 // newestScriptAstByKeyCalls gets all the calls that were made to newestScriptAstByKey.
 // Check the length with:
-//     len(mockedScriptStorageState.newestScriptAstByKeyCalls())
-func (mock *MockScriptStorageState) newestScriptAstByKeyCalls() []struct {
+//     len(mockedscriptStorageState.newestScriptAstByKeyCalls())
+func (mock *mockScriptStorageState) newestScriptAstByKeyCalls() []struct {
 	Key    []byte
 	Filter bool
 } {
@@ -854,9 +819,9 @@ func (mock *MockScriptStorageState) newestScriptAstByKeyCalls() []struct {
 }
 
 // newestScriptByAddr calls newestScriptByAddrFunc.
-func (mock *MockScriptStorageState) newestScriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) newestScriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
 	if mock.newestScriptByAddrFunc == nil {
-		panic("MockScriptStorageState.newestScriptByAddrFunc: method is nil but ScriptStorageState.newestScriptByAddr was just called")
+		panic("mockScriptStorageState.newestScriptByAddrFunc: method is nil but scriptStorageState.newestScriptByAddr was just called")
 	}
 	callInfo := struct {
 		Addr   proto.WavesAddress
@@ -873,8 +838,8 @@ func (mock *MockScriptStorageState) newestScriptByAddr(addr proto.WavesAddress, 
 
 // newestScriptByAddrCalls gets all the calls that were made to newestScriptByAddr.
 // Check the length with:
-//     len(mockedScriptStorageState.newestScriptByAddrCalls())
-func (mock *MockScriptStorageState) newestScriptByAddrCalls() []struct {
+//     len(mockedscriptStorageState.newestScriptByAddrCalls())
+func (mock *mockScriptStorageState) newestScriptByAddrCalls() []struct {
 	Addr   proto.WavesAddress
 	Filter bool
 } {
@@ -889,9 +854,9 @@ func (mock *MockScriptStorageState) newestScriptByAddrCalls() []struct {
 }
 
 // newestScriptByAsset calls newestScriptByAssetFunc.
-func (mock *MockScriptStorageState) newestScriptByAsset(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) newestScriptByAsset(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
 	if mock.newestScriptByAssetFunc == nil {
-		panic("MockScriptStorageState.newestScriptByAssetFunc: method is nil but ScriptStorageState.newestScriptByAsset was just called")
+		panic("mockScriptStorageState.newestScriptByAssetFunc: method is nil but scriptStorageState.newestScriptByAsset was just called")
 	}
 	callInfo := struct {
 		AssetID proto.AssetID
@@ -908,8 +873,8 @@ func (mock *MockScriptStorageState) newestScriptByAsset(assetID proto.AssetID, f
 
 // newestScriptByAssetCalls gets all the calls that were made to newestScriptByAsset.
 // Check the length with:
-//     len(mockedScriptStorageState.newestScriptByAssetCalls())
-func (mock *MockScriptStorageState) newestScriptByAssetCalls() []struct {
+//     len(mockedscriptStorageState.newestScriptByAssetCalls())
+func (mock *mockScriptStorageState) newestScriptByAssetCalls() []struct {
 	AssetID proto.AssetID
 	Filter  bool
 } {
@@ -924,9 +889,9 @@ func (mock *MockScriptStorageState) newestScriptByAssetCalls() []struct {
 }
 
 // newestScriptBytesByAsset calls newestScriptBytesByAssetFunc.
-func (mock *MockScriptStorageState) newestScriptBytesByAsset(assetID proto.AssetID, filter bool) (proto.Script, error) {
+func (mock *mockScriptStorageState) newestScriptBytesByAsset(assetID proto.AssetID, filter bool) (proto.Script, error) {
 	if mock.newestScriptBytesByAssetFunc == nil {
-		panic("MockScriptStorageState.newestScriptBytesByAssetFunc: method is nil but ScriptStorageState.newestScriptBytesByAsset was just called")
+		panic("mockScriptStorageState.newestScriptBytesByAssetFunc: method is nil but scriptStorageState.newestScriptBytesByAsset was just called")
 	}
 	callInfo := struct {
 		AssetID proto.AssetID
@@ -943,8 +908,8 @@ func (mock *MockScriptStorageState) newestScriptBytesByAsset(assetID proto.Asset
 
 // newestScriptBytesByAssetCalls gets all the calls that were made to newestScriptBytesByAsset.
 // Check the length with:
-//     len(mockedScriptStorageState.newestScriptBytesByAssetCalls())
-func (mock *MockScriptStorageState) newestScriptBytesByAssetCalls() []struct {
+//     len(mockedscriptStorageState.newestScriptBytesByAssetCalls())
+func (mock *mockScriptStorageState) newestScriptBytesByAssetCalls() []struct {
 	AssetID proto.AssetID
 	Filter  bool
 } {
@@ -959,9 +924,9 @@ func (mock *MockScriptStorageState) newestScriptBytesByAssetCalls() []struct {
 }
 
 // newestScriptBytesByKey calls newestScriptBytesByKeyFunc.
-func (mock *MockScriptStorageState) newestScriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
+func (mock *mockScriptStorageState) newestScriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
 	if mock.newestScriptBytesByKeyFunc == nil {
-		panic("MockScriptStorageState.newestScriptBytesByKeyFunc: method is nil but ScriptStorageState.newestScriptBytesByKey was just called")
+		panic("mockScriptStorageState.newestScriptBytesByKeyFunc: method is nil but scriptStorageState.newestScriptBytesByKey was just called")
 	}
 	callInfo := struct {
 		Key    []byte
@@ -978,8 +943,8 @@ func (mock *MockScriptStorageState) newestScriptBytesByKey(key []byte, filter bo
 
 // newestScriptBytesByKeyCalls gets all the calls that were made to newestScriptBytesByKey.
 // Check the length with:
-//     len(mockedScriptStorageState.newestScriptBytesByKeyCalls())
-func (mock *MockScriptStorageState) newestScriptBytesByKeyCalls() []struct {
+//     len(mockedscriptStorageState.newestScriptBytesByKeyCalls())
+func (mock *mockScriptStorageState) newestScriptBytesByKeyCalls() []struct {
 	Key    []byte
 	Filter bool
 } {
@@ -993,10 +958,45 @@ func (mock *MockScriptStorageState) newestScriptBytesByKeyCalls() []struct {
 	return calls
 }
 
+// newestScriptPKByAddr calls newestScriptPKByAddrFunc.
+func (mock *mockScriptStorageState) newestScriptPKByAddr(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error) {
+	if mock.newestScriptPKByAddrFunc == nil {
+		panic("mockScriptStorageState.newestScriptPKByAddrFunc: method is nil but scriptStorageState.newestScriptPKByAddr was just called")
+	}
+	callInfo := struct {
+		Addr   proto.WavesAddress
+		Filter bool
+	}{
+		Addr:   addr,
+		Filter: filter,
+	}
+	mock.locknewestScriptPKByAddr.Lock()
+	mock.calls.newestScriptPKByAddr = append(mock.calls.newestScriptPKByAddr, callInfo)
+	mock.locknewestScriptPKByAddr.Unlock()
+	return mock.newestScriptPKByAddrFunc(addr, filter)
+}
+
+// newestScriptPKByAddrCalls gets all the calls that were made to newestScriptPKByAddr.
+// Check the length with:
+//     len(mockedscriptStorageState.newestScriptPKByAddrCalls())
+func (mock *mockScriptStorageState) newestScriptPKByAddrCalls() []struct {
+	Addr   proto.WavesAddress
+	Filter bool
+} {
+	var calls []struct {
+		Addr   proto.WavesAddress
+		Filter bool
+	}
+	mock.locknewestScriptPKByAddr.RLock()
+	calls = mock.calls.newestScriptPKByAddr
+	mock.locknewestScriptPKByAddr.RUnlock()
+	return calls
+}
+
 // prepareHashes calls prepareHashesFunc.
-func (mock *MockScriptStorageState) prepareHashes() error {
+func (mock *mockScriptStorageState) prepareHashes() error {
 	if mock.prepareHashesFunc == nil {
-		panic("MockScriptStorageState.prepareHashesFunc: method is nil but ScriptStorageState.prepareHashes was just called")
+		panic("mockScriptStorageState.prepareHashesFunc: method is nil but scriptStorageState.prepareHashes was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -1008,8 +1008,8 @@ func (mock *MockScriptStorageState) prepareHashes() error {
 
 // prepareHashesCalls gets all the calls that were made to prepareHashes.
 // Check the length with:
-//     len(mockedScriptStorageState.prepareHashesCalls())
-func (mock *MockScriptStorageState) prepareHashesCalls() []struct {
+//     len(mockedscriptStorageState.prepareHashesCalls())
+func (mock *mockScriptStorageState) prepareHashesCalls() []struct {
 } {
 	var calls []struct {
 	}
@@ -1020,9 +1020,9 @@ func (mock *MockScriptStorageState) prepareHashesCalls() []struct {
 }
 
 // reset calls resetFunc.
-func (mock *MockScriptStorageState) reset() {
+func (mock *mockScriptStorageState) reset() {
 	if mock.resetFunc == nil {
-		panic("MockScriptStorageState.resetFunc: method is nil but ScriptStorageState.reset was just called")
+		panic("mockScriptStorageState.resetFunc: method is nil but scriptStorageState.reset was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -1034,8 +1034,8 @@ func (mock *MockScriptStorageState) reset() {
 
 // resetCalls gets all the calls that were made to reset.
 // Check the length with:
-//     len(mockedScriptStorageState.resetCalls())
-func (mock *MockScriptStorageState) resetCalls() []struct {
+//     len(mockedscriptStorageState.resetCalls())
+func (mock *mockScriptStorageState) resetCalls() []struct {
 } {
 	var calls []struct {
 	}
@@ -1046,9 +1046,9 @@ func (mock *MockScriptStorageState) resetCalls() []struct {
 }
 
 // scriptAstFromRecordBytes calls scriptAstFromRecordBytesFunc.
-func (mock *MockScriptStorageState) scriptAstFromRecordBytes(script proto.Script) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) scriptAstFromRecordBytes(script proto.Script) (*ride.Tree, error) {
 	if mock.scriptAstFromRecordBytesFunc == nil {
-		panic("MockScriptStorageState.scriptAstFromRecordBytesFunc: method is nil but ScriptStorageState.scriptAstFromRecordBytes was just called")
+		panic("mockScriptStorageState.scriptAstFromRecordBytesFunc: method is nil but scriptStorageState.scriptAstFromRecordBytes was just called")
 	}
 	callInfo := struct {
 		Script proto.Script
@@ -1063,8 +1063,8 @@ func (mock *MockScriptStorageState) scriptAstFromRecordBytes(script proto.Script
 
 // scriptAstFromRecordBytesCalls gets all the calls that were made to scriptAstFromRecordBytes.
 // Check the length with:
-//     len(mockedScriptStorageState.scriptAstFromRecordBytesCalls())
-func (mock *MockScriptStorageState) scriptAstFromRecordBytesCalls() []struct {
+//     len(mockedscriptStorageState.scriptAstFromRecordBytesCalls())
+func (mock *mockScriptStorageState) scriptAstFromRecordBytesCalls() []struct {
 	Script proto.Script
 } {
 	var calls []struct {
@@ -1077,9 +1077,9 @@ func (mock *MockScriptStorageState) scriptAstFromRecordBytesCalls() []struct {
 }
 
 // scriptByAddr calls scriptByAddrFunc.
-func (mock *MockScriptStorageState) scriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) scriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
 	if mock.scriptByAddrFunc == nil {
-		panic("MockScriptStorageState.scriptByAddrFunc: method is nil but ScriptStorageState.scriptByAddr was just called")
+		panic("mockScriptStorageState.scriptByAddrFunc: method is nil but scriptStorageState.scriptByAddr was just called")
 	}
 	callInfo := struct {
 		Addr   proto.WavesAddress
@@ -1096,8 +1096,8 @@ func (mock *MockScriptStorageState) scriptByAddr(addr proto.WavesAddress, filter
 
 // scriptByAddrCalls gets all the calls that were made to scriptByAddr.
 // Check the length with:
-//     len(mockedScriptStorageState.scriptByAddrCalls())
-func (mock *MockScriptStorageState) scriptByAddrCalls() []struct {
+//     len(mockedscriptStorageState.scriptByAddrCalls())
+func (mock *mockScriptStorageState) scriptByAddrCalls() []struct {
 	Addr   proto.WavesAddress
 	Filter bool
 } {
@@ -1112,9 +1112,9 @@ func (mock *MockScriptStorageState) scriptByAddrCalls() []struct {
 }
 
 // scriptByAsset calls scriptByAssetFunc.
-func (mock *MockScriptStorageState) scriptByAsset(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) scriptByAsset(assetID proto.AssetID, filter bool) (*ride.Tree, error) {
 	if mock.scriptByAssetFunc == nil {
-		panic("MockScriptStorageState.scriptByAssetFunc: method is nil but ScriptStorageState.scriptByAsset was just called")
+		panic("mockScriptStorageState.scriptByAssetFunc: method is nil but scriptStorageState.scriptByAsset was just called")
 	}
 	callInfo := struct {
 		AssetID proto.AssetID
@@ -1131,8 +1131,8 @@ func (mock *MockScriptStorageState) scriptByAsset(assetID proto.AssetID, filter 
 
 // scriptByAssetCalls gets all the calls that were made to scriptByAsset.
 // Check the length with:
-//     len(mockedScriptStorageState.scriptByAssetCalls())
-func (mock *MockScriptStorageState) scriptByAssetCalls() []struct {
+//     len(mockedscriptStorageState.scriptByAssetCalls())
+func (mock *mockScriptStorageState) scriptByAssetCalls() []struct {
 	AssetID proto.AssetID
 	Filter  bool
 } {
@@ -1147,9 +1147,9 @@ func (mock *MockScriptStorageState) scriptByAssetCalls() []struct {
 }
 
 // scriptBytesByAddr calls scriptBytesByAddrFunc.
-func (mock *MockScriptStorageState) scriptBytesByAddr(addr proto.WavesAddress, filter bool) (proto.Script, error) {
+func (mock *mockScriptStorageState) scriptBytesByAddr(addr proto.WavesAddress, filter bool) (proto.Script, error) {
 	if mock.scriptBytesByAddrFunc == nil {
-		panic("MockScriptStorageState.scriptBytesByAddrFunc: method is nil but ScriptStorageState.scriptBytesByAddr was just called")
+		panic("mockScriptStorageState.scriptBytesByAddrFunc: method is nil but scriptStorageState.scriptBytesByAddr was just called")
 	}
 	callInfo := struct {
 		Addr   proto.WavesAddress
@@ -1166,8 +1166,8 @@ func (mock *MockScriptStorageState) scriptBytesByAddr(addr proto.WavesAddress, f
 
 // scriptBytesByAddrCalls gets all the calls that were made to scriptBytesByAddr.
 // Check the length with:
-//     len(mockedScriptStorageState.scriptBytesByAddrCalls())
-func (mock *MockScriptStorageState) scriptBytesByAddrCalls() []struct {
+//     len(mockedscriptStorageState.scriptBytesByAddrCalls())
+func (mock *mockScriptStorageState) scriptBytesByAddrCalls() []struct {
 	Addr   proto.WavesAddress
 	Filter bool
 } {
@@ -1182,9 +1182,9 @@ func (mock *MockScriptStorageState) scriptBytesByAddrCalls() []struct {
 }
 
 // scriptBytesByAsset calls scriptBytesByAssetFunc.
-func (mock *MockScriptStorageState) scriptBytesByAsset(assetID proto.AssetID, filter bool) (proto.Script, error) {
+func (mock *mockScriptStorageState) scriptBytesByAsset(assetID proto.AssetID, filter bool) (proto.Script, error) {
 	if mock.scriptBytesByAssetFunc == nil {
-		panic("MockScriptStorageState.scriptBytesByAssetFunc: method is nil but ScriptStorageState.scriptBytesByAsset was just called")
+		panic("mockScriptStorageState.scriptBytesByAssetFunc: method is nil but scriptStorageState.scriptBytesByAsset was just called")
 	}
 	callInfo := struct {
 		AssetID proto.AssetID
@@ -1201,8 +1201,8 @@ func (mock *MockScriptStorageState) scriptBytesByAsset(assetID proto.AssetID, fi
 
 // scriptBytesByAssetCalls gets all the calls that were made to scriptBytesByAsset.
 // Check the length with:
-//     len(mockedScriptStorageState.scriptBytesByAssetCalls())
-func (mock *MockScriptStorageState) scriptBytesByAssetCalls() []struct {
+//     len(mockedscriptStorageState.scriptBytesByAssetCalls())
+func (mock *mockScriptStorageState) scriptBytesByAssetCalls() []struct {
 	AssetID proto.AssetID
 	Filter  bool
 } {
@@ -1217,9 +1217,9 @@ func (mock *MockScriptStorageState) scriptBytesByAssetCalls() []struct {
 }
 
 // scriptBytesByKey calls scriptBytesByKeyFunc.
-func (mock *MockScriptStorageState) scriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
+func (mock *mockScriptStorageState) scriptBytesByKey(key []byte, filter bool) (proto.Script, error) {
 	if mock.scriptBytesByKeyFunc == nil {
-		panic("MockScriptStorageState.scriptBytesByKeyFunc: method is nil but ScriptStorageState.scriptBytesByKey was just called")
+		panic("mockScriptStorageState.scriptBytesByKeyFunc: method is nil but scriptStorageState.scriptBytesByKey was just called")
 	}
 	callInfo := struct {
 		Key    []byte
@@ -1236,8 +1236,8 @@ func (mock *MockScriptStorageState) scriptBytesByKey(key []byte, filter bool) (p
 
 // scriptBytesByKeyCalls gets all the calls that were made to scriptBytesByKey.
 // Check the length with:
-//     len(mockedScriptStorageState.scriptBytesByKeyCalls())
-func (mock *MockScriptStorageState) scriptBytesByKeyCalls() []struct {
+//     len(mockedscriptStorageState.scriptBytesByKeyCalls())
+func (mock *mockScriptStorageState) scriptBytesByKeyCalls() []struct {
 	Key    []byte
 	Filter bool
 } {
@@ -1252,9 +1252,9 @@ func (mock *MockScriptStorageState) scriptBytesByKeyCalls() []struct {
 }
 
 // scriptTreeByKey calls scriptTreeByKeyFunc.
-func (mock *MockScriptStorageState) scriptTreeByKey(key []byte, filter bool) (*ride.Tree, error) {
+func (mock *mockScriptStorageState) scriptTreeByKey(key []byte, filter bool) (*ride.Tree, error) {
 	if mock.scriptTreeByKeyFunc == nil {
-		panic("MockScriptStorageState.scriptTreeByKeyFunc: method is nil but ScriptStorageState.scriptTreeByKey was just called")
+		panic("mockScriptStorageState.scriptTreeByKeyFunc: method is nil but scriptStorageState.scriptTreeByKey was just called")
 	}
 	callInfo := struct {
 		Key    []byte
@@ -1271,8 +1271,8 @@ func (mock *MockScriptStorageState) scriptTreeByKey(key []byte, filter bool) (*r
 
 // scriptTreeByKeyCalls gets all the calls that were made to scriptTreeByKey.
 // Check the length with:
-//     len(mockedScriptStorageState.scriptTreeByKeyCalls())
-func (mock *MockScriptStorageState) scriptTreeByKeyCalls() []struct {
+//     len(mockedscriptStorageState.scriptTreeByKeyCalls())
+func (mock *mockScriptStorageState) scriptTreeByKeyCalls() []struct {
 	Key    []byte
 	Filter bool
 } {
@@ -1287,9 +1287,9 @@ func (mock *MockScriptStorageState) scriptTreeByKeyCalls() []struct {
 }
 
 // setAccountScript calls setAccountScriptFunc.
-func (mock *MockScriptStorageState) setAccountScript(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
+func (mock *mockScriptStorageState) setAccountScript(addr proto.WavesAddress, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
 	if mock.setAccountScriptFunc == nil {
-		panic("MockScriptStorageState.setAccountScriptFunc: method is nil but ScriptStorageState.setAccountScript was just called")
+		panic("mockScriptStorageState.setAccountScriptFunc: method is nil but scriptStorageState.setAccountScript was just called")
 	}
 	callInfo := struct {
 		Addr    proto.WavesAddress
@@ -1310,8 +1310,8 @@ func (mock *MockScriptStorageState) setAccountScript(addr proto.WavesAddress, sc
 
 // setAccountScriptCalls gets all the calls that were made to setAccountScript.
 // Check the length with:
-//     len(mockedScriptStorageState.setAccountScriptCalls())
-func (mock *MockScriptStorageState) setAccountScriptCalls() []struct {
+//     len(mockedscriptStorageState.setAccountScriptCalls())
+func (mock *mockScriptStorageState) setAccountScriptCalls() []struct {
 	Addr    proto.WavesAddress
 	Script  proto.Script
 	Pk      crypto.PublicKey
@@ -1330,9 +1330,9 @@ func (mock *MockScriptStorageState) setAccountScriptCalls() []struct {
 }
 
 // setAssetScript calls setAssetScriptFunc.
-func (mock *MockScriptStorageState) setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
+func (mock *mockScriptStorageState) setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error {
 	if mock.setAssetScriptFunc == nil {
-		panic("MockScriptStorageState.setAssetScriptFunc: method is nil but ScriptStorageState.setAssetScript was just called")
+		panic("mockScriptStorageState.setAssetScriptFunc: method is nil but scriptStorageState.setAssetScript was just called")
 	}
 	callInfo := struct {
 		AssetID crypto.Digest
@@ -1353,8 +1353,8 @@ func (mock *MockScriptStorageState) setAssetScript(assetID crypto.Digest, script
 
 // setAssetScriptCalls gets all the calls that were made to setAssetScript.
 // Check the length with:
-//     len(mockedScriptStorageState.setAssetScriptCalls())
-func (mock *MockScriptStorageState) setAssetScriptCalls() []struct {
+//     len(mockedscriptStorageState.setAssetScriptCalls())
+func (mock *mockScriptStorageState) setAssetScriptCalls() []struct {
 	AssetID crypto.Digest
 	Script  proto.Script
 	Pk      crypto.PublicKey
@@ -1373,9 +1373,9 @@ func (mock *MockScriptStorageState) setAssetScriptCalls() []struct {
 }
 
 // setAssetScriptUncertain calls setAssetScriptUncertainFunc.
-func (mock *MockScriptStorageState) setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) {
+func (mock *mockScriptStorageState) setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) {
 	if mock.setAssetScriptUncertainFunc == nil {
-		panic("MockScriptStorageState.setAssetScriptUncertainFunc: method is nil but ScriptStorageState.setAssetScriptUncertain was just called")
+		panic("mockScriptStorageState.setAssetScriptUncertainFunc: method is nil but scriptStorageState.setAssetScriptUncertain was just called")
 	}
 	callInfo := struct {
 		FullAssetID crypto.Digest
@@ -1394,8 +1394,8 @@ func (mock *MockScriptStorageState) setAssetScriptUncertain(fullAssetID crypto.D
 
 // setAssetScriptUncertainCalls gets all the calls that were made to setAssetScriptUncertain.
 // Check the length with:
-//     len(mockedScriptStorageState.setAssetScriptUncertainCalls())
-func (mock *MockScriptStorageState) setAssetScriptUncertainCalls() []struct {
+//     len(mockedscriptStorageState.setAssetScriptUncertainCalls())
+func (mock *mockScriptStorageState) setAssetScriptUncertainCalls() []struct {
 	FullAssetID crypto.Digest
 	Script      proto.Script
 	Pk          crypto.PublicKey
@@ -1412,9 +1412,9 @@ func (mock *MockScriptStorageState) setAssetScriptUncertainCalls() []struct {
 }
 
 // setScript calls setScriptFunc.
-func (mock *MockScriptStorageState) setScript(scriptType blockchainEntity, key scriptKey, dbItem scriptDBItem, blockID proto.BlockID) error {
+func (mock *mockScriptStorageState) setScript(scriptType blockchainEntity, key scriptKey, dbItem scriptDBItem, blockID proto.BlockID) error {
 	if mock.setScriptFunc == nil {
-		panic("MockScriptStorageState.setScriptFunc: method is nil but ScriptStorageState.setScript was just called")
+		panic("mockScriptStorageState.setScriptFunc: method is nil but scriptStorageState.setScript was just called")
 	}
 	callInfo := struct {
 		ScriptType blockchainEntity
@@ -1435,8 +1435,8 @@ func (mock *MockScriptStorageState) setScript(scriptType blockchainEntity, key s
 
 // setScriptCalls gets all the calls that were made to setScript.
 // Check the length with:
-//     len(mockedScriptStorageState.setScriptCalls())
-func (mock *MockScriptStorageState) setScriptCalls() []struct {
+//     len(mockedscriptStorageState.setScriptCalls())
+func (mock *mockScriptStorageState) setScriptCalls() []struct {
 	ScriptType blockchainEntity
 	Key        scriptKey
 	DbItem     scriptDBItem

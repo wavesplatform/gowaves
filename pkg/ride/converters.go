@@ -1,12 +1,13 @@
 package ride
 
 import (
+	"math/big"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
-	"math/big"
 )
 
 func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) {
@@ -62,7 +63,7 @@ func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) 
 	case *proto.UpdateAssetInfoWithProofs:
 		return updateAssetInfoWithProofsToObject(scheme, transaction)
 	case *proto.EthereumTransaction:
-		return ethereumInvokeScriptWithProofsToObject(scheme, transaction)
+		return ethereumTransactionToObject(scheme, transaction)
 	default:
 		return nil, errors.Errorf("conversion to RIDE object is not implemented for %T", transaction)
 	}
@@ -906,7 +907,7 @@ func ConvertEthereumRideArgumentsToSpecificArgument(decodedArg rideType) (proto.
 func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) ([]proto.Argument, error) {
 	var arguments []proto.Argument
 	for _, decodedArg := range decodedArgs {
-		value, err := EthABIDataTypeToRideType(decodedArg.Value)
+		value, err := ethABIDataTypeToRideType(decodedArg.Value)
 		if err != nil {
 			return nil, errors.Errorf("failed to convert data type to ride type %v", err)
 		}
@@ -920,44 +921,7 @@ func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.Decode
 	return arguments, nil
 }
 
-type ERC20Arguments struct {
-	Recipient proto.WavesAddress
-	Amount    int64
-}
-
-func GetERC20Arguments(decodedData *ethabi.DecodedCallData, scheme proto.Scheme) (*ERC20Arguments, error) {
-	rideTypeValueRecipient, err := EthABIDataTypeToRideType(decodedData.Inputs[0].Value)
-	if err != nil {
-		return nil, errors.Errorf("failed to convert data type to ride type, %v", err)
-	}
-	rideEthRecipientAddress, ok := rideTypeValueRecipient.(rideBytes)
-	if !ok {
-		return nil, errors.New("failed to convert address from argument of transfer erc20 function to rideBytes")
-	}
-	ethRecipient := proto.BytesToEthereumAddress(rideEthRecipientAddress)
-	recipient, err := ethRecipient.ToWavesAddress(scheme)
-	if err != nil {
-		return nil, errors.Errorf("failed to get recipient address from tx, %v", err)
-	}
-	// 2 get amount
-	rideTypeValueAmount, err := EthABIDataTypeToRideType(decodedData.Inputs[1].Value)
-	if err != nil {
-		return nil, errors.Errorf("failed to convert data type to ride type, %v", err)
-	}
-	v, ok := rideTypeValueAmount.(rideBigInt)
-	if !ok {
-		return nil, errors.Errorf("failed to convert big int value from transfer argument to rideBigInt, %v", err)
-
-	}
-	if ok := v.V.IsInt64(); !ok {
-		return nil, errors.Errorf("failed to convert big int value to int64. value is %s", v.V.String())
-	}
-	amount := v.V.Int64()
-
-	return &ERC20Arguments{Recipient: recipient, Amount: amount}, nil
-}
-
-func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTransaction) (rideObject, error) {
+func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransaction) (rideObject, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err
@@ -973,13 +937,19 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		return nil, err
 	}
 	r := make(rideObject)
+
+	// TODO check whether we should resolve eth tx kind first
+	// we have to fill it according to the spec
+	r["bodyBytes"] = rideBytes(nil)
+	r["proofs"] = proofs(proto.NewProofs())
+
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
 		r[instanceFieldName] = rideString("TransferTransaction")
 		r["version"] = rideInt(tx.GetVersion())
 		r["id"] = rideBytes(tx.ID.Bytes())
 		r["sender"] = rideAddress(sender)
-		r["senderPublicKey"] = rideBytes(common.Dup(callerPK))
+		r["senderPublicKey"] = rideBytes(callerPK)
 		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(*to))
 		r["assetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
@@ -992,44 +962,43 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		r["attachment"] = rideBytes(nil)
 		r["timestamp"] = rideInt(tx.GetTimestamp())
-		r["bodyBytes"] = rideBytes(nil)
-		r["proofs"] = proofs(nil)
-		return r, nil
+
 	case *proto.EthereumTransferAssetsErc20TxKind:
 		r[instanceFieldName] = rideString("TransferTransaction")
 		r["version"] = rideInt(tx.GetVersion())
 		r["id"] = rideBytes(tx.ID.Bytes())
 		r["sender"] = rideAddress(sender)
-		r["senderPublicKey"] = rideBytes(common.Dup(callerPK))
-		erc20arguments, err := GetERC20Arguments(tx.TxKind.DecodedData(), scheme)
+		r["senderPublicKey"] = rideBytes(callerPK)
+
+		recipientAddr, err := proto.EthereumAddress(kind.Arguments.Recipient).ToWavesAddress(scheme)
 		if err != nil {
-			return nil, errors.Errorf("failed to receive erc20 arguments, %v", err)
+			return nil, errors.Wrap(err, "failed to convert ethereum ERC20 transfer recipient to WavesAddress")
 		}
-		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(erc20arguments.Recipient))
+		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(recipientAddr))
 		r["assetId"] = optionalAsset(kind.Asset)
-		r["amount"] = rideInt(erc20arguments.Amount)
+		r["amount"] = rideInt(kind.Arguments.Amount)
 		r["fee"] = rideInt(tx.GetFee())
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
 		r["attachment"] = rideBytes(nil)
 		r["timestamp"] = rideInt(tx.GetTimestamp())
-		r["bodyBytes"] = rideBytes(nil)
-		r["proofs"] = proofs(nil)
-		return r, nil
+
 	case *proto.EthereumInvokeScriptTxKind:
 		r[instanceFieldName] = rideString("InvokeScriptTransaction")
 		r["version"] = rideInt(tx.GetVersion())
 		r["id"] = rideBytes(tx.ID.Bytes())
 		r["sender"] = rideAddress(sender)
-		r["senderPublicKey"] = rideBytes(common.Dup(callerPK))
+		r["senderPublicKey"] = rideBytes(callerPK)
 		r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(*to))
 
 		var scriptPayments []proto.ScriptPayment
 		for _, p := range tx.TxKind.DecodedData().Payments {
-			asset, err := proto.NewOptionalAssetFromBytes(p.AssetID.Bytes())
-			if err != nil {
-				return nil, err
+			var optAsset proto.OptionalAsset
+			if p.PresentAssetID {
+				optAsset = *proto.NewOptionalAssetFromDigest(p.AssetID)
+			} else {
+				optAsset = proto.NewOptionalAssetWaves()
 			}
-			payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: *asset}
+			payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
 			scriptPayments = append(scriptPayments, payment)
 		}
 
@@ -1066,8 +1035,6 @@ func ethereumInvokeScriptWithProofsToObject(scheme byte, tx *proto.EthereumTrans
 		r["args"] = args
 		r["fee"] = rideInt(tx.GetFee())
 		r["timestamp"] = rideInt(tx.GetTimestamp())
-		r["bodyBytes"] = rideBytes(nil)
-		r["proofs"] = proofs(nil)
 
 	default:
 		return nil, errors.New("unknown ethereum transaction kind")
@@ -1159,7 +1126,7 @@ func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (r
 	return r, nil
 }
 
-func ethereumInvocationToObject(v int, scheme byte, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
+func ethereumInvocationToObject(v int, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
 	sender, err := tx.WavesAddressFrom(scheme)
 	if err != nil {
 		return nil, err
@@ -1227,7 +1194,7 @@ func balanceDetailsToObject(fwb *proto.FullWavesBalance) rideObject {
 	return r
 }
 
-func objectToActions(env Environment, obj rideType) ([]proto.ScriptAction, error) {
+func objectToActions(env environment, obj rideType) ([]proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "WriteSet":
 		data, err := obj.get("data")
@@ -1305,7 +1272,7 @@ func getKeyProperty(v rideType) (string, error) {
 	return string(key), nil
 }
 
-func convertToAction(env Environment, obj rideType) (proto.ScriptAction, error) {
+func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "Burn":
 		id, err := digestProperty(obj, "assetId")
@@ -1598,18 +1565,11 @@ func signatureToProofs(sig *crypto.Signature) rideList {
 
 func proofs(proofs *proto.ProofsV1) rideList {
 	r := make(rideList, 8)
-	if proofs != nil {
-		proofsLen := len(proofs.Proofs)
-		for i := range r {
-			if i < proofsLen {
-				r[i] = rideBytes(common.Dup(proofs.Proofs[i].Bytes()))
-			} else {
-				r[i] = rideBytes(nil)
-			}
-		}
-	} else {
-		// special case for ethereum stuff
-		for i := range r {
+	proofsLen := len(proofs.Proofs)
+	for i := range r {
+		if i < proofsLen {
+			r[i] = rideBytes(common.Dup(proofs.Proofs[i].Bytes()))
+		} else {
 			r[i] = rideBytes(nil)
 		}
 	}

@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	EthereumWei            uint64 = 1
-	EthereumGWei                  = 1e9 * EthereumWei
-	EthereumEther                 = 1e9 * EthereumGWei
-	waveletToWeiMultiplier        = EthereumEther / PriceConstant
+	ethereumWei            uint64 = 1
+	ethereumGWei                  = 1e9 * ethereumWei
+	ethereumEther                 = 1e9 * ethereumGWei
+	waveletToWeiMultiplier        = ethereumEther / PriceConstant
 )
 
 func WaveletToEthereumWei(waveletAmount uint64) *big.Int {
@@ -21,8 +21,12 @@ func WaveletToEthereumWei(waveletAmount uint64) *big.Int {
 	)
 }
 
-func EthereumWeiToWavelet(weiAmount *big.Int) uint64 {
-	return new(big.Int).Div(weiAmount, new(big.Int).SetUint64(waveletToWeiMultiplier)).Uint64()
+func EthereumWeiToWavelet(weiAmount *big.Int) (int64, error) {
+	wavelets := new(big.Int).Div(weiAmount, new(big.Int).SetUint64(waveletToWeiMultiplier))
+	if !wavelets.IsInt64() {
+		return 0, errors.Errorf("too many wavelets=%d", wavelets)
+	}
+	return wavelets.Int64(), nil
 }
 
 func unmarshalTransactionToFieldFastRLP(value *fastrlp.Value) (*EthereumAddress, error) {

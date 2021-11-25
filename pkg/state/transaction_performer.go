@@ -349,18 +349,13 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 	if !ok {
 		return errors.New("failed to convert interface to EthereumTransaction transaction")
 	}
-
-	switch ethTx.TxKind.(type) {
-	case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
-		return nil
-	case *proto.EthereumInvokeScriptTxKind:
+	if _, ok := ethTx.TxKind.(*proto.EthereumInvokeScriptTxKind); ok {
 		if err := tp.stor.commitUncertain(info.blockID); err != nil {
 			return errors.Wrap(err, "failed to commit invoke changes")
 		}
-		return nil
-	default:
-		return errors.New("wrong kind of ethereum transaction")
 	}
+	// nothing to do for proto.EthereumTransferWavesTxKind and proto.EthereumTransferAssetsErc20TxKind
+	return nil
 }
 
 func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction, info *performerInfo) error {
@@ -374,7 +369,7 @@ func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction pro
 		newDescription: tx.Description,
 		newHeight:      blockHeight,
 	}
-	if err := tp.stor.assets.updateAssetInfo(proto.AssetIDFromDigest(tx.AssetID), ch, info.blockID, !info.initialisation); err != nil {
+	if err := tp.stor.assets.updateAssetInfo(tx.AssetID, ch, info.blockID, !info.initialisation); err != nil {
 		return errors.Wrap(err, "failed to update asset info")
 	}
 	return nil

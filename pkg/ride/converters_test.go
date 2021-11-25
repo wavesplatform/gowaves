@@ -2,6 +2,10 @@ package ride
 
 import (
 	"encoding/hex"
+	"math/big"
+	"strings"
+	"testing"
+
 	"github.com/jinzhu/copier"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
@@ -11,9 +15,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
-	"math/big"
-	"strings"
-	"testing"
 )
 
 var (
@@ -247,7 +248,9 @@ type GenesisTestSuite struct {
 
 func (a *GenesisTestSuite) SetupTest() {
 	tx := &proto.Genesis{}
-	_ = copier.Copy(tx, byte_helpers.Genesis.Transaction)
+	if err := copier.Copy(tx, byte_helpers.Genesis.Transaction); err != nil {
+		panic(err.Error())
+	}
 	a.tx = tx
 	a.f = transactionToObject
 }
@@ -298,7 +301,9 @@ type PaymentTestSuite struct {
 
 func (a *PaymentTestSuite) SetupTest() {
 	tx := &proto.Payment{}
-	_ = copier.Copy(tx, byte_helpers.Payment.Transaction)
+	if err := copier.Copy(tx, byte_helpers.Payment.Transaction); err != nil {
+		panic(err.Error())
+	}
 	a.tx = tx
 	a.f = transactionToObject
 }
@@ -2115,12 +2120,8 @@ func TestEthereumTransferWavesTransformTxToRideObj(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	tx := proto.EthereumTransaction{
-		Inner:    defaultEthLegacyTxData(1000000000000000, &recipientEth, nil, 100000),
-		ID:       &crypto.Digest{},
-		SenderPK: &senderPK,
-	}
-	tx.TxKind = proto.NewEthereumTransferWavesTxKind()
+	txData := defaultEthLegacyTxData(1000000000000000, &recipientEth, nil, 100000)
+	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumTransferWavesTxKind(), &crypto.Digest{}, &senderPK, 0)
 
 	rideObj, err := transactionToObject(proto.MainNetScheme, &tx)
 	assert.NoError(t, err)
@@ -2161,11 +2162,7 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
 	require.NoError(t, err)
 	var txData proto.EthereumTxData = defaultEthLegacyTxData(1000000000000000, &recipientEth, data, 100000)
-	tx := proto.EthereumTransaction{
-		Inner:    txData,
-		ID:       &crypto.Digest{},
-		SenderPK: &senderPK,
-	}
+	tx := proto.NewEthereumTransaction(txData, nil, &crypto.Digest{}, &senderPK, 0)
 	db := ethabi.NewErc20MethodsMap()
 	assert.NotNil(t, tx.Data())
 	decodedData, err := db.ParseCallDataRide(tx.Data())
@@ -2177,7 +2174,10 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	copy(r[:20], assetID[:])
 	asset := &proto.AssetInfo{ID: r}
 
-	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID))
+	erc20arguments, err := ethabi.GetERC20TransferArguments(decodedData)
+	assert.NoError(t, err)
+
+	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID), erc20arguments)
 
 	rideObj, err := transactionToObject(proto.MainNetScheme, &tx)
 	assert.NoError(t, err)
@@ -2187,9 +2187,11 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 
 	assert.Equal(t, rideBytes(senderPK.SerializeXYCoordinates()), rideObj["senderPublicKey"])
 	assert.Equal(t, rideAddress(sender), rideObj["sender"])
-	erc20arguments, err := GetERC20Arguments(tx.TxKind.DecodedData(), proto.MainNetScheme)
+
+	erc20TransferRecipient, err := proto.EthereumAddress(erc20arguments.Recipient).ToWavesAddress(proto.MainNetScheme)
 	assert.NoError(t, err)
-	assert.Equal(t, rideRecipient(proto.NewRecipientFromAddress(erc20arguments.Recipient)), rideObj["recipient"])
+
+	assert.Equal(t, rideRecipient(proto.NewRecipientFromAddress(erc20TransferRecipient)), rideObj["recipient"])
 	assert.Equal(t, rideInt(20947030000000), rideObj["amount"])
 	assert.Equal(t, rideInt(100000), rideObj["fee"])
 }

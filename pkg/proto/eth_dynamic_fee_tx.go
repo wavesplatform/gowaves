@@ -20,7 +20,7 @@ type EthereumDynamicFeeTx struct {
 	V, R, S    *big.Int           // signature values
 }
 
-func (dftx *EthereumDynamicFeeTx) unmarshalFromFastRLP(value *fastrlp.Value) error {
+func (tx *EthereumDynamicFeeTx) unmarshalFromFastRLP(value *fastrlp.Value) error {
 	const dynamicFeeTxFieldsCount = 12
 
 	elems, err := value.GetElems()
@@ -82,7 +82,7 @@ func (dftx *EthereumDynamicFeeTx) unmarshalFromFastRLP(value *fastrlp.Value) err
 		return errors.Wrap(err, "failed to parse signature value")
 	}
 
-	*dftx = EthereumDynamicFeeTx{
+	*tx = EthereumDynamicFeeTx{
 		ChainID:    &chainID,
 		Nonce:      nonce,
 		GasTipCap:  &gasTipCap,
@@ -99,20 +99,20 @@ func (dftx *EthereumDynamicFeeTx) unmarshalFromFastRLP(value *fastrlp.Value) err
 	return nil
 }
 
-func (dftx *EthereumDynamicFeeTx) marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Value {
+func (tx *EthereumDynamicFeeTx) marshalToFastRLP(arena *fastrlp.Arena) *fastrlp.Value {
 	values := [...]*fastrlp.Value{
-		arena.NewBigInt(dftx.ChainID),
-		arena.NewUint(dftx.Nonce),
-		arena.NewBigInt(dftx.GasTipCap),
-		arena.NewBigInt(dftx.GasFeeCap),
-		arena.NewUint(dftx.Gas),
-		arena.NewBytes(dftx.To.tryToBytes()),
-		arena.NewBigInt(dftx.Value),
-		arena.NewBytes(dftx.Data),
-		marshalAccessListToFastRLP(arena, dftx.AccessList),
-		arena.NewBigInt(dftx.V),
-		arena.NewBigInt(dftx.R),
-		arena.NewBigInt(dftx.S),
+		arena.NewBigInt(tx.ChainID),
+		arena.NewUint(tx.Nonce),
+		arena.NewBigInt(tx.GasTipCap),
+		arena.NewBigInt(tx.GasFeeCap),
+		arena.NewUint(tx.Gas),
+		arena.NewBytes(tx.To.tryToBytes()),
+		arena.NewBigInt(tx.Value),
+		arena.NewBytes(tx.Data),
+		marshalAccessListToFastRLP(arena, tx.AccessList),
+		arena.NewBigInt(tx.V),
+		arena.NewBigInt(tx.R),
+		arena.NewBigInt(tx.S),
 	}
 
 	array := arena.NewArray()
@@ -122,21 +122,21 @@ func (dftx *EthereumDynamicFeeTx) marshalToFastRLP(arena *fastrlp.Arena) *fastrl
 	return array
 }
 
-func (dftx *EthereumDynamicFeeTx) DecodeRLP(rlpData []byte) error {
+func (tx *EthereumDynamicFeeTx) DecodeRLP(rlpData []byte) error {
 	parser := fastrlp.Parser{}
 	rlpVal, err := parser.Parse(rlpData)
 	if err != nil {
 		return err
 	}
-	if err := dftx.unmarshalFromFastRLP(rlpVal); err != nil {
+	if err := tx.unmarshalFromFastRLP(rlpVal); err != nil {
 		return errors.Wrap(err, "failed to parse EthereumDynamicFeeTx from RLP encoded data")
 	}
 	return nil
 }
 
-func (dftx *EthereumDynamicFeeTx) EncodeRLP(w io.Writer) error {
+func (tx *EthereumDynamicFeeTx) EncodeRLP(w io.Writer) error {
 	arena := fastrlp.Arena{}
-	rlpVal := dftx.marshalToFastRLP(&arena)
+	rlpVal := tx.marshalToFastRLP(&arena)
 	rlpData := rlpVal.MarshalTo(nil)
 	if _, err := w.Write(rlpData); err != nil {
 		return err
@@ -144,55 +144,55 @@ func (dftx *EthereumDynamicFeeTx) EncodeRLP(w io.Writer) error {
 	return nil
 }
 
-func (dftx *EthereumDynamicFeeTx) copy() EthereumTxData {
+func (tx *EthereumDynamicFeeTx) copy() EthereumTxData {
 	return &EthereumDynamicFeeTx{
-		ChainID:    copyBigInt(dftx.ChainID),
-		Nonce:      dftx.Nonce,
-		GasTipCap:  copyBigInt(dftx.GasTipCap),
-		GasFeeCap:  copyBigInt(dftx.GasFeeCap),
-		Gas:        dftx.Gas,
-		To:         dftx.To.copy(),
-		Value:      copyBigInt(dftx.Value),
-		Data:       copyBytes(dftx.Data),
-		AccessList: dftx.AccessList.copy(),
-		V:          copyBigInt(dftx.V),
-		R:          copyBigInt(dftx.R),
-		S:          copyBigInt(dftx.S),
+		ChainID:    copyBigInt(tx.ChainID),
+		Nonce:      tx.Nonce,
+		GasTipCap:  copyBigInt(tx.GasTipCap),
+		GasFeeCap:  copyBigInt(tx.GasFeeCap),
+		Gas:        tx.Gas,
+		To:         tx.To.copy(),
+		Value:      copyBigInt(tx.Value),
+		Data:       copyBytes(tx.Data),
+		AccessList: tx.AccessList.copy(),
+		V:          copyBigInt(tx.V),
+		R:          copyBigInt(tx.R),
+		S:          copyBigInt(tx.S),
 	}
 }
 
 // accessors for innerTx.
-func (dftx *EthereumDynamicFeeTx) ethereumTxType() EthereumTxType { return EthereumDynamicFeeTxType }
-func (dftx *EthereumDynamicFeeTx) chainID() *big.Int              { return dftx.ChainID }
-func (dftx *EthereumDynamicFeeTx) accessList() EthereumAccessList { return dftx.AccessList }
-func (dftx *EthereumDynamicFeeTx) data() []byte                   { return dftx.Data }
-func (dftx *EthereumDynamicFeeTx) gas() uint64                    { return dftx.Gas }
-func (dftx *EthereumDynamicFeeTx) gasFeeCap() *big.Int            { return dftx.GasFeeCap }
-func (dftx *EthereumDynamicFeeTx) gasTipCap() *big.Int            { return dftx.GasTipCap }
-func (dftx *EthereumDynamicFeeTx) gasPrice() *big.Int             { return dftx.GasFeeCap }
-func (dftx *EthereumDynamicFeeTx) value() *big.Int                { return dftx.Value }
-func (dftx *EthereumDynamicFeeTx) nonce() uint64                  { return dftx.Nonce }
-func (dftx *EthereumDynamicFeeTx) to() *EthereumAddress           { return dftx.To }
+func (tx *EthereumDynamicFeeTx) ethereumTxType() EthereumTxType { return EthereumDynamicFeeTxType }
+func (tx *EthereumDynamicFeeTx) chainID() *big.Int              { return tx.ChainID }
+func (tx *EthereumDynamicFeeTx) accessList() EthereumAccessList { return tx.AccessList }
+func (tx *EthereumDynamicFeeTx) data() []byte                   { return tx.Data }
+func (tx *EthereumDynamicFeeTx) gas() uint64                    { return tx.Gas }
+func (tx *EthereumDynamicFeeTx) gasFeeCap() *big.Int            { return tx.GasFeeCap }
+func (tx *EthereumDynamicFeeTx) gasTipCap() *big.Int            { return tx.GasTipCap }
+func (tx *EthereumDynamicFeeTx) gasPrice() *big.Int             { return tx.GasFeeCap }
+func (tx *EthereumDynamicFeeTx) value() *big.Int                { return tx.Value }
+func (tx *EthereumDynamicFeeTx) nonce() uint64                  { return tx.Nonce }
+func (tx *EthereumDynamicFeeTx) to() *EthereumAddress           { return tx.To }
 
-func (dftx *EthereumDynamicFeeTx) rawSignatureValues() (v, r, s *big.Int) {
-	return dftx.V, dftx.R, dftx.S
+func (tx *EthereumDynamicFeeTx) rawSignatureValues() (v, r, s *big.Int) {
+	return tx.V, tx.R, tx.S
 }
 
-func (dftx *EthereumDynamicFeeTx) setSignatureValues(chainID, v, r, s *big.Int) {
-	dftx.ChainID, dftx.V, dftx.R, dftx.S = chainID, v, r, s
+func (tx *EthereumDynamicFeeTx) setSignatureValues(chainID, v, r, s *big.Int) {
+	tx.ChainID, tx.V, tx.R, tx.S = chainID, v, r, s
 }
 
-func (dftx *EthereumDynamicFeeTx) signerHashFastRLP(chainID *big.Int, arena *fastrlp.Arena) *fastrlp.Value {
+func (tx *EthereumDynamicFeeTx) signerHashFastRLP(chainID *big.Int, arena *fastrlp.Arena) *fastrlp.Value {
 	values := [...]*fastrlp.Value{
 		arena.NewBigInt(chainID),
-		arena.NewUint(dftx.Nonce),
-		arena.NewBigInt(dftx.GasTipCap),
-		arena.NewBigInt(dftx.GasFeeCap),
-		arena.NewUint(dftx.Gas),
-		arena.NewBytes(dftx.To.tryToBytes()),
-		arena.NewBigInt(dftx.Value),
-		arena.NewBytes(dftx.Data),
-		marshalAccessListToFastRLP(arena, dftx.AccessList),
+		arena.NewUint(tx.Nonce),
+		arena.NewBigInt(tx.GasTipCap),
+		arena.NewBigInt(tx.GasFeeCap),
+		arena.NewUint(tx.Gas),
+		arena.NewBytes(tx.To.tryToBytes()),
+		arena.NewBigInt(tx.Value),
+		arena.NewBytes(tx.Data),
+		marshalAccessListToFastRLP(arena, tx.AccessList),
 	}
 
 	array := arena.NewArray()

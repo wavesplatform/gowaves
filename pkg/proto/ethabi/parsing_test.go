@@ -12,9 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
 
-// TODO(nickeskov): check MethodsMap when parsePayments == true
-
-func TestTransferWithRideTypes(t *testing.T) {
+func TestERC20EthereumTransfer(t *testing.T) {
 	// from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
 
 	expectedSignature := "transfer(address,uint256)"
@@ -34,6 +32,32 @@ func TestTransferWithRideTypes(t *testing.T) {
 	require.Equal(t, expectedName, callData.Name)
 	require.Equal(t, expectedFirstArg, fmt.Sprintf("0x%x", callData.Inputs[0].Value.(Bytes)))
 	require.Equal(t, expectedSecondArg, callData.Inputs[1].Value.(BigInt).V.String())
+
+	_, err = GetERC20TransferArguments(callData)
+	require.Error(t, err)
+	require.Equal(t,
+		"failed to convert BigInt value to int64 (overflow), value is 209470300000000000000000",
+		err.Error(),
+	)
+}
+
+func TestGetERC20TransferArguments(t *testing.T) {
+	expectedFirstArg := strings.ToLower("0x9a1989946ae4249AAC19ac7a038d24Aab03c3D8c")
+	expectedSecondArg := "31650332672000"
+
+	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c00000000000000000000000000000000000000000000000000001cc92ad60000"
+	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
+	require.NoError(t, err)
+
+	erc20Db := NewErc20MethodsMap()
+	callData, err := erc20Db.ParseCallDataRide(data)
+	require.NoError(t, err)
+
+	transferArgs, err := GetERC20TransferArguments(callData)
+	require.NoError(t, err)
+
+	require.Equal(t, expectedFirstArg, fmt.Sprintf("0x%x", transferArgs.Recipient))
+	require.Equal(t, expectedSecondArg, fmt.Sprintf("%d", transferArgs.Amount))
 }
 
 func TestRandomFunctionABIParsing(t *testing.T) {
@@ -48,11 +72,11 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 		testSignature.Selector(): {
 			RawName: "minta",
 			Inputs: Arguments{
-				{Name: "_token", Type: Type{T: AddressTy}},
-				{Name: "_id", Type: Type{T: UintTy, Size: 256}},
-				{Name: "_supply", Type: Type{T: UintTy, Size: 256}},
-				{Name: "_listPrice", Type: Type{T: UintTy, Size: 256}},
-				{Name: "_fee", Type: Type{T: UintTy, Size: 256}},
+				{Name: "_token", Type: Type{T: AddressType}},
+				{Name: "_id", Type: Type{T: UintType, Size: 256}},
+				{Name: "_supply", Type: Type{T: UintType, Size: 256}},
+				{Name: "_listPrice", Type: Type{T: UintType, Size: 256}},
+				{Name: "_fee", Type: Type{T: UintType, Size: 256}},
 			},
 			Payments: nil,
 			Sig:      testSignature,
@@ -124,27 +148,27 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
 		{
 			RawName: "testFunction",
 			Inputs: Arguments{
-				{Name: "stringVar", Type: Type{T: StringTy}},
-				{Name: "intVar", Type: Type{T: IntTy, Size: 64}},
-				{Name: "bytesVar", Type: Type{T: BytesTy}},
-				{Name: "boolVar", Type: Type{T: BoolTy}},
+				{Name: "stringVar", Type: Type{T: StringType}},
+				{Name: "intVar", Type: Type{T: IntType, Size: 64}},
+				{Name: "bytesVar", Type: Type{T: BytesType}},
+				{Name: "boolVar", Type: Type{T: BoolType}},
 				{
 					Name: "sliceVar",
 					Type: Type{
-						T:    SliceTy,
-						Elem: &Type{T: IntTy, Size: 64}},
+						T:    SliceType,
+						Elem: &Type{T: IntType, Size: 64}},
 				},
 				{
 					Name: "tupleSliceVar",
 					Type: Type{
-						T: TupleTy,
+						T: TupleType,
 						TupleFields: Arguments{
-							{Name: "union_index", Type: Type{T: UintTy, Size: 8}},
-							{Name: "stringVar", Type: Type{T: StringTy}},
-							{Name: "boolVar", Type: Type{T: BoolTy}},
-							{Name: "intVar", Type: Type{T: IntTy, Size: 64}},
-							{Name: "bytesVar", Type: Type{T: BytesTy}},
-							{Name: "addrVar", Type: Type{T: AddressTy}},
+							{Name: "union_index", Type: Type{T: UintType, Size: 8}},
+							{Name: "stringVar", Type: Type{T: StringType}},
+							{Name: "boolVar", Type: Type{T: BoolType}},
+							{Name: "intVar", Type: Type{T: IntType, Size: 64}},
+							{Name: "bytesVar", Type: Type{T: BytesType}},
+							{Name: "addrVar", Type: Type{T: AddressType}},
 						},
 					},
 				},
@@ -235,7 +259,9 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
 
 	resJsonABI, err := getJsonAbi(testMethodWithAllTypes)
 	require.NoError(t, err)
-	fmt.Println(string(resJsonABI))
+
+	require.JSONEq(t, expectedJson, string(resJsonABI))
+
 	var abiRes []abi
 	err = json.Unmarshal(resJsonABI, &abiRes)
 	require.NoError(t, err)

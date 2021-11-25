@@ -6,8 +6,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
-//go:generate moq -out scripts_storage_moq_test.go . ScriptStorageState:MockScriptStorageState
-type ScriptStorageState interface {
+//go:generate moq -out scripts_storage_moq_test.go . scriptStorageState:mockScriptStorageState
+type scriptStorageState interface {
 	setScript(scriptType blockchainEntity, key scriptKey, dbItem scriptDBItem, blockID proto.BlockID) error
 	scriptBytesByKey(key []byte, filter bool) (proto.Script, error)
 	newestScriptBytesByKey(key []byte, filter bool) (proto.Script, error)
@@ -30,12 +30,12 @@ type ScriptStorageState interface {
 	newestAccountHasScript(addr proto.WavesAddress, filter bool) (bool, error)
 	accountHasScript(addr proto.WavesAddress, filter bool) (bool, error)
 	newestScriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error)
-	NewestScriptPKByAddr(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error)
+	newestScriptPKByAddr(addr proto.WavesAddress, filter bool) (crypto.PublicKey, error)
 	scriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error)
 	scriptBytesByAddr(addr proto.WavesAddress, filter bool) (proto.Script, error)
 	clear() error
 	prepareHashes() error
 	reset()
-	AccountScriptsHasher() *stateHasher
-	AssetScriptsHasher() *stateHasher
+	getAccountScriptsHasher() *stateHasher
+	getAssetScriptsHasher() *stateHasher
 }

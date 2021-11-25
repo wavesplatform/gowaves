@@ -42,7 +42,7 @@ type IssueWithSig struct {
 	Issue
 }
 
-func (tx *IssueWithSig) Validate() (Transaction, error) {
+func (tx *IssueWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for IssueWithSig", tx.Version)
 	}
@@ -77,7 +77,11 @@ func (tx *IssueWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx IssueWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *IssueWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *IssueWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -273,7 +277,7 @@ func (tx TransferWithSig) GetProofs() *ProofsV1 {
 	return NewProofsFromSignature(tx.Signature)
 }
 
-func (tx *TransferWithSig) Validate() (Transaction, error) {
+func (tx *TransferWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for TransferWithSig", tx.Version)
 	}
@@ -308,7 +312,11 @@ func (tx *TransferWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx TransferWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *TransferWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *TransferWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -319,7 +327,9 @@ func (tx TransferWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *TransferWithSig) Clone() *TransferWithSig {
 	out := &TransferWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -563,7 +573,7 @@ type ReissueWithSig struct {
 	Reissue
 }
 
-func (tx *ReissueWithSig) Validate() (Transaction, error) {
+func (tx *ReissueWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for ReissueWithSig", tx.Version)
 	}
@@ -598,7 +608,11 @@ func (tx *ReissueWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx ReissueWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *ReissueWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *ReissueWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -609,7 +623,9 @@ func (tx ReissueWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *ReissueWithSig) Clone() *ReissueWithSig {
 	out := &ReissueWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -794,7 +810,7 @@ type BurnWithSig struct {
 	Burn
 }
 
-func (tx *BurnWithSig) Validate() (Transaction, error) {
+func (tx *BurnWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for BurnWithSig", tx.Version)
 	}
@@ -829,7 +845,11 @@ func (tx *BurnWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx BurnWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *BurnWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *BurnWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -840,7 +860,9 @@ func (tx BurnWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *BurnWithSig) Clone() *BurnWithSig {
 	out := &BurnWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1045,7 +1067,11 @@ func (tx *ExchangeWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx ExchangeWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *ExchangeWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *ExchangeWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1056,7 +1082,9 @@ func (tx ExchangeWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *ExchangeWithSig) Clone() *ExchangeWithSig {
 	out := &ExchangeWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1123,7 +1151,7 @@ func NewUnsignedExchangeWithSig(buy, sell *OrderV1, price, amount, buyMatcherFee
 	}
 }
 
-func (tx *ExchangeWithSig) Validate() (Transaction, error) {
+func (tx *ExchangeWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for ExchangeWithSig", tx.Version)
 	}
@@ -1480,7 +1508,7 @@ type LeaseWithSig struct {
 	Lease
 }
 
-func (tx *LeaseWithSig) Validate() (Transaction, error) {
+func (tx *LeaseWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for LeaseWithSig", tx.Version)
 	}
@@ -1515,7 +1543,11 @@ func (tx *LeaseWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx LeaseWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *LeaseWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *LeaseWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1526,7 +1558,9 @@ func (tx LeaseWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *LeaseWithSig) Clone() *LeaseWithSig {
 	out := &LeaseWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1709,7 +1743,7 @@ type LeaseCancelWithSig struct {
 	LeaseCancel
 }
 
-func (tx *LeaseCancelWithSig) Validate() (Transaction, error) {
+func (tx *LeaseCancelWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for LeaseCancelWithSig", tx.Version)
 	}
@@ -1744,7 +1778,11 @@ func (tx *LeaseCancelWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx LeaseCancelWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *LeaseCancelWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *LeaseCancelWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1755,7 +1793,9 @@ func (tx LeaseCancelWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *LeaseCancelWithSig) Clone() *LeaseCancelWithSig {
 	out := &LeaseCancelWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -1930,7 +1970,7 @@ type CreateAliasWithSig struct {
 	CreateAlias
 }
 
-func (tx *CreateAliasWithSig) Validate() (Transaction, error) {
+func (tx *CreateAliasWithSig) Validate(_ Scheme) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for CreateAliasWithSig", tx.Version)
 	}
@@ -1974,7 +2014,11 @@ func (tx *CreateAliasWithSig) GenerateID(scheme Scheme) error {
 	return nil
 }
 
-func (tx CreateAliasWithSig) GetID(scheme Scheme) ([]byte, error) {
+func (tx *CreateAliasWithSig) MerkleBytes(scheme Scheme) ([]byte, error) {
+	return tx.MarshalSignedToProtobuf(scheme)
+}
+
+func (tx *CreateAliasWithSig) GetID(scheme Scheme) ([]byte, error) {
 	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
@@ -1985,7 +2029,9 @@ func (tx CreateAliasWithSig) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx *CreateAliasWithSig) Clone() *CreateAliasWithSig {
 	out := &CreateAliasWithSig{}
-	_ = copier.Copy(out, tx)
+	if err := copier.Copy(out, tx); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
