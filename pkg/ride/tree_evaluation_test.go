@@ -7745,7 +7745,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 	assert.Equal(t, expectedResult, sr)
 }
 
-func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
+func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
 	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
