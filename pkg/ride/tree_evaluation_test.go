@@ -7822,7 +7822,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 			return rideAddress(testDAppAddress)
 		},
 		rideV6ActivatedFunc: func() bool {
-			return false
+			return true
 		},
 		transactionFunc: func() rideObject {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)

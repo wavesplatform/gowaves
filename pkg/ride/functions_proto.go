@@ -161,6 +161,14 @@ func reentrantInvoke(env Environment, args ...rideType) (rideType, error) {
 			return nil, err
 		}
 
+		if !env.rideV6Activated() {
+			err = ws.validateBalances()
+			if err != nil {
+				return nil, err
+			}
+
+		}
+
 		env.setNewDAppAddress(proto.WavesAddress(callerAddress))
 		env.setInvocation(oldInvocationParam)
 
