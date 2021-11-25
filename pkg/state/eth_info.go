@@ -2,7 +2,6 @@ package state
 
 import (
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -23,10 +22,7 @@ func newEthInfo(stor *blockchainEntitiesStorage, settings *settings.BlockchainSe
 	return &ethInfo{stor: stor, settings: settings}
 }
 
-func GuessEthereumTransactionKind(
-	data []byte,
-	to *proto.EthereumAddress,
-	newestAssetInfo func(id proto.AssetID, filter bool) (*assetInfo, error)) (int64, error) {
+func GuessEthereumTransactionKind(data []byte) (int64, error) {
 	if data == nil {
 		return EthereumTransferWavesKind, nil
 	}
@@ -40,13 +36,6 @@ func GuessEthereumTransactionKind(
 		return 0, errors.Wrap(err, "failed to guess ethereum transaction kind")
 	}
 
-	assetID := (*proto.AssetID)(to)
-
-	_, err = newestAssetInfo(*assetID, true)
-	if err != nil && !errors.Is(err, errs.UnknownAsset{}) {
-		return 0, errors.Wrapf(err, "failed to get asset info by ethereum recipient address %s", to.String())
-	}
-
 	if ethabi.IsERC20TransferSelector(selector) && err == nil {
 		return EthereumTransferAssetsKind, nil
 	}
@@ -55,7 +44,7 @@ func GuessEthereumTransactionKind(
 }
 
 func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, params *appendTxParams) (proto.EthereumTransactionKind, error) {
-	txKind, err := GuessEthereumTransactionKind(ethTx.Data(), ethTx.To(), e.stor.assets.newestAssetInfo)
+	txKind, err := GuessEthereumTransactionKind(ethTx.Data())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to guess ethereum tx kind")
 	}
