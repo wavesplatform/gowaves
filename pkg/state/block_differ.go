@@ -124,6 +124,11 @@ func (d *blockDiffer) createFailedTransactionDiff(tx proto.Transaction, block *p
 		if err != nil {
 			return txBalanceChanges{}, err
 		}
+	case proto.EthereumMetamaskTransaction:
+		txChanges, err = d.handler.td.createFeeDiffEthereumInvokeScriptWithProofs(tx, differInfo)
+		if err != nil {
+			return txBalanceChanges{}, err
+		}
 	default:
 		return txBalanceChanges{}, errors.New("only Exchange and Invoke transactions may fail")
 	}

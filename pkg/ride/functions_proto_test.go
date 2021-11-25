@@ -27,7 +27,7 @@ var (
 )
 
 func TestAddressFromString(t *testing.T) {
-	te := &MockRideEnvironment{schemeFunc: func() byte {
+	te := &mockRideEnvironment{schemeFunc: func() byte {
 		return 'W'
 	}}
 	ma, err := proto.NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
@@ -56,7 +56,7 @@ func TestAddressFromString(t *testing.T) {
 }
 
 func TestAddressValueFromString(t *testing.T) {
-	te := &MockRideEnvironment{schemeFunc: func() byte {
+	te := &mockRideEnvironment{schemeFunc: func() byte {
 		return 'W'
 	}}
 	ma, err := proto.NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
@@ -93,7 +93,7 @@ func TestTransactionHeightByID(t *testing.T) {
 }
 
 func TestAssetBalanceV3(t *testing.T) {
-	te := &MockRideEnvironment{
+	te := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
@@ -130,7 +130,7 @@ func TestAssetBalanceV3(t *testing.T) {
 }
 
 func TestAssetBalanceV4(t *testing.T) {
-	te := &MockRideEnvironment{
+	te := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
@@ -174,7 +174,7 @@ func TestIntFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
@@ -224,7 +224,7 @@ func TestBytesFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
@@ -274,7 +274,7 @@ func TestStringFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
@@ -324,7 +324,7 @@ func TestBooleanFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
@@ -367,7 +367,7 @@ func TestBooleanFromState(t *testing.T) {
 
 func TestIntFromSelfState(t *testing.T) {
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
@@ -405,7 +405,7 @@ func TestIntFromSelfState(t *testing.T) {
 
 func TestBytesFromSelfState(t *testing.T) {
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
@@ -443,7 +443,7 @@ func TestBytesFromSelfState(t *testing.T) {
 
 func TestStringFromSelfState(t *testing.T) {
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
@@ -481,7 +481,7 @@ func TestStringFromSelfState(t *testing.T) {
 
 func TestBooleanFromSelfState(t *testing.T) {
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
@@ -550,7 +550,7 @@ func TestSigVerify(t *testing.T) {
 		{[]rideType{rideInt(12345)}, v2check, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, v2check, true, nil},
 	} {
-		te := &MockRideEnvironment{
+		te := &mockRideEnvironment{
 			checkMessageLengthFunc: test.check,
 			libVersionFunc: func() int {
 				return 3
@@ -591,7 +591,7 @@ func TestKeccak256(t *testing.T) {
 		{[]rideType{rideInt(12345)}, v2check, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, v2check, true, nil},
 	} {
-		r, err := keccak256(&MockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
+		r, err := keccak256(&mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -626,7 +626,7 @@ func TestBlake2b256(t *testing.T) {
 		{[]rideType{rideInt(12345)}, v2check, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, v2check, true, nil},
 	} {
-		r, err := blake2b256(&MockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
+		r, err := blake2b256(&mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -661,7 +661,7 @@ func TestSha256(t *testing.T) {
 		{[]rideType{rideInt(12345)}, v2check, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, v2check, true, nil},
 	} {
-		r, err := sha256(&MockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
+		r, err := sha256(&mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -806,7 +806,7 @@ func TestIntValueFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
@@ -856,7 +856,7 @@ func TestBytesValueFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
@@ -906,7 +906,7 @@ func TestStringValueFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
@@ -956,7 +956,7 @@ func TestBooleanValueFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
@@ -998,7 +998,7 @@ func TestBooleanValueFromState(t *testing.T) {
 }
 func TestIntValueFromSelfState(t *testing.T) {
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
@@ -1036,7 +1036,7 @@ func TestIntValueFromSelfState(t *testing.T) {
 
 func TestBytesValueFromSelfState(t *testing.T) {
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
@@ -1074,7 +1074,7 @@ func TestBytesValueFromSelfState(t *testing.T) {
 
 func TestStringValueFromSelfState(t *testing.T) {
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
@@ -1112,7 +1112,7 @@ func TestStringValueFromSelfState(t *testing.T) {
 
 func TestBooleanValueFromSelfState(t *testing.T) {
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
 				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
@@ -1150,7 +1150,7 @@ func TestBooleanValueFromSelfState(t *testing.T) {
 
 func TestTransferFromProtobuf(t *testing.T) {
 	var scheme byte = 'T'
-	te := &MockRideEnvironment{schemeFunc: func() byte {
+	te := &mockRideEnvironment{schemeFunc: func() byte {
 		return 'T'
 	}}
 	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")

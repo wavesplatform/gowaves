@@ -130,7 +130,7 @@ func defaultBlockInfo() *proto.BlockInfo {
 }
 
 func defaultDifferInfo() *differInfo {
-	return &differInfo{false, defaultBlockInfo()}
+	return &differInfo{initialisation: false, blockInfo: defaultBlockInfo()}
 }
 
 func defaultAppendTxParams() *appendTxParams {

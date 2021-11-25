@@ -64,7 +64,7 @@ type uncertainSponsoredAsset struct {
 
 type sponsoredAssets struct {
 	rw       *blockReadWriter
-	features *features
+	features featuresState
 	hs       *historyStorage
 	settings *settings.BlockchainSettings
 

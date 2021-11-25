@@ -10,11 +10,13 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"go.uber.org/atomic"
 )
 
 // EthereumGasPrice is a constant GasPrice which equals 10GWei according to the specification
 const EthereumGasPrice = 10 * ethereumGWei
+const DiffEthWaves = waveletToWeiMultiplier // in ethereum numbers are represented in 10^18. In waves it's 10^8
 
 // EthereumTxType is an ethereum transaction type.
 type EthereumTxType byte
@@ -23,6 +25,12 @@ const (
 	EthereumLegacyTxType EthereumTxType = iota
 	EthereumAccessListTxType
 	EthereumDynamicFeeTxType
+)
+
+const (
+	EthereumTransferMinFee      uint64 = 100_000
+	EthereumScriptedAssetMinFee uint64 = 400_000
+	EthereumInvokeMinFee        uint64 = 500_000
 )
 
 func (e EthereumTxType) String() string {
@@ -81,11 +89,78 @@ type EthereumTxData interface {
 	fastRLPSignerHasher
 }
 
+type EthereumTransactionKind interface {
+	String() string
+	DecodedData() *ethabi.DecodedCallData
+}
+
+type EthereumTransferWavesTxKind struct {
+}
+
+func NewEthereumTransferWavesTxKind() *EthereumTransferWavesTxKind {
+	return &EthereumTransferWavesTxKind{}
+}
+
+func (tx *EthereumTransferWavesTxKind) DecodedData() *ethabi.DecodedCallData {
+	return nil
+}
+
+func (tx *EthereumTransferWavesTxKind) String() string {
+	return "EthereumTransferWavesTxKind"
+}
+
+type EthereumTransferAssetsErc20TxKind struct {
+	decodedData ethabi.DecodedCallData
+	Arguments   ethabi.ERC20TransferArguments
+	Asset       OptionalAsset
+}
+
+func NewEthereumTransferAssetsErc20TxKind(decodedData ethabi.DecodedCallData, asset OptionalAsset, arguments ethabi.ERC20TransferArguments) *EthereumTransferAssetsErc20TxKind {
+	return &EthereumTransferAssetsErc20TxKind{Asset: asset, decodedData: decodedData, Arguments: arguments}
+}
+
+func (tx *EthereumTransferAssetsErc20TxKind) DecodedData() *ethabi.DecodedCallData {
+	return &tx.decodedData
+}
+
+func (tx *EthereumTransferAssetsErc20TxKind) String() string {
+	return "EthereumTransferAssetsErc20TxKind"
+}
+
+type EthereumInvokeScriptTxKind struct {
+	decodedData ethabi.DecodedCallData
+}
+
+func NewEthereumInvokeScriptTxKind(decodedData ethabi.DecodedCallData) *EthereumInvokeScriptTxKind {
+	return &EthereumInvokeScriptTxKind{decodedData: decodedData}
+}
+
+func (tx *EthereumInvokeScriptTxKind) DecodedData() *ethabi.DecodedCallData {
+	return &tx.decodedData
+}
+
+func (tx *EthereumInvokeScriptTxKind) String() string {
+	return "EthereumInvokeScriptTxKind"
+}
+
 type EthereumTransaction struct {
 	inner           EthereumTxData
 	innerBinarySize int
-	id              *crypto.Digest
 	senderPK        atomic.Value // *EthereumPublicKey
+	TxKind          EthereumTransactionKind
+	ID              *crypto.Digest
+}
+
+// NewEthereumTransaction is a utility function which should be used ONLY in tests
+func NewEthereumTransaction(inner EthereumTxData, txKind EthereumTransactionKind, id *crypto.Digest, senderPK *EthereumPublicKey, innerBinarySize int) EthereumTransaction {
+	tx := EthereumTransaction{
+		inner:           inner,
+		innerBinarySize: innerBinarySize,
+		TxKind:          txKind,
+		ID:              id,
+	}
+	tx.threadSafeSetSenderPK(senderPK)
+	return tx
 }
 
 func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
@@ -101,12 +176,12 @@ func (tx *EthereumTransaction) GetVersion() byte {
 }
 
 func (tx *EthereumTransaction) GetID(scheme Scheme) ([]byte, error) {
-	if tx.id == nil {
+	if tx.ID == nil {
 		if err := tx.GenerateID(scheme); err != nil {
 			return nil, err
 		}
 	}
-	return tx.id.Bytes(), nil
+	return tx.ID.Bytes(), nil
 }
 
 func (tx *EthereumTransaction) GetSender(_ Scheme) (Address, error) {
@@ -207,15 +282,16 @@ func (tx *EthereumTransaction) Validate(scheme Scheme) (Transaction, error) {
 }
 
 func (tx *EthereumTransaction) GenerateID(_ Scheme) error {
-	if tx.id != nil {
+	if tx.ID != nil {
 		return nil
 	}
 	body, err := tx.EncodeCanonical()
 	if err != nil {
 		return err
 	}
+
 	id := Keccak256EthereumHash(body)
-	tx.id = (*crypto.Digest)(&id)
+	tx.ID = (*crypto.Digest)(&id)
 	return nil
 }
 
@@ -331,6 +407,19 @@ func (tx *EthereumTransaction) Nonce() uint64 { return tx.inner.nonce() }
 // For contract-creation transactions, To returns nil.
 func (tx *EthereumTransaction) To() *EthereumAddress { return tx.inner.to().copy() }
 
+func (tx *EthereumTransaction) WavesAddressTo(scheme byte) (*WavesAddress, error) {
+	toEthAdr := tx.inner.to()
+	if toEthAdr == nil { // contract-creation transactions, To returns nil
+		return nil, errors.New("recipient address is nil, but it has been called")
+	}
+
+	to, err := toEthAdr.ToWavesAddress(scheme)
+	if err != nil {
+		return nil, err
+	}
+	return &to, nil
+}
+
 // From returns the sender address of the transaction.
 // Returns error if transaction doesn't pass validation.
 func (tx *EthereumTransaction) From() (EthereumAddress, error) {
@@ -349,6 +438,18 @@ func (tx *EthereumTransaction) FromPK() (*EthereumPublicKey, error) {
 		return nil, err
 	}
 	return senderPK.copy(), nil
+}
+
+func (tx *EthereumTransaction) WavesAddressFrom(scheme byte) (WavesAddress, error) {
+	ethSender, err := tx.From()
+	if err != nil {
+		return WavesAddress{}, err
+	}
+	sender, err := ethSender.ToWavesAddress(scheme)
+	if err != nil {
+		return WavesAddress{}, err
+	}
+	return sender, nil
 }
 
 // RawSignatureValues returns the V, R, S signature values of the transaction.

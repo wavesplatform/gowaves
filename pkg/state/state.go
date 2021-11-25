@@ -49,12 +49,12 @@ type blockchainEntitiesStorage struct {
 	scores            *scores
 	blocksInfo        *blocksInfo
 	balances          *balances
-	features          *features
+	features          featuresState
 	monetaryPolicy    *monetaryPolicy
 	ordersVolumes     *ordersVolumes
 	accountsDataStor  *accountsDataStorage
 	sponsoredAssets   *sponsoredAssets
-	scriptsStorage    *scriptsStorage
+	scriptsStorage    scriptStorageState
 	scriptsComplexity *scriptsComplexity
 	invokeResults     *invokeResults
 	stateHashes       *stateHashes
@@ -102,8 +102,8 @@ func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64,
 			WavesBalanceHash:  s.balances.wavesHashAt(blockID),
 			AssetBalanceHash:  s.balances.assetsHashAt(blockID),
 			DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
-			AccountScriptHash: s.scriptsStorage.accountScriptsHasher.stateHashAt(blockID),
-			AssetScriptHash:   s.scriptsStorage.assetScriptsHasher.stateHashAt(blockID),
+			AccountScriptHash: s.scriptsStorage.getAccountScriptsHasher().stateHashAt(blockID),
+			AssetScriptHash:   s.scriptsStorage.getAssetScriptsHasher().stateHashAt(blockID),
 			LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
 			LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
 			SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
@@ -649,11 +649,7 @@ func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error)
 }
 
 func (s *stateManager) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
-	blockID, err := s.rw.newestBlockIDByHeight(height)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
-	header, err := s.rw.readNewestBlockHeader(blockID)
+	header, err := s.rw.readNewestBlockHeaderByHeight(height)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2025,15 +2021,12 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 	return res, nil
 }
 
-func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
-	return s.AssetInfoByID(assetID, true)
-}
-
-// AssetInfoByID returns stable (stored in DB) information about an asset by given ID.
+// AssetInfo returns stable (stored in DB) information about an asset by given ID.
 // If there is no asset for the given ID error of type `errs.UnknownAsset` is returned.
 // Errors of types `state.RetrievalError` returned in case of broken DB.
-func (s *stateManager) AssetInfoByID(assetID proto.AssetID, filter bool) (*proto.AssetInfo, error) {
-	info, err := s.stor.assets.assetInfo(assetID, filter)
+func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error) {
+	// TODO: Pass actual filter value after support in RIDE environment
+	info, err := s.stor.assets.assetInfo(assetID, true)
 	if err != nil {
 		if errors.Is(err, errs.UnknownAsset{}) {
 			return nil, err
@@ -2072,6 +2065,7 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
+	// TODO: Pass actual filter value after support in RIDE environment
 	info, err := s.stor.assets.assetInfo(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)

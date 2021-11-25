@@ -8,7 +8,7 @@ type callable struct {
 }
 
 type RideScript interface {
-	Run(env Environment) (Result, error)
+	Run(env environment) (Result, error)
 	code() []byte
 }
 
@@ -19,7 +19,7 @@ type SimpleScript struct {
 	Constants  []rideType
 }
 
-func (s *SimpleScript) Run(env Environment) (Result, error) {
+func (s *SimpleScript) Run(env environment) (Result, error) {
 	fs, err := selectFunctions(s.LibVersion)
 	if err != nil {
 		return nil, errors.Wrap(err, "simple script execution failed")
@@ -61,7 +61,7 @@ type DAppScript struct {
 	EntryPoints map[string]callable
 }
 
-func (s *DAppScript) Run(env Environment) (Result, error) {
+func (s *DAppScript) Run(env environment) (Result, error) {
 	if _, ok := s.EntryPoints[""]; !ok {
 		return nil, errors.Errorf("no verifier")
 	}
