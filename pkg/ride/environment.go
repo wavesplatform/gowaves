@@ -802,12 +802,11 @@ func (ws *WrappedState) validateAllActions(env Environment, actions []proto.Scri
 			}
 
 		case *proto.IssueScriptAction:
-			if !env.rideV6Activated() {
-				err := ws.validateIssueAction(res)
-				if err != nil {
-					return errors.Wrapf(err, "failed to pass validation of issue action")
-				}
+			err := ws.validateIssueAction(res)
+			if err != nil {
+				return errors.Wrapf(err, "failed to pass validation of issue action")
 			}
+
 		case *proto.ReissueScriptAction:
 			senderPK, err := ws.diff.state.NewestScriptPKByAddr(ws.callee())
 			if err != nil {
@@ -841,11 +840,9 @@ func (ws *WrappedState) validateAllActions(env Environment, actions []proto.Scri
 
 			res.Sender = &pk
 
-			if !env.rideV6Activated() {
-				err = ws.validateLeaseAction(res, restrictions)
-				if err != nil {
-					return errors.Wrapf(err, "failed to pass validation of lease action")
-				}
+			err = ws.validateLeaseAction(res, restrictions)
+			if err != nil {
+				return errors.Wrapf(err, "failed to pass validation of lease action")
 			}
 
 		case *proto.LeaseCancelScriptAction:
@@ -887,7 +884,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 		switch res := action.(type) {
 
 		case *proto.DataEntryScriptAction:
-			if !env.rideV6Activated() {
+			if env.rideV6Activated() {
 				err := ws.validateDataEntryAction(res, restrictions)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to pass validation of data entry action")
@@ -954,7 +951,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 			res.Sender = &senderPK
 
-			if !env.rideV6Activated() {
+			if env.rideV6Activated() {
 				err = ws.validateTransferAction(res, restrictions, senderAddress, env)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to pass validation of transfer action")
@@ -987,7 +984,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 			res.Sender = &senderPK
 
-			if !env.rideV6Activated() {
+			if env.rideV6Activated() {
 				err = ws.validateSponsorshipAction(res)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to pass validation of issue action")
@@ -1001,7 +998,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			ws.diff.sponsorships[res.AssetID] = sponsorship
 
 		case *proto.IssueScriptAction:
-			if !env.rideV6Activated() {
+			if env.rideV6Activated() {
 				err := ws.validateIssueAction(res)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to pass validation of issue action")
@@ -1044,7 +1041,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 			res.Sender = &senderPK
 
-			if !env.rideV6Activated() {
+			if env.rideV6Activated() {
 				err = ws.validateReissueAction(res, env)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to pass validation of reissue action")
@@ -1092,7 +1089,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 			res.Sender = &senderPK
 
-			if !env.rideV6Activated() {
+			if env.rideV6Activated() {
 				err = ws.validateBurnAction(res, env)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to pass validation of burn action")
@@ -1143,7 +1140,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 
 			res.Sender = &pk
 
-			if !env.rideV6Activated() {
+			if env.rideV6Activated() {
 				err = ws.validateLeaseAction(res, restrictions)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to pass validation of lease action")
@@ -1181,7 +1178,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 			res.Sender = &pk
-			if !env.rideV6Activated() {
+			if env.rideV6Activated() {
 				err = ws.validateLeaseCancelAction()
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to pass validation of lease cancel action")
@@ -1220,7 +1217,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 		}
 	}
 
-	if env.rideV6Activated() {
+	if !env.rideV6Activated() {
 		err = ws.validateAllActions(env, actions, restrictions)
 		if err != nil {
 			return nil, err
