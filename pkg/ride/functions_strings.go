@@ -95,7 +95,7 @@ func twoStringsArgs(args []rideType) (string, string, error) {
 	return string(s1), string(s2), nil
 }
 
-func concatStrings(_ Environment, args ...rideType) (rideType, error) {
+func concatStrings(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "concatStrings")
@@ -112,7 +112,7 @@ func concatStrings(_ Environment, args ...rideType) (rideType, error) {
 	return rideString(out), nil
 }
 
-func takeString(env Environment, args ...rideType) (rideType, error) {
+func takeString(env environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeString")
@@ -120,7 +120,7 @@ func takeString(env Environment, args ...rideType) (rideType, error) {
 	return env.takeString(s, n), nil
 }
 
-func dropString(_ Environment, args ...rideType) (rideType, error) {
+func dropString(_ environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropString")
@@ -128,7 +128,7 @@ func dropString(_ Environment, args ...rideType) (rideType, error) {
 	return dropRideString(s, n), nil
 }
 
-func sizeString(_ Environment, args ...rideType) (rideType, error) {
+func sizeString(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sizeString")
@@ -136,7 +136,7 @@ func sizeString(_ Environment, args ...rideType) (rideType, error) {
 	return rideInt(utf8.RuneCountInString(string(s))), nil
 }
 
-func indexOfSubstring(_ Environment, args ...rideType) (rideType, error) {
+func indexOfSubstring(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "indexOfSubstring")
@@ -148,7 +148,7 @@ func indexOfSubstring(_ Environment, args ...rideType) (rideType, error) {
 	return rideInt(i), nil
 }
 
-func indexOfSubstringWithOffset(_ Environment, args ...rideType) (rideType, error) {
+func indexOfSubstringWithOffset(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, n, err := twoStringsAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "lastIndexOfSubstringWithOffset")
@@ -163,7 +163,7 @@ func indexOfSubstringWithOffset(_ Environment, args ...rideType) (rideType, erro
 	return rideInt(i + n), nil
 }
 
-func stringToBytes(_ Environment, args ...rideType) (rideType, error) {
+func stringToBytes(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "stringToBytes")
@@ -171,7 +171,7 @@ func stringToBytes(_ Environment, args ...rideType) (rideType, error) {
 	return rideBytes(s), nil
 }
 
-func dropRightString(_ Environment, args ...rideType) (rideType, error) {
+func dropRightString(_ environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropRightString")
@@ -179,7 +179,7 @@ func dropRightString(_ Environment, args ...rideType) (rideType, error) {
 	return takeRideString(s, utf8.RuneCountInString(s)-n), nil
 }
 
-func takeRightString(_ Environment, args ...rideType) (rideType, error) {
+func takeRightString(_ environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeRightString")
@@ -187,7 +187,7 @@ func takeRightString(_ Environment, args ...rideType) (rideType, error) {
 	return dropRideString(s, utf8.RuneCountInString(s)-n), nil
 }
 
-func splitString(_ Environment, args ...rideType) (rideType, error) {
+func splitString(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "splitString")
@@ -199,7 +199,7 @@ func splitString(_ Environment, args ...rideType) (rideType, error) {
 	return r, nil
 }
 
-func parseInt(_ Environment, args ...rideType) (rideType, error) {
+func parseInt(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "parseInt")
@@ -211,7 +211,7 @@ func parseInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideInt(i), nil
 }
 
-func parseIntValue(env Environment, args ...rideType) (rideType, error) {
+func parseIntValue(env environment, args ...rideType) (rideType, error) {
 	maybeInt, err := parseInt(env, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "parseIntValue")
@@ -219,7 +219,7 @@ func parseIntValue(env Environment, args ...rideType) (rideType, error) {
 	return extractValue(maybeInt)
 }
 
-func lastIndexOfSubstring(_ Environment, args ...rideType) (rideType, error) {
+func lastIndexOfSubstring(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "lastIndexOfSubstring")
@@ -231,7 +231,7 @@ func lastIndexOfSubstring(_ Environment, args ...rideType) (rideType, error) {
 	return rideInt(i), nil
 }
 
-func lastIndexOfSubstringWithOffset(_ Environment, args ...rideType) (rideType, error) {
+func lastIndexOfSubstringWithOffset(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, n, err := twoStringsAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "lastIndexOfSubstringWithOffset")
@@ -249,7 +249,7 @@ func lastIndexOfSubstringWithOffset(_ Environment, args ...rideType) (rideType, 
 	return rideInt(i), nil
 }
 
-func makeString(_ Environment, args ...rideType) (rideType, error) {
+func makeString(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}
@@ -285,7 +285,7 @@ func makeString(_ Environment, args ...rideType) (rideType, error) {
 	return rideString(strings.Join(parts, sep)), nil
 }
 
-func contains(_ Environment, args ...rideType) (rideType, error) {
+func contains(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "contains")

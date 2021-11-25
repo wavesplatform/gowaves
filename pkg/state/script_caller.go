@@ -205,22 +205,74 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	return a.callAssetScriptCommon(env, assetID, params)
 }
 
-func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, scriptAddress proto.WavesAddress) (bool, []proto.ScriptAction, error) {
+func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress, txID crypto.Digest) (bool, []proto.ScriptAction, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "failed to create RIDE environment")
 	}
 	env.SetThisFromAddress(scriptAddress)
 	env.SetLastBlock(info.blockInfo)
-	env.SetTimestamp(tx.Timestamp)
+	env.SetTimestamp(tx.GetTimestamp())
 	err = env.SetTransaction(tx)
 	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
 	}
-	err = env.SetInvoke(tx, tree.LibVersion)
-	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+
+	var functionName string
+	var functionArguments proto.Arguments
+	var isFunctionNameDefault bool
+	var payments proto.ScriptPayments
+	var sender proto.WavesAddress
+	switch transaction := tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+		err = env.SetInvoke(transaction, tree.LibVersion)
+		if err != nil {
+			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
+		}
+		payments = transaction.Payments
+		sender, err = proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, transaction.SenderPK)
+		if err != nil {
+			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
+		}
+		functionName = transaction.FunctionCall.Name
+		functionArguments = transaction.FunctionCall.Arguments
+		isFunctionNameDefault = transaction.FunctionCall.Default
+
+	case *proto.EthereumTransaction:
+		abiPayments := transaction.TxKind.DecodedData().Payments
+		scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))
+		for _, p := range abiPayments {
+			var optAsset proto.OptionalAsset
+			if p.PresentAssetID {
+				optAsset = *proto.NewOptionalAssetFromDigest(p.AssetID)
+			} else {
+				optAsset = proto.NewOptionalAssetWaves()
+			}
+			scriptPayment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
+			scriptPayments = append(scriptPayments, scriptPayment)
+		}
+		payments = scriptPayments
+
+		err = env.SetEthereumInvoke(transaction, tree.LibVersion, scriptPayments)
+		if err != nil {
+			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
+		}
+		sender, err = transaction.WavesAddressFrom(a.settings.AddressSchemeCharacter)
+		if err != nil {
+			return false, nil, errors.Errorf("failed to get waves address from ethereum transaction %v", err)
+		}
+		decodedData := transaction.TxKind.DecodedData()
+		functionName = decodedData.Name
+		arguments, err := ride.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
+		if err != nil {
+			return false, nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
+		}
+		functionArguments = arguments
+		isFunctionNameDefault = true
+	default:
+		return false, nil, errors.New("failed to invoke function: unexpected type of transaction ")
 	}
+
 	env.ChooseSizeCheck(tree.LibVersion)
 
 	env.ChooseTakeString(info.rideV5Activated)
@@ -228,15 +280,15 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
 	if tree.LibVersion >= 5 {
-		env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)
+		env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender)
 		if err != nil {
 			return false, nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 		}
 	}
 
-	r, err := ride.CallFunction(env, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
+	r, err := ride.CallFunction(env, tree, functionName, functionArguments)
 	if err != nil {
-		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+		return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
 	}
 	if sr, ok := r.(ride.ScriptResult); ok {
 		return false, nil, errors.Errorf("unexpected ScriptResult: %v", sr)
@@ -248,19 +300,19 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWit
 		// For callable (function) we have to use latest possible estimation
 		ev, err := a.state.EstimatorVersion()
 		if err != nil {
-			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
 		}
 		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAddr(scriptAddress, ev, !info.initialisation)
 		if err != nil {
-			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+			return false, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
 		}
-		fn := tx.FunctionCall.Name
-		if fn == "" && tx.FunctionCall.Default {
+		fn := functionName
+		if fn == "" && isFunctionNameDefault {
 			fn = "default"
 		}
 		c, ok := est.Functions[fn]
 		if !ok {
-			return false, nil, errors.Errorf("no estimation for function '%s' on invocation of transaction '%s'", fn, tx.ID.String())
+			return false, nil, errors.Errorf("no estimation for function '%s' on invocation of transaction '%s'", fn, txID.String())
 		}
 		a.recentTxComplexity += uint64(c)
 	}

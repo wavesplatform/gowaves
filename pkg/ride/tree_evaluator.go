@@ -22,7 +22,7 @@ type esFunction struct {
 }
 
 type evaluationScope struct {
-	env       Environment
+	env       environment
 	constants map[string]esConstant
 	cs        [][]esValue
 	system    map[string]rideFunction
@@ -123,7 +123,7 @@ func (s *evaluationScope) userFunction(id string) (*FunctionDeclarationNode, int
 	return nil, 0, false
 }
 
-func newEvaluationScope(v int, env Environment, enableInvocation bool) (evaluationScope, error) {
+func newEvaluationScope(v int, env environment, enableInvocation bool) (evaluationScope, error) {
 	constants, err := selectConstantNames(v)
 	if err != nil {
 		return evaluationScope{}, err
@@ -230,7 +230,7 @@ type treeEvaluator struct {
 	complexity int
 	f          Node
 	s          evaluationScope
-	env        Environment
+	env        environment
 }
 
 func (e *treeEvaluator) evaluate() (Result, error) {
@@ -476,7 +476,7 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 	}
 }
 
-func treeVerifierEvaluator(env Environment, tree *Tree) (*treeEvaluator, error) {
+func treeVerifierEvaluator(env environment, tree *Tree) (*treeEvaluator, error) {
 	s, err := newEvaluationScope(tree.LibVersion, env, false) // Invocation is disabled for expression calls
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create scope")
@@ -511,7 +511,7 @@ func treeVerifierEvaluator(env Environment, tree *Tree) (*treeEvaluator, error) 
 	}, nil
 }
 
-func treeFunctionEvaluatorForInvokeDAppFromDApp(env Environment, tree *Tree, name string, args []rideType) (*treeEvaluator, error) {
+func treeFunctionEvaluatorForInvokeDAppFromDApp(env environment, tree *Tree, name string, args []rideType) (*treeEvaluator, error) {
 	s, err := newEvaluationScope(tree.LibVersion, env, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create scope")
@@ -545,7 +545,7 @@ func treeFunctionEvaluatorForInvokeDAppFromDApp(env Environment, tree *Tree, nam
 	return nil, errors.Errorf("function '%s' not found", name)
 }
 
-func treeFunctionEvaluator(env Environment, tree *Tree, name string, args proto.Arguments) (*treeEvaluator, error) {
+func treeFunctionEvaluator(env environment, tree *Tree, name string, args proto.Arguments) (*treeEvaluator, error) {
 	s, err := newEvaluationScope(tree.LibVersion, env, true)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create scope")

@@ -22,7 +22,7 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
 		return testTransferWithProofs(), nil
 	}}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		transactionFunc: testTransferObject,
 		stateFunc: func() types.SmartState {
 			return state
@@ -34,7 +34,7 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 	for _, test := range []struct {
 		comment string
 		source  string
-		env     Environment
+		env     environment
 		res     bool
 	}{
 		{`V1: true`, "AQa3b8tH", nil, true},
@@ -100,7 +100,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 	exchange := newExchangeTransaction()
 	data := newDataTransaction()
 	require.NoError(t, err)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		checkMessageLengthFunc: v3check,
 		heightFunc: func() rideInt {
 			return 5
@@ -169,7 +169,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			return false
 		},
 	}
-	envWithDataTX := &MockRideEnvironment{
+	envWithDataTX := &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			obj, err := dataWithProofsToObject('W', data)
 			if err != nil {
@@ -182,7 +182,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			return 3
 		},
 	}
-	envWithExchangeTX := &MockRideEnvironment{
+	envWithExchangeTX := &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			obj, err := exchangeWithProofsToObject('W', exchange)
 			if err != nil {
@@ -199,7 +199,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		name   string
 		text   string
 		script string
-		env    Environment
+		env    environment
 		result bool
 		error  bool
 	}{
@@ -362,7 +362,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 }
 
 func TestComplexity(t *testing.T) {
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		transactionFunc: testTransferObject,
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
@@ -481,7 +481,7 @@ func TestDataFunctions(t *testing.T) {
 	require.NoError(t, data.Sign(proto.MainNetScheme, secret))
 	txObj, err := transactionToObject('W', data)
 	require.NoError(t, err)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			return txObj
 		},
@@ -520,14 +520,14 @@ func TestDataFunctions(t *testing.T) {
 	}
 }
 
-func testInvokeEnv(verifier bool) (Environment, *proto.InvokeScriptWithProofs) {
+func testInvokeEnv(verifier bool) (environment, *proto.InvokeScriptWithProofs) {
 	tx := byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
 	txo, err := transactionToObject(proto.MainNetScheme, tx)
 	if err != nil {
 		panic(err)
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		invocationFunc: func() rideObject {
 			if !verifier {
 				obj, err := invocationToObject(3, proto.MainNetScheme, tx)
@@ -866,7 +866,7 @@ func TestScriptResult(t *testing.T) {
 	)
 }
 
-func initWrappedState(state types.SmartState, env *MockRideEnvironment) *WrappedState {
+func initWrappedState(state types.SmartState, env *mockRideEnvironment) *WrappedState {
 	return &WrappedState{diff: newDiffState(state), cle: env.this().(rideAddress), scheme: env.scheme()}
 }
 
@@ -1050,7 +1050,7 @@ func WrappedStateFunc() types.SmartState {
 	return &wrappedSt
 }
 
-var envDappFromDapp = &MockRideEnvironment{
+var envDappFromDapp = &mockRideEnvironment{
 	setInvocationFunc: func(invocation rideObject) {
 		inv = invocation
 	},
@@ -3996,7 +3996,7 @@ func TestHashScriptFunc(t *testing.T) {
 			},
 		}
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -4126,7 +4126,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 			},
 		}
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -4220,7 +4220,7 @@ func TestMatchOverwrite(t *testing.T) {
 	tv, err := transactionToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -4281,7 +4281,7 @@ func TestFailSript1(t *testing.T) {
 	tv, err := transactionToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -4385,7 +4385,7 @@ func TestFailSript2(t *testing.T) {
 	tv, err := transactionToObject(proto.MainNetScheme, tx)
 	require.NoError(t, err)
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -4478,7 +4478,7 @@ func TestWhaleDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 368430
 		},
@@ -4612,7 +4612,7 @@ func TestExchangeDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -4774,7 +4774,7 @@ func TestBankDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 0
 		},
@@ -4901,7 +4901,7 @@ func TestLigaDApp1(t *testing.T) {
 		GeneratorPublicKey:  sender1,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -5059,7 +5059,7 @@ func TestLigaDApp1(t *testing.T) {
 		GeneratorPublicKey:  sender1,
 	}
 
-	env = &MockRideEnvironment{
+	env = &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -5243,7 +5243,7 @@ func TestTestingDApp(t *testing.T) {
 		Generator:           gen,
 		GeneratorPublicKey:  sender,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -5370,7 +5370,7 @@ func TestDropElementDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -5490,7 +5490,7 @@ func TestMathDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
 		},
@@ -5611,7 +5611,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 844761
 		},
@@ -5740,7 +5740,7 @@ func Test8Ball(t *testing.T) {
 		Generator:           gen,
 		GeneratorPublicKey:  sender,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 844761
 		},
@@ -5867,7 +5867,7 @@ func TestIntegerEntry(t *testing.T) {
 		Generator:           gen,
 		GeneratorPublicKey:  sender,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 844761
 		},
@@ -5927,7 +5927,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 		Scripted:        false,
 		Sponsored:       false,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -5990,7 +5990,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 }
 
 func TestJSONParsing(t *testing.T) {
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		takeStringFunc: v5takeString,
 	}
 
@@ -6018,7 +6018,7 @@ func TestDAppWithFullIssue(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	id := bytes.Repeat([]byte{0}, 32)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		txIDFunc: func() rideType {
 			return rideBytes(id)
 		},
@@ -6044,7 +6044,7 @@ func TestDAppWithSimpleIssue(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	id := bytes.Repeat([]byte{0}, 32)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		txIDFunc: func() rideType {
 			return rideBytes(id)
 		},
@@ -6106,7 +6106,7 @@ func TestBadType(t *testing.T) {
 		Generator:           gen,
 		GeneratorPublicKey:  sender,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 617907
 		},
@@ -6257,7 +6257,7 @@ func TestNoDeclaration(t *testing.T) {
 		"poolTokenCirculation":  19875987,
 		"lastSettlementPriceId": 68978,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 2342971
 		},
@@ -6430,7 +6430,7 @@ func TestZeroReissue(t *testing.T) {
 	binaryEntries := map[string][]byte{
 		"share_token_id": mustBytesFromBase64("Q3Uk9ZN5g5+xynU7VGPXUg1eVga04VYXnnZ0q+M1dxQ="),
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 451323
 		},
@@ -6666,7 +6666,7 @@ func TestStageNet2(t *testing.T) {
 		GeneratorPublicKey:  genPK,
 	}
 	dp := newJsonDataProvider(`[{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"aa","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"dappAddress","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"total_amount","intValue":"600900000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"masterAddress","stringValue":"3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"assetId_2020-10-3","stringValue":"Eo7N1sjexrfu6mx5LrG3suovSaXaBNnmYfvqJsMzSYE8"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"assetId_2020-10-5","stringValue":"J2j4PRKXuUKUZCP345EXAHYF2gRg15JsYQYtFT4GNPda"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_total_amount_2020-10-3","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_total_amount_2020-10-5","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","stringValue":"2020-11-23"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","stringValue":"2020-11-11"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","stringValue":"2020-09-30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_limit","stringValue":"2020-10-3"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_limit","stringValue":"2020-10-5"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_limit","stringValue":"2020-10-3"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_limit","stringValue":"2020-10-5"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_amount","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_amount","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_assetId","stringValue":"GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_assetId","stringValue":"9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_assetId","stringValue":"3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_assetId","stringValue":"fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_assetId","stringValue":"Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_assetId","stringValue":"AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_assetId","stringValue":"DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_assetId","stringValue":"5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_assetId","stringValue":"6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_assetId","stringValue":"BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_unitPrice","intValue":"300"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_unitPrice","intValue":"300"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_description","stringValue":"みんな電力公式"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"dappAddress","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"masterAddress","stringValue":"3MSvD3m1R8Z3v8SAztrt1afp28vRdsMwxAu"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"asset_total_amount","intValue":"100000"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT","stringValue":"{\"name\":\"ママママママママっまm\",\"description\":\"retail user\"}"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MktJgV2eTmcCqtyQaeqiiHkQ1eY3EH5Tdb","stringValue":"{\"name\":\"ママママママママっまm\",\"description\":\"retail user\"}"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MRiqDCpFntSEud3Co8bdQygjSwB515zyS5_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MSvD3m1R8Z3v8SAztrt1afp28vRdsMwxAu_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MUJS7P4W3XyP2pnAJUGqkstSAiU4Ac2YdA_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MZyZAgAJmXmJs5gDihnMvZ7HCLxe6zVVpU_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MfF8z9y9nUUuHTeKiGFGoWXnUrRPbEcNiD_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3Mh5b5UttYteWjd5Mku43kajZFKX9z5WNxZ_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MjBN2kiRB6JmoEVEC42ZNMX9ibx5iZ9Mih_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MktJgV2eTmcCqtyQaeqiiHkQ1eY3EH5Tdb_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3Mm9VfS5424Vn4oNKv1DSh7Htk6FhQReEuP_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MmNtj9n49UgGapeh1Sg8Nd8jfQGDbqRTkx_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3P35F9e1QdcHkBMbYtovuMUmsxxCqo9DF1d_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PLXmyBua1pAH4y3aHjMqJrcJEcyrWMP1EB_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PMoTnMU6U4hx8km23iZJ6Akis6JKhcxhUn_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PNVubsGCrnMHLXvg1gYidcP3G7HUC5fAuZ_active","boolValue":true}}]`)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 451323
 		},
@@ -6796,7 +6796,7 @@ func TestRecipientAddressToString(t *testing.T) {
 		},
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -6840,8 +6840,8 @@ func TestScriptPaymentPublicKey(t *testing.T) {
 		Timestamp:       1599565088614,
 	}
 
-	tr, _ := proto.NewFullScriptTransfer(action, addr, pk, tx)
-	env := &MockRideEnvironment{
+	tr, _ := proto.NewFullScriptTransfer(action, addr, pk, tx.ID, tx.Timestamp)
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -6896,7 +6896,7 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 		Fee:             500000,
 		Timestamp:       1609698441420,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -7023,7 +7023,7 @@ func TestOriginCaller(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -7198,7 +7198,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -7378,7 +7378,7 @@ func TestAliasesInInvokes(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -7607,7 +7607,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -7799,7 +7799,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -7981,7 +7981,7 @@ func TestReissueInInvoke(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},

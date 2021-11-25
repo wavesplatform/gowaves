@@ -1,10 +1,11 @@
 package ride
 
 import (
-	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 )
 
 func TestEthABIDataTypeToRideType(t *testing.T) {

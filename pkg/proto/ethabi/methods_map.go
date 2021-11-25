@@ -26,10 +26,9 @@ func (cd DecodedCallData) String() string {
 	return fmt.Sprintf("%s(%s)", cd.Name, strings.Join(args, ","))
 }
 
-// IsERC20Selector checks that is is an ERC20 functions selector (ERC20 transfers)
-func IsERC20Selector(id Selector) bool {
-	_, ok := erc20Methods[id]
-	return ok
+// IsERC20TransferSelector checks that selector is an ERC20Transfer function selector
+func IsERC20TransferSelector(id Selector) bool {
+	return id == erc20TransferSelector
 }
 
 type MethodsMap struct {

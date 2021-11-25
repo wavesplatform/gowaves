@@ -47,6 +47,15 @@ func NewSelector(sig Signature) Selector {
 	return selector
 }
 
+func NewSelectorFromBytes(a []byte) (Selector, error) {
+	if len(a) != SelectorSize {
+		return Selector{}, errors.Errorf("failed to create new selector, invalid selector size: want %d, got %d", SelectorSize, len(a))
+	}
+	var selector Selector
+	copy(selector[:], a[:])
+	return selector, nil
+}
+
 func (s Selector) String() string {
 	return s.Hex()
 }

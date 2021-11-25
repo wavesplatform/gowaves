@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 )
 
 func TestAddressFromPublicKey(t *testing.T) {
@@ -168,4 +169,8 @@ func TestRecipient_WriteTo(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, bin, buf.Bytes())
 
+}
+
+func TestEthABIEthAddressEqualsProtoEthAddress(t *testing.T) {
+	require.Equal(t, EthereumAddressSize, ethabi.EthereumAddressSize)
 }

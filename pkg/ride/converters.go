@@ -1,9 +1,12 @@
 package ride
 
 import (
+	"math/big"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -59,6 +62,8 @@ func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) 
 		return invokeScriptWithProofsToObject(scheme, transaction)
 	case *proto.UpdateAssetInfoWithProofs:
 		return updateAssetInfoWithProofsToObject(scheme, transaction)
+	case *proto.EthereumTransaction:
+		return ethereumTransactionToObject(scheme, transaction)
 	default:
 		return nil, errors.Errorf("conversion to RIDE object is not implemented for %T", transaction)
 	}
@@ -871,6 +876,172 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	return r, nil
 }
 
+func ConvertEthereumRideArgumentsToSpecificArgument(decodedArg rideType) (proto.Argument, error) {
+	var arg proto.Argument
+	switch m := decodedArg.(type) {
+	case rideInt:
+		arg = &proto.IntegerArgument{Value: int64(m)}
+	case rideBoolean:
+		arg = &proto.BooleanArgument{Value: bool(m)}
+	case rideBytes:
+		arg = &proto.BinaryArgument{Value: m}
+	case rideString:
+		arg = &proto.StringArgument{Value: string(m)}
+	case rideList:
+		var miniArgs proto.Arguments
+		for _, v := range m {
+			a, err := ConvertEthereumRideArgumentsToSpecificArgument(v)
+			if err != nil {
+				return nil, err
+			}
+			miniArgs = append(miniArgs, a)
+		}
+		arg = &proto.ListArgument{Items: miniArgs}
+	default:
+		return nil, errors.New("unknown argument type")
+	}
+
+	return arg, nil
+}
+
+func ConvertDecodedEthereumArgumentsToProtoArguments(decodedArgs []ethabi.DecodedArg) ([]proto.Argument, error) {
+	var arguments []proto.Argument
+	for _, decodedArg := range decodedArgs {
+		value, err := ethABIDataTypeToRideType(decodedArg.Value)
+		if err != nil {
+			return nil, errors.Errorf("failed to convert data type to ride type %v", err)
+		}
+		arg, err := ConvertEthereumRideArgumentsToSpecificArgument(value)
+		if err != nil {
+			return nil, err
+		}
+		arguments = append(arguments, arg)
+
+	}
+	return arguments, nil
+}
+
+func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransaction) (rideObject, error) {
+	sender, err := tx.WavesAddressFrom(scheme)
+	if err != nil {
+		return nil, err
+	}
+	callerEthereumPK, err := tx.FromPK()
+	if err != nil {
+		return nil, errors.Errorf("failed to get public key from ethereum transaction %v", err)
+	}
+	callerPK := callerEthereumPK.SerializeXYCoordinates() // 64 bytes
+
+	to, err := tx.WavesAddressTo(scheme)
+	if err != nil {
+		return nil, err
+	}
+	r := make(rideObject)
+
+	// TODO check whether we should resolve eth tx kind first
+	// we have to fill it according to the spec
+	r["bodyBytes"] = rideBytes(nil)
+	r["proofs"] = proofs(proto.NewProofs())
+
+	switch kind := tx.TxKind.(type) {
+	case *proto.EthereumTransferWavesTxKind:
+		r[instanceFieldName] = rideString("TransferTransaction")
+		r["version"] = rideInt(tx.GetVersion())
+		r["id"] = rideBytes(tx.ID.Bytes())
+		r["sender"] = rideAddress(sender)
+		r["senderPublicKey"] = rideBytes(callerPK)
+		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(*to))
+		r["assetId"] = optionalAsset(proto.NewOptionalAssetWaves())
+		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
+		if ok := res.IsInt64(); !ok {
+			return nil, errors.Errorf("transferWithProofsToObject: failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
+		}
+		amount := res.Int64()
+		r["amount"] = rideInt(amount)
+		r["fee"] = rideInt(tx.GetFee())
+		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
+		r["attachment"] = rideBytes(nil)
+		r["timestamp"] = rideInt(tx.GetTimestamp())
+
+	case *proto.EthereumTransferAssetsErc20TxKind:
+		r[instanceFieldName] = rideString("TransferTransaction")
+		r["version"] = rideInt(tx.GetVersion())
+		r["id"] = rideBytes(tx.ID.Bytes())
+		r["sender"] = rideAddress(sender)
+		r["senderPublicKey"] = rideBytes(callerPK)
+
+		recipientAddr, err := proto.EthereumAddress(kind.Arguments.Recipient).ToWavesAddress(scheme)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert ethereum ERC20 transfer recipient to WavesAddress")
+		}
+		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(recipientAddr))
+		r["assetId"] = optionalAsset(kind.Asset)
+		r["amount"] = rideInt(kind.Arguments.Amount)
+		r["fee"] = rideInt(tx.GetFee())
+		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
+		r["attachment"] = rideBytes(nil)
+		r["timestamp"] = rideInt(tx.GetTimestamp())
+
+	case *proto.EthereumInvokeScriptTxKind:
+		r[instanceFieldName] = rideString("InvokeScriptTransaction")
+		r["version"] = rideInt(tx.GetVersion())
+		r["id"] = rideBytes(tx.ID.Bytes())
+		r["sender"] = rideAddress(sender)
+		r["senderPublicKey"] = rideBytes(callerPK)
+		r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(*to))
+
+		var scriptPayments []proto.ScriptPayment
+		for _, p := range tx.TxKind.DecodedData().Payments {
+			var optAsset proto.OptionalAsset
+			if p.PresentAssetID {
+				optAsset = *proto.NewOptionalAssetFromDigest(p.AssetID)
+			} else {
+				optAsset = proto.NewOptionalAssetWaves()
+			}
+			payment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
+			scriptPayments = append(scriptPayments, payment)
+		}
+
+		switch {
+		case len(scriptPayments) == 1:
+
+			p := attachedPaymentToObject(scriptPayments[0])
+			r["payment"] = p
+			r["payments"] = rideList{p}
+		case len(scriptPayments) > 1:
+			pl := make(rideList, len(scriptPayments))
+			for i, p := range scriptPayments {
+				pl[i] = attachedPaymentToObject(p)
+			}
+			r["payments"] = pl
+		default:
+			r["payment"] = rideUnit{}
+			r["payments"] = make(rideList, 0)
+		}
+		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
+		r["function"] = rideString(tx.TxKind.DecodedData().Name)
+		arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(tx.TxKind.DecodedData().Inputs)
+		if err != nil {
+			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
+		}
+		args := make(rideList, len(arguments))
+		for i, arg := range arguments {
+			a, err := convertArgument(arg)
+			if err != nil {
+				return nil, errors.Wrap(err, "invokeScriptWithProofsToObject")
+			}
+			args[i] = a
+		}
+		r["args"] = args
+		r["fee"] = rideInt(tx.GetFee())
+		r["timestamp"] = rideInt(tx.GetTimestamp())
+
+	default:
+		return nil, errors.New("unknown ethereum transaction kind")
+	}
+	return r, nil
+}
+
 func updateAssetInfoWithProofsToObject(scheme byte, tx *proto.UpdateAssetInfoWithProofs) (rideObject, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
@@ -955,6 +1126,45 @@ func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (r
 	return r, nil
 }
 
+func ethereumInvocationToObject(v int, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
+	sender, err := tx.WavesAddressFrom(scheme)
+	if err != nil {
+		return nil, err
+	}
+	r := make(rideObject)
+	r[instanceFieldName] = rideString("Invocation")
+	r["transactionId"] = rideBytes(tx.ID.Bytes())
+	r["caller"] = rideAddress(sender)
+	callerEthereumPK, err := tx.FromPK()
+	if err != nil {
+		return nil, errors.Errorf("failed to get public key from ethereum transaction %v", err)
+	}
+	callerPK := rideBytes(callerEthereumPK.SerializeXYCoordinates()) // 64 bytes
+	r["callerPublicKey"] = callerPK
+	if v >= 5 {
+		r["originCaller"] = rideAddress(sender)
+		r["originCallerPublicKey"] = callerPK
+	}
+
+	switch v {
+	case 4, 5:
+		payments := make(rideList, len(scriptPayments))
+		for i, p := range scriptPayments {
+			payments[i] = attachedPaymentToObject(p)
+		}
+		r["payments"] = payments
+	default:
+		r["payment"] = rideUnit{}
+		if len(scriptPayments) > 0 {
+			r["payment"] = attachedPaymentToObject(scriptPayments[0])
+		}
+	}
+	wavesAsset := proto.NewOptionalAssetWaves()
+	r["feeAssetId"] = optionalAsset(wavesAsset)
+	r["fee"] = rideInt(int64(tx.GetFee()))
+	return r, nil
+}
+
 func scriptTransferToObject(tr *proto.FullScriptTransfer) rideObject {
 	r := make(rideObject)
 	r[instanceFieldName] = rideString("TransferTransaction")
@@ -984,7 +1194,7 @@ func balanceDetailsToObject(fwb *proto.FullWavesBalance) rideObject {
 	return r
 }
 
-func objectToActions(env Environment, obj rideType) ([]proto.ScriptAction, error) {
+func objectToActions(env environment, obj rideType) ([]proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "WriteSet":
 		data, err := obj.get("data")
@@ -1062,7 +1272,7 @@ func getKeyProperty(v rideType) (string, error) {
 	return string(key), nil
 }
 
-func convertToAction(env Environment, obj rideType) (proto.ScriptAction, error) {
+func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "Burn":
 		id, err := digestProperty(obj, "assetId")
