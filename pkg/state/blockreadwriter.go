@@ -405,11 +405,7 @@ func (rw *blockReadWriter) writeBlockHeader(header *proto.BlockHeader) error {
 func (rw *blockReadWriter) newestBlockIDByHeight(height uint64) (proto.BlockID, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	// For blockReadWriter, heights start from 0.
-	if id, ok := rw.height2IDCache[height]; ok {
-		return id, nil
-	}
-	return rw.blockIDByHeightImpl(height)
+	return rw.newestBlockIDByHeightImpl(height)
 }
 
 func (rw *blockReadWriter) blockIDByHeight(height uint64) (proto.BlockID, error) {
@@ -439,6 +435,14 @@ func (rw *blockReadWriter) heightToIDOffset(height uint64) uint64 {
 		return offsetBeforeProtobuf + offsetAfterProtobuf
 	}
 	return height * crypto.SignatureSize
+}
+
+func (rw *blockReadWriter) newestBlockIDByHeightImpl(height uint64) (proto.BlockID, error) {
+	// For blockReadWriter, heights start from 0.
+	if id, ok := rw.height2IDCache[height]; ok {
+		return id, nil
+	}
+	return rw.blockIDByHeightImpl(height)
 }
 
 func (rw *blockReadWriter) blockIDByHeightImpl(height uint64) (proto.BlockID, error) {
@@ -605,21 +609,39 @@ func (rw *blockReadWriter) readTransactionByOffsetImpl(offset uint64) (proto.Tra
 	return rw.txByBounds(txStart, txEnd)
 }
 
+func (rw *blockReadWriter) readNewestBlockHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	rw.mtx.RLock()
+	defer rw.mtx.RUnlock()
+	blockID, err := rw.newestBlockIDByHeightImpl(height)
+	if err != nil {
+		return nil, err
+	}
+	header, err := rw.readNewestBlockHeaderImpl(blockID)
+	if err != nil {
+		return nil, err
+	}
+	return header, nil
+}
+
 func (rw *blockReadWriter) readNewestBlockHeader(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	header, ok := rw.rheaders[blockID]
-	if !ok {
-		return rw.readBlockHeaderImpl(blockID)
-	}
-	cp := header
-	return &cp, nil
+	return rw.readNewestBlockHeaderImpl(blockID)
 }
 
 func (rw *blockReadWriter) readBlockHeader(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	return rw.readBlockHeaderImpl(blockID)
+}
+
+func (rw *blockReadWriter) readNewestBlockHeaderImpl(blockID proto.BlockID) (*proto.BlockHeader, error) {
+	header, ok := rw.rheaders[blockID]
+	if !ok {
+		return rw.readBlockHeaderImpl(blockID)
+	}
+	cp := header
+	return &cp, nil
 }
 
 func (rw *blockReadWriter) readBlockHeaderImpl(blockID proto.BlockID) (*proto.BlockHeader, error) {

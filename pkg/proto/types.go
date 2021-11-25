@@ -3233,27 +3233,27 @@ type FullScriptTransfer struct {
 	ID        *crypto.Digest
 }
 
-func NewFullScriptTransfer(action *TransferScriptAction, sender WavesAddress, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+func NewFullScriptTransfer(action *TransferScriptAction, sender WavesAddress, senderPK crypto.PublicKey, txID *crypto.Digest, timestamp uint64) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,
 		Recipient: action.Recipient,
 		Sender:    sender,
 		SenderPK:  senderPK,
-		Timestamp: tx.Timestamp,
-		ID:        tx.ID,
+		Timestamp: timestamp,
+		ID:        txID,
 	}, nil
 }
 
-func NewFullScriptTransferFromPaymentAction(action *AttachedPaymentScriptAction, sender WavesAddress, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+func NewFullScriptTransferFromPaymentAction(action *AttachedPaymentScriptAction, sender WavesAddress, senderPK crypto.PublicKey, txID *crypto.Digest, timestamp uint64) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,
 		Recipient: action.Recipient,
 		Sender:    sender,
 		SenderPK:  senderPK,
-		Timestamp: tx.Timestamp,
-		ID:        tx.ID,
+		Timestamp: timestamp,
+		ID:        txID,
 	}, nil
 }
 

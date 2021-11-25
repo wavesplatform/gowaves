@@ -449,3 +449,11 @@ func (ss *scriptsStorage) reset() {
 	ss.assetScriptsHasher.reset()
 	ss.accountScriptsHasher.reset()
 }
+
+func (ss *scriptsStorage) getAccountScriptsHasher() *stateHasher {
+	return ss.accountScriptsHasher
+}
+
+func (ss *scriptsStorage) getAssetScriptsHasher() *stateHasher {
+	return ss.assetScriptsHasher
+}

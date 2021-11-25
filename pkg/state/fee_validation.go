@@ -48,7 +48,7 @@ type assetParams struct {
 	reissuable bool
 }
 
-func isNFT(features *features, params assetParams) (bool, error) {
+func isNFT(features featuresState, params assetParams) (bool, error) {
 	nftAsset := params.quantity == 1 && params.decimals == 0 && !params.reissuable
 	if !nftAsset {
 		return false, nil
