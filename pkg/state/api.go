@@ -1,9 +1,10 @@
 package state
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"math/big"
 	"runtime"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 
 	"github.com/pkg/errors"
 
@@ -97,7 +98,6 @@ type StateInfo interface {
 	AssetIsSponsored(assetID proto.AssetID) (bool, error)
 	AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error)
 	FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error)
-	AssetInfoByID(id proto.AssetID, filter bool) (*proto.AssetInfo, error)
 	NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error)
 	// Script information.
 	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -164,25 +163,25 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 		}
 	}
 
-	txKind, err := state.GuessEthereumTransactionKind(data, req.To, s.nodeRPCApp.State.AssetInfoByID)
+	txKind, err := state.GuessEthereumTransactionKind(data)
 	if err != nil {
 		return "", errors.Errorf("failed to guess ethereum tx kind, %v", err)
 	}
 	switch txKind {
 	case state.EthereumTransferWavesKind:
-		return strconv.Itoa(proto.MinFee), nil
+		return fmt.Sprintf("%d", proto.MinFee), nil
 	case state.EthereumTransferAssetsKind:
 		fee := proto.MinFee
 		assetID := (*proto.AssetID)(req.To)
 
-		asset, err := s.nodeRPCApp.State.AssetInfoByID(*assetID, true)
+		asset, err := s.nodeRPCApp.State.AssetInfo(*assetID)
 		if err != nil {
 			return "", errors.Errorf("failed to get asset info, %v", err)
 		}
 		if asset.Scripted {
 			fee += proto.MinFeeScriptedAsset
 		}
-		return strconv.Itoa(fee), nil
+		return fmt.Sprintf("%d", fee), nil
 	case state.EthereumInvokeKind:
 		fee := proto.MinFeeInvokeScript
 
@@ -208,7 +207,7 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 		}
 		for _, payment := range decodedData.Payments {
 			assetID := proto.AssetIDFromDigest(payment.AssetID)
-			asset, err := s.nodeRPCApp.State.AssetInfoByID(assetID, true)
+			asset, err := s.nodeRPCApp.State.AssetInfo(assetID)
 			if err != nil {
 				return "", errors.Errorf("failed to get asset info, %v", err)
 			}
@@ -216,7 +215,7 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 				fee += proto.MinFeeScriptedAsset
 			}
 		}
-		return strconv.Itoa(fee), nil
+		return fmt.Sprintf("%d", fee), nil
 	default:
 		return "", errors.Errorf("unexpected ethereum tx kind")
 	}
