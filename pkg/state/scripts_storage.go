@@ -335,6 +335,8 @@ func (ss *scriptsStorage) setAccountScript(addr proto.WavesAddress, script proto
 	return ss.setScript(accountScript, &key, dbItem, blockID)
 }
 
+// newestAccountHasVerifier checks that account has verifier.
+// Note that only real proto.WavesAddress account can have a verifier.
 func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress, filter bool) (bool, error) {
 	key := accountScriptKey{addr.ID()}
 	keyBytes := key.bytes()
@@ -413,11 +415,15 @@ func (ss *scriptsStorage) newestScriptPKByAddr(addr proto.WavesAddress, filter b
 	return info.PK, err
 }
 
+// scriptByAddr returns script of corresponding proto.WavesAddress.
+// Note that only real proto.WavesAddress account can have a scripts.
 func (ss *scriptsStorage) scriptByAddr(addr proto.WavesAddress, filter bool) (*ride.Tree, error) {
 	key := accountScriptKey{addr: addr.ID()}
 	return ss.scriptTreeByKey(key.bytes(), filter)
 }
 
+// scriptBytesByAddr returns script bytes of corresponding proto.WavesAddress.
+// Note that only real proto.WavesAddress account can have a scripts.
 func (ss *scriptsStorage) scriptBytesByAddr(addr proto.WavesAddress, filter bool) (proto.Script, error) {
 	key := accountScriptKey{addr: addr.ID()}
 	return ss.scriptBytesByKey(key.bytes(), filter)
