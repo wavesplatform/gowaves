@@ -161,6 +161,14 @@ func reentrantInvoke(env environment, args ...rideType) (rideType, error) {
 			return nil, err
 		}
 
+		if !env.rideV6Activated() {
+			err = ws.validateBalances()
+			if err != nil {
+				return nil, err
+			}
+
+		}
+
 		env.setNewDAppAddress(proto.WavesAddress(callerAddress))
 		env.setInvocation(oldInvocationParam)
 
@@ -317,6 +325,14 @@ func invoke(env environment, args ...rideType) (rideType, error) {
 		err = ws.smartAppendActions(res.ScriptActions(), env)
 		if err != nil {
 			return nil, err
+		}
+
+		if !env.rideV6Activated() {
+			err = ws.validateBalances()
+			if err != nil {
+				return nil, err
+			}
+
 		}
 
 		env.setNewDAppAddress(proto.WavesAddress(callerAddress))
