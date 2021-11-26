@@ -15,12 +15,35 @@ var ErrInvalidChainId = errors.New("invalid chain id for signer")
 const (
 	ethereumSignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
 
-	ethereumPublicKeyUncompressedPrefix byte = 0x4         // prefix which means this is uncompressed point
+	ethereumPublicKeyUncompressedPrefix byte = 0x4         // prefix which means this is an uncompressed point
 	ethereumPublicKeyBytesUncompressed       = 1 + 32 + 32 // 0x4 prefix + x_coordinate bytes + y_coordinate bytes
 	ethereumPublicKeyBytesCompressed         = 1 + 32      // y_bit (0x02 if y is even, 0x03 if y is odd) + x_coordinate bytes
 )
 
+// EthereumPrivateKey is an Ethereum ecdsa.PrivateKey.
+type EthereumPrivateKey btcec.PrivateKey
+
+// EthereumPublicKey is an Ethereum ecdsa.PublicKey
 type EthereumPublicKey btcec.PublicKey
+
+// MarshalJSON marshal EthereumPublicKey in base58 encoding.
+// This method doesn't recognize hex encoding according to the scala node implementation.
+func (epk *EthereumPublicKey) MarshalJSON() ([]byte, error) {
+	// nickeskov: can't fail
+	data, _ := epk.MarshalBinary()
+	return B58Bytes(data).MarshalJSON()
+}
+
+// UnmarshalJSON unmarshal EthereumPublicKey from base58 encoding.
+// This method doesn't recognize hex encoding according to the scala node implementation.
+func (epk *EthereumPublicKey) UnmarshalJSON(bytes []byte) error {
+	pkBytes := B58Bytes{}
+	err := pkBytes.UnmarshalJSON(bytes)
+	if err != nil {
+		return err
+	}
+	return epk.UnmarshalBinary(pkBytes)
+}
 
 func NewEthereumPublicKeyFromHexString(s string) (EthereumPublicKey, error) {
 	b, err := DecodeFromHexString(s)
@@ -186,7 +209,7 @@ func (s londonSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S
 	if txdata.ChainID.Sign() != 0 && txdata.ChainID.Cmp(s.chainId) != 0 {
 		return nil, nil, nil, ErrInvalidChainId
 	}
-	R, S, _, err = decodeSignature(sig)
+	R, S, _, err = decodeSignature(sig, true)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -255,7 +278,7 @@ func (s eip2930Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, 
 		if txdata.ChainID.Sign() != 0 && txdata.ChainID.Cmp(s.chainId) != 0 {
 			return nil, nil, nil, ErrInvalidChainId
 		}
-		R, S, _, err = decodeSignature(sig)
+		R, S, _, err = decodeSignature(sig, true)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -334,7 +357,7 @@ func (s eip155Signer) SignatureValues(tx *EthereumTransaction, sig []byte) (R, S
 	if tx.EthereumTxType() != EthereumLegacyTxType {
 		return nil, nil, nil, ErrTxTypeNotSupported
 	}
-	R, S, V, err = decodeSignature(sig)
+	R, S, V, err = decodeSignature(sig, true)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -431,7 +454,7 @@ func (fs FrontierSigner) SignatureValues(tx *EthereumTransaction, sig []byte) (r
 	if tx.EthereumTxType() != EthereumLegacyTxType {
 		return nil, nil, nil, ErrTxTypeNotSupported
 	}
-	r, s, v, err = decodeSignature(sig)
+	r, s, v, err = decodeSignature(sig, true)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -462,14 +485,21 @@ func (fs FrontierSigner) Hash(tx *EthereumTransaction) EthereumHash {
 	return Keccak256EthereumHash(rlpData)
 }
 
-func decodeSignature(sig []byte) (r, s, v *big.Int, err error) {
+// decodeSignature decodes r, s, v signature values from bytes.
+// Note, the produced signature conforms to the secp256k1 curve R, S and V values,
+// where the V value will be 27 or 28 for legacy reasons, if legacyV==true.
+func decodeSignature(sig []byte, legacyV bool) (r, s, v *big.Int, err error) {
 	if len(sig) != ethereumSignatureLength {
 		return nil, nil, nil,
 			errors.Errorf("wrong size for signature: got %d, want %d", len(sig), ethereumSignatureLength)
 	}
 	r = new(big.Int).SetBytes(sig[:32])
 	s = new(big.Int).SetBytes(sig[32:64])
-	v = new(big.Int).SetBytes([]byte{sig[64] + 27})
+	vByte := sig[64]
+	if legacyV {
+		vByte += 27 // Transform V from 0/1 to 27/28 according to the yellow paper
+	}
+	v = new(big.Int).SetBytes([]byte{vByte})
 	return r, s, v, nil
 }
 
@@ -478,7 +508,7 @@ func recoverEthereumPubKey(sighash EthereumHash, R, S, Vb *big.Int, homestead bo
 		return nil, ErrInvalidSig
 	}
 	V := byte(Vb.Uint64() - 27)
-	if !ValidateSignatureValues(V, R, S, homestead) {
+	if !ValidateEthereumSignatureValues(V, R, S, homestead) {
 		return nil, ErrInvalidSig
 	}
 	// encode the signature in uncompressed format

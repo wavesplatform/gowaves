@@ -44,7 +44,7 @@ func (ws *WrappedState) callee() proto.WavesAddress {
 	return proto.WavesAddress(ws.cle)
 }
 
-func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env Environment) error {
+func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env environment) error {
 	modifiedActions, err := ws.ApplyToState(actions, env)
 	if err != nil {
 		return err
@@ -362,7 +362,7 @@ func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (proto.Script, 
 	return ws.diff.state.NewestScriptByAsset(asset)
 }
 
-func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env Environment) (bool, error) {
+func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env environment) (bool, error) {
 	if !asset.Present {
 		return true, nil
 	}
@@ -466,7 +466,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 	return r.Result(), nil
 }
 
-func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAction, sender proto.WavesAddress, env Environment, restrictions proto.ActionsValidationRestrictions) error {
+func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAction, sender proto.WavesAddress, env environment, restrictions proto.ActionsValidationRestrictions) error {
 	assetResult, err := ws.validateAsset(res, res.Asset, env)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate asset")
@@ -507,7 +507,7 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	return nil
 }
 
-func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.WavesAddress, env Environment) error {
+func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.WavesAddress, env environment) error {
 	ws.actionsCount++
 	assetResult, err := ws.validateAsset(res, res.Asset, env)
 	if err != nil {
@@ -609,7 +609,7 @@ func (ws *WrappedState) validateIssueAction(res *proto.IssueScriptAction) error 
 	return nil
 }
 
-func (ws *WrappedState) validateReissueAction(res *proto.ReissueScriptAction, env Environment) error {
+func (ws *WrappedState) validateReissueAction(res *proto.ReissueScriptAction, env environment) error {
 	ws.actionsCount++
 	asset := proto.NewOptionalAssetFromDigest(res.AssetID)
 	assetResult, err := ws.validateAsset(res, *asset, env)
@@ -640,7 +640,7 @@ func (ws *WrappedState) validateReissueAction(res *proto.ReissueScriptAction, en
 	return nil
 }
 
-func (ws *WrappedState) validateBurnAction(res *proto.BurnScriptAction, env Environment) error {
+func (ws *WrappedState) validateBurnAction(res *proto.BurnScriptAction, env environment) error {
 	ws.actionsCount++
 	asset := proto.NewOptionalAssetFromDigest(res.AssetID)
 	assetResult, err := ws.validateAsset(res, *asset, env)
@@ -780,7 +780,7 @@ func (ws *WrappedState) validateBalances() error {
 	return nil
 }
 
-func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environment) ([]proto.ScriptAction, error) {
+func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environment) ([]proto.ScriptAction, error) {
 	libVersion, err := ws.getLibVersion()
 	if err != nil {
 		return nil, err
@@ -1153,11 +1153,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 	}, nil
 }
 
-func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, callerPK crypto.PublicKey, isRideV6Activated bool) (*EvaluationEnvironment, error) {
-	caller, err := proto.NewAddressFromPublicKey(env.sch, callerPK)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-	}
+func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress, isRideV6Activated bool) (*EvaluationEnvironment, error) {
 	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
 	st := newWrappedState(env)
@@ -1165,7 +1161,7 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 		var (
 			senderBalance uint64
 			err           error
-			callerRcp     = proto.NewRecipientFromAddress(caller)
+			callerRcp     = proto.NewRecipientFromAddress(sender)
 		)
 		if payment.Asset.Present {
 			senderBalance, err = st.NewestAssetBalance(callerRcp, payment.Asset.ID)
@@ -1315,6 +1311,17 @@ func (e *EvaluationEnvironment) SetInvoke(tx *proto.InvokeScriptWithProofs, v in
 		return err
 	}
 	e.inv = obj
+
+	return nil
+}
+
+func (e *EvaluationEnvironment) SetEthereumInvoke(tx *proto.EthereumTransaction, v int, payments []proto.ScriptPayment) error {
+	obj, err := ethereumInvocationToObject(v, e.sch, tx, payments)
+	if err != nil {
+		return err
+	}
+	e.inv = obj
+
 	return nil
 }
 

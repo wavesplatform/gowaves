@@ -385,10 +385,10 @@ func toDataType(index int, t Type, output []byte) (DataType, error) {
 		if len(returnOutput) == 0 {
 			return nil, errors.Errorf(
 				"invalid etherum address size, expected %d, actual %d",
-				ethereumAddressSize, len(returnOutput),
+				EthereumAddressSize, len(returnOutput),
 			)
 		}
-		return Bytes(returnOutput[len(returnOutput)-ethereumAddressSize:]), nil
+		return Bytes(returnOutput[len(returnOutput)-EthereumAddressSize:]), nil
 	case BytesType:
 		return Bytes(output[begin : begin+length]), nil
 	case FixedBytesType:

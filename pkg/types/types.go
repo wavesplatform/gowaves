@@ -33,7 +33,10 @@ type TransactionWithBytes struct {
 	B []byte
 }
 
+//go:generate moq -out ../state/smart_state_moq_test.go -pkg state . SmartState:AnotherMockSmartState
+
 // SmartState is a part of state used by smart contracts.
+
 type SmartState interface {
 	NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error)
 	AddingBlockHeight() (uint64, error)

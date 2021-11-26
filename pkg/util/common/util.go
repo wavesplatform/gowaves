@@ -145,6 +145,7 @@ func FromBase64JSONUnsized(value []byte, name string) ([]byte, error) {
 func ToBase58JSON(b []byte) []byte {
 	s := base58.Encode(b)
 	var sb bytes.Buffer
+	sb.Grow(2 + len(s))
 	sb.WriteRune('"')
 	sb.WriteString(s)
 	sb.WriteRune('"')

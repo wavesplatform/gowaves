@@ -15,6 +15,8 @@ func TestSignature_Selector(t *testing.T) {
 
 	const testSignatureMint = Signature("mint(string,string,address,uint256,uint256,uint256,uint256)")
 	require.Equal(t, "0xbdc01110", testSignatureMint.Selector().Hex())
+
+	require.Equal(t, "0xa9059cbb", erc20TransferSelector.String())
 }
 
 func TestBuildSignatureFromRideFunctionMeta(t *testing.T) {
