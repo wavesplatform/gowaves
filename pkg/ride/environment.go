@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"unicode/utf16"
 
 	"github.com/pkg/errors"
@@ -9,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type WrappedState struct {
