@@ -8,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type WrappedState struct {
@@ -111,11 +112,39 @@ func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID cryp
 		return 0, err
 	}
 	if balanceDiff != nil {
-		resBalance := int64(balance) + balanceDiff.regular
+		resBalance, err := common.AddInt64(int64(balance), balanceDiff.regular)
+		if err != nil {
+			return 0, err
+		}
 		return uint64(resBalance), nil
 
 	}
 	return balance, nil
+}
+
+// diff.regular - diff.leaseOut + available
+func availableBalance(diffRegular int64, diffLeaseOut int64, available int64) (int64, error) {
+	tmp, err := common.AddInt64(diffRegular, -diffLeaseOut)
+	if err != nil {
+		return 0, err
+	}
+
+	return common.AddInt64(tmp, available)
+}
+
+// diff.regular - diff.leaseOut + diff.leaseIn + effective
+func effectiveBalance(diffRegular int64, diffLeaseOut int64, diffLeaseIn int64, available int64) (int64, error) {
+	tmp, err := common.AddInt64(diffRegular, -diffLeaseOut)
+	if err != nil {
+		return 0, err
+	}
+
+	res, err := common.AddInt64(tmp, diffLeaseIn)
+	if err != nil {
+		return 0, err
+	}
+
+	return common.AddInt64(res, available)
 }
 
 func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -128,13 +157,28 @@ func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.
 		return nil, err
 	}
 	if wavesBalanceDiff != nil {
-		resRegular := wavesBalanceDiff.regular + int64(balance.Regular)
-		resAvailable := (wavesBalanceDiff.regular - wavesBalanceDiff.leaseOut) + int64(balance.Available)
-		resEffective := (wavesBalanceDiff.regular - wavesBalanceDiff.leaseOut + wavesBalanceDiff.leaseIn) + int64(balance.Effective)
-		resLeaseIn := wavesBalanceDiff.leaseIn + int64(balance.LeaseIn)
-		resLeaseOut := wavesBalanceDiff.leaseOut + int64(balance.LeaseOut)
+		resRegular, err := common.AddInt64(wavesBalanceDiff.regular, int64(balance.Regular))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate regular balance")
+		}
+		resAvailable, err := availableBalance(wavesBalanceDiff.regular, wavesBalanceDiff.leaseOut, int64(balance.Available))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate available balance")
+		}
+		resEffective, err := effectiveBalance(wavesBalanceDiff.regular, wavesBalanceDiff.leaseOut, wavesBalanceDiff.leaseIn, int64(balance.Effective))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate effective balance")
+		}
+		resLeaseIn, err := common.AddInt64(wavesBalanceDiff.leaseIn, int64(balance.LeaseIn))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate lease in balance")
+		}
+		resLeaseOut, err := common.AddInt64(wavesBalanceDiff.leaseOut, int64(balance.LeaseOut))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate lease out balance")
+		}
 
-		err := ws.diff.addEffectiveToHistory(searchAddress, resEffective)
+		err = ws.diff.addEffectiveToHistory(searchAddress, resEffective)
 		if err != nil {
 			return nil, err
 		}
@@ -551,9 +595,11 @@ func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, 
 	if err != nil {
 		return err
 	}
-	if balance < uint64(res.Amount) {
-		return errors.Errorf("transfer action: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
-			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
+	if env.rideV6Activated() {
+		if balance < uint64(res.Amount) {
+			return errors.Errorf("transfer action: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+				sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
+		}
 	}
 	return nil
 }
@@ -749,6 +795,32 @@ func (ws *WrappedState) invCount() int {
 
 func (ws *WrappedState) incrementInvCount() {
 	ws.invokeCount++
+}
+
+func (ws *WrappedState) validateBalances() error {
+	for key, balanceDiff := range ws.diff.balances {
+		address := proto.NewRecipientFromAddress(key.address)
+		var (
+			balance uint64
+			err     error
+		)
+		if key.asset.Present {
+			balance, err = ws.diff.state.NewestAssetBalance(address, key.asset.ID)
+		} else {
+			balance, err = ws.diff.state.NewestWavesBalance(address)
+		}
+		if err != nil {
+			return err
+		}
+		res, err := common.AddInt64(int64(balance), balanceDiff.regular)
+		if err != nil {
+			return err
+		}
+		if res < 0 {
+			return errors.Errorf("the balance of address %s is %d which is negative", address.String(), int64(balance)+balanceDiff.regular)
+		}
+	}
+	return nil
 }
 
 func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environment) ([]proto.ScriptAction, error) {
@@ -1051,7 +1123,6 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environme
 			}
 
 			res.Sender = &pk
-
 			err = ws.validateLeaseCancelAction()
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of lease cancel action")
@@ -1106,6 +1177,7 @@ type EvaluationEnvironment struct {
 	inv                   rideObject
 	ver                   int
 	validatePaymentsAfter uint64
+	isRiveV6Activated     bool
 	mds                   int
 }
 
@@ -1124,7 +1196,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 	}, nil
 }
 
-func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress) (*EvaluationEnvironment, error) {
+func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress, isRideV6Activated bool) (*EvaluationEnvironment, error) {
 	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
 	st := newWrappedState(env)
@@ -1179,7 +1251,12 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 		inv:                   env.inv,
 		validatePaymentsAfter: env.validatePaymentsAfter,
 		mds:                   env.mds,
+		isRiveV6Activated:     isRideV6Activated,
 	}, nil
+}
+
+func (e *EvaluationEnvironment) rideV6Activated() bool {
+	return e.isRiveV6Activated
 }
 
 func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
