@@ -112,11 +112,39 @@ func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID cryp
 		return 0, err
 	}
 	if balanceDiff != nil {
-		resBalance := int64(balance) + balanceDiff.regular
+		resBalance, err := common.AddInt64(int64(balance), balanceDiff.regular)
+		if err != nil {
+			return 0, err
+		}
 		return uint64(resBalance), nil
 
 	}
 	return balance, nil
+}
+
+// diff.regular - diff.leaseOut + available
+func availableBalance(diffRegular int64, diffLeaseOut int64, available int64) (int64, error) {
+	tmp, err := common.AddInt64(diffRegular, -diffLeaseOut)
+	if err != nil {
+		return 0, err
+	}
+
+	return common.AddInt64(tmp, available)
+}
+
+// diff.regular - diff.leaseOut + diff.leaseIn + effective
+func effectiveBalance(diffRegular int64, diffLeaseOut int64, diffLeaseIn int64, available int64) (int64, error) {
+	tmp, err := common.AddInt64(diffRegular, -diffLeaseOut)
+	if err != nil {
+		return 0, err
+	}
+
+	res, err := common.AddInt64(tmp, diffLeaseIn)
+	if err != nil {
+		return 0, err
+	}
+
+	return common.AddInt64(res, available)
 }
 
 func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -129,13 +157,28 @@ func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.
 		return nil, err
 	}
 	if wavesBalanceDiff != nil {
-		resRegular := wavesBalanceDiff.regular + int64(balance.Regular)
-		resAvailable := (wavesBalanceDiff.regular - wavesBalanceDiff.leaseOut) + int64(balance.Available)
-		resEffective := (wavesBalanceDiff.regular - wavesBalanceDiff.leaseOut + wavesBalanceDiff.leaseIn) + int64(balance.Effective)
-		resLeaseIn := wavesBalanceDiff.leaseIn + int64(balance.LeaseIn)
-		resLeaseOut := wavesBalanceDiff.leaseOut + int64(balance.LeaseOut)
+		resRegular, err := common.AddInt64(wavesBalanceDiff.regular, int64(balance.Regular))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate regular balance")
+		}
+		resAvailable, err := availableBalance(wavesBalanceDiff.regular, wavesBalanceDiff.leaseOut, int64(balance.Available))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate available balance")
+		}
+		resEffective, err := effectiveBalance(wavesBalanceDiff.regular, wavesBalanceDiff.leaseOut, wavesBalanceDiff.leaseIn, int64(balance.Effective))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate effective balance")
+		}
+		resLeaseIn, err := common.AddInt64(wavesBalanceDiff.leaseIn, int64(balance.LeaseIn))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate lease in balance")
+		}
+		resLeaseOut, err := common.AddInt64(wavesBalanceDiff.leaseOut, int64(balance.LeaseOut))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate lease out balance")
+		}
 
-		err := ws.diff.addEffectiveToHistory(searchAddress, resEffective)
+		err = ws.diff.addEffectiveToHistory(searchAddress, resEffective)
 		if err != nil {
 			return nil, err
 		}
