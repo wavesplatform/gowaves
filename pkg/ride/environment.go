@@ -1,6 +1,7 @@
 package ride
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"unicode/utf16"
 
 	"github.com/pkg/errors"
@@ -768,7 +769,11 @@ func (ws *WrappedState) validateBalances() error {
 		if err != nil {
 			return err
 		}
-		if int64(balance)+balanceDiff.regular < 0 {
+		res, err := common.AddInt64(int64(balance), balanceDiff.regular)
+		if err != nil {
+			return err
+		}
+		if res < 0 {
 			return errors.Errorf("the balance of address %s is %d which is negative", address.String(), int64(balance)+balanceDiff.regular)
 		}
 	}
