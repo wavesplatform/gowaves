@@ -7,6 +7,7 @@ require (
 	github.com/OneOfOne/xxhash v1.2.5 // indirect
 	github.com/alecthomas/kong v0.2.18
 	github.com/beevik/ntp v0.3.0
+	github.com/blang/semver/v4 v4.0.0
 	github.com/btcsuite/btcd v0.22.0-beta
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/coocood/freecache v1.2.0
