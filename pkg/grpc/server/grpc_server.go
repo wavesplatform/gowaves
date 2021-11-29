@@ -77,7 +77,12 @@ func (s *Server) Run(ctx context.Context, address string) error {
 	if err != nil {
 		return errors.Errorf("net.Listen: %v", err)
 	}
-	defer conn.Close()
+	defer func(conn net.Listener) {
+		err := conn.Close()
+		if err != nil {
+			zap.S().Errorf("Failed to close gRPC server connection: %v", err)
+		}
+	}(conn)
 
 	if err := grpcServer.Serve(conn); err != nil {
 		return errors.Errorf("grpcServer.Serve: %v", err)

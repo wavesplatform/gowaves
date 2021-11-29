@@ -14,6 +14,8 @@ import (
 	"time"
 	"unicode/utf16"
 
+	"github.com/btcsuite/btcd/btcec"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -21,6 +23,7 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -91,12 +94,7 @@ func (b B58Bytes) String() string {
 
 // MarshalJSON writes B58Bytes Value as JSON string
 func (b B58Bytes) MarshalJSON() ([]byte, error) {
-	s := base58.Encode(b)
-	var sb strings.Builder
-	sb.WriteRune('"')
-	sb.WriteString(s)
-	sb.WriteRune('"')
-	return []byte(sb.String()), nil
+	return common.ToBase58JSON(b), nil
 }
 
 // UnmarshalJSON reads B58Bytes from JSON string
@@ -126,6 +124,51 @@ func (b B58Bytes) Bytes() []byte {
 	return b
 }
 
+type HexBytes []byte
+
+// String represents underlying bytes as Hex string with 0x prefix
+func (b HexBytes) String() string {
+	return EncodeToHexString(b)
+}
+
+// MarshalJSON writes HexBytes Value as JSON string
+func (b HexBytes) MarshalJSON() ([]byte, error) {
+	s := b.String()
+	var sb bytes.Buffer
+	sb.Grow(2 + len(s))
+	sb.WriteRune('"')
+	sb.WriteString(s)
+	sb.WriteRune('"')
+	return sb.Bytes(), nil
+}
+
+// UnmarshalJSON reads HexBytes from JSON string
+func (b *HexBytes) UnmarshalJSON(value []byte) error {
+	s := string(value)
+	if s == jsonNull {
+		*b = nil
+		return nil
+	}
+	s, err := strconv.Unquote(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal HexBytes from JSON")
+	}
+	if s == "" {
+		*b = []byte{}
+		return nil
+	}
+	v, err := DecodeFromHexString(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to decode HexBytes")
+	}
+	*b = v
+	return nil
+}
+
+func (b HexBytes) Bytes() []byte {
+	return b
+}
+
 // OptionalAsset represents an optional asset identification
 type OptionalAsset struct {
 	Present bool
@@ -138,21 +181,21 @@ func NewOptionalAssetFromString(s string) (*OptionalAsset, error) {
 	case WavesAssetName, "":
 		return &OptionalAsset{Present: false}, nil
 	default:
-		a, err := crypto.NewDigestFromBase58(s)
+		d, err := crypto.NewDigestFromBase58(s)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create OptionalAsset from Base58 string")
 		}
-		return &OptionalAsset{Present: true, ID: a}, nil
+		return NewOptionalAssetFromDigest(d), nil
 	}
 }
 
 // NewOptionalAssetFromBytes parses bytes as crypto.Digest and returns OptionalAsset.
 func NewOptionalAssetFromBytes(b []byte) (*OptionalAsset, error) {
-	a, err := crypto.NewDigestFromBytes(b)
+	d, err := crypto.NewDigestFromBytes(b)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create OptionalAsset from bytes")
 	}
-	return &OptionalAsset{Present: true, ID: a}, nil
+	return NewOptionalAssetFromDigest(d), nil
 }
 
 func NewOptionalAssetFromDigest(d crypto.Digest) *OptionalAsset {
@@ -184,14 +227,14 @@ func (a *OptionalAsset) UnmarshalJSON(value []byte) error {
 	s := strings.ToUpper(string(value))
 	switch s {
 	case "NULL", quotedWavesAssetName:
-		*a = OptionalAsset{Present: false}
+		*a = NewOptionalAssetWaves()
 	default:
 		var d crypto.Digest
 		err := d.UnmarshalJSON(value)
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal OptionalAsset")
 		}
-		*a = OptionalAsset{Present: true, ID: d}
+		*a = *NewOptionalAssetFromDigest(d)
 	}
 	return nil
 }
@@ -259,6 +302,13 @@ func (a *OptionalAsset) UnmarshalBinary(data []byte) error {
 func (a *OptionalAsset) ToID() []byte {
 	if a.Present {
 		return a.ID[:]
+	}
+	return nil
+}
+
+func (a *OptionalAsset) ToDigest() *crypto.Digest {
+	if a.Present {
+		return &a.ID
 	}
 	return nil
 }
@@ -331,10 +381,14 @@ const (
 )
 
 func (t OrderType) String() string {
-	if t == 0 {
+	switch t {
+	case Buy:
 		return buyOrderName
+	case Sell:
+		return sellOrderName
+	default:
+		panic(errors.Errorf("BUG, CREATE REPORT: unknown order type (%d)", t))
 	}
-	return sellOrderName
 }
 
 //MarshalJSON writes value of OrderType to JSON representation.
@@ -381,10 +435,6 @@ func (p AssetPair) ToProtobuf() *g.AssetPair {
 	return &g.AssetPair{AmountAssetId: p.AmountAsset.ToID(), PriceAssetId: p.PriceAsset.ToID()}
 }
 
-type OrderVersion struct {
-	Version byte `json:"version"`
-}
-
 type Order interface {
 	GetID() ([]byte, error)
 	GetVersion() byte
@@ -398,17 +448,18 @@ type Order interface {
 	GetTimestamp() uint64
 	GetMatcherFee() uint64
 	GetMatcherFeeAsset() OptionalAsset
-	GetSenderPK() crypto.PublicKey
+	GetSenderPKBytes() []byte
+	GetSender(scheme Scheme) (Address, error)
 	GenerateID(scheme Scheme) error
 	GetProofs() (*ProofsV1, error)
-	Verify(Scheme, crypto.PublicKey) (bool, error)
+	Verify(Scheme) (bool, error)
 	ToProtobuf(Scheme) *g.Order
 	ToProtobufSigned(Scheme) *g.Order
 	BinarySize() int
 }
 
-func MarshalOrderBody(scheme Scheme, o Order) ([]byte, error) {
-	switch o.GetVersion() {
+func MarshalOrderBody(scheme Scheme, o Order) (data []byte, err error) {
+	switch version := o.GetVersion(); version {
 	case 1:
 		o, ok := o.(*OrderV1)
 		if !ok {
@@ -428,44 +479,17 @@ func MarshalOrderBody(scheme Scheme, o Order) ([]byte, error) {
 		}
 		return o.BodyMarshalBinary()
 	case 4:
-		ov4, ok := o.(*OrderV4)
-		if !ok {
-			return nil, errors.New("failed to cast an order version 4 to *OrderV4")
+		switch o := o.(type) {
+		case *OrderV4:
+			data, err = o.BodyMarshalBinary(scheme)
+		case *EthereumOrderV4:
+			data, err = o.BodyMarshalBinary(scheme)
+		default:
+			return nil, errors.New("failed to cast an order version 4 to *OrderV4 or *EthereumOrderV4")
 		}
-		return ov4.BodyMarshalBinary(scheme)
+		return data, err
 	default:
-		return nil, errors.New("invalid order version")
-	}
-}
-
-func OrderToOrderBody(o Order) (OrderBody, error) {
-	switch o.GetVersion() {
-	case 1:
-		o, ok := o.(*OrderV1)
-		if !ok {
-			return OrderBody{}, errors.New("failed to cast an order version 1 to *OrderV1")
-		}
-		return o.OrderBody, nil
-	case 2:
-		o, ok := o.(*OrderV2)
-		if !ok {
-			return OrderBody{}, errors.New("failed to cast an order version 2 to *OrderV2")
-		}
-		return o.OrderBody, nil
-	case 3:
-		o, ok := o.(*OrderV3)
-		if !ok {
-			return OrderBody{}, errors.New("failed to cast an order version 3 to *OrderV3")
-		}
-		return o.OrderBody, nil
-	case 4:
-		o, ok := o.(*OrderV4)
-		if !ok {
-			return OrderBody{}, errors.New("failed to cast an order version 4 to *OrderV4")
-		}
-		return o.OrderBody, nil
-	default:
-		return OrderBody{}, errors.New("invalid order version")
+		return nil, errors.Errorf("invalid order version %d", version)
 	}
 }
 
@@ -536,8 +560,12 @@ func (o OrderBody) Valid() (bool, error) {
 	return true, nil
 }
 
-func (o OrderBody) GetSenderPK() crypto.PublicKey {
-	return o.SenderPK
+func (o OrderBody) GetSenderPKBytes() []byte {
+	return o.SenderPK.Bytes()
+}
+
+func (o OrderBody) GetSender(scheme Scheme) (Address, error) {
+	return NewAddressFromPublicKey(scheme, o.SenderPK)
 }
 
 func (o *OrderBody) SpendAsset() OptionalAsset {
@@ -812,7 +840,7 @@ func (o *OrderV1) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV1) Verify(_ Scheme, publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV1) Verify(_ Scheme) (bool, error) {
 	if o.Signature == nil {
 		return false, errors.New("empty signature")
 	}
@@ -820,7 +848,7 @@ func (o *OrderV1) Verify(_ Scheme, publicKey crypto.PublicKey) (bool, error) {
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV1")
 	}
-	return crypto.Verify(publicKey, *o.Signature, b), nil
+	return crypto.Verify(o.SenderPK, *o.Signature, b), nil
 }
 
 //MarshalBinary writes order to its bytes representation.
@@ -1040,12 +1068,12 @@ func (o *OrderV2) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV2) Verify(_ Scheme, publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV2) Verify(_ Scheme) (bool, error) {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV2")
 	}
-	return o.Proofs.Verify(0, publicKey, b)
+	return o.Proofs.Verify(0, o.SenderPK, b)
 }
 
 //MarshalBinary writes order to its bytes representation.
@@ -1289,12 +1317,12 @@ func (o *OrderV3) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV3) Verify(_ Scheme, publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV3) Verify(_ Scheme) (bool, error) {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV3")
 	}
-	return o.Proofs.Verify(0, publicKey, b)
+	return o.Proofs.Verify(0, o.SenderPK, b)
 }
 
 //MarshalBinary writes order to its bytes representation.
@@ -1487,12 +1515,184 @@ func (o *OrderV4) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 }
 
 //Verify checks that the order's signature is valid.
-func (o *OrderV4) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
+func (o *OrderV4) Verify(scheme Scheme) (bool, error) {
 	b, err := o.BodyMarshalBinary(scheme)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to verify signature of OrderV4")
 	}
-	return o.Proofs.Verify(0, publicKey, b)
+	return o.Proofs.Verify(0, o.SenderPK, b)
+}
+
+//NewUnsignedEthereumOrderV4 creates the new ethereum unsigned order.
+func NewUnsignedEthereumOrderV4(senderPK EthereumPublicKey, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset) *EthereumOrderV4 {
+	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee, matcherFeeAsset)
+	return &EthereumOrderV4{
+		SenderPK:        senderPK,
+		Eip712Signature: EthereumSignature{},
+		OrderV4:         *orderV4,
+	}
+}
+
+type EthereumOrderV4 struct {
+	SenderPK        EthereumPublicKey `json:"senderPublicKey"`
+	Eip712Signature EthereumSignature `json:"eip712Signature,omitempty"`
+	OrderV4
+}
+
+func (o *EthereumOrderV4) Valid() (bool, error) {
+	if len(o.Proofs.Proofs) > 0 {
+		// nickeskov: see isValid method in com/wavesplatform/transaction/assets/exchange/Order.scala
+		return false, errors.New("eip712Signature excludes proofs")
+	}
+	return o.OrderV4.Valid()
+}
+
+func (o *EthereumOrderV4) GetSenderPKBytes() []byte {
+	// 64 bytes of uncompressed ethereum public key
+	return o.SenderPK.SerializeXYCoordinates()
+}
+
+func (o *EthereumOrderV4) GetSender(_ Scheme) (Address, error) {
+	return o.SenderPK.EthereumAddress(), nil
+}
+
+func (o *EthereumOrderV4) GenerateID(scheme Scheme) error {
+	b, err := o.BodyMarshalBinary(scheme)
+	if err != nil {
+		return err
+	}
+	d, err := crypto.FastHash(b)
+	if err != nil {
+		return errors.Wrap(err, "failed to sign OrderV4")
+	}
+	o.ID = &d
+	return nil
+}
+
+func (o *EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
+	hash, err := o.ethereumTypedDataHash(scheme)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to validate ethereum signature for EthereumOrderV4")
+	}
+	// TODO(nickeskov): Should we validate 'V' signature value?
+	_, r, s := o.Eip712Signature.AsVRS()
+	return VerifyEthereumSignature(&o.SenderPK, r, s, hash.Bytes()), nil
+}
+
+func (o *EthereumOrderV4) Sign(_ Scheme, _ crypto.SecretKey) error {
+	return errors.Errorf("(%T) doesn't support Sign method", o)
+}
+
+func (o *EthereumOrderV4) ToProtobuf(scheme Scheme) *g.Order {
+	res := o.OrderV4.ToProtobuf(scheme)
+	// 64 bytes of uncompressed ethereum public key
+	res.SenderPublicKey = o.GetSenderPKBytes()
+	res.Eip712Signature = o.Eip712Signature.Bytes()
+	return res
+}
+
+func (o *EthereumOrderV4) ToProtobufSigned(scheme Scheme) *g.Order {
+	res := o.ToProtobuf(scheme)
+	return res
+}
+
+func (o *EthereumOrderV4) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
+	pbOrder := o.ToProtobuf(scheme)
+	return MarshalToProtobufDeterministic(pbOrder)
+}
+
+// EthereumSign signs order with provided *btcec.PrivateKey. This method is used only for test purposes
+func (o *EthereumOrderV4) EthereumSign(scheme Scheme, key *EthereumPrivateKey) (err error) {
+	typedData := o.buildEthereumOrderV4TypedData(scheme)
+	data, err := typedData.RawData()
+	if err != nil {
+		return errors.Wrap(err, "failed to build typed data and sign EthereumOrderV4 with 'ethereumSecretKey'")
+	}
+	h, err := crypto.Keccak256(data)
+	if err != nil {
+		return errors.Wrap(err, "failed to calculate 'Keccak256' hash")
+	}
+	eip712SignatureBytes, err := crypto.ECDSASign(h[:], (*btcec.PrivateKey)(key))
+	if err != nil {
+		return errors.Wrap(err, "failed to sign EthereumOrderV4 with 'ethereumSecretKey'")
+	}
+	eip712SignatureBytes[len(eip712SignatureBytes)-1] += 27 // Transform V signature value from 0/1 to 27/28 according to the yellow paper
+	eip712Signature, err := NewEthereumSignatureFromBytes(eip712SignatureBytes)
+	if err != nil {
+		return errors.Wrapf(err, "failed to convert '%x' bytes to EthereumSignature", eip712SignatureBytes)
+	}
+	o.Eip712Signature = eip712Signature
+
+	if o.ID == nil {
+		err := o.GenerateID(scheme)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (o *EthereumOrderV4) ethereumTypedDataHash(scheme Scheme) (EthereumHash, error) {
+	typedData := o.buildEthereumOrderV4TypedData(scheme)
+	hash, err := typedData.Hash()
+	if err != nil {
+		return EthereumHash{}, errors.Wrap(err, "failed calculate ethereum typed data hash for EthereumOrderV4")
+	}
+	return hash, nil
+}
+
+func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumTypedData {
+	message := ethereumTypedDataMessage{
+		"version":           int32(o.Version),
+		"matcherPublicKey":  o.MatcherPK.String(),
+		"amountAsset":       o.AssetPair.AmountAsset.String(),
+		"priceAsset":        o.AssetPair.PriceAsset.String(),
+		"orderType":         strings.ToUpper(o.OrderType.String()),
+		"amount":            int64(o.Amount),
+		"price":             int64(o.Price),
+		"timestamp":         int64(o.Timestamp),
+		"expiration":        int64(o.Expiration),
+		"matcherFee":        int64(o.MatcherFee),
+		"matcherFeeAssetId": o.MatcherFeeAsset.String(),
+	}
+
+	verifyingContract := [20]byte{}
+	for i := range verifyingContract {
+		verifyingContract[i] = scheme
+	}
+	var orderDomain = ethereumTypedData{
+		Types: ethereumTypedDataTypes{
+			"EIP712Domain": []ethereumTypedDataType{
+				{Name: "name", Type: "string"},
+				{Name: "version", Type: "string"},
+				{Name: "chainId", Type: "uint256"},
+				{Name: "verifyingContract", Type: "address"},
+			},
+			"Order": []ethereumTypedDataType{
+				{Name: "version", Type: "int32"},
+				{Name: "matcherPublicKey", Type: "string"},
+				{Name: "amountAsset", Type: "string"},
+				{Name: "priceAsset", Type: "string"},
+				{Name: "orderType", Type: "string"},
+				{Name: "amount", Type: "int64"},
+				{Name: "price", Type: "int64"},
+				{Name: "timestamp", Type: "int64"},
+				{Name: "expiration", Type: "int64"},
+				{Name: "matcherFee", Type: "int64"},
+				{Name: "matcherFeeAssetId", Type: "string"},
+			},
+		},
+		PrimaryType: "Order",
+		Domain: ethereumTypedDataDomain{
+			Name:              "Waves Exchange",
+			Version:           "1",
+			ChainId:           newHexOrDecimal256(int64(scheme)),
+			VerifyingContract: EncodeToHexString(verifyingContract[:]),
+			//Salt:              "", // TODO(nickeskov): Ask scala team about it.
+		},
+		Message: message,
+	}
+	return orderDomain
 }
 
 const (
@@ -1694,7 +1894,7 @@ func (p *ProofsV1) Valid() error {
 	return nil
 }
 
-// ValueType is an alias for byte that encodes the value type.
+// DataValueType is an alias for byte that encodes the value type.
 type DataValueType byte
 
 // String translates ValueType value to human readable name.
@@ -1848,7 +2048,7 @@ func (e IntegerDataEntry) MarshalValue() ([]byte, error) {
 	return buf, nil
 }
 
-//UnmarshalBinary reads binary representation of integer data entry value to the structure.
+//UnmarshalValue reads binary representation of integer data entry value to the structure.
 func (e *IntegerDataEntry) UnmarshalValue(data []byte) error {
 	const minLen = 1 + 8
 	if l := len(data); l < minLen {
@@ -2532,6 +2732,11 @@ func VersionFromScriptBytes(scriptBytes []byte) (int32, error) {
 
 type Script []byte
 
+// IsEmpty checks that script bytes slice is nil or slice length equals zero
+func (s Script) IsEmpty() bool {
+	return len(s) == 0
+}
+
 // String gives a string representation of Script bytes, script bytes encoded as BASE64 with prefix
 func (s Script) String() string {
 	sb := strings.Builder{}
@@ -2583,7 +2788,7 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-// ValueType is an alias for byte that encodes the value type.
+// ArgumentValueType is an alias for byte that encodes the value type.
 type ArgumentValueType byte
 
 // String translates ValueType value to human readable name.
@@ -2621,7 +2826,7 @@ type Argument interface {
 	Serialize(*serializer.Serializer) error
 }
 
-//DataEntryType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
+//ArgumentType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
 type ArgumentType struct {
 	Type string `json:"type"`
 }
@@ -2834,10 +3039,6 @@ type BooleanArgument struct {
 	Value bool
 }
 
-func NewBooleanArgument(b bool) *BooleanArgument {
-	return &BooleanArgument{b}
-}
-
 //GetValueType returns the data type (Boolean) of the argument.
 func (a BooleanArgument) GetValueType() ArgumentValueType {
 	return ArgumentBoolean
@@ -2909,10 +3110,6 @@ func (a *BooleanArgument) UnmarshalJSON(value []byte) error {
 //BinaryArgument represents an argument that stores binary value.
 type BinaryArgument struct {
 	Value []byte
-}
-
-func NewBinaryArgument(b []byte) *BinaryArgument {
-	return &BinaryArgument{b}
 }
 
 //GetValueType returns the type of value (Binary) stored in an argument.
@@ -3056,10 +3253,6 @@ func (a *StringArgument) UnmarshalJSON(value []byte) error {
 
 type ListArgument struct {
 	Items Arguments
-}
-
-func NewListArgument(items Arguments) *ListArgument {
-	return &ListArgument{Items: items}
 }
 
 //GetValueType returns the type of value of the argument.
@@ -3258,33 +3451,33 @@ type FullScriptTransfer struct {
 	Amount    uint64
 	Asset     OptionalAsset
 	Recipient Recipient
-	Sender    Address
+	Sender    WavesAddress
 	SenderPK  crypto.PublicKey
 	Timestamp uint64
 	ID        *crypto.Digest
 }
 
-func NewFullScriptTransfer(action *TransferScriptAction, sender Address, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+func NewFullScriptTransfer(action *TransferScriptAction, sender WavesAddress, senderPK crypto.PublicKey, txID *crypto.Digest, timestamp uint64) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,
 		Recipient: action.Recipient,
 		Sender:    sender,
 		SenderPK:  senderPK,
-		Timestamp: tx.Timestamp,
-		ID:        tx.ID,
+		Timestamp: timestamp,
+		ID:        txID,
 	}, nil
 }
 
-func NewFullScriptTransferFromPaymentAction(action *AttachedPaymentScriptAction, sender Address, senderPK crypto.PublicKey, tx *InvokeScriptWithProofs) (*FullScriptTransfer, error) {
+func NewFullScriptTransferFromPaymentAction(action *AttachedPaymentScriptAction, sender WavesAddress, senderPK crypto.PublicKey, txID *crypto.Digest, timestamp uint64) (*FullScriptTransfer, error) {
 	return &FullScriptTransfer{
 		Amount:    uint64(action.Amount),
 		Asset:     action.Asset,
 		Recipient: action.Recipient,
 		Sender:    sender,
 		SenderPK:  senderPK,
-		Timestamp: tx.Timestamp,
-		ID:        tx.ID,
+		Timestamp: timestamp,
+		ID:        txID,
 	}, nil
 }
 
@@ -3599,7 +3792,7 @@ func (s *StateHash) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// Hex is required for state hashes API.
+// DigestWrapped is required for state hashes API.
 // The quickest way to use Hex for hashes in JSON in this particular case.
 type DigestWrapped crypto.Digest
 

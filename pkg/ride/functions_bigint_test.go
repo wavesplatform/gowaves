@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var env Environment = &MockRideEnvironment{
+var env environment = &mockRideEnvironment{
 	validateInternalPaymentsFunc: func() bool {
 		return false
 	},
@@ -202,7 +202,7 @@ func TestMultiplyBigInt(t *testing.T) {
 }
 
 func TestDivideBigInt(t *testing.T) {
-	for _, test := range []struct {
+	for i, test := range []struct {
 		args []rideType
 		fail bool
 		r    rideType
@@ -225,7 +225,7 @@ func TestDivideBigInt(t *testing.T) {
 			assert.Error(t, err)
 		} else {
 			require.NoError(t, err)
-			assert.True(t, test.r.eq(r), fmt.Sprintf("%s != %s", test.r, r))
+			assert.True(t, test.r.eq(r), fmt.Sprintf("%s != %s, testcase %d", test.r, r, i))
 		}
 	}
 }

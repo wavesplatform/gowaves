@@ -12,14 +12,14 @@ import (
 )
 
 type dataEntryRecordForHashes struct {
-	addr  *proto.Address
+	addr  []byte
 	key   []byte
 	value []byte
 }
 
 func (dr *dataEntryRecordForHashes) less(other stateComponent) bool {
 	dr2 := other.(*dataEntryRecordForHashes)
-	val := bytes.Compare(dr.addr[:], dr2.addr[:])
+	val := bytes.Compare(dr.addr, dr2.addr)
 	if val > 0 {
 		return false
 	} else if val == 0 {
@@ -29,7 +29,7 @@ func (dr *dataEntryRecordForHashes) less(other stateComponent) bool {
 }
 
 func (dr *dataEntryRecordForHashes) writeTo(w io.Writer) error {
-	if _, err := w.Write(dr.addr[:]); err != nil {
+	if _, err := w.Write(dr.addr); err != nil {
 		return err
 	}
 	if _, err := w.Write(dr.key); err != nil {
@@ -61,8 +61,13 @@ func (r *dataEntryRecord) unmarshalBinary(data []byte) error {
 }
 
 type entryId struct {
-	addr proto.Address
-	key  string
+	addrID proto.AddressID
+	key    string
+}
+
+type uncertainAccountsDataStorageEntry struct {
+	addr      proto.Address
+	dataEntry proto.DataEntry
 }
 
 type accountsDataStorage struct {
@@ -71,10 +76,10 @@ type accountsDataStorage struct {
 	hs      *historyStorage
 	hasher  *stateHasher
 
-	addrToNumMem map[proto.Address]uint64
+	addrToNumMem map[proto.AddressID]uint64
 	addrNum      uint64
 
-	uncertainEntries map[entryId]proto.DataEntry
+	uncertainEntries map[entryId]uncertainAccountsDataStorageEntry
 
 	calculateHashes bool
 }
@@ -85,8 +90,8 @@ func newAccountsDataStorage(db keyvalue.IterableKeyVal, dbBatch keyvalue.Batch, 
 		dbBatch:          dbBatch,
 		hs:               hs,
 		hasher:           newStateHasher(),
-		addrToNumMem:     make(map[proto.Address]uint64),
-		uncertainEntries: make(map[entryId]proto.DataEntry),
+		addrToNumMem:     make(map[proto.AddressID]uint64),
+		uncertainEntries: make(map[entryId]uncertainAccountsDataStorageEntry),
 		calculateHashes:  calcHashes,
 	}
 }
@@ -110,14 +115,14 @@ func (s *accountsDataStorage) setLastAddrNum(lastAddrNum uint64) error {
 }
 
 func (s *accountsDataStorage) newestAddrToNum(addr proto.Address) (uint64, error) {
-	if addrNum, ok := s.addrToNumMem[addr]; ok {
+	if addrNum, ok := s.addrToNumMem[addr.ID()]; ok {
 		return addrNum, nil
 	}
 	return s.addrToNum(addr)
 }
 
 func (s *accountsDataStorage) addrToNum(addr proto.Address) (uint64, error) {
-	addrToNumKey := accountStorAddrToNumKey{addr}
+	addrToNumKey := accountStorAddrToNumKey{addr.ID()}
 	addrNumBytes, err := s.db.Get(addrToNumKey.bytes())
 	if err != nil {
 		return 0, err
@@ -137,8 +142,8 @@ func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint64, error) {
 	}
 	newAddrNum := lastAddrNum + s.addrNum
 	s.addrNum++
-	s.addrToNumMem[addr] = newAddrNum
-	addrToNum := accountStorAddrToNumKey{addr}
+	s.addrToNumMem[addr.ID()] = newAddrNum
+	addrToNum := accountStorAddrToNumKey{addr.ID()}
 	newAddrNumBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(newAddrNumBytes, newAddrNum)
 	s.dbBatch.Put(addrToNum.bytes(), newAddrNumBytes)
@@ -146,12 +151,12 @@ func (s *accountsDataStorage) appendAddr(addr proto.Address) (uint64, error) {
 }
 
 func (s *accountsDataStorage) dropUncertain() {
-	s.uncertainEntries = make(map[entryId]proto.DataEntry)
+	s.uncertainEntries = make(map[entryId]uncertainAccountsDataStorageEntry)
 }
 
 func (s *accountsDataStorage) commitUncertain(blockID proto.BlockID) error {
-	for id, entry := range s.uncertainEntries {
-		if err := s.appendEntry(id.addr, entry, blockID); err != nil {
+	for _, entry := range s.uncertainEntries {
+		if err := s.appendEntry(entry.addr, entry.dataEntry, blockID); err != nil {
 			return err
 		}
 	}
@@ -159,8 +164,8 @@ func (s *accountsDataStorage) commitUncertain(blockID proto.BlockID) error {
 }
 
 func (s *accountsDataStorage) appendEntryUncertain(addr proto.Address, entry proto.DataEntry) {
-	id := entryId{addr, entry.GetKey()}
-	s.uncertainEntries[id] = entry
+	id := entryId{addr.ID(), entry.GetKey()} // todo
+	s.uncertainEntries[id] = uncertainAccountsDataStorageEntry{addr, entry}
 }
 
 func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEntry, blockID proto.BlockID) error {
@@ -182,7 +187,7 @@ func (s *accountsDataStorage) appendEntry(addr proto.Address, entry proto.DataEn
 	}
 	if s.calculateHashes {
 		r := &dataEntryRecordForHashes{
-			addr:  &addr,
+			addr:  addr.Bytes(),
 			key:   []byte(entry.GetKey()),
 			value: valueBytes,
 		}
@@ -297,9 +302,9 @@ func (s *accountsDataStorage) entryExists(addr proto.Address, filter bool) (bool
 }
 
 func (s *accountsDataStorage) retrieveNewestEntry(addr proto.Address, key string, filter bool) (proto.DataEntry, error) {
-	id := entryId{addr, key}
+	id := entryId{addr.ID(), key}
 	if entry, ok := s.uncertainEntries[id]; ok {
-		return entry, nil
+		return entry.dataEntry, nil
 	}
 	entryBytes, err := s.newestEntryBytes(addr, key, filter)
 	if err != nil {
@@ -327,9 +332,9 @@ func (s *accountsDataStorage) retrieveEntry(addr proto.Address, key string, filt
 }
 
 func (s *accountsDataStorage) retrieveNewestIntegerEntry(addr proto.Address, key string, filter bool) (*proto.IntegerDataEntry, error) {
-	id := entryId{addr, key}
+	id := entryId{addr.ID(), key}
 	if entry, ok := s.uncertainEntries[id]; ok {
-		intEntry, ok := entry.(*proto.IntegerDataEntry)
+		intEntry, ok := entry.dataEntry.(*proto.IntegerDataEntry)
 		if !ok {
 			return nil, errors.New("failed to convert to integer entry")
 		}
@@ -361,9 +366,9 @@ func (s *accountsDataStorage) retrieveIntegerEntry(addr proto.Address, key strin
 }
 
 func (s *accountsDataStorage) retrieveNewestBooleanEntry(addr proto.Address, key string, filter bool) (*proto.BooleanDataEntry, error) {
-	id := entryId{addr, key}
+	id := entryId{addr.ID(), key}
 	if entry, ok := s.uncertainEntries[id]; ok {
-		boolEntry, ok := entry.(*proto.BooleanDataEntry)
+		boolEntry, ok := entry.dataEntry.(*proto.BooleanDataEntry)
 		if !ok {
 			return nil, errors.New("failed to convert to boolean entry")
 		}
@@ -395,9 +400,9 @@ func (s *accountsDataStorage) retrieveBooleanEntry(addr proto.Address, key strin
 }
 
 func (s *accountsDataStorage) retrieveNewestStringEntry(addr proto.Address, key string, filter bool) (*proto.StringDataEntry, error) {
-	id := entryId{addr, key}
+	id := entryId{addr.ID(), key}
 	if entry, ok := s.uncertainEntries[id]; ok {
-		stringEntry, ok := entry.(*proto.StringDataEntry)
+		stringEntry, ok := entry.dataEntry.(*proto.StringDataEntry)
 		if !ok {
 			return nil, errors.New("failed to convert to string entry")
 		}
@@ -429,9 +434,9 @@ func (s *accountsDataStorage) retrieveStringEntry(addr proto.Address, key string
 }
 
 func (s *accountsDataStorage) retrieveNewestBinaryEntry(addr proto.Address, key string, filter bool) (*proto.BinaryDataEntry, error) {
-	id := entryId{addr, key}
+	id := entryId{addr.ID(), key}
 	if entry, ok := s.uncertainEntries[id]; ok {
-		binaryEntry, ok := entry.(*proto.BinaryDataEntry)
+		binaryEntry, ok := entry.dataEntry.(*proto.BinaryDataEntry)
 		if !ok {
 			return nil, errors.New("failed to convert to binary entry")
 		}
@@ -479,7 +484,7 @@ func (s *accountsDataStorage) flush() error {
 }
 
 func (s *accountsDataStorage) reset() {
-	s.addrToNumMem = make(map[proto.Address]uint64)
+	s.addrToNumMem = make(map[proto.AddressID]uint64)
 	s.addrNum = 0
 	if s.calculateHashes {
 		s.hasher.reset()

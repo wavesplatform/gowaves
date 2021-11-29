@@ -78,3 +78,27 @@ func TestReplaceInvalidUtf8Chars(t *testing.T) {
 	s2 := ReplaceInvalidUtf8Chars(s)
 	require.Equal(t, "���", s2)
 }
+
+func TestBase58JSONUtils(t *testing.T) {
+	var (
+		expectedBytes  = []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 144, 255}
+		expectedString = "\"1FVk6iLh9oT6aYn\""
+	)
+	actualString := ToBase58JSON(expectedBytes)
+	require.Equal(t, expectedString, string(actualString))
+	res, err := FromBase58JSON(actualString, len(expectedBytes), "TestBase58JSONUtils")
+	require.NoError(t, err)
+	require.Equal(t, expectedBytes, res)
+}
+
+func TestHexJSONUtils(t *testing.T) {
+	var (
+		expectedBytes  = []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 144, 255}
+		expectedString = "\"0x0001020304050607080990ff\""
+	)
+	actualString := ToHexJSON(expectedBytes)
+	require.Equal(t, expectedString, string(actualString))
+	res, err := FromHexJSON(actualString, len(expectedBytes), "TestHexJSONUtils")
+	require.NoError(t, err)
+	require.Equal(t, expectedBytes, res)
+}

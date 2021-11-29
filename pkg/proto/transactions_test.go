@@ -62,7 +62,7 @@ func TestGenesisBinarySize(t *testing.T) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
 			err = tx.Sign(MainNetScheme, sk)
 			assert.Nil(t, err)
-			_, err := tx.Validate()
+			_, err := tx.Validate(MainNetScheme)
 			assert.Nil(t, err)
 			txBytes, err := tx.MarshalBinary()
 			assert.Nil(t, err)
@@ -89,7 +89,7 @@ func TestGenesisFromMainNet(t *testing.T) {
 		id, _ := base58.Decode(tc.sig)
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
-			_, err := tx.Validate()
+			_, err := tx.Validate(MainNetScheme)
 			assert.Nil(t, err)
 			if err := tx.GenerateSigID(MainNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, id, tx.ID[:])
@@ -126,7 +126,7 @@ func TestGenesisProtobufRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
-			_, err := tx.Validate()
+			_, err := tx.Validate(MainNetScheme)
 			assert.Nil(t, err)
 			err = tx.GenerateID(MainNetScheme)
 			assert.Nil(t, err)
@@ -159,7 +159,7 @@ func TestGenesisValidations(t *testing.T) {
 		err     string
 	}{
 		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", 0, "amount should be positive"},
-		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV", 1000, "invalid recipient address '3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV': invalid Address checksum"},
+		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV", 1000, "invalid recipient address '3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPV': invalid WavesAddress checksum"},
 		{"3PLrCnhKyX5iFbGDxbqqMvea5VAqxMcinPW", maxLongValue + 100, "amount is too big"},
 	}
 	for _, tc := range tests {
@@ -167,7 +167,7 @@ func TestGenesisValidations(t *testing.T) {
 		require.NoError(t, err)
 		tx := NewUnsignedGenesis(addr, tc.amount, 0)
 		assert.NotNil(t, tx)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -360,7 +360,7 @@ func TestPaymentValidations(t *testing.T) {
 	}{
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 0, 10, "amount should be positive"},
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 10, 0, "fee should be positive"},
-		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 10, 10, "invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 10, 10, "invalid recipient address '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid WavesAddress checksum"},
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64 + 100, 10, "amount is too big"},
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 10, math.MaxInt64 + 100, "fee is too big"},
 		{"AfZtLRQxLNYH5iradMkTeuXGe71uAiATVbr8DpXEEQa7", "3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
@@ -371,7 +371,7 @@ func TestPaymentValidations(t *testing.T) {
 		addr, err := addressFromString(tc.address)
 		require.NoError(t, err)
 		tx := NewUnsignedPayment(spk, addr, tc.amount, tc.fee, 0)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -440,7 +440,7 @@ func TestIssueWithSigValidations(t *testing.T) {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		if assert.NoError(t, err) {
 			tx := NewUnsignedIssueWithSig(spk, tc.name, tc.desc, tc.quantity, tc.decimals, false, 0, tc.fee)
-			_, err := tx.Validate()
+			_, err := tx.Validate(MainNetScheme)
 			assert.EqualError(t, err, tc.err)
 		}
 	}
@@ -618,7 +618,7 @@ func TestIssueWithProofsValidations(t *testing.T) {
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedIssueWithProofs(2, 'T', spk, tc.name, tc.desc, tc.quantity, tc.decimals, false, []byte{}, 0, tc.fee)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -842,7 +842,7 @@ func TestTransferWithSigValidations(t *testing.T) {
 		{"alias:W:nickname", 1000, math.MaxInt64 + 100, "The attachment", "fee is too big"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
 		{"alias:W:nickname", 1000, 10, strings.Repeat("The attachment", 100), "attachment is too long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid WavesAddress checksum"},
 		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
 	}
 	spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -853,7 +853,7 @@ func TestTransferWithSigValidations(t *testing.T) {
 		require.NoError(t, err)
 		att := []byte(tc.att)
 		tx := NewUnsignedTransferWithSig(spk, *a, *a, 0, tc.amount, tc.fee, rcp, att)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
 	}
 }
@@ -1138,7 +1138,7 @@ func TestTransferWithProofsValidations(t *testing.T) {
 		{"alias:W:nickname", 1000, math.MaxInt64 + 1, "The attachment", "fee is too big"},
 		{"alias:W:nickname", 1000, math.MaxInt64, "The attachment", "sum of amount and fee overflows JVM long"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 1000, 10, strings.Repeat("The attachment", 100), "attachment is too long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 1000, 10, "The attachment", "invalid recipient '3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ': invalid WavesAddress checksum"},
 		{"alias:W:прозвище", 1000, 10, "The attachment", "invalid recipient 'alias:W:прозвище': Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
 	}
 	spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -1149,7 +1149,7 @@ func TestTransferWithProofsValidations(t *testing.T) {
 		require.NoError(t, err)
 		att := []byte(tc.att)
 		tx := NewUnsignedTransferWithProofs(2, spk, *a, *a, 0, tc.amount, tc.fee, rcp, att)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
 	}
 }
@@ -1545,7 +1545,7 @@ func TestReissueWithSigValidations(t *testing.T) {
 		aid, err := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		require.NoError(t, err)
 		tx := NewUnsignedReissueWithSig(spk, aid, tc.quantity, false, 0, tc.fee)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -1745,7 +1745,7 @@ func TestReissueWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedReissueWithProofs(2, 'T', spk, aid, tc.quantity, false, 0, tc.fee)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -1953,7 +1953,7 @@ func TestBurnWithSigValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedBurnWithSig(spk, aid, tc.amount, 0, tc.fee)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -2133,7 +2133,7 @@ func TestBurnWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedBurnWithProofs(2, tc.chain, spk, aid, tc.amount, 0, tc.fee)
-		_, err := tx.Validate()
+		_, err := tx.Validate(tc.chain)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -2360,7 +2360,7 @@ func TestExchangeWithSigValidations(t *testing.T) {
 	}
 	for _, tc := range tests {
 		tx := NewUnsignedExchangeWithSig(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.Error(t, err)
 		assert.Regexp(t, tc.err, err.Error(), fmt.Sprintf("expected: %s", tc.err))
 	}
@@ -2386,6 +2386,33 @@ func newSignedOrderV4(t *testing.T, sender, matcher crypto.PublicKey, amountAsse
 	o.ID = &id
 	o.Proofs = NewProofsFromSignature(&sig)
 	return *o
+}
+
+func newEthereumOrderV4(t *testing.T, ethSenderPKHex, ethSignatureHex, matcherPKBase58, amountAssetBase58, priceAssetBase58 string, ot OrderType, price, amount, ts, exp, fee uint64) EthereumOrderV4 {
+	var (
+		err       error
+		ethSender EthereumPublicKey
+		ethSig    EthereumSignature
+	)
+	if ethSenderPKHex != "" {
+		ethSender, err = NewEthereumPublicKeyFromHexString(ethSenderPKHex)
+		require.NoError(t, err)
+	}
+	if ethSignatureHex != "" {
+		ethSig, err = NewEthereumSignatureFromHexString(ethSignatureHex)
+		require.NoError(t, err)
+	}
+
+	matcher, err := crypto.NewPublicKeyFromBase58(matcherPKBase58)
+	require.NoError(t, err)
+	amountAsset, err := NewOptionalAssetFromString(amountAssetBase58)
+	require.NoError(t, err)
+	priceAsset, err := NewOptionalAssetFromString(priceAssetBase58)
+	require.NoError(t, err)
+
+	ethereumOrderV4 := NewUnsignedEthereumOrderV4(ethSender, matcher, *amountAsset, *priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{})
+	ethereumOrderV4.Eip712Signature = ethSig
+	return *ethereumOrderV4
 }
 
 func TestExchangeWithSigFromMainNet(t *testing.T) {
@@ -2725,7 +2752,7 @@ func TestExchangeWithProofsValidations(t *testing.T) {
 	}
 	for _, tc := range tests {
 		tx := NewUnsignedExchangeWithProofs(2, &tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.Error(t, err)
 		assert.Regexp(t, tc.err, err, fmt.Sprintf("expected error: %s", tc.err))
 	}
@@ -2740,7 +2767,7 @@ func TestExchangeV3PriceValidation(t *testing.T) {
 	sbo := newSignedOrderV4(t, buySender, mpk, *aa, *pa, Buy, 1000000, 800000000, 1624445095222, 1626950695222, 300000, "3fdNTCQ7o2TvN8eDV3m7J9aSLxcUitwN2SMZpn1irSXX", "3aKUz8boZingH8r18grL8Rst5RyGVnESaQtuEoV5piUnvJKNf67xFwFpPpmfiuAuud1AAzj94xYNw1MKkmJaBicR")
 	sso := newSignedOrderV4(t, sellSender, mpk, *aa, *pa, Sell, 1000000, 800000000, 1624445095267, 1626950695267, 300000, "81Xc8YP1Ev2bqvSLgN5k3ent6Fr7rnEdCg8x2DH5twqX", "4VQmM6QB8yaQ1AChNNkVH5EvVKenS8YG7YqXK9SsjWAnjJm5xvd48kW2akwcEbhgzqqGMDtS2AmeGSfpEcHEMYGU")
 	tx := NewUnsignedExchangeWithProofs(3, &sbo, &sso, 100000000, 800000000, 100, 100, 300000, 1624445095293)
-	_, err := tx.Validate()
+	_, err := tx.Validate(MainNetScheme)
 	assert.NoError(t, err)
 }
 
@@ -3286,6 +3313,223 @@ func TestExchangeWithProofsFromJSON3(t *testing.T) {
 	assert.Equal(t, uint8(0xcb), b[6])
 }
 
+func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
+	var (
+		err               error
+		matcherPublicKey  crypto.PublicKey
+		matcherPrivateKey crypto.SecretKey
+	)
+	matcherPublicKey, err = crypto.NewPublicKeyFromBase58("9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ")
+	require.NoError(t, err)
+	matcherPrivateKey, err = crypto.NewSecretKeyFromBase58("FZ97ouxTGpNnmyyfSBxgC2FGHTpvo7mM7LWoMut6gEYx")
+	require.NoError(t, err)
+
+	tests := []struct {
+		scheme              Scheme
+		jsonExchange        string
+		signedTxBytesBase58 string
+		txBytesBase58       string
+		txIDBase58          string
+	}{
+		{
+			scheme: CustomNetScheme,
+			jsonExchange: `
+				{
+				   "type":7,
+				   "id":"CPN2tNL3SWYXZEh9TGEYkCvi3LggLqvx7zpDYsmLsJH4",
+				   "sender":"3FrCwv8uFRxQazhX6Lno45aZ68Bof6ScaeF",
+				   "senderPublicKey":"9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+				   "fee":1000000,
+				   "feeAssetId":null,
+				   "timestamp":100,
+				   "proofs":[
+					  "4bmvMmpvCPPGe3p63ioodm8K3NKw2V3YbjXgmGaf2TLi8eAnGmmTsG84QC24qnBKetLNVLkAzVB6FjHcCM4A5JvS"
+				   ],
+				   "version":3,
+				   "chainId":69,
+				   "order1":{
+					  "version":4,
+					  "id":"2Wx5ctbaU9GqQYXtEkqsin6drfu6SuADdwAyvuYnwai9",
+					  "sender":"3FzoJXUesFqzf4nmMYejpUDYmFJvkwEiQG6",
+					  "senderPublicKey":"5BQPcwDXaZexgonPb8ipDrLRXY3RHn1kFLP9fqp1s6M6xiRhC4LvsAq2HueXCMzkpuXsrLnuBA3SdkJyuhNZXMCd",
+					  "matcherPublicKey":"9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+					  "assetPair":{
+						 "amountAsset":"5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
+						 "priceAsset":null
+					  },
+					  "orderType":"buy",
+					  "amount":1,
+					  "price":100,
+					  "timestamp":1,
+					  "expiration":123,
+					  "matcherFee":100000,
+					  "signature":"",
+					  "proofs":[
+						 
+					  ],
+					  "matcherFeeAssetId":null,
+					  "eip712Signature":"0xe5ff562bfb0296e95b631365599c87f1c5002597bf56a131f289765275d2580f5344c62999404c37cd858ea037328ac91eca16ad1ce69c345ebb52fde70b66251c"
+				   },
+				   "order2":{
+					  "version":4,
+					  "id":"5ezXw17vTgK1n1GmZyWz2y4aiwgTUKLU1SNDGRNticru",
+					  "sender":"3FzoJXUesFqzf4nmMYejpUDYmFJvkwEiQG6",
+					  "senderPublicKey":"5BQPcwDXaZexgonPb8ipDrLRXY3RHn1kFLP9fqp1s6M6xiRhC4LvsAq2HueXCMzkpuXsrLnuBA3SdkJyuhNZXMCd",
+					  "matcherPublicKey":"9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+					  "assetPair":{
+						 "amountAsset":"5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
+						 "priceAsset":null
+					  },
+					  "orderType":"sell",
+					  "amount":1,
+					  "price":100,
+					  "timestamp":1,
+					  "expiration":123,
+					  "matcherFee":100000,
+					  "signature":"",
+					  "proofs":[
+						 
+					  ],
+					  "matcherFeeAssetId":null,
+					  "eip712Signature":"0xc8ba2bdafd27742546b3be34883efc51d6cdffbb235798d7b51876c6854791f019b0522d7a39b6f2087cba46ae86919b71a2d9d7920dfc8e00246d8f02a258f21b"
+				   },
+				   "amount":1,
+				   "price":100,
+							   "buyMatcherFee":100000,
+							   "sellMatcherFee":100000
+							}`,
+			signedTxBytesBase58: "Fdr4MTFwBtfTRWYi5MqJ6qLgEgD1qeQNqnfzp3aiqd7kKFEcEKY33zEVb5kHZAmh3SuPb1ecCtBoSWtUfb337cy6qZDibzUQHxP4w6DRchB7egyHzh7kSRRE2w1gd9KF6efokmhNgo9StsNGHi8nkJcbWnzdmUY4cPa1P818tjm1L7rrRUEEZFmAQVpnNezA1zqaNZQeMtVoo3E6rjSnwTT6voR1Hg2ntW46jqQJWMWg1WYT7MXXYQ27iV6nL7zHq1KPHJk7bnR9WSEue6Ws6wD3SRPKizoW5yKjoa9BszH4aQrQf2unLd9DqEd8k8CscvERtseAYQpzYe7cJMZaUThrAgCj1ZEREp8Gi2UuRm6sBXBGfKakEF5VPwAqG5xLzZJHTvoXvdtGCcJgwGA5pwLRQWXHJCYohpdYNdRxZWeMPXfprQbWcdSrkPNm8MuKREGPSWhaVqHnVtwLS1hv969KuiKN33o3zgqMuNYoUsYwkLxyZTxUWvRLWjYoobaXtsX2J263ypkkKWgj1ofzGrLWy9prHjzK9YsU5Hb4tHCjDC1rycF7NCxva3LQPqFyCo5cj7WQtYTTHJfh4ENRQnaqv6gJGPtNXTHYWe31y5fZBrAYnwWyWTrXcD9CjnhZiV44JHUv6Z26H4UrLXVS29W4MaGp4WSu1jvAekTXQbDjLCAmuCL39hYV4tiCq5pBGVZe8GF52GSxqiYDNiDGNRDv1GvqmuCYJYbNkEXVGaK7FDxzYAxLU7uEuDSyL7nZzpg6nXz3SBoAd2GT5n4BfoVEW",
+			txBytesBase58:       "5XJgEF5dc5PVHr75YTBceCdcbQhpjxEZXwcyarUCx9ypuiAHgE4D3Sj1P3Te4WDwzwxZQxuYEbwSGm1powmjytG5SjRB93JBjeWi2LrUSQiD6g9giCq4Jiccb5o9kkbjg9airYAojTLK8GEBmJhtLEmNMp7CKUK2qXvTSFQWMRMB29EhZcMW9Ve7BKjzWWBKSMCme3UvahRr5MJHAQhqikWkTfFMGCtLTaLKsxe3NanaUZePUsuAntFZPoCeyjyWaaadyM9tVVdXqvbzR7PgBC8sJCVtz9KsaRwNhZVUsV35kQE6vyBTNpqxiLcsESfNEMfB2WrFEjYj9tZ1QmPVdNqiJKLSJKABzsqvU3hg77GTqwzVGHPuCJpTM2RkDDC42YBftZVRsRiCugBuL91VUweViQzycAWPyptMUDXuHz7Zb7YtKC4F3M2jv8JZSVyM9m6oG1YJDvNsbJ7FnDdSU9SWUdiAJzeW4JSVPBwqvh28pxb5CSnkK63e5EEwcyrMgNW1TpvBbAZLmNLn4F6jVSmdsPFYZovReQgvp2o68ciHc23HngXNrHiudDzjVm49yFLaPyvPiHVxvUhgoPnR16rHartjyG1eCz9KTpTGEMkpHQpC7EiiZoHTAjNeFSwxJsDhQzMsriwHgFqgDDz1yozESgEGRZSNgr1zu8aNkQqfVE9zbs5GDtFRJfU",
+			txIDBase58:          "CPN2tNL3SWYXZEh9TGEYkCvi3LggLqvx7zpDYsmLsJH4",
+		},
+		{
+			scheme: CustomNetScheme,
+			jsonExchange: `
+				{
+				   "type":7,
+				   "id":"3vnj31Ve2USfcGi6zfxDvAzr3QYkQPpCZVM3WcuWNhZA",
+				   "sender":"3FrCwv8uFRxQazhX6Lno45aZ68Bof6ScaeF",
+				   "senderPublicKey":"9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+				   "fee":1000000,
+				   "feeAssetId":null,
+				   "timestamp":100,
+				   "proofs":[
+					  "2vWQFskRSomsNaEGnMgjGXm2b58RPnredtsK9sCmPC8XoAEf3UuoftnBY9Cf7dSiUqiAdv8XJLJnFykzYB4oUFPU"
+				   ],
+				   "version":3,
+				   "chainId":69,
+				   "order1":{
+					  "version":3,
+					  "id":"75YqwVQbiQmLMQBE61W1aLcsaAUnWbzM5Udh9Z4mXUBf",
+					  "sender":"3FrCwv8uFRxQazhX6Lno45aZ68Bof6ScaeF",
+					  "senderPublicKey":"9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+					  "matcherPublicKey":"9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+					  "assetPair":{
+						 "amountAsset":"5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
+						 "priceAsset":null
+					  },
+					  "orderType":"buy",
+					  "amount":1,
+					  "price":100,
+					  "timestamp":1,
+					  "expiration":123,
+					  "matcherFee":100000,
+					  "signature":"4PMHT9xUcd4tnqYZxMJ6YVb6V2HUkVYAYSE2XCgAsZUi95beT9atheU75HffHtt6R9BCrLvU6tvjdJeEoJkbu6JV",
+					  "proofs":[
+						 "4PMHT9xUcd4tnqYZxMJ6YVb6V2HUkVYAYSE2XCgAsZUi95beT9atheU75HffHtt6R9BCrLvU6tvjdJeEoJkbu6JV"
+					  ],
+					  "matcherFeeAssetId":null
+				   },
+				   "order2":{
+					  "version":4,
+					  "id":"5ezXw17vTgK1n1GmZyWz2y4aiwgTUKLU1SNDGRNticru",
+					  "sender":"3FzoJXUesFqzf4nmMYejpUDYmFJvkwEiQG6",
+					  "senderPublicKey":"5BQPcwDXaZexgonPb8ipDrLRXY3RHn1kFLP9fqp1s6M6xiRhC4LvsAq2HueXCMzkpuXsrLnuBA3SdkJyuhNZXMCd",
+					  "matcherPublicKey":"9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+					  "assetPair":{
+						 "amountAsset":"5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
+						 "priceAsset":null
+					  },
+					  "orderType":"sell",
+					  "amount":1,
+					  "price":100,
+					  "timestamp":1,
+					  "expiration":123,
+					  "matcherFee":100000,
+					  "signature":"",
+					  "proofs":[
+						 
+					  ],
+					  "matcherFeeAssetId":null,
+					  "eip712Signature":"0xc8ba2bdafd27742546b3be34883efc51d6cdffbb235798d7b51876c6854791f019b0522d7a39b6f2087cba46ae86919b71a2d9d7920dfc8e00246d8f02a258f21b"
+				   },
+				   "amount":1,
+				   "price":100,
+				   "buyMatcherFee":100000,
+				   "sellMatcherFee":100000
+				}`,
+			signedTxBytesBase58: "CZGwZQjF6DarjSinRxdFLHzG388JuhErchZ82mnYKbuGBvkhtDmmFwounRg8pZi3miwJqQUAYw9AUwSF6gj7gaQhwGDjM6JDV667Hz7jH6b7HcqpPCfyjHfzAzLygXnJnYSLMrQXy1P7BZrJpequntQrwD5L6cdYBeFovuGYwxhTbj4nHCpCWcwkCvEiF9Yo6mXFsVn2DBUonHAC9SP3aV7gGLWVEwb1Ve2RVy3sWXKRRm5V8qPbn8VZkAydxtbtqa12dEH4UnTUjXmbHqpQK4WT3nYoYut1gCcxjR7PFqJEtM81MCevzmqaNhdSKHGqsRPzrgn4NEfd5sG6aa3aw52fmV26ktc1eCdedBAfQw5S6z9UFNXvbSGRbGhEZ5bFABqoZN94roPav97eGcPckqH7PvHRtAaBR66B8vKNMRC5fqVWZ6f9nVtsh2DqoA5JjVbeNr2qY34x7kFT17ovyGAkuMZbF2RYxET5D9oZGCSUg15GgNoWHhW8RahcLuhe2HoL18TsM5zFYv7thyPqfDa9irL6CzBJu82wMbivAZfGnj7ngkJhk9n9S7FSh61ZPQNZVSyy5LhxTceFGp8Hrrvpif2yKFbEkJ9SQWgtWhSBKydLL2cjvo8isuifTVQ7mUFVE2W9WfWSPyAQ4yt2Jjxm1XdaaVPtKDDnh2KG6dL3LnJiB2iR463mLWkeswUJiGgxD3FyMHWCV8fyHhQCqC8ZuPXmj8d48cuJMdVEWfDY",
+			txBytesBase58:       "4T48Ldu7SGk1zCeB9Y75sPbEtdH8BcEUY3gHm11vGXymUnfKtv9FFvv33aSVW8fgd3nwmghvT21uSdYxiiXoCppJR9dyXnUet9BcYx3jRDVN1nNAhjEs5oYaYYgmR19GFtBkCQJjhgFkEFyfgtGNa227UguVkyiuNW8tPntEpQmUXf9SgSaK1SkqLPGXQTs9CBZYkUUvEsCPQmz21zMJ3hP3T84nWnYXRiBF1KnbkxrpYfRJUNqXZqtkn8T2ufmaiuCqgTAj4eRZPtAmLXVogQaB9qJCp7XQLZZYirsD9jNjrk25hBVso1osq48hvmmUCEeX9KbB9DFfJzfQRaD8JkpvnY6SSL5EWGbnLo46bhbXDbrG1AfFmnsGrFfNtuUe1XbbfGwRbRZL92eut584AhA6Vgtf76XL9ScCDrR8TmYArKCvS8hKXZq1s6xYmFKr3FTUhctYTdoQyqPAKCvepbiiAPm7SzR3GxxmcrFs7PPCsi9TSUF1dEQUA1QzTGHS3tdbkceXFSJ31vUrYBf69cmdtxGbUjEGfspbDD3RE4B1Cj4bpr1iJjgadNb4KGxXHW8QcsxQhWWuAdb5qevyvtsGQ21eangFebJyTVsVUDDrbS4WYnznCq2XUDVFqnqsmtRiY81ftku7Jz",
+			txIDBase58:          "3vnj31Ve2USfcGi6zfxDvAzr3QYkQPpCZVM3WcuWNhZA",
+		},
+	}
+	for _, tc := range tests {
+		var (
+			err                   error
+			expectedTxID          []byte
+			expectedSignedTxBytes []byte
+			expectedTxBytes       []byte
+		)
+		expectedTxID, err = base58.Decode(tc.txIDBase58)
+		require.NoError(t, err)
+		expectedSignedTxBytes, err = base58.Decode(tc.signedTxBytesBase58)
+		require.NoError(t, err)
+		expectedTxBytes, err = base58.Decode(tc.txBytesBase58)
+		require.NoError(t, err)
+
+		// check unmarshal tx from json
+		fromJsonTx := ExchangeWithProofs{}
+		err = json.Unmarshal([]byte(tc.jsonExchange), &fromJsonTx)
+		require.NoError(t, err)
+
+		// check marshal signed tx to protobuf
+		actualSignedTxBytes, err := fromJsonTx.MarshalSignedToProtobuf(tc.scheme)
+		require.NoError(t, err)
+		require.Equal(t, expectedSignedTxBytes, actualSignedTxBytes)
+
+		// check tx id
+		actualTxID, err := fromJsonTx.GetID(tc.scheme)
+		require.NoError(t, err)
+		require.Equal(t, expectedTxID, actualTxID)
+
+		// check unmarshal signed from protobuf
+		fromPbTx := ExchangeWithProofs{}
+		err = fromPbTx.UnmarshalSignedFromProtobuf(expectedSignedTxBytes)
+		require.NoError(t, err)
+		require.Equal(t, fromJsonTx, fromPbTx)
+
+		// check marshal unsigned to protobuf
+		actualTxBytes, err := fromPbTx.MarshalToProtobuf(tc.scheme)
+		require.NoError(t, err)
+		require.Equal(t, expectedTxBytes, actualTxBytes)
+
+		// signed tx verify
+		valid, err := fromPbTx.Verify(tc.scheme, matcherPublicKey)
+		require.NoError(t, err)
+		require.True(t, valid)
+
+		// check sign
+		unsignedTx := ExchangeWithProofs{}
+		err = unsignedTx.UnmarshalFromProtobuf(actualTxBytes)
+		require.NoError(t, err)
+		err = unsignedTx.Sign(tc.scheme, matcherPrivateKey)
+		require.NoError(t, err)
+		valid, err = unsignedTx.Verify(tc.scheme, matcherPublicKey)
+		require.NoError(t, err)
+		require.True(t, valid)
+	}
+}
+
 func TestLeaseWithSigValidations(t *testing.T) {
 	tests := []struct {
 		recipient string
@@ -3298,7 +3542,7 @@ func TestLeaseWithSigValidations(t *testing.T) {
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "fee should be positive"},
 		{"alias:T:nickname", 100000, math.MaxInt64 + 1, "fee is too big"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned Lease transaction: invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned Lease transaction: invalid WavesAddress checksum"},
 		{"alias:T:прозвище", 100000, 100000, "failed to create new unsigned Lease transaction: Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
 		//TODO: add test on leasing to oneself
 	}
@@ -3308,7 +3552,7 @@ func TestLeaseWithSigValidations(t *testing.T) {
 		rcp, err := recipientFromString(tc.recipient)
 		require.NoError(t, err)
 		tx := NewUnsignedLeaseWithSig(spk, rcp, tc.amount, tc.fee, 0)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -3505,7 +3749,7 @@ func TestLeaseWithProofsValidations(t *testing.T) {
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", 100000, 0, "fee should be positive"},
 		{"alias:T:nickname", 100000, math.MaxInt64 + 1, "fee is too big"},
 		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H96Y7SHTQ", math.MaxInt64, math.MaxInt64, "sum of amount and fee overflows JVM long"},
-		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned Lease transaction: invalid Address checksum"},
+		{"3PAWwWa6GbwcJaFzwqXQN5KQm7H86Y7SHTQ", 100000, 100000, "failed to create new unsigned Lease transaction: invalid WavesAddress checksum"},
 		{"alias:T:прозвище", 100000, 100000, "failed to create new unsigned Lease transaction: Alias should contain only following characters: -.0123456789@_abcdefghijklmnopqrstuvwxyz"},
 		//TODO: add test on leasing to oneself
 	}
@@ -3515,7 +3759,7 @@ func TestLeaseWithProofsValidations(t *testing.T) {
 		rcp, err := recipientFromString(tc.recipient)
 		require.NoError(t, err)
 		tx := NewUnsignedLeaseWithProofs(2, spk, rcp, tc.amount, tc.fee, 0)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -3715,7 +3959,7 @@ func TestLeaseCancelWithSigValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		tx := NewUnsignedLeaseCancelWithSig(spk, l, tc.fee, 0)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -3894,7 +4138,7 @@ func TestLeaseCancelWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		tx := NewUnsignedLeaseCancelWithProofs(2, 'T', spk, l, tc.fee, 0)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4074,7 +4318,7 @@ func TestCreateAliasWithSigValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		a := NewAlias('W', tc.alias)
 		tx := NewUnsignedCreateAliasWithSig(spk, *a, tc.fee, 0)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4257,9 +4501,9 @@ func TestCreateAliasWithProofsValidations(t *testing.T) {
 	}
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
-		a := NewAlias('W', tc.alias)
+		a := NewAlias(MainNetScheme, tc.alias)
 		tx := NewUnsignedCreateAliasWithProofs(2, spk, *a, tc.fee, 0)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4472,7 +4716,7 @@ func TestMassTransferWithProofsValidations(t *testing.T) {
 		a, _ := NewOptionalAssetFromString(tc.asset)
 		att := []byte(tc.attachment)
 		tx := NewUnsignedMassTransferWithProofs(1, spk, *a, tc.transfers, tc.fee, 0, att)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4726,7 +4970,7 @@ func TestDataWithProofsValidations(t *testing.T) {
 		require.NoError(t, err)
 		tx := NewUnsignedData(1, spk, tc.fee, 0)
 		tx.Entries = tc.entries
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.Error(t, err) //, tc.err, fmt.Sprintf("expected: %s", tc.err))
 		//assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
 		assert.Regexp(t, tc.err, err.Error())
@@ -4739,13 +4983,13 @@ func TestDataWithProofsDeleteValidation(t *testing.T) {
 	de := &DeleteDataEntry{Key: "key"}
 	tx1 := NewUnsignedData(1, spk, MinFee, 67890)
 	tx1.Entries = DataEntries{de}
-	_, err = tx1.Validate()
+	_, err = tx1.Validate(MainNetScheme)
 	msg := "delete supported only for protobuf transaction"
 	assert.EqualError(t, err, msg, fmt.Sprintf("expected: %s", msg))
 
 	tx2 := NewUnsignedData(2, spk, MinFee, 67890)
 	tx2.Entries = DataEntries{de}
-	_, err = tx2.Validate()
+	_, err = tx2.Validate(MainNetScheme)
 	assert.NoError(t, err)
 }
 
@@ -5126,8 +5370,8 @@ func TestSetScriptWithProofsValidations(t *testing.T) {
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		s, _ := base58.Decode(tc.script)
-		tx := NewUnsignedSetScriptWithProofs(1, 'W', spk, s, tc.fee, 0)
-		_, err := tx.Validate()
+		tx := NewUnsignedSetScriptWithProofs(1, MainNetScheme, spk, s, tc.fee, 0)
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -5318,7 +5562,7 @@ func TestSponsorshipWithProofsValidations(t *testing.T) {
 		a, err := crypto.NewDigestFromBase58("8Nwjd2tcQWff3S9WAhBa7vLRNpNnigWqrTbahvyfMVrU")
 		require.NoError(t, err)
 		tx := NewUnsignedSponsorshipWithProofs(1, spk, a, tc.minAssetFee, tc.fee, 0)
-		_, err = tx.Validate()
+		_, err = tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -5506,7 +5750,7 @@ func TestSetAssetScriptWithProofsValidations(t *testing.T) {
 		a, _ := crypto.NewDigestFromBase58("J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR")
 		s, _ := base58.Decode(tc.script)
 		tx := NewUnsignedSetAssetScriptWithProofs(1, 'W', spk, a, s, tc.fee, 0)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -5730,7 +5974,7 @@ func TestInvokeScriptWithProofsValidations(t *testing.T) {
 		ad, _ := NewAddressFromString("3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu")
 		fc := FunctionCall{Name: tc.name, Arguments: tc.args}
 		tx := NewUnsignedInvokeScriptWithProofs(tc.version, 'T', spk, NewRecipientFromAddress(ad), fc, tc.sps, *a2, tc.fee, 12345)
-		_, err := tx.Validate()
+		_, err := tx.Validate(MainNetScheme)
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -6019,7 +6263,7 @@ func TestUpdateAssetInfoWithProofsValidations(t *testing.T) {
 		require.NoError(t, err)
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedUpdateAssetInfoWithProofs(tc.version, tc.chain, aid, spk, tc.name, tc.description, 12345, *tc.feeAsset, tc.fee)
-		_, err = tx.Validate()
+		_, err = tx.Validate(tc.chain)
 		if !tc.valid {
 			assert.Equal(t, tc.err.Error(), err.Error())
 		}
@@ -6256,12 +6500,12 @@ func getTransaction(txb []byte, scheme Scheme) (Transaction, error) {
 }
 
 // This function is for tests only! Could produce invalid address.
-func addressFromString(s string) (Address, error) {
+func addressFromString(s string) (WavesAddress, error) {
 	ab, err := base58.Decode(s)
 	if err != nil {
-		return Address{}, err
+		return WavesAddress{}, err
 	}
-	a := Address{}
+	a := WavesAddress{}
 	copy(a[:], ab)
 	return a, nil
 }
@@ -6298,4 +6542,77 @@ func TestIssue_ToProtobufWithInvalidUtf8String(t *testing.T) {
 	bts, err := is.MarshalSignedToProtobuf(MainNetScheme)
 	require.NoError(t, err)
 	require.NotEmpty(t, bts)
+}
+
+func TestWavesTranactionGetSenderAndGetSenderPK(t *testing.T) {
+	emptyWavesPK := crypto.PublicKey{}
+	emptyWavesAddr, err := NewAddressFromPublicKey(TestNetScheme, emptyWavesPK)
+	require.NoError(t, err)
+
+	wavesPK, err := crypto.NewPublicKeyFromBase58("6uQfgnn18ixRGmhc31eoqWqZrac7jWpT2sNNXtvxQy4A")
+	require.NoError(t, err)
+	wavesAddr, err := NewAddressFromPublicKey(TestNetScheme, wavesPK)
+	require.NoError(t, err)
+
+	tests := []struct {
+		tx              Transaction
+		expectedPKBytes []byte
+		expectedAddr    Address
+	}{
+		{&Genesis{}, emptyWavesPK.Bytes(), emptyWavesAddr},
+		{&Payment{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&IssueWithProofs{Issue: Issue{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&IssueWithSig{Issue: Issue{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&TransferWithProofs{Transfer: Transfer{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&TransferWithSig{Transfer: Transfer{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&ReissueWithProofs{Reissue: Reissue{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&ReissueWithSig{Reissue: Reissue{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&BurnWithProofs{Burn: Burn{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&BurnWithSig{Burn: Burn{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&ExchangeWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&ExchangeWithSig{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&ExchangeWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&LeaseWithProofs{Lease: Lease{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&LeaseWithSig{Lease: Lease{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&LeaseCancelWithProofs{LeaseCancel: LeaseCancel{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&LeaseCancelWithSig{LeaseCancel: LeaseCancel{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&CreateAliasWithProofs{CreateAlias: CreateAlias{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&CreateAliasWithSig{CreateAlias: CreateAlias{SenderPK: wavesPK}}, wavesPK.Bytes(), wavesAddr},
+		{&MassTransferWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&DataWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&SetScriptWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&SponsorshipWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&SetAssetScriptWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&InvokeScriptWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&UpdateAssetInfoWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+	}
+	for _, tc := range tests {
+		addr, err := tc.tx.GetSender(TestNetScheme)
+		require.NoError(t, err)
+		require.Equal(t, tc.expectedAddr, addr)
+		type getSenderPK interface {
+			GetSenderPK() crypto.PublicKey
+		}
+		if wavesTx, ok := tc.tx.(getSenderPK); ok {
+			pk := wavesTx.GetSenderPK()
+			require.Equal(t, tc.expectedPKBytes, pk.Bytes())
+		}
+	}
+}
+
+func TestEthereumGetSenderAndFromPK(t *testing.T) {
+	ethereumPK, err := NewEthereumPublicKeyFromHexString("0xc4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
+	require.NoError(t, err)
+	ethereumAddr := ethereumPK.EthereumAddress()
+
+	tx := &EthereumTransaction{}
+	tx.threadSafeSetSenderPK(&ethereumPK)
+
+	actualPK, err := tx.FromPK()
+	require.NoError(t, err)
+	require.Equal(t, &ethereumPK, actualPK)
+
+	actualAddr, err := tx.GetSender(TestNetScheme)
+	require.NoError(t, err)
+	require.Equal(t, ethereumAddr, actualAddr)
 }

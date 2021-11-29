@@ -37,7 +37,7 @@ func TestConcatStrings(t *testing.T) {
 }
 
 func TestTakeString(t *testing.T) {
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		takeStringFunc: v5takeString,
 	}
 	for _, test := range []struct {
@@ -71,7 +71,7 @@ func TestTakeString(t *testing.T) {
 }
 
 func TestIncorrectTakeString(t *testing.T) {
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		takeStringFunc: takeRideStringWrong,
 	}
 	for _, test := range []struct {

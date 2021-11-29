@@ -2,11 +2,12 @@ package client
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"testing"
 )
 
 var addressesBalanceDetailsJson = `
@@ -83,7 +84,7 @@ func TestAddresses_Addresses(t *testing.T) {
 		client.Addresses.Addresses(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.Equal(t, []proto.Address{address}, body)
+	assert.Equal(t, []proto.WavesAddress{address}, body)
 	assert.Equal(t, "https://testnode1.wavesnodes.com/addresses", resp.Request.URL.String())
 }
 

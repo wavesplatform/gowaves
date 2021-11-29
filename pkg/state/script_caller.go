@@ -33,16 +33,21 @@ func newScriptCaller(
 	}, nil
 }
 
+// callAccountScriptWithOrder calls account script. This method must not be called for proto.EthereumAddress.
 func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockInfo *proto.BlockInfo, isRideV5 bool, initialisation bool) error {
-	sender, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, order.GetSenderPK())
+	senderAddr, err := order.GetSender(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return err
+	}
+	senderWavesAddr, ok := senderAddr.(proto.WavesAddress)
+	if !ok {
+		return errors.Errorf("address %q must be a waves address, not %T", senderAddr.String(), senderAddr)
 	}
 	id, err := order.GetID()
 	if err != nil {
 		return err
 	}
-	tree, err := a.stor.scriptsStorage.newestScriptByAddr(sender, !initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderWavesAddr, !initialisation)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve account script")
 	}
@@ -50,7 +55,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	if err != nil {
 		return errors.Wrap(err, "failed to create RIDE environment")
 	}
-	env.SetThisFromAddress(sender)
+	env.SetThisFromAddress(senderWavesAddr)
 	env.SetLastBlock(lastBlockInfo)
 	env.ChooseSizeCheck(tree.LibVersion)
 	env.ChooseTakeString(isRideV5)
@@ -71,7 +76,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For account script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(sender, !initialisation)
+		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr, !initialisation)
 		if err != nil {
 			return errors.Wrapf(err, "failed to call account script on order '%s'", base58.Encode(id))
 		}
@@ -80,12 +85,17 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	return nil
 }
 
+// callAccountScriptWithTx calls account script. This method must not be called for proto.EthereumAddress.
 func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *appendTxParams) error {
-	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	senderAddr, err := tx.GetSender(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return err
 	}
-	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderAddr, !params.initialisation)
+	senderWavesAddr, ok := senderAddr.(proto.WavesAddress)
+	if !ok {
+		return errors.Errorf("address %q must be a waves address, not %T", senderAddr.String(), senderAddr)
+	}
+	tree, err := a.stor.scriptsStorage.newestScriptByAddr(senderWavesAddr, !params.initialisation)
 	if err != nil {
 		return err
 	}
@@ -100,7 +110,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	env.ChooseSizeCheck(tree.LibVersion)
 	env.ChooseTakeString(params.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
-	env.SetThisFromAddress(senderAddr)
+	env.SetThisFromAddress(senderWavesAddr)
 	env.SetLastBlock(params.blockInfo)
 	err = env.SetTransaction(tx)
 	if err != nil {
@@ -118,7 +128,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For account script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderAddr, !params.initialisation)
+		est, err := a.stor.scriptsComplexity.newestOriginalScriptComplexityByAddr(senderWavesAddr, !params.initialisation)
 		if err != nil {
 			return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 		}
@@ -128,7 +138,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 }
 
 func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, assetID crypto.Digest, params *appendTxParams) (ride.Result, error) {
-	tree, err := a.stor.scriptsStorage.newestScriptByAsset(assetID, !params.initialisation)
+	tree, err := a.stor.scriptsStorage.newestScriptByAsset(proto.AssetIDFromDigest(assetID), !params.initialisation)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +172,10 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, as
 		a.recentTxComplexity += uint64(r.Complexity())
 	} else {
 		// For asset script we use original estimation
-		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID, !params.initialisation)
+		est, err := a.stor.scriptsComplexity.newestScriptComplexityByAsset(
+			proto.AssetIDFromDigest(assetID),
+			!params.initialisation,
+		)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to call script on asset '%s'", assetID.String())
 		}
@@ -192,46 +205,98 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 	return a.callAssetScriptCommon(env, assetID, params)
 }
 
-func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams, scriptAddress proto.Address) (ride.Result, error) {
+func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, info *fallibleValidationParams, scriptAddress proto.WavesAddress, txID crypto.Digest) (ride.Result, error) {
 	env, err := ride.NewEnvironment(a.settings.AddressSchemeCharacter, a.state, a.settings.InternalInvokePaymentsValidationAfterHeight)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create RIDE environment")
 	}
 	env.SetThisFromAddress(scriptAddress)
 	env.SetLastBlock(info.blockInfo)
-	env.SetTimestamp(tx.Timestamp)
+	env.SetTimestamp(tx.GetTimestamp())
 	err = env.SetTransaction(tx)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+		return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
 	}
-	err = env.SetInvoke(tx, tree.LibVersion)
-	if err != nil {
-		return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
-	}
-	env.ChooseSizeCheck(tree.LibVersion)
 
+	var functionName string
+	var functionArguments proto.Arguments
+	var defaultFunction bool
+	var payments proto.ScriptPayments
+	var sender proto.WavesAddress
+	switch transaction := tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+		err = env.SetInvoke(transaction, tree.LibVersion)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
+		}
+		payments = transaction.Payments
+		sender, err = proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, transaction.SenderPK)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
+		}
+		functionName = transaction.FunctionCall.Name
+		functionArguments = transaction.FunctionCall.Arguments
+		defaultFunction = transaction.FunctionCall.Default
+
+	case *proto.EthereumTransaction:
+		abiPayments := transaction.TxKind.DecodedData().Payments
+		scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))
+		for _, p := range abiPayments {
+			var optAsset proto.OptionalAsset
+			if p.PresentAssetID {
+				optAsset = *proto.NewOptionalAssetFromDigest(p.AssetID)
+			} else {
+				optAsset = proto.NewOptionalAssetWaves()
+			}
+			scriptPayment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
+			scriptPayments = append(scriptPayments, scriptPayment)
+		}
+		payments = scriptPayments
+
+		err = env.SetEthereumInvoke(transaction, tree.LibVersion, scriptPayments)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
+		}
+		sender, err = transaction.WavesAddressFrom(a.settings.AddressSchemeCharacter)
+		if err != nil {
+			return nil, errors.Errorf("failed to get waves address from ethereum transaction %v", err)
+		}
+		decodedData := transaction.TxKind.DecodedData()
+		functionName = decodedData.Name
+		arguments, err := ride.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
+		if err != nil {
+			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
+		}
+		functionArguments = arguments
+		defaultFunction = true
+
+	default:
+		return nil, errors.New("failed to invoke function: unexpected type of transaction ")
+	}
+
+	env.ChooseSizeCheck(tree.LibVersion)
 	env.ChooseTakeString(info.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
 	if tree.LibVersion >= 5 {
-		env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, tx.SenderPK)
+		env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV6Activated)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 		}
 	}
 
-	r, err := ride.CallFunction(env, tree, tx.FunctionCall.Name, tx.FunctionCall.Arguments)
+	r, err := ride.CallFunction(env, tree, functionName, functionArguments)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+		return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
 	}
-	if err := a.appendFunctionComplexity(r, scriptAddress, tx.FunctionCall, info); err != nil {
-		return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", tx.ID.String())
+	if err := a.appendFunctionComplexity(r, scriptAddress, functionName, defaultFunction, info); err != nil {
+		return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
 	}
 	return r, nil
 }
 
-func (a *scriptCaller) appendFunctionComplexity(result ride.Result, scriptAddress proto.Address, function proto.FunctionCall, info *fallibleValidationParams) error {
+func (a *scriptCaller) appendFunctionComplexity(result ride.Result, scriptAddress proto.Address, functionName string, functionDefault bool, info *fallibleValidationParams) error {
 	if result == nil {
 		return nil
 	}
@@ -240,7 +305,7 @@ func (a *scriptCaller) appendFunctionComplexity(result ride.Result, scriptAddres
 		// After activation of RideV5 we have to add actual execution complexity
 		a.recentTxComplexity += uint64(result.Complexity())
 	} else {
-		// Estimation based on evaluated complexity
+		// Estimation based on estimated complexity
 		// For callable (function) we have to use the latest possible estimation
 		ev, err := a.state.EstimatorVersion()
 		if err != nil {
@@ -250,13 +315,12 @@ func (a *scriptCaller) appendFunctionComplexity(result ride.Result, scriptAddres
 		if err != nil {
 			return err
 		}
-		fn := function.Name
-		if fn == "" && function.Default {
-			fn = "default"
+		if functionName == "" && functionDefault {
+			functionName = "default"
 		}
-		c, ok := est.Functions[fn]
+		c, ok := est.Functions[functionName]
 		if !ok {
-			return errors.Errorf("no estimation for function '%s'", function.Name)
+			return errors.Errorf("no estimation for function '%s'", functionName)
 		}
 		a.recentTxComplexity += uint64(c)
 	}

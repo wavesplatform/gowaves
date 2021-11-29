@@ -221,7 +221,7 @@ func (s *Storage) TradesRange(amountAsset, priceAsset crypto.Digest, from, to ui
 	return trades(snapshot, amountAsset, priceAsset, from, to, maxLimit)
 }
 
-func (s *Storage) TradesByAddress(amountAsset, priceAsset crypto.Digest, address proto.Address, limit int) ([]data.Trade, error) {
+func (s *Storage) TradesByAddress(amountAsset, priceAsset crypto.Digest, address proto.WavesAddress, limit int) ([]data.Trade, error) {
 	snapshot, err := s.db.GetSnapshot()
 	if err != nil {
 		return nil, err
@@ -298,7 +298,7 @@ func (s *Storage) BlockID(height int) (proto.BlockID, error) {
 	return b, nil
 }
 
-func (s *Storage) IssuerBalance(issuer proto.Address, asset crypto.Digest) (uint64, error) {
+func (s *Storage) IssuerBalance(issuer proto.WavesAddress, asset crypto.Digest) (uint64, error) {
 	snapshot, err := s.db.GetSnapshot()
 	if err != nil {
 		return 0, err

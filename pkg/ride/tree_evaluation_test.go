@@ -23,7 +23,7 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
 		return testTransferWithProofs(), nil
 	}}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		transactionFunc: testTransferObject,
 		stateFunc: func() types.SmartState {
 			return state
@@ -35,7 +35,7 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 	for _, test := range []struct {
 		comment string
 		source  string
-		env     Environment
+		env     environment
 		res     bool
 	}{
 		{`V1: true`, "AQa3b8tH", nil, true},
@@ -101,7 +101,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 	exchange := newExchangeTransaction()
 	data := newDataTransaction()
 	require.NoError(t, err)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		checkMessageLengthFunc: v3check,
 		heightFunc: func() rideInt {
 			return 5
@@ -141,8 +141,8 @@ func TestFunctionsEvaluation(t *testing.T) {
 				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 					return 5, nil
 				},
-				NewestAssetBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					if bytes.Equal(asset, d.Bytes()) {
+				NewestAssetBalanceFunc: func(account proto.Recipient, asset crypto.Digest) (uint64, error) {
+					if asset == d {
 						return 5, nil
 					}
 					return 0, nil
@@ -170,7 +170,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			return false
 		},
 	}
-	envWithDataTX := &MockRideEnvironment{
+	envWithDataTX := &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			obj, err := dataWithProofsToObject('W', data)
 			if err != nil {
@@ -183,7 +183,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			return 3
 		},
 	}
-	envWithExchangeTX := &MockRideEnvironment{
+	envWithExchangeTX := &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			obj, err := exchangeWithProofsToObject('W', exchange)
 			if err != nil {
@@ -200,7 +200,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		name   string
 		text   string
 		script string
-		env    Environment
+		env    environment
 		result bool
 		error  bool
 	}{
@@ -363,7 +363,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 }
 
 func TestComplexity(t *testing.T) {
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		transactionFunc: testTransferObject,
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
@@ -482,7 +482,7 @@ func TestDataFunctions(t *testing.T) {
 	require.NoError(t, data.Sign(proto.MainNetScheme, secret))
 	txObj, err := transactionToObject('W', data)
 	require.NoError(t, err)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			return txObj
 		},
@@ -521,14 +521,14 @@ func TestDataFunctions(t *testing.T) {
 	}
 }
 
-func testInvokeEnv(verifier bool) (Environment, *proto.InvokeScriptWithProofs) {
+func testInvokeEnv(verifier bool) (environment, *proto.InvokeScriptWithProofs) {
 	tx := byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
 	txo, err := transactionToObject(proto.MainNetScheme, tx)
 	if err != nil {
 		panic(err)
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		invocationFunc: func() rideObject {
 			if !verifier {
 				obj, err := invocationToObject(3, proto.MainNetScheme, tx)
@@ -789,7 +789,7 @@ func TestTransferSet(t *testing.T) {
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100,
-		Asset:     proto.OptionalAsset{Present: false},
+		Asset:     proto.NewOptionalAssetWaves(),
 	}
 	require.NoError(t, err)
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
@@ -846,7 +846,7 @@ func TestScriptResult(t *testing.T) {
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
 		Amount:    100500,
-		Asset:     proto.OptionalAsset{Present: false},
+		Asset:     proto.NewOptionalAssetWaves(),
 	}
 	require.Equal(t,
 		&proto.ScriptResult{
@@ -863,36 +863,22 @@ func TestScriptResult(t *testing.T) {
 	)
 }
 
-func initWrappedState(state types.SmartState, env *MockRideEnvironment) *WrappedState {
-	var dataEntries diffDataEntries
-
-	dataEntries.diffInteger = map[string]proto.IntegerDataEntry{}
-	dataEntries.diffBool = map[string]proto.BooleanDataEntry{}
-	dataEntries.diffString = map[string]proto.StringDataEntry{}
-	dataEntries.diffBinary = map[string]proto.BinaryDataEntry{}
-	dataEntries.diffDDelete = map[string]proto.DeleteDataEntry{}
-
-	balances := map[string]diffBalance{}
-	sponsorships := map[string]diffSponsorship{}
-	newAssetInfo := map[string]diffNewAssetInfo{}
-	oldAssetInfo := map[string]diffOldAssetInfo{}
-	leases := map[string]lease{}
-
-	diffSt := &diffState{state: state, dataEntries: dataEntries, balances: balances, sponsorships: sponsorships, newAssetsInfo: newAssetInfo, oldAssetsInfo: oldAssetInfo, leases: leases}
-
-	return &WrappedState{diff: *diffSt, cle: env.this().(rideAddress), scheme: env.scheme()}
+func initWrappedState(state types.SmartState, env *mockRideEnvironment) *WrappedState {
+	return &WrappedState{diff: newDiffState(state), cle: env.this().(rideAddress), scheme: env.scheme()}
 }
 
 var wrappedSt WrappedState
 var firstScript string
 var secondScript string
 var assetIDIssue crypto.Digest
-var addr proto.Address
+var addr proto.WavesAddress
 var addrPK crypto.PublicKey
-var addressCallable proto.Address
+var addressCallable proto.WavesAddress
 var addressCallablePK crypto.PublicKey
 
 func smartStateDappFromDapp() types.SmartState {
+	expectedAsset := crypto.MustDigestFromBase58("13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ")
+
 	return &MockSmartState{
 		NewestLeasingInfoFunc: func(id crypto.Digest) (*proto.LeaseInfo, error) {
 			return nil, nil
@@ -912,7 +898,7 @@ func smartStateDappFromDapp() types.SmartState {
 			return script, nil
 		},
 		NewestScriptByAssetFunc: func(assetID crypto.Digest) (proto.Script, error) {
-			if assetID.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
+			if assetID == expectedAsset {
 				script := "BQQAAAALZEFwcEFkZHJlc3MJAAQmAAAAAQIAAAAjM1A4ZVpWS1M3YTR0cm9HY2t5dHhhZWZMQWk5dzdQNWFNbmEEAAAAByRtYXRjaDAFAAAAAnR4AwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAAA9CdXJuVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABJSZWlzc3VlVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABlTZXRBc3NldFNjcmlwdFRyYW5zYWN0aW9uBAAAAAJ0eAUAAAAHJG1hdGNoMAkAAAAAAAACCAUAAAACdHgAAAAGc2VuZGVyBQAAAAtkQXBwQWRkcmVzcwMJAAABAAAAAgUAAAAHJG1hdGNoMAIAAAAXTWFzc1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAnR4BQAAAAckbWF0Y2gwCQAAAAAAAAIIBQAAAAJ0eAAAAAZzZW5kZXIFAAAAC2RBcHBBZGRyZXNzAwkAAAEAAAACBQAAAAckbWF0Y2gwAgAAABNUcmFuc2ZlclRyYW5zYWN0aW9uBAAAAAJ0eAUAAAAHJG1hdGNoMAkAAAAAAAACCAUAAAACdHgAAAAGc2VuZGVyBQAAAAtkQXBwQWRkcmVzcwf56Ssf"
 
 				src, err := base64.StdEncoding.DecodeString(script)
@@ -923,7 +909,7 @@ func smartStateDappFromDapp() types.SmartState {
 			}
 			return nil, nil
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			if recipient.Alias != nil {
 				if recipient.Alias.Alias == "alias" {
 					addr, err := proto.NewAddressFromString("3MsCoDnBbgzjQ7BgGk9xcruM6JVZ5jF8YCV")
@@ -935,7 +921,7 @@ func smartStateDappFromDapp() types.SmartState {
 		AddingBlockHeightFunc: func() (uint64, error) {
 			return 10, nil
 		},
-		NewestScriptPKByAddrFunc: func(address proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(address proto.WavesAddress) (crypto.PublicKey, error) {
 			// payments test
 			if address.String() == "3P8eZVKS7a4troGckytxaefLAi9w7P5aMna" {
 				return crypto.NewPublicKeyFromBase58("FztxsodUc9V7iVzodkGumnZFtHnNTxYSETZfxBFAw9R3")
@@ -961,14 +947,14 @@ func smartStateDappFromDapp() types.SmartState {
 		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 			return 0, nil
 		},
-		NewestAssetBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
 			return 0, nil
 		},
-		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.Address, error) {
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
 			if alias.Alias == "alias" {
 				return proto.NewAddressFromString("3MsCoDnBbgzjQ7BgGk9xcruM6JVZ5jF8YCV")
 			}
-			return proto.Address{}, errors.New("unexpected alias")
+			return proto.WavesAddress{}, errors.New("unexpected alias")
 		},
 		NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
 			return &proto.FullWavesBalance{
@@ -998,10 +984,9 @@ func smartStateDappFromDapp() types.SmartState {
 			return false, nil
 		},
 		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-			if assetID.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
-
+			if assetID == expectedAsset {
 				return &proto.AssetInfo{
-					ID:              assetID,
+					ID:              expectedAsset,
 					Quantity:        1000,
 					Decimals:        '8',
 					Issuer:          addressCallable,
@@ -1011,13 +996,12 @@ func smartStateDappFromDapp() types.SmartState {
 					Sponsored:       false,
 				}, nil
 			}
-
 			return nil, nil
 		},
 		NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
-			if assetID.String() == "13YvHUb3bg7sXgExc6kFcCUKm6WYpJX9rLpHVhiyJNGJ" {
+			if assetID == expectedAsset {
 				assetInfo := proto.AssetInfo{
-					ID:              assetID,
+					ID:              expectedAsset,
 					Quantity:        1000,
 					Decimals:        '8',
 					Issuer:          addressCallable,
@@ -1054,7 +1038,7 @@ func smartStateDappFromDapp() types.SmartState {
 	}
 }
 
-var thisAddress proto.Address
+var thisAddress proto.WavesAddress
 var tx *proto.InvokeScriptWithProofs
 var inv rideObject
 var id []byte
@@ -1063,7 +1047,7 @@ func WrappedStateFunc() types.SmartState {
 	return &wrappedSt
 }
 
-var envDappFromDapp = &MockRideEnvironment{
+var envDappFromDapp = &mockRideEnvironment{
 	setInvocationFunc: func(invocation rideObject) {
 		inv = invocation
 	},
@@ -1077,7 +1061,7 @@ var envDappFromDapp = &MockRideEnvironment{
 	thisFunc: func() rideType {
 		return rideAddress(thisAddress)
 	},
-	setNewDAppAddressFunc: func(address proto.Address) {
+	setNewDAppAddressFunc: func(address proto.WavesAddress) {
 		thisAddress = address
 		wrappedSt.cle = rideAddress(address)
 	},
@@ -1090,6 +1074,9 @@ var envDappFromDapp = &MockRideEnvironment{
 	},
 	timestampFunc: func() uint64 {
 		return 1564703444249
+	},
+	rideV6ActivatedFunc: func() bool {
+		return false
 	},
 	validateInternalPaymentsFunc: func() bool {
 		return true
@@ -1107,12 +1094,12 @@ func tearDownDappFromDapp() {
 	firstScript = ""
 	secondScript = ""
 	assetIDIssue = crypto.Digest{}
-	addr = proto.Address{}
-	addressCallable = proto.Address{}
+	addr = proto.WavesAddress{}
+	addressCallable = proto.WavesAddress{}
 	addrPK = crypto.PublicKey{}
 	addressCallablePK = crypto.PublicKey{}
 
-	thisAddress = proto.Address{}
+	thisAddress = proto.WavesAddress{}
 	tx = nil
 	id = nil
 }
@@ -1131,7 +1118,7 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 			callerRcp     = proto.NewRecipientFromAddress(caller)
 		)
 		if payment.Asset.Present {
-			senderBalance, err = wrappedSt.NewestAssetBalance(callerRcp, payment.Asset.ID.Bytes())
+			senderBalance, err = wrappedSt.NewestAssetBalance(callerRcp, payment.Asset.ID)
 		} else {
 			senderBalance, err = wrappedSt.NewestWavesBalance(callerRcp)
 		}
@@ -1164,7 +1151,7 @@ func AddExternalPayments(externalPayments proto.ScriptPayments, callerPK crypto.
 	return nil
 }
 
-func AddAssetToSender(senderAddress proto.Address, amount int64, asset proto.OptionalAsset) error {
+func AddAssetToSender(senderAddress proto.WavesAddress, amount int64, asset proto.OptionalAsset) error {
 	senderRecipient := proto.NewRecipientFromAddress(senderAddress)
 
 	searchBalance, searchAddr, err := wrappedSt.diff.findBalance(senderRecipient, asset)
@@ -1350,7 +1337,7 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	require.NoError(t, err)
 	assert.ElementsMatch(t, expectedAttachedPaymentActions, ap)
 	expectedLeaseWrites[0].ID = sr.Leases[0].ID
-	assetExp := proto.OptionalAsset{}
+	assetExp := proto.NewOptionalAssetWaves()
 
 	expectedActionsResult := &proto.ScriptResult{
 		DataEntries:  expectedDataEntryWrites,
@@ -1392,38 +1379,38 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 	balance := diffBalance{regular: 7533, leaseIn: 10, asset: assetExp, effectiveHistory: []int64{7543}}
-	expectedDiffResult.balances[addr.String()+assetExp.String()] = balance
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balance
 
 	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
-	expectedDiffResult.balances[senderAddress.String()+assetExp.String()] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 
 	balanceCallable := diffBalance{regular: 2467, leaseOut: 10, asset: assetExp, effectiveHistory: []int64{2467, 2457}}
-	expectedDiffResult.balances[addressCallable.String()+assetExp.String()] = balanceCallable
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 
 	assetFromIssue := *proto.NewOptionalAssetFromDigest(sr.Issues[0].ID)
 	balanceCallableAsset := diffBalance{regular: 6, leaseOut: 0, asset: assetFromIssue} // +1 after Issue. + 10 after Reissue. -5 after Burn. = 6
-	expectedDiffResult.balances[addressCallable.String()+assetFromIssue.String()] = balanceCallableAsset
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetFromIssue}] = balanceCallableAsset
 
-	intEntry1 := proto.IntegerDataEntry{Key: "int", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry1
+	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
 
 	boolEntry := proto.BooleanDataEntry{Key: "bool", Value: true}
-	expectedDiffResult.dataEntries.diffBool["bool"+addressCallable.String()] = boolEntry
+	expectedDiffResult.dataEntries.diffBool[booleanDataEntryKey{boolEntry.Key, addressCallable}] = boolEntry
 
 	stringEntry := proto.StringDataEntry{Key: "str", Value: ""}
-	expectedDiffResult.dataEntries.diffString["str"+addressCallable.String()] = stringEntry
+	expectedDiffResult.dataEntries.diffString[stringDataEntryKey{stringEntry.Key, addressCallable}] = stringEntry
 
 	binaryEntry := proto.BinaryDataEntry{Key: "bin", Value: []byte("")}
-	expectedDiffResult.dataEntries.diffBinary["bin"+addressCallable.String()] = binaryEntry
+	expectedDiffResult.dataEntries.diffBinary[binaryDataEntryKey{binaryEntry.Key, addressCallable}] = binaryEntry
 
 	deleteEntry := proto.DeleteDataEntry{Key: "str"}
-	expectedDiffResult.dataEntries.diffDDelete["str"+addressCallable.String()] = deleteEntry
+	expectedDiffResult.dataEntries.diffDelete[deleteDataEntryKey{deleteEntry.Key, addressCallable}] = deleteEntry
 
 	newAsset := diffNewAssetInfo{dAppIssuer: addressCallable, name: "CatCoin", description: "", quantity: 6, decimals: 0, reissuable: false, script: nil, nonce: 0}
-	expectedDiffResult.newAssetsInfo[assetIDIssue.String()] = newAsset
+	expectedDiffResult.newAssetsInfo[assetIDIssue] = newAsset
 
 	lease := lease{Recipient: recipient, Sender: recipientCallable, leasedAmount: 10}
-	expectedDiffResult.leases[expectedLeaseWrites[0].ID.String()] = lease
+	expectedDiffResult.leases[expectedLeaseWrites[0].ID] = lease
 
 	assert.Equal(t, expectedDiffResult.newAssetsInfo, wrappedSt.diff.newAssetsInfo)
 	assert.Equal(t, expectedDiffResult.oldAssetsInfo, wrappedSt.diff.oldAssetsInfo)
@@ -1549,8 +1536,8 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 
-	intEntry1 := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["bar"+addr.String()] = intEntry1
+	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addr}] = intEntry
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 
@@ -1719,15 +1706,16 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
+	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9986, effectiveHistory: []int64{10000, 9986}}
-	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: proto.OptionalAsset{}}
-	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 14, effectiveHistory: []int64{0, 14}}
+	balanceMain := diffBalance{asset: assetExp, regular: 9986, effectiveHistory: []int64{10000, 9986}}
+	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
+	balanceCallable := diffBalance{asset: assetExp, regular: 14, effectiveHistory: []int64{0, 14}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
-	expectedDiffResult.balances[addressCallable.String()+proto.NewOptionalAssetWaves().String()] = balanceCallable
-	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
-	expectedDiffResult.balances[addr.String()+proto.NewOptionalAssetWaves().String()] = balanceMain
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -1911,15 +1899,16 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
+	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9971, effectiveHistory: []int64{10000, 9986, 9971}}
-	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: proto.OptionalAsset{}}
-	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 29, effectiveHistory: []int64{0, 14, 29}}
+	balanceMain := diffBalance{asset: assetExp, regular: 9971, effectiveHistory: []int64{10000, 9986, 9971}}
+	balanceSender := diffBalance{regular: 0, leaseOut: 0, asset: assetExp}
+	balanceCallable := diffBalance{asset: assetExp, regular: 29, effectiveHistory: []int64{0, 14, 29}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
-	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
-	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
-	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -2242,21 +2231,21 @@ func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
+	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9987, effectiveHistory: []int64{10000, 9987}}
-	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
-	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 13, effectiveHistory: []int64{0, 13}}
+	balanceMain := diffBalance{asset: assetExp, regular: 9987, effectiveHistory: []int64{10000, 9987}}
+	balanceSender := diffBalance{asset: assetExp, regular: 0}
+	balanceCallable := diffBalance{asset: assetExp, regular: 13, effectiveHistory: []int64{0, 13}}
 	intEntry := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry
-	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
-	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
-	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{"bar", addressCallable}] = intEntry
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 
 	tearDownDappFromDapp()
-
 }
 
 func TestInvokeDAppFromDAppScript6(t *testing.T) {
@@ -2706,14 +2695,15 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
+	assetExp := proto.NewOptionalAssetWaves()
 
 	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 10000}
-	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
-	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
-	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
+	balanceMain := diffBalance{asset: assetExp, regular: 10000}
+	balanceSender := diffBalance{asset: assetExp, regular: 0}
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -2863,15 +2853,16 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
+	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9999}
-	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
-	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 1}
-	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
-	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
-	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
+	balanceMain := diffBalance{asset: assetExp, regular: 9999}
+	balanceSender := diffBalance{asset: assetExp, regular: 0}
+	balanceCallable := diffBalance{asset: assetExp, regular: 1}
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 	intEntry := proto.IntegerDataEntry{Key: "int", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["int"+addressCallable.String()] = intEntry
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry.Key, addressCallable}] = intEntry
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -3043,13 +3034,13 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
 	balance := diffBalance{regular: 1, leaseIn: 0, asset: *assetCat}
-	expectedDiffResult.balances[addr.String()+assetCat.String()] = balance
+	expectedDiffResult.balances[balanceDiffKey{addr, *assetCat}] = balance
 
 	balanceCallable := diffBalance{regular: 10049, leaseOut: 0, asset: *assetCat} // the balance was 9999. reissue + 100. burn - 50. = 10049
-	expectedDiffResult.balances[addressCallable.String()+assetCat.String()] = balanceCallable
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, *assetCat}] = balanceCallable
 
 	oldAsset := diffOldAssetInfo{diffQuantity: 50}
-	expectedDiffResult.oldAssetsInfo[assetIDIssue.String()] = oldAsset
+	expectedDiffResult.oldAssetsInfo[assetIDIssue] = oldAsset
 
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
 	assert.Equal(t, expectedDiffResult.sponsorships, wrappedSt.diff.sponsorships)
@@ -3214,17 +3205,18 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	assert.Equal(t, expectedActionsResult, sr)
 
 	expectedDiffResult := initWrappedState(smartState(), env).diff
+	assetExp := proto.NewOptionalAssetWaves()
 
-	balanceMain := diffBalance{asset: proto.OptionalAsset{}, regular: 9984}
-	balanceSender := diffBalance{asset: proto.OptionalAsset{}, regular: 0}
-	balanceCallable := diffBalance{asset: proto.OptionalAsset{}, regular: 16}
+	balanceMain := diffBalance{asset: assetExp, regular: 9984}
+	balanceSender := diffBalance{asset: assetExp, regular: 0}
+	balanceCallable := diffBalance{asset: assetExp, regular: 16}
 	intEntry1 := proto.IntegerDataEntry{Key: "key", Value: 0}
 	intEntry2 := proto.IntegerDataEntry{Key: "bar", Value: 1}
-	expectedDiffResult.dataEntries.diffInteger["key"+addr.String()] = intEntry1
-	expectedDiffResult.dataEntries.diffInteger["bar"+addressCallable.String()] = intEntry2
-	expectedDiffResult.balances[addr.String()+proto.OptionalAsset{}.String()] = balanceMain
-	expectedDiffResult.balances[senderAddress.String()+proto.OptionalAsset{}.String()] = balanceSender
-	expectedDiffResult.balances[addressCallable.String()+proto.OptionalAsset{}.String()] = balanceCallable
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry1.Key, addr}] = intEntry1
+	expectedDiffResult.dataEntries.diffInteger[integerDataEntryKey{intEntry2.Key, addressCallable}] = intEntry2
+	expectedDiffResult.balances[balanceDiffKey{addr, assetExp}] = balanceMain
+	expectedDiffResult.balances[balanceDiffKey{senderAddress, assetExp}] = balanceSender
+	expectedDiffResult.balances[balanceDiffKey{addressCallable, assetExp}] = balanceCallable
 
 	assert.Equal(t, expectedDiffResult.dataEntries, wrappedSt.diff.dataEntries)
 	assert.Equal(t, expectedDiffResult.balances, wrappedSt.diff.balances)
@@ -3987,7 +3979,7 @@ func TestHashScriptFunc(t *testing.T) {
 			},
 		}
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -4116,7 +4108,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 			},
 		}
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -4209,7 +4201,7 @@ func TestMatchOverwrite(t *testing.T) {
 	tv, err := transactionToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -4270,7 +4262,7 @@ func TestFailSript1(t *testing.T) {
 	tv, err := transactionToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -4374,7 +4366,7 @@ func TestFailSript2(t *testing.T) {
 	tv, err := transactionToObject(proto.MainNetScheme, tx)
 	require.NoError(t, err)
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -4467,7 +4459,7 @@ func TestWhaleDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 368430
 		},
@@ -4600,7 +4592,7 @@ func TestExchangeDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -4724,10 +4716,7 @@ func TestBankDApp(t *testing.T) {
 		FunctionCall:    call,
 		Payments: proto.ScriptPayments{proto.ScriptPayment{
 			Amount: 213,
-			Asset: proto.OptionalAsset{
-				Present: true,
-				ID:      paymentAsset,
-			},
+			Asset:  *proto.NewOptionalAssetFromDigest(paymentAsset),
 		}},
 		FeeAsset:  proto.OptionalAsset{},
 		Fee:       5000000,
@@ -4764,7 +4753,7 @@ func TestBankDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 0
 		},
@@ -4891,7 +4880,7 @@ func TestLigaDApp1(t *testing.T) {
 		GeneratorPublicKey:  sender1,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -4909,15 +4898,14 @@ func TestLigaDApp1(t *testing.T) {
 				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 					return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
 				},
-				NewestAssetBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					a := base58.Encode(asset)
-					switch a {
-					case "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye":
+				NewestAssetBalanceFunc: func(account proto.Recipient, asset crypto.Digest) (uint64, error) {
+					switch asset {
+					case team1:
 						return 1000 - 5, nil
-					case "FAysFm8ejh8dqDLooe83V7agUNc9CyC2bomy3NDUxGXv":
+					case team2:
 						return 1000, nil
 					default:
-						return 0, errors.Errorf("unexpected asset %q", a)
+						return 0, errors.Errorf("unexpected asset %q", asset.String())
 					}
 				},
 				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
@@ -5049,7 +5037,7 @@ func TestLigaDApp1(t *testing.T) {
 		GeneratorPublicKey:  sender1,
 	}
 
-	env = &MockRideEnvironment{
+	env = &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -5067,20 +5055,19 @@ func TestLigaDApp1(t *testing.T) {
 				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 					return 3*waves - 2*waves - 100000 - 1000000 + 5 - 150000, nil
 				},
-				NewestAssetBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					a := base58.Encode(asset)
-					switch a {
-					case "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye":
+				NewestAssetBalanceFunc: func(account proto.Recipient, asset crypto.Digest) (uint64, error) {
+					switch asset {
+					case team1:
 						return 1000 - 5, nil
-					case "FAysFm8ejh8dqDLooe83V7agUNc9CyC2bomy3NDUxGXv":
+					case team2:
 						return 1000, nil
 					default:
-						return 0, errors.Errorf("unexpected asset %q", a)
+						return 0, errors.Errorf("unexpected asset %q", asset.String())
 					}
 				},
-				NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-					switch assetID.String() {
-					case "4njdbzZQNBSPgU2WWPfcKEnUbFvSKTHQBRdGk2mJJ9ye":
+				NewestAssetInfoFunc: func(asset crypto.Digest) (*proto.AssetInfo, error) {
+					switch asset {
+					case team1:
 						return &proto.AssetInfo{
 							ID:              team1,
 							Quantity:        1000,
@@ -5091,7 +5078,7 @@ func TestLigaDApp1(t *testing.T) {
 							Scripted:        false,
 							Sponsored:       false,
 						}, nil
-					case "FAysFm8ejh8dqDLooe83V7agUNc9CyC2bomy3NDUxGXv":
+					case team2:
 						return &proto.AssetInfo{
 							ID:              team2,
 							Quantity:        1000,
@@ -5233,7 +5220,7 @@ func TestTestingDApp(t *testing.T) {
 		Generator:           gen,
 		GeneratorPublicKey:  sender,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -5359,7 +5346,7 @@ func TestDropElementDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -5478,7 +5465,7 @@ func TestMathDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
 		},
@@ -5598,7 +5585,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 844761
 		},
@@ -5726,7 +5713,7 @@ func Test8Ball(t *testing.T) {
 		Generator:           gen,
 		GeneratorPublicKey:  sender,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 844761
 		},
@@ -5852,7 +5839,7 @@ func TestIntegerEntry(t *testing.T) {
 		Generator:           gen,
 		GeneratorPublicKey:  sender,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 844761
 		},
@@ -5867,7 +5854,7 @@ func TestIntegerEntry(t *testing.T) {
 				AddingBlockHeightFunc: func() (uint64, error) {
 					return 386529, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset crypto.Digest) (bool, error) {
 					return false, nil
 				},
 				NewestFullWavesBalanceFunc: func(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -5912,22 +5899,22 @@ func TestAssetInfoV3V4(t *testing.T) {
 		Scripted:        false,
 		Sponsored:       false,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{
-				NewestAssetBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
+				NewestAssetBalanceFunc: func(account proto.Recipient, asset crypto.Digest) (uint64, error) {
 					return 1000, nil
 				},
-				NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+				NewestAssetInfoFunc: func(asset crypto.Digest) (*proto.AssetInfo, error) {
 					return &info, nil
 				},
-				NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+				NewestAssetIsSponsoredFunc: func(asset crypto.Digest) (bool, error) {
 					return false, nil
 				},
-				NewestFullAssetInfoFunc: func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+				NewestFullAssetInfoFunc: func(asset crypto.Digest) (*proto.FullAssetInfo, error) {
 					return &proto.FullAssetInfo{
 						AssetInfo:   info,
 						Name:        "ASSET1",
@@ -5975,7 +5962,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 }
 
 func TestJSONParsing(t *testing.T) {
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		takeStringFunc: v5takeString,
 	}
 
@@ -6003,7 +5990,7 @@ func TestDAppWithFullIssue(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	id := bytes.Repeat([]byte{0}, 32)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		txIDFunc: func() rideType {
 			return rideBytes(id)
 		},
@@ -6029,7 +6016,7 @@ func TestDAppWithSimpleIssue(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	id := bytes.Repeat([]byte{0}, 32)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		txIDFunc: func() rideType {
 			return rideBytes(id)
 		},
@@ -6091,7 +6078,7 @@ func TestBadType(t *testing.T) {
 		Generator:           gen,
 		GeneratorPublicKey:  sender,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 617907
 		},
@@ -6241,7 +6228,7 @@ func TestNoDeclaration(t *testing.T) {
 		"poolTokenCirculation":  19875987,
 		"lastSettlementPriceId": 68978,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 2342971
 		},
@@ -6318,10 +6305,7 @@ func TestNoDeclaration(t *testing.T) {
 		{
 			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3PJCXW3XZWr2tTpT5u52cPXcMWVP9AHBC9h")),
 			Amount:    19000000,
-			Asset: proto.OptionalAsset{
-				Present: true,
-				ID:      crypto.MustDigestFromBase58("4VDwPimjMR31ofr8qoRZ6nvhTJq7Rf21cZp1c425dUAR"),
-			},
+			Asset:     *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("4VDwPimjMR31ofr8qoRZ6nvhTJq7Rf21cZp1c425dUAR")),
 		},
 	}
 	expectedResult := &proto.ScriptResult{
@@ -6416,7 +6400,7 @@ func TestZeroReissue(t *testing.T) {
 	binaryEntries := map[string][]byte{
 		"share_token_id": mustBytesFromBase64("Q3Uk9ZN5g5+xynU7VGPXUg1eVga04VYXnnZ0q+M1dxQ="),
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 451323
 		},
@@ -6505,10 +6489,7 @@ func TestZeroReissue(t *testing.T) {
 		{
 			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3MSNMcqyweiM9cWpvf4Fn8GAWeuPstxj2hK")),
 			Amount:    0,
-			Asset: proto.OptionalAsset{
-				Present: true,
-				ID:      crypto.MustDigestFromBase58("5YKvHw6nEbVckCje1khnM5XZPRufzSxU29kV2hZXc9co"),
-			},
+			Asset:     *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("5YKvHw6nEbVckCje1khnM5XZPRufzSxU29kV2hZXc9co")),
 		},
 	}
 	expectedReissues := []*proto.ReissueScriptAction{
@@ -6654,7 +6635,7 @@ func TestStageNet2(t *testing.T) {
 		GeneratorPublicKey:  genPK,
 	}
 	dp := newJsonDataProvider(`[{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"aa","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"dappAddress","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"total_amount","intValue":"600900000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"masterAddress","stringValue":"3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"assetId_2020-10-3","stringValue":"Eo7N1sjexrfu6mx5LrG3suovSaXaBNnmYfvqJsMzSYE8"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"assetId_2020-10-5","stringValue":"J2j4PRKXuUKUZCP345EXAHYF2gRg15JsYQYtFT4GNPda"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_total_amount_2020-10-3","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_total_amount_2020-10-5","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","stringValue":"2020-11-23"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","stringValue":"2020-11-11"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","stringValue":"2020-09-30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_limit","stringValue":"2020-10-3"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_limit","stringValue":"2020-10-5"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_limit","stringValue":"2020-10-3"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_limit","stringValue":"2020-10-5"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_amount","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_amount","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_assetId","stringValue":"GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_assetId","stringValue":"9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_assetId","stringValue":"3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_assetId","stringValue":"fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_assetId","stringValue":"Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_assetId","stringValue":"AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_assetId","stringValue":"DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_assetId","stringValue":"5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_assetId","stringValue":"6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_assetId","stringValue":"BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_unitPrice","intValue":"300"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_unitPrice","intValue":"300"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_description","stringValue":"みんな電力公式"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"dappAddress","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"masterAddress","stringValue":"3MSvD3m1R8Z3v8SAztrt1afp28vRdsMwxAu"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"asset_total_amount","intValue":"100000"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT","stringValue":"{\"name\":\"ママママママママっまm\",\"description\":\"retail user\"}"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MktJgV2eTmcCqtyQaeqiiHkQ1eY3EH5Tdb","stringValue":"{\"name\":\"ママママママママっまm\",\"description\":\"retail user\"}"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MRiqDCpFntSEud3Co8bdQygjSwB515zyS5_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MSvD3m1R8Z3v8SAztrt1afp28vRdsMwxAu_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MUJS7P4W3XyP2pnAJUGqkstSAiU4Ac2YdA_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MZyZAgAJmXmJs5gDihnMvZ7HCLxe6zVVpU_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MfF8z9y9nUUuHTeKiGFGoWXnUrRPbEcNiD_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3Mh5b5UttYteWjd5Mku43kajZFKX9z5WNxZ_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MjBN2kiRB6JmoEVEC42ZNMX9ibx5iZ9Mih_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MktJgV2eTmcCqtyQaeqiiHkQ1eY3EH5Tdb_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3Mm9VfS5424Vn4oNKv1DSh7Htk6FhQReEuP_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MmNtj9n49UgGapeh1Sg8Nd8jfQGDbqRTkx_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3P35F9e1QdcHkBMbYtovuMUmsxxCqo9DF1d_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PLXmyBua1pAH4y3aHjMqJrcJEcyrWMP1EB_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PMoTnMU6U4hx8km23iZJ6Akis6JKhcxhUn_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PNVubsGCrnMHLXvg1gYidcP3G7HUC5fAuZ_active","boolValue":true}}]`)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 451323
 		},
@@ -6727,10 +6708,7 @@ func TestStageNet2(t *testing.T) {
 		{
 			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT")),
 			Amount:    500000,
-			Asset: proto.OptionalAsset{
-				Present: true,
-				ID:      crypto.MustDigestFromBase58("3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2"),
-			},
+			Asset:     *proto.NewOptionalAssetFromDigest(crypto.MustDigestFromBase58("3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2")),
 		},
 	}
 	expectedResult := &proto.ScriptResult{
@@ -6786,7 +6764,7 @@ func TestRecipientAddressToString(t *testing.T) {
 		},
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -6830,8 +6808,8 @@ func TestScriptPaymentPublicKey(t *testing.T) {
 		Timestamp:       1599565088614,
 	}
 
-	tr, _ := proto.NewFullScriptTransfer(action, addr, pk, tx)
-	env := &MockRideEnvironment{
+	tr, _ := proto.NewFullScriptTransfer(action, addr, pk, tx.ID, tx.Timestamp)
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -6886,7 +6864,7 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 		Fee:             500000,
 		Timestamp:       1609698441420,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -6925,7 +6903,7 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 		{
 			Recipient: proto.NewRecipientFromAddress(proto.MustAddressFromString("3P8FF73N7ZvvNJ34vnJ3h9Tfmh7oQCnRz8E")),
 			Amount:    0,
-			Asset:     proto.OptionalAsset{Present: false},
+			Asset:     proto.NewOptionalAssetWaves(),
 		},
 	}
 	expectedResult := &proto.ScriptResult{
@@ -7012,12 +6990,15 @@ func TestOriginCaller(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
+		},
+		rideV6ActivatedFunc: func() bool {
+			return false
 		},
 		transactionFunc: func() rideObject {
 			obj, err := transactionToObject(proto.MainNetScheme, tx)
@@ -7031,7 +7012,7 @@ func TestOriginCaller(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		setNewDAppAddressFunc: func(address proto.Address) {
+		setNewDAppAddressFunc: func(address proto.WavesAddress) {
 			testDAppAddress = address
 		},
 		maxDataEntriesSizeFunc: func() int {
@@ -7050,7 +7031,7 @@ func TestOriginCaller(t *testing.T) {
 				return nil, errors.Errorf("unexpected address %s", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case senderAddress:
 				return senderPK, nil
@@ -7059,7 +7040,7 @@ func TestOriginCaller(t *testing.T) {
 			}
 			return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			return recipient.Address, nil
 		},
 	}
@@ -7137,13 +7118,11 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	{-# STDLIB_VERSION 5 #-}
 	{-# CONTENT_TYPE DAPP #-}
 	{-# SCRIPT_TYPE ACCOUNT #-}
-
 	let asset = base58'2fCdmsn6maErwtLuzxoUrCBkh2vx5SvXtMKAJtN4YBgd'
-
 	@Callable(i)
-	func call() = ([IntegerEntry("int", 1)], true)
+	func call() = ([ScriptTransfer(i.caller, 50, asset)], true)
 	*/
-	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAFYXNzZXQBAAAAIBik6Y0sQVWjpHFHkXuac+oNVrjohHPSl3mTMou+GnrKAAAAAQAAAAFpAQAAAARjYWxsAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANpbnQAAAAAAAAAAAEFAAAAA25pbAYAAAAAC4haXQ=="
+	code2 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAFYXNzZXQBAAAAIBik6Y0sQVWjpHFHkXuac+oNVrjohHPSl3mTMou+GnrKAAAAAQAAAAFpAQAAAARjYWxsAAAAAAkABRQAAAACCQAETAAAAAIJAQAAAA5TY3JpcHRUcmFuc2ZlcgAAAAMIBQAAAAFpAAAABmNhbGxlcgAAAAAAAAAAMgUAAAAFYXNzZXQFAAAAA25pbAYAAAAAHQNJXQ=="
 	src2, err := base64.StdEncoding.DecodeString(code2)
 	require.NoError(t, err)
 
@@ -7183,10 +7162,12 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		Fee:             500000,
 		Timestamp:       1624967106278,
 	}
+	var testState *WrappedState
+
 	testInv, err := invocationToObject(5, proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -7205,8 +7186,12 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
 		},
-		setNewDAppAddressFunc: func(address proto.Address) {
+		rideV6ActivatedFunc: func() bool {
+			return false
+		},
+		setNewDAppAddressFunc: func(address proto.WavesAddress) {
 			testDAppAddress = address
+			testState.cle = rideAddress(address)
 		},
 		validateInternalPaymentsFunc: func() bool {
 			return true
@@ -7227,7 +7212,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 				return nil, errors.Errorf("unexpected address %s", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case senderAddress:
 				return senderPK, nil
@@ -7238,11 +7223,11 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 			}
 			return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			return recipient.Address, nil
 		},
 		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-			if assetID.String() == "2fCdmsn6maErwtLuzxoUrCBkh2vx5SvXtMKAJtN4YBgd" {
+			if assetID == asset {
 				return &proto.AssetInfo{
 					ID:              assetID,
 					Quantity:        1000000,
@@ -7254,10 +7239,10 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 					Sponsored:       false,
 				}, nil
 			}
-			return nil, errors.New("unexpected asset")
+			return nil, errors.Errorf("unexpected asset '%s'", assetID.String())
 		},
-		NewestAssetBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
-			if bytes.Equal(assetID, asset.Bytes()) {
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+			if assetID == asset {
 				switch account.String() {
 				case "3PH75p2rmMKCV2nyW4TsAdFgFtmc61mJaqA":
 					return 0, nil
@@ -7267,10 +7252,10 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 					return 0, errors.New("unexpected account")
 				}
 			}
-			return 0, errors.New("unexpected asset")
+			return 0, errors.Errorf("unexpected asset '%s'", assetID.String())
 		},
 	}
-	testState := initWrappedState(mockState, env)
+	testState = initWrappedState(mockState, env)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
@@ -7288,6 +7273,9 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	env.validateInternalPaymentsFunc = func() bool {
 		return false
 	}
+	testInv, err = invocationToObject(5, proto.MainNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress = dApp1
 	testState = initWrappedState(mockState, env)
 	env.stateFunc = func() types.SmartState {
 		return testState
@@ -7366,7 +7354,7 @@ func TestAliasesInInvokes(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -7380,6 +7368,9 @@ func TestAliasesInInvokes(t *testing.T) {
 		},
 		invocationFunc: func() rideObject {
 			return testInv
+		},
+		rideV6ActivatedFunc: func() bool {
+			return false
 		},
 		checkMessageLengthFunc: v3check,
 		setInvocationFunc: func(inv rideObject) {
@@ -7406,7 +7397,7 @@ func TestAliasesInInvokes(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case sender:
 				return senderPK, nil
@@ -7418,7 +7409,7 @@ func TestAliasesInInvokes(t *testing.T) {
 				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 			}
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			switch recipient.String() {
 			case dApp1.String():
 				return &dApp1, nil
@@ -7430,14 +7421,14 @@ func TestAliasesInInvokes(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.Address, error) {
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
 			switch alias.String() {
 			case caller.String():
 				return dApp1, nil
 			case callee.String():
 				return dApp2, nil
 			default:
-				return proto.Address{}, errors.Errorf("unexpected alias '%s'", alias.String())
+				return proto.WavesAddress{}, errors.Errorf("unexpected alias '%s'", alias.String())
 			}
 		},
 		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
@@ -7459,7 +7450,7 @@ func TestAliasesInInvokes(t *testing.T) {
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
-	env.setNewDAppAddressFunc = func(address proto.Address) {
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
@@ -7490,7 +7481,7 @@ func TestAliasesInInvokes(t *testing.T) {
 }
 
 // makeAddressAndPK creates keys and an address on TestNet from given string as seed
-func makeAddressAndPK(t *testing.T, s string) (crypto.SecretKey, crypto.PublicKey, proto.Address) {
+func makeAddressAndPK(t *testing.T, s string) (crypto.SecretKey, crypto.PublicKey, proto.WavesAddress) {
 	sk, pk, err := crypto.GenerateKeyPair([]byte(s))
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, pk)
@@ -7594,7 +7585,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -7612,6 +7603,9 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		checkMessageLengthFunc: v3check,
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
+		},
+		rideV6ActivatedFunc: func() bool {
+			return false
 		},
 		validateInternalPaymentsFunc: func() bool {
 			return true
@@ -7637,7 +7631,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case sender:
 				return senderPK, nil
@@ -7651,7 +7645,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 			}
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			switch recipient.String() {
 			case dApp1.String():
 				return &dApp1, nil
@@ -7666,11 +7660,11 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 			return 0, nil
 		},
-		NewestAssetBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
-			if bytes.Equal(assetID, nft.Bytes()) {
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+			if assetID == nft {
 				return 0, nil
 			}
-			return 0, errors.Errorf("unxepected asset '%s'", base58.Encode(assetID))
+			return 0, errors.Errorf("unxepected asset '%s'", assetID.String())
 		},
 		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 			switch assetID {
@@ -7685,7 +7679,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
-	env.setNewDAppAddressFunc = func(address proto.Address) {
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
@@ -7782,7 +7776,7 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -7810,6 +7804,9 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
+		rideV6ActivatedFunc: func() bool {
+			return true
+		},
 	}
 
 	mockState := &MockSmartState{
@@ -7823,7 +7820,7 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case sender:
 				return senderPK, nil
@@ -7835,7 +7832,7 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 			}
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			switch recipient.String() {
 			case dApp1.String():
 				return &dApp1, nil
@@ -7856,7 +7853,7 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
-	env.setNewDAppAddressFunc = func(address proto.Address) {
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
@@ -7871,7 +7868,7 @@ func TestTransferUnavailableFundsInInvoke(t *testing.T) {
 	assert.Equal(t, strings.Join(EvaluationErrorCallStack(res.EvaluationError()), ";"), "failed to evaluate block after declaration of variable 'r1';failed to estimate the condition of if;failed to materialize argument 1 of system function '0';failed to evaluate expression of scope value 'r1';failed to call system function '1020'")
 }
 
-func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
+func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
 	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
@@ -7940,12 +7937,15 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
+		},
+		rideV6ActivatedFunc: func() bool {
+			return true
 		},
 		transactionFunc: func() rideObject {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
@@ -7978,7 +7978,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case sender:
 				return senderPK, nil
@@ -7990,7 +7990,7 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 			}
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			switch recipient.String() {
 			case dApp1.String():
 				return &dApp1, nil
@@ -8003,14 +8003,18 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 			return 0, nil
 		},
-		NewestAssetBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
-			switch {
-			case account.Address.Eq(dApp1) && bytes.Equal(assetID, asset.Bytes()):
-				return 1, nil
-			case account.Address.Eq(dApp2) && bytes.Equal(assetID, asset.Bytes()):
-				return 0, nil
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+			if assetID != asset {
+				return 0, errors.Errorf("unxepected asset '%s'", assetID.String())
 			}
-			return 0, errors.Errorf("unxepected asset '%s'", base58.Encode(assetID))
+			switch {
+			case account.Address.Equal(dApp1):
+				return 1, nil
+			case account.Address.Equal(dApp2):
+				return 0, nil
+			default:
+				return 0, errors.Errorf("unexpected account '%s'", account.String())
+			}
 		},
 		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 			switch assetID {
@@ -8021,28 +8025,26 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 			}
 		},
 		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-			switch assetID {
-			case asset:
-				return &proto.AssetInfo{
-					ID:              assetID,
-					Quantity:        10,
-					Decimals:        2,
-					Issuer:          dApp1,
-					IssuerPublicKey: dApp1PK,
-					Reissuable:      false,
-					Scripted:        false,
-					Sponsored:       false,
-				}, nil
-			default:
+			if assetID != asset {
 				return nil, errors.Errorf("unexpected asset '%s'", assetID.String())
 			}
+			return &proto.AssetInfo{
+				ID:              assetID,
+				Quantity:        10,
+				Decimals:        2,
+				Issuer:          dApp1,
+				IssuerPublicKey: dApp1PK,
+				Reissuable:      false,
+				Scripted:        false,
+				Sponsored:       false,
+			}, nil
 		},
 	}
 	testState := initWrappedState(mockState, env)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
-	env.setNewDAppAddressFunc = func(address proto.Address) {
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}
@@ -8122,7 +8124,7 @@ func TestReissueInInvoke(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -8147,6 +8149,9 @@ func TestReissueInInvoke(t *testing.T) {
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
+		rideV6ActivatedFunc: func() bool {
+			return false
+		},
 	}
 
 	mockState := &MockSmartState{
@@ -8160,7 +8165,7 @@ func TestReissueInInvoke(t *testing.T) {
 				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
 			}
 		},
-		NewestScriptPKByAddrFunc: func(addr proto.Address) (crypto.PublicKey, error) {
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
 			switch addr {
 			case sender:
 				return senderPK, nil
@@ -8172,7 +8177,7 @@ func TestReissueInInvoke(t *testing.T) {
 				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
 			}
 		},
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.Address, error) {
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
 			switch recipient.String() {
 			case dApp1.String():
 				return &dApp1, nil
@@ -8185,14 +8190,18 @@ func TestReissueInInvoke(t *testing.T) {
 		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 			return 0, nil
 		},
-		NewestAssetBalanceFunc: func(account proto.Recipient, assetID []byte) (uint64, error) {
-			switch {
-			case account.Address.Eq(dApp1) && bytes.Equal(assetID, asset.Bytes()):
-				return 0, nil
-			case account.Address.Eq(dApp2) && bytes.Equal(assetID, asset.Bytes()):
-				return 0, nil
+		NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+			if assetID != asset {
+				return 0, errors.Errorf("unxepected asset '%s'", assetID.String())
 			}
-			return 0, errors.Errorf("unxepected asset '%s'", base58.Encode(assetID))
+			switch {
+			case account.Address.Equal(dApp1):
+				return 0, nil
+			case account.Address.Equal(dApp2):
+				return 0, nil
+			default:
+				return 0, errors.Errorf("unxepected account '%s'", account.String())
+			}
 		},
 		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
 			switch assetID {
@@ -8203,26 +8212,24 @@ func TestReissueInInvoke(t *testing.T) {
 			}
 		},
 		NewestAssetInfoFunc: func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-			switch assetID {
-			case asset:
-				return &proto.AssetInfo{
-					ID:              assetID,
-					Quantity:        10,
-					Decimals:        0,
-					Issuer:          dApp2,
-					IssuerPublicKey: dApp2PK,
-					Reissuable:      true,
-				}, nil
-			default:
+			if assetID != asset {
 				return nil, errors.Errorf("unexpected asset '%s'", assetID.String())
 			}
+			return &proto.AssetInfo{
+				ID:              assetID,
+				Quantity:        10,
+				Decimals:        0,
+				Issuer:          dApp2,
+				IssuerPublicKey: dApp2PK,
+				Reissuable:      true,
+			}, nil
 		},
 	}
 	testState := initWrappedState(mockState, env)
 	env.stateFunc = func() types.SmartState {
 		return testState
 	}
-	env.setNewDAppAddressFunc = func(address proto.Address) {
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
 		testDAppAddress = address
 		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
 	}

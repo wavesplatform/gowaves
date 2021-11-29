@@ -184,13 +184,14 @@ func (k *KeyVal) addToCache(key, val []byte) {
 func (k *KeyVal) Get(key []byte) ([]byte, error) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
-	if val, err := k.cache.Get(key); err == nil {
+	if val, err := k.cache.Get(key); err == nil { // If `segment.NotFound` error is returned it ignored here
 		return val, nil
 	}
+	// No entry in cache, looking up in DB
 	if k.filter != nil {
 		notInTheSet, err := k.filter.notInTheSet(key)
 		if err != nil {
-			return nil, err
+			return nil, err // Hashing error here
 		}
 		if notInTheSet {
 			return nil, ErrNotFound

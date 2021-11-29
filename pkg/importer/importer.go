@@ -29,7 +29,7 @@ type State interface {
 	AddOldBlocks(blocks [][]byte) error
 	WavesAddressesNumber() (uint64, error)
 	WavesBalance(account proto.Recipient) (uint64, error)
-	AssetBalance(account proto.Recipient, asset []byte) (uint64, error)
+	AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error)
 	ShouldPersistAddressTransactions() (bool, error)
 	PersistAddressTransactions() error
 }

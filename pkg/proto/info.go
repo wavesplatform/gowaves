@@ -11,7 +11,7 @@ type BlockInfo struct {
 	Height              uint64
 	BaseTarget          uint64
 	GenerationSignature B58Bytes
-	Generator           Address
+	Generator           WavesAddress
 	GeneratorPublicKey  crypto.PublicKey
 	VRF                 B58Bytes
 }
@@ -66,7 +66,7 @@ type AssetInfo struct {
 	ID              crypto.Digest
 	Quantity        uint64
 	Decimals        byte
-	Issuer          Address
+	Issuer          WavesAddress
 	IssuerPublicKey crypto.PublicKey
 	Reissuable      bool
 	Scripted        bool

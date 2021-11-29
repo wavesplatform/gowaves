@@ -20,7 +20,7 @@ import (
 
 var (
 	invokeFee = FeeUnit * feeConstants[proto.InvokeScriptTransaction]
-	feeAsset  = proto.OptionalAsset{Present: false}
+	feeAsset  = proto.NewOptionalAssetWaves()
 )
 
 func invokeSenderRecipient() (proto.Recipient, proto.Recipient) {
@@ -45,15 +45,15 @@ func createInvokeApplierTestObjects(t *testing.T) (*invokeApplierTestObjects, st
 }
 
 func (to *invokeApplierTestObjects) fallibleValidationParams(t *testing.T) *fallibleValidationParams {
-	info := defaultFallibleValidationParams(t)
+	info := defaultFallibleValidationParams()
 	err := to.state.stateDB.addBlock(info.block.BlockID())
 	assert.NoError(t, err)
 	return info
 }
 
-func (to *invokeApplierTestObjects) setInitialWavesBalance(t *testing.T, addr proto.Address, balance uint64) {
+func (to *invokeApplierTestObjects) setInitialWavesBalance(t *testing.T, addr proto.WavesAddress, balance uint64) {
 	txDiff := newTxDiff()
-	key := wavesBalanceKey{addr}
+	key := wavesBalanceKey{addr.ID()}
 	diff := newBalanceDiff(int64(balance), 0, 0, false)
 	diff.blockID = blockID0
 	err := txDiff.appendBalanceDiff(key.bytes(), diff)
@@ -62,14 +62,14 @@ func (to *invokeApplierTestObjects) setInitialWavesBalance(t *testing.T, addr pr
 	assert.NoError(t, err, "saveTxDiff() failed")
 }
 
-func (to *invokeApplierTestObjects) setAndCheckInitialWavesBalance(t *testing.T, addr proto.Address, balance uint64) {
+func (to *invokeApplierTestObjects) setAndCheckInitialWavesBalance(t *testing.T, addr proto.WavesAddress, balance uint64) {
 	to.setInitialWavesBalance(t, addr, balance)
 	senderBalance, err := to.state.NewestWavesBalance(proto.NewRecipientFromAddress(addr))
 	assert.NoError(t, err)
 	assert.Equal(t, balance, senderBalance)
 }
 
-func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.Address, pk crypto.PublicKey, script proto.Script) {
+func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.WavesAddress, pk crypto.PublicKey, script proto.Script) {
 	tree, err := ride.Parse(script)
 	require.NoError(t, err)
 	estimation, err := ride.EstimateTree(tree, 1)
@@ -80,7 +80,7 @@ func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.Address, 
 	assert.NoError(t, err, "failed to set account script")
 }
 
-func (to *invokeApplierTestObjects) setDApp(t *testing.T, dappFilename string, dappAddr *testAddrData) {
+func (to *invokeApplierTestObjects) setDApp(t *testing.T, dappFilename string, dappAddr *testWavesAddrData) {
 	dir, err := getLocalDir()
 	assert.NoError(t, err, "getLocalDir() failed")
 	dAppPath := filepath.Join(dir, "testdata", "scripts", dappFilename)
@@ -126,15 +126,8 @@ func createGeneratedAsset(t *testing.T) (crypto.Digest, string) {
 }
 
 type rcpAsset struct {
-	rcp     proto.Recipient
-	assetId *crypto.Digest
-}
-
-func (r *rcpAsset) asset() []byte {
-	if r.assetId == nil {
-		return nil
-	}
-	return r.assetId[:]
+	rcp   proto.Recipient
+	asset *crypto.Digest
 }
 
 type rcpKey struct {
@@ -167,7 +160,7 @@ type invokeApplierTestData struct {
 	correctBalances     map[rcpAsset]uint64
 	correctFullBalances map[proto.Recipient]fullBalance
 	dataEntries         map[rcpKey]proto.DataEntry
-	correctAddrs        []proto.Address
+	correctAddrs        []proto.WavesAddress
 	info                *fallibleValidationParams
 }
 
@@ -192,10 +185,9 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 		var (
 			balance uint64
 			err     error
-			asset   = aa.asset()
 		)
-		if asset != nil {
-			balance, err = to.state.NewestAssetBalance(aa.rcp, asset)
+		if aa.asset != nil {
+			balance, err = to.state.NewestAssetBalance(aa.rcp, *aa.asset)
 		} else {
 			balance, err = to.state.NewestWavesBalance(aa.rcp)
 		}
@@ -228,10 +220,9 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 		var (
 			balance uint64
 			err     error
-			asset   = aa.asset()
 		)
-		if asset != nil {
-			balance, err = to.state.AssetBalance(aa.rcp, asset)
+		if aa.asset != nil {
+			balance, err = to.state.AssetBalance(aa.rcp, proto.AssetIDFromDigest(*aa.asset))
 		} else {
 			balance, err = to.state.WavesBalance(aa.rcp)
 		}
@@ -333,7 +324,7 @@ func TestApplyInvokeScriptPaymentsAndData(t *testing.T) {
 			dataEntries: map[rcpKey]proto.DataEntry{
 				{dapp, key}: &proto.IntegerDataEntry{Key: key, Value: int64(amount)},
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -382,7 +373,7 @@ func TestApplyInvokeScriptTransfers(t *testing.T) {
 			dataEntries: map[rcpKey]proto.DataEntry{
 				{dapp, key}: &proto.IntegerDataEntry{Key: key, Value: int64(amount)},
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -399,7 +390,7 @@ func TestApplyInvokeScriptTransfers(t *testing.T) {
 			dataEntries: map[rcpKey]proto.DataEntry{
 				{dapp, key}: &proto.IntegerDataEntry{Key: key, Value: int64(amount - withdrawAmount)},
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -438,7 +429,7 @@ func TestApplyInvokeScriptWithIssues(t *testing.T) {
 				{sender, nil}:     0,
 				{dapp, &newAsset}: 100000,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -478,7 +469,7 @@ func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 				{sender, nil}:     invokeFee,
 				{dapp, &newAsset}: 100000,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -492,7 +483,7 @@ func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 				{sender, nil}:     0,
 				{dapp, &newAsset}: 110000,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -533,7 +524,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 				{sender, nil}:     invokeFee * 2,
 				{dapp, &newAsset}: 100000,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -547,7 +538,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 				{sender, nil}:     invokeFee,
 				{dapp, &newAsset}: 110000,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -561,7 +552,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 				{sender, nil}:     0,
 				{dapp, &newAsset}: 105000,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -601,7 +592,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 				{sender, nil}:     invokeFee * 2,
 				{dapp, &newAsset}: 100000,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -615,7 +606,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 				{sender, nil}:     invokeFee,
 				{dapp, &newAsset}: 110000,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -661,7 +652,7 @@ func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 				{sender, nil}:     invokeFee * 99,
 				{dapp, &newAsset}: 100000,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -677,7 +668,7 @@ func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 				{sender, nil}:     invokeFee * 79,
 				{dapp, &newAsset}: 0,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -726,7 +717,7 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 				{sender, nil}:     invokeFee * 2,
 				{dapp, &newAsset}: 100000,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -740,7 +731,7 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 				{sender, nil}:     invokeFee,
 				{dapp, &newAsset}: 110000,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -754,7 +745,7 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 				{sender, nil}:     0,
 				{dapp, &newAsset}: 110000,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr, // Script address should be although its balance does not change.
 			},
 			info: info,
@@ -807,7 +798,7 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 				{sender, nil}: invokeFee * 2,
 				{dapp, nil}:   0,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: infoBefore,
@@ -821,7 +812,7 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 				{sender, nil}: invokeFee,
 				{dapp, nil}:   0,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: infoBefore,
@@ -835,7 +826,7 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 				{sender, nil}: 0,
 				{dapp, nil}:   0,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: infoBefore,
@@ -849,7 +840,7 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 				{sender, nil}: 0,
 				{dapp, nil}:   0,
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: infoAfter,
@@ -948,7 +939,7 @@ func TestApplyInvokeScriptWithLease(t *testing.T) {
 				sender: {regular: 0, generating: 0, available: 0, effective: uint64(thousandWaves)},
 				dapp:   {regular: uint64(2 * thousandWaves), generating: 0, available: uint64(thousandWaves), effective: uint64(thousandWaves)},
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -1002,7 +993,7 @@ func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
 				sender: {regular: invokeFee, generating: 0, available: invokeFee, effective: uint64(thousandWaves) + invokeFee},
 				dapp:   {regular: uint64(2 * thousandWaves), generating: 0, available: uint64(thousandWaves), effective: uint64(thousandWaves)},
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,
@@ -1019,7 +1010,7 @@ func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
 				sender: {regular: 0, generating: 0, available: 0, effective: 0},
 				dapp:   {regular: uint64(2 * thousandWaves), generating: 0, available: uint64(2 * thousandWaves), effective: uint64(2 * thousandWaves)},
 			},
-			correctAddrs: []proto.Address{
+			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
 			info: info,

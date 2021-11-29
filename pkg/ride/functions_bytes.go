@@ -86,7 +86,7 @@ func bytesOrUnitArgAsBytes(args ...rideType) ([]byte, error) {
 	}
 }
 
-func sizeBytes(_ Environment, args ...rideType) (rideType, error) {
+func sizeBytes(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sizeBytes")
@@ -94,7 +94,7 @@ func sizeBytes(_ Environment, args ...rideType) (rideType, error) {
 	return rideInt(len(b)), nil
 }
 
-func takeBytes(_ Environment, args ...rideType) (rideType, error) {
+func takeBytes(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeBytes")
@@ -102,7 +102,7 @@ func takeBytes(_ Environment, args ...rideType) (rideType, error) {
 	return takeRideBytes(b, n), nil
 }
 
-func dropBytes(_ Environment, args ...rideType) (rideType, error) {
+func dropBytes(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropBytes")
@@ -110,7 +110,7 @@ func dropBytes(_ Environment, args ...rideType) (rideType, error) {
 	return dropRideBytes(b, n), nil
 }
 
-func concatBytes(_ Environment, args ...rideType) (rideType, error) {
+func concatBytes(_ environment, args ...rideType) (rideType, error) {
 	b1, b2, err := bytesArgs2(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "concatBytes")
@@ -125,7 +125,7 @@ func concatBytes(_ Environment, args ...rideType) (rideType, error) {
 	return rideBytes(out), nil
 }
 
-func toBase58(_ Environment, args ...rideType) (rideType, error) {
+func toBase58(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase58")
@@ -133,7 +133,7 @@ func toBase58(_ Environment, args ...rideType) (rideType, error) {
 	return rideString(base58.Encode(b)), nil
 }
 
-func fromBase58(_ Environment, args ...rideType) (rideType, error) {
+func fromBase58(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase58")
@@ -149,7 +149,7 @@ func fromBase58(_ Environment, args ...rideType) (rideType, error) {
 	return rideBytes(r), nil
 }
 
-func toBase64(_ Environment, args ...rideType) (rideType, error) {
+func toBase64(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase64")
@@ -157,7 +157,7 @@ func toBase64(_ Environment, args ...rideType) (rideType, error) {
 	return rideString(base64.StdEncoding.EncodeToString(b)), nil
 }
 
-func fromBase64(_ Environment, args ...rideType) (rideType, error) {
+func fromBase64(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase64")
@@ -174,7 +174,7 @@ func fromBase64(_ Environment, args ...rideType) (rideType, error) {
 	return rideBytes(decoded), nil
 }
 
-func toBase16(_ Environment, args ...rideType) (rideType, error) {
+func toBase16(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase16")
@@ -182,7 +182,7 @@ func toBase16(_ Environment, args ...rideType) (rideType, error) {
 	return rideString(hex.EncodeToString(b)), nil
 }
 
-func fromBase16(_ Environment, args ...rideType) (rideType, error) {
+func fromBase16(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase16")
@@ -195,7 +195,7 @@ func fromBase16(_ Environment, args ...rideType) (rideType, error) {
 	return rideBytes(decoded), nil
 }
 
-func dropRightBytes(_ Environment, args ...rideType) (rideType, error) {
+func dropRightBytes(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropRightBytes")
@@ -203,7 +203,7 @@ func dropRightBytes(_ Environment, args ...rideType) (rideType, error) {
 	return takeRideBytes(b, len(b)-n), nil
 }
 
-func takeRightBytes(_ Environment, args ...rideType) (rideType, error) {
+func takeRightBytes(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeRightBytes")
@@ -211,7 +211,7 @@ func takeRightBytes(_ Environment, args ...rideType) (rideType, error) {
 	return dropRideBytes(b, len(b)-n), nil
 }
 
-func bytesToUTF8String(_ Environment, args ...rideType) (rideType, error) {
+func bytesToUTF8String(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToUTF8String")
@@ -222,7 +222,7 @@ func bytesToUTF8String(_ Environment, args ...rideType) (rideType, error) {
 	return nil, errors.Errorf("invalid UTF-8 sequence")
 }
 
-func bytesToInt(_ Environment, args ...rideType) (rideType, error) {
+func bytesToInt(_ environment, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToInt")
@@ -233,7 +233,7 @@ func bytesToInt(_ Environment, args ...rideType) (rideType, error) {
 	return rideInt(binary.BigEndian.Uint64(b)), nil
 }
 
-func bytesToIntWithOffset(_ Environment, args ...rideType) (rideType, error) {
+func bytesToIntWithOffset(_ environment, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToLongWithOffset")

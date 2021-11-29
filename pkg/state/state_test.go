@@ -117,7 +117,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	err = manager.stateDB.addBlock(blockID0)
 	assert.NoError(t, err, "addBlock() failed")
 	waves := newWavesValueFromProfile(balanceProfile{validTx.Amount + validTx.Fee, 0, 0})
-	err = manager.stor.balances.setWavesBalance(testGlobal.senderInfo.addr, waves, blockID0)
+	err = manager.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), waves, blockID0)
 	assert.NoError(t, err, "setWavesBalance() failed")
 	err = manager.flush(false)
 	assert.NoError(t, err, "manager.flush() failed")

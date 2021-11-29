@@ -158,7 +158,7 @@ func (id *BlockID) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-// Block info (except transactions)
+// BlockHeader contains Block meta-information without transactions
 type BlockHeader struct {
 	Version                BlockVersion `json:"version"`
 	Timestamp              uint64       `json:"timestamp"`
@@ -433,7 +433,9 @@ func (b *Block) Marshal(scheme Scheme) ([]byte, error) {
 
 func (b *Block) Clone() *Block {
 	out := &Block{}
-	_ = copier.Copy(out, b)
+	if err := copier.Copy(out, b); err != nil {
+		panic(err.Error())
+	}
 	return out
 }
 
@@ -572,7 +574,7 @@ func (b *Block) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (b *Block) ToProtobuf(scheme Scheme) (*g.Block, error) {
-	block, err := b.BlockHeader.HeaderToProtobuf(scheme)
+	protoBlock, err := b.BlockHeader.HeaderToProtobuf(scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -580,8 +582,8 @@ func (b *Block) ToProtobuf(scheme Scheme) (*g.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	block.Transactions = protoTransactions
-	return block, nil
+	protoBlock.Transactions = protoTransactions
+	return protoBlock, nil
 }
 
 func (b *Block) ToProtobufWithHeight(currentScheme Scheme, height uint64) (*pb.BlockWithHeight, error) {
@@ -724,7 +726,7 @@ func (b *Block) transactionsRoot(scheme Scheme) ([]byte, error) {
 		return nil, err
 	}
 	for _, tx := range b.Transactions {
-		b, err := tx.MarshalSignedToProtobuf(scheme)
+		b, err := tx.MerkleBytes(scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -785,16 +787,6 @@ func BlockGetSignature(data []byte) (crypto.Signature, error) {
 	}
 	copy(sig[:], data[len(data)-64:])
 	return sig, nil
-}
-
-//BlockGetParent get parent signature from block without deserialization
-func BlockGetParent(data []byte) (crypto.Signature, error) {
-	parent := crypto.Signature{}
-	if len(data) < 73 {
-		return parent, errors.Errorf("not enough bytes to decode block parent signature, want at least 73, found %d", len(data))
-	}
-	copy(parent[:], data[9:73])
-	return parent, nil
 }
 
 type BlockMarshaller struct {

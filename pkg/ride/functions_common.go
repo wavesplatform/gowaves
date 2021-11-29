@@ -20,21 +20,21 @@ func checkArgs(args []rideType, count int) error {
 	return nil
 }
 
-func eq(_ Environment, args ...rideType) (rideType, error) {
+func eq(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "eq")
 	}
 	return rideBoolean(args[0].eq(args[1])), nil
 }
 
-func neq(_ Environment, args ...rideType) (rideType, error) {
+func neq(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "neq")
 	}
 	return rideBoolean(!args[0].eq(args[1])), nil
 }
 
-func instanceOf(_ Environment, args ...rideType) (rideType, error) {
+func instanceOf(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "instanceOf")
 	}
@@ -45,7 +45,7 @@ func instanceOf(_ Environment, args ...rideType) (rideType, error) {
 	return rideBoolean(args[0].instanceOf() == string(t)), nil
 }
 
-func extract(_ Environment, args ...rideType) (rideType, error) {
+func extract(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "extract")
 	}
@@ -55,7 +55,7 @@ func extract(_ Environment, args ...rideType) (rideType, error) {
 	return args[0], nil
 }
 
-func isDefined(_ Environment, args ...rideType) (rideType, error) {
+func isDefined(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "isDefined")
 	}
@@ -65,7 +65,7 @@ func isDefined(_ Environment, args ...rideType) (rideType, error) {
 	return rideBoolean(true), nil
 }
 
-func throw(_ Environment, args ...rideType) (rideType, error) {
+func throw(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "throw")
@@ -73,11 +73,11 @@ func throw(_ Environment, args ...rideType) (rideType, error) {
 	return nil, UserError.New(string(s))
 }
 
-func throw0(_ Environment, _ ...rideType) (rideType, error) {
+func throw0(_ environment, _ ...rideType) (rideType, error) {
 	return nil, UserError.New(defaultThrowMessage)
 }
 
-func value(_ Environment, args ...rideType) (rideType, error) {
+func value(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "value")
 	}
@@ -87,7 +87,7 @@ func value(_ Environment, args ...rideType) (rideType, error) {
 	return args[0], nil
 }
 
-func valueOrErrorMessage(_ Environment, args ...rideType) (rideType, error) {
+func valueOrErrorMessage(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "valueOrErrorMessage")
 	}
@@ -101,7 +101,7 @@ func valueOrErrorMessage(_ Environment, args ...rideType) (rideType, error) {
 	return args[0], nil
 }
 
-func valueOrElse(_ Environment, args ...rideType) (rideType, error) {
+func valueOrElse(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "valueOrErrorMessage")
 	}
@@ -182,7 +182,7 @@ func optionalAssetProperty(obj rideType, key string) (proto.OptionalAsset, error
 	}
 	switch v := p.(type) {
 	case rideUnit:
-		return proto.OptionalAsset{Present: false}, nil
+		return proto.NewOptionalAssetWaves(), nil
 	case rideBytes:
 		a, err := proto.NewOptionalAssetFromBytes(v)
 		if err != nil {
@@ -204,7 +204,7 @@ func recipientProperty(obj rideType, key string) (proto.Recipient, error) {
 	case rideRecipient:
 		recipient = proto.Recipient(tp)
 	case rideAddress:
-		recipient = proto.NewRecipientFromAddress(proto.Address(tp))
+		recipient = proto.NewRecipientFromAddress(proto.WavesAddress(tp))
 	case rideAlias:
 		recipient = proto.NewRecipientFromAlias(proto.Alias(tp))
 	default:

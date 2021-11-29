@@ -17,9 +17,9 @@ type Trade struct {
 	PriceAsset    crypto.Digest
 	TransactionID crypto.Digest
 	OrderType     proto.OrderType
-	Buyer         proto.Address
-	Seller        proto.Address
-	Matcher       proto.Address
+	Buyer         proto.WavesAddress
+	Seller        proto.WavesAddress
+	Matcher       proto.WavesAddress
 	Price         uint64
 	Amount        uint64
 	Timestamp     uint64
@@ -60,7 +60,7 @@ func NewTradeFromExchangeWithSig(scheme byte, tx *proto.ExchangeWithSig) (Trade,
 func NewTradeFromExchangeWithProofs(scheme byte, tx *proto.ExchangeWithProofs) (Trade, error) {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to convert ExchangeWithProofs to Trade") }
 	var buyTS, sellTS uint64
-	var buyer, seller, matcher proto.Address
+	var buyer, seller, matcher proto.WavesAddress
 	var err error
 	var amountAsset, priceAsset crypto.Digest
 
@@ -166,15 +166,15 @@ func (t *Trade) UnmarshalBinary(data []byte) error {
 
 // TradeInfo is an API representation of the Trade
 type TradeInfo struct {
-	Timestamp uint64          `json:"timestamp"`
-	ID        crypto.Digest   `json:"id"`
-	Confirmed bool            `json:"confirmed"`
-	OrderType proto.OrderType `json:"type"`
-	Price     Decimal         `json:"price"`
-	Amount    Decimal         `json:"amount"`
-	Buyer     proto.Address   `json:"buyer"`
-	Seller    proto.Address   `json:"seller"`
-	Matcher   proto.Address   `json:"matcher"`
+	Timestamp uint64             `json:"timestamp"`
+	ID        crypto.Digest      `json:"id"`
+	Confirmed bool               `json:"confirmed"`
+	OrderType proto.OrderType    `json:"type"`
+	Price     Decimal            `json:"price"`
+	Amount    Decimal            `json:"amount"`
+	Buyer     proto.WavesAddress `json:"buyer"`
+	Seller    proto.WavesAddress `json:"seller"`
+	Matcher   proto.WavesAddress `json:"matcher"`
 }
 
 func NewTradeInfo(trade Trade, amountAssetPrecision, priceAssetPrecision uint) TradeInfo {

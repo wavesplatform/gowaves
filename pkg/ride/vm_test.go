@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"testing"
@@ -16,13 +15,13 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-//go:generate moq -pkg ride -out types_moq_test.go ../types SmartState:MockSmartState
+//go:generate moq -pkg ride -out smart_state_moq_test.go ../types SmartState:MockSmartState
 
 func TestExecution(t *testing.T) {
 	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
 		return testTransferWithProofs(), nil
 	}}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		transactionFunc: testTransferObject,
 		stateFunc: func() types.SmartState {
 			return state
@@ -34,7 +33,7 @@ func TestExecution(t *testing.T) {
 	for _, test := range []struct {
 		comment string
 		source  string
-		env     Environment
+		env     environment
 		res     bool
 	}{
 		{`V1: true`, "AQa3b8tH", nil, true},
@@ -133,7 +132,7 @@ func TestFunctions(t *testing.T) {
 	exchange := newExchangeTransaction()
 	data := newDataTransaction()
 	require.NoError(t, err)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		checkMessageLengthFunc: v3check,
 		schemeFunc: func() byte {
 			return 'W'
@@ -174,15 +173,14 @@ func TestFunctions(t *testing.T) {
 					}
 					return nil, errors.New("not found")
 				},
-				NewestAssetBalanceFunc: func(account proto.Recipient, asset []byte) (uint64, error) {
-					if len(asset) == 0 {
+				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+					return 5, nil
+				},
+				NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+					if assetID == d {
 						return 5, nil
-					} else {
-						if bytes.Equal(asset, d.Bytes()) {
-							return 5, nil
-						}
-						return 0, nil
 					}
+					return 0, nil
 				},
 				NewestTransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
 					return transfer, nil
@@ -196,7 +194,7 @@ func TestFunctions(t *testing.T) {
 			}
 		},
 	}
-	_ /*envWithDataTX :*/ = &MockRideEnvironment{
+	_ /*envWithDataTX :*/ = &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			obj, err := dataWithProofsToObject('W', data)
 			if err != nil {
@@ -205,7 +203,7 @@ func TestFunctions(t *testing.T) {
 			return obj
 		},
 	}
-	envWithExchangeTX := &MockRideEnvironment{
+	envWithExchangeTX := &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			obj, err := exchangeWithProofsToObject('W', exchange)
 			if err != nil {
@@ -218,7 +216,7 @@ func TestFunctions(t *testing.T) {
 		name   string
 		text   string
 		script string
-		env    Environment
+		env    environment
 		result bool
 		error  bool
 	}{

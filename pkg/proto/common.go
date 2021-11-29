@@ -2,7 +2,9 @@ package proto
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -155,4 +157,22 @@ func NewTimestampFromUSeconds(seconds uint64) uint64 {
 func NetworkStrFromScheme(scheme Scheme) string {
 	prefix := "waves"
 	return prefix + string(scheme)
+}
+
+// EncodeToHexString encodes b as a hex string with 0x prefix.
+func EncodeToHexString(b []byte) string {
+	enc := make([]byte, len(b)*2+2)
+	copy(enc, "0x")
+	hex.Encode(enc[2:], b)
+	return string(enc)
+}
+
+// DecodeFromHexString decodes bytes from a hex string which can start with 0x prefix.
+func DecodeFromHexString(s string) ([]byte, error) {
+	s = strings.TrimPrefix(s, "0x")
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
 }

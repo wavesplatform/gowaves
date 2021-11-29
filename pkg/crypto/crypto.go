@@ -50,15 +50,11 @@ func (d Digest) ShortString() string {
 }
 
 func (d Digest) Bytes() []byte {
-	out := make([]byte, len(d))
-	copy(out, d[:])
-	return out
+	return d[:]
 }
 
 func (d Digest) MarshalBinary() ([]byte, error) {
-	b := make([]byte, DigestSize)
-	copy(b, d[:])
-	return b, nil
+	return d[:], nil
 }
 
 func (d *Digest) UnmarshalBinary(data []byte) error {
@@ -304,6 +300,14 @@ func MustSignatureFromBase58(s string) Signature {
 		panic(err.Error())
 	}
 	return rs
+}
+
+func MustKeccak256(data []byte) Digest {
+	d, err := Keccak256(data)
+	if err != nil {
+		panic(errors.Errorf("BUG, CREATE REPORT: failed to calculate Keccak256 hash: %v", err))
+	}
+	return d
 }
 
 func Keccak256(data []byte) (Digest, error) {

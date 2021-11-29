@@ -150,7 +150,7 @@ func (o rideObject) copy() rideObject {
 	return r
 }
 
-type rideAddress proto.Address
+type rideAddress proto.WavesAddress
 
 func (a rideAddress) instanceOf() string {
 	return "Address"
@@ -341,10 +341,13 @@ func (a rideList) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
-type rideFunction func(env Environment, args ...rideType) (rideType, error)
+type (
+	rideFunction    func(env environment, args ...rideType) (rideType, error)
+	rideConstructor func(environment) rideType
+)
 
-//go:generate moq -out runtime_moq_test.go . Environment:MockRideEnvironment
-type Environment interface {
+//go:generate moq -out runtime_moq_test.go . environment:mockRideEnvironment
+type environment interface {
 	scheme() byte
 	height() rideInt
 	transaction() rideObject
@@ -353,15 +356,14 @@ type Environment interface {
 	txID() rideType // Invoke transaction ID
 	state() types.SmartState
 	timestamp() uint64
-	setNewDAppAddress(address proto.Address)
+	setNewDAppAddress(address proto.WavesAddress)
 	checkMessageLength(int) bool
 	takeString(s string, n int) rideString
 	invocation() rideObject // Invocation object made of invoke transaction
 	setInvocation(inv rideObject)
 	libVersion() int
 	validateInternalPayments() bool
+	rideV6Activated() bool
 	internalPaymentsValidationHeight() uint64
 	maxDataEntriesSize() int
 }
-
-type rideConstructor func(Environment) rideType

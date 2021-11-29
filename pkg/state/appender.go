@@ -12,12 +12,17 @@ import (
 	"go.uber.org/zap"
 )
 
-type txAppender struct {
-	state types.SmartState
-	sc    *scriptCaller
-	ia    *invokeApplier
+type vrfGetter interface {
+	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
+}
 
-	rw *blockReadWriter
+type txAppender struct {
+	sc      *scriptCaller
+	ia      *invokeApplier
+	ethInfo *ethInfo
+	rw      *blockReadWriter
+
+	vrf vrfGetter
 
 	atx      *addressTransactions
 	stor     *blockchainEntitiesStorage
@@ -76,7 +81,7 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	diffApplier, err := newDiffApplier(stor.balances)
+	diffApplier, err := newDiffApplier(stor.balances, settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, err
 	}
@@ -85,11 +90,12 @@ func newTxAppender(
 		return nil, err
 	}
 	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData)
+	ethereumInfo := newEthInfo(stor, settings)
 	return &txAppender{
-		state:          state,
 		sc:             sc,
 		ia:             ia,
 		rw:             rw,
+		vrf:            state,
 		atx:            atx,
 		stor:           stor,
 		settings:       settings,
@@ -100,6 +106,7 @@ func newTxAppender(
 		diffStorInvoke: diffStorInvoke,
 		diffApplier:    diffApplier,
 		buildApiData:   buildApiData,
+		ethInfo:        ethereumInfo,
 	}, nil
 }
 
@@ -153,11 +160,8 @@ func (a *txAppender) orderIsScripted(order proto.Order, initialisation bool) (bo
 
 // For UTX validation, this returns the last stable block, which is in fact current block.
 func (a *txAppender) currentBlock() (*proto.BlockHeader, error) {
-	curBlockHeight, err := a.state.AddingBlockHeight()
-	if err != nil {
-		return nil, err
-	}
-	curHeader, err := a.state.NewestHeaderByHeight(curBlockHeight)
+	curBlockHeight := a.rw.addingBlockHeight()
+	curHeader, err := a.rw.readNewestBlockHeaderByHeight(curBlockHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -165,19 +169,16 @@ func (a *txAppender) currentBlock() (*proto.BlockHeader, error) {
 }
 
 func (a *txAppender) currentBlockInfo() (*proto.BlockInfo, error) {
-	height, err := a.state.AddingBlockHeight()
-	if err != nil {
-		return nil, err
-	}
+	curBlockHeight := a.rw.addingBlockHeight()
 	curHeader, err := a.currentBlock()
 	if err != nil {
 		return nil, err
 	}
-	hs, err := a.state.BlockVRF(curHeader, height-1)
+	vrf, err := a.vrf.BlockVRF(curHeader, curBlockHeight-1)
 	if err != nil {
 		return nil, err
 	}
-	return proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, height, hs)
+	return proto.BlockInfoFromHeader(a.settings.AddressSchemeCharacter, curHeader, curBlockHeight, vrf)
 }
 
 func (a *txAppender) checkProtobufVersion(tx proto.Transaction, blockV5Activated bool) error {
@@ -191,7 +192,7 @@ func (a *txAppender) checkProtobufVersion(tx proto.Transaction, blockV5Activated
 }
 
 func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationParams) error {
-	differInfo := &differInfo{info.initialisation, info.blockInfo}
+	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
 	var feeChanges txBalanceChanges
 	var err error
 	switch tx.GetTypeInfo().Type {
@@ -287,7 +288,7 @@ func (a *txAppender) needToCheckOrdersSignatures(transaction proto.Transaction, 
 	return !o1Scripted, !o2Scripted, nil
 }
 
-func (a *txAppender) saveTransactionIdByAddresses(addresses []proto.Address, txID []byte, blockID proto.BlockID, filter bool) error {
+func (a *txAppender) saveTransactionIdByAddresses(addresses []proto.WavesAddress, txID []byte, blockID proto.BlockID, filter bool) error {
 	for _, addr := range addresses {
 		if err := a.atx.saveTxIdByAddress(addr, txID, blockID, filter); err != nil {
 			return err
@@ -341,7 +342,7 @@ func (a *txAppender) commitTxApplication(tx proto.Transaction, params *appendTxP
 	return nil
 }
 
-func (a *txAppender) verifyTxSigAndData(tx proto.Transaction, params *appendTxParams, accountHasVerifierScript bool) error {
+func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appendTxParams, accountHasVerifierScript bool) error {
 	// Detect what signatures must be checked for this transaction.
 	// For transaction with SmartAccount we don't check signature.
 	checkTxSig := !accountHasVerifierScript
@@ -380,8 +381,36 @@ type appendTxParams struct {
 	acceptFailed     bool
 	blockV5Activated bool
 	rideV5Activated  bool
+	rideV6Activated  bool
 	validatingUtx    bool
 	initialisation   bool
+}
+
+func (a *txAppender) handleInvokeOrExchangeTransaction(tx proto.Transaction, fallibleInfo *fallibleValidationParams) (*applicationResult, error) {
+	applicationRes, err := a.handleFallible(tx, fallibleInfo)
+	if err != nil {
+		msg := "fallible validation failed"
+		if txID, err2 := tx.GetID(a.settings.AddressSchemeCharacter); err2 == nil {
+			msg = fmt.Sprintf("fallible validation failed for transaction '%s'", base58.Encode(txID))
+		}
+		return nil, errs.Extend(err, msg)
+	}
+	return applicationRes, nil
+}
+
+func (a *txAppender) handleDefaultTransaction(tx proto.Transaction, params *appendTxParams, accountHasVerifierScript bool) (*applicationResult, error) {
+	// Execute transaction's scripts, check against state.
+	txScriptsRuns, err := a.checkTransactionScripts(tx, accountHasVerifierScript, params)
+	if err != nil {
+		return nil, err
+	}
+	// Create balance diff of this tx.
+	differInfo := &differInfo{params.initialisation, params.blockInfo}
+	txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, differInfo)
+	if err != nil {
+		return nil, errs.Extend(err, "create transaction diff")
+	}
+	return &applicationResult{true, txScriptsRuns, txChanges}, nil
 }
 
 func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) error {
@@ -400,17 +429,27 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		return errs.Extend(err, "check duplicate tx ids")
 	}
 	// Verify tx signature and internal data correctness.
-	senderAddr, err := proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, tx.GetSenderPK())
+	senderAddr, err := tx.GetSender(a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return errs.Extend(err, "failed to get sender addr by pk")
 	}
-	accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderAddr, !params.initialisation)
+
+	// senderWavesAddr needs only for newestAccountHasVerifier check
+	senderWavesAddr, err := senderAddr.ToWavesAddress(a.settings.AddressSchemeCharacter)
+	if err != nil {
+		return errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
+	}
+	accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr, !params.initialisation)
 	if err != nil {
 		return errs.Extend(err, "account has verifier")
 	}
-	if err := a.verifyTxSigAndData(tx, params, accountHasVerifierScript); err != nil {
-		return errs.Extend(err, "tx signature or data verification failed")
+
+	if _, ok := senderAddr.(proto.WavesAddress); ok {
+		if err := a.verifyWavesTxSigAndData(tx, params, accountHasVerifierScript); err != nil {
+			return errs.Extend(err, "tx signature or data verification failed")
+		}
 	}
+
 	// Check tx against state, check tx scripts, calculate balance changes.
 	var applicationRes *applicationResult
 	needToValidateBalanceDiff := false
@@ -419,30 +458,51 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		// Invoke and Exchange transactions should be handled differently.
 		// They may fail, and will be saved to blockchain anyway.
 		fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
-		applicationRes, err = a.handleFallible(tx, fallibleInfo)
+		applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
 		if err != nil {
-			msg := "fallible validation failed"
-			if txID, err2 := tx.GetID(a.settings.AddressSchemeCharacter); err2 == nil {
-				msg = fmt.Sprintf("fallible validation failed for transaction '%s'", base58.Encode(txID))
-			}
-			return errs.Extend(err, msg)
+			return errors.Errorf("failed to handle invoke or exchange transaction, %v", err)
 		}
 		// Exchange and Invoke balances are validated in UTX when acceptFailed is false.
 		// When acceptFailed is true, balances are validated inside handleFallible().
 		needToValidateBalanceDiff = params.validatingUtx && !params.acceptFailed
+	case proto.EthereumMetamaskTransaction:
+		ethTx, ok := tx.(*proto.EthereumTransaction)
+		if !ok {
+			return errors.New("failed to cast interface transaction to ethereum transaction structure")
+		}
+		ethTx.TxKind, err = a.ethInfo.ethereumTransactionKind(ethTx, params)
+		if err != nil {
+			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
+		}
+		switch ethTx.TxKind.(type) {
+		case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
+			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
+			if err != nil {
+				return errors.Errorf("failed to handle ethereum transaction (type %s) with id %s, on height %d: %v",
+					ethTx.TxKind.String(), ethTx.ID.String(), params.block.Height, err,
+				)
+			}
+			// In UTX balances are always validated.
+			needToValidateBalanceDiff = params.validatingUtx
+		case *proto.EthereumInvokeScriptTxKind:
+			fallibleInfo := &fallibleValidationParams{
+				appendTxParams: params,
+				senderScripted: accountHasVerifierScript,
+				senderAddress:  senderAddr,
+			}
+			applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
+			if err != nil {
+				return errors.Errorf(
+					"failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d: %v",
+					ethTx.TxKind.String(), ethTx.ID.String(), params.block.Height, err,
+				)
+			}
+		}
 	default:
-		// Execute transaction's scripts, check against state.
-		txScriptsRuns, err := a.checkTransactionScripts(tx, accountHasVerifierScript, params)
+		applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 		if err != nil {
-			return err
+			return errors.Errorf("failed to handle transaction, %v", err)
 		}
-		// Create balance diff of this tx.
-		differInfo := &differInfo{params.initialisation, params.blockInfo}
-		txChanges, err := a.blockDiffer.createTransactionDiff(tx, params.block, differInfo)
-		if err != nil {
-			return errs.Extend(err, "create transaction diff")
-		}
-		applicationRes = &applicationResult{true, txScriptsRuns, txChanges}
 		// In UTX balances are always validated.
 		needToValidateBalanceDiff = params.validatingUtx
 	}
@@ -462,7 +522,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		return errs.Extend(err, "get transaction id")
 	}
 	if err := a.commitTxApplication(tx, params, applicationRes); err != nil {
-		zap.S().Warnf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
+		zap.S().Errorf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
 		return err
 	}
 	// Store additional data for API: transaction by address.
@@ -496,7 +556,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
 	// in case NG is activated, or empty diff otherwise.
-	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent, params.height, params.initialisation)
+	minerDiff, err := a.blockDiffer.createMinerDiff(params.block, hasParent, params.initialisation)
 	if err != nil {
 		return err
 	}
@@ -516,6 +576,12 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+
+	rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return err
+	}
+
 	// Check and append transactions.
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
@@ -526,6 +592,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			acceptFailed:     blockV5Activated,
 			blockV5Activated: blockV5Activated,
 			rideV5Activated:  rideV5Activated,
+			rideV6Activated:  rideV6Activated,
 			validatingUtx:    false,
 			initialisation:   params.initialisation,
 		}
@@ -572,6 +639,20 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 	res, err := a.ia.applyInvokeScript(invokeTx, info)
 	if err != nil {
 		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
+		return nil, err
+	}
+	return res, nil
+}
+
+func (a *txAppender) handleEthereumInvoke(tx proto.Transaction, info *fallibleValidationParams) (*applicationResult, error) {
+	ethTx, ok := tx.(*proto.EthereumTransaction)
+	if !ok {
+		return nil, errors.New("failed to convert transaction to type EthereumTransaction")
+	}
+
+	res, err := a.ia.applyInvokeScript(ethTx, info)
+	if err != nil {
+		zap.S().Debugf("failed to apply Ethereum invoke transaction %s to state: %v", ethTx.ID.String(), err)
 		return nil, err
 	}
 	return res, nil
@@ -649,7 +730,7 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 		return nil, err
 	}
 	// Create balance changes for both failure and success.
-	differInfo := &differInfo{info.initialisation, info.blockInfo}
+	differInfo := &differInfo{initialisation: info.initialisation, blockInfo: info.blockInfo}
 	failedChanges, err := a.blockDiffer.createFailedTransactionDiff(tx, info.block, differInfo)
 	if err != nil {
 		return nil, err
@@ -693,6 +774,8 @@ func (a *txAppender) handleFallible(tx proto.Transaction, info *fallibleValidati
 		return a.handleInvoke(tx, info)
 	case proto.ExchangeTransaction:
 		return a.handleExchange(tx, info)
+	case proto.EthereumMetamaskTransaction:
+		return a.handleEthereumInvoke(tx, info)
 	}
 	return nil, errors.New("transaction is not fallible")
 }

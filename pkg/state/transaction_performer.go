@@ -29,6 +29,7 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Dig
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
+			tail:     proto.DigestTail(assetID),
 			issuer:   tx.SenderPK,
 			decimals: int8(tx.Decimals),
 		},
@@ -40,7 +41,7 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, assetID crypto.Dig
 			reissuable:               tx.Reissuable,
 		},
 	}
-	if err := tp.stor.assets.issueAsset(assetID, assetInfo, info.blockID); err != nil {
+	if err := tp.stor.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to issue asset")
 	}
 	return nil
@@ -90,7 +91,7 @@ func (tp *transactionPerformer) performReissue(tx *proto.Reissue, info *performe
 		reissuable: tx.Reissuable,
 		diff:       int64(tx.Quantity),
 	}
-	if err := tp.stor.assets.reissueAsset(tx.AssetID, change, info.blockID, !info.initialisation); err != nil {
+	if err := tp.stor.assets.reissueAsset(proto.AssetIDFromDigest(tx.AssetID), change, info.blockID, !info.initialisation); err != nil {
 		return errors.Wrap(err, "failed to reissue asset")
 	}
 	return nil
@@ -117,7 +118,7 @@ func (tp *transactionPerformer) performBurn(tx *proto.Burn, info *performerInfo)
 	change := &assetBurnChange{
 		diff: int64(tx.Amount),
 	}
-	if err := tp.stor.assets.burnAsset(tx.AssetID, change, info.blockID, !info.initialisation); err != nil {
+	if err := tp.stor.assets.burnAsset(proto.AssetIDFromDigest(tx.AssetID), change, info.blockID, !info.initialisation); err != nil {
 		return errors.Wrap(err, "failed to burn asset")
 	}
 	return nil
@@ -184,7 +185,7 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, id *crypto.Digest,
 	if err != nil {
 		return err
 	}
-	var recipientAddr *proto.Address
+	var recipientAddr *proto.WavesAddress
 	if tx.Recipient.Address == nil {
 		recipientAddr, err = tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias.Alias, !info.initialisation)
 		if err != nil {
@@ -340,6 +341,20 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	if err := tp.stor.commitUncertain(info.blockID); err != nil {
 		return errors.Wrap(err, "failed to commit invoke changes")
 	}
+	return nil
+}
+
+func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	ethTx, ok := transaction.(*proto.EthereumTransaction)
+	if !ok {
+		return errors.New("failed to convert interface to EthereumTransaction transaction")
+	}
+	if _, ok := ethTx.TxKind.(*proto.EthereumInvokeScriptTxKind); ok {
+		if err := tp.stor.commitUncertain(info.blockID); err != nil {
+			return errors.Wrap(err, "failed to commit invoke changes")
+		}
+	}
+	// nothing to do for proto.EthereumTransferWavesTxKind and proto.EthereumTransferAssetsErc20TxKind
 	return nil
 }
 

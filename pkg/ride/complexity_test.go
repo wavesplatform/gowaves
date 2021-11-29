@@ -12,7 +12,7 @@ import (
 
 var (
 	complexityTestState = &MockSmartState{}
-	complexityTestEnv   = &MockRideEnvironment{
+	complexityTestEnv   = &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},

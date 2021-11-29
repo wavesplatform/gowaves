@@ -1,12 +1,19 @@
 package ride
 
 import (
+	"encoding/hex"
+	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/jinzhu/copier"
+	"github.com/mr-tron/base58"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
@@ -241,7 +248,9 @@ type GenesisTestSuite struct {
 
 func (a *GenesisTestSuite) SetupTest() {
 	tx := &proto.Genesis{}
-	_ = copier.Copy(tx, byte_helpers.Genesis.Transaction)
+	if err := copier.Copy(tx, byte_helpers.Genesis.Transaction); err != nil {
+		panic(err.Error())
+	}
 	a.tx = tx
 	a.f = transactionToObject
 }
@@ -292,7 +301,9 @@ type PaymentTestSuite struct {
 
 func (a *PaymentTestSuite) SetupTest() {
 	tx := &proto.Payment{}
-	_ = copier.Copy(tx, byte_helpers.Payment.Transaction)
+	if err := copier.Copy(tx, byte_helpers.Payment.Transaction); err != nil {
+		panic(err.Error())
+	}
 	a.tx = tx
 	a.f = transactionToObject
 }
@@ -1070,15 +1081,17 @@ func (a *OrderTestSuite) Test_matcherFeeAssetId() {
 
 func (a *OrderTestSuite) Test_sender() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	addr, err := proto.NewAddressFromPublicKey(proto.MainNetScheme, a.tx.GetSenderPK())
+	addr, err := a.tx.GetSender(proto.MainNetScheme)
 	a.NoError(err)
-	a.Equal(rideAddress(addr), rs["sender"])
+	wavesAddr, err := addr.ToWavesAddress(proto.MainNetScheme)
+	a.NoError(err)
+	a.Equal(rideAddress(wavesAddr), rs["sender"])
 }
 
 func (a *OrderTestSuite) Test_senderPublicKey() {
 	rs, _ := a.f(proto.MainNetScheme, a.tx)
-	pk := a.tx.GetSenderPK()
-	a.Equal(rideBytes(pk.Bytes()), rs["senderPublicKey"])
+	pkBytes := a.tx.GetSenderPKBytes()
+	a.Equal(rideBytes(pkBytes), rs["senderPublicKey"])
 }
 
 func (a *OrderTestSuite) Test_bodyBytes() {
@@ -1101,9 +1114,68 @@ func (a *OrderTestSuite) Test_instanceFieldName() {
 	a.Equal("Order", rs.instanceOf())
 }
 
-//Order
+//OrderV1
 func TestNewVariablesFromOrderV1(t *testing.T) {
 	suite.Run(t, new(OrderTestSuite))
+}
+
+type EthereumOrderV4TestSuite struct {
+	OrderTestSuite
+	matcherFeeAssetID proto.OptionalAsset
+}
+
+func (a *EthereumOrderV4TestSuite) SetupTest() {
+	sk, err := crypto.ECDSAPrivateKeyFromHexString("0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4")
+	a.NoError(err)
+
+	a.d, _ = crypto.NewDigestFromBase58("9shLH9vfJxRgbhJ1c3dw2gj5fUGRr8asfUpQjj4rZQKQ")
+	a.aa = *proto.NewOptionalAssetFromDigest(a.d)
+	a.pa = *proto.NewOptionalAssetFromDigest(a.d)
+	a.matcherFeeAssetID = *proto.NewOptionalAssetFromDigest(a.d)
+	_, matcherPk, _ := crypto.GenerateKeyPair([]byte("test1"))
+
+	sellOrder := proto.NewUnsignedEthereumOrderV4(
+		proto.EthereumPublicKey(sk.PublicKey),
+		matcherPk,
+		a.aa,
+		a.pa,
+		proto.Sell,
+		100000,
+		10000,
+		proto.Timestamp(1544715621),
+		proto.Timestamp(1544715621),
+		10000,
+		a.matcherFeeAssetID,
+	)
+	sellOrder.Proofs = proto.NewProofs()
+
+	a.NoError(sellOrder.EthereumSign(proto.MainNetScheme, (*proto.EthereumPrivateKey)(sk)))
+
+	a.tx = sellOrder
+	a.f = orderToObject
+}
+
+func (a *EthereumOrderV4TestSuite) Test_proofs() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	p, _ := a.tx.GetProofs()
+	a.NotNil(p)
+	a.Equal(rideList{_empty, _empty, _empty, _empty, _empty, _empty, _empty, _empty}, rs["proofs"])
+}
+
+func (a *EthereumOrderV4TestSuite) Test_bodyBytes() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.IsType(rideBytes{}, rs["bodyBytes"])
+	a.Nil(rs["bodyBytes"])
+}
+
+func (a *EthereumOrderV4TestSuite) Test_matcherFeeAssetId() {
+	rs, _ := a.f(proto.MainNetScheme, a.tx)
+	a.Equal(rideBytes(a.matcherFeeAssetID.ID.Bytes()), rs["matcherFeeAssetId"])
+}
+
+//EthereumOrderV4
+func TestNewVariablesFromEthereumOrderV4(t *testing.T) {
+	suite.Run(t, new(EthereumOrderV4TestSuite))
 }
 
 type SetAssetScriptWithProofsTestSuite struct {
@@ -2084,4 +2156,103 @@ func (a *CreateAliasWithProofsTestSuite) Test_instanceFieldName() {
 
 func TestNewVariablesFromCreateAliasWithProofsTestSuite(t *testing.T) {
 	suite.Run(t, new(CreateAliasWithProofsTestSuite))
+}
+
+func defaultEthLegacyTxData(value int64, to *proto.EthereumAddress, data []byte, gas uint64) *proto.EthereumLegacyTx {
+	v := big.NewInt(87) // MainNet byte
+	v.Mul(v, big.NewInt(2))
+	v.Add(v, big.NewInt(35))
+
+	return &proto.EthereumLegacyTx{
+		Value:    big.NewInt(value),
+		To:       to,
+		Data:     data,
+		GasPrice: big.NewInt(1),
+		Nonce:    1479168000000,
+		Gas:      gas,
+		V:        v,
+	}
+}
+
+func TestEthereumTransferWavesTransformTxToRideObj(t *testing.T) {
+	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
+	assert.NoError(t, err)
+	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
+	assert.NoError(t, err)
+	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
+
+	txData := defaultEthLegacyTxData(1000000000000000, &recipientEth, nil, 100000)
+	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumTransferWavesTxKind(), &crypto.Digest{}, &senderPK, 0)
+
+	rideObj, err := transactionToObject(proto.MainNetScheme, &tx)
+	assert.NoError(t, err)
+
+	sender, err := tx.WavesAddressFrom(proto.MainNetScheme)
+	assert.NoError(t, err)
+	recipient, err := tx.WavesAddressTo(proto.MainNetScheme)
+	assert.NoError(t, err)
+	assert.Equal(t, rideBytes(senderPK.SerializeXYCoordinates()), rideObj["senderPublicKey"])
+	assert.Equal(t, rideAddress(sender), rideObj["sender"])
+	assert.Equal(t, rideRecipient(proto.NewRecipientFromAddress(*recipient)), rideObj["recipient"])
+	assert.Equal(t, rideInt(100000), rideObj["amount"])
+	assert.Equal(t, rideInt(100000), rideObj["fee"])
+}
+
+func makeLessDataAmount(t *testing.T, decodedData *ethabi.DecodedCallData) {
+	v, ok := decodedData.Inputs[1].Value.(ethabi.BigInt)
+	assert.True(t, ok)
+	res := new(big.Int).Div(v.V, big.NewInt(int64(proto.DiffEthWaves)))
+	decodedData.Inputs[1].Value = ethabi.BigInt{V: res}
+}
+
+func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
+	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
+	assert.NoError(t, err)
+	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
+	assert.NoError(t, err)
+	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
+	//var TxSeveralData []proto.EthereumTxData
+	//TxSeveralData = append(TxSeveralData, defaultEthereumLegacyTxData(1000000000000000, &recipientEth), defaultEthereumDynamicFeeTx(1000000000000000, &recipientEth), defaultEthereumAccessListTx(1000000000000000, &recipientEth))
+	/*
+		from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
+		transfer(address,uint256)
+		1 = 0x9a1989946ae4249AAC19ac7a038d24Aab03c3D8c
+		2 = 209470300000000000000000
+	*/
+	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c000000000000000000000000000000000000000000002c5b68601cc92ad60000"
+	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
+	require.NoError(t, err)
+	var txData proto.EthereumTxData = defaultEthLegacyTxData(1000000000000000, &recipientEth, data, 100000)
+	tx := proto.NewEthereumTransaction(txData, nil, &crypto.Digest{}, &senderPK, 0)
+	db := ethabi.NewErc20MethodsMap()
+	assert.NotNil(t, tx.Data())
+	decodedData, err := db.ParseCallDataRide(tx.Data())
+	assert.NoError(t, err)
+	makeLessDataAmount(t, decodedData)
+
+	assetID := (*proto.AssetID)(tx.To())
+	var r crypto.Digest
+	copy(r[:20], assetID[:])
+	asset := &proto.AssetInfo{ID: r}
+
+	erc20arguments, err := ethabi.GetERC20TransferArguments(decodedData)
+	assert.NoError(t, err)
+
+	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID), erc20arguments)
+
+	rideObj, err := transactionToObject(proto.MainNetScheme, &tx)
+	assert.NoError(t, err)
+
+	sender, err := tx.WavesAddressFrom(proto.MainNetScheme)
+	assert.NoError(t, err)
+
+	assert.Equal(t, rideBytes(senderPK.SerializeXYCoordinates()), rideObj["senderPublicKey"])
+	assert.Equal(t, rideAddress(sender), rideObj["sender"])
+
+	erc20TransferRecipient, err := proto.EthereumAddress(erc20arguments.Recipient).ToWavesAddress(proto.MainNetScheme)
+	assert.NoError(t, err)
+
+	assert.Equal(t, rideRecipient(proto.NewRecipientFromAddress(erc20TransferRecipient)), rideObj["recipient"])
+	assert.Equal(t, rideInt(20947030000000), rideObj["amount"])
+	assert.Equal(t, rideInt(100000), rideObj["fee"])
 }

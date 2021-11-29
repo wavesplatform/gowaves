@@ -4,7 +4,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func invokeFunctionFromDApp(env Environment, recipient proto.Recipient, fnName rideString, listArgs rideList) (Result, error) {
+func invokeFunctionFromDApp(env environment, recipient proto.Recipient, fnName rideString, listArgs rideList) (Result, error) {
 	newScript, err := env.state().GetByteTree(recipient)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "failed to get script by recipient")

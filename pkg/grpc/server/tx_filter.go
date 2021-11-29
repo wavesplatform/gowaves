@@ -1,14 +1,12 @@
 package server
 
 import (
-	"bytes"
-
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type txFilter struct {
-	sender    proto.Address
+	sender    proto.WavesAddress
 	recipient proto.Recipient
 	ids       map[string]bool
 	scheme    byte
@@ -50,11 +48,11 @@ func (f *txFilter) filterSender(tx proto.Transaction) bool {
 	if !f.hasSender {
 		return true
 	}
-	senderAddr, err := proto.NewAddressFromPublicKey(f.scheme, tx.GetSenderPK())
+	senderAddr, err := tx.GetSender(f.scheme)
 	if err != nil {
 		return false
 	}
-	return f.sender == senderAddr
+	return f.sender.Equal(senderAddr)
 }
 
 func (f *txFilter) filterRecipient(tx proto.Transaction) bool {
@@ -76,11 +74,11 @@ func (f *txFilter) filterRecipient(tx proto.Transaction) bool {
 		if f.recipient.Address == nil {
 			return false
 		}
-		senderAddr, err := proto.NewAddressFromPublicKey(f.scheme, tx.GetSenderPK())
+		senderAddr, err := tx.GetSender(f.scheme)
 		if err != nil {
 			return false
 		}
-		return bytes.Equal(f.recipient.Address[:], senderAddr[:])
+		return f.recipient.Address.Equal(senderAddr)
 	}
 }
 
@@ -100,8 +98,8 @@ func (f *txFilter) filter(tx proto.Transaction) bool {
 	return f.filterSender(tx) && f.filterRecipient(tx) && f.filterId(tx)
 }
 
-func (f *txFilter) getSenderRecipient() (*proto.Address, *proto.Address) {
-	var sender, recipient *proto.Address
+func (f *txFilter) getSenderRecipient() (*proto.WavesAddress, *proto.WavesAddress) {
+	var sender, recipient *proto.WavesAddress
 	if f.hasSender {
 		sender = &f.sender
 	}
