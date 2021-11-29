@@ -207,6 +207,21 @@ func (mr *MockStateInfoMockRecorder) AssetInfo(assetID interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetInfo", reflect.TypeOf((*MockStateInfo)(nil).AssetInfo), assetID)
 }
 
+// AssetInfoByID mocks base method.
+func (m *MockStateInfo) AssetInfoByID(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AssetInfoByID", id, filter)
+	ret0, _ := ret[0].(*proto.AssetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AssetInfoByID indicates an expected call of AssetInfoByID.
+func (mr *MockStateInfoMockRecorder) AssetInfoByID(id, filter interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetInfoByID", reflect.TypeOf((*MockStateInfo)(nil).AssetInfoByID), id, filter)
+}
+
 // AssetIsSponsored mocks base method.
 func (m *MockStateInfo) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
 	m.ctrl.T.Helper()
@@ -355,6 +370,21 @@ func (m *MockStateInfo) FullWavesBalance(account proto.Recipient) (*proto.FullWa
 func (mr *MockStateInfoMockRecorder) FullWavesBalance(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockStateInfo)(nil).FullWavesBalance), account)
+}
+
+// GetByteTree mocks base method.
+func (m *MockStateInfo) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByteTree", recipient)
+	ret0, _ := ret[0].(proto.Script)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByteTree indicates an expected call of GetByteTree.
+func (mr *MockStateInfoMockRecorder) GetByteTree(recipient interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByteTree", reflect.TypeOf((*MockStateInfo)(nil).GetByteTree), recipient)
 }
 
 // Header mocks base method.
@@ -1353,6 +1383,21 @@ func (mr *MockStateMockRecorder) AssetInfo(assetID interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetInfo", reflect.TypeOf((*MockState)(nil).AssetInfo), assetID)
 }
 
+// AssetInfoByID mocks base method.
+func (m *MockState) AssetInfoByID(id proto.AssetID, filter bool) (*proto.AssetInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AssetInfoByID", id, filter)
+	ret0, _ := ret[0].(*proto.AssetInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AssetInfoByID indicates an expected call of AssetInfoByID.
+func (mr *MockStateMockRecorder) AssetInfoByID(id, filter interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssetInfoByID", reflect.TypeOf((*MockState)(nil).AssetInfoByID), id, filter)
+}
+
 // AssetIsSponsored mocks base method.
 func (m *MockState) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
 	m.ctrl.T.Helper()
@@ -1515,6 +1560,21 @@ func (m *MockState) FullWavesBalance(account proto.Recipient) (*proto.FullWavesB
 func (mr *MockStateMockRecorder) FullWavesBalance(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockState)(nil).FullWavesBalance), account)
+}
+
+// GetByteTree mocks base method.
+func (m *MockState) GetByteTree(recipient proto.Recipient) (proto.Script, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByteTree", recipient)
+	ret0, _ := ret[0].(proto.Script)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByteTree indicates an expected call of GetByteTree.
+func (mr *MockStateMockRecorder) GetByteTree(recipient interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByteTree", reflect.TypeOf((*MockState)(nil).GetByteTree), recipient)
 }
 
 // Header mocks base method.

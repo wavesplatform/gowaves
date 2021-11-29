@@ -2077,6 +2077,7 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 		Description:      info.description,
 		IssueTransaction: tx,
 	}
+
 	isSponsored, err := s.stor.sponsoredAssets.isSponsored(assetID, true)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
