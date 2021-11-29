@@ -65,7 +65,7 @@ func run() error {
 	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer done()
 
-	m, err := internal.NewNodeMonitor(nodesList, timeout)
+	m, err := internal.NewNodeMonitor(nodesList, interval, timeout)
 	if err != nil {
 		log.Printf("ERROR: Failed to start monitoring: %v", err)
 		return err

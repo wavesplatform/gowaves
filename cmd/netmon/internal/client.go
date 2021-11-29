@@ -2,25 +2,18 @@ package internal
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 
-	"github.com/blang/semver/v4"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
 	defaultScheme = "http"
-)
-
-var (
-	versionRegex = regexp.MustCompile(`(?mi)^.*\sv(\d+\.\d+\.\d+.*)$`)
 )
 
 type versionResponse struct {
@@ -61,25 +54,17 @@ func newNodeClient(node string, timeout int) (*nodeClient, error) {
 	return &nodeClient{cl: cl, url: u.String()}, nil
 }
 
-func (c *nodeClient) version(ctx context.Context) (semver.Version, error) {
+func (c *nodeClient) version(ctx context.Context) (string, error) {
 	versionRequest, err := http.NewRequest("GET", c.cl.GetOptions().BaseUrl+"/node/version", nil)
 	if err != nil {
-		return semver.Version{}, err
+		return "", err
 	}
 	resp := new(versionResponse)
 	_, err = c.cl.Do(ctx, versionRequest, resp)
 	if err != nil {
-		return semver.Version{}, err
+		return "", err
 	}
-	sm := versionRegex.FindStringSubmatch(resp.Version)
-	if len(sm) < 2 {
-		return semver.Version{}, errors.New("no version found")
-	}
-	ver, err := semver.Parse(sm[1])
-	if err != nil {
-		return semver.Version{}, err
-	}
-	return ver, nil
+	return resp.Version, nil
 }
 
 func (c *nodeClient) height(ctx context.Context) (int, error) {
@@ -97,4 +82,3 @@ func (c *nodeClient) stateHash(ctx context.Context, height int) (*proto.StateHas
 	}
 	return sh, nil
 }
-
