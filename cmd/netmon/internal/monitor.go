@@ -143,7 +143,6 @@ func queryNode(ctx context.Context, node *nodeClient, rch chan nodeInfo) {
 	r.sh = sh
 	r.status = StateHashReceived
 	rch <- r
-	return
 }
 
 func (s *NodeMonitor) Health() (NetworkHealth, error) {
