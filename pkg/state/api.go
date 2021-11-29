@@ -111,7 +111,6 @@ type StateInfo interface {
 	InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error)
 	// True if state stores additional information in order to provide extended API.
 	ProvidesExtendedApi() (bool, error)
-	//
 	// True if state stores and calculates state hashes for each block height.
 	ProvidesStateHashes() (bool, error)
 
