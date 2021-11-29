@@ -4,9 +4,10 @@ import (
 	"math/big"
 	"runtime"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+
 	"github.com/pkg/errors"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -98,20 +99,18 @@ type StateInfo interface {
 	AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error)
 	FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error)
 	NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error)
-
 	// Script information.
 	ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error)
 	ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error)
+	GetByteTree(recipient proto.Recipient) (proto.Script, error)
 
 	// Leases.
 	IsActiveLeasing(leaseID crypto.Digest) (bool, error)
 
 	// Invoke results.
 	InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error)
-
 	// True if state stores additional information in order to provide extended API.
 	ProvidesExtendedApi() (bool, error)
-
 	// True if state stores and calculates state hashes for each block height.
 	ProvidesStateHashes() (bool, error)
 

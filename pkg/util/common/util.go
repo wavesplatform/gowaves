@@ -226,11 +226,14 @@ func EnsureTimeout(tm tm, expected uint64) {
 	}
 }
 
-func TimestampMillisToTime(ts uint64) time.Time {
-	ts64 := int64(ts)
-	s := ts64 / 1000
-	ns := ts64 % 1000 * 1000000
-	return time.Unix(s, ns)
+func UnixMillisToTime(ts int64) time.Time {
+	sec := ts / 1_000
+	nsec := (ts % 1_000) * 1_000_000
+	return time.Unix(sec, nsec)
+}
+
+func UnixMillisFromTime(t time.Time) int64 {
+	return t.UnixNano() / 1_000_000
 }
 
 // Replaces invalid utf8 characters with '?'.

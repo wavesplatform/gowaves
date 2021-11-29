@@ -22,6 +22,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/libs/runner"
+	"github.com/wavesplatform/gowaves/pkg/metamask"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
@@ -51,17 +52,18 @@ const (
 )
 
 var (
-	logLevel       = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
-	statePath      = flag.String("state-path", "", "Path to node's state directory")
-	blockchainType = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
-	peerAddresses  = flag.String("peers", "", "Addresses of peers to connect to")
-	declAddr       = flag.String("declared-address", "", "Address to listen on")
-	nodeName       = flag.String("name", "gowaves", "Node name.")
-	cfgPath        = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
-	apiAddr        = flag.String("api-address", "", "Address for REST API")
-	apiKey         = flag.String("api-key", "", "Api key")
-	grpcAddr       = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
-	//enableMetaMaskService                 = flag.Bool("enable-metamask", true, "Enables/disables metamask service")
+	logLevel                              = flag.String("log-level", "INFO", "Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	statePath                             = flag.String("state-path", "", "Path to node's state directory")
+	blockchainType                        = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
+	peerAddresses                         = flag.String("peers", "", "Addresses of peers to connect to")
+	declAddr                              = flag.String("declared-address", "", "Address to listen on")
+	nodeName                              = flag.String("name", "gowaves", "Node name.")
+	cfgPath                               = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
+	apiAddr                               = flag.String("api-address", "", "Address for REST API")
+	apiKey                                = flag.String("api-key", "", "Api key")
+	grpcAddr                              = flag.String("grpc-address", "127.0.0.1:7475", "Address for gRPC API")
+	enableMetaMaskService                 = flag.Bool("enable-metamask", true, "Enables/disables metamask service")
+	metaMaskServiceAddr                   = flag.String("metamask-address", "127.0.0.1:8545", "Address for ethereum compatible RPC API for MetaMask.")
 	enableGrpcApi                         = flag.Bool("enable-grpc-api", false, "Enables/disables gRPC API")
 	buildExtendedApi                      = flag.Bool("build-extended-api", false, "Builds extended API. Note that state must be re-imported in case it wasn't imported with similar flag set")
 	serveExtendedApi                      = flag.Bool("serve-extended-api", false, "Serves extended API requests since the very beginning. The default behavior is to import until first block close to current time, and start serving at this point")
@@ -130,7 +132,8 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("drop-peers: %v", *dropPeers)
 	zap.S().Debugf("db-file-descriptors: %v", *dbFileDescriptors)
 	zap.S().Debugf("new-connections-limit: %v", *newConnectionsLimit)
-	//zap.S().Debugf("enableMetaMaskService: %v", *enableMetaMaskService)
+	zap.S().Debugf("enable-metamask: %v", *enableMetaMaskService)
+	zap.S().Debugf("metamask-address: %v", *metaMaskServiceAddr)
 }
 
 func main() {
@@ -425,17 +428,21 @@ func main() {
 		}()
 	}
 
-	// TODO(nickeskov): add into a next release
-	//address := ":8545"
-	//if *enableMetaMaskService {
-	//	go func() {
-	//		zap.S().Infof("Starting metamask service on %s...", address)
-	//		err := metamask.RunMetaMaskService(ctx, address, st)
-	//		if err != nil {
-	//			zap.S().Errorf("metamask service: %v", err)
-	//		}
-	//	}()
-	//}
+	if *enableMetaMaskService {
+		if *buildExtendedApi {
+			service := metamask.NewRPCService(&svs)
+			go func() {
+				zap.S().Infof("Starting metamask service on %s...", *metaMaskServiceAddr)
+				// TODO(nickeskov): add parameter for `enableRpcServiceLog`
+				err := metamask.RunMetaMaskService(ctx, *metaMaskServiceAddr, service, true)
+				if err != nil {
+					zap.S().Errorf("metamask service: %v", err)
+				}
+			}()
+		} else {
+			zap.S().Warn("'enable-grpc-api' flag requires activated 'build-extended-api' flag")
+		}
+	}
 
 	var gracefulStop = make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM)
