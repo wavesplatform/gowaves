@@ -288,8 +288,8 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 
 	r, err := ride.CallFunction(env, tree, functionName, functionArguments)
 	if err != nil {
-		if err2 := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); err2 != nil {
-			return nil, err
+		if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); appendErr != nil {
+			return nil, appendErr
 		}
 		return nil, err
 	}
