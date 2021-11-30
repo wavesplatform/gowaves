@@ -16,7 +16,7 @@ jobs:
         uses: golangci/golangci-lint-action@v2
         with:
           version: latest
-          args: --skip-dirs pkg/crypto/internal/groth16/bn256/utils/bn254 --timeout 5m
+          args: --skip-dirs pkg/crypto/internal/groth16/bn256/utils/bn254 --timeout 7m
 
   build:
     name: ubuntu
