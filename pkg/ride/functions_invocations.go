@@ -26,8 +26,8 @@ func invokeFunctionFromDApp(env environment, recipient proto.Recipient, fnName r
 	}
 	res, err := e.evaluate()
 	if err != nil {
-		// Evaluation failed we have to return a DAppResult that contains spent execution complexity
-		return DAppResult{complexity: e.complexity}, err
+		// Evaluation failed we have to add spent execution complexity to an error
+		return nil, EvaluationErrorAddComplexity(err, e.complexity)
 	}
 	return res, nil
 }

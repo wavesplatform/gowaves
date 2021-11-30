@@ -4,7 +4,6 @@ import "github.com/wavesplatform/gowaves/pkg/proto"
 
 type Result interface {
 	Result() bool
-	EvaluationError() error
 	ScriptActions() []proto.ScriptAction
 	Complexity() int
 	userResult() rideType
@@ -12,17 +11,12 @@ type Result interface {
 
 type ScriptResult struct {
 	res        bool
-	err        error
 	param      rideType
 	complexity int
 }
 
 func (r ScriptResult) Result() bool {
 	return r.res
-}
-
-func (r ScriptResult) EvaluationError() error {
-	return r.err
 }
 
 func (r ScriptResult) userResult() rideType {
@@ -38,7 +32,6 @@ func (r ScriptResult) Complexity() int {
 }
 
 type DAppResult struct {
-	err        error
 	actions    []proto.ScriptAction
 	param      rideType
 	complexity int
@@ -46,10 +39,6 @@ type DAppResult struct {
 
 func (r DAppResult) Result() bool {
 	return true
-}
-
-func (r DAppResult) EvaluationError() error {
-	return r.err
 }
 
 func (r DAppResult) userResult() rideType {

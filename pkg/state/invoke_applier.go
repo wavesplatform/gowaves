@@ -803,29 +803,47 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	if err != nil {
 		return nil, err
 	}
-	rejectOnInvocationError := info.checkerInfo.height >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight
-	// Call script function.
 
+	// Call script function.
 	r, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr, txID)
 	if err != nil {
-		// This error means that function invocation failed by itself. This is not a script failure.
-		// We just return error in such case.
-		return nil, errors.Wrap(err, "invokeFunction() failed")
-	}
-	if r.EvaluationError() != nil {
 		// Script returned error, it's OK, but we have to decide is it failed or rejected transaction.
 		// In the following cases the transaction is rejected:
 		// 1) Failing of transactions is not activated yet, reject everything
 		// 2) The error is ride.InternalInvocationError and correct fail/reject behaviour is activated
 		// 3) The spent complexity is less than limit
-		isInvocationError := ride.GetEvaluationErrorType(r.EvaluationError()) == ride.InternalInvocationError
 		isCheap := int(ia.sc.recentTxComplexity) <= FailFreeInvokeComplexity
-		if !info.acceptFailed || isInvocationError && rejectOnInvocationError || !isInvocationError && isCheap {
-			return nil, errors.Wrapf(r.EvaluationError(), "transaction rejected with spent complexity %d and following call stack:\n%s",
-				r.Complexity(), strings.Join(ride.EvaluationErrorCallStack(r.EvaluationError()), "\n"))
+		switch ride.GetEvaluationErrorType(err) {
+		case ride.UserError, ride.RuntimeError:
+			// Usual script error produced by user code or system functions.
+			// We reject transaction if spent complexity is less than limit.
+			if !info.acceptFailed || isCheap { // Reject transaction if no failed transactions or the transaction is cheap
+				return nil, errors.Wrapf(
+					err, "transaction rejected with spent complexity %d and following call stack:\n%s",
+					ride.EvaluationErrorSpentComplexity(err),
+					strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
+				)
+			}
+			res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), changes: failedChanges}
+			return ia.handleInvocationResult(txID, info, res)
+		case ride.InternalInvocationError:
+			// Special script error produced by internal script invocation or application of results.
+			// Reject transaction after certain height
+			rejectOnInvocationError := info.checkerInfo.height >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight
+			if !info.acceptFailed || rejectOnInvocationError || isCheap {
+				return nil, errors.Wrapf(
+					err, "transaction rejected with spent complexity %d and following call stack:\n%s",
+					ride.EvaluationErrorSpentComplexity(err),
+					strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
+				)
+			}
+			res := &invocationResult{failed: true, code: proto.DAppError, text: err.Error(), changes: failedChanges}
+			return ia.handleInvocationResult(txID, info, res)
+		case ride.Undefined, ride.EvaluationFailure: // Unhandled or evaluator error
+			return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
+		default:
+			return nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
 		}
-		res := &invocationResult{failed: true, code: proto.DAppError, text: r.EvaluationError().Error(), actions: r.ScriptActions(), changes: failedChanges}
-		return ia.handleInvocationResult(txID, info, res)
 	}
 	var scriptRuns uint64 = 0
 	// After activation of RideV5 (16) feature we don't take extra fee for execution of smart asset scripts.

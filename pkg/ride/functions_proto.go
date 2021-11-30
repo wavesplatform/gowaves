@@ -203,9 +203,6 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	res, err := invokeFunctionFromDApp(env, recipient, fn, arguments)
 	if err != nil {
-		if res != nil {
-			ws.totalComplexity += res.Complexity()
-		}
 		return nil, EvaluationErrorPush(err, "%s at '%s' function '%s' with arguments %v", invocation.name(), recipient.Address.String(), fn, arguments)
 	}
 
