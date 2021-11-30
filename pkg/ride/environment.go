@@ -16,8 +16,8 @@ type WrappedState struct {
 	cle              rideAddress
 	scheme           proto.Scheme
 	act              []proto.ScriptAction
-	blackList        []proto.WavesAddress
-	invokeCount      int
+	blocklist        []proto.WavesAddress
+	invocationCount  int
 	totalComplexity  int
 	dataEntriesCount int
 	dataEntriesSize  int
@@ -34,10 +34,6 @@ func newWrappedState(env *EvaluationEnvironment) *WrappedState {
 
 func (ws *WrappedState) appendActions(actions []proto.ScriptAction) {
 	ws.act = append(ws.act, actions...)
-}
-
-func (ws *WrappedState) checkTotalComplexity() (int, bool) {
-	return ws.totalComplexity, ws.totalComplexity <= MaxChainInvokeComplexity
 }
 
 func (ws *WrappedState) callee() proto.WavesAddress {
@@ -500,13 +496,13 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	r, err := CallVerifier(localEnv, tree)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to call script on asset '%s'", asset.String())
+		return false, errs.NewTransactionNotAllowedByScript(err.Error(), asset.ID.Bytes())
 	}
 	if !r.Result() {
-		return false, errs.NewTransactionNotAllowedByScript(r.UserError(), asset.ID.Bytes())
+		return false, errs.NewTransactionNotAllowedByScript("Script returned False", asset.ID.Bytes())
 	}
 
-	return r.Result(), nil
+	return true, nil
 }
 
 func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAction, sender proto.WavesAddress, env environment, restrictions proto.ActionsValidationRestrictions) error {
@@ -544,7 +540,7 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 		return err
 	}
 	if balance < uint64(res.Amount) {
-		return errors.Errorf("attached payments: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+		return errors.Errorf("not enough money in the DApp, balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
 			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 	}
 	return nil
@@ -597,7 +593,7 @@ func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, 
 	}
 	if env.rideV6Activated() {
 		if balance < uint64(res.Amount) {
-			return errors.Errorf("transfer action: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+			return errors.Errorf("not enough money in the DApp, balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
 				sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 		}
 	}
@@ -790,11 +786,11 @@ func (ws *WrappedState) getLibVersion() (int, error) {
 }
 
 func (ws *WrappedState) invCount() int {
-	return ws.invokeCount
+	return ws.invocationCount
 }
 
 func (ws *WrappedState) incrementInvCount() {
-	ws.invokeCount++
+	ws.invocationCount++
 }
 
 func (ws *WrappedState) validateBalances() error {

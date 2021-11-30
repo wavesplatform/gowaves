@@ -127,12 +127,6 @@ To build WMD execute the command:
 make release-wmd
 ```
 
-After modifying `wmd-swagger.json` you have to compile it with the following commands:
-```bash
-cd cmd/wmd/
-statik -src swagger/ -dest internal/ -p swagger -f
-```
-
 ## HTTP API
 
 ### **GET** - /api/status

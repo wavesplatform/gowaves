@@ -3,7 +3,6 @@ package ride
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -157,7 +156,7 @@ func (diffSt *diffState) findMinGenerating(effectiveHistory []int64, generatingF
 func (diffSt *diffState) addEffectiveToHistory(searchBalanceKey balanceDiffKey, effective int64) error {
 	oldDiffBalance, ok := diffSt.balances[searchBalanceKey]
 	if !ok {
-		return errors.Errorf("cannot find balance to add effective to history, key %q", searchBalanceKey.String())
+		return EvaluationFailure.Errorf("cannot find balance to add effective to history, key %q", searchBalanceKey.String())
 	}
 	oldDiffBalance.effectiveHistory = append(oldDiffBalance.effectiveHistory, effective)
 	diffSt.balances[searchBalanceKey] = oldDiffBalance
@@ -320,7 +319,7 @@ func (diffSt *diffState) putDataEntry(entry proto.DataEntry, address proto.Waves
 	case *proto.DeleteDataEntry:
 		d.diffDelete[deleteDataEntryKey{entry.Key, address}] = *entry
 	default:
-		return errors.Errorf("unknown DataEntry type (%T)=%v", entry, entry)
+		return EvaluationFailure.Errorf("unknown DataEntry type (%T)=%v", entry, entry)
 	}
 	return nil
 }
@@ -328,7 +327,7 @@ func (diffSt *diffState) putDataEntry(entry proto.DataEntry, address proto.Waves
 func (diffSt *diffState) findBalance(recipient proto.Recipient, asset proto.OptionalAsset) (*diffBalance, balanceDiffKey, error) {
 	address, err := diffSt.state.NewestRecipientToAddress(recipient)
 	if err != nil {
-		return nil, balanceDiffKey{}, errors.Errorf("cannot get address from recipient")
+		return nil, balanceDiffKey{}, EvaluationFailure.Errorf("cannot get address from recipient")
 	}
 	key := balanceDiffKey{*address, asset}
 	if balance, ok := diffSt.balances[key]; ok {

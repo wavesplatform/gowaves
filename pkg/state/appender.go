@@ -424,7 +424,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	if err := a.checkProtobufVersion(tx, params.blockV5Activated); err != nil {
 		return err
 	}
-	// Check transaction for duplication of it's ID.
+	// Check transaction for duplication of its ID.
 	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, params.block.Timestamp); err != nil {
 		return errs.Extend(err, "check duplicate tx ids")
 	}

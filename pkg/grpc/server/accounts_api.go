@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 
 	"github.com/golang/protobuf/ptypes/wrappers"

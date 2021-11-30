@@ -1,35 +1,14 @@
 package ride
 
 import (
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 func CallVerifier(env environment, tree *Tree) (Result, error) {
 	e, err := treeVerifierEvaluator(env, tree)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to call verifier")
-	}
-	return e.evaluate()
-}
-
-func invokeFunctionFromDApp(env environment, recipient proto.Recipient, fnName rideString, listArgs rideList) (Result, error) {
-	newScript, err := env.state().GetByteTree(recipient)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get script by recipient")
-	}
-
-	tree, err := Parse(newScript)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get tree by script")
-	}
-	if tree.LibVersion < 5 {
-		return nil, errors.Errorf("failed to call 'invoke' for script with version %d. Scripts with version 5 are only allowed to be used in 'invoke'", tree.LibVersion)
-	}
-
-	e, err := treeFunctionEvaluatorForInvokeDAppFromDApp(env, tree, string(fnName), listArgs)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to call function '%s'", fnName)
+		return nil, RuntimeError.Wrap(err, "failed to call verifier")
 	}
 	return e.evaluate()
 }
@@ -38,36 +17,61 @@ func CallFunction(env environment, tree *Tree, name string, args proto.Arguments
 	if name == "" {
 		name = "default"
 	}
-	e, err := treeFunctionEvaluator(env, tree, name, args)
+	arguments, err := convertProtoArguments(args)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to call function '%s'", name)
+		return nil, EvaluationFailure.Wrapf(err, "failed to call function '%s'", name)
 	}
+	e, err := treeFunctionEvaluator(env, tree, name, arguments)
+	if err != nil {
+		return nil, EvaluationFailure.Wrapf(err, "failed to call function '%s'", name)
+	}
+	// After that instruction script/function is executed,
+	// so result of the execution and spent complexity should be considered outside.
 	rideResult, err := e.evaluate()
+	if err != nil {
+		// Evaluation failed we have to return a DAppResult that contains spent execution complexity
+		// Produced actions are not stored for failed transactions, no need to return them here
+		et := GetEvaluationErrorType(err)
+		if et == Undefined {
+			return nil, EvaluationErrorAddComplexity(
+				et.Wrap(err, "unhandled error"),
+				// Error was not handled in wrapped state properly,
+				// so we need to add both complexity from current evaluation and from internal invokes
+				e.complexity+wrappedStateComplexity(env.state()),
+			)
+		}
+		return nil, EvaluationErrorAddComplexity(err, e.complexity+wrappedStateComplexity(env.state()))
+	}
+	dAppResult, ok := rideResult.(DAppResult)
+	if !ok { // Unexpected result type
+		return nil, EvaluationErrorAddComplexity(
+			EvaluationFailure.Errorf("invalid result of call function '%s'", name),
+			// New error, both complexities should be added
+			e.complexity+wrappedStateComplexity(env.state()),
+		)
+	}
+	if tree.LibVersion < 5 { // Shortcut because no wrapped state before version 5
+		return rideResult, nil
+	}
+	// Add actions and complexity from wrapped state
+	// Append actions of the original call to the end of actions collected in wrapped state
+	dAppResult.complexity += wrappedStateComplexity(env.state())
+	dAppResult.actions = append(wrappedStateActions(env.state()), dAppResult.actions...)
+	return dAppResult, nil
+}
 
-	DAppResult, ok := rideResult.(DAppResult)
+func wrappedStateComplexity(state types.SmartState) int {
+	ws, ok := state.(*WrappedState)
 	if !ok {
-		return rideResult, err
+		return 0
 	}
-	if tree.LibVersion < 5 {
-		return rideResult, err
-	}
+	return ws.totalComplexity
+}
 
-	ws, ok := env.state().(*WrappedState)
+func wrappedStateActions(state types.SmartState) []proto.ScriptAction {
+	ws, ok := state.(*WrappedState)
 	if !ok {
-		return nil, errors.New("wrong state")
+		return nil
 	}
-
-	complexity, ok := ws.checkTotalComplexity()
-	if !ok {
-		return nil, errors.Errorf("complexity of invocation chain %d exceeds maximum allowed complexity of %d", complexity, MaxChainInvokeComplexity)
-	}
-
-	if ws.act == nil {
-		return rideResult, err
-	}
-
-	fullActions := ws.act
-	fullActions = append(fullActions, DAppResult.actions...)
-	DAppResult.actions = fullActions
-	return DAppResult, err
+	return ws.act
 }

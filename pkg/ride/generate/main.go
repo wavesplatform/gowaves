@@ -155,8 +155,32 @@ func catalogueV2() map[string]int {
 	return m
 }
 
-func freeConstructorsV2() []string {
-	return []string{"Address", "Alias", "AssetPair", "DataEntry", "DataTransaction"}
+func evaluationCatalogueV2() map[string]int {
+	// In Scala implementation order
+	m := catalogueV2()
+	m["isDefined"] = 7
+	m["throw"] = 1
+	m["!="] = 5
+	m["-"] = 2
+	m["!"] = 2
+	m["takeRightBytes"] = 6
+	m["dropRightBytes"] = 6
+	m["dropRight"] = 6
+	m["takeRight"] = 6
+	m["extract"] = 5
+	m["getInteger"] = 9
+	m["getBoolean"] = 9
+	m["getBinary"] = 9
+	m["getString"] = 9
+	m["addressFromString"] = 20
+	m["addressFromPublicKey"] = 65
+	m["wavesBalance"] = 102
+	m["Address"] = 0
+	m["Alias"] = 0
+	m["AssetPair"] = 0
+	m["DataEntry"] = 0
+	m["DataTransaction"] = 0
+	return m
 }
 
 func functionsV3() map[string]string {
@@ -283,8 +307,51 @@ func catalogueV3() map[string]int {
 	return m
 }
 
-func freeConstructorsV3() []string {
-	return append(freeConstructorsV2(), "WriteSet", "TransferSet", "ScriptTransfer", "ScriptResult")
+func evaluationCatalogueV3() map[string]int {
+	m := catalogueV3()
+	m["isDefined"] = 7
+	m["throw"] = 1
+	m["!="] = 5
+	m["-"] = 2
+	m["!"] = 2
+	m["takeRightBytes"] = 6
+	m["dropRightBytes"] = 6
+	m["dropRight"] = 6
+	m["takeRight"] = 6
+	m["extract"] = 5
+	m["value"] = 5
+	m["valueOrErrorMessage"] = 5
+	m["parseIntValue"] = 26
+	m["getInteger"] = 9
+	m["getBoolean"] = 9
+	m["getBinary"] = 9
+	m["getString"] = 9
+	m["addressFromString"] = 20
+	m["addressFromPublicKey"] = 65
+	m["@extrNative(1050)"] = 107
+	m["@extrNative(1051)"] = 107
+	m["@extrNative(1052)"] = 107
+	m["@extrNative(1053)"] = 107
+	m["@extrNative(1040)"] = 17
+	m["@extrNative(1041)"] = 17
+	m["@extrNative(1042)"] = 17
+	m["@extrNative(1043)"] = 17
+	m["@extrUser(getInteger)"] = 16
+	m["@extrUser(getBoolean)"] = 16
+	m["@extrUser(getBinary)"] = 16
+	m["@extrUser(getString)"] = 16
+	m["@extrUser(addressFromString)"] = 26
+	m["wavesBalance"] = 102
+	m["Address"] = 0
+	m["Alias"] = 0
+	m["AssetPair"] = 0
+	m["DataEntry"] = 0
+	m["DataTransaction"] = 0
+	m["WriteSet"] = 0
+	m["TransferSet"] = 0
+	m["ScriptTransfer"] = 0
+	m["ScriptResult"] = 0
+	return m
 }
 
 func functionsV4() map[string]string {
@@ -306,6 +373,8 @@ func functionsV4() map[string]string {
 	m["AttachedPayment"] = "attachedPayment"
 
 	// Functions
+	delete(m, "extract")
+	delete(m, "addressFromString")
 	delete(m, "wavesBalance") // Remove wavesBalanceV3
 	m["contains"] = "contains"
 	m["containsElement"] = "containsElement"
@@ -362,6 +431,11 @@ func catalogueV4() map[string]int {
 	delete(m, "WriteSet")
 	delete(m, "TransferSet")
 	delete(m, "DataEntry")
+	delete(m, "extract")
+	delete(m, "addressFromString")
+	delete(m, "wavesBalance")
+	delete(m, "700")
+	delete(m, "1003")
 	m["IntegerEntry"] = 2
 	m["BooleanEntry"] = 2
 	m["BinaryEntry"] = 2
@@ -473,9 +547,57 @@ func catalogueV4() map[string]int {
 	return m
 }
 
-func freeConstructorsV4() []string {
-	return append(freeConstructorsV3(), "IntegerEntry", "BooleanEntry", "BinaryEntry", "StringEntry",
-		"DeleteEntry", "Reissue", "Burn", "SponsorFee", "AttachedPayment")
+func evaluationCatalogueV4() map[string]int {
+	m := catalogueV4()
+	m["isDefined"] = 7
+	m["throw"] = 1
+	m["!="] = 5
+	m["-"] = 2
+	m["!"] = 2
+	m["value"] = 5
+	m["valueOrErrorMessage"] = 5
+	m["parseIntValue"] = 8
+	m["contains"] = 12
+	m["valueOrElse"] = 5
+	m["containsElement"] = 12
+	m["takeRightBytes"] = 11
+	m["dropRightBytes"] = 11
+	m["dropRight"] = 25
+	m["takeRight"] = 25
+	m["getInteger"] = 9
+	m["getBoolean"] = 9
+	m["getBinary"] = 9
+	m["getString"] = 9
+	m["addressFromPublicKey"] = 59
+	m["@extrNative(1050)"] = 17
+	m["@extrNative(1051)"] = 17
+	m["@extrNative(1052)"] = 17
+	m["@extrNative(1053)"] = 17
+	m["@extrNative(1040)"] = 17
+	m["@extrNative(1041)"] = 17
+	m["@extrNative(1042)"] = 17
+	m["@extrNative(1043)"] = 17
+	m["@extrUser(getInteger)"] = 16
+	m["@extrUser(getBoolean)"] = 16
+	m["@extrUser(getBinary)"] = 16
+	m["@extrUser(getString)"] = 16
+	m["@extrUser(addressFromString)"] = 7
+	m["@extrNative(1062)"] = 7
+	m["Address"] = 0
+	m["Alias"] = 0
+	m["AssetPair"] = 0
+	m["DataTransaction"] = 0
+	m["ScriptTransfer"] = 0
+	m["IntegerEntry"] = 0
+	m["BooleanEntry"] = 0
+	m["BinaryEntry"] = 0
+	m["StringEntry"] = 0
+	m["DeleteEntry"] = 0
+	m["Reissue"] = 0
+	m["Burn"] = 0
+	m["SponsorFee"] = 0
+	m["AttachedPayment"] = 0
+	return m
 }
 
 func functionsV5() map[string]string {
@@ -571,8 +693,63 @@ func catalogueV5() map[string]int {
 	return m
 }
 
-func freeConstructorsV5() []string {
-	return append(freeConstructorsV4(), "LeaseCancel")
+func evaluationCatalogueV5() map[string]int {
+	m := catalogueV5()
+	m["isDefined"] = 7
+	m["throw"] = 1
+	m["!="] = 5
+	m["-"] = 2
+	m["!"] = 2
+	m["value"] = 5
+	m["valueOrErrorMessage"] = 5
+	m["parseIntValue"] = 8
+	m["contains"] = 12
+	m["valueOrElse"] = 5
+	m["containsElement"] = 12
+	m["takeRightBytes"] = 11
+	m["dropRightBytes"] = 11
+	m["dropRight"] = 25
+	m["takeRight"] = 25
+	m["fraction"] = 135
+	m["getInteger"] = 9
+	m["getBoolean"] = 9
+	m["getBinary"] = 9
+	m["getString"] = 9
+	m["addressFromPublicKey"] = 59
+	m["@extrNative(1050)"] = 17
+	m["@extrNative(1051)"] = 17
+	m["@extrNative(1052)"] = 17
+	m["@extrNative(1053)"] = 17
+	m["@extrNative(1040)"] = 17
+	m["@extrNative(1041)"] = 17
+	m["@extrNative(1042)"] = 17
+	m["@extrNative(1043)"] = 17
+	m["@extrUser(getInteger)"] = 16
+	m["@extrUser(getBoolean)"] = 16
+	m["@extrUser(getBinary)"] = 16
+	m["@extrUser(getString)"] = 16
+	m["@extrUser(addressFromString)"] = 7
+	m["@extrNative(1055)"] = 16
+	m["@extrNative(1056)"] = 16
+	m["@extrNative(1057)"] = 16
+	m["@extrNative(1058)"] = 16
+	m["@extrNative(1062)"] = 7
+	m["Address"] = 0
+	m["Alias"] = 0
+	m["AssetPair"] = 0
+	m["DataTransaction"] = 0
+	m["ScriptTransfer"] = 0
+	m["IntegerEntry"] = 0
+	m["BooleanEntry"] = 0
+	m["BinaryEntry"] = 0
+	m["StringEntry"] = 0
+	m["DeleteEntry"] = 0
+	m["Reissue"] = 0
+	m["Burn"] = 0
+	m["SponsorFee"] = 0
+	m["AttachedPayment"] = 0
+	m["LeaseCancel"] = 0
+	return m
 }
 
 type constantDescription struct {
@@ -719,7 +896,7 @@ func createConstructors(sb *strings.Builder, c map[string]constantDescription) {
 	}
 }
 
-func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c map[string]int, n []string) {
+func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c map[string]int, ec map[string]int) {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -759,10 +936,10 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 	}
 	sb.WriteString("}\n\n")
 
-	// Create map for evaluation zero cost constructors
-	sb.WriteString(fmt.Sprintf("var FreeFunctions%s = map[string]struct{}{", ver))
-	for i, k := range n {
-		sb.WriteString(fmt.Sprintf("\"%s\":{}", k))
+	// Create map of evaluation costs of functions and constructors
+	sb.WriteString(fmt.Sprintf("var EvaluationCatalogue%s = map[string]int{", ver))
+	for i, k := range keys {
+		sb.WriteString(fmt.Sprintf("\"%s\":%d", k, ec[k]))
 		if i < len(m)-1 {
 			sb.WriteString(", ")
 		}
@@ -876,10 +1053,10 @@ func main() {
 	sb.WriteString("// Code generated by ride/generate/main.go. DO NOT EDIT.\n")
 	sb.WriteString("\n")
 	sb.WriteString("package ride\n")
-	createFunctionsList(sb, "V2", functionsV2(), catalogueV2(), freeConstructorsV2())
-	createFunctionsList(sb, "V3", functionsV3(), catalogueV3(), freeConstructorsV3())
-	createFunctionsList(sb, "V4", functionsV4(), catalogueV4(), freeConstructorsV4())
-	createFunctionsList(sb, "V5", functionsV5(), catalogueV5(), freeConstructorsV5())
+	createFunctionsList(sb, "V2", functionsV2(), catalogueV2(), evaluationCatalogueV2())
+	createFunctionsList(sb, "V3", functionsV3(), catalogueV3(), evaluationCatalogueV3())
+	createFunctionsList(sb, "V4", functionsV4(), catalogueV4(), evaluationCatalogueV4())
+	createFunctionsList(sb, "V5", functionsV5(), catalogueV5(), evaluationCatalogueV5())
 	code := sb.String()
 	b, err := format.Source([]byte(code))
 	if err != nil {

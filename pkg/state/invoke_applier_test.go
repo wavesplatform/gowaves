@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mr-tron/base58/base58"
@@ -160,12 +161,13 @@ type invokeApplierTestData struct {
 	correctFullBalances map[proto.Recipient]fullBalance
 	dataEntries         map[rcpKey]proto.DataEntry
 	correctAddrs        []proto.WavesAddress
+	info                *fallibleValidationParams
 }
 
-func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestObjects, info *fallibleValidationParams) {
+func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestObjects) {
 	tx := createInvokeScriptWithProofs(t, id.payments, id.fc, feeAsset, invokeFee)
 	if id.errorRes {
-		_, err := to.state.appender.ia.applyInvokeScript(tx, info)
+		_, err := to.state.appender.ia.applyInvokeScript(tx, id.info)
 		assert.Error(t, err)
 		return
 	}
@@ -173,7 +175,7 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 		id.invokeTimes = 1
 	}
 	for i := 0; i < id.invokeTimes; i++ {
-		res := to.applyAndSaveInvoke(t, tx, info)
+		res := to.applyAndSaveInvoke(t, tx, id.info)
 		assert.Equal(t, !id.failRes, res.status)
 		assert.ElementsMatch(t, id.correctAddrs, res.changes.addresses())
 	}
@@ -325,10 +327,11 @@ func TestApplyInvokeScriptPaymentsAndData(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to, info)
+		tc.applyTest(t, to)
 	}
 }
 
@@ -373,6 +376,7 @@ func TestApplyInvokeScriptTransfers(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 		{
 			payments: []proto.ScriptPayment{},
@@ -389,10 +393,11 @@ func TestApplyInvokeScriptTransfers(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to, info)
+		tc.applyTest(t, to)
 	}
 }
 
@@ -427,10 +432,11 @@ func TestApplyInvokeScriptWithIssues(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to, info)
+		tc.applyTest(t, to)
 	}
 }
 
@@ -466,6 +472,7 @@ func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 		{
 			payments: []proto.ScriptPayment{},
@@ -479,10 +486,11 @@ func TestApplyInvokeScriptWithIssuesThenReissue(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to, info)
+		tc.applyTest(t, to)
 	}
 }
 
@@ -519,6 +527,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 		{
 			payments: []proto.ScriptPayment{},
@@ -532,6 +541,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 		{
 			payments: []proto.ScriptPayment{},
@@ -545,10 +555,11 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenBurn(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to, info)
+		tc.applyTest(t, to)
 	}
 }
 
@@ -584,6 +595,7 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 		{
 			payments: []proto.ScriptPayment{},
@@ -597,15 +609,17 @@ func TestApplyInvokeScriptWithIssuesThenReissueThenFailOnReissue(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 		{
 			payments: []proto.ScriptPayment{},
 			fc:       fc1,
 			errorRes: true, // Second reissue should fail as asset made non-reissuable with the first one.
+			info:     info,
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to, info)
+		tc.applyTest(t, to)
 	}
 }
 
@@ -641,6 +655,7 @@ func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 		{
 			invokeMultipleTimes: true,
@@ -656,18 +671,21 @@ func TestApplyInvokeScriptWithIssuesThenFailOnBurnTooMuch(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 		{
 			payments: []proto.ScriptPayment{},
 			fc:       fc1,
 			errorRes: true,
+			info:     info,
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to, info)
+		tc.applyTest(t, to)
 	}
 }
 
+// TestFailedApplyInvokeScript in this test we
 func TestFailedApplyInvokeScript(t *testing.T) {
 	to, path := createInvokeApplierTestObjects(t)
 
@@ -702,6 +720,7 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 		{
 			payments: []proto.ScriptPayment{},
@@ -715,12 +734,13 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 		{
 			payments: []proto.ScriptPayment{},
 			fc:       fc1,
-			errorRes: false,
-			failRes:  true,
+			errorRes: true,
+			failRes:  false, // Spent complexity is less than 1000, so this transaction will be rejected
 			correctBalances: map[rcpAsset]uint64{
 				{sender, nil}:     0,
 				{dapp, &newAsset}: 110000,
@@ -728,10 +748,106 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr, // Script address should be although its balance does not change.
 			},
+			info: info,
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to, info)
+		tc.applyTest(t, to)
+	}
+}
+
+func TestFailedInvokeApplicationComplexity(t *testing.T) {
+	to, path := createInvokeApplierTestObjects(t)
+
+	defer func() {
+		err := to.state.Close()
+		require.NoError(t, err, "state.Close() failed")
+		err = os.RemoveAll(path)
+		require.NoError(t, err, "failed to remove test data dir")
+	}()
+
+	infoBefore := to.fallibleValidationParams(t)
+	infoBefore.acceptFailed = true
+	infoBefore.blockV5Activated = true
+	infoBefore.rideV5Activated = true
+
+	infoAfter := to.fallibleValidationParams(t)
+	infoAfter.acceptFailed = true
+	infoAfter.blockV5Activated = true
+	infoAfter.rideV5Activated = true
+	infoAfter.checkerInfo.height = 2_800_000
+
+	to.setDApp(t, "ride5_recursive_invoke.base64", testGlobal.recipientInfo)
+
+	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
+
+	sender, dapp := invokeSenderRecipient()
+	// This transaction produces 10889 bytes of data in 100 entries spending 11093 of complexity
+	fcEverythingFine := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 100)}}}
+	// This transaction reaches data entries size limit (16 KB) after reaching 1000 complexity limit
+	fcSizeLimitAfterComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 150)}}}
+	// This transaction reaches data entries size limit (16 KB) before reaching 1000 complexity limit
+	fcSizeLimitBeforeComplexityLimit := proto.FunctionCall{Name: "keyvalue", Arguments: []proto.Argument{&proto.IntegerArgument{Value: 99}, &proto.StringArgument{Value: strings.Repeat("0", 2000)}}}
+	tests := []invokeApplierTestData{
+		{
+			payments: []proto.ScriptPayment{},
+			fc:       fcEverythingFine,
+			errorRes: false,
+			failRes:  false,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}: invokeFee * 2,
+				{dapp, nil}:   0,
+			},
+			correctAddrs: []proto.WavesAddress{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+			info: infoBefore,
+		},
+		{
+			payments: []proto.ScriptPayment{},
+			fc:       fcSizeLimitAfterComplexityLimit,
+			errorRes: false,
+			failRes:  true,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}: invokeFee,
+				{dapp, nil}:   0,
+			},
+			correctAddrs: []proto.WavesAddress{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+			info: infoBefore,
+		},
+		{ // Before activation of correct fail/reject behaviour
+			payments: []proto.ScriptPayment{},
+			fc:       fcSizeLimitBeforeComplexityLimit,
+			errorRes: false,
+			failRes:  true,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}: 0,
+				{dapp, nil}:   0,
+			},
+			correctAddrs: []proto.WavesAddress{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+			info: infoBefore,
+		},
+		{ // After activation of correct fail/reject behaviour
+			payments: []proto.ScriptPayment{},
+			fc:       fcSizeLimitBeforeComplexityLimit,
+			errorRes: true,
+			failRes:  false,
+			correctBalances: map[rcpAsset]uint64{
+				{sender, nil}: 0,
+				{dapp, nil}:   0,
+			},
+			correctAddrs: []proto.WavesAddress{
+				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
+			},
+			info: infoAfter,
+		},
+	}
+	for _, tc := range tests {
+		tc.applyTest(t, to)
 	}
 }
 
@@ -826,10 +942,11 @@ func TestApplyInvokeScriptWithLease(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to, info)
+		tc.applyTest(t, to)
 	}
 }
 
@@ -879,6 +996,7 @@ func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 		{
 			payments: []proto.ScriptPayment{},
@@ -895,10 +1013,11 @@ func TestApplyInvokeScriptWithLeaseAndLeaseCancel(t *testing.T) {
 			correctAddrs: []proto.WavesAddress{
 				testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
 			},
+			info: info,
 		},
 	}
 	for _, tc := range tests {
-		tc.applyTest(t, to, info)
+		tc.applyTest(t, to)
 	}
 }
 

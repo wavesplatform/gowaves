@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"math/rand"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/mr-tron/base58"
@@ -252,7 +253,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		//
 		{"EQ", `5 == 5`, `AQkAAAAAAAACAAAAAAAAAAAFAAAAAAAAAAAFqWG0Fw==`, env, true, false},
 		{"ISINSTANCEOF", `match tx {case t : TransferTransaction => true case _  => false}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGB5yQ/+k=`, env, true, false},
-		{`THROW`, `true && throw("mess")`, `AQMGCQAAAgAAAAECAAAABG1lc3MH7PDwAQ==`, env, false, false},
+		{`THROW`, `true && throw("mess")`, `AQMGCQAAAgAAAAECAAAABG1lc3MH7PDwAQ==`, env, false, true},
 		{`SUM_LONG`, `1 + 1 > 0`, `AQkAAGYAAAACCQAAZAAAAAIAAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAABiJjSk`, env, true, false},
 		{`SUB_LONG`, `2 - 1 > 0`, `AQkAAGYAAAACCQAAZQAAAAIAAAAAAAAAAAIAAAAAAAAAAAEAAAAAAAAAAABqsps1`, env, true, false},
 		{`GT_LONG`, `1 > 0`, `AQkAAGYAAAACAAAAAAAAAAABAAAAAAAAAAAAyAIM4w==`, env, true, false},
@@ -588,7 +589,6 @@ func TestDappCallable(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -658,7 +658,6 @@ func TestDappDefaultFunc(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -786,7 +785,6 @@ func TestTransferSet(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
@@ -841,7 +839,6 @@ func TestScriptResult(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -1335,7 +1332,6 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -1522,7 +1518,6 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -1694,7 +1689,6 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -1887,7 +1881,6 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -2060,11 +2053,8 @@ func TestNegativeCycleNewInvokeDAppFromDAppScript4(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-
+	require.Nil(t, res)
 	require.Error(t, err)
-	r, ok := res.(DAppResult)
-	require.False(t, ok)
-	require.False(t, r.res)
 
 	tearDownDappFromDapp()
 }
@@ -2223,7 +2213,6 @@ func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -2344,7 +2333,6 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -2542,7 +2530,6 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -2689,7 +2676,6 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -2848,7 +2834,6 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -3029,7 +3014,6 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -3203,7 +3187,6 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -3463,16 +3446,10 @@ func TestPaymentsDifferentScriptVersion4(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-
+	require.Nil(t, res)
 	require.Error(t, err)
-	r, ok := res.(DAppResult)
-	require.False(t, ok)
-	require.False(t, r.res)
 
 	tearDownDappFromDapp()
-
-	tearDownDappFromDapp()
-
 }
 
 func TestPaymentsDifferentScriptVersion3(t *testing.T) {
@@ -3587,14 +3564,10 @@ func TestPaymentsDifferentScriptVersion3(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-
+	require.Nil(t, res)
 	require.Error(t, err)
-	r, ok := res.(DAppResult)
-	require.False(t, ok)
-	require.False(t, r.res)
 
 	tearDownDappFromDapp()
-
 }
 
 func TestActionsLimitInOneInvoke(t *testing.T) {
@@ -3736,7 +3709,6 @@ func TestActionsLimitInOneInvoke(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -3785,7 +3757,8 @@ func TestActionsLimitInOneInvoke(t *testing.T) {
 	*/
 	secondScript = "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"
 
-	_, err = CallFunction(env, tree, "bar", proto.Arguments{})
+	res, err = CallFunction(env, tree, "bar", proto.Arguments{})
+	require.Nil(t, res)
 	require.Error(t, err)
 
 	tearDownDappFromDapp()
@@ -3916,9 +3889,10 @@ func TestActionsLimitInvoke(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	_, err = CallFunction(env, tree, "bar", proto.Arguments{})
-
+	res, err := CallFunction(env, tree, "bar", proto.Arguments{})
+	require.Nil(t, res)
 	require.Error(t, err)
+
 	tearDownDappFromDapp()
 }
 
@@ -4038,7 +4012,6 @@ func TestHashScriptFunc(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -4165,7 +4138,6 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -4547,7 +4519,6 @@ func TestWhaleDApp(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -4675,7 +4646,6 @@ func TestExchangeDApp(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	assert.NoError(t, err)
@@ -4987,7 +4957,6 @@ func TestLigaDApp1(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5175,7 +5144,6 @@ func TestLigaDApp1(t *testing.T) {
 	require.NoError(t, err)
 	r, ok = res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5306,7 +5274,6 @@ func TestTestingDApp(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5422,7 +5389,6 @@ func TestDropElementDApp(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5541,7 +5507,6 @@ func TestMathDApp(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5670,7 +5635,6 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5802,7 +5766,6 @@ func Test8Ball(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -6158,7 +6121,6 @@ func TestBadType(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -6323,7 +6285,6 @@ func TestNoDeclaration(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -6510,7 +6471,6 @@ func TestZeroReissue(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -6554,7 +6514,7 @@ type jsonDataProvider struct {
 }
 
 func newJsonDataProvider(s string) *jsonDataProvider {
-	strings := make(map[string]string)
+	strs := make(map[string]string)
 	ints := make(map[string]int)
 	bools := make(map[string]bool)
 	binaries := make(map[string][]byte)
@@ -6577,7 +6537,7 @@ func newJsonDataProvider(s string) *jsonDataProvider {
 		case d.Entry.BoolValue != nil:
 			bools[key] = *d.Entry.BoolValue
 		case d.Entry.StringVale != nil:
-			strings[key] = *d.Entry.StringVale
+			strs[key] = *d.Entry.StringVale
 		case d.Entry.IntValue != nil:
 			ints[key] = mustIntFromString(*d.Entry.IntValue)
 		case d.Entry.BinaryValue != nil:
@@ -6585,7 +6545,7 @@ func newJsonDataProvider(s string) *jsonDataProvider {
 		}
 	}
 	return &jsonDataProvider{
-		strings:  strings,
+		strings:  strs,
 		ints:     ints,
 		bools:    bools,
 		binaries: binaries,
@@ -6730,7 +6690,6 @@ func TestStageNet2(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -6929,7 +6888,6 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -7092,7 +7050,6 @@ func TestOriginCaller(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -7300,8 +7257,9 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	tree, err := Parse(src1)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	_, err = CallFunction(env, tree, "call", arguments)
+	res, err := CallFunction(env, tree, "call", arguments)
 	// Expecting validation error for the switched on internal payments validation
+	require.Nil(t, res)
 	require.Error(t, err)
 
 	// Turning off internal payments validation
@@ -7319,9 +7277,10 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	tree, err = Parse(src1)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	_, err = CallFunction(env, tree, "call", arguments)
+	res, err = CallFunction(env, tree, "call", arguments)
 	// No error is expected in this case
 	require.NoError(t, err)
+	require.IsType(t, DAppResult{}, res)
 }
 
 func TestAliasesInInvokes(t *testing.T) {
@@ -7495,7 +7454,6 @@ func TestAliasesInInvokes(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -7725,7 +7683,6 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	nftOA := proto.NewOptionalAssetFromDigest(nft)
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
@@ -7743,6 +7700,164 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		ErrorMsg:     proto.ScriptErrorMessage{},
 	}
 	assert.Equal(t, expectedResult, sr)
+}
+
+func TestTransferUnavailableFundsInInvoke(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let dApp = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+
+	@Callable(i)
+	func call() = {
+	  strict r1 = invoke(dApp, "loan", [100], nil)
+	  let balance = wavesBalance(this)
+	  strict r2 = invoke(dApp, "back", [], [AttachedPayment(unit, 100)])
+	  [IntegerEntry("balance", balance.available)]
+	}
+	*/
+	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAEZEFwcAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAnIxCQAD/AAAAAQFAAAABGRBcHACAAAABGxvYW4JAARMAAAAAgAAAAAAAAAAZAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAnIxBQAAAAJyMQQAAAAHYmFsYW5jZQkAA+8AAAABBQAAAAR0aGlzBAAAAAJyMgkAA/wAAAAEBQAAAARkQXBwAgAAAARiYWNrBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAAGQFAAAAA25pbAMJAAAAAAAAAgUAAAACcjIFAAAAAnIyCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAAdiYWxhbmNlCAUAAAAHYmFsYW5jZQAAAAlhdmFpbGFibGUFAAAAA25pbAkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAALjV2o="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func loan(a: Int) =
+	{
+	  [ScriptTransfer(i.caller, a, unit)]
+	}
+
+	@Callable(i)
+	func back() = []
+	*/
+	code2 := "AAIFAAAAAAAAABsIAhIDCgEBEgAaBwoCYTESAWkaBwoCYTISAWEAAAAAAAAAAgAAAAJhMQEAAAAEbG9hbgAAAAEAAAACYTIJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAmExAAAABmNhbGxlcgUAAAACYTIFAAAABHVuaXQFAAAAA25pbAAAAAJhMQEAAAAEYmFjawAAAAAFAAAAA25pbAAAAACBSAmD"
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &crypto.Digest{},
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		txIDFunc: func() rideType {
+			return rideBytes(tx.ID.Bytes())
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		rideV6ActivatedFunc: func() bool {
+			return true
+		},
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			case dApp2.String():
+				return src2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 0, nil
+		},
+		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+			return false, errors.Errorf("unexpected asset '%s'", assetID.String())
+		},
+	}
+	testState := initWrappedState(mockState, env)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.Nil(t, res)
+	require.Error(t, err)
+	assert.EqualError(t, err, "invoke: failed to apply actions: failed to pass validation of transfer action: not enough money in the DApp, balance of DApp with address 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1 is 0 and it tried to transfer asset WAVES to 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz, amount of 100")
+	assert.Equal(t, strings.Join(EvaluationErrorCallStack(err), ";"), "failed to evaluate block after declaration of variable 'r1';failed to estimate the condition of if;failed to materialize argument 1 of system function '0';failed to evaluate expression of scope value 'r1';failed to call system function '1020'")
 }
 
 func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
@@ -7929,7 +8044,8 @@ func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 	tree, err := Parse(src1)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	_, err = CallFunction(env, tree, "call", arguments)
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.Nil(t, res)
 	require.Error(t, err)
 }
 
@@ -8116,7 +8232,6 @@ func TestReissueInInvoke(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	optionalAsset := proto.NewOptionalAssetFromDigest(asset)
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})

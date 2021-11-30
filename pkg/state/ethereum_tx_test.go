@@ -257,16 +257,16 @@ func TestEthereumInvoke(t *testing.T) {
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
-	ok, actions, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
+	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
 	assert.NoError(t, err)
-	assert.True(t, ok)
+	assert.True(t, res.Result())
 
 	_, err = txAppender.ia.txHandler.checkTx(&tx, fallibleInfo.checkerInfo)
 	assert.NoError(t, err)
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "int", Value: 10}},
 	}
-	assert.Equal(t, expectedDataEntryWrites[0], actions[0])
+	assert.Equal(t, expectedDataEntryWrites[0], res.ScriptActions()[0])
 
 	// fee test
 	txDataForFeeCheck := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 499999)
@@ -385,16 +385,16 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
-	ok, actions, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
+	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
 	assert.NoError(t, err)
-	assert.True(t, ok)
+	assert.True(t, res.Result())
 
 	_, err = txAppender.ia.txHandler.checkTx(&tx, fallibleInfo.checkerInfo)
 	assert.NoError(t, err)
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "int", Value: 1}},
 	}
-	assert.Equal(t, expectedDataEntryWrites[0], actions[0])
+	assert.Equal(t, expectedDataEntryWrites[0], res.ScriptActions()[0])
 
 }
 
@@ -459,14 +459,14 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
-	ok, actions, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
+	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
 	assert.NoError(t, err)
-	assert.True(t, ok)
+	assert.True(t, res.Result())
 
 	_, err = txAppender.ia.txHandler.checkTx(&tx, fallibleInfo.checkerInfo)
 	assert.NoError(t, err)
 	expectedDataEntryWrites := []*proto.DataEntryScriptAction{
 		{Entry: &proto.IntegerDataEntry{Key: "int", Value: 1}},
 	}
-	assert.Equal(t, expectedDataEntryWrites[0], actions[0])
+	assert.Equal(t, expectedDataEntryWrites[0], res.ScriptActions()[0])
 }

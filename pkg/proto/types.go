@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/btcsuite/btcd/btcec"
 	"io"
 	"math/big"
 	"reflect"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf16"
+
+	"github.com/btcsuite/btcd/btcec"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"

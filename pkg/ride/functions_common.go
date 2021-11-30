@@ -50,7 +50,7 @@ func extract(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "extract")
 	}
 	if args[0].instanceOf() == "Unit" {
-		return rideThrow("extract() called on unit value"), nil
+		return nil, UserError.New("extract() called on unit value")
 	}
 	return args[0], nil
 }
@@ -70,11 +70,11 @@ func throw(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "throw")
 	}
-	return rideThrow(s), nil
+	return nil, UserError.New(string(s))
 }
 
 func throw0(_ environment, _ ...rideType) (rideType, error) {
-	return rideThrow(defaultThrowMessage), nil
+	return nil, UserError.New(defaultThrowMessage)
 }
 
 func value(_ environment, args ...rideType) (rideType, error) {
@@ -82,7 +82,7 @@ func value(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "value")
 	}
 	if args[0].instanceOf() == "Unit" {
-		return rideThrow(defaultThrowMessage), nil
+		return nil, UserError.New(defaultThrowMessage)
 	}
 	return args[0], nil
 }
@@ -96,7 +96,7 @@ func valueOrErrorMessage(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("valueOrErrorMessage: unexpected argument type '%s'", args[1])
 	}
 	if args[0].instanceOf() == "Unit" {
-		return rideThrow(msg), nil
+		return nil, UserError.New(string(msg))
 	}
 	return args[0], nil
 }
@@ -215,7 +215,7 @@ func recipientProperty(obj rideType, key string) (proto.Recipient, error) {
 
 func extractValue(v rideType) (rideType, error) {
 	if _, ok := v.(rideUnit); ok {
-		return rideThrow("failed to extract from Unit value"), nil
+		return nil, UserError.New("failed to extract from Unit value")
 	}
 	return v, nil
 }
