@@ -7012,6 +7012,9 @@ func TestOriginCaller(t *testing.T) {
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
 		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
 	}
 
 	mockState := &MockSmartState{

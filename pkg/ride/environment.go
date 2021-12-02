@@ -539,7 +539,7 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	if err != nil {
 		return err
 	}
-	if balance < uint64(res.Amount) {
+	if env.validateInternalPayments() && balance < uint64(res.Amount) {
 		return errors.Errorf("not enough money in the DApp, balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
 			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 	}
@@ -864,14 +864,10 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environme
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get address  by public key")
 			}
-
-			if env.validateInternalPayments() {
-				err = ws.validatePaymentAction(res, senderAddress, env, restrictions)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to pass validation of attached payments")
-				}
+			err = ws.validatePaymentAction(res, senderAddress, env, restrictions)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to pass validation of attached payments")
 			}
-
 			searchBalance, searchAddr, err := ws.diff.findBalance(res.Recipient, res.Asset)
 			if err != nil {
 				return nil, err
