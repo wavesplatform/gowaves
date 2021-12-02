@@ -211,7 +211,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply actions", invocation.name())
 	}
 
-	if !env.rideV6Activated() {
+	if env.validateInternalPayments() && !env.rideV6Activated() {
 		err = ws.validateBalances()
 		if err != nil {
 			return nil, err
