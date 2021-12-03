@@ -29,10 +29,9 @@ func NewArgumentFromRideTypeMeta(name string, rideT meta.Type) (Argument, error)
 // UnpackRideValues can be used to unpack ABI-encoded hexdata according to the ABI-specification,
 // without supplying a struct to unpack into. Instead, this method returns a list containing the
 // values. An atomic argument will be a list with one element.
-func (arguments Arguments) UnpackRideValues(data []byte) ([]DataType, []byte, error) {
+func (arguments Arguments) UnpackRideValues(data []byte) ([]DataType, int, error) {
 	retval := make([]DataType, 0, len(arguments))
 	virtualArgs := 0
-	readArgsTotal := 0
 	for index, arg := range arguments {
 		marshalledValue, err := toDataType((index+virtualArgs)*32, arg.Type, data)
 		if arg.Type.T == TupleType && !isDynamicType(arg.Type) {
@@ -40,15 +39,12 @@ func (arguments Arguments) UnpackRideValues(data []byte) ([]DataType, []byte, er
 			// coded as just like uint256,bool,uint256
 			tupleSize := getTypeSize(arg.Type)/32 - 1
 			virtualArgs += tupleSize
-			readArgsTotal += tupleSize
 		}
 		if err != nil {
-			return nil, nil, err
+			return nil, 0, err
 		}
 		retval = append(retval, marshalledValue)
-		readArgsTotal += 1
 	}
-	return retval, data[readArgsTotal*32:], nil
+	paymentsSliceOffset := (len(arguments) + virtualArgs) * 32
+	return retval, paymentsSliceOffset, nil
 }
-
-// TODO(nickeskov): add ABI spec marshaling

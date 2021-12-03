@@ -123,14 +123,14 @@ func (da *DecodedArg) InternalType() byte {
 }
 
 func parseArgDataToRideTypes(method *Method, argData []byte, parsePayments bool) (*DecodedCallData, error) {
-	values, paymentsABI, err := method.Inputs.UnpackRideValues(argData)
+	values, paymentsOffset, err := method.Inputs.UnpackRideValues(argData)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unpack Inputs arguments ABI data")
 	}
 
 	var payments []Payment
 	if parsePayments {
-		payments, err = unpackPayments(paymentsABI)
+		payments, err = unpackPayments(paymentsOffset, argData)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to unpack payments")
 		}

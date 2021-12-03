@@ -220,3 +220,25 @@ func TestUnpackPayment(t *testing.T) {
 		require.Equal(t, tc.expectedPayment, actualPayment)
 	}
 }
+
+func TestUnpackPayments(t *testing.T) {
+	tests := []struct {
+		hexCallData         string
+		paymentsSliceOffset int
+		expectedPayments    []Payment
+	}{
+		{
+			hexCallData:         "0x3e08c22800000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000573616664730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+			paymentsSliceOffset: 32,
+			expectedPayments:    make([]Payment, 0),
+		},
+	}
+	for _, tc := range tests {
+		bts, err := hex.DecodeString(strings.TrimPrefix(tc.hexCallData, "0x"))
+		require.NoError(t, err)
+
+		payments, err := unpackPayments(tc.paymentsSliceOffset, bts[SelectorSize:])
+		require.NoError(t, err)
+		require.Equal(t, tc.expectedPayments, payments)
+	}
+}
