@@ -5,7 +5,7 @@ go 1.16
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1
 	github.com/OneOfOne/xxhash v1.2.5 // indirect
-	github.com/alecthomas/kong v0.2.18
+	github.com/alecthomas/kong v0.2.19
 	github.com/beevik/ntp v0.3.0
 	github.com/btcsuite/btcd v0.22.0-beta
 	github.com/cespare/xxhash/v2 v2.1.2
