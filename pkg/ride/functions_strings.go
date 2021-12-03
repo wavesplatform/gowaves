@@ -261,11 +261,15 @@ func makeString(_ environment, args ...rideType) (rideType, error) {
 	pl := 0
 	pc := 0
 	for i, item := range list {
-		s, ok := item.(rideString)
-		if !ok {
+		var str string
+		switch ti := item.(type) {
+		case rideString:
+			str = string(ti)
+		case rideInt:
+			str = strconv.Itoa(int(ti))
+		default:
 			return nil, errors.Errorf("makeString: unexpected list item type '%s'", item.instanceOf())
 		}
-		str := string(s)
 		parts[i] = str
 		pl += len(str)
 		pc++
