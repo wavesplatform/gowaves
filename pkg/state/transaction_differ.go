@@ -1464,12 +1464,13 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 	changes := newTxBalanceChanges(addresses, diff)
 
 	for _, payment := range decodedData.Payments {
-		senderPaymentKey := byteKey(senderAddrID, *proto.NewOptionalAssetFromDigest(payment.AssetID))
+		assetID := proto.NewOptionalAssetFromDigest(payment.AssetID)
+		senderPaymentKey := byteKey(senderAddrID, *assetID)
 		senderBalanceDiff := -payment.Amount
 		if err := diff.appendBalanceDiff(senderPaymentKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 			return txBalanceChanges{}, err
 		}
-		receiverKey := byteKey(scriptAddrID, *proto.NewOptionalAssetFromDigest(payment.AssetID))
+		receiverKey := byteKey(scriptAddrID, *assetID)
 		receiverBalanceDiff := payment.Amount
 		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 			return txBalanceChanges{}, err
