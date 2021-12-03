@@ -3,42 +3,66 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
+	"flag"
 	"io"
 	"net"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/alecthomas/kong"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 )
 
-var Cli struct {
-	WavesNetwork string `kong:"wavesnetwork,short='n',help='Waves network.',required"`
-	Address      string `kong:"address,short='a',help='Address connect to.',required"`
-	Version      string `kong:"version,short='v',help='Version,(0.15.1).',required"`
+var (
+	wavesNetwork = flag.String("waves-network", "", "Waves network.")
+	address      = flag.String("address", "", "Address connect to.")
+	version      = flag.String("version", "", "Version, for example: (0.15.1).")
+)
+
+func printCLIArgsToLog() {
+	type cliArgs struct {
+		wavesNetwork string
+		address      string
+		version      string
+	}
+	cli := cliArgs{
+		wavesNetwork: *wavesNetwork,
+		address:      *address,
+		version:      *version,
+	}
+
+	zap.S().Infof("CLI args: %+v", cli)
 }
 
 func init() {
+	flag.Parse()
 	logger, _ := zap.NewDevelopment()
 	zap.ReplaceGlobals(logger)
+	printCLIArgsToLog()
 }
 
 func main() {
-	kong.Parse(&Cli)
-	zap.S().Infof("%+v", Cli)
+	if *wavesNetwork == "" {
+		zap.S().Fatal("please, provide 'waves-network' CLI argument")
+	}
+	if *address == "" {
+		zap.S().Fatal("please, provide 'address' CLI argument")
+	}
+	if *version == "" {
+		zap.S().Fatal("please, provide 'version' CLI argument")
+	}
 
-	version, err := parseVersion(Cli.Version)
+	version, err := parseVersion(*version)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
 	handshake := proto.Handshake{
-		AppName:      Cli.WavesNetwork,
+		AppName:      *wavesNetwork,
 		Version:      version,
 		NodeName:     "nodename",
 		NodeNonce:    0x0,
@@ -46,13 +70,17 @@ func main() {
 		Timestamp:    proto.NewTimestampFromTime(time.Now()),
 	}
 
-	conn, err := net.Dial("tcp", Cli.Address)
+	conn, err := net.Dial("tcp", *address)
 	if err != nil {
 		zap.S().Error(err)
 		return
 	}
 
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			zap.S().Errorf("failed to close connetion: %v", err)
+		}
+	}()
 
 	_, err = handshake.WriteTo(conn)
 	if err != nil {
