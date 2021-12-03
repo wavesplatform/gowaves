@@ -247,12 +247,13 @@ func unpackPayment(output []byte) (Payment, error) {
 	return payment, nil
 }
 
-func unpackPayments(output []byte) ([]Payment, error) {
+// unpackPayments unpacks payments from call data without selector
+func unpackPayments(paymentsSliceOffset int, output []byte) ([]Payment, error) {
 	if len(output) == 0 {
 		return nil, errors.Errorf("empty payments bytes")
 	}
 
-	begin, size, err := lengthPrefixPointsTo(0, output)
+	begin, size, err := lengthPrefixPointsTo(paymentsSliceOffset, output)
 	if err != nil {
 		return nil, err
 	}
@@ -283,9 +284,11 @@ func unpackPayments(output []byte) ([]Payment, error) {
 
 // lengthPrefixPointsTo interprets a 32 byte slice as an offset and then determines which indices to look to decode the type.
 func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err error) {
-	bigOffsetEnd := big.NewInt(0).SetBytes(output[index : index+32])
+	bigOffsetBytes := output[index : index+32]
+	bigOffsetEnd := new(big.Int).SetBytes(bigOffsetBytes)
 	bigOffsetEnd.Add(bigOffsetEnd, big32)
-	outputLength := big.NewInt(int64(len(output)))
+
+	outputLength := new(big.Int).SetUint64(uint64(len(output)))
 
 	if bigOffsetEnd.Cmp(outputLength) > 0 {
 		return 0, 0, errors.Errorf(
@@ -298,8 +301,8 @@ func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err 
 		return 0, 0, errors.Errorf("abi offset larger than int64: %v", bigOffsetEnd)
 	}
 
-	offsetEnd := int(bigOffsetEnd.Uint64())
-	lengthBig := big.NewInt(0).SetBytes(output[offsetEnd-32 : offsetEnd])
+	offsetEnd := bigOffsetEnd.Uint64()
+	lengthBig := new(big.Int).SetBytes(output[offsetEnd-32 : offsetEnd])
 
 	totalSize := big.NewInt(0)
 	totalSize.Add(totalSize, bigOffsetEnd)

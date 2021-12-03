@@ -273,12 +273,14 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
 }
 
 func TestParsingABIUsingRideMeta(t *testing.T) {
-	// hexdata created with https://github.com/rust-ethereum/ethabi
+	// first test hexdata created with https://github.com/rust-ethereum/ethabi
 
-	testdata := []struct {
+	tests := []struct {
 		rideFunctionMeta     meta.Function
 		hexdata              string
 		expectedResultValues []DataType
+		parsePayments        bool
+		payments             []Payment
 	}{
 		{
 			rideFunctionMeta: meta.Function{
@@ -287,18 +289,30 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 			},
 			hexdata:              "0x7afebf3b0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000861736661736466730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000015657468657265756d2061626920746573742e2e2e2e0000000000000000000000",
 			expectedResultValues: []DataType{Bool(true), String("asfasdfs"), String("ethereum abi test....")},
+			parsePayments:        false,
+			payments:             nil,
+		},
+		{
+			rideFunctionMeta: meta.Function{
+				Name:      "call",
+				Arguments: []meta.Type{meta.String},
+			},
+			hexdata:              "0x3e08c22800000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000573616664730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+			expectedResultValues: []DataType{String("safds")},
+			parsePayments:        true,
+			payments:             make([]Payment, 0),
 		},
 	}
-	for _, test := range testdata {
-		data, err := hex.DecodeString(strings.TrimPrefix(test.hexdata, "0x"))
+	for _, tc := range tests {
+		data, err := hex.DecodeString(strings.TrimPrefix(tc.hexdata, "0x"))
 		require.NoError(t, err)
 
 		dAppMeta := meta.DApp{
 			Version:       1,
-			Functions:     []meta.Function{test.rideFunctionMeta},
+			Functions:     []meta.Function{tc.rideFunctionMeta},
 			Abbreviations: meta.Abbreviations{},
 		}
-		db, err := newMethodsMapFromRideDAppMeta(dAppMeta, false)
+		db, err := newMethodsMapFromRideDAppMeta(dAppMeta, tc.parsePayments)
 		require.NoError(t, err)
 
 		decodedCallData, err := db.ParseCallDataRide(data)
@@ -308,6 +322,10 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 		for _, arg := range decodedCallData.Inputs {
 			values = append(values, arg.Value)
 		}
-		require.Equal(t, test.expectedResultValues, values)
+		require.Equal(t, tc.expectedResultValues, values)
+
+		if tc.parsePayments {
+			require.Equal(t, tc.payments, decodedCallData.Payments)
+		}
 	}
 }

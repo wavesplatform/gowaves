@@ -59,3 +59,20 @@ func TestEthereumTransaction_MerkleBytes(t *testing.T) {
 		require.Equal(t, expectedMerkleBytes, actualMerkleBytes)
 	}
 }
+
+func TestEthereumTransaction_DecodeCanonical_EncodeCanonical(t *testing.T) {
+	const hexTxData = "0xf9011186017ca38c6ddf8502540be4008307a120942ad9f1f20af320b1bb556a4932bf964ed9b4fb0180b8a43e08c2280000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000057361666473000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000081c9a0b5cd5ec65e933de94eddcf49e88441cb8c332e0c8f40439b7405d09e4300e6b4a07ccb30028aa8da93242bdc734860c8209f6f3b8fd0e40419f54fcb28db1d4a1c"
+
+	txData, err := DecodeFromHexString(hexTxData)
+	require.NoError(t, err)
+
+	var tx EthereumTransaction
+	err = tx.DecodeCanonical(txData)
+	require.NoError(t, err)
+	require.Equal(t, EthereumLegacyTxType, tx.EthereumTxType())
+
+	encodedTxData, err := tx.EncodeCanonical()
+	require.NoError(t, err)
+	encodedHexTxData := EncodeToHexString(encodedTxData)
+	require.Equal(t, hexTxData, encodedHexTxData)
+}
