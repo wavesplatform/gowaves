@@ -594,6 +594,8 @@ func (td *transactionDiffer) createDiffEthereumTransactionWithProofs(transaction
 		return td.createDiffEthereumTransferWaves(ethTx, info)
 	case *proto.EthereumTransferAssetsErc20TxKind:
 		return td.createDiffEthereumErc20(ethTx, info)
+	case *proto.EthereumInvokeScriptTxKind:
+		return td.createDiffEthereumInvokeScript(ethTx, info)
 	default:
 		return txBalanceChanges{}, errors.New("wrong kind of ethereum transaction")
 
@@ -1416,6 +1418,60 @@ func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.
 		}
 		receiverKey := byteKey(scriptAddrID, payment.Asset)
 		receiverBalanceDiff := int64(payment.Amount)
+		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+			return txBalanceChanges{}, err
+		}
+	}
+	return changes, nil
+}
+
+func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTransaction, info *differInfo) (txBalanceChanges, error) {
+
+	updateMinIntermediateBalance := false
+
+	txInvokeScriptKind, ok := tx.TxKind.(*proto.EthereumInvokeScriptTxKind)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20TxKind")
+	}
+
+	decodedData := txInvokeScriptKind.DecodedData()
+
+	noPayments := len(decodedData.Payments) == 0
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime && !noPayments {
+		updateMinIntermediateBalance = true
+	}
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddress, err := tx.WavesAddressFrom(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, errors.Wrapf(err, "failed to get sender address from ethereum invoke tx")
+	}
+
+	senderAddrID := senderAddress.ID()
+	assetFee := proto.NewOptionalAssetWaves()
+	senderFeeKey := byteKey(senderAddrID, assetFee)
+	senderFeeBalanceDiff := -int64(tx.GetFee())
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+		return txBalanceChanges{}, err
+	}
+	scriptAddr, err := tx.WavesAddressTo(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	scriptAddrID := scriptAddr.ID()
+
+	addresses := []proto.WavesAddress{senderAddress, *scriptAddr}
+	changes := newTxBalanceChanges(addresses, diff)
+
+	for _, payment := range decodedData.Payments {
+		assetID := proto.NewOptionalAssetFromDigest(payment.AssetID)
+		senderPaymentKey := byteKey(senderAddrID, *assetID)
+		senderBalanceDiff := -payment.Amount
+		if err := diff.appendBalanceDiff(senderPaymentKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+			return txBalanceChanges{}, err
+		}
+		receiverKey := byteKey(scriptAddrID, *assetID)
+		receiverBalanceDiff := payment.Amount
 		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 			return txBalanceChanges{}, err
 		}
