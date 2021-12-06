@@ -2,21 +2,36 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/genesis_generator"
 	"go.uber.org/zap"
 )
 
-type Cli struct {
-	SchemeByte string   `kong:"schemebyte,help='Scheme byte.',required"`
-	Seed       []string `kong:"seed,help='Seeds.',"`
+type cli struct {
+	schemeByte string
+	seeds      []string
 }
+
+func (c *cli) parse() error {
+	if *schemeByte == "" {
+		return errors.New("please, provide network scheme")
+	}
+	c.schemeByte = *schemeByte
+	c.seeds = strings.Split(*seedsString, ",")
+	return nil
+}
+
+var (
+	schemeByte  = flag.String("scheme-byte", "", "Scheme byte")
+	seedsString = flag.String("seeds", "", "Seeds. Example: test1:100_000_000,test2:100_000")
+)
 
 func init() {
 	logger, _ := zap.NewDevelopment()
@@ -24,25 +39,25 @@ func init() {
 }
 
 func main() {
-
-	var cli Cli
-	kong.Parse(&cli)
+	var cliArgs cli
+	if err := cliArgs.parse(); err != nil {
+		zap.S().Fatal(err)
+	}
 
 	t := proto.NewTimestampFromTime(time.Now())
 
-	inf := []interface{}{}
-	for _, v := range cli.Seed {
+	inf := make([]interface{}, 0, 2*len(cliArgs.seeds))
+	for _, v := range cliArgs.seeds {
 		splitted := strings.Split(v, ":")
 		if len(splitted) != 2 {
 			zap.S().Fatal("format should be test1:100000000")
 		}
 		kp := proto.MustKeyPair([]byte(splitted[0]))
-		inf = append(inf, kp)
 		num, _ := strconv.ParseUint(strings.Replace(splitted[1], "_", "", -1), 10, 64)
-		inf = append(inf, int(num))
+		inf = append(inf, kp, int(num))
 	}
 
-	genesis, err := genesis_generator.Generate(t, cli.SchemeByte[0], inf...)
+	genesis, err := genesis_generator.Generate(t, cliArgs.schemeByte[0], inf...)
 	if err != nil {
 		zap.S().Fatal(err)
 	}
