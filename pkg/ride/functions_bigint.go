@@ -564,6 +564,37 @@ func medianListBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideTy
 	return rideBigInt{v: r}, nil
 }
 
+func sqrtBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 4); err != nil {
+		return nil, errors.Wrap(err, "sqrtBigInt")
+	}
+	n, ok := args[0].(rideBigInt)
+	if !ok {
+		return nil, errors.Errorf("sqrtBigInt: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	np, ok := args[1].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("sqrtBigInt: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	rp, ok := args[2].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("sqrtBigInt: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	round, err := roundingMode(args[3])
+	if err != nil {
+		return nil, errors.Wrap(err, "sqrtBigInt")
+	}
+	v := big.NewInt(0).Set(n.v)
+	r, err := math.SqrtBigInt(v, int(np), int(rp), round)
+	if err != nil {
+		return nil, errors.Wrap(err, "sqrtBigInt")
+	}
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
+		return nil, errors.New("sqrtBigInt: result is out of range")
+	}
+	return rideBigInt{v: r}, nil
+}
+
 func minMaxBigInt(items []*big.Int) (*big.Int, *big.Int) {
 	if len(items) == 0 {
 		panic("empty slice")

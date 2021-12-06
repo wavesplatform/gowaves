@@ -421,3 +421,30 @@ func TestFailOnMainNet_TxID_6dy3f1qw6dbkitzfAjyA6jZfB2dma4NibJjDgmEXiK9D(t *test
 	require.NoError(t, err)
 	assert.Equal(t, rideInt(5_000), r)
 }
+
+func TestSqrt(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideInt(12), rideInt(1), rideInt(2), newDown(nil)}, false, rideInt(109)},
+		{[]rideType{rideInt(12), rideInt(1), rideInt(2), newUp(nil)}, false, rideInt(110)},
+		{[]rideType{rideInt(12), rideInt(1), rideInt(2), newUp(nil), newDown(nil)}, true, nil},
+		{[]rideType{rideInt(math.MaxInt64), rideInt(0), rideInt(0), newNoAlg(nil)}, true, nil},
+		{[]rideType{rideInt(math.MaxInt64), rideString("0"), rideInt(0), newUp(nil)}, true, nil},
+		{[]rideType{rideInt(math.MaxInt64), rideInt(100), rideInt(0)}, true, nil},
+		{[]rideType{rideInt(math.MaxInt64), rideInt(0), rideInt(100)}, true, nil},
+		{[]rideType{rideInt(math.MaxInt64), rideInt(0)}, true, nil},
+		{[]rideType{rideInt(math.MaxInt64)}, true, nil},
+		{[]rideType{}, true, nil},
+	} {
+		r, err := sqrt(nil, env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}

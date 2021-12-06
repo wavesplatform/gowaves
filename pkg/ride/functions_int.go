@@ -271,6 +271,33 @@ func log(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	return rideInt(r), nil
 }
 
+func sqrt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 4); err != nil {
+		return nil, errors.Wrap(err, "sqrt")
+	}
+	n, ok := args[0].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("sqrt: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	np, ok := args[1].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("sqrt: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	rp, ok := args[2].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("sqrt: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	round, err := roundingMode(args[3])
+	if err != nil {
+		return nil, errors.Wrap(err, "sqrt")
+	}
+	r, err := math.Sqrt(int64(n), int(np), int(rp), round)
+	if err != nil {
+		return nil, errors.Wrap(err, "sqrt")
+	}
+	return rideInt(r), nil
+}
+
 func roundingMode(v rideType) (decimal.RoundingMode, error) {
 	switch v.instanceOf() {
 	case "Ceiling":

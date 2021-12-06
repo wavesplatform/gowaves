@@ -721,6 +721,34 @@ func TestMedianListBigInt(t *testing.T) {
 	}
 }
 
+func TestSqrtBigInt(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{toRideBigInt(12), rideInt(1), rideInt(2), newDown(nil)}, false, toRideBigInt(109)},
+		{[]rideType{toRideBigInt(12), rideInt(1), rideInt(2), newUp(nil)}, false, toRideBigInt(110)},
+		{[]rideType{toRideBigInt(12), rideInt(1), rideInt(2), newUp(nil), newDown(nil)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64), rideInt(0), rideInt(0), newNoAlg(nil)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64), rideString("0"), rideInt(0), newUp(nil)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64), rideInt(20), rideInt(0), newUp(nil)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64), rideInt(0), rideInt(-1), newUp(nil)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64), rideInt(0), toRideBigInt(1)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64), rideInt(0)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64)}, true, nil},
+		{[]rideType{}, true, nil},
+	} {
+		r, err := sqrtBigInt(nil, env, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.True(t, test.r.eq(r), fmt.Sprintf("%s != %s", test.r, r))
+		}
+	}
+}
+
 func toRideBigInt(i int) rideBigInt {
 	v := big.NewInt(int64(i))
 	return rideBigInt{v: v}

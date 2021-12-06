@@ -9,6 +9,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	maxIntScale    = 8
+	maxBigIntScale = 18
+)
+
 var (
 	longContext = decimal.Context{
 		Precision:     19,
@@ -25,11 +30,13 @@ var (
 		MinScale:      -6143,
 	}
 
-	zero      = decimal.New(0, 0)
-	one       = decimal.New(1, 0)
-	OneBigInt = big.NewInt(1)
-	MinBigInt = minBigInt()
-	MaxBigInt = maxBigInt()
+	zero            = decimal.New(0, 0)
+	one             = decimal.New(1, 0)
+	pointFiveInt    = decimal.WithContext(longContext).SetMantScale(5, 1)
+	pointFiveBigInt = decimal.WithContext(bigIntContext).SetMantScale(5, 1)
+	OneBigInt       = big.NewInt(1)
+	MinBigInt       = minBigInt()
+	MaxBigInt       = maxBigInt()
 )
 
 func maxBigInt() *big.Int {
@@ -46,14 +53,24 @@ func minBigInt() *big.Int {
 	return min
 }
 
-func checkScales(baseScale, exponentScale, resultScale int) bool {
+func checkScales(scales ...int) bool {
 	// 8 is the maximum scale for RIDE Int values
-	return baseScale >= 0 && baseScale <= 8 && exponentScale >= 0 && exponentScale <= 8 && resultScale >= 0 && resultScale <= 8
+	for _, s := range scales {
+		if s < 0 || s > maxIntScale {
+			return false
+		}
+	}
+	return true
 }
 
-func checkScalesBigInt(baseScale, exponentScale, resultScale int) bool {
+func checkScalesBigInt(scales ...int) bool {
 	// 18 is the maximum scale for RIDE BigInt values
-	return baseScale >= 0 && baseScale <= 18 && exponentScale >= 0 && exponentScale <= 18 && resultScale >= 0 && resultScale <= 18
+	for _, s := range scales {
+		if s < 0 || s > maxBigIntScale {
+			return false
+		}
+	}
+	return true
 }
 
 func pow10(a int, context decimal.Context) *decimal.Big {
@@ -295,4 +312,49 @@ func FloorDivBigInt(x, y *big.Int) *big.Int {
 	r = d.Sub(d, big.NewInt(1))
 	r = r.Div(r, two)
 	return r
+}
+
+func Sqrt(number int64, numberScale, resultScale int, mode decimal.RoundingMode) (int64, error) {
+	if !checkScales(numberScale, resultScale) {
+		return 0, errors.New("invalid scale")
+	}
+	n := decimal.WithContext(longContext).SetMantScale(number, numberScale)
+	r, err := pow(n, pointFiveInt, longContext)
+	if err != nil {
+		return 0, err
+	}
+	r, err = rescale(r, resultScale, longContext.Precision, longContext)
+	if err != nil {
+		return 0, err
+	}
+	context := longContext
+	context.RoundingMode = mode
+	r = decimal.WithContext(context).Set(r)
+	res, ok := r.RoundToInt().Int64()
+	if !ok {
+		return 0, errors.New("result out of int64 range")
+	}
+	return res, nil
+}
+
+func SqrtBigInt(number *big.Int, numberScale, resultScale int, mode decimal.RoundingMode) (*big.Int, error) {
+	if !checkScalesBigInt(numberScale, resultScale) {
+		return nil, errors.New("invalid scale")
+	}
+	b := decimal.WithContext(bigIntContext).SetBigMantScale(number, numberScale)
+	r, err := pow(b, pointFiveBigInt, bigIntContext)
+	if err != nil {
+		return nil, err
+	}
+	r, err = rescale(r, resultScale, bigIntContext.Precision, bigIntContext)
+	if err != nil {
+		return nil, err
+	}
+	if !r.IsNormal() {
+		return nil, errors.New("not normal")
+	}
+	context := bigIntContext
+	context.RoundingMode = mode
+	r = decimal.WithContext(context).Set(r)
+	return r.RoundToInt().Int(nil), nil
 }
