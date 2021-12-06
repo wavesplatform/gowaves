@@ -17,7 +17,7 @@ import (
 
 /**
 usage:
-go run cmd/genconfig/genconfig.go --scheme-byte=C --time-shift=-1h --seed=test1:100_000_000_000_000 > config.json
+go run cmd/genconfig/genconfig.go --scheme-byte=C --time-shift=-1h --seeds=test1:100_000_000_000_000,test2:100_000 > config.json
 */
 
 type cli struct {
@@ -38,7 +38,7 @@ func (c *cli) parse() error {
 
 var (
 	schemeByte  = flag.String("scheme-byte", "", "Scheme byte")
-	seedsString = flag.String("seeds", "", "Seeds. Example: test1:seed1,test2:seed2")
+	seedsString = flag.String("seeds", "", "Seeds. Example: test1:100_000_000_000_000,test2:100_000")
 	timeShift   = flag.Duration("time-shift", 0, "Time shift. Format: +1h, -2h3s.")
 )
 

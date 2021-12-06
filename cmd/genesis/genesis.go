@@ -30,7 +30,7 @@ func (c *cli) parse() error {
 
 var (
 	schemeByte  = flag.String("scheme-byte", "", "Scheme byte")
-	seedsString = flag.String("seeds", "", "Seeds. Example: test1:seed1,test2:seed2")
+	seedsString = flag.String("seeds", "", "Seeds. Example: test1:100_000_000,test2:100_000")
 )
 
 func init() {
