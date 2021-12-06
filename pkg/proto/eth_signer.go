@@ -13,6 +13,7 @@ import (
 var ErrInvalidChainId = errors.New("invalid chain id for signer")
 
 const (
+	EthereumPublicKeyLength = 64
 	ethereumSignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
 
 	ethereumPublicKeyUncompressedPrefix byte = 0x4         // prefix which means this is an uncompressed point

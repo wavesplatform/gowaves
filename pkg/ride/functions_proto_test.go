@@ -1234,3 +1234,33 @@ func TestBN256Groth16Verify(t *testing.T) {
 func TestECRecover(t *testing.T) {
 	t.SkipNow()
 }
+
+func TestAddressFromPublicKeyStrict(t *testing.T) {
+	te := &mockRideEnvironment{schemeFunc: func() byte {
+		return 'T'
+	}}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideBytes(mustBytesFromBase64("qhZIsJQ2+At/RHmPBsLuG3sMSZJfQTDhJOgzPtisRUg="))}, false, rideAddress(proto.MustAddressFromString("3Mp5JgVSHA9iziujC9Kmnf2rCN5SYFE97yC"))},
+		{[]rideType{rideBytes(mustBytesFromBase64("0QoVC6mlNRJUgeAXoJwqxqGrQ/xD96uPDURjUQZnLdfeT3dcBrcwSDhiy8Q3GmRtht93s4FVk6hGtycqzgCMQg=="))}, false, rideAddress(proto.MustAddressFromString("3N2sMJ78BuYwoLHreuwjbk6dZgsnudxecBR"))},
+		{[]rideType{rideBytes(mustBytesFromBase64("0QoVC6mlNRJUgeAXoJwqxqGrQ/xD96uPDURjUQZnLdfeT3dcBrcwSDhiy8Q3GmRtht93s4FVk6hGtycqzgCMQg=="))}, false, rideAddress(proto.MustAddressFromString("3N2sMJ78BuYwoLHreuwjbk6dZgsnudxecBR"))},
+		{[]rideType{rideBytes(mustBytesFromBase64("yv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu8A/w=="))}, true, nil},
+		{[]rideType{rideBytes(mustBytesFromBase64("yv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu/K/r6+3q2+78r+vr7erb7vyv6+vt6tvu/K/r6+3q2+7/8="))}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{}, true, nil},
+		{[]rideType{rideString("x")}, true, nil},
+	} {
+		r, err := addressFromPublicKeyStrict(nil, te, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			a, ok := r.(rideAddress)
+			assert.True(t, ok)
+			assert.Equal(t, test.r, a)
+		}
+	}
+}

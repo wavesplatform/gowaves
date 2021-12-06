@@ -625,6 +625,40 @@ func addressFromPublicKey(_ *treeEvaluator, env environment, args ...rideType) (
 	return rideAddress(addr), nil
 }
 
+func addressFromPublicKeyStrict(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+	b, err := bytesArg(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "addressFromPublicKeyStrict")
+	}
+	switch len(b) {
+	case crypto.PublicKeySize:
+		pk, err := crypto.NewPublicKeyFromBytes(b)
+		if err != nil {
+			return nil, errors.Wrap(err, "addressFromPublicKeyStrict")
+		}
+		a, err := proto.NewAddressFromPublicKey(env.scheme(), pk)
+		if err != nil {
+			return nil, errors.Wrap(err, "addressFromPublicKeyStrict")
+		}
+		return rideAddress(a), nil
+
+	case proto.EthereumPublicKeyLength:
+		pk, err := proto.NewEthereumPublicKeyFromBytes(b)
+		if err != nil {
+			return nil, errors.Wrap(err, "addressFromPublicKeyStrict")
+		}
+		ea := pk.EthereumAddress()
+		a, err := ea.ToWavesAddress(env.scheme())
+		if err != nil {
+			return nil, errors.Wrap(err, "addressFromPublicKeyStrict")
+		}
+		return rideAddress(a), nil
+
+	default:
+		return nil, errors.Errorf("addressFromPublicKeyStrict: unexpected public key length '%d'", len(b))
+	}
+}
+
 func wavesBalanceV3(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
