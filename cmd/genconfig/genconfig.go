@@ -2,12 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/alecthomas/kong"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/genesis_generator"
@@ -16,14 +17,30 @@ import (
 
 /**
 usage:
-go run cmd/genconfig/genconfig.go --scheme-byte=C --time-shift=-1h --seed=test1:100_000_000_000_000 > config.json
+go run cmd/genconfig/genconfig.go -scheme-byte=C -time-shift=-1h -seeds=test1:100_000_000_000_000,test2:100_000 > config.json
 */
 
-type Cli struct {
-	SchemeByte string   `kong:"schemebyte,help='Scheme byte.',required"`
-	Seed       []string `kong:"seed,help='Seeds.',"`
-	TimeShift  string   `kong:"help='Format: +1h, -2h3s.',optional"`
+type cli struct {
+	schemeByte string
+	seeds      []string
+	timeShift  time.Duration
 }
+
+func (c *cli) parse() error {
+	if *schemeByte == "" {
+		return errors.New("please, provide network scheme")
+	}
+	c.schemeByte = *schemeByte
+	c.seeds = strings.Split(*seedsString, ",")
+	c.timeShift = *timeShift
+	return nil
+}
+
+var (
+	schemeByte  = flag.String("scheme-byte", "", "Scheme byte")
+	seedsString = flag.String("seeds", "", "Seeds. Example: test1:100_000_000_000_000,test2:100_000")
+	timeShift   = flag.Duration("time-shift", 0, "Time shift. Format: +1h, -2h3s.")
+)
 
 func init() {
 	logger, _ := zap.NewDevelopment()
@@ -31,41 +48,36 @@ func init() {
 }
 
 func main() {
-
-	var cli Cli
-	kong.Parse(&cli)
-
-	t := proto.NewTimestampFromTime(time.Now())
-
-	if cli.TimeShift != "" {
-		d, err := time.ParseDuration(cli.TimeShift)
-		if err != nil {
-			zap.S().Fatal(err)
-			return
-		}
-		t = proto.NewTimestampFromTime(time.Now().Add(d))
+	var cliArgs cli
+	if err := cliArgs.parse(); err != nil {
+		zap.S().Fatal(err)
 	}
 
-	inf := []interface{}{}
-	for _, v := range cli.Seed {
+	now := time.Now()
+	t := proto.NewTimestampFromTime(now)
+	if cliArgs.timeShift != 0 {
+		t = proto.NewTimestampFromTime(now.Add(cliArgs.timeShift))
+	}
+
+	inf := make([]interface{}, 0, 2*len(cliArgs.seeds))
+	for _, v := range cliArgs.seeds {
 		splitted := strings.Split(v, ":")
 		if len(splitted) != 2 {
 			zap.S().Fatal("format should be test1:100000000")
 		}
 		kp := proto.MustKeyPair([]byte(splitted[0]))
-		inf = append(inf, kp)
 		num, _ := strconv.ParseUint(strings.Replace(splitted[1], "_", "", -1), 10, 64)
-		inf = append(inf, int(num))
+		inf = append(inf, kp, int(num))
 	}
 
-	genesis, err := genesis_generator.Generate(t, cli.SchemeByte[0], inf...)
+	genesis, err := genesis_generator.Generate(t, cliArgs.schemeByte[0], inf...)
 	if err != nil {
 		zap.S().Fatal(err)
 	}
 
 	s := *settings.DefaultCustomSettings
 	s.Genesis = *genesis
-	s.AddressSchemeCharacter = cli.SchemeByte[0]
+	s.AddressSchemeCharacter = cliArgs.schemeByte[0]
 
 	js, err := json.Marshal(s)
 	if err != nil {
