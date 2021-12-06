@@ -17,7 +17,7 @@ import (
 
 /**
 usage:
-go run cmd/genconfig/genconfig.go --scheme-byte=C --time-shift=-1h --seeds=test1:100_000_000_000_000,test2:100_000 > config.json
+go run cmd/genconfig/genconfig.go -scheme-byte=C -time-shift=-1h -seeds=test1:100_000_000_000_000,test2:100_000 > config.json
 */
 
 type cli struct {
