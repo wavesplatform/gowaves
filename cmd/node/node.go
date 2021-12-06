@@ -125,7 +125,7 @@ func debugCommandLineParameters() {
 	zap.S().Debugf("miner-delay: %s", *outdatePeriod)
 	zap.S().Debugf("disable-miner %v", *disableMiner)
 	zap.S().Debugf("wallet-path: %s", *walletPath)
-	zap.S().Debugf("wallet-password: %s", *walletPassword)
+	zap.S().Debugf("hashed wallet-password: %s", crypto.MustFastHash([]byte(*walletPassword)))
 	zap.S().Debugf("limit-connections: %d", *limitAllConnections)
 	zap.S().Debugf("profiler: %v", *profiler)
 	zap.S().Debugf("bloom: %v", *bloomFilter)

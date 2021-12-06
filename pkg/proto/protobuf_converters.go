@@ -8,7 +8,14 @@ import (
 )
 
 func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
-	return protobuf.MarshalOptions{Deterministic: true}.Marshal(pb)
+	b, err := protobuf.MarshalOptions{Deterministic: true}.Marshal(pb)
+	if err != nil {
+		return nil, err
+	}
+	if len(b) > 10*1024*1024 {
+		return nil, errors.New("failed to marshal protobuf message, marshaled value exceeds 10MB limit")
+	}
+	return b, nil
 }
 
 func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
