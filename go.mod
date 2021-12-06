@@ -5,7 +5,7 @@ go 1.16
 require (
 	filippo.io/edwards25519 v1.0.0-rc.1
 	github.com/OneOfOne/xxhash v1.2.5 // indirect
-	github.com/alecthomas/kong v0.2.18
+	github.com/alecthomas/kong v0.2.19
 	github.com/beevik/ntp v0.3.0
 	github.com/btcsuite/btcd v0.22.0-beta
 	github.com/cespare/xxhash/v2 v2.1.2
@@ -19,14 +19,13 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
-	github.com/jinzhu/copier v0.3.2
+	github.com/jinzhu/copier v0.3.4
 	github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391
 	github.com/kilic/bn254 v0.0.0-20201116081810-790649bc68fe
 	github.com/mr-tron/base58 v1.2.0
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
-	github.com/rakyll/statik v0.1.7
 	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c
 	github.com/semrush/zenrpc/v2 v2.1.1
 	github.com/spaolacci/murmur3 v1.1.0 // indirect

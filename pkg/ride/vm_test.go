@@ -21,7 +21,7 @@ func TestExecution(t *testing.T) {
 	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
 		return testTransferWithProofs(), nil
 	}}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		transactionFunc: testTransferObject,
 		stateFunc: func() types.SmartState {
 			return state
@@ -33,7 +33,7 @@ func TestExecution(t *testing.T) {
 	for _, test := range []struct {
 		comment string
 		source  string
-		env     Environment
+		env     environment
 		res     bool
 	}{
 		{`V1: true`, "AQa3b8tH", nil, true},
@@ -132,7 +132,7 @@ func TestFunctions(t *testing.T) {
 	exchange := newExchangeTransaction()
 	data := newDataTransaction()
 	require.NoError(t, err)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		checkMessageLengthFunc: v3check,
 		schemeFunc: func() byte {
 			return 'W'
@@ -194,7 +194,7 @@ func TestFunctions(t *testing.T) {
 			}
 		},
 	}
-	_ /*envWithDataTX :*/ = &MockRideEnvironment{
+	_ /*envWithDataTX :*/ = &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			obj, err := dataWithProofsToObject('W', data)
 			if err != nil {
@@ -203,7 +203,7 @@ func TestFunctions(t *testing.T) {
 			return obj
 		},
 	}
-	envWithExchangeTX := &MockRideEnvironment{
+	envWithExchangeTX := &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			obj, err := exchangeWithProofsToObject('W', exchange)
 			if err != nil {
@@ -216,7 +216,7 @@ func TestFunctions(t *testing.T) {
 		name   string
 		text   string
 		script string
-		env    Environment
+		env    environment
 		result bool
 		error  bool
 	}{

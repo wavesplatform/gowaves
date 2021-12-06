@@ -1767,30 +1767,37 @@ func (tx *ExchangeWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error 
 	return nil
 }
 
-func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) error {
-	guessOrderVersion := func(version byte) Order {
-		var r Order
-		switch version {
-		case 4:
-			r = new(OrderV4)
-		case 3:
-			r = new(OrderV3)
-		case 2:
-			r = new(OrderV2)
-		default:
-			r = new(OrderV1)
-		}
-		return r
+func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) (err error) {
+	type orderRecognizer struct {
+		Version         byte               `json:"version"`
+		Eip712Signature *EthereumSignature `json:"eip712Signature"`
 	}
-
 	orderVersions := struct {
-		Order1Version OrderVersion `json:"order1"`
-		Order2Version OrderVersion `json:"order2"`
+		Order1Recognizer orderRecognizer `json:"order1"`
+		Order2Recognizer orderRecognizer `json:"order2"`
 	}{}
-	if err := json.Unmarshal(data, &orderVersions); err != nil {
-		return errors.Wrap(err, "failed to unmarshal orders versions of ExchangeWithProofs transaction from JSON")
+	guessOrderVersionAndType := func(orderInfo orderRecognizer) (order Order, err error) {
+		switch version := orderInfo.Version; version {
+		case 1:
+			order = new(OrderV1)
+		case 2:
+			order = new(OrderV2)
+		case 3:
+			order = new(OrderV3)
+		case 4:
+			if orderInfo.Eip712Signature != nil {
+				ethOrder := new(EthereumOrderV4)
+				ethOrder.Proofs = NewProofs()
+				order = ethOrder
+			} else {
+				order = new(OrderV4)
+			}
+		default:
+			err = errors.Errorf("invalid order version %d", version)
+		}
+		return order, err
 	}
-	tmp := struct {
+	orderUnmarshalHelper := struct {
 		Type           TransactionType  `json:"type"`
 		Version        byte             `json:"version,omitempty"`
 		ID             *crypto.Digest   `json:"id,omitempty"`
@@ -1805,26 +1812,43 @@ func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) error {
 		Fee            uint64           `json:"fee"`
 		Timestamp      uint64           `json:"timestamp,omitempty"`
 	}{}
-	tmp.Order1 = guessOrderVersion(orderVersions.Order1Version.Version)
-	tmp.Order2 = guessOrderVersion(orderVersions.Order2Version.Version)
 
-	err := json.Unmarshal(data, &tmp)
+	err = json.Unmarshal(data, &orderVersions)
+	if err != nil {
+		return errors.Wrap(err, "failed to unmarshal orders versions of ExchangeWithProofs transaction from JSON")
+	}
+
+	// TODO: check that Order1.GetProofs() != nil
+	orderUnmarshalHelper.Order1, err = guessOrderVersionAndType(orderVersions.Order1Recognizer)
+	if err != nil {
+		return errors.Wrap(err, "failed to guess order1 version and type from JSON")
+	}
+
+	// TODO: check that Order1.GetProofs() != nil
+	orderUnmarshalHelper.Order2, err = guessOrderVersionAndType(orderVersions.Order2Recognizer)
+	if err != nil {
+		return errors.Wrap(err, "failed to guess order2 version and type from JSON")
+	}
+
+	err = json.Unmarshal(data, &orderUnmarshalHelper)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal ExchangeWithProofs from JSON")
 	}
-	tx.Type = tmp.Type
-	tx.Version = tmp.Version
-	tx.ID = tmp.ID
-	tx.Proofs = tmp.Proofs
-	tx.SenderPK = tmp.SenderPK
-	tx.Order1 = tmp.Order1
-	tx.Order2 = tmp.Order2
-	tx.Price = tmp.Price
-	tx.Amount = tmp.Amount
-	tx.BuyMatcherFee = tmp.BuyMatcherFee
-	tx.SellMatcherFee = tmp.SellMatcherFee
-	tx.Fee = tmp.Fee
-	tx.Timestamp = tmp.Timestamp
+
+	tx.Type = orderUnmarshalHelper.Type
+	tx.Version = orderUnmarshalHelper.Version
+	tx.ID = orderUnmarshalHelper.ID
+	// TODO: check that orderUnmarshalHelper.Proofs != nil
+	tx.Proofs = orderUnmarshalHelper.Proofs
+	tx.SenderPK = orderUnmarshalHelper.SenderPK
+	tx.Order1 = orderUnmarshalHelper.Order1
+	tx.Order2 = orderUnmarshalHelper.Order2
+	tx.Price = orderUnmarshalHelper.Price
+	tx.Amount = orderUnmarshalHelper.Amount
+	tx.BuyMatcherFee = orderUnmarshalHelper.BuyMatcherFee
+	tx.SellMatcherFee = orderUnmarshalHelper.SellMatcherFee
+	tx.Fee = orderUnmarshalHelper.Fee
+	tx.Timestamp = orderUnmarshalHelper.Timestamp
 	return nil
 }
 

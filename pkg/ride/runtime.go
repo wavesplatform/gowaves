@@ -17,28 +17,6 @@ type rideType interface {
 	get(prop string) (rideType, error)
 }
 
-type rideThrow string
-
-func (a rideThrow) instanceOf() string {
-	return "Throw"
-}
-
-func (a rideThrow) eq(other rideType) bool {
-	if o, ok := other.(rideThrow); ok {
-		return a == o
-	}
-	return false
-}
-
-func (a rideThrow) get(prop string) (rideType, error) {
-	switch prop {
-	case "message":
-		return rideString(a), nil
-	default:
-		return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
-	}
-}
-
 type rideBoolean bool
 
 func (b rideBoolean) instanceOf() string {
@@ -363,10 +341,13 @@ func (a rideList) get(prop string) (rideType, error) {
 	return nil, errors.Errorf("type '%s' has no property '%s'", a.instanceOf(), prop)
 }
 
-type rideFunction func(ev *treeEvaluator, env Environment, args ...rideType) (rideType, error)
+type (
+	rideFunction    func(ev *treeEvaluator, env environment, args ...rideType) (rideType, error)
+	rideConstructor func(environment) rideType
+)
 
-//go:generate moq -out runtime_moq_test.go . Environment:MockRideEnvironment
-type Environment interface {
+//go:generate moq -out runtime_moq_test.go . environment:mockRideEnvironment
+type environment interface {
 	scheme() byte
 	height() rideInt
 	transaction() rideObject
@@ -382,8 +363,7 @@ type Environment interface {
 	setInvocation(inv rideObject)
 	libVersion() int
 	validateInternalPayments() bool
+	rideV6Activated() bool
 	internalPaymentsValidationHeight() uint64
 	maxDataEntriesSize() int
 }
-
-type rideConstructor func(Environment) rideType

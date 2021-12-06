@@ -155,8 +155,32 @@ func catalogueV2() map[string]int {
 	return m
 }
 
-func freeConstructorsV2() []string {
-	return []string{"Address", "Alias", "AssetPair", "DataEntry", "DataTransaction"}
+func evaluationCatalogueV2() map[string]int {
+	// In Scala implementation order
+	m := catalogueV2()
+	m["isDefined"] = 7
+	m["throw"] = 1
+	m["!="] = 5
+	m["-"] = 2
+	m["!"] = 2
+	m["takeRightBytes"] = 6
+	m["dropRightBytes"] = 6
+	m["dropRight"] = 6
+	m["takeRight"] = 6
+	m["extract"] = 5
+	m["getInteger"] = 9
+	m["getBoolean"] = 9
+	m["getBinary"] = 9
+	m["getString"] = 9
+	m["addressFromString"] = 20
+	m["addressFromPublicKey"] = 65
+	m["wavesBalance"] = 102
+	m["Address"] = 0
+	m["Alias"] = 0
+	m["AssetPair"] = 0
+	m["DataEntry"] = 0
+	m["DataTransaction"] = 0
+	return m
 }
 
 func functionsV3() map[string]string {
@@ -283,8 +307,51 @@ func catalogueV3() map[string]int {
 	return m
 }
 
-func freeConstructorsV3() []string {
-	return append(freeConstructorsV2(), "WriteSet", "TransferSet", "ScriptTransfer", "ScriptResult")
+func evaluationCatalogueV3() map[string]int {
+	m := catalogueV3()
+	m["isDefined"] = 7
+	m["throw"] = 1
+	m["!="] = 5
+	m["-"] = 2
+	m["!"] = 2
+	m["takeRightBytes"] = 6
+	m["dropRightBytes"] = 6
+	m["dropRight"] = 6
+	m["takeRight"] = 6
+	m["extract"] = 5
+	m["value"] = 5
+	m["valueOrErrorMessage"] = 5
+	m["parseIntValue"] = 26
+	m["getInteger"] = 9
+	m["getBoolean"] = 9
+	m["getBinary"] = 9
+	m["getString"] = 9
+	m["addressFromString"] = 20
+	m["addressFromPublicKey"] = 65
+	m["@extrNative(1050)"] = 107
+	m["@extrNative(1051)"] = 107
+	m["@extrNative(1052)"] = 107
+	m["@extrNative(1053)"] = 107
+	m["@extrNative(1040)"] = 17
+	m["@extrNative(1041)"] = 17
+	m["@extrNative(1042)"] = 17
+	m["@extrNative(1043)"] = 17
+	m["@extrUser(getInteger)"] = 16
+	m["@extrUser(getBoolean)"] = 16
+	m["@extrUser(getBinary)"] = 16
+	m["@extrUser(getString)"] = 16
+	m["@extrUser(addressFromString)"] = 26
+	m["wavesBalance"] = 102
+	m["Address"] = 0
+	m["Alias"] = 0
+	m["AssetPair"] = 0
+	m["DataEntry"] = 0
+	m["DataTransaction"] = 0
+	m["WriteSet"] = 0
+	m["TransferSet"] = 0
+	m["ScriptTransfer"] = 0
+	m["ScriptResult"] = 0
+	return m
 }
 
 func functionsV4() map[string]string {
@@ -306,6 +373,8 @@ func functionsV4() map[string]string {
 	m["AttachedPayment"] = "attachedPayment"
 
 	// Functions
+	delete(m, "extract")
+	delete(m, "addressFromString")
 	delete(m, "wavesBalance") // Remove wavesBalanceV3
 	m["contains"] = "contains"
 	m["containsElement"] = "containsElement"
@@ -362,6 +431,11 @@ func catalogueV4() map[string]int {
 	delete(m, "WriteSet")
 	delete(m, "TransferSet")
 	delete(m, "DataEntry")
+	delete(m, "extract")
+	delete(m, "addressFromString")
+	delete(m, "wavesBalance")
+	delete(m, "700")
+	delete(m, "1003")
 	m["IntegerEntry"] = 2
 	m["BooleanEntry"] = 2
 	m["BinaryEntry"] = 2
@@ -473,9 +547,57 @@ func catalogueV4() map[string]int {
 	return m
 }
 
-func freeConstructorsV4() []string {
-	return append(freeConstructorsV3(), "IntegerEntry", "BooleanEntry", "BinaryEntry", "StringEntry",
-		"DeleteEntry", "Reissue", "Burn", "SponsorFee", "AttachedPayment")
+func evaluationCatalogueV4() map[string]int {
+	m := catalogueV4()
+	m["isDefined"] = 7
+	m["throw"] = 1
+	m["!="] = 5
+	m["-"] = 2
+	m["!"] = 2
+	m["value"] = 5
+	m["valueOrErrorMessage"] = 5
+	m["parseIntValue"] = 8
+	m["contains"] = 12
+	m["valueOrElse"] = 5
+	m["containsElement"] = 12
+	m["takeRightBytes"] = 11
+	m["dropRightBytes"] = 11
+	m["dropRight"] = 25
+	m["takeRight"] = 25
+	m["getInteger"] = 9
+	m["getBoolean"] = 9
+	m["getBinary"] = 9
+	m["getString"] = 9
+	m["addressFromPublicKey"] = 59
+	m["@extrNative(1050)"] = 17
+	m["@extrNative(1051)"] = 17
+	m["@extrNative(1052)"] = 17
+	m["@extrNative(1053)"] = 17
+	m["@extrNative(1040)"] = 17
+	m["@extrNative(1041)"] = 17
+	m["@extrNative(1042)"] = 17
+	m["@extrNative(1043)"] = 17
+	m["@extrUser(getInteger)"] = 16
+	m["@extrUser(getBoolean)"] = 16
+	m["@extrUser(getBinary)"] = 16
+	m["@extrUser(getString)"] = 16
+	m["@extrUser(addressFromString)"] = 7
+	m["@extrNative(1062)"] = 7
+	m["Address"] = 0
+	m["Alias"] = 0
+	m["AssetPair"] = 0
+	m["DataTransaction"] = 0
+	m["ScriptTransfer"] = 0
+	m["IntegerEntry"] = 0
+	m["BooleanEntry"] = 0
+	m["BinaryEntry"] = 0
+	m["StringEntry"] = 0
+	m["DeleteEntry"] = 0
+	m["Reissue"] = 0
+	m["Burn"] = 0
+	m["SponsorFee"] = 0
+	m["AttachedPayment"] = 0
+	return m
 }
 
 func functionsV5() map[string]string {
@@ -571,8 +693,63 @@ func catalogueV5() map[string]int {
 	return m
 }
 
-func freeConstructorsV5() []string {
-	return append(freeConstructorsV4(), "LeaseCancel")
+func evaluationCatalogueV5() map[string]int {
+	m := catalogueV5()
+	m["isDefined"] = 7
+	m["throw"] = 1
+	m["!="] = 5
+	m["-"] = 2
+	m["!"] = 2
+	m["value"] = 5
+	m["valueOrErrorMessage"] = 5
+	m["parseIntValue"] = 8
+	m["contains"] = 12
+	m["valueOrElse"] = 5
+	m["containsElement"] = 12
+	m["takeRightBytes"] = 11
+	m["dropRightBytes"] = 11
+	m["dropRight"] = 25
+	m["takeRight"] = 25
+	m["fraction"] = 135
+	m["getInteger"] = 9
+	m["getBoolean"] = 9
+	m["getBinary"] = 9
+	m["getString"] = 9
+	m["addressFromPublicKey"] = 59
+	m["@extrNative(1050)"] = 17
+	m["@extrNative(1051)"] = 17
+	m["@extrNative(1052)"] = 17
+	m["@extrNative(1053)"] = 17
+	m["@extrNative(1040)"] = 17
+	m["@extrNative(1041)"] = 17
+	m["@extrNative(1042)"] = 17
+	m["@extrNative(1043)"] = 17
+	m["@extrUser(getInteger)"] = 16
+	m["@extrUser(getBoolean)"] = 16
+	m["@extrUser(getBinary)"] = 16
+	m["@extrUser(getString)"] = 16
+	m["@extrUser(addressFromString)"] = 7
+	m["@extrNative(1055)"] = 16
+	m["@extrNative(1056)"] = 16
+	m["@extrNative(1057)"] = 16
+	m["@extrNative(1058)"] = 16
+	m["@extrNative(1062)"] = 7
+	m["Address"] = 0
+	m["Alias"] = 0
+	m["AssetPair"] = 0
+	m["DataTransaction"] = 0
+	m["ScriptTransfer"] = 0
+	m["IntegerEntry"] = 0
+	m["BooleanEntry"] = 0
+	m["BinaryEntry"] = 0
+	m["StringEntry"] = 0
+	m["DeleteEntry"] = 0
+	m["Reissue"] = 0
+	m["Burn"] = 0
+	m["SponsorFee"] = 0
+	m["AttachedPayment"] = 0
+	m["LeaseCancel"] = 0
+	return m
 }
 
 func functionsV6() map[string]string {
@@ -599,8 +776,8 @@ func catalogueV6() map[string]int {
 	return m
 }
 
-func freeConstructorsV6() []string {
-	return freeConstructorsV5()
+func evaluationCatalogueV6() map[string]int {
+	return catalogueV6()
 }
 
 type constantDescription struct {
@@ -741,17 +918,17 @@ func createConstructors(sb *strings.Builder, c map[string]constantDescription) {
 	for _, k := range keys {
 		if c[k].constructor == "" {
 			tn := c[k].typeName
-			sb.WriteString(fmt.Sprintf("func new%s(Environment) rideType {\n", tn))
+			sb.WriteString(fmt.Sprintf("func new%s(environment) rideType {\n", tn))
 			sb.WriteString(fmt.Sprintf("return rideNamedType{name: \"%s\"}\n", tn))
 			sb.WriteString("}\n\n")
-			sb.WriteString(fmt.Sprintf("func create%s(_ *treeEvaluator, _ Environment, _ ...rideType) (rideType, error) {\n", tn))
+			sb.WriteString(fmt.Sprintf("func create%s(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {\n", tn))
 			sb.WriteString(fmt.Sprintf("return rideNamedType{name: \"%s\"}, nil\n", tn))
 			sb.WriteString("}\n\n")
 		}
 	}
 }
 
-func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c map[string]int, n []string) {
+func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c map[string]int, ec map[string]int) {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -791,10 +968,10 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 	}
 	sb.WriteString("}\n\n")
 
-	// Create map for evaluation zero cost constructors
-	sb.WriteString(fmt.Sprintf("var FreeFunctions%s = map[string]struct{}{", ver))
-	for i, k := range n {
-		sb.WriteString(fmt.Sprintf("\"%s\":{}", k))
+	// Create map of evaluation costs of functions and constructors
+	sb.WriteString(fmt.Sprintf("var EvaluationCatalogue%s = map[string]int{", ver))
+	for i, k := range keys {
+		sb.WriteString(fmt.Sprintf("\"%s\":%d", k, ec[k]))
 		if i < len(m)-1 {
 			sb.WriteString(", ")
 		}
@@ -860,7 +1037,7 @@ func createTuples(sb *strings.Builder) {
 			sb.WriteString(fmt.Sprintf("%s rideType\n", el))
 		}
 		sb.WriteString("}\n\n")
-		sb.WriteString(fmt.Sprintf("func newTuple%d(_ *treeEvaluator, _ Environment, args ...rideType) (rideType, error) {\n", n))
+		sb.WriteString(fmt.Sprintf("func newTuple%d(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {\n", n))
 		sb.WriteString(fmt.Sprintf("if len(args) != %d {\n", n))
 		sb.WriteString("return nil, errors.New(\"invalid number of arguments\")\n")
 		sb.WriteString("}\n")
@@ -911,11 +1088,11 @@ func main() {
 	sb.WriteString("// Code generated by ride/generate/main.go. DO NOT EDIT.\n")
 	sb.WriteString("\n")
 	sb.WriteString("package ride\n")
-	createFunctionsList(sb, "V2", functionsV2(), catalogueV2(), freeConstructorsV2())
-	createFunctionsList(sb, "V3", functionsV3(), catalogueV3(), freeConstructorsV3())
-	createFunctionsList(sb, "V4", functionsV4(), catalogueV4(), freeConstructorsV4())
-	createFunctionsList(sb, "V5", functionsV5(), catalogueV5(), freeConstructorsV5())
-	createFunctionsList(sb, "V6", functionsV6(), catalogueV6(), freeConstructorsV6())
+	createFunctionsList(sb, "V2", functionsV2(), catalogueV2(), evaluationCatalogueV2())
+	createFunctionsList(sb, "V3", functionsV3(), catalogueV3(), evaluationCatalogueV3())
+	createFunctionsList(sb, "V4", functionsV4(), catalogueV4(), evaluationCatalogueV4())
+	createFunctionsList(sb, "V5", functionsV5(), catalogueV5(), evaluationCatalogueV5())
+	createFunctionsList(sb, "V6", functionsV6(), catalogueV6(), evaluationCatalogueV6())
 	code := sb.String()
 	b, err := format.Source([]byte(code))
 	if err != nil {
@@ -963,7 +1140,7 @@ func main() {
 	sb.WriteString(")\n")
 	for _, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		fn := fmt.Sprintf("bls12Groth16Verify_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, env Environment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if err := checkArgs(args, 3); err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
@@ -991,7 +1168,7 @@ func main() {
 	}
 	for _, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		fn := fmt.Sprintf("bn256Groth16Verify_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, env Environment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if err := checkArgs(args, 3); err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
@@ -1019,7 +1196,7 @@ func main() {
 	}
 	for _, l := range []int{8, 16, 32, 64, 128} {
 		fn := fmt.Sprintf("sigVerify_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, env Environment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if err := checkArgs(args, 3); err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
@@ -1052,7 +1229,7 @@ func main() {
 	}
 	for _, l := range []int{16, 32, 64, 128} {
 		fn := fmt.Sprintf("rsaVerify_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, _ Environment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if err := checkArgs(args, 4); err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
 		sb.WriteString("}\n")
@@ -1098,7 +1275,7 @@ func main() {
 	}
 	for _, l := range []int{16, 32, 64, 128} {
 		fn := fmt.Sprintf("keccak256_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, env Environment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("data, err := bytesOrStringArg(args)\n")
 		sb.WriteString("if err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
@@ -1115,7 +1292,7 @@ func main() {
 	}
 	for _, l := range []int{16, 32, 64, 128} {
 		fn := fmt.Sprintf("blake2b256_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, _ Environment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("data, err := bytesOrStringArg(args)\n")
 		sb.WriteString("if err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
@@ -1132,7 +1309,7 @@ func main() {
 	}
 	for _, l := range []int{16, 32, 64, 128} {
 		fn := fmt.Sprintf("sha256_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, _ Environment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("data, err := bytesOrStringArg(args)\n")
 		sb.WriteString("if err != nil {\n")
 		sb.WriteString(fmt.Sprintf("return nil, errors.Wrap(err, \"%s\")\n", fn))
@@ -1150,7 +1327,7 @@ func main() {
 	}
 	for _, l := range []int{20, 50, 100, 200, 500, 1000} {
 		fn := fmt.Sprintf("fold_%d", l)
-		sb.WriteString(fmt.Sprintf("func %s(ev *treeEvaluator, _ Environment, args ...rideType) (rideType, error) {\n", fn))
+		sb.WriteString(fmt.Sprintf("func %s(ev *treeEvaluator, _ environment, args ...rideType) (rideType, error) {\n", fn))
 		sb.WriteString("if ev == nil {\n")
 		sb.WriteString("return nil, errors.New(\"empty evaluator\")\n")
 		sb.WriteString("}\n")

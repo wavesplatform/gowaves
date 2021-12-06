@@ -88,7 +88,9 @@ const (
 	MaxInvokeScriptTransactionVersion    = 127
 	MaxUpdateAssetInfoTransactionVersion = 1
 
-	MinFee = 100_000
+	MinFee              = 100_000
+	MinFeeScriptedAsset = 400_000
+	MinFeeInvokeScript  = 500_000
 )
 
 var (
@@ -174,7 +176,7 @@ type Transaction interface {
 	// Getters which are common for all transactions.
 
 	// GetTypeInfo returns information which describes which Golang structure
-	// do we deal with (tx type + proof/signature flag).
+	// we deal with (tx type + proof/signature flag).
 	// <TODO>:
 	// This is temporary workaround until we have the same struct for both
 	// Signature and Proofs transactions.
@@ -384,6 +386,8 @@ func GuessTransactionType(t *TransactionTypeVersion) (Transaction, error) {
 		out = &InvokeScriptWithProofs{}
 	case UpdateAssetInfoTransaction:
 		out = &UpdateAssetInfoWithProofs{}
+	case EthereumMetamaskTransaction:
+		out = &EthereumTransaction{}
 	}
 	if out == nil {
 		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)

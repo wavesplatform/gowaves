@@ -8,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type WrappedState struct {
@@ -15,8 +16,8 @@ type WrappedState struct {
 	cle              rideAddress
 	scheme           proto.Scheme
 	act              []proto.ScriptAction
-	blackList        []proto.WavesAddress
-	invokeCount      int
+	blocklist        []proto.WavesAddress
+	invocationCount  int
 	totalComplexity  int
 	dataEntriesCount int
 	dataEntriesSize  int
@@ -35,15 +36,11 @@ func (ws *WrappedState) appendActions(actions []proto.ScriptAction) {
 	ws.act = append(ws.act, actions...)
 }
 
-func (ws *WrappedState) checkTotalComplexity() (int, bool) {
-	return ws.totalComplexity, ws.totalComplexity <= MaxChainInvokeComplexity
-}
-
 func (ws *WrappedState) callee() proto.WavesAddress {
 	return proto.WavesAddress(ws.cle)
 }
 
-func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env Environment) error {
+func (ws *WrappedState) smartAppendActions(actions []proto.ScriptAction, env environment) error {
 	modifiedActions, err := ws.ApplyToState(actions, env)
 	if err != nil {
 		return err
@@ -111,11 +108,39 @@ func (ws *WrappedState) NewestAssetBalance(account proto.Recipient, assetID cryp
 		return 0, err
 	}
 	if balanceDiff != nil {
-		resBalance := int64(balance) + balanceDiff.regular
+		resBalance, err := common.AddInt64(int64(balance), balanceDiff.regular)
+		if err != nil {
+			return 0, err
+		}
 		return uint64(resBalance), nil
 
 	}
 	return balance, nil
+}
+
+// diff.regular - diff.leaseOut + available
+func availableBalance(diffRegular int64, diffLeaseOut int64, available int64) (int64, error) {
+	tmp, err := common.AddInt64(diffRegular, -diffLeaseOut)
+	if err != nil {
+		return 0, err
+	}
+
+	return common.AddInt64(tmp, available)
+}
+
+// diff.regular - diff.leaseOut + diff.leaseIn + effective
+func effectiveBalance(diffRegular int64, diffLeaseOut int64, diffLeaseIn int64, available int64) (int64, error) {
+	tmp, err := common.AddInt64(diffRegular, -diffLeaseOut)
+	if err != nil {
+		return 0, err
+	}
+
+	res, err := common.AddInt64(tmp, diffLeaseIn)
+	if err != nil {
+		return 0, err
+	}
+
+	return common.AddInt64(res, available)
 }
 
 func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -128,13 +153,28 @@ func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.
 		return nil, err
 	}
 	if wavesBalanceDiff != nil {
-		resRegular := wavesBalanceDiff.regular + int64(balance.Regular)
-		resAvailable := (wavesBalanceDiff.regular - wavesBalanceDiff.leaseOut) + int64(balance.Available)
-		resEffective := (wavesBalanceDiff.regular - wavesBalanceDiff.leaseOut + wavesBalanceDiff.leaseIn) + int64(balance.Effective)
-		resLeaseIn := wavesBalanceDiff.leaseIn + int64(balance.LeaseIn)
-		resLeaseOut := wavesBalanceDiff.leaseOut + int64(balance.LeaseOut)
+		resRegular, err := common.AddInt64(wavesBalanceDiff.regular, int64(balance.Regular))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate regular balance")
+		}
+		resAvailable, err := availableBalance(wavesBalanceDiff.regular, wavesBalanceDiff.leaseOut, int64(balance.Available))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate available balance")
+		}
+		resEffective, err := effectiveBalance(wavesBalanceDiff.regular, wavesBalanceDiff.leaseOut, wavesBalanceDiff.leaseIn, int64(balance.Effective))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate effective balance")
+		}
+		resLeaseIn, err := common.AddInt64(wavesBalanceDiff.leaseIn, int64(balance.LeaseIn))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate lease in balance")
+		}
+		resLeaseOut, err := common.AddInt64(wavesBalanceDiff.leaseOut, int64(balance.LeaseOut))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate lease out balance")
+		}
 
-		err := ws.diff.addEffectiveToHistory(searchAddress, resEffective)
+		err = ws.diff.addEffectiveToHistory(searchAddress, resEffective)
 		if err != nil {
 			return nil, err
 		}
@@ -361,7 +401,7 @@ func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (proto.Script, 
 	return ws.diff.state.NewestScriptByAsset(asset)
 }
 
-func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env Environment) (bool, error) {
+func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env environment) (bool, error) {
 	if !asset.Present {
 		return true, nil
 	}
@@ -456,16 +496,16 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	r, err := CallVerifier(localEnv, tree)
 	if err != nil {
-		return false, errors.Wrapf(err, "failed to call script on asset '%s'", asset.String())
+		return false, errs.NewTransactionNotAllowedByScript(err.Error(), asset.ID.Bytes())
 	}
 	if !r.Result() {
-		return false, errs.NewTransactionNotAllowedByScript(r.UserError(), asset.ID.Bytes())
+		return false, errs.NewTransactionNotAllowedByScript("Script returned False", asset.ID.Bytes())
 	}
 
-	return r.Result(), nil
+	return true, nil
 }
 
-func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAction, sender proto.WavesAddress, env Environment, restrictions proto.ActionsValidationRestrictions) error {
+func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAction, sender proto.WavesAddress, env environment, restrictions proto.ActionsValidationRestrictions) error {
 	assetResult, err := ws.validateAsset(res, res.Asset, env)
 	if err != nil {
 		return errors.Wrapf(err, "failed to validate asset")
@@ -499,14 +539,14 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	if err != nil {
 		return err
 	}
-	if balance < uint64(res.Amount) {
-		return errors.Errorf("attached payments: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+	if env.validateInternalPayments() && balance < uint64(res.Amount) {
+		return errors.Errorf("not enough money in the DApp, balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
 			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
 	}
 	return nil
 }
 
-func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.WavesAddress, env Environment) error {
+func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, restrictions proto.ActionsValidationRestrictions, sender proto.WavesAddress, env environment) error {
 	ws.actionsCount++
 	assetResult, err := ws.validateAsset(res, res.Asset, env)
 	if err != nil {
@@ -551,9 +591,11 @@ func (ws *WrappedState) validateTransferAction(res *proto.TransferScriptAction, 
 	if err != nil {
 		return err
 	}
-	if balance < uint64(res.Amount) {
-		return errors.Errorf("transfer action: not enough money in the DApp. balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
-			sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
+	if env.rideV6Activated() {
+		if balance < uint64(res.Amount) {
+			return errors.Errorf("not enough money in the DApp, balance of DApp with address %s is %d and it tried to transfer asset %s to %s, amount of %d",
+				sender.String(), balance, res.Asset.String(), res.Recipient.Address.String(), res.Amount)
+		}
 	}
 	return nil
 }
@@ -606,7 +648,7 @@ func (ws *WrappedState) validateIssueAction(res *proto.IssueScriptAction) error 
 	return nil
 }
 
-func (ws *WrappedState) validateReissueAction(res *proto.ReissueScriptAction, env Environment) error {
+func (ws *WrappedState) validateReissueAction(res *proto.ReissueScriptAction, env environment) error {
 	ws.actionsCount++
 	asset := proto.NewOptionalAssetFromDigest(res.AssetID)
 	assetResult, err := ws.validateAsset(res, *asset, env)
@@ -637,7 +679,7 @@ func (ws *WrappedState) validateReissueAction(res *proto.ReissueScriptAction, en
 	return nil
 }
 
-func (ws *WrappedState) validateBurnAction(res *proto.BurnScriptAction, env Environment) error {
+func (ws *WrappedState) validateBurnAction(res *proto.BurnScriptAction, env environment) error {
 	ws.actionsCount++
 	asset := proto.NewOptionalAssetFromDigest(res.AssetID)
 	assetResult, err := ws.validateAsset(res, *asset, env)
@@ -744,14 +786,40 @@ func (ws *WrappedState) getLibVersion() (int, error) {
 }
 
 func (ws *WrappedState) invCount() int {
-	return ws.invokeCount
+	return ws.invocationCount
 }
 
 func (ws *WrappedState) incrementInvCount() {
-	ws.invokeCount++
+	ws.invocationCount++
 }
 
-func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environment) ([]proto.ScriptAction, error) {
+func (ws *WrappedState) validateBalances() error {
+	for key, balanceDiff := range ws.diff.balances {
+		address := proto.NewRecipientFromAddress(key.address)
+		var (
+			balance uint64
+			err     error
+		)
+		if key.asset.Present {
+			balance, err = ws.diff.state.NewestAssetBalance(address, key.asset.ID)
+		} else {
+			balance, err = ws.diff.state.NewestWavesBalance(address)
+		}
+		if err != nil {
+			return err
+		}
+		res, err := common.AddInt64(int64(balance), balanceDiff.regular)
+		if err != nil {
+			return err
+		}
+		if res < 0 {
+			return errors.Errorf("the balance of address %s is %d which is negative", address.String(), int64(balance)+balanceDiff.regular)
+		}
+	}
+	return nil
+}
+
+func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environment) ([]proto.ScriptAction, error) {
 	libVersion, err := ws.getLibVersion()
 	if err != nil {
 		return nil, err
@@ -796,14 +864,10 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get address  by public key")
 			}
-
-			if env.validateInternalPayments() {
-				err = ws.validatePaymentAction(res, senderAddress, env, restrictions)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to pass validation of attached payments")
-				}
+			err = ws.validatePaymentAction(res, senderAddress, env, restrictions)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to pass validation of attached payments")
 			}
-
 			searchBalance, searchAddr, err := ws.diff.findBalance(res.Recipient, res.Asset)
 			if err != nil {
 				return nil, err
@@ -1051,7 +1115,6 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env Environme
 			}
 
 			res.Sender = &pk
-
 			err = ws.validateLeaseCancelAction()
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to pass validation of lease cancel action")
@@ -1106,6 +1169,7 @@ type EvaluationEnvironment struct {
 	inv                   rideObject
 	ver                   int
 	validatePaymentsAfter uint64
+	isRiveV6Activated     bool
 	mds                   int
 }
 
@@ -1124,11 +1188,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 	}, nil
 }
 
-func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, callerPK crypto.PublicKey) (*EvaluationEnvironment, error) {
-	caller, err := proto.NewAddressFromPublicKey(env.sch, callerPK)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
-	}
+func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress, isRideV6Activated bool) (*EvaluationEnvironment, error) {
 	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
 	st := newWrappedState(env)
@@ -1136,7 +1196,7 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 		var (
 			senderBalance uint64
 			err           error
-			callerRcp     = proto.NewRecipientFromAddress(caller)
+			callerRcp     = proto.NewRecipientFromAddress(sender)
 		)
 		if payment.Asset.Present {
 			senderBalance, err = st.NewestAssetBalance(callerRcp, payment.Asset.ID)
@@ -1183,7 +1243,12 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 		inv:                   env.inv,
 		validatePaymentsAfter: env.validatePaymentsAfter,
 		mds:                   env.mds,
+		isRiveV6Activated:     isRideV6Activated,
 	}, nil
+}
+
+func (e *EvaluationEnvironment) rideV6Activated() bool {
+	return e.isRiveV6Activated
 }
 
 func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {
@@ -1281,6 +1346,17 @@ func (e *EvaluationEnvironment) SetInvoke(tx *proto.InvokeScriptWithProofs, v in
 		return err
 	}
 	e.inv = obj
+
+	return nil
+}
+
+func (e *EvaluationEnvironment) SetEthereumInvoke(tx *proto.EthereumTransaction, v int, payments []proto.ScriptPayment) error {
+	obj, err := ethereumInvocationToObject(v, e.sch, tx, payments)
+	if err != nil {
+		return err
+	}
+	e.inv = obj
+
 	return nil
 }
 

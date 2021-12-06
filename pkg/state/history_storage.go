@@ -49,8 +49,12 @@ type blockchainEntityProperties struct {
 	recordSize int
 }
 
+// Note on size calculation.
+// 1) For fixed size records. We add 4 bytes for storing block number to each record.
+// 2) For variable size records record size counts of length of data, 4 bytes for storing block number and
+//    4 bytes for storing each record length.
+
 // + 4 bytes for blockNum at the end of each record.
-// TODO(nickeskov): Is it really necessary to add 4 bytes? See historyRecord CountToSize method and historyEntry size method
 var properties = map[blockchainEntity]blockchainEntityProperties{
 	alias: {
 		needToFilter: true,
@@ -191,7 +195,7 @@ type historyEntry struct {
 }
 
 func (he *historyEntry) size() int {
-	return len(he.data) + 4
+	return len(he.data) + 4 // 4 bytes to store block number added here
 }
 
 func (he *historyEntry) marshalBinary() ([]byte, error) {
@@ -281,7 +285,7 @@ func (hr *historyRecord) countTotalSize() (int, error) {
 	for _, r := range hr.entries {
 		totalSize += r.size()
 		if !fixedSize {
-			totalSize += 4
+			totalSize += 4 // This is 4 bytes for storing each record size
 		}
 	}
 	return totalSize, nil

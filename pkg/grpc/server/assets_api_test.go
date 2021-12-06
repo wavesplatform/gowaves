@@ -2,13 +2,12 @@ package server
 
 import (
 	"context"
-	"testing"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	protobuf "google.golang.org/protobuf/proto"
+	"testing"
 )
 
 func TestGetInfo(t *testing.T) {

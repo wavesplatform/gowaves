@@ -37,6 +37,7 @@ type txMeta struct {
 func (m *txMeta) bytes() []byte {
 	buf := make([]byte, txMetaSize)
 	binary.BigEndian.PutUint64(buf, m.offset)
+	buf[8] = 0
 	if m.failed {
 		buf[8] = 1
 	}

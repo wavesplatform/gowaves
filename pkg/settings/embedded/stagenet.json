@@ -34,6 +34,7 @@
   "invalid_reissue_in_same_block_until_time": 0,
   "minimal_generating_balance_check_after_time": 0,
   "internal_invoke_payments_validation_after_height": 966180,
+  "internal_invoke_correct_fail_reject_behaviour_after_height": 0,
   "max_tx_time_back_offset": 7200000,
   "max_tx_time_forward_offset": 5400000,
   "address_scheme_character": 83,

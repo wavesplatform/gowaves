@@ -26,10 +26,9 @@ func (cd DecodedCallData) String() string {
 	return fmt.Sprintf("%s(%s)", cd.Name, strings.Join(args, ","))
 }
 
-// IsERC20Selector checks that is is an ERC20 functions selector (ERC20 transfers)
-func IsERC20Selector(id Selector) bool {
-	_, ok := erc20Methods[id]
-	return ok
+// IsERC20TransferSelector checks that selector is an ERC20Transfer function selector
+func IsERC20TransferSelector(id Selector) bool {
+	return id == erc20TransferSelector
 }
 
 type MethodsMap struct {
@@ -124,14 +123,14 @@ func (da *DecodedArg) InternalType() byte {
 }
 
 func parseArgDataToRideTypes(method *Method, argData []byte, parsePayments bool) (*DecodedCallData, error) {
-	values, paymentsABI, err := method.Inputs.UnpackRideValues(argData)
+	values, paymentsOffset, err := method.Inputs.UnpackRideValues(argData)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unpack Inputs arguments ABI data")
 	}
 
 	var payments []Payment
 	if parsePayments {
-		payments, err = unpackPayments(paymentsABI)
+		payments, err = unpackPayments(paymentsOffset, argData)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to unpack payments")
 		}

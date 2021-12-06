@@ -83,7 +83,7 @@ func (i *recordIterator) next() bool {
 }
 
 func (i *recordIterator) currentRecord() ([]byte, error) {
-	size := int(i.recordSize)
+	size := i.recordSize
 	if len(i.batch) < size {
 		return nil, errInvalidDataSize
 	}
@@ -147,7 +147,7 @@ type batch struct {
 }
 
 func newBatchWithData(data []byte, maxSize, recordSize int, batchNum uint32) (*batch, error) {
-	if len(data) > int(maxSize) {
+	if len(data) > maxSize {
 		return nil, errInvalidDataSize
 	}
 	b := &batch{pos: len(data), num: batchNum, recordSize: recordSize}
@@ -420,7 +420,7 @@ func (s *batchedStorage) normalizeBatches(key []byte) error {
 		batchChanged := len(newBatch) != len(batch)
 		if batchChanged {
 			// Write normalized version of batch to database.
-			if err := s.writeBatchDirectly(key, newBatch); err != nil {
+			if err := s.writeBatchDirectly(batchKey.bytes(), newBatch); err != nil {
 				return errors.Wrap(err, "failed to write batch")
 			}
 		}

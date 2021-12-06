@@ -27,7 +27,7 @@ func newFunctionFrame(pos int, args []rideType) frame {
 }
 
 type vm struct {
-	env          Environment
+	env          environment
 	code         []byte
 	ip           int
 	constants    []rideType

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"math/rand"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/mr-tron/base58"
@@ -22,7 +23,7 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 	state := &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
 		return testTransferWithProofs(), nil
 	}}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		transactionFunc: testTransferObject,
 		stateFunc: func() types.SmartState {
 			return state
@@ -34,7 +35,7 @@ func TestSimpleScriptEvaluation(t *testing.T) {
 	for _, test := range []struct {
 		comment string
 		source  string
-		env     Environment
+		env     environment
 		res     bool
 	}{
 		{`V1: true`, "AQa3b8tH", nil, true},
@@ -100,7 +101,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 	exchange := newExchangeTransaction()
 	data := newDataTransaction()
 	require.NoError(t, err)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		checkMessageLengthFunc: v3check,
 		heightFunc: func() rideInt {
 			return 5
@@ -169,7 +170,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			return false
 		},
 	}
-	envWithDataTX := &MockRideEnvironment{
+	envWithDataTX := &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			obj, err := dataWithProofsToObject('W', data)
 			if err != nil {
@@ -182,7 +183,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 			return 3
 		},
 	}
-	envWithExchangeTX := &MockRideEnvironment{
+	envWithExchangeTX := &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			obj, err := exchangeWithProofsToObject('W', exchange)
 			if err != nil {
@@ -199,7 +200,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		name   string
 		text   string
 		script string
-		env    Environment
+		env    environment
 		result bool
 		error  bool
 	}{
@@ -252,7 +253,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 		//
 		{"EQ", `5 == 5`, `AQkAAAAAAAACAAAAAAAAAAAFAAAAAAAAAAAFqWG0Fw==`, env, true, false},
 		{"ISINSTANCEOF", `match tx {case t : TransferTransaction => true case _  => false}`, `AQQAAAAHJG1hdGNoMAUAAAACdHgDCQAAAQAAAAIFAAAAByRtYXRjaDACAAAAE1RyYW5zZmVyVHJhbnNhY3Rpb24EAAAAAXQFAAAAByRtYXRjaDAGB5yQ/+k=`, env, true, false},
-		{`THROW`, `true && throw("mess")`, `AQMGCQAAAgAAAAECAAAABG1lc3MH7PDwAQ==`, env, false, false},
+		{`THROW`, `true && throw("mess")`, `AQMGCQAAAgAAAAECAAAABG1lc3MH7PDwAQ==`, env, false, true},
 		{`SUM_LONG`, `1 + 1 > 0`, `AQkAAGYAAAACCQAAZAAAAAIAAAAAAAAAAAEAAAAAAAAAAAEAAAAAAAAAAABiJjSk`, env, true, false},
 		{`SUB_LONG`, `2 - 1 > 0`, `AQkAAGYAAAACCQAAZQAAAAIAAAAAAAAAAAIAAAAAAAAAAAEAAAAAAAAAAABqsps1`, env, true, false},
 		{`GT_LONG`, `1 > 0`, `AQkAAGYAAAACAAAAAAAAAAABAAAAAAAAAAAAyAIM4w==`, env, true, false},
@@ -362,7 +363,7 @@ func TestFunctionsEvaluation(t *testing.T) {
 }
 
 func TestComplexity(t *testing.T) {
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		transactionFunc: testTransferObject,
 		stateFunc: func() types.SmartState {
 			return &MockSmartState{NewestTransactionByIDFunc: func(_ []byte) (proto.Transaction, error) {
@@ -481,7 +482,7 @@ func TestDataFunctions(t *testing.T) {
 	require.NoError(t, data.Sign(proto.MainNetScheme, secret))
 	txObj, err := transactionToObject('W', data)
 	require.NoError(t, err)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		transactionFunc: func() rideObject {
 			return txObj
 		},
@@ -520,14 +521,14 @@ func TestDataFunctions(t *testing.T) {
 	}
 }
 
-func testInvokeEnv(verifier bool) (Environment, *proto.InvokeScriptWithProofs) {
+func testInvokeEnv(verifier bool) (environment, *proto.InvokeScriptWithProofs) {
 	tx := byte_helpers.InvokeScriptWithProofs.Transaction.Clone()
 	txo, err := transactionToObject(proto.MainNetScheme, tx)
 	if err != nil {
 		panic(err)
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		invocationFunc: func() rideObject {
 			if !verifier {
 				obj, err := invocationToObject(3, proto.MainNetScheme, tx)
@@ -588,7 +589,6 @@ func TestDappCallable(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -658,7 +658,6 @@ func TestDappDefaultFunc(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -786,7 +785,6 @@ func TestTransferSet(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	scriptTransfer := proto.TransferScriptAction{
 		Recipient: proto.NewRecipientFromAddress(addr),
@@ -841,7 +839,6 @@ func TestScriptResult(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -866,7 +863,7 @@ func TestScriptResult(t *testing.T) {
 	)
 }
 
-func initWrappedState(state types.SmartState, env *MockRideEnvironment) *WrappedState {
+func initWrappedState(state types.SmartState, env *mockRideEnvironment) *WrappedState {
 	return &WrappedState{diff: newDiffState(state), cle: env.this().(rideAddress), scheme: env.scheme()}
 }
 
@@ -1050,7 +1047,7 @@ func WrappedStateFunc() types.SmartState {
 	return &wrappedSt
 }
 
-var envDappFromDapp = &MockRideEnvironment{
+var envDappFromDapp = &mockRideEnvironment{
 	setInvocationFunc: func(invocation rideObject) {
 		inv = invocation
 	},
@@ -1077,6 +1074,9 @@ var envDappFromDapp = &MockRideEnvironment{
 	},
 	timestampFunc: func() uint64 {
 		return 1564703444249
+	},
+	rideV6ActivatedFunc: func() bool {
+		return false
 	},
 	validateInternalPaymentsFunc: func() bool {
 		return true
@@ -1332,7 +1332,6 @@ func TestInvokeDAppFromDAppAllActions(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -1519,7 +1518,6 @@ func TestInvokeDAppFromDAppScript1(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -1691,7 +1689,6 @@ func TestInvokeDAppFromDAppScript2(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -1884,7 +1881,6 @@ func TestInvokeDAppFromDAppScript3(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -2057,11 +2053,8 @@ func TestNegativeCycleNewInvokeDAppFromDAppScript4(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "foo", proto.Arguments{})
-
+	require.Nil(t, res)
 	require.Error(t, err)
-	r, ok := res.(DAppResult)
-	require.False(t, ok)
-	require.False(t, r.res)
 
 	tearDownDappFromDapp()
 }
@@ -2220,7 +2213,6 @@ func TestReentrantInvokeDAppFromDAppScript5(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -2341,7 +2333,6 @@ func TestInvokeDAppFromDAppScript6(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -2539,7 +2530,6 @@ func TestReentrantInvokeDAppFromDAppScript6(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -2686,7 +2676,6 @@ func TestInvokeDAppFromDAppPayments(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -2845,7 +2834,6 @@ func TestInvokeDAppFromDAppNilResult(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -3026,7 +3014,6 @@ func TestInvokeDAppFromDAppSmartAssetValidation(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -3200,7 +3187,6 @@ func TestMixedReentrantInvokeAndInvoke(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -3460,16 +3446,10 @@ func TestPaymentsDifferentScriptVersion4(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-
+	require.Nil(t, res)
 	require.Error(t, err)
-	r, ok := res.(DAppResult)
-	require.False(t, ok)
-	require.False(t, r.res)
 
 	tearDownDappFromDapp()
-
-	tearDownDappFromDapp()
-
 }
 
 func TestPaymentsDifferentScriptVersion3(t *testing.T) {
@@ -3584,14 +3564,10 @@ func TestPaymentsDifferentScriptVersion3(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	res, err := CallFunction(env, tree, "test", proto.Arguments{})
-
+	require.Nil(t, res)
 	require.Error(t, err)
-	r, ok := res.(DAppResult)
-	require.False(t, ok)
-	require.False(t, r.res)
 
 	tearDownDappFromDapp()
-
 }
 
 func TestActionsLimitInOneInvoke(t *testing.T) {
@@ -3733,7 +3709,6 @@ func TestActionsLimitInOneInvoke(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	_, _, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -3782,7 +3757,8 @@ func TestActionsLimitInOneInvoke(t *testing.T) {
 	*/
 	secondScript = "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"
 
-	_, err = CallFunction(env, tree, "bar", proto.Arguments{})
+	res, err = CallFunction(env, tree, "bar", proto.Arguments{})
+	require.Nil(t, res)
 	require.Error(t, err)
 
 	tearDownDappFromDapp()
@@ -3913,9 +3889,10 @@ func TestActionsLimitInvoke(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	_, err = CallFunction(env, tree, "bar", proto.Arguments{})
-
+	res, err := CallFunction(env, tree, "bar", proto.Arguments{})
+	require.Nil(t, res)
 	require.Error(t, err)
+
 	tearDownDappFromDapp()
 }
 
@@ -3996,7 +3973,7 @@ func TestHashScriptFunc(t *testing.T) {
 			},
 		}
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -4035,7 +4012,6 @@ func TestHashScriptFunc(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -4126,7 +4102,7 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 			},
 		}
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -4162,7 +4138,6 @@ func TestDataStorageUntouchedFunc(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -4220,7 +4195,7 @@ func TestMatchOverwrite(t *testing.T) {
 	tv, err := transactionToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -4281,7 +4256,7 @@ func TestFailSript1(t *testing.T) {
 	tv, err := transactionToObject(proto.TestNetScheme, tx)
 	require.NoError(t, err)
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -4385,7 +4360,7 @@ func TestFailSript2(t *testing.T) {
 	tv, err := transactionToObject(proto.MainNetScheme, tx)
 	require.NoError(t, err)
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -4478,7 +4453,7 @@ func TestWhaleDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 368430
 		},
@@ -4544,7 +4519,6 @@ func TestWhaleDApp(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -4612,7 +4586,7 @@ func TestExchangeDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -4672,7 +4646,6 @@ func TestExchangeDApp(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	assert.NoError(t, err)
@@ -4774,7 +4747,7 @@ func TestBankDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 0
 		},
@@ -4901,7 +4874,7 @@ func TestLigaDApp1(t *testing.T) {
 		GeneratorPublicKey:  sender1,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -4984,7 +4957,6 @@ func TestLigaDApp1(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5059,7 +5031,7 @@ func TestLigaDApp1(t *testing.T) {
 		GeneratorPublicKey:  sender1,
 	}
 
-	env = &MockRideEnvironment{
+	env = &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -5172,7 +5144,6 @@ func TestLigaDApp1(t *testing.T) {
 	require.NoError(t, err)
 	r, ok = res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err = proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5243,7 +5214,7 @@ func TestTestingDApp(t *testing.T) {
 		Generator:           gen,
 		GeneratorPublicKey:  sender,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -5303,7 +5274,6 @@ func TestTestingDApp(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5370,7 +5340,7 @@ func TestDropElementDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 1642207
 		},
@@ -5419,7 +5389,6 @@ func TestDropElementDApp(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5490,7 +5459,7 @@ func TestMathDApp(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		blockFunc: func() rideObject {
 			return blockInfoToObject(blockInfo)
 		},
@@ -5538,7 +5507,6 @@ func TestMathDApp(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5611,7 +5579,7 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 		GeneratorPublicKey:  sender,
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 844761
 		},
@@ -5667,7 +5635,6 @@ func TestDAppWithInvalidAddress(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5740,7 +5707,7 @@ func Test8Ball(t *testing.T) {
 		Generator:           gen,
 		GeneratorPublicKey:  sender,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 844761
 		},
@@ -5799,7 +5766,6 @@ func Test8Ball(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -5867,7 +5833,7 @@ func TestIntegerEntry(t *testing.T) {
 		Generator:           gen,
 		GeneratorPublicKey:  sender,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 844761
 		},
@@ -5927,7 +5893,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 		Scripted:        false,
 		Sponsored:       false,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -5990,7 +5956,7 @@ func TestAssetInfoV3V4(t *testing.T) {
 }
 
 func TestJSONParsing(t *testing.T) {
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		takeStringFunc: v5takeString,
 	}
 
@@ -6018,7 +5984,7 @@ func TestDAppWithFullIssue(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	id := bytes.Repeat([]byte{0}, 32)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		txIDFunc: func() rideType {
 			return rideBytes(id)
 		},
@@ -6044,7 +6010,7 @@ func TestDAppWithSimpleIssue(t *testing.T) {
 	assert.NotNil(t, tree)
 
 	id := bytes.Repeat([]byte{0}, 32)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		txIDFunc: func() rideType {
 			return rideBytes(id)
 		},
@@ -6106,7 +6072,7 @@ func TestBadType(t *testing.T) {
 		Generator:           gen,
 		GeneratorPublicKey:  sender,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 617907
 		},
@@ -6155,7 +6121,6 @@ func TestBadType(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -6257,7 +6222,7 @@ func TestNoDeclaration(t *testing.T) {
 		"poolTokenCirculation":  19875987,
 		"lastSettlementPriceId": 68978,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 2342971
 		},
@@ -6320,7 +6285,6 @@ func TestNoDeclaration(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -6430,7 +6394,7 @@ func TestZeroReissue(t *testing.T) {
 	binaryEntries := map[string][]byte{
 		"share_token_id": mustBytesFromBase64("Q3Uk9ZN5g5+xynU7VGPXUg1eVga04VYXnnZ0q+M1dxQ="),
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 451323
 		},
@@ -6507,7 +6471,6 @@ func TestZeroReissue(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -6551,7 +6514,7 @@ type jsonDataProvider struct {
 }
 
 func newJsonDataProvider(s string) *jsonDataProvider {
-	strings := make(map[string]string)
+	strs := make(map[string]string)
 	ints := make(map[string]int)
 	bools := make(map[string]bool)
 	binaries := make(map[string][]byte)
@@ -6574,7 +6537,7 @@ func newJsonDataProvider(s string) *jsonDataProvider {
 		case d.Entry.BoolValue != nil:
 			bools[key] = *d.Entry.BoolValue
 		case d.Entry.StringVale != nil:
-			strings[key] = *d.Entry.StringVale
+			strs[key] = *d.Entry.StringVale
 		case d.Entry.IntValue != nil:
 			ints[key] = mustIntFromString(*d.Entry.IntValue)
 		case d.Entry.BinaryValue != nil:
@@ -6582,7 +6545,7 @@ func newJsonDataProvider(s string) *jsonDataProvider {
 		}
 	}
 	return &jsonDataProvider{
-		strings:  strings,
+		strings:  strs,
 		ints:     ints,
 		bools:    bools,
 		binaries: binaries,
@@ -6666,7 +6629,7 @@ func TestStageNet2(t *testing.T) {
 		GeneratorPublicKey:  genPK,
 	}
 	dp := newJsonDataProvider(`[{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"aa","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"dappAddress","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"total_amount","intValue":"600900000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"masterAddress","stringValue":"3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"assetId_2020-10-3","stringValue":"Eo7N1sjexrfu6mx5LrG3suovSaXaBNnmYfvqJsMzSYE8"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"assetId_2020-10-5","stringValue":"J2j4PRKXuUKUZCP345EXAHYF2gRg15JsYQYtFT4GNPda"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_total_amount_2020-10-3","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_total_amount_2020-10-5","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","stringValue":"2020-11-23"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","stringValue":"2020-11-11"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","stringValue":"2021-01-31"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","stringValue":"2020-10-01"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"limit_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","stringValue":"2020-09-30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"unitPrice_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_limit","stringValue":"2020-10-3"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_limit","stringValue":"2020-10-5"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_limit","stringValue":"2020-10-3"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_limit","stringValue":"2020-10-5"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_owner","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_amount","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"owned_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_amount","intValue":"400000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_amount","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_amount","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_assetId","stringValue":"GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_assetId","stringValue":"9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_assetId","stringValue":"3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_assetId","stringValue":"fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_assetId","stringValue":"Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_assetId","stringValue":"AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_assetId","stringValue":"DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_assetId","stringValue":"5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_assetId","stringValue":"6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_assetId","stringValue":"BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_unitPrice","intValue":"300"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_unitPrice","intValue":"30"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_unitPrice","intValue":"300"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_unitPrice","intValue":"20"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_Qysv1EeAG3svSgY4rXeXYVd5UDWLijge5GTSMJBZWAE","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_fnWceyvSknkwSvwg3a8viP4BbqZbJ9Xw4bKAuXfgpCf","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_kq1zuYsA6epnS1KeduHLUYVfShfMdjzS88xYutzWwRR_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_3ZwqiyJ71v2RL9ynFfhbhrL6exVvpBXq4tMZsM8BMjS2","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_5WUifJaLLAQwmZdBujmsDRRjd4j75PTqAPFNex3cD1BE","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_6pooGSU35S9beXySXnfB2Pd8graz6JRvZr6pk9tFRkVX","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_9QbcTW1TnEG9UtMXj7Qn6QGonY2sbQnDuhADJHRUfYkR","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_AeRfbghRJkE9De7wpBZBSSunmgrZ1WXAqzp6HEW3thes","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_BCJ5nmSeoT7o7PGbqPXeFGLmTbrbhGvdYGqFSTGPLQak","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_DevmCm3b6ciwmcoGtf7amdsbobmSjEQFZdsbS7No6ye4","intValue":"100000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"asset_total_amount_GHTzwH5nGskQJc6LH3Z9q2rE5dKA1UkhW44ZToKcTU6J","intValue":"100000000"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_29i7ZQAhzWzMV8Dfjqt1jyp8y3GHDBFnV4qWhqLmoZvy_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_2metSrd6Gn7VDVB61LF7DkZfxP3sx7Ag9Evx9JomcdTb_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_5ypDJF3LJAYdHBDEQLbmKcu9NzcumLHL3QZpW3DkuHJ4_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_7nZycAMeNvuiivEJdD1X8U6YF62P4BJb8TNS9QkSMtDS_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_93pNpaap3RT9bVGjGPkFHmJtyXphiUMY68VB5WCEif9G_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_AT3LBUYgVcf7SjNLJLXRsTvgw9Lb94wupN9YSkge3Axy_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_Bk5dKUfzPRCkY4ZMN3rG5xaSACueB3XvKoM5KQTJN1qQ_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_CPNhFYsDBJs8a4KXtGCCu7uGc45QeYNxwkFCGMoqeifW_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_EHuZ1jhXoXeYNY244PC5pzh2fgpDJ1oSoSntMr4yWvGW_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_ExF6Be3WrUyW4aeS4qBnfcH2aEDQXyScDY8u3cG87M8n_description","stringValue":"みんな電力公式"}},{"address":"AVNR0DAPNgBsCKRIvPT9wVRvDtiQBUHm8sU=","entry":{"key":"listed_GF8HGGqPLDfAjZvkLGhamioZouV6uH6vS92mZv1zA8hu_description","stringValue":"みんな電力公式"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"dappAddress","stringValue":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"masterAddress","stringValue":"3MSvD3m1R8Z3v8SAztrt1afp28vRdsMwxAu"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"asset_total_amount","intValue":"100000"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT","stringValue":"{\"name\":\"ママママママママっまm\",\"description\":\"retail user\"}"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MktJgV2eTmcCqtyQaeqiiHkQ1eY3EH5Tdb","stringValue":"{\"name\":\"ママママママママっまm\",\"description\":\"retail user\"}"}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MRiqDCpFntSEud3Co8bdQygjSwB515zyS5_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MSvD3m1R8Z3v8SAztrt1afp28vRdsMwxAu_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MUJS7P4W3XyP2pnAJUGqkstSAiU4Ac2YdA_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MY34vVDzBnYxE34Ug4K1Y1GyRyVSgcfnpC_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MZyZAgAJmXmJs5gDihnMvZ7HCLxe6zVVpU_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MfF8z9y9nUUuHTeKiGFGoWXnUrRPbEcNiD_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MgvX2f2ExVwTMkAk6dua8yE2iRmuBV4heT_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3Mh5b5UttYteWjd5Mku43kajZFKX9z5WNxZ_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MjBN2kiRB6JmoEVEC42ZNMX9ibx5iZ9Mih_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MkT3qvGwdLrSs2Cfx3E29ffaM5GYrEZegz_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MktJgV2eTmcCqtyQaeqiiHkQ1eY3EH5Tdb_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3Mm9VfS5424Vn4oNKv1DSh7Htk6FhQReEuP_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3MmNtj9n49UgGapeh1Sg8Nd8jfQGDbqRTkx_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3P35F9e1QdcHkBMbYtovuMUmsxxCqo9DF1d_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PLXmyBua1pAH4y3aHjMqJrcJEcyrWMP1EB_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PMoTnMU6U4hx8km23iZJ6Akis6JKhcxhUn_active","boolValue":true}},{"address":"AVPewZB4PhL4dXSM6B1zWwYdeqFAtf/yW7I=","entry":{"key":"3PNVubsGCrnMHLXvg1gYidcP3G7HUC5fAuZ_active","boolValue":true}}]`)
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		heightFunc: func() rideInt {
 			return 451323
 		},
@@ -6727,7 +6690,6 @@ func TestStageNet2(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -6796,7 +6758,7 @@ func TestRecipientAddressToString(t *testing.T) {
 		},
 	}
 
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -6840,8 +6802,8 @@ func TestScriptPaymentPublicKey(t *testing.T) {
 		Timestamp:       1599565088614,
 	}
 
-	tr, _ := proto.NewFullScriptTransfer(action, addr, pk, tx)
-	env := &MockRideEnvironment{
+	tr, _ := proto.NewFullScriptTransfer(action, addr, pk, tx.ID, tx.Timestamp)
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -6896,7 +6858,7 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 		Fee:             500000,
 		Timestamp:       1609698441420,
 	}
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -6926,7 +6888,6 @@ func TestInvalidAssetInTransferScriptAction(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -7023,12 +6984,15 @@ func TestOriginCaller(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
+		},
+		rideV6ActivatedFunc: func() bool {
+			return false
 		},
 		transactionFunc: func() rideObject {
 			obj, err := transactionToObject(proto.MainNetScheme, tx)
@@ -7047,6 +7011,9 @@ func TestOriginCaller(t *testing.T) {
 		},
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
 		},
 	}
 
@@ -7086,7 +7053,6 @@ func TestOriginCaller(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -7198,7 +7164,7 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.MainNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.MainNetScheme
 		},
@@ -7216,6 +7182,9 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 		checkMessageLengthFunc: v3check,
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
+		},
+		rideV6ActivatedFunc: func() bool {
+			return false
 		},
 		setNewDAppAddressFunc: func(address proto.WavesAddress) {
 			testDAppAddress = address
@@ -7291,8 +7260,9 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	tree, err := Parse(src1)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	_, err = CallFunction(env, tree, "call", arguments)
+	res, err := CallFunction(env, tree, "call", arguments)
 	// Expecting validation error for the switched on internal payments validation
+	require.Nil(t, res)
 	require.Error(t, err)
 
 	// Turning off internal payments validation
@@ -7310,9 +7280,10 @@ func TestInternalPaymentsValidationFailure(t *testing.T) {
 	tree, err = Parse(src1)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	_, err = CallFunction(env, tree, "call", arguments)
+	res, err = CallFunction(env, tree, "call", arguments)
 	// No error is expected in this case
 	require.NoError(t, err)
+	require.IsType(t, DAppResult{}, res)
 }
 
 func TestAliasesInInvokes(t *testing.T) {
@@ -7378,7 +7349,7 @@ func TestAliasesInInvokes(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -7392,6 +7363,9 @@ func TestAliasesInInvokes(t *testing.T) {
 		},
 		invocationFunc: func() rideObject {
 			return testInv
+		},
+		rideV6ActivatedFunc: func() bool {
+			return false
 		},
 		checkMessageLengthFunc: v3check,
 		setInvocationFunc: func(inv rideObject) {
@@ -7483,7 +7457,6 @@ func TestAliasesInInvokes(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
 	require.NoError(t, err)
@@ -7607,7 +7580,7 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -7625,6 +7598,9 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 		checkMessageLengthFunc: v3check,
 		setInvocationFunc: func(inv rideObject) {
 			testInv = inv
+		},
+		rideV6ActivatedFunc: func() bool {
+			return false
 		},
 		validateInternalPaymentsFunc: func() bool {
 			return true
@@ -7710,7 +7686,6 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	nftOA := proto.NewOptionalAssetFromDigest(nft)
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
@@ -7730,7 +7705,165 @@ func TestIssueAndTransferInInvoke(t *testing.T) {
 	assert.Equal(t, expectedResult, sr)
 }
 
-func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
+func TestTransferUnavailableFundsInInvoke(t *testing.T) {
+	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	/* On dApp1 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	let dApp = Address(base58'3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1')
+
+	@Callable(i)
+	func call() = {
+	  strict r1 = invoke(dApp, "loan", [100], nil)
+	  let balance = wavesBalance(this)
+	  strict r2 = invoke(dApp, "back", [], [AttachedPayment(unit, 100)])
+	  [IntegerEntry("balance", balance.available)]
+	}
+	*/
+	code1 := "AAIFAAAAAAAAAAQIAhIAAAAAAQAAAAAEZEFwcAkBAAAAB0FkZHJlc3MAAAABAQAAABoBVMByBn03y+jAvm4M5s8/31mxeRh33VavrgAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAnIxCQAD/AAAAAQFAAAABGRBcHACAAAABGxvYW4JAARMAAAAAgAAAAAAAAAAZAUAAAADbmlsBQAAAANuaWwDCQAAAAAAAAIFAAAAAnIxBQAAAAJyMQQAAAAHYmFsYW5jZQkAA+8AAAABBQAAAAR0aGlzBAAAAAJyMgkAA/wAAAAEBQAAAARkQXBwAgAAAARiYWNrBQAAAANuaWwJAARMAAAAAgkBAAAAD0F0dGFjaGVkUGF5bWVudAAAAAIFAAAABHVuaXQAAAAAAAAAAGQFAAAAA25pbAMJAAAAAAAAAgUAAAACcjIFAAAAAnIyCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAAdiYWxhbmNlCAUAAAAHYmFsYW5jZQAAAAlhdmFpbGFibGUFAAAAA25pbAkAAAIAAAABAgAAACRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4JAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAALjV2o="
+	src1, err := base64.StdEncoding.DecodeString(code1)
+	require.NoError(t, err)
+
+	/* On dApp2 address
+	{-# STDLIB_VERSION 5 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+
+	@Callable(i)
+	func loan(a: Int) =
+	{
+	  [ScriptTransfer(i.caller, a, unit)]
+	}
+
+	@Callable(i)
+	func back() = []
+	*/
+	code2 := "AAIFAAAAAAAAABsIAhIDCgEBEgAaBwoCYTESAWkaBwoCYTISAWEAAAAAAAAAAgAAAAJhMQEAAAAEbG9hbgAAAAEAAAACYTIJAARMAAAAAgkBAAAADlNjcmlwdFRyYW5zZmVyAAAAAwgFAAAAAmExAAAABmNhbGxlcgUAAAACYTIFAAAABHVuaXQFAAAAA25pbAAAAAJhMQEAAAAEYmFjawAAAAAFAAAAA25pbAAAAACBSAmD"
+	src2, err := base64.StdEncoding.DecodeString(code2)
+	require.NoError(t, err)
+
+	recipient := proto.NewRecipientFromAddress(dApp1)
+	arguments := proto.Arguments{}
+	call := proto.FunctionCall{
+		Default:   false,
+		Name:      "call",
+		Arguments: arguments,
+	}
+	tx := &proto.InvokeScriptWithProofs{
+		Type:            proto.InvokeScriptTransaction,
+		Version:         1,
+		ID:              &crypto.Digest{},
+		Proofs:          proto.NewProofs(),
+		ChainID:         proto.TestNetScheme,
+		SenderPK:        senderPK,
+		ScriptRecipient: recipient,
+		FunctionCall:    call,
+		Payments:        proto.ScriptPayments{},
+		FeeAsset:        proto.OptionalAsset{},
+		Fee:             500000,
+		Timestamp:       1624967106278,
+	}
+	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
+	require.NoError(t, err)
+	testDAppAddress := dApp1
+	env := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		thisFunc: func() rideType {
+			return rideAddress(testDAppAddress)
+		},
+		transactionFunc: func() rideObject {
+			obj, err := transactionToObject(proto.TestNetScheme, tx)
+			require.NoError(t, err)
+			return obj
+		},
+		invocationFunc: func() rideObject {
+			return testInv
+		},
+		checkMessageLengthFunc: v3check,
+		setInvocationFunc: func(inv rideObject) {
+			testInv = inv
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+		txIDFunc: func() rideType {
+			return rideBytes(tx.ID.Bytes())
+		},
+		maxDataEntriesSizeFunc: func() int {
+			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		rideV6ActivatedFunc: func() bool {
+			return true
+		},
+	}
+
+	mockState := &MockSmartState{
+		GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return src1, nil
+			case dApp2.String():
+				return src2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestScriptPKByAddrFunc: func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			switch addr {
+			case sender:
+				return senderPK, nil
+			case dApp1:
+				return dApp1PK, nil
+			case dApp2:
+				return dApp2PK, nil
+			default:
+				return crypto.PublicKey{}, errors.Errorf("unexpected address %s", addr.String())
+			}
+		},
+		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (*proto.WavesAddress, error) {
+			switch recipient.String() {
+			case dApp1.String():
+				return &dApp1, nil
+			case dApp2.String():
+				return &dApp2, nil
+			default:
+				return nil, errors.Errorf("unexpected recipient '%s'", recipient.String())
+			}
+		},
+		NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
+			return 0, nil
+		},
+		NewestAssetIsSponsoredFunc: func(assetID crypto.Digest) (bool, error) {
+			return false, errors.Errorf("unexpected asset '%s'", assetID.String())
+		},
+	}
+	testState := initWrappedState(mockState, env)
+	env.stateFunc = func() types.SmartState {
+		return testState
+	}
+	env.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+		testDAppAddress = address
+		testState.cle = rideAddress(address) // We have to update wrapped state's `cle`
+	}
+
+	tree, err := Parse(src1)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.Nil(t, res)
+	require.Error(t, err)
+	assert.EqualError(t, err, "invoke: failed to apply actions: failed to pass validation of transfer action: not enough money in the DApp, balance of DApp with address 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1 is 0 and it tried to transfer asset WAVES to 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz, amount of 100")
+	assert.Equal(t, strings.Join(EvaluationErrorCallStack(err), ";"), "failed to evaluate block after declaration of variable 'r1';failed to estimate the condition of if;failed to call system function '0';failed to materialize argument 1;failed to evaluate expression of scope value 'r1';failed to call system function '1020'")
+}
+
+func TestBurnAndFailOnTransferInInvokeAfterRideV6(t *testing.T) {
 	_, dApp1PK, dApp1 := makeAddressAndPK(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	_, dApp2PK, dApp2 := makeAddressAndPK(t, "DAPP2")    // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
 	_, senderPK, sender := makeAddressAndPK(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
@@ -7799,12 +7932,15 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
 		thisFunc: func() rideType {
 			return rideAddress(testDAppAddress)
+		},
+		rideV6ActivatedFunc: func() bool {
+			return true
 		},
 		transactionFunc: func() rideObject {
 			obj, err := transactionToObject(proto.TestNetScheme, tx)
@@ -7911,7 +8047,8 @@ func TestBurnAndFailOnTransferInInvoke(t *testing.T) {
 	tree, err := Parse(src1)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
-	_, err = CallFunction(env, tree, "call", arguments)
+	res, err := CallFunction(env, tree, "call", arguments)
+	require.Nil(t, res)
 	require.Error(t, err)
 }
 
@@ -7981,7 +8118,7 @@ func TestReissueInInvoke(t *testing.T) {
 	testInv, err := invocationToObject(5, proto.TestNetScheme, tx)
 	require.NoError(t, err)
 	testDAppAddress := dApp1
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		schemeFunc: func() byte {
 			return proto.TestNetScheme
 		},
@@ -8005,6 +8142,9 @@ func TestReissueInInvoke(t *testing.T) {
 		},
 		maxDataEntriesSizeFunc: func() int {
 			return proto.MaxDataEntriesScriptActionsSizeInBytesV2
+		},
+		rideV6ActivatedFunc: func() bool {
+			return false
 		},
 	}
 
@@ -8095,7 +8235,6 @@ func TestReissueInInvoke(t *testing.T) {
 	require.NoError(t, err)
 	r, ok := res.(DAppResult)
 	require.True(t, ok)
-	require.True(t, r.res)
 
 	optionalAsset := proto.NewOptionalAssetFromDigest(asset)
 	sr, ap, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})

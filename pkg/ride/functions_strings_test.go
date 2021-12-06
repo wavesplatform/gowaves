@@ -37,7 +37,7 @@ func TestConcatStrings(t *testing.T) {
 }
 
 func TestTakeString(t *testing.T) {
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		takeStringFunc: v5takeString,
 	}
 	for _, test := range []struct {
@@ -71,7 +71,7 @@ func TestTakeString(t *testing.T) {
 }
 
 func TestIncorrectTakeString(t *testing.T) {
-	env := &MockRideEnvironment{
+	env := &mockRideEnvironment{
 		takeStringFunc: takeRideStringWrong,
 	}
 	for _, test := range []struct {
@@ -380,9 +380,9 @@ func TestParseIntValue(t *testing.T) {
 		{[]rideType{rideString("0")}, false, rideInt(0)},
 		{[]rideType{rideString(fmt.Sprint(math.MaxInt64))}, false, rideInt(math.MaxInt64)},
 		{[]rideType{rideString(fmt.Sprint(math.MinInt64))}, false, rideInt(math.MinInt64)},
-		{[]rideType{rideString("")}, false, rideThrow("failed to extract from Unit value")},
-		{[]rideType{rideString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")}, false, rideThrow("failed to extract from Unit value")},
-		{[]rideType{rideString("abc")}, false, rideThrow("failed to extract from Unit value")},
+		{[]rideType{rideString("")}, true, nil},
+		{[]rideType{rideString("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")}, true, nil},
+		{[]rideType{rideString("abc")}, true, nil},
 		{[]rideType{rideString("abc"), rideInt(0)}, true, nil},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
@@ -473,7 +473,8 @@ func TestMakeString(t *testing.T) {
 		{[]rideType{rideList{rideString("one"), rideString("two"), rideString("three")}, rideString(", ")}, false, rideString("one, two, three")},
 		{[]rideType{rideList{rideString("")}, rideString("")}, false, rideString("")},
 		{[]rideType{rideList{}, rideString(",")}, false, rideString("")},
-		{[]rideType{rideList{rideString("one"), rideInt(2), rideString("tree")}, rideString(", ")}, true, nil},
+		{[]rideType{rideList{rideString("one"), rideInt(2), rideString("tree")}, rideString(", ")}, false, rideString("one, 2, tree")},
+		{[]rideType{rideList{rideString("one"), rideBoolean(true), rideString("tree")}, rideString(", ")}, true, nil},
 		{[]rideType{rideString("")}, true, nil},
 		{[]rideType{rideString(""), rideInt(3)}, true, nil},
 		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, true, nil},

@@ -63,6 +63,7 @@ func IsNotFound(err error) bool {
 		// Special case: sometimes proto.ErrNotFound might be used as well.
 		return true
 	}
+	// todo: handle keyvalue.ErrNotFound
 	se, ok := err.(StateError)
 	if !ok {
 		return false

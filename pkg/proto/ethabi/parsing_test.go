@@ -12,9 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
 
-// TODO(nickeskov): check MethodsMap when parsePayments == true
-
-func TestTransferWithRideTypes(t *testing.T) {
+func TestERC20EthereumTransfer(t *testing.T) {
 	// from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
 
 	expectedSignature := "transfer(address,uint256)"
@@ -34,6 +32,32 @@ func TestTransferWithRideTypes(t *testing.T) {
 	require.Equal(t, expectedName, callData.Name)
 	require.Equal(t, expectedFirstArg, fmt.Sprintf("0x%x", callData.Inputs[0].Value.(Bytes)))
 	require.Equal(t, expectedSecondArg, callData.Inputs[1].Value.(BigInt).V.String())
+
+	_, err = GetERC20TransferArguments(callData)
+	require.Error(t, err)
+	require.Equal(t,
+		"failed to convert BigInt value to int64 (overflow), value is 209470300000000000000000",
+		err.Error(),
+	)
+}
+
+func TestGetERC20TransferArguments(t *testing.T) {
+	expectedFirstArg := strings.ToLower("0x9a1989946ae4249AAC19ac7a038d24Aab03c3D8c")
+	expectedSecondArg := "31650332672000"
+
+	hexdata := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c00000000000000000000000000000000000000000000000000001cc92ad60000"
+	data, err := hex.DecodeString(strings.TrimPrefix(hexdata, "0x"))
+	require.NoError(t, err)
+
+	erc20Db := NewErc20MethodsMap()
+	callData, err := erc20Db.ParseCallDataRide(data)
+	require.NoError(t, err)
+
+	transferArgs, err := GetERC20TransferArguments(callData)
+	require.NoError(t, err)
+
+	require.Equal(t, expectedFirstArg, fmt.Sprintf("0x%x", transferArgs.Recipient))
+	require.Equal(t, expectedSecondArg, fmt.Sprintf("%d", transferArgs.Amount))
 }
 
 func TestRandomFunctionABIParsing(t *testing.T) {
@@ -249,12 +273,14 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
 }
 
 func TestParsingABIUsingRideMeta(t *testing.T) {
-	// hexdata created with https://github.com/rust-ethereum/ethabi
+	// first test hexdata created with https://github.com/rust-ethereum/ethabi
 
-	testdata := []struct {
+	tests := []struct {
 		rideFunctionMeta     meta.Function
 		hexdata              string
 		expectedResultValues []DataType
+		parsePayments        bool
+		payments             []Payment
 	}{
 		{
 			rideFunctionMeta: meta.Function{
@@ -263,18 +289,30 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 			},
 			hexdata:              "0x7afebf3b0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000861736661736466730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000015657468657265756d2061626920746573742e2e2e2e0000000000000000000000",
 			expectedResultValues: []DataType{Bool(true), String("asfasdfs"), String("ethereum abi test....")},
+			parsePayments:        false,
+			payments:             nil,
+		},
+		{
+			rideFunctionMeta: meta.Function{
+				Name:      "call",
+				Arguments: []meta.Type{meta.String},
+			},
+			hexdata:              "0x3e08c22800000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000573616664730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+			expectedResultValues: []DataType{String("safds")},
+			parsePayments:        true,
+			payments:             make([]Payment, 0),
 		},
 	}
-	for _, test := range testdata {
-		data, err := hex.DecodeString(strings.TrimPrefix(test.hexdata, "0x"))
+	for _, tc := range tests {
+		data, err := hex.DecodeString(strings.TrimPrefix(tc.hexdata, "0x"))
 		require.NoError(t, err)
 
 		dAppMeta := meta.DApp{
 			Version:       1,
-			Functions:     []meta.Function{test.rideFunctionMeta},
+			Functions:     []meta.Function{tc.rideFunctionMeta},
 			Abbreviations: meta.Abbreviations{},
 		}
-		db, err := newMethodsMapFromRideDAppMeta(dAppMeta, false)
+		db, err := newMethodsMapFromRideDAppMeta(dAppMeta, tc.parsePayments)
 		require.NoError(t, err)
 
 		decodedCallData, err := db.ParseCallDataRide(data)
@@ -284,6 +322,10 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 		for _, arg := range decodedCallData.Inputs {
 			values = append(values, arg.Value)
 		}
-		require.Equal(t, test.expectedResultValues, values)
+		require.Equal(t, tc.expectedResultValues, values)
+
+		if tc.parsePayments {
+			require.Equal(t, tc.payments, decodedCallData.Payments)
+		}
 	}
 }

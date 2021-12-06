@@ -1,7 +1,5 @@
 package ride
 
-import "github.com/pkg/errors"
-
 func selectFunctions(v int) (func(id int) rideFunction, error) {
 	switch v {
 	case 1, 2:
@@ -15,7 +13,7 @@ func selectFunctions(v int) (func(id int) rideFunction, error) {
 	case 6:
 		return functionV6, nil
 	default:
-		return nil, errors.Errorf("unsupported library version '%d'", v)
+		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
 }
 
@@ -32,24 +30,24 @@ func selectFunctionChecker(v int) (func(name string) (uint16, bool), error) {
 	case 6:
 		return checkFunctionV6, nil
 	default:
-		return nil, errors.Errorf("unsupported library version '%d'", v)
+		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
 }
 
-func selectEvaluationCostsProvider(v int) (map[string]int, map[string]struct{}, error) {
+func selectEvaluationCostsProvider(v int) (map[string]int, error) {
 	switch v {
 	case 1, 2:
-		return CatalogueV2, FreeFunctionsV2, nil
+		return EvaluationCatalogueV2, nil
 	case 3:
-		return CatalogueV3, FreeFunctionsV3, nil
+		return EvaluationCatalogueV3, nil
 	case 4:
-		return CatalogueV4, FreeFunctionsV4, nil
+		return EvaluationCatalogueV4, nil
 	case 5:
-		return CatalogueV5, FreeFunctionsV5, nil
+		return EvaluationCatalogueV5, nil
 	case 6:
-		return CatalogueV6, FreeFunctionsV6, nil
+		return EvaluationCatalogueV6, nil
 	default:
-		return nil, nil, errors.Errorf("unsupported library version '%d'", v)
+		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
 }
 
@@ -66,7 +64,7 @@ func selectFunctionNameProvider(v int) (func(int) string, error) {
 	case 6:
 		return functionNameV6, nil
 	default:
-		return nil, errors.Errorf("unsupported library version '%d'", v)
+		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
 }
 
@@ -85,7 +83,7 @@ func selectConstants(v int) (func(int) rideConstructor, error) {
 	case 6:
 		return constantV6, nil
 	default:
-		return nil, errors.Errorf("unsupported library version '%d'", v)
+		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
 }
 
@@ -104,6 +102,6 @@ func selectConstantsChecker(v int) (func(name string) (uint16, bool), error) {
 	case 6:
 		return checkConstantV6, nil
 	default:
-		return nil, errors.Errorf("unsupported library version '%d'", v)
+		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
 }

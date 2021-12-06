@@ -344,6 +344,20 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	return nil
 }
 
+func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction proto.Transaction, info *performerInfo) error {
+	ethTx, ok := transaction.(*proto.EthereumTransaction)
+	if !ok {
+		return errors.New("failed to convert interface to EthereumTransaction transaction")
+	}
+	if _, ok := ethTx.TxKind.(*proto.EthereumInvokeScriptTxKind); ok {
+		if err := tp.stor.commitUncertain(info.blockID); err != nil {
+			return errors.Wrap(err, "failed to commit invoke changes")
+		}
+	}
+	// nothing to do for proto.EthereumTransferWavesTxKind and proto.EthereumTransferAssetsErc20TxKind
+	return nil
+}
+
 func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction, info *performerInfo) error {
 	tx, ok := transaction.(*proto.UpdateAssetInfoWithProofs)
 	if !ok {
