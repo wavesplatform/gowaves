@@ -166,6 +166,10 @@ func checkTx(tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, sc
 		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
 			return errors.New("updateassetinfo tx signature verification failed")
 		}
+	case *proto.EthereumTransaction:
+		if _, err := t.Verify(); err != nil {
+			return errors.New("ethereumtransaction tx signature verification failed")
+		}
 	default:
 		return errors.New("unknown transaction type")
 	}

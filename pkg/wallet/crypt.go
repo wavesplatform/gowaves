@@ -4,9 +4,10 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"fmt"
-	"golang.org/x/crypto/argon2"
 	"io"
+
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/argon2"
 )
 
 type crypt struct {
@@ -22,6 +23,10 @@ func NewCrypt(key []byte) *crypt {
 }
 
 func (a *crypt) Encrypt(plaintext []byte) ([]byte, error) {
+	if len(plaintext) > 1024*1024 {
+		return nil, errors.New("too big plaintext len for encrypting, 1MB limit exceeded")
+	}
+
 	block, err := aes.NewCipher(a.key)
 	if err != nil {
 		return nil, err
@@ -43,7 +48,7 @@ func (a *crypt) Decrypt(ciphertext []byte) ([]byte, error) {
 	}
 
 	if byteLen := len(ciphertext); byteLen < aes.BlockSize {
-		return nil, fmt.Errorf("invalid cipher size %d", byteLen)
+		return nil, errors.Errorf("invalid cipher size %d", byteLen)
 	}
 
 	iv := ciphertext[:aes.BlockSize]
