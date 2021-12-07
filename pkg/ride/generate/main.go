@@ -761,6 +761,10 @@ func functionsV6() map[string]string {
 	m["sqrt"] = "sqrt"
 	m["sqrtBigInt"] = "sqrtBigInt"
 	m["1063"] = "addressFromPublicKeyStrict"
+	m["1210"] = "makeString1C"
+	m["1211"] = "makeString2C"
+	m["1212"] = "splitString1C"
+	m["1213"] = "splitString4C"
 	for i, l := range []int{20, 50, 100, 200, 500, 1000} {
 		m[strconv.Itoa(450+i)] = fmt.Sprintf("fold_%d", l)
 	}
@@ -776,6 +780,10 @@ func catalogueV6() map[string]int {
 	m["sqrt"] = 2
 	m["sqrtBigInt"] = 5
 	m["1063"] = 1
+	m["1210"] = 1
+	m["1211"] = 2
+	m["1212"] = 1
+	m["1213"] = 4
 	for i, c := range []int{3, 7, 9, 20, 56, 115} {
 		m[strconv.Itoa(450+i)] = c
 	}

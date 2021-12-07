@@ -187,14 +187,55 @@ func takeRightString(_ *treeEvaluator, _ environment, args ...rideType) (rideTyp
 	return dropRideString(s, utf8.RuneCountInString(s)-n), nil
 }
 
+func split(s, sep string, stringLengthLimit, resultListSizeLimit int) (rideList, error) {
+	sl := len(s) // Check number of bytes in given string
+	if len(s) > stringLengthLimit {
+		return nil, errors.Errorf("string lenght %d exceeds string length limit %d", sl, stringLengthLimit)
+	}
+	res := strings.Split(s, sep)
+	rl := len(res)
+	if rl > resultListSizeLimit {
+		return nil, errors.Errorf("list size %d exceeds list size limit %d", rl, resultListSizeLimit)
+	}
+	r := make(rideList, rl)
+	for i, s := range res {
+		r[i] = rideString(s)
+	}
+	return r, nil
+}
+
 func splitString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "splitString")
 	}
-	r := make(rideList, 0)
-	for _, p := range strings.Split(s1, s2) {
-		r = append(r, rideString(p))
+	r, err := split(s1, s2, maxMessageLength, maxListSize)
+	if err != nil {
+		return nil, errors.Wrap(err, "splitString")
+	}
+	return r, nil
+}
+
+func splitString1C(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	s1, s2, err := twoStringsArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "splitString1C")
+	}
+	r, err := split(s1, s2, 500, 20)
+	if err != nil {
+		return nil, errors.Wrap(err, "splitString1C")
+	}
+	return r, nil
+}
+
+func splitString4C(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	s1, s2, err := twoStringsArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "splitString4C")
+	}
+	r, err := split(s1, s2, 6000, 100)
+	if err != nil {
+		return nil, errors.Wrap(err, "splitString4C")
 	}
 	return r, nil
 }
@@ -249,13 +290,10 @@ func lastIndexOfSubstringWithOffset(_ *treeEvaluator, _ environment, args ...rid
 	return rideInt(i), nil
 }
 
-func makeString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
-	if err := checkArgs(args, 2); err != nil {
-		return nil, errors.Wrap(err, "makeString")
-	}
-	list, ok := args[0].(rideList)
-	if !ok {
-		return nil, errors.Errorf("makeString: unexpected argument type '%s'", args[0].instanceOf())
+func mkString(list []rideType, sep string, listSizeLimit, resultLengthLimit int) (string, error) {
+	ll := len(list)
+	if ll > listSizeLimit {
+		return "", errors.Errorf("list size %d exceeds size limit %d", ll, listSizeLimit)
 	}
 	parts := make([]string, len(list))
 	pl := 0
@@ -268,25 +306,56 @@ func makeString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, er
 		case rideInt:
 			str = strconv.Itoa(int(ti))
 		default:
-			return nil, errors.Errorf("makeString: unexpected list item type '%s'", item.instanceOf())
+			return "", errors.Errorf("unexpected list item type '%s'", item.instanceOf())
 		}
 		parts[i] = str
 		pl += len(str)
 		pc++
 	}
-	s, ok := args[1].(rideString)
-	if !ok {
-		return nil, errors.Errorf("makeString: unexpected argument type '%s'", args[1].instanceOf())
-	}
-	sep := string(s)
 	var expectedLength = 0
 	if pc > 1 {
 		expectedLength = pl + (pc-1)*len(sep)
 	}
-	if expectedLength > maxMessageLength {
-		return nil, errors.Errorf("makeString: resulting length %d exceeds maximum allowed %d", expectedLength, maxMessageLength)
+	if expectedLength > resultLengthLimit {
+		return "", errors.Errorf("result length %d exceeds maximum allowed %d", expectedLength, resultLengthLimit)
 	}
-	return rideString(strings.Join(parts, sep)), nil
+	return strings.Join(parts, sep), nil
+}
+
+func makeString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	list, sep, err := listAndStringArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "makeString")
+	}
+	r, err := mkString(list, string(sep), maxListSize, maxMessageLength)
+	if err != nil {
+		return nil, errors.Wrap(err, "makeString")
+	}
+	return rideString(r), nil
+}
+
+func makeString1C(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	list, sep, err := listAndStringArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "makeString")
+	}
+	r, err := mkString(list, string(sep), 70, 500)
+	if err != nil {
+		return nil, errors.Wrap(err, "makeString")
+	}
+	return rideString(r), nil
+}
+
+func makeString2C(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	list, sep, err := listAndStringArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "makeString")
+	}
+	r, err := mkString(list, string(sep), 100, 6000)
+	if err != nil {
+		return nil, errors.Wrap(err, "makeString")
+	}
+	return rideString(r), nil
 }
 
 func contains(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {

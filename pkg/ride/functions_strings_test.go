@@ -3,6 +3,7 @@ package ride
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -341,6 +342,60 @@ func TestSplitString(t *testing.T) {
 	}
 }
 
+func TestSplit(t *testing.T) {
+	for _, test := range []struct {
+		s, sep    string
+		len, size int
+		fail      bool
+		r         rideType
+	}{
+		{"1,2,3", ",", 5, 5, false, rideList{rideString("1"), rideString("2"), rideString("3")}},
+		{"1,2,3", ",", 5, 3, false, rideList{rideString("1"), rideString("2"), rideString("3")}},
+		{"1,2,3", ",", 3, 3, true, nil},
+		{"1,2,3", ",", 5, 2, true, nil},
+	} {
+		r, err := split(test.s, test.sep, test.len, test.size)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func BenchmarkSplitString1C(b *testing.B) {
+	item := strings.Repeat("x", 24)
+	list := make([]string, 20)
+	for i := 0; i < 20; i++ {
+		list[i] = item
+	}
+	s := strings.Join(list, ",")
+	args := []rideType{rideString(s), rideString(",")}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := splitString1C(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
+	}
+}
+
+func BenchmarkSplitString4C(b *testing.B) {
+	item := strings.Repeat("x", 59)
+	list := make([]string, 100)
+	for i := 0; i < 100; i++ {
+		list[i] = item
+	}
+	s := strings.Join(list, ",")
+	args := []rideType{rideString(s), rideString(",")}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := splitString4C(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
+	}
+}
+
 func TestParseInt(t *testing.T) {
 	for _, test := range []struct {
 		args []rideType
@@ -460,6 +515,62 @@ func TestLastIndexOfSubstringWithOffset(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, test.r, r)
 		}
+	}
+}
+
+func TestMkString(t *testing.T) {
+	for _, test := range []struct {
+		list      []rideType
+		sep       string
+		size, len int
+		fail      bool
+		r         string
+	}{
+		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 5, 5, false, "1,2,3"},
+		{[]rideType{rideString("1"), rideInt(2), rideString("3")}, ",", 5, 5, false, "1,2,3"},
+		{[]rideType{rideString("1"), rideString("2"), rideBoolean(true)}, ",", 5, 5, true, ""},
+		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 3, 5, false, "1,2,3"},
+		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 2, 5, true, ""},
+		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 3, 3, true, ""},
+	} {
+		r, err := mkString(test.list, test.sep, test.size, test.len)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+
+	}
+}
+
+func BenchmarkMakeString1C(b *testing.B) {
+	item := "123456"
+	list := make([]rideType, 70)
+	for i := 0; i < 70; i++ {
+		list[i] = rideString(item)
+	}
+	b.ResetTimer()
+	args := []rideType{rideList(list), rideString(",")}
+	for i := 0; i < b.N; i++ {
+		r, err := makeString1C(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotEmpty(b, r)
+	}
+}
+
+func BenchmarkMakeString2C(b *testing.B) {
+	item := strings.Repeat("x", 59)
+	list := make([]rideType, 100)
+	for i := 0; i < 100; i++ {
+		list[i] = rideString(item)
+	}
+	args := []rideType{rideList(list), rideString(",")}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := makeString2C(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotEmpty(b, r)
 	}
 }
 
