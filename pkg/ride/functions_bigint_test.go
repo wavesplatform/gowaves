@@ -54,6 +54,19 @@ func TestPowBigInt(t *testing.T) {
 	}
 }
 
+func BenchmarkPowBigInt(b *testing.B) {
+	//pow(d18, 18, max, 0, 18) -> error
+	d18, ok := big.NewInt(0).SetString("987654321012345678", 10)
+	require.True(b, ok)
+	args := []rideType{rideBigInt{v: d18}, rideInt(18), rideBigInt{v: rideMath.MaxBigInt}, rideInt(0), rideInt(18), newDown(nil)}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := powBigInt(nil, nil, args...)
+		require.Error(b, err)
+		require.Nil(b, r)
+	}
+}
+
 func TestLogBigInt(t *testing.T) {
 	for _, test := range []struct {
 		args []rideType
@@ -290,6 +303,16 @@ func TestFractionBigInt(t *testing.T) {
 	}
 }
 
+func BenchmarkFractionBigInt(b *testing.B) {
+	args := []rideType{rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := fractionBigInt(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
+	}
+}
+
 func TestFractionBigIntRounds(t *testing.T) {
 	for _, test := range []struct {
 		args []rideType
@@ -336,6 +359,16 @@ func TestFractionBigIntRounds(t *testing.T) {
 			require.NoError(t, err)
 			assert.True(t, test.r.eq(r), fmt.Sprintf("%s != %s", test.r, r))
 		}
+	}
+}
+
+func BenchmarkFractionBigIntRounds(b *testing.B) {
+	args := []rideType{rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}, newCeiling(nil)}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := fractionBigIntRounds(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
 	}
 }
 
@@ -626,6 +659,18 @@ func TestBigIntToString(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, test.r, r)
 		}
+	}
+}
+
+func BenchmarkBigIntToString(b *testing.B) {
+	v, ok := big.NewInt(0).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
+	require.True(b, ok)
+	args := []rideType{rideBigInt{v: v}}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := bigIntToString(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
 	}
 }
 

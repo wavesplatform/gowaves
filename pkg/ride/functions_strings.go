@@ -100,15 +100,11 @@ func concatStrings(_ *treeEvaluator, _ environment, args ...rideType) (rideType,
 	if err != nil {
 		return nil, errors.Wrap(err, "concatStrings")
 	}
-	l := len(s1) + len(s2)
-	if l > maxBytesLength {
+	l := len(s1) + len(s2) // Check size in bytes of resulting string
+	if l > maxMessageLength {
 		return nil, errors.Errorf("concatStrings: length of result (%d) is greater than allowed (%d)", l, maxBytesLength)
 	}
 	out := s1 + s2
-	lengthInRunes := utf8.RuneCountInString(out)
-	if lengthInRunes > maxMessageLength {
-		return nil, errors.Errorf("concatStrings: length of result (%d) is greater than allowed (%d)", lengthInRunes, maxMessageLength)
-	}
 	return rideString(out), nil
 }
 

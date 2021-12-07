@@ -342,6 +342,22 @@ func TestSplitString(t *testing.T) {
 	}
 }
 
+func BenchmarkSplitString(b *testing.B) {
+	item := strings.Repeat("x", 31)
+	list := make([]string, 1000)
+	for i := 0; i < 1000; i++ {
+		list[i] = item
+	}
+	s := strings.Join(list, ",")
+	args := []rideType{rideString(s), rideString(",")}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := splitString(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
+	}
+}
+
 func TestSplit(t *testing.T) {
 	for _, test := range []struct {
 		s, sep    string

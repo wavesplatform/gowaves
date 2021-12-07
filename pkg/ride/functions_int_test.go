@@ -272,6 +272,16 @@ func TestFraction(t *testing.T) {
 	}
 }
 
+func BenchmarkFraction(b *testing.B) {
+	args := []rideType{rideInt(math.MaxInt64), rideInt(math.MinInt64), rideInt(math.MinInt64)}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := fraction(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
+	}
+}
+
 func TestFractionIntRounds(t *testing.T) {
 	for _, test := range []struct {
 		args []rideType
@@ -320,6 +330,16 @@ func TestFractionIntRounds(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, test.r, r)
 		}
+	}
+}
+
+func BenchmarkFractionIntRounds(b *testing.B) {
+	args := []rideType{rideInt(math.MaxInt64), rideInt(math.MinInt64), rideInt(math.MinInt64), newHalfEven(nil)}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := fractionIntRounds(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
 	}
 }
 
@@ -372,6 +392,23 @@ func TestPow(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, test.r, r)
 		}
+	}
+}
+
+func BenchmarkPow(b *testing.B) {
+	e := &mockRideEnvironment{
+		validateInternalPaymentsFunc: func() bool {
+			return true
+		},
+	}
+	//98765432, 8, -$max, 0, 8, DOWN -> error
+	args := []rideType{rideInt(98765432), rideInt(8), rideInt(math.MinInt64), rideInt(0), rideInt(8), newDown(nil)}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := pow(nil, e, args...)
+		require.Error(b, err)
+		require.Nil(b, r)
+
 	}
 }
 
