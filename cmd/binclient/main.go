@@ -156,14 +156,31 @@ func parseVersion(v string) (proto.Version, error) {
 		return proto.Version{}, errors.Errorf("incorrect version %s", v)
 	}
 
-	major, _ := strconv.ParseUint(rs[0], 10, 64)
-	minot, _ := strconv.ParseUint(rs[1], 10, 64)
-	patch, _ := strconv.ParseUint(rs[2], 10, 64)
+	major, err := parseUint32(rs[0])
+	if err != nil {
+		return proto.Version{}, err
+	}
+	minor, err := parseUint32(rs[1])
+	if err != nil {
+		return proto.Version{}, err
+	}
+	patch, err := parseUint32(rs[2])
+	if err != nil {
+		return proto.Version{}, err
+	}
 
 	return proto.Version{
-		Major: uint32(major),
-		Minor: uint32(minot),
-		Patch: uint32(patch),
+		Major: major,
+		Minor: minor,
+		Patch: patch,
 	}, nil
 
+}
+
+func parseUint32(val string) (uint32, error) {
+	num, err := strconv.ParseUint(val, 10, 32)
+	if err != nil {
+		return 0, err
+	}
+	return uint32(num), nil
 }

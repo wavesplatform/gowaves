@@ -2,8 +2,9 @@ package errors
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
 	"net/http"
+
+	"github.com/pkg/errors"
 )
 
 type validationError struct {
@@ -63,12 +64,17 @@ func (e *StateCheckFailedError) MarshalJSON() ([]byte, error) {
 		return nil, errors.Wrap(err, "StateCheckFailedError.MarshalJSON")
 	}
 
-	// nickeskov `{"extra":"somevalue"}` -> `"extra":"somevalue"`
+	// `{"extra":"somevalue"}` -> `"extra":"somevalue"`
 	extraFields := embedded[1 : len(embedded)-1]
 
-	buffer := make([]byte, 0, len(errorJson)+len(extraFields)+1)
+	reservedLen := len(errorJson) + len(extraFields) + 1
+	if reservedLen > 1024*1024 {
+		return nil, errors.New("too big value, 1MB limit exceeded")
+	}
 
-	// nickeskov: errorJson=`{"somekey":"somevalue"}`, buffer = `"{"somekey":"somevalue"`
+	buffer := make([]byte, 0, reservedLen)
+
+	// errorJson=`{"somekey":"somevalue"}`, buffer = `"{"somekey":"somevalue"`
 	buffer = append(buffer, errorJson[:len(errorJson)-1]...)
 	// buffer = `"{"somekey":"somevalue",`
 	buffer = append(buffer, ',')

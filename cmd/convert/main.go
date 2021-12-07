@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"io/ioutil"
 	"os"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -98,14 +97,9 @@ func serveBinary(pathToBinary string, scheme proto.Scheme) error {
 }
 
 func inputBytes(path string) ([]byte, error) {
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			panic(err.Error())
-		}
-	}()
-	return ioutil.ReadAll(f)
+	return data, nil
 }

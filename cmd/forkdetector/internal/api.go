@@ -242,7 +242,7 @@ func (a *api) fork(w http.ResponseWriter, r *http.Request) {
 	addr := chi.URLParam(r, "address")
 	peer := net.ParseIP(addr)
 	if peer == nil {
-		http.Error(w, fmt.Sprintf("Invalid IP address '%s'", addr), http.StatusBadRequest)
+		http.Error(w, "Invalid IP address", http.StatusBadRequest)
 		return
 	}
 	nodes, err := a.registry.Peers()
@@ -278,7 +278,7 @@ func (a *api) fork(w http.ResponseWriter, r *http.Request) {
 
 func (a *api) blocksAtHeight(w http.ResponseWriter, r *http.Request) {
 	p := chi.URLParam(r, "height")
-	h, err := strconv.Atoi(p)
+	h, err := strconv.ParseUint(p, 10, 32)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Invalid height: %v", err), http.StatusBadRequest)
 		return
