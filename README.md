@@ -30,7 +30,7 @@ Import could be done as follows:
 
 Import may take a few hours, after which you can run the node as described in next section.
 
-Please mote that the Go Node has its own state storage structure that is incompatible with Scala Node.
+Please note that the Go Node has its own state storage structure that is incompatible with Scala Node.
 
 ### How to run the node
 
@@ -43,7 +43,7 @@ Run the node as follows:
 ./node -state-path [path to node state directory]
 ```
 
-By default, the node is run as a MainNet node. To run a TestNet node put `testnet`, as a blockchain type, and a list of comma separated TestNet peer's addresses:
+By default, the node is run as a MainNet node. To run a TestNet node put `testnet`, as a blockchain type. You may also enter a list of comma separated peers' addresses (Optional):
 ```bash
 ./node -state-path [path to node state directory] -blockchain-type testnet
 ``` 
@@ -63,7 +63,7 @@ For example:
 ./node -state-path ~/gowaves-testnet/ -blockchain-type testnet -wallet-path ~/testnet.wallet -wallet-password 'some super secret password' 
 ```
 
-Once the parameters were provided , the node would try loading and using private keys to generate blocks.
+Once the parameters were provided, the node would try loading and using private keys to generate blocks.
 
 #### How to create a wallet file
 
