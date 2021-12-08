@@ -236,7 +236,7 @@ func TestStackOverflowOnV2(t *testing.T) {
 
 func TestIntOverflowOnV3(t *testing.T) {
 	/*
-			{-# STDLIB_VERSION 5 #-}
+		{-# STDLIB_VERSION 5 #-}
 		{-# CONTENT_TYPE DAPP #-}
 		{-# SCRIPT_TYPE ACCOUNT #-}
 
@@ -320,7 +320,6 @@ func TestIntOverflowOnV3(t *testing.T) {
 
 	_, err = EstimateTree(tree, 3)
 	require.Error(t, err, "signed integer overflow")
-
 }
 
 func TestFailOnInvocationInExpression(t *testing.T) {
