@@ -21,8 +21,8 @@ Import could be done as follows:
 
 1. Download a blockchain file
 1. Download the `importer` utility from [Releases](https://github.com/wavesplatform/gowaves/releases)
-1. Run the command passing the path to the blockchain file and node's state directory as parameters.
-   The third parameter is the number of blocks to import, it should be less than needed height by one.
+1. Run the command, put the path to the blockchain file and node's state directory as parameters.
+   The third parameter is the number of blocks to import, it should be less than a desired height by one.
 
 ```bash
 ./importer -blockchain-path [path to blockchain file] -data-path [path to node state directory] -blocks-number [height - 1]
@@ -65,7 +65,7 @@ For example:
 
 Once the parameters were provided , the node would try loading and using private keys to generate blocks.
 
-#### How to create wallet file
+#### How to create a wallet file
 
 To create a wallet file use the `wallet` utility. Please download a suitable version of the `wallet` utility from the [Releases](https://github.com/wavesplatform/gowaves/releases) page.
 The following command will add a seed to the wallet file:
