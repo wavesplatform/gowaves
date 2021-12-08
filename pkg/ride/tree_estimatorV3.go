@@ -2,6 +2,7 @@ package ride
 
 import (
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type fd struct {
@@ -244,9 +245,25 @@ func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
 		}
 		if le > re {
 			e.scope.restore(ls)
-			return ce + le + 1, nil
+			sum, err := common.AddInt(ce, le)
+			if err != nil {
+				return 0, err
+			}
+			res, err := common.AddInt(sum, 1)
+			if err != nil {
+				return 0, err
+			}
+			return res, nil
 		}
-		return ce + re + 1, nil
+		sum, err := common.AddInt(ce, re)
+		if err != nil {
+			return 0, err
+		}
+		res, err := common.AddInt(sum, 1)
+		if err != nil {
+			return 0, err
+		}
+		return res, nil
 
 	case *AssignmentNode:
 		id := n.Name
@@ -263,7 +280,10 @@ func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
 				return 0, errors.Wrap(err, "failed to estimate let expression")
 			}
 			e.scope.restore(tmp)
-			c = c + le
+			c, err = common.AddInt(c, le)
+			if err != nil {
+				return 0, err
+			}
 		}
 		if overlapped {
 			e.scope.use(id)
@@ -310,16 +330,27 @@ func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
 				return 0, errors.Wrapf(err, "failed to estimate parameter %d of function call '%s'", i, name)
 			}
 			e.scope.restore(tmp)
-			ac += c
+			ac, err = common.AddInt(ac, c)
+			if err != nil {
+				return 0, err
+			}
 		}
-		return fc + ac, nil
+		res, err := common.AddInt(fc, ac)
+		if err != nil {
+			return 0, err
+		}
+		return res, nil
 
 	case *PropertyNode:
 		c, err := e.walk(n.Object, enableInvocation)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate getter '%s'", n.Name)
 		}
-		return c + 1, nil
+		res, err := common.AddInt(c, 1)
+		if err != nil {
+			return 0, err
+		}
+		return res, nil
 
 	default:
 		return 0, errors.Errorf("unsupported type of node '%T'", node)
