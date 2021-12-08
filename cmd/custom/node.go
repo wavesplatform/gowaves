@@ -55,7 +55,7 @@ var (
 	outdateS          = flag.String("outdate", "4h", "Interval between last applied block and current time. If greater than no mining, no transaction accepted. Example 1d4h30m")
 	walletPath        = flag.String("wallet-path", "", "Path to wallet, or ~/.waves by default")
 	walletPassword    = flag.String("wallet-password", "", "Pass password for wallet. Extremely insecure")
-	limitConnectionsS = flag.String("limit-connections", "30", "N incoming and outgoing connections")
+	limitConnections  = flag.String("limit-connections", "30", "N incoming and outgoing connections")
 	minPeersMining    = flag.Int("min-peers-mining", 1, "Minimum connected peers for allow mining")
 	dropPeers         = flag.Bool("drop-peers", false, "Drop peers storage before node start.")
 )
@@ -125,7 +125,7 @@ func main() {
 		}
 	}
 
-	limitConnections, err := strconv.ParseUint(*limitConnectionsS, 10, 64)
+	connectionsLimit, err := strconv.Atoi(*limitConnections)
 	if err != nil {
 		zap.S().Error(err)
 		return
@@ -213,7 +213,7 @@ func main() {
 		zap.S().Info("Successfully dropped peers storage")
 	}
 
-	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, peerStorage, int(limitConnections), version, conf.WavesNetwork, true, 10)
+	peerManager := peer_manager.NewPeerManager(peerSpawnerImpl, peerStorage, connectionsLimit, version, conf.WavesNetwork, true, 10)
 	go peerManager.Run(ctx)
 
 	scheduler := scheduler2.NewScheduler(

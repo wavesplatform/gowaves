@@ -60,14 +60,17 @@ func main() {
 	}
 
 	inf := make([]interface{}, 0, 2*len(cliArgs.seeds))
-	for _, v := range cliArgs.seeds {
+	for i, v := range cliArgs.seeds {
 		splitted := strings.Split(v, ":")
 		if len(splitted) != 2 {
 			zap.S().Fatal("format should be test1:100000000")
 		}
 		kp := proto.MustKeyPair([]byte(splitted[0]))
-		num, _ := strconv.ParseUint(strings.Replace(splitted[1], "_", "", -1), 10, 64)
-		inf = append(inf, kp, int(num))
+		num, err := strconv.ParseUint(strings.Replace(splitted[1], "_", "", -1), 10, 64)
+		if err != nil {
+			zap.S().Fatalf("failed to parse seed (%d): %v", i, err)
+		}
+		inf = append(inf, kp, num)
 	}
 
 	genesis, err := genesis_generator.Generate(t, cliArgs.schemeByte[0], inf...)
