@@ -30,6 +30,11 @@ jobs:
         with:
           go-version: 1.16
       - name: Run go list
-        run: go list -json -m all > go.list
+        run: |
+          if [ -n "$(go mod graph | grep 'github.com/prometheus/common@v0.4.1 github.com/gogo/protobuf@v1.1.1')" ]; then \
+            go list -m all | grep -v "github.com/gogo/protobuf v1.1.1" > go.list; \
+          else \
+            go list -m all > go.list; \
+          fi;
       - name: Nancy
         uses: sonatype-nexus-community/nancy-github-action@v1.0.2
