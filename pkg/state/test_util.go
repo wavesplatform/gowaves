@@ -44,11 +44,12 @@ func blocksPath() (string, error) {
 	return filepath.Join(dir, "testdata", "blocks-10000"), nil
 }
 
+// readRealBlocks reads blocks. This function MUST be used ONLY for tests.
 func readRealBlocks(blocksPath string, nBlocks int) ([]proto.Block, error) {
 	if len(cachedBlocks) >= nBlocks {
 		return cachedBlocks[:nBlocks], nil
 	}
-	f, err := os.Open(blocksPath)
+	f, err := os.Open(filepath.Clean(blocksPath))
 	if err != nil {
 		return nil, err
 	}

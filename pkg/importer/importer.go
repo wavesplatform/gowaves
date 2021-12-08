@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
@@ -78,7 +79,7 @@ func calculateNextMaxSizeAndDirection(maxSize int, speed, prevSpeed float64, inc
 // when no rollbacks are possible at all.
 // If the state was rolled back at least once before, `optimize` MUST BE false.
 func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64, optimize bool) error {
-	blockchain, err := os.Open(blockchainPath)
+	blockchain, err := os.Open(blockchainPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
 		return errors.Errorf("failed to open blockchain file: %v", err)
 	}
@@ -144,11 +145,16 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64,
 	return nil
 }
 
-func CheckBalances(st State, balancesPath string) error {
-	balances, err := os.Open(balancesPath)
+func CheckBalances(st State, balancesPath string) (err error) {
+	balances, err := os.Open(filepath.Clean(balancesPath))
 	if err != nil {
-		return errors.Errorf("failed to open balances file: %v", err)
+		return errors.Wrapf(err, "failed to open balances file %q", balancesPath)
 	}
+	defer func() {
+		if closeErr := balances.Close(); closeErr != nil {
+			zap.S().Fatalf("Failed to close balances file: %v", closeErr)
+		}
+	}()
 	var state map[string]uint64
 	jsonParser := json.NewDecoder(balances)
 	if err := jsonParser.Decode(&state); err != nil {
@@ -174,9 +180,6 @@ func CheckBalances(st State, balancesPath string) error {
 		if balance != properBalance {
 			return errors.Errorf("balances for address %v differ: %d and %d", addr, properBalance, balance)
 		}
-	}
-	if err := balances.Close(); err != nil {
-		return errors.Errorf("failed to close balances file: %v", err)
 	}
 	return nil
 }

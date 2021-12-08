@@ -56,7 +56,7 @@ func NewSymbolsFromFile(name string, oracle proto.WavesAddress, scheme byte) (*S
 		oracle:  oracle,
 		scheme:  scheme,
 	}
-	f, err := os.Open(name)
+	f, err := os.Open(name) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
 		return nil, wrapError(err)
 	}

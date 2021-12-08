@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
-	"unsafe"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
@@ -20,6 +18,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/lock"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -334,7 +333,7 @@ type stateManager struct {
 	mu *sync.RWMutex // `mu` is used outside of state and returned in Mutex() function.
 
 	// Last added block.
-	lastBlock unsafe.Pointer
+	lastBlock atomic.Value
 
 	genesis proto.Block
 	stateDB *stateDB
@@ -362,13 +361,13 @@ func newStateManager(dataDir string, params StateParams, settings *settings.Bloc
 		return nil, err
 	}
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		if err := os.Mkdir(dataDir, 0755); err != nil {
+		if err := os.Mkdir(dataDir, 0750); err != nil {
 			return nil, wrapErr(Other, errors.Errorf("failed to create state directory: %v", err))
 		}
 	}
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); os.IsNotExist(err) {
-		if err := os.Mkdir(blockStorageDir, 0755); err != nil {
+		if err := os.Mkdir(blockStorageDir, 0750); err != nil {
 			return nil, wrapErr(Other, errors.Errorf("failed to create blocks directory: %v", err))
 		}
 	}
@@ -611,12 +610,12 @@ func (s *stateManager) loadLastBlock() error {
 	if err != nil {
 		return errors.Errorf("failed to get block by height: %v", err)
 	}
-	atomic.StorePointer(&s.lastBlock, unsafe.Pointer(lastBlock))
+	s.lastBlock.Store(lastBlock)
 	return nil
 }
 
 func (s *stateManager) TopBlock() *proto.Block {
-	return (*proto.Block)(atomic.LoadPointer(&s.lastBlock))
+	return s.lastBlock.Load().(*proto.Block)
 }
 
 func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {

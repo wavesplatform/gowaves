@@ -97,7 +97,7 @@ func serveBinary(pathToBinary string, scheme proto.Scheme) error {
 }
 
 func inputBytes(path string) ([]byte, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
 		return nil, err
 	}

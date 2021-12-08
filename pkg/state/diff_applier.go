@@ -3,8 +3,9 @@ package state
 import (
 	"bytes"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"sort"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -134,14 +135,15 @@ func (k changesByKey) Less(i, j int) bool {
 	return bytes.Compare(k[i].key, k[j].key) == -1
 }
 
-func (a *diffApplier) applyBalancesChangesImpl(changes []balanceChanges, filter, validateOnly bool) error {
+func (a *diffApplier) applyBalancesChangesImpl(changesPack []balanceChanges, filter, validateOnly bool) error {
 	// Sort all changes by addresses they do modify.
 	// LevelDB stores data sorted by keys, and the idea is to read in sorted order.
 	// We save a lot of time on disk's seek time for hdd, and some time for ssd too (by reducing amount of reads).
 	// TODO: if DB supported MultiGet() operation, this would probably be even faster.
-	sort.Sort(changesByKey(changes))
-	for _, changes := range changes {
-		if err := a.applyBalanceChanges(&changes, filter, validateOnly); err != nil {
+	sort.Sort(changesByKey(changesPack))
+	for i := range changesPack {
+		changes := &changesPack[i] // prevent implicit memory aliasing in for loop
+		if err := a.applyBalanceChanges(changes, filter, validateOnly); err != nil {
 			return err
 		}
 	}

@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"flag"
-	"math/rand"
+	"math"
+	"math/big"
 	"os"
 	"os/signal"
 	"strconv"
@@ -193,7 +195,13 @@ func main() {
 
 	parent := peer.NewParent()
 	utx := utxpool.New(10000, utxpool.NewValidator(nodeState, ntpTime, outdateSeconds*1000), custom)
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, "gowaves", uint64(rand.Int()), version)
+	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
+	if err != nil {
+		zap.S().Error(err)
+		cancel()
+		return
+	}
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, "gowaves", nodeNonce.Uint64(), version)
 
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(*statePath, time.Now())
 	if err != nil {
