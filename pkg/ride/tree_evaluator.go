@@ -163,7 +163,7 @@ func newEvaluationScope(v int, env environment, enableInvocation bool) (evaluati
 		}
 		fs[fn] = functionProvider(int(id))
 	}
-	costs, err := selectEvaluationCostsProvider(v)
+	costs, err := selectEvaluationCostsProvider(v, !env.rideV6Activated())
 	if err != nil {
 		return evaluationScope{}, err
 	}

@@ -24,12 +24,18 @@ var (
 		return size <= maxMessageLength
 	}
 	v5takeString = takeRideString
+	noRideV6     = func() bool {
+		return false
+	}
 )
 
 func TestAddressFromString(t *testing.T) {
-	te := &mockRideEnvironment{schemeFunc: func() byte {
-		return 'W'
-	}}
+	te := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return 'W'
+		},
+		rideV6ActivatedFunc: noRideV6,
+	}
 	ma, err := proto.NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
 	require.NoError(t, err)
 	for _, test := range []struct {

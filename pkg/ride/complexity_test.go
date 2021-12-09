@@ -25,6 +25,9 @@ var (
 		libVersionFunc: func() int {
 			return 5
 		},
+		rideV6ActivatedFunc: func() bool {
+			return false
+		},
 	}
 )
 

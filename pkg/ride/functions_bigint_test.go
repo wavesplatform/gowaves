@@ -17,6 +17,9 @@ var env environment = &mockRideEnvironment{
 	validateInternalPaymentsFunc: func() bool {
 		return false
 	},
+	rideV6ActivatedFunc: func() bool {
+		return false
+	},
 }
 
 func TestPowBigInt(t *testing.T) {

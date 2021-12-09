@@ -6,6 +6,29 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
+)
+
+var (
+	nativeFoldTestState = &MockSmartState{}
+	nativeFoldTestEnv   = &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return proto.TestNetScheme
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return false
+		},
+		stateFunc: func() types.SmartState {
+			return nativeFoldTestState
+		},
+		libVersionFunc: func() int {
+			return 5
+		},
+		rideV6ActivatedFunc: func() bool {
+			return true
+		},
+	}
 )
 
 func evaluateFold(t *testing.T, code string) {
@@ -16,7 +39,7 @@ func evaluateFold(t *testing.T, code string) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	res, err := CallVerifier(nil, tree)
+	res, err := CallVerifier(nativeFoldTestEnv, tree)
 	require.NoError(t, err)
 	r, ok := res.(ScriptResult)
 	require.True(t, ok)

@@ -34,18 +34,30 @@ func selectFunctionChecker(v int) (func(name string) (uint16, bool), error) {
 	}
 }
 
-func selectEvaluationCostsProvider(v int) (map[string]int, error) {
+func selectEvaluationCostsProvider(v int, separateEvaluationCosts bool) (map[string]int, error) {
 	switch v {
 	case 1, 2:
-		return EvaluationCatalogueV2, nil
+		if separateEvaluationCosts {
+			return EvaluationCatalogueV2, nil
+		}
+		return CatalogueV2, nil
 	case 3:
-		return EvaluationCatalogueV3, nil
+		if separateEvaluationCosts {
+			return EvaluationCatalogueV3, nil
+		}
+		return CatalogueV3, nil
 	case 4:
-		return EvaluationCatalogueV4, nil
+		if separateEvaluationCosts {
+			return EvaluationCatalogueV4, nil
+		}
+		return CatalogueV4, nil
 	case 5:
-		return EvaluationCatalogueV5, nil
+		if separateEvaluationCosts {
+			return EvaluationCatalogueV5, nil
+		}
+		return CatalogueV5, nil
 	case 6:
-		return EvaluationCatalogueV6, nil
+		return CatalogueV6, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
