@@ -3,7 +3,7 @@ package wallet
 import (
 	"io/ioutil"
 	"os/user"
-	"path"
+	"path/filepath"
 )
 
 type Loader interface {
@@ -22,18 +22,10 @@ func (a LoaderImpl) Load() ([]byte, error) {
 	if a.path != "" {
 		return ioutil.ReadFile(a.path)
 	} else {
-		home, err := userHomeDir()
+		u, err := user.Current()
 		if err != nil {
 			return nil, err
 		}
-		return ioutil.ReadFile(path.Join(home, ".waves"))
+		return ioutil.ReadFile(filepath.Join(u.HomeDir, ".waves"))
 	}
-}
-
-func userHomeDir() (string, error) {
-	u, err := user.Current()
-	if err != nil {
-		return "", err
-	}
-	return u.HomeDir, nil
 }

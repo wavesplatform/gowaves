@@ -1,9 +1,11 @@
 package main
 
 import (
+	"crypto/rand"
 	"flag"
 	"fmt"
-	"math/rand"
+	"math"
+	"math/big"
 	"net"
 	"os"
 	"runtime"
@@ -194,17 +196,21 @@ func parseConfiguration() (*configuration, error) {
 	if *netBindAddress == "" {
 		return nil, errors.Errorf("invalid bind address for network server '%s'", *netBindAddress)
 	}
+
 	if l := len(*netName); l <= 0 || l > 255 {
 		return nil, errors.Errorf("invalid network name '%s'", *netName)
 	}
 	nonce := uint64(*netNonce)
 	if nonce == 0 {
-		nonce = generateNonce()
+		nonce, err = generateNonce()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to generate nonce")
+		}
 	}
 	addr := proto.ParseHandshakeTCPAddr(*declaredAddress)
 	peers, err := splitPeers(*seedPeers)
 	if err != nil {
-		return nil, errors.Wrapf(err, "invalid seed peers list")
+		return nil, errors.Wrap(err, "invalid seed peers list")
 	}
 	var cpuProf *os.File
 	if *cpuProfilePath != "" {
@@ -225,7 +231,7 @@ func parseConfiguration() (*configuration, error) {
 		dbPath:         *db,
 		logLevel:       *logLevel,
 		logFile:        *logFile,
-		scheme:         (byte)((*scheme)[0]),
+		scheme:         (*scheme)[0],
 		genesis:        id,
 		versions:       vs,
 		seedPeers:      peers,
@@ -300,6 +306,10 @@ func setupLogger(level, file string) (*zap.Logger, *zap.SugaredLogger) {
 	return logger, logger.Sugar()
 }
 
-func generateNonce() uint64 {
-	return uint64(rand.Int63n(1000000))
+func generateNonce() (uint64, error) {
+	nonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
+	if err != nil {
+		return 0, err
+	}
+	return nonce.Uint64(), nil
 }

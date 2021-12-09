@@ -147,7 +147,7 @@ func (a *storeImpl) tmpFileName() string {
 }
 
 func (a *storeImpl) saveData(f io.WriterTo) error {
-	file, err := os.OpenFile(a.tmpFileName(), os.O_RDWR|os.O_CREATE, 0644)
+	file, err := os.OpenFile(a.tmpFileName(), os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}

@@ -34,7 +34,7 @@ func (im *Importer) Import(n string) error {
 		zap.S().Infof("Import took %s", elapsed)
 	}()
 
-	f, err := os.Open(n)
+	f, err := os.Open(n) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
 		return errors.Wrapf(err, "failed to open blockchain file '%s'", n)
 	}

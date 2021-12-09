@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"os"
-	"path"
+	"path/filepath"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -174,8 +174,9 @@ type blockReadWriter struct {
 	mtx sync.RWMutex
 }
 
+// openOrCreateForAppending function opens file if it exists or creates new in other case.
 func openOrCreateForAppending(path string) (*os.File, uint64, error) {
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0600) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
 		return nil, 0, err
 	}
@@ -197,15 +198,15 @@ func newBlockReadWriter(
 	stateDB *stateDB,
 	scheme proto.Scheme,
 ) (*blockReadWriter, error) {
-	blockchain, blockchainSize, err := openOrCreateForAppending(path.Join(dir, "blockchain"))
+	blockchain, blockchainSize, err := openOrCreateForAppending(filepath.Join(dir, "blockchain"))
 	if err != nil {
 		return nil, err
 	}
-	headers, headersSize, err := openOrCreateForAppending(path.Join(dir, "headers"))
+	headers, headersSize, err := openOrCreateForAppending(filepath.Join(dir, "headers"))
 	if err != nil {
 		return nil, err
 	}
-	blockHeight2ID, _, err := openOrCreateForAppending(path.Join(dir, "block_height_to_id"))
+	blockHeight2ID, _, err := openOrCreateForAppending(filepath.Join(dir, "block_height_to_id"))
 	if err != nil {
 		return nil, err
 	}

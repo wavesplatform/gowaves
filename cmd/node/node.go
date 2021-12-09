@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"flag"
 	"fmt"
-	"math/rand"
+	"math"
+	"math/big"
 	"net/http"
 	_ "net/http"
-	_ "net/http/pprof"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
@@ -138,6 +140,7 @@ func debugCommandLineParameters() {
 
 func main() {
 	flag.Parse()
+	common.SetupLogger(*logLevel)
 
 	maxFDs, err := fdlimit.MaxFDs()
 	if err != nil {
@@ -151,12 +154,17 @@ func main() {
 		zap.S().Fatalf("Invalid 'db-file-descriptors' flag value (%d). Value shall be less or equal to %d.", *dbFileDescriptors, maxAvailableFileDescriptors)
 	}
 
-	common.SetupLogger(*logLevel)
-
 	if *profiler {
 		zap.S().Infof("Starting built-in profiler on 'http://localhost:6060/debug/pprof/'")
 		go func() {
-			zap.S().Warn(http.ListenAndServe("localhost:6060", nil))
+			pprofMux := http.NewServeMux()
+			// taken from "net/http/pprof" init()
+			pprofMux.HandleFunc("/debug/pprof/", pprof.Index)
+			pprofMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+			pprofMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+			pprofMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+			pprofMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+			zap.S().Warn(http.ListenAndServe("localhost:6060", pprofMux))
 		}()
 	}
 
@@ -304,7 +312,13 @@ func main() {
 
 	utx := utxpool.New(uint64(1024*mb), utxpool.NewValidator(st, ntpTime, outdatePeriodSeconds*1000), cfg)
 	parent := peer.NewParent()
-	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, *nodeName, uint64(rand.Int()), version)
+	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxUint64))
+	if err != nil {
+		zap.S().Error(err)
+		cancel()
+		return
+	}
+	peerSpawnerImpl := peer_manager.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, *nodeName, nodeNonce.Uint64(), version)
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(*statePath, time.Now())
 	if err != nil {
 		zap.S().Errorf("Failed to open or create peers storage: %v", err)

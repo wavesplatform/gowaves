@@ -316,8 +316,10 @@ func (r *Registry) AppendAddresses(addresses []net.TCPAddr) int {
 	defer r.mu.Unlock()
 
 	count := 0
-	for _, addr := range addresses {
-		ip, port, err := splitAddr(&addr)
+	for i := range addresses {
+		addr := &addresses[i] // prevent implicit memory aliasing in for loop
+
+		ip, port, err := splitAddr(addr)
 		if err != nil {
 			zap.S().Warnf("Error adding address: %v", err)
 			continue

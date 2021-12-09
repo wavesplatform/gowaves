@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"path/filepath"
 
 	"github.com/howeyc/gopass"
 	"github.com/mr-tron/base58"
@@ -70,7 +71,7 @@ func show(opts Opts) {
 		return
 	}
 
-	b, err := ioutil.ReadFile(walletPath)
+	b, err := ioutil.ReadFile(walletPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
 		fmt.Printf("Err: %s\n", err.Error())
 		return
@@ -110,7 +111,7 @@ func addToWallet(opts Opts) {
 
 	var wlt wallet.Wallet
 	if exists(walletPath) {
-		b, err := ioutil.ReadFile(walletPath)
+		b, err := ioutil.ReadFile(walletPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 		if err != nil {
 			fmt.Printf("Err: %s\n", err.Error())
 			return
@@ -169,7 +170,7 @@ func userHomeDir() (string, error) {
 
 func getWalletPath(userDefinedPath string) string {
 	if userDefinedPath != "" {
-		return userDefinedPath
+		return filepath.Clean(userDefinedPath)
 	}
 	home, err := userHomeDir()
 	if err != nil {
