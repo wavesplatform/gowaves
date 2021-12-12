@@ -518,7 +518,49 @@ func TestBooleanFromSelfState(t *testing.T) {
 }
 
 func TestAddressFromRecipient(t *testing.T) {
-	t.SkipNow()
+	addr, err := proto.NewAddressFromString("3N9WtaPoD1tMrDZRG26wA142Byd35tLhnLU")
+	require.NoError(t, err)
+	s := &MockSmartState{
+		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
+			if alias.Alias == "correct" {
+				return addr, nil
+			}
+			return proto.WavesAddress{}, errors.New("unexpected test address")
+		},
+	}
+	alias := proto.NewAlias('T', "correct")
+	e := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return 'T'
+		},
+		stateFunc: func() types.SmartState {
+			return s
+		},
+		validateInternalPaymentsFunc: func() bool {
+			return false
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideAddress(addr)}, false, rideAddress(addr)},
+		{[]rideType{rideAlias(*alias)}, false, rideAddress(addr)},
+		{[]rideType{rideRecipient(proto.NewRecipientFromAddress(addr))}, false, rideAddress(addr)},
+		{[]rideType{rideRecipient(proto.NewRecipientFromAlias(*alias))}, false, rideAddress(addr)},
+		{[]rideType{}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideString("xxx"), rideInt(12345)}, true, nil},
+	} {
+		r, err := addressFromRecipient(e, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
 }
 
 func TestSigVerify(t *testing.T) {
