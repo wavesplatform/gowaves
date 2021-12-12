@@ -576,7 +576,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-
 	rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
 	if err != nil {
 		return err

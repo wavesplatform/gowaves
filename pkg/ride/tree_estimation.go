@@ -64,6 +64,16 @@ func EstimateTree(tree *Tree, v int) (TreeEstimation, error) {
 			return TreeEstimation{}, errors.Wrap(err, "failed to estimate with tree estimator V3")
 		}
 		return TreeEstimation{Estimation: max, Verifier: verifier, Functions: functions}, nil
+	case 4:
+		te, err := newTreeEstimatorV4(tree)
+		if err != nil {
+			return TreeEstimation{}, errors.Wrap(err, "failed to estimate with tree estimator V3")
+		}
+		max, verifier, functions, err := te.estimate()
+		if err != nil {
+			return TreeEstimation{}, errors.Wrap(err, "failed to estimate with tree estimator V3")
+		}
+		return TreeEstimation{Estimation: max, Verifier: verifier, Functions: functions}, nil
 	default:
 		return TreeEstimation{}, errors.Errorf("unsupported version of tree estimator '%d'", v)
 	}
