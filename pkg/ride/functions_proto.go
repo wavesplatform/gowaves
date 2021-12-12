@@ -531,6 +531,12 @@ func addressFromRecipient(env environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("addressFromRecipient: unable to get address from recipient '%s'", r)
 	case rideAddress:
 		return r, nil
+	case rideAlias:
+		addr, err := env.state().NewestAddrByAlias(proto.Alias(r))
+		if err != nil {
+			return nil, errors.Wrap(err, "addressFromRecipient")
+		}
+		return rideAddress(addr), nil
 	default:
 		return nil, errors.Errorf("addressFromRecipient: unexpected argument type '%s'", args[0].instanceOf())
 	}
