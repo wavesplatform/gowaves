@@ -559,7 +559,7 @@ func TestAddressFromRecipient(t *testing.T) {
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{rideString("xxx"), rideInt(12345)}, true, nil},
 	} {
-		r, err := addressFromRecipient(e, test.args...)
+		r, err := addressFromRecipient(nil, e, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
