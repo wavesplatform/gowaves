@@ -257,7 +257,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		if err != nil {
 			return nil, err
 		}
-		sender, err = transaction.WavesAddressFrom(a.settings.AddressSchemeCharacter)
+		sender = transaction.TxKind.Sender()
 		if err != nil {
 			return nil, errors.Errorf("failed to get waves address from ethereum transaction %v", err)
 		}

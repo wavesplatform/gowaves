@@ -2238,7 +2238,7 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	erc20arguments, err := ethabi.GetERC20TransferArguments(decodedData)
 	assert.NoError(t, err)
 
-	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID), erc20arguments)
+	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, proto.NewOptionalAssetFromDigest(asset.ID), erc20arguments)
 
 	rideObj, err := transactionToObject(proto.MainNetScheme, &tx)
 	assert.NoError(t, err)

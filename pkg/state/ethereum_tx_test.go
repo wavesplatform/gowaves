@@ -80,8 +80,9 @@ func TestEthereumTransferWaves(t *testing.T) {
 
 	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 100000)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
-	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
-
+	tx.TxKind, err = proto.GetEthereumTransactionKind(tx)
+	assert.NoError(t, err)
+	err = txAppender.ethInfo.fillRequiredTxFields(&tx, appendTxParams)
 	assert.NoError(t, err)
 	applRes, err := txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	assert.NoError(t, err)
@@ -156,7 +157,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 	assetInfo, err := txAppender.ethInfo.stor.assets.newestAssetInfo(*assetID, true)
 	require.NoError(t, err)
 	fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.tail)
-	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(fullAssetID), erc20arguments)
+	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, proto.NewOptionalAssetFromDigest(fullAssetID), erc20arguments)
 	applRes, err := txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	assert.NoError(t, err)
 	assert.True(t, applRes.status)
@@ -251,7 +252,7 @@ func TestEthereumInvoke(t *testing.T) {
 
 	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000)
 	decodedData := defaultDecodedData("call", []ethabi.DecodedArg{{Value: ethabi.Int(10)}}, []ethabi.Payment{{Amount: 5, AssetID: proto.NewOptionalAssetWaves().ID}})
-	txKind := proto.NewEthereumInvokeScriptTxKind(decodedData)
+	txKind := proto.NewEthereumInvokeScriptTxKind(&decodedData)
 	tx := proto.NewEthereumTransaction(txData, txKind, &crypto.Digest{}, &senderPK, 0)
 
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
@@ -287,7 +288,9 @@ func TestTransferZeroAmount(t *testing.T) {
 
 	txData := defaultEthereumLegacyTxData(0, &recipientEth, nil, 100000)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
-	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
+	tx.TxKind, err = proto.GetEthereumTransactionKind(tx)
+	assert.NoError(t, err)
+	err = txAppender.ethInfo.fillRequiredTxFields(&tx, appendTxParams)
 	assert.NoError(t, err)
 
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
@@ -305,9 +308,10 @@ func TestTransferMainNetTestnet(t *testing.T) {
 
 	txData := defaultEthereumLegacyTxData(100, &recipientEth, nil, 100000)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
-	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
+	tx.TxKind, err = proto.GetEthereumTransactionKind(tx)
 	assert.NoError(t, err)
-
+	err = txAppender.ethInfo.fillRequiredTxFields(&tx, appendTxParams)
+	assert.NoError(t, err)
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
 	require.Error(t, err)
 }
@@ -323,7 +327,9 @@ func TestTransferCheckFee(t *testing.T) {
 
 	txData := defaultEthereumLegacyTxData(100, &recipientEth, nil, 100)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
-	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
+	tx.TxKind, err = proto.GetEthereumTransactionKind(tx)
+	assert.NoError(t, err)
+	err = txAppender.ethInfo.fillRequiredTxFields(&tx, appendTxParams)
 	assert.NoError(t, err)
 
 	_, err = txAppender.handleDefaultTransaction(&tx, appendTxParams, false)
@@ -380,7 +386,7 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 
 	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000)
 	decodedData := defaultDecodedData("call", nil, nil)
-	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumInvokeScriptTxKind(decodedData), &crypto.Digest{}, &senderPK, 0)
+	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumInvokeScriptTxKind(&decodedData), &crypto.Digest{}, &senderPK, 0)
 
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
@@ -454,7 +460,7 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 		{Value: ethabi.Bool(true)}, // will leave it here
 		{Value: ethabi.List{ethabi.Int(4)}},
 	}, nil)
-	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumInvokeScriptTxKind(decodedData), &crypto.Digest{}, &senderPK, 0)
+	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumInvokeScriptTxKind(&decodedData), &crypto.Digest{}, &senderPK, 0)
 
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)

@@ -1,8 +1,6 @@
 package ride
 
 import (
-	"math/big"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -960,13 +958,7 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		r["senderPublicKey"] = rideBytes(callerPK)
 		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(*to))
 		r["assetId"] = optionalAsset(proto.NewOptionalAssetWaves())
-		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
-		if ok := res.IsInt64(); !ok {
-			return nil, EvaluationFailure.Errorf(
-				"transferWithProofsToObject: failed to convert amount from ethreum transaction (big int) to int64. value is %s",
-				tx.Value().String())
-		}
-		amount := res.Int64()
+		amount := tx.Value()
 		r["amount"] = rideInt(amount)
 		r["fee"] = rideInt(tx.GetFee())
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
@@ -985,7 +977,7 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			return nil, errors.Wrap(err, "failed to convert ethereum ERC20 transfer recipient to WavesAddress")
 		}
 		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(recipientAddr))
-		r["assetId"] = optionalAsset(kind.Asset)
+		r["assetId"] = optionalAsset(*kind.Asset)
 		r["amount"] = rideInt(kind.Arguments.Amount)
 		r["fee"] = rideInt(tx.GetFee())
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
@@ -1176,10 +1168,11 @@ func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (r
 }
 
 func ethereumInvocationToObject(v int, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
-	sender, err := tx.WavesAddressFrom(scheme)
-	if err != nil {
-		return nil, err
+	txKind, ok := tx.TxKind.(*proto.EthereumInvokeScriptTxKind)
+	if !ok {
+		return nil, errors.New("failed to recognize ethereum invoke script tx kind")
 	}
+	sender := txKind.From
 	r := make(rideObject)
 	r[instanceFieldName] = rideString("Invocation")
 	r["transactionId"] = rideBytes(tx.ID.Bytes())

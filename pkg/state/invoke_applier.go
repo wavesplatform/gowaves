@@ -754,10 +754,8 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		decodedData := transaction.TxKind.DecodedData()
 		paymentsLength = len(decodedData.Payments)
 		txID = *transaction.ID
-		sender, err = transaction.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to apply script invocation")
-		}
+		sender = transaction.TxKind.Sender()
+
 	default:
 		return nil, errors.New("failed to apply an invoke script: unexpected type of transaction ")
 	}

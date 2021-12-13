@@ -180,7 +180,7 @@ func (s londonSigner) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, err
 	// DynamicFee txs are defined to use 0 and 1 as their recovery
 	// id, add 27 to become equivalent to unprotected Homestead signatures.
 	V = new(big.Int).Add(V, big.NewInt(27))
-	if tx.ChainId().Cmp(s.chainId) != 0 {
+	if tx.inner.chainID().Cmp(s.chainId) != 0 {
 		return nil, ErrInvalidChainId
 	}
 	return recoverEthereumPubKey(s.Hash(tx), R, S, V, true)
@@ -262,7 +262,7 @@ func (s eip2930Signer) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, er
 	// AL txs are defined to use 0 and 1 as their recovery
 	// id, add 27 to become equivalent to unprotected Homestead signatures.
 	V = new(big.Int).Add(V, big.NewInt(27))
-	if tx.ChainId().Cmp(s.chainId) != 0 {
+	if tx.inner.chainID().Cmp(s.chainId) != 0 {
 		return nil, ErrInvalidChainId
 	}
 	return recoverEthereumPubKey(s.Hash(tx), R, S, V, true)
@@ -342,7 +342,7 @@ func (s eip155Signer) SenderPK(tx *EthereumTransaction) (*EthereumPublicKey, err
 	if !tx.Protected() {
 		return HomesteadSigner{}.SenderPK(tx)
 	}
-	if tx.ChainId().Cmp(s.chainId) != 0 {
+	if tx.inner.chainID().Cmp(s.chainId) != 0 {
 		return nil, ErrInvalidChainId
 	}
 	V, R, S := tx.RawSignatureValues()

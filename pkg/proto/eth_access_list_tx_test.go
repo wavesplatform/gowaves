@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO inner Data should contain 4 bytes, not 2
 func TestEthereumAccessListTxCanonical(t *testing.T) {
 	mustDecodeFomHexString := func(hexString string) []byte {
 		data, err := DecodeFromHexString(hexString)

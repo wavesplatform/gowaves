@@ -98,9 +98,11 @@ type EthereumTxData interface {
 type EthereumTransactionKind interface {
 	String() string
 	DecodedData() *ethabi.DecodedCallData
+	Sender() WavesAddress
 }
 
 type EthereumTransferWavesTxKind struct {
+	From WavesAddress
 }
 
 func NewEthereumTransferWavesTxKind() *EthereumTransferWavesTxKind {
@@ -115,10 +117,15 @@ func (tx *EthereumTransferWavesTxKind) String() string {
 	return "EthereumTransferWavesTxKind"
 }
 
+func (tx *EthereumTransferWavesTxKind) Sender() WavesAddress {
+	return tx.From
+}
+
 type EthereumTransferAssetsErc20TxKind struct {
 	decodedData ethabi.DecodedCallData
 	Arguments   ethabi.ERC20TransferArguments
 	Asset       *OptionalAsset
+	From        WavesAddress
 }
 
 func NewEthereumTransferAssetsErc20TxKind(decodedData ethabi.DecodedCallData, asset *OptionalAsset, arguments ethabi.ERC20TransferArguments) *EthereumTransferAssetsErc20TxKind {
@@ -133,8 +140,13 @@ func (tx *EthereumTransferAssetsErc20TxKind) String() string {
 	return "EthereumTransferAssetsErc20TxKind"
 }
 
+func (tx *EthereumTransferAssetsErc20TxKind) Sender() WavesAddress {
+	return tx.From
+}
+
 type EthereumInvokeScriptTxKind struct {
 	DecodedCallData *ethabi.DecodedCallData
+	From            WavesAddress
 }
 
 func NewEthereumInvokeScriptTxKind(decodedData *ethabi.DecodedCallData) *EthereumInvokeScriptTxKind {
@@ -149,11 +161,15 @@ func (tx *EthereumInvokeScriptTxKind) String() string {
 	return "EthereumInvokeScriptTxKind"
 }
 
+func (tx *EthereumInvokeScriptTxKind) Sender() WavesAddress {
+	return tx.From
+}
+
 type EthereumTransaction struct {
 	inner           EthereumTxData
 	value           int64
-	chainID			int64
-	gasPrice		uint64
+	chainID         int64
+	gasPrice        uint64
 	innerBinarySize int
 	senderPK        atomic.Value // *EthereumPublicKey
 	TxKind          EthereumTransactionKind
@@ -168,6 +184,9 @@ func NewEthereumTransaction(inner EthereumTxData, txKind EthereumTransactionKind
 		TxKind:          txKind,
 		ID:              id,
 	}
+	res := new(big.Int).Div(tx.inner.value(), big.NewInt(int64(DiffEthWaves)))
+	tx.value = res.Int64()
+
 	tx.threadSafeSetSenderPK(senderPK)
 	return tx
 }
@@ -237,7 +256,7 @@ func (tx *EthereumTransaction) Verify() (*EthereumPublicKey, error) {
 // This method doesn't include signature verification. Use Verify method for signature verification
 func (tx *EthereumTransaction) Validate(scheme Scheme) (Transaction, error) {
 	// same chainID
-	if tx.ChainId() != int64(scheme){
+	if tx.ChainId() != int64(scheme) {
 		// TODO: introduce new error type for scheme validation
 		txChainID := tx.ChainId()
 		return nil, errs.NewTxValidationError(fmt.Sprintf(
@@ -463,14 +482,11 @@ func (tx *EthereumTransaction) RawSignatureValues() (v, r, s *big.Int) {
 }
 
 func validateEthereumTx(tx *EthereumTransaction) error {
-	switch _ := tx.TxKind.(type) {
+	switch tx.TxKind.(type) {
 	case *EthereumTransferWavesTxKind:
 		res := new(big.Int).Div(tx.inner.value(), big.NewInt(int64(DiffEthWaves)))
 		if ok := res.IsInt64(); !ok {
 			return errors.Errorf("failed to convert amount from ethreum transaction (big int) to int64. value is %d", tx.Value())
-		}
-		if res.Int64() == 0 {
-			return errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
 		}
 		tx.value = res.Int64()
 		return nil
@@ -503,7 +519,7 @@ func GuessEthereumTransactionKind(data []byte) (int64, error) {
 
 	return EthereumInvokeKind, nil
 }
-func ethereumTransactionKind(ethTx EthereumTransaction) (EthereumTransactionKind, error) {
+func GetEthereumTransactionKind(ethTx EthereumTransaction) (EthereumTransactionKind, error) {
 	txKind, err := GuessEthereumTransactionKind(ethTx.Data())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to guess ethereum tx kind")
@@ -574,7 +590,7 @@ func (tx *EthereumTransaction) DecodeCanonical(canonicalData []byte) error {
 	}
 	tx.gasPrice = tx.inner.gasPrice().Uint64()
 	var err error
-	tx.TxKind, err = ethereumTransactionKind(*tx)
+	tx.TxKind, err = GetEthereumTransactionKind(*tx)
 	if err != nil {
 		return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
 	}
