@@ -1122,7 +1122,7 @@ func main() {
 		println(code)
 		panic(err)
 	}
-	err = ioutil.WriteFile("functions.go", b, 0644)
+	err = ioutil.WriteFile("functions.go", b, 0600)
 	if err != nil {
 		panic(err)
 	}
@@ -1144,7 +1144,7 @@ func main() {
 		println(code)
 		panic(err)
 	}
-	err = ioutil.WriteFile("constants.go", b, 0644)
+	err = ioutil.WriteFile("constants.go", b, 0600)
 	if err != nil {
 		panic(err)
 	}
@@ -1385,7 +1385,7 @@ func main() {
 		println(code)
 		panic(err)
 	}
-	err = ioutil.WriteFile("functions_generated.go", b, 0644)
+	err = ioutil.WriteFile("functions_generated.go", b, 0600)
 	if err != nil {
 		panic(err)
 	}
@@ -1413,7 +1413,7 @@ func main() {
 		println(code)
 		panic(err)
 	}
-	err = ioutil.WriteFile("tuples.go", b, 0644)
+	err = ioutil.WriteFile("tuples.go", b, 0600)
 	if err != nil {
 		panic(err)
 	}

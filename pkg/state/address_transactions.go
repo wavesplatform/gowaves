@@ -6,7 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"runtime/debug"
 
 	"github.com/pkg/errors"
@@ -159,7 +159,7 @@ func newAddressTransactions(
 		recordSize:   txMetaSize,
 		prefix:       transactionIdsPrefix,
 	}
-	filePath := path.Join(params.dir, "address_transactions")
+	filePath := filepath.Join(filepath.Clean(params.dir), "address_transactions")
 	addrTransactionsFile, _, err := openOrCreateForAppending(filePath)
 	if err != nil {
 		return nil, err

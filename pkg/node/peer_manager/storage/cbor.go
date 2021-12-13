@@ -402,25 +402,25 @@ func marshalToCborAndSyncToFile(filePath string, value interface{}) error {
 		return errors.Wrapf(err, "failed to marshal %T to CBOR", value)
 	}
 
-	if err := ioutil.WriteFile(filePath, data, 0644); err != nil {
+	if err := ioutil.WriteFile(filePath, data, 0600); err != nil {
 		return errors.Wrapf(err, "failed to write %T in file %q", value, filePath)
 	}
 	return nil
 }
 
-// unmarshalCborFromFile read file content and trying unmarshall it into out parameter. It also
+// unmarshalCborFromFile read file content and trying to unmarshall it into out parameter. It also
 // returns error if file is empty.
-func unmarshalCborFromFile(filePath string, out interface{}) error {
-	data, err := ioutil.ReadFile(filePath)
+func unmarshalCborFromFile(path string, out interface{}) error {
+	data, err := ioutil.ReadFile(filepath.Clean(path))
 	if err != nil {
-		return errors.Wrapf(err, "failed to read from file with name %q", filePath)
+		return errors.Wrapf(err, "failed to read from file with name %q", path)
 	}
 
 	switch err := cbor.Unmarshal(data, out); {
 	case err == io.EOF:
 		return io.EOF
 	case err != nil:
-		return errors.Wrapf(err, "failed to unmarshall CBOR into %T from file %q", out, filePath)
+		return errors.Wrapf(err, "failed to unmarshall CBOR into %T from file %q", out, path)
 	}
 	return nil
 }
@@ -438,13 +438,18 @@ func storageVersionFilePath(storageDir string) string {
 }
 
 func createFileIfNotExist(path string) (err error) {
-	knownFile, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
+	cleanedPath := filepath.Clean(path)
+	knownFile, err := os.OpenFile(cleanedPath, os.O_RDONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create if not exist file %q", path)
 	}
 	defer func() {
 		if closeErr := knownFile.Close(); closeErr != nil {
-			err = errors.Wrapf(err, "failed to close file %q", path)
+			if err != nil {
+				err = errors.Wrapf(err, "failed to close file %q, %v", path, closeErr)
+			} else {
+				err = errors.Wrapf(closeErr, "failed to close file %q", path)
+			}
 		}
 	}()
 	return nil
@@ -452,7 +457,7 @@ func createFileIfNotExist(path string) (err error) {
 
 func updatePeersStorageVersion(storageVersionFile string, newVersion int) error {
 	stringVersion := strconv.Itoa(newVersion)
-	err := ioutil.WriteFile(storageVersionFile, []byte(stringVersion), 0644)
+	err := ioutil.WriteFile(storageVersionFile, []byte(stringVersion), 0600)
 	if err != nil {
 		return errors.Wrapf(err, "failed to write data in file %q", storageVersionFile)
 	}
@@ -460,10 +465,11 @@ func updatePeersStorageVersion(storageVersionFile string, newVersion int) error 
 }
 
 func getPeersStorageVersion(storageVersionFile string) (int, error) {
-	if err := createFileIfNotExist(storageVersionFile); err != nil {
+	cleanedStorageVersionFile := filepath.Clean(storageVersionFile)
+	if err := createFileIfNotExist(cleanedStorageVersionFile); err != nil {
 		return 0, errors.Wrap(err, "failed to create if not exists storage version file")
 	}
-	versionData, err := ioutil.ReadFile(storageVersionFile)
+	versionData, err := ioutil.ReadFile(cleanedStorageVersionFile)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to read from file %q", storageVersionFile)
 	}
