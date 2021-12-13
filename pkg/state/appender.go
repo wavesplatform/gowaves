@@ -470,10 +470,11 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		if !ok {
 			return errors.New("failed to cast interface transaction to ethereum transaction structure")
 		}
-		ethTx.TxKind, err = a.ethInfo.ethereumTransactionKind(ethTx, params)
+		err := a.ethInfo.fillRequiredTxFields(ethTx, params)
 		if err != nil {
-			return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
+			return errors.Errorf("failed to fill required fields in ethereum transaction, %v", err)
 		}
+
 		switch ethTx.TxKind.(type) {
 		case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
 			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)

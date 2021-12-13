@@ -1,8 +1,6 @@
 package state
 
 import (
-	"math/big"
-
 	"github.com/ericlagergren/decimal"
 	"github.com/ericlagergren/decimal/math"
 	"github.com/mr-tron/base58"
@@ -482,11 +480,7 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 		return txBalanceChanges{}, err
 	}
 
-	res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
-	if ok := res.IsInt64(); !ok {
-		return txBalanceChanges{}, errors.Errorf("failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
-	}
-	amount := res.Int64()
+	amount := tx.Value()
 
 	senderAmountKey := byteKey(senderAddress.ID(), wavesAsset)
 
@@ -551,7 +545,7 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 
 	// transfer
 
-	senderAmountKey := byteKey(senderAddress.ID(), txErc20Kind.Asset)
+	senderAmountKey := byteKey(senderAddress.ID(), *txErc20Kind.Asset)
 
 	senderAmountBalanceDiff := -txErc20Kind.Arguments.Amount
 	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(senderAmountBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
@@ -564,7 +558,7 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	}
 
 	// Append receiver diff.
-	receiverKey := byteKey(etc20TransferRecipient.ID(), txErc20Kind.Asset)
+	receiverKey := byteKey(etc20TransferRecipient.ID(), *txErc20Kind.Asset)
 	receiverBalanceDiff := txErc20Kind.Arguments.Amount
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
