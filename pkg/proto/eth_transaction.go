@@ -530,7 +530,7 @@ func GetEthereumTransactionKind(ethTx EthereumTransaction) (EthereumTransactionK
 		return NewEthereumTransferWavesTxKind(), nil
 	case EthereumTransferAssetsKind:
 		db := ethabi.NewErc20MethodsMap()
-		decodedData, err := db.ParseCallDataRide(ethTx.Data())
+		decodedData, err := db.ParseCallData(ethTx.Data())
 		if err != nil {
 			return nil, errors.Errorf("failed to parse ethereum data")
 		}

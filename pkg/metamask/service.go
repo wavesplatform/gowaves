@@ -201,7 +201,7 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		decodedData, err := db.ParseCallDataRide(data)
+		decodedData, err := db.ParseCallData(data)
 		if err != nil {
 			return "", errors.Errorf("failed to parse ethereum data, %v", err)
 		}

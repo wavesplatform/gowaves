@@ -72,7 +72,7 @@ func (db MethodsMap) MethodBySelector(id Selector) (Method, error) {
 	return Method{}, fmt.Errorf("signature %q not found", id.String())
 }
 
-func (db MethodsMap) ParseCallDataRide(data []byte) (*DecodedCallData, error) {
+func (db MethodsMap) ParseCallData(data []byte) (*DecodedCallData, error) {
 	// If the data is empty, we have a plain value transfer, nothing more to do
 	if len(data) == 0 {
 		return nil, errors.New("transaction doesn't contain data")
@@ -91,7 +91,7 @@ func (db MethodsMap) ParseCallDataRide(data []byte) (*DecodedCallData, error) {
 		return nil, errors.Errorf("Transaction contains data, but the ABI signature could not be found: %v", err)
 	}
 
-	info, err := parseArgDataToRideTypes(&method, data[SelectorSize:], db.parsePayments)
+	info, err := parseArgDataToEthABITypes(&method, data[SelectorSize:], db.parsePayments)
 	if err != nil {
 		return nil, errors.Errorf("Transaction contains data, but provided ABI signature could not be verified: %v", err)
 	}
@@ -122,8 +122,8 @@ func (da *DecodedArg) InternalType() byte {
 	return byte(da.Soltype.Type.T)
 }
 
-func parseArgDataToRideTypes(method *Method, argData []byte, parsePayments bool) (*DecodedCallData, error) {
-	values, paymentsOffset, err := method.Inputs.UnpackRideValues(argData)
+func parseArgDataToEthABITypes(method *Method, argData []byte, parsePayments bool) (*DecodedCallData, error) {
+	values, paymentsOffset, err := method.Inputs.UnpackValues(argData)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unpack Inputs arguments ABI data")
 	}
