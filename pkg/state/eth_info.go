@@ -17,18 +17,8 @@ func newEthInfo(stor *blockchainEntitiesStorage, settings *settings.BlockchainSe
 }
 
 func (e *ethInfo) fillRequiredTxFields(ethTx *proto.EthereumTransaction, params *appendTxParams) error {
-	EthSenderAddr, err := ethTx.From()
-	if err != nil {
-		return err
-	}
-	senderAddress, err := EthSenderAddr.ToWavesAddress(e.settings.AddressSchemeCharacter)
-	if err != nil {
-		return err
-	}
-
 	switch kind := ethTx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
-		kind.From = senderAddress
 
 	case *proto.EthereumTransferAssetsErc20TxKind:
 		db := ethabi.NewErc20MethodsMap()
@@ -46,8 +36,7 @@ func (e *ethInfo) fillRequiredTxFields(ethTx *proto.EthereumTransaction, params 
 		}
 		fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.tail)
 
-		kind.Asset = proto.NewOptionalAssetFromDigest(fullAssetID)
-		kind.From = senderAddress
+		kind.OptAsset = proto.NewOptionalAssetFromDigest(fullAssetID)
 	case *proto.EthereumInvokeScriptTxKind:
 		scriptAddr, err := ethTx.WavesAddressTo(e.settings.AddressSchemeCharacter)
 		if err != nil {
@@ -67,7 +56,6 @@ func (e *ethInfo) fillRequiredTxFields(ethTx *proto.EthereumTransaction, params 
 		}
 
 		kind.DecodedCallData = decodedData
-		kind.From = senderAddress
 	default:
 		return errors.New("unexpected ethereum tx kind")
 	}

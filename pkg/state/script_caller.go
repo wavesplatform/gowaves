@@ -239,7 +239,11 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		defaultFunction = transaction.FunctionCall.Default
 
 	case *proto.EthereumTransaction:
-		abiPayments := transaction.TxKind.DecodedData().Payments
+		decodedData, err := transaction.TxKind.DecodedData()
+		if err != nil {
+			return nil, err
+		}
+		abiPayments := decodedData.Payments
 		scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))
 		for _, p := range abiPayments {
 			var optAsset proto.OptionalAsset
@@ -257,11 +261,10 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		if err != nil {
 			return nil, err
 		}
-		sender = transaction.TxKind.Sender()
+		sender, err = transaction.WavesAddressFrom(a.settings.AddressSchemeCharacter)
 		if err != nil {
 			return nil, errors.Errorf("failed to get waves address from ethereum transaction %v", err)
 		}
-		decodedData := transaction.TxKind.DecodedData()
 		functionName = decodedData.Name
 		arguments, err := ride.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
 		if err != nil {
