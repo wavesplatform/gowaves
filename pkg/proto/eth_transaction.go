@@ -97,82 +97,78 @@ type EthereumTxData interface {
 
 type EthereumTransactionKind interface {
 	String() string
-	DecodedData() *ethabi.DecodedCallData
-	Sender() WavesAddress
+	DecodedData() (*ethabi.DecodedCallData, error)
 }
 
 type EthereumTransferWavesTxKind struct {
-	From WavesAddress
 }
 
 func NewEthereumTransferWavesTxKind() *EthereumTransferWavesTxKind {
 	return &EthereumTransferWavesTxKind{}
 }
 
-func (tx *EthereumTransferWavesTxKind) DecodedData() *ethabi.DecodedCallData {
-	return nil
+func (tx *EthereumTransferWavesTxKind) DecodedData() (*ethabi.DecodedCallData, error) {
+	return nil, errors.New("transfer waves ethereum tx kind does not have decoded call data")
 }
 
 func (tx *EthereumTransferWavesTxKind) String() string {
 	return "EthereumTransferWavesTxKind"
 }
 
-func (tx *EthereumTransferWavesTxKind) Sender() WavesAddress {
-	return tx.From
-}
-
 type EthereumTransferAssetsErc20TxKind struct {
 	decodedData ethabi.DecodedCallData
 	Arguments   ethabi.ERC20TransferArguments
-	Asset       *OptionalAsset
-	From        WavesAddress
+	asset       *OptionalAsset
 }
 
 func NewEthereumTransferAssetsErc20TxKind(decodedData ethabi.DecodedCallData, asset *OptionalAsset, arguments ethabi.ERC20TransferArguments) *EthereumTransferAssetsErc20TxKind {
-	return &EthereumTransferAssetsErc20TxKind{Asset: asset, decodedData: decodedData, Arguments: arguments}
+	return &EthereumTransferAssetsErc20TxKind{asset: asset, decodedData: decodedData, Arguments: arguments}
 }
 
-func (tx *EthereumTransferAssetsErc20TxKind) DecodedData() *ethabi.DecodedCallData {
-	return &tx.decodedData
+func (tx *EthereumTransferAssetsErc20TxKind) DecodedData() (*ethabi.DecodedCallData, error) {
+	return &tx.decodedData, nil
+}
+func (tx *EthereumTransferAssetsErc20TxKind) Asset() (*OptionalAsset, error) {
+	if tx.asset == nil {
+		return nil, errors.New("asset field of ethereum transfer assets tx is empty")
+	}
+	return tx.asset, nil
 }
 
 func (tx *EthereumTransferAssetsErc20TxKind) String() string {
 	return "EthereumTransferAssetsErc20TxKind"
 }
 
-func (tx *EthereumTransferAssetsErc20TxKind) Sender() WavesAddress {
-	return tx.From
-}
-
 type EthereumInvokeScriptTxKind struct {
-	DecodedCallData *ethabi.DecodedCallData
-	From            WavesAddress
+	decodedCallData *ethabi.DecodedCallData
 }
 
 func NewEthereumInvokeScriptTxKind(decodedData *ethabi.DecodedCallData) *EthereumInvokeScriptTxKind {
-	return &EthereumInvokeScriptTxKind{DecodedCallData: decodedData}
+	return &EthereumInvokeScriptTxKind{decodedCallData: decodedData}
 }
 
-func (tx *EthereumInvokeScriptTxKind) DecodedData() *ethabi.DecodedCallData {
-	return tx.DecodedCallData
+func (tx *EthereumInvokeScriptTxKind) DecodedData() (*ethabi.DecodedCallData, error) {
+	if tx.decodedCallData == nil {
+		return nil, errors.New("ethereum invoke script tx has empty decoded data")
+	}
+	return tx.decodedCallData, nil
 }
 
 func (tx *EthereumInvokeScriptTxKind) String() string {
 	return "EthereumInvokeScriptTxKind"
 }
 
-func (tx *EthereumInvokeScriptTxKind) Sender() WavesAddress {
-	return tx.From
-}
-
 type EthereumTransaction struct {
-	inner           EthereumTxData
+	// Ethereum representation
+	senderPK atomic.Value   // *EthereumPublicKey
+	inner    EthereumTxData //
+
+	// Waves representation
+	TxKind          EthereumTransactionKind
 	value           int64
 	chainID         int64
 	gasPrice        uint64
 	innerBinarySize int
-	senderPK        atomic.Value // *EthereumPublicKey
-	TxKind          EthereumTransactionKind
 	ID              *crypto.Digest
 }
 
@@ -519,6 +515,8 @@ func GuessEthereumTransactionKind(data []byte) (int64, error) {
 
 	return EthereumInvokeKind, nil
 }
+
+// note: in this method not all of the fields are filled
 func GetEthereumTransactionKind(ethTx EthereumTransaction) (EthereumTransactionKind, error) {
 	txKind, err := GuessEthereumTransactionKind(ethTx.Data())
 	if err != nil {
@@ -548,6 +546,27 @@ func GetEthereumTransactionKind(ethTx EthereumTransaction) (EthereumTransactionK
 	default:
 		return nil, errors.New("unexpected ethereum tx kind")
 	}
+}
+
+func (tx *EthereumTransaction) initTransactionFields() error {
+	if ok := tx.inner.chainID().IsInt64(); !ok {
+		return errors.Errorf("failed to recognize chainID of ethereum transaction: over int64")
+	}
+	tx.chainID = tx.inner.chainID().Int64()
+	if ok := tx.inner.gasPrice().IsUint64(); !ok {
+		return errors.Errorf("failed to recognize GasPrice of ethereum transaction: over uint64")
+	}
+	tx.gasPrice = tx.inner.gasPrice().Uint64()
+	var err error
+	tx.TxKind, err = GetEthereumTransactionKind(*tx)
+	if err != nil {
+		return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
+	}
+	err = validateEthereumTx(tx)
+	if err != nil {
+		return errors.Errorf("validation of ethereum transaction after initialization failed , %v", err)
+	}
+	return nil
 }
 
 // DecodeCanonical decodes the canonical binary encoding of transactions.
@@ -581,22 +600,9 @@ func (tx *EthereumTransaction) DecodeCanonical(canonicalData []byte) error {
 	}
 	tx.innerBinarySize = len(canonicalData)
 
-	if ok := tx.inner.chainID().IsInt64(); !ok {
-		return errors.Errorf("failed to recognize chainID of ethereum transaction: over int64")
-	}
-	tx.chainID = tx.inner.chainID().Int64()
-	if ok := tx.inner.gasPrice().IsUint64(); !ok {
-		return errors.Errorf("failed to recognize GasPrice of ethereum transaction: over uint64")
-	}
-	tx.gasPrice = tx.inner.gasPrice().Uint64()
-	var err error
-	tx.TxKind, err = GetEthereumTransactionKind(*tx)
+	err := tx.initTransactionFields()
 	if err != nil {
-		return errors.Errorf("failed to guess ethereum transaction kind, %v", err)
-	}
-	err = validateEthereumTx(tx)
-	if err != nil {
-		return errors.Errorf("validation of ethereum transaction after initialization failed , %v", err)
+		return errors.Wrap(err, "failed to initialize waves representation fields of ethereum transaction")
 	}
 	return nil
 }

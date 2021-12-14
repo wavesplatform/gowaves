@@ -463,19 +463,18 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumTransaction, info *differInfo) (txBalanceChanges, error) {
 	diff := newTxDiff()
 
-	txKind, ok := tx.TxKind.(*proto.EthereumTransferWavesTxKind)
-	if !ok {
-		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20TxKind")
-	}
-
 	updateMinIntermediateBalance := false
 	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
 	// Append sender diff.
 	wavesAsset := proto.NewOptionalAssetWaves()
+	senderAddress, err := tx.WavesAddressFrom(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
 
-	senderFeeKey := byteKey(txKind.From.ID(), wavesAsset)
+	senderFeeKey := byteKey(senderAddress.ID(), wavesAsset)
 	senderFeeBalanceDiff := -int64(tx.GetFee())
 	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
@@ -483,7 +482,7 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 
 	amount := tx.Value()
 
-	senderAmountKey := byteKey(txKind.From.ID(), wavesAsset)
+	senderAmountKey := byteKey(senderAddress.ID(), wavesAsset)
 
 	senderAmountBalanceDiff := -amount
 	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(senderAmountBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
@@ -499,7 +498,7 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	addrs := []proto.WavesAddress{txKind.From, recipientAddress}
+	addrs := []proto.WavesAddress{senderAddress, recipientAddress}
 	changes := newTxBalanceChanges(addrs, diff)
 	// sponsorship might be handled here
 	return changes, nil
@@ -518,23 +517,34 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20TxKind")
 	}
 
-	decodedData := txErc20Kind.DecodedData()
+	decodedData, err := txErc20Kind.DecodedData()
+	if err != nil {
+		return txBalanceChanges{}, nil
+	}
 
 	if !ethabi.IsERC20TransferSelector(decodedData.Signature.Selector()) {
 		return txBalanceChanges{}, errors.New("unexpected type of eth selector")
 	}
 
+	senderAddress, err := tx.WavesAddressFrom(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+
 	// Fee
 	wavesAsset := proto.NewOptionalAssetWaves()
-	senderFeeKey := byteKey(txErc20Kind.From.ID(), wavesAsset)
+	senderFeeKey := byteKey(senderAddress.ID(), wavesAsset)
 	senderFeeBalanceDiff := -int64(tx.GetFee())
 	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
 
 	// transfer
-
-	senderAmountKey := byteKey(txErc20Kind.From.ID(), *txErc20Kind.Asset)
+	asset, err := txErc20Kind.Asset()
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderAmountKey := byteKey(senderAddress.ID(), *asset)
 
 	senderAmountBalanceDiff := -txErc20Kind.Arguments.Amount
 	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(senderAmountBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
@@ -547,12 +557,12 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	}
 
 	// Append receiver diff.
-	receiverKey := byteKey(etc20TransferRecipient.ID(), *txErc20Kind.Asset)
+	receiverKey := byteKey(etc20TransferRecipient.ID(), *asset)
 	receiverBalanceDiff := txErc20Kind.Arguments.Amount
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	addrs := []proto.WavesAddress{txErc20Kind.From, etc20TransferRecipient}
+	addrs := []proto.WavesAddress{senderAddress, etc20TransferRecipient}
 	changes := newTxBalanceChanges(addrs, diff)
 	// sponsorship might be handled here
 	return changes, nil
@@ -1417,7 +1427,10 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20TxKind")
 	}
 
-	decodedData := txInvokeScriptKind.DecodedData()
+	decodedData, err := txInvokeScriptKind.DecodedData()
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
 
 	noPayments := len(decodedData.Payments) == 0
 	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime && !noPayments {
@@ -1425,8 +1438,12 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 	}
 	diff := newTxDiff()
 	// Append sender diff.
+	senderAddress, err := tx.WavesAddressFrom(td.settings.AddressSchemeCharacter)
+	if err != nil {
+		return txBalanceChanges{}, errors.Wrapf(err, "failed to get sender address from ethereum invoke tx")
+	}
 
-	senderAddrID := txInvokeScriptKind.From.ID()
+	senderAddrID := senderAddress.ID()
 	assetFee := proto.NewOptionalAssetWaves()
 	senderFeeKey := byteKey(senderAddrID, assetFee)
 	senderFeeBalanceDiff := -int64(tx.GetFee())
@@ -1439,7 +1456,7 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 	}
 	scriptAddrID := scriptAddr.ID()
 
-	addresses := []proto.WavesAddress{txInvokeScriptKind.From, *scriptAddr}
+	addresses := []proto.WavesAddress{senderAddress, *scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 
 	for _, payment := range decodedData.Payments {

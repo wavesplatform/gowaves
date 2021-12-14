@@ -977,7 +977,12 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			return nil, errors.Wrap(err, "failed to convert ethereum ERC20 transfer recipient to WavesAddress")
 		}
 		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(recipientAddr))
-		r["assetId"] = optionalAsset(*kind.Asset)
+		asset, err := kind.Asset()
+		if err != nil {
+			return nil, err
+		}
+
+		r["assetId"] = optionalAsset(*asset)
 		r["amount"] = rideInt(kind.Arguments.Amount)
 		r["fee"] = rideInt(tx.GetFee())
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
@@ -992,8 +997,12 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		r["senderPublicKey"] = rideBytes(callerPK)
 		r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(*to))
 
+		decodedData, err := tx.TxKind.DecodedData()
+		if err != nil {
+			return nil, err
+		}
 		var scriptPayments []proto.ScriptPayment
-		for _, p := range tx.TxKind.DecodedData().Payments {
+		for _, p := range decodedData.Payments {
 			var optAsset proto.OptionalAsset
 			if p.PresentAssetID {
 				optAsset = *proto.NewOptionalAssetFromDigest(p.AssetID)
@@ -1021,8 +1030,8 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			r["payments"] = make(rideList, 0)
 		}
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
-		r["function"] = rideString(tx.TxKind.DecodedData().Name)
-		arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(tx.TxKind.DecodedData().Inputs)
+		r["function"] = rideString(decodedData.Name)
+		arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
 		if err != nil {
 			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
 		}
@@ -1168,11 +1177,10 @@ func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (r
 }
 
 func ethereumInvocationToObject(v int, scheme proto.Scheme, tx *proto.EthereumTransaction, scriptPayments []proto.ScriptPayment) (rideObject, error) {
-	txKind, ok := tx.TxKind.(*proto.EthereumInvokeScriptTxKind)
-	if !ok {
-		return nil, errors.New("failed to recognize ethereum invoke script tx kind")
+	sender, err := tx.WavesAddressFrom(scheme)
+	if err != nil {
+		return nil, err
 	}
-	sender := txKind.From
 	r := make(rideObject)
 	r[instanceFieldName] = rideString("Invocation")
 	r["transactionId"] = rideBytes(tx.ID.Bytes())
