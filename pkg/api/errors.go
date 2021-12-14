@@ -3,11 +3,12 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type BadRequestError struct {
@@ -42,7 +43,7 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 	case *apiErrs.UnknownError:
 		eh.logger.Error("UnknownError",
 			zap.String("proto", r.Proto),
-			zap.String("path", r.URL.Path),
+			zap.String("path", r.URL.EscapedPath()),
 			zap.String("reqId", middleware.GetReqID(r.Context())),
 			zap.Error(err),
 		)
@@ -52,7 +53,7 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 	default:
 		eh.logger.Error("InternalServerError",
 			zap.String("proto", r.Proto),
-			zap.String("path", r.URL.Path),
+			zap.String("path", r.URL.EscapedPath()),
 			zap.String("reqId", middleware.GetReqID(r.Context())),
 			zap.Error(err),
 		)
@@ -66,7 +67,7 @@ func (eh *ErrorHandler) sendApiErrJSON(w http.ResponseWriter, r *http.Request, a
 	if encodeErr := json.NewEncoder(w).Encode(apiErr); encodeErr != nil {
 		eh.logger.Error("Failed to marshal API Error to JSON",
 			zap.String("proto", r.Proto),
-			zap.String("path", r.URL.Path),
+			zap.String("path", r.URL.EscapedPath()),
 			zap.String("request_id", middleware.GetReqID(r.Context())),
 			zap.Error(encodeErr),
 			zap.String("api_error", apiErr.Error()),

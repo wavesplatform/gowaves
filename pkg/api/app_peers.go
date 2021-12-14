@@ -2,11 +2,12 @@ package api
 
 import (
 	"context"
+	"time"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
-	"time"
 )
 
 type Peer struct {
@@ -71,7 +72,7 @@ func (a *App) PeersConnect(ctx context.Context, apiKey string, addr string) (*Pe
 
 	d := proto.NewTCPAddrFromString(addr)
 	if d.Empty() {
-		zap.S().Error(apiKey, addr, d)
+		zap.S().Errorf("Invalid peer's address to connect '%s'", addr)
 		return nil, &BadRequestError{errors.New("invalid address")}
 	}
 

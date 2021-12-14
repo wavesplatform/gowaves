@@ -1,12 +1,13 @@
 package api
 
 import (
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
-	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	"go.uber.org/zap"
 )
 
 // CreateLoggerMiddleware creates a middleware that logs the start and end of each request, along
@@ -24,7 +25,7 @@ func CreateLoggerMiddleware(l *zap.Logger) func(next http.Handler) http.Handler 
 			defer func() {
 				l.Info("ServedHttpRequest",
 					zap.String("proto", r.Proto),
-					zap.String("path", r.URL.Path),
+					zap.String("path", r.URL.EscapedPath()),
 					zap.Duration("lat", time.Since(t1)),
 					zap.Int("status", ww.Status()),
 					zap.Int("size", ww.BytesWritten()),

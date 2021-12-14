@@ -52,7 +52,7 @@ func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
 			defer func() {
 				l.Info("Served",
 					zap.String("proto", r.Proto),
-					zap.String("path", r.URL.Path),
+					zap.String("path", r.URL.EscapedPath()),
 					zap.Duration("lat", time.Since(t1)),
 					zap.Int("status", ww.Status()),
 					zap.Int("size", ww.BytesWritten()),
