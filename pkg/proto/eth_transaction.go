@@ -118,21 +118,21 @@ func (tx *EthereumTransferWavesTxKind) String() string {
 type EthereumTransferAssetsErc20TxKind struct {
 	decodedData ethabi.DecodedCallData
 	Arguments   ethabi.ERC20TransferArguments
-	asset       *OptionalAsset
+	OptAsset    *OptionalAsset
 }
 
 func NewEthereumTransferAssetsErc20TxKind(decodedData ethabi.DecodedCallData, asset *OptionalAsset, arguments ethabi.ERC20TransferArguments) *EthereumTransferAssetsErc20TxKind {
-	return &EthereumTransferAssetsErc20TxKind{asset: asset, decodedData: decodedData, Arguments: arguments}
+	return &EthereumTransferAssetsErc20TxKind{OptAsset: asset, decodedData: decodedData, Arguments: arguments}
 }
 
 func (tx *EthereumTransferAssetsErc20TxKind) DecodedData() (*ethabi.DecodedCallData, error) {
 	return &tx.decodedData, nil
 }
 func (tx *EthereumTransferAssetsErc20TxKind) Asset() (*OptionalAsset, error) {
-	if tx.asset == nil {
+	if tx.OptAsset == nil {
 		return nil, errors.New("asset field of ethereum transfer assets tx is empty")
 	}
-	return tx.asset, nil
+	return tx.OptAsset, nil
 }
 
 func (tx *EthereumTransferAssetsErc20TxKind) String() string {
@@ -140,18 +140,18 @@ func (tx *EthereumTransferAssetsErc20TxKind) String() string {
 }
 
 type EthereumInvokeScriptTxKind struct {
-	decodedCallData *ethabi.DecodedCallData
+	DecodedCallData *ethabi.DecodedCallData
 }
 
 func NewEthereumInvokeScriptTxKind(decodedData *ethabi.DecodedCallData) *EthereumInvokeScriptTxKind {
-	return &EthereumInvokeScriptTxKind{decodedCallData: decodedData}
+	return &EthereumInvokeScriptTxKind{DecodedCallData: decodedData}
 }
 
 func (tx *EthereumInvokeScriptTxKind) DecodedData() (*ethabi.DecodedCallData, error) {
-	if tx.decodedCallData == nil {
+	if tx.DecodedCallData == nil {
 		return nil, errors.New("ethereum invoke script tx has empty decoded data")
 	}
-	return tx.decodedCallData, nil
+	return tx.DecodedCallData, nil
 }
 
 func (tx *EthereumInvokeScriptTxKind) String() string {
