@@ -155,7 +155,7 @@ func catalogueV2() map[string]int {
 	return m
 }
 
-func evaluationCatalogueV2() map[string]int {
+func evaluationCatalogueV2EvaluatorV1() map[string]int {
 	// In Scala implementation order
 	m := catalogueV2()
 	m["isDefined"] = 7
@@ -180,6 +180,16 @@ func evaluationCatalogueV2() map[string]int {
 	m["AssetPair"] = 0
 	m["DataEntry"] = 0
 	m["DataTransaction"] = 0
+	return m
+}
+
+func evaluationCatalogueV2EvaluatorV2() map[string]int {
+	m := catalogueV2()
+	m["Address"] = 1
+	m["Alias"] = 1
+	m["AssetPair"] = 1
+	m["DataEntry"] = 1
+	m["DataTransaction"] = 1
 	return m
 }
 
@@ -307,7 +317,7 @@ func catalogueV3() map[string]int {
 	return m
 }
 
-func evaluationCatalogueV3() map[string]int {
+func evaluationCatalogueV3EvaluatorV1() map[string]int {
 	m := catalogueV3()
 	m["isDefined"] = 7
 	m["throw"] = 1
@@ -351,6 +361,39 @@ func evaluationCatalogueV3() map[string]int {
 	m["TransferSet"] = 0
 	m["ScriptTransfer"] = 0
 	m["ScriptResult"] = 0
+	return m
+}
+
+func evaluationCatalogueV3EvaluatorV2() map[string]int {
+	m := catalogueV3()
+	m["Ceiling"] = 1
+	m["Floor"] = 1
+	m["HalfEven"] = 1
+	m["Down"] = 1
+	m["Up"] = 1
+	m["HalfUp"] = 1
+	m["HalfDown"] = 1
+	m["NoAlg"] = 1
+	m["Md5"] = 1
+	m["Sha1"] = 1
+	m["Sha224"] = 1
+	m["Sha256"] = 1
+	m["Sha384"] = 1
+	m["Sha512"] = 1
+	m["Sha3224"] = 1
+	m["Sha3256"] = 1
+	m["Sha3384"] = 1
+	m["Sha3512"] = 1
+	m["Unit"] = 1
+	m["Address"] = 1
+	m["Alias"] = 1
+	m["AssetPair"] = 1
+	m["DataEntry"] = 1
+	m["DataTransaction"] = 1
+	m["WriteSet"] = 1
+	m["TransferSet"] = 1
+	m["ScriptTransfer"] = 1
+	m["ScriptResult"] = 1
 	return m
 }
 
@@ -547,7 +590,7 @@ func catalogueV4() map[string]int {
 	return m
 }
 
-func evaluationCatalogueV4() map[string]int {
+func evaluationCatalogueV4EvaluatorV1() map[string]int {
 	m := catalogueV4()
 	m["isDefined"] = 7
 	m["throw"] = 1
@@ -597,6 +640,44 @@ func evaluationCatalogueV4() map[string]int {
 	m["Burn"] = 0
 	m["SponsorFee"] = 0
 	m["AttachedPayment"] = 0
+	return m
+}
+
+func evaluationCatalogueV4EvaluatorV2() map[string]int {
+	m := catalogueV4()
+	m["Ceiling"] = 1
+	m["Floor"] = 1
+	m["HalfEven"] = 1
+	m["Down"] = 1
+	m["Up"] = 1
+	m["HalfUp"] = 1
+	m["HalfDown"] = 1
+	m["NoAlg"] = 1
+	m["Md5"] = 1
+	m["Sha1"] = 1
+	m["Sha224"] = 1
+	m["Sha256"] = 1
+	m["Sha384"] = 1
+	m["Sha512"] = 1
+	m["Sha3224"] = 1
+	m["Sha3256"] = 1
+	m["Sha3384"] = 1
+	m["Sha3512"] = 1
+	m["Unit"] = 1
+	m["Address"] = 1
+	m["Alias"] = 1
+	m["AssetPair"] = 1
+	m["DataTransaction"] = 1
+	m["ScriptTransfer"] = 1
+	m["IntegerEntry"] = 1
+	m["BooleanEntry"] = 1
+	m["BinaryEntry"] = 1
+	m["StringEntry"] = 1
+	m["DeleteEntry"] = 1
+	m["Reissue"] = 1
+	m["Burn"] = 1
+	m["SponsorFee"] = 1
+	m["AttachedPayment"] = 1
 	return m
 }
 
@@ -693,7 +774,7 @@ func catalogueV5() map[string]int {
 	return m
 }
 
-func evaluationCatalogueV5() map[string]int {
+func evaluationCatalogueV5EvaluatorV1() map[string]int {
 	m := catalogueV5()
 	m["isDefined"] = 7
 	m["throw"] = 1
@@ -752,6 +833,43 @@ func evaluationCatalogueV5() map[string]int {
 	return m
 }
 
+func evaluationCatalogueV5EvaluatorV2() map[string]int {
+	m := catalogueV5()
+	m["Ceiling"] = 1
+	m["Floor"] = 1
+	m["HalfEven"] = 1
+	m["Down"] = 1
+	m["HalfUp"] = 1
+	m["NoAlg"] = 1
+	m["Md5"] = 1
+	m["Sha1"] = 1
+	m["Sha224"] = 1
+	m["Sha256"] = 1
+	m["Sha384"] = 1
+	m["Sha512"] = 1
+	m["Sha3224"] = 1
+	m["Sha3256"] = 1
+	m["Sha3384"] = 1
+	m["Sha3512"] = 1
+	m["Unit"] = 1
+	m["Address"] = 1
+	m["Alias"] = 1
+	m["AssetPair"] = 1
+	m["DataTransaction"] = 1
+	m["ScriptTransfer"] = 1
+	m["IntegerEntry"] = 1
+	m["BooleanEntry"] = 1
+	m["BinaryEntry"] = 1
+	m["StringEntry"] = 1
+	m["DeleteEntry"] = 1
+	m["Reissue"] = 1
+	m["Burn"] = 1
+	m["SponsorFee"] = 1
+	m["AttachedPayment"] = 1
+	m["LeaseCancel"] = 1
+	return m
+}
+
 func functionsV6() map[string]string {
 	m := functionsV5()
 	delete(m, "fraction")
@@ -799,8 +917,78 @@ func catalogueV6() map[string]int {
 	return m
 }
 
-func evaluationCatalogueV6() map[string]int {
-	return catalogueV6()
+func evaluationCatalogueV6EvaluatorV1() map[string]int {
+	m := catalogueV6()
+	m["Ceiling"] = 0
+	m["Floor"] = 0
+	m["HalfEven"] = 0
+	m["Down"] = 0
+	m["HalfUp"] = 0
+	m["NoAlg"] = 0
+	m["Md5"] = 0
+	m["Sha1"] = 0
+	m["Sha224"] = 0
+	m["Sha256"] = 0
+	m["Sha384"] = 0
+	m["Sha512"] = 0
+	m["Sha3224"] = 0
+	m["Sha3256"] = 0
+	m["Sha3384"] = 0
+	m["Sha3512"] = 0
+	m["Unit"] = 0
+	m["Address"] = 0
+	m["Alias"] = 0
+	m["AssetPair"] = 0
+	m["DataTransaction"] = 0
+	m["ScriptTransfer"] = 0
+	m["IntegerEntry"] = 0
+	m["BooleanEntry"] = 0
+	m["BinaryEntry"] = 0
+	m["StringEntry"] = 0
+	m["DeleteEntry"] = 0
+	m["Reissue"] = 0
+	m["Burn"] = 0
+	m["SponsorFee"] = 0
+	m["AttachedPayment"] = 0
+	m["LeaseCancel"] = 0
+	return m
+}
+
+func evaluationCatalogueV6EvaluatorV2() map[string]int {
+	m := catalogueV6()
+	m["Ceiling"] = 1
+	m["Floor"] = 1
+	m["HalfEven"] = 1
+	m["Down"] = 1
+	m["HalfUp"] = 1
+	m["NoAlg"] = 1
+	m["Md5"] = 1
+	m["Sha1"] = 1
+	m["Sha224"] = 1
+	m["Sha256"] = 1
+	m["Sha384"] = 1
+	m["Sha512"] = 1
+	m["Sha3224"] = 1
+	m["Sha3256"] = 1
+	m["Sha3384"] = 1
+	m["Sha3512"] = 1
+	m["Unit"] = 1
+	m["Address"] = 1
+	m["Alias"] = 1
+	m["AssetPair"] = 1
+	m["DataTransaction"] = 1
+	m["ScriptTransfer"] = 1
+	m["IntegerEntry"] = 1
+	m["BooleanEntry"] = 1
+	m["BinaryEntry"] = 1
+	m["StringEntry"] = 1
+	m["DeleteEntry"] = 1
+	m["Reissue"] = 1
+	m["Burn"] = 1
+	m["SponsorFee"] = 1
+	m["AttachedPayment"] = 1
+	m["LeaseCancel"] = 1
+	return m
 }
 
 type constantDescription struct {
@@ -951,7 +1139,7 @@ func createConstructors(sb *strings.Builder, c map[string]constantDescription) {
 	}
 }
 
-func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c map[string]int, ec map[string]int) {
+func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c, ec1, ec2 map[string]int) {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -992,9 +1180,17 @@ func createFunctionsList(sb *strings.Builder, ver string, m map[string]string, c
 	sb.WriteString("}\n\n")
 
 	// Create map of evaluation costs of functions and constructors
-	sb.WriteString(fmt.Sprintf("var EvaluationCatalogue%s = map[string]int{", ver))
+	sb.WriteString(fmt.Sprintf("var EvaluationCatalogue%sEvaluatorV1 = map[string]int{", ver))
 	for i, k := range keys {
-		sb.WriteString(fmt.Sprintf("\"%s\":%d", k, ec[k]))
+		sb.WriteString(fmt.Sprintf("\"%s\":%d", k, ec1[k]))
+		if i < len(m)-1 {
+			sb.WriteString(", ")
+		}
+	}
+	sb.WriteString("}\n\n")
+	sb.WriteString(fmt.Sprintf("var EvaluationCatalogue%sEvaluatorV2 = map[string]int{", ver))
+	for i, k := range keys {
+		sb.WriteString(fmt.Sprintf("\"%s\":%d", k, ec2[k]))
 		if i < len(m)-1 {
 			sb.WriteString(", ")
 		}
@@ -1111,11 +1307,11 @@ func main() {
 	sb.WriteString("// Code generated by ride/generate/main.go. DO NOT EDIT.\n")
 	sb.WriteString("\n")
 	sb.WriteString("package ride\n")
-	createFunctionsList(sb, "V2", functionsV2(), catalogueV2(), evaluationCatalogueV2())
-	createFunctionsList(sb, "V3", functionsV3(), catalogueV3(), evaluationCatalogueV3())
-	createFunctionsList(sb, "V4", functionsV4(), catalogueV4(), evaluationCatalogueV4())
-	createFunctionsList(sb, "V5", functionsV5(), catalogueV5(), evaluationCatalogueV5())
-	createFunctionsList(sb, "V6", functionsV6(), catalogueV6(), evaluationCatalogueV6())
+	createFunctionsList(sb, "V2", functionsV2(), catalogueV2(), evaluationCatalogueV2EvaluatorV1(), evaluationCatalogueV2EvaluatorV2())
+	createFunctionsList(sb, "V3", functionsV3(), catalogueV3(), evaluationCatalogueV3EvaluatorV1(), evaluationCatalogueV3EvaluatorV2())
+	createFunctionsList(sb, "V4", functionsV4(), catalogueV4(), evaluationCatalogueV4EvaluatorV1(), evaluationCatalogueV4EvaluatorV2())
+	createFunctionsList(sb, "V5", functionsV5(), catalogueV5(), evaluationCatalogueV5EvaluatorV1(), evaluationCatalogueV5EvaluatorV2())
+	createFunctionsList(sb, "V6", functionsV6(), catalogueV6(), evaluationCatalogueV6EvaluatorV1(), evaluationCatalogueV6EvaluatorV2())
 	code := sb.String()
 	b, err := format.Source([]byte(code))
 	if err != nil {

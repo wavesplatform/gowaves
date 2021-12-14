@@ -3,6 +3,7 @@ package ride
 import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type esConstant struct {
@@ -163,7 +164,11 @@ func newEvaluationScope(v int, env environment, enableInvocation bool) (evaluati
 		}
 		fs[fn] = functionProvider(int(id))
 	}
-	costs, err := selectEvaluationCostsProvider(v, !env.rideV6Activated())
+	ev := 1
+	if env.rideV6Activated() {
+		ev = 2
+	}
+	costs, err := selectEvaluationCostsProvider(v, ev)
 	if err != nil {
 		return evaluationScope{}, err
 	}
@@ -227,12 +232,104 @@ func selectFunctionNames(v int, enableInvocation bool) ([]string, error) {
 	}
 }
 
+type complexityCalculator interface {
+	overflow() bool
+	complexity() int
+	addNativeFunctionComplexity(int)
+	addAdditionalUserFunctionComplexity()
+	addConditionalComplexity()
+	addReferenceComplexity()
+	addPropertyComplexity()
+}
+
+type complexityCalculatorV1 struct {
+	o bool
+	c int
+}
+
+func (cc *complexityCalculatorV1) overflow() bool {
+	return cc.o
+}
+
+func (cc *complexityCalculatorV1) complexity() int {
+	return cc.c
+}
+
+func (cc *complexityCalculatorV1) addNativeFunctionComplexity(fc int) {
+	nc, err := common.AddInt(cc.c, fc)
+	if err != nil {
+		cc.o = true
+	}
+	cc.c = nc
+}
+
+func (cc *complexityCalculatorV1) addAdditionalUserFunctionComplexity() {}
+
+func (cc *complexityCalculatorV1) addOne() {
+	nc, err := common.AddInt(cc.c, 1)
+	if err != nil {
+		cc.o = true
+	}
+	cc.c = nc
+}
+
+func (cc *complexityCalculatorV1) addConditionalComplexity() {
+	cc.addOne()
+}
+
+func (cc *complexityCalculatorV1) addReferenceComplexity() {
+	cc.addOne()
+}
+
+func (cc *complexityCalculatorV1) addPropertyComplexity() {
+	cc.addOne()
+}
+
+type complexityCalculatorV2 struct {
+	o bool
+	c int
+}
+
+func (cc *complexityCalculatorV2) overflow() bool {
+	return cc.o
+}
+
+func (cc *complexityCalculatorV2) complexity() int {
+	return cc.c
+}
+
+func (cc *complexityCalculatorV2) addNativeFunctionComplexity(fc int) {
+	nc, err := common.AddInt(cc.c, fc)
+	if err != nil {
+		cc.o = true
+	}
+	cc.c = nc
+}
+
+func (cc *complexityCalculatorV2) addAdditionalUserFunctionComplexity() {
+	nc, err := common.AddInt(cc.c, 1)
+	if err != nil {
+		cc.o = true
+	}
+	cc.c = nc
+}
+
+func (cc *complexityCalculatorV2) addConditionalComplexity() {}
+
+func (cc *complexityCalculatorV2) addReferenceComplexity() {}
+
+func (cc *complexityCalculatorV2) addPropertyComplexity() {}
+
 type treeEvaluator struct {
-	dapp       bool
-	complexity int
-	f          Node
-	s          evaluationScope
-	env        environment
+	dapp bool
+	cc   complexityCalculator
+	f    Node
+	s    evaluationScope
+	env  environment
+}
+
+func (e *treeEvaluator) complexity() int {
+	return e.cc.complexity()
 }
 
 func (e *treeEvaluator) evaluate() (Result, error) {
@@ -243,13 +340,13 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 
 	switch res := r.(type) {
 	case rideBoolean:
-		return ScriptResult{res: bool(res), complexity: e.complexity}, nil
+		return ScriptResult{res: bool(res), complexity: e.complexity()}, nil
 	case rideObject:
 		a, err := objectToActions(e, e.env, res)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert evaluation result")
 		}
-		return DAppResult{actions: a, complexity: e.complexity}, nil
+		return DAppResult{actions: a, complexity: e.complexity()}, nil
 	case rideList:
 		var actions []proto.ScriptAction
 		for _, item := range res {
@@ -259,7 +356,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 			}
 			actions = append(actions, a)
 		}
-		return DAppResult{actions: actions, complexity: e.complexity}, nil
+		return DAppResult{actions: actions, complexity: e.complexity()}, nil
 	case tuple2:
 		var actions []proto.ScriptAction
 		switch resAct := res.el1.(type) {
@@ -274,7 +371,7 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 		default:
 			return nil, EvaluationFailure.Errorf("unexpected result type '%T'", r)
 		}
-		return DAppResult{actions: actions, param: res.el2, complexity: e.complexity}, nil
+		return DAppResult{actions: actions, param: res.el2, complexity: e.complexity()}, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unexpected result type '%T'", r)
 	}
@@ -302,7 +399,7 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []Node) (r
 		return nil, EvaluationFailure.Errorf("failed to get cost of system function '%s'", name)
 	}
 	defer func() {
-		e.complexity += cost
+		e.cc.addNativeFunctionComplexity(cost)
 	}()
 	args, err := e.materializeArguments(arguments)
 	if err != nil {
@@ -316,6 +413,12 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []Node) (r
 }
 
 func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (rideType, error) {
+	initialComplexity := e.cc.complexity()
+	defer func() {
+		if initialComplexity == e.cc.complexity() {
+			e.cc.addAdditionalUserFunctionComplexity()
+		}
+	}()
 	uf, cl, found := e.s.userFunction(name)
 	if !found {
 		return nil, errors.Errorf("user function '%s' not found", name)
@@ -347,20 +450,35 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 func (e *treeEvaluator) walk(node Node) (rideType, error) {
 	switch n := node.(type) {
 	case *LongNode:
+		if e.cc.overflow() {
+			return nil, RuntimeError.New("evaluation complexity overflow")
+		}
 		return rideInt(n.Value), nil
 
 	case *BytesNode:
+		if e.cc.overflow() {
+			return nil, RuntimeError.New("evaluation complexity overflow")
+		}
 		return rideBytes(n.Value), nil
 
 	case *BooleanNode:
+		if e.cc.overflow() {
+			return nil, RuntimeError.New("evaluation complexity overflow")
+		}
 		return rideBoolean(n.Value), nil
 
 	case *StringNode:
+		if e.cc.overflow() {
+			return nil, RuntimeError.New("evaluation complexity overflow")
+		}
 		return rideString(n.Value), nil
 
 	case *ConditionalNode:
+		if e.cc.overflow() {
+			return nil, RuntimeError.New("evaluation complexity overflow")
+		}
 		defer func() {
-			e.complexity++
+			e.cc.addConditionalComplexity()
 		}()
 		ce, err := e.walk(n.Condition)
 		if err != nil {
@@ -377,6 +495,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		}
 
 	case *AssignmentNode:
+		if e.cc.overflow() {
+			return nil, RuntimeError.New("evaluation complexity overflow")
+		}
 		id := n.Name
 		e.s.pushExpression(id, n.Expression)
 		r, err := e.walk(n.Block)
@@ -387,8 +508,11 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		return r, nil
 
 	case *ReferenceNode:
+		if e.cc.overflow() {
+			return nil, RuntimeError.New("evaluation complexity overflow")
+		}
 		defer func() {
-			e.complexity++
+			e.cc.addReferenceComplexity()
 		}()
 		id := n.Name
 		v, ok, f, p := e.s.value(id)
@@ -412,6 +536,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		return v.value, nil
 
 	case *FunctionDeclarationNode:
+		if e.cc.overflow() {
+			return nil, RuntimeError.New("evaluation complexity overflow")
+		}
 		id := n.Name
 		e.s.pushUserFunction(n)
 		r, err := e.walk(n.Block)
@@ -425,6 +552,9 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		return r, nil
 
 	case *FunctionCallNode:
+		if e.cc.overflow() {
+			return nil, RuntimeError.New("evaluation complexity overflow")
+		}
 		name := n.Function.Name()
 		switch n.Function.(type) {
 		case nativeFunction:
@@ -444,8 +574,11 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		}
 
 	case *PropertyNode:
+		if e.cc.overflow() {
+			return nil, RuntimeError.New("evaluation complexity overflow")
+		}
 		defer func() {
-			e.complexity++
+			e.cc.addPropertyComplexity()
 		}()
 		name := n.Name
 		obj, err := e.walk(n.Object)
@@ -469,6 +602,10 @@ func treeVerifierEvaluator(env environment, tree *Tree) (*treeEvaluator, error) 
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "failed to create scope")
 	}
+	var cc complexityCalculator = &complexityCalculatorV1{}
+	if env.rideV6Activated() {
+		cc = &complexityCalculatorV2{}
+	}
 	if tree.IsDApp() {
 		if tree.HasVerifier() {
 			verifier, ok := tree.Verifier.(*FunctionDeclarationNode)
@@ -484,6 +621,7 @@ func treeVerifierEvaluator(env environment, tree *Tree) (*treeEvaluator, error) 
 			s.constants[verifier.invocationParameter] = esConstant{c: newTx}
 			return &treeEvaluator{
 				dapp: tree.IsDApp(),
+				cc:   cc,
 				f:    verifier.Body, // In DApp verifier is a function, so we have to pass its body
 				s:    s,
 				env:  env,
@@ -493,6 +631,7 @@ func treeVerifierEvaluator(env environment, tree *Tree) (*treeEvaluator, error) 
 	}
 	return &treeEvaluator{
 		dapp: tree.IsDApp(),
+		cc:   cc,
 		f:    tree.Verifier, // In simple script verifier is an expression itself
 		s:    s,
 		env:  env,
@@ -513,6 +652,10 @@ func treeFunctionEvaluator(env environment, tree *Tree, name string, args []ride
 	if !tree.IsDApp() {
 		return nil, EvaluationFailure.Errorf("unable to call function '%s' on simple script", name)
 	}
+	var cc complexityCalculator = &complexityCalculatorV1{}
+	if env.rideV6Activated() {
+		cc = &complexityCalculatorV2{}
+	}
 	for i := 0; i < len(tree.Functions); i++ {
 		function, ok := tree.Functions[i].(*FunctionDeclarationNode)
 		if !ok {
@@ -526,7 +669,7 @@ func treeFunctionEvaluator(env environment, tree *Tree, name string, args []ride
 			for i, arg := range args {
 				s.pushValue(function.Arguments[i], arg)
 			}
-			return &treeEvaluator{dapp: true, f: function.Body, s: s, env: env}, nil
+			return &treeEvaluator{dapp: true, cc: cc, f: function.Body, s: s, env: env}, nil
 		}
 	}
 	return nil, EvaluationFailure.Errorf("function '%s' not found", name)

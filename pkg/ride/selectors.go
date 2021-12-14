@@ -34,30 +34,38 @@ func selectFunctionChecker(v int) (func(name string) (uint16, bool), error) {
 	}
 }
 
-func selectEvaluationCostsProvider(v int, separateEvaluationCosts bool) (map[string]int, error) {
+func selectEvaluationCostsProvider(v, ev int) (map[string]int, error) {
 	switch v {
 	case 1, 2:
-		if separateEvaluationCosts {
-			return EvaluationCatalogueV2, nil
+		switch ev {
+		case 1:
+			return EvaluationCatalogueV2EvaluatorV1, nil
+		default:
+			return EvaluationCatalogueV2EvaluatorV2, nil
 		}
-		return CatalogueV2, nil
 	case 3:
-		if separateEvaluationCosts {
-			return EvaluationCatalogueV3, nil
+		switch ev {
+		case 1:
+			return EvaluationCatalogueV3EvaluatorV1, nil
+		default:
+			return EvaluationCatalogueV3EvaluatorV2, nil
 		}
-		return CatalogueV3, nil
 	case 4:
-		if separateEvaluationCosts {
-			return EvaluationCatalogueV4, nil
+		switch ev {
+		case 1:
+			return EvaluationCatalogueV4EvaluatorV1, nil
+		default:
+			return EvaluationCatalogueV4EvaluatorV2, nil
 		}
-		return CatalogueV4, nil
 	case 5:
-		if separateEvaluationCosts {
-			return EvaluationCatalogueV5, nil
+		switch ev {
+		case 1:
+			return EvaluationCatalogueV5EvaluatorV1, nil
+		default:
+			return EvaluationCatalogueV5EvaluatorV2, nil
 		}
-		return CatalogueV5, nil
-	case 6:
-		return CatalogueV6, nil
+	case 6: // Only new version of evaluator works after activation of RideV6
+		return EvaluationCatalogueV6EvaluatorV2, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
