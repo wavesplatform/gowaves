@@ -26,10 +26,10 @@ func NewArgumentFromRideTypeMeta(name string, rideT meta.Type) (Argument, error)
 	return arg, err
 }
 
-// UnpackRideValues can be used to unpack ABI-encoded hexdata according to the ABI-specification,
+// UnpackValues can be used to unpack ABI-encoded hexdata according to the ABI-specification,
 // without supplying a struct to unpack into. Instead, this method returns a list containing the
 // values. An atomic argument will be a list with one element.
-func (arguments Arguments) UnpackRideValues(data []byte) ([]DataType, int, error) {
+func (arguments Arguments) UnpackValues(data []byte) ([]DataType, int, error) {
 	retval := make([]DataType, 0, len(arguments))
 	virtualArgs := 0
 	for index, arg := range arguments {

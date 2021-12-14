@@ -145,7 +145,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 
 	db := ethabi.NewErc20MethodsMap()
 	assert.NotNil(t, tx.Data())
-	decodedData, err := db.ParseCallDataRide(tx.Data())
+	decodedData, err := db.ParseCallData(tx.Data())
 	assert.NoError(t, err)
 	lessenDecodedDataAmount(t, decodedData)
 

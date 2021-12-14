@@ -32,7 +32,7 @@ func (e *ethInfo) fillRequiredTxFields(ethTx *proto.EthereumTransaction, params 
 
 	case *proto.EthereumTransferAssetsErc20TxKind:
 		db := ethabi.NewErc20MethodsMap()
-		decodedData, err := db.ParseCallDataRide(ethTx.Data())
+		decodedData, err := db.ParseCallData(ethTx.Data())
 		if err != nil {
 			return errors.Errorf("failed to parse ethereum data")
 		}
@@ -61,7 +61,7 @@ func (e *ethInfo) fillRequiredTxFields(ethTx *proto.EthereumTransaction, params 
 		if err != nil {
 			return err
 		}
-		decodedData, err := db.ParseCallDataRide(ethTx.Data())
+		decodedData, err := db.ParseCallData(ethTx.Data())
 		if err != nil {
 			return errors.Wrap(err, "failed to parse ethereum data")
 		}
