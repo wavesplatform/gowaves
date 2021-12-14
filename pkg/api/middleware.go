@@ -1,12 +1,13 @@
 package api
 
 import (
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
-	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
+	"go.uber.org/zap"
 )
 
 // CreateLoggerMiddleware creates a middleware that logs the start and end of each request, along
