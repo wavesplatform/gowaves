@@ -15,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Synchronizer struct {
@@ -30,7 +31,7 @@ type Synchronizer struct {
 }
 
 func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme byte, matchers []crypto.PublicKey, node string, interval int, lag int, symbols *data.Symbols) (*Synchronizer, error) {
-	conn, err := grpc.Dial(node, grpc.WithInsecure())
+	conn, err := grpc.Dial(node, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create new synchronizer")
 	}
