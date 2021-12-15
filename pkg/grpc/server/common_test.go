@@ -25,6 +25,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -103,7 +104,7 @@ func createWallet(ctx context.Context, st state.State, settings *settings.Blockc
 }
 
 func connect(t *testing.T, addr string) *grpc.ClientConn {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	assert.NoError(t, err, "grpc.Dial() failed")
 	return conn
 }
