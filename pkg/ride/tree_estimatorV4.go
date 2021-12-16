@@ -198,6 +198,27 @@ func (e *treeEstimatorV4) walk(node Node, enableInvocation bool) (int, error) {
 				return 0, err
 			}
 		}
+		if m, ap, ok := e.higherOrderFunction(name); ok {
+			if ap < 0 || ap > len(n.Arguments)-1 {
+				return 0, errors.Errorf("failed to estimate higher order function '%s': invalid number of agruments", name)
+			}
+			ff, ok := n.Arguments[ap].(*StringNode)
+			if !ok {
+				return 0, errors.Errorf(
+					"failed to estimate higher order function '%s': unexpected argument type '%T' of %d argument",
+					name, n.Arguments[ap], ap,
+				)
+			}
+			cost, _, found := e.scope.functions.get(ff.Value)
+			if !found {
+				return 0, errors.Errorf("failed to estimate higher order function '%s': user function '%s' not found",
+					name, ff.Value)
+			}
+			fc, err = common.AddInt(fc, m*cost)
+			if err != nil {
+				return 0, err
+			}
+		}
 		if fc == 0 {
 			fc = 1
 		}
@@ -216,5 +237,24 @@ func (e *treeEstimatorV4) walk(node Node, enableInvocation bool) (int, error) {
 
 	default:
 		return 0, errors.Errorf("unsupported type of node '%T'", node)
+	}
+}
+
+func (e *treeEstimatorV4) higherOrderFunction(id string) (int, int, bool) {
+	switch id {
+	case "450":
+		return 20, 2, true
+	case "451":
+		return 50, 2, true
+	case "452":
+		return 100, 2, true
+	case "453":
+		return 200, 2, true
+	case "454":
+		return 500, 2, true
+	case "455":
+		return 1000, 2, true
+	default:
+		return 0, 0, false
 	}
 }
