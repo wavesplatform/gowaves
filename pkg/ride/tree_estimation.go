@@ -17,11 +17,11 @@ func EstimateTree(tree *Tree, v int) (TreeEstimation, error) {
 	case 1:
 		te, err := newTreeEstimatorV1(tree)
 		if err != nil {
-			return TreeEstimation{}, errors.Wrap(err, "failed to estimate with tree estimator V1")
+			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
 		max, verifier, functions, err := te.estimate()
 		if err != nil {
-			return TreeEstimation{}, errors.Wrap(err, "failed to estimate with tree estimator V1")
+			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
 		return TreeEstimation{Estimation: max, Verifier: verifier, Functions: functions}, nil
 	case 2:
@@ -47,31 +47,31 @@ func EstimateTree(tree *Tree, v int) (TreeEstimation, error) {
 
 		te, err := newTreeEstimatorV2(tree)
 		if err != nil {
-			return TreeEstimation{}, errors.Wrap(err, "failed to estimate with tree estimator V2")
+			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
 		max, verifier, functions, err := te.estimate()
 		if err != nil {
-			return TreeEstimation{}, errors.Wrap(err, "failed to estimate with tree estimator V2")
+			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
 		return TreeEstimation{Estimation: max, Verifier: verifier, Functions: functions}, nil
 	case 3:
 		te, err := newTreeEstimatorV3(tree)
 		if err != nil {
-			return TreeEstimation{}, errors.Wrap(err, "failed to estimate with tree estimator V3")
+			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
 		max, verifier, functions, err := te.estimate()
 		if err != nil {
-			return TreeEstimation{}, errors.Wrap(err, "failed to estimate with tree estimator V3")
+			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
 		return TreeEstimation{Estimation: max, Verifier: verifier, Functions: functions}, nil
 	case 4:
 		te, err := newTreeEstimatorV4(tree)
 		if err != nil {
-			return TreeEstimation{}, errors.Wrap(err, "failed to estimate with tree estimator V3")
+			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
 		max, verifier, functions, err := te.estimate()
 		if err != nil {
-			return TreeEstimation{}, errors.Wrap(err, "failed to estimate with tree estimator V3")
+			return TreeEstimation{}, errors.Wrapf(err, "failed to estimate with tree estimator V%d", v)
 		}
 		return TreeEstimation{Estimation: max, Verifier: verifier, Functions: functions}, nil
 	default:

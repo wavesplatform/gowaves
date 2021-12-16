@@ -169,7 +169,9 @@ func (e *treeEstimatorV4) walk(node Node, enableInvocation bool) (int, error) {
 		}
 		bodyUsages := e.scope.emerge()
 		e.scope.restore(tmp)
-		e.scope.setFunction(id, fc, bodyUsages)
+		if e.scope.setFunction(id, fc, bodyUsages) {
+			return 0, errors.Errorf("function '%s' already declared", id)
+		}
 		bc, err := e.walk(n.Block, enableInvocation)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate block after declaration of function '%s'", id)

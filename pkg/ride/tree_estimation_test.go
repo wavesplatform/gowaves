@@ -395,6 +395,7 @@ func TestNativeFoldEstimation(t *testing.T) {
 
 func TestBrokenNativeFold(t *testing.T) {
 	// Hacked script with replaced fold function parameter
+	// Hacked script with replaced fold function parameter
 	code := "BgoBAAAAA3N1bQAAAAIAAAABYQAAAAFuCQAAZAAAAAIFAAAAAWEFAAAAAW4EAAAAA2FycgkABEwAAAACAAAAAAAAAAABCQAETAAAAAIAAAAAAAAAAAIJAARMAAAAAgAAAAAAAAAAAwkABEwAAAACAAAAAAAAAAAECQAETAAAAAIAAAAAAAAAAAUFAAAAA25pbAkAAAAAAAACCQABwgAAAAMFAAAAA2FycgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADyZkt1Y="
 	src, err := base64.StdEncoding.DecodeString(code)
 	require.NoError(t, err)
@@ -402,6 +403,22 @@ func TestBrokenNativeFold(t *testing.T) {
 	tree, err := Parse(src)
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
+
+	_, err = EstimateTree(tree, 4)
+	assert.Error(t, err)
+}
+
+func TestDeclarationDuplication(t *testing.T) {
+	code := "AAIFAAAAAAAAAA8IAhIAGgkKAmExEgNhMTAAAAALAQAAAAJhMAAAAAAGAQAAAAJhMQAAAAAJAQAAAAJhMAAAAAABAAAAAmEyAAAAAAkBAAAAAmExAAAAAAEAAAACYTMAAAAACQEAAAACYTIAAAAAAQAAAAJhNAAAAAAJAQAAAAJhMwAAAAABAAAAAmE1AAAAAAkBAAAAAmE0AAAAAAEAAAACYTYAAAAACQEAAAACYTUAAAAAAQAAAAJhNwAAAAAJAQAAAAJhNgAAAAABAAAAAmE4AAAAAAkBAAAAAmE3AAAAAAEAAAACYTkAAAAACQEAAAACYTgAAAAAAQAAAAJhMQAAAAAJAQAAAAJhOQAAAAAAAAABAAAAAWkBAAAABGNhbGwAAAAABAAAAAFyCQEAAAACYTEAAAAAAwkAAAAAAAACBQAAAAFyBQAAAAFyBQAAAANuaWwJAAACAAAAAQIAAAAkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAAAAAChy+pw="
+	src, err := base64.StdEncoding.DecodeString(code)
+	require.NoError(t, err)
+
+	tree, err := Parse(src)
+	require.NoError(t, err)
+	assert.NotNil(t, tree)
+
+	_, err = EstimateTree(tree, 3)
+	assert.NoError(t, err)
 
 	_, err = EstimateTree(tree, 4)
 	assert.Error(t, err)
