@@ -77,6 +77,7 @@ type AssignmentNode struct {
 	Name       string
 	Expression Node
 	Block      Node
+	newBlock   bool
 }
 
 func (*AssignmentNode) node() {}

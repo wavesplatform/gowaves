@@ -31,12 +31,12 @@ func TestErrors(t *testing.T) {
 		source string
 		err    string
 	}{
-		{"", "invalid source length -4"},
-		{"AQQAAAABaQAAAAAAAAAAAQQAAAABcwIAAAAGc3RyaW5nCQAAAAAAAAIJAAGkAAAAAQUAAAABaQUAAAABcwIsH73=", "invalid source checksum"},
+		{"", "failed to parse script: invalid source length -4"},
+		{"AQQAAAABaQAAAAAAAAAAAQQAAAABcwIAAAAGc3RyaW5nCQAAAAAAAAIJAAGkAAAAAQUAAAABaQUAAAABcwIsH73=", "invalid script checksum"},
 	} {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err)
-		_, err = newParser(src)
+		_, err = Parse(src)
 		assert.EqualError(t, err, test.err)
 	}
 }

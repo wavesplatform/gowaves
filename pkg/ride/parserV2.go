@@ -4,6 +4,7 @@ import (
 	"bytes"
 	sh256 "crypto/sha256"
 	"encoding/binary"
+	"math"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -13,49 +14,21 @@ import (
 	protobuf "google.golang.org/protobuf/proto"
 )
 
-const (
-	scriptApplicationVersion = 1
-)
-
-const (
-	tokenLong byte = iota
-	tokenBytes
-	tokenString
-	tokenIf
-	tokenBlockV1
-	tokenRef
-	tokenTrue
-	tokenFalse
-	tokenGetter
-	tokenFunctionCall
-	tokenBlockV2
-)
-
-const (
-	functionTypeNative byte = iota
-	functionTypeUser
-)
-
-const (
-	declarationTypeLet byte = iota
-	declarationTypeFunction
-)
-
-func Parse(source []byte) (*Tree, error) {
-	p, err := newParser(source)
+func ParseV2(source []byte) (*Tree, error) {
+	p, err := newParserV2(source)
 	if err != nil {
 		return nil, err
 	}
 	return p.parse()
 }
 
-type parser struct {
+type parserV2 struct {
 	r           *bytes.Reader
 	seenBlockV2 bool
 	id          [32]byte
 }
 
-func newParser(source []byte) (*parser, error) {
+func newParserV2(source []byte) (*parserV1, error) {
 	id := sh256.Sum256(source)
 	size := len(source) - 4
 	if size <= 0 {
@@ -69,10 +42,10 @@ func newParser(source []byte) (*parser, error) {
 	if !bytes.Equal(digest[:4], cs) {
 		return nil, errors.New("invalid source checksum")
 	}
-	return &parser{r: bytes.NewReader(src), id: id}, nil
+	return &parserV1{r: bytes.NewReader(src), id: id}, nil
 }
 
-func (p *parser) parse() (*Tree, error) {
+func (p *parserV2) parse() (*Tree, error) {
 	vb, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -87,7 +60,7 @@ func (p *parser) parse() (*Tree, error) {
 	}
 }
 
-func (p *parser) parseDApp() (*Tree, error) {
+func (p *parserV2) parseDApp() (*Tree, error) {
 	av, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -172,7 +145,7 @@ func (p *parser) parseDApp() (*Tree, error) {
 	return tree, nil
 }
 
-func (p *parser) parseScript(v int) (*Tree, error) {
+func (p *parserV2) parseScript(v int) (*Tree, error) {
 	tree := &Tree{
 		AppVersion: scriptApplicationVersion,
 		LibVersion: v,
@@ -187,7 +160,7 @@ func (p *parser) parseScript(v int) (*Tree, error) {
 	return tree, nil
 }
 
-func (p *parser) parseNext() (Node, error) {
+func (p *parserV2) parseNext() (Node, error) {
 	t, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -311,34 +284,39 @@ func (p *parser) parseNext() (Node, error) {
 
 }
 
-func (p *parser) readShort() (int16, error) {
-	buf := make([]byte, 2)
-	_, err := p.r.Read(buf)
+func (p *parserV2) readShort() (int16, error) {
+	v, err := binary.ReadUvarint(p.r)
 	if err != nil {
 		return 0, err
 	}
-	return int16(binary.BigEndian.Uint16(buf)), nil
+	vv := int64(v)
+	if vv < math.MinInt16 || vv > math.MaxInt16 {
+		return 0, errors.New("value out of int16 range")
+	}
+	return int16(v), nil
 }
 
-func (p *parser) readInt() (int32, error) {
-	buf := make([]byte, 4)
-	_, err := p.r.Read(buf)
+func (p *parserV2) readInt() (int32, error) {
+	v, err := binary.ReadUvarint(p.r)
 	if err != nil {
 		return 0, err
 	}
-	return int32(binary.BigEndian.Uint32(buf)), nil
+	vv := int64(v)
+	if vv < math.MinInt32 || vv > math.MaxInt32 {
+		return 0, errors.New("value out of int32 range")
+	}
+	return int32(v), nil
 }
 
-func (p *parser) readLong() (int64, error) {
-	buf := make([]byte, 8)
-	_, err := p.r.Read(buf)
+func (p *parserV2) readLong() (int64, error) {
+	v, err := binary.ReadUvarint(p.r)
 	if err != nil {
 		return 0, err
 	}
-	return int64(binary.BigEndian.Uint64(buf)), nil
+	return int64(v), nil
 }
 
-func (p *parser) readBytes() ([]byte, error) {
+func (p *parserV2) readBytes() ([]byte, error) {
 	n, err := p.readInt()
 	if err != nil {
 		return nil, err
@@ -353,7 +331,7 @@ func (p *parser) readBytes() ([]byte, error) {
 	return buf, nil
 }
 
-func (p *parser) readString() (string, error) {
+func (p *parserV2) readString() (string, error) {
 	b, err := p.readBytes()
 	if err != nil {
 		return "", err
@@ -361,7 +339,7 @@ func (p *parser) readString() (string, error) {
 	return string(b), nil
 }
 
-func (p *parser) readFunctionName(ft byte) (function, error) {
+func (p *parserV2) readFunctionName(ft byte) (function, error) {
 	switch ft {
 	case functionTypeNative:
 		id, err := p.readShort()
@@ -380,7 +358,7 @@ func (p *parser) readFunctionName(ft byte) (function, error) {
 	}
 }
 
-func (p *parser) readDeclaration() (Node, error) {
+func (p *parserV2) readDeclaration() (Node, error) {
 	dt, err := p.r.ReadByte()
 	if err != nil {
 		return nil, err
@@ -424,7 +402,7 @@ func (p *parser) readDeclaration() (Node, error) {
 	}
 }
 
-func (p *parser) readMeta() (meta.DApp, error) {
+func (p *parserV2) readMeta() (meta.DApp, error) {
 	v, err := p.readInt()
 	if err != nil {
 		return meta.DApp{}, err
@@ -447,8 +425,4 @@ func (p *parser) readMeta() (meta.DApp, error) {
 	default:
 		return meta.DApp{}, errors.Errorf("unsupported script meta version %d", v)
 	}
-}
-
-func IsDApp(data []byte) bool {
-	return len(data) > 0 && data[0] == 0
 }
