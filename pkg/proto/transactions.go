@@ -37,8 +37,9 @@ const (
 	SetAssetScriptTransaction                              // 15 - SetAssetScript transaction
 	InvokeScriptTransaction                                // 16 - InvokeScript transaction
 	UpdateAssetInfoTransaction                             // 17 - UpdateAssetInfoTransaction
-	_                                                      // 18 - reserved
+	InvokeExpressionTransaction                            // 18 - reserved
 	EthereumMetamaskTransaction                            // 19 - EthereumMetamaskTransaction is a transaction which received from metamask
+
 )
 
 // TxFailureReason indicates Transactions failure reasons.

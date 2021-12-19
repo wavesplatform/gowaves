@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -454,7 +455,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	var applicationRes *applicationResult
 	needToValidateBalanceDiff := false
 	switch tx.GetTypeInfo().Type {
-	case proto.InvokeScriptTransaction, proto.ExchangeTransaction:
+	case proto.InvokeScriptTransaction, proto.InvokeExpressionTransaction, proto.ExchangeTransaction:
 		// Invoke and Exchange transactions should be handled differently.
 		// They may fail, and will be saved to blockchain anyway.
 		fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
@@ -632,27 +633,21 @@ type applicationResult struct {
 }
 
 func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidationParams) (*applicationResult, error) {
-	invokeTx, ok := tx.(*proto.InvokeScriptWithProofs)
-	if !ok {
-		return nil, errors.New("failed to convert transaction to type InvokeScriptWithProofs")
+	var ID crypto.Digest
+	switch t := tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+		ID = *t.ID
+	case *proto.InvokeExpressionTransactionWithProofs:
+		ID = *t.ID
+	case *proto.EthereumTransaction:
+		if _, ok := t.TxKind.(*proto.EthereumInvokeScriptTxKind); !ok {
+			return nil, errors.New("wrong ethereum tx kind. expected invoke kind")
+		}
+		ID = *t.ID
 	}
-	res, err := a.ia.applyInvokeScript(invokeTx, info)
+	res, err := a.ia.applyInvokeScript(tx, info)
 	if err != nil {
-		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", invokeTx.ID.String(), err)
-		return nil, err
-	}
-	return res, nil
-}
-
-func (a *txAppender) handleEthereumInvoke(tx proto.Transaction, info *fallibleValidationParams) (*applicationResult, error) {
-	ethTx, ok := tx.(*proto.EthereumTransaction)
-	if !ok {
-		return nil, errors.New("failed to convert transaction to type EthereumTransaction")
-	}
-
-	res, err := a.ia.applyInvokeScript(ethTx, info)
-	if err != nil {
-		zap.S().Debugf("failed to apply Ethereum invoke transaction %s to state: %v", ethTx.ID.String(), err)
+		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", ID.String(), err)
 		return nil, err
 	}
 	return res, nil
@@ -770,12 +765,10 @@ func (a *txAppender) handleFallible(tx proto.Transaction, info *fallibleValidati
 		}
 	}
 	switch tx.GetTypeInfo().Type {
-	case proto.InvokeScriptTransaction:
+	case proto.InvokeScriptTransaction, proto.InvokeExpressionTransaction, proto.EthereumMetamaskTransaction:
 		return a.handleInvoke(tx, info)
 	case proto.ExchangeTransaction:
 		return a.handleExchange(tx, info)
-	case proto.EthereumMetamaskTransaction:
-		return a.handleEthereumInvoke(tx, info)
 	}
 	return nil, errors.New("transaction is not fallible")
 }

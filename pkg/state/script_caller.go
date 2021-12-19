@@ -237,7 +237,17 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		functionName = transaction.FunctionCall.Name
 		functionArguments = transaction.FunctionCall.Arguments
 		defaultFunction = transaction.FunctionCall.Default
-
+	case *proto.InvokeExpressionTransactionWithProofs:
+		//err = env.SetInvoke(transaction, tree.LibVersion)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//payments = transaction.Payments
+		sender, err = proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, transaction.SenderPK)
+		if err != nil {
+			return nil, err
+		}
+		functionName = ""
 	case *proto.EthereumTransaction:
 		abiPayments := transaction.TxKind.DecodedData().Payments
 		scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))

@@ -1,6 +1,7 @@
 package state
 
 import (
+	"encoding/base64"
 	"fmt"
 	"math"
 	"math/big"
@@ -727,10 +728,14 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		ia.invokeDiffStor.invokeDiffsStor.reset()
 	}()
 
-	var paymentsLength int
-	var scriptAddr *proto.WavesAddress
-	var txID crypto.Digest
-	var sender proto.Address
+	var (
+		paymentsLength int
+		scriptAddr     *proto.WavesAddress
+		txID           crypto.Digest
+		sender         proto.Address
+		tree           *ride.Tree
+		scriptPK       crypto.PublicKey
+	)
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
 
@@ -745,6 +750,25 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to apply script invocation")
 		}
+		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
+		}
+		scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
+		}
+	case *proto.InvokeExpressionTransactionWithProofs:
+		src, err := base64.StdEncoding.DecodeString(transaction.Expression)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to decode invoke expression")
+		}
+
+		tree, err = ride.Parse(src)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
+		}
+
 	case *proto.EthereumTransaction:
 		var err error
 		scriptAddr, err = transaction.WavesAddressTo(ia.settings.AddressSchemeCharacter)
@@ -757,6 +781,14 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		sender, err = transaction.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to apply script invocation")
+		}
+		tree, err = ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
+		}
+		scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
 	default:
 		return nil, errors.New("failed to apply an invoke script: unexpected type of transaction ")
@@ -776,14 +808,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	if err != nil {
 		return nil, err
 	}
-	tree, err := ia.stor.scriptsStorage.newestScriptByAddr(*scriptAddr, !info.initialisation)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptAddr.String())
-	}
-	scriptPK, err := ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
-	}
+
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we've done it before.
 	if paymentsLength >= 2 && tree.LibVersion < 4 {
