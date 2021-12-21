@@ -94,6 +94,11 @@ func (m *Order) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if m.PriceMode != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.PriceMode))
+		i--
+		dAtA[i] = 0x70
+	}
 	if len(m.Eip712Signature) > 0 {
 		i -= len(m.Eip712Signature)
 		copy(dAtA[i:], m.Eip712Signature)
@@ -259,6 +264,11 @@ func (m *Order) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
+	if m.PriceMode != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.PriceMode))
+		i--
+		dAtA[i] = 0x70
+	}
 	if len(m.Eip712Signature) > 0 {
 		i -= len(m.Eip712Signature)
 		copy(dAtA[i:], m.Eip712Signature)
@@ -419,6 +429,9 @@ func (m *Order) SizeVT() (n int) {
 	l = len(m.Eip712Signature)
 	if l > 0 {
 		n += 1 + l + sov(uint64(l))
+	}
+	if m.PriceMode != 0 {
+		n += 1 + sov(uint64(m.PriceMode))
 	}
 	if m.unknownFields != nil {
 		n += len(m.unknownFields)
@@ -913,6 +926,25 @@ func (m *Order) UnmarshalVT(dAtA []byte) error {
 				m.Eip712Signature = []byte{}
 			}
 			iNdEx = postIndex
+		case 14:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PriceMode", wireType)
+			}
+			m.PriceMode = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PriceMode |= Order_PriceMode(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skip(dAtA[iNdEx:])
