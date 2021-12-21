@@ -843,6 +843,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if o2ScriptedAccount && !smartTradingActivated {
 		return nil, errors.New("second order is scripted, but smart trading is disabled")
 	}
+	// TODO(nickeskov): add RideV6 feature check for order
 	return smartAssets, nil
 }
 

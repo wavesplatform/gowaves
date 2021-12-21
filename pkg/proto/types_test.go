@@ -6,11 +6,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"math"
 	"strings"
 	"testing"
 	"time"
+
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
@@ -317,14 +318,14 @@ func TestOrderV1ToJSON(t *testing.T) {
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
 		if j, err := json.Marshal(o); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
-				base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
-			assert.Equal(t, ej, string(j))
+			ej := fmt.Sprintf("{\"priceMode\":\"%s\",\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+				DefaultOrderV1V2V3PriceMode.String(), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+			assert.JSONEq(t, ej, string(j))
 			if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(o); assert.NoError(t, err) {
-					ej := fmt.Sprintf("{\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
-						base58.Encode(o.ID[:]), base58.Encode(o.Signature[:]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
-					assert.Equal(t, ej, string(j))
+					ej := fmt.Sprintf("{\"priceMode\":\"%s\",\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+						DefaultOrderV1V2V3PriceMode.String(), base58.Encode(o.ID[:]), base58.Encode(o.Signature[:]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+					assert.JSONEq(t, ej, string(j))
 				}
 			}
 		}
@@ -495,14 +496,14 @@ func TestOrderV2ToJSON(t *testing.T) {
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV2(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
 		if j, err := json.Marshal(o); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"version\":2,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
-				base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
-			assert.Equal(t, ej, string(j))
+			ej := fmt.Sprintf("{\"priceMode\":\"%s\",\"version\":2,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+				DefaultOrderV1V2V3PriceMode.String(), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+			assert.JSONEq(t, ej, string(j))
 			if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(o); assert.NoError(t, err) {
-					ej := fmt.Sprintf("{\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
-						base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
-					assert.Equal(t, ej, string(j))
+					ej := fmt.Sprintf("{\"priceMode\":\"%s\",\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+						DefaultOrderV1V2V3PriceMode.String(), base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+					assert.JSONEq(t, ej, string(j))
 				}
 			}
 		}
@@ -703,14 +704,14 @@ func TestOrderV3ToJSON(t *testing.T) {
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV3(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee, *fa)
 		if j, err := json.Marshal(o); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"version\":3,\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
-				fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
-			assert.Equal(t, ej, string(j))
+			ej := fmt.Sprintf("{\"priceMode\":\"%s\",\"version\":3,\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+				DefaultOrderV1V2V3PriceMode.String(), fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+			assert.JSONEq(t, ej, string(j))
 			if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(o); assert.NoError(t, err) {
-					ej := fmt.Sprintf("{\"version\":3,\"id\":\"%s\",\"proofs\":[\"%s\"],\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
-						base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
-					assert.Equal(t, ej, string(j))
+					ej := fmt.Sprintf("{\"priceMode\":\"%s\",\"version\":3,\"id\":\"%s\",\"proofs\":[\"%s\"],\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+						DefaultOrderV1V2V3PriceMode.String(), base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+					assert.JSONEq(t, ej, string(j))
 				}
 			}
 		}
@@ -1859,5 +1860,80 @@ func TestEthereumOrderV4_UnmarshalJSON(t *testing.T) {
 		actualOrderID, err := order.GetID()
 		require.NoError(t, err)
 		require.Equal(t, expectedOrderID, actualOrderID)
+	}
+}
+
+func TestOrderPriceMode_FromProtobuf(t *testing.T) {
+	tests := []struct {
+		pbMode   g.Order_PriceMode
+		expected OrderPriceMode
+		isErr    bool
+	}{
+		{g.Order_FIXED_DECIMALS, OrderPriceModeFixedDecimals, false},
+		{g.Order_ASSET_DECIMALS, OrderPriceModeAssetDecimals, false},
+		{g.Order_PriceMode(4235), 0, true},
+		{g.Order_PriceMode(-1), 0, true},
+	}
+	for _, tc := range tests {
+		var actual OrderPriceMode
+		err := actual.FromProtobuf(tc.pbMode)
+		if tc.isErr {
+			require.Error(t, err)
+		} else {
+			require.Equal(t, tc.expected, actual)
+		}
+	}
+}
+
+func TestOrderPriceMode_ToProtobuf(t *testing.T) {
+	tests := []struct {
+		testName string
+		expected g.Order_PriceMode
+		mode     OrderPriceMode
+		panic    bool
+	}{
+		{"To_Order_FIXED_DECIMALS", g.Order_FIXED_DECIMALS, OrderPriceModeFixedDecimals, false},
+		{"To_Order_ASSET_DECIMALS", g.Order_ASSET_DECIMALS, OrderPriceModeAssetDecimals, false},
+		{"Invalid", 0, 255, true},
+	}
+	for i := range tests {
+		tc := tests[i]
+		t.Run(tc.testName, func(t *testing.T) {
+			if tc.panic {
+				require.Panics(t, func() {
+					tc.mode.ToProtobuf()
+				})
+			} else {
+				actual := tc.mode.ToProtobuf()
+				require.Equal(t, tc.expected, actual)
+			}
+		})
+	}
+}
+
+func TestOrderPriceMode_Valid(t *testing.T) {
+	tests := []struct {
+		orderVersion byte
+		mode         OrderPriceMode
+		valid        bool
+	}{
+		{1, OrderPriceModeFixedDecimals, true},
+		{1, OrderPriceModeAssetDecimals, false},
+		{2, OrderPriceModeFixedDecimals, true},
+		{2, OrderPriceModeAssetDecimals, false},
+		{3, OrderPriceModeFixedDecimals, true},
+		{3, OrderPriceModeAssetDecimals, false},
+		{4, OrderPriceModeFixedDecimals, true},
+		{4, OrderPriceModeAssetDecimals, true},
+		{4, 255, false},
+	}
+	for _, tc := range tests {
+		ok, err := tc.mode.Valid(tc.orderVersion)
+		require.Equal(t, tc.valid, ok)
+		if tc.valid {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
+		}
 	}
 }

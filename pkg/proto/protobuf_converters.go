@@ -261,6 +261,14 @@ func (c *ProtobufConverter) orderType(side g.Order_Side) OrderType {
 	return OrderType(c.byte(int32(side)))
 }
 
+func (c *ProtobufConverter) orderPriceMode(gm g.Order_PriceMode) (OrderPriceMode, error) {
+	var m OrderPriceMode
+	if err := m.FromProtobuf(gm); err != nil {
+		return 0, err
+	}
+	return m, nil
+}
+
 func (c *ProtobufConverter) proofs(proofs [][]byte) *ProofsV1 {
 	if c.err != nil {
 		return nil
@@ -332,6 +340,11 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 	if c.err != nil {
 		return nil
 	}
+	priceMode, err := c.orderPriceMode(o.PriceMode)
+	if err != nil {
+		c.err = err
+		return nil
+	}
 	var order Order
 	body := OrderBody{
 		MatcherPK:  c.publicKey(o.MatcherPublicKey),
@@ -358,12 +371,14 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 		order = &OrderV1{
 			Signature: c.proof(o.Proofs),
 			OrderBody: body,
+			PriceMode: priceMode,
 		}
 	case 2:
 		order = &OrderV2{
 			Version:   c.byte(o.Version),
 			Proofs:    c.proofs(o.Proofs),
 			OrderBody: body,
+			PriceMode: priceMode,
 		}
 	case 3:
 		order = &OrderV3{
@@ -371,6 +386,7 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 			Proofs:          c.proofs(o.Proofs),
 			OrderBody:       body,
 			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
+			PriceMode:       priceMode,
 		}
 	case 4:
 		orderV4 := OrderV4{
@@ -378,6 +394,7 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 			Proofs:          c.proofs(o.Proofs),
 			OrderBody:       body,
 			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
+			PriceMode:       priceMode,
 		}
 		if len(o.Eip712Signature) != 0 {
 			ethPubKey, err := NewEthereumPublicKeyFromBytes(o.SenderPublicKey)
