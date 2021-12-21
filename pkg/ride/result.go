@@ -52,3 +52,25 @@ func (r DAppResult) ScriptActions() []proto.ScriptAction {
 func (r DAppResult) Complexity() int {
 	return r.complexity
 }
+
+type ExpressionResult struct {
+	actions    []proto.ScriptAction
+	param      rideType
+	complexity int
+}
+
+func (r ExpressionResult) Result() bool {
+	return true
+}
+
+func (r ExpressionResult) userResult() rideType {
+	return r.param
+}
+
+func (r ExpressionResult) ScriptActions() []proto.ScriptAction {
+	return r.actions
+}
+
+func (r ExpressionResult) Complexity() int {
+	return r.complexity
+}

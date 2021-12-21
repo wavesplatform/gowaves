@@ -190,6 +190,7 @@ type Tree struct {
 	AppVersion   int
 	LibVersion   int
 	HasBlockV2   bool
+	isExpression bool
 	Meta         meta.DApp
 	Declarations []Node
 	Functions    []Node

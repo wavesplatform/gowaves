@@ -223,11 +223,12 @@ func selectFunctionNames(v int, enableInvocation bool) ([]string, error) {
 }
 
 type treeEvaluator struct {
-	dapp       bool
-	complexity int
-	f          Node
-	s          evaluationScope
-	env        environment
+	dapp         bool
+	complexity   int
+	isExpression bool
+	f            Node
+	s            evaluationScope
+	env          environment
 }
 
 func (e *treeEvaluator) evaluate() (Result, error) {
@@ -253,6 +254,9 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 				return nil, EvaluationFailure.Wrap(err, "failed to convert evaluation result")
 			}
 			actions = append(actions, a)
+		}
+		if e.isExpression {
+			return ExpressionResult{actions: actions, complexity: e.complexity}, nil
 		}
 		return DAppResult{actions: actions, complexity: e.complexity}, nil
 	case tuple2:
@@ -475,10 +479,11 @@ func treeVerifierEvaluator(env environment, tree *Tree) (*treeEvaluator, error) 
 		return nil, EvaluationFailure.New("no verifier declaration")
 	}
 	return &treeEvaluator{
-		dapp: tree.IsDApp(),
-		f:    tree.Verifier, // In simple script verifier is an expression itself
-		s:    s,
-		env:  env,
+		dapp:         tree.IsDApp(),
+		f:            tree.Verifier, // In simple script verifier is an expression itself
+		s:            s,
+		env:          env,
+		isExpression: tree.isExpression,
 	}, nil
 }
 

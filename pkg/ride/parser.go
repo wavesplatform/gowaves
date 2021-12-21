@@ -82,6 +82,18 @@ func (p *parser) parse() (*Tree, error) {
 		return p.parseDApp()
 	case 1, 2, 3, 4, 5:
 		return p.parseScript(v)
+	case 255:
+		_, err := p.r.ReadByte()
+		if err != nil {
+			return nil, err
+		}
+		// TODO here should be a lib version
+		tree, err := p.parseScript(5)
+		if err != nil {
+			return nil, err
+		}
+		tree.isExpression = true
+		return tree, nil
 	default:
 		return nil, errors.Errorf("unsupported script version %d", v)
 	}
@@ -184,6 +196,22 @@ func (p *parser) parseScript(v int) (*Tree, error) {
 	tree.Verifier = node
 	tree.HasBlockV2 = p.seenBlockV2
 	tree.Digest = p.id
+	return tree, nil
+}
+
+func (p *parser) parseExpression(v int) (*Tree, error) {
+	tree := &Tree{
+		AppVersion: scriptApplicationVersion,
+		LibVersion: v,
+	}
+	node, err := p.parseNext()
+	if err != nil {
+		return nil, err
+	}
+	tree.Verifier = node
+	tree.HasBlockV2 = p.seenBlockV2
+	tree.Digest = p.id
+	tree.isExpression = true
 	return tree, nil
 }
 
