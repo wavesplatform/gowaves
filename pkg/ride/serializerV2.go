@@ -3,7 +3,6 @@ package ride
 import (
 	"bytes"
 	"encoding/binary"
-	"math"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -92,7 +91,7 @@ func (s *serializerV2) writeMeta(m meta.DApp) error {
 }
 
 func (s *serializerV2) writeDeclarations(declarations []Node) error {
-	if err := s.writeUint32(len(declarations)); err != nil {
+	if err := s.writeUint32(uint32(len(declarations))); err != nil {
 		return err
 	}
 	for _, d := range declarations {
@@ -124,7 +123,7 @@ func (s *serializerV2) writeDeclaration(declaration Node) error {
 }
 
 func (s *serializerV2) writeFunctions(functions []Node) error {
-	if err := s.writeUint32(len(functions)); err != nil {
+	if err := s.writeUint32(uint32(len(functions))); err != nil {
 		return err
 	}
 	for _, f := range functions {
@@ -183,7 +182,7 @@ func (s *serializerV2) writeFunctionDeclaration(function *FunctionDeclarationNod
 	if err := s.writeString(function.Name); err != nil {
 		return err
 	}
-	if err := s.writeUint32(len(function.Arguments)); err != nil {
+	if err := s.writeUint32(uint32(len(function.Arguments))); err != nil {
 		return err
 	}
 	for _, arg := range function.Arguments {
@@ -296,7 +295,7 @@ func (s *serializerV2) walk(node Node) error {
 			if err != nil {
 				return err
 			}
-			if err := s.writeUint16(id); err != nil {
+			if err := s.writeUint16(uint16(id)); err != nil {
 				return err
 			}
 		case userFunction:
@@ -309,7 +308,7 @@ func (s *serializerV2) walk(node Node) error {
 		default:
 			return errors.Errorf("unsupported function type '%T'", n.Function)
 		}
-		if err := s.writeUint32(len(n.Arguments)); err != nil {
+		if err := s.writeUint32(uint32(len(n.Arguments))); err != nil {
 			return err
 		}
 		for _, arg := range n.Arguments {
@@ -340,20 +339,14 @@ func (s *serializerV2) writeByte(b byte) error {
 	return s.buf.WriteByte(b)
 }
 
-func (s *serializerV2) writeUint16(v int) error {
-	if v < 0 || v > math.MaxUint16 {
-		return errors.New("value out of uint16 range")
-	}
+func (s *serializerV2) writeUint16(v uint16) error {
 	b := make([]byte, binary.MaxVarintLen16)
 	n := binary.PutUvarint(b, uint64(v))
 	_, err := s.buf.Write(b[:n])
 	return err
 }
 
-func (s *serializerV2) writeUint32(v int) error {
-	if v < 0 || v > math.MaxUint32 {
-		return errors.New("value out of uint32 range")
-	}
+func (s *serializerV2) writeUint32(v uint32) error {
 	b := make([]byte, binary.MaxVarintLen32)
 	n := binary.PutUvarint(b, uint64(v))
 	_, err := s.buf.Write(b[:n])
@@ -368,11 +361,7 @@ func (s *serializerV2) writeLong(v int64) error {
 }
 
 func (s *serializerV2) writeBytes(data []byte) error {
-	n := len(data)
-	if n < math.MinInt32 || n > math.MaxInt32 {
-		return errors.New("value out of int32 range")
-	}
-	if err := s.writeUint32(n); err != nil {
+	if err := s.writeUint32(uint32(len(data))); err != nil {
 		return err
 	}
 	_, err := s.buf.Write(data)
