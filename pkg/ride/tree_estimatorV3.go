@@ -74,6 +74,10 @@ func (s *estimationScopeV3) setFunction(id string, cost int, usages []string) bo
 	return s.functions.set(id, cost, usages)
 }
 
+func (s *estimationScopeV3) resetFunctions() {
+	s.functions = newFsV3()
+}
+
 func (s *estimationScopeV3) nativeFunction(ut, id string, enableInvocation bool) (int, []string, error) {
 	if c, ok := s.builtin[id]; ok {
 		if (id == "1020" || id == "1021") && !enableInvocation {
