@@ -26,7 +26,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v2.1.5
         with:
           go-version: 1.16
       - name: Run go list
