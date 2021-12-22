@@ -27,12 +27,9 @@ func (f *fsV3) spawn() *fsV3 {
 
 // set adds new function descriptor to context, returns true if new function overwrite old one.
 func (f *fsV3) set(key string, cost int, usages []string) bool {
-	r := false
-	if pv, ok := f.functions[key]; ok {
-		r = pv.cost == cost
-	}
+	_, ok := f.functions[key]
 	f.functions[key] = fd{cost, usages}
-	return r
+	return ok
 }
 
 func (f *fsV3) get(key string) (int, []string, bool) {
