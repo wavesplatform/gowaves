@@ -61,6 +61,7 @@ type pair struct {
 
 type Abbreviations struct {
 	pairs            []pair
+	names            []string
 	compact2original map[string]string
 }
 
@@ -73,7 +74,7 @@ func (a *Abbreviations) CompactToOriginal(compact string) (string, error) {
 
 func Convert(meta *g.DAppMeta) (DApp, error) {
 	v := int(meta.GetVersion())
-	abbreviations := convertAbbreviations(meta.GetCompactNameAndOriginalNamePairList())
+	abbreviations := convertAbbreviations(meta.GetCompactNameAndOriginalNamePairList(), meta.GetOriginalNames())
 	switch v {
 	case 0:
 		return DApp{}, nil
@@ -104,7 +105,7 @@ func Convert(meta *g.DAppMeta) (DApp, error) {
 	}
 }
 
-func buildAbbreviations(abbreviations Abbreviations) []*g.DAppMeta_CompactNameAndOriginalNamePair {
+func buildAbbreviations(abbreviations Abbreviations) ([]*g.DAppMeta_CompactNameAndOriginalNamePair, []string) {
 	r := make([]*g.DAppMeta_CompactNameAndOriginalNamePair, len(abbreviations.compact2original))
 	for i, p := range abbreviations.pairs {
 		r[i] = &g.DAppMeta_CompactNameAndOriginalNamePair{
@@ -112,7 +113,7 @@ func buildAbbreviations(abbreviations Abbreviations) []*g.DAppMeta_CompactNameAn
 			OriginalName: p.original,
 		}
 	}
-	return r
+	return r, abbreviations.names
 }
 
 func buildFunctions(typeBuilder func([]Type) ([]byte, error), functions []Function) ([]*g.DAppMeta_CallableFuncSignature, error) {
@@ -168,7 +169,7 @@ func Build(m DApp) (*g.DAppMeta, error) {
 			return nil, err
 		}
 		r.Funcs = fns
-		r.CompactNameAndOriginalNamePairList = buildAbbreviations(m.Abbreviations)
+		r.CompactNameAndOriginalNamePairList, r.OriginalNames = buildAbbreviations(m.Abbreviations)
 		return r, nil
 	case 2:
 		r := new(g.DAppMeta)
@@ -178,15 +179,15 @@ func Build(m DApp) (*g.DAppMeta, error) {
 			return nil, err
 		}
 		r.Funcs = fns
-		r.CompactNameAndOriginalNamePairList = buildAbbreviations(m.Abbreviations)
+		r.CompactNameAndOriginalNamePairList, r.OriginalNames = buildAbbreviations(m.Abbreviations)
 		return r, nil
 	default:
 		return nil, errors.Errorf("unsupported meta version %d", m.Version)
 	}
 }
 
-func convertAbbreviations(pairs []*g.DAppMeta_CompactNameAndOriginalNamePair) Abbreviations {
-	r := Abbreviations{pairs: make([]pair, len(pairs)), compact2original: make(map[string]string)}
+func convertAbbreviations(pairs []*g.DAppMeta_CompactNameAndOriginalNamePair, names []string) Abbreviations {
+	r := Abbreviations{pairs: make([]pair, len(pairs)), names: names, compact2original: make(map[string]string)}
 	for i, p := range pairs {
 		r.compact2original[p.CompactName] = p.OriginalName
 		r.pairs[i] = pair{compact: p.CompactName, original: p.OriginalName}
