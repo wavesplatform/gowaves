@@ -8,9 +8,43 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
+type contentType byte
+
 const (
-	scriptApplicationVersion = 1
+	contentTypeExpression contentType = iota + 1
+	contentTypeApplication
 )
+
+func newContentType(b byte) (contentType, error) {
+	ct := contentType(b)
+	switch ct {
+	case contentTypeExpression, contentTypeApplication:
+		return ct, nil
+	default:
+		return 0, errors.Errorf("unsupported content type '%d'", b)
+	}
+}
+
+type libraryVersion byte
+
+const (
+	libV1 libraryVersion = iota + 1
+	libV2
+	libV3
+	libV4
+	libV5
+	libV6
+)
+
+func newLibraryVersion(b byte) (libraryVersion, error) {
+	lv := libraryVersion(b)
+	switch lv {
+	case libV1, libV2, libV3, libV4, libV5, libV6:
+		return lv, nil
+	default:
+		return 0, errors.Errorf("unsupported library version '%d'", b)
+	}
+}
 
 const (
 	tokenLong byte = iota
@@ -37,7 +71,6 @@ const (
 )
 
 func Parse(script []byte) (*Tree, error) {
-	id := sh256.Sum256(script)
 	ok, err := verifyCheckSum(script)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse script")
@@ -45,14 +78,75 @@ func Parse(script []byte) (*Tree, error) {
 	if !ok {
 		return nil, errors.New("invalid script checksum")
 	}
-	switch script[0] {
-	case 0xff:
-		p := parserV2{r: bytes.NewReader(script), id: id}
-		return p.parse()
-	default:
-		p := parserV1{r: bytes.NewReader(script), id: id}
-		return p.parse()
+	id := sh256.Sum256(script)
+	r := bytes.NewReader(script)
+	p, err := parseHeader(r, id)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse script header")
 	}
+	return p.parse()
+}
+
+type parser interface {
+	parse() (*Tree, error)
+}
+
+type scriptHeader struct {
+	content contentType
+	library libraryVersion
+}
+
+/*
+	Serialization mode V1 (LIBRARY_VERSION <= 5):
+	00 CONTENT_TYPE LIBRARY_VERSION <DAPP|EXPRESSION> - DApp, Expression
+	LIBRARY_VERSION <EXPRESSION> - Expression
+
+	Serialization mode V2 (since LIBRARY_VERSION >= 6):
+	LIBRARY_VERSION CONTENT_TYPE <DAPP|EXPRESSION> - DApp, Expression
+*/
+func parseHeader(r *bytes.Reader, id [32]byte) (parser, error) {
+	b, err := r.ReadByte()
+	if err != nil {
+		return nil, err
+	}
+	if b < byte(libV6) {
+		switch b {
+		case 0:
+			b, err = r.ReadByte()
+			if err != nil {
+				return nil, err
+			}
+			ct, err := newContentType(b)
+			if err != nil {
+				return nil, err
+			}
+			b, err = r.ReadByte()
+			if err != nil {
+				return nil, err
+			}
+			lv, err := newLibraryVersion(b)
+			if err != nil {
+				return nil, err
+			}
+			return &parserV1{r: r, id: id, header: scriptHeader{content: ct, library: lv}}, nil
+		default:
+			lv := libraryVersion(b)
+			return &parserV1{r: r, id: id, header: scriptHeader{content: contentTypeExpression, library: lv}}, nil
+		}
+	}
+	lv, err := newLibraryVersion(b)
+	if err != nil {
+		return nil, err
+	}
+	b, err = r.ReadByte()
+	if err != nil {
+		return nil, err
+	}
+	ct, err := newContentType(b)
+	if err != nil {
+		return nil, err
+	}
+	return &parserV2{r: r, id: id, header: scriptHeader{content: ct, library: lv}}, nil
 }
 
 func verifyCheckSum(scr []byte) (bool, error) {

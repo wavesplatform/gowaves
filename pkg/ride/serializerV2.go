@@ -39,13 +39,10 @@ func (s *serializerV2) serialize(tree *Tree) ([]byte, error) {
 }
 
 func (s *serializerV2) serializeDApp(tree *Tree) error {
-	if err := s.writeByte(0x00); err != nil {
-		return err
-	}
-	if err := s.writeByte(byte(tree.AppVersion)); err != nil {
-		return err
-	}
 	if err := s.writeByte(byte(tree.LibVersion)); err != nil {
+		return err
+	}
+	if err := s.writeByte(byte(tree.contentType)); err != nil {
 		return err
 	}
 	if err := s.writeMeta(tree.Meta); err != nil {
@@ -65,6 +62,9 @@ func (s *serializerV2) serializeDApp(tree *Tree) error {
 
 func (s *serializerV2) serializeScript(tree *Tree) error {
 	if err := s.writeByte(byte(tree.LibVersion)); err != nil {
+		return err
+	}
+	if err := s.writeByte(byte(tree.contentType)); err != nil {
 		return err
 	}
 	if err := s.walk(tree.Verifier); err != nil {
@@ -362,7 +362,7 @@ func (s *serializerV2) writeUint32(v int) error {
 
 func (s *serializerV2) writeLong(v int64) error {
 	b := make([]byte, binary.MaxVarintLen64)
-	n := binary.PutVarint(b, v)
+	n := binary.PutUvarint(b, uint64(v))
 	_, err := s.buf.Write(b[:n])
 	return err
 }

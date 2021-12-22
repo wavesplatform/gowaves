@@ -188,7 +188,7 @@ func NewPropertyNode(name string, object Node) *PropertyNode {
 
 type Tree struct {
 	Digest       [32]byte
-	AppVersion   int
+	contentType  contentType
 	LibVersion   int
 	HasBlockV2   bool
 	Meta         meta.DApp
@@ -202,5 +202,5 @@ func (t *Tree) HasVerifier() bool {
 }
 
 func (t *Tree) IsDApp() bool {
-	return t.AppVersion != scriptApplicationVersion
+	return t.contentType == contentTypeApplication
 }

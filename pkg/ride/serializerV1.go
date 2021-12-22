@@ -42,7 +42,7 @@ func (s *serializerV1) serializeDApp(tree *Tree) error {
 	if err := s.writeByte(0x00); err != nil {
 		return err
 	}
-	if err := s.writeByte(byte(tree.AppVersion)); err != nil {
+	if err := s.writeByte(byte(tree.contentType)); err != nil {
 		return err
 	}
 	if err := s.writeByte(byte(tree.LibVersion)); err != nil {

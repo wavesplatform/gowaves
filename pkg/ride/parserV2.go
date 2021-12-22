@@ -2,76 +2,38 @@ package ride
 
 import (
 	"bytes"
-	sh256 "crypto/sha256"
 	"encoding/binary"
 	"math"
 	"strconv"
 
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	g "github.com/wavesplatform/gowaves/pkg/ride/meta/generated"
 	protobuf "google.golang.org/protobuf/proto"
 )
 
-func ParseV2(source []byte) (*Tree, error) {
-	p, err := newParserV2(source)
-	if err != nil {
-		return nil, err
-	}
-	return p.parse()
-}
-
 type parserV2 struct {
 	r           *bytes.Reader
-	seenBlockV2 bool
 	id          [32]byte
-}
-
-func newParserV2(source []byte) (*parserV1, error) {
-	id := sh256.Sum256(source)
-	size := len(source) - 4
-	if size <= 0 {
-		return nil, errors.Errorf("invalid source length %d", size)
-	}
-	src, cs := source[:size], source[size:]
-	digest, err := crypto.SecureHash(src)
-	if err != nil {
-		return nil, err
-	}
-	if !bytes.Equal(digest[:4], cs) {
-		return nil, errors.New("invalid source checksum")
-	}
-	return &parserV1{r: bytes.NewReader(src), id: id}, nil
+	header      scriptHeader
+	seenBlockV2 bool
 }
 
 func (p *parserV2) parse() (*Tree, error) {
-	vb, err := p.r.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-	switch v := int(vb); v {
-	case 0:
+	switch p.header.content {
+	case contentTypeExpression:
+		return p.parseExpression()
+	case contentTypeApplication:
 		return p.parseDApp()
-	case 1, 2, 3, 4, 5, 6:
-		return p.parseScript(v)
 	default:
-		return nil, errors.Errorf("unsupported script version %d", v)
+		return nil, errors.Errorf("unsupported content type '%d'", p.header.content)
 	}
 }
 
 func (p *parserV2) parseDApp() (*Tree, error) {
-	av, err := p.r.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-	lv, err := p.r.ReadByte()
-	if err != nil {
-		return nil, err
-	}
 	tree := &Tree{
-		AppVersion: int(av),
-		LibVersion: int(lv),
+		contentType: p.header.content,
+		LibVersion:  int(p.header.library),
 	}
 	m, err := p.readMeta()
 	if err != nil {
@@ -145,10 +107,10 @@ func (p *parserV2) parseDApp() (*Tree, error) {
 	return tree, nil
 }
 
-func (p *parserV2) parseScript(v int) (*Tree, error) {
+func (p *parserV2) parseExpression() (*Tree, error) {
 	tree := &Tree{
-		AppVersion: scriptApplicationVersion,
-		LibVersion: v,
+		contentType: p.header.content,
+		LibVersion:  int(p.header.library),
 	}
 	node, err := p.parseNext()
 	if err != nil {

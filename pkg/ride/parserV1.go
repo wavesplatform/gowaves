@@ -13,37 +13,26 @@ import (
 
 type parserV1 struct {
 	r           *bytes.Reader
-	seenBlockV2 bool
 	id          [32]byte
+	header      scriptHeader
+	seenBlockV2 bool
 }
 
 func (p *parserV1) parse() (*Tree, error) {
-	vb, err := p.r.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-	switch v := int(vb); v {
-	case 0:
+	switch p.header.content {
+	case contentTypeExpression:
+		return p.parseExpression()
+	case contentTypeApplication:
 		return p.parseDApp()
-	case 1, 2, 3, 4, 5, 6:
-		return p.parseScript(v)
 	default:
-		return nil, errors.Errorf("unsupported script version %d", v)
+		return nil, errors.Errorf("unsupported content type '%d'", p.header.content)
 	}
 }
 
 func (p *parserV1) parseDApp() (*Tree, error) {
-	av, err := p.r.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-	lv, err := p.r.ReadByte()
-	if err != nil {
-		return nil, err
-	}
 	tree := &Tree{
-		AppVersion: int(av),
-		LibVersion: int(lv),
+		contentType: p.header.content,
+		LibVersion:  int(p.header.library),
 	}
 	m, err := p.readMeta()
 	if err != nil {
@@ -117,10 +106,10 @@ func (p *parserV1) parseDApp() (*Tree, error) {
 	return tree, nil
 }
 
-func (p *parserV1) parseScript(v int) (*Tree, error) {
+func (p *parserV1) parseExpression() (*Tree, error) {
 	tree := &Tree{
-		AppVersion: scriptApplicationVersion,
-		LibVersion: v,
+		contentType: p.header.content,
+		LibVersion:  int(p.header.library),
 	}
 	node, err := p.parseNext()
 	if err != nil {
