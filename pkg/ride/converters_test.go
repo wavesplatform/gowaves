@@ -1146,7 +1146,7 @@ func (a *EthereumOrderV4TestSuite) SetupTest() {
 		proto.Timestamp(1544715621),
 		10000,
 		a.matcherFeeAssetID,
-		proto.OrderPriceModeAssetDecimals,
+		proto.DefaultOrderV4AndHigherPriceMode,
 	)
 	sellOrder.Proofs = proto.NewProofs()
 

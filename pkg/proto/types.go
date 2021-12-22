@@ -388,7 +388,7 @@ func (t OrderType) String() string {
 	case Sell:
 		return sellOrderName
 	default:
-		panic(fmt.Sprintf("BUG, CREATE REPORT: unknown order type (%d)", t))
+		return fmt.Sprintf("BUG, CREATE REPORT: unknown order type (%d)", t)
 	}
 }
 
@@ -443,11 +443,13 @@ const (
 	OrderPriceModeAssetDecimals
 )
 
-const DefaultOrderV1V2V3PriceMode = OrderPriceModeFixedDecimals // TODO(nickeskov): check scala node
+const (
+	DefaultOrderV1V2V3PriceMode      = OrderPriceModeFixedDecimals
+	DefaultOrderV4AndHigherPriceMode = OrderPriceModeAssetDecimals
+)
 
 func (m *OrderPriceMode) UnmarshalJSON(val []byte) error {
-	quotedMode := string(val)
-	switch quotedMode {
+	switch quotedMode := string(val); quotedMode {
 	case "\"fixedDecimals\"", jsonNull:
 		*m = OrderPriceModeFixedDecimals
 	case "\"assetDecimals\"":
@@ -469,7 +471,7 @@ func (m OrderPriceMode) String() string {
 	case OrderPriceModeAssetDecimals:
 		return "assetDecimals"
 	default:
-		panic(fmt.Sprintf("BUG, CREATE REPORT: invalid OrderPriceMode=%v", byte(m)))
+		return fmt.Sprintf("BUG, CREATE REPORT: invalid OrderPriceMode=%d", byte(m))
 	}
 }
 

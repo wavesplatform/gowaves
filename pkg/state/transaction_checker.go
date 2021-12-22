@@ -783,22 +783,24 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err := tc.checkEnoughVolume(bo, tx.GetBuyMatcherFee(), tx.GetAmount(), info); err != nil {
 		return nil, errs.Extend(err, "exchange transaction; buy order")
 	}
+	o1 := tx.GetOrder1()
+	o2 := tx.GetOrder2()
 	// Check assets.
 	m := make(map[proto.OptionalAsset]struct{})
 	m[so.GetAssetPair().AmountAsset] = struct{}{}
 	m[so.GetAssetPair().PriceAsset] = struct{}{}
 	// Add matcher fee assets to map to checkAsset() them later.
-	if o2v3, ok := tx.GetOrder2().(*proto.OrderV3); ok {
+	if o2v3, ok := o2.(*proto.OrderV3); ok {
 		m[o2v3.MatcherFeeAsset] = struct{}{}
 	}
-	if o1v3, ok := tx.GetOrder1().(*proto.OrderV3); ok {
+	if o1v3, ok := o1.(*proto.OrderV3); ok {
 		m[o1v3.MatcherFeeAsset] = struct{}{}
 	}
-	if o2v4, ok := tx.GetOrder2().(*proto.OrderV4); ok {
+	if o2v4, ok := o2.(*proto.OrderV4); ok {
 		m[o2v4.MatcherFeeAsset] = struct{}{}
 	}
-	if o2v4, ok := tx.GetOrder1().(*proto.OrderV4); ok {
-		m[o2v4.MatcherFeeAsset] = struct{}{}
+	if o1v4, ok := o1.(*proto.OrderV4); ok {
+		m[o1v4.MatcherFeeAsset] = struct{}{}
 	}
 	for a := range m {
 		if err := tc.checkAsset(&a, info.initialisation); err != nil {
@@ -843,8 +845,26 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if o2ScriptedAccount && !smartTradingActivated {
 		return nil, errors.New("second order is scripted, but smart trading is disabled")
 	}
-	// TODO(nickeskov): add RideV6 feature check for order
+	orderV4AndHigherPriceMode, err := tc.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return nil, err
+	}
+	if err := checkOrderPriceMode(o1, orderV4AndHigherPriceMode); err != nil {
+		return nil, err
+	}
+	if err := checkOrderPriceMode(o2, orderV4AndHigherPriceMode); err != nil {
+		return nil, err
+	}
 	return smartAssets, nil
+}
+
+func checkOrderPriceMode(o proto.Order, IsActivatedPriceModeFeature bool) error {
+	if o.GetVersion() >= 4 && !IsActivatedPriceModeFeature {
+		if m := o.GetPriceMode(); m != proto.DefaultOrderV4AndHigherPriceMode {
+			return errors.Errorf("invalid PrceMode for OrderV4 or higher, priceMode=%s", m)
+		}
+	}
+	return nil
 }
 
 func (tc *transactionChecker) checkExchangeWithSig(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
