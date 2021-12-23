@@ -1917,12 +1917,12 @@ func TestOrderPriceMode_Valid(t *testing.T) {
 		mode         OrderPriceMode
 		valid        bool
 	}{
-		{1, OrderPriceModeFixedDecimals, true},
-		{1, OrderPriceModeAssetDecimals, false},
-		{2, OrderPriceModeFixedDecimals, true},
-		{2, OrderPriceModeAssetDecimals, false},
-		{3, OrderPriceModeFixedDecimals, true},
-		{3, OrderPriceModeAssetDecimals, false},
+		{1, OrderPriceModeFixedDecimals, false},
+		{1, OrderPriceModeAssetDecimals, true},
+		{2, OrderPriceModeFixedDecimals, false},
+		{2, OrderPriceModeAssetDecimals, true},
+		{3, OrderPriceModeFixedDecimals, false},
+		{3, OrderPriceModeAssetDecimals, true},
 		{4, OrderPriceModeFixedDecimals, true},
 		{4, OrderPriceModeAssetDecimals, true},
 		{4, 255, false},

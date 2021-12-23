@@ -444,8 +444,8 @@ const (
 )
 
 const (
-	DefaultOrderV1V2V3PriceMode      = OrderPriceModeFixedDecimals
-	DefaultOrderV4AndHigherPriceMode = OrderPriceModeAssetDecimals
+	DefaultOrderV1V2V3PriceMode      = OrderPriceModeAssetDecimals
+	DefaultOrderV4AndHigherPriceMode = OrderPriceModeFixedDecimals
 )
 
 func (m *OrderPriceMode) UnmarshalJSON(val []byte) error {
@@ -801,6 +801,7 @@ func (o OrderV1) BinarySize() int {
 func (o OrderV1) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: nil, Amount: int64(o.MatcherFee)}
+	res.PriceMode = o.PriceMode.ToProtobuf()
 	res.Version = 1
 	return res
 }
@@ -1024,6 +1025,7 @@ func (o OrderV2) BinarySize() int {
 func (o OrderV2) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: nil, Amount: int64(o.MatcherFee)}
+	res.PriceMode = o.PriceMode.ToProtobuf()
 	res.Version = 2
 	return res
 }
@@ -1264,6 +1266,7 @@ func (o OrderV3) BinarySize() int {
 func (o OrderV3) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: o.MatcherFeeAsset.ToID(), Amount: int64(o.MatcherFee)}
+	res.PriceMode = o.PriceMode.ToProtobuf()
 	res.Version = 3
 	return res
 }
