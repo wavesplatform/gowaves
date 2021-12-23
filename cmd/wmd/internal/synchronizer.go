@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
@@ -16,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type Synchronizer struct {
@@ -217,7 +217,7 @@ func (s *Synchronizer) nodeHeight() (int, error) {
 	defer cancel()
 
 	c := g.NewBlocksApiClient(s.conn)
-	h, err := c.GetCurrentHeight(ctx, &empty.Empty{}, grpc.EmptyCallOption{})
+	h, err := c.GetCurrentHeight(ctx, &emptypb.Empty{}, grpc.EmptyCallOption{})
 	if err != nil {
 		return 0, err
 	}
