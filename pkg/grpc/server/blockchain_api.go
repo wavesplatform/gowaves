@@ -3,11 +3,11 @@ package server
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // allFeatures combines blockchain features from state with features
@@ -109,7 +109,7 @@ func (s *Server) GetActivationStatus(ctx context.Context, req *g.ActivationStatu
 	return res, nil
 }
 
-func (s *Server) GetBaseTarget(ctx context.Context, req *empty.Empty) (*g.BaseTargetResponse, error) {
+func (s *Server) GetBaseTarget(ctx context.Context, req *emptypb.Empty) (*g.BaseTargetResponse, error) {
 	height, err := s.state.Height()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
@@ -121,7 +121,7 @@ func (s *Server) GetBaseTarget(ctx context.Context, req *empty.Empty) (*g.BaseTa
 	return &g.BaseTargetResponse{BaseTarget: int64(block.BaseTarget)}, nil
 }
 
-func (s *Server) GetCumulativeScore(ctx context.Context, req *empty.Empty) (*g.ScoreResponse, error) {
+func (s *Server) GetCumulativeScore(ctx context.Context, req *emptypb.Empty) (*g.ScoreResponse, error) {
 	score, err := s.state.CurrentScore()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
