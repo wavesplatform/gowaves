@@ -199,22 +199,6 @@ func (p *parser) parseScript(v int) (*Tree, error) {
 	return tree, nil
 }
 
-func (p *parser) parseExpression(v int) (*Tree, error) {
-	tree := &Tree{
-		AppVersion: scriptApplicationVersion,
-		LibVersion: v,
-	}
-	node, err := p.parseNext()
-	if err != nil {
-		return nil, err
-	}
-	tree.Verifier = node
-	tree.HasBlockV2 = p.seenBlockV2
-	tree.Digest = p.id
-	tree.isExpression = true
-	return tree, nil
-}
-
 func (p *parser) parseNext() (Node, error) {
 	t, err := p.r.ReadByte()
 	if err != nil {

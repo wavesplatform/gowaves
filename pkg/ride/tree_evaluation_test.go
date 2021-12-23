@@ -438,15 +438,15 @@ func TestOverlapping(t *testing.T) {
 
 func TestInvokeExpression(t *testing.T) {
 	/*
-	 {-# STDLIB_VERSION 6 #-}
-	{-# CONTENT_TYPE EXPRESSION #-}
-	{-# SCRIPT_TYPE CALL #-}
+		 {-# STDLIB_VERSION 6 #-}
+		{-# CONTENT_TYPE EXPRESSION #-}
+		{-# SCRIPT_TYPE CALL #-}
 
-	let lease = Lease(Address(base58'3FMdfKQ3yrkrGawp4QYkf8phE6ZMup7hfR2'), 10)
-	[
-	    lease,
-	     BooleanEntry("key", true)
-	]
+		let lease = Lease(Address(base58'3FMdfKQ3yrkrGawp4QYkf8phE6ZMup7hfR2'), 10)
+		[
+		    lease,
+		     BooleanEntry("key", true)
+		]
 	*/
 	s := "/wYEAAAABWxlYXNlCQAERAAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAUP2ZeK0oJWLGYVbOVovHApDYXsAHYcycskAAAAAAAAAAAoJAARMAAAAAgUAAAAFbGVhc2UJAARMAAAAAgkBAAAADEJvb2xlYW5FbnRyeQAAAAICAAAAA2tleQYFAAAAA25pbE0OINk="
 	src, err := base64.StdEncoding.DecodeString(s)

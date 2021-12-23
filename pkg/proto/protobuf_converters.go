@@ -1027,7 +1027,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Fee:       feeAmount,
 			Timestamp: ts,
 			//TODO
-			Expression: "",
+			Expression: []byte{},
 		}
 
 	case *g.Transaction_InvokeScript:

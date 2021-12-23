@@ -244,6 +244,14 @@ func (tf *transactionFeeCounter) minerFeeInvokeScriptWithProofs(transaction prot
 	return tf.minerFee(distr, tx.Fee, tx.FeeAsset)
 }
 
+func (tf *transactionFeeCounter) minerFeeInvokeExpressionWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
+	tx, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs)
+	if !ok {
+		return errors.New("failed to convert interface to InvokeExpressionWithProofs tx")
+	}
+	return tf.minerFee(distr, tx.Fee, tx.FeeAsset)
+}
+
 func (tf *transactionFeeCounter) minerFeeUpdateAssetInfoWithProofs(transaction proto.Transaction, distr *feeDistribution) error {
 	tx, ok := transaction.(*proto.UpdateAssetInfoWithProofs)
 	if !ok {

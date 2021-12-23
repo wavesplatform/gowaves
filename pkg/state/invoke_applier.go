@@ -759,7 +759,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
 	case *proto.InvokeExpressionTransactionWithProofs:
-		src, err := base64.StdEncoding.DecodeString(transaction.Expression)
+		src, err := base64.StdEncoding.DecodeString(string(transaction.Expression))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to decode invoke expression")
 		}

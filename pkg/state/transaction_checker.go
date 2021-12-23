@@ -1277,6 +1277,32 @@ func (tc *transactionChecker) checkInvokeScriptWithProofs(transaction proto.Tran
 	return smartAssets, nil
 }
 
+func (tc *transactionChecker) checkInvokeExpressionWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
+	tx, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs)
+	if !ok {
+		return nil, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
+	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return nil, errs.Extend(err, "invalid timestamp")
+	}
+	rideV6, err := tc.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return nil, err
+	}
+	if !rideV6 {
+		return nil, errors.New("can not use InvokeExpression before RideV6 activation")
+	}
+	if err := tc.checkFeeAsset(&tx.FeeAsset, info.initialisation); err != nil {
+		return nil, err
+	}
+
+	assets := &txAssets{feeAsset: tx.FeeAsset, smartAssets: nil}
+	if err := tc.checkFee(transaction, assets, info); err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
 func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(*proto.UpdateAssetInfoWithProofs)
 	if !ok {
