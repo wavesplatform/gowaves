@@ -187,7 +187,7 @@ mock:
 
 proto:
 	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src --go-vtproto_out=$(GOPATH)/src --plugin protoc-gen-go-vtproto="$(GOPATH)/bin/protoc-gen-go-vtproto" --go-vtproto_opt=features=marshal+unmarshal+size+flat_oneofs pkg/grpc/protobuf-schemas/proto/waves/*.proto
-	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src --go-grpc_out=require_unimplemented_servers=false:$(GOPATH)/src pkg/grpc/protobuf-schemas/proto/waves/node/grpc/*.proto
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=$(GOPATH)/src --go-grpc_out=$(GOPATH)/src --go-grpc_opt=require_unimplemented_servers=false pkg/grpc/protobuf-schemas/proto/waves/node/grpc/*.proto
 	@protoc --proto_path=pkg/ride/meta/proto --go_out=$(GOPATH)/src pkg/ride/meta/proto/*.proto
 
 build-integration-linux:
