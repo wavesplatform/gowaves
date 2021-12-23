@@ -13,7 +13,7 @@ require (
 	github.com/fxamacker/cbor/v2 v2.3.0
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.2
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef

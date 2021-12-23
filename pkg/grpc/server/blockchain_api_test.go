@@ -6,12 +6,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestGetBaseTarget(t *testing.T) {
@@ -38,7 +38,7 @@ func TestGetBaseTarget(t *testing.T) {
 
 	cl := g.NewBlockchainApiClient(conn)
 
-	res, err := cl.GetBaseTarget(ctx, &empty.Empty{})
+	res, err := cl.GetBaseTarget(ctx, &emptypb.Empty{})
 	assert.NoError(t, err)
 	// MainNet Genesis base target.
 	assert.Equal(t, int64(153722867), res.BaseTarget)
@@ -50,7 +50,7 @@ func TestGetBaseTarget(t *testing.T) {
 	err = st.AddOldDeserializedBlocks(blocks)
 	assert.NoError(t, err)
 	// Check new base target.
-	res, err = cl.GetBaseTarget(ctx, &empty.Empty{})
+	res, err = cl.GetBaseTarget(ctx, &emptypb.Empty{})
 	assert.NoError(t, err)
 	assert.Equal(t, int64(newTarget), res.BaseTarget)
 }
@@ -78,7 +78,7 @@ func TestGetCumulativeScore(t *testing.T) {
 
 	cl := g.NewBlockchainApiClient(conn)
 
-	res, err := cl.GetCumulativeScore(ctx, &empty.Empty{})
+	res, err := cl.GetCumulativeScore(ctx, &emptypb.Empty{})
 	assert.NoError(t, err)
 	genesisTarget := uint64(153722867)
 	result, err := state.CalculateScore(genesisTarget)

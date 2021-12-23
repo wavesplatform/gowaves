@@ -8,7 +8,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
@@ -16,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	protobuf "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func headerFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.BlockWithHeight {
@@ -196,7 +196,7 @@ func TestGetCurrentHeight(t *testing.T) {
 
 	cl := g.NewBlocksApiClient(conn)
 
-	res, err := cl.GetCurrentHeight(ctx, &empty.Empty{})
+	res, err := cl.GetCurrentHeight(ctx, &emptypb.Empty{})
 	assert.NoError(t, err)
 	assert.Equal(t, uint32(1), res.Value)
 
@@ -207,7 +207,7 @@ func TestGetCurrentHeight(t *testing.T) {
 	err = st.AddOldDeserializedBlocks(blocks)
 	assert.NoError(t, err)
 
-	res, err = cl.GetCurrentHeight(ctx, &empty.Empty{})
+	res, err = cl.GetCurrentHeight(ctx, &emptypb.Empty{})
 	assert.NoError(t, err)
 	assert.Equal(t, uint32(blockHeight), res.Value)
 }
