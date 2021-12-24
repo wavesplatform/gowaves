@@ -19,6 +19,14 @@ type InvokeExpressionTransactionWithProofs struct {
 	Expression []byte           `json:"expression,omitempty"`
 }
 
+func (tx *InvokeExpressionTransactionWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
+	b, err := MarshalTxBody(scheme, tx)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify signature of InvokeScriptWithProofs transaction")
+	}
+	return tx.Proofs.Verify(0, publicKey, b)
+}
+
 func (tx InvokeExpressionTransactionWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
 }
