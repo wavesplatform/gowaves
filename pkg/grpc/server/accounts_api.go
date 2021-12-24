@@ -3,15 +3,14 @@ package server
 import (
 	"context"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalancesServer) error {
@@ -151,14 +150,14 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 	return nil
 }
 
-func (s *Server) ResolveAlias(_ context.Context, req *wrappers.StringValue) (*wrappers.BytesValue, error) {
+func (s *Server) ResolveAlias(_ context.Context, req *wrapperspb.StringValue) (*wrapperspb.BytesValue, error) {
 	alias := proto.NewAlias(s.scheme, req.Value)
 	addr, err := s.state.AddrByAlias(*alias)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, err.Error())
 	}
 	addrBody := addr.Body()
-	return &wrappers.BytesValue{Value: addrBody}, nil
+	return &wrapperspb.BytesValue{Value: addrBody}, nil
 }
 
 func (s *Server) sendWavesBalance(rcp proto.Recipient, srv g.AccountsApi_GetBalancesServer) error {

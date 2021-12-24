@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
@@ -15,6 +14,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type Synchronizer struct {
@@ -30,7 +31,7 @@ type Synchronizer struct {
 }
 
 func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme byte, matchers []crypto.PublicKey, node string, interval int, lag int, symbols *data.Symbols) (*Synchronizer, error) {
-	conn, err := grpc.Dial(node, grpc.WithInsecure())
+	conn, err := grpc.Dial(node, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create new synchronizer")
 	}
@@ -216,7 +217,7 @@ func (s *Synchronizer) nodeHeight() (int, error) {
 	defer cancel()
 
 	c := g.NewBlocksApiClient(s.conn)
-	h, err := c.GetCurrentHeight(ctx, &empty.Empty{}, grpc.EmptyCallOption{})
+	h, err := c.GetCurrentHeight(ctx, &emptypb.Empty{}, grpc.EmptyCallOption{})
 	if err != nil {
 		return 0, err
 	}

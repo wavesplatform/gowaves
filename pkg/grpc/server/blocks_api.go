@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func (s *Server) headerByHeight(height proto.Height) (*g.BlockWithHeight, error) {
@@ -105,10 +105,10 @@ func (s *Server) GetBlockRange(req *g.BlockRangeRequest, srv g.BlocksApi_GetBloc
 	return nil
 }
 
-func (s *Server) GetCurrentHeight(ctx context.Context, req *empty.Empty) (*wrappers.UInt32Value, error) {
+func (s *Server) GetCurrentHeight(ctx context.Context, req *emptypb.Empty) (*wrapperspb.UInt32Value, error) {
 	height, err := s.state.Height()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
-	return &wrappers.UInt32Value{Value: uint32(height)}, nil
+	return &wrapperspb.UInt32Value{Value: uint32(height)}, nil
 }
