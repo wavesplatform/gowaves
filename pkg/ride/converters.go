@@ -1142,36 +1142,57 @@ func convertArgument(arg proto.Argument) (rideType, error) {
 	}
 }
 
-func invocationToObject(v int, scheme byte, tx *proto.InvokeScriptWithProofs) (rideObject, error) {
-	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+func invocationToObject(v int, scheme byte, tx proto.Transaction) (rideObject, error) {
+	var (
+		senderPK crypto.PublicKey
+		ID       crypto.Digest
+		FeeAsset proto.OptionalAsset
+		Fee      uint64
+	)
+	r := make(rideObject)
+	r[instanceFieldName] = rideString("Invocation")
+
+	switch transaction := tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+		senderPK = transaction.SenderPK
+		ID = *transaction.ID
+		FeeAsset = transaction.FeeAsset
+		Fee = transaction.Fee
+		switch v {
+		case 4, 5:
+			payments := make(rideList, len(transaction.Payments))
+			for i, p := range transaction.Payments {
+				payments[i] = attachedPaymentToObject(p)
+			}
+			r["payments"] = payments
+		default:
+			r["payment"] = rideUnit{}
+			if len(transaction.Payments) > 0 {
+				r["payment"] = attachedPaymentToObject(transaction.Payments[0])
+			}
+		}
+	case *proto.InvokeExpressionTransactionWithProofs:
+		senderPK = transaction.SenderPK
+		ID = *transaction.ID
+		FeeAsset = transaction.FeeAsset
+		Fee = transaction.Fee
+		r["payments"] = nil
+	}
+	sender, err := proto.NewAddressFromPublicKey(scheme, senderPK)
 	if err != nil {
 		return nil, err
 	}
-	r := make(rideObject)
-	r[instanceFieldName] = rideString("Invocation")
-	r["transactionId"] = rideBytes(tx.ID.Bytes())
+	r["transactionId"] = rideBytes(ID.Bytes())
 	r["caller"] = rideAddress(sender)
-	callerPK := rideBytes(common.Dup(tx.SenderPK.Bytes()))
+	callerPK := rideBytes(common.Dup(senderPK.Bytes()))
 	r["callerPublicKey"] = callerPK
 	if v >= 5 {
 		r["originCaller"] = rideAddress(sender)
 		r["originCallerPublicKey"] = callerPK
 	}
-	switch v {
-	case 4, 5:
-		payments := make(rideList, len(tx.Payments))
-		for i, p := range tx.Payments {
-			payments[i] = attachedPaymentToObject(p)
-		}
-		r["payments"] = payments
-	default:
-		r["payment"] = rideUnit{}
-		if len(tx.Payments) > 0 {
-			r["payment"] = attachedPaymentToObject(tx.Payments[0])
-		}
-	}
-	r["feeAssetId"] = optionalAsset(tx.FeeAsset)
-	r["fee"] = rideInt(tx.Fee)
+
+	r["feeAssetId"] = optionalAsset(FeeAsset)
+	r["fee"] = rideInt(Fee)
 	return r, nil
 }
 

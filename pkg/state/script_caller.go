@@ -226,10 +226,9 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		sender            proto.WavesAddress
 		r                 ride.Result
 	)
-
+	err = env.SetInvoke(tx, tree.LibVersion)
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
-		err = env.SetInvoke(transaction, tree.LibVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -262,11 +261,9 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 			return nil, err
 		}
 	case *proto.InvokeExpressionTransactionWithProofs:
-		// TODO set invoke
-		//err = env.SetInvoke(transaction, tree.LibVersion)
-		//if err != nil {
-		//	return nil, err
-		//}
+		if err != nil {
+			return nil, err
+		}
 		sender, err = proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, transaction.SenderPK)
 		if err != nil {
 			return nil, err

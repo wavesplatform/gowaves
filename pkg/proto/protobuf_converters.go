@@ -1019,15 +1019,14 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 	case *g.Transaction_InvokeExpression:
 		feeAsset, feeAmount := c.convertAmount(tx.Fee)
 		rtx = &InvokeExpressionTransactionWithProofs{
-			Type:      InvokeExpressionTransaction,
-			Version:   v,
-			ChainID:   scheme,
-			SenderPK:  c.publicKey(tx.SenderPublicKey),
-			FeeAsset:  feeAsset,
-			Fee:       feeAmount,
-			Timestamp: ts,
-			//TODO
-			Expression: []byte{},
+			Type:       InvokeExpressionTransaction,
+			Version:    v,
+			ChainID:    scheme,
+			SenderPK:   c.publicKey(tx.SenderPublicKey),
+			FeeAsset:   feeAsset,
+			Fee:        feeAmount,
+			Timestamp:  ts,
+			Expression: d.InvokeExpression.Expression,
 		}
 
 	case *g.Transaction_InvokeScript:

@@ -102,36 +102,15 @@ func (tx *InvokeExpressionTransactionWithProofs) MerkleBytes(scheme Scheme) ([]b
 }
 
 func (tx *InvokeExpressionTransactionWithProofs) MarshalBinary() ([]byte, error) {
-	return nil, nil
+	return nil, errors.New("MarshalBinary is not implemented")
 }
 
 func (tx *InvokeExpressionTransactionWithProofs) UnmarshalBinary([]byte, Scheme) error {
-	return nil
+	return errors.New("UnmarshalBinary is not implemented")
 }
 
 func (tx *InvokeExpressionTransactionWithProofs) BodyMarshalBinary() ([]byte, error) {
-	//p := 0
-	//buf := make([]byte, 1+1+1+crypto.PublicKeySize+tx.FeeAsset.BinarySize()+len(tx.Expression))
-	//buf[p] = byte(tx.Type)
-	//p++
-	//buf[p] = tx.Version
-	//p++
-	//buf[p] = tx.ChainID
-	//p++
-	//copy(buf[p:], tx.SenderPK[:])
-	//p += crypto.PublicKeySize
-	//binary.BigEndian.PutUint64(buf[p:], tx.Fee)
-	//p += 8
-	//fab, err := tx.FeeAsset.MarshalBinary()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//copy(buf[p:], fab)
-	//p += len(fab)
-	//binary.BigEndian.PutUint64(buf[p:], tx.Timestamp)
-	//copy(buf[p:], tx.Expression)
-	//return buf, nil
-	return nil, nil
+	return nil, errors.New("BodyMarshalBinary is not implemented")
 }
 
 // TODO check on correctness
