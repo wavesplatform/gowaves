@@ -356,16 +356,23 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 		Expiration: c.uint64(o.Expiration),
 		MatcherFee: c.amount(o.MatcherFee),
 	}
-
-	if o.Version < 4 {
-		if len(o.Eip712Signature) > 0 {
+	switch sender := o.Sender.(type) {
+	case *g.Order_SenderPublicKey:
+		body.SenderPK = c.publicKey(sender.SenderPublicKey)
+	case *g.Order_Eip712Signature:
+		if o.Version < 4 {
 			// nickeskov: see isValid method in com/wavesplatform/transaction/assets/exchange/Order.scala
 			c.err = errors.New("eip712Signature available only in OrderV4")
 			return nil
 		}
-		body.SenderPK = c.publicKey(o.SenderPublicKey)
+	default:
+		c.err = errors.Errorf("unknown order.Sender field=%v", sender)
+		return nil
 	}
-
+	scheme := c.byte(o.ChainId)
+	if scheme == 0 {
+		scheme = c.FallbackChainID
+	}
 	switch version := o.Version; version {
 	case 1:
 		order = &OrderV1{
@@ -396,28 +403,22 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
 			PriceMode:       priceMode,
 		}
-		if len(o.Eip712Signature) != 0 {
-			ethPubKey, err := NewEthereumPublicKeyFromBytes(o.SenderPublicKey)
-			if err != nil {
+		if sig, ok := o.Sender.(*g.Order_Eip712Signature); ok {
+			ethOrder := EthereumOrderV4{
+				Eip712Signature: c.ethSignature(sig.Eip712Signature),
+				OrderV4:         orderV4,
+			}
+			if err := ethOrder.GenerateSenderPK(scheme); err != nil {
 				c.err = err
 				return nil
 			}
-			order = &EthereumOrderV4{
-				Eip712Signature: c.ethSignature(o.Eip712Signature),
-				SenderPK:        ethPubKey,
-				OrderV4:         orderV4,
-			}
+			order = &ethOrder
 		} else {
-			orderV4.SenderPK = c.publicKey(o.SenderPublicKey)
 			order = &orderV4
 		}
 	default:
 		c.err = errors.Errorf("invalid order version %d", version)
 		return nil
-	}
-	scheme := c.byte(o.ChainId)
-	if scheme == 0 {
-		scheme = c.FallbackChainID
 	}
 	if err := order.GenerateID(scheme); err != nil {
 		c.err = err

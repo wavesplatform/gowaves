@@ -1601,9 +1601,6 @@ func TestEthereumOrderV4(t *testing.T) {
 	wavesPKStub, err := crypto.NewPublicKeyFromBytes(ethStub32)
 	require.NoError(t, err)
 
-	ethereumPKBytesStub, err := DecodeFromHexString("0xd10a150ba9a535125481e017a09c2ac6a1ab43fc43f7ab8f0d44635106672dd7de4f775c06b730483862cbc4371a646d86df77b3815593a846b7272ace008c42")
-	require.NoError(t, err)
-
 	ethereumSignatureBytesStub, err := DecodeFromHexString("0x54119bc5b24d9363b7a1a31a71a2e6194dfeedc5e9644893b0a04bb57004e5b14342c1ce29ee00877da49180fd6d7fb332ff400231f809da7ed0dcb07c504e2d1c")
 	require.NoError(t, err)
 
@@ -1621,11 +1618,11 @@ func TestEthereumOrderV4(t *testing.T) {
 			},
 		}
 
-		testEthPubKeyHex := "0xd10a150ba9a535125481e017a09c2ac6a1ab43fc43f7ab8f0d44635106672dd7de4f775c06b730483862cbc4371a646d86df77b3815593a846b7272ace008c42"
+		testEthPubKeyHex := "0xf69531bdb61b48f8cd4963291d07773d09b07081795dae2a43931a5c3cd86e15018836e653bc7c1e6a2718c9b28a9f299d4b86d956488b432ab719d5cc962d2e"
 		testEthSenderPK, err := NewEthereumPublicKeyFromHexString(testEthPubKeyHex)
 		require.NoError(t, err)
 
-		testEthSigHex := "0x54119bc5b24d9363b7a1a31a71a2e6194dfeedc5e9644893b0a04bb57004e5b14342c1ce29ee00877da49180fd6d7fb332ff400231f809da7ed0dcb07c504e2d1c"
+		testEthSigHex := "0xae7cb5b5e9713862fdbfb6b5f1518d89b4f1cc29a865a9248ad72a36044e2a90683092c2fe49fd5e00d6ce734e6ee623b9206f7ad05e587dfe9b45cbd586d5fd1b"
 		testEthSig, err := NewEthereumSignatureFromHexString(testEthSigHex)
 		require.NoError(t, err)
 
@@ -1633,9 +1630,10 @@ func TestEthereumOrderV4(t *testing.T) {
 			SenderPK:        testEthSenderPK,
 			Eip712Signature: testEthSig,
 			OrderV4: OrderV4{
-				Version: 1,
-				ID:      nil,
-				Proofs:  nil, // no proofs because order has Eip712Signature
+				PriceMode: OrderPriceModeAssetDecimals,
+				Version:   1,
+				ID:        nil,
+				Proofs:    nil, // no proofs because order has Eip712Signature
 				MatcherFeeAsset: OptionalAsset{
 					Present: true,
 					ID:      stubAssetID,
@@ -1662,12 +1660,11 @@ func TestEthereumOrderV4(t *testing.T) {
 	t.Run("Order_Version_Validation", func(t *testing.T) {
 		pbTestOrder := func(version int) *g.Order {
 			return &g.Order{
-				SenderPublicKey:  ethereumPKBytesStub,
 				Version:          int32(version),
 				MatcherPublicKey: wavesPKStub.Bytes(),
 				AssetPair:        new(g.AssetPair),
 				MatcherFee:       new(g.Amount),
-				Eip712Signature:  ethereumSignatureBytesStub,
+				Sender:           &g.Order_Eip712Signature{Eip712Signature: ethereumSignatureBytesStub},
 			}
 		}
 		for i := 1; i < 3; i++ {
@@ -1683,12 +1680,11 @@ func TestEthereumOrderV4(t *testing.T) {
 
 	t.Run("Contains_Proofs", func(t *testing.T) {
 		pbTestOrder := &g.Order{
-			SenderPublicKey:  ethereumPKBytesStub,
 			Version:          4,
 			MatcherPublicKey: wavesPKStub.Bytes(),
 			AssetPair:        new(g.AssetPair),
 			MatcherFee:       new(g.Amount),
-			Eip712Signature:  ethereumSignatureBytesStub,
+			Sender:           &g.Order_Eip712Signature{Eip712Signature: ethereumSignatureBytesStub},
 			Proofs:           [][]byte{[]byte("proof stub1"), []byte("proof stub2")},
 		}
 
@@ -1703,6 +1699,9 @@ func TestEthereumOrderV4(t *testing.T) {
 }
 
 func TestEthereumOrderV4_VerifyAndSig(t *testing.T) {
+	const (
+		invalidSenderPKHexStub = "0xd10a150ba9a535125481e017a09c2ac6a1ab43fc43f7ab8f0d44635106672dd7de4f775c06b730483862cbc4371a646d86df77b3815593a846b7272ace008c42"
+	)
 	tests := []struct {
 		scheme                 Scheme
 		ethSenderPKHex         string
@@ -1734,7 +1733,7 @@ func TestEthereumOrderV4_VerifyAndSig(t *testing.T) {
 	for _, tc := range tests {
 		order := newEthereumOrderV4(
 			t,
-			tc.ethSenderPKHex,
+			invalidSenderPKHexStub,
 			tc.ehtSignatureHex,
 			tc.matcherPublicKeyBase58,
 			tc.amountAssetBase58,
@@ -1746,8 +1745,19 @@ func TestEthereumOrderV4_VerifyAndSig(t *testing.T) {
 			tc.exp,
 			tc.fee,
 		)
-		// verify check
+		order.buildEthereumOrderV4TypedData(tc.scheme)
+		// verify check with invalid senderPK
 		valid, err := order.Verify(tc.scheme)
+		require.NoError(t, err)
+		require.False(t, valid)
+
+		// generate valid senderPK
+		err = order.GenerateSenderPK(tc.scheme)
+		require.NoError(t, err)
+		require.Equal(t, tc.ethSenderPKHex, order.SenderPK.String())
+
+		// verify check with valid senderPK
+		valid, err = order.Verify(tc.scheme)
 		require.NoError(t, err)
 		require.True(t, valid)
 
@@ -1869,6 +1879,7 @@ func TestOrderPriceMode_FromProtobuf(t *testing.T) {
 		expected OrderPriceMode
 		isErr    bool
 	}{
+		{g.Order_DEFAULT, OrderPriceModeDefault, false},
 		{g.Order_FIXED_DECIMALS, OrderPriceModeFixedDecimals, false},
 		{g.Order_ASSET_DECIMALS, OrderPriceModeAssetDecimals, false},
 		{g.Order_PriceMode(4235), 0, true},
@@ -1892,6 +1903,7 @@ func TestOrderPriceMode_ToProtobuf(t *testing.T) {
 		mode     OrderPriceMode
 		panic    bool
 	}{
+		{"To_Order_DEFAULT", g.Order_DEFAULT, OrderPriceModeDefault, false},
 		{"To_Order_FIXED_DECIMALS", g.Order_FIXED_DECIMALS, OrderPriceModeFixedDecimals, false},
 		{"To_Order_ASSET_DECIMALS", g.Order_ASSET_DECIMALS, OrderPriceModeAssetDecimals, false},
 		{"Invalid", 0, 255, true},
@@ -1918,11 +1930,14 @@ func TestOrderPriceMode_Valid(t *testing.T) {
 		valid        bool
 	}{
 		{1, OrderPriceModeFixedDecimals, false},
-		{1, OrderPriceModeAssetDecimals, true},
+		{1, OrderPriceModeAssetDecimals, false},
+		{1, OrderPriceModeDefault, true},
 		{2, OrderPriceModeFixedDecimals, false},
-		{2, OrderPriceModeAssetDecimals, true},
+		{2, OrderPriceModeAssetDecimals, false},
+		{2, OrderPriceModeDefault, true},
 		{3, OrderPriceModeFixedDecimals, false},
-		{3, OrderPriceModeAssetDecimals, true},
+		{3, OrderPriceModeAssetDecimals, false},
+		{3, OrderPriceModeDefault, true},
 		{4, OrderPriceModeFixedDecimals, true},
 		{4, OrderPriceModeAssetDecimals, true},
 		{4, 255, false},

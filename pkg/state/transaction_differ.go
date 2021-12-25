@@ -822,8 +822,7 @@ func convertPrice(price int64, amountDecimals, priceDecimals int) (uint64, error
 func orderPrice(exchangeVersion byte, order proto.Order, amountDecimals, priceDecimals int) (uint64, error) {
 	price := order.GetPrice()
 	if exchangeVersion >= 3 {
-		// TODO(nickeskov): use OrderPriceModeFixedDecimals instead of DefaultOrderV1V2V3PriceMode
-		if order.GetPriceMode() == proto.DefaultOrderV1V2V3PriceMode {
+		if order.GetVersion() < 4 || order.GetPriceMode() == proto.OrderPriceModeAssetDecimals {
 			return convertPrice(int64(price), amountDecimals, priceDecimals)
 		}
 	}

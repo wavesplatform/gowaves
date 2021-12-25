@@ -1819,12 +1819,14 @@ func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	// TODO: check that Order1.GetProofs() != nil
+	// TODO: support EthereumOrderV4: generate senderPK from Eip712Signature
 	orderUnmarshalHelper.Order1, err = guessOrderVersionAndType(orderVersions.Order1Recognizer)
 	if err != nil {
 		return errors.Wrap(err, "failed to guess order1 version and type from JSON")
 	}
 
 	// TODO: check that Order1.GetProofs() != nil
+	// TODO: support EthereumOrderV4: generate senderPK from Eip712Signature
 	orderUnmarshalHelper.Order2, err = guessOrderVersionAndType(orderVersions.Order2Recognizer)
 	if err != nil {
 		return errors.Wrap(err, "failed to guess order2 version and type from JSON")

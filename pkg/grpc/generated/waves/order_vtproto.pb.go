@@ -99,12 +99,12 @@ func (m *Order) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x70
 	}
-	if len(m.Eip712Signature) > 0 {
-		i -= len(m.Eip712Signature)
-		copy(dAtA[i:], m.Eip712Signature)
-		i = encodeVarint(dAtA, i, uint64(len(m.Eip712Signature)))
-		i--
-		dAtA[i] = 0x6a
+	if msg, ok := m.Sender.(*Order_Eip712Signature); ok {
+		size := msg.SizeVT()
+		i -= size
+		if _, err := msg.MarshalToVTFlat(dAtA[i:]); err != nil {
+			return 0, err
+		}
 	}
 	if len(m.Proofs) > 0 {
 		for iNdEx := len(m.Proofs) - 1; iNdEx >= 0; iNdEx-- {
@@ -172,12 +172,12 @@ func (m *Order) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1a
 	}
-	if len(m.SenderPublicKey) > 0 {
-		i -= len(m.SenderPublicKey)
-		copy(dAtA[i:], m.SenderPublicKey)
-		i = encodeVarint(dAtA, i, uint64(len(m.SenderPublicKey)))
-		i--
-		dAtA[i] = 0x12
+	if msg, ok := m.Sender.(*Order_SenderPublicKey); ok {
+		size := msg.SizeVT()
+		i -= size
+		if _, err := msg.MarshalToVTFlat(dAtA[i:]); err != nil {
+			return 0, err
+		}
 	}
 	if m.ChainId != 0 {
 		i = encodeVarint(dAtA, i, uint64(m.ChainId))
@@ -187,6 +187,34 @@ func (m *Order) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *Order_SenderPublicKey) MarshalToVTFlat(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVTFlat(dAtA[:size])
+}
+
+func (m *Order_SenderPublicKey) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.SenderPublicKey)
+	copy(dAtA[i:], m.SenderPublicKey)
+	i = encodeVarint(dAtA, i, uint64(len(m.SenderPublicKey)))
+	i--
+	dAtA[i] = 0x12
+	return len(dAtA) - i, nil
+}
+func (m *Order_Eip712Signature) MarshalToVTFlat(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVTFlat(dAtA[:size])
+}
+
+func (m *Order_Eip712Signature) MarshalToSizedBufferVTFlat(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.Eip712Signature)
+	copy(dAtA[i:], m.Eip712Signature)
+	i = encodeVarint(dAtA, i, uint64(len(m.Eip712Signature)))
+	i--
+	dAtA[i] = 0x6a
+	return len(dAtA) - i, nil
+}
 func (m *AssetPair) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
@@ -269,12 +297,15 @@ func (m *Order) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x70
 	}
-	if len(m.Eip712Signature) > 0 {
-		i -= len(m.Eip712Signature)
-		copy(dAtA[i:], m.Eip712Signature)
-		i = encodeVarint(dAtA, i, uint64(len(m.Eip712Signature)))
-		i--
-		dAtA[i] = 0x6a
+	if vtmsg, ok := m.Sender.(interface {
+		MarshalToVT([]byte) (int, error)
+		SizeVT() int
+	}); ok {
+		size := vtmsg.SizeVT()
+		i -= size
+		if _, err := vtmsg.MarshalToVT(dAtA[i:]); err != nil {
+			return 0, err
+		}
 	}
 	if len(m.Proofs) > 0 {
 		for iNdEx := len(m.Proofs) - 1; iNdEx >= 0; iNdEx-- {
@@ -342,13 +373,6 @@ func (m *Order) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1a
 	}
-	if len(m.SenderPublicKey) > 0 {
-		i -= len(m.SenderPublicKey)
-		copy(dAtA[i:], m.SenderPublicKey)
-		i = encodeVarint(dAtA, i, uint64(len(m.SenderPublicKey)))
-		i--
-		dAtA[i] = 0x12
-	}
 	if m.ChainId != 0 {
 		i = encodeVarint(dAtA, i, uint64(m.ChainId))
 		i--
@@ -357,6 +381,34 @@ func (m *Order) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *Order_SenderPublicKey) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *Order_SenderPublicKey) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.SenderPublicKey)
+	copy(dAtA[i:], m.SenderPublicKey)
+	i = encodeVarint(dAtA, i, uint64(len(m.SenderPublicKey)))
+	i--
+	dAtA[i] = 0x12
+	return len(dAtA) - i, nil
+}
+func (m *Order_Eip712Signature) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *Order_Eip712Signature) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	i -= len(m.Eip712Signature)
+	copy(dAtA[i:], m.Eip712Signature)
+	i = encodeVarint(dAtA, i, uint64(len(m.Eip712Signature)))
+	i--
+	dAtA[i] = 0x6a
+	return len(dAtA) - i, nil
+}
 func (m *AssetPair) SizeVT() (n int) {
 	if m == nil {
 		return 0
@@ -386,9 +438,8 @@ func (m *Order) SizeVT() (n int) {
 	if m.ChainId != 0 {
 		n += 1 + sov(uint64(m.ChainId))
 	}
-	l = len(m.SenderPublicKey)
-	if l > 0 {
-		n += 1 + l + sov(uint64(l))
+	if vtmsg, ok := m.Sender.(interface{ SizeVT() int }); ok {
+		n += vtmsg.SizeVT()
 	}
 	l = len(m.MatcherPublicKey)
 	if l > 0 {
@@ -426,10 +477,6 @@ func (m *Order) SizeVT() (n int) {
 			n += 1 + l + sov(uint64(l))
 		}
 	}
-	l = len(m.Eip712Signature)
-	if l > 0 {
-		n += 1 + l + sov(uint64(l))
-	}
 	if m.PriceMode != 0 {
 		n += 1 + sov(uint64(m.PriceMode))
 	}
@@ -439,6 +486,26 @@ func (m *Order) SizeVT() (n int) {
 	return n
 }
 
+func (m *Order_SenderPublicKey) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.SenderPublicKey)
+	n += 1 + l + sov(uint64(l))
+	return n
+}
+func (m *Order_Eip712Signature) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Eip712Signature)
+	n += 1 + l + sov(uint64(l))
+	return n
+}
 func (m *AssetPair) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -635,10 +702,9 @@ func (m *Order) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.SenderPublicKey = append(m.SenderPublicKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.SenderPublicKey == nil {
-				m.SenderPublicKey = []byte{}
-			}
+			v := make([]byte, postIndex-iNdEx)
+			copy(v, dAtA[iNdEx:postIndex])
+			m.Sender = &Order_SenderPublicKey{v}
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -921,10 +987,9 @@ func (m *Order) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Eip712Signature = append(m.Eip712Signature[:0], dAtA[iNdEx:postIndex]...)
-			if m.Eip712Signature == nil {
-				m.Eip712Signature = []byte{}
-			}
+			v := make([]byte, postIndex-iNdEx)
+			copy(v, dAtA[iNdEx:postIndex])
+			m.Sender = &Order_Eip712Signature{v}
 			iNdEx = postIndex
 		case 14:
 			if wireType != 0 {

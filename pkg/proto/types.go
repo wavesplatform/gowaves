@@ -439,18 +439,21 @@ func (p AssetPair) ToProtobuf() *g.AssetPair {
 type OrderPriceMode byte
 
 const (
-	OrderPriceModeFixedDecimals OrderPriceMode = iota
+	OrderPriceModeDefault OrderPriceMode = iota
+	OrderPriceModeFixedDecimals
 	OrderPriceModeAssetDecimals
 )
 
 const (
-	DefaultOrderV1V2V3PriceMode      = OrderPriceModeAssetDecimals
+	DefaultOrderV1V2V3PriceMode      = OrderPriceModeDefault
 	DefaultOrderV4AndHigherPriceMode = OrderPriceModeFixedDecimals
 )
 
 func (m *OrderPriceMode) UnmarshalJSON(val []byte) error {
 	switch quotedMode := string(val); quotedMode {
-	case "\"fixedDecimals\"", jsonNull:
+	case jsonNull:
+		*m = OrderPriceModeDefault
+	case "\"fixedDecimals\"":
 		*m = OrderPriceModeFixedDecimals
 	case "\"assetDecimals\"":
 		*m = OrderPriceModeAssetDecimals
@@ -466,6 +469,8 @@ func (m OrderPriceMode) MarshalJSON() ([]byte, error) {
 
 func (m OrderPriceMode) String() string {
 	switch m {
+	case OrderPriceModeDefault:
+		return "default"
 	case OrderPriceModeFixedDecimals:
 		return "fixedDecimals"
 	case OrderPriceModeAssetDecimals:
@@ -475,8 +480,23 @@ func (m OrderPriceMode) String() string {
 	}
 }
 
+func (m OrderPriceMode) upperSnakeCaseString() string {
+	switch m {
+	case OrderPriceModeDefault:
+		return "DEFAULT"
+	case OrderPriceModeFixedDecimals:
+		return "FIXED_DECIMALS"
+	case OrderPriceModeAssetDecimals:
+		return "ASSET_DECIMALS"
+	default:
+		return fmt.Sprintf("BUG, CREATE REPORT: invalid OrderPriceMode=%d", byte(m))
+	}
+}
+
 func (m *OrderPriceMode) FromProtobuf(gm g.Order_PriceMode) error {
 	switch gm {
+	case g.Order_DEFAULT:
+		*m = OrderPriceModeDefault
 	case g.Order_FIXED_DECIMALS:
 		*m = OrderPriceModeFixedDecimals
 	case g.Order_ASSET_DECIMALS:
@@ -489,6 +509,8 @@ func (m *OrderPriceMode) FromProtobuf(gm g.Order_PriceMode) error {
 
 func (m OrderPriceMode) ToProtobuf() g.Order_PriceMode {
 	switch m {
+	case OrderPriceModeDefault:
+		return g.Order_DEFAULT
 	case OrderPriceModeFixedDecimals:
 		return g.Order_FIXED_DECIMALS
 	case OrderPriceModeAssetDecimals:
@@ -500,7 +522,7 @@ func (m OrderPriceMode) ToProtobuf() g.Order_PriceMode {
 
 func (m OrderPriceMode) isValidOrderPriceValue() bool {
 	switch m {
-	case OrderPriceModeFixedDecimals, OrderPriceModeAssetDecimals:
+	case OrderPriceModeDefault, OrderPriceModeFixedDecimals, OrderPriceModeAssetDecimals:
 		return true
 	default:
 		return false
@@ -601,7 +623,7 @@ func (o OrderBody) BinarySize() int {
 func (o OrderBody) ToProtobuf(scheme Scheme) *g.Order {
 	return &g.Order{
 		ChainId:          int32(scheme),
-		SenderPublicKey:  o.SenderPK.Bytes(),
+		Sender:           &g.Order_SenderPublicKey{SenderPublicKey: o.SenderPK.Bytes()},
 		MatcherPublicKey: o.MatcherPK.Bytes(),
 		AssetPair:        o.AssetPair.ToProtobuf(),
 		OrderSide:        o.OrderType.ToProtobuf(),
@@ -1725,6 +1747,19 @@ func (o *EthereumOrderV4) GenerateID(scheme Scheme) error {
 	return nil
 }
 
+func (o *EthereumOrderV4) GenerateSenderPK(scheme Scheme) error {
+	hash, err := o.ethereumTypedDataHash(scheme)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate typed data hash for EthereumOrderV4.SenderPK")
+	}
+	pk, err := crypto.ECDSARecoverPublicKey(hash.Bytes(), o.Eip712Signature.Bytes())
+	if err != nil {
+		return errors.Wrap(err, "failed to recover EthereumOrderV4.SenderPK from hash and signature")
+	}
+	o.SenderPK = EthereumPublicKey(*pk)
+	return nil
+}
+
 func (o *EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
 	hash, err := o.ethereumTypedDataHash(scheme)
 	if err != nil {
@@ -1741,9 +1776,7 @@ func (o *EthereumOrderV4) Sign(_ Scheme, _ crypto.SecretKey) error {
 
 func (o *EthereumOrderV4) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderV4.ToProtobuf(scheme)
-	// 64 bytes of uncompressed ethereum public key
-	res.SenderPublicKey = o.GetSenderPKBytes()
-	res.Eip712Signature = o.Eip712Signature.Bytes()
+	res.Sender = &g.Order_Eip712Signature{Eip712Signature: o.Eip712Signature.Bytes()}
 	return res
 }
 
@@ -1810,9 +1843,10 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 		"expiration":        int64(o.Expiration),
 		"matcherFee":        int64(o.MatcherFee),
 		"matcherFeeAssetId": o.MatcherFeeAsset.String(),
+		"priceMode":         o.PriceMode.upperSnakeCaseString(),
 	}
 
-	verifyingContract := [20]byte{}
+	verifyingContract := [EthereumAddressSize]byte{}
 	for i := range verifyingContract {
 		verifyingContract[i] = scheme
 	}
@@ -1836,6 +1870,7 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 				{Name: "expiration", Type: "int64"},
 				{Name: "matcherFee", Type: "int64"},
 				{Name: "matcherFeeAssetId", Type: "string"},
+				{Name: "priceMode", Type: "string"},
 			},
 		},
 		PrimaryType: "Order",
@@ -1844,7 +1879,6 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 			Version:           "1",
 			ChainId:           newHexOrDecimal256(int64(scheme)),
 			VerifyingContract: EncodeToHexString(verifyingContract[:]),
-			//Salt:              "", // TODO(nickeskov): Ask scala team about it.
 		},
 		Message: message,
 	}
