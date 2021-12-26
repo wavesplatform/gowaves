@@ -16,7 +16,7 @@ type InvokeExpressionTransactionWithProofs struct {
 	FeeAsset   OptionalAsset    `json:"feeAssetId"`
 	Timestamp  uint64           `json:"timestamp,omitempty"`
 	Proofs     *ProofsV1        `json:"proofs,omitempty"`
-	Expression []byte           `json:"expression,omitempty"`
+	Expression B64Bytes         `json:"expression,omitempty"`
 }
 
 func (tx *InvokeExpressionTransactionWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
@@ -160,7 +160,6 @@ func (tx *InvokeExpressionTransactionWithProofs) UnmarshalSignedFromProtobuf(dat
 	return nil
 }
 func (tx *InvokeExpressionTransactionWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-
 	txData := &g.Transaction_InvokeExpression{InvokeExpression: &g.InvokeExpressionTransactionData{
 		Expression: tx.Expression,
 	}}
