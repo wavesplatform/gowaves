@@ -207,7 +207,13 @@ func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationP
 		if err != nil {
 			return err
 		}
+	case proto.InvokeExpressionTransaction:
+		feeChanges, err = a.txHandler.td.createFeeDiffInvokeExpressionWithProofs(tx, differInfo)
+		if err != nil {
+			return err
+		}
 	}
+
 	return a.diffApplier.validateTxDiff(feeChanges.diff, a.diffStor, !info.initialisation)
 }
 

@@ -1511,6 +1511,32 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 	return changes, nil
 }
 
+// TODO make one function for 3 tx types
+func (td *transactionDiffer) createFeeDiffInvokeExpressionWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
+	}
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderFeeKey := byteKey(senderAddr.ID(), tx.FeeAsset)
+	senderFeeBalanceDiff := -int64(tx.Fee)
+	if err := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, true)); err != nil {
+		return txBalanceChanges{}, err
+	}
+
+	addresses := []proto.WavesAddress{senderAddr}
+	changes := newTxBalanceChanges(addresses, diff)
+	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+		return txBalanceChanges{}, err
+	}
+	return changes, nil
+}
+
 func (td *transactionDiffer) createFeeDiffInvokeScriptWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
 	if !ok {

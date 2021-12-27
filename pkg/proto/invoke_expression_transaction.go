@@ -16,7 +16,7 @@ type InvokeExpressionTransactionWithProofs struct {
 	FeeAsset   OptionalAsset    `json:"feeAssetId"`
 	Timestamp  uint64           `json:"timestamp,omitempty"`
 	Proofs     *ProofsV1        `json:"proofs,omitempty"`
-	Expression B64Bytes         `json:"expression,omitempty"`
+	Expression string           `json:"expression,omitempty"`
 }
 
 func (tx *InvokeExpressionTransactionWithProofs) Verify(scheme Scheme, publicKey crypto.PublicKey) (bool, error) {
@@ -110,15 +110,15 @@ func (tx *InvokeExpressionTransactionWithProofs) MerkleBytes(scheme Scheme) ([]b
 }
 
 func (tx *InvokeExpressionTransactionWithProofs) MarshalBinary() ([]byte, error) {
-	return nil, errors.New("MarshalBinary is not implemented")
+	panic("MarshalBinary is not implemented")
 }
 
 func (tx *InvokeExpressionTransactionWithProofs) UnmarshalBinary([]byte, Scheme) error {
-	return errors.New("UnmarshalBinary is not implemented")
+	panic("UnmarshalBinary is not implemented")
 }
 
 func (tx *InvokeExpressionTransactionWithProofs) BodyMarshalBinary() ([]byte, error) {
-	return nil, errors.New("BodyMarshalBinary is not implemented")
+	panic("BodyMarshalBinary is not implemented")
 }
 
 // TODO check on correctness
@@ -161,7 +161,7 @@ func (tx *InvokeExpressionTransactionWithProofs) UnmarshalSignedFromProtobuf(dat
 }
 func (tx *InvokeExpressionTransactionWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	txData := &g.Transaction_InvokeExpression{InvokeExpression: &g.InvokeExpressionTransactionData{
-		Expression: tx.Expression,
+		Expression: []byte(tx.Expression),
 	}}
 	fee := &g.Amount{AssetId: tx.FeeAsset.ToID(), Amount: int64(tx.Fee)}
 	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)

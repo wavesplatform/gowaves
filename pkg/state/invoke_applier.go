@@ -1,7 +1,6 @@
 package state
 
 import (
-	"encoding/base64"
 	"fmt"
 	"math"
 	"math/big"
@@ -729,12 +728,13 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	}()
 
 	var (
-		paymentsLength int
-		scriptAddr     *proto.WavesAddress
-		txID           crypto.Digest
-		sender         proto.Address
-		tree           *ride.Tree
-		scriptPK       crypto.PublicKey
+		paymentsLength     int
+		scriptAddr         *proto.WavesAddress
+		txID               crypto.Digest
+		sender             proto.Address
+		tree               *ride.Tree
+		scriptPK           crypto.PublicKey
+		isInvokeExpression bool
 	)
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
@@ -759,16 +759,19 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
 	case *proto.InvokeExpressionTransactionWithProofs:
-		src, err := base64.StdEncoding.DecodeString(string(transaction.Expression))
+		addr, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to decode invoke expression")
+			return nil, errors.Wrap(err, "recipientToAddress() failed")
 		}
-
-		tree, err = ride.Parse(src)
+		sender = addr
+		scriptAddr = &addr
+		tree, err = ride.Parse([]byte(transaction.Expression))
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
 		}
-
+		isInvokeExpression = true
+		txID = *transaction.ID
+		scriptPK = transaction.SenderPK
 	case *proto.EthereumTransaction:
 		var err error
 		scriptAddr, err = transaction.WavesAddressTo(ia.settings.AddressSchemeCharacter)
@@ -817,7 +820,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	// Refuse payments to DApp itself since activation of BlockV5 (acceptFailed) and for DApps with StdLib V4.
 	disableSelfTransfers := info.acceptFailed && tree.LibVersion >= 4
 	if disableSelfTransfers && paymentsLength > 0 {
-		if sender == *scriptAddr {
+		if sender == *scriptAddr && !isInvokeExpression {
 			return nil, errors.New("paying to DApp itself is forbidden since RIDE V4")
 		}
 	}

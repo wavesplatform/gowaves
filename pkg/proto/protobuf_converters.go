@@ -1026,7 +1026,7 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			FeeAsset:   feeAsset,
 			Fee:        feeAmount,
 			Timestamp:  ts,
-			Expression: d.InvokeExpression.Expression,
+			Expression: string(d.InvokeExpression.Expression),
 		}
 
 	case *g.Transaction_InvokeScript:
@@ -1205,6 +1205,9 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 			t.Proofs = proofs
 			return t, nil
 		case *InvokeScriptWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *InvokeExpressionTransactionWithProofs:
 			t.Proofs = proofs
 			return t, nil
 		case *UpdateAssetInfoWithProofs:

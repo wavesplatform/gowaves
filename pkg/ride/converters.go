@@ -64,6 +64,8 @@ func transactionToObject(scheme byte, tx proto.Transaction) (rideObject, error) 
 		return updateAssetInfoWithProofsToObject(scheme, transaction)
 	case *proto.EthereumTransaction:
 		return ethereumTransactionToObject(scheme, transaction)
+	case *proto.InvokeExpressionTransactionWithProofs:
+		return invokeExpressionWithProofsToObject(scheme, transaction)
 	default:
 		return nil, EvaluationFailure.Errorf("conversion to RIDE object is not implemented for %T", transaction)
 	}
@@ -877,6 +879,35 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	r["feeAssetId"] = optionalAsset(tx.FeeAsset)
 	r["function"] = rideString(tx.FunctionCall.Name)
 	r["args"] = args
+	r["fee"] = rideInt(tx.Fee)
+	r["timestamp"] = rideInt(tx.Timestamp)
+	r["bodyBytes"] = rideBytes(body)
+	r["proofs"] = proofs(tx.Proofs)
+	return r, nil
+}
+
+// TODO think of reusing "InvokeScripTToObject" function. Also should we fill "payments" and "function name" fields"?
+func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionTransactionWithProofs) (rideObject, error) {
+	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+	}
+	body, err := proto.MarshalTxBody(scheme, tx)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "invokeScriptWithProofsToObject")
+	}
+	r := make(rideObject)
+	r[instanceFieldName] = rideString("InvokeExpressionTransaction")
+	r["version"] = rideInt(tx.Version)
+	r["id"] = rideBytes(tx.ID.Bytes())
+	r["sender"] = rideAddress(sender)
+	r["senderPublicKey"] = rideBytes(common.Dup(tx.SenderPK.Bytes()))
+	r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(sender))
+	r["payment"] = rideUnit{}
+	r["payments"] = make(rideList, 0)
+	r["feeAssetId"] = optionalAsset(tx.FeeAsset)
+	r["function"] = rideString("default")
+	r["args"] = rideList{}
 	r["fee"] = rideInt(tx.Fee)
 	r["timestamp"] = rideInt(tx.Timestamp)
 	r["bodyBytes"] = rideBytes(body)
