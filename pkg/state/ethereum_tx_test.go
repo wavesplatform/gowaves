@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/mr-tron/base58"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -29,6 +30,18 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 				return true, nil
 			}
 			return false, nil
+		},
+		newestIsActivatedForNBlocksFunc: func(featureID int16, n int) (bool, error) {
+			const (
+				expectedFeature = int16(settings.NG)
+				expectedN       = 1
+			)
+			if featureID == expectedFeature && n == expectedN {
+				return true, nil
+			}
+			return false, errors.Errorf("unexpected values: got (featureID=%d,n=%d), want (featureID=%d,n=%d)",
+				featureID, n, expectedFeature, expectedN,
+			)
 		},
 	}
 	stor, _, err := createStorageObjects()
