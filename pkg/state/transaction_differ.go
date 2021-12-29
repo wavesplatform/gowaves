@@ -363,7 +363,7 @@ func recipientToAddress(recipient proto.Recipient, aliases *aliases, filter bool
 	return addr, nil
 }
 
-func (td *transactionDiffer) handleSponsorship(ch *txBalanceChanges, fee uint64, feeAsset proto.OptionalAsset, info *differInfo) error {
+func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(ch *txBalanceChanges, fee uint64, feeAsset proto.OptionalAsset, info *differInfo) error {
 	sponsorshipActivated, err := td.stor.sponsoredAssets.isSponsorshipActivated()
 	if err != nil {
 		return err
@@ -456,7 +456,7 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 	}
 	addrs := []proto.WavesAddress{senderAddr, *recipientAddr}
 	changes := newTxBalanceChanges(addrs, diff)
-	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
 	}
 	return changes, nil
@@ -506,7 +506,9 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 	}
 	addrs := []proto.WavesAddress{senderAddress, recipientAddress}
 	changes := newTxBalanceChanges(addrs, diff)
-	// sponsorship might be handled here
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
+		return txBalanceChanges{}, err
+	}
 	return changes, nil
 }
 
@@ -571,7 +573,9 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	}
 	addrs := []proto.WavesAddress{senderAddress, etc20TransferRecipient}
 	changes := newTxBalanceChanges(addrs, diff)
-	// sponsorship might be handled here
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
+		return txBalanceChanges{}, err
+	}
 	return changes, nil
 }
 
@@ -1406,7 +1410,7 @@ func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.
 
 	addresses := []proto.WavesAddress{senderAddr, *scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
-	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
 	}
 	// Append payment diffs.
@@ -1476,6 +1480,9 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 			return txBalanceChanges{}, err
 		}
 	}
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
+		return txBalanceChanges{}, err
+	}
 	return changes, nil
 }
 
@@ -1501,7 +1508,7 @@ func (td *transactionDiffer) createFeeDiffInvokeScriptWithProofs(transaction pro
 	}
 	addresses := []proto.WavesAddress{senderAddr, *scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
-	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
 	}
 	return changes, nil
@@ -1536,7 +1543,9 @@ func (td *transactionDiffer) createFeeDiffEthereumInvokeScriptWithProofs(transac
 	addresses := []proto.WavesAddress{senderAddress, scriptAddress}
 	changes := newTxBalanceChanges(addresses, diff)
 
-	// sponsorship might be handled here
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
+		return txBalanceChanges{}, err
+	}
 	return changes, nil
 }
 
@@ -1558,7 +1567,7 @@ func (td *transactionDiffer) createDiffUpdateAssetInfoWithProofs(transaction pro
 	}
 	addresses := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addresses, diff)
-	if err := td.handleSponsorship(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
+	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
 	}
 	return changes, nil
