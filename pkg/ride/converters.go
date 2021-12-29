@@ -1243,7 +1243,7 @@ func balanceDetailsToObject(fwb *proto.FullWavesBalance) rideObject {
 	return r
 }
 
-func objectToActions(env environment, obj rideType) ([]proto.ScriptAction, error) {
+func objectToActions(ev *treeEvaluator, env environment, obj rideType) ([]proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "WriteSet":
 		data, err := obj.get("data")
@@ -1256,7 +1256,7 @@ func objectToActions(env environment, obj rideType) ([]proto.ScriptAction, error
 		}
 		res := make([]proto.ScriptAction, len(list))
 		for i, entry := range list {
-			action, err := convertToAction(env, entry)
+			action, err := convertToAction(ev, env, entry)
 			if err != nil {
 				return nil, EvaluationFailure.Wrapf(err, "failed to convert item %d of type '%s'", i+1, entry.instanceOf())
 			}
@@ -1275,7 +1275,7 @@ func objectToActions(env environment, obj rideType) ([]proto.ScriptAction, error
 		}
 		res := make([]proto.ScriptAction, len(list))
 		for i, transfer := range list {
-			action, err := convertToAction(env, transfer)
+			action, err := convertToAction(ev, env, transfer)
 			if err != nil {
 				return nil, EvaluationFailure.Wrapf(err, "failed to convert transfer %d of type '%s'", i+1, transfer.instanceOf())
 			}
@@ -1293,12 +1293,12 @@ func objectToActions(env environment, obj rideType) ([]proto.ScriptAction, error
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "ScriptResult has no transfers")
 		}
-		wa, err := objectToActions(env, writes)
+		wa, err := objectToActions(ev, env, writes)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert writes to ScriptActions")
 		}
 		actions = append(actions, wa...)
-		ta, err := objectToActions(env, transfers)
+		ta, err := objectToActions(ev, env, transfers)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert transfers to ScriptActions")
 		}
@@ -1321,7 +1321,7 @@ func getKeyProperty(v rideType) (string, error) {
 	return string(key), nil
 }
 
-func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) {
+func convertToAction(ev *treeEvaluator, env environment, obj rideType) (proto.ScriptAction, error) {
 	switch obj.instanceOf() {
 	case "Burn":
 		id, err := digestProperty(obj, "assetId")
@@ -1429,7 +1429,7 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Issue to ScriptAction")
 		}
-		id, err := calcAssetID(env, name, description, decimals, quantity, reissuable, nonce)
+		id, err := calcAssetID(ev, env, name, description, decimals, quantity, reissuable, nonce)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Issue to ScriptAction")
 		}
@@ -1470,7 +1470,7 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
 		}
-		recipient, err = ensureRecipientAddress(env, recipient)
+		recipient, err = ensureRecipientAddress(ev, env, recipient)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert ScriptTransfer to ScriptAction")
 		}
@@ -1513,7 +1513,7 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
 		}
-		recipient, err = ensureRecipientAddress(env, recipient)
+		recipient, err = ensureRecipientAddress(ev, env, recipient)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
 		}

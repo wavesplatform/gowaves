@@ -68,7 +68,11 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 	if err != nil {
 		return err
 	}
-	continuationActivated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
+	rideV5Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return err
+	}
+	rideV6Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV6))
 	if err != nil {
 		return err
 	}
@@ -81,8 +85,11 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 	if libVersion == 4 && !blockV5Activated {
 		return errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
 	}
-	if libVersion == 5 && !continuationActivated {
-		return errors.New("ContinuationTransaction feature must be activated for scripts version 5")
+	if libVersion == 5 && !rideV5Activated {
+		return errors.New("RideV5 feature must be activated for scripts version 5")
+	}
+	if libVersion == 6 && !rideV6Activated {
+		return errors.New("RideV6 feature must be activated for scripts version 6")
 	}
 	return nil
 }

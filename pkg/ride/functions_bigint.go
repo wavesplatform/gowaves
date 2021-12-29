@@ -76,7 +76,7 @@ func threeBigIntArgs(args []rideType) (rideBigInt, rideBigInt, rideBigInt, error
 	return v1, v2, v3, nil
 }
 
-func powBigInt(_ environment, args ...rideType) (rideType, error) {
+func powBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 6); err != nil {
 		return nil, errors.Wrap(err, "powBigInt")
 	}
@@ -104,8 +104,8 @@ func powBigInt(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "powBigInt")
 	}
-	b := big.NewInt(0).Set(base.v)
-	e := big.NewInt(0).Set(exponent.v)
+	b := new(big.Int).Set(base.v)
+	e := new(big.Int).Set(exponent.v)
 	r, err := math.PowBigInt(b, e, int(bp), int(ep), int(rp), round)
 	if err != nil {
 		return nil, errors.Wrap(err, "powBigInt")
@@ -116,7 +116,7 @@ func powBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func logBigInt(_ environment, args ...rideType) (rideType, error) {
+func logBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 6); err != nil {
 		return nil, errors.Wrap(err, "logBigInt")
 	}
@@ -144,8 +144,8 @@ func logBigInt(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "logBigInt")
 	}
-	b := big.NewInt(0).Set(base.v)
-	e := big.NewInt(0).Set(exponent.v)
+	b := new(big.Int).Set(base.v)
+	e := new(big.Int).Set(exponent.v)
 	r, err := math.LogBigInt(b, e, int(bp), int(ep), int(rp), round)
 	if err != nil {
 		return nil, errors.Wrap(err, "logBigInt")
@@ -153,7 +153,7 @@ func logBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func toBigInt(_ environment, args ...rideType) (rideType, error) {
+func toBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	i, err := intArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBigInt")
@@ -162,13 +162,13 @@ func toBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: v}, nil
 }
 
-func sumBigInt(_ environment, args ...rideType) (rideType, error) {
+func sumBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sumBigInt")
 	}
-	i1 := big.NewInt(0).Set(a.v)
-	i2 := big.NewInt(0).Set(b.v)
+	i1 := new(big.Int).Set(a.v)
+	i2 := new(big.Int).Set(b.v)
 	r := i1.Add(i1, i2)
 	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("sumBigInt: %s result is out of range", r.String())
@@ -176,13 +176,13 @@ func sumBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func subtractBigInt(_ environment, args ...rideType) (rideType, error) {
+func subtractBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "subtractBigInt")
 	}
-	i1 := big.NewInt(0).Set(a.v)
-	i2 := big.NewInt(0).Set(b.v)
+	i1 := new(big.Int).Set(a.v)
+	i2 := new(big.Int).Set(b.v)
 	r := i1.Sub(i1, i2)
 	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("subtractBigInt: %s result is out of range", r.String())
@@ -190,13 +190,13 @@ func subtractBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func multiplyBigInt(_ environment, args ...rideType) (rideType, error) {
+func multiplyBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "multiplyBigInt")
 	}
-	i1 := big.NewInt(0).Set(a.v)
-	i2 := big.NewInt(0).Set(b.v)
+	i1 := new(big.Int).Set(a.v)
+	i2 := new(big.Int).Set(b.v)
 	r := i1.Mul(i1, i2)
 	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("multiplyBigInt: %s result is out of range", r.String())
@@ -204,13 +204,13 @@ func multiplyBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func divideBigInt(_ environment, args ...rideType) (rideType, error) {
+func divideBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "divideBigInt")
 	}
-	i1 := big.NewInt(0).Set(a.v)
-	i2 := big.NewInt(0).Set(b.v)
+	i1 := new(big.Int).Set(a.v)
+	i2 := new(big.Int).Set(b.v)
 	if i2.Cmp(zeroBigInt) == 0 {
 		return nil, errors.New("divideBigInt: division by zero")
 	}
@@ -221,13 +221,13 @@ func divideBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func moduloBigInt(_ environment, args ...rideType) (rideType, error) {
+func moduloBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "moduloBigInt")
 	}
-	i1 := big.NewInt(0).Set(a.v)
-	i2 := big.NewInt(0).Set(b.v)
+	i1 := new(big.Int).Set(a.v)
+	i2 := new(big.Int).Set(b.v)
 	if i2.Cmp(zeroBigInt) == 0 {
 		return nil, errors.New("moduloBigInt: division by zero")
 	}
@@ -241,14 +241,14 @@ func moduloBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func fractionBigInt(_ environment, args ...rideType) (rideType, error) {
+func fractionBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	a, b, c, err := threeBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fractionBigInt")
 	}
-	v := big.NewInt(0).Set(a.v)
-	n := big.NewInt(0).Set(b.v)
-	d := big.NewInt(0).Set(c.v)
+	v := new(big.Int).Set(a.v)
+	n := new(big.Int).Set(b.v)
+	d := new(big.Int).Set(c.v)
 	if d.Cmp(zeroBigInt) == 0 {
 		return nil, errors.New("fractionBigInt: division by zero")
 	}
@@ -260,7 +260,7 @@ func fractionBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func fractionBigIntRounds(_ environment, args ...rideType) (rideType, error) {
+func fractionBigIntRounds(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "fractionBigIntRounds")
 	}
@@ -268,17 +268,17 @@ func fractionBigIntRounds(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("fractionBigIntRounds: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	v := big.NewInt(0).Set(v1.v)
+	v := new(big.Int).Set(v1.v)
 	v2, ok := args[1].(rideBigInt)
 	if !ok {
 		return nil, errors.Errorf("fractionBigIntRounds: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	n := big.NewInt(0).Set(v2.v)
+	n := new(big.Int).Set(v2.v)
 	v3, ok := args[2].(rideBigInt)
 	if !ok {
 		return nil, errors.Errorf("fractionBigIntRounds: unexpected argument type '%s'", args[2].instanceOf())
 	}
-	d := big.NewInt(0).Set(v3.v)
+	d := new(big.Int).Set(v3.v)
 	round, err := roundingMode(args[3])
 	if err != nil {
 		return nil, errors.Wrap(err, "fractionBigIntRounds")
@@ -366,12 +366,12 @@ func fractionBigIntLikeInScala(v, n, d *big.Int, roundingMode decimal.RoundingMo
 	return r, nil
 }
 
-func unaryMinusBigInt(_ environment, args ...rideType) (rideType, error) {
+func unaryMinusBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	v, err := bigIntArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "unaryMinusBigInt")
 	}
-	i := big.NewInt(0).Set(v.v)
+	i := new(big.Int).Set(v.v)
 	if i.Cmp(math.MinBigInt) == 0 {
 		return nil, errors.New("unaryMinusBigInt: positive BigInt overflow")
 	}
@@ -379,29 +379,29 @@ func unaryMinusBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func gtBigInt(_ environment, args ...rideType) (rideType, error) {
+func gtBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "gtBigInt")
 	}
-	i1 := big.NewInt(0).Set(a.v)
-	i2 := big.NewInt(0).Set(b.v)
+	i1 := new(big.Int).Set(a.v)
+	i2 := new(big.Int).Set(b.v)
 	r := i1.Cmp(i2)
 	return rideBoolean(r > 0), nil
 }
 
-func geBigInt(_ environment, args ...rideType) (rideType, error) {
+func geBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	a, b, err := twoBigIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "geBigInt")
 	}
-	i1 := big.NewInt(0).Set(a.v)
-	i2 := big.NewInt(0).Set(b.v)
+	i1 := new(big.Int).Set(a.v)
+	i2 := new(big.Int).Set(b.v)
 	r := i1.Cmp(i2)
 	return rideBoolean(r >= 0), nil
 }
 
-func maxListBigInt(_ environment, args ...rideType) (rideType, error) {
+func maxListBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "maxListBigInt")
@@ -418,7 +418,7 @@ func maxListBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: max}, nil
 }
 
-func minListBigInt(_ environment, args ...rideType) (rideType, error) {
+func minListBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "minListBigInt")
@@ -435,21 +435,21 @@ func minListBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: min}, nil
 }
 
-func bigIntToBytes(_ environment, args ...rideType) (rideType, error) {
+func bigIntToBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	v, err := bigIntArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bigIntToBytes")
 	}
-	i := big.NewInt(0).Set(v.v)
+	i := new(big.Int).Set(v.v)
 	return rideBytes(encode2CBigInt(i)), nil
 }
 
-func bytesToBigInt(_ environment, args ...rideType) (rideType, error) {
+func bytesToBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	bts, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToBigInt")
 	}
-	if l := len(bts); l > 64 { // No more then 64 bytes can be converted to BigInt, max size of BigInt value is 512 bit.
+	if l := len(bts); l > 64 { // No more than 64 bytes can be converted to BigInt, max size of BigInt value is 512 bit.
 		return nil, errors.Errorf("bytesToBigInt: bytes array is too long (%d) for a BigInt", l)
 	}
 	r := decode2CBigInt(bts)
@@ -459,7 +459,7 @@ func bytesToBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func bytesToBigIntLim(_ environment, args ...rideType) (rideType, error) {
+func bytesToBigIntLim(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "bytesToBigIntLim")
 	}
@@ -479,7 +479,7 @@ func bytesToBigIntLim(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("bytesToBigIntLim: argument 3 is not of type 'Int' but '%s'", args[2].instanceOf())
 	}
-	if size <= 0 || size > 64 { // No more then 64 bytes can be converted to BigInt, max size of BigInt value is 512 bit.
+	if size <= 0 || size > 64 { // No more than 64 bytes can be converted to BigInt, max size of BigInt value is 512 bit.
 		return nil, errors.Errorf("bytesToBigIntLim: size %d is out of ranger [1; 64]", size)
 	}
 	end := int(offset + size)
@@ -493,28 +493,28 @@ func bytesToBigIntLim(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func bigIntToInt(_ environment, args ...rideType) (rideType, error) {
+func bigIntToInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	v, err := bigIntArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bigIntToInt")
 	}
-	i := big.NewInt(0).Set(v.v)
+	i := new(big.Int).Set(v.v)
 	if !i.IsInt64() {
 		return nil, errors.Errorf("bigIntToInt: value (%s) is too big for an Int", i.String())
 	}
 	return rideInt(i.Int64()), nil
 }
 
-func bigIntToString(_ environment, args ...rideType) (rideType, error) {
+func bigIntToString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	v, err := bigIntArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bigIntToString")
 	}
-	i := big.NewInt(0).Set(v.v)
+	i := new(big.Int).Set(v.v)
 	return rideString(i.String()), nil
 }
 
-func stringToBigInt(_ environment, args ...rideType) (rideType, error) {
+func stringToBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "stringToBigInt")
@@ -522,7 +522,7 @@ func stringToBigInt(_ environment, args ...rideType) (rideType, error) {
 	if l := len(s); l > 155 { // 155 symbols is the length of math.MinBigInt value is string representation
 		return nil, errors.Errorf("stringToBigInt: string is too long (%d symbols) for a BigInt", l)
 	}
-	r, ok := big.NewInt(0).SetString(string(s), 10)
+	r, ok := new(big.Int).SetString(string(s), 10)
 	if !ok {
 		return nil, errors.Errorf("stringToBigInt: failed to convert string '%s' to BigInt", s)
 	}
@@ -532,15 +532,15 @@ func stringToBigInt(_ environment, args ...rideType) (rideType, error) {
 	return rideBigInt{v: r}, nil
 }
 
-func stringToBigIntOpt(env environment, args ...rideType) (rideType, error) {
-	v, err := stringToBigInt(env, args...)
+func stringToBigIntOpt(ev *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+	v, err := stringToBigInt(ev, env, args...)
 	if err != nil {
 		return newUnit(env), nil
 	}
 	return v, nil
 }
 
-func medianListBigInt(_ environment, args ...rideType) (rideType, error) {
+func medianListBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "medianListBigInt")
@@ -561,6 +561,37 @@ func medianListBigInt(_ environment, args ...rideType) (rideType, error) {
 	x := items[half-1]
 	y := items[half]
 	r := math.FloorDivBigInt(x.Add(x, y), big.NewInt(2))
+	return rideBigInt{v: r}, nil
+}
+
+func sqrtBigInt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 4); err != nil {
+		return nil, errors.Wrap(err, "sqrtBigInt")
+	}
+	n, ok := args[0].(rideBigInt)
+	if !ok {
+		return nil, errors.Errorf("sqrtBigInt: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	np, ok := args[1].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("sqrtBigInt: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	rp, ok := args[2].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("sqrtBigInt: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	round, err := roundingMode(args[3])
+	if err != nil {
+		return nil, errors.Wrap(err, "sqrtBigInt")
+	}
+	v := new(big.Int).Set(n.v)
+	r, err := math.SqrtBigInt(v, int(np), int(rp), round)
+	if err != nil {
+		return nil, errors.Wrap(err, "sqrtBigInt")
+	}
+	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
+		return nil, errors.New("sqrtBigInt: result is out of range")
+	}
 	return rideBigInt{v: r}, nil
 }
 
@@ -593,7 +624,7 @@ func toBigIntSlice(list rideList) (bigIntSlice, error) {
 		if !ok {
 			return nil, errors.Errorf("unexpected type of list element '%s'", el.instanceOf())
 		}
-		items[i] = big.NewInt(0).Set(item.v)
+		items[i] = new(big.Int).Set(item.v)
 	}
 	return items, nil
 }

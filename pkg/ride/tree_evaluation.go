@@ -37,17 +37,17 @@ func CallFunction(env environment, tree *Tree, name string, args proto.Arguments
 				et.Wrap(err, "unhandled error"),
 				// Error was not handled in wrapped state properly,
 				// so we need to add both complexity from current evaluation and from internal invokes
-				e.complexity+wrappedStateComplexity(env.state()),
+				e.complexity()+wrappedStateComplexity(env.state()),
 			)
 		}
-		return nil, EvaluationErrorAddComplexity(err, e.complexity+wrappedStateComplexity(env.state()))
+		return nil, EvaluationErrorAddComplexity(err, e.complexity()+wrappedStateComplexity(env.state()))
 	}
 	dAppResult, ok := rideResult.(DAppResult)
 	if !ok { // Unexpected result type
 		return nil, EvaluationErrorAddComplexity(
 			EvaluationFailure.Errorf("invalid result of call function '%s'", name),
 			// New error, both complexities should be added
-			e.complexity+wrappedStateComplexity(env.state()),
+			e.complexity()+wrappedStateComplexity(env.state()),
 		)
 	}
 	if tree.LibVersion < 5 { // Shortcut because no wrapped state before version 5

@@ -91,14 +91,14 @@ func (d *Decimal) Rescale(scale uint) *Decimal {
 	switch {
 	case d.scale < scale:
 		diff := int(scale - d.scale)
-		v := big.NewInt(0).SetUint64(d.value)
-		y := big.NewInt(0).SetUint64(uint64(math.Pow10(diff)))
+		v := new(big.Int).SetUint64(d.value)
+		y := new(big.Int).SetUint64(uint64(math.Pow10(diff)))
 		v = v.Mul(v, y)
 		return &Decimal{v.Uint64(), scale}
 	case d.scale > scale:
 		diff := int(d.scale - scale)
-		v := big.NewInt(0).SetUint64(d.value)
-		y := big.NewInt(0).SetUint64(uint64(math.Pow10(diff)))
+		v := new(big.Int).SetUint64(d.value)
+		y := new(big.Int).SetUint64(uint64(math.Pow10(diff)))
 		v = v.Quo(v, y)
 		return &Decimal{v.Uint64(), scale}
 	default:

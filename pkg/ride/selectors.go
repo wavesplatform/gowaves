@@ -10,6 +10,8 @@ func selectFunctions(v int) (func(id int) rideFunction, error) {
 		return functionV4, nil
 	case 5:
 		return functionV5, nil
+	case 6:
+		return functionV6, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
@@ -25,21 +27,45 @@ func selectFunctionChecker(v int) (func(name string) (uint16, bool), error) {
 		return checkFunctionV4, nil
 	case 5:
 		return checkFunctionV5, nil
+	case 6:
+		return checkFunctionV6, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
 }
 
-func selectEvaluationCostsProvider(v int) (map[string]int, error) {
+func selectEvaluationCostsProvider(v, ev int) (map[string]int, error) {
 	switch v {
 	case 1, 2:
-		return EvaluationCatalogueV2, nil
+		switch ev {
+		case 1:
+			return EvaluationCatalogueV2EvaluatorV1, nil
+		default:
+			return EvaluationCatalogueV2EvaluatorV2, nil
+		}
 	case 3:
-		return EvaluationCatalogueV3, nil
+		switch ev {
+		case 1:
+			return EvaluationCatalogueV3EvaluatorV1, nil
+		default:
+			return EvaluationCatalogueV3EvaluatorV2, nil
+		}
 	case 4:
-		return EvaluationCatalogueV4, nil
+		switch ev {
+		case 1:
+			return EvaluationCatalogueV4EvaluatorV1, nil
+		default:
+			return EvaluationCatalogueV4EvaluatorV2, nil
+		}
 	case 5:
-		return EvaluationCatalogueV5, nil
+		switch ev {
+		case 1:
+			return EvaluationCatalogueV5EvaluatorV1, nil
+		default:
+			return EvaluationCatalogueV5EvaluatorV2, nil
+		}
+	case 6: // Only new version of evaluator works after activation of RideV6
+		return EvaluationCatalogueV6EvaluatorV2, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
@@ -55,6 +81,8 @@ func selectFunctionNameProvider(v int) (func(int) string, error) {
 		return functionNameV4, nil
 	case 5:
 		return functionNameV5, nil
+	case 6:
+		return functionNameV6, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
@@ -72,6 +100,8 @@ func selectConstants(v int) (func(int) rideConstructor, error) {
 		return constantV4, nil
 	case 5:
 		return constantV5, nil
+	case 6:
+		return constantV6, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
@@ -89,6 +119,8 @@ func selectConstantsChecker(v int) (func(name string) (uint16, bool), error) {
 		return checkConstantV4, nil
 	case 5:
 		return checkConstantV5, nil
+	case 6:
+		return checkConstantV6, nil
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}

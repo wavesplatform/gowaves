@@ -63,7 +63,7 @@ func intArgs(args []rideType, count int) ([]rideInt, error) {
 	return r, nil
 }
 
-func ge(_ environment, args ...rideType) (rideType, error) {
+func ge(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	l1, l2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "ge")
@@ -71,7 +71,7 @@ func ge(_ environment, args ...rideType) (rideType, error) {
 	return rideBoolean(l1 >= l2), nil
 }
 
-func gt(_ environment, args ...rideType) (rideType, error) {
+func gt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	l1, l2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "gt")
@@ -79,7 +79,7 @@ func gt(_ environment, args ...rideType) (rideType, error) {
 	return rideBoolean(l1 > l2), nil
 }
 
-func intToString(_ environment, args ...rideType) (rideType, error) {
+func intToString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	l, err := intArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "intToString")
@@ -87,7 +87,7 @@ func intToString(_ environment, args ...rideType) (rideType, error) {
 	return rideString(strconv.Itoa(int(l))), nil
 }
 
-func unaryMinus(_ environment, args ...rideType) (rideType, error) {
+func unaryMinus(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	l, err := intArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "unaryMinus")
@@ -95,7 +95,7 @@ func unaryMinus(_ environment, args ...rideType) (rideType, error) {
 	return -l, nil
 }
 
-func sum(_ environment, args ...rideType) (rideType, error) {
+func sum(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	l1, l2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sum")
@@ -103,7 +103,7 @@ func sum(_ environment, args ...rideType) (rideType, error) {
 	return l1 + l2, nil
 }
 
-func sub(_ environment, args ...rideType) (rideType, error) {
+func sub(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	l1, l2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "sub")
@@ -111,7 +111,7 @@ func sub(_ environment, args ...rideType) (rideType, error) {
 	return l1 - l2, nil
 }
 
-func mul(_ environment, args ...rideType) (rideType, error) {
+func mul(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	l1, l2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "mul")
@@ -119,7 +119,7 @@ func mul(_ environment, args ...rideType) (rideType, error) {
 	return l1 * l2, nil
 }
 
-func div(_ environment, args ...rideType) (rideType, error) {
+func div(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	l1, l2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "div")
@@ -130,7 +130,7 @@ func div(_ environment, args ...rideType) (rideType, error) {
 	return rideInt(math.FloorDiv(int64(l1), int64(l2))), nil
 }
 
-func mod(_ environment, args ...rideType) (rideType, error) {
+func mod(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	i1, i2, err := twoIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "mod")
@@ -141,7 +141,7 @@ func mod(_ environment, args ...rideType) (rideType, error) {
 	return rideInt(math.ModDivision(int64(i1), int64(i2))), nil
 }
 
-func fraction(_ environment, args ...rideType) (rideType, error) {
+func fraction(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	values, err := intArgs(args, 3)
 	if err != nil {
 		return nil, errors.Wrap(err, "fraction")
@@ -153,7 +153,7 @@ func fraction(_ environment, args ...rideType) (rideType, error) {
 	return rideInt(res), nil
 }
 
-func fractionIntRounds(_ environment, args ...rideType) (rideType, error) {
+func fractionIntRounds(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 4); err != nil {
 		return nil, errors.Wrap(err, "fraction")
 	}
@@ -186,7 +186,7 @@ func fractionIntRounds(_ environment, args ...rideType) (rideType, error) {
 	return rideInt(r.Int64()), nil
 }
 
-func intToBytes(_ environment, args ...rideType) (rideType, error) {
+func intToBytes(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	i, err := intArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "intToBytes")
@@ -197,7 +197,7 @@ func intToBytes(_ environment, args ...rideType) (rideType, error) {
 	return rideBytes(out), nil
 }
 
-func pow(env environment, args ...rideType) (rideType, error) {
+func pow(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 6); err != nil {
 		return nil, errors.Wrap(err, "pow")
 	}
@@ -236,7 +236,7 @@ func pow(env environment, args ...rideType) (rideType, error) {
 	return rideInt(r), nil
 }
 
-func log(_ environment, args ...rideType) (rideType, error) {
+func log(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 6); err != nil {
 		return nil, errors.Wrap(err, "log")
 	}
@@ -267,6 +267,33 @@ func log(_ environment, args ...rideType) (rideType, error) {
 	r, err := math.Log(int64(base), int64(exponent), int(bp), int(ep), int(rp), round)
 	if err != nil {
 		return nil, errors.Wrap(err, "log")
+	}
+	return rideInt(r), nil
+}
+
+func sqrt(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 4); err != nil {
+		return nil, errors.Wrap(err, "sqrt")
+	}
+	n, ok := args[0].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("sqrt: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	np, ok := args[1].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("sqrt: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	rp, ok := args[2].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("sqrt: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	round, err := roundingMode(args[3])
+	if err != nil {
+		return nil, errors.Wrap(err, "sqrt")
+	}
+	r, err := math.Sqrt(int64(n), int(np), int(rp), round)
+	if err != nil {
+		return nil, errors.Wrap(err, "sqrt")
 	}
 	return rideInt(r), nil
 }

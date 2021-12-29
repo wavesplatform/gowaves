@@ -13,7 +13,7 @@ const (
 )
 
 func TestCalculateScore(t *testing.T) {
-	genesisScore, ok := big.NewInt(0).SetString(genesisScoreStr, 10)
+	genesisScore, ok := new(big.Int).SetString(genesisScoreStr, 10)
 	require.True(t, ok)
 	genesisTarget := uint64(153722867)
 	result, err := CalculateScore(genesisTarget)

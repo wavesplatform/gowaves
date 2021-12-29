@@ -112,11 +112,33 @@ func checkConstantV5(name string) (uint16, bool) {
 	return 0, false
 }
 
+var ConstantsV6 = []string{"Buy", "CEILING", "DOWN", "FLOOR", "HALFEVEN", "HALFUP", "MD5", "NOALG", "SHA1", "SHA224", "SHA256", "SHA3224", "SHA3256", "SHA3384", "SHA3512", "SHA384", "SHA512", "Sell", "height", "lastBlock", "nil", "this", "tx", "unit"}
+
+const _constants_V6 = "BuyCEILINGDOWNFLOORHALFEVENHALFUPMD5NOALGSHA1SHA224SHA256SHA3224SHA3256SHA3384SHA3512SHA384SHA512SellheightlastBlocknilthistxunit"
+
+var _constructors_V6 = [...]rideConstructor{newBuy, newCeiling, newDown, newFloor, newHalfEven, newHalfUp, newMd5, newNoAlg, newSha1, newSha224, newSha256, newSha3224, newSha3256, newSha3384, newSha3512, newSha384, newSha512, newSell, newHeight, newLastBlock, newNil, newThis, newTx, newUnit}
+var _c_index_V6 = [...]int{0, 3, 10, 14, 19, 27, 33, 36, 41, 45, 51, 57, 64, 71, 78, 85, 91, 97, 101, 107, 116, 119, 123, 125, 129}
+
+func constantV6(id int) rideConstructor {
+	if id < 0 || id > 23 {
+		return nil
+	}
+	return _constructors_V6[id]
+}
+func checkConstantV6(name string) (uint16, bool) {
+	for i := 0; i <= 23; i++ {
+		if _constants_V6[_c_index_V6[i]:_c_index_V6[i+1]] == name {
+			return uint16(i), true
+		}
+	}
+	return 0, false
+}
+
 func newBuy(environment) rideType {
 	return rideNamedType{name: "Buy"}
 }
 
-func createBuy(env environment, args ...rideType) (rideType, error) {
+func createBuy(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Buy"}, nil
 }
 
@@ -124,7 +146,7 @@ func newCeiling(environment) rideType {
 	return rideNamedType{name: "Ceiling"}
 }
 
-func createCeiling(env environment, args ...rideType) (rideType, error) {
+func createCeiling(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Ceiling"}, nil
 }
 
@@ -132,7 +154,7 @@ func newDown(environment) rideType {
 	return rideNamedType{name: "Down"}
 }
 
-func createDown(env environment, args ...rideType) (rideType, error) {
+func createDown(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Down"}, nil
 }
 
@@ -140,7 +162,7 @@ func newFloor(environment) rideType {
 	return rideNamedType{name: "Floor"}
 }
 
-func createFloor(env environment, args ...rideType) (rideType, error) {
+func createFloor(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Floor"}, nil
 }
 
@@ -148,7 +170,7 @@ func newHalfDown(environment) rideType {
 	return rideNamedType{name: "HalfDown"}
 }
 
-func createHalfDown(env environment, args ...rideType) (rideType, error) {
+func createHalfDown(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "HalfDown"}, nil
 }
 
@@ -156,7 +178,7 @@ func newHalfEven(environment) rideType {
 	return rideNamedType{name: "HalfEven"}
 }
 
-func createHalfEven(env environment, args ...rideType) (rideType, error) {
+func createHalfEven(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "HalfEven"}, nil
 }
 
@@ -164,7 +186,7 @@ func newHalfUp(environment) rideType {
 	return rideNamedType{name: "HalfUp"}
 }
 
-func createHalfUp(env environment, args ...rideType) (rideType, error) {
+func createHalfUp(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "HalfUp"}, nil
 }
 
@@ -172,7 +194,7 @@ func newMd5(environment) rideType {
 	return rideNamedType{name: "Md5"}
 }
 
-func createMd5(env environment, args ...rideType) (rideType, error) {
+func createMd5(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Md5"}, nil
 }
 
@@ -180,7 +202,7 @@ func newNoAlg(environment) rideType {
 	return rideNamedType{name: "NoAlg"}
 }
 
-func createNoAlg(env environment, args ...rideType) (rideType, error) {
+func createNoAlg(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "NoAlg"}, nil
 }
 
@@ -188,7 +210,7 @@ func newSha1(environment) rideType {
 	return rideNamedType{name: "Sha1"}
 }
 
-func createSha1(env environment, args ...rideType) (rideType, error) {
+func createSha1(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Sha1"}, nil
 }
 
@@ -196,7 +218,7 @@ func newSha224(environment) rideType {
 	return rideNamedType{name: "Sha224"}
 }
 
-func createSha224(env environment, args ...rideType) (rideType, error) {
+func createSha224(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Sha224"}, nil
 }
 
@@ -204,7 +226,7 @@ func newSha256(environment) rideType {
 	return rideNamedType{name: "Sha256"}
 }
 
-func createSha256(env environment, args ...rideType) (rideType, error) {
+func createSha256(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Sha256"}, nil
 }
 
@@ -212,7 +234,7 @@ func newSha3224(environment) rideType {
 	return rideNamedType{name: "Sha3224"}
 }
 
-func createSha3224(env environment, args ...rideType) (rideType, error) {
+func createSha3224(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Sha3224"}, nil
 }
 
@@ -220,7 +242,7 @@ func newSha3256(environment) rideType {
 	return rideNamedType{name: "Sha3256"}
 }
 
-func createSha3256(env environment, args ...rideType) (rideType, error) {
+func createSha3256(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Sha3256"}, nil
 }
 
@@ -228,7 +250,7 @@ func newSha3384(environment) rideType {
 	return rideNamedType{name: "Sha3384"}
 }
 
-func createSha3384(env environment, args ...rideType) (rideType, error) {
+func createSha3384(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Sha3384"}, nil
 }
 
@@ -236,7 +258,7 @@ func newSha3512(environment) rideType {
 	return rideNamedType{name: "Sha3512"}
 }
 
-func createSha3512(env environment, args ...rideType) (rideType, error) {
+func createSha3512(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Sha3512"}, nil
 }
 
@@ -244,7 +266,7 @@ func newSha384(environment) rideType {
 	return rideNamedType{name: "Sha384"}
 }
 
-func createSha384(env environment, args ...rideType) (rideType, error) {
+func createSha384(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Sha384"}, nil
 }
 
@@ -252,7 +274,7 @@ func newSha512(environment) rideType {
 	return rideNamedType{name: "Sha512"}
 }
 
-func createSha512(env environment, args ...rideType) (rideType, error) {
+func createSha512(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Sha512"}, nil
 }
 
@@ -260,7 +282,7 @@ func newSell(environment) rideType {
 	return rideNamedType{name: "Sell"}
 }
 
-func createSell(env environment, args ...rideType) (rideType, error) {
+func createSell(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Sell"}, nil
 }
 
@@ -268,6 +290,6 @@ func newUp(environment) rideType {
 	return rideNamedType{name: "Up"}
 }
 
-func createUp(env environment, args ...rideType) (rideType, error) {
+func createUp(_ *treeEvaluator, _ environment, _ ...rideType) (rideType, error) {
 	return rideNamedType{name: "Up"}, nil
 }

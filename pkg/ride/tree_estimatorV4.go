@@ -5,142 +5,13 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-type fd struct {
-	cost   int
-	usages []string
-}
-type fsV3 struct {
-	parent    *fsV3
-	functions map[string]fd
-}
-
-func newFsV3() *fsV3 {
-	return &fsV3{parent: nil, functions: make(map[string]fd)}
-}
-
-func (f *fsV3) spawn() *fsV3 {
-	return &fsV3{
-		parent:    f,
-		functions: make(map[string]fd),
-	}
-}
-
-func (f *fsV3) set(key string, cost int, usages []string) {
-	f.functions[key] = fd{cost, usages}
-}
-
-func (f *fsV3) get(key string) (int, []string, bool) {
-	fd, ok := f.functions[key]
-	if !ok {
-		if f.parent == nil {
-			return 0, nil, false
-		}
-		return f.parent.get(key)
-	}
-	return fd.cost, fd.usages, true
-}
-
-type estimationScopeV3 struct {
-	usages    [][]string
-	functions *fsV3
-	builtin   map[string]int
-}
-
-func newEstimationScopeV3(functions map[string]int) *estimationScopeV3 {
-	return &estimationScopeV3{
-		usages:    make([][]string, 0),
-		functions: newFsV3(),
-		builtin:   functions,
-	}
-}
-
-func (s *estimationScopeV3) save() *fsV3 {
-	r := s.functions
-	s.functions = s.functions.spawn()
-	return r
-}
-
-func (s *estimationScopeV3) restore(fs *fsV3) {
-	s.functions = fs
-}
-
-func (s *estimationScopeV3) setFunction(id string, cost int, usages []string) {
-	s.functions.set(id, cost, usages)
-}
-
-func (s *estimationScopeV3) nativeFunction(ut, id string, enableInvocation bool) (int, []string, error) {
-	if c, ok := s.builtin[id]; ok {
-		if (id == "1020" || id == "1021") && !enableInvocation {
-			return 0, nil, errors.Errorf("%s function '%s' not found", ut, id)
-		}
-		return c, nil, nil
-	}
-	return 0, nil, errors.Errorf("%s function '%s' not found", ut, id)
-}
-
-func (s *estimationScopeV3) function(function function, enableInvocation bool) (int, []string, error) {
-	id := function.Name()
-	switch function.(type) {
-	case userFunction:
-		cost, usages, found := s.functions.get(id)
-		if found {
-			return cost, usages, nil
-		}
-		return s.nativeFunction("user", id, enableInvocation)
-	case nativeFunction:
-		return s.nativeFunction("native", id, enableInvocation)
-	default:
-		return 0, nil, errors.Errorf("unknown type of function '%s'", id)
-	}
-}
-
-func (s *estimationScopeV3) used(id string) bool {
-	if l := len(s.usages); l > 0 {
-		for i := len(s.usages[l-1]) - 1; i >= 0; i-- {
-			if s.usages[l-1][i] == id {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (s *estimationScopeV3) remove(id string) {
-	if l := len(s.usages); l > 0 {
-		for i := len(s.usages[l-1]) - 1; i >= 0; i-- {
-			if s.usages[l-1][i] == id {
-				s.usages[l-1] = append(s.usages[l-1][:i], s.usages[l-1][i+1:]...)
-			}
-		}
-	}
-}
-
-func (s *estimationScopeV3) use(id string) {
-	if l := len(s.usages); l > 0 {
-		s.usages[l-1] = append(s.usages[l-1], id)
-	}
-}
-
-func (s *estimationScopeV3) submerge() {
-	s.usages = append(s.usages, make([]string, 0))
-}
-
-func (s *estimationScopeV3) emerge() []string {
-	if l := len(s.usages); l > 0 {
-		var r []string
-		r, s.usages = s.usages[l-1], s.usages[:l-1]
-		return r
-	}
-	return nil
-}
-
-type treeEstimatorV3 struct {
+type treeEstimatorV4 struct {
 	tree  *Tree
 	scope *estimationScopeV3
 }
 
-func newTreeEstimatorV3(tree *Tree) (*treeEstimatorV3, error) {
-	r := &treeEstimatorV3{tree: tree}
+func newTreeEstimatorV4(tree *Tree) (*treeEstimatorV4, error) {
+	r := &treeEstimatorV4{tree: tree}
 	switch tree.LibVersion {
 	case 1, 2:
 		r.scope = newEstimationScopeV3(CatalogueV2)
@@ -150,13 +21,15 @@ func newTreeEstimatorV3(tree *Tree) (*treeEstimatorV3, error) {
 		r.scope = newEstimationScopeV3(CatalogueV4)
 	case 5:
 		r.scope = newEstimationScopeV3(CatalogueV5)
+	case 6:
+		r.scope = newEstimationScopeV3(CatalogueV6)
 	default:
 		return nil, errors.Errorf("unsupported library version %d", tree.LibVersion)
 	}
 	return r, nil
 }
 
-func (e *treeEstimatorV3) estimate() (int, int, map[string]int, error) {
+func (e *treeEstimatorV4) estimate() (int, int, map[string]int, error) {
 	if !e.tree.IsDApp() {
 		e.scope.submerge()
 		c, err := e.walk(e.tree.Verifier, false)
@@ -204,7 +77,7 @@ func (e *treeEstimatorV3) estimate() (int, int, map[string]int, error) {
 	return max, vc, m, nil
 }
 
-func (e *treeEstimatorV3) wrapFunction(node *FunctionDeclarationNode) Node {
+func (e *treeEstimatorV4) wrapFunction(node *FunctionDeclarationNode) Node {
 	args := make([]Node, len(node.Arguments))
 	for i := range node.Arguments {
 		args[i] = NewBooleanNode(true)
@@ -220,10 +93,10 @@ func (e *treeEstimatorV3) wrapFunction(node *FunctionDeclarationNode) Node {
 	return block
 }
 
-func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
+func (e *treeEstimatorV4) walk(node Node, enableInvocation bool) (int, error) {
 	switch n := node.(type) {
 	case *LongNode, *BytesNode, *BooleanNode, *StringNode:
-		return 1, nil
+		return 0, nil
 
 	case *ConditionalNode:
 		ce, err := e.walk(n.Condition, enableInvocation)
@@ -243,21 +116,13 @@ func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
 		}
 		if le > re {
 			e.scope.restore(ls)
-			sum, err := common.AddInt(ce, le)
-			if err != nil {
-				return 0, err
-			}
-			res, err := common.AddInt(sum, 1)
+			res, err := common.AddInt(ce, le)
 			if err != nil {
 				return 0, err
 			}
 			return res, nil
 		}
-		sum, err := common.AddInt(ce, re)
-		if err != nil {
-			return 0, err
-		}
-		res, err := common.AddInt(sum, 1)
+		res, err := common.AddInt(ce, re)
 		if err != nil {
 			return 0, err
 		}
@@ -292,7 +157,7 @@ func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
 
 	case *ReferenceNode:
 		e.scope.use(n.Name)
-		return 1, nil
+		return 0, nil
 
 	case *FunctionDeclarationNode:
 		id := n.Name
@@ -333,6 +198,30 @@ func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
 				return 0, err
 			}
 		}
+		if m, ap, ok := e.higherOrderFunction(name); ok {
+			if ap < 0 || ap > len(n.Arguments)-1 {
+				return 0, errors.Errorf("failed to estimate higher order function '%s': invalid number of agruments", name)
+			}
+			ff, ok := n.Arguments[ap].(*StringNode)
+			if !ok {
+				return 0, errors.Errorf(
+					"failed to estimate higher order function '%s': unexpected argument type '%T' of %d argument",
+					name, n.Arguments[ap], ap,
+				)
+			}
+			cost, _, found := e.scope.functions.get(ff.Value)
+			if !found {
+				return 0, errors.Errorf("failed to estimate higher order function '%s': user function '%s' not found",
+					name, ff.Value)
+			}
+			fc, err = common.AddInt(fc, m*cost)
+			if err != nil {
+				return 0, err
+			}
+		}
+		if fc == 0 {
+			fc = 1
+		}
 		res, err := common.AddInt(fc, ac)
 		if err != nil {
 			return 0, err
@@ -340,17 +229,32 @@ func (e *treeEstimatorV3) walk(node Node, enableInvocation bool) (int, error) {
 		return res, nil
 
 	case *PropertyNode:
-		c, err := e.walk(n.Object, enableInvocation)
+		res, err := e.walk(n.Object, enableInvocation)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate getter '%s'", n.Name)
-		}
-		res, err := common.AddInt(c, 1)
-		if err != nil {
-			return 0, err
 		}
 		return res, nil
 
 	default:
 		return 0, errors.Errorf("unsupported type of node '%T'", node)
+	}
+}
+
+func (e *treeEstimatorV4) higherOrderFunction(id string) (int, int, bool) {
+	switch id {
+	case "450": // fold_20
+		return 20, 2, true
+	case "451": // fold_50
+		return 50, 2, true
+	case "452": // fold_100
+		return 100, 2, true
+	case "453": // fold_200
+		return 200, 2, true
+	case "454": // fold_500
+		return 500, 2, true
+	case "455": // fold_1000
+		return 1000, 2, true
+	default:
+		return 0, 0, false
 	}
 }

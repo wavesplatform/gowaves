@@ -244,7 +244,7 @@ func (h *ConnHandler) OnReceive(conn *Conn, buf []byte) {
 			zap.S().Warnf("[%s] Failed to unmarshal Score message: %v", conn.RawConn.RemoteAddr(), err)
 			return
 		}
-		score := big.NewInt(0).SetBytes(m.Score)
+		score := new(big.Int).SetBytes(m.Score)
 		zap.S().Debugf("[%s] Received Score %s", conn.RawConn.RemoteAddr(), score.String())
 		h.scoreCh <- conn
 	case proto.ContentIDSignatures:

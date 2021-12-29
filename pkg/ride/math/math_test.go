@@ -347,12 +347,13 @@ func TestPowInvariant(t *testing.T) {
 	}
 }
 
+func fromString(t *testing.T, s string) *big.Int {
+	v, ok := new(big.Int).SetString(s, 10)
+	require.True(t, ok)
+	return v
+}
+
 func TestPowBigInt(t *testing.T) {
-	fromString := func(t *testing.T, s string) *big.Int {
-		v, ok := big.NewInt(0).SetString(s, 10)
-		require.True(t, ok)
-		return v
-	}
 	d18 := fromString(t, "987654321012345678")
 	d19 := fromString(t, "1987654321012345678")
 	e1 := fromString(t, "3259987654320123456789")
@@ -363,7 +364,7 @@ func TestPowBigInt(t *testing.T) {
 			v = v.Mul(v, big.NewInt(math.MaxInt64))
 		}
 		v = v.Div(v, big.NewInt(4))
-		m := MaxBigInt
+		m := new(big.Int).Set(MaxBigInt)
 		r := m.Div(m, v)
 		return r
 	}
@@ -391,6 +392,53 @@ func TestPowBigInt(t *testing.T) {
 		{d19, 18, e2, 18, 0, decimal.ToZero, false, r},
 	} {
 		r, err := PowBigInt(tc.base, tc.exponent, tc.basePrecision, tc.exponentPrecision, tc.resultPrecision, tc.mode)
+		if tc.error {
+			assert.Error(t, err, i)
+			continue
+		}
+		assert.NoError(t, err, i)
+		assert.Equal(t, tc.expected, r, i)
+	}
+}
+
+func TestSqrt(t *testing.T) {
+	for i, tc := range []struct {
+		number          int64
+		numberPrecision int
+		resultPrecision int
+		mode            decimal.RoundingMode
+		error           bool
+		expected        int64
+	}{
+		{math.MaxInt64, 0, 8, decimal.ToZero, false, 303700049997604969},
+		{math.MaxInt64, 8, 8, decimal.ToZero, false, 30370004999760},
+	} {
+		r, err := Sqrt(tc.number, tc.numberPrecision, tc.resultPrecision, tc.mode)
+		if tc.error {
+			assert.Error(t, err, i)
+			continue
+		}
+		assert.NoError(t, err, i)
+		assert.Equal(t, tc.expected, r, i)
+	}
+}
+
+func TestSqrtBigInt(t *testing.T) {
+	r1 := fromString(t, "81877371507464127617551201542979628307507432471243237061821853600756754782485292915524036944801")
+	r2 := fromString(t, "81877371507464127617551201542979628307507432471243237061821853600756754782485292915524")
+
+	for i, tc := range []struct {
+		number          *big.Int
+		numberPrecision int
+		resultPrecision int
+		mode            decimal.RoundingMode
+		error           bool
+		expected        *big.Int
+	}{
+		{MaxBigInt, 0, 18, decimal.ToZero, false, r1},
+		{MaxBigInt, 18, 18, decimal.ToZero, false, r2},
+	} {
+		r, err := SqrtBigInt(tc.number, tc.numberPrecision, tc.resultPrecision, tc.mode)
 		if tc.error {
 			assert.Error(t, err, i)
 			continue
