@@ -10,7 +10,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/coocood/freecache v1.2.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
-	github.com/fxamacker/cbor/v2 v2.3.0
+	github.com/fxamacker/cbor/v2 v2.3.1
 	github.com/go-chi/chi v4.0.3+incompatible
 	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -28,7 +28,7 @@ require (
 	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c
 	github.com/semrush/zenrpc/v2 v2.1.1
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/spf13/afero v1.7.0
+	github.com/spf13/afero v1.7.1
 	github.com/spf13/pflag v1.0.5
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
