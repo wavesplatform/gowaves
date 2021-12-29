@@ -102,7 +102,7 @@ func concatStrings(_ *treeEvaluator, _ environment, args ...rideType) (rideType,
 	}
 	l := len(s1) + len(s2) // Check size in bytes of resulting string
 	if l > maxMessageLength {
-		return nil, errors.Errorf("concatStrings: length of result (%d) is greater than allowed (%d)", l, maxBytesLength)
+		return nil, errors.Errorf("concatStrings: length of result (%d) is greater than allowed (%d)", l, maxMessageLength)
 	}
 	out := s1 + s2
 	return rideString(out), nil
@@ -184,8 +184,7 @@ func takeRightString(_ *treeEvaluator, _ environment, args ...rideType) (rideTyp
 }
 
 func split(s, sep string, stringLengthLimit, resultListSizeLimit int) (rideList, error) {
-	sl := len(s) // Check number of bytes in given string
-	if len(s) > stringLengthLimit {
+	if sl := len(s); sl > stringLengthLimit {
 		return nil, errors.Errorf("string lenght %d exceeds string length limit %d", sl, stringLengthLimit)
 	}
 	res := strings.Split(s, sep)
@@ -300,7 +299,7 @@ func mkString(list []rideType, sep string, listSizeLimit, resultLengthLimit int)
 		case rideString:
 			str = string(ti)
 		case rideInt:
-			str = strconv.Itoa(int(ti))
+			str = strconv.FormatInt(int64(ti), 10)
 		default:
 			return "", errors.Errorf("unexpected list item type '%s'", item.instanceOf())
 		}

@@ -431,10 +431,7 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 		an := uf.Arguments[i]
 		avs[i] = esValue{id: an, value: arg}
 	}
-	e.s.cs = append(e.s.cs, make([]esValue, len(args)))
-	for i, av := range avs {
-		e.s.cs[len(e.s.cs)-1][i] = av
-	}
+	e.s.cs = append(e.s.cs, avs)
 	var tmp int
 	tmp, e.s.cl = e.s.cl, cl
 
@@ -448,35 +445,23 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 }
 
 func (e *treeEvaluator) walk(node Node) (rideType, error) {
+	if e.cc.overflow() {
+		return nil, RuntimeError.New("evaluation complexity overflow")
+	}
 	switch n := node.(type) {
 	case *LongNode:
-		if e.cc.overflow() {
-			return nil, RuntimeError.New("evaluation complexity overflow")
-		}
 		return rideInt(n.Value), nil
 
 	case *BytesNode:
-		if e.cc.overflow() {
-			return nil, RuntimeError.New("evaluation complexity overflow")
-		}
 		return rideBytes(n.Value), nil
 
 	case *BooleanNode:
-		if e.cc.overflow() {
-			return nil, RuntimeError.New("evaluation complexity overflow")
-		}
 		return rideBoolean(n.Value), nil
 
 	case *StringNode:
-		if e.cc.overflow() {
-			return nil, RuntimeError.New("evaluation complexity overflow")
-		}
 		return rideString(n.Value), nil
 
 	case *ConditionalNode:
-		if e.cc.overflow() {
-			return nil, RuntimeError.New("evaluation complexity overflow")
-		}
 		defer func() {
 			e.cc.addConditionalComplexity()
 		}()
@@ -495,9 +480,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		}
 
 	case *AssignmentNode:
-		if e.cc.overflow() {
-			return nil, RuntimeError.New("evaluation complexity overflow")
-		}
 		id := n.Name
 		e.s.pushExpression(id, n.Expression)
 		r, err := e.walk(n.Block)
@@ -508,9 +490,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		return r, nil
 
 	case *ReferenceNode:
-		if e.cc.overflow() {
-			return nil, RuntimeError.New("evaluation complexity overflow")
-		}
 		defer func() {
 			e.cc.addReferenceComplexity()
 		}()
@@ -536,9 +515,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		return v.value, nil
 
 	case *FunctionDeclarationNode:
-		if e.cc.overflow() {
-			return nil, RuntimeError.New("evaluation complexity overflow")
-		}
 		id := n.Name
 		e.s.pushUserFunction(n)
 		r, err := e.walk(n.Block)
@@ -552,9 +528,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		return r, nil
 
 	case *FunctionCallNode:
-		if e.cc.overflow() {
-			return nil, RuntimeError.New("evaluation complexity overflow")
-		}
 		name := n.Function.Name()
 		switch n.Function.(type) {
 		case nativeFunction:
@@ -574,9 +547,6 @@ func (e *treeEvaluator) walk(node Node) (rideType, error) {
 		}
 
 	case *PropertyNode:
-		if e.cc.overflow() {
-			return nil, RuntimeError.New("evaluation complexity overflow")
-		}
 		defer func() {
 			e.cc.addPropertyComplexity()
 		}()

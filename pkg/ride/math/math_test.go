@@ -348,7 +348,7 @@ func TestPowInvariant(t *testing.T) {
 }
 
 func fromString(t *testing.T, s string) *big.Int {
-	v, ok := big.NewInt(0).SetString(s, 10)
+	v, ok := new(big.Int).SetString(s, 10)
 	require.True(t, ok)
 	return v
 }
@@ -364,7 +364,7 @@ func TestPowBigInt(t *testing.T) {
 			v = v.Mul(v, big.NewInt(math.MaxInt64))
 		}
 		v = v.Div(v, big.NewInt(4))
-		m := big.NewInt(0).Set(MaxBigInt)
+		m := new(big.Int).Set(MaxBigInt)
 		r := m.Div(m, v)
 		return r
 	}

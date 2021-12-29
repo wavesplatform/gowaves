@@ -324,7 +324,7 @@ func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err 
 
 // tuplePointsTo resolves the location reference for dynamic tuple.
 func tuplePointsTo(index int, output []byte) (start int, err error) {
-	offset := big.NewInt(0).SetBytes(output[index : index+32])
+	offset := new(big.Int).SetBytes(output[index : index+32])
 	outputLen := big.NewInt(int64(len(output)))
 
 	if offset.Cmp(big.NewInt(int64(len(output)))) > 0 {
