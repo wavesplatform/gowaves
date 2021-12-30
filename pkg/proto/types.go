@@ -1774,12 +1774,9 @@ func (o *EthereumOrderV4) EthereumSign(scheme Scheme, sk *EthereumPrivateKey) (e
 	}
 	o.Eip712Signature = eip712Signature
 	o.SenderPK = sk.EthereumPublicKey()
-
-	if o.ID == nil {
-		err := o.GenerateID(scheme)
-		if err != nil {
-			return err
-		}
+	err = o.GenerateID(scheme)
+	if err != nil {
+		return err
 	}
 	return nil
 }
