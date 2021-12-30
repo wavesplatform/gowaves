@@ -1177,7 +1177,7 @@ func (o *OrderV2) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 		return errors.Wrap(err, "failed to sign OrderV2")
 	}
 	if o.Proofs == nil {
-		o.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		o.Proofs = NewProofs()
 	}
 	err = o.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -1431,7 +1431,7 @@ func (o *OrderV3) Sign(_ Scheme, secretKey crypto.SecretKey) error {
 		return errors.Wrap(err, "failed to sign OrderV3")
 	}
 	if o.Proofs == nil {
-		o.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		o.Proofs = NewProofs()
 	}
 	err = o.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -1635,7 +1635,7 @@ func (o *OrderV4) Sign(scheme Scheme, secretKey crypto.SecretKey) error {
 		return errors.Wrap(err, "failed to sign OrderV4")
 	}
 	if o.Proofs == nil {
-		o.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		o.Proofs = NewProofs()
 	}
 	err = o.Proofs.Sign(0, secretKey, b)
 	if err != nil {
