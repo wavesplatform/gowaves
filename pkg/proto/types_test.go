@@ -318,13 +318,13 @@ func TestOrderV1ToJSON(t *testing.T) {
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
 		if j, err := json.Marshal(o); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"priceMode\":\"%s\",\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
-				DefaultOrderV1V2V3PriceMode.String(), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+			ej := fmt.Sprintf("{\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+				base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 			assert.JSONEq(t, ej, string(j))
 			if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(o); assert.NoError(t, err) {
-					ej := fmt.Sprintf("{\"priceMode\":\"%s\",\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
-						DefaultOrderV1V2V3PriceMode.String(), base58.Encode(o.ID[:]), base58.Encode(o.Signature[:]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+					ej := fmt.Sprintf("{\"id\":\"%s\",\"signature\":\"%s\",\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+						base58.Encode(o.ID[:]), base58.Encode(o.Signature[:]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 					assert.JSONEq(t, ej, string(j))
 				}
 			}
@@ -496,13 +496,13 @@ func TestOrderV2ToJSON(t *testing.T) {
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV2(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
 		if j, err := json.Marshal(o); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"priceMode\":\"%s\",\"version\":2,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
-				DefaultOrderV1V2V3PriceMode.String(), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+			ej := fmt.Sprintf("{\"version\":2,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+				base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 			assert.JSONEq(t, ej, string(j))
 			if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(o); assert.NoError(t, err) {
-					ej := fmt.Sprintf("{\"priceMode\":\"%s\",\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
-						DefaultOrderV1V2V3PriceMode.String(), base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+					ej := fmt.Sprintf("{\"version\":2,\"id\":\"%s\",\"proofs\":[\"%s\"],\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+						base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 					assert.JSONEq(t, ej, string(j))
 				}
 			}
@@ -704,13 +704,13 @@ func TestOrderV3ToJSON(t *testing.T) {
 		exp := ts + 100*1000
 		o := NewUnsignedOrderV3(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee, *fa)
 		if j, err := json.Marshal(o); assert.NoError(t, err) {
-			ej := fmt.Sprintf("{\"priceMode\":\"%s\",\"version\":3,\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
-				DefaultOrderV1V2V3PriceMode.String(), fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+			ej := fmt.Sprintf("{\"version\":3,\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+				fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 			assert.JSONEq(t, ej, string(j))
 			if err := o.Sign(MainNetScheme, sk); assert.NoError(t, err) {
 				if j, err := json.Marshal(o); assert.NoError(t, err) {
-					ej := fmt.Sprintf("{\"priceMode\":\"%s\",\"version\":3,\"id\":\"%s\",\"proofs\":[\"%s\"],\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
-						DefaultOrderV1V2V3PriceMode.String(), base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
+					ej := fmt.Sprintf("{\"version\":3,\"id\":\"%s\",\"proofs\":[\"%s\"],\"matcherFeeAssetId\":%s,\"senderPublicKey\":\"%s\",\"matcherPublicKey\":\"%s\",\"assetPair\":{\"amountAsset\":%s,\"priceAsset\":%s},\"orderType\":\"%s\",\"price\":%d,\"amount\":%d,\"timestamp\":%d,\"expiration\":%d,\"matcherFee\":%d}",
+						base58.Encode(o.ID[:]), base58.Encode(o.Proofs.Proofs[0]), fas, base58.Encode(pk[:]), tc.matcher, aas, pas, tc.orderType.String(), tc.price, tc.amount, ts, exp, tc.fee)
 					assert.JSONEq(t, ej, string(j))
 				}
 			}
@@ -1627,7 +1627,7 @@ func TestEthereumOrderV4(t *testing.T) {
 		require.NoError(t, err)
 
 		ethOrder := EthereumOrderV4{
-			SenderPK:        testEthSenderPK,
+			SenderPK:        &testEthSenderPK,
 			Eip712Signature: testEthSig,
 			OrderV4: OrderV4{
 				PriceMode: OrderPriceModeAssetDecimals,
@@ -1716,19 +1716,20 @@ func TestEthereumOrderV4_VerifyAndSig(t *testing.T) {
 		ts                     uint64
 		exp                    uint64
 		fee                    uint64
+		prideMode              OrderPriceMode
 	}{
-		{1, "0xc4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53", "0x837cd5bde5402623b2d09c9779bc585cafe5bb1a3d94b369b0b2264f7e1ef45c", "0xfbc3628ab9d7799d172b2398177204297d627c1fd601f98b5a9e2fb726e0d9e77208279f5ab9fba108d155be44eddb31670ca356f724bb8196ac47165eb3eac91b", "E7zJzWVn6kwsc6zwDpxZrEFjUu3xszPZ7XcStYNprbSJ", "3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N", "FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2", Sell, 10000000, 1300, 1080, 1031 + MaxOrderTTL, 3},
-		{3, "0xc4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53", "0x837cd5bde5402623b2d09c9779bc585cafe5bb1a3d94b369b0b2264f7e1ef45c", "0x1b75b49fb34ef47456cfc9e7bdfc2c240a72919c9044ecf9d6aecf728818d31417a38e461c838b3e91c95104a030c575da7980b74284d8bbfeddbc010a06a5cf1b", "4qoBVcLxf4NEn6e4PyNkYAK4fkTHyH6rK8oKRY1dLfJG", "75NyDiTrambxhHGgBu7JeBqNnTryANZf1v6FTZwwqhDF", "9QT4JoWyk2iC9Y9VBoaEBnEL7gw2ofB8HKKLSEjs3SR", Buy, 100, 345100, 610, 126340 + MaxOrderTTL, 3},
-		{42, "0xc4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53", "0x837cd5bde5402623b2d09c9779bc585cafe5bb1a3d94b369b0b2264f7e1ef45c", "0x4c2d9e57907b8b85a05cca6538e842d74802bf38a54c9fca04fd147a9daa444127938f91dd37935e39bde842113d8ca2a1ce26531099205249259ae7b5c30d2e1c", "4uRYdwy5FY7TW66gV7bektQeRfSPJvnvHNLjLzMojJwG", "5zKtndukP6219omWiALaXtuVhMnQoMVQxYkDgGxz8ARG", "mCKpvzjog9DHTwLXNk1NU5aysZ1xpVg3wxLCQ5jWYXR", Sell, 100234000, 176500, 110, 310 + MaxOrderTTL, 3},
-		{5, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x6a07d660074d4fdefc90211f1adcde0de5ee9140ece4640e6ae9828f779b03e545e747de3af73c0c66a9529791b103c1092e698e9f54803b93247d02f68de0c81b", "2HPPrEGV2jqa5W5npRdjV5DTV4wpXnDx1GvKU3dLmnhu", "2AeWVoR5D5CnJbpioSB8qYnYSqJH1ji8Wzf1ubzxsvrK", "4vYK24GfY9F7gEptuXTfLic93dbcVTtxiQoKNZ6zKz5z", Sell, 100034000000, 10053, 104, 180 + MaxOrderTTL, 3},
-		{5, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x047719abade2831f574af600c158c63756cc8c8bf5a807219e44e3a441964c8400dd69b87357b27ffc925987d149f84bc043e879438573c6f3f0a09ac4280cf21c", "6fb8H3bKujzno1x15Ggqgrnhsco6NVWr3e5htGGBBCyA", "6Xqvv5kNtdNDn53foQg9sz8MfaPjxcvaftpLG59qnkD6", "6KPVaF7fn3gw1r4Ee87jAnmaZ7GdFy2DN7cdNmx5ywMA", Buy, 1000000000, 107300, 105, 1330 + MaxOrderTTL, 3},
-		{4, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x0c87e2e9326f81ddcca722f166407bb8a7298bc2d6c0c6841af87bbe5726089c705e7524cc90241cdb472fb7155a38261bebab4285bec34f5616f3106a267ec61c", "26fbBp3oU3yZCGAdGwhiT8wveSjQS4JJbvG1JA88Vpsi", "4PUkX4Se2fYX2TKeuZuxhXNpws5LtKPrtxTY91MTXH1S", "5vBKp4b44cSHvPcPrCpHMZYf8DvRVwKsKXsQas63vQRA", Sell, 100540000000, 64100, 10, 1056 + MaxOrderTTL, 3},
-		{3, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xd9e3b4a8790a43b815996f35aac1522d1e77c9b28d4ddb94e8d947521f75215a7781c01ec59aaeb06130efa2026c39482feaaa312b3d97d4ca3e11eb1e0799851b", "4SFiJcXaqVB2YU6LywpsZ3sjLqNtKJ41aof3jXnZBFPV", "MwU9RtbCZYgMSofewpwoqJVdeDB8MW644ggbLTLH8sv", "6zRVMyyz5miXFfRaFuxvGyFqGBjU1xCGt7VFjyK3eyNx", Buy, 1000000564000, 167300, 190, 310 + MaxOrderTTL, 3},
-		{42, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x198900735a8e2ed273ba3a5ee968f792436b693893b1276b58022889fea9cd6e714b02bdb2ca0fb26cf67a226a9ffa1566f8564f597d42011f7f18c595a936f41c", "2AS8mF66XiKPrEzk3ZQzBC93ef8HWKy2EHBtaU3pWCoh", "QphFC3SdhirC1o365ixoYNUjGVK82gSR7DD5KCMwWke", "3vELR7xbNxFXoxkrNGFQsXXz4gJEacKAgVW9FVCP2Zs9", Sell, 10020000000, 10680, 1110, 10 + MaxOrderTTL, 3},
-		{1, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x5cc58387244c123c163aff1a6c3ecfa3df25e9f6afbd83108899d63bc30fcca01c9537e72825170552141118758464504f54cd4fea2084271efed6b1349e99551b", "2DKxemVYxp1xaAPf2LEy2ovDSsgDDuNS8BMd1QTBwSWD", "4nzaBVK9vS4uB2cYDyLTekhLKZCbCgFVqrZ1VbznRya1", "q23YK66dnRKTsYhr2EYMiJE8cUovoaAFyFcvh2bgX8o", Buy, 10000060, 15400, 1670, 13450 + MaxOrderTTL, 3},
-		{3, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x30409072070e7d666416351551f086832b8f8e62bb8959b69af418b2dac054873c2ce09b4f4e8113d9e928476e8153b8e3637e1f227ee683cf49a063119848c51c", "Gcnp8iu4sFWqs5MfnqNSvn3rJD5XCj68KyBSWUYzg25", "9LAbFKB1NgNzTmc6r1HcC6LQmmQMrEZ1JwxT4Rfhi63", "3hthPo1WU8D3UtvsiTy81cC61uJRFftdtRk77FCeTNiH", Sell, 10073460000000, 45100, 1560, 160 + MaxOrderTTL, 3},
-		{42, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xac2d86ec268c297c62ac379b70938a0a93fc5973ef0f5bbcef0717147061b83207fdb7f2f85450eb4dcc34dd13e8aa78945f85634a8b86a0feba6214e2abdaca1c", "Gcnp8iu4sFWqs5MfnqNSvn3rJD5XCj68KyBSWUYzg25", "", "3hthPo1WU8D3UtvsiTy81cC61uJRFftdtRk77FCeTNiH", Sell, 1007346040000, 451400, 11560, 1605 + MaxOrderTTL, 3},
-		{5, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xda7968d160fb1e47c00b428610cedbfd20e27a6a6bc466b60db11dabe59023d71d2475a6883367e1f9c04e62eb811e33c8d0e26969e5b5566cbcd83e84497ef71c", "Gcnp8iu4sFWqs5MfnqNSvn3rJD5XCj68KyBSWUYzg25", "4nzaBVK9vS4uB2cYDyLTekhLKZCbCgFVqrZ1VbznRya1", "", Buy, 10073460000, 4100, 15160, 1360 + MaxOrderTTL, 3},
+		{1, "0xc4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53", "0x837cd5bde5402623b2d09c9779bc585cafe5bb1a3d94b369b0b2264f7e1ef45c", "0xfbc3628ab9d7799d172b2398177204297d627c1fd601f98b5a9e2fb726e0d9e77208279f5ab9fba108d155be44eddb31670ca356f724bb8196ac47165eb3eac91b", "E7zJzWVn6kwsc6zwDpxZrEFjUu3xszPZ7XcStYNprbSJ", "3gRJoK6f7XUV7fx5jUzHoPwdb9ZdTFjtTPy2HgDinr1N", "FftTzae2t8r6zZJ2VzEq2pS2Le4Vx9gYGXuDsEFBTYE2", Sell, 10000000, 1300, 1080, 1031 + MaxOrderTTL, 3, OrderPriceModeDefault},
+		{3, "0xc4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53", "0x837cd5bde5402623b2d09c9779bc585cafe5bb1a3d94b369b0b2264f7e1ef45c", "0x1b75b49fb34ef47456cfc9e7bdfc2c240a72919c9044ecf9d6aecf728818d31417a38e461c838b3e91c95104a030c575da7980b74284d8bbfeddbc010a06a5cf1b", "4qoBVcLxf4NEn6e4PyNkYAK4fkTHyH6rK8oKRY1dLfJG", "75NyDiTrambxhHGgBu7JeBqNnTryANZf1v6FTZwwqhDF", "9QT4JoWyk2iC9Y9VBoaEBnEL7gw2ofB8HKKLSEjs3SR", Buy, 100, 345100, 610, 126340 + MaxOrderTTL, 3, OrderPriceModeAssetDecimals},
+		{42, "0xc4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53", "0x837cd5bde5402623b2d09c9779bc585cafe5bb1a3d94b369b0b2264f7e1ef45c", "0x4c2d9e57907b8b85a05cca6538e842d74802bf38a54c9fca04fd147a9daa444127938f91dd37935e39bde842113d8ca2a1ce26531099205249259ae7b5c30d2e1c", "4uRYdwy5FY7TW66gV7bektQeRfSPJvnvHNLjLzMojJwG", "5zKtndukP6219omWiALaXtuVhMnQoMVQxYkDgGxz8ARG", "mCKpvzjog9DHTwLXNk1NU5aysZ1xpVg3wxLCQ5jWYXR", Sell, 100234000, 176500, 110, 310 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
+		{5, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x6a07d660074d4fdefc90211f1adcde0de5ee9140ece4640e6ae9828f779b03e545e747de3af73c0c66a9529791b103c1092e698e9f54803b93247d02f68de0c81b", "2HPPrEGV2jqa5W5npRdjV5DTV4wpXnDx1GvKU3dLmnhu", "2AeWVoR5D5CnJbpioSB8qYnYSqJH1ji8Wzf1ubzxsvrK", "4vYK24GfY9F7gEptuXTfLic93dbcVTtxiQoKNZ6zKz5z", Sell, 100034000000, 10053, 104, 180 + MaxOrderTTL, 3, OrderPriceModeDefault},
+		{5, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x047719abade2831f574af600c158c63756cc8c8bf5a807219e44e3a441964c8400dd69b87357b27ffc925987d149f84bc043e879438573c6f3f0a09ac4280cf21c", "6fb8H3bKujzno1x15Ggqgrnhsco6NVWr3e5htGGBBCyA", "6Xqvv5kNtdNDn53foQg9sz8MfaPjxcvaftpLG59qnkD6", "6KPVaF7fn3gw1r4Ee87jAnmaZ7GdFy2DN7cdNmx5ywMA", Buy, 1000000000, 107300, 105, 1330 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
+		{4, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x0c87e2e9326f81ddcca722f166407bb8a7298bc2d6c0c6841af87bbe5726089c705e7524cc90241cdb472fb7155a38261bebab4285bec34f5616f3106a267ec61c", "26fbBp3oU3yZCGAdGwhiT8wveSjQS4JJbvG1JA88Vpsi", "4PUkX4Se2fYX2TKeuZuxhXNpws5LtKPrtxTY91MTXH1S", "5vBKp4b44cSHvPcPrCpHMZYf8DvRVwKsKXsQas63vQRA", Sell, 100540000000, 64100, 10, 1056 + MaxOrderTTL, 3, OrderPriceModeAssetDecimals},
+		{3, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xd9e3b4a8790a43b815996f35aac1522d1e77c9b28d4ddb94e8d947521f75215a7781c01ec59aaeb06130efa2026c39482feaaa312b3d97d4ca3e11eb1e0799851b", "4SFiJcXaqVB2YU6LywpsZ3sjLqNtKJ41aof3jXnZBFPV", "MwU9RtbCZYgMSofewpwoqJVdeDB8MW644ggbLTLH8sv", "6zRVMyyz5miXFfRaFuxvGyFqGBjU1xCGt7VFjyK3eyNx", Buy, 1000000564000, 167300, 190, 310 + MaxOrderTTL, 3, OrderPriceModeDefault},
+		{42, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x198900735a8e2ed273ba3a5ee968f792436b693893b1276b58022889fea9cd6e714b02bdb2ca0fb26cf67a226a9ffa1566f8564f597d42011f7f18c595a936f41c", "2AS8mF66XiKPrEzk3ZQzBC93ef8HWKy2EHBtaU3pWCoh", "QphFC3SdhirC1o365ixoYNUjGVK82gSR7DD5KCMwWke", "3vELR7xbNxFXoxkrNGFQsXXz4gJEacKAgVW9FVCP2Zs9", Sell, 10020000000, 10680, 1110, 10 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
+		{1, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x5cc58387244c123c163aff1a6c3ecfa3df25e9f6afbd83108899d63bc30fcca01c9537e72825170552141118758464504f54cd4fea2084271efed6b1349e99551b", "2DKxemVYxp1xaAPf2LEy2ovDSsgDDuNS8BMd1QTBwSWD", "4nzaBVK9vS4uB2cYDyLTekhLKZCbCgFVqrZ1VbznRya1", "q23YK66dnRKTsYhr2EYMiJE8cUovoaAFyFcvh2bgX8o", Buy, 10000060, 15400, 1670, 13450 + MaxOrderTTL, 3, OrderPriceModeDefault},
+		{3, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0x30409072070e7d666416351551f086832b8f8e62bb8959b69af418b2dac054873c2ce09b4f4e8113d9e928476e8153b8e3637e1f227ee683cf49a063119848c51c", "Gcnp8iu4sFWqs5MfnqNSvn3rJD5XCj68KyBSWUYzg25", "9LAbFKB1NgNzTmc6r1HcC6LQmmQMrEZ1JwxT4Rfhi63", "3hthPo1WU8D3UtvsiTy81cC61uJRFftdtRk77FCeTNiH", Sell, 10073460000000, 45100, 1560, 160 + MaxOrderTTL, 3, OrderPriceModeDefault},
+		{42, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xac2d86ec268c297c62ac379b70938a0a93fc5973ef0f5bbcef0717147061b83207fdb7f2f85450eb4dcc34dd13e8aa78945f85634a8b86a0feba6214e2abdaca1c", "Gcnp8iu4sFWqs5MfnqNSvn3rJD5XCj68KyBSWUYzg25", "", "3hthPo1WU8D3UtvsiTy81cC61uJRFftdtRk77FCeTNiH", Sell, 1007346040000, 451400, 11560, 1605 + MaxOrderTTL, 3, OrderPriceModeAssetDecimals},
+		{5, "0xae8e4abe5917a6881324538081b71d88d50f53cfd9a2d53e16208c3ff45126649320928e65bbbd2e7c43adb57a9250e8ddcc645f9cacf673d7a9c13d03aa2743", "0xffea730a62f149fd801db7966fee22c2fef23c5382cb1e4e2f1184788cef81c4", "0xda7968d160fb1e47c00b428610cedbfd20e27a6a6bc466b60db11dabe59023d71d2475a6883367e1f9c04e62eb811e33c8d0e26969e5b5566cbcd83e84497ef71c", "Gcnp8iu4sFWqs5MfnqNSvn3rJD5XCj68KyBSWUYzg25", "4nzaBVK9vS4uB2cYDyLTekhLKZCbCgFVqrZ1VbznRya1", "", Buy, 10073460000, 4100, 15160, 1360 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
 	}
 	for _, tc := range tests {
 		order := newEthereumOrderV4(
@@ -1744,6 +1745,7 @@ func TestEthereumOrderV4_VerifyAndSig(t *testing.T) {
 			tc.ts,
 			tc.exp,
 			tc.fee,
+			tc.prideMode,
 		)
 		order.buildEthereumOrderV4TypedData(tc.scheme)
 		// verify check with invalid senderPK

@@ -2377,18 +2377,18 @@ func newSignedOrderV1(t *testing.T, sender, matcher crypto.PublicKey, amountAsse
 	return *o
 }
 
-func newSignedOrderV4(t *testing.T, sender, matcher crypto.PublicKey, amountAsset, priceAsset OptionalAsset, ot OrderType, price, amount, ts, exp, fee uint64, sID, sSig string) OrderV4 {
+func newSignedOrderV4(t *testing.T, sender, matcher crypto.PublicKey, amountAsset, priceAsset OptionalAsset, ot OrderType, price, amount, ts, exp, fee uint64, sID, sSig string, priceMode OrderPriceMode) OrderV4 {
 	id, err := crypto.NewDigestFromBase58(sID)
 	require.NoError(t, err)
 	sig, err := crypto.NewSignatureFromBase58(sSig)
 	require.NoError(t, err)
-	o := NewUnsignedOrderV4(sender, matcher, amountAsset, priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{}, DefaultOrderV4AndHigherPriceMode)
+	o := NewUnsignedOrderV4(sender, matcher, amountAsset, priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{}, priceMode)
 	o.ID = &id
 	o.Proofs = NewProofsFromSignature(&sig)
 	return *o
 }
 
-func newEthereumOrderV4(t *testing.T, ethSenderPKHex, ethSignatureHex, matcherPKBase58, amountAssetBase58, priceAssetBase58 string, ot OrderType, price, amount, ts, exp, fee uint64) EthereumOrderV4 {
+func newEthereumOrderV4(t *testing.T, ethSenderPKHex, ethSignatureHex, matcherPKBase58, amountAssetBase58, priceAssetBase58 string, ot OrderType, price, amount, ts, exp, fee uint64, priceMode OrderPriceMode) EthereumOrderV4 {
 	var (
 		err       error
 		ethSender EthereumPublicKey
@@ -2410,7 +2410,7 @@ func newEthereumOrderV4(t *testing.T, ethSenderPKHex, ethSignatureHex, matcherPK
 	priceAsset, err := NewOptionalAssetFromString(priceAssetBase58)
 	require.NoError(t, err)
 
-	ethereumOrderV4 := NewUnsignedEthereumOrderV4(ethSender, matcher, *amountAsset, *priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{}, DefaultOrderV4AndHigherPriceMode)
+	ethereumOrderV4 := NewUnsignedEthereumOrderV4(&ethSender, matcher, *amountAsset, *priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{}, priceMode)
 	ethereumOrderV4.Eip712Signature = ethSig
 	return *ethereumOrderV4
 }
@@ -2764,8 +2764,8 @@ func TestExchangeV3PriceValidation(t *testing.T) {
 	mpk, _ := crypto.NewPublicKeyFromBase58("BvJEWY79uQEFetuyiZAF5U4yjPioMj9J6ZrF9uTNfe3E")
 	aa, _ := NewOptionalAssetFromString("3JmaWyFqWo8YSA8x3DXCBUW7veesxacvKx19dMv7wTMg")
 	pa, _ := NewOptionalAssetFromString("25FEqEjRkqK6yCkiT7Lz6SAYz7gUFCtxfCChnrVFD5AT")
-	sbo := newSignedOrderV4(t, buySender, mpk, *aa, *pa, Buy, 1000000, 800000000, 1624445095222, 1626950695222, 300000, "3fdNTCQ7o2TvN8eDV3m7J9aSLxcUitwN2SMZpn1irSXX", "3aKUz8boZingH8r18grL8Rst5RyGVnESaQtuEoV5piUnvJKNf67xFwFpPpmfiuAuud1AAzj94xYNw1MKkmJaBicR")
-	sso := newSignedOrderV4(t, sellSender, mpk, *aa, *pa, Sell, 1000000, 800000000, 1624445095267, 1626950695267, 300000, "81Xc8YP1Ev2bqvSLgN5k3ent6Fr7rnEdCg8x2DH5twqX", "4VQmM6QB8yaQ1AChNNkVH5EvVKenS8YG7YqXK9SsjWAnjJm5xvd48kW2akwcEbhgzqqGMDtS2AmeGSfpEcHEMYGU")
+	sbo := newSignedOrderV4(t, buySender, mpk, *aa, *pa, Buy, 1000000, 800000000, 1624445095222, 1626950695222, 300000, "3fdNTCQ7o2TvN8eDV3m7J9aSLxcUitwN2SMZpn1irSXX", "3aKUz8boZingH8r18grL8Rst5RyGVnESaQtuEoV5piUnvJKNf67xFwFpPpmfiuAuud1AAzj94xYNw1MKkmJaBicR", OrderPriceModeDefault)
+	sso := newSignedOrderV4(t, sellSender, mpk, *aa, *pa, Sell, 1000000, 800000000, 1624445095267, 1626950695267, 300000, "81Xc8YP1Ev2bqvSLgN5k3ent6Fr7rnEdCg8x2DH5twqX", "4VQmM6QB8yaQ1AChNNkVH5EvVKenS8YG7YqXK9SsjWAnjJm5xvd48kW2akwcEbhgzqqGMDtS2AmeGSfpEcHEMYGU", OrderPriceModeDefault)
 	tx := NewUnsignedExchangeWithProofs(3, &sbo, &sso, 100000000, 800000000, 100, 100, 300000, 1624445095293)
 	_, err := tx.Validate(MainNetScheme)
 	assert.NoError(t, err)
@@ -3314,14 +3314,9 @@ func TestExchangeWithProofsFromJSON3(t *testing.T) {
 }
 
 func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
-	var (
-		err               error
-		matcherPublicKey  crypto.PublicKey
-		matcherPrivateKey crypto.SecretKey
-	)
-	matcherPublicKey, err = crypto.NewPublicKeyFromBase58("9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ")
+	matcherPublicKey, err := crypto.NewPublicKeyFromBase58("9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ")
 	require.NoError(t, err)
-	matcherPrivateKey, err = crypto.NewSecretKeyFromBase58("FZ97ouxTGpNnmyyfSBxgC2FGHTpvo7mM7LWoMut6gEYx")
+	matcherPrivateKey, err := crypto.NewSecretKeyFromBase58("FZ97ouxTGpNnmyyfSBxgC2FGHTpvo7mM7LWoMut6gEYx")
 	require.NoError(t, err)
 
 	tests := []struct {

@@ -24,7 +24,12 @@ const (
 // EthereumPrivateKey is an Ethereum ecdsa.PrivateKey.
 type EthereumPrivateKey btcec.PrivateKey
 
-// EthereumPublicKey is an Ethereum ecdsa.PublicKey
+// EthereumPublicKey returns *EthereumPublicKey from corresponding EthereumPrivateKey.
+func (esk *EthereumPrivateKey) EthereumPublicKey() *EthereumPublicKey {
+	return (*EthereumPublicKey)(&esk.PublicKey)
+}
+
+// EthereumPublicKey is an Ethereum ecdsa.PublicKey.
 type EthereumPublicKey btcec.PublicKey
 
 // MarshalJSON marshal EthereumPublicKey in base58 encoding.
@@ -387,8 +392,7 @@ func (s eip155Signer) Hash(tx *EthereumTransaction) EthereumHash {
 	return Keccak256EthereumHash(rlpData)
 }
 
-// HomesteadTransaction implements TransactionInterface using the
-// homestead rules.
+// HomesteadSigner implements EthereumSigner using the homestead rules.
 type HomesteadSigner struct{ FrontierSigner }
 
 func (hs HomesteadSigner) ChainID() *big.Int {

@@ -262,6 +262,9 @@ func (c *ProtobufConverter) orderType(side g.Order_Side) OrderType {
 }
 
 func (c *ProtobufConverter) orderPriceMode(gm g.Order_PriceMode) (OrderPriceMode, error) {
+	if c.err != nil {
+		return 0, c.err
+	}
 	var m OrderPriceMode
 	if err := m.FromProtobuf(gm); err != nil {
 		return 0, err
@@ -340,8 +343,13 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 	if c.err != nil {
 		return nil
 	}
+	orderVersion := c.byte(o.Version)
 	priceMode, err := c.orderPriceMode(o.PriceMode)
 	if err != nil {
+		c.err = err
+		return nil
+	}
+	if _, err := priceMode.Valid(orderVersion); err != nil {
 		c.err = err
 		return nil
 	}
@@ -373,31 +381,28 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 	if scheme == 0 {
 		scheme = c.FallbackChainID
 	}
-	switch version := o.Version; version {
+	switch uncheckedOrderVersion := o.Version; uncheckedOrderVersion {
 	case 1:
 		order = &OrderV1{
 			Signature: c.proof(o.Proofs),
 			OrderBody: body,
-			PriceMode: priceMode,
 		}
 	case 2:
 		order = &OrderV2{
-			Version:   c.byte(o.Version),
+			Version:   orderVersion,
 			Proofs:    c.proofs(o.Proofs),
 			OrderBody: body,
-			PriceMode: priceMode,
 		}
 	case 3:
 		order = &OrderV3{
-			Version:         c.byte(o.Version),
+			Version:         orderVersion,
 			Proofs:          c.proofs(o.Proofs),
 			OrderBody:       body,
 			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
-			PriceMode:       priceMode,
 		}
 	case 4:
 		orderV4 := OrderV4{
-			Version:         c.byte(o.Version),
+			Version:         orderVersion,
 			Proofs:          c.proofs(o.Proofs),
 			OrderBody:       body,
 			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
@@ -417,7 +422,7 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 			order = &orderV4
 		}
 	default:
-		c.err = errors.Errorf("invalid order version %d", version)
+		c.err = errors.Errorf("invalid order version %d", uncheckedOrderVersion)
 		return nil
 	}
 	if err := order.GenerateID(scheme); err != nil {

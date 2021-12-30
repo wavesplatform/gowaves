@@ -444,14 +444,9 @@ const (
 	OrderPriceModeAssetDecimals
 )
 
-const (
-	DefaultOrderV1V2V3PriceMode      = OrderPriceModeDefault
-	DefaultOrderV4AndHigherPriceMode = OrderPriceModeFixedDecimals
-)
-
 func (m *OrderPriceMode) UnmarshalJSON(val []byte) error {
 	switch quotedMode := string(val); quotedMode {
-	case jsonNull:
+	case jsonNull, "\"default\"":
 		*m = OrderPriceModeDefault
 	case "\"fixedDecimals\"":
 		*m = OrderPriceModeFixedDecimals
@@ -464,7 +459,15 @@ func (m *OrderPriceMode) UnmarshalJSON(val []byte) error {
 }
 
 func (m OrderPriceMode) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("\"%s\"", m.String())), nil
+	if !m.isValidOrderPriceValue() {
+		return nil, errors.Errorf("invalid OrderPriceMode=%d", byte(m))
+	}
+	switch m {
+	case OrderPriceModeDefault:
+		return []byte(jsonNull), nil
+	default:
+		return []byte(fmt.Sprintf("\"%s\"", m.String())), nil
+	}
 }
 
 func (m OrderPriceMode) String() string {
@@ -532,14 +535,14 @@ func (m OrderPriceMode) isValidOrderPriceValue() bool {
 func (m OrderPriceMode) Valid(orderVersion byte) (bool, error) {
 	switch orderVersion {
 	case 1, 2, 3:
-		if m != DefaultOrderV1V2V3PriceMode {
+		if m != OrderPriceModeDefault {
 			return false, errors.Errorf("OrderV%d.PriceMode must be %q",
-				orderVersion, DefaultOrderV1V2V3PriceMode.String(),
+				orderVersion, OrderPriceModeDefault.String(),
 			)
 		}
 	default:
 		if !m.isValidOrderPriceValue() {
-			return false, errors.Errorf("unknown OrderPriceMode value = %d", byte(m))
+			return false, errors.Errorf("invalid OrderPriceMode = %d", byte(m))
 		}
 	}
 	return true, nil
@@ -812,7 +815,6 @@ func (o *OrderBody) UnmarshalBinary(data []byte) error {
 type OrderV1 struct {
 	ID        *crypto.Digest    `json:"id,omitempty"`
 	Signature *crypto.Signature `json:"signature,omitempty"`
-	PriceMode OrderPriceMode    `json:"priceMode"`
 	OrderBody
 }
 
@@ -823,7 +825,7 @@ func (o OrderV1) BinarySize() int {
 func (o OrderV1) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: nil, Amount: int64(o.MatcherFee)}
-	res.PriceMode = o.PriceMode.ToProtobuf()
+	res.PriceMode = o.GetPriceMode().ToProtobuf()
 	res.Version = 1
 	return res
 }
@@ -881,7 +883,7 @@ func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 		Expiration: expiration,
 		MatcherFee: matcherFee,
 	}
-	return &OrderV1{OrderBody: ob, PriceMode: DefaultOrderV1V2V3PriceMode}
+	return &OrderV1{OrderBody: ob}
 }
 
 func (o *OrderV1) GetVersion() byte {
@@ -889,7 +891,7 @@ func (o *OrderV1) GetVersion() byte {
 }
 
 func (o *OrderV1) GetPriceMode() OrderPriceMode {
-	return o.PriceMode
+	return OrderPriceModeDefault
 }
 
 func (o *OrderV1) GetOrderType() OrderType {
@@ -995,7 +997,6 @@ func (o *OrderV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV1MinLen {
 		return errors.Errorf("not enough data for OrderV1, expected not less then %d, received %d", orderV1MinLen, l)
 	}
-	o.PriceMode = DefaultOrderV1V2V3PriceMode
 	var bl int
 	err := o.bodyUnmarshalBinary(data)
 	if err != nil {
@@ -1021,22 +1022,11 @@ func (o *OrderV1) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (o *OrderV1) Valid() (bool, error) {
-	if ok, err := o.OrderBody.Valid(); !ok {
-		return false, err
-	}
-	if ok, err := o.PriceMode.Valid(o.GetVersion()); !ok {
-		return false, err
-	}
-	return true, nil
-}
-
 //OrderV2 is an order created and signed by user. Two matched orders builds up an Exchange transaction. Version 2 with proofs.
 type OrderV2 struct {
-	Version   byte           `json:"version"`
-	ID        *crypto.Digest `json:"id,omitempty"`
-	Proofs    *ProofsV1      `json:"proofs,omitempty"`
-	PriceMode OrderPriceMode `json:"priceMode"`
+	Version byte           `json:"version"`
+	ID      *crypto.Digest `json:"id,omitempty"`
+	Proofs  *ProofsV1      `json:"proofs,omitempty"`
 	OrderBody
 }
 
@@ -1047,7 +1037,7 @@ func (o OrderV2) BinarySize() int {
 func (o OrderV2) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: nil, Amount: int64(o.MatcherFee)}
-	res.PriceMode = o.PriceMode.ToProtobuf()
+	res.PriceMode = o.GetPriceMode().ToProtobuf()
 	res.Version = 2
 	return res
 }
@@ -1100,7 +1090,7 @@ func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 		Expiration: expiration,
 		MatcherFee: matcherFee,
 	}
-	return &OrderV2{Version: 2, PriceMode: DefaultOrderV1V2V3PriceMode, OrderBody: ob}
+	return &OrderV2{Version: 2, OrderBody: ob}
 }
 
 func (o *OrderV2) GetVersion() byte {
@@ -1108,7 +1098,7 @@ func (o *OrderV2) GetVersion() byte {
 }
 
 func (o *OrderV2) GetPriceMode() OrderPriceMode {
-	return o.PriceMode
+	return OrderPriceModeDefault
 }
 
 func (o *OrderV2) GetOrderType() OrderType {
@@ -1232,7 +1222,6 @@ func (o *OrderV2) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV2MinLen {
 		return errors.Errorf("not enough data for OrderV2, expected not less then %d, received %d", orderV2MinLen, l)
 	}
-	o.PriceMode = DefaultOrderV1V2V3PriceMode
 	var bl int
 	err := o.bodyUnmarshalBinary(data)
 	if err != nil {
@@ -1261,23 +1250,12 @@ func (o *OrderV2) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (o *OrderV2) Valid() (bool, error) {
-	if ok, err := o.OrderBody.Valid(); !ok {
-		return false, err
-	}
-	if ok, err := o.PriceMode.Valid(o.GetVersion()); !ok {
-		return false, err
-	}
-	return true, nil
-}
-
 // OrderV3 is an order that supports matcher's fee in assets.
 type OrderV3 struct {
 	Version         byte           `json:"version"`
 	ID              *crypto.Digest `json:"id,omitempty"`
 	Proofs          *ProofsV1      `json:"proofs,omitempty"`
 	MatcherFeeAsset OptionalAsset  `json:"matcherFeeAssetId"`
-	PriceMode       OrderPriceMode `json:"priceMode"`
 	OrderBody
 }
 
@@ -1288,7 +1266,7 @@ func (o OrderV3) BinarySize() int {
 func (o OrderV3) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: o.MatcherFeeAsset.ToID(), Amount: int64(o.MatcherFee)}
-	res.PriceMode = o.PriceMode.ToProtobuf()
+	res.PriceMode = o.GetPriceMode().ToProtobuf()
 	res.Version = 3
 	return res
 }
@@ -1341,7 +1319,7 @@ func NewUnsignedOrderV3(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 		Expiration: expiration,
 		MatcherFee: matcherFee,
 	}
-	return &OrderV3{Version: 3, MatcherFeeAsset: matcherFeeAsset, PriceMode: DefaultOrderV1V2V3PriceMode, OrderBody: ob}
+	return &OrderV3{Version: 3, MatcherFeeAsset: matcherFeeAsset, OrderBody: ob}
 }
 
 func (o *OrderV3) GetVersion() byte {
@@ -1349,7 +1327,7 @@ func (o *OrderV3) GetVersion() byte {
 }
 
 func (o *OrderV3) GetPriceMode() OrderPriceMode {
-	return o.PriceMode
+	return OrderPriceModeDefault
 }
 
 func (o *OrderV3) GetOrderType() OrderType {
@@ -1498,7 +1476,6 @@ func (o *OrderV3) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV3MinLen {
 		return errors.Errorf("not enough data for OrderV3, expected not less then %d, received %d", orderV3MinLen, l)
 	}
-	o.PriceMode = DefaultOrderV1V2V3PriceMode
 	var bl int
 	err := o.bodyUnmarshalBinary(data)
 	if err != nil {
@@ -1528,16 +1505,6 @@ func (o *OrderV3) UnmarshalBinary(data []byte) error {
 	}
 	o.ID = &id
 	return nil
-}
-
-func (o *OrderV3) Valid() (bool, error) {
-	if ok, err := o.OrderBody.Valid(); !ok {
-		return false, err
-	}
-	if ok, err := o.PriceMode.Valid(o.GetVersion()); !ok {
-		return false, err
-	}
-	return true, nil
 }
 
 // OrderV4 is for Protobuf.
@@ -1695,14 +1662,14 @@ func (o *OrderV4) Valid() (bool, error) {
 	if ok, err := o.OrderBody.Valid(); !ok {
 		return false, err
 	}
-	if ok, err := o.PriceMode.Valid(o.GetVersion()); !ok {
+	if ok, err := o.GetPriceMode().Valid(o.GetVersion()); !ok {
 		return false, err
 	}
 	return true, nil
 }
 
 //NewUnsignedEthereumOrderV4 creates the new ethereum unsigned order.
-func NewUnsignedEthereumOrderV4(senderPK EthereumPublicKey, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode) *EthereumOrderV4 {
+func NewUnsignedEthereumOrderV4(senderPK *EthereumPublicKey, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode) *EthereumOrderV4 {
 	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee, matcherFeeAsset, priceMode)
 	return &EthereumOrderV4{
 		SenderPK:        senderPK,
@@ -1712,8 +1679,8 @@ func NewUnsignedEthereumOrderV4(senderPK EthereumPublicKey, matcherPK crypto.Pub
 }
 
 type EthereumOrderV4 struct {
-	SenderPK        EthereumPublicKey `json:"senderPublicKey"`
-	Eip712Signature EthereumSignature `json:"eip712Signature,omitempty"`
+	SenderPK        *EthereumPublicKey `json:"senderPublicKey"`
+	Eip712Signature EthereumSignature  `json:"eip712Signature,omitempty"`
 	OrderV4
 }
 
@@ -1752,11 +1719,11 @@ func (o *EthereumOrderV4) GenerateSenderPK(scheme Scheme) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to generate typed data hash for EthereumOrderV4.SenderPK")
 	}
-	pk, err := crypto.ECDSARecoverPublicKey(hash.Bytes(), o.Eip712Signature.Bytes())
+	pk, err := o.Eip712Signature.RecoverEthereumPublicKey(hash[:])
 	if err != nil {
-		return errors.Wrap(err, "failed to recover EthereumOrderV4.SenderPK from hash and signature")
+		return errors.Wrap(err, "failed to recover EthereumOrderV4.SenderPK")
 	}
-	o.SenderPK = EthereumPublicKey(*pk)
+	o.SenderPK = pk
 	return nil
 }
 
@@ -1767,7 +1734,7 @@ func (o *EthereumOrderV4) Verify(scheme Scheme) (bool, error) {
 	}
 	// TODO(nickeskov): Should we validate 'V' signature value?
 	_, r, s := o.Eip712Signature.AsVRS()
-	return VerifyEthereumSignature(&o.SenderPK, r, s, hash.Bytes()), nil
+	return VerifyEthereumSignature(o.SenderPK, r, s, hash[:]), nil
 }
 
 func (o *EthereumOrderV4) Sign(_ Scheme, _ crypto.SecretKey) error {
@@ -1790,18 +1757,13 @@ func (o *EthereumOrderV4) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	return MarshalToProtobufDeterministic(pbOrder)
 }
 
-// EthereumSign signs order with provided *btcec.PrivateKey. This method is used only for test purposes
-func (o *EthereumOrderV4) EthereumSign(scheme Scheme, key *EthereumPrivateKey) (err error) {
-	typedData := o.buildEthereumOrderV4TypedData(scheme)
-	data, err := typedData.RawData()
+// EthereumSign signs order and sets senderPK with provided *EthereumPrivateKey. This method is used only for test purposes
+func (o *EthereumOrderV4) EthereumSign(scheme Scheme, sk *EthereumPrivateKey) (err error) {
+	h, err := o.ethereumTypedDataHash(scheme)
 	if err != nil {
-		return errors.Wrap(err, "failed to build typed data and sign EthereumOrderV4 with 'ethereumSecretKey'")
+		return errors.Wrap(err, "failed to sign ethereum order")
 	}
-	h, err := crypto.Keccak256(data)
-	if err != nil {
-		return errors.Wrap(err, "failed to calculate 'Keccak256' hash")
-	}
-	eip712SignatureBytes, err := crypto.ECDSASign(h[:], (*btcec.PrivateKey)(key))
+	eip712SignatureBytes, err := crypto.ECDSASign(h[:], (*btcec.PrivateKey)(sk))
 	if err != nil {
 		return errors.Wrap(err, "failed to sign EthereumOrderV4 with 'ethereumSecretKey'")
 	}
@@ -1811,6 +1773,7 @@ func (o *EthereumOrderV4) EthereumSign(scheme Scheme, key *EthereumPrivateKey) (
 		return errors.Wrapf(err, "failed to convert '%x' bytes to EthereumSignature", eip712SignatureBytes)
 	}
 	o.Eip712Signature = eip712Signature
+	o.SenderPK = sk.EthereumPublicKey()
 
 	if o.ID == nil {
 		err := o.GenerateID(scheme)
@@ -1831,6 +1794,10 @@ func (o *EthereumOrderV4) ethereumTypedDataHash(scheme Scheme) (EthereumHash, er
 }
 
 func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumTypedData {
+	priceMode := o.PriceMode
+	if priceMode == OrderPriceModeDefault {
+		priceMode = OrderPriceModeFixedDecimals
+	}
 	message := ethereumTypedDataMessage{
 		"version":           int32(o.Version),
 		"matcherPublicKey":  o.MatcherPK.String(),
@@ -1843,7 +1810,7 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 		"expiration":        int64(o.Expiration),
 		"matcherFee":        int64(o.MatcherFee),
 		"matcherFeeAssetId": o.MatcherFeeAsset.String(),
-		"priceMode":         o.PriceMode.upperSnakeCaseString(),
+		"priceMode":         priceMode.upperSnakeCaseString(),
 	}
 
 	verifyingContract := [EthereumAddressSize]byte{}
