@@ -1783,64 +1783,62 @@ func TestEthereumOrderV4_UnmarshalJSON(t *testing.T) {
 		eip712SignatureHex string
 	}{
 		{
-			scheme: TestNetScheme,
+			scheme: CustomNetScheme,
 			jsonOrder: `
 				{
-				   "version":4,
-				   "id":"fystnKAsFF8U55VGEjUVcT4qkxcinEMBjY7t4wTphB5",
-				   "sender":"3N2sMJ78BuYwoLHreuwjbk6dZgsnudxecBR",
-				   "senderPublicKey":"5BQPcwDXaZexgonPb8ipDrLRXY3RHn1kFLP9fqp1s6M6xiRhC4LvsAq2HueXCMzkpuXsrLnuBA3SdkJyuhNZXMCd",
-				   "matcherPublicKey":"9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
-				   "assetPair":{
-					  "amountAsset":"5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
-					  "priceAsset":null
-				   },
-				   "orderType":"sell",
-				   "amount":1,
-				   "price":100,
-				   "timestamp":1,
-				   "expiration":123,
-				   "matcherFee":100000,
-				   "signature":"",
-				   "proofs":[
-			
-				   ],
-				   "matcherFeeAssetId":null,
-				   "eip712Signature":"0xc8ba2bdafd27742546b3be34883efc51d6cdffbb235798d7b51876c6854791f019b0522d7a39b6f2087cba46ae86919b71a2d9d7920dfc8e00246d8f02a258f21b"
+				  "version": 4,
+				  "id": "6MvB6QT3TbDymV1zU8VbKpQnJsPLvMXsUDMfMs1rda7t",
+				  "sender": "3G9uRSP4uVjTFjGZixYW4arBZUKWHxjnfeW",
+				  "senderPublicKey": "5vwTDMooR7Hp57MekN7qHz7fHNVrkn2Nx4CiWdq4cyBR4LNnZWYAr7UfBbzhmSvtNkv6e45aJ4Q4aKCSinyHVw33",
+				  "matcherPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+				  "assetPair": {
+					"amountAsset": "5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
+					"priceAsset": null
+				  },
+				  "orderType": "buy",
+				  "amount": 1,
+				  "price": 100,
+				  "timestamp": 1,
+				  "expiration": 123,
+				  "matcherFee": 100000,
+				  "signature": "",
+				  "proofs": [],
+				  "matcherFeeAssetId": null,
+				  "eip712Signature": "0x0a897d382e4e4a066e1d98e5c3c1051864a557c488571ff71e036c0f5a2c7204274cb293cd4aa7ad40f8c2f650e1a2770ecca6aa14a1da883388fa3b5b9fa8b71c",
+				  "priceMode": null
 				}`,
-			orderBodyBase58:    "J2bf9Vo1nP6PGNJhQDCH9YQDW9nRBXajxTAk9Jqc5MXKNKPVHbPZJzMA4ByaWT9zLph2JQZ9sC5Dh9KLtARRiPBW4hzwq6xezdEmPAky1KjJM6eebYYcFzpkY1ZNaF68fNXbUmzSDS4Lu2SQPxKm6UowSSWV9SVjpwRNAjKbCg6cnBD2A3mVZ5Vw4iWgmHchAH9P73fW9x56jzWuSCvTSZsyVAGWdL8UGiLaC59txcskQwanfZfd5QuPTZ1NTSmy925rz6n32dcCmM1sJLTrV9gRmqRQLpzgvzQA9VgWC9bzvmQW",
-			orderIDBase58:      "fystnKAsFF8U55VGEjUVcT4qkxcinEMBjY7t4wTphB5",
-			eip712SignatureHex: "0xc8ba2bdafd27742546b3be34883efc51d6cdffbb235798d7b51876c6854791f019b0522d7a39b6f2087cba46ae86919b71a2d9d7920dfc8e00246d8f02a258f21b",
+			orderBodyBase58:    "WHGTNQc2MuaLdLdqibbZKEL9C8aTJkFXzWQvrebyo1qvg3GL3BQf8jQxJEqYJUbWe6V5zHBdZCKH9rtYPF1CT1jJH4KbP7PjiGJfPvQEyzq8UCqsJGKnrWmB9EvnAwdnMVp4CLCVs9fRgfjASZBrSnLQJ9tWFc8TC5TRAhQYWGXvxeNxn2BtnGVyoFsRXF8hy3FaY5aPHyahM5R7Qks",
+			orderIDBase58:      "6mYgEbEgrx5M6zMRbpQFbzKHcDy78bYXLgBzygTDGM4a",
+			eip712SignatureHex: "0x0a897d382e4e4a066e1d98e5c3c1051864a557c488571ff71e036c0f5a2c7204274cb293cd4aa7ad40f8c2f650e1a2770ecca6aa14a1da883388fa3b5b9fa8b71c",
 		},
 		{
-			scheme: TestNetScheme,
+			scheme: CustomNetScheme,
 			jsonOrder: `
 				{
-				   "version":4,
-				   "id":"6XTFGCXmEDeXrsWXVXWty876HNTMBeX6vTgQoAw3WnH2",
-				   "sender":"3N2sMJ78BuYwoLHreuwjbk6dZgsnudxecBR",
-				   "senderPublicKey":"5BQPcwDXaZexgonPb8ipDrLRXY3RHn1kFLP9fqp1s6M6xiRhC4LvsAq2HueXCMzkpuXsrLnuBA3SdkJyuhNZXMCd",
-				   "matcherPublicKey":"9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
-				   "assetPair":{
-					  "amountAsset":"5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
-					  "priceAsset":null
-				   },
-				   "orderType":"buy",
-				   "amount":1,
-				   "price":100,
-				   "timestamp":1,
-				   "expiration":123,
-				   "matcherFee":100000,
-				   "signature":"",
-				   "proofs":[
-					  
-				   ],
-				   "matcherFeeAssetId":null,
-				   "eip712Signature":"0xe5ff562bfb0296e95b631365599c87f1c5002597bf56a131f289765275d2580f5344c62999404c37cd858ea037328ac91eca16ad1ce69c345ebb52fde70b66251c"
+				  "version": 4,
+				  "id": "49iXxoHPbwVfvTh6437BAWwnGBnkUrFYjtVfwS9bKBL6",
+				  "sender": "3G9uRSP4uVjTFjGZixYW4arBZUKWHxjnfeW",
+				  "senderPublicKey": "5vwTDMooR7Hp57MekN7qHz7fHNVrkn2Nx4CiWdq4cyBR4LNnZWYAr7UfBbzhmSvtNkv6e45aJ4Q4aKCSinyHVw33",
+				  "matcherPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
+				  "assetPair": {
+					"amountAsset": "5fQPsn8hoaVddFG26cWQ5QFdqxWtUPNaZ9zH2E6LYzFn",
+					"priceAsset": null
+				  },
+				  "orderType": "sell",
+				  "amount": 1,
+				  "price": 100,
+				  "timestamp": 1,
+				  "expiration": 123,
+				  "matcherFee": 100000,
+				  "signature": "",
+				  "proofs": [],
+				  "matcherFeeAssetId": null,
+				  "eip712Signature": "0x6c4385dd5f6f1200b4d0630c9076104f34c801c16a211e505facfd743ba242db4429b966ffa8d2a9aff9037dafda78cfc8f7c5ef1c94493f5954bc7ebdb649281b",
+				  "priceMode": null
 				}`,
-			orderBodyBase58:    "shFRJaXeYerjLQyMtvdYADWwg97iDVfxLcAXSFVYRsvGkujuY76NnKEfoztWQpsSKYzZiTr1BdVVrPn3AqJfDfmkA2ss5PGtU6DZbVZEUbc6U6vtrYA7986kVioKbySLJheEA8bnd3TPNWJXPs1bNA48nUkRiE7s7mbWGDCSzjncjwmPu4hbEHd6TAw2G2UxA5kVp2ivYFjHUDSm1NkZEHfgqtFLtZmrTYMZCCuCH1PiBo37K4RRnyvXogxdLp3pWZtCdCwWjVRUS19EFZDjyXn13XiZKtHSbu7y2hhgKFKyu",
-			orderIDBase58:      "6XTFGCXmEDeXrsWXVXWty876HNTMBeX6vTgQoAw3WnH2",
-			eip712SignatureHex: "0xe5ff562bfb0296e95b631365599c87f1c5002597bf56a131f289765275d2580f5344c62999404c37cd858ea037328ac91eca16ad1ce69c345ebb52fde70b66251c",
+			orderBodyBase58:    "AqRtygFPj6Dru5d3Pc49tBwT1HHrFCvRBoG5AcaBu5aG9KtRUr9dCJznkh3PjVKRU5fHpEcLzTjELSWMitAHt31R2geb1ZQ1XZwp1gcR8HVV5Nzc6rqQUPw3FGJwKA6vXRSy6R5g6s4hxSuPDaZieFdyZ2rgbZ8BPYSyuG8K3kUJ7iBTK1i7bhmLd2Usb4XHCAJR4MAArQmBGZHz74xXvS",
+			orderIDBase58:      "8274Mc8WiNQdP3YhinBGkEX79AcZe5th51DJCTW8rEUZ",
+			eip712SignatureHex: "0x6c4385dd5f6f1200b4d0630c9076104f34c801c16a211e505facfd743ba242db4429b966ffa8d2a9aff9037dafda78cfc8f7c5ef1c94493f5954bc7ebdb649281b",
 		},
 	}
 	for _, tc := range tests {
