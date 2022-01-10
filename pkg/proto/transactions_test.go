@@ -16,7 +16,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	protobuf "google.golang.org/protobuf/proto"
 )
 
 func TestGuessTransaction_Genesis(t *testing.T) {
@@ -3480,18 +3482,49 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 	}
 	for _, tc := range tests {
 		var (
-			err                   error
 			expectedTxID          = mustFromBase58(t, tc.txIDBase58)
 			expectedTxBytes       = mustFromBase58(t, tc.txBytesBase58)
 			expectedSignedTxBytes = mustFromBase58(t, tc.signedTxBytesBase58)
 			expectedOrder1Bytes   = mustFromBase58(t, tc.order1Base58)
 			expectedOrder2Bytes   = mustFromBase58(t, tc.order2Base58)
 		)
+		var (
+			unmarshalOrder = func(orderBytes []byte) Order {
+				var (
+					pbConverter        ProtobufConverter
+					unmarshaledPBOrder pb.Order
+				)
+				require.NoError(t, protobuf.Unmarshal(orderBytes, &unmarshaledPBOrder))
+				unmarshaledOrder := pbConverter.extractOrder(&unmarshaledPBOrder)
+				require.NoError(t, pbConverter.err)
+				require.NoError(t, unmarshaledOrder.GenerateID(tc.scheme))
+				return unmarshaledOrder
+			}
+			checkOrderIDs = func(expected, actual Order) {
+				expectedID, err := expected.GetID()
+				require.NoError(t, err)
+				actualID, err := actual.GetID()
+				require.NoError(t, err)
+				require.Equal(t, expectedID, actualID)
+			}
+		)
 		// check unmarshal tx from json
 		fromJsonTx := ExchangeWithProofs{}
-		err = json.Unmarshal([]byte(tc.jsonExchange), &fromJsonTx)
+		err := json.Unmarshal([]byte(tc.jsonExchange), &fromJsonTx)
 		require.NoError(t, err)
+		require.NoError(t, fromJsonTx.Order1.GenerateID(tc.scheme))
+		require.NoError(t, fromJsonTx.Order2.GenerateID(tc.scheme))
 
+		// check orders IDs
+		unmarshaledOrder1 := unmarshalOrder(expectedOrder1Bytes)
+		checkOrderIDs(unmarshaledOrder1, fromJsonTx.Order1)
+		require.Equal(t, unmarshaledOrder1, fromJsonTx.Order1)
+
+		unmarshaledOrder2 := unmarshalOrder(expectedOrder2Bytes)
+		checkOrderIDs(unmarshaledOrder2, fromJsonTx.Order2)
+		require.Equal(t, unmarshaledOrder2, fromJsonTx.Order2)
+
+		// check orders protobuf
 		actualOrder1Bytes, err := MarshalToProtobufDeterministic(fromJsonTx.Order1.ToProtobufSigned(tc.scheme))
 		require.NoError(t, err)
 		require.Equal(t, expectedOrder1Bytes, actualOrder1Bytes)
