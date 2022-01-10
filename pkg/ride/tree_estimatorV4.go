@@ -42,6 +42,7 @@ func (e *treeEstimatorV4) estimate() (int, int, map[string]int, error) {
 	max := 0
 	m := make(map[string]int)
 	for i := 0; i < len(e.tree.Functions); i++ {
+		e.scope.resetFunctions()
 		function, ok := e.tree.Functions[i].(*FunctionDeclarationNode)
 		if !ok {
 			return 0, 0, nil, errors.New("invalid callable declaration")
@@ -59,6 +60,7 @@ func (e *treeEstimatorV4) estimate() (int, int, map[string]int, error) {
 	}
 	vc := 0
 	if e.tree.HasVerifier() {
+		e.scope.resetFunctions()
 		verifier, ok := e.tree.Verifier.(*FunctionDeclarationNode)
 		if !ok {
 			return 0, 0, nil, errors.New("invalid verifier declaration")
@@ -169,7 +171,9 @@ func (e *treeEstimatorV4) walk(node Node, enableInvocation bool) (int, error) {
 		}
 		bodyUsages := e.scope.emerge()
 		e.scope.restore(tmp)
-		e.scope.setFunction(id, fc, bodyUsages)
+		if e.scope.setFunction(id, fc, bodyUsages) {
+			return 0, errors.Errorf("function '%s' already declared", id)
+		}
 		bc, err := e.walk(n.Block, enableInvocation)
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to estimate block after declaration of function '%s'", id)

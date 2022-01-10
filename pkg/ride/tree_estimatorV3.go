@@ -25,8 +25,11 @@ func (f *fsV3) spawn() *fsV3 {
 	}
 }
 
-func (f *fsV3) set(key string, cost int, usages []string) {
+// set adds new function descriptor to context, returns true if new function overwrite old one.
+func (f *fsV3) set(key string, cost int, usages []string) bool {
+	_, ok := f.functions[key]
 	f.functions[key] = fd{cost, usages}
+	return ok
 }
 
 func (f *fsV3) get(key string) (int, []string, bool) {
@@ -64,8 +67,12 @@ func (s *estimationScopeV3) restore(fs *fsV3) {
 	s.functions = fs
 }
 
-func (s *estimationScopeV3) setFunction(id string, cost int, usages []string) {
-	s.functions.set(id, cost, usages)
+func (s *estimationScopeV3) setFunction(id string, cost int, usages []string) bool {
+	return s.functions.set(id, cost, usages)
+}
+
+func (s *estimationScopeV3) resetFunctions() {
+	s.functions = newFsV3()
 }
 
 func (s *estimationScopeV3) nativeFunction(ut, id string, enableInvocation bool) (int, []string, error) {
