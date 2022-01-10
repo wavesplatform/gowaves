@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"compress/flate"
 	"context"
 	"embed"
 	"encoding/json"
@@ -89,7 +90,7 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 	r.Use(middleware.RealIP)
 	r.Use(Logger(logger))
 	r.Use(middleware.Recoverer)
-	r.Use(middleware.DefaultCompress)
+	r.Use(middleware.Compress(flate.DefaultCompression))
 	r.Mount("/", a.swagger(swaggerFS))
 	r.Mount("/api", a.routes())
 	apiServer := &http.Server{Addr: address, Handler: r}

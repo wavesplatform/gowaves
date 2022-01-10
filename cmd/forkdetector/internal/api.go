@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"compress/flate"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -80,7 +81,7 @@ func NewAPI(interrupt <-chan struct{}, storage *storage, registry *Registry, dra
 	r.Use(Logger(zap.L()))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.SetHeader("Content-Type", "application/json"))
-	r.Use(middleware.DefaultCompress)
+	r.Use(middleware.Compress(flate.DefaultCompression))
 	r.Mount("/api", a.routes())
 	a.srv = &http.Server{Addr: bind, Handler: r}
 	return &a, nil
