@@ -3497,7 +3497,6 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 				require.NoError(t, protobuf.Unmarshal(orderBytes, &unmarshaledPBOrder))
 				unmarshaledOrder := pbConverter.extractOrder(&unmarshaledPBOrder)
 				require.NoError(t, pbConverter.err)
-				require.NoError(t, unmarshaledOrder.GenerateID(tc.scheme))
 				return unmarshaledOrder
 			}
 			checkOrderIDs = func(expected, actual Order) {
@@ -3512,8 +3511,6 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 		fromJsonTx := ExchangeWithProofs{}
 		err := json.Unmarshal([]byte(tc.jsonExchange), &fromJsonTx)
 		require.NoError(t, err)
-		require.NoError(t, fromJsonTx.Order1.GenerateID(tc.scheme))
-		require.NoError(t, fromJsonTx.Order2.GenerateID(tc.scheme))
 
 		// check orders IDs
 		unmarshaledOrder1 := unmarshalOrder(expectedOrder1Bytes)
@@ -3525,11 +3522,11 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 		require.Equal(t, unmarshaledOrder2, fromJsonTx.Order2)
 
 		// check orders protobuf
-		actualOrder1Bytes, err := MarshalToProtobufDeterministic(fromJsonTx.Order1.ToProtobufSigned(tc.scheme))
+		actualOrder1Bytes, err := fromJsonTx.Order1.ToProtobufSigned(tc.scheme).MarshalVTFlat()
 		require.NoError(t, err)
 		require.Equal(t, expectedOrder1Bytes, actualOrder1Bytes)
 
-		actualOrder2Bytes, err := MarshalToProtobufDeterministic(fromJsonTx.Order2.ToProtobufSigned(tc.scheme))
+		actualOrder2Bytes, err := fromJsonTx.Order2.ToProtobufSigned(tc.scheme).MarshalVTFlat()
 		require.NoError(t, err)
 		require.Equal(t, expectedOrder2Bytes, actualOrder2Bytes)
 
