@@ -3413,7 +3413,7 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 			jsonExchange: `
 				{
 				  "type": 7,
-				  "id": "7ibZKpbjYgu1pCKLsi9Em8WM4bw8dGwQvdSfsvgpLvJH",
+				  "id": "GNz9EGRPNroTXhQ4Kjz2Qb4u3oBoRdteRTYwsHfDHJW5",
 				  "fee": 1000000,
 				  "feeAssetId": null,
 				  "timestamp": 100,
@@ -3422,7 +3422,7 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 				  "sender": "3FrCwv8uFRxQazhX6Lno45aZ68Bof6ScaeF",
 				  "senderPublicKey": "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ",
 				  "proofs": [
-					"28e8KsNXEgvQrZeyTPuKdcpqDhR8PiyShw98QCVpKSFkoqLJWhYMVr1bkhEMVEAbUwbnxkcSFGtCPQ7osGA8hek9"
+					"4WrABDgkk9JraBLNQK4LTq7LWqVLgLzAEv8fr1rjr4ovca7224EBzLrEgcHdtHscGpQbLsk39ttQfqHMVLr9tXcB"
 				  ],
 				  "order1": {
 					"version": 3,
@@ -3440,9 +3440,9 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 					"timestamp": 1,
 					"expiration": 123,
 					"matcherFee": 100000,
-					"signature": "3bxZniWhDV8UR8PmfsCUrsE7iv4cXbeMy5fv4xMkrdDtLi4fQ4tCwX5TpWFrydFAEhk2bHJ6BC96GiGi1uZ87ibj",
+					"signature": "2Bi5YFCeAUvQqWFJYUTzaDUfAdoHmQ4RC6nviBwvQgUYJLKrsa4T5eESGr5Er261kdeyNgHVJUGai8mALtLLWDoQ",
 					"proofs": [
-					  "3bxZniWhDV8UR8PmfsCUrsE7iv4cXbeMy5fv4xMkrdDtLi4fQ4tCwX5TpWFrydFAEhk2bHJ6BC96GiGi1uZ87ibj"
+					  "2Bi5YFCeAUvQqWFJYUTzaDUfAdoHmQ4RC6nviBwvQgUYJLKrsa4T5eESGr5Er261kdeyNgHVJUGai8mALtLLWDoQ"
 					],
 					"matcherFeeAssetId": null
 				  },
@@ -3473,11 +3473,11 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 				  "buyMatcherFee": 100000,
 				  "sellMatcherFee": 100000
 				}`,
-			order1Base58:        "fPgfbuxTLuT6FyuanBTzpUJaUYdNgBL4FJ7ttmFpF7To76u4gTK4pWt5htWDKLu9iqdEoN594DsN5YfEWQ18Gvq5mxozueS15qL2JuwvYhzbMUJM7LMzZ7B6AdT86i5JptbvxChtNg1mmjvJTg67cHoYaUcUkzUv24KcdNyKm8cjXh4NprgDEzA6S5TWTZz6ZT43AtVwQ2Zt4qXTTBAVbzEyTfieavtrovtvmey2szpzwB6b1ZDLRHzpJHV7FDDK",
+			order1Base58:        "fPgfbuxTLuT6FyuanBTzpUJaUYdNgBL4FJ7ttmFpF7To76u4gTK4pWt5htWDKLu9iqdEoN594DsN5YfEWQ18Gvq5mxozueS15qL2JuwvYhzbMUJM7LMzZ7B6AdT86i5JptbvxChtNg1mmjvJTg67cHoYaUcUkzUv24KcdNyKkjCHKPALcqwuvtKaYiv7PVcvdrre22T739ZNeKtuNpYZwz8ysSyiQYsNLDJAigj5bkdE8tSpEVps4iaA4oFGvVAS",
 			order2Base58:        "AqRtygFPj6Dru5d3Pc49tBwT1HHrFCvRBoG5AcaBu5aG9KtRUr9dCJznkh3PjVKRU5fHpEcLzTjELSWMitAHt31R2geb1ZQ1XZwp1gcR8HVV5Nzc6rqQUPw3FGJwKA6vXRSy6R5g6s4hxSuPDaZieFdyZ2rgbZ8BPYSyuG8K3kUJ7iBTK1i7bhmLd2Usb4XHCAJR4MAArQmBGZHz74xXvS",
-			signedTxBytesBase58: "7ZdxAr3wNDXFg2yQeDKFQbkno9QchKtx6tvBHmYx9VCkKDTdtzL4SWeD4pdN2qkD59N2GhLfcY8gzTsrgxVYYLax3WSQ8eq7kEZJ56THCKB1mrqHRfkYLg4Ne38VcvAzWkTZEtVbPzTC5XVWANMqK7iC4A5ekzSnWP1t8xNEuauvjGpxbgXHXzR68S8kDgEMyDxFi5sHWMe3zPLN1fRYeKqapGAHfT7hbyoKqvwksnhzihuAbq4RRdQU1XfL1mHMvHTQRWxiohmcR1LgAM9aR14MFXRAZesc7J1oy4SgHW46uk2RWVcAxiv1ia3j2fvWXV953mV7q9h8QbNDrJjHdn75j7WiEpfuZjyFrQ1ihssYbhG93cpEg7M5RmqoTABNiumSbAPTY3X5AYxYiaKRWGGgRJjYXFHSCNK9WTE3YHgc2tckE9QsktemP7YcvmehhrV91asP7fYxEu1J84zXK7Dwo8S2zb1nhGTQdGgkLC5J9oWrsxQwMVeNPTWtNBxAR9CUc1fpRMiy2gUoAE1zTwM6rZxhquk3xDZEHi4ZqRaLAZ3PjuB9xD4RCE1bqGyoKcwYAKGUk6cf9S4EQXgfPfAcsgjK45Jb9tJ6gwZ7i7cKa1Hk1vkRkwZjNgQ6QDHhcYKawYRZbPfBLM7DX4",
-			txBytesBase58:       "31NGbw9Q4rsDNUGohkGJRqVQjek8kBrUzbQ91C5ELq5MQAV8kaQJRCdaDzqbaGDPM1UZcQBbvY3CTouEjAVBE2ZcmszEd2eJnACuRgmf7e4tiddGPT52TWrCmuo4XopcMkwhNGQr2HjSyfWKV8AvE91C1bezQwmhneD6WZ9m5rRtqWG3e8eDbDSBp3WrVARuqNX5RiNXcvBW2Mji3zwKFdHi7FsvzJMCyyPDPtNeowLR7DsBsJW84fSHjasuS6JC2RMF5ReNwQGpW7WaoWueizhJkjo1QThUujr8ekmamv7AUC9wTL9eKoJoHNooi9bPuhFfriGKkf4TcoaMEmRc7egMxn3d87GmrGBynaTHxCgGQjnTiGcyF7tXTAXxsWcqxpej1RGyE2xqxHBjo3m1CWzHa9gqa2n2TQYpVhawBAhrLRafKcpxqrCGbCRHoXG8cAsEdYDmqR9mYwHp3jeLPG42VtmAEbAGGvLJxctcHp2S3QGkzNHFL1ae4NR3XGkxJs2xRcV8GJ1xmvLRDBCsurZ9nyGZJ1oiMPUBjJwDn4w2w3DvHd22",
-			txIDBase58:          "G4Qq8tSVGgAxZ2BfBngCVWAqKu8aBqsPB6Fwv4kmD89P",
+			signedTxBytesBase58: "7ZdxAr3wNDXFg2yQeDKFQbkno9QchKtx6tvBHmYx9VCkKDTdtzL4SWeD4pdN2qkD59N2GhLfcY8gzTsrgxVYYLax3WSQ8eq7kEZJ56THCKB1mrqHRfkYLg4Ne38VcvAzWkTZEtVbPzTC5XVWANMqK7iC4A5ekzSnWP1t8xNEuauvjGpxbgXHXzR68S8kDgEMyDxFi5sHWMe3zPLN1fRYeKqapGAHfT7hbyoKqvwksnhzihuAbq4RRdQU1XfL1mHMvHTQRWBjWDxuuMwa3NVZxba38LiUMfoFXirz2NEa5xp76VzHUBeULd1XX3Z1RrWmSCuVaZgr6dwiARYoyWXmCNZa7M1xvXcHQPVcBzHP9PrL8yacMc72cZpzYfszMFFKr266xm8YEg2D72kWqTDxvc14sMDRjRZFKGfezUimMEtwAQDqoGtFmuFU4LMgHcq4MytKec3jhKYJNXTh66VVnj7n2nuT97GYaw8UmUyfy45NvzhEaNUUfpU9g5zbxUdXEjqHZXwUUjwYScGBNxAQd8mqx3L6cwL83D1WShoDFgmcM7GyQdCtSuGUWNH5GGnQbb4Wqc5msWTyd8e1FkSQPVzpUmngiDDP8QmvgBJt82Nv9okufzt2PAZcBNJGo1f7Frn7TirPS22M1oFfcs",
+			txBytesBase58:       "31NGbw9Q4rsDNUGohkGJRqVQjek8kBrUzbQ91C5ELq5MQAV8kaQJRCdaDzqbaGDPM1UZcQBbvY3CTouEjAVBE2ZcmszEd2eJnACuRgmf7e4tiddGPT52TWrCmuo4XopcMkwhNGQr2HjSyfWKV8AvE91C1bezQwmhneD6WZ9m5rRtqWG3e8eDbDSBp3WrVARuqNX5RiNXcvBW2Mji3zwKFdHi7FsvzJMCyyPDPtNeowLR7DsBsJW84fSHjasuS6JC2Qu5JmWShqfkjMjUsJrCy57fwHHTrd1jbhj1f7DqnQZJWARLuhqMp9QqZz7XNjTmXSSPn2yuR9n2jmZueZUPRosyzniCrNiuGEL7LxaQznXc5rhFxko8eZztLVZC1cg8da5PJ6jmTuK2VXhkvuF87u8dAECMxmtfUdSSdjhfwpf4UzrvSSwaWHdwXHiuSm4cDMHzDZhcKUP59Gx4N7bvZ14Jog15HF9Ufw4vSY8K1attPivLF6Vxa3zFMLskxX4jbQVRRMUnnQAcKTpt7dEHd4inqSvwL8Qhv4YQCJAPFt2FkT8c8bar",
+			txIDBase58:          "GNz9EGRPNroTXhQ4Kjz2Qb4u3oBoRdteRTYwsHfDHJW5",
 		},
 	}
 	for _, tc := range tests {
