@@ -340,23 +340,23 @@ func (s *serializerV1) writeByte(b byte) error {
 }
 
 func (s *serializerV1) writeUint16(v uint16) error {
-	b := make([]byte, 2)
-	binary.BigEndian.PutUint16(b, v)
-	_, err := s.buf.Write(b)
+	b := [2]byte{}
+	binary.BigEndian.PutUint16(b[:], v)
+	_, err := s.buf.Write(b[:])
 	return err
 }
 
 func (s *serializerV1) writeUint32(v uint32) error {
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, v)
-	_, err := s.buf.Write(b)
+	b := [4]byte{}
+	binary.BigEndian.PutUint32(b[:], v)
+	_, err := s.buf.Write(b[:])
 	return err
 }
 
 func (s *serializerV1) writeLong(v int64) error {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(v))
-	_, err := s.buf.Write(b)
+	b := [8]byte{}
+	binary.BigEndian.PutUint64(b[:], uint64(v))
+	_, err := s.buf.Write(b[:])
 	return err
 }
 

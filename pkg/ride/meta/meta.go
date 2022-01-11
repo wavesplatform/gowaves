@@ -187,7 +187,8 @@ func Build(m DApp) (*g.DAppMeta, error) {
 }
 
 func convertAbbreviations(pairs []*g.DAppMeta_CompactNameAndOriginalNamePair, names []string) Abbreviations {
-	r := Abbreviations{pairs: make([]pair, len(pairs)), names: names, compact2original: make(map[string]string)}
+	l := len(pairs)
+	r := Abbreviations{pairs: make([]pair, l), names: names, compact2original: make(map[string]string, l)}
 	for i, p := range pairs {
 		r.compact2original[p.CompactName] = p.OriginalName
 		r.pairs[i] = pair{compact: p.CompactName, original: p.OriginalName}

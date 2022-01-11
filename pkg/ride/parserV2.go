@@ -233,6 +233,9 @@ func (p *parserV2) parseNext() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		if ad, ok := declaration.(*AssignmentNode); ok {
+			ad.newBlock = true
+		}
 		block, err := p.parseNext()
 		if err != nil {
 			return nil, err

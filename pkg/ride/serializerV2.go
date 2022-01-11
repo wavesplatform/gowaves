@@ -340,22 +340,22 @@ func (s *serializerV2) writeByte(b byte) error {
 }
 
 func (s *serializerV2) writeUint16(v uint16) error {
-	b := make([]byte, binary.MaxVarintLen16)
-	n := binary.PutUvarint(b, uint64(v))
+	b := [binary.MaxVarintLen16]byte{}
+	n := binary.PutUvarint(b[:], uint64(v))
 	_, err := s.buf.Write(b[:n])
 	return err
 }
 
 func (s *serializerV2) writeUint32(v uint32) error {
-	b := make([]byte, binary.MaxVarintLen32)
-	n := binary.PutUvarint(b, uint64(v))
+	b := [binary.MaxVarintLen32]byte{}
+	n := binary.PutUvarint(b[:], uint64(v))
 	_, err := s.buf.Write(b[:n])
 	return err
 }
 
 func (s *serializerV2) writeLong(v int64) error {
-	b := make([]byte, binary.MaxVarintLen64)
-	n := binary.PutUvarint(b, uint64(v))
+	b := [binary.MaxVarintLen64]byte{}
+	n := binary.PutUvarint(b[:], uint64(v))
 	_, err := s.buf.Write(b[:n])
 	return err
 }
