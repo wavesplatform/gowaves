@@ -291,7 +291,7 @@ func (s *serializerV1) walk(node Node) error {
 			if err := s.writeByte(functionTypeNative); err != nil {
 				return err
 			}
-			id, err := strconv.Atoi(tf.Name())
+			id, err := strconv.ParseUint(tf.Name(), 10, 16)
 			if err != nil {
 				return err
 			}
