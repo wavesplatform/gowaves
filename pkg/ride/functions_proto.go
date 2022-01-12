@@ -10,6 +10,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	c2 "github.com/wavesplatform/gowaves/pkg/ride/crypto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -260,6 +261,9 @@ func hashScriptAtAddress(_ *treeEvaluator, env environment, args ...rideType) (r
 
 	script, err := env.state().GetByteTree(recipient)
 	if err != nil {
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return rideUnit{}, nil
+		}
 		return nil, errors.Errorf("hashScriptAtAddress: failed to get script by recipient, %v", err)
 	}
 
