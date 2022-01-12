@@ -386,7 +386,3 @@ func (p *parserV1) readMeta() (meta.DApp, error) {
 		return meta.DApp{}, errors.Errorf("unsupported script meta version %d", v)
 	}
 }
-
-func IsDApp(data []byte) bool {
-	return len(data) > 0 && data[0] == 0
-}

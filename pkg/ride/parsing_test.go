@@ -8,6 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func isDApp(data []byte) bool {
+	return len(data) > 0 && data[0] == 0
+}
+
 func TestIsDApp(t *testing.T) {
 	for _, test := range []struct {
 		source string
@@ -21,7 +25,7 @@ func TestIsDApp(t *testing.T) {
 	} {
 		src, err := base64.StdEncoding.DecodeString(test.source)
 		require.NoError(t, err)
-		r := IsDApp(src)
+		r := isDApp(src)
 		assert.Equal(t, test.res, r)
 	}
 }
