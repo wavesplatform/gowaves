@@ -8,6 +8,7 @@ const (
 	MaxCallableScriptComplexityV12     = 2000
 	MaxCallableScriptComplexityV34     = 4000
 	MaxCallableScriptComplexityV5      = 10000
+	MaxCallableScriptComplexityV6      = 26000
 )
 
 type MaxScriptsComplexityInBlock struct {
