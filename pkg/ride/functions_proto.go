@@ -10,6 +10,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	c2 "github.com/wavesplatform/gowaves/pkg/ride/crypto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -124,6 +125,9 @@ func performInvoke(invocation invocation, ev *treeEvaluator, env environment, ar
 		return rideUnit{}, RuntimeError.Errorf("%s: this has an unexpected type '%s'", invocation.name(), env.this().instanceOf())
 	}
 
+	if err := checkArgs(args, 4); err != nil {
+		return nil, RuntimeError.Wrapf(err, "%s", invocation.name())
+	}
 	recipient, err := extractRecipient(args[0])
 	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to extract first argument", invocation.name())
@@ -132,12 +136,10 @@ func performInvoke(invocation invocation, ev *treeEvaluator, env environment, ar
 	if err != nil {
 		return nil, RuntimeError.Wrap(err, invocation.name())
 	}
-
 	fn, err := extractFunctionName(args[1])
 	if err != nil {
 		return nil, RuntimeError.Wrapf(err, "%s: failed to extract second argument", invocation.name())
 	}
-
 	arguments, ok := args[2].(rideList)
 	if !ok {
 		return nil, RuntimeError.Errorf("%s: unexpected type '%s' of third argument", invocation.name(), args[2].instanceOf())
@@ -252,14 +254,26 @@ func ensureRecipientAddress(_ *treeEvaluator, env environment, recipient proto.R
 	return recipient, nil
 }
 
-func hashScriptAtAddress(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	recipient, err := extractRecipient(args[0])
-	if err != nil {
-		return nil, errors.Errorf("hashScriptAtAddress: unexpected argument type '%s'", args[0].instanceOf())
+func recipientArg(args []rideType) (proto.Recipient, error) {
+	if len(args) != 1 {
+		return proto.Recipient{}, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
 	}
+	if args[0] == nil {
+		return proto.Recipient{}, errors.Errorf("argument 1 is empty")
+	}
+	return extractRecipient(args[0])
+}
 
+func hashScriptAtAddress(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
+	recipient, err := recipientArg(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "hashScriptAtAddress")
+	}
 	script, err := env.state().GetByteTree(recipient)
 	if err != nil {
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return rideUnit{}, nil
+		}
 		return nil, errors.Errorf("hashScriptAtAddress: failed to get script by recipient, %v", err)
 	}
 
@@ -275,9 +289,9 @@ func hashScriptAtAddress(_ *treeEvaluator, env environment, args ...rideType) (r
 }
 
 func isDataStorageUntouched(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	recipient, err := extractRecipient(args[0])
+	recipient, err := recipientArg(args)
 	if err != nil {
-		return nil, errors.Errorf("isDataStorageUntouched: unexpected argument type '%s'", args[0].instanceOf())
+		return nil, errors.Wrap(err, "isDataStorageUntouched")
 	}
 	isUntouched, err := env.state().IsStateUntouched(recipient)
 	if err != nil {
@@ -409,7 +423,7 @@ func intFromState(_ *treeEvaluator, env environment, args ...rideType) (rideType
 }
 
 func intFromSelfState(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	k, err := extractKey(args)
+	k, err := keyArg(args)
 	if err != nil {
 		return rideUnit{}, nil
 	}
@@ -438,7 +452,7 @@ func bytesFromState(_ *treeEvaluator, env environment, args ...rideType) (rideTy
 }
 
 func bytesFromSelfState(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	k, err := extractKey(args)
+	k, err := keyArg(args)
 	if err != nil {
 		return rideUnit{}, nil
 	}
@@ -467,7 +481,7 @@ func stringFromState(_ *treeEvaluator, env environment, args ...rideType) (rideT
 }
 
 func stringFromSelfState(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	k, err := extractKey(args)
+	k, err := keyArg(args)
 	if err != nil {
 		return rideUnit{}, nil
 	}
@@ -496,7 +510,7 @@ func booleanFromState(_ *treeEvaluator, env environment, args ...rideType) (ride
 }
 
 func booleanFromSelfState(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	k, err := extractKey(args)
+	k, err := keyArg(args)
 	if err != nil {
 		return rideUnit{}, nil
 	}
@@ -666,10 +680,7 @@ func addressFromPublicKeyStrict(_ *treeEvaluator, env environment, args ...rideT
 }
 
 func wavesBalanceV3(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	if err := checkArgs(args, 1); err != nil {
-		return nil, errors.Wrap(err, "wavesBalanceV3")
-	}
-	recipient, err := extractRecipient(args[0])
+	recipient, err := recipientArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV3")
 	}
@@ -681,10 +692,7 @@ func wavesBalanceV3(_ *treeEvaluator, env environment, args ...rideType) (rideTy
 }
 
 func wavesBalanceV4(_ *treeEvaluator, env environment, args ...rideType) (rideType, error) {
-	if err := checkArgs(args, 1); err != nil {
-		return nil, errors.Wrap(err, "wavesBalanceV4")
-	}
-	r, err := extractRecipient(args[0])
+	r, err := recipientArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "wavesBalanceV4")
 	}
@@ -1551,13 +1559,13 @@ func extractRecipientAndKey(args []rideType) (proto.Recipient, string, error) {
 	return r, string(key), nil
 }
 
-func extractKey(args []rideType) (string, error) {
+func keyArg(args []rideType) (string, error) {
 	if err := checkArgs(args, 1); err != nil {
 		return "", err
 	}
 	key, ok := args[0].(rideString)
 	if !ok {
-		return "", errors.Errorf("unexpected argument '%s'", args[0].instanceOf())
+		return "", errors.Errorf("unexpected key type '%s'", args[0].instanceOf())
 	}
 	return string(key), nil
 }

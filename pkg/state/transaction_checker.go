@@ -94,20 +94,21 @@ func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) 
 	return nil
 }
 
-func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation ride.TreeEstimation, reducedVerifierComplexity bool) error {
+func (tc *transactionChecker) checkScriptComplexity(libVersion int, estimation ride.TreeEstimation, isDapp, reducedVerifierComplexity bool) error {
 	/*
-		| Script Type                        | Max complexity before BlockV5 | Max complexity after BlockV5 |
-		| ---------------------------------- | ----------------------------- | ---------------------------- |
-		| Account / DApp Verifier V1, V2     | 2000                          | 2000                         |
-		| Account / DApp Verifier V3, V4, V5 | 4000                          | 2000                         |
-		| Asset Verifier V1, V2              | 2000                          | 2000                         |
-		| Asset Verifier V3, V4, V5          | 4000                          | 4000                         |
-		| DApp Callable V1, V2               | 2000                          | 2000                         |
-		| DApp Callable V3, V4               | 4000                          | 4000                         |
-		| DApp Callable V5                   | 10000                         | 10000                        |
+		| Script Type                            | Max complexity before BlockV5 | Max complexity after BlockV5 |
+		| -------------------------------------- | ----------------------------- | ---------------------------- |
+		| Account / DApp Verifier V1, V2         | 2000                          | 2000                         |
+		| Account / DApp Verifier V3, V4, V5, V6 | 4000                          | 2000                         |
+		| Asset Verifier V1, V2                  | 2000                          | 2000                         |
+		| Asset Verifier V3, V4, V5, V6          | 4000                          | 4000                         |
+		| DApp Callable V1, V2                   | 2000                          | 2000                         |
+		| DApp Callable V3, V4                   | 4000                          | 4000                         |
+		| DApp Callable V5                       | 10000                         | 10000                        |
+		| DApp Callable V6                       | 26000                         | 26000                        |
 	*/
 	var maxCallableComplexity, maxVerifierComplexity int
-	switch tree.LibVersion {
+	switch version := libVersion; version {
 	case 1, 2:
 		maxCallableComplexity = MaxCallableScriptComplexityV12
 		maxVerifierComplexity = MaxVerifierScriptComplexityReduced
@@ -117,11 +118,16 @@ func (tc *transactionChecker) checkScriptComplexity(tree *ride.Tree, estimation 
 	case 5:
 		maxCallableComplexity = MaxCallableScriptComplexityV5
 		maxVerifierComplexity = MaxVerifierScriptComplexity
+	case 6:
+		maxCallableComplexity = MaxCallableScriptComplexityV6
+		maxVerifierComplexity = MaxVerifierScriptComplexity
+	default:
+		return errors.Errorf("unknown script LibVersion=%d", version)
 	}
 	if reducedVerifierComplexity {
 		maxVerifierComplexity = MaxVerifierScriptComplexityReduced
 	}
-	if !tree.IsDApp() { // Expression (simple) script, has only verifier.
+	if !isDapp { // Expression (simple) script, has only verifier.
 		if complexity := estimation.Verifier; complexity > maxVerifierComplexity {
 			return errors.Errorf("script complexity %d exceeds maximum allowed complexity of %d", complexity, maxVerifierComplexity)
 		}
@@ -164,7 +170,7 @@ func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion 
 		}
 		estimations[ev] = est
 	}
-	if err := tc.checkScriptComplexity(tree, estimations[estimatorVersion], reducedVerifierComplexity); err != nil {
+	if err := tc.checkScriptComplexity(tree.LibVersion, estimations[estimatorVersion], tree.IsDApp(), reducedVerifierComplexity); err != nil {
 		return nil, errors.Wrap(err, "failed to check script complexity")
 	}
 	return estimations, nil
