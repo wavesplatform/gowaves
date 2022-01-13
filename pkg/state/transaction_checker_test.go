@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -1031,6 +1032,266 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	tx.Timestamp = 0
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkSetScriptWithProofs did not fail with invalid timestamp")
+}
+
+func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
+	tests := []struct {
+		estimationStub            ride.TreeEstimation
+		libVersions               []int
+		isDapp                    bool
+		reducedVerifierComplexity bool
+		valid                     bool
+	}{
+		// libVersion 1, 2
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV12 - 1,
+				Verifier:   MaxVerifierScriptComplexityReduced - 1,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV12,
+				Verifier:   MaxVerifierScriptComplexityReduced,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV12 + 1,
+				Verifier:   MaxVerifierScriptComplexityReduced,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV12,
+				Verifier:   MaxVerifierScriptComplexityReduced + 1,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		// libVersion 3, 4
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34 - 1,
+				Verifier:   MaxVerifierScriptComplexity - 1,
+			},
+			libVersions:               []int{3, 4},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV12,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{3, 4},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34 + 1,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{3, 4},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34,
+				Verifier:   MaxVerifierScriptComplexity + 1,
+			},
+			libVersions:               []int{3, 4},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		// libVersion 5
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV5 - 1,
+				Verifier:   MaxVerifierScriptComplexity - 1,
+			},
+			libVersions:               []int{5},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV5,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{5},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV5 + 1,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{5},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV5,
+				Verifier:   MaxVerifierScriptComplexity + 1,
+			},
+			libVersions:               []int{5},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		// libVersion 6
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6 - 1,
+				Verifier:   MaxVerifierScriptComplexity - 1,
+			},
+			libVersions:               []int{6},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{6},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6 + 1,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{6},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6,
+				Verifier:   MaxVerifierScriptComplexity + 1,
+			},
+			libVersions:               []int{6},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		// libVersion 3, 4, 5, 6 - reduced script complexity
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34,
+				Verifier:   MaxVerifierScriptComplexityReduced - 1,
+			},
+			libVersions:               []int{3, 4, 5, 6},
+			isDapp:                    true,
+			reducedVerifierComplexity: true,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34,
+				Verifier:   MaxVerifierScriptComplexityReduced,
+			},
+			libVersions:               []int{3, 4, 5, 6},
+			isDapp:                    true,
+			reducedVerifierComplexity: true,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34,
+				Verifier:   MaxVerifierScriptComplexityReduced + 1,
+			},
+			libVersions:               []int{3, 4, 5, 6},
+			isDapp:                    true,
+			reducedVerifierComplexity: true,
+			valid:                     false,
+		},
+		// not DApp
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6,
+				Verifier:   MaxVerifierScriptComplexityReduced - 1,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    false,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6,
+				Verifier:   MaxVerifierScriptComplexityReduced,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    false,
+			reducedVerifierComplexity: false,
+			valid:                     true,
+		},
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV6,
+				Verifier:   MaxVerifierScriptComplexityReduced + 1,
+			},
+			libVersions:               []int{1, 2},
+			isDapp:                    false,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+		// unknown lib version
+		{
+			estimationStub: ride.TreeEstimation{
+				Estimation: MaxCallableScriptComplexityV34,
+				Verifier:   MaxVerifierScriptComplexity,
+			},
+			libVersions:               []int{100500},
+			isDapp:                    true,
+			reducedVerifierComplexity: false,
+			valid:                     false,
+		},
+	}
+	for i, tc := range tests {
+		for _, libVersion := range tc.libVersions {
+			var checker transactionChecker
+
+			err := checker.checkScriptComplexity(libVersion, tc.estimationStub, tc.isDapp, tc.reducedVerifierComplexity)
+			if tc.valid {
+				assert.NoError(t, err, "test case %d, libVersion %d", i, libVersion)
+			} else {
+				assert.Error(t, err, "test case %d, libVersion %d", i, libVersion)
+			}
+		}
+	}
 }
 
 func TestCheckSetAssetScriptWithProofs(t *testing.T) {
