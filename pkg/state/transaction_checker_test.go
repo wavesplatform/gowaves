@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
@@ -1290,6 +1291,176 @@ func TestCheckSetScriptWithProofsCheckScriptComplexity(t *testing.T) {
 			} else {
 				assert.Error(t, err, "test case %d, libVersion %d", i, libVersion)
 			}
+		}
+	}
+}
+
+func TestCheckSetScriptWithProofsCheckDAppCallables(t *testing.T) {
+	tests := []struct {
+		comment         string
+		source          string
+		rideV6Activated bool
+		valid           bool
+	}{
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				func test(a: List[Int|String], b: Int|String) = []
+				
+				@Callable(i)
+				func f(a: Int) = []`,
+			source:          "AAIGAAAAAAAAAAcIAhIDCgEBAAAAAQEAAAAEdGVzdAAAAAIAAAABYQAAAAFiBQAAAANuaWwAAAABAAAAAWkBAAAAAWYAAAABAAAAAWEFAAAAA25pbAAAAABzg4fU",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				func test(a: List[Int|String], b: Int|String) = []
+				
+				@Callable(i)
+				func f(a: List[Int]) = []`,
+			source:          "AAIGAAAAAAAAAAcIAhIDCgERAAAAAQEAAAAEdGVzdAAAAAIAAAABYQAAAAFiBQAAAANuaWwAAAABAAAAAWkBAAAAAWYAAAABAAAAAWEFAAAAA25pbAAAAABqAgBk",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 5 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				@Callable(i)
+				func f(a: List[Int|String], b: Int|String) = []`,
+			source:          "AAIFAAAAAAAAAAgIAhIECgIZCQAAAAAAAAABAAAAAWkBAAAAAWYAAAACAAAAAWEAAAABYgUAAAADbmlsAAAAAAcJFxY=",
+			rideV6Activated: false,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 5 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				@Callable(i)
+				func f(a: List[Int|String], b: Int|String) = []`,
+			source:          "AAIFAAAAAAAAAAgIAhIECgIZCQAAAAAAAAABAAAAAWkBAAAAAWYAAAACAAAAAWEAAAABYgUAAAADbmlsAAAAAAcJFxY=",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				func test(a: List[Int|String], b: Int|String) = []
+				
+				@Verifier(tx)
+				func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)`,
+			source:          "AAIGAAAAAAAAAAIIAgAAAAEBAAAABHRlc3QAAAACAAAAAWEAAAABYgUAAAADbmlsAAAAAAAAAAEAAAACdHgBAAAABnZlcmlmeQAAAAAJAAH0AAAAAwgFAAAAAnR4AAAACWJvZHlCeXRlcwkAAZEAAAACCAUAAAACdHgAAAAGcHJvb2ZzAAAAAAAAAAAACAUAAAACdHgAAAAPc2VuZGVyUHVibGljS2V5UI0jkA==",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				func test(a: List[Int|String], b: Int|String) = []
+				
+				@Callable(i)
+				func f(a: Int, b: ByteVector, c: String, d: Boolean, e: List[Int]) = []`,
+			source:          "AAIGAAAAAAAAAAsIAhIHCgUBAggEEQAAAAEBAAAABHRlc3QAAAACAAAAAWEAAAABYgUAAAADbmlsAAAAAQAAAAFpAQAAAAFmAAAABQAAAAFhAAAAAWIAAAABYwAAAAFkAAAAAWUFAAAAA25pbAAAAAAhm5rh",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				@Callable(i)
+				func f(a: Int|String) = []`,
+			source:          "AAIGAAAAAAAAAAcIAhIDCgEJAAAAAAAAAAEAAAABaQEAAAABZgAAAAEAAAABYQUAAAADbmlsAAAAAK91tTo=",
+			rideV6Activated: true,
+			valid:           false,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				@Callable(i)
+				func f(a: List[Int|String]) = []`,
+			source:          "AAIGAAAAAAAAAAcIAhIDCgEZAAAAAAAAAAEAAAABaQEAAAABZgAAAAEAAAABYQUAAAADbmlsAAAAAJ5dF/0=",
+			rideV6Activated: true,
+			valid:           false,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				#serialized without metadata
+				@Callable(i)
+				func f(a: Int|String, b: List[Int|String]) = []`,
+			source:          "AAIGAAAAAAAAAAIIAgAAAAAAAAABAAAAAWkBAAAAAWYAAAACAAAAAWEAAAABYgUAAAADbmlsAAAAAASMZSY=",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				#serialized without metadata
+				@Callable(i)
+				func f(a: List[Int|String]) = []`,
+			source:          "AAIGAAAAAAAAAAIIAgAAAAAAAAABAAAAAWkBAAAAAWYAAAABAAAAAWEFAAAAA25pbAAAAABbsAMQ",
+			rideV6Activated: true,
+			valid:           true,
+		},
+		{
+			comment: `
+				{-# STDLIB_VERSION 6 #-}
+				{-# CONTENT_TYPE DAPP #-}
+				{-# SCRIPT_TYPE ACCOUNT #-}
+				
+				func test(a: List[Int|String], b: Int|String) = []
+				
+				#serialized without metadata
+				@Callable(i)
+				func f(a: Int|String) = []`,
+			source:          "AAIGAAAAAAAAAAIIAgAAAAEBAAAABHRlc3QAAAACAAAAAWEAAAABYgUAAAADbmlsAAAAAQAAAAFpAQAAAAFmAAAAAQAAAAFhBQAAAANuaWwAAAAAYJr92g==",
+			rideV6Activated: true,
+			valid:           true,
+		},
+	}
+	for i, tc := range tests {
+		var checker transactionChecker
+
+		script, err := base64.StdEncoding.DecodeString(tc.source)
+		require.NoError(t, err)
+		tree, err := ride.Parse(script)
+		require.NoError(t, err)
+
+		err = checker.checkDAppCallables(tree, tc.rideV6Activated)
+		if tc.valid {
+			assert.NoError(t, err, "test case %d: %s", i, tc.comment)
+		} else {
+			assert.Error(t, err, "test case %d: %s", i, tc.comment)
 		}
 	}
 }
