@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/mr-tron/base58"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -1308,6 +1309,70 @@ func TestAddressFromPublicKeyStrict(t *testing.T) {
 			a, ok := r.(rideAddress)
 			assert.True(t, ok)
 			assert.Equal(t, test.r, a)
+		}
+	}
+}
+
+func TestHashScriptAtAddress(t *testing.T) {
+	r1 := proto.NewRecipientFromAddress(proto.MustAddressFromString("3Mp5JgVSHA9iziujC9Kmnf2rCN5SYFE97yC"))
+	r2 := proto.NewRecipientFromAlias(*proto.NewAlias('T', "test"))
+	r3 := proto.NewRecipientFromAddress(proto.MustAddressFromString("3N2sMJ78BuYwoLHreuwjbk6dZgsnudxecBR"))
+	r4 := proto.NewRecipientFromAlias(*proto.NewAlias('T', "empty"))
+	r5 := proto.NewRecipientFromAddress(proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7"))
+	s1 := []byte("fake script bytes 1")
+	d1, err := crypto.FastHash(s1)
+	require.NoError(t, err)
+	s2 := []byte("fake script bytes 2")
+	d2, err := crypto.FastHash(s2)
+	require.NoError(t, err)
+	te := &mockRideEnvironment{
+		schemeFunc: func() byte {
+			return 'T'
+		},
+		stateFunc: func() types.SmartState {
+			return &MockSmartState{
+				GetByteTreeFunc: func(recipient proto.Recipient) (proto.Script, error) {
+					switch recipient {
+					case r1:
+						return s1, nil
+					case r2:
+						return s2, nil
+					case r3, r4:
+						return nil, errors.Wrap(keyvalue.ErrNotFound, "blah-blah")
+					default:
+						return nil, errors.New("other error")
+					}
+				},
+			}
+		},
+	}
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideRecipient(r1)}, false, rideBytes(d1[:])},
+		{[]rideType{rideRecipient(r2)}, false, rideBytes(d2[:])},
+		{[]rideType{rideRecipient(r3)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(r4)}, false, rideUnit{}},
+		{[]rideType{rideRecipient(r5)}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{}, true, nil},
+		{[]rideType{rideString("x")}, true, nil},
+	} {
+		r, err := hashScriptAtAddress(nil, te, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			switch rr := r.(type) {
+			case rideBytes:
+				assert.Equal(t, test.r, rr)
+			case rideUnit:
+				assert.Equal(t, test.r, rr)
+			default:
+				assert.Fail(t, "unexpected result type")
+			}
 		}
 	}
 }
