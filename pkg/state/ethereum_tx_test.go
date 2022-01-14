@@ -282,7 +282,7 @@ func TestEthereumInvoke(t *testing.T) {
 	assert.Equal(t, expectedDataEntryWrites[0], res.ScriptActions()[0])
 
 	// fee test
-	txDataForFeeCheck := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 499999,  proto.MainNetScheme)
+	txDataForFeeCheck := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 499999, proto.MainNetScheme)
 	tx = proto.NewEthereumTransaction(txDataForFeeCheck, txKind, &crypto.Digest{}, &senderPK, 0)
 
 	_, err = txAppender.ia.txHandler.checkTx(&tx, fallibleInfo.checkerInfo)
@@ -298,7 +298,7 @@ func TestTransferZeroAmount(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	txData := defaultEthereumLegacyTxData(0, &recipientEth, nil, 100000,  proto.MainNetScheme)
+	txData := defaultEthereumLegacyTxData(0, &recipientEth, nil, 100000, proto.MainNetScheme)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
 	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
@@ -334,7 +334,7 @@ func TestTransferCheckFee(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	txData := defaultEthereumLegacyTxData(100, &recipientEth, nil, 100,  proto.MainNetScheme)
+	txData := defaultEthereumLegacyTxData(100, &recipientEth, nil, 100, proto.MainNetScheme)
 	tx := proto.NewEthereumTransaction(txData, nil, nil, &senderPK, 0)
 	tx.TxKind, err = txAppender.ethInfo.ethereumTransactionKind(&tx, nil)
 	assert.NoError(t, err)
@@ -391,7 +391,7 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000,  proto.MainNetScheme)
+	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000, proto.MainNetScheme)
 	decodedData := defaultDecodedData("call", nil, nil)
 	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumInvokeScriptTxKind(decodedData), &crypto.Digest{}, &senderPK, 0)
 
@@ -459,7 +459,7 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
 
-	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000,  proto.MainNetScheme)
+	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000, proto.MainNetScheme)
 	decodedData := defaultDecodedData("call", []ethabi.DecodedArg{
 		{Value: ethabi.Int(1)},
 		{Value: ethabi.Bool(true)},
@@ -483,4 +483,3 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 	}
 	assert.Equal(t, expectedDataEntryWrites[0], res.ScriptActions()[0])
 }
-
