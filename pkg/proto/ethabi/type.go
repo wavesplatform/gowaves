@@ -5,6 +5,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
 
+var UnsupportedType = errors.New("unsupported type")
+
 type ArgType byte
 
 // Type enumerator
@@ -107,40 +109,7 @@ func AbiTypeFromRideTypeMeta(metaT meta.Type) (abiT Type, err error) {
 		}
 		abiT = Type{Elem: &inner, T: SliceType}
 	case meta.UnionType:
-		indexElemStrKindMarshaler := intTextBuilder{
-			size:     8,
-			unsigned: true,
-		}
-		indexElemStringKind, err := indexElemStrKindMarshaler.MarshalText()
-		if err != nil {
-			return Type{}, errors.Wrap(err, "failed to marshal index elem stringKind")
-		}
-		tupleFields := append(make(Arguments, 0, len(t)+1),
-			Argument{
-				Name: "union_index",
-				Type: Type{
-					Size:       indexElemStrKindMarshaler.size,
-					T:          UintType,
-					stringKind: string(indexElemStringKind),
-				},
-			},
-		)
-		for _, fieldT := range t {
-			field, err := AbiTypeFromRideTypeMeta(fieldT)
-			if err != nil {
-				return Type{}, errors.Wrapf(err,
-					"failed to create abi type for ride meta union type, field type %T", fieldT,
-				)
-			}
-			tupleFields = append(tupleFields, Argument{
-				Name: "",
-				Type: field,
-			})
-		}
-		abiT = Type{
-			T:           TupleType,
-			TupleFields: tupleFields,
-		}
+		return Type{}, errors.Wrap(UnsupportedType, "UnionType")
 	default:
 		return Type{}, errors.Errorf("unsupported ride metadata type, type %T", t)
 	}

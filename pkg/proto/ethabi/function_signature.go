@@ -81,7 +81,7 @@ func rideMetaTypeToTextMarshaler(metaT meta.Type) (encoding.TextMarshaler, error
 	case meta.SimpleType:
 		switch t {
 		case meta.Int:
-			// nickeskov: it's RideInt type
+			//  it's RideInt type
 			marshaler := intTextBuilder{
 				size:     64,
 				unsigned: false,
@@ -103,19 +103,9 @@ func rideMetaTypeToTextMarshaler(metaT meta.Type) (encoding.TextMarshaler, error
 				"failed to create text marshaler for list type, inner type %T", t.Inner,
 			)
 		}
-		return sliceTextBuilder{t: inner}, nil
+		return sliceTextBuilder{inner: inner}, nil
 	case meta.UnionType:
-		marshalers := make([]encoding.TextMarshaler, 0, len(t))
-		for _, unionUnitT := range t {
-			unionUnitMarshaler, err := rideMetaTypeToTextMarshaler(unionUnitT)
-			if err != nil {
-				return nil, errors.Wrapf(err,
-					"failed to create text marshaler for union type, inner type %T", unionUnitT,
-				)
-			}
-			marshalers = append(marshalers, unionUnitMarshaler)
-		}
-		return unionTextBuilder(marshalers), nil
+		return nil, errors.Wrap(UnsupportedType, "UnionType")
 	default:
 		return nil, errors.Errorf("unsupported ride metadata type, type %T", t)
 	}
@@ -167,13 +157,13 @@ func (stb stringTextBuilder) MarshalText() (text []byte, err error) {
 }
 
 type sliceTextBuilder struct {
-	t encoding.TextMarshaler
+	inner encoding.TextMarshaler
 }
 
 func (stb sliceTextBuilder) MarshalText() (text []byte, err error) {
-	marshaled, err := stb.t.MarshalText()
+	marshaled, err := stb.inner.MarshalText()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal %T", stb.t)
+		return nil, errors.Wrapf(err, "failed to marshal %T", stb.inner)
 	}
 	return []byte(fmt.Sprintf("%s[]", marshaled)), nil
 }
@@ -190,26 +180,6 @@ func (ttb tupleTextBuilder) MarshalText() (text []byte, err error) {
 		elements = append(elements, string(marshaled))
 	}
 	return []byte(fmt.Sprintf("(%s)", strings.Join(elements, ","))), nil
-}
-
-type unionTextBuilder []encoding.TextMarshaler
-
-func (utb unionTextBuilder) MarshalText() (text []byte, err error) {
-	if len(utb) == 0 {
-		return nil, errors.Errorf("can't marshal union with no elements")
-	}
-	unionElements := make([]encoding.TextMarshaler, len(utb)+1)
-	// nickeskov: create index element to represent ride tuple in ethereum abi
-	unionElements[0] = intTextBuilder{
-		size:     8,
-		unsigned: true,
-	}
-	copy(unionElements[1:], utb)
-	text, err = tupleTextBuilder(unionElements).MarshalText()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal union")
-	}
-	return text, nil
 }
 
 type paymentTextBuilder struct{}
@@ -247,7 +217,7 @@ func (ftb functionTextBuilder) MarshalText() (text []byte, err error) {
 	for _, arg := range ftb.functionMeta.Arguments {
 		marshaler, err := rideMetaTypeToTextMarshaler(arg)
 		if err != nil {
-			return nil, errors.Errorf("failed to create function argument text marshaler, type %T", arg)
+			return nil, errors.Wrapf(err, "failed to create function argument text marshaler, type %T", arg)
 		}
 		marshaled, err := marshaler.MarshalText()
 		if err != nil {
@@ -256,7 +226,7 @@ func (ftb functionTextBuilder) MarshalText() (text []byte, err error) {
 		elements = append(elements, string(marshaled))
 	}
 	if ftb.addPayments {
-		payments, err := sliceTextBuilder{t: paymentTextBuilder{}}.MarshalText()
+		payments, err := sliceTextBuilder{inner: paymentTextBuilder{}}.MarshalText()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to marshal payments")
 		}
