@@ -226,9 +226,9 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		sender            proto.WavesAddress
 		r                 ride.Result
 	)
-	err = env.SetInvoke(tx, tree.LibVersion)
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
+		err = env.SetInvoke(tx, tree.LibVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -261,6 +261,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 			return nil, err
 		}
 	case *proto.InvokeExpressionTransactionWithProofs:
+		err = env.SetInvoke(tx, tree.LibVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -344,6 +345,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 	default:
 		return nil, errors.New("failed to invoke function: unexpected type of transaction ")
 	}
+
 
 	if err := a.appendFunctionComplexity(r.Complexity(), scriptAddress, functionName, defaultFunction, info); err != nil {
 		return nil, err
