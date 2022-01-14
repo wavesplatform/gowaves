@@ -26,7 +26,7 @@ func TestListRemoveByIndex(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := listRemoveByIndex(nil, test.args...)
+		r, err := listRemoveByIndex(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {

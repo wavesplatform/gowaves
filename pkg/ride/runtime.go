@@ -342,7 +342,7 @@ func (a rideList) get(prop string) (rideType, error) {
 }
 
 type (
-	rideFunction    func(env environment, args ...rideType) (rideType, error)
+	rideFunction    func(ev *treeEvaluator, env environment, args ...rideType) (rideType, error)
 	rideConstructor func(environment) rideType
 )
 

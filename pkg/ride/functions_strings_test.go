@@ -3,6 +3,7 @@ package ride
 import (
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,7 +27,7 @@ func TestConcatStrings(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := concatStrings(nil, test.args...)
+		r, err := concatStrings(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -60,7 +61,7 @@ func TestTakeString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x冬")}, // the result is `x?` but it should be `x冬`
 	} {
-		r, err := takeString(env, test.args...)
+		r, err := takeString(nil, env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -92,7 +93,7 @@ func TestIncorrectTakeString(t *testing.T) {
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶🔶🔶\n\nCeli, child of the first light. One of the main characters of the story, she is the first to see the vision of Cloudscape and its inhabitants from the Earth's dimension after the great destruction.\n\nDragorion - avatars sung into being by Eneria to bring sleep to the people of Cloudscape. They speak in dreams as lullabies, symphonies, hymns, arias and melodies. ~Legendarium\n\n©️Art of Monztre\n"), rideInt(50)}, false, rideString("DRAGORION : Cradle of Many Strings\n[MYTHIC]🔶🔶🔶?")},
 	} {
-		r, err := takeString(env, test.args...)
+		r, err := takeString(nil, env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -122,7 +123,7 @@ func TestDropString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x")},
 	} {
-		r, err := dropString(nil, test.args...)
+		r, err := dropString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -150,7 +151,7 @@ func TestSizeString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x")}, false, rideInt(3)},
 	} {
-		r, err := sizeString(nil, test.args...)
+		r, err := sizeString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -180,7 +181,7 @@ func TestIndexOfSubstring(t *testing.T) {
 		{[]rideType{rideString("x冬xqweqwe"), rideString("ww")}, false, rideUnit{}},          // unicode indexOf (not present)
 		{[]rideType{rideString(""), rideString("x冬x")}, false, rideUnit{}},                  // unicode indexOf from empty string
 	} {
-		r, err := indexOfSubstring(nil, test.args...)
+		r, err := indexOfSubstring(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -212,7 +213,7 @@ func TestIndexOfSubstringWithOffset(t *testing.T) {
 		{[]rideType{rideString("冬weqwe"), rideString("we"), rideInt(2)}, false, rideInt(4)},       // unicode indexOf with start offset
 		{[]rideType{rideString(""), rideString("x冬x"), rideInt(1)}, false, rideUnit{}},            // unicode indexOf from empty string with offset
 	} {
-		r, err := indexOfSubstringWithOffset(nil, test.args...)
+		r, err := indexOfSubstringWithOffset(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -238,7 +239,7 @@ func TestStringToBytes(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := stringToBytes(nil, test.args...)
+		r, err := stringToBytes(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -269,7 +270,7 @@ func TestDropRightString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("x")},
 	} {
-		r, err := dropRightString(nil, test.args...)
+		r, err := dropRightString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -300,7 +301,7 @@ func TestTakeRightString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("x冬x"), rideInt(2)}, false, rideString("冬x")},
 	} {
-		r, err := takeRightString(nil, test.args...)
+		r, err := takeRightString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -331,13 +332,83 @@ func TestSplitString(t *testing.T) {
 		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
 		{[]rideType{rideString("strx冬x1;🤦;🤦strx冬x2;🤦strx冬x3"), rideString(";🤦")}, false, rideList{rideString("strx冬x1"), rideString(""), rideString("strx冬x2"), rideString("strx冬x3")}},
 	} {
-		r, err := splitString(nil, test.args...)
+		r, err := splitString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
 			require.NoError(t, err)
 			assert.Equal(t, test.r, r)
 		}
+	}
+}
+
+func BenchmarkSplitString(b *testing.B) {
+	item := strings.Repeat("x", 31)
+	list := make([]string, 1000)
+	for i := 0; i < 1000; i++ {
+		list[i] = item
+	}
+	s := strings.Join(list, ",")
+	args := []rideType{rideString(s), rideString(",")}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := splitString(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
+	}
+}
+
+func TestSplit(t *testing.T) {
+	for _, test := range []struct {
+		s, sep    string
+		len, size int
+		fail      bool
+		r         rideType
+	}{
+		{"1,2,3", ",", 5, 5, false, rideList{rideString("1"), rideString("2"), rideString("3")}},
+		{"1,2,3", ",", 5, 3, false, rideList{rideString("1"), rideString("2"), rideString("3")}},
+		{"1,2,3", ",", 3, 3, true, nil},
+		{"1,2,3", ",", 5, 2, true, nil},
+	} {
+		r, err := split(test.s, test.sep, test.len, test.size)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}
+
+func BenchmarkSplitString1C(b *testing.B) {
+	item := strings.Repeat("x", 24)
+	list := make([]string, 20)
+	for i := 0; i < 20; i++ {
+		list[i] = item
+	}
+	s := strings.Join(list, ",")
+	args := []rideType{rideString(s), rideString(",")}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := splitString1C(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
+	}
+}
+
+func BenchmarkSplitString4C(b *testing.B) {
+	item := strings.Repeat("x", 59)
+	list := make([]string, 100)
+	for i := 0; i < 100; i++ {
+		list[i] = item
+	}
+	s := strings.Join(list, ",")
+	args := []rideType{rideString(s), rideString(",")}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := splitString4C(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
 	}
 }
 
@@ -360,7 +431,7 @@ func TestParseInt(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := parseInt(nil, test.args...)
+		r, err := parseInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -389,7 +460,7 @@ func TestParseIntValue(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := parseIntValue(nil, test.args...)
+		r, err := parseIntValue(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -414,7 +485,7 @@ func TestLastIndexOfSubstring(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := lastIndexOfSubstring(nil, test.args...)
+		r, err := lastIndexOfSubstring(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -453,13 +524,69 @@ func TestLastIndexOfSubstringWithOffset(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := lastIndexOfSubstringWithOffset(nil, test.args...)
+		r, err := lastIndexOfSubstringWithOffset(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
 			require.NoError(t, err)
 			assert.Equal(t, test.r, r)
 		}
+	}
+}
+
+func TestMkString(t *testing.T) {
+	for _, test := range []struct {
+		list      []rideType
+		sep       string
+		size, len int
+		fail      bool
+		r         string
+	}{
+		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 5, 5, false, "1,2,3"},
+		{[]rideType{rideString("1"), rideInt(2), rideString("3")}, ",", 5, 5, false, "1,2,3"},
+		{[]rideType{rideString("1"), rideString("2"), rideBoolean(true)}, ",", 5, 5, true, ""},
+		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 3, 5, false, "1,2,3"},
+		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 2, 5, true, ""},
+		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 3, 3, true, ""},
+	} {
+		r, err := mkString(test.list, test.sep, test.size, test.len)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+
+	}
+}
+
+func BenchmarkMakeString1C(b *testing.B) {
+	item := "123456"
+	list := make([]rideType, 70)
+	for i := 0; i < 70; i++ {
+		list[i] = rideString(item)
+	}
+	b.ResetTimer()
+	args := []rideType{rideList(list), rideString(",")}
+	for i := 0; i < b.N; i++ {
+		r, err := makeString1C(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotEmpty(b, r)
+	}
+}
+
+func BenchmarkMakeString2C(b *testing.B) {
+	item := strings.Repeat("x", 59)
+	list := make([]rideType, 100)
+	for i := 0; i < 100; i++ {
+		list[i] = rideString(item)
+	}
+	args := []rideType{rideList(list), rideString(",")}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := makeString2C(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotEmpty(b, r)
 	}
 }
 
@@ -483,7 +610,7 @@ func TestMakeString(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := makeString(nil, test.args...)
+		r, err := makeString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -511,7 +638,7 @@ func TestContains(t *testing.T) {
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := contains(nil, test.args...)
+		r, err := contains(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {

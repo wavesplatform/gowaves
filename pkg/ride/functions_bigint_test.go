@@ -17,6 +17,9 @@ var env environment = &mockRideEnvironment{
 	validateInternalPaymentsFunc: func() bool {
 		return false
 	},
+	rideV6ActivatedFunc: func() bool {
+		return false
+	},
 }
 
 func TestPowBigInt(t *testing.T) {
@@ -44,13 +47,26 @@ func TestPowBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := powBigInt(env, test.args...)
+		r, err := powBigInt(nil, env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
 			require.NoError(t, err)
 			assert.True(t, test.r.eq(r), fmt.Sprintf("%s != %s", test.r, r))
 		}
+	}
+}
+
+func BenchmarkPowBigInt(b *testing.B) {
+	//pow(d18, 18, max, 0, 18) -> error
+	d18, ok := new(big.Int).SetString("987654321012345678", 10)
+	require.True(b, ok)
+	args := []rideType{rideBigInt{v: d18}, rideInt(18), rideBigInt{v: rideMath.MaxBigInt}, rideInt(0), rideInt(18), newDown(nil)}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := powBigInt(nil, nil, args...)
+		require.Error(b, err)
+		require.Nil(b, r)
 	}
 }
 
@@ -76,7 +92,7 @@ func TestLogBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(math.MaxInt64)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := logBigInt(nil, test.args...)
+		r, err := logBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -104,7 +120,7 @@ func TestToBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(12345)}, true, nil},
 		{[]rideType{rideInt(12345), rideInt(67890)}, true, nil},
 	} {
-		r, err := toBigInt(nil, test.args...)
+		r, err := toBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -135,7 +151,7 @@ func TestSumBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := sumBigInt(nil, test.args...)
+		r, err := sumBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -162,7 +178,7 @@ func TestSubtractBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := subtractBigInt(nil, test.args...)
+		r, err := subtractBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -191,7 +207,7 @@ func TestMultiplyBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := multiplyBigInt(nil, test.args...)
+		r, err := multiplyBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -220,7 +236,7 @@ func TestDivideBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := divideBigInt(nil, test.args...)
+		r, err := divideBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -247,7 +263,7 @@ func TestModuloBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := moduloBigInt(nil, test.args...)
+		r, err := moduloBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -258,7 +274,7 @@ func TestModuloBigInt(t *testing.T) {
 }
 
 func TestFractionBigInt(t *testing.T) {
-	r1 := big.NewInt(0).Set(rideMath.MaxBigInt)
+	r1 := new(big.Int).Set(rideMath.MaxBigInt)
 	r1 = r1.Mul(r1, big.NewInt(2))
 	r1 = r1.Div(r1, big.NewInt(3))
 	for _, test := range []struct {
@@ -280,13 +296,23 @@ func TestFractionBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := fractionBigInt(nil, test.args...)
+		r, err := fractionBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
 			require.NoError(t, err)
 			assert.True(t, test.r.eq(r), fmt.Sprintf("%s != %s", test.r, r))
 		}
+	}
+}
+
+func BenchmarkFractionBigInt(b *testing.B) {
+	args := []rideType{rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := fractionBigInt(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
 	}
 }
 
@@ -329,13 +355,23 @@ func TestFractionBigIntRounds(t *testing.T) {
 		{[]rideType{toRideBigInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := fractionBigIntRounds(nil, test.args...)
+		r, err := fractionBigIntRounds(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
 			require.NoError(t, err)
 			assert.True(t, test.r.eq(r), fmt.Sprintf("%s != %s", test.r, r))
 		}
+	}
+}
+
+func BenchmarkFractionBigIntRounds(b *testing.B) {
+	args := []rideType{rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}, newCeiling(nil)}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := fractionBigIntRounds(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
 	}
 }
 
@@ -356,7 +392,7 @@ func TestUnaryMinusBigInt(t *testing.T) {
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("x")}, true, nil},
 	} {
-		r, err := unaryMinusBigInt(nil, test.args...)
+		r, err := unaryMinusBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -383,7 +419,7 @@ func TestGTBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := gtBigInt(nil, test.args...)
+		r, err := gtBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -409,7 +445,7 @@ func TestGEBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := geBigInt(nil, test.args...)
+		r, err := geBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -435,7 +471,7 @@ func TestMaxListBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(0)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := maxListBigInt(nil, test.args...)
+		r, err := maxListBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -461,7 +497,7 @@ func TestMinListBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(0)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := minListBigInt(nil, test.args...)
+		r, err := minListBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -472,7 +508,7 @@ func TestMinListBigInt(t *testing.T) {
 }
 
 func TestBigIntToBytes(t *testing.T) {
-	v, ok := big.NewInt(0).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
+	v, ok := new(big.Int).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
 	require.True(t, ok)
 	for _, test := range []struct {
 		args []rideType
@@ -493,7 +529,7 @@ func TestBigIntToBytes(t *testing.T) {
 		{[]rideType{rideString("0")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := bigIntToBytes(nil, test.args...)
+		r, err := bigIntToBytes(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -504,7 +540,7 @@ func TestBigIntToBytes(t *testing.T) {
 }
 
 func TestBytesToBigInt(t *testing.T) {
-	v, ok := big.NewInt(0).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
+	v, ok := new(big.Int).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
 	require.True(t, ok)
 	for _, test := range []struct {
 		args []rideType
@@ -525,7 +561,7 @@ func TestBytesToBigInt(t *testing.T) {
 		{[]rideType{rideString("0")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := bytesToBigInt(nil, test.args...)
+		r, err := bytesToBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -558,7 +594,7 @@ func TestBytesToBigIntLim(t *testing.T) {
 		{[]rideType{rideString("0")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := bytesToBigIntLim(nil, test.args...)
+		r, err := bytesToBigIntLim(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -587,7 +623,7 @@ func TestBigIntToInt(t *testing.T) {
 		{[]rideType{rideString("0")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := bigIntToInt(nil, test.args...)
+		r, err := bigIntToInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -598,7 +634,7 @@ func TestBigIntToInt(t *testing.T) {
 }
 
 func TestBigIntToString(t *testing.T) {
-	v, ok := big.NewInt(0).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
+	v, ok := new(big.Int).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
 	require.True(t, ok)
 	for _, test := range []struct {
 		args []rideType
@@ -619,7 +655,7 @@ func TestBigIntToString(t *testing.T) {
 		{[]rideType{rideString("0")}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := bigIntToString(nil, test.args...)
+		r, err := bigIntToString(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -629,8 +665,20 @@ func TestBigIntToString(t *testing.T) {
 	}
 }
 
+func BenchmarkBigIntToString(b *testing.B) {
+	v, ok := new(big.Int).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
+	require.True(b, ok)
+	args := []rideType{rideBigInt{v: v}}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r, err := bigIntToString(nil, nil, args...)
+		require.NoError(b, err)
+		require.NotNil(b, r)
+	}
+}
+
 func TestStringToBigInt(t *testing.T) {
-	v, ok := big.NewInt(0).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
+	v, ok := new(big.Int).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
 	require.True(t, ok)
 	for _, test := range []struct {
 		args []rideType
@@ -651,7 +699,7 @@ func TestStringToBigInt(t *testing.T) {
 		{[]rideType{rideInt(0)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := stringToBigInt(nil, test.args...)
+		r, err := stringToBigInt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -662,7 +710,7 @@ func TestStringToBigInt(t *testing.T) {
 }
 
 func TestStringToBigIntOpt(t *testing.T) {
-	v, ok := big.NewInt(0).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
+	v, ok := new(big.Int).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
 	require.True(t, ok)
 	for _, test := range []struct {
 		args []rideType
@@ -683,7 +731,7 @@ func TestStringToBigIntOpt(t *testing.T) {
 		{[]rideType{rideInt(0)}, false, newUnit(nil)},
 		{[]rideType{}, false, newUnit(nil)},
 	} {
-		r, err := stringToBigIntOpt(nil, test.args...)
+		r, err := stringToBigIntOpt(nil, nil, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
@@ -711,7 +759,35 @@ func TestMedianListBigInt(t *testing.T) {
 		{[]rideType{toRideBigInt(0)}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		r, err := medianListBigInt(nil, test.args...)
+		r, err := medianListBigInt(nil, nil, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.True(t, test.r.eq(r), fmt.Sprintf("%s != %s", test.r, r))
+		}
+	}
+}
+
+func TestSqrtBigInt(t *testing.T) {
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{toRideBigInt(12), rideInt(1), rideInt(2), newDown(nil)}, false, toRideBigInt(109)},
+		{[]rideType{toRideBigInt(12), rideInt(1), rideInt(2), newUp(nil)}, false, toRideBigInt(110)},
+		{[]rideType{toRideBigInt(12), rideInt(1), rideInt(2), newUp(nil), newDown(nil)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64), rideInt(0), rideInt(0), newNoAlg(nil)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64), rideString("0"), rideInt(0), newUp(nil)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64), rideInt(20), rideInt(0), newUp(nil)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64), rideInt(0), rideInt(-1), newUp(nil)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64), rideInt(0), toRideBigInt(1)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64), rideInt(0)}, true, nil},
+		{[]rideType{toRideBigInt(math.MaxInt64)}, true, nil},
+		{[]rideType{}, true, nil},
+	} {
+		r, err := sqrtBigInt(nil, env, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
