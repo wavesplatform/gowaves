@@ -18,28 +18,28 @@ func newParserV1(r *bytes.Reader, id [32]byte, header scriptHeader) *parser {
 }
 
 func readShortV1(r *bytes.Reader) (int16, error) {
-	buf := make([]byte, 2)
-	_, err := r.Read(buf)
+	buf := [2]byte{}
+	_, err := r.Read(buf[:])
 	if err != nil {
 		return 0, err
 	}
-	return int16(binary.BigEndian.Uint16(buf)), nil
+	return int16(binary.BigEndian.Uint16(buf[:])), nil
 }
 
 func readIntV1(r *bytes.Reader) (int32, error) {
-	buf := make([]byte, 4)
-	_, err := r.Read(buf)
+	buf := [4]byte{}
+	_, err := r.Read(buf[:])
 	if err != nil {
 		return 0, err
 	}
-	return int32(binary.BigEndian.Uint32(buf)), nil
+	return int32(binary.BigEndian.Uint32(buf[:])), nil
 }
 
 func readLongV1(r *bytes.Reader) (int64, error) {
-	buf := make([]byte, 8)
-	_, err := r.Read(buf)
+	buf := [8]byte{}
+	_, err := r.Read(buf[:])
 	if err != nil {
 		return 0, err
 	}
-	return int64(binary.BigEndian.Uint64(buf)), nil
+	return int64(binary.BigEndian.Uint64(buf[:])), nil
 }
