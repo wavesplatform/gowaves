@@ -421,9 +421,11 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 	}()
 	uf, cl, found := e.s.userFunction(name)
 	if !found {
+		// TODO(nickeskov): check validation rules: what `EvaluationError` type we should use?
 		return nil, errors.Errorf("user function '%s' not found", name)
 	}
 	if len(args) != len(uf.Arguments) {
+		// TODO(nickeskov): check validation rules: what `EvaluationError` type we should use?
 		return nil, errors.Errorf("mismatched arguments number of user function '%s'", name)
 	}
 	avs := make([]esValue, len(args))
@@ -437,7 +439,8 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 
 	r, err := e.walk(uf.Body)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", name)
+		et := GetEvaluationErrorType(err)
+		return nil, et.Wrapf(err, "failed to evaluate function '%s' body", name)
 	}
 	e.s.cs = e.s.cs[:len(e.s.cs)-1]
 	e.s.cl = tmp
