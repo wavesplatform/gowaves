@@ -439,8 +439,7 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 
 	r, err := e.walk(uf.Body)
 	if err != nil {
-		et := GetEvaluationErrorType(err)
-		return nil, et.Wrapf(err, "failed to evaluate function '%s' body", name)
+		return nil, EvaluationErrorPush(err, "failed to evaluate function '%s' body", name)
 	}
 	e.s.cs = e.s.cs[:len(e.s.cs)-1]
 	e.s.cl = tmp
