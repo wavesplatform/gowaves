@@ -1,7 +1,6 @@
 package ride
 
 import (
-	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -421,10 +420,10 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 	}()
 	uf, cl, found := e.s.userFunction(name)
 	if !found {
-		return nil, errors.Errorf("user function '%s' not found", name)
+		return nil, RuntimeError.Errorf("user function '%s' not found", name)
 	}
 	if len(args) != len(uf.Arguments) {
-		return nil, errors.Errorf("mismatched arguments number of user function '%s'", name)
+		return nil, RuntimeError.Errorf("mismatched arguments number of user function '%s'", name)
 	}
 	avs := make([]esValue, len(args))
 	for i, arg := range args {
@@ -437,7 +436,7 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 
 	r, err := e.walk(uf.Body)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to evaluate function '%s' body", name)
+		return nil, EvaluationErrorPush(err, "failed to evaluate function '%s' body", name)
 	}
 	e.s.cs = e.s.cs[:len(e.s.cs)-1]
 	e.s.cl = tmp
