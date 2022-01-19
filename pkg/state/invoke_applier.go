@@ -738,7 +738,6 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 	)
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
-
 		var err error
 		scriptAddr, err = recipientToAddress(transaction.ScriptRecipient, ia.stor.aliases, !info.initialisation)
 		if err != nil {
@@ -758,6 +757,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
+
 	case *proto.InvokeExpressionTransactionWithProofs:
 		addr, err := proto.NewAddressFromPublicKey(ia.settings.AddressSchemeCharacter, transaction.SenderPK)
 		if err != nil {
@@ -772,6 +772,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		isInvokeExpression = true
 		txID = *transaction.ID
 		scriptPK = transaction.SenderPK
+
 	case *proto.EthereumTransaction:
 		var err error
 		scriptAddr, err = transaction.WavesAddressTo(ia.settings.AddressSchemeCharacter)
@@ -793,6 +794,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 		}
+
 	default:
 		return nil, errors.New("failed to apply an invoke script: unexpected type of transaction ")
 	}

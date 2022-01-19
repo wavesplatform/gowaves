@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 
 	"github.com/mr-tron/base58/base58"
@@ -486,7 +487,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 			if err != nil {
 				return errors.Errorf("failed to handle ethereum transaction (type %s) with id %s, on height %d: %v",
-					ethTx.TxKind.String(), ethTx.ID.String(), params.block.Height, err,
+					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1, err,
 				)
 			}
 			// In UTX balances are always validated.
@@ -501,7 +502,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 			if err != nil {
 				return errors.Errorf(
 					"failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d: %v",
-					ethTx.TxKind.String(), ethTx.ID.String(), params.block.Height, err,
+					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1, err,
 				)
 			}
 		}
@@ -646,7 +647,7 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 		ID = *t.ID
 	case *proto.EthereumTransaction:
 		if _, ok := t.TxKind.(*proto.EthereumInvokeScriptTxKind); !ok {
-			return nil, errors.New("wrong ethereum tx kind. expected invoke kind")
+			return nil, errors.Errorf("unexpected ethereum tx kind '%T'", tx)
 		}
 		ID = *t.ID
 	}
