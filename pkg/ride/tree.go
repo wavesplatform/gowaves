@@ -77,6 +77,7 @@ type AssignmentNode struct {
 	Name       string
 	Expression Node
 	Block      Node
+	newBlock   bool
 }
 
 func (*AssignmentNode) node() {}
@@ -187,10 +188,9 @@ func NewPropertyNode(name string, object Node) *PropertyNode {
 
 type Tree struct {
 	Digest       [32]byte
-	AppVersion   int
+	contentType  contentType
 	LibVersion   int
 	HasBlockV2   bool
-	isExpression bool
 	Meta         meta.DApp
 	Declarations []Node
 	Functions    []Node
@@ -202,5 +202,5 @@ func (t *Tree) HasVerifier() bool {
 }
 
 func (t *Tree) IsDApp() bool {
-	return t.AppVersion != scriptApplicationVersion
+	return t.contentType == contentTypeApplication
 }

@@ -320,12 +320,11 @@ func (cc *complexityCalculatorV2) addReferenceComplexity() {}
 func (cc *complexityCalculatorV2) addPropertyComplexity() {}
 
 type treeEvaluator struct {
-	dapp         bool
-	cc           complexityCalculator
-	isExpression bool
-	f            Node
-	s            evaluationScope
-	env          environment
+	dapp bool
+	cc   complexityCalculator
+	f    Node
+	s    evaluationScope
+	env  environment
 }
 
 func (e *treeEvaluator) complexity() int {
@@ -355,9 +354,6 @@ func (e *treeEvaluator) evaluate() (Result, error) {
 				return nil, EvaluationFailure.Wrap(err, "failed to convert evaluation result")
 			}
 			actions = append(actions, a)
-		}
-		if e.isExpression {
-			return ExpressionResult{actions: actions, complexity: e.complexity()}, nil
 		}
 		return DAppResult{actions: actions, complexity: e.complexity()}, nil
 	case tuple2:
@@ -603,12 +599,11 @@ func treeVerifierEvaluator(env environment, tree *Tree) (*treeEvaluator, error) 
 		return nil, EvaluationFailure.New("no verifier declaration")
 	}
 	return &treeEvaluator{
-		dapp:         tree.IsDApp(),
-		cc:           cc,
-		f:            tree.Verifier, // In simple script verifier is an expression itself
-		s:            s,
-		env:          env,
-		isExpression: tree.isExpression,
+		dapp: tree.IsDApp(),
+		cc:   cc,
+		f:    tree.Verifier, // In simple script verifier is an expression itself
+		s:    s,
+		env:  env,
 	}, nil
 }
 

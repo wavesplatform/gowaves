@@ -23,7 +23,7 @@ func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return MarshalToProtobufDeterministic(pbTx)
+	return pbTx.MarshalVTFlat()
 }
 
 func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {
@@ -261,6 +261,17 @@ func (c *ProtobufConverter) orderType(side g.Order_Side) OrderType {
 	return OrderType(c.byte(int32(side)))
 }
 
+func (c *ProtobufConverter) orderPriceMode(gm g.Order_PriceMode) (OrderPriceMode, error) {
+	if c.err != nil {
+		return 0, c.err
+	}
+	var m OrderPriceMode
+	if err := m.FromProtobuf(gm); err != nil {
+		return 0, err
+	}
+	return m, nil
+}
+
 func (c *ProtobufConverter) proofs(proofs [][]byte) *ProofsV1 {
 	if c.err != nil {
 		return nil
@@ -332,6 +343,16 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 	if c.err != nil {
 		return nil
 	}
+	orderVersion := c.byte(o.Version)
+	priceMode, err := c.orderPriceMode(o.PriceMode)
+	if err != nil {
+		c.err = err
+		return nil
+	}
+	if _, err := priceMode.Valid(orderVersion); err != nil {
+		c.err = err
+		return nil
+	}
 	var order Order
 	body := OrderBody{
 		MatcherPK:  c.publicKey(o.MatcherPublicKey),
@@ -343,17 +364,24 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 		Expiration: c.uint64(o.Expiration),
 		MatcherFee: c.amount(o.MatcherFee),
 	}
-
-	if o.Version < 4 {
-		if len(o.Eip712Signature) > 0 {
+	switch sender := o.Sender.(type) {
+	case *g.Order_SenderPublicKey:
+		body.SenderPK = c.publicKey(sender.SenderPublicKey)
+	case *g.Order_Eip712Signature:
+		if o.Version < 4 {
 			// nickeskov: see isValid method in com/wavesplatform/transaction/assets/exchange/Order.scala
 			c.err = errors.New("eip712Signature available only in OrderV4")
 			return nil
 		}
-		body.SenderPK = c.publicKey(o.SenderPublicKey)
+	default:
+		c.err = errors.Errorf("unknown order.Sender field=%v", sender)
+		return nil
 	}
-
-	switch version := o.Version; version {
+	scheme := c.byte(o.ChainId)
+	if scheme == 0 {
+		scheme = c.FallbackChainID
+	}
+	switch uncheckedOrderVersion := o.Version; uncheckedOrderVersion {
 	case 1:
 		order = &OrderV1{
 			Signature: c.proof(o.Proofs),
@@ -361,46 +389,41 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 		}
 	case 2:
 		order = &OrderV2{
-			Version:   c.byte(o.Version),
+			Version:   orderVersion,
 			Proofs:    c.proofs(o.Proofs),
 			OrderBody: body,
 		}
 	case 3:
 		order = &OrderV3{
-			Version:         c.byte(o.Version),
+			Version:         orderVersion,
 			Proofs:          c.proofs(o.Proofs),
 			OrderBody:       body,
 			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
 		}
 	case 4:
 		orderV4 := OrderV4{
-			Version:         c.byte(o.Version),
+			Version:         orderVersion,
 			Proofs:          c.proofs(o.Proofs),
 			OrderBody:       body,
 			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
+			PriceMode:       priceMode,
 		}
-		if len(o.Eip712Signature) != 0 {
-			ethPubKey, err := NewEthereumPublicKeyFromBytes(o.SenderPublicKey)
-			if err != nil {
+		if sig, ok := o.Sender.(*g.Order_Eip712Signature); ok {
+			ethOrder := EthereumOrderV4{
+				Eip712Signature: c.ethSignature(sig.Eip712Signature),
+				OrderV4:         orderV4,
+			}
+			if err := ethOrder.GenerateSenderPK(scheme); err != nil {
 				c.err = err
 				return nil
 			}
-			order = &EthereumOrderV4{
-				Eip712Signature: c.ethSignature(o.Eip712Signature),
-				SenderPK:        ethPubKey,
-				OrderV4:         orderV4,
-			}
+			order = &ethOrder
 		} else {
-			orderV4.SenderPK = c.publicKey(o.SenderPublicKey)
 			order = &orderV4
 		}
 	default:
-		c.err = errors.Errorf("invalid order version %d", version)
+		c.err = errors.Errorf("invalid order version %d", uncheckedOrderVersion)
 		return nil
-	}
-	scheme := c.byte(o.ChainId)
-	if scheme == 0 {
-		scheme = c.FallbackChainID
 	}
 	if err := order.GenerateID(scheme); err != nil {
 		c.err = err

@@ -452,17 +452,14 @@ func TestOverlapping(t *testing.T) {
 
 func TestInvokeExpression(t *testing.T) {
 	/*
-		 {-# STDLIB_VERSION 6 #-}
+		{-# STDLIB_VERSION 6 #-}
 		{-# CONTENT_TYPE EXPRESSION #-}
 		{-# SCRIPT_TYPE CALL #-}
 
 		let lease = Lease(Address(base58'3FMdfKQ3yrkrGawp4QYkf8phE6ZMup7hfR2'), 10)
-		[
-		    lease,
-		     BooleanEntry("key", true)
-		]
+		[lease, BooleanEntry("key", true]
 	*/
-	s := "/wYEAAAABWxlYXNlCQAERAAAAAIJAQAAAAdBZGRyZXNzAAAAAQEAAAAaAUP2ZeK0oJWLGYVbOVovHApDYXsAHYcycskAAAAAAAAAAAoJAARMAAAAAgUAAAAFbGVhc2UJAARMAAAAAgkBAAAADEJvb2xlYW5FbnRyeQAAAAICAAAAA2tleQYFAAAAA25pbE0OINk="
+	s := "BgEEBWxlYXNlCQDECAIJAQdBZGRyZXNzAQEaAUP2ZeK0oJWLGYVbOVovHApDYXsAHYcycskACgkAzAgCBQVsZWFzZQkAzAgCCQEMQm9vbGVhbkVudHJ5AgIDa2V5BgUDbmlss7c8Wg=="
 	src, err := base64.StdEncoding.DecodeString(s)
 	require.NoError(t, err)
 
@@ -474,7 +471,7 @@ func TestInvokeExpression(t *testing.T) {
 	res, err := CallVerifier(env, tree)
 	require.NoError(t, err)
 	require.NotNil(t, res.ScriptActions())
-	r, ok := res.(ExpressionResult)
+	r, ok := res.(DAppResult)
 	require.True(t, ok)
 	assert.True(t, r.Result())
 }

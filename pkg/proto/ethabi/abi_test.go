@@ -24,8 +24,31 @@ func TestBuildSignatureFromRideFunctionMeta(t *testing.T) {
 		expectedSig Signature
 		metadata    meta.Function
 		payments    bool
+		success     bool
 	}{
-		{expectedSig: "meta()", metadata: meta.Function{Name: "meta"}, payments: false},
+		{
+			expectedSig: "meta()",
+			metadata: meta.Function{
+				Name: "meta",
+			},
+			payments: false,
+			success:  true,
+		},
+		{
+			expectedSig: "hardMeta(int64,string,bytes,bool,bool[])",
+			metadata: meta.Function{
+				Name: "hardMeta",
+				Arguments: []meta.Type{
+					meta.Int,
+					meta.String,
+					meta.Bytes,
+					meta.Boolean,
+					meta.ListType{Inner: meta.Boolean},
+				},
+			},
+			payments: false,
+			success:  true,
+		},
 		{
 			expectedSig: "hardMeta(int64,string,bytes,bool,bool[],(uint8,bool,string,bytes,int64)[])",
 			metadata: meta.Function{
@@ -40,18 +63,30 @@ func TestBuildSignatureFromRideFunctionMeta(t *testing.T) {
 				},
 			},
 			payments: false,
+			success:  false,
+		},
+		{
+			expectedSig: "metaPayments(bool,bytes)",
+			metadata:    meta.Function{Name: "metaPayments", Arguments: []meta.Type{meta.Boolean, meta.Bytes}},
+			payments:    false,
+			success:     true,
 		},
 		{
 			expectedSig: "metaPayments(bool,bytes,(bytes32,int64)[])",
 			metadata:    meta.Function{Name: "metaPayments", Arguments: []meta.Type{meta.Boolean, meta.Bytes}},
 			payments:    true,
+			success:     true,
 		},
 	}
 
 	for _, test := range testdata {
 		actualSig, err := NewSignatureFromRideFunctionMeta(test.metadata, test.payments)
-		require.NoError(t, err)
-		require.Equal(t, test.expectedSig, actualSig)
+		if test.success {
+			require.NoError(t, err)
+			require.Equal(t, test.expectedSig, actualSig)
+		} else {
+			require.Error(t, err)
+		}
 	}
 }
 
@@ -59,11 +94,28 @@ func TestAbiTypeFromRideMetaType(t *testing.T) {
 	testdata := []struct {
 		expected Type
 		metaType meta.Type
+		success  bool
 	}{
-		{expected: Type{T: IntType, Size: 64, stringKind: "int64"}, metaType: meta.Int},
-		{expected: Type{T: BoolType, stringKind: "bool"}, metaType: meta.Boolean},
-		{expected: Type{T: StringType, stringKind: "string"}, metaType: meta.String},
-		{expected: Type{T: BytesType, stringKind: "bytes"}, metaType: meta.Bytes},
+		{
+			expected: Type{T: IntType, Size: 64, stringKind: "int64"},
+			metaType: meta.Int,
+			success:  true,
+		},
+		{
+			expected: Type{T: BoolType, stringKind: "bool"},
+			metaType: meta.Boolean,
+			success:  true,
+		},
+		{
+			expected: Type{T: StringType, stringKind: "string"},
+			metaType: meta.String,
+			success:  true,
+		},
+		{
+			expected: Type{T: BytesType, stringKind: "bytes"},
+			metaType: meta.Bytes,
+			success:  true,
+		},
 		{
 			expected: Type{
 				Elem: &Type{
@@ -74,30 +126,28 @@ func TestAbiTypeFromRideMetaType(t *testing.T) {
 				T:          SliceType,
 				stringKind: "int64[]",
 			},
-			metaType: meta.ListType{Inner: meta.Int}},
+			metaType: meta.ListType{Inner: meta.Int},
+			success:  true,
+		},
 		{
-			expected: Type{
-				Elem: &Type{
-					T:          TupleType,
-					stringKind: "(uint8,bool,string,bytes,int64)",
-					TupleFields: Arguments{
-						{Name: "union_index", Type: Type{T: UintType, Size: 8, stringKind: "uint8"}},
-						{Name: "", Type: Type{T: BoolType, stringKind: "bool"}},
-						{Name: "", Type: Type{T: StringType, stringKind: "string"}},
-						{Name: "", Type: Type{T: BytesType, stringKind: "bytes"}},
-						{Name: "", Type: Type{T: IntType, Size: 64, stringKind: "int64"}},
-					},
-				},
-				T:          SliceType,
-				stringKind: "(uint8,bool,string,bytes,int64)[]",
-			},
+			expected: Type{},
+			metaType: meta.UnionType{meta.Int, meta.String},
+			success:  false,
+		},
+		{
+			expected: Type{},
 			metaType: meta.ListType{Inner: meta.UnionType{meta.Boolean, meta.String, meta.Bytes, meta.Int}},
+			success:  false,
 		},
 	}
 	for _, test := range testdata {
 		actual, err := AbiTypeFromRideTypeMeta(test.metaType)
-		require.NoError(t, err)
-		require.Equal(t, test.expected, actual)
+		if test.success {
+			require.NoError(t, err)
+			require.Equal(t, test.expected, actual)
+		} else {
+			require.Error(t, err)
+		}
 	}
 }
 
@@ -105,8 +155,14 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 	dAppMeta := meta.DApp{
 		Version: 1,
 		Functions: []meta.Function{
-			{Name: "func1", Arguments: []meta.Type{meta.Int, meta.Boolean}},
-			{Name: "boba8", Arguments: []meta.Type{meta.String, meta.Bytes, meta.ListType{Inner: meta.String}}},
+			{
+				Name:      "func1",
+				Arguments: []meta.Type{meta.Int, meta.Boolean},
+			},
+			{
+				Name:      "boba8",
+				Arguments: []meta.Type{meta.String, meta.Bytes, meta.ListType{Inner: meta.String}},
+			},
 			{
 				Name: "allKind",
 				Arguments: []meta.Type{
@@ -115,8 +171,20 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 					meta.Bytes,
 					meta.Boolean,
 					meta.ListType{Inner: meta.Int},
-					meta.UnionType{meta.String, meta.Boolean, meta.Int, meta.Bytes},
-				}},
+				},
+			},
+			{
+				Name:      "withUnion",
+				Arguments: []meta.Type{meta.String, meta.UnionType{meta.Int, meta.String}},
+			},
+			{
+				Name:      "withListUnion",
+				Arguments: []meta.Type{meta.String, meta.ListType{Inner: meta.UnionType{meta.Int, meta.String}}},
+			},
+			{
+				Name:      "afterUnions",
+				Arguments: []meta.Type{},
+			},
 		},
 	}
 	expectedFuncs := []Method{
@@ -147,7 +215,7 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 		},
 		{
 			RawName: "allKind",
-			Sig:     "allKind(string,int64,bytes,bool,int64[],(uint8,string,bool,int64,bytes))",
+			Sig:     "allKind(string,int64,bytes,bool,int64[])",
 			Inputs: Arguments{
 				{Name: "", Type: Type{T: StringType, stringKind: "string"}},
 				{Name: "", Type: Type{Size: 64, T: IntType, stringKind: "int64"}},
@@ -160,21 +228,13 @@ func TestNewDBFromRideDAppMeta(t *testing.T) {
 						stringKind: "int64[]",
 						Elem:       &Type{Size: 64, T: IntType, stringKind: "int64"}},
 				},
-				{
-					Name: "",
-					Type: Type{
-						T:          TupleType,
-						stringKind: "(uint8,string,bool,int64,bytes)",
-						TupleFields: Arguments{
-							{Name: "union_index", Type: Type{T: UintType, Size: 8, stringKind: "uint8"}},
-							{Name: "", Type: Type{T: StringType, stringKind: "string"}},
-							{Name: "", Type: Type{T: BoolType, stringKind: "bool"}},
-							{Name: "", Type: Type{T: IntType, Size: 64, stringKind: "int64"}},
-							{Name: "", Type: Type{T: BytesType, stringKind: "bytes"}},
-						},
-					},
-				},
 			},
+			Payments: nil,
+		},
+		{
+			RawName:  "afterUnions",
+			Sig:      "afterUnions()",
+			Inputs:   Arguments{},
 			Payments: nil,
 		},
 	}
