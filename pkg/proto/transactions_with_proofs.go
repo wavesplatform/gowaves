@@ -328,7 +328,7 @@ func (tx *IssueWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error
 		return errors.Wrap(err, "failed to sign IssueWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -604,7 +604,7 @@ func (tx *TransferWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) er
 		return errors.Wrap(err, "failed to sign TransferWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -903,7 +903,7 @@ func (tx *ReissueWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) err
 		return errors.Wrap(err, "failed to sign ReissueWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -1151,7 +1151,7 @@ func (tx *BurnWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error 
 		return errors.Wrap(err, "failed to sign BurnWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -1285,9 +1285,10 @@ func (tx *ExchangeWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *ExchangeWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
-	orders := make([]*g.Order, 2)
-	orders[0] = tx.Order1.ToProtobufSigned(scheme)
-	orders[1] = tx.Order2.ToProtobufSigned(scheme)
+	orders := []*g.Order{
+		tx.Order1.ToProtobufSigned(scheme),
+		tx.Order2.ToProtobufSigned(scheme),
+	}
 	txData := &g.Transaction_Exchange{Exchange: &g.ExchangeTransactionData{
 		Amount:         int64(tx.Amount),
 		Price:          int64(tx.Price),
@@ -1702,7 +1703,7 @@ func (tx *ExchangeWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) er
 		return errors.Wrap(err, "failed to sign ExchangeWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -1819,12 +1820,14 @@ func (tx *ExchangeWithProofs) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	// TODO: check that Order1.GetProofs() != nil
+	// TODO: support EthereumOrderV4: generate senderPK from Eip712Signature
 	orderUnmarshalHelper.Order1, err = guessOrderVersionAndType(orderVersions.Order1Recognizer)
 	if err != nil {
 		return errors.Wrap(err, "failed to guess order1 version and type from JSON")
 	}
 
 	// TODO: check that Order1.GetProofs() != nil
+	// TODO: support EthereumOrderV4: generate senderPK from Eip712Signature
 	orderUnmarshalHelper.Order2, err = guessOrderVersionAndType(orderVersions.Order2Recognizer)
 	if err != nil {
 		return errors.Wrap(err, "failed to guess order2 version and type from JSON")
@@ -2029,7 +2032,7 @@ func (tx *LeaseWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error
 		return errors.Wrap(err, "failed to sign LeaseWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -2275,7 +2278,7 @@ func (tx *LeaseCancelWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey)
 		return errors.Wrap(err, "failed to sign LeaseCancelWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -2523,7 +2526,7 @@ func (tx *CreateAliasWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey)
 		return errors.Wrap(err, "failed to sign CreateAliasWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -2889,7 +2892,7 @@ func (tx *MassTransferWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey
 		return errors.Wrap(err, "failed to sign MassTransferWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -3299,7 +3302,7 @@ func (tx *DataWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) error 
 		return errors.Wrap(err, "failed to sign DataWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -3610,7 +3613,7 @@ func (tx *SetScriptWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey) e
 		return errors.Wrap(err, "failed to sign SetScriptWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -3886,7 +3889,7 @@ func (tx *SponsorshipWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey)
 		return errors.Wrap(err, "failed to sign SponsorshipWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -4199,7 +4202,7 @@ func (tx *SetAssetScriptWithProofs) Sign(scheme Scheme, secretKey crypto.SecretK
 		return errors.Wrap(err, "failed to sign SetAssetScriptWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -4594,7 +4597,7 @@ func (tx *InvokeScriptWithProofs) Sign(scheme Scheme, secretKey crypto.SecretKey
 		return errors.Wrap(err, "failed to sign InvokeScriptWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {
@@ -4851,7 +4854,7 @@ func (tx *UpdateAssetInfoWithProofs) Sign(scheme Scheme, secretKey crypto.Secret
 		return errors.Wrap(err, "failed to sign UpdateAssetInfoWithProofs transaction")
 	}
 	if tx.Proofs == nil {
-		tx.Proofs = &ProofsV1{proofsVersion, make([]B58Bytes, 0)}
+		tx.Proofs = NewProofs()
 	}
 	err = tx.Proofs.Sign(0, secretKey, b)
 	if err != nil {

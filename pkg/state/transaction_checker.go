@@ -12,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -59,39 +60,48 @@ func newTransactionChecker(
 	return &transactionChecker{genesis, stor, settings}, nil
 }
 
-func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) error {
+type scriptFeaturesActivations struct {
+	rideForDAppsActivated, blockV5Activated, rideV5Activated, rideV6Activated bool
+}
+
+func (tc *transactionChecker) scriptActivation(libVersion int, hasBlockV2 bool) (scriptFeaturesActivations, error) {
 	rideForDAppsActivated, err := tc.stor.features.newestIsActivated(int16(settings.Ride4DApps))
 	if err != nil {
-		return errs.Extend(err, "transactionChecker scriptActivation isActivated")
+		return scriptFeaturesActivations{}, errs.Extend(err, "transactionChecker scriptActivation isActivated")
 	}
 	blockV5Activated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
-		return err
+		return scriptFeaturesActivations{}, err
 	}
 	rideV5Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
 	if err != nil {
-		return err
+		return scriptFeaturesActivations{}, err
 	}
 	rideV6Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV6))
 	if err != nil {
-		return err
+		return scriptFeaturesActivations{}, err
 	}
 	if libVersion == 3 && !rideForDAppsActivated {
-		return errors.New("Ride4DApps feature must be activated for scripts version 3")
+		return scriptFeaturesActivations{}, errors.New("Ride4DApps feature must be activated for scripts version 3")
 	}
 	if hasBlockV2 && !rideForDAppsActivated {
-		return errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
+		return scriptFeaturesActivations{}, errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
 	}
 	if libVersion == 4 && !blockV5Activated {
-		return errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
+		return scriptFeaturesActivations{}, errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
 	}
 	if libVersion == 5 && !rideV5Activated {
-		return errors.New("RideV5 feature must be activated for scripts version 5")
+		return scriptFeaturesActivations{}, errors.New("RideV5 feature must be activated for scripts version 5")
 	}
 	if libVersion == 6 && !rideV6Activated {
-		return errors.New("RideV6 feature must be activated for scripts version 6")
+		return scriptFeaturesActivations{}, errors.New("RideV6 feature must be activated for scripts version 6")
 	}
-	return nil
+	return scriptFeaturesActivations{
+		rideForDAppsActivated: rideForDAppsActivated,
+		blockV5Activated:      blockV5Activated,
+		rideV5Activated:       rideV5Activated,
+		rideV6Activated:       rideV6Activated,
+	}, nil
 }
 
 func (tc *transactionChecker) checkScriptComplexity(libVersion int, estimation ride.TreeEstimation, isDapp, reducedVerifierComplexity bool) error {
@@ -142,6 +152,27 @@ func (tc *transactionChecker) checkScriptComplexity(libVersion int, estimation r
 	return nil
 }
 
+func (tc *transactionChecker) checkDAppCallables(tree *ride.Tree, rideV6Activated bool) error {
+	if !rideV6Activated || tree.LibVersion < 6 {
+		return nil
+	}
+	for _, fn := range tree.Meta.Functions {
+		for _, arg := range fn.Arguments {
+			switch arg := arg.(type) {
+			case meta.ListType:
+				if u, ok := arg.Inner.(meta.UnionType); ok && len(u) > 1 {
+					return errors.New("union type inside list type is not allowed in callable function arguments of script")
+				}
+			case meta.UnionType:
+				if len(arg) > 1 {
+					return errors.New("union type is not allowed in callable function arguments of script")
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion int, reducedVerifierComplexity, expandEstimations bool) (map[int]ride.TreeEstimation, error) {
 	tree, err := ride.Parse(script)
 	if err != nil {
@@ -151,11 +182,17 @@ func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion 
 	if tree.IsDApp() {
 		maxSize = maxContractScriptSize
 	}
-	if len(script) > maxSize {
-		return nil, errors.Errorf("script size %d is greater than limit of %d", len(script), maxSize)
+	if l := len(script); l > maxSize {
+		return nil, errors.Errorf("script size %d is greater than limit of %d", l, maxSize)
 	}
-	if err := tc.scriptActivation(tree.LibVersion, tree.HasBlockV2); err != nil {
+	activations, err := tc.scriptActivation(tree.LibVersion, tree.HasBlockV2)
+	if err != nil {
 		return nil, errs.Extend(err, "script activation check failed")
+	}
+	if tree.IsDApp() {
+		if err := tc.checkDAppCallables(tree, activations.rideV6Activated); err != nil {
+			return nil, errors.Wrap(err, "failed to check script callables")
+		}
 	}
 
 	estimations := make(map[int]ride.TreeEstimation)
@@ -756,6 +793,23 @@ func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAm
 	return nil
 }
 
+func checkOrderWithMetamaskFeature(o proto.Order, metamaskActivated bool) error {
+	if metamaskActivated {
+		return nil
+	}
+	if o.GetVersion() >= 4 {
+		if m := o.GetPriceMode(); m != proto.OrderPriceModeDefault {
+			return errors.Errorf("invalid order prce mode before metamask feature activation: got %q, want %q",
+				m.String(), proto.OrderPriceModeDefault.String(),
+			)
+		}
+	}
+	if _, ok := o.(*proto.EthereumOrderV4); ok {
+		return errors.New("ethereum order is not allowed before metamask feature activation")
+	}
+	return nil
+}
+
 func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
@@ -769,6 +823,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 			return nil, errors.New("sell order not allowed on first place in exchange transaction of versions prior 3")
 		}
 	}
+	// validate orders
 	so, err := tx.GetSellOrder()
 	if err != nil {
 		return nil, errs.Extend(err, "sell order")
@@ -783,22 +838,32 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err := tc.checkEnoughVolume(bo, tx.GetBuyMatcherFee(), tx.GetAmount(), info); err != nil {
 		return nil, errs.Extend(err, "exchange transaction; buy order")
 	}
+	o1 := tx.GetOrder1()
+	o2 := tx.GetOrder2()
+	metamaskActivated, err := tc.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return nil, err
+	}
+	if err := checkOrderWithMetamaskFeature(o1, metamaskActivated); err != nil {
+		return nil, errors.Wrap(err, "order1 metamask feature checks failed")
+	}
+	if err := checkOrderWithMetamaskFeature(o1, metamaskActivated); err != nil {
+		return nil, errors.Wrap(err, "order2 metamask feature checks failed")
+	}
+
 	// Check assets.
-	m := make(map[proto.OptionalAsset]struct{})
-	m[so.GetAssetPair().AmountAsset] = struct{}{}
-	m[so.GetAssetPair().PriceAsset] = struct{}{}
+	m := map[proto.OptionalAsset]struct{}{
+		so.GetAssetPair().AmountAsset: {},
+		so.GetAssetPair().PriceAsset:  {},
+	}
 	// Add matcher fee assets to map to checkAsset() them later.
-	if o2v3, ok := tx.GetOrder2().(*proto.OrderV3); ok {
-		m[o2v3.MatcherFeeAsset] = struct{}{}
+	switch o := o1.(type) {
+	case *proto.OrderV3, *proto.OrderV4, *proto.EthereumOrderV4:
+		m[o.GetMatcherFeeAsset()] = struct{}{}
 	}
-	if o1v3, ok := tx.GetOrder1().(*proto.OrderV3); ok {
-		m[o1v3.MatcherFeeAsset] = struct{}{}
-	}
-	if o2v4, ok := tx.GetOrder2().(*proto.OrderV4); ok {
-		m[o2v4.MatcherFeeAsset] = struct{}{}
-	}
-	if o2v4, ok := tx.GetOrder1().(*proto.OrderV4); ok {
-		m[o2v4.MatcherFeeAsset] = struct{}{}
+	switch o := o2.(type) {
+	case *proto.OrderV3, *proto.OrderV4, *proto.EthereumOrderV4:
+		m[o.GetMatcherFeeAsset()] = struct{}{}
 	}
 	for a := range m {
 		if err := tc.checkAsset(&a, info.initialisation); err != nil {

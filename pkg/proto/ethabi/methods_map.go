@@ -52,6 +52,9 @@ func newMethodsMapFromRideDAppMeta(dApp meta.DApp, parsePayments bool) (MethodsM
 	for _, fn := range dApp.Functions {
 		method, err := NewMethodFromRideFunctionMeta(fn, parsePayments)
 		if err != nil {
+			if errors.Is(err, UnsupportedType) {
+				continue // ignore ride callable with unsupported argument type
+			}
 			return MethodsMap{}, errors.Wrapf(err,
 				"failed to build ABI db from DApp metadata, verison %d", dApp.Version,
 			)
