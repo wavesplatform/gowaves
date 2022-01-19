@@ -3,7 +3,6 @@ package ride
 import (
 	"bytes"
 	sh256 "crypto/sha256"
-	"encoding/binary"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -13,9 +12,43 @@ import (
 	protobuf "google.golang.org/protobuf/proto"
 )
 
+type contentType byte
+
 const (
-	scriptApplicationVersion = 1
+	contentTypeExpression contentType = iota + 1
+	contentTypeApplication
 )
+
+func newContentType(b byte) (contentType, error) {
+	ct := contentType(b)
+	switch ct {
+	case contentTypeExpression, contentTypeApplication:
+		return ct, nil
+	default:
+		return 0, errors.Errorf("unsupported content type '%d'", b)
+	}
+}
+
+type libraryVersion byte
+
+const (
+	libV1 libraryVersion = iota + 1
+	libV2
+	libV3
+	libV4
+	libV5
+	libV6
+)
+
+func newLibraryVersion(b byte) (libraryVersion, error) {
+	lv := libraryVersion(b)
+	switch lv {
+	case libV1, libV2, libV3, libV4, libV5, libV6:
+		return lv, nil
+	default:
+		return 0, errors.Errorf("unsupported library version '%d'", b)
+	}
+}
 
 const (
 	tokenLong byte = iota
@@ -41,64 +74,48 @@ const (
 	declarationTypeFunction
 )
 
-func Parse(source []byte) (*Tree, error) {
-	p, err := newParser(source)
+func Parse(script []byte) (*Tree, error) {
+	ok, err := verifyCheckSum(script)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to parse script")
+	}
+	if !ok {
+		return nil, errors.New("invalid script checksum")
+	}
+	id := sh256.Sum256(script)
+	r := bytes.NewReader(script)
+	p, err := parseHeader(r, id)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse script header")
 	}
 	return p.parse()
 }
 
 type parser struct {
 	r           *bytes.Reader
-	seenBlockV2 bool
 	id          [32]byte
-}
-
-func newParser(source []byte) (*parser, error) {
-	id := sh256.Sum256(source)
-	size := len(source) - 4
-	if size <= 0 {
-		return nil, errors.Errorf("invalid source length %d", size)
-	}
-	src, cs := source[:size], source[size:]
-	digest, err := crypto.SecureHash(src)
-	if err != nil {
-		return nil, err
-	}
-	if !bytes.Equal(digest[:4], cs) {
-		return nil, errors.New("invalid source checksum")
-	}
-	return &parser{r: bytes.NewReader(src), id: id}, nil
+	header      scriptHeader
+	seenBlockV2 bool
+	readShort   func(*bytes.Reader) (int16, error)
+	readInt     func(*bytes.Reader) (int32, error)
+	readLong    func(*bytes.Reader) (int64, error)
 }
 
 func (p *parser) parse() (*Tree, error) {
-	vb, err := p.r.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-	switch v := int(vb); v {
-	case 0:
+	switch p.header.content {
+	case contentTypeExpression:
+		return p.parseExpression()
+	case contentTypeApplication:
 		return p.parseDApp()
-	case 1, 2, 3, 4, 5, 6:
-		return p.parseScript(v)
 	default:
-		return nil, errors.Errorf("unsupported script version %d", v)
+		return nil, errors.Errorf("unsupported content type '%d'", p.header.content)
 	}
 }
 
 func (p *parser) parseDApp() (*Tree, error) {
-	av, err := p.r.ReadByte()
-	if err != nil {
-		return nil, err
-	}
-	lv, err := p.r.ReadByte()
-	if err != nil {
-		return nil, err
-	}
 	tree := &Tree{
-		AppVersion: int(av),
-		LibVersion: int(lv),
+		contentType: p.header.content,
+		LibVersion:  int(p.header.library),
 	}
 	m, err := p.readMeta()
 	if err != nil {
@@ -106,7 +123,7 @@ func (p *parser) parseDApp() (*Tree, error) {
 	}
 	tree.Meta = m
 
-	n, err := p.readInt()
+	n, err := p.readInt(p.r)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +137,7 @@ func (p *parser) parseDApp() (*Tree, error) {
 	}
 	tree.Declarations = declarations
 
-	n, err = p.readInt()
+	n, err = p.readInt(p.r)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +164,7 @@ func (p *parser) parseDApp() (*Tree, error) {
 	}
 	tree.Functions = functions
 
-	n, err = p.readInt()
+	n, err = p.readInt(p.r)
 	if err != nil {
 		return nil, err
 	}
@@ -172,10 +189,10 @@ func (p *parser) parseDApp() (*Tree, error) {
 	return tree, nil
 }
 
-func (p *parser) parseScript(v int) (*Tree, error) {
+func (p *parser) parseExpression() (*Tree, error) {
 	tree := &Tree{
-		AppVersion: scriptApplicationVersion,
-		LibVersion: v,
+		contentType: p.header.content,
+		LibVersion:  int(p.header.library),
 	}
 	node, err := p.parseNext()
 	if err != nil {
@@ -194,7 +211,7 @@ func (p *parser) parseNext() (Node, error) {
 	}
 	switch t {
 	case tokenLong:
-		v, err := p.readLong()
+		v, err := p.readLong(p.r)
 		if err != nil {
 			return nil, err
 		}
@@ -277,7 +294,7 @@ func (p *parser) parseNext() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		argumentsCount, err := p.readInt()
+		argumentsCount, err := p.readInt(p.r)
 		if err != nil {
 			return nil, err
 		}
@@ -298,6 +315,9 @@ func (p *parser) parseNext() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		if ad, ok := declaration.(*AssignmentNode); ok {
+			ad.newBlock = true
+		}
 		block, err := p.parseNext()
 		if err != nil {
 			return nil, err
@@ -308,38 +328,10 @@ func (p *parser) parseNext() (Node, error) {
 	default:
 		return nil, errors.Errorf("unsupported token %x", t)
 	}
-
-}
-
-func (p *parser) readShort() (int16, error) {
-	buf := make([]byte, 2)
-	_, err := p.r.Read(buf)
-	if err != nil {
-		return 0, err
-	}
-	return int16(binary.BigEndian.Uint16(buf)), nil
-}
-
-func (p *parser) readInt() (int32, error) {
-	buf := make([]byte, 4)
-	_, err := p.r.Read(buf)
-	if err != nil {
-		return 0, err
-	}
-	return int32(binary.BigEndian.Uint32(buf)), nil
-}
-
-func (p *parser) readLong() (int64, error) {
-	buf := make([]byte, 8)
-	_, err := p.r.Read(buf)
-	if err != nil {
-		return 0, err
-	}
-	return int64(binary.BigEndian.Uint64(buf)), nil
 }
 
 func (p *parser) readBytes() ([]byte, error) {
-	n, err := p.readInt()
+	n, err := p.readInt(p.r)
 	if err != nil {
 		return nil, err
 	}
@@ -364,7 +356,7 @@ func (p *parser) readString() (string, error) {
 func (p *parser) readFunctionName(ft byte) (function, error) {
 	switch ft {
 	case functionTypeNative:
-		id, err := p.readShort()
+		id, err := p.readShort(p.r)
 		if err != nil {
 			return nil, err
 		}
@@ -401,7 +393,7 @@ func (p *parser) readDeclaration() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		argumentsCount, err := p.readInt()
+		argumentsCount, err := p.readInt(p.r)
 		if err != nil {
 			return nil, err
 		}
@@ -425,7 +417,7 @@ func (p *parser) readDeclaration() (Node, error) {
 }
 
 func (p *parser) readMeta() (meta.DApp, error) {
-	v, err := p.readInt()
+	v, err := p.readInt(p.r)
 	if err != nil {
 		return meta.DApp{}, err
 	}
@@ -449,6 +441,73 @@ func (p *parser) readMeta() (meta.DApp, error) {
 	}
 }
 
-func IsDApp(data []byte) bool {
-	return len(data) > 0 && data[0] == 0
+type scriptHeader struct {
+	content contentType
+	library libraryVersion
+}
+
+/*
+	Serialization mode V1 (LIBRARY_VERSION <= 5):
+	00 CONTENT_TYPE LIBRARY_VERSION <DAPP|EXPRESSION> - DApp, Expression
+	LIBRARY_VERSION <EXPRESSION> - Expression
+
+	Serialization mode V2 (since LIBRARY_VERSION >= 6):
+	LIBRARY_VERSION CONTENT_TYPE <DAPP|EXPRESSION> - DApp, Expression
+*/
+func parseHeader(r *bytes.Reader, id [32]byte) (*parser, error) {
+	b, err := r.ReadByte()
+	if err != nil {
+		return nil, err
+	}
+	if b < byte(libV6) {
+		switch b {
+		case 0:
+			b, err = r.ReadByte()
+			if err != nil {
+				return nil, err
+			}
+			ct, err := newContentType(b)
+			if err != nil {
+				return nil, err
+			}
+			b, err = r.ReadByte()
+			if err != nil {
+				return nil, err
+			}
+			lv, err := newLibraryVersion(b)
+			if err != nil {
+				return nil, err
+			}
+			return newParserV1(r, id, scriptHeader{content: ct, library: lv}), nil
+		default:
+			lv := libraryVersion(b)
+			return newParserV1(r, id, scriptHeader{content: contentTypeExpression, library: lv}), nil
+		}
+	}
+	lv, err := newLibraryVersion(b)
+	if err != nil {
+		return nil, err
+	}
+	b, err = r.ReadByte()
+	if err != nil {
+		return nil, err
+	}
+	ct, err := newContentType(b)
+	if err != nil {
+		return nil, err
+	}
+	return newParserV2(r, id, scriptHeader{content: ct, library: lv}), nil
+}
+
+func verifyCheckSum(scr []byte) (bool, error) {
+	size := len(scr) - 4
+	if size <= 0 {
+		return false, errors.Errorf("invalid source length %d", size)
+	}
+	body, cs := scr[:size], scr[size:]
+	digest, err := crypto.SecureHash(body)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to verify check sum")
+	}
+	return bytes.Equal(digest[:4], cs), nil
 }

@@ -10,7 +10,7 @@ type Type interface {
 	metaTypeMarker()
 }
 
-// SimpleType is one of a four basic types of Meta.
+// SimpleType is one of four basic types of Meta.
 type SimpleType byte
 
 func (SimpleType) metaTypeMarker() {}
@@ -41,7 +41,7 @@ type ListType struct {
 
 func (ListType) metaTypeMarker() {}
 
-// Function is a function signature descriptor. Functions has Name and list of argument's types.
+// Function is a function signature descriptor. Function has a Name and list of argument's types.
 type Function struct {
 	Name      string
 	Arguments []Type
@@ -54,7 +54,14 @@ type DApp struct {
 	Abbreviations Abbreviations
 }
 
+type pair struct {
+	compact  string
+	original string
+}
+
 type Abbreviations struct {
+	pairs            []pair
+	names            []string
 	compact2original map[string]string
 }
 
@@ -67,12 +74,12 @@ func (a *Abbreviations) CompactToOriginal(compact string) (string, error) {
 
 func Convert(meta *g.DAppMeta) (DApp, error) {
 	v := int(meta.GetVersion())
-	abbreviations := convertAbbreviations(meta.GetCompactNameAndOriginalNamePairList())
+	abbreviations := convertAbbreviations(meta.GetCompactNameAndOriginalNamePairList(), meta.GetOriginalNames())
 	switch v {
 	case 0:
 		return DApp{}, nil
 	case 1:
-		functions, err := convertFunctions(v, meta.GetFuncs())
+		functions, err := convertFunctions(convertTypesV1, meta.GetFuncs())
 		if err != nil {
 			return DApp{}, err
 		}
@@ -83,7 +90,7 @@ func Convert(meta *g.DAppMeta) (DApp, error) {
 		}
 		return m, nil
 	case 2:
-		functions, err := convertFunctions(v, meta.GetFuncs())
+		functions, err := convertFunctions(convertTypesV2, meta.GetFuncs())
 		if err != nil {
 			return DApp{}, err
 		}
@@ -98,24 +105,98 @@ func Convert(meta *g.DAppMeta) (DApp, error) {
 	}
 }
 
-func convertAbbreviations(pairs []*g.DAppMeta_CompactNameAndOriginalNamePair) Abbreviations {
-	r := Abbreviations{compact2original: make(map[string]string)}
-	for _, p := range pairs {
+func buildAbbreviations(abbreviations Abbreviations) ([]*g.DAppMeta_CompactNameAndOriginalNamePair, []string) {
+	r := make([]*g.DAppMeta_CompactNameAndOriginalNamePair, len(abbreviations.compact2original))
+	for i, p := range abbreviations.pairs {
+		r[i] = &g.DAppMeta_CompactNameAndOriginalNamePair{
+			CompactName:  p.compact,
+			OriginalName: p.original,
+		}
+	}
+	return r, abbreviations.names
+}
+
+func buildFunctions(typeBuilder func([]Type) ([]byte, error), functions []Function) ([]*g.DAppMeta_CallableFuncSignature, error) {
+	r := make([]*g.DAppMeta_CallableFuncSignature, len(functions))
+	for i, f := range functions {
+		ts, err := typeBuilder(f.Arguments)
+		if err != nil {
+			return nil, err
+		}
+		r[i] = &g.DAppMeta_CallableFuncSignature{
+			Types: ts,
+		}
+	}
+	return r, nil
+}
+
+func typeBuilderV1(types []Type) ([]byte, error) {
+	r := make([]byte, 0, len(types))
+	for _, t := range types {
+		if _, ok := t.(ListType); ok {
+			return nil, errors.New("unsupported type 'ListType'")
+		}
+		b, err := encodeType(t)
+		if err != nil {
+			return nil, err
+		}
+		r = append(r, b)
+	}
+	return r, nil
+}
+
+func typeBuilderV2(types []Type) ([]byte, error) {
+	r := make([]byte, 0, len(types))
+	for _, t := range types {
+		b, err := encodeType(t)
+		if err != nil {
+			return nil, err
+		}
+		r = append(r, b)
+	}
+	return r, nil
+}
+
+func Build(m DApp) (*g.DAppMeta, error) {
+	switch m.Version {
+	case 0:
+		return new(g.DAppMeta), nil
+	case 1:
+		r := new(g.DAppMeta)
+		r.Version = int32(m.Version)
+		fns, err := buildFunctions(typeBuilderV1, m.Functions)
+		if err != nil {
+			return nil, err
+		}
+		r.Funcs = fns
+		r.CompactNameAndOriginalNamePairList, r.OriginalNames = buildAbbreviations(m.Abbreviations)
+		return r, nil
+	case 2:
+		r := new(g.DAppMeta)
+		r.Version = int32(m.Version)
+		fns, err := buildFunctions(typeBuilderV2, m.Functions)
+		if err != nil {
+			return nil, err
+		}
+		r.Funcs = fns
+		r.CompactNameAndOriginalNamePairList, r.OriginalNames = buildAbbreviations(m.Abbreviations)
+		return r, nil
+	default:
+		return nil, errors.Errorf("unsupported meta version %d", m.Version)
+	}
+}
+
+func convertAbbreviations(pairs []*g.DAppMeta_CompactNameAndOriginalNamePair, names []string) Abbreviations {
+	l := len(pairs)
+	r := Abbreviations{pairs: make([]pair, l), names: names, compact2original: make(map[string]string, l)}
+	for i, p := range pairs {
 		r.compact2original[p.CompactName] = p.OriginalName
+		r.pairs[i] = pair{compact: p.CompactName, original: p.OriginalName}
 	}
 	return r
 }
 
-func convertFunctions(version int, functions []*g.DAppMeta_CallableFuncSignature) ([]Function, error) {
-	var typeConverter func([]byte) ([]Type, error)
-	switch version {
-	case 1:
-		typeConverter = convertTypesV1
-	case 2:
-		typeConverter = convertTypesV2
-	default:
-		return nil, errors.Errorf("unsupported version of meta %d", version)
-	}
+func convertFunctions(typeConverter func([]byte) ([]Type, error), functions []*g.DAppMeta_CallableFuncSignature) ([]Function, error) {
 	r := make([]Function, len(functions))
 	for i, f := range functions {
 		types, err := typeConverter(f.GetTypes())
@@ -142,6 +223,27 @@ func parseUnion(t byte) Type {
 		return r[0]
 	}
 	return UnionType(r)
+}
+
+func encodeType(t Type) (byte, error) {
+	switch tt := t.(type) {
+	case SimpleType:
+		return byte(tt), nil
+	case UnionType:
+		r := byte(0)
+		for _, st := range tt {
+			r |= byte(st)
+		}
+		return r, nil
+	case ListType:
+		inner, err := encodeType(tt.Inner)
+		if err != nil {
+			return 0, err
+		}
+		return byte(list) | inner, nil
+	default:
+		return 0, errors.Errorf("")
+	}
 }
 
 func convertTypesV1(types []byte) ([]Type, error) {
