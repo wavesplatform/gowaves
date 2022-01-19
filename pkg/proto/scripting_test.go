@@ -6,10 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	pb "google.golang.org/protobuf/proto"
 )

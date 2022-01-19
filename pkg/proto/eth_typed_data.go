@@ -68,7 +68,7 @@ func (typedData *ethereumTypedData) RawData() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	rawData := fmt.Sprintf("\x19\x01%s%s", string(domainSeparator.Bytes()), string(typedDataHash.Bytes()))
+	rawData := fmt.Sprintf("\x19\x01%s%s", string(domainSeparator[:]), string(typedDataHash[:]))
 	return []byte(rawData), nil
 }
 

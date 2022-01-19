@@ -756,6 +756,23 @@ func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAm
 	return nil
 }
 
+func checkOrderWithMetamaskFeature(o proto.Order, metamaskActivated bool) error {
+	if metamaskActivated {
+		return nil
+	}
+	if o.GetVersion() >= 4 {
+		if m := o.GetPriceMode(); m != proto.OrderPriceModeDefault {
+			return errors.Errorf("invalid order prce mode before metamask feature activation: got %q, want %q",
+				m.String(), proto.OrderPriceModeDefault.String(),
+			)
+		}
+	}
+	if _, ok := o.(*proto.EthereumOrderV4); ok {
+		return errors.New("ethereum order is not allowed before metamask feature activation")
+	}
+	return nil
+}
+
 func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
@@ -769,6 +786,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 			return nil, errors.New("sell order not allowed on first place in exchange transaction of versions prior 3")
 		}
 	}
+	// validate orders
 	so, err := tx.GetSellOrder()
 	if err != nil {
 		return nil, errs.Extend(err, "sell order")
@@ -783,22 +801,32 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err := tc.checkEnoughVolume(bo, tx.GetBuyMatcherFee(), tx.GetAmount(), info); err != nil {
 		return nil, errs.Extend(err, "exchange transaction; buy order")
 	}
+	o1 := tx.GetOrder1()
+	o2 := tx.GetOrder2()
+	metamaskActivated, err := tc.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return nil, err
+	}
+	if err := checkOrderWithMetamaskFeature(o1, metamaskActivated); err != nil {
+		return nil, errors.Wrap(err, "order1 metamask feature checks failed")
+	}
+	if err := checkOrderWithMetamaskFeature(o1, metamaskActivated); err != nil {
+		return nil, errors.Wrap(err, "order2 metamask feature checks failed")
+	}
+
 	// Check assets.
-	m := make(map[proto.OptionalAsset]struct{})
-	m[so.GetAssetPair().AmountAsset] = struct{}{}
-	m[so.GetAssetPair().PriceAsset] = struct{}{}
+	m := map[proto.OptionalAsset]struct{}{
+		so.GetAssetPair().AmountAsset: {},
+		so.GetAssetPair().PriceAsset:  {},
+	}
 	// Add matcher fee assets to map to checkAsset() them later.
-	if o2v3, ok := tx.GetOrder2().(*proto.OrderV3); ok {
-		m[o2v3.MatcherFeeAsset] = struct{}{}
+	switch o := o1.(type) {
+	case *proto.OrderV3, *proto.OrderV4, *proto.EthereumOrderV4:
+		m[o.GetMatcherFeeAsset()] = struct{}{}
 	}
-	if o1v3, ok := tx.GetOrder1().(*proto.OrderV3); ok {
-		m[o1v3.MatcherFeeAsset] = struct{}{}
-	}
-	if o2v4, ok := tx.GetOrder2().(*proto.OrderV4); ok {
-		m[o2v4.MatcherFeeAsset] = struct{}{}
-	}
-	if o2v4, ok := tx.GetOrder1().(*proto.OrderV4); ok {
-		m[o2v4.MatcherFeeAsset] = struct{}{}
+	switch o := o2.(type) {
+	case *proto.OrderV3, *proto.OrderV4, *proto.EthereumOrderV4:
+		m[o.GetMatcherFeeAsset()] = struct{}{}
 	}
 	for a := range m {
 		if err := tc.checkAsset(&a, info.initialisation); err != nil {
