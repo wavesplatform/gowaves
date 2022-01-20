@@ -9,10 +9,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/pkg/errors"
-
 	"github.com/go-chi/chi"
 	"github.com/mr-tron/base58"
+	"github.com/pkg/errors"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/node"
@@ -479,7 +478,7 @@ func (a *NodeApi) EthereumDAppABI(w http.ResponseWriter, r *http.Request) error 
 	}
 	methods, err := a.app.EthereumDAppMethods(addr)
 	if err != nil {
-		if state.IsNotFound(err) {
+		if errors.Is(err, notFound) {
 			return nil // emtpy output if script is not found (according to the scala node)
 		}
 		return errors.Wrapf(err, "failed to get EthereumDAppMethods by address=%q", addr.String())
@@ -495,7 +494,7 @@ func tryParseJson(r io.Reader, out interface{}) error {
 	// TODO(nickeskov): check empty reader
 	err := json.NewDecoder(r).Decode(out)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to unmarshal %T as JSON into %T", r, out)
+		return errors.Wrapf(err, "failed to unmarshal %T as JSON into %T", r, out)
 	}
 	return nil
 }
@@ -503,7 +502,7 @@ func tryParseJson(r io.Reader, out interface{}) error {
 func trySendJson(w io.Writer, v interface{}) error {
 	err := json.NewEncoder(w).Encode(v)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to marshal %T to JSON and write it to %T", v, w)
+		return errors.Wrapf(err, "failed to marshal %T to JSON and write it to %T", v, w)
 	}
 	return nil
 }

@@ -11,6 +11,11 @@ import (
 	"go.uber.org/zap"
 )
 
+// internal node api errors
+var (
+	notFound = errors.New("not found")
+)
+
 type BadRequestError struct {
 	error
 }
