@@ -18,7 +18,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
-	github.com/jinzhu/copier v0.3.4
+	github.com/jinzhu/copier v0.3.5
 	github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391
 	github.com/kilic/bn254 v0.0.0-20201116081810-790649bc68fe
 	github.com/mr-tron/base58 v1.2.0
