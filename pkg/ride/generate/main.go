@@ -879,6 +879,7 @@ func functionsV6() map[string]string {
 	m["sqrt"] = "sqrt"
 	m["sqrtBigInt"] = "sqrtBigInt"
 	m["1063"] = "addressFromPublicKeyStrict"
+	m["1209"] = "makeStringV6"
 	m["1210"] = "makeString1C"
 	m["1211"] = "makeString2C"
 	m["1212"] = "splitString1C"
