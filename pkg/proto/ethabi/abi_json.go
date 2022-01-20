@@ -14,9 +14,13 @@ type argABI struct {
 }
 
 type abi struct {
-	Name   string   `json:"name"`
-	Type   string   `json:"type"`
-	Inputs []argABI `json:"inputs"`
+	Name            string   `json:"name"`
+	Type            string   `json:"type"`
+	Constant        bool     `json:"constant"`
+	Payable         bool     `json:"payable"`
+	StateMutability string   `json:"stateMutability"`
+	Inputs          []argABI `json:"inputs"`
+	Outputs         []argABI `json:"outputs"`
 }
 
 func getArgumentABI(argType *Type) (argABI, error) {
@@ -28,7 +32,9 @@ func getArgumentABI(argType *Type) (argABI, error) {
 	// this is the types that correspond with Ride
 	switch argType.T {
 	case TupleType:
+		// this case is used only for payments
 		a.Type = "tuple"
+		a.Components = make([]argABI, 0, len(argType.TupleFields))
 		for _, tupleElem := range argType.TupleFields {
 			internalElem, err := getArgumentABI(&tupleElem.Type)
 			if err != nil {
@@ -82,14 +88,14 @@ func getArgumentABI(argType *Type) (argABI, error) {
 	case StringType:
 		a.Type = "string"
 	default:
-		return a, errors.Errorf("abi: unknown type %s", a.Type)
+		return a, errors.Errorf("abi: unknown type %q", argType.T.String())
 	}
 
 	return a, nil
 }
 
-func getJsonAbi(metaDApp []Method) ([]byte, error) {
-	var abiResult []abi
+func MakeJsonABI(metaDApp []Method) ([]byte, error) {
+	abiResult := make([]abi, 0, len(metaDApp))
 
 	for _, method := range metaDApp {
 		arguments := make([]argABI, 0)
@@ -111,8 +117,16 @@ func getJsonAbi(metaDApp []Method) ([]byte, error) {
 			arguments = append(arguments, payment)
 		}
 
-		m := abi{Name: method.RawName, Type: "function", Inputs: arguments}
-		abiResult = append(abiResult, m)
+		methodABI := abi{
+			Name:            method.RawName,
+			Type:            "function",
+			Constant:        false,
+			Payable:         false,
+			StateMutability: "nonpayable",
+			Inputs:          arguments,
+			Outputs:         make([]argABI, 0),
+		}
+		abiResult = append(abiResult, methodABI)
 	}
 
 	return json.Marshal(abiResult)
