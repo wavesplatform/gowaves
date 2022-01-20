@@ -130,12 +130,7 @@ func TestJsonAbi(t *testing.T) {
 	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
 
-	erc20Meth := make([]Method, 0, len(erc20Methods))
-	for _, method := range erc20Methods {
-		erc20Meth = append(erc20Meth, method)
-	}
-
-	resJsonABI, err := MakeJsonABI(erc20Meth)
+	resJsonABI, err := NewErc20MethodsMap().MarshalJSON()
 	require.NoError(t, err)
 	var abiRes []abi
 	err = json.Unmarshal(resJsonABI, &abiRes)

@@ -94,37 +94,45 @@ func getArgumentABI(argType *Type) (argABI, error) {
 	return a, nil
 }
 
-func MakeJsonABI(metaDApp []Method) ([]byte, error) {
-	abiResult := make([]abi, 0, len(metaDApp))
-
-	for _, method := range metaDApp {
-		arguments := make([]argABI, 0)
-		for _, arg := range method.Inputs {
-			a, err := getArgumentABI(&arg.Type)
-			if err != nil {
-				return nil, errors.Errorf("failed to get json abi, %v", err)
-			}
-			a.Name = arg.Name
-
-			arguments = append(arguments, a)
+func makeJSONABIForMethod(method Method) (abi, error) {
+	arguments := make([]argABI, 0)
+	for _, arg := range method.Inputs {
+		a, err := getArgumentABI(&arg.Type)
+		if err != nil {
+			return abi{}, errors.Errorf("failed to get json abi, %v", err)
 		}
-		if method.Payments != nil {
-			payment, err := getArgumentABI(&method.Payments.Type)
-			if err != nil {
-				return nil, errors.Errorf("failed to parse payments to json abi, %v", err)
-			}
-			payment.Name = method.Payments.Name
-			arguments = append(arguments, payment)
-		}
+		a.Name = arg.Name
 
-		methodABI := abi{
-			Name:            method.RawName,
-			Type:            "function",
-			Constant:        false,
-			Payable:         false,
-			StateMutability: "nonpayable",
-			Inputs:          arguments,
-			Outputs:         make([]argABI, 0),
+		arguments = append(arguments, a)
+	}
+	if method.Payments != nil {
+		payment, err := getArgumentABI(&method.Payments.Type)
+		if err != nil {
+			return abi{}, errors.Errorf("failed to parse payments to json abi, %v", err)
+		}
+		payment.Name = method.Payments.Name
+		arguments = append(arguments, payment)
+	}
+
+	methodABI := abi{
+		Name:            method.RawName,
+		Type:            "function",
+		Constant:        false,
+		Payable:         false,
+		StateMutability: "nonpayable",
+		Inputs:          arguments,
+		Outputs:         make([]argABI, 0),
+	}
+	return methodABI, nil
+}
+
+func MakeJsonABI(methods []Method) ([]byte, error) {
+	abiResult := make([]abi, 0, len(methods))
+
+	for _, method := range methods {
+		methodABI, err := makeJSONABIForMethod(method)
+		if err != nil {
+			return nil, err
 		}
 		abiResult = append(abiResult, methodABI)
 	}
