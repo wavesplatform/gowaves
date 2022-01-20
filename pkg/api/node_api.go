@@ -458,6 +458,38 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+func wavesAddressInvalidCharErr(invalidChar rune, id string) *apiErrs.CustomValidationError {
+	return apiErrs.NewCustomValidationError(
+		fmt.Sprintf(
+			"requirement failed: Wrong char %q in Base58 string '%s'",
+			invalidChar,
+			id,
+		),
+	)
+}
+
+func (a *NodeApi) EthereumDAppABI(w http.ResponseWriter, r *http.Request) error {
+	s := chi.URLParam(r, "address")
+	addr, err := proto.NewAddressFromString(s)
+	if err != nil {
+		if invalidRune := findFirstInvalidRuneInBase58String(s); invalidRune != nil {
+			return wavesAddressInvalidCharErr(*invalidRune, s)
+		}
+		return apiErrs.InvalidAddress
+	}
+	methods, err := a.app.EthereumDAppMethods(addr)
+	if err != nil {
+		if state.IsNotFound(err) {
+			return nil // emtpy output if script is not found (according to the scala node)
+		}
+		return errors.Wrapf(err, "failed to get EthereumDAppMethods by address=%q", addr.String())
+	}
+	if err := trySendJson(w, methods); err != nil {
+		return errors.Wrap(err, "EthereumDAppABI")
+	}
+	return nil
+}
+
 // tryParseJson receives reader and out params. out MUST be a pointer
 func tryParseJson(r io.Reader, out interface{}) error {
 	// TODO(nickeskov): check empty reader
