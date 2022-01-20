@@ -285,14 +285,9 @@ func lastIndexOfSubstringWithOffset(_ *treeEvaluator, _ environment, args ...rid
 	return rideInt(i), nil
 }
 
-func mkString(list []rideType, sep string, listSizeLimit, resultLengthLimit int) (string, error) {
-	ll := len(list)
-	if ll > listSizeLimit {
-		return "", errors.Errorf("list size %d exceeds size limit %d", ll, listSizeLimit)
-	}
+func looseStringList(list []rideType) ([]string, int, error) {
 	parts := make([]string, len(list))
 	pl := 0
-	pc := 0
 	for i, item := range list {
 		var str string
 		switch ti := item.(type) {
@@ -301,14 +296,40 @@ func mkString(list []rideType, sep string, listSizeLimit, resultLengthLimit int)
 		case rideInt:
 			str = strconv.FormatInt(int64(ti), 10)
 		default:
-			return "", errors.Errorf("unexpected list item type '%s'", item.instanceOf())
+			return nil, 0, errors.Errorf("unexpected list item type '%s'", item.instanceOf())
 		}
 		parts[i] = str
 		pl += len(str)
-		pc++
+	}
+	return parts, pl, nil
+}
+
+func strictStringList(list []rideType) ([]string, int, error) {
+	parts := make([]string, len(list))
+	pl := 0
+	for i, item := range list {
+		rs, ok := item.(rideString)
+		if !ok {
+			return nil, 0, errors.Errorf("unexpected list item type '%s'", item.instanceOf())
+		}
+		str := string(rs)
+		parts[i] = str
+		pl += len(str)
+	}
+	return parts, pl, nil
+}
+
+func mkString(list []rideType, sep string, listSizeLimit, resultLengthLimit int, checkList func([]rideType) ([]string, int, error)) (string, error) {
+	ll := len(list)
+	if ll > listSizeLimit {
+		return "", errors.Errorf("list size %d exceeds size limit %d", ll, listSizeLimit)
+	}
+	parts, pl, err := checkList(list)
+	if err != nil {
+		return "", err
 	}
 	var expectedLength = 0
-	if pc > 1 {
+	if pc := len(parts); pc > 1 {
 		expectedLength = pl + (pc-1)*len(sep)
 	}
 	if expectedLength > resultLengthLimit {
@@ -322,9 +343,21 @@ func makeString(_ *treeEvaluator, _ environment, args ...rideType) (rideType, er
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}
-	r, err := mkString(list, string(sep), maxListSize, maxMessageLength)
+	r, err := mkString(list, string(sep), maxListSize, maxMessageLength, looseStringList)
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
+	}
+	return rideString(r), nil
+}
+
+func makeStringV6(_ *treeEvaluator, _ environment, args ...rideType) (rideType, error) {
+	list, sep, err := listAndStringArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "makeStringV6")
+	}
+	r, err := mkString(list, string(sep), maxListSize, maxMessageLength, strictStringList)
+	if err != nil {
+		return nil, errors.Wrap(err, "makeStringV6")
 	}
 	return rideString(r), nil
 }
@@ -334,7 +367,7 @@ func makeString1C(_ *treeEvaluator, _ environment, args ...rideType) (rideType, 
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}
-	r, err := mkString(list, string(sep), 70, 500)
+	r, err := mkString(list, string(sep), 70, 500, strictStringList)
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}
@@ -346,7 +379,7 @@ func makeString2C(_ *treeEvaluator, _ environment, args ...rideType) (rideType, 
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}
-	r, err := mkString(list, string(sep), 100, 6000)
+	r, err := mkString(list, string(sep), 100, 6000, strictStringList)
 	if err != nil {
 		return nil, errors.Wrap(err, "makeString")
 	}

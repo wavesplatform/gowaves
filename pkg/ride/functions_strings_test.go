@@ -534,7 +534,7 @@ func TestLastIndexOfSubstringWithOffset(t *testing.T) {
 	}
 }
 
-func TestMkString(t *testing.T) {
+func TestMkStringLoose(t *testing.T) {
 	for _, test := range []struct {
 		list      []rideType
 		sep       string
@@ -549,7 +549,33 @@ func TestMkString(t *testing.T) {
 		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 2, 5, true, ""},
 		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 3, 3, true, ""},
 	} {
-		r, err := mkString(test.list, test.sep, test.size, test.len)
+		r, err := mkString(test.list, test.sep, test.size, test.len, looseStringList)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+
+	}
+}
+
+func TestMkStringStrict(t *testing.T) {
+	for _, test := range []struct {
+		list      []rideType
+		sep       string
+		size, len int
+		fail      bool
+		r         string
+	}{
+		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 5, 5, false, "1,2,3"},
+		{[]rideType{rideString("1"), rideInt(2), rideString("3")}, ",", 5, 5, true, ""},
+		{[]rideType{rideString("1"), rideString("2"), rideBoolean(true)}, ",", 5, 5, true, ""},
+		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 3, 5, false, "1,2,3"},
+		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 2, 5, true, ""},
+		{[]rideType{rideString("1"), rideString("2"), rideString("3")}, ",", 3, 3, true, ""},
+	} {
+		r, err := mkString(test.list, test.sep, test.size, test.len, strictStringList)
 		if test.fail {
 			assert.Error(t, err)
 		} else {
