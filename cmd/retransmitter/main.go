@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime/pprof"
 	"strings"
 	"syscall"
@@ -21,7 +22,8 @@ import (
 )
 
 func cpuProfile(filename string) func() {
-	f, err := os.Create(filename)
+	cleanFilename := filepath.Clean(filename)
+	f, err := os.Create(cleanFilename)
 	if err != nil {
 		zap.S().Fatal(err)
 	}
@@ -32,7 +34,8 @@ func cpuProfile(filename string) func() {
 }
 
 func memProfile(filename string) {
-	f, err := os.Create(filename)
+	cleanFilename := filepath.Clean(filename)
+	f, err := os.Create(cleanFilename)
 	if err != nil {
 		zap.S().Fatal(err)
 	}
