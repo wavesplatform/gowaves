@@ -3156,7 +3156,8 @@ func (tx *DataWithProofs) Validate(_ Scheme) (Transaction, error) {
 		if !isPBTx && e.GetValueType() == DataDelete {
 			return tx, errors.New("delete supported only for protobuf transaction")
 		}
-		if err := e.Valid(tx.Version); err != nil {
+		isUTF16KeyLen := tx.Version == 1
+		if err := e.Valid(isUTF16KeyLen); err != nil {
 			return tx, errs.Extend(err, "at least one of the DataWithProofs entry is not valid")
 		}
 		key := e.GetKey()

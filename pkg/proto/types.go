@@ -2126,7 +2126,7 @@ type DataEntry interface {
 
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
-	Valid(version byte) error
+	Valid(utf16KeyLen bool) error
 	BinarySize() int
 	PayloadSize() int
 
@@ -2193,16 +2193,15 @@ func (e IntegerDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e IntegerDataEntry) Valid(version byte) error {
+func (e IntegerDataEntry) Valid(utf16KeyLen bool) error {
 	if len(e.Key) == 0 {
 		return errs.NewEmptyDataKey("empty entry key")
 	}
-	switch version {
-	case 1:
+	if utf16KeyLen {
 		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
-	default:
+	} else {
 		if len(e.Key) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
@@ -2325,16 +2324,15 @@ func (e BooleanDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e BooleanDataEntry) Valid(version byte) error {
+func (e BooleanDataEntry) Valid(utf16KeyLen bool) error {
 	if len(e.Key) == 0 {
 		return errs.NewEmptyDataKey("empty entry key")
 	}
-	switch version {
-	case 1:
+	if utf16KeyLen {
 		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large11")
 		}
-	default:
+	} else {
 		if len(e.Key) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large22")
 		}
@@ -2461,16 +2459,15 @@ func (e BinaryDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e BinaryDataEntry) Valid(version byte) error {
+func (e BinaryDataEntry) Valid(utf16KeyLen bool) error {
 	if len(e.Key) == 0 {
 		return errs.NewEmptyDataKey("empty entry key")
 	}
-	switch version {
-	case 1:
+	if utf16KeyLen {
 		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
-	default:
+	} else {
 		if len(e.Key) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
@@ -2600,16 +2597,15 @@ func (e StringDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e StringDataEntry) Valid(version byte) error {
+func (e StringDataEntry) Valid(utf16KeyLen bool) error {
 	if len(e.Key) == 0 {
 		return errs.NewEmptyDataKey("empty entry key")
 	}
-	switch version {
-	case 1:
+	if utf16KeyLen {
 		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
-	default:
+	} else {
 		if len(e.Key) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
@@ -2738,16 +2734,15 @@ func (e DeleteDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
 	}
 }
 
-func (e DeleteDataEntry) Valid(version byte) error {
+func (e DeleteDataEntry) Valid(utf16KeyLen bool) error {
 	if len(e.Key) == 0 {
 		return errs.NewEmptyDataKey("empty entry key")
 	}
-	switch version {
-	case 1:
+	if utf16KeyLen {
 		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
-	default:
+	} else {
 		if len(e.Key) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}

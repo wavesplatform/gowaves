@@ -1,8 +1,6 @@
 package ride
 
 import (
-	"unicode/utf16"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -605,17 +603,9 @@ func (ws *WrappedState) validateDataEntryAction(res *proto.DataEntryScriptAction
 	if ws.dataEntriesCount > proto.MaxDataEntryScriptActions {
 		return errors.Errorf("number of data entries produced by script is more than allowed %d", proto.MaxDataEntryScriptActions)
 	}
-	switch restrictions.KeySizeValidationVersion {
-	case 1:
-		if len(utf16.Encode([]rune(res.Entry.GetKey()))) > proto.MaxKeySize {
-			return errs.NewTooBigArray("key is too large")
-		}
-	default:
-		if len(res.Entry.GetKey()) > proto.MaxPBKeySize {
-			return errs.NewTooBigArray("key is too large")
-		}
+	if err := res.Entry.Valid(restrictions.IsUTF16KeyLen); err != nil {
+		return err
 	}
-
 	ws.dataEntriesSize += res.Entry.BinarySize()
 	if ws.dataEntriesSize > restrictions.MaxDataEntriesSize {
 		return errors.Errorf("total size of data entries produced by script is more than %d bytes", restrictions.MaxDataEntriesSize)
@@ -825,15 +815,12 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environme
 		return nil, err
 	}
 
-	disableSelfTransfers := libVersion >= 4 // it's OK, this flag depends on library version, not feature
-	var keySizeValidationVersion byte = 1
-	if env.blockV5Activated() { // if RideV4 is activated
-		keySizeValidationVersion = 2
-	}
+	disableSelfTransfers := libVersion >= 4  // it's OK, this flag depends on library version, not feature
+	isUTF16KeyLen := !env.blockV5Activated() // if RideV4 isn't activated
 	restrictions := proto.ActionsValidationRestrictions{
-		DisableSelfTransfers:     disableSelfTransfers,
-		KeySizeValidationVersion: keySizeValidationVersion,
-		MaxDataEntriesSize:       env.maxDataEntriesSize(),
+		DisableSelfTransfers: disableSelfTransfers,
+		IsUTF16KeyLen:        isUTF16KeyLen,
+		MaxDataEntriesSize:   env.maxDataEntriesSize(),
 	}
 
 	for _, action := range actions {
