@@ -3150,20 +3150,20 @@ func (tx *DataWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if len(tx.Entries) > maxEntries {
 		return tx, errs.NewTooBigArray(fmt.Sprintf("number of DataWithProofs entries is bigger than %d", maxEntries))
 	}
-	keys := make(map[string]struct{})
+	isPBTx := IsProtobufTx(tx)
+	keys := make(map[string]struct{}, len(tx.Entries))
 	for _, e := range tx.Entries {
-		if !IsProtobufTx(tx) && e.GetValueType() == DataDelete {
+		if !isPBTx && e.GetValueType() == DataDelete {
 			return tx, errors.New("delete supported only for protobuf transaction")
 		}
-		err := e.Valid(tx.Version)
-		if err != nil {
+		if err := e.Valid(tx.Version); err != nil {
 			return tx, errs.Extend(err, "at least one of the DataWithProofs entry is not valid")
 		}
-		_, ok := keys[e.GetKey()]
-		if ok {
-			return tx, errs.NewDuplicatedDataKeys(fmt.Sprintf("duplicate key %s", e.GetKey()))
+		key := e.GetKey()
+		if _, ok := keys[key]; ok {
+			return tx, errs.NewDuplicatedDataKeys(fmt.Sprintf("duplicate key %s", key))
 		}
-		keys[e.GetKey()] = struct{}{}
+		keys[key] = struct{}{}
 	}
 	if tx.Fee == 0 {
 		return tx, errors.New("fee should be positive")

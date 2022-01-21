@@ -48,7 +48,7 @@ const (
 	MaxOrderTTL                              = uint64((30 * 24 * time.Hour) / time.Millisecond)
 	MaxKeySize                               = 100
 	MaxPBKeySize                             = 400
-	maxValueSize                             = 32767
+	maxDataEntryValueSize                    = 32767
 	MaxDataEntryScriptActions                = 100
 	MaxDataEntriesScriptActionsSizeInBytesV1 = 5 * 1024
 	MaxDataEntriesScriptActionsSizeInBytesV2 = 15 * 1024
@@ -2128,6 +2128,7 @@ type DataEntry interface {
 	UnmarshalBinary([]byte) error
 	Valid(version byte) error
 	BinarySize() int
+	PayloadSize() int
 
 	ToProtobuf() *g.DataTransactionData_DataEntry
 }
@@ -2202,7 +2203,7 @@ func (e IntegerDataEntry) Valid(version byte) error {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > MaxPBKeySize {
+		if len(e.Key) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
@@ -2226,6 +2227,10 @@ func (e IntegerDataEntry) GetValueType() DataValueType {
 
 func (e IntegerDataEntry) BinarySize() int {
 	return 2 + len(e.Key) + 1 + 8
+}
+
+func (e IntegerDataEntry) PayloadSize() int {
+	return len(e.Key) + 8 // 8 == sizeof(int64)
 }
 
 //MarshalValue marshals the integer data entry value in its bytes representation.
@@ -2330,7 +2335,7 @@ func (e BooleanDataEntry) Valid(version byte) error {
 			return errs.NewTooBigArray("key is too large11")
 		}
 	default:
-		if len([]byte(e.Key)) > MaxPBKeySize {
+		if len(e.Key) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large22")
 		}
 	}
@@ -2354,6 +2359,10 @@ func (e BooleanDataEntry) GetValueType() DataValueType {
 
 func (e BooleanDataEntry) BinarySize() int {
 	return 2 + len(e.Key) + 1 + 1
+}
+
+func (e BooleanDataEntry) PayloadSize() int {
+	return len(e.Key) + 1 // 1 == sizeof(bool)
 }
 
 //MarshalValue writes a byte representation of the boolean data entry value.
@@ -2462,11 +2471,11 @@ func (e BinaryDataEntry) Valid(version byte) error {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > MaxPBKeySize {
+		if len(e.Key) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
-	if len(e.Value) > maxValueSize {
+	if len(e.Value) > maxDataEntryValueSize {
 		return errs.NewTooBigArray("value is too large")
 	}
 	return nil
@@ -2489,6 +2498,10 @@ func (e BinaryDataEntry) GetValueType() DataValueType {
 
 func (e BinaryDataEntry) BinarySize() int {
 	return 2 + len(e.Key) + 1 + 2 + len(e.Value)
+}
+
+func (e BinaryDataEntry) PayloadSize() int {
+	return len(e.Key) + len(e.Value)
 }
 
 //MarshalValue writes an entry value to its byte representation.
@@ -2597,11 +2610,11 @@ func (e StringDataEntry) Valid(version byte) error {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > MaxPBKeySize {
+		if len(e.Key) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
-	if len(e.Value) > maxValueSize {
+	if len(e.Value) > maxDataEntryValueSize {
 		return errs.NewTooBigArray("value is too large")
 	}
 	return nil
@@ -2624,6 +2637,10 @@ func (e StringDataEntry) GetValueType() DataValueType {
 
 func (e StringDataEntry) BinarySize() int {
 	return 2 + len(e.Key) + 1 + 2 + len(e.Value)
+}
+
+func (e StringDataEntry) PayloadSize() int {
+	return len(e.Key) + len(e.Value)
 }
 
 //MarshalValue converts the data entry value to its byte representation.
@@ -2731,7 +2748,7 @@ func (e DeleteDataEntry) Valid(version byte) error {
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(e.Key)) > MaxPBKeySize {
+		if len(e.Key) > MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
@@ -2755,6 +2772,10 @@ func (e DeleteDataEntry) GetValueType() DataValueType {
 
 func (e DeleteDataEntry) BinarySize() int {
 	return 2 + len(e.Key) + 1
+}
+
+func (e DeleteDataEntry) PayloadSize() int {
+	return 0 // this entry doesn't have any payload
 }
 
 //MarshalValue converts the data entry value to its byte representation.
@@ -2855,6 +2876,15 @@ func guessDataEntryType(dataEntryType DataEntryType) (DataEntry, error) {
 
 // DataEntries the slice of various entries of DataTransaction
 type DataEntries []DataEntry
+
+// PayloadSize returns summary payload size of all entries.
+func (e DataEntries) PayloadSize() int {
+	pl := 0
+	for i := range e {
+		pl += e[i].PayloadSize()
+	}
+	return pl
+}
 
 // UnmarshalJSON special method to unmarshal DataEntries from JSON with detection of real type of each entry.
 func (e *DataEntries) UnmarshalJSON(data []byte) error {

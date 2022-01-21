@@ -611,7 +611,7 @@ func (ws *WrappedState) validateDataEntryAction(res *proto.DataEntryScriptAction
 			return errs.NewTooBigArray("key is too large")
 		}
 	default:
-		if len([]byte(res.Entry.GetKey())) > proto.MaxPBKeySize {
+		if len(res.Entry.GetKey()) > proto.MaxPBKeySize {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}

@@ -467,7 +467,7 @@ func ValidateActions(actions []ScriptAction, restrictions ActionsValidationRestr
 					return errs.NewTooBigArray("key is too large")
 				}
 			default:
-				if len([]byte(ta.Entry.GetKey())) > MaxPBKeySize {
+				if len(ta.Entry.GetKey()) > MaxPBKeySize {
 					return errs.NewTooBigArray("key is too large")
 				}
 			}
