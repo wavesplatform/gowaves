@@ -1149,6 +1149,7 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environme
 			ws.diff.cancelLease(*searchLease, senderSearchAddress, recipientSearchAddress)
 
 		default:
+			return nil, errors.Errorf("unknown script action type %T", res)
 		}
 	}
 
