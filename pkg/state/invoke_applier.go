@@ -327,7 +327,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 	}
 	// Validate produced actions.
 	var keySizeValidationVersion byte = 1
-	if info.libVersion >= 4 {
+	if info.blockV5Activated { // if RideV4 is activated
 		keySizeValidationVersion = 2
 	}
 	maxDataEntriesSize := proto.MaxDataEntriesScriptActionsSizeInBytesV1

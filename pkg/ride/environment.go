@@ -825,9 +825,9 @@ func (ws *WrappedState) ApplyToState(actions []proto.ScriptAction, env environme
 		return nil, err
 	}
 
-	disableSelfTransfers := libVersion >= 4
+	disableSelfTransfers := libVersion >= 4 // it's OK, this flag depends on library version, not feature
 	var keySizeValidationVersion byte = 1
-	if libVersion >= 4 {
+	if env.blockV5Activated() { // if RideV4 is activated
 		keySizeValidationVersion = 2
 	}
 	restrictions := proto.ActionsValidationRestrictions{
@@ -1169,6 +1169,7 @@ type EvaluationEnvironment struct {
 	inv                   rideObject
 	ver                   int
 	validatePaymentsAfter uint64
+	isBlockV5Activated    bool
 	isRiveV6Activated     bool
 	mds                   int
 }
@@ -1188,7 +1189,13 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 	}, nil
 }
 
-func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.ScriptPayments, sender proto.WavesAddress, isRideV6Activated bool) (*EvaluationEnvironment, error) {
+func NewEnvironmentWithWrappedState(
+	env *EvaluationEnvironment,
+	payments proto.ScriptPayments,
+	sender proto.WavesAddress,
+	isBlockV5Activated bool,
+	isRideV6Activated bool,
+) (*EvaluationEnvironment, error) {
 	recipient := proto.NewRecipientFromAddress(proto.WavesAddress(env.th.(rideAddress)))
 
 	st := newWrappedState(env)
@@ -1243,12 +1250,17 @@ func NewEnvironmentWithWrappedState(env *EvaluationEnvironment, payments proto.S
 		inv:                   env.inv,
 		validatePaymentsAfter: env.validatePaymentsAfter,
 		mds:                   env.mds,
+		isBlockV5Activated:    isBlockV5Activated,
 		isRiveV6Activated:     isRideV6Activated,
 	}, nil
 }
 
 func (e *EvaluationEnvironment) rideV6Activated() bool {
 	return e.isRiveV6Activated
+}
+
+func (e *EvaluationEnvironment) blockV5Activated() bool {
+	return e.isBlockV5Activated
 }
 
 func (e *EvaluationEnvironment) ChooseTakeString(isRideV5 bool) {

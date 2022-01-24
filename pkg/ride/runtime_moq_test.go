@@ -22,6 +22,9 @@ var _ environment = &mockRideEnvironment{}
 // 			blockFunc: func() rideObject {
 // 				panic("mock out the block method")
 // 			},
+// 			blockV5ActivatedFunc: func() bool {
+// 				panic("mock out the blockV5Activated method")
+// 			},
 // 			checkMessageLengthFunc: func(n int) bool {
 // 				panic("mock out the checkMessageLength method")
 // 			},
@@ -83,6 +86,9 @@ type mockRideEnvironment struct {
 	// blockFunc mocks the block method.
 	blockFunc func() rideObject
 
+	// blockV5ActivatedFunc mocks the blockV5Activated method.
+	blockV5ActivatedFunc func() bool
+
 	// checkMessageLengthFunc mocks the checkMessageLength method.
 	checkMessageLengthFunc func(n int) bool
 
@@ -138,6 +144,9 @@ type mockRideEnvironment struct {
 	calls struct {
 		// block holds details about calls to the block method.
 		block []struct {
+		}
+		// blockV5Activated holds details about calls to the blockV5Activated method.
+		blockV5Activated []struct {
 		}
 		// checkMessageLength holds details about calls to the checkMessageLength method.
 		checkMessageLength []struct {
@@ -202,6 +211,7 @@ type mockRideEnvironment struct {
 		}
 	}
 	lockblock                            sync.RWMutex
+	lockblockV5Activated                 sync.RWMutex
 	lockcheckMessageLength               sync.RWMutex
 	lockheight                           sync.RWMutex
 	lockinternalPaymentsValidationHeight sync.RWMutex
@@ -244,6 +254,32 @@ func (mock *mockRideEnvironment) blockCalls() []struct {
 	mock.lockblock.RLock()
 	calls = mock.calls.block
 	mock.lockblock.RUnlock()
+	return calls
+}
+
+// blockV5Activated calls blockV5ActivatedFunc.
+func (mock *mockRideEnvironment) blockV5Activated() bool {
+	if mock.blockV5ActivatedFunc == nil {
+		panic("mockRideEnvironment.blockV5ActivatedFunc: method is nil but environment.blockV5Activated was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockblockV5Activated.Lock()
+	mock.calls.blockV5Activated = append(mock.calls.blockV5Activated, callInfo)
+	mock.lockblockV5Activated.Unlock()
+	return mock.blockV5ActivatedFunc()
+}
+
+// blockV5ActivatedCalls gets all the calls that were made to blockV5Activated.
+// Check the length with:
+//     len(mockedenvironment.blockV5ActivatedCalls())
+func (mock *mockRideEnvironment) blockV5ActivatedCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockblockV5Activated.RLock()
+	calls = mock.calls.blockV5Activated
+	mock.lockblockV5Activated.RUnlock()
 	return calls
 }
 
