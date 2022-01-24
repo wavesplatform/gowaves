@@ -490,9 +490,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1, err,
 				)
 			}
-			// In UTX balances are always validated.
-			needToValidateBalanceDiff = params.validatingUtx
-		case *proto.EthereumInvokeScriptTxKind:
+		case *proto.EthereumInvokeScriptTxKind, *proto.EthereumInvokeExpressionTxKind:
 			fallibleInfo := &fallibleValidationParams{
 				appendTxParams: params,
 				senderScripted: accountHasVerifierScript,
@@ -505,7 +503,10 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1, err,
 				)
 			}
+
 		}
+		// In UTX balances are always validated.
+		needToValidateBalanceDiff = params.validatingUtx
 	default:
 		applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 		if err != nil {
@@ -646,9 +647,6 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 	case *proto.InvokeExpressionTransactionWithProofs:
 		ID = *t.ID
 	case *proto.EthereumTransaction:
-		if _, ok := t.TxKind.(*proto.EthereumInvokeScriptTxKind); !ok {
-			return nil, errors.Errorf("unexpected ethereum tx kind '%T'", tx)
-		}
 		ID = *t.ID
 	}
 	res, err := a.ia.applyInvokeScript(tx, info)

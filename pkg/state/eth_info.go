@@ -11,6 +11,7 @@ const (
 	EthereumTransferWavesKind = iota + 1
 	EthereumTransferAssetsKind
 	EthereumInvokeKind
+	EthereumInvokeExpressionKind
 )
 
 type ethInfo struct {
@@ -22,9 +23,13 @@ func newEthInfo(stor *blockchainEntitiesStorage, settings *settings.BlockchainSe
 	return &ethInfo{stor: stor, settings: settings}
 }
 
-func GuessEthereumTransactionKind(data []byte) (int64, error) {
+func GuessEthereumTransactionKind(data []byte, receiver *proto.EthereumAddress) (int64, error) {
 	if len(data) == 0 {
 		return EthereumTransferWavesKind, nil
+	}
+
+	if receiver == nil {
+		return EthereumInvokeExpressionKind, nil
 	}
 
 	selectorBytes := data
@@ -44,7 +49,7 @@ func GuessEthereumTransactionKind(data []byte) (int64, error) {
 }
 
 func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, params *appendTxParams) (proto.EthereumTransactionKind, error) {
-	txKind, err := GuessEthereumTransactionKind(ethTx.Data())
+	txKind, err := GuessEthereumTransactionKind(ethTx.Data(), ethTx.To())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to guess ethereum tx kind")
 	}
@@ -93,7 +98,9 @@ func (e *ethInfo) ethereumTransactionKind(ethTx *proto.EthereumTransaction, para
 		}
 
 		return proto.NewEthereumInvokeScriptTxKind(*decodedData), nil
-
+	case EthereumInvokeExpressionKind:
+		expression := ethTx.Data()
+		return proto.NewEthereumInvokeExpressionTxKind(string(expression)), nil
 	default:
 		return nil, errors.New("unexpected ethereum tx kind")
 	}

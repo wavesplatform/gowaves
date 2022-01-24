@@ -226,6 +226,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		sender            proto.WavesAddress
 		r                 ride.Result
 	)
+	// TODO refactor this switch case in the next PR
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
 		err = env.SetInvoke(tx, tree.LibVersion)
@@ -291,55 +292,87 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		}
 
 	case *proto.EthereumTransaction:
-		abiPayments := transaction.TxKind.DecodedData().Payments
-		scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))
-		for _, p := range abiPayments {
-			var optAsset proto.OptionalAsset
-			if p.PresentAssetID {
-				optAsset = *proto.NewOptionalAssetFromDigest(p.AssetID)
-			} else {
-				optAsset = proto.NewOptionalAssetWaves()
+		switch transaction.TxKind.(type) {
+		case *proto.EthereumInvokeScriptTxKind:
+			abiPayments := transaction.TxKind.DecodedData().Payments
+			scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))
+			for _, p := range abiPayments {
+				var optAsset proto.OptionalAsset
+				if p.PresentAssetID {
+					optAsset = *proto.NewOptionalAssetFromDigest(p.AssetID)
+				} else {
+					optAsset = proto.NewOptionalAssetWaves()
+				}
+				scriptPayment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
+				scriptPayments = append(scriptPayments, scriptPayment)
 			}
-			scriptPayment := proto.ScriptPayment{Amount: uint64(p.Amount), Asset: optAsset}
-			scriptPayments = append(scriptPayments, scriptPayment)
-		}
-		payments = scriptPayments
+			payments = scriptPayments
 
-		err = env.SetEthereumInvoke(transaction, tree.LibVersion, scriptPayments)
-		if err != nil {
-			return nil, err
-		}
-		sender, err = transaction.WavesAddressFrom(a.settings.AddressSchemeCharacter)
-		if err != nil {
-			return nil, errors.Errorf("failed to get waves address from ethereum transaction %v", err)
-		}
-		decodedData := transaction.TxKind.DecodedData()
-		functionName = decodedData.Name
-		arguments, err := ride.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
-		if err != nil {
-			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
-		}
-		functionArguments = arguments
-		defaultFunction = true
-
-		env.ChooseSizeCheck(tree.LibVersion)
-		env.ChooseTakeString(info.rideV5Activated)
-		env.ChooseMaxDataEntriesSize(info.rideV5Activated)
-
-		// Since V5 we have to create environment with wrapped state to which we put attached payments
-		if tree.LibVersion >= 5 {
-			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV6Activated)
+			err = env.SetEthereumInvoke(transaction, tree.LibVersion, scriptPayments)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+				return nil, err
 			}
-		}
+			sender, err = transaction.WavesAddressFrom(a.settings.AddressSchemeCharacter)
+			if err != nil {
+				return nil, errors.Errorf("failed to get waves address from ethereum transaction %v", err)
+			}
+			decodedData := transaction.TxKind.DecodedData()
+			functionName = decodedData.Name
+			arguments, err := ride.ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
+			if err != nil {
+				return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
+			}
+			functionArguments = arguments
+			defaultFunction = true
 
-		r, err = ride.CallFunction(env, tree, functionName, functionArguments)
-		if err != nil {
-			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); appendErr != nil {
-				return nil, appendErr
+			env.ChooseSizeCheck(tree.LibVersion)
+			env.ChooseTakeString(info.rideV5Activated)
+			env.ChooseMaxDataEntriesSize(info.rideV5Activated)
+
+			// Since V5 we have to create environment with wrapped state to which we put attached payments
+			if tree.LibVersion >= 5 {
+				env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV6Activated)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+				}
 			}
-			return nil, err
+
+			r, err = ride.CallFunction(env, tree, functionName, functionArguments)
+			if err != nil {
+				if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); appendErr != nil {
+					return nil, appendErr
+				}
+				return nil, err
+			}
+		case *proto.EthereumInvokeExpressionTxKind:
+			err = env.SetInvoke(tx, tree.LibVersion)
+			if err != nil {
+				return nil, err
+			}
+			sender, err = transaction.WavesAddressFrom(a.settings.AddressSchemeCharacter)
+			if err != nil {
+				return nil, err
+			}
+			functionName = ""
+			env.ChooseSizeCheck(tree.LibVersion)
+			env.ChooseTakeString(info.rideV5Activated)
+			env.ChooseMaxDataEntriesSize(info.rideV5Activated)
+
+			// Since V5 we have to create environment with wrapped state to which we put attached payments
+			if tree.LibVersion >= 5 {
+				env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV6Activated)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+				}
+			}
+
+			r, err = ride.CallVerifier(env, tree)
+			if err != nil {
+				if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); appendErr != nil {
+					return nil, appendErr
+				}
+				return nil, err
+			}
 		}
 
 	default:

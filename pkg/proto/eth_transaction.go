@@ -143,6 +143,22 @@ func (tx *EthereumInvokeScriptTxKind) String() string {
 	return "EthereumInvokeScriptTxKind"
 }
 
+type EthereumInvokeExpressionTxKind struct {
+	Expression string
+}
+
+func NewEthereumInvokeExpressionTxKind(expression string) *EthereumInvokeExpressionTxKind {
+	return &EthereumInvokeExpressionTxKind{Expression: expression}
+}
+
+func (tx *EthereumInvokeExpressionTxKind) DecodedData() *ethabi.DecodedCallData {
+	return nil
+}
+
+func (tx *EthereumInvokeExpressionTxKind) String() string {
+	return "EthereumInvokeExpressionTxKind"
+}
+
 type EthereumTransaction struct {
 	inner           EthereumTxData
 	innerBinarySize int
