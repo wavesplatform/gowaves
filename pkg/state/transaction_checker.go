@@ -404,14 +404,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		}
 
 		// check if the amount is 0
-		if tx.Value() == nil {
-			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
-		}
-		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
-		if ok := res.IsInt64(); !ok {
-			return nil, errors.Errorf("failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
-		}
-		if res.Int64() == 0 {
+		if tx.Value() == 0 {
 			return nil, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
 		}
 
@@ -423,8 +416,12 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		if kind.Arguments.Amount == 0 {
 			return nil, errors.New("the amount of ethereum transfer assets is 0, which is forbidden")
 		}
+		asset, err := kind.Asset()
+		if err != nil {
+			return nil, err
+		}
 
-		isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(kind.Asset.ID), true)
+		isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(asset.ID), true)
 		if err != nil {
 			return nil, errors.Errorf("failed to get asset info, %v", err)
 		}
@@ -436,7 +433,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			return nil, errors.Errorf("the fee for ethereum transfer assets tx is not enough, min fee is %d, got %d", proto.EthereumTransferMinFee, tx.GetFee())
 		}
 
-		allAssets := []proto.OptionalAsset{kind.Asset}
+		allAssets := []proto.OptionalAsset{*asset}
 		smartAssets, err := tc.smartAssets(allAssets, info.initialisation)
 		if err != nil {
 			return nil, err
@@ -450,7 +447,10 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		if err := tc.checkTimestamps(tx.GetTimestamp(), info.currentTimestamp, info.parentTimestamp); err != nil {
 			return nil, errs.Extend(err, "invalid timestamp")
 		}
-		decodedData := tx.TxKind.DecodedData()
+		decodedData, err := tx.TxKind.DecodedData()
+		if err != nil {
+			return nil, err
+		}
 		abiPayments := decodedData.Payments
 
 		if len(abiPayments) > 10 {

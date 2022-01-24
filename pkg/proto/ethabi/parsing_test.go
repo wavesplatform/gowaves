@@ -25,7 +25,7 @@ func TestERC20EthereumTransfer(t *testing.T) {
 	require.NoError(t, err)
 
 	erc20Db := NewErc20MethodsMap()
-	callData, err := erc20Db.ParseCallDataRide(data)
+	callData, err := erc20Db.ParseCallData(data)
 	require.NoError(t, err)
 
 	require.Equal(t, expectedSignature, callData.Signature.String())
@@ -50,7 +50,7 @@ func TestGetERC20TransferArguments(t *testing.T) {
 	require.NoError(t, err)
 
 	erc20Db := NewErc20MethodsMap()
-	callData, err := erc20Db.ParseCallDataRide(data)
+	callData, err := erc20Db.ParseCallData(data)
 	require.NoError(t, err)
 
 	transferArgs, err := GetERC20TransferArguments(callData)
@@ -89,7 +89,7 @@ func TestRandomFunctionABIParsing(t *testing.T) {
 		methods:       customDB,
 		parsePayments: false,
 	}
-	callData, err := db.ParseCallDataRide(data)
+	callData, err := db.ParseCallData(data)
 	require.NoError(t, err)
 
 	require.Equal(t, "minta", callData.Name)
@@ -315,7 +315,7 @@ func TestParsingABIUsingRideMeta(t *testing.T) {
 		db, err := newMethodsMapFromRideDAppMeta(dAppMeta, tc.parsePayments)
 		require.NoError(t, err)
 
-		decodedCallData, err := db.ParseCallDataRide(data)
+		decodedCallData, err := db.ParseCallData(data)
 		require.NoError(t, err)
 
 		values := make([]DataType, 0, len(decodedCallData.Inputs))

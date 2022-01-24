@@ -21,12 +21,10 @@ func WaveletToEthereumWei(waveletAmount uint64) *big.Int {
 	)
 }
 
-func EthereumWeiToWavelet(weiAmount *big.Int) (int64, error) {
-	wavelets := new(big.Int).Div(weiAmount, new(big.Int).SetUint64(waveletToWeiMultiplier))
-	if !wavelets.IsInt64() {
-		return 0, errors.Errorf("too many wavelets=%d", wavelets)
-	}
-	return wavelets.Int64(), nil
+func EthereumWeiToWavelet(weiAmount int64) (int64, error) {
+	wavelets := weiAmount / int64(waveletToWeiMultiplier)
+
+	return wavelets, nil
 }
 
 func unmarshalTransactionToFieldFastRLP(value *fastrlp.Value) (*EthereumAddress, error) {

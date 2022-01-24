@@ -1,8 +1,6 @@
 package state
 
 import (
-	"math/big"
-
 	"github.com/ericlagergren/decimal"
 	"github.com/ericlagergren/decimal/math"
 	"github.com/mr-tron/base58"
@@ -470,11 +468,11 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 		updateMinIntermediateBalance = true
 	}
 	// Append sender diff.
+	wavesAsset := proto.NewOptionalAssetWaves()
 	senderAddress, err := tx.WavesAddressFrom(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
-	wavesAsset := proto.NewOptionalAssetWaves()
 
 	senderFeeKey := byteKey(senderAddress.ID(), wavesAsset)
 	senderFeeBalanceDiff := -int64(tx.GetFee())
@@ -482,11 +480,7 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 		return txBalanceChanges{}, err
 	}
 
-	res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
-	if ok := res.IsInt64(); !ok {
-		return txBalanceChanges{}, errors.Errorf("failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
-	}
-	amount := res.Int64()
+	amount := tx.Value()
 
 	senderAmountKey := byteKey(senderAddress.ID(), wavesAsset)
 
@@ -525,20 +519,16 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20TxKind")
 	}
 
-	decodedData := txErc20Kind.DecodedData()
-
-	var senderAddress proto.WavesAddress
-	// Append sender diff.
+	decodedData, err := txErc20Kind.DecodedData()
+	if err != nil {
+		return txBalanceChanges{}, nil
+	}
 
 	if !ethabi.IsERC20TransferSelector(decodedData.Signature.Selector()) {
 		return txBalanceChanges{}, errors.New("unexpected type of eth selector")
 	}
 
-	EthSenderAddr, err := tx.From()
-	if err != nil {
-		return txBalanceChanges{}, err
-	}
-	senderAddress, err = EthSenderAddr.ToWavesAddress(td.settings.AddressSchemeCharacter)
+	senderAddress, err := tx.WavesAddressFrom(td.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
@@ -552,8 +542,11 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	}
 
 	// transfer
-
-	senderAmountKey := byteKey(senderAddress.ID(), txErc20Kind.Asset)
+	asset, err := txErc20Kind.Asset()
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	senderAmountKey := byteKey(senderAddress.ID(), *asset)
 
 	senderAmountBalanceDiff := -txErc20Kind.Arguments.Amount
 	if err := diff.appendBalanceDiff(senderAmountKey, newBalanceDiff(senderAmountBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
@@ -566,7 +559,7 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	}
 
 	// Append receiver diff.
-	receiverKey := byteKey(etc20TransferRecipient.ID(), txErc20Kind.Asset)
+	receiverKey := byteKey(etc20TransferRecipient.ID(), *asset)
 	receiverBalanceDiff := txErc20Kind.Arguments.Amount
 	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
@@ -1440,7 +1433,10 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 		return txBalanceChanges{}, errors.New("failed to convert ethereum tx kind to EthereumTransferAssetsErc20TxKind")
 	}
 
-	decodedData := txInvokeScriptKind.DecodedData()
+	decodedData, err := txInvokeScriptKind.DecodedData()
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
 
 	noPayments := len(decodedData.Payments) == 0
 	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime && !noPayments {

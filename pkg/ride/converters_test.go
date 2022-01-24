@@ -2227,7 +2227,7 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	tx := proto.NewEthereumTransaction(txData, nil, &crypto.Digest{}, &senderPK, 0)
 	db := ethabi.NewErc20MethodsMap()
 	assert.NotNil(t, tx.Data())
-	decodedData, err := db.ParseCallDataRide(tx.Data())
+	decodedData, err := db.ParseCallData(tx.Data())
 	assert.NoError(t, err)
 	makeLessDataAmount(t, decodedData)
 
@@ -2239,7 +2239,7 @@ func TestEthereumTransferAssetsTransformTxToRideObj(t *testing.T) {
 	erc20arguments, err := ethabi.GetERC20TransferArguments(decodedData)
 	assert.NoError(t, err)
 
-	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(asset.ID), erc20arguments)
+	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, proto.NewOptionalAssetFromDigest(asset.ID), erc20arguments)
 
 	rideObj, err := transactionToObject(proto.MainNetScheme, &tx)
 	assert.NoError(t, err)

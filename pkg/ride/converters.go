@@ -1,8 +1,6 @@
 package ride
 
 import (
-	"math/big"
-
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -960,13 +958,7 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		r["senderPublicKey"] = rideBytes(callerPK)
 		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(*to))
 		r["assetId"] = optionalAsset(proto.NewOptionalAssetWaves())
-		res := new(big.Int).Div(tx.Value(), big.NewInt(int64(proto.DiffEthWaves)))
-		if ok := res.IsInt64(); !ok {
-			return nil, EvaluationFailure.Errorf(
-				"transferWithProofsToObject: failed to convert amount from ethreum transaction (big int) to int64. value is %s",
-				tx.Value().String())
-		}
-		amount := res.Int64()
+		amount := tx.Value()
 		r["amount"] = rideInt(amount)
 		r["fee"] = rideInt(tx.GetFee())
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
@@ -985,7 +977,12 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			return nil, errors.Wrap(err, "failed to convert ethereum ERC20 transfer recipient to WavesAddress")
 		}
 		r["recipient"] = rideRecipient(proto.NewRecipientFromAddress(recipientAddr))
-		r["assetId"] = optionalAsset(kind.Asset)
+		asset, err := kind.Asset()
+		if err != nil {
+			return nil, err
+		}
+
+		r["assetId"] = optionalAsset(*asset)
 		r["amount"] = rideInt(kind.Arguments.Amount)
 		r["fee"] = rideInt(tx.GetFee())
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
@@ -1000,8 +997,12 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		r["senderPublicKey"] = rideBytes(callerPK)
 		r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(*to))
 
+		decodedData, err := tx.TxKind.DecodedData()
+		if err != nil {
+			return nil, err
+		}
 		var scriptPayments []proto.ScriptPayment
-		for _, p := range tx.TxKind.DecodedData().Payments {
+		for _, p := range decodedData.Payments {
 			var optAsset proto.OptionalAsset
 			if p.PresentAssetID {
 				optAsset = *proto.NewOptionalAssetFromDigest(p.AssetID)
@@ -1029,8 +1030,8 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 			r["payments"] = make(rideList, 0)
 		}
 		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
-		r["function"] = rideString(tx.TxKind.DecodedData().Name)
-		arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(tx.TxKind.DecodedData().Inputs)
+		r["function"] = rideString(decodedData.Name)
+		arguments, err := ConvertDecodedEthereumArgumentsToProtoArguments(decodedData.Inputs)
 		if err != nil {
 			return nil, errors.Errorf("failed to convert ethereum arguments, %v", err)
 		}

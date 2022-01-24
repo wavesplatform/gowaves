@@ -163,14 +163,14 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 		}
 	}
 
-	txKind, err := state.GuessEthereumTransactionKind(data)
+	txKind, err := proto.GuessEthereumTransactionKind(data)
 	if err != nil {
 		return "", errors.Errorf("failed to guess ethereum tx kind, %v", err)
 	}
 	switch txKind {
-	case state.EthereumTransferWavesKind:
+	case proto.EthereumTransferWavesKind:
 		return fmt.Sprintf("%d", proto.MinFee), nil
-	case state.EthereumTransferAssetsKind:
+	case proto.EthereumTransferAssetsKind:
 		fee := proto.MinFee
 		assetID := (*proto.AssetID)(req.To)
 
@@ -182,7 +182,7 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 			fee += proto.MinFeeScriptedAsset
 		}
 		return fmt.Sprintf("%d", fee), nil
-	case state.EthereumInvokeKind:
+	case proto.EthereumInvokeKind:
 		fee := proto.MinFeeInvokeScript
 
 		scriptAddr, err := req.To.ToWavesAddress(s.nodeRPCApp.Scheme)
@@ -201,7 +201,7 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		decodedData, err := db.ParseCallDataRide(data)
+		decodedData, err := db.ParseCallData(data)
 		if err != nil {
 			return "", errors.Errorf("failed to parse ethereum data, %v", err)
 		}
