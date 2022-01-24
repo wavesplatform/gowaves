@@ -1147,6 +1147,7 @@ func (tc *transactionChecker) checkMassTransferWithProofs(transaction proto.Tran
 }
 
 func (tc *transactionChecker) checkDataWithProofs(transaction proto.Transaction, info *checkerInfo) ([]crypto.Digest, error) {
+	// TODO(nickeskov): add tx payload size check according to the spec
 	tx, ok := transaction.(*proto.DataWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to DataWithProofs transaction")

@@ -5045,13 +5045,13 @@ func TestDataWithProofsSizeLimit(t *testing.T) {
 	seed, _ := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	sk, _, err := crypto.GenerateKeyPair(seed)
 	require.NoError(t, err)
-	deBig := &BinaryDataEntry{Key: "binary-entry", Value: bytes.Repeat([]byte{0x00}, 1536)}
+	deBig := &BinaryDataEntry{Key: "binary-entry", Value: make([]byte, 2000)}
 	tests := []struct {
 		entries DataEntries
 		fee     uint64
 		err     string
 	}{
-		{repeat(deBig, 100), 12345, "total size of DataWithProofs transaction is bigger than 153600 bytes"},
+		{repeat(deBig, 100), 12345, "total size of DataWithProofs transaction is bigger than 184320 bytes"},
 	}
 	for _, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
@@ -5073,6 +5073,15 @@ func TestDataWithProofsSizeLimit(t *testing.T) {
 		assert.NoError(t, err)
 		err = tx2.UnmarshalSignedFromProtobuf(txBytes)
 		assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
+
+		// Test protobuf payload size
+		payload, err := tx.ProtoPayload(MainNetScheme)
+		assert.NoError(t, err)
+		marshaledPayload, err := protobuf.MarshalOptions{Deterministic: true}.Marshal(payload)
+		assert.NoError(t, err)
+		marshaledPayloadSize, err := tx.ProtoPayloadSize(MainNetScheme)
+		assert.NoError(t, err)
+		assert.Equal(t, len(marshaledPayload), marshaledPayloadSize)
 	}
 }
 

@@ -48,6 +48,9 @@ const (
 	MaxOrderTTL                              = uint64((30 * 24 * time.Hour) / time.Millisecond)
 	MaxKeySize                               = 100
 	MaxPBKeySize                             = 400
+	MaxDataWithProofsBytes                   = 150 * 1024
+	MaxDataWithProofsPBBytes                 = 165890
+	MaxDataWithProofsV6Bytes                 = 165835 // (DataEntry.MaxPBKeySize + DataEntry.MaxValueSize) * 5
 	maxDataEntryValueSize                    = 32767
 	MaxDataEntryScriptActions                = 100
 	MaxDataEntriesScriptActionsSizeInBytesV1 = 5 * 1024
@@ -2879,6 +2882,15 @@ func (e DataEntries) PayloadSize() int {
 		pl += e[i].PayloadSize()
 	}
 	return pl
+}
+
+// BinarySize returns summary binary size of all entries.
+func (e DataEntries) BinarySize() int {
+	bs := 0
+	for i := range e {
+		bs += e[i].BinarySize()
+	}
+	return bs
 }
 
 // UnmarshalJSON special method to unmarshal DataEntries from JSON with detection of real type of each entry.
