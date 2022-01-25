@@ -363,6 +363,7 @@ type environment interface {
 	setInvocation(inv rideObject)
 	libVersion() int
 	validateInternalPayments() bool
+	blockV5Activated() bool
 	rideV6Activated() bool
 	internalPaymentsValidationHeight() uint64
 	maxDataEntriesSize() int
