@@ -337,7 +337,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		MaxDataEntriesSize:   maxDataEntriesSize,
 	}
 
-	if err := proto.ValidateActions(info.actions, restrictions, int(info.libVersion)); err != nil {
+	if err := proto.ValidateActions(info.actions, restrictions, info.rideV6Activated, int(info.libVersion)); err != nil {
 		return proto.DAppError, info.failedChanges, err
 	}
 	// Check full transaction fee (with actions and payments scripts).
