@@ -886,7 +886,7 @@ func invokeScriptWithProofsToObject(scheme byte, tx *proto.InvokeScriptWithProof
 	return r, nil
 }
 
-// TODO think of reusing "InvokeScripTToObject" function. Also should we fill "payments" and "function name" fields"?
+// TODO think of reusing "InvokeScripTToObject" function.
 func invokeExpressionWithProofsToObject(scheme byte, tx *proto.InvokeExpressionTransactionWithProofs) (rideObject, error) {
 	sender, err := proto.NewAddressFromPublicKey(scheme, tx.SenderPK)
 	if err != nil {
@@ -982,6 +982,7 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 	r["bodyBytes"] = rideBytes(nil)
 	r["proofs"] = proofs(proto.NewProofs())
 
+	// TODO add ethereum invoke expression tx
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
 		r[instanceFieldName] = rideString("TransferTransaction")
@@ -1076,7 +1077,6 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		r["args"] = args
 		r["fee"] = rideInt(tx.GetFee())
 		r["timestamp"] = rideInt(tx.GetTimestamp())
-
 	default:
 		return nil, errors.New("unknown ethereum transaction kind")
 	}
@@ -1246,7 +1246,6 @@ func ethereumInvocationToObject(v int, scheme proto.Scheme, tx *proto.EthereumTr
 		r["originCaller"] = rideAddress(sender)
 		r["originCallerPublicKey"] = callerPK
 	}
-
 	switch v {
 	case 4, 5:
 		payments := make(rideList, len(scriptPayments))

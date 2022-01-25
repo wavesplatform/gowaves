@@ -3,8 +3,6 @@ package state
 import (
 	"fmt"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -640,18 +638,31 @@ type applicationResult struct {
 }
 
 func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidationParams) (*applicationResult, error) {
-	var ID crypto.Digest
+	var invokeUnion proto.InvokeTxUnion
 	switch t := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
-		ID = *t.ID
+		invokeUnion = proto.NewInvokeScriptTxUnion(t, *t.ID)
 	case *proto.InvokeExpressionTransactionWithProofs:
-		ID = *t.ID
-	case *proto.EthereumTransaction:
-		ID = *t.ID
+		invokeUnion = proto.NewInvokeExpressionTxUnion(t, *t.ID)
+	case *proto.EthereumTransaction: // ethereum InvokeExpression and InvokeScript
+		switch kind := t.TxKind.(type) {
+		case *proto.EthereumInvokeScriptTxKind:
+			invokeUnion = proto.NewInvokeScriptTxUnion(kind, *t.ID)
+		case *proto.EthereumInvokeExpressionTxKind:
+			invokeUnion = proto.NewInvokeExpressionTxUnion(kind, *t.ID)
+		default:
+			return nil, errors.New("wrong ethereum tx type in handleInvoke")
+		}
+	default:
+		return nil, errors.New("wrong tx type in handleInvoke")
 	}
-	res, err := a.ia.applyInvokeScript(tx, info)
+
+
+
+
+	res, err := a.ia.applyInvokeScript(tx,invokeUnion, info)
 	if err != nil {
-		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", ID.String(), err)
+		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", invokeUnion.TxID().String(), err)
 		return nil, err
 	}
 	return res, nil

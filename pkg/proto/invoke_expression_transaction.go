@@ -182,3 +182,7 @@ func (tx *InvokeExpressionTransactionWithProofs) ToProtobufSigned(scheme Scheme)
 		Proofs:      tx.Proofs.Bytes(),
 	}, nil
 }
+
+func (tx *InvokeExpressionTransactionWithProofs) EmptyInvokeExpressionTxMethod() {
+
+}

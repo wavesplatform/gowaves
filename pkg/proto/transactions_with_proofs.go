@@ -4765,6 +4765,9 @@ func (tx *InvokeScriptWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTran
 	}, nil
 }
 
+func (tx *InvokeScriptWithProofs) EmptyInvokeScriptTxMethod() {
+}
+
 type UpdateAssetInfoWithProofs struct {
 	Type        TransactionType  `json:"type"`
 	Version     byte             `json:"version,omitempty"`
