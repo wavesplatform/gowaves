@@ -109,6 +109,10 @@ func TestJsonAbi(t *testing.T) {
   {
     "name": "transfer",
     "type": "function",
+    "constant": false,
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "outputs": [],
     "inputs": [
       {
         "name": "_to",
@@ -126,12 +130,7 @@ func TestJsonAbi(t *testing.T) {
 	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
 
-	erc20Meth := make([]Method, 0, len(erc20Methods))
-	for _, method := range erc20Methods {
-		erc20Meth = append(erc20Meth, method)
-	}
-
-	resJsonABI, err := getJsonAbi(erc20Meth)
+	resJsonABI, err := NewErc20MethodsMap().MarshalJSON()
 	require.NoError(t, err)
 	var abiRes []abi
 	err = json.Unmarshal(resJsonABI, &abiRes)
@@ -184,6 +183,10 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
   {
     "name": "testFunction",
     "type": "function",
+    "constant": false,
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "outputs": [],
     "inputs": [
       {
         "name": "stringVar",
@@ -257,7 +260,7 @@ func TestJsonAbiWithAllTypes(t *testing.T) {
 	err := json.Unmarshal([]byte(expectedJson), &expectedABI)
 	require.NoError(t, err)
 
-	resJsonABI, err := getJsonAbi(testMethodWithAllTypes)
+	resJsonABI, err := MakeJsonABI(testMethodWithAllTypes)
 	require.NoError(t, err)
 
 	require.JSONEq(t, expectedJson, string(resJsonABI))

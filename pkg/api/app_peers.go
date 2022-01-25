@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"go.uber.org/zap"
 )
 
@@ -29,7 +30,7 @@ func (a *App) PeersAll() (PeersKnown, error) {
 
 	knownPeers := a.peers.KnownPeers()
 
-	nowMillis := unixMillis(time.Now())
+	nowMillis := common.UnixMillisFromTime(time.Now())
 
 	out := make([]Peer, 0, len(knownPeers))
 	for _, knownPeer := range knownPeers {
