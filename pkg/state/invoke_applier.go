@@ -731,7 +731,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction,invokeUnion prot
 		paymentsLength     int
 		scriptAddr         *proto.WavesAddress
 		txID               crypto.Digest
-		sender             proto.WavesAddress // TODO change to WavesAddress
+		sender             proto.WavesAddress
 		tree               *ride.Tree
 		scriptPK           crypto.PublicKey
 		isInvokeExpression bool
