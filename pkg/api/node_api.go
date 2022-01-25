@@ -10,7 +10,6 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi"
-	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -128,13 +127,13 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func findFirstInvalidRuneInBase58String(str string) *rune {
+func findFirstInvalidRuneInBase58String(str string) (rune, bool) {
 	for _, r := range str {
-		if _, err := base58.Decode(string(r)); err != nil {
-			return &r
+		if _, ok := base58Alphabet[r]; !ok {
+			return r, true
 		}
 	}
-	return nil
+	return 0, false
 }
 
 func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
@@ -142,8 +141,8 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 	s := chi.URLParam(r, "id")
 	id, err := proto.NewBlockIDFromBase58(s)
 	if err != nil {
-		if invalidRune := findFirstInvalidRuneInBase58String(s); invalidRune != nil {
-			return blockIDAtInvalidCharErr(*invalidRune, s)
+		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
+			return blockIDAtInvalidCharErr(invalidRune, s)
 		}
 		return blockIDAtInvalidLenErr(s)
 	}
@@ -471,8 +470,8 @@ func (a *NodeApi) EthereumDAppABI(w http.ResponseWriter, r *http.Request) error 
 	s := chi.URLParam(r, "address")
 	addr, err := proto.NewAddressFromString(s)
 	if err != nil {
-		if invalidRune := findFirstInvalidRuneInBase58String(s); invalidRune != nil {
-			return wavesAddressInvalidCharErr(*invalidRune, s)
+		if invalidRune, isInvalid := findFirstInvalidRuneInBase58String(s); isInvalid {
+			return wavesAddressInvalidCharErr(invalidRune, s)
 		}
 		return apiErrs.InvalidAddress
 	}
