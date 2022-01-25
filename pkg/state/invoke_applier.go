@@ -791,12 +791,16 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction,invokeUnion prot
 			sender = subTx.From
 			scriptAddr = &sender
 			tree, err = ride.Parse([]byte(subTx.Expression))
+
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
 			}
 			isInvokeExpression = true
 			txID = *subTx.TxID
 			scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
+			if err != nil {
+				return nil, err
+			}
 		default:
 			return nil, errors.New("wrong sub transaction of invoke expression transaction")
 		}
@@ -839,7 +843,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction,invokeUnion prot
 	}
 
 	// Call script function.
-	r, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr, txID)
+	r, err := ia.sc.invokeFunction(tree, tx, info, *scriptAddr, invokeUnion)
 	if err != nil {
 		// Script returned error, it's OK, but we have to decide is it failed or rejected transaction.
 		// In the following cases the transaction is rejected:
