@@ -129,9 +129,9 @@ func (tx *EthereumTransferAssetsErc20TxKind) String() string {
 
 type EthereumInvokeScriptTxKind struct {
 	decodedData ethabi.DecodedCallData
-	TxID *crypto.Digest
-	From WavesAddress
-	To WavesAddress
+	TxID        *crypto.Digest
+	From        WavesAddress
+	To          WavesAddress
 }
 
 func NewEthereumInvokeScriptTxKind(decodedData ethabi.DecodedCallData) *EthereumInvokeScriptTxKind {
@@ -152,8 +152,8 @@ func (tx *EthereumInvokeScriptTxKind) EmptyInvokeScriptTxMethod() {
 
 type EthereumInvokeExpressionTxKind struct {
 	Expression string
-	TxID *crypto.Digest
-	From WavesAddress
+	TxID       *crypto.Digest
+	From       WavesAddress
 }
 
 func NewEthereumInvokeExpressionTxKind(expression string) *EthereumInvokeExpressionTxKind {

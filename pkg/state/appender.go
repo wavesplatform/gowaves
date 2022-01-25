@@ -657,10 +657,7 @@ func (a *txAppender) handleInvoke(tx proto.Transaction, info *fallibleValidation
 		return nil, errors.New("wrong tx type in handleInvoke")
 	}
 
-
-
-
-	res, err := a.ia.applyInvokeScript(tx,invokeUnion, info)
+	res, err := a.ia.applyInvokeScript(tx, invokeUnion, info)
 	if err != nil {
 		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", invokeUnion.TxID().String(), err)
 		return nil, err

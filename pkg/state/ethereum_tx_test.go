@@ -270,7 +270,8 @@ func TestEthereumInvoke(t *testing.T) {
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
-	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
+	invokeUnion := proto.NewInvokeScriptTxUnion(txKind, *tx.ID)
+	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, invokeUnion)
 	assert.NoError(t, err)
 	assert.True(t, res.Result())
 
@@ -393,12 +394,14 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 
 	txData := defaultEthereumLegacyTxData(1000000000000000, &recipientEth, nil, 500000, proto.MainNetScheme)
 	decodedData := defaultDecodedData("call", nil, nil)
-	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumInvokeScriptTxKind(decodedData), &crypto.Digest{}, &senderPK, 0)
+	txKind := proto.NewEthereumInvokeScriptTxKind(decodedData)
+	tx := proto.NewEthereumTransaction(txData, txKind, &crypto.Digest{}, &senderPK, 0)
 
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
-	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
+	invokeUnion := proto.NewInvokeScriptTxUnion(txKind, *tx.ID)
+	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, invokeUnion)
 	assert.NoError(t, err)
 	assert.True(t, res.Result())
 
@@ -467,12 +470,14 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 		{Value: ethabi.Bool(true)}, // will leave it here
 		{Value: ethabi.List{ethabi.Int(4)}},
 	}, nil)
-	tx := proto.NewEthereumTransaction(txData, proto.NewEthereumInvokeScriptTxKind(decodedData), &crypto.Digest{}, &senderPK, 0)
+	txKind := proto.NewEthereumInvokeScriptTxKind(decodedData)
+	tx := proto.NewEthereumTransaction(txData, txKind, &crypto.Digest{}, &senderPK, 0)
 
 	fallibleInfo := &fallibleValidationParams{appendTxParams: appendTxParams, senderScripted: false, senderAddress: sender}
 	scriptAddress, tree := applyScript(t, &tx, storage, fallibleInfo)
 	fallibleInfo.rideV5Activated = true
-	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, *tx.ID)
+	invokeUnion := proto.NewInvokeScriptTxUnion(txKind, *tx.ID)
+	res, err := txAppender.ia.sc.invokeFunction(tree, &tx, fallibleInfo, scriptAddress, invokeUnion)
 	assert.NoError(t, err)
 	assert.True(t, res.Result())
 

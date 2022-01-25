@@ -307,7 +307,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 			if err != nil {
 				return nil, err
 			}
-			sender  = subTx.From
+			sender = subTx.From
 			functionName = ""
 		default:
 			return nil, errors.New("wrong sub transaction of invoke expression transaction")

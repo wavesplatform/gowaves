@@ -14,12 +14,9 @@ type InvokeExpressionSubTransaction interface {
 	EmptyInvokeExpressionTxMethod()
 }
 
-
-
-
 type InvokeScriptTxUnion struct {
 	SubTx InvokeScriptSubTransaction
-	txID crypto.Digest
+	txID  crypto.Digest
 }
 
 func NewInvokeScriptTxUnion(subTransaction InvokeScriptSubTransaction, id crypto.Digest) *InvokeScriptTxUnion {
@@ -32,13 +29,13 @@ func (invScript InvokeScriptTxUnion) TxID() crypto.Digest {
 
 type InvokeExpressionTxUnion struct {
 	SubTx InvokeExpressionSubTransaction
-	txID crypto.Digest
+	txID  crypto.Digest
 }
 
 func NewInvokeExpressionTxUnion(subTransaction InvokeExpressionSubTransaction, id crypto.Digest) *InvokeExpressionTxUnion {
 	return &InvokeExpressionTxUnion{SubTx: subTransaction, txID: id}
 }
 
-func (invExp InvokeExpressionTxUnion) TxID() crypto.Digest{
+func (invExp InvokeExpressionTxUnion) TxID() crypto.Digest {
 	return invExp.txID
 }
