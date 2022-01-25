@@ -49,8 +49,8 @@ const (
 	MaxKeySize                               = 100
 	MaxPBKeySize                             = 400
 	MaxDataWithProofsBytes                   = 150 * 1024
-	MaxDataWithProofsPBBytes                 = 165890
-	MaxDataWithProofsV6Bytes                 = 165835 // (DataEntry.MaxPBKeySize + DataEntry.MaxValueSize) * 5
+	MaxDataWithProofsProtoBytes              = 165_890
+	MaxDataWithProofsV6PayloadBytes          = 165_835 // (DataEntry.MaxPBKeySize + DataEntry.MaxValueSize) * 5
 	maxDataEntryValueSize                    = 32767
 	MaxDataEntryScriptActions                = 100
 	MaxDataEntriesScriptActionsSizeInBytesV1 = 5 * 1024
@@ -2333,11 +2333,11 @@ func (e BooleanDataEntry) Valid(utf16KeyLen bool) error {
 	}
 	if utf16KeyLen {
 		if len(utf16.Encode([]rune(e.Key))) > MaxKeySize {
-			return errs.NewTooBigArray("key is too large11")
+			return errs.NewTooBigArray("key is too large")
 		}
 	} else {
 		if len(e.Key) > MaxPBKeySize {
-			return errs.NewTooBigArray("key is too large22")
+			return errs.NewTooBigArray("key is too large")
 		}
 	}
 	return nil
@@ -2891,6 +2891,16 @@ func (e DataEntries) BinarySize() int {
 		bs += e[i].BinarySize()
 	}
 	return bs
+}
+
+// Valid calls DataEntry.Valid for each entry.
+func (e DataEntries) Valid(utf16KeyLen bool) error {
+	for i := range e {
+		if err := e[i].Valid(utf16KeyLen); err != nil {
+			return errors.Wrapf(err, "invalid entry %d", i)
+		}
+	}
+	return nil
 }
 
 // UnmarshalJSON special method to unmarshal DataEntries from JSON with detection of real type of each entry.

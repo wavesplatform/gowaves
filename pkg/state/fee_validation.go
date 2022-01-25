@@ -102,35 +102,40 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		if err != nil {
 			return 0, err
 		}
+		isRideV6Activated, err := params.stor.features.newestIsActivated(int16(settings.RideV6))
+		if err != nil {
+			return 0, err
+		}
 		var (
-			scheme       = params.settings.AddressSchemeCharacter
-			dtxBytesSize int
+			scheme         = params.settings.AddressSchemeCharacter
+			dtxBytesForFee int
 		)
-		// TODO(nickeskov): add new cases according to the RideV6 spec
 		switch {
+		case isRideV6Activated:
+			dtxBytesForFee = dtx.Entries.PayloadSize()
 		case proto.IsProtobufTx(tx):
 			payloadSize, err := dtx.ProtoPayloadSize(scheme)
 			if err != nil {
 				return 0, err
 			}
-			dtxBytesSize = payloadSize
+			dtxBytesForFee = payloadSize
 		case smartAccountsActive:
 			dtxBytes, err := proto.MarshalTxBody(scheme, dtx)
 			if err != nil {
 				return 0, err
 			}
-			dtxBytesSize = len(dtxBytes)
+			dtxBytesForFee = len(dtxBytes)
 		default:
-			dtxBytes, err := proto.MarshalTx(scheme, dtx)
+			dtxBytes, err := dtx.MarshalBinary()
 			if err != nil {
 				return 0, err
 			}
-			dtxBytesSize = len(dtxBytes)
+			dtxBytesForFee = len(dtxBytes)
 		}
-		if dtxBytesSize < 1 {
-			panic(fmt.Sprintf("BUG, CREATE REPORT: dataTx bytes size (%d) must be greater than zero", dtxBytesSize))
+		if dtxBytesForFee < 0 {
+			panic(fmt.Sprintf("BUG, CREATE REPORT: dataTx bytes size (%d) must not be lower than zero", dtxBytesForFee))
 		}
-		fee += uint64((dtxBytesSize - 1) / 1024)
+		fee += uint64((dtxBytesForFee - 1) / 1024)
 	case proto.ReissueTransaction, proto.SponsorshipTransaction:
 		blockV5Activated, err := params.stor.features.newestIsActivated(int16(settings.BlockV5))
 		if err != nil {

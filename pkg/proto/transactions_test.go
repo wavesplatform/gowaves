@@ -4984,11 +4984,8 @@ func TestDataWithProofsValidations(t *testing.T) {
 		return r
 	}
 	ieOk := &IntegerDataEntry{Key: "integer-entry", Value: 12345}
-	ieFail := &IntegerDataEntry{Key: "", Value: 1234567890}
 	beOk := &BooleanDataEntry{Key: "boolean-entry", Value: true}
-	beFail := &BooleanDataEntry{Key: strings.Repeat("too-big-key", 10), Value: false}
 	seOk := &StringDataEntry{Key: "string-entry", Value: "some string value, should be ok"}
-	seFail := &StringDataEntry{Key: "fail-string-entry", Value: strings.Repeat("too-big-value", 2521)}
 	deOk := &BinaryDataEntry{Key: "binary-entry", Value: []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}}
 	tests := []struct {
 		entries DataEntries
@@ -4999,19 +4996,16 @@ func TestDataWithProofsValidations(t *testing.T) {
 		{[]DataEntry{beOk}, math.MaxInt64 + 10, "fee is too big"},
 		{[]DataEntry{seOk, seOk, deOk}, 12345, "duplicate keys?"},
 		{repeat(deOk, 120), 12345, "number of DataWithProofs entries is bigger than 100"},
-		{[]DataEntry{ieFail}, 12345, "at least one of the DataWithProofs entry is not valid: empty entry key"},
-		{[]DataEntry{beFail, ieFail}, 12345, "at least one of the DataWithProofs entry is not valid: key is too large"},
-		{[]DataEntry{seFail}, 12345, "at least one of the DataWithProofs entry is not valid: value is too large"},
 	}
-	for _, tc := range tests {
+	for i, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		require.NoError(t, err)
 		tx := NewUnsignedData(1, spk, tc.fee, 0)
 		tx.Entries = tc.entries
 		_, err = tx.Validate(MainNetScheme)
-		assert.Error(t, err) //, tc.err, fmt.Sprintf("expected: %s", tc.err))
+		assert.Error(t, err, "#%d", i) //, tc.err, fmt.Sprintf("expected: %s", tc.err))
 		//assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
-		assert.Regexp(t, tc.err, err.Error())
+		assert.Regexp(t, tc.err, err.Error(), "#%d", i)
 	}
 }
 

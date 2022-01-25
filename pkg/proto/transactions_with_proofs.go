@@ -46,7 +46,7 @@ const (
 	invokeScriptWithProofsMinLen             = 1 + invokeScriptWithProofsFixedBodyLen + proofsMinLen
 	maxTransfers                             = 100
 	maxEntries                               = 100
-	maxDataWithProofsTxBytes             int = 1.2 * MaxDataWithProofsBytes
+	maxDataWithProofsTxBytes             int = 1.2 * MaxDataWithProofsBytes // according to the scala's node realization
 	maxArguments                             = 22
 	maxFunctionNameBytes                     = 255
 	maxInvokeScriptWithProofsBytes           = 5 * 1024
@@ -3153,10 +3153,6 @@ func (tx *DataWithProofs) Validate(_ Scheme) (Transaction, error) {
 		if !isPBTx && e.GetValueType() == DataDelete {
 			return tx, errors.New("delete supported only for protobuf transaction")
 		}
-		isUTF16KeyLen := tx.Version == 1
-		if err := e.Valid(isUTF16KeyLen); err != nil {
-			return tx, errs.Extend(err, "at least one of the DataWithProofs entry is not valid")
-		}
 		key := e.GetKey()
 		if _, ok := keys[key]; ok {
 			return tx, errs.NewDuplicatedDataKeys(fmt.Sprintf("duplicate key %s", key))
@@ -3172,8 +3168,7 @@ func (tx *DataWithProofs) Validate(_ Scheme) (Transaction, error) {
 	if !validJVMLong(tx.Fee) {
 		return tx, errors.New("fee is too big")
 	}
-	//TODO: validate size of transaction by version:
-	// 1 -> binary size should be less than 150 * 1024; 2 -> proto payload size should be less than 165890 bytes
+	// see tx size and entries validation in transactionChecker
 	return tx, nil
 }
 
