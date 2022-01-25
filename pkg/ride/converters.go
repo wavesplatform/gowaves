@@ -1076,7 +1076,21 @@ func ethereumTransactionToObject(scheme proto.Scheme, tx *proto.EthereumTransact
 		r["args"] = args
 		r["fee"] = rideInt(tx.GetFee())
 		r["timestamp"] = rideInt(tx.GetTimestamp())
-
+	case *proto.EthereumInvokeExpressionTxKind:
+		r := make(rideObject)
+		r[instanceFieldName] = rideString("InvokeExpressionTransaction")
+		r["version"] = rideInt(tx.GetVersion())
+		r["id"] = rideBytes(tx.ID.Bytes())
+		r["sender"] = rideAddress(sender)
+		r["senderPublicKey"] = rideBytes(callerPK)
+		r["dApp"] = rideRecipient(proto.NewRecipientFromAddress(sender))
+		r["payment"] = rideUnit{}
+		r["payments"] = make(rideList, 0)
+		r["feeAssetId"] = optionalAsset(proto.NewOptionalAssetWaves())
+		r["function"] = rideString("default")
+		r["args"] = rideList{}
+		r["fee"] = rideInt(tx.GetFee())
+		r["timestamp"] = rideInt(tx.GetTimestamp())
 	default:
 		return nil, errors.New("unknown ethereum transaction kind")
 	}

@@ -345,7 +345,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 				return nil, err
 			}
 		case *proto.EthereumInvokeExpressionTxKind:
-			err = env.SetInvoke(tx, tree.LibVersion)
+			err = env.SetEthereumInvoke(tx, tree.LibVersion, nil)
 			if err != nil {
 				return nil, err
 			}

@@ -798,7 +798,6 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 				return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
 			}
 		case *proto.EthereumInvokeExpressionTxKind:
-			var err error
 			address, err := transaction.WavesAddressFrom(ia.settings.AddressSchemeCharacter)
 			if err != nil {
 				return nil, err
@@ -812,6 +811,9 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 			isInvokeExpression = true
 			txID = *transaction.ID
 			scriptPK, err = ia.stor.scriptsStorage.newestScriptPKByAddr(*scriptAddr, !info.initialisation)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 	default:
