@@ -1,6 +1,9 @@
 package state
 
 import (
+	"errors"
+
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -44,37 +47,49 @@ func (err StateError) Error() string {
 	return err.originalError.Error()
 }
 
+func (err StateError) Unwrap() error {
+	return err.originalError
+}
+
 func IsTxCommitmentError(err error) bool {
-	if err == nil {
+	var stateErr StateError
+	switch {
+	case err == nil:
+		return false
+	case errors.As(err, &stateErr):
+		return stateErr.Type() == TxCommitmentError
+	default:
 		return false
 	}
-	se, ok := err.(StateError)
-	if !ok {
-		return false
-	}
-	return se.Type() == TxCommitmentError
 }
 
 func IsNotFound(err error) bool {
-	if err == nil {
+	var stateErr StateError
+	switch {
+	case err == nil:
 		return false
-	}
-	if err == proto.ErrNotFound {
+	case errors.Is(err, proto.ErrNotFound):
 		// Special case: sometimes proto.ErrNotFound might be used as well.
 		return true
-	}
-	// todo: handle keyvalue.ErrNotFound
-	se, ok := err.(StateError)
-	if !ok {
+	case errors.Is(err, keyvalue.ErrNotFound):
+		// the same as above, but for keyvalue.ErrNotFound
+		return true
+	case errors.As(err, &stateErr):
+		errType := stateErr.Type()
+		return (errType == NotFoundError) || (errType == RetrievalError)
+	default:
 		return false
 	}
-	return (se.errorType == NotFoundError) || (se.errorType == RetrievalError)
 }
 
 func IsInvalidInput(err error) bool {
-	se, ok := err.(StateError)
-	if !ok {
+	var stateErr StateError
+	switch {
+	case err == nil:
+		return false
+	case errors.As(err, &stateErr):
+		return stateErr.Type() == InvalidInputError
+	default:
 		return false
 	}
-	return se.errorType == InvalidInputError
 }
