@@ -1,7 +1,12 @@
 package api
 
-import "time"
+const base58BTCAlphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
-func unixMillis(t time.Time) int64 {
-	return t.UnixNano() / 1_000_000
+var base58Alphabet map[rune]struct{}
+
+func init() {
+	base58Alphabet = make(map[rune]struct{})
+	for _, r := range base58BTCAlphabet {
+		base58Alphabet[r] = struct{}{}
+	}
 }

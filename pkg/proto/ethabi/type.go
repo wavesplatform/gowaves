@@ -1,6 +1,8 @@
 package ethabi
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
@@ -23,6 +25,31 @@ const (
 	AddressType    // we use this type only for erc20 transfers
 	FixedBytesType // we use this type only for payment asset
 )
+
+func (t ArgType) String() string {
+	switch t {
+	case IntType:
+		return "IntType"
+	case UintType:
+		return "UintType"
+	case BytesType:
+		return "BytesType"
+	case BoolType:
+		return "BoolType"
+	case StringType:
+		return "StringType"
+	case SliceType:
+		return "SliceType"
+	case TupleType:
+		return "TupleType"
+	case AddressType:
+		return "AddressType"
+	case FixedBytesType:
+		return "FixedBytesType"
+	default:
+		return fmt.Sprintf("unknown ArgType (%d)", t)
+	}
+}
 
 // Type is the reflection of the supported argument type.
 type Type struct {
