@@ -247,7 +247,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= 5 {
-			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV6Activated)
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV5Activated, info.rideV6Activated)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}
@@ -276,7 +276,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= 5 {
-			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV6Activated)
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV5Activated, info.rideV6Activated)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}
@@ -328,7 +328,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= 5 {
-			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV6Activated)
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV5Activated, info.rideV6Activated)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 			}
