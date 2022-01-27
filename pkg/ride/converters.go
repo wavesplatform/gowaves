@@ -1209,7 +1209,7 @@ func invocationToObject(rideVersion int, scheme byte, tx proto.Transaction) (rid
 		Fee = transaction.Fee
 		r["payments"] = nil
 	default:
-		return nil, errors.New("failed to fill invocation object: wrong transaction type")
+		return nil, errors.Errorf("failed to fill invocation object: wrong transaction type (%T)", tx)
 	}
 	sender, err := proto.NewAddressFromPublicKey(scheme, senderPK)
 	if err != nil {

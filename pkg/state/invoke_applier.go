@@ -794,7 +794,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		}
 
 	default:
-		return nil, errors.Errorf("failed to apply an invoke script: unexpected type of transaction %s", tx.GetTypeInfo().String())
+		return nil, errors.Errorf("failed to apply an invoke script: unexpected type of transaction (%T)", tx)
 	}
 
 	// If BlockV5 feature is not activated, we never accept failed transactions.

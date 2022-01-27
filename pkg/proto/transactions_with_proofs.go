@@ -5020,8 +5020,8 @@ func (tx *InvokeExpressionTransactionWithProofs) Validate(scheme Scheme) (Transa
 	if tx.Version < 1 || tx.Version > MaxInvokeScriptTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for InvokeExpression", tx.Version)
 	}
-	if len(tx.Expression) > MaxContractScriptSize {
-		return tx, errors.Errorf("size of the expression %d is exceeded limit %d", len(tx.Expression), MaxContractScriptSize)
+	if l := len(tx.Expression); l > MaxContractScriptSize {
+		return tx, errors.Errorf("size of the expression %d is exceeded limit %d", l, MaxContractScriptSize)
 	}
 	if tx.Fee == 0 {
 		return tx, errors.New("fee should be positive")
@@ -5029,7 +5029,6 @@ func (tx *InvokeExpressionTransactionWithProofs) Validate(scheme Scheme) (Transa
 	if !validJVMLong(tx.Fee) {
 		return tx, errors.New("fee is too big")
 	}
-
 	if tx.ChainID != scheme {
 		return tx, errors.New("the chain id of InvokeExpression is not equal to network byte")
 	}

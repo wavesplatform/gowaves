@@ -334,7 +334,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		}
 
 	default:
-		return nil, errors.Errorf("failed to invoke function: unexpected type of transaction %s", transaction.GetTypeInfo().String())
+		return nil, errors.Errorf("failed to invoke function: unexpected type of transaction (%T)", transaction)
 	}
 
 	if err := a.appendFunctionComplexity(r.Complexity(), scriptAddress, functionName, defaultFunction, info); err != nil {
