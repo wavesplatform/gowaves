@@ -984,7 +984,7 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, initialisation bo
 		height:         height,
 		initialisation: initialisation,
 	}
-	// Check and perform block's transactions, create balance diffs, write transactions to storage.\
+	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
 		return err
 	}

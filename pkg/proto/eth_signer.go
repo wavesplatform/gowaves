@@ -2,13 +2,12 @@ package proto
 
 import (
 	"crypto/ecdsa"
-	"github.com/mr-tron/base58/base58"
-	"math/big"
-
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"math/big"
 )
 
 var ErrInvalidChainId = errors.New("invalid chain id for signer")

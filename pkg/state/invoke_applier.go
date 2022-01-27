@@ -765,7 +765,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		}
 		sender = addr
 		scriptAddr = &addr
-		tree, err = ride.Parse([]byte(transaction.Expression))
+		tree, err = ride.Parse(transaction.Expression)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to parse decoded invoke expression into tree")
 		}
@@ -796,7 +796,7 @@ func (ia *invokeApplier) applyInvokeScript(tx proto.Transaction, info *fallibleV
 		}
 
 	default:
-		return nil, errors.New("failed to apply an invoke script: unexpected type of transaction ")
+		return nil, errors.Errorf("failed to apply an invoke script: unexpected type of transaction %s", tx.GetTypeInfo().String())
 	}
 
 	// If BlockV5 feature is not activated, we never accept failed transactions.

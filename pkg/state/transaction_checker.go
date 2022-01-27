@@ -17,12 +17,6 @@ import (
 )
 
 const (
-	KiB = 1024
-	MiB = 1024 * KiB
-
-	maxVerifierScriptSize = 8 * KiB
-	maxContractScriptSize = 32 * KiB
-
 	maxEstimatorVersion = 3
 )
 
@@ -178,9 +172,9 @@ func (tc *transactionChecker) checkScript(script proto.Script, estimatorVersion 
 	if err != nil {
 		return nil, errs.Extend(err, "failed to build AST")
 	}
-	maxSize := maxVerifierScriptSize
+	maxSize := proto.MaxVerifierScriptSize
 	if tree.IsDApp() {
-		maxSize = maxContractScriptSize
+		maxSize = proto.MaxContractScriptSize
 	}
 	if l := len(script); l > maxSize {
 		return nil, errors.Errorf("script size %d is greater than limit of %d", l, maxSize)

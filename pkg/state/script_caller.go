@@ -217,6 +217,9 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 	if err != nil {
 		return nil, err
 	}
+	env.ChooseSizeCheck(tree.LibVersion)
+	env.ChooseTakeString(info.rideV5Activated)
+	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 
 	var (
 		functionName      string
@@ -240,10 +243,6 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		functionName = transaction.FunctionCall.Name
 		functionArguments = transaction.FunctionCall.Arguments
 		defaultFunction = transaction.FunctionCall.Default
-
-		env.ChooseSizeCheck(tree.LibVersion)
-		env.ChooseTakeString(info.rideV5Activated)
-		env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= 5 {
@@ -270,9 +269,6 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 			return nil, err
 		}
 		functionName = ""
-		env.ChooseSizeCheck(tree.LibVersion)
-		env.ChooseTakeString(info.rideV5Activated)
-		env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= 5 {
@@ -321,11 +317,6 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		}
 		functionArguments = arguments
 		defaultFunction = true
-
-		env.ChooseSizeCheck(tree.LibVersion)
-		env.ChooseTakeString(info.rideV5Activated)
-		env.ChooseMaxDataEntriesSize(info.rideV5Activated)
-
 		// Since V5 we have to create environment with wrapped state to which we put attached payments
 		if tree.LibVersion >= 5 {
 			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV5Activated, info.rideV6Activated)
@@ -343,7 +334,7 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		}
 
 	default:
-		return nil, errors.New("failed to invoke function: unexpected type of transaction ")
+		return nil, errors.Errorf("failed to invoke function: unexpected type of transaction %s", transaction.GetTypeInfo().String())
 	}
 
 	if err := a.appendFunctionComplexity(r.Complexity(), scriptAddress, functionName, defaultFunction, info); err != nil {

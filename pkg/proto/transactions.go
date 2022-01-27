@@ -37,8 +37,8 @@ const (
 	SetAssetScriptTransaction                              // 15 - SetAssetScript transaction
 	InvokeScriptTransaction                                // 16 - InvokeScript transaction
 	UpdateAssetInfoTransaction                             // 17 - UpdateAssetInfoTransaction
-	InvokeExpressionTransaction                            // 18 - reserved
-	EthereumMetamaskTransaction                            // 19 - EthereumMetamaskTransaction is a transaction which received from metamask
+	InvokeExpressionTransaction                            // 18 - InvokeExpressionTransaction
+	EthereumMetamaskTransaction                            // 19 - EthereumMetamaskTransaction is a transaction which is received from metamask
 
 )
 
@@ -92,6 +92,11 @@ const (
 	MinFee              = 100_000
 	MinFeeScriptedAsset = 400_000
 	MinFeeInvokeScript  = 500_000
+
+	MaxContractScriptSize = 32 * KiB
+	MaxVerifierScriptSize = 8 * KiB
+	KiB                   = 1024
+	MiB                   = 1024 * KiB
 )
 
 var (
