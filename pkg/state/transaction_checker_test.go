@@ -933,7 +933,11 @@ func TestCheckDataWithProofs(t *testing.T) {
 	assert.EqualError(t, err, "data tx binary size limit exceeded, limit=153600, actual size=164299")
 	tx.Entries = tx.Entries[:len(tx.Entries)-len(bigEntries)]
 
-	// TODO: Check data tx size binary after rideV6 activation
+	to.stor.activateFeature(t, int16(settings.RideV6))
+	tx.Entries = append(tx.Entries, bigEntries...)
+	_, err = to.tc.checkDataWithProofs(tx, info)
+	assert.NoError(t, err, "checkDataWithProofs failed with valid Data tx")
+	tx.Entries = tx.Entries[:len(tx.Entries)-len(bigEntries)]
 }
 
 func TestCheckSponsorshipWithProofs(t *testing.T) {
