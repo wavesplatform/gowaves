@@ -128,7 +128,7 @@ func (b B58Bytes) Bytes() []byte {
 type B64Bytes []byte
 
 func (b B64Bytes) String() string {
-	return base64.StdEncoding.EncodeToString(b)
+	return string(b)
 }
 
 func (b B64Bytes) MarshalJSON() ([]byte, error) {
