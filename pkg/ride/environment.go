@@ -1352,7 +1352,7 @@ func (e *EvaluationEnvironment) SetTransactionFromOrder(order proto.Order) error
 	return nil
 }
 
-func (e *EvaluationEnvironment) SetInvoke(tx *proto.InvokeScriptWithProofs, v int) error {
+func (e *EvaluationEnvironment) SetInvoke(tx proto.Transaction, v int) error {
 	obj, err := invocationToObject(v, e.sch, tx)
 	if err != nil {
 		return err

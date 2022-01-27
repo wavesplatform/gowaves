@@ -217,15 +217,21 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 	if err != nil {
 		return nil, err
 	}
+	env.ChooseSizeCheck(tree.LibVersion)
+	env.ChooseTakeString(info.rideV5Activated)
+	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 
-	var functionName string
-	var functionArguments proto.Arguments
-	var defaultFunction bool
-	var payments proto.ScriptPayments
-	var sender proto.WavesAddress
+	var (
+		functionName      string
+		functionArguments proto.Arguments
+		defaultFunction   bool
+		payments          proto.ScriptPayments
+		sender            proto.WavesAddress
+		r                 ride.Result
+	)
 	switch transaction := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
-		err = env.SetInvoke(transaction, tree.LibVersion)
+		err = env.SetInvoke(tx, tree.LibVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -237,6 +243,48 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		functionName = transaction.FunctionCall.Name
 		functionArguments = transaction.FunctionCall.Arguments
 		defaultFunction = transaction.FunctionCall.Default
+
+		// Since V5 we have to create environment with wrapped state to which we put attached payments
+		if tree.LibVersion >= 5 {
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV5Activated, info.rideV6Activated)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+			}
+		}
+
+		r, err = ride.CallFunction(env, tree, functionName, functionArguments)
+		if err != nil {
+			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); appendErr != nil {
+				return nil, appendErr
+			}
+			return nil, err
+		}
+	case *proto.InvokeExpressionTransactionWithProofs:
+		err = env.SetInvoke(tx, tree.LibVersion)
+		if err != nil {
+			return nil, err
+		}
+		sender, err = proto.NewAddressFromPublicKey(a.settings.AddressSchemeCharacter, transaction.SenderPK)
+		if err != nil {
+			return nil, err
+		}
+		functionName = ""
+
+		// Since V5 we have to create environment with wrapped state to which we put attached payments
+		if tree.LibVersion >= 5 {
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV5Activated, info.rideV6Activated)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+			}
+		}
+
+		r, err = ride.CallVerifier(env, tree)
+		if err != nil {
+			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); appendErr != nil {
+				return nil, appendErr
+			}
+			return nil, err
+		}
 
 	case *proto.EthereumTransaction:
 		abiPayments := transaction.TxKind.DecodedData().Payments
@@ -269,30 +317,26 @@ func (a *scriptCaller) invokeFunction(tree *ride.Tree, tx proto.Transaction, inf
 		}
 		functionArguments = arguments
 		defaultFunction = true
+		// Since V5 we have to create environment with wrapped state to which we put attached payments
+		if tree.LibVersion >= 5 {
+			env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.rideV5Activated, info.rideV6Activated)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
+			}
+		}
+
+		r, err = ride.CallFunction(env, tree, functionName, functionArguments)
+		if err != nil {
+			if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); appendErr != nil {
+				return nil, appendErr
+			}
+			return nil, err
+		}
 
 	default:
-		return nil, errors.New("failed to invoke function: unexpected type of transaction ")
+		return nil, errors.Errorf("failed to invoke function: unexpected type of transaction (%T)", transaction)
 	}
 
-	env.ChooseSizeCheck(tree.LibVersion)
-	env.ChooseTakeString(info.rideV5Activated)
-	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
-
-	// Since V5 we have to create environment with wrapped state to which we put attached payments
-	if tree.LibVersion >= 5 {
-		env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, info.blockV5Activated, info.rideV6Activated)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
-		}
-	}
-
-	r, err := ride.CallFunction(env, tree, functionName, functionArguments)
-	if err != nil {
-		if appendErr := a.appendFunctionComplexity(ride.EvaluationErrorSpentComplexity(err), scriptAddress, functionName, defaultFunction, info); appendErr != nil {
-			return nil, appendErr
-		}
-		return nil, err
-	}
 	if err := a.appendFunctionComplexity(r.Complexity(), scriptAddress, functionName, defaultFunction, info); err != nil {
 		return nil, err
 	}

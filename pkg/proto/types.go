@@ -125,6 +125,42 @@ func (b B58Bytes) Bytes() []byte {
 	return b
 }
 
+type B64Bytes []byte
+
+func (b B64Bytes) String() string {
+	return base64.StdEncoding.EncodeToString(b)
+}
+
+func (b B64Bytes) MarshalJSON() ([]byte, error) {
+	return common.ToBase64JSON(b), nil
+}
+
+func (b *B64Bytes) UnmarshalJSON(value []byte) error {
+	str := string(value)
+	if str == jsonNull {
+		return nil
+	}
+	s, err := strconv.Unquote(str)
+	if err != nil {
+		*b = nil
+		return errors.Wrap(err, "failed to unmarshal B64Bytes from JSON")
+	}
+	if s == "" {
+		*b = []byte{}
+		return nil
+	}
+	v, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return errors.Wrap(err, "failed to decode B64Bytes")
+	}
+	*b = v
+	return nil
+}
+
+func (b B64Bytes) Bytes() []byte {
+	return b
+}
+
 type HexBytes []byte
 
 // String represents underlying bytes as Hex string with 0x prefix

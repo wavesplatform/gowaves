@@ -129,6 +129,11 @@ func (d *blockDiffer) createFailedTransactionDiff(tx proto.Transaction, block *p
 		if err != nil {
 			return txBalanceChanges{}, err
 		}
+	case proto.InvokeExpressionTransaction:
+		txChanges, err = d.handler.td.createFeeDiffInvokeExpressionWithProofs(tx, differInfo)
+		if err != nil {
+			return txBalanceChanges{}, err
+		}
 	default:
 		return txBalanceChanges{}, errors.New("only Exchange and Invoke transactions may fail")
 	}
